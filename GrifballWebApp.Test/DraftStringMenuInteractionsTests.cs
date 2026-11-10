@@ -2,7 +2,6 @@ using DiscordInterfaces;
 using System.Text.Json;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Teams;
-using GrifballWebApp.Server.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NetCord;
@@ -16,6 +15,9 @@ using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Application.Teams;
+using GrifballWebApp.Infrastructure.Teams;
 
 namespace GrifballWebApp.Test;
 
@@ -25,6 +27,8 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class DraftStringMenuInteractionsTests
 {
+    private static readonly JsonSerializerOptions InteractionJson = new() { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString };
+
     private const ulong DiscordId = 4242;
     private GrifballContext _context = null!;
     private FakeRestRequestHandler _handler = null!;
@@ -55,8 +59,7 @@ public class DraftStringMenuInteractionsTests
          "message":{"id":"9","channel_id":"3","author":{"id":"2","username":"bot","discriminator":"0"},"content":"","timestamp":"2024-01-01T00:00:00+00:00","tts":false,"mention_everyone":false,"mentions":[],"mention_roles":[],"attachments":[],"embeds":[],"pinned":false,"type":0},
          "locale":"en-US","entitlements":[],"authorizing_integration_owners":{},"context":1}
         """;
-        var model = JsonSerializer.Deserialize<JsonInteraction>(json,
-            new JsonSerializerOptions { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString })!;
+        var model = JsonSerializer.Deserialize<JsonInteraction>(json, InteractionJson)!;
         var interaction = new StringMenuInteraction(model, null!, (_, cb, _, _, _) => { lock (_callbacks) _callbacks.Add(cb); return Task.FromResult<InteractionCallbackResponse?>(null); }, _rest);
         var context = new StringMenuInteractionContext(interaction, null!);
 
@@ -85,16 +88,19 @@ public class DraftStringMenuInteractionsTests
         // User exists with this discord id but has no Xbox account linked
         var user = await _context.AddUser("nogt", "No GT", discordName: "nogt");
         var discordId = (ulong)user.DiscordUserID!.Value;
-        var (handler, discordContext) = CreateHandler(new TeamService(_context, Substitute.For<IPublisher>(), new ContextOutbox(_context)), "1", discordId);
+        var (handler, discordContext) = CreateHandler(new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)), "1", discordId);
 
         await handler.DraftPick(discordContext, 1, 2); // includes the app's 5s temp-response delay
 
         var cb = _callbacks.Single();
         Assert.That(cb.Type, Is.EqualTo(InteractionCallbackType.Message));
         var data = ((InteractionCallbackProperties<InteractionMessageProperties>)cb).Data;
-        Assert.That(data.Content, Is.EqualTo("You must set your gamertag first"));
-        Assert.That(_handler.Requests.Any(r => r.Method == HttpMethod.Delete), Is.True, "temp response is deleted afterwards");
-        Assert.That(ModifiedContents(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(data.Content, Is.EqualTo("You must set your gamertag first"));
+            Assert.That(_handler.Requests.Any(r => r.Method == HttpMethod.Delete), Is.True, "temp response is deleted afterwards");
+            Assert.That(ModifiedContents(), Is.Empty);
+        }
     }
 
     [Test]
@@ -103,28 +109,37 @@ public class DraftStringMenuInteractionsTests
         var (season, captain, player) = await SeedDraft();
         await _context.AddSignup(season, player);
         var publisher = Substitute.For<IPublisher>();
-        var (handler, discordContext) = CreateHandler(new TeamService(_context, publisher, new ContextOutbox(_context)), player.Id.ToString());
+        var (handler, discordContext) = CreateHandler(new TeamService(_context, publisher, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)), player.Id.ToString());
 
         await handler.DraftPick(discordContext, season.SeasonID, captain.Id);
 
-        Assert.That(_callbacks.Single().Type, Is.EqualTo(InteractionCallbackType.DeferredMessage));
-        Assert.That(ModifiedContents(), Is.EqualTo(new[] { $"<@{DiscordId}>, your pick was made successfully" }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_callbacks.Single().Type, Is.EqualTo(InteractionCallbackType.DeferredMessage));
+            Assert.That(ModifiedContents(), Is.EqualTo(new[] { $"<@{DiscordId}>, your pick was made successfully" }));
+        }
         await using var ctx = _context.NewContextLike();
         var tp = await ctx.Set<TeamPlayer>().SingleAsync(x => x.UserID == player.Id);
-        Assert.That(tp.DraftRound, Is.EqualTo(1));
-        Assert.That(publisher.ReceivedCalls(), Has.Exactly(1).Items);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(tp.DraftRound, Is.EqualTo(1));
+            Assert.That(publisher.ReceivedCalls(), Has.Exactly(1).Items);
+        }
     }
 
     [Test]
     public async Task DraftPick_Should_ReportTeamServiceErrors()
     {
         var (season, captain, player) = await SeedDraft(); // player not signed up
-        var (handler, discordContext) = CreateHandler(new TeamService(_context, Substitute.For<IPublisher>(), new ContextOutbox(_context)), player.Id.ToString());
+        var (handler, discordContext) = CreateHandler(new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)), player.Id.ToString());
 
         await handler.DraftPick(discordContext, season.SeasonID, captain.Id);
 
-        Assert.That(ModifiedContents(), Is.EqualTo(new[] { $"Hey <@{DiscordId}>, This player has not signed up" }));
-        Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(x => x.UserID == player.Id), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ModifiedContents(), Is.EqualTo(new[] { $"Hey <@{DiscordId}>, This player has not signed up" }));
+            Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(x => x.UserID == player.Id), Is.False);
+        }
     }
 
     [Test]
@@ -134,18 +149,18 @@ public class DraftStringMenuInteractionsTests
         await _context.AddSignup(season, player);
         var broken = _context.NewContextLike();
         await broken.DisposeAsync();
-        var (handler, discordContext) = CreateHandler(new TeamService(broken, Substitute.For<IPublisher>(), new ContextOutbox(broken)), player.Id.ToString());
+        var (handler, discordContext) = CreateHandler(new TeamService(broken, Substitute.For<IPublisher>(), new OutboxDraftChannel(broken, new ContextOutbox(broken)), new ContextDatabaseLocks(broken)), player.Id.ToString());
 
         await handler.DraftPick(discordContext, season.SeasonID, captain.Id);
 
         Assert.That(ModifiedContents(), Is.EqualTo(new[] { $"Hey <@{DiscordId}>, something bad happened. Please try again and contact sysadmin if problem persists" }));
         var entry = _logger.Entries.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
             Assert.That(entry.Exception, Is.Not.Null, "the exception must be logged, not dropped");
             Assert.That(entry.Message, Does.Contain("DraftPick failed").And.Contain(DiscordId.ToString())
                 .And.Contain(season.SeasonID.ToString()).And.Contain(captain.Id.ToString()));
-        });
+        }
     }
 }

@@ -1,14 +1,14 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Availability;
-using GrifballWebApp.Server.EventOrganizer;
-using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Domain.League;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using AvailabilityTimeslotDto = GrifballWebApp.Server.Availability.TimeslotDto;
+using AvailabilityTimeslotDto = GrifballWebApp.Application.Availability.TimeslotDto;
+using GrifballWebApp.Application.Availability;
+using GrifballWebApp.Application.EventOrganizer;
+using GrifballWebApp.Application.Seasons;
 
 namespace GrifballWebApp.Test;
 
@@ -33,7 +33,7 @@ public class SeasonAndAvailabilityControllerTests
         var current = Season.Seed(seasonName: "Current").WithDates(seasonStart: now.AddDays(-1), seasonEnd: now.AddDays(10));
         _context.Seasons.AddRange(past, current);
         await _context.SaveChangesAsync();
-        var controller = new SeasonController(new EventOrganizerService(_context), new SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context)));
+        var controller = new SeasonController(new EventOrganizerService(_context), new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context)));
 
         Assert.That(await controller.GetCurrentSeasonID(CancellationToken.None), Is.EqualTo(current.SeasonID));
         Assert.That(await controller.GetSeasonName(past.SeasonID, CancellationToken.None), Is.EqualTo("Past"));

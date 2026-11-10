@@ -1,12 +1,10 @@
-using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Hosting;
-using GrifballWebApp.Server.Jobs;
-using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Outbox;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using GrifballWebApp.Infrastructure.HaloInfinite;
+using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Infrastructure.Outbox;
 
 namespace GrifballWebApp.Test;
 
@@ -66,8 +64,8 @@ public class AppRoleTests
         {
             Assert.That(role.Runs(typeof(OutboxDispatcher)), Is.EqualTo(outbox), "The outbox (claimed in the database)");
             Assert.That(role.Runs(typeof(Quartz.QuartzHostedService)), Is.EqualTo(jobs), "The jobs");
-            Assert.That(role.Runs(typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker)), Is.EqualTo(jobs), "The historical import");
-            Assert.That(role.Runs(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)), Is.EqualTo(xuidLookups), "The XUID lookups (one per deployment)");
+            Assert.That(role.Runs(typeof(GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker)), Is.EqualTo(jobs), "The historical import");
+            Assert.That(role.Runs(typeof(GrifballWebApp.Infrastructure.Historical.XuidLookupWorker)), Is.EqualTo(xuidLookups), "The XUID lookups (one per deployment)");
             Assert.That(role.Runs(typeof(OtherHostedService)), Is.True, "Any other, everywhere");
         });
     }
@@ -118,14 +116,14 @@ public class AppRoleTests
     public void TheHistoricalImportWorker_RunsOnlyInTheWorkerRoles()
     {
         var services = new ServiceCollection();
-        services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportWorker>();
+        services.AddHostedService<GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker>();
         services.AddHostedService<OtherHostedService>();
-        Assert.That(AppRole.WorkerHostedServices, Does.Contain(typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker)));
+        Assert.That(AppRole.WorkerHostedServices, Does.Contain(typeof(GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker)));
         Assert.That(HostedTypes(services.ApplyAppRole(new AppRole(AppRoleKind.Api))), Is.EqualTo(new[] { typeof(OtherHostedService) }));
 
         var worker = new ServiceCollection();
-        worker.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportWorker>();
-        Assert.That(HostedTypes(worker.ApplyAppRole(new AppRole(AppRoleKind.Worker))), Does.Contain(typeof(GrifballWebApp.Server.Historical.HistoricalImportWorker)));
+        worker.AddHostedService<GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker>();
+        Assert.That(HostedTypes(worker.ApplyAppRole(new AppRole(AppRoleKind.Worker))), Does.Contain(typeof(GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker)));
     }
 
     [Test]
@@ -136,11 +134,11 @@ public class AppRoleTests
     public void TheXuidLookupWorker_RunsOnlyInTheDiscordRoles(AppRoleKind kind, bool runs)
     {
         // Throttled in process and unclaimed: one per deployment, so not on the workers, which may be several
-        Assert.That(AppRole.DiscordHostedServices, Does.Contain(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)));
-        Assert.That(AppRole.WorkerHostedServices, Does.Not.Contain(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)));
+        Assert.That(AppRole.DiscordHostedServices, Does.Contain(typeof(GrifballWebApp.Infrastructure.Historical.XuidLookupWorker)));
+        Assert.That(AppRole.WorkerHostedServices, Does.Not.Contain(typeof(GrifballWebApp.Infrastructure.Historical.XuidLookupWorker)));
         var services = new ServiceCollection();
-        services.AddHostedService<GrifballWebApp.Server.Historical.XuidLookupWorker>();
-        Assert.That(HostedTypes(services.ApplyAppRole(new AppRole(kind))).Contains(typeof(GrifballWebApp.Server.Historical.XuidLookupWorker)), Is.EqualTo(runs));
+        services.AddHostedService<GrifballWebApp.Infrastructure.Historical.XuidLookupWorker>();
+        Assert.That(HostedTypes(services.ApplyAppRole(new AppRole(kind))).Contains(typeof(GrifballWebApp.Infrastructure.Historical.XuidLookupWorker)), Is.EqualTo(runs));
     }
 
     [TestCase(AppRoleKind.Api, false)]

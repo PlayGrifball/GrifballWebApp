@@ -1,10 +1,9 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Brackets;
-using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.TeamStandings;
-using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Application.TeamStandings;
 
 namespace GrifballWebApp.Test;
 
@@ -22,7 +21,7 @@ public class BracketServiceTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _teamStandingsService = new TeamStandingsService(_context);
-        _service = new BracketService(_context, _teamStandingsService, new GrifballWebApp.Server.Championships.ChampionshipService(_context));
+        _service = new BracketService(_context, _teamStandingsService, new GrifballWebApp.Application.Championships.ChampionshipService(_context));
     }
 
     [TearDown]

@@ -1,10 +1,11 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Identity;
 using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using GrifballWebApp.Application.Identity;
+using GrifballWebApp.Server.Identity;
 
 namespace GrifballWebApp.Test;
 

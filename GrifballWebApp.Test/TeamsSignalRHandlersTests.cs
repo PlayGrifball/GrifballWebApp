@@ -1,13 +1,9 @@
-using System.Security.Claims;
-using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Teams.Handlers;
-using GrifballWebApp.Server.Notifications;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using NSubstitute;
+using GrifballWebApp.Application.Teams;
+using GrifballWebApp.Application.Teams.Handlers;
 
 namespace GrifballWebApp.Test;
 

@@ -1,20 +1,20 @@
 ﻿using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.Notifications;
-using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetCord.Rest;
 using NSubstitute;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Matchmaking;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Infrastructure.Matchmaking;
 
 namespace GrifballWebApp.Test;
 

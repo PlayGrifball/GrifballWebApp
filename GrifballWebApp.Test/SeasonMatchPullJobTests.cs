@@ -1,14 +1,16 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Brackets;
-using GrifballWebApp.Server.Jobs;
-using GrifballWebApp.Server.SeasonMatchPage;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Quartz;
 using System.Reflection;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Infrastructure.HaloInfinite;
+using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Infrastructure.SeasonMatchPage;
 
 namespace GrifballWebApp.Test;
 
@@ -35,7 +37,7 @@ public class SeasonMatchPullJobTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    private SeasonMatchService SeasonMatches() => new(_context, _dataPull, Substitute.For<IBracketService>(), new GrifballWebApp.Server.Championships.ChampionshipService(_context));
+    private SeasonMatchService SeasonMatches() => new(_context, _dataPull, Substitute.For<IBracketService>(), new GrifballWebApp.Application.Championships.ChampionshipService(_context));
 
     [Test]
     public async Task ASeasonMatchsPull_LooksThroughBothTeamsPlayers_ElevenPagesBack()

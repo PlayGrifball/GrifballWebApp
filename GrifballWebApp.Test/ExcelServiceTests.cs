@@ -1,21 +1,20 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Excel;
-using GrifballWebApp.Server.Jobs;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
 using Google.Apis.Sheets.v4;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NSubstitute;
 using Quartz;
-using System.Net;
 using System.Reflection;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Jobs;
+using GrifballWebApp.Infrastructure.Excel;
+using GrifballWebApp.Infrastructure.Jobs;
 
 namespace GrifballWebApp.Test;
 

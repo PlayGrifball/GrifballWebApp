@@ -1,11 +1,5 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server;
-using GrifballWebApp.Server.Events;
-using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Outbox;
-using GrifballWebApp.Server.Reschedule;
-using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +7,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.Outbox;
+using GrifballWebApp.Infrastructure.Events;
+using GrifballWebApp.Infrastructure.Matchmaking;
+using GrifballWebApp.Infrastructure.Reschedule;
+using GrifballWebApp.Infrastructure.Teams;
 
 namespace GrifballWebApp.Test;
 

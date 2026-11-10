@@ -1,12 +1,13 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Teams;
-using GrifballWebApp.Server.Notifications;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Application.Teams;
+using GrifballWebApp.Infrastructure.Teams;
 
 namespace GrifballWebApp.Test;
 
@@ -15,6 +16,8 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class TeamServiceTests
 {
+    private static readonly System.Text.Json.JsonSerializerOptions WebJson = new(System.Text.Json.JsonSerializerDefaults.Web);
+
     private GrifballContext _context;
     private IPublisher _publisher;
     private TeamService _service;
@@ -24,7 +27,7 @@ public class TeamServiceTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _publisher = Substitute.For<IPublisher>();
-        _service = new TeamService(_context, _publisher, new ContextOutbox(_context));
+        _service = new TeamService(_context, _publisher, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
     }
 
     [TearDown]
@@ -92,11 +95,11 @@ public class TeamServiceTests
 
         // Assert
         Assert.That(result, Has.Count.EqualTo(2));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Any(p => p.Name == "Gamer1"), Is.True);
             Assert.That(result.Any(p => p.Name == "Gamer2"), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -274,14 +277,14 @@ public class TeamServiceTests
             .ToListAsync();
         var pool = await _service.GetPlayerPool(season.SeasonID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(teams.Select(t => t.Captain.PersonID), Is.EqualTo(new[] { users[0].Id, users[2].Id, users[3].Id }));
             Assert.That(teams.Select(t => t.Captain.Order), Is.EqualTo(new int?[] { 1, 2, 3 }));
             Assert.That(captainOrders.Select(c => c.DraftCaptainOrder), Is.EqualTo(new int?[] { 1, 2, 3 }), "stored DraftCaptainOrder");
             Assert.That(_context.Teams.Any(t => t.TeamID == secondTeam.TeamID), Is.False, "removed captain's team is deleted");
             Assert.That(pool.Select(p => p.PersonID), Is.EquivalentTo(new[] { users[1].Id, users[4].Id }), "captain and their pick are back in the pool");
-        });
+        }
     }
 
     [Test]
@@ -292,14 +295,14 @@ public class TeamServiceTests
         // skips unknown members, so the field never reaches TeamService.RemoveCaptain.
         var dto = System.Text.Json.JsonSerializer.Deserialize<RemoveCaptainDto>(
             """{"seasonID":7,"personID":201,"orderNumber":0}""",
-            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+            WebJson);
 
         Assert.That(dto, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(dto!.SeasonID, Is.EqualTo(7));
             Assert.That(dto.PersonID, Is.EqualTo(201));
             Assert.That(typeof(RemoveCaptainDto).GetProperty("OrderNumber"), Is.Null);
-        });
+        }
     }
 }

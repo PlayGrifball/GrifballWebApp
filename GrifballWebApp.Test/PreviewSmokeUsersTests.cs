@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Role = GrifballWebApp.Domain.Players.Role;
 using User = GrifballWebApp.Domain.Players.User;
+using GrifballWebApp.Infrastructure.Preview;
 
 namespace GrifballWebApp.Test;
 

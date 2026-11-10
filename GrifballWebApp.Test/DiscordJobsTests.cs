@@ -1,10 +1,5 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server;
-using GrifballWebApp.Server.Events;
-using GrifballWebApp.Server.Jobs;
-using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.Extensions.Configuration;
@@ -16,6 +11,13 @@ using NetCord.Rest;
 using NSubstitute;
 using Quartz;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application;
+using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Matchmaking;
+using GrifballWebApp.Infrastructure.Events;
+using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Infrastructure.Matchmaking;
 
 namespace GrifballWebApp.Test;
 

@@ -1,8 +1,4 @@
-using GrifballWebApp.Infrastructure.Queries;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.Historical;
-using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.UserManagement;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.LateLeague;
@@ -13,6 +9,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.Queries;
 
 namespace GrifballWebApp.Test;
 
@@ -164,7 +164,7 @@ public class UserMergeAuditTests
         _context.GamertagClaims.Add(claim);
         await _context.SaveChangesAsync();
 
-        await new GrifballWebApp.Server.Historical.GamertagClaimService(_context, _merges).Approve(claim.GamertagClaimID);
+        await new GrifballWebApp.Application.Historical.GamertagClaimService(_context, _merges).Approve(claim.GamertagClaimID);
 
         _context.ChangeTracker.Clear();
         var record = await _context.UserMerges.SingleAsync();
@@ -182,11 +182,11 @@ public class UserMergeAuditTests
         await _context.SaveChangesAsync();
         (await _context.XboxUsers.WithPastGamertags().SingleAsync(x => x.XboxUserID == 77)).RecordPastGamertag("Old Tag", null, null, GamertagHistorySource.Manual);
         await _context.SaveChangesAsync();
-        var getsert = NSubstitute.Substitute.For<GrifballWebApp.Server.Services.IGetsertXboxUserService>();
+        var getsert = NSubstitute.Substitute.For<GrifballWebApp.Application.HaloInfinite.IGetsertXboxUserService>();
         getsert.GetsertXboxUserByGamertag("New Tag", NSubstitute.Arg.Any<CancellationToken>())
             .Returns(async _ => ((XboxUser?)await _context.XboxUsers.Include(x => x.User).FirstAsync(x => x.XboxUserID == 77), (string?)null));
 
-        var error = await new SetGamertagService(_context, getsert, _merges, new GrifballWebApp.Server.Historical.GamertagMatching(_context)).SetGamertag(person.Id, "New Tag");
+        var error = await new SetGamertagService(_context, getsert, _merges, new GrifballWebApp.Application.Historical.GamertagMatching(_context)).SetGamertag(person.Id, "New Tag");
 
         _context.ChangeTracker.Clear();
         var record = await _context.UserMerges.SingleAsync();

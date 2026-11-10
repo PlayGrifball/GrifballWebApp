@@ -1,6 +1,6 @@
 using System.Security.Claims;
-using GrifballWebApp.Server.Jobs;
 using Quartz;
+using GrifballWebApp.Infrastructure.Jobs;
 
 namespace GrifballWebApp.Test;
 

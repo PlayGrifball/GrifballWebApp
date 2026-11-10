@@ -2,7 +2,6 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using GrifballWebApp.Application.Matchmaking;
 
 namespace GrifballWebApp.Test;
 

@@ -1,16 +1,16 @@
-using GrifballWebApp.Infrastructure.Queries;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Brackets;
-using GrifballWebApp.Server.Championships;
-using GrifballWebApp.Server.MatchDetails;
-using GrifballWebApp.Server.SeasonMatchPage;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.TeamStandings;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using Match = GrifballWebApp.Domain.Halo.Match;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Championships;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.MatchDetails;
+using GrifballWebApp.Application.Queries;
+using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.TeamStandings;
 
 namespace GrifballWebApp.Test;
 

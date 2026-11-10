@@ -1,6 +1,6 @@
-using GrifballWebApp.Server.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
+using GrifballWebApp.Application.Notifications;
 
 namespace GrifballWebApp.Test;
 

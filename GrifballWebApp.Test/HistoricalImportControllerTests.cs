@@ -1,10 +1,7 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical;
-using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Domain.Archive;
-using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +10,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using System.Text;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Infrastructure.Historical;
 
 namespace GrifballWebApp.Test;
 
@@ -35,9 +35,9 @@ public class HistoricalImportControllerTests
         _context = await SetUpFixture.NewGrifballContext();
         _signal = new HistoricalImportSignal();
         _controller = new HistoricalImportController(new HistoricalImportJobs(_context, _signal),
-            new GrifballWebApp.Server.Historical.Sources.HistoricalSourceService(_context,
-                new GrifballWebApp.Server.Historical.Sources.HistoricalSourceFetcher(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(System.Net.HttpStatusCode.NotFound)))),
-                TimeProvider.System, NullLogger<GrifballWebApp.Server.Historical.Sources.HistoricalSourceService>.Instance));
+            new GrifballWebApp.Infrastructure.Historical.Sources.HistoricalSourceService(_context,
+                new GrifballWebApp.Infrastructure.Historical.Sources.HistoricalSourceFetcher(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(System.Net.HttpStatusCode.NotFound)))),
+                TimeProvider.System, NullLogger<GrifballWebApp.Infrastructure.Historical.Sources.HistoricalSourceService>.Instance));
         _lookupSignal = new XuidLookupSignal();
         _claims = new GamertagClaimsController(new GamertagClaimService(_context, new UserMergeService(_context)),
             new XuidLookupService(_context, Substitute.For<Surprenant.Grunt.Core.IHaloInfiniteClient>(), new GamertagMatching(_context),

@@ -1,6 +1,5 @@
 using System.Text.Json;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Matchmaking;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -138,7 +137,7 @@ internal sealed class DiscordTransportTestHost : IAsyncDisposable
                        ?? descriptor.ImplementationFactory?.Method.DeclaringType;
             return type?.Assembly.GetName().Name?.StartsWith("NetCord") is true
                    || type == typeof(Quartz.QuartzHostedService)
-                   || type == typeof(GrifballWebApp.Server.Jobs.RecurringJobSeeder);
+                   || type == typeof(GrifballWebApp.Infrastructure.Jobs.RecurringJobSeeder);
         }
     }
 }

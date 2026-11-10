@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using NetCord.Rest;
 using NSubstitute;
 using System.Text.Json;
+using GrifballWebApp.Infrastructure.Ollama;
 
 namespace GrifballWebApp.Test;
 
@@ -21,6 +22,8 @@ namespace GrifballWebApp.Test;
 [TestFixture]
 public class MessageCreateHandlerTests
 {
+    private static readonly ulong[] MentionedSeven = [7ul];
+
     private const ulong BotId = 1;
 
     private IDiscordRestClient _discordClient;
@@ -37,7 +40,7 @@ public class MessageCreateHandlerTests
         _ambient = Substitute.For<IAmbientCurrentUser>();
         _ambient.IsActive.Returns(true);
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
-        _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, new AmbientCurrentUser(), _logger);
+        _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, new AmbientCurrentUser(), _logger, new OllamaChatClients(config));
     }
 
     private static NetCord.Gateway.Message Message(ulong authorId, ulong[]? mentions = null, (ulong ChannelId, ulong MessageId)? reference = null, RestClient? restClient = null)
@@ -76,13 +79,13 @@ public class MessageCreateHandlerTests
     {
         var message = Message(5, [7], (40, 30));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(message.Author.Id, Is.EqualTo(5ul));
-            Assert.That(message.MentionedUsers.Select(x => x.Id), Is.EqualTo(new[] { 7ul }));
+            Assert.That(message.MentionedUsers.Select(x => x.Id), Is.EqualTo(MentionedSeven));
             Assert.That(message.MessageReference!.ChannelId, Is.EqualTo(40ul));
             Assert.That(message.MessageReference!.MessageId, Is.EqualTo(30ul));
-        });
+        }
     }
 
     [Test]
@@ -148,12 +151,12 @@ public class MessageCreateHandlerTests
         await _handler.HandleAsync(message);
 
         var entry = _logger.Entries.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
             Assert.That(entry.Exception, Is.TypeOf<InvalidOperationException>());
             Assert.That(entry.Message, Does.Contain("Failed to handle message").And.Contain(message.Author.Id.ToString()));
-        });
+        }
     }
 
     // Registered like Program.cs: a scoped GrifballContext with the scope's AuditInterceptor and ICurrentUserService
@@ -187,7 +190,7 @@ public class MessageCreateHandlerTests
             ["Discord:ClientId"] = BotId.ToString(),
             ["Ollama:Url"] = ollamaUrl, // by default refused at once
         }).Build();
-        return new MessageCreateHandler(_discordClient, config, services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger);
+        return new MessageCreateHandler(_discordClient, config, services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger, new OllamaChatClients(config));
     }
 
     [Test]
@@ -203,17 +206,17 @@ public class MessageCreateHandlerTests
         using var read = _db.NewContextLike();
         var saved = await read.DiscordMessages.SingleAsync(x => x.Id == 10);
         var bot = await read.DiscordUsers.SingleAsync(x => x.DiscordUserID == (long)BotId);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(saved.CreatedAt, Is.Not.EqualTo(default(DateTime)));
-            Assert.That(saved.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(saved.CreatedAt, Is.Not.Default);
+            Assert.That(saved.ModifiedAt, Is.Not.Default);
             Assert.That(saved.CreatedByID, Is.EqualTo(user.Id));
             Assert.That(saved.ModifiedByID, Is.EqualTo(user.Id));
-            Assert.That(bot.CreatedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(bot.CreatedAt, Is.Not.Default);
             Assert.That(bot.CreatedByID, Is.EqualTo(user.Id));
             // Only Ollama failed, after the writes
             Assert.That(_logger.Entries.Single().Message, Does.Contain("Failed to handle message"));
-        });
+        }
         // The author is also the ambient user while the message is handled, and only then
         Received.InOrder(() =>
         {
@@ -233,15 +236,15 @@ public class MessageCreateHandlerTests
         using var read = _db!.NewContextLike();
         var saved = await read.DiscordMessages.SingleAsync(x => x.Id == 10);
         var author = await read.DiscordUsers.SingleAsync(x => x.DiscordUserID == 5);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(saved.CreatedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(saved.CreatedAt, Is.Not.Default);
             Assert.That(saved.CreatedByID, Is.Null);
             Assert.That(saved.ModifiedByID, Is.Null);
-            Assert.That(author.CreatedAt, Is.Not.EqualTo(default(DateTime)));
-            Assert.That(author.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(author.CreatedAt, Is.Not.Default);
+            Assert.That(author.ModifiedAt, Is.Not.Default);
             Assert.That(author.CreatedByID, Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -278,11 +281,11 @@ public class MessageCreateHandlerTests
 
         using var read = _db!.NewContextLike();
         var reply = await read.DiscordMessages.SingleOrDefaultAsync(x => x.FromDiscordUserId == (long)BotId);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(reply?.Content, Is.EqualTo(first + "! The end."));
             Assert.That(discord.Requests.Count(r => r.Method == HttpMethod.Patch), Is.EqualTo(1), "The reply was edited once, at the end");
-        });
+        }
     }
 
     /// <summary>Answers Ollama's /api/chat with a streamed reply in two chunks.</summary>

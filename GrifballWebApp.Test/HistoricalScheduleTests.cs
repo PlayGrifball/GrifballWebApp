@@ -1,5 +1,4 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Domain.Archive;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,6 +6,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Quartz;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Infrastructure.Historical;
+using GrifballWebApp.Application.Database;
 
 namespace GrifballWebApp.Test;
 
@@ -38,7 +40,7 @@ public class HistoricalScheduleTests
         await _context.DropDatabaseAndDispose();
     }
 
-    private async Task<InMemoryJobs> Jobs() => _jobs = await InMemoryJobs.Create(_time, s => s.AddSingleton(_context), HistoricalRefreshJob.Definition);
+    private async Task<InMemoryJobs> Jobs() => _jobs = await InMemoryJobs.Create(_time, s => s.AddSingleton(_context).AddSingleton<IApplicationDbContext>(_context), HistoricalRefreshJob.Definition);
 
     private HistoricalImportJobs ImportJobs() => new(_context, new HistoricalImportSignal(), _time);
 
@@ -63,13 +65,13 @@ public class HistoricalScheduleTests
         await _jobs!.Seed();
         var after = await Schedule().Get();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((before.Paused, before.NextRunAt, before.Interval), Is.EqualTo((false, (DateTime?)null, TimeSpan.FromDays(1))), "No trigger yet: the default");
             Assert.That((after.Paused, after.Interval), Is.EqualTo((false, TimeSpan.FromDays(1))));
             Assert.That(after.NextRunAt, Is.EqualTo(_time.GetUtcNow().UtcDateTime.AddMinutes(10)).Within(TimeSpan.FromSeconds(1)));
             Assert.That(await _jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.TriggerKey), Is.EqualTo(TriggerState.Normal));
-        });
+        }
     }
 
     [Test]
@@ -82,14 +84,14 @@ public class HistoricalScheduleTests
         await _jobs!.Seed();
 
         var schedule = await Schedule().Get();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.TriggerKey), Is.EqualTo(TriggerState.Paused));
             Assert.That((await _jobs.Scheduler.GetTriggerPause(HistoricalRefreshJob.TriggerKey))?.Reason, Is.EqualTo(HistoricalRefreshJob.PausedReason));
             Assert.That((schedule.Paused, schedule.NextRunAt), Is.EqualTo((true, (DateTime?)null)));
             // Carried over once: a converted database (no Quartz tables) mustn't pause it again after a resume
             Assert.That((await _context.HistoricalImportSettings.AsNoTracking().SingleAsync()).SchedulePaused, Is.False);
-        });
+        }
     }
 
     [Test]
@@ -102,7 +104,7 @@ public class HistoricalScheduleTests
         await RefreshJob().Execute(Firing());
 
         var retry = await _jobs.Scheduler.GetTrigger(HistoricalRefreshJob.RetryTriggerKey);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(retry, Is.Not.Null);
             Assert.That(retry!.JobKey, Is.EqualTo(HistoricalRefreshJob.Key));
@@ -110,7 +112,7 @@ public class HistoricalScheduleTests
             Assert.That((await Settings()).LastScheduledRunNote, Is.EqualTo(HistoricalRefreshJob.WaitingNote));
             Assert.That((await Schedule().Get()).LastRunNote, Is.EqualTo(HistoricalRefreshJob.WaitingNote));
             Assert.That(await _context.HistoricalImportJobs.CountAsync(), Is.EqualTo(1), "Nothing queued alongside it");
-        });
+        }
 
         var claim = await HistoricalImportJob.ClaimAsync(_context.HistoricalImportJobs, manual, _time.GetUtcNow().UtcDateTime);
         await HistoricalImportJob.FinishAsync(_context.HistoricalImportJobs, manual, claim!.Value, true, null, null, _time.GetUtcNow().UtcDateTime);
@@ -118,41 +120,47 @@ public class HistoricalScheduleTests
 
         var settings = await Settings();
         var queued = await _context.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID != manual);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((queued.Kind, queued.Trigger), Is.EqualTo((HistoricalImportJobKind.Refresh, HistoricalImportJobTrigger.Scheduled)));
             Assert.That((settings.LastScheduledJobID, settings.LastScheduledRunNote), Is.EqualTo(((int?)queued.HistoricalImportJobID, (string?)null)));
             Assert.That(settings.LastScheduledRunAt, Is.EqualTo(_time.GetUtcNow().UtcDateTime).Within(TimeSpan.FromSeconds(1)));
-        });
+        }
     }
 
     [Test]
     public async Task PausingFromThePage_PausesTheTrigger_AndDropsAWaitingRetry_AndResumingResumesIt()
     {
         await Jobs();
-        Assert.That(await Schedule().SetPaused(true, "sysadmin"), Is.False, "No trigger until a worker makes it");
-        Assert.That(await Schedule().SetPaused(false, "sysadmin"), Is.False, "Nor to resume");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Schedule().SetPaused(true, "sysadmin"), Is.False, "No trigger until a worker makes it");
+            Assert.That(await Schedule().SetPaused(false, "sysadmin"), Is.False, "Nor to resume");
+        }
         await _jobs!.Seed();
         await ImportJobs().Enqueue(HistoricalImportJob.Preview());
         await RefreshJob().Execute(Firing());
-        Assert.That(await _jobs.Scheduler.Exists(HistoricalRefreshJob.RetryTriggerKey), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _jobs.Scheduler.Exists(HistoricalRefreshJob.RetryTriggerKey), Is.True);
 
-        Assert.That(await Schedule().SetPaused(true, "sysadmin"), Is.True);
+            Assert.That(await Schedule().SetPaused(true, "sysadmin"), Is.True);
+        }
         var paused = await Schedule().Get();
         var pause = await _jobs.Scheduler.GetTriggerPause(HistoricalRefreshJob.TriggerKey);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((paused.Paused, paused.NextRunAt), Is.EqualTo((true, (DateTime?)null)));
             Assert.That((pause?.Reason, pause?.RequestedBy), Is.EqualTo(((string?)HistoricalRefreshJob.PausedReason, (string?)"sysadmin")));
             Assert.That(await _jobs.Scheduler.Exists(HistoricalRefreshJob.RetryTriggerKey), Is.False, "Paused, it doesn't try again");
-        });
+        }
 
         Assert.That(await Schedule().SetPaused(false, "sysadmin"), Is.True);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await Schedule().Get()).Paused, Is.False);
             Assert.That(await _jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.TriggerKey), Is.EqualTo(TriggerState.Normal));
-        });
+        }
     }
 
     [Test]
@@ -164,13 +172,16 @@ public class HistoricalScheduleTests
         await RefreshJob().Execute(Firing());
         // The Jobs page pauses every trigger of the job, the retry's too
         await _jobs.Scheduler.PauseJobWith(HistoricalRefreshJob.Key, new PauseDetails { Reason = "Paused on the Jobs page" });
-        Assert.That(await _jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.RetryTriggerKey), Is.EqualTo(TriggerState.Paused));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.RetryTriggerKey), Is.EqualTo(TriggerState.Paused));
 
-        Assert.That(await Schedule().SetPaused(false, "sysadmin"), Is.True);
-        Assert.Multiple(async () =>
+            Assert.That(await Schedule().SetPaused(false, "sysadmin"), Is.True);
+        }
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.TriggerKey), Is.EqualTo(TriggerState.Normal));
             Assert.That(await _jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.RetryTriggerKey), Is.EqualTo(TriggerState.Normal));
-        });
+        }
     }
 }

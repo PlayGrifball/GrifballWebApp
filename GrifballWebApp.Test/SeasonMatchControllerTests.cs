@@ -1,21 +1,20 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Brackets;
-using GrifballWebApp.Server.Controllers;
-using GrifballWebApp.Server.Grades;
-using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.SeasonMatchPage;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Quartz;
-using System.Collections;
 using System.Reflection;
 using Match = GrifballWebApp.Domain.Halo.Match;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Jobs;
+using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Infrastructure.SeasonMatchPage;
 
 namespace GrifballWebApp.Test;
 
@@ -33,7 +32,7 @@ public class SeasonMatchControllerTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
-        _controller = new SeasonMatchController(new SeasonMatchService(_context, _dataPullService, Substitute.For<IBracketService>(), new GrifballWebApp.Server.Championships.ChampionshipService(_context)));
+        _controller = new SeasonMatchController(new SeasonMatchService(_context, _dataPullService, Substitute.For<IBracketService>(), new GrifballWebApp.Application.Championships.ChampionshipService(_context)));
     }
 
     [TearDown]
@@ -128,7 +127,7 @@ public class SeasonMatchControllerTests
         _context.ChangeTracker.Clear();
         await _controller.AddManualGame(seeded.SeasonMatch.SeasonMatchID, new ManualGameRequestDto
         {
-            GameVersionID = GrifballWebApp.Server.Stats.PlayerGameStatsQuery.InfiniteGameVersionID, PlayedAt = start, HomeTeamScore = 5, AwayTeamScore = 3,
+            GameVersionID = GrifballWebApp.Application.Stats.PlayerGameStatsQuery.InfiniteGameVersionID, PlayedAt = start, HomeTeamScore = 5, AwayTeamScore = 3,
         }, CancellationToken.None);
         _context.ChangeTracker.Clear();
 

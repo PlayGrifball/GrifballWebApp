@@ -1,35 +1,24 @@
 using DiscordInterface.Generated;
+using GrifballWebApp.Application;
+using GrifballWebApp.Application.Matchmaking;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Infrastructure.Services;
-using GrifballWebApp.Server.Availability;
-using GrifballWebApp.Server.Brackets;
-using GrifballWebApp.Server.EventOrganizer;
-using GrifballWebApp.Server.Events;
-using GrifballWebApp.Server.Excel;
-using GrifballWebApp.Server.Grades;
-using GrifballWebApp.Server.HaloInfinite;
+using GrifballWebApp.Infrastructure.DatabaseBackup;
+using GrifballWebApp.Infrastructure.HaloInfinite;
+using GrifballWebApp.Infrastructure.Preview;
+using GrifballWebApp.Infrastructure.Redis;
+using GrifballWebApp.Server.DatabaseBackup;
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Identity;
-using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.MatchPlanner;
 using GrifballWebApp.Server.Preview;
-using GrifballWebApp.Server.Profile;
-using GrifballWebApp.Server.Scheduler;
-using GrifballWebApp.Server.SeasonMatchPage;
-using GrifballWebApp.Server.Seasons;
-using GrifballWebApp.Server.Notifications;
-using GrifballWebApp.Server.Outbox;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.SignalR;
 using GrifballWebApp.Server.Signups;
 using GrifballWebApp.Server.Teams;
-using GrifballWebApp.Server.TeamStandings;
 using GrifballWebApp.Server.Telemetry;
 using GrifballWebApp.Server.Telemetry.Query;
-using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -42,13 +31,7 @@ using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
 using Serilog;
-using GrifballWebApp.Server.HaloInfinite;
-using GrifballWebApp.Domain.Archive;
-using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
-using GrifballWebApp.Infrastructure.HaloInfinite;
-using GrifballWebApp.Infrastructure.Outbox;
-using GrifballWebApp.Infrastructure.Redis;
+using System.Security.Cryptography.X509Certificates;
 
 namespace GrifballWebApp.Server;
 
@@ -73,7 +56,7 @@ public class Program
         }
         finally
         {
-            Log.CloseAndFlush();
+            await Log.CloseAndFlushAsync();
         }
     }
 
@@ -102,12 +85,46 @@ public class Program
         Log.Logger.ForContext<Program>().Information("{HaloInfinite}", haloSettings);
         // Several pods (App:Role api or worker) need the gateway: in Direct mode the tokens are files in one pod's working directory.
         role.EnsureSupports(haloSettings);
+
+        await AddWebHostAsync(builder, telemetry, role, discordOff,
+            // A preview in Direct mode has no Microsoft app or tokens to probe with; in Gateway mode it probes the gateway.
+            haloHealthCheck: !(previewMode && haloSettings.Mode == HaloInfiniteMode.Direct));
+        builder.Services.AddGrifballDatabase();
+        AddIdentity(builder.Services);
+        AddDiscord(builder, role, discordOff);
+        builder.Services.AddApplication(builder.Configuration);
+        builder.Services.AddInfrastructure(builder.Configuration, discordOff);
+        AddDiscordHandlers(builder.Services);
+
+        // Encrypted with DataProtection:Certificate when it's set (DataProtectionAtRest), so backups can't sign anyone in.
+        var keyCertificate = DataProtectionAtRest.Certificate(builder.Configuration);
+        builder.Services.AddDataProtection().PersistKeysToDbContext<GrifballContext>().ProtectKeysWith(keyCertificate);
+        AddAuthentication(builder, discordOff);
+
+        var retryDelayCalculator = new RetryDelayCalculator();
+        builder.Services.AddSingleton<IRetryDelayCalculator>(retryDelayCalculator);
+
+        // IHaloInfiniteClient: the Halo gateway (default) or the app's own sign-in (HaloInfinite:Mode Direct).
+        builder.AddHaloInfinite(haloSettings, retryDelayCalculator);
+
+        // Last: drops the hosted services this role doesn't run (the workers' and the discord process's).
+        builder.Services.ApplyAppRole(role);
+
+        var app = builder.Build();
+
+        await PrepareDatabaseAsync(app, keyCertificate);
+        MapEndpoints(app, role, discordOff);
+
+        await app.RunAsync();
+    }
+
+    /// <summary>The web host's own services: telemetry, health, forwarded headers, errors, SignalR, MVC and Swagger.</summary>
+    private static async Task AddWebHostAsync(WebApplicationBuilder builder, TelemetryOptions telemetry, AppRole role, bool discordOff, bool haloHealthCheck)
+    {
         builder.Services.AddMetricsAndTracing(telemetry, builder.Configuration);
         // The Telemetry page: the same telemetry read back from Loki, Prometheus and Tempo (TelemetryQuery:*)
         builder.Services.AddTelemetryQuery(builder.Configuration, telemetry.ServiceName);
-        builder.Services.AddAppHealthChecks(builder.Configuration, discord: !discordOff && role.RunsDiscord,
-            // A preview in Direct mode has no Microsoft app or tokens to probe with; in Gateway mode it probes the gateway.
-            haloInfinite: !(previewMode && haloSettings.Mode == HaloInfiniteMode.Direct));
+        builder.Services.AddAppHealthChecks(builder.Configuration, discord: !discordOff && role.RunsDiscord, haloInfinite: haloHealthCheck);
         (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
 
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -151,32 +168,14 @@ public class Program
                 [new OpenApiSecuritySchemeReference("bearer", document)] = []
             });
         });
+    }
 
-        // Add HTTP context accessor for audit interceptor
-        builder.Services.AddHttpContextAccessor();
-        builder.Services.AddSingleton<IAmbientCurrentUser, AmbientCurrentUser>();
-        builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-        builder.Services.AddScoped<Domain.Shared.AuditInterceptor>();
+    /// <summary>ASP.NET Core Identity on the app's users, and the browser's session cookie.</summary>
+    private static void AddIdentity(IServiceCollection services)
+    {
+        services.AddAuthorization();
 
-        builder.Services.AddDbContext<GrifballContext>((services, options) =>
-        {
-            options.UseGrifballDatabase(services.GetRequiredService<IConfiguration>())
-                .AddInterceptors(services.GetRequiredService<Domain.Shared.AuditInterceptor>(),
-                    services.GetRequiredService<OutboxSignalInterceptor>());
-        });
-
-        // For some reason I need to have my own implementation of IDbContextFactory<GrifballContext> otherwise it conflicts with the scoped context
-        builder.Services.AddDbContextFactory<GrifballContext, GrifballContextFactory>();
-        // The use cases' view of it: the scope's context
-        builder.Services.AddScoped<GrifballWebApp.Application.Database.IApplicationDbContext>(services => services.GetRequiredService<GrifballContext>());
-
-        //builder.Services.AddDbContextFactory<GrifballContext>((services, options)
-        //    => options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
-        //    ?? throw new Exception("GrifballContext failed to configure")));
-
-        builder.Services.AddAuthorization();
-
-        builder.Services.AddIdentity<User, Role>(options =>
+        services.AddIdentity<User, Role>(options =>
         {
             options.SignIn.RequireConfirmedAccount = false;
             options.SignIn.RequireConfirmedPhoneNumber = false;
@@ -187,50 +186,19 @@ public class Program
         .AddEntityFrameworkStores<GrifballContext>();
 
         // The browser's session: an HttpOnly, Secure, SameSite=Lax cookie (BrowserAuth).
-        builder.Services.ConfigureApplicationCookie(BrowserAuth.ConfigureCookie);
+        services.ConfigureApplicationCookie(BrowserAuth.ConfigureCookie);
         // Check sessions against the security stamp often (default 30 min), so Logout ends copies of the cookie.
-        builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = BrowserAuth.SecurityStampValidationInterval);
+        services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = BrowserAuth.SecurityStampValidationInterval);
+    }
 
-        if (discordOff)
-        {
-            builder.Services.AddPreviewDiscord(builder.Configuration);
-        }
-        else
-        {
-            builder.Services.AddOptions<DiscordOptions>()
-                .Bind(builder.Configuration.GetSection("Discord"))
-                .Validate(options =>
-                {
-                    var errors = new List<string>();
-                    if (string.IsNullOrWhiteSpace(options.ClientId))
-                        errors.Add("ClientId is required");
-                    if (string.IsNullOrWhiteSpace(options.ClientSecret))
-                        errors.Add("ClientSecret is required");
-
-                    if (string.IsNullOrWhiteSpace(options.Token))
-                        errors.Add("Token is required");
-                    if (options.DraftChannel is 0)
-                        errors.Add("DraftChannel is required");
-
-                    if (errors.Count > 0)
-                        throw new ArgumentException(string.Join(", ", errors));
-
-                    return true;
-                })
-                .ValidateOnStart();
-        }
-
-        builder.Services.AddTransient<DiscordOnDeckMessages>();
-        builder.Services.AddTransient<UrlService>();
-        builder.Services.AddTransient<IQueueRepository, QueueRepository>();
-        builder.Services.AddTransient<QueueService>();
-        // Joining and leaving, from Discord or the site; the queue's size goes to QueueHub's listeners
-        builder.Services.AddTransient<QueueMembership>();
+    /// <summary>
+    /// Discord: its settings and outbox (Infrastructure), the queue's watchers (QueueHub), and the gateway with its
+    /// commands, components and message handler on the discord process, or only its REST client elsewhere.
+    /// </summary>
+    private static void AddDiscord(WebApplicationBuilder builder, AppRole role, bool discordOff)
+    {
+        builder.Services.AddDiscordInfrastructure(builder.Configuration, discordOff);
         builder.Services.AddSingleton<IQueueNotifier, QueueNotifier>();
-        // Discord side effects queued with their database changes, sent by OutboxDispatcher (Discord off: skipped).
-        builder.Services.AddDiscordOutbox(builder.Configuration);
-        builder.Services.AddMatchmakingOutboxHandlers();
-        builder.Services.AddTransient<EventsService>();
 
         if (!discordOff && role.RunsDiscord)
         {
@@ -255,133 +223,29 @@ public class Program
 
         builder.Services.AddSingleton<IDiscordRestClient, DiscordRestClient>();
 
+        // The notifications' handlers are the web host's (SignalR, the queue's Discord message)
         builder.Services.AddNotifications(typeof(Program).Assembly);
+    }
 
-        builder.Services.AddTransient<IDataPullService, DataPullService>();
-        // One for the app: every pull shares the gateway key's quota (HaloGateway:PermitsPerMinute), and scaled out
-        // (ConnectionStrings:Redis) every pod's pulls share it, through Redis
-        builder.Services.AddHaloCallPacer(builder.Configuration);
-        // The historical import: queued by HistoricalImportController, run in the background by HistoricalImportWorker
-        builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportOptions>().Bind(builder.Configuration.GetSection("HistoricalImport"));
-        builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportWorkerOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Worker"));
-        builder.Services.AddTransient<GrifballWebApp.Server.Historical.IHistoricalImportService, GrifballWebApp.Server.Historical.HistoricalImportService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Historical.HistoricalImportJobs>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Historical.GamertagClaimService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Historical.GamertagMatching>();
-        builder.Services.AddSingleton<GrifballWebApp.Server.Historical.HistoricalImportSignal>();
-        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportWorker>();
-        // The archive's sources: downloaded and snapshotted by the worker (manual refresh jobs and the schedule), parsed in .NET
-        builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalGuardrailOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Guardrail"));
-        builder.Services.AddHttpClient<GrifballWebApp.Server.Historical.Sources.HistoricalSourceFetcher>(client =>
-        {
-            client.Timeout = TimeSpan.FromMinutes(2);
-            client.MaxResponseContentBufferSize = 64 * 1024 * 1024;
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("GrifballWebApp/1.0 (historical archive)");
-        });
-        builder.Services.AddTransient<GrifballWebApp.Server.Historical.Sources.HistoricalSourceService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Historical.HistoricalImportRunner>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Historical.HistoricalImportSchedule>();
-        // VODs: found by the refresh jobs above (no scheduler of their own), shown on the pages, reviewed by sysadmins
-        builder.Services.AddOptions<GrifballWebApp.Server.Historical.Vods.YouTubeOptions>().Bind(builder.Configuration.GetSection("YouTube"));
-        builder.Services.AddHttpClient<GrifballWebApp.Server.Historical.Vods.YouTubeClient>(client =>
-        {
-            client.Timeout = TimeSpan.FromMinutes(1);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("GrifballWebApp/1.0 (VODs)");
-        });
-        builder.Services.AddTransient<GrifballWebApp.Server.Historical.Vods.VodService>();
-        builder.Services.AddOptions<GrifballWebApp.Server.Historical.XuidLookupOptions>().Bind(builder.Configuration.GetSection("XuidLookup"));
-        builder.Services.AddTransient<GrifballWebApp.Server.Historical.XuidLookupService>();
-        builder.Services.AddSingleton<GrifballWebApp.Server.Historical.XuidLookupSignal>();
-        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.XuidLookupWorker>();
-        // Quartz.NET: the recurring jobs (their schedules, kept in the database, and the Jobs page) and the scheduler that runs them
-        builder.Services.AddJobs(builder.Configuration, jobs =>
-        {
-            jobs.Add<GrifballWebApp.Server.Historical.HistoricalRefreshJob>(GrifballWebApp.Server.Historical.HistoricalRefreshJob.Definition);
-            jobs.Add<GrifballWebApp.Server.Historical.XboxPlaceholderJob>(GrifballWebApp.Server.Historical.XboxPlaceholderJob.Definition);
-            jobs.Add<GrifballWebApp.Server.SeasonMatchPage.ActiveSeasonPullJob>(GrifballWebApp.Server.SeasonMatchPage.ActiveSeasonPullJob.Definition);
-            jobs.Add<GrifballWebApp.Server.HaloInfinite.MatchVariantBackfillJob>(GrifballWebApp.Server.HaloInfinite.MatchVariantBackfillJob.Definition);
-            jobs.Add<GrifballWebApp.Server.UserManagement.PasswordResetLinkCleanupJob>(GrifballWebApp.Server.UserManagement.PasswordResetLinkCleanupJob.Definition);
-            // Discord's: off while Discord is (a preview without a bot)
-            jobs.Add<MatchmakingQueueJob>(MatchmakingQueueJob.Definition(enabled: !discordOff));
-            jobs.Add<SeasonEventsJob>(SeasonEventsJob.Definition(enabled: !discordOff));
-            // Started from a page, with an input (OnDemandJobs)
-            jobs.AddOnDemand<GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob>("season-match-pull", GrifballWebApp.Server.SeasonMatchPage.SeasonMatchPullJob.Description);
-            jobs.AddOnDemand<GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob>("schedule-recommendation", GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob.Description);
-            jobs.AddOnDemand<GrifballWebApp.Server.Excel.SheetExportJob>("sheet-export", GrifballWebApp.Server.Excel.SheetExportJob.Description);
-            jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.DatabaseBackupJob>("database-backup", GrifballWebApp.Server.DatabaseBackup.DatabaseBackupJob.Description);
-            jobs.AddOnDemand<GrifballWebApp.Server.DatabaseBackup.DatabaseExportJob>("database-export", GrifballWebApp.Server.DatabaseBackup.DatabaseExportJob.Description);
-            // Queued as a worker starts (ScratchScaleDown), with an on-demand scratch server only
-            GrifballWebApp.Server.DatabaseBackup.ScratchStopJobRegistration.AddScratchStop(jobs, builder.Configuration);
-        });
-        builder.Services.AddOptions<GrifballWebApp.Server.Historical.UserClaimOptions>().Bind(builder.Configuration.GetSection("UserClaims"));
-        builder.Services.AddTransient<GrifballWebApp.Server.Historical.UserGamertagClaimService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Historical.DuplicateSuggestionService>();
-        builder.Services.AddTransient<UserMergeAuditService>();
-        builder.Services.AddTransient<IBracketService, BracketService>();
-        builder.Services.AddTransient<EventOrganizerService>();
-        builder.Services.AddTransient<SignupsService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Stats.SeasonStatsService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.LateLeague.MatchmakingStatsService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Profile.ProfileStatsService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Leaderboards.LeaderboardsService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.TeamPage.TeamPageService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.TeamPage.TeamHistoryService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Profile.DeploymentHistoryService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Profile.ProfileCommendationsService>();
-        builder.Services.AddTransient<SeasonService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Search.QuickSearchService>();
-        builder.Services.AddTransient<TeamService>();
-        builder.Services.AddTransient<IUserManagementService, UserManagementService>();
-        builder.Services.AddTransient<ExcelService>();
-        builder.Services.AddSingleton<GrifballWebApp.Infrastructure.DatabaseBackup.DatabaseBackupService>();
-        // The page's backup and export run as jobs (BackupJobs); the made file stays on the pod that made it, and an API pod fetches
-        // it from there (DatabaseBackup:NodeUrl, set by the chart on a worker, recorded with the run)
-        builder.Services.AddSingleton<GrifballWebApp.Server.DatabaseBackup.BackupFiles>();
-        builder.Services.AddTransient<GrifballWebApp.Server.DatabaseBackup.BackupRuns>();
-        builder.Services.AddTransient<GrifballWebApp.Server.DatabaseBackup.BackupDownloads>();
-        // No timeout: a backup can be large, and the download streams through as the browser reads it
-        // No overall timeout (a backup streams for as long as it takes), but a worker that's gone is given up on quickly.
-        builder.Services.AddHttpClient(GrifballWebApp.Server.DatabaseBackup.BackupDownloads.HttpClientName, client => client.Timeout = Timeout.InfiniteTimeSpan)
-            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(5) });
-        // The scratch server started on demand (the chart's backupScratch.mode onDemand), and stopped at startup: by a job
-        // queued then (ScratchStopJob), in the backups' execution group, so never under a backup on another worker.
-        if (builder.Configuration["DatabaseBackup:Scratch:Deployment"] is { Length: > 0 } scratchDeployment)
-        {
-            builder.Services.AddSingleton<GrifballWebApp.Infrastructure.DatabaseBackup.IScratchScaler>(services => GrifballWebApp.Infrastructure.DatabaseBackup.KubernetesScratchScaler.InCluster(
-                scratchDeployment, services.GetRequiredService<ILogger<GrifballWebApp.Infrastructure.DatabaseBackup.KubernetesScratchScaler>>()));
-            builder.Services.AddHostedService<GrifballWebApp.Server.DatabaseBackup.ScratchScaleDown>();
-        }
-        builder.Services.AddTransient<MatchPlannerService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Championships.ChampionshipService>();
-        builder.Services.AddTransient<SeasonMatchService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.MatchDetails.MatchDetailsService>();
-        builder.Services.AddTransient<TeamStandingsService>();
-        builder.Services.AddTransient<ISetGamertagService, SetGamertagService>();
-        builder.Services.AddTransient<GradesService>();
-        builder.Services.AddTransient<ScheduleService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Scheduler.ScheduleRecommendations>();
-        // How long a schedule recommendation may run (ScheduleRecommendationJob): 2000 generations or 2 minutes by default
-        builder.Services.AddOptions<GrifballWebApp.Server.Scheduler.ScheduleRunOptions>().Bind(builder.Configuration.GetSection("ScheduleRecommendations"));
-        builder.Services.AddTransient<AvailabilityService>();
-        builder.Services.AddTransient<DiscordSetGamertag>();
-        builder.Services.AddTransient<MatchmakingButtonHandler>();
-        builder.Services.AddTransient<MatchmakingStringMenuHandler>();
-        builder.Services.AddTransient<SignupButtonHandler>();
-        builder.Services.AddTransient<DraftStringMenuHandler>();
-        builder.Services.AddTransient<DiscordCommandsHandler>();
-        builder.Services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
-        builder.Services.AddTransient<IUserMergeService, UserMergeService>();
-        builder.Services.AddTransient<IExternalLoginService, ExternalLoginService>();
-        builder.Services.AddScoped<IDiscordAccountLinkService, DiscordAccountLinkService>();
-        builder.Services.AddTransient<GrifballWebApp.Server.Reschedule.RescheduleService>();
+    /// <summary>The Discord interactions' handlers, and the web host's own identity services.</summary>
+    private static void AddDiscordHandlers(IServiceCollection services)
+    {
+        services.AddTransient<DiscordSetGamertag>();
+        services.AddTransient<MatchmakingButtonHandler>();
+        services.AddTransient<MatchmakingStringMenuHandler>();
+        services.AddTransient<SignupButtonHandler>();
+        services.AddTransient<DraftStringMenuHandler>();
+        services.AddTransient<DiscordCommandsHandler>();
+        services.AddTransient<IExternalLoginService, ExternalLoginService>();
+    }
 
-        // Encrypted with DataProtection:Certificate when it's set (DataProtectionAtRest), so backups can't sign anyone in.
-        var keyCertificate = DataProtectionAtRest.Certificate(builder.Configuration);
-        builder.Services.AddDataProtection().PersistKeysToDbContext<GrifballContext>().ProtectKeysWith(keyCertificate);
-
-        // A request is authenticated by its bearer token if it has one (scripts, the smoke suite), otherwise by
-        // the browser's cookie. Challenges and forbids go the same way: 401/403, never a redirect.
-        // The default sign-in scheme stays Identity's external cookie (Discord's round trip).
+    /// <summary>
+    /// A request is authenticated by its bearer token if it has one (scripts, the smoke suite), otherwise by the browser's
+    /// cookie. Challenges and forbids go the same way: 401/403, never a redirect. The default sign-in scheme stays
+    /// Identity's external cookie (Discord's round trip).
+    /// </summary>
+    private static void AddAuthentication(WebApplicationBuilder builder, bool discordOff)
+    {
         var authentication = builder.Services.AddAuthentication(options =>
         {
             options.DefaultScheme = BrowserAuth.Scheme;
@@ -407,55 +271,53 @@ public class Program
                 options.SignInScheme = IdentityConstants.ExternalScheme;
             });
         }
+    }
 
-        var retryDelayCalculator = new RetryDelayCalculator();
-        builder.Services.AddSingleton<IRetryDelayCalculator>(retryDelayCalculator);
+    /// <summary>
+    /// The database brought up to date (when ApplyMigrations allows, and created when CreateDatabase does), the data
+    /// protection keys kept in the clear dropped once there is a certificate, and the preview's smoke accounts.
+    /// </summary>
+    private static async Task PrepareDatabaseAsync(WebApplication app, X509Certificate2? keyCertificate)
+    {
+        using var scope = app.Services.CreateScope();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
-        // IHaloInfiniteClient: the Halo gateway (default) or the app's own sign-in (HaloInfinite:Mode Direct).
-        builder.AddHaloInfinite(haloSettings, retryDelayCalculator);
+        using var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
 
-        // Last: drops the hosted services this role doesn't run (the workers' and the discord process's).
-        builder.Services.ApplyAppRole(role);
+        var exists = await context.Database.GetService<IRelationalDatabaseCreator>().ExistsAsync();
+        var missingMigrations = await context.Database.GetPendingMigrationsAsync();
 
-        var app = builder.Build();
-
-        using (var scope = app.Services.CreateScope())
+        if (exists is false || missingMigrations.Any())
         {
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            if (exists is false)
+                logger.LogWarning("Database does not exist");
+            else
+                logger.LogWarning("Missing migrations: {MissingMigrations}", missingMigrations);
 
-            using var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
-
-            var exists = context.Database.GetService<IRelationalDatabaseCreator>().Exists();
-            var missingMigrations = context.Database.GetPendingMigrations();
-
-            if (exists is false || missingMigrations.Any())
+            if (app.Services.GetRequiredService<IConfiguration>().GetValue("ApplyMigrations", false) is false)
             {
-                if (exists is false)
-                    logger.LogWarning("Database does not exist");
-                else
-                    logger.LogWarning("Missing migrations: {MissingMigrations}", missingMigrations);
-
-                if (app.Services.GetRequiredService<IConfiguration>().GetValue("ApplyMigrations", false) is false)
-                {
-                    throw new Exception("Database is missing migrations or does not exist, ApplyMigrations is false so no attempt will be made to apply migrations");
-                }
-
-                if (exists is false && app.Services.GetRequiredService<IConfiguration>().GetValue("CreateDatabase", false) is false)
-                {
-                    throw new Exception("Database does not exist and CreateDatabase is false. Will not attempt to apply migrations");
-                }
-
-                logger.LogInformation("Applying migrations");
-                await context.Database.MigrateAsync();
-                logger.LogInformation("Migrations applied");
+                throw new Exception("Database is missing migrations or does not exist, ApplyMigrations is false so no attempt will be made to apply migrations");
             }
 
-            await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context, keyCertificate, logger);
+            if (exists is false && app.Services.GetRequiredService<IConfiguration>().GetValue("CreateDatabase", false) is false)
+            {
+                throw new Exception("Database does not exist and CreateDatabase is false. Will not attempt to apply migrations");
+            }
 
-            // Preview mode only (it checks): the smoke suite's accounts.
-            await PreviewSmokeUsers.EnsureAsync(app.Configuration, scope.ServiceProvider.GetRequiredService<UserManager<User>>(), logger);
+            logger.LogInformation("Applying migrations");
+            await context.Database.MigrateAsync();
+            logger.LogInformation("Migrations applied");
         }
 
+        await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context, keyCertificate, logger);
+
+        // Preview mode only (it checks): the smoke suite's accounts.
+        await PreviewSmokeUsers.EnsureAsync(app.Configuration, scope.ServiceProvider.GetRequiredService<UserManager<User>>(), logger);
+    }
+
+    /// <summary>The request pipeline and its endpoints: the API and hubs on the API role, health everywhere.</summary>
+    private static void MapEndpoints(WebApplication app, AppRole role, bool discordOff)
+    {
         // Forwarded headers first: everything after sees the real client address and scheme.
         app.UseForwardedHeaders();
         app.UseRequestTelemetry();
@@ -497,34 +359,11 @@ public class Program
 
         // A worker hands an API pod the backup a job made here, for a token only the app's pods can make (BackupDownloads)
         if (role.Kind == AppRoleKind.Worker)
-            app.MapMethods(GrifballWebApp.Server.DatabaseBackup.BackupDownloads.WorkerPath + "/{fileId}", ["GET", "HEAD"], GrifballWebApp.Server.DatabaseBackup.BackupDownloads.Serve);
+            app.MapMethods(BackupDownloads.WorkerPath + "/{fileId}", ["GET", "HEAD"], BackupDownloadEndpoint.Serve);
 
         if (!discordOff && role.RunsDiscord)
         {
             app.AddModules(typeof(Program).Assembly);
         }
-
-        app.Run();
     }
-}
-
-public class DiscordOptions
-{
-    public string ClientId { get; set; } = null!;
-    public string ClientSecret { get; set; } = null!;
-    public string Token { get; set; } = null!;
-    public ulong DraftChannel { get; set; }
-    public bool DisableGlobally { get; set; } = false;
-    public ulong QueueChannel { get; set; }
-    public ulong EventsChannel { get; set; }
-    public ulong ReschedulesChannel { get; set; }
-    public ulong LogChannel { get; set; }
-    public int MatchPlayers { get; set; } = 8; // Default to 8 players per match
-    public int KFactor { get; set; } = 32;
-    public int WinThreshold { get; set; } = 3;
-    public int BonusPerWin { get; set; } = 10;
-    public int MaxBonus { get; set; } = 20;
-    public int LossThreshold { get; set; } = 3;
-    public int PenaltyPerLoss { get; set; } = 10;
-    public int MaxPenalty { get; set; } = 20;
 }

@@ -1,5 +1,5 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Teams;
+using GrifballWebApp.Infrastructure.Teams;
 
 namespace GrifballWebApp.Test;
 

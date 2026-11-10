@@ -1,9 +1,7 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Domain.LateLeague;
-using GrifballWebApp.Domain.League;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Application.LateLeague;
 
 namespace GrifballWebApp.Test;
 

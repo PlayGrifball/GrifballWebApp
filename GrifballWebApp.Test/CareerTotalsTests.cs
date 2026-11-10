@@ -1,8 +1,8 @@
-using GrifballWebApp.Server.Seasons;
-using GrifballWebApp.Server.Stats;
-using GrifballWebApp.Server.TeamStandings;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Application.Seasons;
+using GrifballWebApp.Application.Stats;
+using GrifballWebApp.Application.TeamStandings;
 
 namespace GrifballWebApp.Test;
 

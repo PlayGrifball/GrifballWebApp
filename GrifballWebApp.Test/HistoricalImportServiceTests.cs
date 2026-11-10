@@ -1,10 +1,4 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Historical;
-using GrifballWebApp.Server.Historical.Parsing;
-using GrifballWebApp.Server.Historical.Sources;
-using GrifballWebApp.Server.Stats;
-using GrifballWebApp.Server.Profile;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
@@ -14,6 +8,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Historical.Sources;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.Stats;
+using GrifballWebApp.Infrastructure.Historical.Parsing;
+using GrifballWebApp.Infrastructure.Historical.Sources;
 
 namespace GrifballWebApp.Test;
 
@@ -773,7 +774,7 @@ public class HistoricalImportServiceTests
             Assert.That(season.SeasonStart, Is.EqualTo(new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
             Assert.That(ended, Is.InRange(before, DateTime.UtcNow));
             Assert.That((await _context.Seasons.AsNoTracking().SingleAsync()).SeasonEnd, Is.EqualTo(ended), "A re-run keeps it");
-            Assert.That(await new GrifballWebApp.Server.Seasons.SeasonService(_context, new SeasonStatsService(_context)).GetCurrentSeasonID(), Is.Zero, "Not a current season");
+            Assert.That(await new GrifballWebApp.Application.Seasons.SeasonService(_context, new SeasonStatsService(_context)).GetCurrentSeasonID(), Is.Zero, "Not a current season");
         });
     }
 

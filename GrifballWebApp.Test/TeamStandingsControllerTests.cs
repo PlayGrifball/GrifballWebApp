@@ -1,18 +1,8 @@
-using System.Reflection;
-using System.Security.Claims;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.TeamPage;
-using GrifballWebApp.Server.Teams;
-using GrifballWebApp.Server.Teams.Handlers;
 using GrifballWebApp.Server.TeamStandings;
-using GrifballWebApp.Server.Notifications;
 using GrifballWebApp.Domain.League;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using NSubstitute;
+using GrifballWebApp.Application.TeamStandings;
 
 namespace GrifballWebApp.Test;
 

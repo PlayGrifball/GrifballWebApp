@@ -1,10 +1,6 @@
-using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.QueryableExtensions;
-using GrifballWebApp.Server.Sorting;
-using GrifballWebApp.Domain.Shared;
-using Microsoft.EntityFrameworkCore;
 using System.ComponentModel;
+using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Application.Sorting;
 
 namespace GrifballWebApp.Test;
 

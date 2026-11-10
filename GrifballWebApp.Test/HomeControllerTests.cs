@@ -1,9 +1,8 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Seasons;
-using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.MatchPlanner;
 using GrifballWebApp.Domain.League;
-using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Application.Seasons;
 
 namespace GrifballWebApp.Test;
 
@@ -261,7 +260,7 @@ public class HomeControllerTests
     }
 
     /// <summary>The home page's past seasons: the season list of the seasons that have ended.</summary>
-    private Task<GrifballWebApp.Server.Dtos.PaginationResult<SeasonListItemDto>> PastSeasons(PaginationFilter filter, CancellationToken ct)
-        => new SeasonController(new GrifballWebApp.Server.EventOrganizer.EventOrganizerService(_context), new SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context)))
+    private Task<GrifballWebApp.Application.Dtos.PaginationResult<SeasonListItemDto>> PastSeasons(PaginationFilter filter, CancellationToken ct)
+        => new SeasonController(new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(_context), new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context)))
             .GetSeasons(new SeasonListFilter { Ended = true, PageNumber = filter.PageNumber, PageSize = filter.PageSize, SortColumn = filter.SortColumn, SortDirection = filter.SortDirection }, ct);
 }

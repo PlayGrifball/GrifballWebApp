@@ -15,17 +15,13 @@
 
   <ItemGroup>
     <PackageReference Include="AspNet.Security.OAuth.Discord" Version="10.0.0" />
-    <PackageReference Include="GeneticSharp" Version="3.1.4" />
-    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.77.0.4309" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
     <PackageReference Include="Microsoft.AspNetCore.SpaProxy">
       <Version>10.0.14</Version>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.AI" Version="10.11.0" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.14" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
     <PackageReference Include="NetCord.Hosting.Services" Version="1.0.0-beta.28" />
-    <PackageReference Include="OllamaSharp" Version="5.5.0" />
     <PackageReference Include="AspNetCore.HealthChecks.System" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.Common" Version="10.11.0" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.14" />
@@ -49,9 +45,6 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.1" />
     <PackageReference Include="System.Linq.Async" Version="7.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="10.0.14" />
-    <!-- Apache-2.0: the background jobs, their schedules and history in the app database (GrifballWebApp.Server/Jobs) -->
-    <PackageReference Include="Quartz.Extensions.Hosting" Version="4.6.2" />
-    <PackageReference Include="Quartz.Serialization.SystemTextJson" Version="4.6.2" />
   </ItemGroup>
 
   <ItemGroup>

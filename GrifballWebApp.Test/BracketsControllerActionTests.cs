@@ -1,11 +1,11 @@
 using GrifballWebApp.Server.Brackets;
-using GrifballWebApp.Server.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using System.Reflection;
 using System.Text.Json;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Dtos;
 
 namespace GrifballWebApp.Test;
 

@@ -1,18 +1,18 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Leaderboards;
-using GrifballWebApp.Server.SeasonMatchPage;
-using GrifballWebApp.Server.Seasons;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.Stats;
-using GrifballWebApp.Server.TeamPage;
-using GrifballWebApp.Server.TeamStandings;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Leaderboards;
+using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.Seasons;
+using GrifballWebApp.Application.Stats;
+using GrifballWebApp.Application.TeamStandings;
 
 namespace GrifballWebApp.Test;
 
@@ -45,8 +45,8 @@ public class SeasonStatsServiceTests
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow.AddMinutes(-20),
             SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         _context.ChangeTracker.Clear();
-        var bracketService = new BracketService(_context, new TeamStandingsService(_context), new GrifballWebApp.Server.Championships.ChampionshipService(_context));
-        await new SeasonMatchService(_context, Substitute.For<IDataPullService>(), bracketService, new GrifballWebApp.Server.Championships.ChampionshipService(_context)).ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
+        var bracketService = new BracketService(_context, new TeamStandingsService(_context), new GrifballWebApp.Application.Championships.ChampionshipService(_context));
+        await new SeasonMatchService(_context, Substitute.For<IDataPullService>(), bracketService, new GrifballWebApp.Application.Championships.ChampionshipService(_context)).ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
         _context.ChangeTracker.Clear();
         return seeded;
     }
@@ -55,12 +55,12 @@ public class SeasonStatsServiceTests
     public async Task ALiveSeason_HasStatsOnItsPages_WithNoImportInvolved()
     {
         var seeded = await PlayALiveSeason();
-        var seasons = new SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context));
+        var seasons = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context));
 
         var stats = await seasons.GetSeasonPlayerStats(seeded.Season.SeasonID);
         var summary = (await seasons.GetSeasonSummary(seeded.Season.SeasonID))!;
         var teamStats = await seasons.GetSeasonPlayerStats(seeded.Season.SeasonID, seeded.Home.TeamID);
-        var boards = await new LeaderboardsController(new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Server.Leaderboards.LeaderboardsService>.Instance)).GetLeaderboards(null, CancellationToken.None);
+        var boards = await new LeaderboardsController(new GrifballWebApp.Application.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Application.Leaderboards.LeaderboardsService>.Instance)).GetLeaderboards(null, CancellationToken.None);
 
         Assert.Multiple(async () =>
         {
@@ -173,7 +173,7 @@ public class SeasonStatsServiceTests
         _context.ChangeTracker.Clear();
 
         var line = (await _service.GetAsync(userID: user.Id)).Single();
-        var boards = await new GrifballWebApp.Server.Leaderboards.LeaderboardsService(_context, _service, new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Server.Leaderboards.LeaderboardsService>.Instance).GetAsync(null, CancellationToken.None);
+        var boards = await new GrifballWebApp.Application.Leaderboards.LeaderboardsService(_context, _service, new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Application.Leaderboards.LeaderboardsService>.Instance).GetAsync(null, CancellationToken.None);
 
         Assert.Multiple(() =>
         {

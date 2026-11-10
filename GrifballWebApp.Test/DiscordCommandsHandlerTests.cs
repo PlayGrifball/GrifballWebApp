@@ -2,9 +2,7 @@ using DiscordInterface.Generated;
 using DiscordInterfaces;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Halo;
-using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using Microsoft.Extensions.Logging;
 using NetCord;
@@ -12,6 +10,7 @@ using NetCord.Rest;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using User = GrifballWebApp.Domain.Players.User;
+using GrifballWebApp.Application.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 

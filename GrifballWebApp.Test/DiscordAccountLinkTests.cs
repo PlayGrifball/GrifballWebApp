@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Identity;
-using GrifballWebApp.Server.UserManagement;
 using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.BearerToken;
@@ -14,6 +13,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using IdentitySignInResult = Microsoft.AspNetCore.Identity.SignInResult;
+using GrifballWebApp.Application.Identity;
+using GrifballWebApp.Application.UserManagement;
 
 namespace GrifballWebApp.Test;
 

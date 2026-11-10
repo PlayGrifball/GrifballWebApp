@@ -1,11 +1,8 @@
 using GeneticSharp;
-using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Scheduler;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using NSubstitute;
+using GrifballWebApp.Application.Scheduler;
 
 namespace GrifballWebApp.Test;
 

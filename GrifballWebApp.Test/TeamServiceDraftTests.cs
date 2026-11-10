@@ -1,14 +1,15 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Teams;
-using GrifballWebApp.Server.Teams.Handlers;
-using GrifballWebApp.Server.Notifications;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
-using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Application.Teams;
+using GrifballWebApp.Application.Teams.Handlers;
+using GrifballWebApp.Infrastructure.Teams;
+using GrifballWebApp.Application.Database;
 
 namespace GrifballWebApp.Test;
 
@@ -17,6 +18,11 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class TeamServiceDraftTests
 {
+    private static readonly string[] TeamsByCaptainOrder = ["Team B", "Team A"];
+    private static readonly string[] FirstTeamNames = ["", "Only Display"];
+    private static readonly string[] SecondTeamNames = ["Gamer", "only_discord"];
+    private static readonly string[] GamertagTeamNames = ["RealGT's Team", "OtherGT's Team"];
+
     private GrifballContext _context = null!;
     private IPublisher _publisher = null!;
     private TeamService _service = null!;
@@ -26,7 +32,7 @@ public class TeamServiceDraftTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _publisher = Substitute.For<IPublisher>();
-        _service = new TeamService(_context, _publisher, new ContextOutbox(_context));
+        _service = new TeamService(_context, _publisher, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
     }
 
     [TearDown]
@@ -83,23 +89,23 @@ public class TeamServiceDraftTests
 
         var result = await _service.GetTeams(season.SeasonID);
 
-        Assert.That(result.Select(t => t.TeamName), Is.EqualTo(new[] { "Team B", "Team A" }));
-        Assert.Multiple(() =>
+        Assert.That(result.Select(t => t.TeamName), Is.EqualTo(TeamsByCaptainOrder));
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result[0].TeamID, Is.EqualTo(teamB.TeamID));
             Assert.That(result[0].Captain.PersonID, Is.EqualTo(capB.Id));
             Assert.That(result[0].Captain.Name, Is.EqualTo("capb_discord"));
             Assert.That(result[0].Captain.Order, Is.EqualTo(1));
-            Assert.That(result[0].Players.Select(p => p.Name), Is.EqualTo(new[] { "", "Only Display" }), "Never a login name");
+            Assert.That(result[0].Players.Select(p => p.Name), Is.EqualTo(FirstTeamNames), "Never a login name");
             Assert.That(result[0].Players.Select(p => p.Round), Is.EqualTo(new int?[] { 1, 2 }));
 
             Assert.That(result[1].TeamID, Is.EqualTo(teamA.TeamID));
             Assert.That(result[1].Captain.Name, Is.EqualTo("CapA GT"));
             Assert.That(result[1].Captain.Order, Is.EqualTo(2));
-            Assert.That(result[1].Players.Select(p => p.Name), Is.EqualTo(new[] { "Gamer", "only_discord" }));
+            Assert.That(result[1].Players.Select(p => p.Name), Is.EqualTo(SecondTeamNames));
             Assert.That(result[1].Players.Select(p => p.PersonID), Is.EqualTo(new[] { gt.Id, disc.Id }));
             Assert.That(result[1].Players.Any(p => p.PersonID == capA.Id), Is.False, "captain must not be listed as a player");
-        });
+        }
     }
 
     // ---------------- AddCaptain ----------------
@@ -113,9 +119,12 @@ public class TeamServiceDraftTests
         var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = user.Id, OrderNumber = 1 }, resortOnly: false));
 
-        Assert.That(ex!.Message, Is.EqualTo("Player is not signed up"));
-        Assert.That(await _context.Teams.CountAsync(), Is.Zero);
-        Assert.That(_publisher.ReceivedCalls(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("Player is not signed up"));
+            Assert.That(await _context.Teams.CountAsync(), Is.Zero);
+            Assert.That(_publisher.ReceivedCalls(), Is.Empty);
+        }
     }
 
     [Test]
@@ -144,8 +153,11 @@ public class TeamServiceDraftTests
         var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = player.Id, OrderNumber = 2 }, resortOnly: false));
 
-        Assert.That(ex!.Message, Is.EqualTo("Player is already on a team"));
-        Assert.That(await _context.Teams.CountAsync(), Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("Player is already on a team"));
+            Assert.That(await _context.Teams.CountAsync(), Is.EqualTo(1));
+        }
     }
 
     [Test]
@@ -160,27 +172,36 @@ public class TeamServiceDraftTests
         await _context.AddSignup(season, newCap, teamName: "The Hammers");
 
         var returned = await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = newCap.Id, OrderNumber = 2 }, resortOnly: false, "conn-1");
-        Assert.That(returned, Is.EqualTo("The Hammers"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(returned, Is.EqualTo("The Hammers"));
 
-        Assert.That(await CaptainOrders(season.SeasonID), Is.EqualTo(new[] { (cap1.Id, (int?)1), (newCap.Id, (int?)2), (cap2.Id, (int?)3) }));
+            Assert.That(await CaptainOrders(season.SeasonID), Is.EqualTo(new[] { (cap1.Id, (int?)1), (newCap.Id, (int?)2), (cap2.Id, (int?)3) }));
+        }
 
         await using var ctx = _context.NewContextLike();
         var team = await ctx.Teams.Include(t => t.Captain).SingleAsync(t => t.Captain.UserID == newCap.Id);
-        Assert.That(team.TeamName, Is.EqualTo("The Hammers"));
-        Assert.That(team.SeasonID, Is.EqualTo(season.SeasonID));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(team.TeamName, Is.EqualTo("The Hammers"));
+            Assert.That(team.SeasonID, Is.EqualTo(season.SeasonID));
+        }
 
         var notes = Published<Notification<CaptainAddedDto>>();
         Assert.That(notes, Has.Count.EqualTo(1));
-        Assert.That(notes[0].ConnectionId, Is.EqualTo("conn-1"));
-        Assert.That(notes[0].Value, Is.EqualTo(new CaptainAddedDto
+        using (Assert.EnterMultipleScope())
         {
-            SeasonID = season.SeasonID,
-            PersonID = newCap.Id,
-            TeamID = team.TeamID,
-            CaptainName = "New Captain",
-            TeamName = "The Hammers",
-            OrderNumber = 2,
-        }));
+            Assert.That(notes[0].ConnectionId, Is.EqualTo("conn-1"));
+            Assert.That(notes[0].Value, Is.EqualTo(new CaptainAddedDto
+            {
+                SeasonID = season.SeasonID,
+                PersonID = newCap.Id,
+                TeamID = team.TeamID,
+                CaptainName = "New Captain",
+                TeamName = "The Hammers",
+                OrderNumber = 2,
+            }));
+        }
     }
 
     [Test]
@@ -193,12 +214,18 @@ public class TeamServiceDraftTests
         var returned = await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = cap.Id, OrderNumber = 1 }, resortOnly: false);
 
         var team = await _context.NewContextLike().Teams.SingleAsync();
-        Assert.That(team.TeamName, Is.EqualTo("Disp's Team"));
-        Assert.That(returned, Is.EqualTo("Disp's Team"));
-        Assert.That(await CaptainOrders(season.SeasonID), Is.EqualTo(new[] { (cap.Id, (int?)1) }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(team.TeamName, Is.EqualTo("Disp's Team"));
+            Assert.That(returned, Is.EqualTo("Disp's Team"));
+            Assert.That(await CaptainOrders(season.SeasonID), Is.EqualTo(new[] { (cap.Id, (int?)1) }));
+        }
         var note = Published<Notification<CaptainAddedDto>>().Single();
-        Assert.That(note.Value.TeamName, Is.EqualTo("Disp's Team"));
-        Assert.That(note.ConnectionId, Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(note.Value.TeamName, Is.EqualTo("Disp's Team"));
+            Assert.That(note.ConnectionId, Is.Null);
+        }
     }
 
     [Test]
@@ -215,7 +242,7 @@ public class TeamServiceDraftTests
 
         await using var ctx = _context.NewContextLike();
         var names = await ctx.Teams.Include(t => t.Captain).OrderBy(t => t.Captain.DraftCaptainOrder).Select(t => t.TeamName).ToListAsync();
-        Assert.That(names, Is.EqualTo(new[] { "RealGT's Team", "OtherGT's Team" }));
+        Assert.That(names, Is.EqualTo(GamertagTeamNames));
     }
 
     [Test]
@@ -231,9 +258,12 @@ public class TeamServiceDraftTests
 
         await using var ctx = _context.NewContextLike();
         var team = await ctx.Teams.Include(t => t.Captain).SingleAsync(t => t.Captain.UserID == cap.Id);
-        Assert.That(team.TeamName, Does.Match(@"^Disp's Team [0-9a-f]{4}$"));
-        Assert.That(returned, Is.EqualTo(team.TeamName), "the name with its suffix");
-        Assert.That(await CaptainOrders(season.SeasonID), Is.EqualTo(new[] { (otherCap.Id, (int?)1), (cap.Id, (int?)2) }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(team.TeamName, Does.Match(@"^Disp's Team [0-9a-f]{4}$"));
+            Assert.That(returned, Is.EqualTo(team.TeamName), "the name with its suffix");
+            Assert.That(await CaptainOrders(season.SeasonID), Is.EqualTo(new[] { (otherCap.Id, (int?)1), (cap.Id, (int?)2) }));
+        }
     }
 
     [Test]
@@ -260,14 +290,20 @@ public class TeamServiceDraftTests
         await _context.AddTeam(season, "T3", c3, 3);
 
         var dto = new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = c3.Id, OrderNumber = 1 };
-        Assert.That(await _service.AddCaptain(dto, resortOnly: true, "conn-x"), Is.Null, "a resort names no team");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _service.AddCaptain(dto, resortOnly: true, "conn-x"), Is.Null, "a resort names no team");
 
-        Assert.That(await CaptainOrders(season.SeasonID), Is.EqualTo(new[] { (c3.Id, (int?)1), (c1.Id, (int?)2), (c2.Id, (int?)3) }));
-        Assert.That(await _context.NewContextLike().Teams.CountAsync(), Is.EqualTo(3), "resort must not create teams");
+            Assert.That(await CaptainOrders(season.SeasonID), Is.EqualTo(new[] { (c3.Id, (int?)1), (c1.Id, (int?)2), (c2.Id, (int?)3) }));
+            Assert.That(await _context.NewContextLike().Teams.CountAsync(), Is.EqualTo(3), "resort must not create teams");
+        }
         var note = Published<Notification<CaptainPlacementDto>>().Single();
-        Assert.That(note.Value, Is.SameAs(dto));
-        Assert.That(note.ConnectionId, Is.EqualTo("conn-x"));
-        Assert.That(Published<Notification<CaptainAddedDto>>(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(note.Value, Is.SameAs(dto));
+            Assert.That(note.ConnectionId, Is.EqualTo("conn-x"));
+            Assert.That(Published<Notification<CaptainAddedDto>>(), Is.Empty);
+        }
     }
 
     // ---------------- RemoveCaptain ----------------
@@ -280,8 +316,11 @@ public class TeamServiceDraftTests
 
         var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.RemoveCaptain(new RemoveCaptainDto { SeasonID = season.SeasonID, PersonID = user.Id }));
-        Assert.That(ex!.Message, Is.EqualTo("Player is not a captain"));
-        Assert.That(_publisher.ReceivedCalls(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("Player is not a captain"));
+            Assert.That(_publisher.ReceivedCalls(), Is.Empty);
+        }
     }
 
     // ---------------- RemovePlayerFromTeam ----------------
@@ -300,11 +339,17 @@ public class TeamServiceDraftTests
         await _service.RemovePlayerFromTeam(dto, "conn");
 
         var players = (await TeamPlayersOf(team.TeamID)).Where(tp => tp.DraftRound != null).ToList();
-        Assert.That(players.Select(p => (p.UserID, p.DraftRound)), Is.EqualTo(new[] { (p2.Id, (int?)1), (p3.Id, (int?)2) }));
-        Assert.That((await TeamPlayersOf(team.TeamID)).Any(tp => tp.UserID == cap.Id), Is.True, "captain stays");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(players.Select(p => (p.UserID, p.DraftRound)), Is.EqualTo(new[] { (p2.Id, (int?)1), (p3.Id, (int?)2) }));
+            Assert.That((await TeamPlayersOf(team.TeamID)).Any(tp => tp.UserID == cap.Id), Is.True, "captain stays");
+        }
         var note = Published<Notification<RemovePlayerFromTeamRequestDto>>().Single();
-        Assert.That(note.Value, Is.SameAs(dto));
-        Assert.That(note.ConnectionId, Is.EqualTo("conn"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(note.Value, Is.SameAs(dto));
+            Assert.That(note.ConnectionId, Is.EqualTo("conn"));
+        }
     }
 
     [Test]
@@ -390,9 +435,12 @@ public class TeamServiceDraftTests
 
         var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capA.Id, PersonID = p.Id }, rando.Id));
-        Assert.That(ex!.Message, Is.EqualTo("You cannot make picks on behalf of another captain unless you are the commissioner"));
-        Assert.That(await TeamPlayersOf(teamA.TeamID), Has.Count.EqualTo(1));
-        Assert.That(_publisher.ReceivedCalls(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("You cannot make picks on behalf of another captain unless you are the commissioner"));
+            Assert.That(await TeamPlayersOf(teamA.TeamID), Has.Count.EqualTo(1));
+            Assert.That(_publisher.ReceivedCalls(), Is.Empty);
+        }
     }
 
     [Test]
@@ -408,8 +456,11 @@ public class TeamServiceDraftTests
 
         var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capB.Id, PersonID = p.Id }, capB.Id));
-        Assert.That(ex!.Message, Is.EqualTo($"It is not your turn to be making a draft pick. It is {capA.Id}'s turn"));
-        Assert.That(await TeamPlayersOf(teamB.TeamID), Has.Count.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo($"It is not your turn to be making a draft pick. It is {capA.Id}'s turn"));
+            Assert.That(await TeamPlayersOf(teamB.TeamID), Has.Count.EqualTo(1));
+        }
     }
 
     [Test]
@@ -425,11 +476,14 @@ public class TeamServiceDraftTests
         var players = await TeamPlayersOf(teamA.TeamID);
         Assert.That(players.Single(tp => tp.UserID == p.Id).DraftRound, Is.EqualTo(1));
         var note = Published<Notification<AddPlayerToTeamRequestDto>>().Single();
-        Assert.That(note.Value, Is.SameAs(dto));
-        Assert.That(note.ConnectionId, Is.EqualTo("conn-a"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(note.Value, Is.SameAs(dto));
+            Assert.That(note.ConnectionId, Is.EqualTo("conn-a"));
+        }
 
         // Team A now has more members, so B is on deck
-        var fresh = new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>());
+        var fresh = new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>());
         var onDeck = await fresh.OnDeck(season.SeasonID, CancellationToken.None);
         Assert.That(onDeck!.Captain.UserID, Is.EqualTo(capB.Id));
     }
@@ -448,8 +502,11 @@ public class TeamServiceDraftTests
         await _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capB.Id, PersonID = p2.Id }, commish.Id);
 
         var players = (await TeamPlayersOf(teamB.TeamID)).Where(tp => tp.UserID != capB.Id).ToList();
-        Assert.That(players.Select(x => (x.UserID, x.DraftRound)), Is.EqualTo(new[] { (p1.Id, (int?)1), (p2.Id, (int?)2) }));
-        Assert.That(Published<Notification<AddPlayerToTeamRequestDto>>(), Has.Count.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(players.Select(x => (x.UserID, x.DraftRound)), Is.EqualTo(new[] { (p1.Id, (int?)1), (p2.Id, (int?)2) }));
+            Assert.That(Published<Notification<AddPlayerToTeamRequestDto>>(), Has.Count.EqualTo(2));
+        }
     }
 
     [Test]
@@ -473,8 +530,11 @@ public class TeamServiceDraftTests
         await _context.AddTeam(season, "T2", c2, 2, p2);
 
         var onDeck = await _service.OnDeck(season.SeasonID, CancellationToken.None);
-        Assert.That(onDeck!.Captain.UserID, Is.EqualTo(c3.Id));
-        Assert.That(onDeck.TeamName, Is.EqualTo("T3"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(onDeck!.Captain.UserID, Is.EqualTo(c3.Id));
+            Assert.That(onDeck.TeamName, Is.EqualTo("T3"));
+        }
     }
 
     // ---------------- MovePlayerToTeam ----------------
@@ -497,11 +557,17 @@ public class TeamServiceDraftTests
 
         var a = (await TeamPlayersOf(teamA.TeamID)).Where(tp => tp.UserID != capA.Id).Select(tp => (tp.UserID, tp.DraftRound));
         var b = (await TeamPlayersOf(teamB.TeamID)).Where(tp => tp.UserID != capB.Id).Select(tp => (tp.UserID, tp.DraftRound));
-        Assert.That(a, Is.EqualTo(new[] { (a2.Id, (int?)1), (a3.Id, (int?)2) }));
-        Assert.That(b, Is.EqualTo(new[] { (a1.Id, (int?)1), (b1.Id, (int?)2) }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(a, Is.EqualTo(new[] { (a2.Id, (int?)1), (a3.Id, (int?)2) }));
+            Assert.That(b, Is.EqualTo(new[] { (a1.Id, (int?)1), (b1.Id, (int?)2) }));
+        }
         var note = Published<Notification<MovePlayerToTeamRequestDto>>().Single();
-        Assert.That(note.Value, Is.SameAs(dto));
-        Assert.That(note.ConnectionId, Is.EqualTo("conn-m"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(note.Value, Is.SameAs(dto));
+            Assert.That(note.ConnectionId, Is.EqualTo("conn-m"));
+        }
     }
 
     [Test]
@@ -559,9 +625,12 @@ public class TeamServiceDraftTests
 
         var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = capA.Id, NewCaptainID = notCap.Id, PersonID = p1.Id, RoundNumber = 1 }));
-        Assert.That(ex!.Message, Is.EqualTo("New team does not exist"));
-        Assert.That((await TeamPlayersOf(team.TeamID)).Any(tp => tp.UserID == p1.Id), Is.True);
-        Assert.That(_publisher.ReceivedCalls(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("New team does not exist"));
+            Assert.That((await TeamPlayersOf(team.TeamID)).Any(tp => tp.UserID == p1.Id), Is.True);
+            Assert.That(_publisher.ReceivedCalls(), Is.Empty);
+        }
     }
 
     // ---------------- Lock ----------------
@@ -587,15 +656,18 @@ public class TeamServiceDraftTests
         Assert.That(await _service.AreCaptainsLocked(season.SeasonID), Is.False);
 
         await _service.LockCaptains(season.SeasonID, true, "conn-l");
-        Assert.That(await new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>()).AreCaptainsLocked(season.SeasonID), Is.True);
+        Assert.That(await new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()).AreCaptainsLocked(season.SeasonID), Is.True);
 
         await _service.LockCaptains(season.SeasonID, false);
-        Assert.That(await new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>()).AreCaptainsLocked(season.SeasonID), Is.False);
-
-        Assert.That(Published<LockChanged>(), Is.EqualTo(new[]
+        using (Assert.EnterMultipleScope())
         {
-            new LockChanged(true, season.SeasonID, "conn-l"),
-            new LockChanged(false, season.SeasonID, null),
-        }));
+            Assert.That(await new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()).AreCaptainsLocked(season.SeasonID), Is.False);
+
+            Assert.That(Published<LockChanged>(), Is.EqualTo(new[]
+            {
+                new LockChanged(true, season.SeasonID, "conn-l"),
+                new LockChanged(false, season.SeasonID, null),
+            }));
+        }
     }
 }

@@ -1,8 +1,8 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Infrastructure.Queries;
 using GrifballWebApp.Domain.Archive;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using GrifballWebApp.Application.Queries;
 
 namespace GrifballWebApp.Test;
 

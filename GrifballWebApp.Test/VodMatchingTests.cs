@@ -1,7 +1,5 @@
-using GrifballWebApp.Server.Historical.Vods;
-using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
-using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Application.Historical.Vods;
 
 namespace GrifballWebApp.Test;
 

@@ -7,6 +7,7 @@ using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
+using GrifballWebApp.Application.Profile;
 
 namespace GrifballWebApp.Test;
 
@@ -24,7 +25,7 @@ public class ProfileControllerTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _setGamertagService = Substitute.For<ISetGamertagService>();
-        _controller = new ProfileController(_context, _setGamertagService, new GrifballWebApp.Server.Profile.ProfileStatsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context)), new GrifballWebApp.Server.Profile.ProfileCommendationsService(_context));
+        _controller = new ProfileController(_context, _setGamertagService, new GrifballWebApp.Application.Profile.ProfileStatsService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context)), new GrifballWebApp.Application.Profile.ProfileCommendationsService(_context));
     }
 
     [TearDown]

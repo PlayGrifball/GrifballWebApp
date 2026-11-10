@@ -1,22 +1,13 @@
-using System.Reflection;
-using System.Security.Claims;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Brackets;
-using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.TeamPage;
-using GrifballWebApp.Server.Teams;
-using GrifballWebApp.Server.Teams.Handlers;
-using GrifballWebApp.Server.TeamStandings;
-using GrifballWebApp.Server.Notifications;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using NSubstitute;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Application.TeamPage;
+using GrifballWebApp.Application.TeamStandings;
 
 namespace GrifballWebApp.Test;
 
@@ -32,7 +23,7 @@ public class TeamPageControllerTests
     public async Task SetUp()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        _controller = new TeamController(_context, new GrifballWebApp.Server.TeamPage.TeamPageService(_context), new TeamHistoryService(_context));
+        _controller = new TeamController(_context, new GrifballWebApp.Application.TeamPage.TeamPageService(_context), new TeamHistoryService(_context));
     }
 
     [TearDown]
@@ -151,7 +142,7 @@ public class TeamPageControllerTests
     public async Task PlayoffBye_CountsAsAWin_AndListsTheByeAsTheOpponent()
     {
         var (season, a, b, c, _, _, _) = await Seed();
-        var bracketService = new BracketService(_context, new TeamStandingsService(_context), new GrifballWebApp.Server.Championships.ChampionshipService(_context));
+        var bracketService = new BracketService(_context, new TeamStandingsService(_context), new GrifballWebApp.Application.Championships.ChampionshipService(_context));
         // Three teams: W1 = seed 1 (B) vs BYE, W2 = seed 3 (C) vs seed 2 (A)
         await bracketService.CreateBracket(3, season.SeasonID, false, 1);
         await bracketService.SetSeeds(season.SeasonID, new CustomSeedDto[]
@@ -198,7 +189,7 @@ public class TeamPageControllerTests
         _context.ChangeTracker.Clear();
 
         var dto = (await _controller.Team(team.TeamID, CancellationToken.None))!;
-        var stats = await new GrifballWebApp.Server.Seasons.SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context)).GetSeasonPlayerStats(season.SeasonID, team.TeamID);
+        var stats = await new GrifballWebApp.Application.Seasons.SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context)).GetSeasonPlayerStats(season.SeasonID, team.TeamID);
 
         Assert.Multiple(() =>
         {

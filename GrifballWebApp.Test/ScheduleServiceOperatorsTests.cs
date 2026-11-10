@@ -1,7 +1,7 @@
 using GeneticSharp;
-using GrifballWebApp.Server.Scheduler;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Application.Scheduler;
 
 namespace GrifballWebApp.Test;
 

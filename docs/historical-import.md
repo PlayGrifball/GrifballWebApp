@@ -6,7 +6,7 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
 ## How it works
 
 - **Sources** (`Event.HistoricalSources`): every workbook, page and channel of the archive, from the catalog in
-  `GrifballWebApp.Server/Historical/Sources/HistoricalSourceCatalog.cs` (written to the table at runtime: a fresh
+  `GrifballWebApp.Application/Historical/Sources/HistoricalSourceCatalog.cs` (written to the table at runtime: a fresh
   environment needs no setup). Each entry says what the import reads from it (season stats tabs, database tables of stats
   with a season column (`StatsTable`: the grifball.info backup, split by season, division and phase, its season IDs named
   in its entry since the workbook has no names), Waypoint game lists, per-game carnage tabs, the champions record, the

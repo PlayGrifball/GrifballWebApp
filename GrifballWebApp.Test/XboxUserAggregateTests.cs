@@ -1,10 +1,10 @@
-using GrifballWebApp.Infrastructure.Queries;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using GrifballWebApp.Application.Queries;
 
 namespace GrifballWebApp.Test;
 

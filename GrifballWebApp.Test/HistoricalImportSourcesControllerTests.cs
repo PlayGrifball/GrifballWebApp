@@ -1,13 +1,16 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical;
-using GrifballWebApp.Server.Historical.Sources;
 using GrifballWebApp.Domain.Archive;
-using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Net;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Historical.Sources;
+using GrifballWebApp.Infrastructure.Historical;
+using GrifballWebApp.Infrastructure.Historical.Sources;
+using GrifballWebApp.Application.Database;
 
 namespace GrifballWebApp.Test;
 
@@ -41,14 +44,14 @@ public class HistoricalImportSourcesControllerTests
     {
         var sources = (await _controller.Sources(CancellationToken.None)).Value!;
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sources, Has.Count.EqualTo(HistoricalSourceCatalog.Sources.Count));
             Assert.That(await _controller.SetSourceEnabled("late-league-website", new SetEnabledRequest(false), CancellationToken.None), Is.InstanceOf<NoContentResult>());
             Assert.That(await _controller.SetSourceEnabled("nope", new SetEnabledRequest(true), CancellationToken.None), Is.InstanceOf<NotFoundResult>());
             Assert.That(await _controller.SetSourceEnabled("2018-fl18-schedule", new SetEnabledRequest(true), CancellationToken.None), Is.InstanceOf<ConflictObjectResult>(), "A dead source can't be enabled");
             Assert.That((await _controller.Sources(CancellationToken.None)).Value!.Single(s => s.SourceID == "late-league-website").Enabled, Is.False);
-        });
+        }
     }
 
     [Test]
@@ -58,7 +61,7 @@ public class HistoricalImportSourcesControllerTests
         var preview = QueuedJob(await _controller.Preview(CancellationToken.None));
 
         var jobs = (await _controller.Jobs(CancellationToken.None)).Value!;
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(jobs.Select(j => (j.JobID, j.Kind, j.Trigger, j.Status)), Is.EqualTo(new[]
             {
@@ -66,7 +69,7 @@ public class HistoricalImportSourcesControllerTests
             }), "Newest first");
             Assert.That(await _signal.WaitAsync(TimeSpan.Zero, CancellationToken.None), Is.True);
             Assert.That((await _controller.Job(refresh, CancellationToken.None)).Value!.Kind, Is.EqualTo("Refresh"));
-        });
+        }
     }
 
     [Test]
@@ -79,13 +82,13 @@ public class HistoricalImportSourcesControllerTests
 
         var applied = QueuedJob(await _controller.ApplyPreview(preview.HistoricalImportJobID, CancellationToken.None));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             var job = await _context.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID == applied);
             Assert.That((job.Kind, job.SnapshotIDs, job.Guarded, job.SeasonKeys), Is.EqualTo((HistoricalImportJobKind.Import, "4,5", false, (string?)null)));
             Assert.That(await _controller.ApplyPreview(running.HistoricalImportJobID, CancellationToken.None), Is.InstanceOf<ConflictResult>());
             Assert.That(await _controller.ApplyPreview(999, CancellationToken.None), Is.InstanceOf<NotFoundResult>());
-        });
+        }
     }
 
     [Test]
@@ -101,7 +104,7 @@ public class HistoricalImportSourcesControllerTests
         var skipped = await _controller.SkipReview(skip.HistoricalSeasonReviewID, CancellationToken.None);
 
         var reviews = (await _controller.Job(job.HistoricalImportJobID, CancellationToken.None)).Value!.Reviews;
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(skipped, Is.InstanceOf<NoContentResult>());
             Assert.That(reviews.Select(r => (r.SeasonKey, r.Status, r.ApprovalJobID)), Is.EqualTo(new[] { ("a/Stats", "Approved", (int?)approvalJob), ("b/Stats", "Skipped", null) }));
@@ -110,13 +113,13 @@ public class HistoricalImportSourcesControllerTests
             Assert.That((queued.SnapshotIDs, queued.SeasonKeys, queued.Guarded), Is.EqualTo(("7", "a/Stats", false)));
             Assert.That(await _controller.ApproveReview(approve.HistoricalSeasonReviewID, CancellationToken.None), Is.InstanceOf<ConflictResult>());
             Assert.That(await _controller.SkipReview(999, CancellationToken.None), Is.InstanceOf<NotFoundResult>());
-        });
+        }
     }
 
     [Test]
     public async Task TheSchedule_IsShown_AndPaused()
     {
-        await using var jobs = await InMemoryJobs.Create(TimeProvider.System, services => services.AddSingleton(_context), HistoricalRefreshJob.Definition);
+        await using var jobs = await InMemoryJobs.Create(TimeProvider.System, services => services.AddSingleton(_context).AddSingleton<IApplicationDbContext>(_context), HistoricalRefreshJob.Definition);
         var schedule = new HistoricalImportSchedule(jobs.Factory, new HistoricalImportJobs(_context, _signal));
         var beforeTheWorker = await _controller.SetSchedulePaused(schedule, new SetPausedRequest(true), CancellationToken.None);
         await jobs.Seed();
@@ -132,7 +135,7 @@ public class HistoricalImportSourcesControllerTests
         };
         var paused = (await _controller.SetSchedulePaused(schedule, new SetPausedRequest(true), CancellationToken.None)).Value!;
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(beforeTheWorker.Result, Is.InstanceOf<ConflictResult>(), "No trigger until a worker makes it");
             Assert.That((before.Paused, before.LastRunAt, before.Interval), Is.EqualTo((false, (DateTime?)null, TimeSpan.FromDays(1))));
@@ -140,6 +143,6 @@ public class HistoricalImportSourcesControllerTests
             Assert.That((paused.Paused, paused.NextRunAt), Is.EqualTo((true, (DateTime?)null)));
             Assert.That(await jobs.Scheduler.GetTriggerState(HistoricalRefreshJob.TriggerKey), Is.EqualTo(Quartz.TriggerState.Paused), "On the trigger");
             Assert.That((await jobs.Scheduler.GetTriggerPause(HistoricalRefreshJob.TriggerKey))?.RequestedBy, Is.EqualTo("sysadmin"));
-        });
+        }
     }
 }

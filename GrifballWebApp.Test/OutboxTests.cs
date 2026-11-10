@@ -1,8 +1,5 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server;
-using GrifballWebApp.Server.Outbox;
-using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
@@ -13,6 +10,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.Outbox;
+using GrifballWebApp.Infrastructure.Preview;
 
 namespace GrifballWebApp.Test;
 

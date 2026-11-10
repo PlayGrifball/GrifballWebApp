@@ -1,6 +1,4 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Profile;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
@@ -8,6 +6,8 @@ using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Profile;
 
 namespace GrifballWebApp.Test;
 
@@ -35,7 +35,7 @@ public class SetGamertagServiceTests
             _context,
             _getsertXboxUserService,
             _userMergeService,
-            new GrifballWebApp.Server.Historical.GamertagMatching(_context)
+            new GrifballWebApp.Application.Historical.GamertagMatching(_context)
         );
     }
 

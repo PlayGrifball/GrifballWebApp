@@ -1,14 +1,14 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Brackets;
-using GrifballWebApp.Server.SeasonMatchPage;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.Stats;
 
 namespace GrifballWebApp.Test;
 
@@ -28,7 +28,7 @@ public class SeasonMatchServiceTests
         _context = await SetUpFixture.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
         _bracketService = Substitute.For<IBracketService>();
-        _service = new SeasonMatchService(_context, _dataPullService, _bracketService, new GrifballWebApp.Server.Championships.ChampionshipService(_context));
+        _service = new SeasonMatchService(_context, _dataPullService, _bracketService, new GrifballWebApp.Application.Championships.ChampionshipService(_context));
     }
 
     [TearDown]

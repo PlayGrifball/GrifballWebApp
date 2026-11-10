@@ -1,11 +1,11 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 

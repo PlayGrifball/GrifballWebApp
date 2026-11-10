@@ -1,20 +1,11 @@
-using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Services;
-using GrifballWebApp.Server;
-using GrifballWebApp.Server.Events;
-using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
-using NetCord.Rest;
-using NSubstitute;
 
 namespace GrifballWebApp.Test;
 

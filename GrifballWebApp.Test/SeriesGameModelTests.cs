@@ -119,9 +119,9 @@ public class SeriesGameModelTests
             new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, RecordedGameID = recorded.RecordedGameID });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
-        var championships = new GrifballWebApp.Server.Championships.ChampionshipService(_context);
-        var brackets = new GrifballWebApp.Server.Brackets.BracketService(_context, new GrifballWebApp.Server.TeamStandings.TeamStandingsService(_context), championships);
-        var service = new GrifballWebApp.Server.SeasonMatchPage.SeasonMatchService(_context, NSubstitute.Substitute.For<GrifballWebApp.Server.Services.IDataPullService>(), brackets, championships);
+        var championships = new GrifballWebApp.Application.Championships.ChampionshipService(_context);
+        var brackets = new GrifballWebApp.Application.Brackets.BracketService(_context, new GrifballWebApp.Application.TeamStandings.TeamStandingsService(_context), championships);
+        var service = new GrifballWebApp.Application.SeasonMatchPage.SeasonMatchService(_context, NSubstitute.Substitute.For<GrifballWebApp.Application.HaloInfinite.IDataPullService>(), brackets, championships);
 
         var page = (await service.GetSeasonMatchPage(seeded.SeasonMatch.SeasonMatchID))!;
 

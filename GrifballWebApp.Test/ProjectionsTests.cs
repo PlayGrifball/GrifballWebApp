@@ -1,7 +1,6 @@
 using System.Linq.Expressions;
-using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Application.Extensions;
 
 namespace GrifballWebApp.Test;
 

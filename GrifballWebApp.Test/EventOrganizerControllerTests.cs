@@ -1,16 +1,12 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.EventOrganizer;
-using GrifballWebApp.Server.Profile;
-using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using NSubstitute;
-using AvailabilityTimeslotDto = GrifballWebApp.Server.Availability.TimeslotDto;
+using AvailabilityTimeslotDto = GrifballWebApp.Application.Availability.TimeslotDto;
+using GrifballWebApp.Application.EventOrganizer;
 
 namespace GrifballWebApp.Test;
 

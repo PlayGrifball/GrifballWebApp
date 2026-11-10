@@ -1,5 +1,5 @@
-using GrifballWebApp.Server;
 using Microsoft.Extensions.Configuration;
+using GrifballWebApp.Application;
 
 namespace GrifballWebApp.Test;
 

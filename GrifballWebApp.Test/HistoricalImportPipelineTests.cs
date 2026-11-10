@@ -1,8 +1,4 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Championships;
-using GrifballWebApp.Server.Historical;
-using GrifballWebApp.Server.Historical.Sources;
-using GrifballWebApp.Server.Services;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
@@ -14,6 +10,13 @@ using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using System.Net;
 using static GrifballWebApp.Test.HistoricalXlsx;
+using GrifballWebApp.Application.Championships;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Historical.Sources;
+using GrifballWebApp.Infrastructure.Historical;
+using GrifballWebApp.Infrastructure.Historical.Sources;
+using GrifballWebApp.Application.Database;
 
 namespace GrifballWebApp.Test;
 
@@ -27,6 +30,12 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class HistoricalImportPipelineTests
 {
+    private static readonly string[] SourcesAAndB = ["test-a", "test-b"];
+    private static readonly string[] SourceB = ["test-b"];
+    private static readonly string[] SourceC = ["test-c"];
+    private static readonly int[] DriftedKills = [77];
+    private static readonly int[] ReimportedKills = [9];
+
     private GrifballContext _context = null!;
     private FakeTimeProvider _time = null!;
     private ServiceProvider _services = null!;
@@ -60,6 +69,7 @@ public class HistoricalImportPipelineTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddScoped(_ => new GrifballContext(TestDatabase.Options(connectionString).Options));
+        services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<GrifballContext>());
         services.AddSingleton(_signal);
         services.AddSingleton(new XuidLookupSignal());
         services.AddSingleton<TimeProvider>(_time);
@@ -105,7 +115,7 @@ public class HistoricalImportPipelineTests
         return await use(scope.ServiceProvider.GetRequiredService<HistoricalImportJobs>(), scope.ServiceProvider.GetRequiredService<HistoricalSourceService>());
     }
 
-    private Task Jobs(Func<HistoricalImportJobs, HistoricalSourceService, Task> use) => Jobs<bool>(async (jobs, sources) => { await use(jobs, sources); return true; });
+    private Task<bool> Jobs(Func<HistoricalImportJobs, HistoricalSourceService, Task> use) => Jobs<bool>(async (jobs, sources) => { await use(jobs, sources); return true; });
 
     private HistoricalImportWorker Worker() => new(_services.GetRequiredService<IServiceScopeFactory>(), _signal, _services.GetRequiredService<IOptions<HistoricalImportWorkerOptions>>(),
         _time, NullLogger<HistoricalImportWorker>.Instance, new XuidLookupSignal());
@@ -154,14 +164,14 @@ public class HistoricalImportPipelineTests
         var previewId = await Enqueue(HistoricalImportJob.Preview());
         await RunJobs();
         var preview = await Job(previewId);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((preview.Status, preview.Kind), Is.EqualTo(("Succeeded", "Preview")));
             Assert.That(await StatRows("Winter League 2019"), Is.EqualTo(5), "A dry run");
             var review = preview.Reviews.Single();
             Assert.That((review.SeasonName, review.Status, review.StatsBefore, review.StatsRemoved, review.TeamsBefore, review.TeamsRemoved), Is.EqualTo(((string?)"Winter League 2019", "Preview", 5, 3, 2, 1)));
             Assert.That(preview.Report!.SeasonRemovals.Single(r => r.SeasonKey == "test-a/Stats").Stopped, Is.False);
-        });
+        }
 
         // Changed again after the preview: applying it imports what was previewed
         _exports["A"] = Stats(("A", "Tuna", 9));
@@ -170,14 +180,14 @@ public class HistoricalImportPipelineTests
         var (decision, applyId) = await Jobs((jobs, _) => jobs.ApplyPreview(previewId));
         await RunJobs();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(decision, Is.EqualTo(HistoricalJobDecision.Done));
             Assert.That((await Job(applyId!.Value)).Status, Is.EqualTo("Succeeded"));
             Assert.That(await StatRows("Winter League 2019"), Is.EqualTo(2));
             Assert.That((await Jobs((jobs, _) => jobs.ApplyPreview(applyId.Value))).Decision, Is.EqualTo(HistoricalJobDecision.Conflict), "Only a preview is applied");
             Assert.That((await Jobs((jobs, _) => jobs.ApplyPreview(999))).Decision, Is.EqualTo(HistoricalJobDecision.NotFound));
-        });
+        }
     }
 
     [Test]
@@ -196,7 +206,7 @@ public class HistoricalImportPipelineTests
 
         var guarded = await Job(guardedId);
         var list = await Jobs((jobs, _) => jobs.List(10));
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await StatRows("Winter League 2019"), Is.EqualTo(5), "Stopped: left as it was");
             Assert.That(await StatRows("Spring League 2019"), Is.EqualTo(4), "Within the threshold: imported");
@@ -204,20 +214,20 @@ public class HistoricalImportPipelineTests
             Assert.That((review.SeasonKey, review.Status, review.StatsRemoved, review.StatsBefore), Is.EqualTo(("test-a/Stats", "NeedsReview", 3, 5)));
             Assert.That(guarded.Report!.Warnings, Has.Some.StartsWith("test-a/Stats: stopped for review"));
             Assert.That(list.First(j => j.JobID == guardedId).NeedsReview, Is.EqualTo(1));
-        });
+        }
 
         var (decision, approvalId) = await Jobs((jobs, _) => jobs.Decide(guarded.Reviews[0].ReviewID, approve: true));
         await RunJobs();
 
         var decided = (await Job(guardedId)).Reviews.Single();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(decision, Is.EqualTo(HistoricalJobDecision.Done));
             Assert.That(await StatRows("Winter League 2019"), Is.EqualTo(2), "Approved: applied");
             Assert.That((decided.Status, decided.ApprovalJobID, decided.DecidedAt.HasValue), Is.EqualTo(("Approved", approvalId, true)));
             Assert.That((await Jobs((jobs, _) => jobs.Decide(decided.ReviewID, approve: false))).Decision, Is.EqualTo(HistoricalJobDecision.Conflict), "Decided once");
             Assert.That((await Jobs((jobs, _) => jobs.Decide(999, approve: true))).Decision, Is.EqualTo(HistoricalJobDecision.NotFound));
-        });
+        }
     }
 
     [Test]
@@ -234,12 +244,12 @@ public class HistoricalImportPipelineTests
         var (decision, jobId) = await Jobs((jobs, _) => jobs.Decide(review.ReviewID, approve: false));
         await RunJobs();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((decision, jobId), Is.EqualTo((HistoricalJobDecision.Done, (int?)null)));
             Assert.That((await Job(guardedId)).Reviews.Single().Status, Is.EqualTo("Skipped"));
             Assert.That(await StatRows("Winter League 2019"), Is.EqualTo(5));
-        });
+        }
     }
 
     [Test]
@@ -259,11 +269,11 @@ public class HistoricalImportPipelineTests
         await RunJobs();
 
         var review = (await Job(guardedId)).Reviews.Single();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((review.TitlesBefore, review.TitlesRemoved, review.StatsRemoved), Is.EqualTo((2, 1, 0)));
             Assert.That(await _context.Set<PlayerChampionship>().CountAsync(), Is.EqualTo(2));
-        });
+        }
     }
 
     [Test]
@@ -273,7 +283,7 @@ public class HistoricalImportPipelineTests
         HistoricalSeasonRemoval Removal(int statsRemoved = 0, int teamsRemoved = 0, int titlesRemoved = 0, int before = 10)
             => new() { SeasonKey = "s", StatsBefore = before, StatsRemoved = statsRemoved, TeamsBefore = before, TeamsRemoved = teamsRemoved, TitlesBefore = before, TitlesRemoved = titlesRemoved };
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(guardrail.Exceeded(Removal(statsRemoved: 5)), Is.False, "Not more than half");
             Assert.That(guardrail.Exceeded(Removal(statsRemoved: 6)), Is.True);
@@ -283,7 +293,7 @@ public class HistoricalImportPipelineTests
             Assert.That(guardrail.Exceeded(Removal(before: 0)), Is.False, "A new season removes nothing");
             Assert.That(new HistoricalGuardrailOptions().Exceeded(Removal(titlesRemoved: 1)), Is.True, "Any title, by default");
             Assert.That(Removal(statsRemoved: 1).Summary, Is.EqualTo("1 of 10 stat rows, 0 of 10 teams, 0 of 10 titles"));
-        });
+        }
     }
 
     [Test]
@@ -296,10 +306,10 @@ public class HistoricalImportPipelineTests
         var firstId = await RunScheduled();
         await RunJobs();
         var first = await Job(firstId!.Value);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((first.Kind, first.Trigger), Is.EqualTo(("Refresh", "Scheduled")));
-            Assert.That(first.Report!.SourcesChanged, Is.EquivalentTo(new[] { "test-a", "test-b" }));
+            Assert.That(first.Report!.SourcesChanged, Is.EquivalentTo(SourcesAAndB));
             Assert.That(first.Report.ImportJobID, Is.Not.Null);
             var import = await Job(first.Report.ImportJobID!.Value);
             Assert.That((import.Kind, import.Trigger, import.Guarded, import.Status), Is.EqualTo(("Import", "Scheduled", true, "Succeeded")));
@@ -310,7 +320,7 @@ public class HistoricalImportPipelineTests
             Assert.That(snapshot.Source.HistoricalSourceID, Is.EqualTo("test-a"));
             Assert.That(await StatRows("Winter League 2019"), Is.EqualTo(5));
             Assert.That(await StatRows("Spring League 2019"), Is.EqualTo(5));
-        });
+        }
 
         // A's season drifts in the database; only B's source changes: A isn't imported again
         await _context.PlayerSeasonStats.Where(s => s.Season.SeasonName == "Winter League 2019").ExecuteUpdateAsync(s => s.SetProperty(x => x.Kills, 77));
@@ -319,12 +329,12 @@ public class HistoricalImportPipelineTests
         var secondId = await RunScheduled();
         await RunJobs();
         var second = await Job(secondId!.Value);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(second.Report!.SourcesChanged, Is.EqualTo(new[] { "test-b" }));
-            Assert.That(await _context.PlayerSeasonStats.Where(s => s.Season.SeasonName == "Winter League 2019").Select(s => s.Kills).Distinct().ToListAsync(), Is.EqualTo(new[] { 77 }));
-            Assert.That(await _context.PlayerSeasonStats.Where(s => s.Season.SeasonName == "Spring League 2019").Select(s => s.Kills).Distinct().ToListAsync(), Is.EqualTo(new[] { 9 }));
-        });
+            Assert.That(second.Report!.SourcesChanged, Is.EqualTo(SourceB));
+            Assert.That(await _context.PlayerSeasonStats.Where(s => s.Season.SeasonName == "Winter League 2019").Select(s => s.Kills).Distinct().ToListAsync(), Is.EqualTo(DriftedKills));
+            Assert.That(await _context.PlayerSeasonStats.Where(s => s.Season.SeasonName == "Spring League 2019").Select(s => s.Kills).Distinct().ToListAsync(), Is.EqualTo(ReimportedKills));
+        }
 
         // Nothing changed: no import
         _time.Advance(TimeSpan.FromDays(1));
@@ -332,13 +342,13 @@ public class HistoricalImportPipelineTests
         await RunJobs();
         var third = await Job(thirdId!.Value);
         var settings = await _context.HistoricalImportSettings.AsNoTracking().SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((third.Report!.SourcesChanged.Count, third.Report.SourcesUnchanged, third.Report.ImportJobID), Is.EqualTo((0, 2, (int?)null)));
             Assert.That(await _context.HistoricalImportJobs.CountAsync(j => j.Kind == HistoricalImportJobKind.Import), Is.EqualTo(2));
             Assert.That((settings.LastScheduledRunAt, settings.LastScheduledJobID, settings.LastScheduledRunNote),
                 Is.EqualTo(((DateTime?)_time.GetUtcNow().UtcDateTime, (int?)thirdId, (string?)null)));
-        });
+        }
     }
 
     [Test]
@@ -356,10 +366,10 @@ public class HistoricalImportPipelineTests
         await RunJobs();
 
         var refresh = await Job(refreshId!.Value);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(refresh.Report!.SourcesChanged, Is.EqualTo(new[] { "test-c" }));
+            Assert.That(refresh.Report!.SourcesChanged, Is.EqualTo(SourceC));
             Assert.That(refresh.Report.ImportJobID, Is.Null);
-        });
+        }
     }
 }

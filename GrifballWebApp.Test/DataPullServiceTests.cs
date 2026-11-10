@@ -1,5 +1,4 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Services;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Surprenant.Grunt.Core;
@@ -7,6 +6,8 @@ using Surprenant.Grunt.Models.HaloInfinite;
 using Surprenant.Grunt.Models;
 using Microsoft.EntityFrameworkCore;
 using MatchType = Surprenant.Grunt.Models.HaloInfinite.MatchType;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Infrastructure.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 

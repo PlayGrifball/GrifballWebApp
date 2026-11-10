@@ -1,13 +1,7 @@
-using GrifballWebApp.Infrastructure.Services;
-using GrifballWebApp.Server.Matchmaking;
-using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
-using NSubstitute;
-using System.Security.Claims;
 using System.Text.Json;
 
 namespace GrifballWebApp.Test;
@@ -15,17 +9,19 @@ namespace GrifballWebApp.Test;
 [TestFixture]
 public class GlobalExceptionHandlerTests
 {
+    private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
+
     // GlobalExceptionHandler is internal sealed; build it via reflection with a logger closed over the internal type.
     private static (IExceptionHandler Handler, object Logger) Create()
     {
-        var type = typeof(QueueService).Assembly.GetType("GrifballWebApp.Server.GlobalExceptionHandler", throwOnError: true)!;
+        var type = typeof(GrifballWebApp.Server.Program).Assembly.GetType("GrifballWebApp.Server.GlobalExceptionHandler", throwOnError: true)!;
         var loggerType = typeof(RecordingLogger<>).MakeGenericType(type);
         var logger = Activator.CreateInstance(loggerType)!;
         var handler = (IExceptionHandler)Activator.CreateInstance(type, logger)!;
         return (handler, logger);
     }
 
-    private static IReadOnlyList<RecordingLogger<object>.Entry> Entries(object logger)
+    private static List<RecordingLogger<object>.Entry> Entries(object logger)
     {
         var entries = (System.Collections.IEnumerable)logger.GetType().GetProperty("Entries")!.GetValue(logger)!;
         return entries.Cast<object>().Select(e =>
@@ -46,9 +42,9 @@ public class GlobalExceptionHandlerTests
         var handled = await handler.TryHandleAsync(context, exception, CancellationToken.None);
 
         context.Response.Body.Position = 0;
-        var problem = await JsonSerializer.DeserializeAsync<ProblemDetails>(context.Response.Body, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var problem = await JsonSerializer.DeserializeAsync<ProblemDetails>(context.Response.Body, WebJson);
         var entry = Entries(logger).Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(handled, Is.True);
             Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
@@ -60,20 +56,20 @@ public class GlobalExceptionHandlerTests
             Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
             Assert.That(entry.Message, Is.EqualTo("Exception occurred: boom"));
             Assert.That(entry.Exception, Is.SameAs(exception));
-        });
+        }
     }
 
     private static IEnumerable<TestCaseData> ExpectedRefusals()
     {
-        yield return new TestCaseData(new GrifballWebApp.Server.Teams.TeamServiceException("Player is already on a team"), 400, "Player is already on a team").SetName("TeamServiceException_Is400");
-        yield return new TestCaseData(new GrifballWebApp.Server.Signups.SignupsClosedException(), 400, "Signups are closed for this season").SetName("SignupsClosedException_Is400");
-        yield return new TestCaseData(new GrifballWebApp.Server.Profile.MergeConflictException("Both users are on different teams"), 409, "Both users are on different teams").SetName("MergeConflictException_Is409");
-        yield return new TestCaseData(new GrifballWebApp.Server.Profile.UserHasHistoricalStatsException(7), 409, "User has historical stats; merge instead.").SetName("UserHasHistoricalStatsException_Is409");
-        yield return new TestCaseData(new GrifballWebApp.Server.Historical.GamertagClaimException("There is no claim 7"), 400, "There is no claim 7").SetName("GamertagClaimException_Is400");
-        yield return new TestCaseData(new GrifballWebApp.Server.Historical.GamertagClaimConflictException("Changed"), 409, "Changed").SetName("GamertagClaimConflictException_Is409");
-        yield return new TestCaseData(new GrifballWebApp.Server.EventOrganizer.SeasonRefusedException("Name taken", 409), 409, "Name taken").SetName("SeasonRefusedException_KeepsItsStatus");
-        yield return new TestCaseData(new GrifballWebApp.Server.EventOrganizer.SeasonRefusedException("Read only"), 400, "Read only").SetName("SeasonRefusedException_Is400ByDefault");
-        yield return new TestCaseData(new GrifballWebApp.Server.Profile.UserNotFoundException(7), 404, "Did not find user 7").SetName("UserNotFoundException_Is404");
+        yield return new TestCaseData(new GrifballWebApp.Application.Teams.TeamServiceException("Player is already on a team"), 400, "Player is already on a team").SetName("TeamServiceException_Is400");
+        yield return new TestCaseData(new GrifballWebApp.Application.Signups.SignupsClosedException(), 400, "Signups are closed for this season").SetName("SignupsClosedException_Is400");
+        yield return new TestCaseData(new GrifballWebApp.Application.Profile.MergeConflictException("Both users are on different teams"), 409, "Both users are on different teams").SetName("MergeConflictException_Is409");
+        yield return new TestCaseData(new GrifballWebApp.Application.Profile.UserHasHistoricalStatsException(7), 409, "User has historical stats; merge instead.").SetName("UserHasHistoricalStatsException_Is409");
+        yield return new TestCaseData(new GrifballWebApp.Application.Historical.GamertagClaimException("There is no claim 7"), 400, "There is no claim 7").SetName("GamertagClaimException_Is400");
+        yield return new TestCaseData(new GrifballWebApp.Application.Historical.GamertagClaimConflictException("Changed"), 409, "Changed").SetName("GamertagClaimConflictException_Is409");
+        yield return new TestCaseData(new GrifballWebApp.Application.EventOrganizer.SeasonRefusedException("Name taken", 409), 409, "Name taken").SetName("SeasonRefusedException_KeepsItsStatus");
+        yield return new TestCaseData(new GrifballWebApp.Application.EventOrganizer.SeasonRefusedException("Read only"), 400, "Read only").SetName("SeasonRefusedException_Is400ByDefault");
+        yield return new TestCaseData(new GrifballWebApp.Application.Profile.UserNotFoundException(7), 404, "Did not find user 7").SetName("UserNotFoundException_Is404");
     }
 
     [TestCaseSource(nameof(ExpectedRefusals))]
@@ -86,15 +82,15 @@ public class GlobalExceptionHandlerTests
         await handler.TryHandleAsync(context, exception, CancellationToken.None);
 
         context.Response.Body.Position = 0;
-        var problem = await JsonSerializer.DeserializeAsync<ProblemDetails>(context.Response.Body, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-        Assert.Multiple(() =>
+        var problem = await JsonSerializer.DeserializeAsync<ProblemDetails>(context.Response.Body, WebJson);
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(context.Response.StatusCode, Is.EqualTo(status));
             Assert.That(problem!.Status, Is.EqualTo(status));
             Assert.That(problem.Detail, Is.EqualTo(detail));
             Assert.That(problem.Extensions.ContainsKey("traceId"), Is.True);
             Assert.That(Entries(logger).Single().Level, Is.EqualTo(LogLevel.Information), "A refusal is not an error");
-        });
+        }
     }
 
     [Test]
@@ -109,13 +105,13 @@ public class GlobalExceptionHandlerTests
         var handled = await handler.TryHandleAsync(context, new TaskCanceledException(), cts.Token);
 
         var entry = Entries(logger).Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(handled, Is.True);
-            Assert.That(context.Response.Body.Length, Is.EqualTo(0));
+            Assert.That(context.Response.Body.Length, Is.Zero);
             Assert.That(context.Response.StatusCode, Is.EqualTo(200), "Status code is left untouched");
             Assert.That(entry.Level, Is.EqualTo(LogLevel.Warning));
             Assert.That(entry.Message, Is.EqualTo("Client has disconnected"));
-        });
+        }
     }
 }

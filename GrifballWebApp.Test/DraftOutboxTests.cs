@@ -1,14 +1,16 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server;
-using GrifballWebApp.Server.Notifications;
-using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Application.Outbox;
+using GrifballWebApp.Application.Teams;
+using GrifballWebApp.Infrastructure.Teams;
 
 namespace GrifballWebApp.Test;
 
@@ -18,6 +20,16 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class DraftOutboxTests
 {
+    private static readonly string[] PlayerAddedMessages = ["Player Display has been added to <@111222333>'s team", "<@111222333> is on deck"];
+    private static readonly string[] PlayerMovedMessages = ["Player Display has been moved from <@111222333>'s team to Cap Two's team", "<@111222333> is on deck"];
+    private static readonly string[] LockThenUnlockMessages =
+    [
+        "Captains are now locked",
+        "<@111222333> is on deck",
+        "Captains are now unlocked. Draft is paused until adjustments are complete",
+    ];
+    private static readonly string[] OnDeckOnly = ["<@111222333> is on deck"];
+
     private const ulong DraftChannel = 777_000_222;
     private GrifballContext _context = null!;
     private FakeRestRequestHandler _handler = null!;
@@ -35,7 +47,7 @@ public class DraftOutboxTests
         _context = await SetUpFixture.NewGrifballContext();
         var rest = FakeRestRequestHandler.CreateClient(out _handler);
         _outbox = new OutboxTestDriver(_context, new DiscordRestClient(rest), new DiscordOptions { DraftChannel = DraftChannel });
-        _teams = new TeamService(_context, Substitute.For<IPublisher>(), new ContextOutbox(_context));
+        _teams = new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
 
         _season = await _context.AddSeason();
         _cap = await _context.AddUser("cap", "Cap Display");
@@ -70,7 +82,7 @@ public class DraftOutboxTests
     {
         var sent = _handler.SentMessages();
         Assert.That(sent.Select(s => s.ChannelId), Is.All.EqualTo(DraftChannel));
-        return sent.Select(s => DiscordOnDeckMessagesTests.Content(s.Body)).ToList();
+        return sent.Select(s => DiscordBodies.Content(s.Body)).ToList();
     }
 
     [Test]
@@ -78,11 +90,7 @@ public class DraftOutboxTests
     {
         await Send(o => o.EnqueuePlayerAddedAsync(_context, _teams, new AddPlayerToTeamRequestDto { SeasonID = _season.SeasonID, CaptainID = _cap.Id, PersonID = _player.Id }, CancellationToken.None));
 
-        Assert.That(SentContents(), Is.EqualTo(new[]
-        {
-            "Player Display has been added to <@111222333>'s team",
-            "<@111222333> is on deck",
-        }));
+        Assert.That(SentContents(), Is.EqualTo(PlayerAddedMessages));
         var messages = await _outbox.MessagesAsync();
         Assert.That(messages.Select(x => (x.Kind, x.GroupKey, x.Status)), Is.EqualTo(new[]
         {
@@ -108,11 +116,7 @@ public class DraftOutboxTests
     {
         await Send(o => o.EnqueuePlayerMovedAsync(_context, _teams, new MovePlayerToTeamRequestDto { SeasonID = _season.SeasonID, PreviousCaptainID = _cap.Id, NewCaptainID = _cap2.Id, PersonID = _player.Id, RoundNumber = 1 }, CancellationToken.None));
 
-        Assert.That(SentContents(), Is.EqualTo(new[]
-        {
-            "Player Display has been moved from <@111222333>'s team to Cap Two's team",
-            "<@111222333> is on deck",
-        }));
+        Assert.That(SentContents(), Is.EqualTo(PlayerMovedMessages));
     }
 
     [Test]
@@ -121,12 +125,7 @@ public class DraftOutboxTests
         await Send(o => o.EnqueueLockChangedAsync(_context, _teams, _season.SeasonID, true, CancellationToken.None));
         await Send(o => o.EnqueueLockChangedAsync(_context, _teams, _season.SeasonID, false, CancellationToken.None));
 
-        Assert.That(SentContents(), Is.EqualTo(new[]
-        {
-            "Captains are now locked",
-            "<@111222333> is on deck",
-            "Captains are now unlocked. Draft is paused until adjustments are complete",
-        }));
+        Assert.That(SentContents(), Is.EqualTo(LockThenUnlockMessages));
     }
 
     [Test]
@@ -135,11 +134,11 @@ public class DraftOutboxTests
         await _teams.LockCaptains(_season.SeasonID, true);
 
         await using var fresh = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await fresh.Seasons.SingleAsync()).CaptainsLocked, Is.True);
             Assert.That((await fresh.Outbox.OrderBy(x => x.Id).ToListAsync()).Select(x => x.Kind), Is.EqualTo(new[] { DraftOutbox.Post, DraftOutbox.OnDeck }));
-        });
+        }
     }
 
     [Test]
@@ -182,12 +181,12 @@ public class DraftOutboxTests
         await outbox.DrainAsync();
 
         var message = (await outbox.MessagesAsync()).Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sent, Is.EqualTo(new[] { "first", null, "third" }), "Each sent once, in order");
             Assert.That(message.Status, Is.EqualTo(OutboxStatus.Sent));
             Assert.That(message.Result, Is.EqualTo("""{"posted":3}"""));
-        });
+        }
     }
 
     [Test]
@@ -219,8 +218,11 @@ public class DraftOutboxTests
 
         await outbox.DrainAsync();
 
-        Assert.That(calls, Is.EqualTo(1));
-        Assert.That((await outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That((await outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
+        }
     }
 
     [Test]
@@ -253,10 +255,10 @@ public class DraftOutboxTests
         await outbox.DrainAsync();
 
         var messages = await outbox.MessagesAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(messages.Select(x => x.Status), Is.EqualTo(new[] { OutboxStatus.DeadLettered, OutboxStatus.Sent, OutboxStatus.Sent }));
-            Assert.That(sent, Is.EqualTo(new[] { "<@111222333> is on deck" }), "The on-deck message still went; the one already sent did not go again");
-        });
+            Assert.That(sent, Is.EqualTo(OnDeckOnly), "The on-deck message still went; the one already sent did not go again");
+        }
     }
 }

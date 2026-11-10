@@ -1,9 +1,9 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Application.EventOrganizer;
 
 namespace GrifballWebApp.Test;
 

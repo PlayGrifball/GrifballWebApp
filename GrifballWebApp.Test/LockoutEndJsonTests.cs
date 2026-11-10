@@ -1,6 +1,6 @@
 using System.Text.Json;
 using GrifballWebApp.Server;
-using GrifballWebApp.Server.UserManagement;
+using GrifballWebApp.Application.UserManagement;
 
 namespace GrifballWebApp.Test;
 

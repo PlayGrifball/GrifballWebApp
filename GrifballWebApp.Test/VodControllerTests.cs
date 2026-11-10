@@ -2,12 +2,12 @@ using System.Reflection;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical.Vods;
 using GrifballWebApp.Domain.League;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using System.Net;
+using GrifballWebApp.Application.Historical.Vods;
 
 namespace GrifballWebApp.Test;
 

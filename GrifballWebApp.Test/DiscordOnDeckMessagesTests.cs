@@ -1,15 +1,16 @@
 using System.Security.Claims;
 using System.Text.Json;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server;
-using GrifballWebApp.Server.Teams;
-using GrifballWebApp.Server.Notifications;
-using Microsoft.Extensions.Options;
 using NSubstitute;
 
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Application.Teams;
+using GrifballWebApp.Infrastructure.Teams;
+using static GrifballWebApp.Test.DiscordBodies;
 
 namespace GrifballWebApp.Test;
 
@@ -18,6 +19,8 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class DiscordOnDeckMessagesTests
 {
+    private static readonly int[] OptionsPerMenu = [25, 25, 25, 25, 25, 25, 1];
+
     private const ulong DraftChannel = 555_000_111;
     private GrifballContext _context = null!;
     private FakeRestRequestHandler _handler = null!;
@@ -29,7 +32,7 @@ public class DiscordOnDeckMessagesTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         var rest = FakeRestRequestHandler.CreateClient(out _handler);
-        _teams = new TeamService(_context, Substitute.For<IPublisher>(), new ContextOutbox(_context));
+        _teams = new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
         _outbox = new OutboxTestDriver(_context, new DiscordInterface.Generated.DiscordRestClient(rest), new DiscordOptions { DraftChannel = DraftChannel });
     }
 
@@ -48,32 +51,6 @@ public class DiscordOnDeckMessagesTests
         await _outbox.DrainAsync();
     }
 
-    internal static List<JsonElement> StringMenus(JsonElement body)
-    {
-        var result = new List<JsonElement>();
-        void Walk(JsonElement e)
-        {
-            if (e.ValueKind == JsonValueKind.Object)
-            {
-                if (e.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.Number && t.GetInt32() == 3)
-                {
-                    result.Add(e);
-                    return;
-                }
-                foreach (var p in e.EnumerateObject()) Walk(p.Value);
-            }
-            else if (e.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var x in e.EnumerateArray()) Walk(x);
-            }
-        }
-        if (body.TryGetProperty("components", out var comps)) Walk(comps);
-        return result;
-    }
-
-    internal static string? Content(JsonElement body) =>
-        body.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString() : null;
-
     [Test]
     public async Task SendMessage_Should_ReportFailure_When_NoTeams()
     {
@@ -83,8 +60,11 @@ public class DiscordOnDeckMessagesTests
 
         var sent = _handler.SentMessages();
         Assert.That(sent, Has.Count.EqualTo(1));
-        Assert.That(sent[0].ChannelId, Is.EqualTo(DraftChannel));
-        Assert.That(Content(sent[0].Body), Is.EqualTo("Failed to find team"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sent[0].ChannelId, Is.EqualTo(DraftChannel));
+            Assert.That(Content(sent[0].Body), Is.EqualTo("Failed to find team"));
+        }
     }
 
     [Test]
@@ -98,8 +78,11 @@ public class DiscordOnDeckMessagesTests
         await SendOnDeck(season.SeasonID);
 
         var sent = _handler.SentMessages();
-        Assert.That(sent, Has.Count.EqualTo(1));
-        Assert.That(Content(sent[0].Body), Is.EqualTo("Draft has been completed"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sent, Has.Count.EqualTo(1));
+            Assert.That(Content(sent[0].Body), Is.EqualTo("Draft has been completed"));
+        }
     }
 
     [Test]
@@ -118,16 +101,22 @@ public class DiscordOnDeckMessagesTests
         await SendOnDeck(season.SeasonID);
 
         var sent = _handler.SentMessages();
-        Assert.That(sent, Has.Count.EqualTo(1), _handler.Requests.FirstOrDefault()?.Body);
-        Assert.That(sent[0].ChannelId, Is.EqualTo(DraftChannel));
-        Assert.That(Content(sent[0].Body), Is.EqualTo("<@987654321> is on deck"));
+        Assert.That(sent, Has.Count.EqualTo(1), _handler.Requests.Count > 0 ? _handler.Requests[0].Body : null);
         var menus = StringMenus(sent[0].Body);
-        Assert.That(menus, Has.Count.EqualTo(1), sent[0].Body.ToString());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sent[0].ChannelId, Is.EqualTo(DraftChannel));
+            Assert.That(Content(sent[0].Body), Is.EqualTo("<@987654321> is on deck"));
+            Assert.That(menus, Has.Count.EqualTo(1), sent[0].Body.ToString());
+        }
         var menu = menus[0];
-        Assert.That(menu.GetProperty("custom_id").GetString(), Is.EqualTo($"draftpick:{season.SeasonID}:{cap.Id}:0"));
-        Assert.That(menu.GetProperty("placeholder").GetString(), Is.EqualTo("Make pick - Amy - Zed"));
         var options = menu.GetProperty("options").EnumerateArray().Select(o => (o.GetProperty("label").GetString(), o.GetProperty("value").GetString())).ToList();
-        Assert.That(options, Is.EqualTo(new[] { ("Amy", amy.Id.ToString()), ("Zed", zed.Id.ToString()) }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(menu.GetProperty("custom_id").GetString(), Is.EqualTo($"draftpick:{season.SeasonID}:{cap.Id}:0"));
+            Assert.That(menu.GetProperty("placeholder").GetString(), Is.EqualTo("Make pick - Amy - Zed"));
+            Assert.That(options, Is.EqualTo(new[] { ("Amy", amy.Id.ToString()), ("Zed", zed.Id.ToString()) }));
+        }
     }
 
     [Test]
@@ -198,19 +187,28 @@ public class DiscordOnDeckMessagesTests
 
         var sent = _handler.SentMessages();
         Assert.That(sent, Has.Count.EqualTo(2));
-        Assert.That(sent.Select(s => s.ChannelId), Is.All.EqualTo(DraftChannel));
-        Assert.That(Content(sent[0].Body), Is.EqualTo("Cap is on deck"));
-        Assert.That(Content(sent[1].Body), Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sent.Select(s => s.ChannelId), Is.All.EqualTo(DraftChannel));
+            Assert.That(Content(sent[0].Body), Is.EqualTo("Cap is on deck"));
+            Assert.That(Content(sent[1].Body), Is.Null);
+        }
 
         var first = StringMenus(sent[0].Body);
         var second = StringMenus(sent[1].Body);
-        Assert.That(first, Has.Count.EqualTo(5));
-        Assert.That(second, Has.Count.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(first, Has.Count.EqualTo(5));
+            Assert.That(second, Has.Count.EqualTo(2));
+        }
         var all = first.Concat(second).ToList();
-        Assert.That(all.Select(m => m.GetProperty("options").GetArrayLength()), Is.EqualTo(new[] { 25, 25, 25, 25, 25, 25, 1 }));
-        Assert.That(all.Select(m => m.GetProperty("custom_id").GetString()),
-            Is.EqualTo(Enumerable.Range(0, 7).Select(i => $"draftpick:{season.SeasonID}:{cap.Id}:{i}")));
-        Assert.That(all[0].GetProperty("placeholder").GetString(), Is.EqualTo("Make pick - P000 - P024"));
-        Assert.That(all[6].GetProperty("placeholder").GetString(), Is.EqualTo("Make pick - P150 - P150"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(all.Select(m => m.GetProperty("options").GetArrayLength()), Is.EqualTo(OptionsPerMenu));
+            Assert.That(all.Select(m => m.GetProperty("custom_id").GetString()),
+                Is.EqualTo(Enumerable.Range(0, 7).Select(i => $"draftpick:{season.SeasonID}:{cap.Id}:{i}")));
+            Assert.That(all[0].GetProperty("placeholder").GetString(), Is.EqualTo("Make pick - P000 - P024"));
+            Assert.That(all[6].GetProperty("placeholder").GetString(), Is.EqualTo("Make pick - P150 - P150"));
+        }
     }
 }

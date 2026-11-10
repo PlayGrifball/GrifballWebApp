@@ -1,9 +1,4 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Brackets;
-using GrifballWebApp.Server.SeasonMatchPage;
-using GrifballWebApp.Server.Services;
-using GrifballWebApp.Server.Stats;
-using GrifballWebApp.Server.TeamStandings;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
@@ -11,6 +6,11 @@ using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using NSubstitute;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.Stats;
+using GrifballWebApp.Application.TeamStandings;
 
 namespace GrifballWebApp.Test;
 
@@ -33,7 +33,7 @@ public class SeasonMatchServiceManualGamesTests
     public async Task Setup()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        var championships = new GrifballWebApp.Server.Championships.ChampionshipService(_context);
+        var championships = new GrifballWebApp.Application.Championships.ChampionshipService(_context);
         _service = new SeasonMatchService(_context, Substitute.For<IDataPullService>(),
             new BracketService(_context, new TeamStandingsService(_context), championships), championships);
     }
@@ -348,7 +348,7 @@ public class SeasonMatchServiceManualGamesTests
             new ManualGamePlayerRequestDto { UserID = home[0], IsHomeTeam = true, Kills = 9 }));
         _context.ChangeTracker.Clear();
 
-        await new GrifballWebApp.Server.MatchPlanner.MatchPlannerService(_context).CreateSeasonMatches(seeded.Season.SeasonID, 1, 3);
+        await new GrifballWebApp.Application.MatchPlanner.MatchPlannerService(_context).CreateSeasonMatches(seeded.Season.SeasonID, 1, 3);
 
         Assert.Multiple(() =>
         {
@@ -758,7 +758,7 @@ public class SeasonMatchServiceManualGamesTests
         {
             var seeded = await SeasonMatchTestData.SeedAsync(context, bestOf: 3);
             context.ChangeTracker.Clear();
-            var championships = new GrifballWebApp.Server.Championships.ChampionshipService(context);
+            var championships = new GrifballWebApp.Application.Championships.ChampionshipService(context);
             var service = new SeasonMatchService(context, Substitute.For<IDataPullService>(),
                 new BracketService(context, new TeamStandingsService(context), championships), championships);
 

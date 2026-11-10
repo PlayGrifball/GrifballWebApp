@@ -1,5 +1,5 @@
-using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Application.Extensions;
 
 namespace GrifballWebApp.Test;
 

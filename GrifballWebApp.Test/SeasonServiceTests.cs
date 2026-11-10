@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Time.Testing;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Application.Seasons;
 
 namespace GrifballWebApp.Test;
 
@@ -18,7 +18,7 @@ public class SeasonServiceTests
     public async Task Setup()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        _service = new SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context));
+        _service = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context));
     }
 
     [TearDown]
@@ -99,7 +99,7 @@ public class SeasonServiceTests
     {
         // Arrange: a season is running from its start, included, up to its end, not included (Season.RunningAt)
         var now = new DateTime(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);
-        var service = new SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new FakeTimeProvider(now));
+        var service = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new FakeTimeProvider(now));
         var exactStartSeason = Season.Seed(seasonName: "Exact Start Season").WithDates(seasonStart: now, seasonEnd: now.AddDays(10));
         var exactEndSeason = Season.Seed(seasonName: "Exact End Season").WithDates(seasonStart: now.AddDays(-10), seasonEnd: now);
 
@@ -292,7 +292,7 @@ public class SeasonServiceTests
         await _context.SaveChangesAsync();
 
         var result = await _service.GetSeasonTeams(season.SeasonID);
-        var standings = await new GrifballWebApp.Server.TeamStandings.TeamStandingsService(_context).GetTeamStandings(season.SeasonID);
+        var standings = await new GrifballWebApp.Application.TeamStandings.TeamStandingsService(_context).GetTeamStandings(season.SeasonID);
 
         // A BYE is neither a win nor a loss; an undecided match is still to be played
         Assert.That(result!.Select(t => (t.TeamName, t.Wins, t.Losses, t.TBD, t.RecordFromSource)),

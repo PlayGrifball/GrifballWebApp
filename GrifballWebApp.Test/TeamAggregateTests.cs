@@ -1,8 +1,4 @@
-using GrifballWebApp.Infrastructure.Queries;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Profile;
-using GrifballWebApp.Server.Teams;
-using GrifballWebApp.Server.Notifications;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
@@ -10,7 +6,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using NSubstitute;
-using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Application.Outbox;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.Queries;
+using GrifballWebApp.Application.Teams;
+using GrifballWebApp.Infrastructure.Teams;
 
 namespace GrifballWebApp.Test;
 
@@ -41,13 +42,13 @@ public class TeamAggregateTests
     {
         var team = Team.Drafted(5, "Reds", Cap, 3);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((team.SeasonID, team.TeamName, team.CaptainID, team.RecordedWins), Is.EqualTo((5, "Reds", (int?)null, (int?)null)));
             Assert.That(team.TeamPlayers.Select(p => (p.UserID, p.DraftCaptainOrder, p.DraftRound)), Is.EqualTo(new[] { (Cap, (int?)3, (int?)null) }));
             Assert.That(team.IsCaptainedBy(Cap), Is.False, "Captain only once set (after the roster is saved)");
             Assert.That(() => Team.Drafted(5, " ", Cap, 1), Throws.ArgumentException);
-        });
+        }
     }
 
     [Test]
@@ -55,12 +56,12 @@ public class TeamAggregateTests
     {
         var team = Team.Imported(7, "Relentless");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((team.SeasonID, team.TeamName, team.RecordedWins, team.RecordedLosses), Is.EqualTo((7, "Relentless", (int?)null, (int?)null)));
             Assert.That(team.TeamPlayers, Is.Empty);
             Assert.That(() => Team.Imported(7, ""), Throws.ArgumentException);
-        });
+        }
     }
 
     [Test]
@@ -68,14 +69,14 @@ public class TeamAggregateTests
     {
         var team = Team.Imported(7, "Relentless");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(team.Rename("  "), Is.EqualTo(TeamRenameResult.Blank));
             Assert.That(team.Rename(new string('x', Team.TeamNameColumnLength + 1)), Is.EqualTo(TeamRenameResult.TooLong));
             Assert.That(team.TeamName, Is.EqualTo("Relentless"), "Unchanged when refused");
             Assert.That(team.Rename("relentless"), Is.EqualTo(TeamRenameResult.Renamed));
             Assert.That(team.TeamName, Is.EqualTo("relentless"));
-        });
+        }
     }
 
     [Test]
@@ -83,21 +84,21 @@ public class TeamAggregateTests
     {
         var team = DraftedTeam();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(team.SetCaptain(Other), Is.EqualTo(TeamCaptainResult.NotOnRoster));
             Assert.That(team.IsCaptainedBy(Cap), Is.True, "Unchanged when refused");
             Assert.That(team.SetCaptain(P1), Is.EqualTo(TeamCaptainResult.Appointed));
             Assert.That((team.IsCaptainedBy(P1), team.Captain?.UserID), Is.EqualTo((true, (int?)P1)));
-        });
+        }
 
         team.ClearCaptain();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((team.Captain, team.CaptainID), Is.EqualTo(((TeamPlayer?)null, (int?)null)));
             Assert.That(team.TeamPlayers, Has.Count.EqualTo(4));
             Assert.That(team.OrderCaptain(1), Is.EqualTo(TeamCaptainResult.NoCaptain));
-        });
+        }
     }
 
     [Test]
@@ -105,8 +106,11 @@ public class TeamAggregateTests
     {
         var team = DraftedTeam();
 
-        Assert.That(team.OrderCaptain(4), Is.EqualTo(TeamCaptainResult.Appointed));
-        Assert.That(team.PlayerOf(Cap)!.DraftCaptainOrder, Is.EqualTo(4));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(team.OrderCaptain(4), Is.EqualTo(TeamCaptainResult.Appointed));
+            Assert.That(team.PlayerOf(Cap)!.DraftCaptainOrder, Is.EqualTo(4));
+        }
     }
 
     [Test]
@@ -114,14 +118,14 @@ public class TeamAggregateTests
     {
         var team = DraftedTeam();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Rounds(team), Is.EqualTo(new[] { (P1, (int?)1), (P2, (int?)2), (P3, (int?)3) }), "The captain is no pick");
             Assert.That(team.Draft(P2), Is.EqualTo(TeamRosterResult.AlreadyOnTeam));
             Assert.That(team.Draft(Cap), Is.EqualTo(TeamRosterResult.AlreadyOnTeam));
             Assert.That(team.AddPlayer(P1), Is.EqualTo(TeamRosterResult.AlreadyOnTeam));
             Assert.That(team.TeamPlayers, Has.Count.EqualTo(4));
-        });
+        }
     }
 
     [Test]
@@ -129,8 +133,11 @@ public class TeamAggregateTests
     {
         var team = Team.Imported(7, "Relentless");
 
-        Assert.That(team.AddPlayer(Other), Is.EqualTo(TeamRosterResult.Done));
-        Assert.That(team.TeamPlayers.Select(p => (p.UserID, p.DraftRound)), Is.EqualTo(new[] { (Other, (int?)null) }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(team.AddPlayer(Other), Is.EqualTo(TeamRosterResult.Done));
+            Assert.That(team.TeamPlayers.Select(p => (p.UserID, p.DraftRound)), Is.EqualTo(new[] { (Other, (int?)null) }));
+        }
     }
 
     [Test]
@@ -138,14 +145,14 @@ public class TeamAggregateTests
     {
         var team = DraftedTeam();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(team.RemovePlayer(Other), Is.EqualTo(TeamRosterResult.NotOnTeam));
             Assert.That(team.RemovePlayer(P1), Is.EqualTo(TeamRosterResult.Done));
             Assert.That(Rounds(team), Is.EqualTo(new[] { (P2, (int?)2), (P3, (int?)3) }), "The import's and a merge's removal leaves the rounds");
             Assert.That(team.RemovePlayer(Cap), Is.EqualTo(TeamRosterResult.Done));
             Assert.That((team.Captain, team.CaptainID), Is.EqualTo(((TeamPlayer?)null, (int?)null)), "No captain once they are gone");
-        });
+        }
     }
 
     [Test]
@@ -153,14 +160,14 @@ public class TeamAggregateTests
     {
         var team = DraftedTeam();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(team.Undraft(Other), Is.EqualTo(TeamRosterResult.NotOnTeam));
             Assert.That(team.Undraft(Cap), Is.EqualTo(TeamRosterResult.Captain));
             Assert.That(team.Undraft(P1), Is.EqualTo(TeamRosterResult.Done));
             Assert.That(Rounds(team), Is.EqualTo(new[] { (P2, (int?)1), (P3, (int?)2) }));
             Assert.That(team.IsCaptainedBy(Cap), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -168,7 +175,7 @@ public class TeamAggregateTests
     {
         var team = DraftedTeam();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(team.MovePick(P3, 4), Is.EqualTo(TeamRosterResult.RoundOutOfRange));
             Assert.That(team.MovePick(P3, 0), Is.EqualTo(TeamRosterResult.RoundOutOfRange));
@@ -177,7 +184,7 @@ public class TeamAggregateTests
             Assert.That(Rounds(team), Is.EqualTo(new[] { (P1, (int?)1), (P2, (int?)2), (P3, (int?)3) }), "Unchanged when refused");
             Assert.That(team.MovePick(P3, 1), Is.EqualTo(TeamRosterResult.Done));
             Assert.That(Rounds(team), Is.EqualTo(new[] { (P3, (int?)1), (P1, (int?)2), (P2, (int?)3) }));
-        });
+        }
     }
 
     [Test]
@@ -189,14 +196,14 @@ public class TeamAggregateTests
         to.Draft(21);
         var traded = from.PlayerOf(P1);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(from.TradePick(P1, to, 1), Is.EqualTo(TeamRosterResult.Done));
             Assert.That(Rounds(from), Is.EqualTo(new[] { (P2, (int?)1), (P3, (int?)2) }));
             Assert.That(Rounds(to), Is.EqualTo(new[] { (P1, (int?)1), (21, (int?)2) }));
             Assert.That(to.PlayerOf(P1), Is.SameAs(traded), "The same row, moved");
             Assert.That(traded!.Team, Is.SameAs(to));
-        });
+        }
     }
 
     [Test]
@@ -207,7 +214,7 @@ public class TeamAggregateTests
         to.SetCaptain(20);
         to.AddPlayer(P2);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(from.TradePick(Other, to, 1), Is.EqualTo(TeamRosterResult.NotOnTeam));
             Assert.That(from.TradePick(Cap, to, 1), Is.EqualTo(TeamRosterResult.Captain));
@@ -218,7 +225,7 @@ public class TeamAggregateTests
             Assert.That(Rounds(from), Is.EqualTo(new[] { (P2, (int?)1), (P3, (int?)2), (P1, (int?)3) }));
             Assert.That(from.TeamPlayers, Has.Count.EqualTo(4));
             Assert.That(() => from.TradePick(P1, null!, 1), Throws.ArgumentNullException);
-        });
+        }
     }
 
     [Test]
@@ -230,7 +237,7 @@ public class TeamAggregateTests
         var orderedTarget = DraftedTeam();
         orderedTarget.PlayerOf(P1)!.OrderedAsCaptain(7);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(reassigned.MergePlayer(Other, P1), Is.False, "The source isn't on it");
             Assert.That(reassigned.MergePlayer(P2, Other), Is.True);
@@ -245,7 +252,7 @@ public class TeamAggregateTests
             Assert.That(orderedTarget.PlayerOf(P1)!.DraftCaptainOrder, Is.EqualTo(7), "A captain order of its own is kept");
 
             Assert.That(DraftedTeam().MergePlayer(P2, P3), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -254,12 +261,12 @@ public class TeamAggregateTests
         var team = DraftedTeam();
 
         Assert.That(team.MergePlayer(P2, P3), Is.True);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(team.PlayerOf(P2), Is.Null);
             Assert.That(team.IsCaptainedBy(Cap), Is.True);
             Assert.That(team.TeamPlayers, Has.Count.EqualTo(3));
-        });
+        }
     }
 
     [Test]
@@ -289,13 +296,13 @@ public class TeamAggregateTests
         var user = User.Seed(userName: "u", id: 8);
         var row = TeamPlayer.Seed(team: team, user: user, draftRound: 2);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((row.TeamID, row.UserID, row.DraftRound, row.CaptainTeam), Is.EqualTo((4, 8, (int?)2, (Team?)null)));
             Assert.That(TeamPlayer.Seed(teamID: 5, userID: 6).TeamID, Is.EqualTo(5));
             Assert.That(team.PlayerSeasonStats, Is.Empty);
             Assert.That(team.PlayerChampionships, Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -306,14 +313,14 @@ public class TeamAggregateTests
         var copy = team.Copy(out var captain);
         var none = Team.Imported(7, "No captain").Copy(out var noCaptain);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(copy.TeamName, Is.EqualTo("Reds"));
             Assert.That(copy.TeamPlayers.Select(p => (p.UserID, p.DraftRound, p.DraftCaptainOrder)), Is.EquivalentTo(team.TeamPlayers.Select(p => (p.UserID, p.DraftRound, p.DraftCaptainOrder))));
             Assert.That(copy.TeamPlayers.All(p => p.Team == copy), Is.True);
             Assert.That((copy.Captain, captain), Is.EqualTo(((TeamPlayer?)null, (int?)Cap)), "The captain is set once the copy is saved");
             Assert.That((none.TeamPlayers.Count, noCaptain), Is.EqualTo((0, (int?)null)));
-        });
+        }
     }
 }
 
@@ -357,7 +364,7 @@ public class TeamAggregateDatabaseTests
 
         var found = await _context.Teams.WithRoster().Where(Team.CaptainedBy(cap.Id)).SingleAsync();
         var withoutRoster = await _context.Teams.AsNoTracking().SingleAsync(t => t.TeamID == team.TeamID);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(found.TeamID, Is.EqualTo(team.TeamID));
             Assert.That(found.IsCaptainedBy(cap.Id), Is.True, "Through the roster's row CaptainID names");
@@ -365,7 +372,7 @@ public class TeamAggregateDatabaseTests
             Assert.That((withoutRoster.CaptainID, withoutRoster.IsCaptainedBy(cap.Id)), Is.EqualTo(((int?)found.CaptainID, false)), "Its captain's row not loaded: not known");
             Assert.That(await _context.Teams.Rosters().Select(p => p.UserID).ToListAsync(), Is.EqualTo(new[] { cap.Id }));
             Assert.That(_context.ChangeTracker.Entries<TeamPlayer>().Count(), Is.EqualTo(1), "Only the team's own, loaded with it, are tracked: the reads are not");
-        });
+        }
     }
 
     [Test]
@@ -405,12 +412,12 @@ public class TeamAggregateDatabaseTests
             (archived.TeamID, true, false, ""),
             (uncaptained.TeamID, false, false, $"{other.Id}"),
         };
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(queried.Select(q => (q.TeamID, q.Archived, q.Captained, string.Join(",", q.Picks.Order()))), Is.EqualTo(expected), "The queries");
             Assert.That(loaded.Select(t => (t.TeamID, t.IsRecordArchived, t.IsCaptainedBy(cap.Id), string.Join(",", t.Picks.Select(p => p.UserID).Order()))),
                 Is.EqualTo(expected), "The loaded teams");
-        });
+        }
     }
 
     [Test]
@@ -438,7 +445,7 @@ public class TeamAggregateDatabaseTests
         var season = await _context.AddSeason();
         var noTeam = await _context.AddUser("noTeam");
         var p1 = await _context.AddUser("p1");
-        var service = new TeamService(_context, Substitute.For<IPublisher>(), Substitute.For<IOutbox>());
+        var service = new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, Substitute.For<IOutbox>()), new ContextDatabaseLocks(_context));
 
         var moved = await Assert.ThrowsAsync<TeamServiceException>(() =>
             service.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = noTeam.Id, NewCaptainID = noTeam.Id, PersonID = p1.Id, RoundNumber = 1 }));
@@ -454,7 +461,7 @@ public class TeamAggregateDatabaseTests
         var cap = await _context.AddUser("cap");
         var p1 = await _context.AddUser("p1");
         await _context.AddTeam(season, "A", cap, 1, p1);
-        var service = new TeamService(_context, Substitute.For<IPublisher>(), Substitute.For<IOutbox>());
+        var service = new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, Substitute.For<IOutbox>()), new ContextDatabaseLocks(_context));
 
         var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             service.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = cap.Id, NewCaptainID = cap.Id, PersonID = p1.Id, RoundNumber = 3 }));
@@ -474,12 +481,12 @@ public class TeamAggregateDatabaseTests
         _context.ChangeTracker.Clear();
 
         var merged = await _context.Teams.WithRoster().SingleAsync(t => t.TeamID == team.TeamID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(merged.TeamPlayers.Select(p => p.UserID), Is.EqualTo(new[] { real.Id }), "The source's row goes");
             Assert.That(merged.IsCaptainedBy(real.Id), Is.True);
             Assert.That(merged.PlayerOf(real.Id)!.DraftCaptainOrder, Is.EqualTo(3));
-        });
+        }
     }
 }
 
@@ -521,12 +528,12 @@ public class TeamAggregateMigrationTests
 
         _context.ChangeTracker.Clear();
         var records = await _context.Teams.AsNoTracking().ToDictionaryAsync(t => t.TeamID, t => (t.RecordedWins, t.RecordedLosses));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(records[winsOnly.TeamID], Is.EqualTo(((int?)5, (int?)0)), "The blank half is 0");
             Assert.That(records[lossesOnly.TeamID], Is.EqualTo(((int?)0, (int?)4)));
             Assert.That(records[whole.TeamID], Is.EqualTo(((int?)3, (int?)2)), "A whole record stays");
             Assert.That(records[none.TeamID], Is.EqualTo(((int?)null, (int?)null)), "No record stays none");
-        });
+        }
     }
 }

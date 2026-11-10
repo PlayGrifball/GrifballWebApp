@@ -2,6 +2,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Domain.Players;
 using NSubstitute;
+using GrifballWebApp.Application.Profile;
 
 namespace GrifballWebApp.Test;
 
@@ -18,7 +19,7 @@ public class ProfileCommendationsTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _controller = new ProfileController(_context, Substitute.For<ISetGamertagService>(),
-            new ProfileStatsService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new GrifballWebApp.Server.LateLeague.MatchmakingStatsService(_context)),
+            new ProfileStatsService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context)),
             new ProfileCommendationsService(_context));
     }
 

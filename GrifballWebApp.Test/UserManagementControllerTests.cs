@@ -1,8 +1,9 @@
-using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
+using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.UserManagement;
 
 namespace GrifballWebApp.Test;
 

@@ -1,14 +1,8 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server;
-using GrifballWebApp.Server.Reschedule;
-using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -16,8 +10,9 @@ using NetCord.Rest;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using System.Reflection;
-using System.Security.Claims;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Test;
 
@@ -433,7 +428,7 @@ public class RescheduleServiceWorkflowTests
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, threadId: 4446UL);
         _context.ChangeTracker.Clear();
         _discordClient.SendMessageAsync(Arg.Any<ulong>(), Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
-            .ThrowsAsync(new GrifballWebApp.Server.Preview.PreviewDiscordDisabledException("Discord is disabled in preview mode"));
+            .ThrowsAsync(new GrifballWebApp.Infrastructure.Preview.PreviewDiscordDisabledException("Discord is disabled in preview mode"));
 
         var result = await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id);
         await _outbox.DrainAsync();

@@ -1,16 +1,16 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Historical;
-using GrifballWebApp.Server.Historical.Sources;
-using GrifballWebApp.Server.Historical.Vods;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.League;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using System.Net;
 using System.Text;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Historical.Vods;
+using GrifballWebApp.Infrastructure.Historical;
+using GrifballWebApp.Infrastructure.Historical.Sources;
 
 namespace GrifballWebApp.Test;
 

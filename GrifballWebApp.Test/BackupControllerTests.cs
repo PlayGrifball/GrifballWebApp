@@ -1,9 +1,7 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Conversion;
 using GrifballWebApp.Server.DatabaseBackup;
-using GrifballWebApp.Server.Jobs;
 using GrifballWebApp.Domain.League;
-using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
@@ -16,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Quartz;
 using GrifballWebApp.Infrastructure.DatabaseBackup;
+using GrifballWebApp.Infrastructure.Jobs;
 
 namespace GrifballWebApp.Test;
 

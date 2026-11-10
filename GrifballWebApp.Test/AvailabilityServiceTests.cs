@@ -1,11 +1,11 @@
-using GrifballWebApp.Infrastructure.Queries;
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.Availability;
-using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Application.Availability;
+using GrifballWebApp.Application.EventOrganizer;
+using GrifballWebApp.Application.Queries;
 
 namespace GrifballWebApp.Test;
 

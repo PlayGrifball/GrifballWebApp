@@ -1,4 +1,4 @@
-using GrifballWebApp.Server.DatabaseBackup;
+using GrifballWebApp.Infrastructure.DatabaseBackup;
 
 namespace GrifballWebApp.Test;
 

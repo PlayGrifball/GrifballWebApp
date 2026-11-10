@@ -1,11 +1,11 @@
 using System.Net;
-using GrifballWebApp.Server.DatabaseBackup;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using GrifballWebApp.Infrastructure.DatabaseBackup;
+using GrifballWebApp.Server.DatabaseBackup;
 
 namespace GrifballWebApp.Test;
 
@@ -50,25 +50,25 @@ public class BackupDownloadsTests
         var script = files.Keep(BackupFormat.Postgres, NewMade("script"));
         var second = files.Keep(BackupFormat.Sqlite, NewMade("second"));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(files.Open(first), Is.Null, "the next of its format replaces it");
             Assert.That(await ReadAsync(files.Open(second)!), Is.EqualTo("second"));
             Assert.That(await ReadAsync(files.Open(script)!), Is.EqualTo("script"), "another format's is kept beside it");
             Assert.That(files.Open("../../etc/passwd"), Is.Null, "an ID, not a path");
             Assert.That(Directory.GetFiles(directory), Has.Length.EqualTo(2));
-        });
+        }
 
         // The first's timer (replaced) fires at 60 minutes: it leaves the newer one alone
         time.Advance(TimeSpan.FromMinutes(30));
         Assert.That(files.Open(second), Is.Not.Null);
         time.Advance(TimeSpan.FromMinutes(30));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(files.Open(second), Is.Null, "gone once its time is up");
             Assert.That(files.Open(script), Is.Null);
             Assert.That(Directory.GetFiles(directory), Is.Empty);
-        });
+        }
         files.Discard(BackupFormat.Dump);
         Directory.Delete(directory, recursive: true);
     }
@@ -105,16 +105,16 @@ public class BackupDownloadsTests
             return context.Request;
         }
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(BackupDownloads.Serve(id, Request(null), files, protection), Is.InstanceOf<IStatusCodeHttpResult>().With.Property("StatusCode").EqualTo(401));
-            Assert.That(BackupDownloads.Serve(id, Request("forged"), files, protection), Is.InstanceOf<IStatusCodeHttpResult>().With.Property("StatusCode").EqualTo(401));
-            Assert.That(BackupDownloads.Serve(id, Request(protector.Protect("another", TimeSpan.FromMinutes(1))), files, protection),
+            Assert.That(BackupDownloadEndpoint.Serve(id, Request(null), files, protection), Is.InstanceOf<IStatusCodeHttpResult>().With.Property("StatusCode").EqualTo(401));
+            Assert.That(BackupDownloadEndpoint.Serve(id, Request("forged"), files, protection), Is.InstanceOf<IStatusCodeHttpResult>().With.Property("StatusCode").EqualTo(401));
+            Assert.That(BackupDownloadEndpoint.Serve(id, Request(protector.Protect("another", TimeSpan.FromMinutes(1))), files, protection),
                 Is.InstanceOf<IStatusCodeHttpResult>().With.Property("StatusCode").EqualTo(401), "a token for another file");
-            Assert.That(BackupDownloads.Serve(id, Request(protector.Protect(id, TimeSpan.FromMinutes(1))), files, protection), Is.InstanceOf<IFileHttpResult>());
-        });
+            Assert.That(BackupDownloadEndpoint.Serve(id, Request(protector.Protect(id, TimeSpan.FromMinutes(1))), files, protection), Is.InstanceOf<IFileHttpResult>());
+        }
         var missing = Guid.NewGuid().ToString("N");
-        Assert.That(BackupDownloads.Serve(missing, Request(protector.Protect(missing, TimeSpan.FromMinutes(1))), files, protection),
+        Assert.That(BackupDownloadEndpoint.Serve(missing, Request(protector.Protect(missing, TimeSpan.FromMinutes(1))), files, protection),
             Is.InstanceOf<IStatusCodeHttpResult>().With.Property("StatusCode").EqualTo(404));
         Directory.Delete(directory, recursive: true);
     }
@@ -151,7 +151,7 @@ public class BackupDownloadsTests
         var stream = await downloads.OpenAsync(new ReadyBackup("abc123", "b.sql", "application/sql", "http://10.42.0.7:5295"));
 
         // Read as the response writes it, and the rest of a stream's members as one that only reads forward
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((stream!.CanRead, stream.CanSeek, stream.CanWrite), Is.EqualTo((true, false, false)));
             Assert.That(() => stream.Length, Throws.InstanceOf<NotSupportedException>());
@@ -160,19 +160,24 @@ public class BackupDownloadsTests
             Assert.That(() => stream.Seek(0, SeekOrigin.Begin), Throws.InstanceOf<NotSupportedException>());
             Assert.That(() => stream.SetLength(1), Throws.InstanceOf<NotSupportedException>());
             Assert.That(() => stream.Write(new byte[1], 0, 1), Throws.InstanceOf<NotSupportedException>());
-        });
+        }
         stream!.Flush();
         var first = new byte[8];
-        Assert.That(stream.Read(first, 0, 8), Is.EqualTo(8));
         var next = new byte[8];
-        Assert.That(await stream.ReadAsync(next, 0, 8), Is.EqualTo(8));
-        Assert.That(System.Text.Encoding.UTF8.GetString(first) + System.Text.Encoding.UTF8.GetString(next) + await ReadAsync(stream), Is.EqualTo("streamed from the worker"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(stream.Read(first, 0, 8), Is.EqualTo(8));
+#pragma warning disable CA1835 // The stream's array overload is the one under test (the memory one is read below)
+            Assert.That(await stream.ReadAsync(next, 0, 8), Is.EqualTo(8));
+#pragma warning restore CA1835
+            Assert.That(System.Text.Encoding.UTF8.GetString(first) + System.Text.Encoding.UTF8.GetString(next) + await ReadAsync(stream), Is.EqualTo("streamed from the worker"));
+        }
         var token = worker.Asked!.Headers.GetValues(BackupDownloads.TokenHeader).Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(worker.Asked.RequestUri, Is.EqualTo(new Uri("http://10.42.0.7:5295/internal/backups/abc123")));
             Assert.That(protection.CreateProtector("GrifballWebApp.DatabaseBackup.Download").ToTimeLimitedDataProtector().Unprotect(token), Is.EqualTo("abc123"));
-        });
+        }
         Directory.Delete(directory, recursive: true);
     }
 
@@ -188,8 +193,11 @@ public class BackupDownloadsTests
 
         var stream = await downloads.OpenAsync(new ReadyBackup("def456", "b.sql", "application/sql", "http://10.42.0.8:5295"));
 
-        Assert.That(await ReadAsync(stream!), Is.EqualTo("made on the second worker"));
-        Assert.That(worker.Asked!.RequestUri, Is.EqualTo(new Uri("http://10.42.0.8:5295/internal/backups/def456")), "Not the other worker");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await ReadAsync(stream!), Is.EqualTo("made on the second worker"));
+            Assert.That(worker.Asked!.RequestUri, Is.EqualTo(new Uri("http://10.42.0.8:5295/internal/backups/def456")), "Not the other worker");
+        }
         Directory.Delete(directory, recursive: true);
     }
 
@@ -218,11 +226,11 @@ public class BackupDownloadsTests
         {
             var directory = NewDirectory();
             var downloads = ApiPod(new FakeWorker(answer), Protection(), directory);
-            Assert.Multiple(async () =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(await downloads.OpenAsync(backup), Is.Null);
                 Assert.That(await downloads.ExistsAsync(backup), Is.False);
-            });
+            }
             Directory.Delete(directory, recursive: true);
         }
 
@@ -242,8 +250,11 @@ public class BackupDownloadsTests
         var worker = new FakeWorker(_ => new HttpResponseMessage(HttpStatusCode.OK));
         var downloads = ApiPod(worker, Protection(), directory);
 
-        Assert.That(await downloads.ExistsAsync(new ReadyBackup("abc123", "b.sql", "application/sql", "http://10.42.0.7:5295")), Is.True);
-        Assert.That(worker.Asked!.Method, Is.EqualTo(HttpMethod.Head));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await downloads.ExistsAsync(new ReadyBackup("abc123", "b.sql", "application/sql", "http://10.42.0.7:5295")), Is.True);
+            Assert.That(worker.Asked!.Method, Is.EqualTo(HttpMethod.Head));
+        }
         Directory.Delete(directory, recursive: true);
     }
 
@@ -256,8 +267,11 @@ public class BackupDownloadsTests
         var protection = Protection();
         var downloads = new BackupDownloads(files, new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>(), protection);
 
-        Assert.That(await downloads.ExistsAsync(new ReadyBackup(id, "b.sqlite", "application/x-sqlite3", null)), Is.True);
-        Assert.That(await downloads.ExistsAsync(new ReadyBackup("other", "b.sqlite", "application/x-sqlite3", null)), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await downloads.ExistsAsync(new ReadyBackup(id, "b.sqlite", "application/x-sqlite3", null)), Is.True);
+            Assert.That(await downloads.ExistsAsync(new ReadyBackup("other", "b.sqlite", "application/x-sqlite3", null)), Is.False);
+        }
 
         var protector = protection.CreateProtector("GrifballWebApp.DatabaseBackup.Download").ToTimeLimitedDataProtector();
         HttpRequest Head(string fileId)
@@ -267,8 +281,11 @@ public class BackupDownloadsTests
             context.Request.Headers[BackupDownloads.TokenHeader] = protector.Protect(fileId, TimeSpan.FromMinutes(1));
             return context.Request;
         }
-        Assert.That(BackupDownloads.Serve(id, Head(id), files, protection), Is.InstanceOf<IStatusCodeHttpResult>().With.Property("StatusCode").EqualTo(200));
-        Assert.That(BackupDownloads.Serve("other", Head("other"), files, protection), Is.InstanceOf<IStatusCodeHttpResult>().With.Property("StatusCode").EqualTo(404));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(BackupDownloadEndpoint.Serve(id, Head(id), files, protection), Is.InstanceOf<IStatusCodeHttpResult>().With.Property("StatusCode").EqualTo(200));
+            Assert.That(BackupDownloadEndpoint.Serve("other", Head("other"), files, protection), Is.InstanceOf<IStatusCodeHttpResult>().With.Property("StatusCode").EqualTo(404));
+        }
 
         files.Discard(BackupFormat.Sqlite);
         Assert.That(files.Exists(id), Is.False);
@@ -278,7 +295,7 @@ public class BackupDownloadsTests
     public void A_runs_metrics_read_what_is_there_and_nothing_else()
     {
         var metrics = BackupRuns.ParseMetrics("{\"fileName\":\"b.sql\",\"tables\":3,\"flag\":true}");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(BackupRuns.Text(metrics, "fileName"), Is.EqualTo("b.sql"));
             Assert.That(BackupRuns.Text(metrics, "tables"), Is.Null, "not text");
@@ -289,6 +306,6 @@ public class BackupDownloadsTests
             Assert.That(BackupRuns.ParseMetrics(null), Is.Empty);
             Assert.That(BackupRuns.ParseMetrics(""), Is.Empty);
             Assert.That(BackupRuns.ParseMetrics("null"), Is.Empty);
-        });
+        }
     }
 }

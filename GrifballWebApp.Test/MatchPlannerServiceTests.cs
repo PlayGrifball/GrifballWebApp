@@ -1,7 +1,7 @@
 using GrifballWebApp.Infrastructure;
-using GrifballWebApp.Server.MatchPlanner;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Application.MatchPlanner;
 
 namespace GrifballWebApp.Test;
 
