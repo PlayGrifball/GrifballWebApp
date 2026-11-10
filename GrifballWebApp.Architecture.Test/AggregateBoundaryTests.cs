@@ -8,7 +8,7 @@ using Mono.Cecil;
 using Microsoft.AspNetCore.Identity;
 using Mono.Cecil.Cil;
 
-namespace GrifballWebApp.Infrastructure.Test;
+namespace GrifballWebApp.Architecture.Test;
 
 /// <summary>
 /// An aggregate's internals are its own. The compiler keeps every other assembly (the context's GrifballWebApp.Infrastructure and

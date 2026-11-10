@@ -52,6 +52,10 @@ left in GrifballWebApp.Integration.Test (sharing helpers or an abstract base fix
   Halo Infinite client's pacing, jobs' wiring, the model as reflection sees it).
 - **`GrifballWebApp.Server.Test`**: GrifballWebApp.Server's types (controllers, hubs, telemetry, Discord replies)
   with test doubles, and those of the host apps beside it (GrifballWebApp.Convert, GrifballWebApp.Seeder).
+- **`GrifballWebApp.Architecture.Test`**: the architecture's rules, read from the compiled assemblies with Mono.Cecil:
+  the layers depend inwards only (Domain <- Application <- Infrastructure <- Server), a type of one of the Domain's
+  bounded contexts names another context's only where `ContextCrossings.Allowed` lists it, and an aggregate's
+  internals are its own.
 - **`GrifballWebApp.Integration.Test`**: the integration tests. It runs once per database, below.
 
 The unit test projects run once, together, as the `test (Unit)` matrix leg. A helper or test double shared by several
@@ -86,8 +90,8 @@ The integration tests use Testcontainers to provision an isolated database serve
 # Full solution build and test
 dotnet restore GrifballWebApp.slnx
 dotnet build GrifballWebApp.slnx --configuration Release
-# Unit tests, one project per layer: no database, no Docker
-for project in GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test; do
+# Unit tests, one project per layer, and the architecture tests: no database, no Docker
+for project in GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test GrifballWebApp.Architecture.Test; do
   dotnet test "$project/$project.csproj" --configuration Release
 done
 # Integration tests (Testcontainers: Docker; GRIF_TEST_DATABASE picks SqlServer, Postgres or Sqlite)

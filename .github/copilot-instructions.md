@@ -172,6 +172,10 @@ ng test
   tests, `GrifballWebApp.Domain.Test`, `GrifballWebApp.Application.Test`, `GrifballWebApp.Infrastructure.Test` or
   `GrifballWebApp.Server.Test`. A unit test project never references the integration tests. A class with both kinds
   is split by test.
+- **Architecture test** (`GrifballWebApp.Architecture.Test`): a rule about the code's shape, read from the compiled
+  assemblies with Mono.Cecil: the layers depend inwards only (Domain <- Application <- Infrastructure <- Server), the
+  Domain's bounded contexts cross only where `ContextCrossings.Allowed` lists it (a new crossing is added there, in
+  review), and an aggregate's internals are its own.
 - A helper or test double several projects share lives in the lowest test project that uses it.
 
 #### Testing Patterns for Database Operations
