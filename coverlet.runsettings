@@ -6,6 +6,8 @@
           <ExcludeByFile>
             <File>**/DiscordInterfaces/*.cs,**/DiscordInterfaceSourceGen/*.cs,**/GrifballWebApp.Migrations.*/Migrations/*.cs</File>
           </ExcludeByFile>
+          <!-- The integration tests load the domain tests (for their helpers): test code, not covered code -->
+          <Exclude>[GrifballWebApp.Domain.Test]*</Exclude>
         </Configuration>
       </DataCollector>
     </DataCollectors>

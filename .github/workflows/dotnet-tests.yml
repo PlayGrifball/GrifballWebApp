@@ -46,8 +46,9 @@ jobs:
         PR: ${{ github.event.pull_request.number }}
       run: .github/scripts/changed-areas.sh
 
-  # The whole suite once per database the app supports (Database:Provider): each test gets its own
-  # database on a Testcontainers server of that kind (GrifballWebApp.Test/TestDatabase.cs).
+  # The integration suite once per database the app supports (Database:Provider): each test gets its own
+  # database on a Testcontainers server of that kind (GrifballWebApp.Integration.Test/TestDatabase.cs). The domain's
+  # own tests (GrifballWebApp.Domain.Test) touch no database: they run once, as the Domain leg.
   test:
     name: test (${{ matrix.database }})
     needs: changes
@@ -62,8 +63,14 @@ jobs:
       fail-fast: false
       matrix:
         database: [SqlServer, Postgres, Sqlite]
+        project: [GrifballWebApp.Integration.Test]
+        include:
+        - database: Domain
+          project: GrifballWebApp.Domain.Test
     env:
+      # Read by the integration tests alone (the Domain leg has no database)
       GRIF_TEST_DATABASE: ${{ matrix.database }}
+      TEST_PROJECT: ${{ matrix.project }}/${{ matrix.project }}.csproj
       # Skipped step by step, not as a job, so the check keeps its name (a skipped matrix job reports under its
       # unexpanded name) and passes
       RUN: ${{ needs.changes.outputs.backend }}
@@ -98,12 +105,12 @@ jobs:
       
     - name: Build
       if: env.RUN == 'true'
-      run: dotnet build GrifballWebApp.Test/GrifballWebApp.Test.csproj --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
+      run: dotnet build "$TEST_PROJECT" --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
       
     - name: Test
       if: env.RUN == 'true'
       run: |
-        dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj \
+        dotnet test "$TEST_PROJECT" \
         --no-build \
         --configuration Release \
         --verbosity normal \

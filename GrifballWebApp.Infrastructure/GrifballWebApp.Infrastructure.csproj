@@ -9,7 +9,7 @@
 
   <!-- The conversion's internals (Conversion), tested directly. -->
   <ItemGroup>
-    <InternalsVisibleTo Include="GrifballWebApp.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
   </ItemGroup>
 
   <!-- The models, their configurations and their loaders, and the ports of the use cases this project implements

@@ -1,0 +1,115 @@
+using GeneticSharp;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Application.Scheduler;
+
+namespace GrifballWebApp.Integration.Test;
+
+[TestFixture]
+public class SeasonScheduleChromosomeTests
+{
+    private static readonly DateTime Start = new(2024, 1, 1, 0, 0, 0);
+    private static readonly DateTime End = new(2024, 1, 15, 0, 0, 0);
+
+    internal static AvailabilityOption[] EveryDay(params int[] hours) => EveryDayFor([], hours);
+
+    /// <summary>Every day at <paramref name="hours"/>, each timeslot one <paramref name="teamIDs"/> can all play in.</summary>
+    internal static AvailabilityOption[] EveryDayFor(int[] teamIDs, params int[] hours) =>
+        Enum.GetValues<DayOfWeek>()
+            .SelectMany(d => hours.Select(h => AvailabilityOption.Seed(dayOfWeek: d, time: new TimeOnly(h, 0),
+                teamAvailability: teamIDs.Select(t => TeamAvailability.Seed(teamID: t)))))
+            .ToArray();
+
+    private static List<SeasonMatch> Matches(int count) =>
+        Enumerable.Range(1, count).Select(i => SeasonMatch.Seed(0, i * 10, i * 10 + 1).WithId(i)).ToList();
+
+    [Test]
+    public void Constructor_GeneCountMismatch_Throws()
+    {
+        var ex = Assert.Throws<ArgumentException>(() => new SeasonScheduleChromosome(Matches(2), 3, Start, End, EveryDay(20)));
+        Assert.That(ex!.Message, Is.EqualTo("geneCount does not match number of matches"));
+    }
+
+    [Test]
+    public void Constructor_CreatesOneGenePerMatchAtAvailableSlots()
+    {
+        var options = EveryDay(19, 21);
+        var matches = Matches(5);
+
+        var chromosome = new SeasonScheduleChromosome(matches, 5, Start, End, options);
+
+        var genes = chromosome.GetGenes().Select(g => (SeasonMatchGene)g.Value).ToList();
+        Assert.That(genes.Select(g => (g.SeasonMatchID, g.HomeTeamID, g.AwayTeamID)),
+            Is.EqualTo(matches.Select(m => (m.SeasonMatchID, m.HomeTeamID!.Value, m.AwayTeamID!.Value))));
+        foreach (var g in genes)
+        {
+            Assert.That(g.ScheduledTime, Is.InRange(Start, End));
+            Assert.That(g.ScheduledTime.Hour, Is.AnyOf(19, 21));
+            Assert.That(g.ScheduledTime.Minute, Is.Zero);
+        }
+    }
+
+    [Test]
+    public void CreateNew_ReturnsFreshChromosomeOfSameShape()
+    {
+        var chromosome = new SeasonScheduleChromosome(Matches(3), 3, Start, End, EveryDay(20));
+
+        var created = chromosome.CreateNew();
+
+        Assert.That(created, Is.TypeOf<SeasonScheduleChromosome>().And.Not.SameAs(chromosome));
+        Assert.That(created.Length, Is.EqualTo(3));
+        Assert.That(created.GetGenes().Select(g => ((SeasonMatchGene)g.Value).SeasonMatchID), Is.EqualTo(new[] { 1, 2, 3 }));
+    }
+
+    [Test]
+    public void GenerateGene_IndexOutOfRange_Throws()
+    {
+        var chromosome = new SeasonScheduleChromosome(Matches(2), 2, Start, End, EveryDay(20));
+
+        var ex = Assert.Throws<Exception>(() => chromosome.GenerateGene(5));
+        Assert.That(ex!.Message, Is.EqualTo("Missing course with index 5"));
+    }
+
+    [Test]
+    public void Constructor_MatchWithoutHomeTeam_Throws()
+    {
+        var matches = new List<SeasonMatch> { SeasonMatch.Seed(0, 1, 2).WithId(1), SeasonMatch.Seed(0, null, 2).WithId(2) };
+        var ex = Assert.Throws<Exception>(() => new SeasonScheduleChromosome(matches, 2, Start, End, EveryDay(20)));
+        Assert.That(ex!.Message, Is.EqualTo("Cannot create gene with home team"));
+    }
+
+    [Test]
+    public void Constructor_MatchWithoutAwayTeam_Throws()
+    {
+        var matches = new List<SeasonMatch> { SeasonMatch.Seed(0, 1, 2).WithId(1), SeasonMatch.Seed(0, 1, null).WithId(2) };
+        var ex = Assert.Throws<Exception>(() => new SeasonScheduleChromosome(matches, 2, Start, End, EveryDay(20)));
+        Assert.That(ex!.Message, Is.EqualTo("Cannot create gene with away team"));
+    }
+
+    [Test]
+    public void GenerateGene_OnlyPicksTimesInsideTheWindow()
+    {
+        var start = new DateTime(2024, 1, 1, 21, 30, 0);
+        var end = new DateTime(2024, 1, 2, 20, 30, 0);
+        var options = EveryDay(20, 21);
+
+        var chromosome = new SeasonScheduleChromosome(Matches(2), 2, start, end, options);
+
+        var genes = chromosome.GetGenes().Select(g => (SeasonMatchGene)g.Value);
+
+        // Only Jan 2 20:00 falls inside [start, end]: Jan 1's 20:00/21:00 options are before
+        // start and Jan 2's 21:00 is after end (GenerateGene; reported in #149).
+        Assert.That(genes.Select(g => g.ScheduledTime), Is.All.EqualTo(new DateTime(2024, 1, 2, 20, 0, 0)));
+    }
+
+    [Test]
+    public void GenerateGene_NoOptionFallsInsideTheWindow_Throws()
+    {
+        var start = new DateTime(2024, 1, 1, 21, 30, 0);
+        var end = new DateTime(2024, 1, 1, 21, 45, 0);
+        var options = EveryDay(20, 21);
+
+        var ex = Assert.Throws<Exception>(() => new SeasonScheduleChromosome(Matches(2), 2, start, end, options));
+        Assert.That(ex!.Message, Is.EqualTo("No availability options fall within the season window"));
+    }
+}

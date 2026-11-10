@@ -1,0 +1,205 @@
+﻿using DiscordInterface.Generated;
+using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Server.Matchmaking;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NetCord.Rest;
+using NSubstitute;
+using System.Security.Claims;
+using Role = GrifballWebApp.Domain.Players.Role;
+using User = GrifballWebApp.Domain.Players.User;
+using GrifballWebApp.Application.Profile;
+
+namespace GrifballWebApp.Integration.Test;
+
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class DiscordSetGamertagTests
+{
+    private GrifballContext _context;
+    private IServiceScope _scope;
+    private UserManager<User> _userManager;
+    private ISetGamertagService _profileService;
+    private DiscordSetGamertag _discordSetGamertag;
+    private IDiscordInteractionContext _interactionContext;
+
+    [SetUp]
+    public async Task Setup()
+    {
+        _context = await SetUpFixture.NewGrifballContext();
+
+        // All this to get a UserManager<User> instance, not mocking it cause I sort of want to be sure its working
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddScoped(_ => _context);
+        services.AddIdentity<User, Role>(options =>
+        {
+            options.SignIn.RequireConfirmedAccount = false;
+            options.SignIn.RequireConfirmedPhoneNumber = false;
+            options.SignIn.RequireConfirmedEmail = false;
+        })
+            .AddDefaultTokenProviders()
+            .AddSignInManager<SignInManager<User>>()
+            .AddEntityFrameworkStores<GrifballContext>();
+        var serviceProvider = services.BuildServiceProvider();
+        _scope = serviceProvider.CreateScope();
+        _userManager = _scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+
+        _profileService = Substitute.For<ISetGamertagService>();
+
+        _discordSetGamertag = new DiscordSetGamertag(
+            _context,
+            Substitute.For<ILogger<DiscordSetGamertag>>(),
+            _userManager,
+            _profileService
+        );
+
+        _interactionContext = Substitute.For<IDiscordInteractionContext>();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        var connectionString = _context.Database.GetConnectionString()!;
+        _scope.Dispose();
+        _ = Task.Run(() => TestDatabase.DropDatabase(connectionString));
+    }
+
+    // Test in different scenerios that may occur.
+
+    [Test]
+    public async Task EmptyDatabase()
+    {
+        // Arrange
+        _interactionContext.Interaction.User.Username.Returns("discorduser");
+        _interactionContext.Interaction.User.Id.Returns((ulong)1234567890);
+
+        // Act
+        await _discordSetGamertag.SetGamertag(_interactionContext, "Grunt Padre");
+        var user = await _context.Users
+            .Include(x => x.XboxUser)
+            .Include(x => x.DiscordUser)
+            .Where(x => x.UserName == "discorduser")
+            .FirstOrDefaultAsync();
+
+        // Assert
+        await Assert.MultipleAsync(async () =>
+        {
+            Assert.That(user, Is.Not.Null, "User should be created");
+            // Gamertag will not be set unless we 1 mock it, or 2 have a real Profile service
+            //Assert.That(user?.XboxUser, Is.Not.Null, "XboxUser should be created");
+            //Assert.That(user?.XboxUser?.Gamertag, Is.EqualTo("Grunt Padre"), "Gamertag should be set correctly");
+            Assert.That(user?.DiscordUser, Is.Not.Null, "DiscordUser should be created");
+            Assert.That(user?.DiscordUser?.DiscordUserID, Is.EqualTo((long)1234567890), "DiscordUserID should match the interaction user ID");
+            Assert.That(user?.DiscordUser?.DiscordUsername, Is.EqualTo("discorduser"), "DiscordUsername should match the interaction username");
+            Assert.That(await _userManager.IsInRoleAsync(user!, "Player"), Is.True, "A new account is a Player, as with sign-up");
+            await Assert.DoesNotThrowAsync(async () =>
+            {
+                await _interactionContext.Interaction.Received(1)
+                    .ModifyResponseAsync(Arg.Any<Action<IDiscordMessageOptions>>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+            }, "Message should be modified");
+            await Assert.DoesNotThrowAsync(async () =>
+            {
+                await _interactionContext.Interaction.Received(1)
+                .DeleteResponseAsync();
+            }, "Message should be deleted");
+        });
+        
+    }
+
+    [Test]
+    public async Task DiscordUserExists()
+    {
+        // Arrange
+        _interactionContext.Interaction.User.Username.Returns("discorduser");
+        _interactionContext.Interaction.User.Id.Returns((ulong)1234567890);
+        _context.DiscordUsers.Add(Domain.Players.DiscordUser.FromDiscord(1234567890, "discorduser"));
+        await _context.SaveChangesAsync();
+
+        // Act
+        await _discordSetGamertag.SetGamertag(_interactionContext, "Grunt Padre");
+        var user = await _context.Users
+            .Include(x => x.XboxUser)
+            .Include(x => x.DiscordUser)
+            .Where(x => x.UserName == "discorduser")
+            .FirstOrDefaultAsync();
+
+        // Assert
+        await Assert.MultipleAsync(async () =>
+        {
+            Assert.That(user, Is.Not.Null, "User should be created");
+            // Gamertag will not be set unless we 1 mock it, or 2 have a real Profile service
+            //Assert.That(user?.XboxUser, Is.Not.Null, "XboxUser should be created");
+            //Assert.That(user?.XboxUser?.Gamertag, Is.EqualTo("Grunt Padre"), "Gamertag should be set correctly");
+            Assert.That(user?.DiscordUser, Is.Not.Null, "DiscordUser should be created");
+            Assert.That(user?.DiscordUser?.DiscordUserID, Is.EqualTo((long)1234567890), "DiscordUserID should match the interaction user ID");
+            Assert.That(user?.DiscordUser?.DiscordUsername, Is.EqualTo("discorduser"), "DiscordUsername should match the interaction username");
+            await Assert.DoesNotThrowAsync(async () =>
+            {
+                await _interactionContext.Interaction.Received(1)
+                    .ModifyResponseAsync(Arg.Any<Action<IDiscordMessageOptions>>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+            }, "Message should be modified");
+            await Assert.DoesNotThrowAsync(async () =>
+            {
+                await _interactionContext.Interaction.Received(1)
+                .DeleteResponseAsync();
+            }, "Message should be deleted");
+        });
+
+    }
+
+    [Test]
+    public async Task DiscordUserExistsAndUserExists()
+    {
+        // Arrange
+        _interactionContext.Interaction.User.Username.Returns("discorduser");
+        _interactionContext.Interaction.User.Id.Returns((ulong)1234567890);
+        var discordUser = Domain.Players.DiscordUser.FromDiscord(1234567890, "discorduser");
+        _context.DiscordUsers.Add(discordUser);
+        await _context.SaveChangesAsync();
+        var linked = User.Seed(userName: discordUser.DiscordUsername, discordUser: discordUser); // Need to avoid conflicts
+        await _userManager.CreateAsync(linked);
+        // Setup extenal auth similar to result = await _userManager.AddLoginAsync(user, info); from IdentityController.cs
+        await _userManager.AddLoginAsync(linked, new UserLoginInfo("Discord", discordUser.DiscordUserID.ToString(), "Discord"));
+        // Add claims
+        await _userManager.AddClaimsAsync(linked, new[]
+        {
+            new Claim("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", discordUser.DiscordUserID.ToString()),
+            new Claim("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name", discordUser.DiscordUsername),
+        });
+
+        // Act
+        await _discordSetGamertag.SetGamertag(_interactionContext, "Grunt Padre");
+        var user = await _context.Users
+            .Include(x => x.XboxUser)
+            .Include(x => x.DiscordUser)
+            .Where(x => x.UserName == "discorduser")
+            .FirstOrDefaultAsync();
+
+        // Assert
+        await Assert.MultipleAsync(async () =>
+        {
+            Assert.That(user, Is.Not.Null, "User should be created");
+            // Gamertag will not be set unless we 1 mock it, or 2 have a real Profile service
+            //Assert.That(user?.XboxUser, Is.Not.Null, "XboxUser should be created");
+            //Assert.That(user?.XboxUser?.Gamertag, Is.EqualTo("Grunt Padre"), "Gamertag should be set correctly");
+            Assert.That(user?.DiscordUser, Is.Not.Null, "DiscordUser should be created");
+            Assert.That(user?.DiscordUser?.DiscordUserID, Is.EqualTo((long)1234567890), "DiscordUserID should match the interaction user ID");
+            Assert.That(user?.DiscordUser?.DiscordUsername, Is.EqualTo("discorduser"), "DiscordUsername should match the interaction username");
+            await Assert.DoesNotThrowAsync(async () =>
+            {
+                await _interactionContext.Interaction.Received(1)
+                    .ModifyResponseAsync(Arg.Any<Action<IDiscordMessageOptions>>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+            }, "Message should be modified");
+            await Assert.DoesNotThrowAsync(async () =>
+            {
+                await _interactionContext.Interaction.Received(1)
+                .DeleteResponseAsync();
+            }, "Message should be deleted");
+        });
+
+    }
+}

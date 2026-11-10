@@ -8,7 +8,7 @@
 
   <!-- The use cases' internals, tested directly. -->
   <ItemGroup>
-    <InternalsVisibleTo Include="GrifballWebApp.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
   </ItemGroup>
 
   <!-- The use cases reach the models through Domain, and the database through IApplicationDbContext (EF Core comes with

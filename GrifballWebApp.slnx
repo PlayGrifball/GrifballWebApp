@@ -22,5 +22,6 @@
   <Project Path="GrifballWebApp.Migrations.SqlServer/GrifballWebApp.Migrations.SqlServer.csproj" />
   <Project Path="GrifballWebApp.Seeder/GrifballWebApp.Seeder.csproj" />
   <Project Path="GrifballWebApp.Server/GrifballWebApp.Server.csproj" />
-  <Project Path="GrifballWebApp.Test/GrifballWebApp.Test.csproj" />
+  <Project Path="GrifballWebApp.Domain.Test/GrifballWebApp.Domain.Test.csproj" />
+  <Project Path="GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj" />
 </Solution>

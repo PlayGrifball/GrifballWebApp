@@ -9,7 +9,8 @@
   <!-- The aggregates' internals are their own: the compiler keeps every other assembly out (GrifballWebApp.Infrastructure
        included). The tests reach in, as they must. -->
   <ItemGroup>
-    <InternalsVisibleTo Include="GrifballWebApp.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Domain.Test" />
   </ItemGroup>
 
   <!-- The entity configurations live beside the models (they need their internals). IsTemporal, the tables' SQL Server

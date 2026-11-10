@@ -1,0 +1,127 @@
+using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using Microsoft.EntityFrameworkCore;
+using User = GrifballWebApp.Domain.Players.User;
+using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
+using SignupButtonInteractions = GrifballWebApp.Server.Signups.ButtonInteractions;
+using GrifballWebApp.Application.Signups;
+
+namespace GrifballWebApp.Integration.Test;
+
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class SignupsServiceTimeslotTests
+{
+    private GrifballContext _context;
+    private SignupsService _service;
+
+    [SetUp]
+    public async Task Setup()
+    {
+        _context = await SetUpFixture.NewGrifballContext();
+        _service = new SignupsService(_context);
+    }
+
+    [TearDown]
+    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+
+    [Test]
+    public async Task GetTimeslots_PositiveOffsetPastMidnight_MovesToNextDay()
+    {
+        var season = await SignupTestData.OpenSeason(_context);
+        await SignupTestData.Options(_context, season, (DayOfWeek.Saturday, new TimeOnly(23, 17)), (DayOfWeek.Monday, new TimeOnly(10, 17)));
+
+        var slots = await _service.GetTimeslots(season.SeasonID, 120, userID: 0);
+
+        Assert.That(slots, Has.Length.EqualTo(2));
+        // Saturday 23:17 + 2h => Sunday 01:17, which sorts first (Sunday = 0)
+        Assert.That(slots[0].DayOfWeek, Is.EqualTo(DayOfWeek.Sunday));
+        Assert.That(slots[0].Time, Is.EqualTo(new TimeOnly(1, 17)));
+        Assert.That(slots[1].DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
+        Assert.That(slots[1].Time, Is.EqualTo(new TimeOnly(12, 17)));
+        Assert.That(slots.All(s => s.IsChecked is false));
+    }
+
+    [Test]
+    public async Task GetTimeslots_NegativeOffsetBeforeMidnight_MovesToPreviousDay()
+    {
+        var season = await SignupTestData.OpenSeason(_context);
+        await SignupTestData.Options(_context, season, (DayOfWeek.Monday, new TimeOnly(1, 17)), (DayOfWeek.Wednesday, new TimeOnly(15, 17)));
+
+        var slots = await _service.GetTimeslots(season.SeasonID, -120, userID: 0);
+
+        var shifted = slots.Single(s => s.Time == new TimeOnly(23, 17));
+        // Monday 01:17 - 2h = Sunday 23:17.
+        Assert.That(shifted.DayOfWeek, Is.EqualTo(DayOfWeek.Sunday));
+        var other = slots.Single(s => s.Time == new TimeOnly(13, 17));
+        Assert.That(other.DayOfWeek, Is.EqualTo(DayOfWeek.Wednesday));
+    }
+
+    [Test]
+    public async Task GetTimeslots_NegativeFiveHourOffset_HandlesWrapAndNoWrapCorrectly()
+    {
+        // Reproduces the two failure modes from issue #135 for a North American EST offset (UTC-5).
+        var season = await SignupTestData.OpenSeason(_context);
+        await SignupTestData.Options(_context, season, (DayOfWeek.Sunday, new TimeOnly(1, 0)), (DayOfWeek.Thursday, new TimeOnly(21, 0)));
+
+        var slots = await _service.GetTimeslots(season.SeasonID, -300, userID: 0);
+
+        // Sunday 01:00 - 5h = Saturday 20:00 (rolls back a day).
+        var rolledBack = slots.Single(s => s.Time == new TimeOnly(20, 0));
+        Assert.That(rolledBack.DayOfWeek, Is.EqualTo(DayOfWeek.Saturday));
+        // Thursday 21:00 - 5h = Thursday 16:00 (same day, no wrap).
+        var sameDay = slots.Single(s => s.Time == new TimeOnly(16, 0));
+        Assert.That(sameDay.DayOfWeek, Is.EqualTo(DayOfWeek.Thursday));
+    }
+
+    [Test]
+    public async Task UpsertSignup_AddsAndRemovesAvailability()
+    {
+        var season = await SignupTestData.OpenSeason(_context);
+        var opts = await SignupTestData.Options(_context, season, (DayOfWeek.Monday, new TimeOnly(1, 17)), (DayOfWeek.Tuesday, new TimeOnly(2, 17)));
+        var user = User.Seed(userName: "signer", xboxUser: XboxUser.FromXbox(33092, "Signer"));
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
+        await _service.UpsertSignup(new SignupRequestDto
+        {
+            SeasonID = season.SeasonID, UserID = user.Id, TeamName = "T",
+            Timeslots = [new TimeslotDto { OptionID = opts[0].AvailabilityOptionID, IsChecked = true }, new TimeslotDto { OptionID = opts[1].AvailabilityOptionID, IsChecked = false }],
+        });
+
+        var first = await _service.GetTimeslots(season.SeasonID, 0, user.Id);
+        Assert.That(first.Where(s => s.IsChecked).Select(s => s.OptionID), Is.EqualTo(new[] { opts[0].AvailabilityOptionID }));
+
+        _context.ChangeTracker.Clear();
+        await _service.UpsertSignup(new SignupRequestDto
+        {
+            SeasonID = season.SeasonID, UserID = user.Id, TeamName = "T2",
+            Timeslots = [new TimeslotDto { OptionID = opts[1].AvailabilityOptionID, IsChecked = true }],
+        });
+
+        var second = await _service.GetSignup(season.SeasonID, 0, user.Id);
+        Assert.That(second!.TeamName, Is.EqualTo("T2"));
+        Assert.That(second.Timeslots.Where(s => s.IsChecked).Select(s => s.OptionID), Is.EqualTo(new[] { opts[1].AvailabilityOptionID }));
+        Assert.That(await _context.Set<SignupAvailability>().CountAsync(), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task UpsertSignup_OptionNotInSeason_Throws()
+    {
+        var season = await SignupTestData.OpenSeason(_context);
+        var otherSeason = await SignupTestData.OpenSeason(_context, name: "Other Season");
+        var foreign = await SignupTestData.Options(_context, otherSeason, (DayOfWeek.Friday, new TimeOnly(4, 17)));
+        var user = User.Seed(userName: "signer2", xboxUser: XboxUser.FromXbox(33124, "Signer Two"));
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.UpsertSignup(new SignupRequestDto
+        {
+            SeasonID = season.SeasonID, UserID = user.Id,
+            Timeslots = [new TimeslotDto { OptionID = foreign[0].AvailabilityOptionID, IsChecked = true }],
+        }));
+        Assert.That(ex!.Message, Is.EqualTo($"Cannot add options for season {season.SeasonID}. The following are not valid {foreign[0].AvailabilityOptionID}"));
+    }
+}

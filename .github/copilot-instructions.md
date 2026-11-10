@@ -292,7 +292,8 @@ GrifballWebApp.Migrations.Postgres/   # EF Core migrations for PostgreSQL
 GrifballWebApp.Migrations.Sqlite/     # EF Core migrations for SQLite (single instance)
 
 DiscordInterfaces/              # Discord integration
-GrifballWebApp.Test/            # Unit tests
+GrifballWebApp.Domain.Test/      # Domain unit tests: Domain types only, no database or host
+GrifballWebApp.Integration.Test/ # Everything else: database (Testcontainers per provider), host, Discord, analyzers
 GrifballWebApp.Seeder/          # Database seeding
 ```
 

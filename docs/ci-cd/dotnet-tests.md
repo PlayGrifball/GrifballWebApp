@@ -38,8 +38,14 @@ Automatically runs unit tests on every pull request and push to the master branc
 - **Coverage**: XPlat Code Coverage collected
 - **Logging**: Normal verbosity for clear output
 
+### Test Projects
+- **`GrifballWebApp.Domain.Test`**: the domain's own rules, on GrifballWebApp.Domain's types alone (no database, no
+  host, no containers). It runs once, as the `test (Domain)` matrix leg.
+- **`GrifballWebApp.Integration.Test`**: everything else (database, DI host, Discord, analyzers). It runs once per
+  database, below. It references the domain tests for their season match helpers.
+
 ### Database Testing
-The tests use Testcontainers to provision an isolated database server, one per matrix job (`GRIF_TEST_DATABASE`):
+The integration tests use Testcontainers to provision an isolated database server, one per matrix job (`GRIF_TEST_DATABASE`):
 - **Images**: `mcr.microsoft.com/mssql/server:2022-latest` (`SqlServer`, the default), `postgres:18-alpine` (`Postgres`)
 - **Isolation**: Each test gets a unique database
 - **Cleanup**: Automatic container disposal after tests
@@ -66,10 +72,13 @@ The tests use Testcontainers to provision an isolated database server, one per m
 # Full solution build and test
 dotnet restore GrifballWebApp.slnx
 dotnet build GrifballWebApp.slnx --configuration Release
-dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj --configuration Release
+# Domain unit tests: no database, no Docker
+dotnet test GrifballWebApp.Domain.Test/GrifballWebApp.Domain.Test.csproj --configuration Release
+# Integration tests (Testcontainers: Docker; GRIF_TEST_DATABASE picks SqlServer, Postgres or Sqlite)
+dotnet test GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj --configuration Release
 
 # With coverage
-dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj --collect:"XPlat Code Coverage"
+dotnet test GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj --collect:"XPlat Code Coverage"
 ```
 
 ## Troubleshooting
