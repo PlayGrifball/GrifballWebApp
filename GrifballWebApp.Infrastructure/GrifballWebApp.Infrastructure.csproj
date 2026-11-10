@@ -9,6 +9,7 @@
 
   <!-- The conversion's internals (Conversion), tested directly. -->
   <ItemGroup>
+    <InternalsVisibleTo Include="GrifballWebApp.Infrastructure.Test" />
     <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
   </ItemGroup>
 

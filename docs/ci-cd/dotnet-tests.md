@@ -39,10 +39,23 @@ Automatically runs unit tests on every pull request and push to the master branc
 - **Logging**: Normal verbosity for clear output
 
 ### Test Projects
-- **`GrifballWebApp.Domain.Test`**: the domain's own rules, on GrifballWebApp.Domain's types alone (no database, no
-  host, no containers). It runs once, as the `test (Domain)` matrix leg.
-- **`GrifballWebApp.Integration.Test`**: everything else (database, DI host, Discord, analyzers). It runs once per
-  database, below. It references the domain tests for their season match helpers.
+A test class is an **integration test** when it touches a real database or an EF context (`GrifballContext`, on any
+provider, SQLite in memory included), a DI host (`WebApplication`'s builder, `WebApplicationFactory`, `TestServer`),
+Testcontainers, Redis, a Quartz scheduler with a real store, the file system or the network: anything that needs the
+provider matrix. Every other test is a **unit test** (plain code, test doubles only), and lives in the test project of
+the layer whose type it tests:
+
+- **`GrifballWebApp.Domain.Test`**: the domain's own rules, on GrifballWebApp.Domain's types alone.
+- **`GrifballWebApp.Application.Test`**: the use cases (GrifballWebApp.Application) with test doubles.
+- **`GrifballWebApp.Infrastructure.Test`**: GrifballWebApp.Infrastructure's types without a database (parsers, the
+  Halo Infinite client's pacing, jobs' wiring, the model as reflection sees it).
+- **`GrifballWebApp.Server.Test`**: GrifballWebApp.Server's types (controllers, hubs, telemetry, Discord replies)
+  with test doubles.
+- **`GrifballWebApp.Integration.Test`**: the integration tests. It runs once per database, below.
+
+The unit test projects run once, together, as the `test (Unit)` matrix leg. A helper or test double shared by several
+projects lives in the lowest test project that uses it; the integration tests reference every unit test project for
+them, and a unit test project never references the integration tests.
 
 ### Database Testing
 The integration tests use Testcontainers to provision an isolated database server, one per matrix job (`GRIF_TEST_DATABASE`):
@@ -52,7 +65,7 @@ The integration tests use Testcontainers to provision an isolated database serve
 
 ### Environment Variables
 - `TESTCONTAINERS_REUSE_ENABLE=false`: Ensures clean test environments
-- `GRIF_TEST_DATABASE`: `SqlServer` or `Postgres`, from the matrix
+- `GRIF_TEST_DATABASE`: `SqlServer`, `Postgres` or `Sqlite`, from the matrix (`Unit` on the unit leg, which reads none)
 - `DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1`: Improves performance
 - `DOTNET_NOLOGO=true`: Reduces log noise
 
@@ -72,8 +85,10 @@ The integration tests use Testcontainers to provision an isolated database serve
 # Full solution build and test
 dotnet restore GrifballWebApp.slnx
 dotnet build GrifballWebApp.slnx --configuration Release
-# Domain unit tests: no database, no Docker
-dotnet test GrifballWebApp.Domain.Test/GrifballWebApp.Domain.Test.csproj --configuration Release
+# Unit tests, one project per layer: no database, no Docker
+for project in GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test; do
+  dotnet test "$project/$project.csproj" --configuration Release
+done
 # Integration tests (Testcontainers: Docker; GRIF_TEST_DATABASE picks SqlServer, Postgres or Sqlite)
 dotnet test GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj --configuration Release
 

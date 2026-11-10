@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using System.Net;
-using static GrifballWebApp.Integration.Test.HistoricalXlsx;
+using static GrifballWebApp.Infrastructure.Test.HistoricalXlsx;
 using GrifballWebApp.Application.Championships;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;

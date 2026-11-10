@@ -163,8 +163,19 @@ ng test
 - **Mocking Library**: **NSubstitute 5.x ONLY** - Never use Moq
 - **Database Testing**: Testcontainers with SQL Server (Testcontainers.MsSql 4.6+)
 
+#### Where a Test Goes
+- **Integration test** (`GrifballWebApp.Integration.Test`): the test class touches a real database or an EF context
+  (`GrifballContext`, any provider, SQLite in memory included), a DI host (`WebApplication`'s builder,
+  `WebApplicationFactory`, `TestServer`), Testcontainers, Redis, a Quartz scheduler with a real store, the file system
+  or the network.
+- **Unit test** (everything else: plain code, test doubles only): in the test project of the layer whose type it
+  tests, `GrifballWebApp.Domain.Test`, `GrifballWebApp.Application.Test`, `GrifballWebApp.Infrastructure.Test` or
+  `GrifballWebApp.Server.Test`. A unit test project never references the integration tests.
+- A helper or test double several projects share lives in the lowest test project that uses it.
+
 #### Testing Patterns for Database Operations
-When testing code that uses `GrifballContext`, always use testcontainers with the existing SetUpFixture pattern:
+When testing code that uses `GrifballContext`, always use testcontainers with the existing SetUpFixture pattern (in
+`GrifballWebApp.Integration.Test`):
 
 ```csharp
 [SetUp]
@@ -292,8 +303,11 @@ GrifballWebApp.Migrations.Postgres/   # EF Core migrations for PostgreSQL
 GrifballWebApp.Migrations.Sqlite/     # EF Core migrations for SQLite (single instance)
 
 DiscordInterfaces/              # Discord integration
-GrifballWebApp.Domain.Test/      # Domain unit tests: Domain types only, no database or host
-GrifballWebApp.Integration.Test/ # Everything else: database (Testcontainers per provider), host, Discord, analyzers
+GrifballWebApp.Domain.Test/         # Unit tests of Domain types: no database, host, containers or files
+GrifballWebApp.Application.Test/    # Unit tests of Application types (test doubles only)
+GrifballWebApp.Infrastructure.Test/ # Unit tests of Infrastructure types (no GrifballContext instance)
+GrifballWebApp.Server.Test/         # Unit tests of Server types (controllers, hubs, telemetry; test doubles only)
+GrifballWebApp.Integration.Test/    # Integration tests: database (Testcontainers per provider), DI host, Redis, files
 GrifballWebApp.Seeder/          # Database seeding
 ```
 

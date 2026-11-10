@@ -23,5 +23,8 @@
   <Project Path="GrifballWebApp.Seeder/GrifballWebApp.Seeder.csproj" />
   <Project Path="GrifballWebApp.Server/GrifballWebApp.Server.csproj" />
   <Project Path="GrifballWebApp.Domain.Test/GrifballWebApp.Domain.Test.csproj" />
+  <Project Path="GrifballWebApp.Application.Test/GrifballWebApp.Application.Test.csproj" />
+  <Project Path="GrifballWebApp.Infrastructure.Test/GrifballWebApp.Infrastructure.Test.csproj" />
+  <Project Path="GrifballWebApp.Server.Test/GrifballWebApp.Server.Test.csproj" />
   <Project Path="GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj" />
 </Solution>

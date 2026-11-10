@@ -8,6 +8,7 @@
 
   <!-- The use cases' internals, tested directly. -->
   <ItemGroup>
+    <InternalsVisibleTo Include="GrifballWebApp.Application.Test" />
     <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
   </ItemGroup>
 

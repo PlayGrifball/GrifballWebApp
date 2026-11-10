@@ -12,6 +12,9 @@ dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 
 # Run specific test project with coverage
 dotnet test GrifballWebApp.Domain.Test/GrifballWebApp.Domain.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+dotnet test GrifballWebApp.Application.Test/GrifballWebApp.Application.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+dotnet test GrifballWebApp.Infrastructure.Test/GrifballWebApp.Infrastructure.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+dotnet test GrifballWebApp.Server.Test/GrifballWebApp.Server.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 dotnet test GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 ```
 
@@ -20,7 +23,7 @@ dotnet test GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.cspr
 The code coverage is configured in `coverlet.runsettings` with the following exclusions:
 - Database migrations, generated, for both databases (file pattern `**/GrifballWebApp.Migrations.*/Migrations/*.cs`)
 - The generated NetCord wrappers and their generator (`**/DiscordInterfaces/*.cs`, `**/DiscordInterfaceSourceGen/*.cs`)
-- The domain tests' assembly (`[GrifballWebApp.Domain.Test]*`), which the integration tests load for its season match helpers
+- The test projects' assemblies (`[GrifballWebApp.*.Test]*`), which load each other for their shared helpers (the integration tests every unit test project, the unit tests the domain tests)
 
 The thin NetCord modules (`DiscordCommands`, the `*Interactions` classes) are not excluded: `DiscordTransportTests` runs every one of their entry points through NetCord with only the HTTP transport faked.
 
@@ -41,13 +44,13 @@ The following new test files have been added to cover the custom seeding functio
   - Multiple round bracket handling
   - Mixed match types (with and without seed numbers)
 
-### BracketsControllerTests.cs  
+### BracketsControllerTests.cs (GrifballWebApp.Server.Test)  
 - Tests for `SetCustomSeeds` endpoint covering:
   - Parameter passing to service layer
   - Exception propagation
   - Empty array handling
 
-### CustomSeedDtoTests.cs
+### CustomSeedDtoTests.cs (GrifballWebApp.Application.Test)
 - Tests for `CustomSeedDto` record covering:
   - Property assignment
   - Record equality semantics
@@ -73,7 +76,7 @@ dotnet test --filter "FullyQualifiedName~CustomSeedDtoTests"
 
 All new tests follow the project's testing patterns:
 - Use `[TestFixture]` with `[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]`
-- Use `SetUpFixture.NewGrifballContext()` for database operations
+- Use `SetUpFixture.NewGrifballContext()` for database operations (integration tests only: a unit test uses none)
 - Use NSubstitute for mocking dependencies
 - Use descriptive test method names following `Should_ExpectedBehavior_When_Condition` pattern
 - Use `Assert.Multiple()` for grouped assertions

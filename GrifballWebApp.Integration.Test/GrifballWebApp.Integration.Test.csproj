@@ -24,8 +24,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- MIT: builds the xlsx fixtures the historical archive parsers read -->
-    <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="coverlet.collector" Version="10.1.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -36,7 +34,6 @@
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.11.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
-    <PackageReference Include="Mono.Cecil" Version="0.11.6" />
     <PackageReference Include="NSubstitute" Version="6.2.0" />
     <PackageReference Include="NSubstitute.Analyzers.CSharp" Version="1.0.17">
       <PrivateAssets>all</PrivateAssets>
@@ -56,13 +53,20 @@
     <ProjectReference Include="..\GrifballWebApp.Seeder\GrifballWebApp.Seeder.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Convert\GrifballWebApp.Convert.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Server\GrifballWebApp.Server.csproj" />
-    <!-- The season match helpers (SeasonMatchTestExtensions) live with the domain tests, which use them too -->
+    <!-- The helpers and test doubles the unit tests share with these (a test season, ControllerTestHelpers, HistoricalXlsx,
+         RecordingLogger and the others) live with the lowest unit tests that use them -->
     <ProjectReference Include="..\GrifballWebApp.Domain.Test\GrifballWebApp.Domain.Test.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Application.Test\GrifballWebApp.Application.Test.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Infrastructure.Test\GrifballWebApp.Infrastructure.Test.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Server.Test\GrifballWebApp.Server.Test.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="NUnit.Framework" />
     <Using Include="GrifballWebApp.Domain.Test" />
+    <Using Include="GrifballWebApp.Application.Test" />
+    <Using Include="GrifballWebApp.Infrastructure.Test" />
+    <Using Include="GrifballWebApp.Server.Test" />
   </ItemGroup>
 
 </Project>

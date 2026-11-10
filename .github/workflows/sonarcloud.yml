@@ -146,22 +146,27 @@ jobs:
         /d:sonar.issue.ignore.multicriteria.clientroot.ruleKey=docker:S6471
         /d:sonar.issue.ignore.multicriteria.clientroot.resourceKey=grifballwebapp.client/Dockerfile
 
-    # As in dotnet-tests.yml: the integration test project builds every backend project (the domain tests' included),
-    # and DOCKER_BUILD leaves out the client
+    # As in dotnet-tests.yml: the integration test project builds every backend project (the unit test projects
+    # included, for their helpers), and DOCKER_BUILD leaves out the client
     - name: Build
       run: dotnet build GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
 
-    # Coverage for the quality gate from both test projects. dotnet-tests.yml is what gates on test results.
-    - name: Test (Domain)
+    # Coverage for the quality gate from every test project. dotnet-tests.yml is what gates on test results.
+    # The unit tests, one project per layer: each runs (and reports its coverage), a failing one included
+    - name: Test (Unit)
       continue-on-error: true
       run: |
-        dotnet test GrifballWebApp.Domain.Test/GrifballWebApp.Domain.Test.csproj \
-        --no-build \
-        --configuration Release \
-        --results-directory TestResults/ \
-        --collect:"XPlat Code Coverage" \
-        --settings coverlet.runsettings \
-        -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+        status=0
+        for project in GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test; do
+          dotnet test "$project/$project.csproj" \
+          --no-build \
+          --configuration Release \
+          --results-directory TestResults/ \
+          --collect:"XPlat Code Coverage" \
+          --settings coverlet.runsettings \
+          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover || status=1
+        done
+        exit $status
 
     # The integration tests on SQLite only (no container)
     - name: Test (Integration)
