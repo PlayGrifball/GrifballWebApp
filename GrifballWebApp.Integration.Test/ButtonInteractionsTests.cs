@@ -4,6 +4,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.Players;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -239,7 +240,7 @@ public class ButtonInteractionsTests
 
         // Assert
         // Vote is saved
-        var vote = _context.Set<MatchedWinnerVote>().FirstOrDefault(x => x.MatchId == match.Id && x.MatchedPlayerId == matchedPlayer.Id);
+        var vote = await _context.Set<MatchedWinnerVote>().FirstOrDefaultAsync(x => x.MatchId == match.Id && x.MatchedPlayerId == matchedPlayer.Id);
         Assert.That(vote, Is.Not.Null, "Vote was not saved to the database.");
         Assert.That(vote.WinnerVote, Is.EqualTo(voteFor));
 
@@ -263,7 +264,7 @@ public class ButtonInteractionsTests
         await _handler.VoteForWinner(_discordContext, match.Id, nameof(WinnerVote.Away));
 
         await using var fresh = _context.NewContextLike();
-        Assert.That(fresh.Set<MatchedWinnerVote>().Select(v => v.WinnerVote).ToList(), Is.EqualTo(new[] { WinnerVote.Away }), "One vote, changed");
+        Assert.That(await fresh.Set<MatchedWinnerVote>().Select(v => v.WinnerVote).ToListAsync(), Is.EqualTo(new[] { WinnerVote.Away }), "One vote, changed");
     }
 
     [Test]
@@ -286,7 +287,7 @@ public class ButtonInteractionsTests
 
         // Assert
         // Vote is saved
-        var vote = _context.Set<MatchedWinnerVote>().FirstOrDefault();
+        var vote = await _context.Set<MatchedWinnerVote>().FirstOrDefaultAsync();
         Assert.That(vote, Is.Null, "Vote was saved to the database for some reason.");
 
         // User receives thanks message
@@ -312,7 +313,7 @@ public class ButtonInteractionsTests
 
         // Assert
         // Vote is saved
-        var vote = _context.Set<MatchedWinnerVote>().FirstOrDefault();
+        var vote = await _context.Set<MatchedWinnerVote>().FirstOrDefaultAsync();
         Assert.That(vote, Is.Null, "Vote was saved to the database for some reason.");
 
         // User receives thanks message
@@ -335,7 +336,7 @@ public class ButtonInteractionsTests
 
         // Assert
         // Vote is not saved
-        var vote = _context.Set<MatchedWinnerVote>().FirstOrDefault();
+        var vote = await _context.Set<MatchedWinnerVote>().FirstOrDefaultAsync();
         Assert.That(vote, Is.Null, "Vote was saved to the database for some reason.");
 
         // User receives thanks message

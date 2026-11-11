@@ -149,13 +149,14 @@ jobs:
         /d:sonar.issue.ignore.multicriteria.clientroot.resourceKey=grifballwebapp.client/Dockerfile
 
     # As in dotnet-tests.yml: the integration test project builds every backend project (the unit test projects
-    # included, for their helpers), and DOCKER_BUILD leaves out the client. The architecture tests and
-    # the Convert app's unit tests, which no other project references, build on their own.
+    # included, for their helpers), and DOCKER_BUILD leaves out the client. The architecture tests, the Convert app's
+    # unit tests and the analyzers' tests, which no other project references, build on their own.
     - name: Build
       run: |
         dotnet build GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
         dotnet build GrifballWebApp.Architecture.Test/GrifballWebApp.Architecture.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
         dotnet build GrifballWebApp.Convert.Test/GrifballWebApp.Convert.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
+        dotnet build GrifballWebApp.Analyzers.Test/GrifballWebApp.Analyzers.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
 
     # Coverage for the quality gate from every test project. dotnet-tests.yml is what gates on test results.
     # The unit tests (one project per layer and per host app) and the architecture tests: each runs (and reports its coverage), a failing one included
@@ -163,7 +164,7 @@ jobs:
       continue-on-error: true
       run: |
         status=0
-        for project in GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test GrifballWebApp.Seeder.Test GrifballWebApp.Convert.Test GrifballWebApp.Architecture.Test; do
+        for project in GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test GrifballWebApp.Seeder.Test GrifballWebApp.Convert.Test GrifballWebApp.Analyzers.Test GrifballWebApp.Architecture.Test; do
           dotnet test "$project/$project.csproj" \
           --no-build \
           --configuration Release \

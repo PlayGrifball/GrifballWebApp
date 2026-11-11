@@ -10,6 +10,7 @@ using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Notifications;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Infrastructure.Teams;
+using Microsoft.EntityFrameworkCore;
 using static GrifballWebApp.Integration.Test.DiscordBodies;
 
 namespace GrifballWebApp.Integration.Test;
@@ -179,7 +180,7 @@ public class DiscordOnDeckMessagesTests
             _context.Users.Add(User.Seed(userName: $"user{i:000}", displayName: $"P{i:000}"));
         }
         await _context.SaveChangesAsync();
-        var userIds = _context.Users.Where(u => u.UserName!.StartsWith("user")).Select(u => u.Id).ToList();
+        var userIds = await _context.Users.Where(u => u.UserName!.StartsWith("user")).Select(u => u.Id).ToListAsync();
         _context.SeasonSignups.AddRange(userIds.Select(id => SeasonSignup.Seed(season.SeasonID, id, timestamp: new DateTime(2024, 12, 1))));
         await _context.SaveChangesAsync();
 

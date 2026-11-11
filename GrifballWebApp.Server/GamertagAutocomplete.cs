@@ -1,4 +1,5 @@
 using GrifballWebApp.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
@@ -12,17 +13,16 @@ public class GamertagAutocomplete : IAutocompleteProvider<AutocompleteInteractio
     {
         _context = context;
     }
-    public ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(ApplicationCommandInteractionDataOption option,
+    public async ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(ApplicationCommandInteractionDataOption option,
         AutocompleteInteractionContext context)
     {
         var input = option.Value!;
 
-        var result = _context.XboxUsers
+        return await _context.XboxUsers
             .Select(x => x.Gamertag)
             .Where(x => x.Contains(input))
             .Take(25)
-            .Select(x => new ApplicationCommandOptionChoiceProperties(x, x));
-
-        return new(result);
+            .Select(x => new ApplicationCommandOptionChoiceProperties(x, x))
+            .ToListAsync();
     }
 }
