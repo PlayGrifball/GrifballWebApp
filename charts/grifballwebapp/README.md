@@ -554,9 +554,11 @@ grif-discord (they do unless `networkPolicy.discord` sets its own).
 
 `sqlExporter.enabled` runs [sql_exporter](https://github.com/burningalchemist/sql_exporter) against the database (the
 chart's or an external one), with the provider's collector: for SQL Server connections, deadlocks,
-errors, page life expectancy, batch requests, IO stalls, memory (`mssql_standard`); for PostgreSQL
-connections by state, database sizes, commits and rollbacks, cache hits and reads, deadlocks,
-conflicts, temporary bytes, locks by mode and the oldest open transaction (`pg_standard`). The login
+errors, page life expectancy, batch requests, IO stalls, memory (`mssql_standard`, sql_exporter's own
+example, kept byte-for-byte and checked against upstream in CI) and writes and write stalls per
+database and file type (`mssql_io_writes`); for PostgreSQL connections by state, database sizes, commits and
+rollbacks, cache hits and reads, deadlocks, conflicts, temporary bytes, locks by mode and the oldest
+open transaction (`pg_standard`). The login
 defaults to the monitoring login (`database.logins`), else `database`'s; one only needs `VIEW SERVER
 STATE` and `VIEW ANY DEFINITION` on SQL Server, `pg_monitor` on PostgreSQL (`sqlExporter.user`,
 `password`). PostgreSQL is read over pgx from its `postgres` database, `sslmode=prefer` unless
