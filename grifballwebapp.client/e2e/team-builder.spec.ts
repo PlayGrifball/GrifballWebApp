@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 // End-to-end drag and drop on the team builder (/season/:seasonID/draft).
 //
 // The backend is fully mocked with page.route and synthetic data. Every drop
-// in the team builder is persisted immediately by a POST to /api/Teams/*, so
+// in the team builder is persisted immediately by a POST to /api/seasons/{seasonID}/draft/*, so
 // the tests assert both what the page shows and the payload it sends.
 // ngx-drag-drop uses native HTML5 drag and drop. The drag() helper below uses real
 // pointer input (mouse down, stepped moves, mouse up); Playwright's Chromium turns
@@ -60,10 +60,10 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
     // As the API: every change from a cookie session carries the antiforgery token
     if (request.method() !== 'GET' && request.headers()['x-xsrf-token'] !== 'e2e-xsrf')
       return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
-    if (path === `/api/Teams/GetTeams/${SEASON_ID}`) return json(data.teams);
-    if (path === `/api/Teams/GetPlayerPool/${SEASON_ID}`) return json(data.pool);
-    if (path === `/api/Teams/areCaptainsLocked/${SEASON_ID}`) return json(opts.captainsLocked ?? true);
-    if (path.startsWith('/api/Teams/') && request.method() === 'POST') {
+    if (path === `/api/seasons/${SEASON_ID}/draft/teams`) return json(data.teams);
+    if (path === `/api/seasons/${SEASON_ID}/draft/player-pool`) return json(data.pool);
+    if (path === `/api/seasons/${SEASON_ID}/draft/captains/locked`) return json(opts.captainsLocked ?? true);
+    if (path.startsWith(`/api/seasons/${SEASON_ID}/draft/`) && request.method() === 'POST') {
       const body = request.postDataJSON();
       calls.push({ path, body });
       // TeamService rejects with a message (e.g. not your turn), which GlobalExceptionHandler
@@ -72,7 +72,7 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
         return route.fulfill({ status: 400, contentType: 'application/problem+json', body: JSON.stringify({ title: 'Request refused', status: 400, detail: opts.refuse }) });
       // Like TeamService.AddCaptain: the new team is named after the captain's signup, and the
       // response carries that name (CaptainAddedResponseDto).
-      if (path === '/api/Teams/AddCaptain/') {
+      if (path === `/api/seasons/${SEASON_ID}/draft/captains`) {
         const captain = data.pool.find(p => p.personID === body.personID)!;
         return json({ teamName: `${captain.name.replace('Pool ', '')} Crew` });
       }
@@ -136,7 +136,7 @@ test('drafts a pool player onto a team', async ({ page }) => {
   await expect.poll(() => rosterOf(page, 'Blue Team')).toEqual(['1 Pool Blair']);
   await expect.poll(() => poolNames(page)).toEqual(['Pool Alex', 'Pool Casey']);
   await waitForCalls(calls, 1);
-  expect(calls[0]).toEqual({ path: '/api/Teams/addPlayerToTeam/', body: { seasonID: SEASON_ID, captainID: 202, personID: 102 } });
+  expect(calls[0]).toEqual({ path: `/api/seasons/${SEASON_ID}/draft/picks`, body: { seasonID: SEASON_ID, captainID: 202, personID: 102 } });
 });
 
 test('moves a drafted player from one team to another', async ({ page }) => {
@@ -148,7 +148,7 @@ test('moves a drafted player from one team to another', async ({ page }) => {
   await expect.poll(() => rosterOf(page, 'Red Team')).toEqual(['1 Player Pat']);
   await waitForCalls(calls, 1);
   expect(calls[0]).toEqual({
-    path: '/api/Teams/movePlayerToTeam/',
+    path: `/api/seasons/${SEASON_ID}/draft/players/move`,
     body: { seasonID: SEASON_ID, previousCaptainID: 201, newCaptainID: 202, personID: 302, roundNumber: 1 },
   });
 });
@@ -164,7 +164,7 @@ test('moves a pick to the end of its own team (intended: picks are not reordered
   await expect.poll(() => rosterOf(page, 'Red Team')).toEqual(['1 Player Quinn', '2 Player Pat']);
   await waitForCalls(calls, 1);
   expect(calls[0]).toEqual({
-    path: '/api/Teams/movePlayerToTeam/',
+    path: `/api/seasons/${SEASON_ID}/draft/players/move`,
     body: { seasonID: SEASON_ID, previousCaptainID: 201, newCaptainID: 201, personID: 301, roundNumber: 2 },
   });
 });
@@ -177,7 +177,7 @@ test('returns a drafted player to the pool', async ({ page }) => {
   await expect.poll(() => rosterOf(page, 'Red Team')).toEqual(['1 Player Quinn']);
   await expect.poll(() => poolNames(page)).toContain('Player Pat');
   await waitForCalls(calls, 1);
-  expect(calls[0]).toEqual({ path: '/api/Teams/removePlayerFromTeam/', body: { seasonID: SEASON_ID, captainID: 201, personID: 301 } });
+  expect(calls[0]).toEqual({ path: `/api/seasons/${SEASON_ID}/draft/players/remove`, body: { seasonID: SEASON_ID, captainID: 201, personID: 301 } });
 });
 
 test('makes a pool player a captain when captains are unlocked', async ({ page }) => {
@@ -189,7 +189,7 @@ test('makes a pool player a captain when captains are unlocked', async ({ page }
   await expect.poll(() => teamTitles(page)).toEqual(['1 - Red Team', '2 - Blue Team', '3 - Casey Crew']);
   await expect.poll(() => poolNames(page)).toEqual(['Pool Alex', 'Pool Blair']);
   await waitForCalls(calls, 1);
-  expect(calls[0]).toEqual({ path: '/api/Teams/AddCaptain/', body: { seasonID: SEASON_ID, personID: 103, orderNumber: 3 } });
+  expect(calls[0]).toEqual({ path: `/api/seasons/${SEASON_ID}/draft/captains`, body: { seasonID: SEASON_ID, personID: 103, orderNumber: 3 } });
 });
 
 test('reorders the captains\' pick order when captains are unlocked', async ({ page }) => {
@@ -200,7 +200,7 @@ test('reorders the captains\' pick order when captains are unlocked', async ({ p
 
   await expect.poll(() => teamTitles(page)).toEqual(['1 - Blue Team', '2 - Red Team']);
   await waitForCalls(calls, 1);
-  expect(calls[0]).toEqual({ path: '/api/Teams/ResortCaptain/', body: { seasonID: SEASON_ID, personID: 202, orderNumber: 1 } });
+  expect(calls[0]).toEqual({ path: `/api/seasons/${SEASON_ID}/draft/captains/resort`, body: { seasonID: SEASON_ID, personID: 202, orderNumber: 1 } });
 });
 
 test('returns a captain and their picks to the pool when captains are unlocked', async ({ page }) => {
@@ -211,7 +211,7 @@ test('returns a captain and their picks to the pool when captains are unlocked',
   await expect.poll(() => teamTitles(page)).toEqual(['1 - Blue Team']);
   await expect.poll(async () => (await poolNames(page)).sort()).toEqual(['Captain Red', 'Player Pat', 'Player Quinn', 'Pool Alex', 'Pool Blair', 'Pool Casey']);
   await waitForCalls(calls, 1);
-  expect(calls[0]).toEqual({ path: '/api/Teams/RemoveCaptain/', body: { seasonID: SEASON_ID, personID: 201 } });
+  expect(calls[0]).toEqual({ path: `/api/seasons/${SEASON_ID}/draft/captains/remove`, body: { seasonID: SEASON_ID, personID: 201 } });
 });
 
 test('does not let teams be dragged while captains are locked', async ({ page }) => {

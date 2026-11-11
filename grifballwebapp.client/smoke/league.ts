@@ -87,7 +87,7 @@ export async function createLeague(baseURL: string, admin: Api, label: string,
 
   const captains = players.slice(0, captainCount);
   for (const [i, captain] of captains.entries()) {
-    await admin.post('Teams/AddCaptain', { seasonID, personID: captain.userID, orderNumber: i + 1 });
+    await admin.post(`seasons/${seasonID}/draft/captains`, { seasonID, personID: captain.userID, orderNumber: i + 1 });
   }
 
   return {

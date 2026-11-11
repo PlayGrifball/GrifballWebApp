@@ -264,15 +264,15 @@ test('the team builder renders a captain added by another user over SignalR', as
   // hub connection comes up, which may be just after the update arrives.
   let captainAdded = false;
   await mockBackend(page, {
-    [`/api/Teams/GetTeams/${SEASON_ID}`]: route => json(route, [
+    [`/api/seasons/${SEASON_ID}/draft/teams`]: route => json(route, [
       { teamID: 1, teamName: 'Red Team', captain: { name: 'Captain Red', personID: 201, order: 1 }, players: [] },
       ...(captainAdded ? [{ teamID: 2, teamName: "Blair's Team", captain: { name: 'Pool Blair', personID: 102, order: 2 }, players: [] }] : []),
     ]),
-    [`/api/Teams/GetPlayerPool/${SEASON_ID}`]: route => json(route, [
+    [`/api/seasons/${SEASON_ID}/draft/player-pool`]: route => json(route, [
       { name: 'Pool Alex', personID: 101, pick: null, round: null },
       ...(captainAdded ? [] : [{ name: 'Pool Blair', personID: 102, pick: null, round: null }]),
     ]),
-    [`/api/Teams/areCaptainsLocked/${SEASON_ID}`]: route => json(route, true),
+    [`/api/seasons/${SEASON_ID}/draft/captains/locked`]: route => json(route, true),
   });
 
   // A minimal SignalR server: the JSON hub protocol over a WebSocket, which the client opens without

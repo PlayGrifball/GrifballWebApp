@@ -731,9 +731,9 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     // The accounts linked to a user, on their edit page
     ...Object.fromEntries(users.map(user => ['/api/ExternalLogins/UserLogins/' + user.userID, { hasPassword: user.hasPassword,
       logins: [{ loginProvider: 'Discord', providerKey: '8123456789012345' + user.userID, providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] }])),
-    '/api/Teams/GetTeams/13': draftTeams,
-    '/api/Teams/GetPlayerPool/13': draftPool,
-    '/api/Teams/areCaptainsLocked/13': true,
+    '/api/seasons/13/draft/teams': draftTeams,
+    '/api/seasons/13/draft/player-pool': draftPool,
+    '/api/seasons/13/draft/captains/locked': true,
     '/api/CommissionerDashboard/GetDashboardData': commissionerDashboard,
     // The historical import page (/usermanagement/historicalimport): its sources, jobs, schedule, and a guarded import's job
     '/api/HistoricalImport/Sources': historicalSources,

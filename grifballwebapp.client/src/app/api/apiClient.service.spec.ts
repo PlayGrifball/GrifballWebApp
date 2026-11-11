@@ -561,7 +561,7 @@ describe('ApiClientService', () => {
         }
       });
 
-      const req = httpTestingController.expectOne('/api/Teams/GetTeams/1');
+      const req = httpTestingController.expectOne('/api/seasons/1/draft/teams');
       expect(req.request.method).toBe('GET');
       req.flush(mockTeams);
     });
@@ -578,7 +578,7 @@ describe('ApiClientService', () => {
         }
       });
 
-      const req = httpTestingController.expectOne('/api/Teams/GetPlayerPool/1');
+      const req = httpTestingController.expectOne('/api/seasons/1/draft/player-pool');
       expect(req.request.method).toBe('GET');
       req.flush(mockPlayers);
     });
@@ -593,7 +593,7 @@ describe('ApiClientService', () => {
         }
       });
 
-      const req = httpTestingController.expectOne('/api/Teams/areCaptainsLocked/1');
+      const req = httpTestingController.expectOne('/api/seasons/1/draft/captains/locked');
       expect(req.request.method).toBe('GET');
       req.flush(true);
     });
@@ -649,7 +649,7 @@ describe('ApiClientService', () => {
       service.addCaptain(dto, undefined as any).subscribe();
       service.resortCaptain(dto, '').subscribe();
 
-      for (const url of ['/api/Teams/AddCaptain/', '/api/Teams/ResortCaptain/']) {
+      for (const url of ['/api/seasons/1/draft/captains', '/api/seasons/1/draft/captains/resort']) {
         const req = httpTestingController.expectOne(url);
         expect(req.request.headers.has('SignalRConnectionID')).toBe(false);
         req.flush({});
@@ -663,7 +663,7 @@ describe('ApiClientService', () => {
         next: () => done()
       });
 
-      const req = httpTestingController.expectOne('/api/Teams/AddCaptain/');
+      const req = httpTestingController.expectOne('/api/seasons/1/draft/captains');
       expect(req.request.method).toBe('POST');
       expect(req.request.headers.has('SignalRConnectionID')).toBe(false);
       req.flush({});
@@ -676,7 +676,7 @@ describe('ApiClientService', () => {
         next: () => done()
       });
 
-      const req = httpTestingController.expectOne('/api/Teams/AddCaptain/');
+      const req = httpTestingController.expectOne('/api/seasons/1/draft/captains');
       expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('SignalRConnectionID')).toBe('connection-123');
       req.flush({});
@@ -689,7 +689,7 @@ describe('ApiClientService', () => {
         next: () => done()
       });
 
-      const req = httpTestingController.expectOne('/api/Teams/ResortCaptain/');
+      const req = httpTestingController.expectOne('/api/seasons/1/draft/captains/resort');
       expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('SignalRConnectionID')).toBe('connection-456');
       req.flush({});
@@ -702,7 +702,7 @@ describe('ApiClientService', () => {
         next: () => done()
       });
 
-      const req = httpTestingController.expectOne('/api/Teams/RemoveCaptain/');
+      const req = httpTestingController.expectOne('/api/seasons/1/draft/captains/remove');
       expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('SignalRConnectionID')).toBe('connection-789');
       req.flush({});
@@ -711,39 +711,39 @@ describe('ApiClientService', () => {
 
   describe('player operations with SignalR connection', () => {
     it('should remove player from team with connection ID', (done) => {
-      const dto = { teamID: 1, playerID: 1 } as any;
+      const dto = { seasonID: 1, teamID: 1, playerID: 1 } as any;
 
       service.removePlayerFromTeam(dto, 'conn-1').subscribe({
         next: () => done()
       });
 
-      const req = httpTestingController.expectOne('/api/Teams/removePlayerFromTeam/');
+      const req = httpTestingController.expectOne('/api/seasons/1/draft/players/remove');
       expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('SignalRConnectionID')).toBe('conn-1');
       req.flush({});
     });
 
     it('should move player to team with connection ID', (done) => {
-      const dto = { teamID: 1, playerID: 1 } as any;
+      const dto = { seasonID: 1, teamID: 1, playerID: 1 } as any;
 
       service.movePlayerToTeam(dto, 'conn-2').subscribe({
         next: () => done()
       });
 
-      const req = httpTestingController.expectOne('/api/Teams/movePlayerToTeam/');
+      const req = httpTestingController.expectOne('/api/seasons/1/draft/players/move');
       expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('SignalRConnectionID')).toBe('conn-2');
       req.flush({});
     });
 
     it('should add player to team with connection ID', (done) => {
-      const dto = { teamID: 1, playerID: 1 } as any;
+      const dto = { seasonID: 1, teamID: 1, playerID: 1 } as any;
 
       service.addPlayerToTeam(dto, 'conn-3').subscribe({
         next: () => done()
       });
 
-      const req = httpTestingController.expectOne('/api/Teams/addPlayerToTeam/');
+      const req = httpTestingController.expectOne('/api/seasons/1/draft/picks');
       expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('SignalRConnectionID')).toBe('conn-3');
       req.flush({});
@@ -778,7 +778,7 @@ describe('ApiClientService', () => {
         next: () => done()
       });
 
-      const req = httpTestingController.expectOne('/api/Teams/lockCaptains/1');
+      const req = httpTestingController.expectOne('/api/seasons/1/draft/captains/lock');
       expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('SignalRConnectionID')).toBe('lock-conn');
       req.flush({});
@@ -789,7 +789,7 @@ describe('ApiClientService', () => {
         next: () => done()
       });
 
-      const req = httpTestingController.expectOne('/api/Teams/unlockCaptains/1');
+      const req = httpTestingController.expectOne('/api/seasons/1/draft/captains/unlock');
       expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('SignalRConnectionID')).toBe('unlock-conn');
       req.flush({});

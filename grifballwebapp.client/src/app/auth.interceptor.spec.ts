@@ -38,10 +38,10 @@ describe('authInterceptor', () => {
 
   for (const method of ['POST', 'PUT', 'PATCH', 'DELETE'] as const) {
     it(`adds the antiforgery token to a ${method} to the API`, async () => {
-      const result = firstValueFrom(http.request(method, '/api/Teams/AddCaptain', { body: {}, responseType: 'text' }));
+      const result = firstValueFrom(http.request(method, '/api/seasons/1/draft/captains', { body: {}, responseType: 'text' }));
 
       backend.expectOne(ANTIFORGERY_URL).flush({ token: 'xsrf-1' });
-      const req = backend.expectOne('/api/Teams/AddCaptain');
+      const req = backend.expectOne('/api/seasons/1/draft/captains');
       expect(req.request.headers.get(ANTIFORGERY_HEADER)).toBe('xsrf-1');
       expect(req.request.headers.has('Authorization')).toBeFalse();
       req.flush('ok');
