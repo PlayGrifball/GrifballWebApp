@@ -27,7 +27,7 @@ public class BrowserAuthTests
 {
     private const string Password = "Smoke-Test-Password-1";
     // A Sysadmin-only POST that changes nothing worth undoing
-    private const string AdminPost = "/Admin/CleanupExpiredPasswordResetLinks";
+    private const string AdminPost = "/password-reset-links/cleanup";
 
     private string _connectionString = null!;
     private WebApplicationFactory<ServerProgram> _factory = null!;
@@ -231,7 +231,7 @@ public class BrowserAuthTests
 
         using var response = await client.SendAsync(Post(AdminPost, token));
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
     }
 
     [Test]
@@ -279,7 +279,7 @@ public class BrowserAuthTests
 
         // A browser never sends this header by itself, so no antiforgery token is needed
         using var post = await client.SendAsync(Post(AdminPost));
-        Assert.That(post.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(post.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
 
         using var refresh = await client.PostAsJsonAsync("/identity/refresh", new { token.RefreshToken });
         Assert.That(refresh.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -503,7 +503,7 @@ public class BrowserAuthTests
         using var client = Browser();
         using (await Login(client)) { }
 
-        using var response = await client.GetAsync("/Admin/DeleteTokens");
+        using var response = await client.GetAsync("/halo/tokens/delete");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.MethodNotAllowed));
     }

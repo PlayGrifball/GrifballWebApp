@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using GrifballWebApp.Server.Telemetry.Query;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -589,10 +590,10 @@ public class TelemetryControllerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That((await controller.Logs(level: ["loud"])).Result, Is.TypeOf<BadRequestObjectResult>());
-            Assert.That((await controller.Logs(traceId: "xyz")).Result, Is.TypeOf<BadRequestObjectResult>());
-            Assert.That((await controller.Logs(search: new string('a', TelemetryController.MaxSearchLength + 1))).Result, Is.TypeOf<BadRequestObjectResult>());
-            Assert.That((await controller.Trace("xyz")).Result, Is.TypeOf<BadRequestObjectResult>());
+            (await controller.Logs(level: ["loud"])).Result.AssertProblem(StatusCodes.Status400BadRequest);
+            (await controller.Logs(traceId: "xyz")).Result.AssertProblem(StatusCodes.Status400BadRequest);
+            (await controller.Logs(search: new string('a', TelemetryController.MaxSearchLength + 1))).Result.AssertProblem(StatusCodes.Status400BadRequest);
+            (await controller.Trace("xyz")).Result.AssertProblem(StatusCodes.Status400BadRequest);
         }
     }
 
@@ -608,7 +609,7 @@ public class TelemetryControllerTests
             Assert.That((await unconfigured.Logs()).Result, Is.TypeOf<ObjectResult>().With.Property("StatusCode").EqualTo(404));
             Assert.That((await unconfigured.Traces()).Result, Is.TypeOf<ObjectResult>().With.Property("StatusCode").EqualTo(404));
             Assert.That((await unconfigured.Trace("abc")).Result, Is.TypeOf<ObjectResult>().With.Property("StatusCode").EqualTo(404));
-            Assert.That((await failing.Traces()).Result, Is.TypeOf<ObjectResult>().With.Property("StatusCode").EqualTo(502).And.Property("Value").EqualTo("Tempo answered 500: down"));
+            Assert.That((await failing.Traces()).AssertProblem(502).Detail, Is.EqualTo("Tempo answered 500: down"));
         }
     }
 
@@ -626,7 +627,7 @@ public class TelemetryControllerTests
         {
             Assert.That(controller.Status().Logs, Is.True);
             Assert.That((await controller.Logs(level: ["error"])).Value!.Entries, Is.Empty);
-            Assert.That((await controller.Trace("abc")).Result, Is.TypeOf<NotFoundObjectResult>());
+            (await controller.Trace("abc")).Result.AssertProblem(StatusCodes.Status404NotFound);
         }
     }
 }

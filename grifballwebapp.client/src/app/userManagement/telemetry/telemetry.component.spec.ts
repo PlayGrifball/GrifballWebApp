@@ -103,9 +103,9 @@ describe('TelemetryComponent', () => {
 
   /** The status answered, then the Overview's metrics. */
   async function open(status: TelemetryStatusDto = allOn, answer: MetricsDto = metrics): Promise<void> {
-    (await request('/api/Telemetry/Status')).flush(status);
+    (await request('/api/telemetry/status')).flush(status);
     if (status.metrics)
-      (await request('/api/Telemetry/Metrics')).flush(answer);
+      (await request('/api/telemetry/metrics')).flush(answer);
     await settle();
   }
 
@@ -128,7 +128,7 @@ describe('TelemetryComponent', () => {
     const select = labelled('Last');
     select.value = '1440';
     select.dispatchEvent(new Event('change'));
-    const again = await request('/api/Telemetry/Metrics');
+    const again = await request('/api/telemetry/metrics');
     expect(again.request.params.get('minutes')).toBe('1440');
     again.flush(metrics);
     await settle();
@@ -150,8 +150,8 @@ describe('TelemetryComponent', () => {
 
   it("shows a backend's failure", async () => {
     create();
-    (await request('/api/Telemetry/Status')).flush(allOn);
-    (await request('/api/Telemetry/Metrics')).flush('Prometheus could not be reached: connection refused', { status: 502, statusText: 'Bad Gateway' });
+    (await request('/api/telemetry/status')).flush(allOn);
+    (await request('/api/telemetry/metrics')).flush('Prometheus could not be reached: connection refused', { status: 502, statusText: 'Bad Gateway' });
     await settle();
 
     expect(text(el().querySelector('[role="alert"]'))).toBe('Prometheus could not be reached: connection refused');
@@ -162,14 +162,14 @@ describe('TelemetryComponent', () => {
     await open();
 
     button('Logs').click();
-    (await request('/api/Telemetry/Logs')).flush({ entries: [line(), line({ level: 'error', message: 'Job failed', traceId: null, attributes: {} })], truncated: true });
+    (await request('/api/telemetry/logs')).flush({ entries: [line(), line({ level: 'error', message: 'Job failed', traceId: null, attributes: {} })], truncated: true });
     await settle();
     expect(Array.from(el().querySelectorAll('.tm-log-line .tm-badge')).map(text)).toEqual(['info', 'error']);
     expect(Array.from(el().querySelectorAll('.tm-log-line .tm-message')).map(text)).toEqual(['HTTP GET /Home/Events responded 200', 'Job failed']);
     expect(text(el().querySelector('.tm-note'))).toContain('The newest 2 lines');
 
     button('error').click();
-    const errors = await request('/api/Telemetry/Logs');
+    const errors = await request('/api/telemetry/logs');
     expect(errors.request.params.getAll('level')).toEqual(['error']);
     errors.flush({ entries: [line()], truncated: false });
     await settle();
@@ -178,7 +178,7 @@ describe('TelemetryComponent', () => {
     search.value = 'events';
     search.dispatchEvent(new Event('input'));
     search.form!.dispatchEvent(new Event('submit'));
-    const searched = await request('/api/Telemetry/Logs');
+    const searched = await request('/api/telemetry/logs');
     expect(searched.request.params.get('search')).toBe('events');
     searched.flush({ entries: [line()], truncated: false });
     await settle();
@@ -189,9 +189,8 @@ describe('TelemetryComponent', () => {
 
     button('Open the trace').click();
     await tick();
-    const opened = http.expectOne(r => r.url === '/api/Telemetry/Trace');
-    expect(opened.request.params.get('id')).toBe('d8885ad9a3a1121898cdaaaaf596f993');
-    http.expectOne(r => r.url === '/api/Telemetry/Traces').flush([]);
+    const opened = http.expectOne('/api/telemetry/traces/d8885ad9a3a1121898cdaaaaf596f993');
+    http.expectOne(r => r.url === '/api/telemetry/traces').flush([]);
     opened.flush(trace([span('root', { name: 'GET Home/Events', kind: 'Server', durationMs: 100 })]));
     await settle();
     expect(text(el().querySelector('.tm-span-name'))).toBe('GET Home/Events Server');
@@ -205,7 +204,7 @@ describe('TelemetryComponent', () => {
     const summaries: TraceSummaryDto[] = [
       { traceId: 't1', rootName: 'GET Season/Get', rootService: 'grif-prod', start: '2026-11-03T11:59:00Z', durationMs: 412, route: 'Season/Get', statusCode: 500 },
     ];
-    (await request('/api/Telemetry/Traces')).flush(summaries);
+    (await request('/api/telemetry/traces')).flush(summaries);
     await settle();
     const cells = Array.from(el().querySelectorAll('[aria-label="Traces"] tbody td')).map(text);
     expect(cells.slice(1)).toEqual(['GET Season/Get', 'Season/Get', '500', '412 ms']);
@@ -213,14 +212,14 @@ describe('TelemetryComponent', () => {
     const failed = button('Failed only');
     expect(failed.getAttribute('aria-pressed')).toBe('false');
     failed.click();
-    const failures = await request('/api/Telemetry/Traces');
+    const failures = await request('/api/telemetry/traces');
     expect(failures.request.params.get('errorsOnly')).toBe('true');
     failures.flush(summaries);
     await settle();
     expect(failed.getAttribute('aria-pressed')).toBe('true');
 
     button('GET Season/Get').click();
-    (await request('/api/Telemetry/Trace')).flush(trace([
+    (await request('/api/telemetry/traces/t1')).flush(trace([
       span('root', { name: 'GET Season/Get', status: 'Error', statusMessage: 'boom', durationMs: 100,
         events: [{ name: 'exception', offsetMs: 90, attributes: { 'exception.type': 'System.Exception' } }] }),
       span('db', { name: 'SELECT', parentSpanId: 'root', offsetMs: 10, durationMs: 5 }),
@@ -235,7 +234,7 @@ describe('TelemetryComponent', () => {
     expect(text(el().querySelector('.tm-event'))).toBe('exception +90 ms');
 
     button('Its log lines').click();
-    const logs = await request('/api/Telemetry/Logs');
+    const logs = await request('/api/telemetry/logs');
     expect(logs.request.params.get('traceId')).toBe('t1');
     logs.flush({ entries: [], truncated: false });
     await settle();
@@ -245,12 +244,11 @@ describe('TelemetryComponent', () => {
 
   it('opens the trace a link names', async () => {
     create('ABC');
-    (await request('/api/Telemetry/Status')).flush(allOn);
+    (await request('/api/telemetry/status')).flush(allOn);
     await tick();
-    const opened = http.expectOne(r => r.url === '/api/Telemetry/Trace');
-    expect(opened.request.params.get('id')).toBe('abc');
+    const opened = http.expectOne('/api/telemetry/traces/abc');
     opened.flush('No such trace from this app', { status: 404, statusText: 'Not Found' });
-    http.expectOne(r => r.url === '/api/Telemetry/Traces').flush([]);
+    http.expectOne(r => r.url === '/api/telemetry/traces').flush([]);
     await settle();
 
     expect(text(el().querySelector('.tm-trace [role="alert"]'))).toBe('No such trace from this app');
@@ -273,51 +271,51 @@ describe('TelemetryComponent', () => {
     const noLogs = { entries: [], truncated: false };
 
     button('Refresh').click();
-    await reply('/api/Telemetry/Metrics', metrics);
+    await reply('/api/telemetry/metrics', metrics);
 
     button('Logs').click();
-    await reply('/api/Telemetry/Logs', { entries: [line()], truncated: false });
+    await reply('/api/telemetry/logs', { entries: [line()], truncated: false });
     el().querySelector<HTMLButtonElement>('.tm-log-line')!.click();
     await settle();
     el().querySelector<HTMLButtonElement>('.tm-log-line')!.click();
     await settle();
     expect(el().querySelector('.tm-log .tm-detail')).toBeNull();
     button('warn').click();
-    expect((await reply('/api/Telemetry/Logs', noLogs)).getAll('level')).toEqual(['warn']);
+    expect((await reply('/api/telemetry/logs', noLogs)).getAll('level')).toEqual(['warn']);
     button('warn').click();
-    expect((await reply('/api/Telemetry/Logs', noLogs)).has('level')).toBeFalse();
+    expect((await reply('/api/telemetry/logs', noLogs)).has('level')).toBeFalse();
     select('Lines', '500');
-    expect((await reply('/api/Telemetry/Logs', noLogs)).get('limit')).toBe('500');
+    expect((await reply('/api/telemetry/logs', noLogs)).get('limit')).toBe('500');
     button('Refresh').click();
-    await reply('/api/Telemetry/Logs', noLogs);
+    await reply('/api/telemetry/logs', noLogs);
     fixture.componentInstance.logsOfTrace('t9');
-    expect((await reply('/api/Telemetry/Logs', noLogs)).get('traceId')).toBe('t9');
+    expect((await reply('/api/telemetry/logs', noLogs)).get('traceId')).toBe('t9');
     button("Show every trace's lines").click();
-    expect((await reply('/api/Telemetry/Logs', noLogs)).has('traceId')).toBeFalse();
+    expect((await reply('/api/telemetry/logs', noLogs)).has('traceId')).toBeFalse();
 
     button('Traces').click();
-    await reply('/api/Telemetry/Traces', []);
+    await reply('/api/telemetry/traces', []);
     const slower = el().querySelector<HTMLInputElement>('input[aria-label="Slower than, in milliseconds"]')!;
     slower.value = '250';
     slower.dispatchEvent(new Event('change'));
-    expect((await reply('/api/Telemetry/Traces', [])).get('minDurationMs')).toBe('250');
+    expect((await reply('/api/telemetry/traces', [])).get('minDurationMs')).toBe('250');
     slower.value = '';
     slower.dispatchEvent(new Event('change'));
-    expect((await reply('/api/Telemetry/Traces', [])).has('minDurationMs')).toBeFalse();
+    expect((await reply('/api/telemetry/traces', [])).has('minDurationMs')).toBeFalse();
 
     const id = el().querySelector<HTMLInputElement>('input[aria-label="Trace id"]')!;
     id.form!.dispatchEvent(new Event('submit'));
     await tick();
-    http.expectNone(r => r.url === '/api/Telemetry/Trace');
+    http.expectNone(r => r.url.startsWith('/api/telemetry/traces/'));
     id.value = 'ABC';
     id.dispatchEvent(new Event('input'));
     id.form!.dispatchEvent(new Event('submit'));
-    expect((await reply('/api/Telemetry/Trace', trace([span('root')]))).get('id')).toBe('abc');
+    await reply('/api/telemetry/traces/abc', trace([span('root')]));
 
     button('Refresh').click();
     await tick();
-    http.expectOne(r => r.url === '/api/Telemetry/Traces').flush([]);
-    http.expectOne(r => r.url === '/api/Telemetry/Trace').flush(trace([span('root')]));
+    http.expectOne(r => r.url === '/api/telemetry/traces').flush([]);
+    http.expectOne(r => r.url.startsWith('/api/telemetry/traces/')).flush(trace([span('root')]));
     await settle();
 
     const spanButton = () => el().querySelector<HTMLButtonElement>('.tm-span')!;

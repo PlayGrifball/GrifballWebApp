@@ -84,16 +84,14 @@ describe('JobsComponent', () => {
   async function load(jobs: JobDto[]): Promise<void> {
     shown = jobs;
     fixture.detectChanges();
-    http.expectOne('/api/Jobs/List').flush(overview(jobs));
+    http.expectOne('/api/jobs').flush(overview(jobs));
     await settle();
   }
 
   async function details(name: string, runs: JobRunDto[] = [run()]): Promise<void> {
     button(`Details of ${name}`).click();
     fixture.detectChanges();
-    const history = http.expectOne(r => r.url === '/api/Jobs/History');
-    expect(history.request.params.get('group')).toBe('recurring');
-    expect(history.request.params.get('name')).toBe(name);
+    const history = http.expectOne(`/api/jobs/recurring/${name}/runs?take=50`);
     history.flush(runs);
     await settle();
   }
@@ -106,7 +104,7 @@ describe('JobsComponent', () => {
     expect(request.request.body).toEqual(body);
     request.flush(null, { status: 204, statusText: 'No Content' });
     fixture.detectChanges();
-    http.expectOne('/api/Jobs/List').flush(overview(shown));
+    http.expectOne('/api/jobs').flush(overview(shown));
     fixture.detectChanges();
   }
 
@@ -152,19 +150,19 @@ describe('JobsComponent', () => {
     await load([job('historical-refresh'), job('xbox-placeholders', { state: 'Paused' })]);
 
     button('Run now historical-refresh').click();
-    await answer('/api/Jobs/Run', { group: 'recurring', name: 'historical-refresh' });
+    await answer('/api/jobs/recurring/historical-refresh/run', null);
     expect(snackBar.open).toHaveBeenCalledWith('historical-refresh will run in a few seconds.', 'Close', { duration: 4000 });
     await settle();
 
     button('Pause historical-refresh').click();
-    await answer('/api/Jobs/SetPaused', { group: 'recurring', name: 'historical-refresh', paused: true });
+    await answer('/api/jobs/recurring/historical-refresh/paused', { paused: true });
     expect(snackBar.open).toHaveBeenCalledWith('historical-refresh is paused.', 'Close', { duration: 4000 });
   });
 
   it('resumes a paused job', async () => {
     await load([job('xbox-placeholders', { state: 'Paused' })]);
     button('Resume xbox-placeholders').click();
-    await answer('/api/Jobs/SetPaused', { group: 'recurring', name: 'xbox-placeholders', paused: false });
+    await answer('/api/jobs/recurring/xbox-placeholders/paused', { paused: false });
     expect(snackBar.open).toHaveBeenCalledWith('xbox-placeholders is resumed.', 'Close', { duration: 4000 });
   });
 
@@ -180,15 +178,15 @@ describe('JobsComponent', () => {
     unit.dispatchEvent(new Event('change'));
     await settle();
     button('Save').click();
-    await answer('/api/Jobs/SetInterval', { group: 'recurring', name: 'historical-refresh', intervalSeconds: 43200 });
+    await answer('/api/jobs/recurring/historical-refresh/interval', { intervalSeconds: 43200 });
     expect(snackBar.open).toHaveBeenCalledWith('historical-refresh runs every 12 h.', 'Close', { duration: 4000 });
     // The runs are read again with the list
-    http.expectOne(r => r.url === '/api/Jobs/History').flush([run()]);
+    http.expectOne(r => r.url.endsWith('/runs')).flush([run()]);
     await settle();
 
     button('Reset to default (every 1 day)').click();
-    await answer('/api/Jobs/ResetSchedule', { group: 'recurring', name: 'historical-refresh' });
-    http.expectOne(r => r.url === '/api/Jobs/History').flush([run()]);
+    await answer('/api/jobs/recurring/historical-refresh/schedule/reset', null);
+    http.expectOne(r => r.url.endsWith('/runs')).flush([run()]);
     await settle();
     expect(el().querySelector<HTMLInputElement>('input[aria-label="Interval"]')!.value).toBe('1');
   });
@@ -210,8 +208,8 @@ describe('JobsComponent', () => {
     await load([job('matchmaking-queue', { running: [{ fireInstanceID: 'f-1', startedAt: '2026-10-31T06:59:58Z', node: 'worker-1' }] })]);
     await details('matchmaking-queue');
     button('Stop').click();
-    await answer('/api/Jobs/Interrupt', { fireInstanceID: 'f-1' });
-    http.expectOne(r => r.url === '/api/Jobs/History').flush([]);
+    await answer('/api/job-runs/f-1/interrupt', null);
+    http.expectOne(r => r.url.endsWith('/runs')).flush([]);
     await settle();
     expect(text(el().querySelector('.jb-detail'))).toContain('No runs in the last week.');
   });
@@ -220,7 +218,7 @@ describe('JobsComponent', () => {
     await load([job('historical-refresh')]);
     button('Run now historical-refresh').click();
     fixture.detectChanges();
-    http.expectOne('/api/Jobs/Run').flush({ title: 'Conflict', detail: 'The job is off' }, { status: 409, statusText: 'Conflict' });
+    http.expectOne(r => r.url.endsWith('/run')).flush({ title: 'Conflict', detail: 'The job is off' }, { status: 409, statusText: 'Conflict' });
     await settle();
     expect(snackBar.open).toHaveBeenCalledWith(jasmine.any(String), 'Close');
     expect(button('Run now historical-refresh').disabled).toBeFalse();
@@ -228,7 +226,7 @@ describe('JobsComponent', () => {
 
   it('says when the jobs couldn’t be loaded, and when there are none', async () => {
     fixture.detectChanges();
-    http.expectOne('/api/Jobs/List').flush(null, { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/jobs').flush(null, { status: 500, statusText: 'Server Error' });
     await settle();
     expect(text(el().querySelector('[role=alert]'))).toBe("The jobs couldn't be loaded.");
   });
@@ -237,16 +235,16 @@ describe('JobsComponent', () => {
     jasmine.clock().install();
     try {
       fixture.detectChanges();
-      http.expectOne('/api/Jobs/List').flush(null, { status: 500, statusText: 'Server Error' });
+      http.expectOne('/api/jobs').flush(null, { status: 500, statusText: 'Server Error' });
       await Promise.resolve();
       fixture.detectChanges();
       expect(text(el().querySelector('[role=alert]'))).toBe("The jobs couldn't be loaded.");
 
       jasmine.clock().tick(JOBS_POLL_MS - 1);
-      http.expectNone('/api/Jobs/List');
+      http.expectNone('/api/jobs');
       jasmine.clock().tick(1);
       fixture.detectChanges();
-      http.expectOne('/api/Jobs/List').flush(overview([job('historical-refresh')]));
+      http.expectOne('/api/jobs').flush(overview([job('historical-refresh')]));
       await Promise.resolve();
       fixture.detectChanges();
       expect(rows().length).toBe(1);

@@ -16,7 +16,7 @@ interface HaloStatus {
 
 test.describe('Halo Infinite', () => {
   test('reads match stats through the Halo gateway', async ({ admin }) => {
-    const status = await admin.get<HaloStatus>('Admin/HaloStatus');
+    const status = await admin.get<HaloStatus>('halo/status');
     expect(status.mode, 'previews run in Gateway mode').toBe('Gateway');
     // A preview deployed before the homelab gave previews the gateway key and egress to it cannot reach the
     // gateway at all: nothing to test there yet.

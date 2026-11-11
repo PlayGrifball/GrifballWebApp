@@ -16,7 +16,6 @@ namespace GrifballWebApp.Server.Historical;
 /// in the background (HistoricalImportWorker, in the worker role): each action returns 202 with the job's ID, and
 /// <see cref="Job"/> reports its progress and result. Running an import again with the same data changes nothing.
 /// </summary>
-[Route("[controller]/[action]")]
 [ApiController]
 public class HistoricalImportController : ControllerBase
 {
@@ -36,11 +35,12 @@ public class HistoricalImportController : ControllerBase
     /// <param name="catalog">compiled/catalog.json (optional): each workbook's link, stored on its seasons.</param>
     /// <param name="ct"></param>
     /// <param name="players">compiled/late-league-master.json (optional): its players list's Discord IDs and locations.</param>
-    [HttpPost(Name = "ImportHistoricalArchive")]
+    [HttpPost("historical-imports", Name = "ImportHistoricalArchive")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
     [RequestSizeLimit(64 * 1024 * 1024)]
     [RequestFormLimits(MultipartBodyLengthLimit = 64 * 1024 * 1024)] // NOSONAR S5693: a sysadmin's archive (its JSON files run to tens of MB); authorization runs before the form is read
-    [ProducesResponseType(typeof(HistoricalImportQueued), StatusCodes.Status202Accepted)]
+    [ProducesResponseType<HistoricalImportQueued>(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> Import(IFormFile seasons, IFormFile? championships, IFormFile? waypointMatches, IFormFile? catalog, CancellationToken ct, IFormFile? players = null)
     {
         HistoricalArchiveInput input;
@@ -57,74 +57,91 @@ public class HistoricalImportController : ControllerBase
         }
         catch (Exception e) when (e is System.Text.Json.JsonException or InvalidDataException)
         {
-            return BadRequest($"Could not read the archive: {e.Message}");
+            return this.BadRequestProblem($"Could not read the archive: {e.Message}");
         }
         // Not the request's token: the job outlives the request
         var jobId = await _jobs.Enqueue(input, CancellationToken.None);
-        return AcceptedAtAction(nameof(Job), new { jobId }, new HistoricalImportQueued(jobId));
+        return AcceptedAtAction(nameof(Job), new { jobID = jobId }, new HistoricalImportQueued(jobId));
     }
 
-    [HttpGet("{jobId:int}", Name = "GetHistoricalImportJob")]
+    [HttpGet("historical-imports/{jobID:int}", Name = "GetHistoricalImportJob")]
+    [ProducesResponseType<HistoricalImportJobDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
-    public async Task<ActionResult<HistoricalImportJobDto>> Job([FromRoute] int jobId, CancellationToken ct)
-        => await _jobs.Get(jobId, ct) is { } job ? job : NotFound();
+    public async Task<ActionResult<HistoricalImportJobDto>> Job([FromRoute] int jobID, CancellationToken ct)
+        => await _jobs.Get(jobID, ct) is { } job ? job : NotFound();
 
-    [HttpGet(Name = "GetHistoricalSources")]
+    [HttpGet("historical-sources", Name = "GetHistoricalSources")]
+    [ProducesResponseType<List<HistoricalSourceDto>>(StatusCodes.Status200OK)]
     [Authorize(Roles = "Sysadmin")]
     public async Task<ActionResult<List<HistoricalSourceDto>>> Sources(CancellationToken ct) => await _sources.List(ct);
 
     /// <summary>A disabled source is no longer downloaded; the import keeps reading its last snapshot. A dead source can't
     /// be enabled (409).</summary>
-    [HttpPost("{sourceId}", Name = "SetHistoricalSourceEnabled")]
+    [HttpPost("historical-sources/{sourceID}/enabled", Name = "SetHistoricalSourceEnabled")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
-    public async Task<IActionResult> SetSourceEnabled([FromRoute] string sourceId, [FromBody] SetEnabledRequest request, CancellationToken ct)
-        => await _sources.SetEnabled(sourceId, request.Enabled, ct) switch
+    public async Task<IActionResult> SetSourceEnabled([FromRoute] string sourceID, [FromBody] SetEnabledRequest request, CancellationToken ct)
+        => await _sources.SetEnabled(sourceID, request.Enabled, ct) switch
         {
             null => NotFound(),
-            HistoricalSourceSetEnabledResult.Dead => Conflict("That source is dead: it is never downloaded, so it can't be enabled."),
+            HistoricalSourceSetEnabledResult.Dead => this.ConflictProblem("That source is dead: it is never downloaded, so it can't be enabled."),
             _ => NoContent(),
         };
 
     /// <summary>Downloads every enabled source, keeping each content that changed (no import).</summary>
-    [HttpPost(Name = "RefreshHistoricalSources")]
+    [HttpPost("historical-sources/refresh", Name = "RefreshHistoricalSources")]
     [Authorize(Roles = "Sysadmin")]
-    [ProducesResponseType(typeof(HistoricalImportQueued), StatusCodes.Status202Accepted)]
+    [ProducesResponseType<HistoricalImportQueued>(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> Refresh(CancellationToken ct)
         => Queued(await _jobs.Enqueue(HistoricalImportJob.Refresh(), CancellationToken.None));
 
     /// <summary>A dry run of importing every source's latest snapshot: the job lists each season's removals.</summary>
-    [HttpPost(Name = "PreviewHistoricalImport")]
+    [HttpPost("historical-imports/preview", Name = "PreviewHistoricalImport")]
     [Authorize(Roles = "Sysadmin")]
-    [ProducesResponseType(typeof(HistoricalImportQueued), StatusCodes.Status202Accepted)]
+    [ProducesResponseType<HistoricalImportQueued>(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> Preview(CancellationToken ct)
         => Queued(await _jobs.Enqueue(HistoricalImportJob.Preview(), CancellationToken.None));
 
     /// <summary>Imports what a finished preview read.</summary>
-    [HttpPost("{jobId:int}", Name = "ApplyHistoricalImportPreview")]
+    [HttpPost("historical-imports/{jobID:int}/apply", Name = "ApplyHistoricalImportPreview")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
-    [ProducesResponseType(typeof(HistoricalImportQueued), StatusCodes.Status202Accepted)]
-    public async Task<IActionResult> ApplyPreview([FromRoute] int jobId, CancellationToken ct)
-        => Decided(await _jobs.ApplyPreview(jobId, CancellationToken.None));
+    [ProducesResponseType<HistoricalImportQueued>(StatusCodes.Status202Accepted)]
+    public async Task<IActionResult> ApplyPreview([FromRoute] int jobID, CancellationToken ct)
+        => Decided(await _jobs.ApplyPreview(jobID, CancellationToken.None));
 
     /// <summary>Imports a season the guardrail stopped (queues its import).</summary>
-    [HttpPost("{reviewId:int}", Name = "ApproveHistoricalSeasonReview")]
+    [HttpPost("historical-reviews/{reviewID:int}/approve", Name = "ApproveHistoricalSeasonReview")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
-    [ProducesResponseType(typeof(HistoricalImportQueued), StatusCodes.Status202Accepted)]
-    public async Task<IActionResult> ApproveReview([FromRoute] int reviewId, CancellationToken ct)
-        => Decided(await _jobs.Decide(reviewId, approve: true, CancellationToken.None));
+    [ProducesResponseType<HistoricalImportQueued>(StatusCodes.Status202Accepted)]
+    public async Task<IActionResult> ApproveReview([FromRoute] int reviewID, CancellationToken ct)
+        => Decided(await _jobs.Decide(reviewID, approve: true, CancellationToken.None));
 
     /// <summary>Leaves a season the guardrail stopped as it is.</summary>
-    [HttpPost("{reviewId:int}", Name = "SkipHistoricalSeasonReview")]
+    [HttpPost("historical-reviews/{reviewID:int}/skip", Name = "SkipHistoricalSeasonReview")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
-    public async Task<IActionResult> SkipReview([FromRoute] int reviewId, CancellationToken ct)
-        => Decided(await _jobs.Decide(reviewId, approve: false, CancellationToken.None));
+    public async Task<IActionResult> SkipReview([FromRoute] int reviewID, CancellationToken ct)
+        => Decided(await _jobs.Decide(reviewID, approve: false, CancellationToken.None));
 
     /// <summary>The latest jobs, newest first.</summary>
-    [HttpGet(Name = "GetHistoricalImportJobs")]
+    [HttpGet("historical-imports", Name = "GetHistoricalImportJobs")]
+    [ProducesResponseType<List<HistoricalImportJobSummaryDto>>(StatusCodes.Status200OK)]
     [Authorize(Roles = "Sysadmin")]
     public async Task<ActionResult<List<HistoricalImportJobSummaryDto>>> Jobs(CancellationToken ct) => await _jobs.List(25, ct);
 
-    [HttpGet(Name = "GetHistoricalImportSchedule")]
+    [HttpGet("historical-imports/schedule", Name = "GetHistoricalImportSchedule")]
+    [ProducesResponseType<HistoricalImportScheduleDto>(StatusCodes.Status200OK)]
     [Authorize(Roles = "Sysadmin")]
     public async Task<ActionResult<HistoricalImportScheduleDto>> Schedule([FromServices] HistoricalImportSchedule schedule, CancellationToken ct)
         => await schedule.Get(ct);
@@ -133,7 +150,9 @@ public class HistoricalImportController : ControllerBase
     /// Paused, the schedule queues nothing; manual runs still work. 409 before a worker has made the schedule's trigger
     /// (it does as it starts).
     /// </summary>
-    [HttpPost(Name = "SetHistoricalImportSchedulePaused")]
+    [HttpPost("historical-imports/schedule/paused", Name = "SetHistoricalImportSchedulePaused")]
+    [ProducesResponseType<HistoricalImportScheduleDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
     public async Task<ActionResult<HistoricalImportScheduleDto>> SetSchedulePaused([FromServices] HistoricalImportSchedule schedule, [FromBody] SetPausedRequest request, CancellationToken ct)
     {
@@ -142,7 +161,7 @@ public class HistoricalImportController : ControllerBase
         return await schedule.Get(ct);
     }
 
-    private AcceptedAtActionResult Queued(int jobId) => AcceptedAtAction(nameof(Job), new { jobId }, new HistoricalImportQueued(jobId));
+    private AcceptedAtActionResult Queued(int jobId) => AcceptedAtAction(nameof(Job), new { jobID = jobId }, new HistoricalImportQueued(jobId));
 
     private IActionResult Decided((HistoricalJobDecision Decision, int? JobID) result) => result.Decision switch
     {

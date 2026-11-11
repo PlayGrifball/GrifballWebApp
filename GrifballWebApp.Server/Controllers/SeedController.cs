@@ -4,14 +4,16 @@ using GrifballWebApp.Application.HaloInfinite;
 
 namespace GrifballWebApp.Server.Controllers;
 
-[Route("[controller]/[action]")]
 [ApiController]
 public class SeedController(IDataPullService dataPullService) : ControllerBase
 {
+    /// <summary>Downloads Halo Infinite's medals again.</summary>
     [Authorize(Roles = "Sysadmin")]
-    [HttpPost(Name = "Medals")]
-    public async Task Medals()
+    [HttpPost("medals/refresh", Name = "Medals")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Medals()
     {
         await dataPullService.DownloadMedals();
+        return NoContent();
     }
 }

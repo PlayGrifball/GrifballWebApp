@@ -137,7 +137,7 @@ export class AccountService {
   }
 
   generatePasswordResetLink(request: GeneratePasswordResetLinkRequestDto): Observable<GeneratePasswordResetLinkResponseDto> {
-    return this.http.post<GeneratePasswordResetLinkResponseDto>('/api/admin/generatepasswordresetlink', request);
+    return this.http.post<GeneratePasswordResetLinkResponseDto>('/api/password-reset-links', request);
   }
 
   resetPassword(request: UsePasswordResetLinkRequestDto): Observable<string> {
@@ -145,7 +145,7 @@ export class AccountService {
   }
 
   cleanupExpiredPasswordResetLinks(): Observable<string> {
-    return this.http.post('/api/admin/cleanupexpiredpasswordresetlinks', {}, { responseType: 'text' });
+    return this.http.post('/api/password-reset-links/cleanup', {}, { responseType: 'text' });
   }
 }
 

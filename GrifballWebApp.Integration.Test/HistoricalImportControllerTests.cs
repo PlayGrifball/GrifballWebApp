@@ -367,7 +367,7 @@ public class HistoricalImportControllerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            result.AssertProblem(StatusCodes.Status400BadRequest);
             Assert.That(await _context.HistoricalImportJobs.AnyAsync(), Is.False);
         }
     }

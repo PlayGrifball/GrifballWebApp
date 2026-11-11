@@ -236,11 +236,11 @@ describe('ApiClientService', () => {
     it('lists the sources and enables or disables one', () => {
       let sources: unknown;
       service.getHistoricalSources().subscribe(r => sources = r);
-      httpTestingController.expectOne('/api/HistoricalImport/Sources').flush([]);
+      httpTestingController.expectOne('/api/historical-sources').flush([]);
       expect(sources).toEqual([]);
 
       service.setHistoricalSourceEnabled('2023 da/wl', false).subscribe();
-      const set = httpTestingController.expectOne('/api/HistoricalImport/SetSourceEnabled/2023%20da%2Fwl');
+      const set = httpTestingController.expectOne('/api/historical-sources/2023%20da%2Fwl/enabled');
       expect(set.request.method).toBe('POST');
       expect(set.request.body).toEqual({ enabled: false });
       set.flush(null, { status: 204, statusText: 'No Content' });
@@ -248,11 +248,11 @@ describe('ApiClientService', () => {
 
     it('queues refreshes, previews, applies and review decisions without a body', () => {
       const calls: [() => void, string][] = [
-        [() => service.refreshHistoricalSources().subscribe(), '/api/HistoricalImport/Refresh'],
-        [() => service.previewHistoricalImport().subscribe(), '/api/HistoricalImport/Preview'],
-        [() => service.applyHistoricalImportPreview(4).subscribe(), '/api/HistoricalImport/ApplyPreview/4'],
-        [() => service.approveHistoricalSeasonReview(5).subscribe(), '/api/HistoricalImport/ApproveReview/5'],
-        [() => service.skipHistoricalSeasonReview(6).subscribe(), '/api/HistoricalImport/SkipReview/6'],
+        [() => service.refreshHistoricalSources().subscribe(), '/api/historical-sources/refresh'],
+        [() => service.previewHistoricalImport().subscribe(), '/api/historical-imports/preview'],
+        [() => service.applyHistoricalImportPreview(4).subscribe(), '/api/historical-imports/4/apply'],
+        [() => service.approveHistoricalSeasonReview(5).subscribe(), '/api/historical-reviews/5/approve'],
+        [() => service.skipHistoricalSeasonReview(6).subscribe(), '/api/historical-reviews/6/skip'],
       ];
       for (const [call, url] of calls) {
         call();
@@ -269,10 +269,10 @@ describe('ApiClientService', () => {
       service.getHistoricalImportJob(7).subscribe();
       service.getHistoricalImportSchedule().subscribe();
       service.setHistoricalImportSchedulePaused(true).subscribe(r => paused = r);
-      httpTestingController.expectOne('/api/HistoricalImport/Jobs').flush([]);
-      httpTestingController.expectOne('/api/HistoricalImport/Job/7').flush({});
-      httpTestingController.expectOne('/api/HistoricalImport/Schedule').flush({});
-      const pause = httpTestingController.expectOne('/api/HistoricalImport/SetSchedulePaused');
+      httpTestingController.expectOne('/api/historical-imports').flush([]);
+      httpTestingController.expectOne('/api/historical-imports/7').flush({});
+      httpTestingController.expectOne('/api/historical-imports/schedule').flush({});
+      const pause = httpTestingController.expectOne('/api/historical-imports/schedule/paused');
       expect(pause.request.body).toEqual({ paused: true });
       pause.flush({ paused: true });
       expect(paused).toEqual({ paused: true });
@@ -285,9 +285,9 @@ describe('ApiClientService', () => {
     it("reads the jobs and a job's runs", () => {
       service.getJobs().subscribe();
       service.getJobHistory(key, 20).subscribe();
-      httpTestingController.expectOne('/api/Jobs/List').flush({ jobs: [], nodes: [] });
-      const history = httpTestingController.expectOne(r => r.url === '/api/Jobs/History');
-      expect(history.request.params.toString()).toBe('group=recurring&name=historical-refresh&take=20');
+      httpTestingController.expectOne('/api/jobs').flush({ jobs: [], nodes: [] });
+      const history = httpTestingController.expectOne(r => r.url === '/api/jobs/recurring/historical-refresh/runs');
+      expect(history.request.params.toString()).toBe('take=20');
       history.flush([]);
     });
 
@@ -298,11 +298,11 @@ describe('ApiClientService', () => {
       service.resetJobSchedule(key).subscribe();
       service.interruptJob('f-1').subscribe();
       const expected: [string, unknown][] = [
-        ['/api/Jobs/Run', key],
-        ['/api/Jobs/SetPaused', { ...key, paused: true }],
-        ['/api/Jobs/SetInterval', { ...key, intervalSeconds: 600 }],
-        ['/api/Jobs/ResetSchedule', key],
-        ['/api/Jobs/Interrupt', { fireInstanceID: 'f-1' }],
+        ['/api/jobs/recurring/historical-refresh/run', null],
+        ['/api/jobs/recurring/historical-refresh/paused', { paused: true }],
+        ['/api/jobs/recurring/historical-refresh/interval', { intervalSeconds: 600 }],
+        ['/api/jobs/recurring/historical-refresh/schedule/reset', null],
+        ['/api/job-runs/f-1/interrupt', null],
       ];
       for (const [url, body] of expected) {
         const request = httpTestingController.expectOne(url);
@@ -318,19 +318,19 @@ describe('ApiClientService', () => {
       service.getTelemetryStatus().subscribe();
       service.getTelemetryMetrics(360).subscribe();
       service.getTelemetryTrace('abc').subscribe();
-      httpTestingController.expectOne('/api/Telemetry/Status').flush({ serviceName: 'grif-prod', logs: true, metrics: true, traces: true });
-      const metrics = httpTestingController.expectOne(r => r.url === '/api/Telemetry/Metrics');
+      httpTestingController.expectOne('/api/telemetry/status').flush({ serviceName: 'grif-prod', logs: true, metrics: true, traces: true });
+      const metrics = httpTestingController.expectOne(r => r.url === '/api/telemetry/metrics');
       expect(metrics.request.params.toString()).toBe('minutes=360');
       metrics.flush({ start: '', end: '', stepSeconds: 15, panels: [], routes: [] });
-      const trace = httpTestingController.expectOne(r => r.url === '/api/Telemetry/Trace');
-      expect(trace.request.params.toString()).toBe('id=abc');
+      const trace = httpTestingController.expectOne(r => r.url === '/api/telemetry/traces/abc');
+      expect(trace.request.params.keys()).toEqual([]);
       trace.flush({ traceId: 'abc', start: '', durationMs: 0, spans: [] });
     });
 
     it('sends only the log filters that are set', () => {
       service.getTelemetryLogs({ minutes: 60, levels: [], search: ' ', traceId: '', limit: 200 }).subscribe();
       service.getTelemetryLogs({ minutes: 15, levels: ['warn', 'error'], search: ' timeout ', traceId: 'abc', limit: 500 }).subscribe();
-      const [plain, filtered] = httpTestingController.match(r => r.url === '/api/Telemetry/Logs');
+      const [plain, filtered] = httpTestingController.match(r => r.url === '/api/telemetry/logs');
       expect(plain.request.params.toString()).toBe('minutes=60&limit=200');
       expect(filtered.request.params.toString()).toBe('minutes=15&limit=500&level=warn&level=error&search=timeout&traceId=abc');
       plain.flush({ entries: [], truncated: false });
@@ -340,7 +340,7 @@ describe('ApiClientService', () => {
     it('sends the trace search', () => {
       service.getTelemetryTraces({ minutes: 60, errorsOnly: false, minDurationMs: null }).subscribe();
       service.getTelemetryTraces({ minutes: 60, errorsOnly: true, minDurationMs: 250 }).subscribe();
-      const [all, slowFailures] = httpTestingController.match(r => r.url === '/api/Telemetry/Traces');
+      const [all, slowFailures] = httpTestingController.match(r => r.url === '/api/telemetry/traces');
       expect(all.request.params.toString()).toBe('minutes=60&errorsOnly=false');
       expect(slowFailures.request.params.toString()).toBe('minutes=60&errorsOnly=true&minDurationMs=250');
       all.flush([]);

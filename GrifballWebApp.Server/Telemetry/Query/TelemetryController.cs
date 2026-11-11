@@ -7,7 +7,6 @@ namespace GrifballWebApp.Server.Telemetry.Query;
 /// The Telemetry page (sysadmin only): this app's own logs, metrics and traces, read back from Loki, Prometheus and
 /// Tempo (<see cref="TelemetryQueryService"/>). An unconfigured backend is a 404, a failing one a 502.
 /// </summary>
-[Route("[controller]/[action]")]
 [ApiController]
 [Authorize(Roles = "Sysadmin")]
 public class TelemetryController : ControllerBase
@@ -22,11 +21,15 @@ public class TelemetryController : ControllerBase
         _telemetry = telemetry;
     }
 
-    [HttpGet(Name = "GetTelemetryStatus")]
+    [HttpGet("telemetry/status", Name = "GetTelemetryStatus")]
+    [ProducesResponseType<TelemetryStatusDto>(StatusCodes.Status200OK)]
     public TelemetryStatusDto Status() => _telemetry.Status();
 
     /// <summary>The Overview: charts over the last <paramref name="minutes"/> and the busiest routes.</summary>
-    [HttpGet(Name = "GetTelemetryMetrics")]
+    [HttpGet("telemetry/metrics", Name = "GetTelemetryMetrics")]
+    [ProducesResponseType<MetricsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status502BadGateway, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable, "application/problem+json")]
     public async Task<ActionResult<MetricsDto>> Metrics([FromQuery] int minutes = 60, CancellationToken ct = default)
     {
         try
@@ -35,22 +38,26 @@ public class TelemetryController : ControllerBase
         }
         catch (TelemetryQueryException e)
         {
-            return StatusCode(e.Status, e.Message);
+            return this.Refusal(e.Status, e.Message);
         }
     }
 
     /// <summary>Log lines, newest first, from the <paramref name="minutes"/> before <paramref name="end"/> (default now).</summary>
-    [HttpGet(Name = "GetTelemetryLogs")]
+    [HttpGet("telemetry/logs", Name = "GetTelemetryLogs")]
+    [ProducesResponseType<LogsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status502BadGateway, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable, "application/problem+json")]
     public async Task<ActionResult<LogsDto>> Logs([FromQuery] int minutes = 60, [FromQuery] DateTimeOffset? end = null,
         [FromQuery] string[]? level = null, [FromQuery] string? search = null, [FromQuery] string? traceId = null,
         [FromQuery] int limit = 200, CancellationToken ct = default)
     {
         if (level?.FirstOrDefault(l => !TelemetryQueries.Levels.Contains(l)) is { } unknown)
-            return BadRequest($"Unknown level {unknown}: one of {string.Join(", ", TelemetryQueries.Levels)}");
+            return this.BadRequestProblem($"Unknown level {unknown}: one of {string.Join(", ", TelemetryQueries.Levels)}");
         if (!string.IsNullOrWhiteSpace(traceId) && TelemetryQueries.NormalizeTraceId(traceId) is null)
-            return BadRequest(BadTraceId);
+            return this.BadRequestProblem(BadTraceId);
         if (search?.Length > MaxSearchLength)
-            return BadRequest($"The search is {MaxSearchLength} characters at most");
+            return this.BadRequestProblem($"The search is {MaxSearchLength} characters at most");
 
         try
         {
@@ -58,12 +65,15 @@ public class TelemetryController : ControllerBase
         }
         catch (TelemetryQueryException e)
         {
-            return StatusCode(e.Status, e.Message);
+            return this.Refusal(e.Status, e.Message);
         }
     }
 
     /// <summary>Traces from the last <paramref name="minutes"/>, newest first: failed ones only, slower than a minimum.</summary>
-    [HttpGet(Name = "GetTelemetryTraces")]
+    [HttpGet("telemetry/traces", Name = "GetTelemetryTraces")]
+    [ProducesResponseType<List<TraceSummaryDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status502BadGateway, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable, "application/problem+json")]
     public async Task<ActionResult<List<TraceSummaryDto>>> Traces([FromQuery] int minutes = 60, [FromQuery] bool errorsOnly = false,
         [FromQuery] int? minDurationMs = null, [FromQuery] int limit = 50, CancellationToken ct = default)
     {
@@ -73,26 +83,31 @@ public class TelemetryController : ControllerBase
         }
         catch (TelemetryQueryException e)
         {
-            return StatusCode(e.Status, e.Message);
+            return this.Refusal(e.Status, e.Message);
         }
     }
 
     /// <summary>One trace's spans from this app. 404: not found, or none of its spans are this app's.</summary>
-    [HttpGet(Name = "GetTelemetryTrace")]
-    public async Task<ActionResult<TraceDto>> Trace([FromQuery] string id, CancellationToken ct = default)
+    [HttpGet("telemetry/traces/{traceID}", Name = "GetTelemetryTrace")]
+    [ProducesResponseType<TraceDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status502BadGateway, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable, "application/problem+json")]
+    public async Task<ActionResult<TraceDto>> Trace([FromRoute] string traceID, CancellationToken ct = default)
     {
-        if (TelemetryQueries.NormalizeTraceId(id) is null)
-            return BadRequest(BadTraceId);
+        if (TelemetryQueries.NormalizeTraceId(traceID) is null)
+            return this.BadRequestProblem(BadTraceId);
 
         try
         {
-            if (await _telemetry.Trace(id, ct) is { } trace)
+            if (await _telemetry.Trace(traceID, ct) is { } trace)
                 return trace;
-            return NotFound("No such trace from this app");
+            return this.NotFoundProblem("No such trace from this app");
         }
         catch (TelemetryQueryException e)
         {
-            return StatusCode(e.Status, e.Message);
+            return this.Refusal(e.Status, e.Message);
         }
     }
 }

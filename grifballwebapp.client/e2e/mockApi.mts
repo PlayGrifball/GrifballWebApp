@@ -720,13 +720,13 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/leagues': [{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'Late League' }],
     // The times each season offers for signups: weeknights at 7 and 8
     ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/availability`, ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time })))])),
-    '/api/Admin/CheckStatus': { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' },
+    '/api/halo/check': { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' },
     // The Infinite Client page in the default Gateway mode: the gateway's in-cluster address, plain HTTP as the chart's is
-    '/api/Admin/HaloStatus': { mode: 'Gateway', gatewayUrl: 'http://halo-gateway.halo-gateway.svc:8080/', gatewayAdminUrl: 'https://grunt.grifball.xyz/admin', apiKeyConfigured: true, reachable: true, accountStatus: 'Healthy', apiCode: 200, healthy: true, message: 'Halo gateway account Healthy; test call: Halo Infinite API answered 200' }, // NOSONAR(S5332): mock data, an in-cluster address
+    '/api/halo/status': { mode: 'Gateway', gatewayUrl: 'http://halo-gateway.halo-gateway.svc:8080/', gatewayAdminUrl: 'https://grunt.grifball.xyz/admin', apiKeyConfigured: true, reachable: true, accountStatus: 'Healthy', apiCode: 200, healthy: true, message: 'Halo gateway account Healthy; test call: Halo Infinite API answered 200' }, // NOSONAR(S5332): mock data, an in-cluster address
     '/api/sheets/default': [{ name: 'Autumn Brawl results', spreadsheetID: '1xGrifballAutumnBrawl2026', sheetName: 'Week 3' }],
     '/api/users': { totalCount: users.length, results: users },
     // A user's password reset link (POST, the user management page's RESET PASSWORD)
-    '/api/admin/generatepasswordresetlink': { resetLink: '/reset-password?token=e2e-reset-token', expiresAt: '2026-10-30T18:00:00Z' },
+    '/api/password-reset-links': { resetLink: '/reset-password?token=e2e-reset-token', expiresAt: '2026-10-30T18:00:00Z' },
     ...Object.fromEntries(users.map(user => ['/api/usermanagement/getuser/' + user.userID, userDetail(user)])),
     // The accounts linked to a user, on their edit page
     ...Object.fromEntries(users.map(user => [`/api/users/${user.userID}/external-logins`, { hasPassword: user.hasPassword,
@@ -736,13 +736,13 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/seasons/13/draft/captains/locked': true,
     '/api/commissioner-dashboard': commissionerDashboard,
     // The historical import page (/usermanagement/historicalimport): its sources, jobs, schedule, and a guarded import's job
-    '/api/HistoricalImport/Sources': historicalSources,
-    '/api/HistoricalImport/Jobs': historicalJobs,
-    '/api/HistoricalImport/Schedule': { paused: false, interval: '1.00:00:00', lastRunAt: '2026-10-29T06:00:00Z', nextRunAt: '2026-10-30T06:00:00Z', lastJobID: 40, lastRunNote: null },
-    '/api/HistoricalImport/Job/41': historicalJob,
-    // The Jobs page (/usermanagement/jobs) and a job's runs (?group=&name=; matched on the path alone)
-    '/api/Jobs/List': jobsOverview,
-    '/api/Jobs/History': jobHistory,
+    '/api/historical-sources': historicalSources,
+    '/api/historical-imports': historicalJobs,
+    '/api/historical-imports/schedule': { paused: false, interval: '1.00:00:00', lastRunAt: '2026-10-29T06:00:00Z', nextRunAt: '2026-10-30T06:00:00Z', lastJobID: 40, lastRunNote: null },
+    '/api/historical-imports/41': historicalJob,
+    // The Jobs page (/usermanagement/jobs) and each job's runs (?take= is not matched)
+    '/api/jobs': jobsOverview,
+    ...Object.fromEntries(jobsOverview.jobs.map(j => [`/api/jobs/${j.group}/${j.name}/runs`, jobHistory])),
     // VODs: the match page's, the seasons', the teams' and the profiles' (through their teams), and the review list
     '/api/season-matches/31/vods': [matchVod],
     '/api/seasons/12/vods': [matchVod, castVod],
@@ -805,17 +805,17 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/late-league/seasons': lateLeagueSeasons,
     '/api/late-league/seasons/3': { season: lateLeagueSeasons[0], players: lateLeaguePlayers(lateLeagueSeasons[0]) },
     '/api/search': quickSearch,
-    // The database backup page (/databasebackup): a SQLite backup made (?format= is not matched), and the last export done
-    '/api/Backup/Info': { provider: 'PostgreSQL', latestMigration: '20261028211400_MatchmakingSeasons', formats: ['sqlite', 'postgres', 'sqlserver', 'dump'] },
-    '/api/Backup/DownloadStatus': { state: 'Succeeded', format: 'sqlite', started: '2026-10-29T17:40:00Z', finished: '2026-10-29T17:41:12Z',
+    // The database backup page (/databasebackup): a SQLite backup made, and the last export done
+    '/api/backups/info': { provider: 'PostgreSQL', latestMigration: '20261028211400_MatchmakingSeasons', formats: ['sqlite', 'postgres', 'sqlserver', 'dump'] },
+    '/api/backups/sqlite/status': { state: 'Succeeded', format: 'sqlite', started: '2026-10-29T17:40:00Z', finished: '2026-10-29T17:41:12Z',
       fileName: 'GrifballWebApp-2026-10-29.sqlite', tables: 64, rows: 182340, message: null, size: 41_943_040, runningFormat: null, progress: null, progressMessage: null },
-    '/api/Backup/ExportStatus': { state: 'Succeeded', provider: 'SqlServer', started: '2026-10-28T09:00:00Z', finished: '2026-10-28T09:03:10Z', tables: 64, rows: 181902, message: null },
+    '/api/database-exports/status': { state: 'Succeeded', provider: 'SqlServer', started: '2026-10-28T09:00:00Z', finished: '2026-10-28T09:03:10Z', tables: 64, rows: 181902, message: null },
     // The Telemetry page (/usermanagement/telemetry): every backend set up
-    '/api/Telemetry/Status': { serviceName: 'grifballwebapp', logs: true, metrics: true, traces: true },
-    '/api/Telemetry/Metrics': telemetryMetrics,
-    '/api/Telemetry/Logs': telemetryLogs,
-    '/api/Telemetry/Traces': telemetryTraces,
-    '/api/Telemetry/Trace': telemetryTrace,
+    '/api/telemetry/status': { serviceName: 'grifballwebapp', logs: true, metrics: true, traces: true },
+    '/api/telemetry/metrics': telemetryMetrics,
+    '/api/telemetry/logs': telemetryLogs,
+    '/api/telemetry/traces': telemetryTraces,
+    [`/api/telemetry/traces/${TRACE_ID}`]: telemetryTrace,
     // The past gamertags page (/usermanagement/pastgamertags?xboxUserID=...): one manually-added row, one detected from a rename
     '/api/past-gamertags': {
       xboxUserID: 2535400000000117, currentGamertag: 'MasterChief117', userID: 117,

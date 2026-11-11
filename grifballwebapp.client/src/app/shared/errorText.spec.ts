@@ -23,3 +23,17 @@ describe('errorText', () => {
     expect(problemText(response({ detail: 'Why' }), 'x')).toBe('Why');
   });
 });
+
+describe('errorText of a request that read text', () => {
+  const response = (error: unknown) => new HttpErrorResponse({ error, status: 400 });
+
+  it("reads a ProblemDetails sent as JSON text", () => {
+    expect(errorText(response('{"title":"Request refused","detail":"Token is required"}'), 'x')).toBe('Token is required');
+    expect(errorText(response('{"title":"Conflict"}'), 'x')).toBe('Conflict');
+  });
+
+  it('falls back for JSON text that is no ProblemDetails, or not JSON', () => {
+    expect(errorText(response('{"other":1}'), 'fallback')).toBe('fallback');
+    expect(errorText(response('{not json'), 'fallback')).toBe('fallback');
+  });
+});

@@ -13,7 +13,6 @@ using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.UserManagement;
 
 namespace GrifballWebApp.Server.Controllers;
-[Route("[controller]/[action]")]
 [ApiController]
 public class AdminController : ControllerBase
 {
@@ -49,21 +48,21 @@ public class AdminController : ControllerBase
 
 
     [Authorize(Roles = "Sysadmin")]
-    [HttpPost(Name = "MatchStats")]
-    public async Task Get([FromQuery] string game)
+    /// <summary>Pulls a Halo Infinite match's stats and saves them (a bad match ID is no route: 404).</summary>
+    [HttpPost("matches/{matchID:guid}/pull", Name = "MatchStats")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> PullMatch([FromRoute] Guid matchID)
     {
-        if (!Guid.TryParse(game, out var guid))
-        {
-            throw new Exception("Not valid guid");
-        }
-        await _dataPullService.GetAndSaveMatch(guid);
+        await _dataPullService.GetAndSaveMatch(matchID);
+        return NoContent();
     }
 
     /// <summary>
     /// Which Halo mode is active and, in Gateway mode, the gateway's status from a fresh probe (the Infinite Client page).
     /// </summary>
     [Authorize(Roles = "Sysadmin")]
-    [HttpGet(Name = "HaloStatus")]
+    [HttpGet("halo/status", Name = "HaloStatus")]
+    [ProducesResponseType<HaloStatusDto>(StatusCodes.Status200OK)]
     public async Task<HaloStatusDto> HaloStatus(CancellationToken ct)
     {
         if (!_haloSettings.IsGateway)
@@ -74,14 +73,19 @@ public class AdminController : ControllerBase
 
     /// <summary>Direct mode only: stores the code from Microsoft's sign-in redirect. 409 in Gateway mode.</summary>
     [Authorize(Roles = "Sysadmin")]
-    [HttpPost(Name = "SetCode")]
-    public async Task<ActionResult> SetCode([FromQuery] string code)
+    /// <summary>Direct mode: signs the site's Halo account in with a Microsoft OAuth code, sent in the body (never the URL, which logs and traces keep).</summary>
+    [HttpPost("halo/auth-code", Name = "SetCode")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
+    public async Task<ActionResult> SetCode([FromBody] HaloAuthCodeRequest request)
     {
+        var code = request.Code;
         if (DirectOnly() is { } conflict)
             return conflict;
 
         if (string.IsNullOrWhiteSpace(code))
-            return BadRequest("Missing code");
+            return this.BadRequestProblem("Missing code");
 
         // Ensure blank slate
 
@@ -97,12 +101,14 @@ public class AdminController : ControllerBase
 
         await _accountAuthorization!.SetCodeAsync(code);
 
-        return Ok();
+        return NoContent();
     }
 
     /// <summary>Direct mode only: deletes the app's own Halo tokens. 409 in Gateway mode.</summary>
     [Authorize(Roles = "Sysadmin")]
-    [HttpPost(Name = "DeleteTokens")]
+    [HttpPost("halo/tokens/delete", Name = "DeleteTokens")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     public ActionResult DeleteTokens()
     {
         if (DirectOnly() is { } conflict)
@@ -118,7 +124,7 @@ public class AdminController : ControllerBase
             System.IO.File.Delete("tokens.json");
         }
 
-        return Ok();
+        return NoContent();
     }
 
     /// <summary>
@@ -126,7 +132,8 @@ public class AdminController : ControllerBase
     /// with; Gateway mode: what is wrong (the gateway is where the account is signed in, so there is no URL here).
     /// </summary>
     [Authorize(Roles = "Sysadmin")]
-    [HttpGet(Name = "CheckStatus")]
+    [HttpGet("halo/check", Name = "CheckStatus")]
+    [ProducesResponseType<string>(StatusCodes.Status200OK, "text/plain")]
     public async Task<string> CheckStatus(CancellationToken ct = default)
     {
         if (_haloSettings.IsGateway)
@@ -152,8 +159,8 @@ public class AdminController : ControllerBase
     }
 
     /// <summary>409 with <see cref="GatewayModeMessage"/> unless the app signs in to Halo itself (Direct mode).</summary>
-    private ConflictObjectResult? DirectOnly() =>
-        _haloSettings.IsGateway || _accountAuthorization is null ? Conflict(GatewayModeMessage) : null;
+    private ObjectResult? DirectOnly() =>
+        _haloSettings.IsGateway || _accountAuthorization is null ? this.ConflictProblem(GatewayModeMessage) : null;
 
     private static string GenerateAuthUrl(string clientId, string redirectUrl, string[]? scopes = null)
     {
@@ -178,20 +185,22 @@ public class AdminController : ControllerBase
     }
 
     [Authorize(Roles = "Sysadmin")]
-    [HttpPost(Name = "GeneratePasswordResetLink")]
+    [HttpPost("password-reset-links", Name = "GeneratePasswordResetLink")]
+    [ProducesResponseType<GeneratePasswordResetLinkResponseDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     public async Task<ActionResult<GeneratePasswordResetLinkResponseDto>> GeneratePasswordResetLink([FromBody] GeneratePasswordResetLinkRequestDto request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Username))
-            return BadRequest("Username is required");
+            return this.BadRequestProblem("Username is required");
 
         // The audit interceptor stamps the link with the current user, its issuer
         if (GetUserID() == null)
-            return Unauthorized("Unable to identify current user");
+            return this.UnauthorizedProblem("Unable to identify current user");
 
         var (success, message, token, expiresAt) = await _userManagementService.GeneratePasswordResetLink(request.Username, ct);
 
         if (!success)
-            return BadRequest(message);
+            return this.BadRequestProblem(message!);
 
         // In a real application, you might want to send this via email or another secure channel
         // For now, return the token directly (since only sysadmins can generate these)
@@ -203,11 +212,12 @@ public class AdminController : ControllerBase
     }
 
     [Authorize(Roles = "Sysadmin")]
-    [HttpPost(Name = "CleanupExpiredPasswordResetLinks")]
+    [HttpPost("password-reset-links/cleanup", Name = "CleanupExpiredPasswordResetLinks")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<ActionResult> CleanupExpiredPasswordResetLinks(CancellationToken ct)
     {
         await _userManagementService.CleanupExpiredPasswordResetLinks(ct);
-        return Ok("Expired password reset links cleaned up");
+        return NoContent();
     }
 
     private int? GetUserID()
@@ -219,3 +229,6 @@ public class AdminController : ControllerBase
         return parsed ? id : null;
     }
 }
+
+/// <summary>A Microsoft OAuth code for the site's Halo account (Direct mode).</summary>
+public record HaloAuthCodeRequest(string Code);

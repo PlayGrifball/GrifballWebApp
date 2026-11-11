@@ -35,6 +35,9 @@ import type { PaginationResult } from '../shared/paginationResult';
 import type { LinkVodRequest, VodDto, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto, VodScope } from './dtos/vodDto';
 import { nullWhenNotFound } from './nullWhenNotFound';
 
+/** A job's resource: its group and name, each a path segment. */
+const jobPath = (job: JobKeyDto) => `/api/jobs/${encodeURIComponent(job.group)}/${encodeURIComponent(job.name)}`;
+
 /** The resource whose VODs each page shows. */
 const VOD_OWNERS: Record<VodScope, string> = { seasonMatch: 'season-matches', season: 'seasons', team: 'teams', player: 'users' };
 
@@ -227,101 +230,100 @@ export class ApiClientService {
 
   /** The historical archive's sources, with their last download. */
   getHistoricalSources(): Observable<HistoricalSourceDto[]> {
-    return this.http.get<HistoricalSourceDto[]>('/api/HistoricalImport/Sources');
+    return this.http.get<HistoricalSourceDto[]>('/api/historical-sources');
   }
 
   /** A disabled source is no longer downloaded (the import keeps its last snapshot). */
   setHistoricalSourceEnabled(sourceID: string, enabled: boolean): Observable<void> {
-    return this.http.post<void>('/api/HistoricalImport/SetSourceEnabled/' + encodeURIComponent(sourceID), { enabled });
+    return this.http.post<void>(`/api/historical-sources/${encodeURIComponent(sourceID)}/enabled`, { enabled });
   }
 
   /** Queues a download of every enabled source (no import). */
   refreshHistoricalSources(): Observable<HistoricalImportQueuedDto> {
-    return this.http.post<HistoricalImportQueuedDto>('/api/HistoricalImport/Refresh', null);
+    return this.http.post<HistoricalImportQueuedDto>('/api/historical-sources/refresh', null);
   }
 
   /** Queues a dry run of the import: its job lists what each season would lose. */
   previewHistoricalImport(): Observable<HistoricalImportQueuedDto> {
-    return this.http.post<HistoricalImportQueuedDto>('/api/HistoricalImport/Preview', null);
+    return this.http.post<HistoricalImportQueuedDto>('/api/historical-imports/preview', null);
   }
 
   /** Queues the import of what a finished preview read. */
   applyHistoricalImportPreview(jobID: number): Observable<HistoricalImportQueuedDto> {
-    return this.http.post<HistoricalImportQueuedDto>('/api/HistoricalImport/ApplyPreview/' + jobID, null);
+    return this.http.post<HistoricalImportQueuedDto>(`/api/historical-imports/${jobID}/apply`, null);
   }
 
   /** Imports a season the guardrail stopped. */
   approveHistoricalSeasonReview(reviewID: number): Observable<HistoricalImportQueuedDto> {
-    return this.http.post<HistoricalImportQueuedDto>('/api/HistoricalImport/ApproveReview/' + reviewID, null);
+    return this.http.post<HistoricalImportQueuedDto>(`/api/historical-reviews/${reviewID}/approve`, null);
   }
 
   /** Leaves a season the guardrail stopped as it is. */
   skipHistoricalSeasonReview(reviewID: number): Observable<void> {
-    return this.http.post<void>('/api/HistoricalImport/SkipReview/' + reviewID, null);
+    return this.http.post<void>(`/api/historical-reviews/${reviewID}/skip`, null);
   }
 
   /** The latest historical import jobs, newest first. */
   getHistoricalImportJobs(): Observable<HistoricalImportJobSummaryDto[]> {
-    return this.http.get<HistoricalImportJobSummaryDto[]>('/api/HistoricalImport/Jobs');
+    return this.http.get<HistoricalImportJobSummaryDto[]>('/api/historical-imports');
   }
 
   /** A historical import job: its progress, report and season reviews. */
   getHistoricalImportJob(jobID: number): Observable<HistoricalImportJobDto> {
-    return this.http.get<HistoricalImportJobDto>('/api/HistoricalImport/Job/' + jobID);
+    return this.http.get<HistoricalImportJobDto>(`/api/historical-imports/${jobID}`);
   }
 
   getHistoricalImportSchedule(): Observable<HistoricalImportScheduleDto> {
-    return this.http.get<HistoricalImportScheduleDto>('/api/HistoricalImport/Schedule');
+    return this.http.get<HistoricalImportScheduleDto>('/api/historical-imports/schedule');
   }
 
   /** Paused, the scheduled refresh queues nothing (manual runs still work). */
   setHistoricalImportSchedulePaused(paused: boolean): Observable<HistoricalImportScheduleDto> {
-    return this.http.post<HistoricalImportScheduleDto>('/api/HistoricalImport/SetSchedulePaused', { paused });
+    return this.http.post<HistoricalImportScheduleDto>('/api/historical-imports/schedule/paused', { paused });
   }
 
   /** The background jobs, their schedules and last runs, and the schedulers checked in (sysadmins). */
   getJobs(): Observable<JobsOverviewDto> {
-    return this.http.get<JobsOverviewDto>('/api/Jobs/List');
+    return this.http.get<JobsOverviewDto>('/api/jobs');
   }
 
   /** A job's latest runs, newest first. */
   getJobHistory(job: JobKeyDto, take = 50): Observable<JobRunDto[]> {
-    const params = new HttpParams().set('group', job.group).set('name', job.name).set('take', take);
-    return this.http.get<JobRunDto[]>('/api/Jobs/History', { params });
+    return this.http.get<JobRunDto[]>(`${jobPath(job)}/runs`, { params: new HttpParams().set('take', take) });
   }
 
   /** Runs a job now, on the worker. */
   runJob(job: JobKeyDto): Observable<void> {
-    return this.http.post<void>('/api/Jobs/Run', { group: job.group, name: job.name });
+    return this.http.post<void>(`${jobPath(job)}/run`, null);
   }
 
   setJobPaused(job: JobKeyDto, paused: boolean): Observable<void> {
-    return this.http.post<void>('/api/Jobs/SetPaused', { group: job.group, name: job.name, paused });
+    return this.http.post<void>(`${jobPath(job)}/paused`, { paused });
   }
 
   /** A recurring job runs every intervalSeconds from now on. */
   setJobInterval(job: JobKeyDto, intervalSeconds: number): Observable<void> {
-    return this.http.post<void>('/api/Jobs/SetInterval', { group: job.group, name: job.name, intervalSeconds });
+    return this.http.post<void>(`${jobPath(job)}/interval`, { intervalSeconds });
   }
 
   /** A recurring job back on its default schedule. */
   resetJobSchedule(job: JobKeyDto): Observable<void> {
-    return this.http.post<void>('/api/Jobs/ResetSchedule', { group: job.group, name: job.name });
+    return this.http.post<void>(`${jobPath(job)}/schedule/reset`, null);
   }
 
   /** Asks a running job to stop. */
   interruptJob(fireInstanceID: string): Observable<void> {
-    return this.http.post<void>('/api/Jobs/Interrupt', { fireInstanceID });
+    return this.http.post<void>(`/api/job-runs/${encodeURIComponent(fireInstanceID)}/interrupt`, null);
   }
 
   /** Which of the Telemetry page's backends are configured, and the service they are scoped to (sysadmins). */
   getTelemetryStatus(): Observable<TelemetryStatusDto> {
-    return this.http.get<TelemetryStatusDto>('/api/Telemetry/Status');
+    return this.http.get<TelemetryStatusDto>('/api/telemetry/status');
   }
 
   /** The Overview's charts and busiest routes over the last minutes. */
   getTelemetryMetrics(minutes: number): Observable<MetricsDto> {
-    return this.http.get<MetricsDto>('/api/Telemetry/Metrics', { params: new HttpParams().set('minutes', minutes) });
+    return this.http.get<MetricsDto>('/api/telemetry/metrics', { params: new HttpParams().set('minutes', minutes) });
   }
 
   /** Log lines, newest first: some levels only (none: every level), lines containing a text, one trace's. */
@@ -333,7 +335,7 @@ export class ApiClientService {
       params = params.set('search', query.search.trim());
     if (query.traceId.trim())
       params = params.set('traceId', query.traceId.trim());
-    return this.http.get<LogsDto>('/api/Telemetry/Logs', { params });
+    return this.http.get<LogsDto>('/api/telemetry/logs', { params });
   }
 
   /** Traces over the last minutes, newest first: failed ones only, slower than a minimum. */
@@ -341,12 +343,12 @@ export class ApiClientService {
     let params = new HttpParams().set('minutes', query.minutes).set('errorsOnly', query.errorsOnly);
     if (query.minDurationMs)
       params = params.set('minDurationMs', query.minDurationMs);
-    return this.http.get<TraceSummaryDto[]>('/api/Telemetry/Traces', { params });
+    return this.http.get<TraceSummaryDto[]>('/api/telemetry/traces', { params });
   }
 
   /** One trace's spans from this app; 404 when it has none. */
   getTelemetryTrace(id: string): Observable<TraceDto> {
-    return this.http.get<TraceDto>('/api/Telemetry/Trace', { params: new HttpParams().set('id', id) });
+    return this.http.get<TraceDto>(`/api/telemetry/traces/${encodeURIComponent(id)}`);
   }
 
   /** The VODs linked to a season match, season, team, or a player's teams; newest first. */

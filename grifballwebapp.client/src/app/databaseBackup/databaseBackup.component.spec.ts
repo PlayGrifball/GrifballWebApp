@@ -30,27 +30,26 @@ describe('DatabaseBackupComponent', () => {
   const button = () => el().querySelector('button') as HTMLButtonElement;
 
   const none: ExportStatus = { state: 'None', tables: 0, rows: 0 };
-  const flushExportStatus = (status: ExportStatus = none) => http.expectOne('api/Backup/ExportStatus').flush(status);
+  const flushExportStatus = (status: ExportStatus = none) => http.expectOne('api/database-exports/status').flush(status);
   const noDownload: DownloadStatus = { state: 'None', tables: 0, rows: 0 };
-  const flushDownloadStatus = (status: DownloadStatus = noDownload) => http.expectOne(r => r.url === 'api/Backup/DownloadStatus').flush(status);
+  const flushDownloadStatus = (status: DownloadStatus = noDownload) => http.expectOne(r => /^api\/backups\/\w+\/status$/.test(r.url)).flush(status);
   const running = (format: BackupFormat): DownloadStatus => ({ state: 'Running', format, tables: 0, rows: 0 });
   const made = (format: BackupFormat, fileName: string): DownloadStatus => ({ state: 'Succeeded', format, fileName, tables: 40, rows: 12345, size: 1_300_000 });
   const downloadLink = () => el().querySelector('.db-ready a') as HTMLAnchorElement;
 
-  /** Renders the page with api/Backup/Info answered (the formats it can download), and the last export's and backup's status. */
+  /** Renders the page with api/backups/info answered (the formats it can download), and the last export's and backup's status. */
   async function init(exportStatus: ExportStatus = none, formats: BackupFormat[] = ['sqlite', 'postgres', 'sqlserver', 'bak', 'dump'], downloadStatus: DownloadStatus = noDownload) {
     flushExportStatus(exportStatus);
     flushDownloadStatus(downloadStatus);
     fixture.detectChanges();
-    http.expectOne('api/Backup/Info').flush({ provider: 'SqlServer', latestMigration: '20261031000000_Last', formats });
+    http.expectOne('api/backups/info').flush({ provider: 'SqlServer', latestMigration: '20261031000000_Last', formats });
     await fixture.whenStable();
     fixture.detectChanges();
   }
 
   const expectStart = (format: string) => {
-    const req = http.expectOne(r => r.url === 'api/Backup/StartDownload');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.params.get('format')).toBe(format);
+    const req = http.expectOne(r => r.method === 'POST' && /^api\/backups\/\w+$/.test(r.url));
+    expect(req.request.url).toBe(`api/backups/${format}`);
     return req;
   };
 
@@ -96,7 +95,7 @@ describe('DatabaseBackupComponent', () => {
     await init();
     component.format.set('dump');
     component.makeBackup();
-    expectStart('dump').flush('A .dump needs PostgreSQL, which the site doesn\'t run on.', { status: 422, statusText: 'Unprocessable Entity' });
+    expectStart('dump').flush({ status: 409, title: 'Conflict', detail: 'A .dump needs PostgreSQL, which the site doesn\'t run on.' }, { status: 409, statusText: 'Conflict' });
     expect(snackBar.open).toHaveBeenCalledWith('A .dump needs PostgreSQL, which the site doesn\'t run on.', 'Close');
     expect(component.making()).toBeFalse();
   });
@@ -144,13 +143,13 @@ describe('DatabaseBackupComponent', () => {
       fixture.detectChanges();
 
       // Made, not downloaded: what it is and how big, and the link the browser downloads it from (its own progress)
-      http.expectNone('api/Backup/Download');
+      http.expectNone(r => r.url.endsWith('/file'));
       const ready = el().querySelector('.db-ready')!.textContent!.replace(/\s+/g, ' ');
       expect(ready).toContain('grifball-backup-20261101-120000.sqlite');
       expect(ready).toContain('1.2 MB · 40 tables, 12345 rows');
       expect(el().querySelector('.db-command')!.textContent).toContain('Data Source=/data/grifball-backup-20261101-120000.sqlite');
 
-      expect(downloadLink().getAttribute('href')).toBe('api/Backup/Download?format=sqlite');
+      expect(downloadLink().getAttribute('href')).toBe('api/backups/sqlite/file');
       expect(downloadLink().hasAttribute('download')).toBeTrue();
       expect(ready).toContain('until the next sqlite backup');
       expect(button().disabled).toBeFalse();
@@ -198,7 +197,7 @@ describe('DatabaseBackupComponent', () => {
       component.makeBackup();
       expectStart('sqlite').flush(running('sqlite'), { status: 202, statusText: 'Accepted' });
       jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
-      http.expectOne(r => r.url === 'api/Backup/DownloadStatus').flush('', { status: 500, statusText: 'Server Error' });
+      http.expectOne(r => /^api\/backups\/\w+\/status$/.test(r.url)).flush('', { status: 500, statusText: 'Server Error' });
 
       expect(snackBar.open).toHaveBeenCalledWith('The backup failed', 'Close');
       expect(component.making()).toBeFalse();
@@ -214,8 +213,8 @@ describe('DatabaseBackupComponent', () => {
       // Someone else's (or an earlier visit's): offered, not fetched.
       expect(button().disabled).toBeFalse();
       expect(el().querySelector('.db-ready')!.textContent).toContain('grifball-backup-1.sqlite');
-      expect(downloadLink().getAttribute('href')).toBe('api/Backup/Download?format=sqlite');
-      http.expectNone('api/Backup/Download');
+      expect(downloadLink().getAttribute('href')).toBe('api/backups/sqlite/file');
+      http.expectNone(r => r.url.endsWith('/file'));
 
       fixture.destroy();
       jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
@@ -226,16 +225,16 @@ describe('DatabaseBackupComponent', () => {
       expect(el().querySelector('.db-ready')!.textContent).toContain('grifball-backup-1.sqlite');
 
       component.selectFormat('postgres');
-      const req = http.expectOne(r => r.url === 'api/Backup/DownloadStatus');
-      expect(req.request.params.get('format')).toBe('postgres');
+      const req = http.expectOne(r => /^api\/backups\/\w+\/status$/.test(r.url));
+      expect(req.request.url).toBe('api/backups/postgres/status');
       req.flush(made('postgres', 'grifball-backup-2.postgres.sql'));
       fixture.detectChanges();
       expect(el().querySelector('.db-ready')!.textContent).toContain('grifball-backup-2.postgres.sql');
-      expect(downloadLink().getAttribute('href')).toBe('api/Backup/Download?format=postgres');
+      expect(downloadLink().getAttribute('href')).toBe('api/backups/postgres/file');
 
       // A late answer for a format no longer chosen is left out
       component.selectFormat('sqlserver');
-      http.expectOne(r => r.url === 'api/Backup/DownloadStatus').flush(made('postgres', 'grifball-backup-2.postgres.sql'));
+      http.expectOne(r => /^api\/backups\/\w+\/status$/.test(r.url)).flush(made('postgres', 'grifball-backup-2.postgres.sql'));
       expect(component.downloadStatus()!.format).toBe('postgres');
     });
 
@@ -266,15 +265,15 @@ describe('DatabaseBackupComponent', () => {
 
       fixture.destroy();
       jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
-      expect(http.match(r => r.url === 'api/Backup/DownloadStatus')).withContext('status reads after closing').toEqual([]);
+      expect(http.match(r => /^api\/backups\/\w+\/status$/.test(r.url))).withContext('status reads after closing').toEqual([]);
     });
   });
 
   it('says when the details are unavailable', async () => {
-    http.expectOne('api/Backup/ExportStatus').flush('', { status: 500, statusText: 'Server Error' });
-    http.expectOne(r => r.url === 'api/Backup/DownloadStatus').flush('', { status: 500, statusText: 'Server Error' });
+    http.expectOne('api/database-exports/status').flush('', { status: 500, statusText: 'Server Error' });
+    http.expectOne(r => /^api\/backups\/\w+\/status$/.test(r.url)).flush('', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
-    http.expectOne('api/Backup/Info').flush('', { status: 500, statusText: 'Server Error' });
+    http.expectOne('api/backups/info').flush('', { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
     fixture.detectChanges();
     expect(el().textContent).toContain("Couldn't read the database's details");
@@ -311,7 +310,7 @@ describe('DatabaseBackupComponent', () => {
       expect((el().querySelector('input[name="connectionString"]') as HTMLInputElement).placeholder).toContain('TrustServerCertificate');
 
       exportButton().click();
-      const req = http.expectOne('api/Backup/Export');
+      const req = http.expectOne('api/database-exports');
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual({ provider: 'SqlServer', connectionString: 'Server=db;Database=Grif;User Id=sa;Password=x' });
       req.flush({ state: 'Running', provider: 'SqlServer', tables: 0, rows: 0 }, { status: 202, statusText: 'Accepted' });
@@ -357,13 +356,13 @@ describe('DatabaseBackupComponent', () => {
       await init();
       component.connectionString.set('x');
       component.startExport();
-      http.expectOne('api/Backup/Export').flush('A backup or export is already running; try again when it\'s done.', { status: 409, statusText: 'Conflict' });
+      http.expectOne('api/database-exports').flush('A backup or export is already running; try again when it\'s done.', { status: 409, statusText: 'Conflict' });
       expect(snackBar.open).toHaveBeenCalledWith('A backup or export is already running; try again when it\'s done.', 'Close');
       expect(component.exporting()).toBeFalse();
       expect(component.connectionString()).toBe('x');
 
       component.startExport();
-      http.expectOne('api/Backup/Export').error(new ProgressEvent('error'));
+      http.expectOne('api/database-exports').error(new ProgressEvent('error'));
       expect(snackBar.open).toHaveBeenCalledWith('The export failed to start', 'Close');
     });
   });

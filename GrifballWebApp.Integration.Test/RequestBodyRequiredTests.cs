@@ -13,8 +13,8 @@ using ServerProgram = GrifballWebApp.Server.Program;
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>
-/// The request bodies whose value-type fields are required (SetEnabledRequest, SetPausedRequest, SetJobPausedRequest,
-/// SetJobIntervalRequest), through the real app (<see cref="ServerProgram"/>, signed in as a preview Sysadmin): a body
+/// The request bodies whose value-type fields are required (SetEnabledRequest, SetPausedRequest, JobPausedRequest,
+/// JobIntervalRequest), through the real app (<see cref="ServerProgram"/>, signed in as a preview Sysadmin): a body
 /// without the value is refused with MVC's 400 rather than read as false or 0, which would turn a job or a source off,
 /// or unpause one, that the caller never asked about; a body with it gets past binding to the action.
 /// Non-parallelizable because Program.Main swaps the static Serilog logger.
@@ -75,10 +75,10 @@ public class RequestBodyRequiredTests
     private async Task<HttpResponseMessage> Post(string path, string json)
         => await _client.PostAsync(path, new StringContent(json, Encoding.UTF8, "application/json"));
 
-    [TestCase("/HistoricalImport/SetSourceEnabled/some-source", "{}", "enabled")]
-    [TestCase("/HistoricalImport/SetSchedulePaused", "{}", "paused")]
-    [TestCase("/Jobs/SetPaused", """{"group":"g","name":"n"}""", "paused")]
-    [TestCase("/Jobs/SetInterval", """{"group":"g","name":"n"}""", "intervalSeconds")]
+    [TestCase("/historical-sources/some-source/enabled", "{}", "enabled")]
+    [TestCase("/historical-imports/schedule/paused", "{}", "paused")]
+    [TestCase("/jobs/g/n/paused", "{}", "paused")]
+    [TestCase("/jobs/g/n/interval", "{}", "intervalSeconds")]
     public async Task A_body_without_the_value_is_refused(string path, string json, string field)
     {
         using var response = await Post(path, json);
@@ -89,10 +89,10 @@ public class RequestBodyRequiredTests
         Assert.That(problem.Errors["$"], Has.Some.Contains($"'{field}'"), "naming the missing property");
     }
 
-    [TestCase("/HistoricalImport/SetSourceEnabled/some-source", """{"enabled":false}""")]
-    [TestCase("/HistoricalImport/SetSchedulePaused", """{"paused":true}""")]
-    [TestCase("/Jobs/SetPaused", """{"group":"g","name":"n","paused":false}""")]
-    [TestCase("/Jobs/SetInterval", """{"group":"g","name":"n","intervalSeconds":3600}""")]
+    [TestCase("/historical-sources/some-source/enabled", """{"enabled":false}""")]
+    [TestCase("/historical-imports/schedule/paused", """{"paused":true}""")]
+    [TestCase("/jobs/g/n/paused", """{"paused":false}""")]
+    [TestCase("/jobs/g/n/interval", """{"intervalSeconds":3600}""")]
     public async Task A_body_with_the_value_reaches_the_action(string path, string json)
     {
         using var response = await Post(path, json);

@@ -162,7 +162,7 @@ describe('AccountService', () => {
       service.cleanupExpiredPasswordResetLinks().subscribe();
 
       http.expectOne(ANTIFORGERY_URL).flush({ token: 'chief-token' });
-      expect(http.expectOne('/api/admin/cleanupexpiredpasswordresetlinks').request.headers.get('X-XSRF-TOKEN')).toBe('chief-token');
+      expect(http.expectOne('/api/password-reset-links/cleanup').request.headers.get('X-XSRF-TOKEN')).toBe('chief-token');
     });
 
     it('says so when the password is wrong', () => {
@@ -296,7 +296,7 @@ describe('AccountService', () => {
       service.generatePasswordResetLink(request).subscribe(r => response = r);
 
       http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
-      const req = http.expectOne('/api/admin/generatepasswordresetlink');
+      const req = http.expectOne('/api/password-reset-links');
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toBe(request);
       req.flush({ resetLink: 'https://example/reset?t=abc', expiresAt: '2026-01-01T00:00:00Z' });
@@ -321,7 +321,7 @@ describe('AccountService', () => {
       service.cleanupExpiredPasswordResetLinks().subscribe(r => response = r);
 
       http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
-      const req = http.expectOne('/api/admin/cleanupexpiredpasswordresetlinks');
+      const req = http.expectOne('/api/password-reset-links/cleanup');
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual({});
       expect(req.request.responseType).toBe('text');
