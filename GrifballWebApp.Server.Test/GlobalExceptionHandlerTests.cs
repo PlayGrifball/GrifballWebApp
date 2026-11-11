@@ -70,6 +70,10 @@ public class GlobalExceptionHandlerTests
         yield return new TestCaseData(new GrifballWebApp.Application.EventOrganizer.SeasonRefusedException("Name taken", 409), 409, "Name taken").SetName("SeasonRefusedException_KeepsItsStatus");
         yield return new TestCaseData(new GrifballWebApp.Application.EventOrganizer.SeasonRefusedException("Read only"), 400, "Read only").SetName("SeasonRefusedException_Is400ByDefault");
         yield return new TestCaseData(new GrifballWebApp.Application.Profile.UserNotFoundException(7), 404, "Did not find user 7").SetName("UserNotFoundException_Is404");
+        yield return new TestCaseData(new GrifballWebApp.Application.Reschedule.RescheduleNotAllowedException("This match already has a result."), 400, "This match already has a result.").SetName("RescheduleNotAllowedException_Is400");
+        yield return new TestCaseData(new GrifballWebApp.Application.Reschedule.RescheduleForbiddenException(), 403, "Only players on either team, or a commissioner, can request a reschedule for this match.").SetName("RescheduleForbiddenException_Is403");
+        yield return new TestCaseData(new GrifballWebApp.Application.Reschedule.RescheduleAlreadyActiveException(), 409, "There is already an active reschedule request for this match.").SetName("RescheduleAlreadyActiveException_Is409");
+        yield return new TestCaseData(new GrifballWebApp.Application.Reschedule.RescheduleAlreadyProcessedException(), 409, "Reschedule request has already been processed").SetName("RescheduleAlreadyProcessedException_Is409");
     }
 
     [TestCaseSource(nameof(ExpectedRefusals))]

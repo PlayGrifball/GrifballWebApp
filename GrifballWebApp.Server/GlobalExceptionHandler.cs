@@ -6,6 +6,7 @@ using GrifballWebApp.Application.Signups;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Application.EventOrganizer;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Server;
 
@@ -69,6 +70,10 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
         GamertagClaimConflictException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
         SeasonRefusedException e => Refusal(e.Status, ApiProblems.Title(e.Status), exception.Message),
         UserNotFoundException => Refusal(StatusCodes.Status404NotFound, "Not found", exception.Message),
+        RescheduleNotAllowedException => Refusal(StatusCodes.Status400BadRequest, "Request refused", exception.Message),
+        RescheduleForbiddenException => Refusal(StatusCodes.Status403Forbidden, ApiProblems.Title(StatusCodes.Status403Forbidden), exception.Message),
+        RescheduleAlreadyActiveException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
+        RescheduleAlreadyProcessedException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
         _ => null,
     };
 

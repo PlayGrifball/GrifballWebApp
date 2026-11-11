@@ -20,11 +20,13 @@ public class RescheduleController : ControllerBase
         _rescheduleService = rescheduleService;
     }
 
-    /// <summary>Asks to move a match to a new time: a 201 with the request's ID, at the match's page.</summary>
+    /// <summary>Asks to move a match to a new time: a 201 with the request's ID, at the match's page. GlobalExceptionHandler
+    /// answers the service's refusals (not allowed, forbidden, one already active).</summary>
     [HttpPost("season-matches/{seasonMatchID:int}/reschedules", Name = "RequestReschedule")]
     [ProducesResponseType<RescheduleRequestedDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ProblemJson)]
     public async Task<IActionResult> RequestReschedule([FromRoute] int seasonMatchID, [FromBody] RescheduleRequestDto dto, CancellationToken ct)
     {
         dto.SeasonMatchID = seasonMatchID;
@@ -35,13 +37,9 @@ public class RescheduleController : ControllerBase
             var reschedule = await _rescheduleService.RequestRescheduleAsync(dto, userId, ct);
             return CreatedAtRoute("GetSeasonMatchPage", new { seasonMatchID }, new RescheduleRequestedDto(reschedule.MatchRescheduleID));
         }
-        catch (Exception ex) when (ex is ArgumentException or RescheduleAlreadyActiveException or RescheduleNotAllowedException)
+        catch (ArgumentException ex)
         {
             return this.BadRequestProblem(ex.Message);
-        }
-        catch (RescheduleForbiddenException ex)
-        {
-            return this.ForbiddenProblem(ex.Message);
         }
     }
 
@@ -52,6 +50,7 @@ public class RescheduleController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ProblemJson)]
     public async Task<IActionResult> ProcessReschedule([FromRoute] int rescheduleID, [FromBody] ProcessRescheduleDto dto, CancellationToken ct)
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -64,10 +63,6 @@ public class RescheduleController : ControllerBase
         catch (ArgumentException ex)
         {
             return this.NotFoundProblem(ex.Message);
-        }
-        catch (Exception ex) when (ex is RescheduleAlreadyProcessedException or RescheduleNotAllowedException)
-        {
-            return this.BadRequestProblem(ex.Message);
         }
     }
 

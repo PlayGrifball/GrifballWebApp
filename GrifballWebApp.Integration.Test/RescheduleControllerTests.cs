@@ -63,42 +63,42 @@ public class RescheduleControllerTests
     }
 
     [Test]
-    public async Task RequestReschedule_ReturnsBadRequest_When_AlreadyActive()
+    public async Task RequestReschedule_IsRefused_When_AlreadyActive()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         SetUser(s.Requester.Id);
         await _controller.RequestReschedule(s.Match.SeasonMatchID, new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None);
 
-        var result = await _controller.RequestReschedule(s.Match.SeasonMatchID, new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None);
-
-        result.AssertProblem(StatusCodes.Status400BadRequest, "There is already an active reschedule request for this match.");
+        // GlobalExceptionHandler answers it as a 409 ProblemDetails
+        Assert.That(() => _controller.RequestReschedule(s.Match.SeasonMatchID, new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None),
+            Throws.InstanceOf<RescheduleAlreadyActiveException>());
     }
 
     [Test]
-    public async Task RequestReschedule_ReturnsBadRequest_When_MatchHasAResult()
+    public async Task RequestReschedule_IsRefused_When_MatchHasAResult()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         s.Match.WonBy(SeasonMatchSide.Home);
         await _context.SaveChangesAsync();
         SetUser(s.Requester.Id);
 
-        var result = await _controller.RequestReschedule(s.Match.SeasonMatchID, new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None);
-
-        result.AssertProblem(StatusCodes.Status400BadRequest, "This match already has a result.");
+        // GlobalExceptionHandler answers it as a 400 ProblemDetails
+        Assert.That(() => _controller.RequestReschedule(s.Match.SeasonMatchID, new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None),
+            Throws.InstanceOf<RescheduleNotAllowedException>().With.Message.EqualTo("This match already has a result."));
     }
 
     [Test]
-    public async Task RequestReschedule_Returns403_When_UserIsOnNeitherTeam()
+    public async Task RequestReschedule_IsForbidden_When_UserIsOnNeitherTeam()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         var outsider = await RescheduleTestData.AddUser(_context, "outsider");
         SetUser(outsider.Id);
 
-        var result = await _controller.RequestReschedule(s.Match.SeasonMatchID, new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None);
-
+        // GlobalExceptionHandler answers it as a 403 ProblemDetails
         using (Assert.EnterMultipleScope())
         {
-            result.AssertProblem(StatusCodes.Status403Forbidden, "Only players on either team, or a commissioner, can request a reschedule for this match.");
+            Assert.That(() => _controller.RequestReschedule(s.Match.SeasonMatchID, new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None),
+                Throws.InstanceOf<RescheduleForbiddenException>());
             Assert.That(await _context.MatchReschedules.AnyAsync(), Is.False);
         }
     }
@@ -125,7 +125,7 @@ public class RescheduleControllerTests
     }
 
     [Test]
-    public async Task ProcessReschedule_ReturnsBadRequest_When_ApprovingADecidedMatch()
+    public async Task ProcessReschedule_IsRefused_When_ApprovingADecidedMatch()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
@@ -138,21 +138,21 @@ public class RescheduleControllerTests
         _context.ChangeTracker.Clear();
         SetUser(s.HomeCaptain.Id);
 
-        var result = await _controller.ProcessReschedule(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, CancellationToken.None);
-
-        result.AssertProblem(StatusCodes.Status400BadRequest, "This match already has a result.");
+        // GlobalExceptionHandler answers it as a 400 ProblemDetails
+        Assert.That(() => _controller.ProcessReschedule(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, CancellationToken.None),
+            Throws.InstanceOf<RescheduleNotAllowedException>().With.Message.EqualTo("This match already has a result."));
     }
 
     [Test]
-    public async Task ProcessReschedule_ReturnsBadRequest_When_AlreadyProcessed()
+    public async Task ProcessReschedule_IsRefused_When_AlreadyProcessed()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, RescheduleStatus.Approved);
         SetUser(s.HomeCaptain.Id);
 
-        var result = await _controller.ProcessReschedule(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, CancellationToken.None);
-
-        result.AssertProblem(StatusCodes.Status400BadRequest, "Reschedule request has already been processed");
+        // GlobalExceptionHandler answers it as a 409 ProblemDetails
+        Assert.That(() => _controller.ProcessReschedule(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, CancellationToken.None),
+            Throws.InstanceOf<RescheduleAlreadyProcessedException>());
     }
 
     [Test]
