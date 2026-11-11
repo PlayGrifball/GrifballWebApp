@@ -201,7 +201,7 @@ public class AvailabilityServiceTests
     {
         var dto = new SeasonAvailabilityDto { SeasonID = 999, Timeslots = [new TimeslotDto { DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(18, 0) }] };
 
-        await Assert.ThatAsync(() => _service.UpdateSeasonAvailability(dto, CancellationToken.None), Throws.Exception.With.Message.EqualTo("Season does not exist"));
+        await Assert.ThatAsync(() => _service.UpdateSeasonAvailability(dto, CancellationToken.None), Throws.InstanceOf<SeasonRefusedException>().With.Message.EqualTo("There is no such season"));
     }
 
     [Test]

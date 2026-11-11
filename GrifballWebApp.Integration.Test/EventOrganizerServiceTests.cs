@@ -175,8 +175,8 @@ public class EventOrganizerServiceTests
         };
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.UpsertSeason(dto, CancellationToken.None));
-        Assert.That(ex!.Message, Is.EqualTo("Season does not exist"));
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(dto, CancellationToken.None));
+        Assert.That((ex!.Message, ex.Status), Is.EqualTo(("There is no such season", 404)));
     }
 
     [Test]

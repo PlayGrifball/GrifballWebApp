@@ -259,8 +259,8 @@ public class ProgramStartupTests
 
         await AssertOk(client, "/CommitHash");
         await AssertOk(client, "/CommitDate");
-        await AssertOk(client, "/Home/CurrentAndFutureEvents");
-        await AssertOk(client, "/Season/GetSeasons");
+        await AssertOk(client, "/events");
+        await AssertOk(client, "/seasons");
 
         // The smoke-test accounts were made at startup and can sign in.
         foreach (var userName in PreviewSmokeUsers.UserNames)
@@ -330,7 +330,7 @@ public class ProgramStartupTests
         AssertControllersResolve(factory.Services);
 
         await AssertOk(client, "/CommitHash");
-        await AssertOk(client, "/Home/CurrentAndFutureEvents");
+        await AssertOk(client, "/events");
         await AssertLogin(client, PreviewSmokeUsers.UserNames[0], HttpStatusCode.Unauthorized);
     }
 
@@ -536,7 +536,7 @@ public class ProgramStartupTests
         AssertControllersResolve(factory.Services);
 
         await AssertOk(client, "/CommitHash");
-        await AssertOk(client, "/Home/CurrentAndFutureEvents");
+        await AssertOk(client, "/events");
     }
 
     [Test]
@@ -673,7 +673,7 @@ public class ProgramStartupTests
 
         AssertControllersResolve(factory.Services);
         await AssertOk(client, "/CommitHash");
-        await AssertOk(client, "/Season/GetSeasons");
+        await AssertOk(client, "/seasons");
         await AssertOk(client, "/health/live");
         using var hub = await client.PostAsync("/TeamsHub/negotiate?negotiateVersion=1", null);
         Assert.That(hub.StatusCode, Is.EqualTo(HttpStatusCode.OK), "The hub is mapped");
@@ -711,7 +711,7 @@ public class ProgramStartupTests
         Assert.That(checks, Does.Not.Contain("discord"));
 
         await AssertOk(client, "/health/live");
-        foreach (var path in new[] { "/CommitHash", "/Season/GetSeasons" })
+        foreach (var path in new[] { "/CommitHash", "/seasons" })
         {
             using var response = await client.GetAsync(path);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), $"GET {path}: no public API on the worker");
@@ -746,7 +746,7 @@ public class ProgramStartupTests
         Assert.That(checks, Does.Contain("discord"));
 
         await AssertOk(client, "/health/live");
-        foreach (var path in new[] { "/CommitHash", "/Season/GetSeasons", "/internal/backups/abc" })
+        foreach (var path in new[] { "/CommitHash", "/seasons", "/internal/backups/abc" })
         {
             using var response = await client.GetAsync(path);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), $"GET {path}: no API, and no backups, on grif-discord");

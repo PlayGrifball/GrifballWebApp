@@ -117,7 +117,7 @@ public class SeasonSummaryAndLeaderboardsTests
     public async Task SeasonSummary_NotFound()
     {
         var result = await new SeasonController(_service).GetSeasonSummary(404, CancellationToken.None);
-        Assert.That(result.Result, Is.InstanceOf<NotFoundResult>());
+        result.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound, "There is no such season");
     }
 
     [Test]
