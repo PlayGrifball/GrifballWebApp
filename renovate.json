@@ -70,6 +70,16 @@
   ],
   "packageRules": [
     {
+      "description": "The Roslyn GrifballWebApp.Analyzers builds against stays at the oldest .NET 10 SDK's compiler: an analyzer built against a newer Roslyn than the SDK's is skipped with only a warning (CS9057), and GRIF001 would quietly stop. It moves by hand with the SDK major",
+      "matchFileNames": [
+        "GrifballWebApp.Analyzers/GrifballWebApp.Analyzers.csproj"
+      ],
+      "matchPackageNames": [
+        "Microsoft.CodeAnalysis.CSharp"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Everything goes into one PR, majors included",
       "matchPackageNames": [
         "*"

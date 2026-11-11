@@ -25,4 +25,13 @@
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
     <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/banned-api.globalconfig" />
   </ItemGroup>
+  <!--
+    Grif's own analyzers (GrifballWebApp.Analyzers, errors in analyzers/grif-analyzers.globalconfig): GRIF001 holds
+    async code to EF Core's async operators, which VSTHRD103 doesn't for Enumerable's ToList, ToArray and the others.
+    Not in the analyzers' own projects, and not where analyzers are off (RunAnalyzers=false: the Docker image's build).
+  -->
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' And '$(RunAnalyzers)' != 'false' And '$(MSBuildProjectName)' != 'GrifballWebApp.Analyzers' And '$(MSBuildProjectName)' != 'GrifballWebApp.Analyzers.Test'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)GrifballWebApp.Analyzers/GrifballWebApp.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/grif-analyzers.globalconfig" />
+  </ItemGroup>
 </Project>

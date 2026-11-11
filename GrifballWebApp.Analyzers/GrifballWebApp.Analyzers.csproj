@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Grif's own Roslyn analyzers (GRIF001: no synchronous query execution in async code). Every C# project runs them
+       (Directory.Build.props references this project as an analyzer); GrifballWebApp.Analyzers.Test tests them. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <!-- RS2008 (release tracking files) is for analyzers shipped as packages; these ship with the repository -->
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
+  </PropertyGroup>
+
+  <!-- The compiler an analyzer loads into is the SDK's: an analyzer built against a newer Roslyn than the SDK's is
+       skipped with a warning (CS9057), so this stays at the oldest .NET 10 SDK's (5.0) and Renovate leaves it there -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="GrifballWebApp.Analyzers.Test" />
+  </ItemGroup>
+
+</Project>

@@ -13,6 +13,7 @@
     <Build />
     <Deploy />
   </Project>
+  <Project Path="GrifballWebApp.Analyzers/GrifballWebApp.Analyzers.csproj" />
   <Project Path="GrifballWebApp.Application/GrifballWebApp.Application.csproj" />
   <Project Path="GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" />
   <Project Path="GrifballWebApp.Infrastructure/GrifballWebApp.Infrastructure.csproj" />
@@ -28,6 +29,7 @@
   <Project Path="GrifballWebApp.Server.Test/GrifballWebApp.Server.Test.csproj" />
   <Project Path="GrifballWebApp.Seeder.Test/GrifballWebApp.Seeder.Test.csproj" />
   <Project Path="GrifballWebApp.Convert.Test/GrifballWebApp.Convert.Test.csproj" />
+  <Project Path="GrifballWebApp.Analyzers.Test/GrifballWebApp.Analyzers.Test.csproj" />
   <Project Path="GrifballWebApp.Architecture.Test/GrifballWebApp.Architecture.Test.csproj" />
   <Project Path="GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj" />
 </Solution>
