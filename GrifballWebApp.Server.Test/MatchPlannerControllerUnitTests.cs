@@ -36,12 +36,4 @@ public class MatchPlannerControllerUnitTests
 
         result.AssertProblem(StatusCodes.Status400BadRequest, message);
     }
-
-    [Test]
-    public async Task UpdateMatchTime_BodyOfAnotherMatch_IsRefused()
-    {
-        var result = await _controller.UpdateMatchTime(5, new GrifballWebApp.Application.MatchPlanner.UpdateMatchTimeDto { SeasonMatchID = 6 }, CancellationToken.None);
-
-        result.AssertProblem(StatusCodes.Status400BadRequest, "The season match in the body is not the route's");
-    }
 }

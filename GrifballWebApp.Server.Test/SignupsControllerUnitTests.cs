@@ -45,7 +45,6 @@ public class SignupsControllerUnitTests
             (await _controller.GetTimeslots(1, 0, CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
             (await _controller.GetSignup(1, 0, CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
             (await _controller.UpsertSignup(1, new SignupRequestDto { SeasonID = 1 }, CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
-            (await _controller.UpsertSignup(2, new SignupRequestDto { SeasonID = 1 }, CancellationToken.None)).AssertProblem(StatusCodes.Status400BadRequest, "The season in the body is not the route's");
         }
     }
 

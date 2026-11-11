@@ -32,8 +32,6 @@ public class AvailabilityController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> UpdateSeasonAvailability([FromRoute] int seasonID, [FromBody] SeasonAvailabilityDto a, CancellationToken ct)
     {
-        if (RouteIDs.Differs(a.SeasonID, seasonID))
-            return this.BadRequestProblem(RouteIDs.Mismatch("season"));
         a.SeasonID = seasonID;
         await _availabilityService.UpdateSeasonAvailability(a, ct);
         return NoContent();

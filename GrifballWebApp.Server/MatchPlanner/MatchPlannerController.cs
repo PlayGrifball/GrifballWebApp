@@ -58,8 +58,6 @@ public class MatchPlannerController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
     public async Task<IActionResult> UpdateMatchTime([FromRoute] int seasonMatchID, [FromBody] UpdateMatchTimeDto dto, CancellationToken ct)
     {
-        if (RouteIDs.Differs(dto.SeasonMatchID, seasonMatchID))
-            return this.BadRequestProblem(RouteIDs.Mismatch("season match"));
         dto.SeasonMatchID = seasonMatchID;
         await _matchPlannerService.UpdateMatchTime(dto, ct);
         return NoContent();

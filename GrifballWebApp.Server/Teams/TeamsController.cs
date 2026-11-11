@@ -44,8 +44,6 @@ public class TeamsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
     public async Task<ActionResult<CaptainAddedResponseDto>> AddCaptain([FromRoute] int seasonID, [FromBody] CaptainPlacementDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
-        if (RouteIDs.Differs(dto.SeasonID, seasonID))
-            return this.BadRequestProblem(RouteIDs.Mismatch("season"));
         dto.SeasonID = seasonID;
         var teamName = await _teamService.AddCaptain(dto, resortOnly: false, signalRConnectionID, ct);
         return new CaptainAddedResponseDto { TeamName = teamName!, TeamID = await _teamService.CaptainsTeamID(dto.SeasonID, dto.PersonID, ct) };
@@ -60,8 +58,6 @@ public class TeamsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
     public async Task<IActionResult> ResortCaptain([FromRoute] int seasonID, [FromBody] CaptainPlacementDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
-        if (RouteIDs.Differs(dto.SeasonID, seasonID))
-            return this.BadRequestProblem(RouteIDs.Mismatch("season"));
         dto.SeasonID = seasonID;
         await _teamService.AddCaptain(dto, resortOnly: true, signalRConnectionID, ct);
         return NoContent();
@@ -75,8 +71,6 @@ public class TeamsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
     public async Task<IActionResult> RemoveCaptain([FromRoute] int seasonID, [FromBody] RemoveCaptainDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
-        if (RouteIDs.Differs(dto.SeasonID, seasonID))
-            return this.BadRequestProblem(RouteIDs.Mismatch("season"));
         dto.SeasonID = seasonID;
         await _teamService.RemoveCaptain(dto, signalRConnectionID, ct);
         return NoContent();
@@ -90,8 +84,6 @@ public class TeamsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
     public async Task<IActionResult> RemovePlayerFromTeam([FromRoute] int seasonID, [FromBody] RemovePlayerFromTeamRequestDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
-        if (RouteIDs.Differs(dto.SeasonID, seasonID))
-            return this.BadRequestProblem(RouteIDs.Mismatch("season"));
         dto.SeasonID = seasonID;
         await _teamService.RemovePlayerFromTeam(dto, signalRConnectionID, ct);
         return NoContent();
@@ -105,8 +97,6 @@ public class TeamsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
     public async Task<IActionResult> MovePlayerToTeam([FromRoute] int seasonID, [FromBody] MovePlayerToTeamRequestDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
-        if (RouteIDs.Differs(dto.SeasonID, seasonID))
-            return this.BadRequestProblem(RouteIDs.Mismatch("season"));
         dto.SeasonID = seasonID;
         await _teamService.MovePlayerToTeam(dto, signalRConnectionID, ct);
         return NoContent();
@@ -121,8 +111,6 @@ public class TeamsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
     public async Task<IActionResult> AddPlayerToTeam([FromRoute] int seasonID, [FromBody] AddPlayerToTeamRequestDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
-        if (RouteIDs.Differs(dto.SeasonID, seasonID))
-            return this.BadRequestProblem(RouteIDs.Mismatch("season"));
         dto.SeasonID = seasonID;
         var userID = GetUserID();
         if (userID == 0)

@@ -27,8 +27,6 @@ public class RescheduleController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson)]
     public async Task<IActionResult> RequestReschedule([FromRoute] int seasonMatchID, [FromBody] RescheduleRequestDto dto, CancellationToken ct)
     {
-        if (RouteIDs.Differs(dto.SeasonMatchID, seasonMatchID))
-            return this.BadRequestProblem(RouteIDs.Mismatch("season match"));
         dto.SeasonMatchID = seasonMatchID;
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 

@@ -34,14 +34,4 @@ public class TeamsControllerUnitTests
         Assert.That(_publisher.ReceivedCalls(), Is.Empty);
     }
 
-    [Test]
-    public async Task AddPlayerToTeam_BodyOfAnotherSeason_IsRefused()
-    {
-        _controller.WithUser("1");
-
-        var result = await _controller.AddPlayerToTeam(2, new AddPlayerToTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 }, null, CancellationToken.None);
-
-        result.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest, "The season in the body is not the route's");
-        Assert.That(_publisher.ReceivedCalls(), Is.Empty);
-    }
 }

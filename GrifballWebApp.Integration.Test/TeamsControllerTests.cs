@@ -78,7 +78,8 @@ public class TeamsControllerTests
         await _context.AddSignup(season, c1, "One");
         await _context.AddSignup(season, c2, "Two");
 
-        var added1 = (await _controller.AddCaptain(season.SeasonID, new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = c1.Id, OrderNumber = 1 }, "h1", CancellationToken.None)).Value!;
+        // The route names the season: a body naming another is ignored
+        var added1 = (await _controller.AddCaptain(season.SeasonID, new CaptainPlacementDto { SeasonID = 999999, PersonID = c1.Id, OrderNumber = 1 }, "h1", CancellationToken.None)).Value!;
         var added2 = (await _controller.AddCaptain(season.SeasonID, new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = c2.Id, OrderNumber = 2 }, "h1", CancellationToken.None)).Value!;
         // The sender is not sent the CaptainAdded broadcast, so the response carries the team's name.
         Assert.That((added1.TeamName, added2.TeamName), Is.EqualTo(("One", "Two")));

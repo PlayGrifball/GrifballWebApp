@@ -66,8 +66,6 @@ public class SignupsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
     public async Task<IActionResult> UpsertSignup([FromRoute] int seasonID, [FromBody] SignupRequestDto signupDto, CancellationToken ct)
     {
-        if (RouteIDs.Differs(signupDto.SeasonID, seasonID))
-            return this.BadRequestProblem(RouteIDs.Mismatch("season"));
         var userID = GetUserID();
         if (userID == 0)
             return this.UnauthorizedProblem(NotSignedIn);
