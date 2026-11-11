@@ -53,10 +53,10 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
     const json = (body: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
     // Signed in (the session cookie the browser would have)
-    if (path === '/api/Identity/Me') {
+    if (path === '/api/identity/me') {
       return json({ isSysAdmin: false, isCommissioner: true, isPlayer: false, displayName: 'E2E Organizer', userID: 999 });
     }
-    if (path === '/api/Identity/Antiforgery') return json({ token: 'e2e-xsrf' });
+    if (path === '/api/identity/antiforgery-token') return json({ token: 'e2e-xsrf' });
     // As the API: every change from a cookie session carries the antiforgery token
     if (request.method() !== 'GET' && request.headers()['x-xsrf-token'] !== 'e2e-xsrf')
       return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });

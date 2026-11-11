@@ -25,7 +25,6 @@ namespace GrifballWebApp.Server.Identity;
 /// </list>
 /// </remarks>
 [Authorize]
-[Route("[controller]/[action]")]
 [ApiController]
 public class ExternalLoginsController : ControllerBase
 {
@@ -45,7 +44,8 @@ public class ExternalLoginsController : ControllerBase
 
     /// <summary>The external providers this server is configured for.</summary>
     [AllowAnonymous]
-    [HttpGet(Name = "GetExternalProviders")]
+    [HttpGet("external-logins/providers", Name = "GetExternalProviders")]
+    [ProducesResponseType<List<ExternalProviderDto>>(StatusCodes.Status200OK)]
     public async Task<List<ExternalProviderDto>> Providers()
     {
         var schemes = await _signInManager.GetExternalAuthenticationSchemesAsync();
@@ -56,7 +56,8 @@ public class ExternalLoginsController : ControllerBase
 
     /// <summary>The signed-in user's external logins, whether they have a password, and the providers they can link.</summary>
     [ProducesResponseType(typeof(LinkedLoginsDto), StatusCodes.Status200OK)]
-    [HttpGet(Name = "GetMyExternalLogins")]
+    [HttpGet("me/external-logins", Name = "GetMyExternalLogins")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> Mine()
     {
         if (GetUserID() is not int userId)
@@ -64,7 +65,7 @@ public class ExternalLoginsController : ControllerBase
 
         var logins = await _externalLoginService.GetLogins(userId);
         if (logins is null)
-            return NotFound("User not found");
+            return this.NotFoundProblem("User not found");
 
         logins.Providers = await Providers();
         return Ok(logins);
@@ -72,15 +73,15 @@ public class ExternalLoginsController : ControllerBase
 
     /// <summary>Starts linking a provider to the signed-in user. Returns the token for <see cref="Link"/>.</summary>
     [ProducesResponseType(typeof(StartLinkResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-    [HttpPost(Name = "StartExternalLoginLink")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [HttpPost("me/external-logins/link-token", Name = "StartExternalLoginLink")]
     public async Task<IActionResult> StartLink([FromQuery] string provider)
     {
         if (GetUserID() is not int userId)
             return Unauthorized();
 
         if (!await IsConfiguredProvider(provider))
-            return BadRequest($"Unknown login provider '{provider}'");
+            return this.BadRequestProblem($"Unknown login provider '{provider}'");
 
         var token = _linkTokenProtector.Protect(userId + ":" + provider, LinkTokenLifetime);
         return Ok(new StartLinkResponseDto { Token = token });
@@ -88,7 +89,9 @@ public class ExternalLoginsController : ControllerBase
 
     /// <summary>Full-page navigation target: sends the browser to the provider to link it to the user named in the token.</summary>
     [AllowAnonymous]
-    [HttpGet(Name = "ExternalLoginLink")]
+    [HttpGet("external-logins/link", Name = "ExternalLoginLink")]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     public async Task<IActionResult> Link([FromQuery] string provider, [FromQuery] string token)
     {
         string payload;
@@ -98,15 +101,15 @@ public class ExternalLoginsController : ControllerBase
         }
         catch (CryptographicException)
         {
-            return BadRequest("This link request is invalid or has expired. Start again from your profile.");
+            return this.BadRequestProblem("This link request is invalid or has expired. Start again from your profile.");
         }
 
         var parts = payload.Split(':', 2);
         if (parts.Length != 2 || !int.TryParse(parts[0], out var userId) || parts[1] != provider)
-            return BadRequest("This link request is invalid or has expired. Start again from your profile.");
+            return this.BadRequestProblem("This link request is invalid or has expired. Start again from your profile.");
 
         if (!await IsConfiguredProvider(provider))
-            return BadRequest($"Unknown login provider '{provider}'");
+            return this.BadRequestProblem($"Unknown login provider '{provider}'");
 
         // Relative like ExternalLogin's "login?callback=true": the provider callback (/signin-discord) redirects here.
         var redirectUrl = $"profile/{userId}?linkCallback=true";
@@ -116,9 +119,10 @@ public class ExternalLoginsController : ControllerBase
 
     /// <summary>Finishes linking: adds the external login from the provider round trip to the signed-in user.</summary>
     [ProducesResponseType(typeof(ExternalLoginDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
-    [HttpPost(Name = "ExternalLoginLinkCallback")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
+    [HttpPost("me/external-logins", Name = "ExternalLoginLinkCallback")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> LinkCallback()
     {
         if (GetUserID() is not int userId)
@@ -128,7 +132,7 @@ public class ExternalLoginsController : ControllerBase
         // so a login fetched for one account cannot be added to another.
         var info = await _signInManager.GetExternalLoginInfoAsync(userId.ToString());
         if (info is null)
-            return BadRequest("The link request expired or was started by a different account. Try again.");
+            return this.BadRequestProblem("The link request expired or was started by a different account. Try again.");
 
         // The external cookie has done its job; drop it so it cannot be reused.
         await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
@@ -142,16 +146,17 @@ public class ExternalLoginsController : ControllerBase
                 ProviderKey = info.ProviderKey,
                 ProviderDisplayName = displayName,
             }),
-            LinkLoginResult.LinkedToAnotherUser => Conflict($"This {displayName} account is already linked to another Grifball account. Ask an admin to merge the two accounts."),
-            LinkLoginResult.UserNotFound => NotFound("User not found"),
-            _ => BadRequest($"Failed to link {displayName}"),
+            LinkLoginResult.LinkedToAnotherUser => this.ConflictProblem($"This {displayName} account is already linked to another Grifball account. Ask an admin to merge the two accounts."),
+            LinkLoginResult.UserNotFound => this.NotFoundProblem("User not found"),
+            _ => this.BadRequestProblem($"Failed to link {displayName}"),
         };
     }
 
     /// <summary>Removes one of the signed-in user's external logins. Refuses the last way to sign in.</summary>
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-    [HttpPost(Name = "UnlinkExternalLogin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [HttpPost("me/external-logins/remove", Name = "UnlinkExternalLogin")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> Unlink([FromBody] ExternalLoginKeyDto login)
     {
         if (GetUserID() is not int userId)
@@ -164,18 +169,20 @@ public class ExternalLoginsController : ControllerBase
     /// <summary>Sysadmin: a user's external logins.</summary>
     [Authorize(Roles = "Sysadmin")]
     [ProducesResponseType(typeof(LinkedLoginsDto), StatusCodes.Status200OK)]
-    [HttpGet("{userID:int}", Name = "GetUserExternalLogins")]
+    [HttpGet("users/{userID:int}/external-logins", Name = "GetUserExternalLogins")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> UserLogins([FromRoute] int userID)
     {
         var logins = await _externalLoginService.GetLogins(userID);
-        return logins is null ? NotFound("User not found") : Ok(logins);
+        return logins is null ? this.NotFoundProblem("User not found") : Ok(logins);
     }
 
     /// <summary>Sysadmin: removes one of a user's external logins. Refuses the user's last way to sign in.</summary>
     [Authorize(Roles = "Sysadmin")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-    [HttpPost("{userID:int}", Name = "RemoveUserExternalLogin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [HttpPost("users/{userID:int}/external-logins/remove", Name = "RemoveUserExternalLogin")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> RemoveUserLogin([FromRoute] int userID, [FromBody] ExternalLoginKeyDto login)
     {
         return ToResult(await _externalLoginService.Unlink(userID, login.LoginProvider, login.ProviderKey),
@@ -184,11 +191,11 @@ public class ExternalLoginsController : ControllerBase
 
     private IActionResult ToResult(UnlinkLoginResult result, string lastMethodMessage) => result switch
     {
-        UnlinkLoginResult.Removed => Ok(),
-        UnlinkLoginResult.LastSignInMethod => BadRequest(lastMethodMessage),
-        UnlinkLoginResult.LoginNotFound => NotFound("Login not found"),
-        UnlinkLoginResult.UserNotFound => NotFound("User not found"),
-        _ => BadRequest("Failed to remove the login"),
+        UnlinkLoginResult.Removed => NoContent(),
+        UnlinkLoginResult.LastSignInMethod => this.BadRequestProblem(lastMethodMessage),
+        UnlinkLoginResult.LoginNotFound => this.NotFoundProblem("Login not found"),
+        UnlinkLoginResult.UserNotFound => this.NotFoundProblem("User not found"),
+        _ => this.BadRequestProblem("Failed to remove the login"),
     };
 
     private async Task<bool> IsConfiguredProvider(string provider)

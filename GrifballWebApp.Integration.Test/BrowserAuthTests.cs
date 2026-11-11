@@ -82,7 +82,7 @@ public class BrowserAuthTests
     });
 
     private static async Task<HttpResponseMessage> Login(HttpClient client, string query = "")
-        => await client.PostAsJsonAsync("/Identity/Login" + query, new { Username = UserName, Password });
+        => await client.PostAsJsonAsync("/identity/login" + query, new { Username = UserName, Password });
 
     private static string? SetCookie(HttpResponseMessage response, string name)
         => response.Headers.TryGetValues("Set-Cookie", out var values)
@@ -91,7 +91,7 @@ public class BrowserAuthTests
 
     private static async Task<string> AntiforgeryToken(HttpClient client)
     {
-        using var response = await client.GetAsync("/Identity/Antiforgery");
+        using var response = await client.GetAsync("/identity/antiforgery-token");
         using (Assert.EnterMultipleScope())
         {
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -140,7 +140,7 @@ public class BrowserAuthTests
         using (var login = await Login(client))
             Assert.That(login.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        using var me = await client.GetAsync("/Identity/Me");
+        using var me = await client.GetAsync("/identity/me");
         using (Assert.EnterMultipleScope())
         {
             Assert.That(me.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -153,7 +153,7 @@ public class BrowserAuthTests
             Assert.That(info.IsSysAdmin && info.IsCommissioner, Is.True);
         }
 
-        using var metaInfo = await client.GetAsync("/Identity/MetaInfo");
+        using var metaInfo = await client.GetAsync("/identity/meta-info");
         Assert.That(metaInfo.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
@@ -162,10 +162,10 @@ public class BrowserAuthTests
     {
         using var client = Browser();
 
-        using var me = await client.GetAsync("/Identity/Me");
+        using var me = await client.GetAsync("/identity/me");
         Assert.That(me.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
 
-        using var metaInfo = await client.GetAsync("/Identity/MetaInfo");
+        using var metaInfo = await client.GetAsync("/identity/meta-info");
         using (Assert.EnterMultipleScope())
         {
             Assert.That(metaInfo.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
@@ -181,9 +181,9 @@ public class BrowserAuthTests
     {
         using var client = Browser();
         var userName = "player-" + Guid.NewGuid().ToString("N")[..8];
-        using (var register = await client.PostAsJsonAsync("/Identity/Register", new { Username = userName, Password }))
-            Assert.That(register.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        using (var login = await client.PostAsJsonAsync("/Identity/Login", new { Username = userName, Password }))
+        using (var register = await client.PostAsJsonAsync("/identity/register", new { Username = userName, Password }))
+            Assert.That(register.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        using (var login = await client.PostAsJsonAsync("/identity/login", new { Username = userName, Password }))
             Assert.That(login.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         using var response = await client.SendAsync(Post(AdminPost, await AntiforgeryToken(client)));
@@ -270,7 +270,7 @@ public class BrowserAuthTests
         }
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
-        using var metaInfo = await client.GetAsync("/Identity/MetaInfo");
+        using var metaInfo = await client.GetAsync("/identity/meta-info");
         using (Assert.EnterMultipleScope())
         {
             Assert.That(metaInfo.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -281,7 +281,7 @@ public class BrowserAuthTests
         using var post = await client.SendAsync(Post(AdminPost));
         Assert.That(post.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        using var refresh = await client.PostAsJsonAsync("/Identity/Refresh", new { token.RefreshToken });
+        using var refresh = await client.PostAsJsonAsync("/identity/refresh", new { token.RefreshToken });
         Assert.That(refresh.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
@@ -291,7 +291,7 @@ public class BrowserAuthTests
         using var client = Browser();
         using (await Login(client)) { }
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/Identity/MetaInfo");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/identity/meta-info");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "not-a-token");
         using var response = await client.SendAsync(request);
 
@@ -304,12 +304,12 @@ public class BrowserAuthTests
         using var client = Browser();
         using (await Login(client)) { }
 
-        using var logout = await client.SendAsync(Post("/Identity/Logout"));
+        using var logout = await client.SendAsync(Post("/identity/logout"));
 
         Assert.That(logout.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
         var cookie = SetCookie(logout, BrowserAuth.CookieName);
         Assert.That(cookie, Is.Not.Null.And.Contains("expires=Thu, 01 Jan 1970"));
-        using var me = await client.GetAsync("/Identity/Me");
+        using var me = await client.GetAsync("/identity/me");
         Assert.That(me.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
     }
 
@@ -339,13 +339,13 @@ public class BrowserAuthTests
             return request;
         }
 
-        using (var before = await client.SendAsync(WithCookie(HttpMethod.Get, "/Identity/MetaInfo")))
+        using (var before = await client.SendAsync(WithCookie(HttpMethod.Get, "/identity/meta-info")))
             Assert.That(before.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        using (var logout = await client.SendAsync(WithCookie(HttpMethod.Post, "/Identity/Logout")))
+        using (var logout = await client.SendAsync(WithCookie(HttpMethod.Post, "/identity/logout")))
             Assert.That(logout.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
 
         // A copy of the cookie kept from before the logout no longer signs anyone in
-        using var after = await client.SendAsync(WithCookie(HttpMethod.Get, "/Identity/MetaInfo"));
+        using var after = await client.SendAsync(WithCookie(HttpMethod.Get, "/identity/meta-info"));
         Assert.That(after.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
     }
 
@@ -445,22 +445,22 @@ public class BrowserAuthTests
         using var client = Browser();
         using (await Login(client)) { }
 
-        using var foreign = Post("/Identity/Logout");
+        using var foreign = Post("/identity/logout");
         foreign.Headers.Add("Origin", "https://grif-preview1.grifball.xyz");
         using var refused = await client.SendAsync(foreign);
         Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
 
-        using var own = Post("/Identity/Logout");
+        using var own = Post("/identity/logout");
         own.Headers.Add("Origin", "https://localhost");
         using var accepted = await client.SendAsync(own);
         Assert.That(accepted.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
     }
 
-    [TestCase("/Identity/Login", "Sec-Fetch-Site", "cross-site")]
-    [TestCase("/Identity/Login", "Sec-Fetch-Site", "same-site")]
-    [TestCase("/Identity/Login", "Origin", "https://grif-preview1.grifball.xyz")]
-    [TestCase("/Identity/Register", "Sec-Fetch-Site", "same-site")]
-    [TestCase("/Identity/Register", "Origin", "https://evil.example")]
+    [TestCase("/identity/login", "Sec-Fetch-Site", "cross-site")]
+    [TestCase("/identity/login", "Sec-Fetch-Site", "same-site")]
+    [TestCase("/identity/login", "Origin", "https://grif-preview1.grifball.xyz")]
+    [TestCase("/identity/register", "Sec-Fetch-Site", "same-site")]
+    [TestCase("/identity/register", "Origin", "https://evil.example")]
     public async Task VisitorPost_FromAnotherSite_IsRefused(string path, string header, string value)
     {
         using var client = Script();
@@ -485,7 +485,7 @@ public class BrowserAuthTests
     public async Task VisitorLogin_FromThisSiteOrAScript_IsAccepted(string? header, string? value)
     {
         using var client = Script();
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/Identity/Login")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/identity/login")
         {
             Content = JsonContent.Create(new { Username = UserName, Password }),
         };
@@ -516,14 +516,14 @@ public class BrowserAuthTests
 
         foreach (var site in new[] { "cross-site", "same-site" })
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, "/Identity/MetaInfo");
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/identity/meta-info");
             request.Headers.Add("Sec-Fetch-Site", site);
             using var response = await client.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), site);
         }
         foreach (var site in new[] { "same-origin", "none" })
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, "/Identity/MetaInfo");
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/identity/meta-info");
             request.Headers.Add("Sec-Fetch-Site", site);
             using var response = await client.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), site);
@@ -534,7 +534,7 @@ public class BrowserAuthTests
     public async Task Visitor_FromAnotherSite_IsServedAsUsual()
     {
         using var client = Browser();
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/Identity/Me");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/identity/me");
         request.Headers.Add("Sec-Fetch-Site", "cross-site");
 
         using var response = await client.SendAsync(request);

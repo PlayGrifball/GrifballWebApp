@@ -58,7 +58,7 @@ public class RequestBodyRequiredTests
             HandleCookies = false,
             AllowAutoRedirect = false,
         });
-        using var login = await _client.PostAsJsonAsync("/Identity/Login?useCookies=false", new { Username = PreviewSmokeUsers.UserNames[0], Password });
+        using var login = await _client.PostAsJsonAsync("/identity/login?useCookies=false", new { Username = PreviewSmokeUsers.UserNames[0], Password });
         Assert.That(login.StatusCode, Is.EqualTo(HttpStatusCode.OK), "the preview Sysadmin signs in");
         var token = await login.Content.ReadFromJsonAsync<AccessTokenResponse>() ?? throw new AssertionException("No token");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);

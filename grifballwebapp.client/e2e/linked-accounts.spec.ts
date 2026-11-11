@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 // End-to-end linking of an external login from the profile page (/profile/:userID).
 //
 // The backend is mocked with page.route. The provider round trip is simulated:
-// the full-page navigation to /api/ExternalLogins/Link answers with the redirect the
+// the full-page navigation to /api/external-logins/link answers with the redirect the
 // real server ends in (provider -> /signin-discord -> /profile/:id?linkCallback=true).
 
 const USER_ID = 21;
@@ -26,25 +26,25 @@ async function openProfile(page: Page, start: { hasPassword: boolean; logins: Lo
     calls.push({ method: request.method(), path, search: url.search, body: request.postData() ? request.postDataJSON() : null });
 
     // Signed in (the session cookie the browser would have)
-    if (path === '/api/Identity/Me')
+    if (path === '/api/identity/me')
       return json({ isSysAdmin: false, isCommissioner: false, isPlayer: true, displayName: 'E2E Player', userID: USER_ID });
-    if (path === '/api/Identity/Antiforgery') return json({ token: 'e2e-xsrf' });
+    if (path === '/api/identity/antiforgery-token') return json({ token: 'e2e-xsrf' });
     // As the API: every change from a cookie session carries the antiforgery token
     if (request.method() !== 'GET' && request.headers()['x-xsrf-token'] !== 'e2e-xsrf')
       return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
     if (path === `/api/users/${USER_ID}/gamertag`) return json({ gamertag: 'Sgt Grif' });
     if (path === `/api/users/${USER_ID}/stats`) return json({ userID: USER_ID, gamertag: 'Sgt Grif', displayName: 'Sgt Grif', isDummyUser: false, pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [] });
-    if (path === '/api/ExternalLogins/Mine')
+    if (path === '/api/me/external-logins')
       return json({ ...state, providers: [{ name: 'Discord', displayName: 'Discord' }] });
-    if (path === '/api/ExternalLogins/StartLink') return json({ token: 'signed-token' });
-    if (path === '/api/ExternalLogins/Link')
+    if (path === '/api/me/external-logins/link-token') return json({ token: 'signed-token' });
+    if (path === '/api/external-logins/link')
       return route.fulfill({ status: 302, headers: { location: `/profile/${USER_ID}?linkCallback=true` } });
-    if (path === '/api/ExternalLogins/LinkCallback') {
+    if (path === '/api/me/external-logins') {
       const login = { loginProvider: 'Discord', providerKey: '555', providerDisplayName: 'Discord' };
       state.logins.push(login);
       return json(login);
     }
-    if (path === '/api/ExternalLogins/Unlink') {
+    if (path === '/api/me/external-logins/remove') {
       const body = request.postDataJSON() as { providerKey: string };
       state.logins = state.logins.filter(l => l.providerKey !== body.providerKey);
       return route.fulfill({ status: 200, body: '' });
@@ -69,9 +69,9 @@ test('links Discord to the signed-in account through the provider round trip', a
   // The callback query parameter is gone, so a reload does not try to link again.
   await expect(page).toHaveURL(new RegExp(`/profile/${USER_ID}$`));
 
-  const link = calls.find(c => c.path === '/api/ExternalLogins/Link');
+  const link = calls.find(c => c.path === '/api/external-logins/link');
   expect(link?.search).toBe('?provider=Discord&token=signed-token');
-  expect(calls.filter(c => c.path === '/api/ExternalLogins/LinkCallback').map(c => c.method)).toEqual(['POST']);
+  expect(calls.filter(c => c.path === '/api/me/external-logins').map(c => c.method)).toEqual(['POST']);
 });
 
 test('unlinks a login while a password remains', async ({ page }) => {

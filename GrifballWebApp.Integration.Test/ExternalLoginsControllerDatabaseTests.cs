@@ -89,7 +89,7 @@ public class ExternalLoginsControllerDatabaseTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.TypeOf<ConflictObjectResult>());
+            result.AssertProblem(StatusCodes.Status409Conflict);
             Assert.That(await _context.UserLogins.AsNoTracking().Select(l => l.UserId).SingleAsync(), Is.EqualTo(owner.Id));
         }
     }

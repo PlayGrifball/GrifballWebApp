@@ -111,7 +111,7 @@ describe('ServerApiBackend', () => {
       const error = spyOn(console, 'error');
       const backend = create(page({ cookie: 'a=b' }));
 
-      const failure = await lastValueFrom(backend.handle(new HttpRequest(method, 'https://grifball.xyz/api/ExternalLogins/LinkCallback', null))).catch(e => e);
+      const failure = await lastValueFrom(backend.handle(new HttpRequest(method, 'https://grifball.xyz/api/me/external-logins', null))).catch(e => e);
 
       expect(failure).toEqual(jasmine.any(HttpErrorResponse));
       expect((failure as HttpErrorResponse).status).toBe(405);

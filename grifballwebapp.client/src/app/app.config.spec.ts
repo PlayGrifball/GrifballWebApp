@@ -12,7 +12,7 @@ describe('appConfig', () => {
     const backend = TestBed.inject(HttpTestingController);
 
     TestBed.inject(HttpClient).post('/api/seasons/1/draft/captains', {}).subscribe();
-    backend.expectOne('/api/Identity/Antiforgery').flush({ token: 'xsrf' });
+    backend.expectOne('/api/identity/antiforgery-token').flush({ token: 'xsrf' });
     const request = backend.expectOne('/api/seasons/1/draft/captains').request;
 
     expect(request.headers.get('X-XSRF-TOKEN')).toBe('xsrf');

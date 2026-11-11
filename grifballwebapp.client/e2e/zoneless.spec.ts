@@ -26,10 +26,10 @@ async function mockBackend(page: Page, handlers: Record<string, Handler>): Promi
     const url = new URL(route.request().url());
     requests.push(`${route.request().method()} ${url.pathname}${url.search}`);
     // Signed in (the session cookie the browser would have)
-    if (url.pathname === '/api/Identity/Me') {
+    if (url.pathname === '/api/identity/me') {
       return json(route, { isSysAdmin: true, isCommissioner: true, isPlayer: false, displayName: 'E2E Admin', userID: 999 });
     }
-    if (url.pathname === '/api/Identity/Antiforgery') return json(route, { token: 'e2e-xsrf' });
+    if (url.pathname === '/api/identity/antiforgery-token') return json(route, { token: 'e2e-xsrf' });
     // As the API: every change from a cookie session carries the antiforgery token
     if (route.request().method() !== 'GET' && route.request().headers()['x-xsrf-token'] !== 'e2e-xsrf')
       return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });

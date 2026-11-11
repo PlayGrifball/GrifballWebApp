@@ -40,7 +40,7 @@ for (const { path, role, ready, early } of PAGES) {
     await expect(page.locator(ready).first()).toBeVisible();
 
     // The app's own calls on every page (who is signed in, too), and this page's
-    for (const url of ['/api/seasons/current', '/api/CommitHash', '/api/CommitDate', '/api/Identity/Me', ...early])
+    for (const url of ['/api/seasons/current', '/api/CommitHash', '/api/CommitDate', '/api/identity/me', ...early])
       expect(calls.get(url), url).toBe(1);
     // The inline script fetched them, and the app used its answers (each is dropped once used)
     expect(await page.evaluate(() => typeof window.grifEarly?.at)).toBe('number');

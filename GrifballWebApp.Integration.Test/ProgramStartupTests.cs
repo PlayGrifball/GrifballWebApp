@@ -215,7 +215,7 @@ public class ProgramStartupTests
 
     private static async Task AssertLogin(HttpClient client, string userName, HttpStatusCode expected)
     {
-        using var response = await client.PostAsJsonAsync("/Identity/Login", new { Username = userName, Password = SmokePassword });
+        using var response = await client.PostAsJsonAsync("/identity/login", new { Username = userName, Password = SmokePassword });
         Assert.That(response.StatusCode, Is.EqualTo(expected), $"login as {userName}");
     }
 

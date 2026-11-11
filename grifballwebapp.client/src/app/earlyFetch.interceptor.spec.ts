@@ -131,18 +131,18 @@ describe('earlyFetchInterceptor', () => {
   });
 
   it('uses the early answer of who is signed in (fetched with this browser\'s own cookie)', async () => {
-    early({ '/api/Identity/Me': json({ userID: 1 }) });
+    early({ '/api/identity/me': json({ userID: 1 }) });
 
-    expect(await firstValueFrom(http.get('/api/Identity/Me'))).toEqual({ userID: 1 });
+    expect(await firstValueFrom(http.get('/api/identity/me'))).toEqual({ userID: 1 });
   });
 
   it('does not use early responses once someone has signed in or out', () => {
-    early({ '/api/Identity/Me': { status: 204, contentType: null, body: '' } });
+    early({ '/api/identity/me': { status: 204, contentType: null, body: '' } });
     TestBed.inject(AuthSession).signedInOrOut();
 
     let me: unknown;
-    http.get('/api/Identity/Me').subscribe(body => me = body);
-    backend.expectOne('/api/Identity/Me').flush({ userID: 2 });
+    http.get('/api/identity/me').subscribe(body => me = body);
+    backend.expectOne('/api/identity/me').flush({ userID: 2 });
     expect(me).withContext('the backend\'s answer, not the early 204').toEqual({ userID: 2 });
   });
 

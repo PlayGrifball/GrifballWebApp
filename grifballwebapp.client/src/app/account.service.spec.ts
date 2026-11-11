@@ -183,7 +183,7 @@ describe('AccountService', () => {
 
       service.loginExternal('/season/12/teams');
       http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
-      const callback = http.expectOne('/api/Identity/ExternalLoginCallback');
+      const callback = http.expectOne('/api/identity/external-login/callback');
       expect(callback.request.method).toBe('POST');
       expect(callback.request.headers.get('X-XSRF-TOKEN')).toBe('t');
       callback.flush('');
@@ -199,7 +199,7 @@ describe('AccountService', () => {
 
       service.loginExternal(undefined);
       http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
-      http.expectOne('/api/Identity/ExternalLoginCallback').flush('');
+      http.expectOne('/api/identity/external-login/callback').flush('');
       http.expectOne(ME_URL).flush(player);
 
       expect(service.isLoggedIn()).toBeTrue();
@@ -223,7 +223,7 @@ describe('AccountService', () => {
 
         service.loginExternal(followUp);
         http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
-        http.expectOne('/api/Identity/ExternalLoginCallback').flush('');
+        http.expectOne('/api/identity/external-login/callback').flush('');
         http.expectOne(ME_URL).flush(player);
 
         expect(router.navigateByUrl).toHaveBeenCalledOnceWith('/');
@@ -235,7 +235,7 @@ describe('AccountService', () => {
 
       service.loginExternal('/somewhere');
       http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
-      http.expectOne('/api/Identity/ExternalLoginCallback').flush('no', { status: 400, statusText: 'Bad Request' });
+      http.expectOne('/api/identity/external-login/callback').flush('no', { status: 400, statusText: 'Bad Request' });
 
       expect(notifier.open).toHaveBeenCalledWith('Login failed', 'Close');
       expect(service.isLoggedIn()).toBeFalse();
@@ -249,7 +249,7 @@ describe('AccountService', () => {
 
       service.logout();
       http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
-      const logout = http.expectOne('/api/Identity/Logout');
+      const logout = http.expectOne('/api/identity/logout');
       expect(logout.request.method).toBe('POST');
       expect(service.isLoggedIn()).toBeTrue();
       logout.flush(null, { status: 204, statusText: 'No Content' });
@@ -268,7 +268,7 @@ describe('AccountService', () => {
 
       service.logout();
       http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
-      http.expectOne('/api/Identity/Logout').flush('down', { status: 502, statusText: 'Bad Gateway' });
+      http.expectOne('/api/identity/logout').flush('down', { status: 502, statusText: 'Bad Gateway' });
 
       expect(notifier.open).toHaveBeenCalledWith('Logout failed', 'Close');
       expect(service.isLoggedIn()).toBeTrue();
@@ -309,7 +309,7 @@ describe('AccountService', () => {
       service.resetPassword(request).subscribe(r => response = r);
 
       http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
-      const req = http.expectOne('/api/identity/resetpassword');
+      const req = http.expectOne('/api/identity/password-reset');
       expect(req.request.method).toBe('POST');
       expect(req.request.responseType).toBe('text');
       req.flush('Password reset');

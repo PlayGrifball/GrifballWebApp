@@ -39,7 +39,7 @@ test.describe('session', () => {
     expect(cookie, 'the session cookie').toBeDefined();
     expect(cookie!.httpOnly).toBe(true);
     expect(cookie!.secure).toBe(true);
-    expect((await page.request.get('/api/Identity/Me')).status()).toBe(200);
+    expect((await page.request.get('/api/identity/me')).status()).toBe(200);
 
     await page.goto('/login');
     await hydrated(page);
@@ -48,7 +48,7 @@ test.describe('session', () => {
     expect((await loggedOut).ok()).toBe(true);
 
     await expect.poll(() => sessionCookie(page.context())).toBeUndefined();
-    expect((await page.request.get('/api/Identity/Me')).status()).toBe(204);
+    expect((await page.request.get('/api/identity/me')).status()).toBe(204);
   });
 
   test('logging out from the user chip\'s menu ends the session and goes home', async ({ page, smoke, consoleErrors }) => {
@@ -68,7 +68,7 @@ test.describe('session', () => {
     await expect(page.locator('.hud-user')).toHaveCount(0);
     await expect(page.locator('header').getByRole('link', { name: 'Login icon' })).toBeVisible();
     await expect.poll(() => sessionCookie(page.context())).toBeUndefined();
-    expect((await page.request.get('/api/Identity/Me')).status()).toBe(204);
+    expect((await page.request.get('/api/identity/me')).status()).toBe(204);
   });
 
   test('a visitor gets the page with its content in the HTML', async ({ playwright, baseUrl }) => {

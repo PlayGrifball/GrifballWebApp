@@ -11,7 +11,7 @@ import { AuthSession } from './authSession.service';
 import { Notifier } from './shared/notifier.service';
 
 /** Who is signed in (IdentityController.Me): the user, or 204 No Content (null) for a visitor. */
-export const ME_URL = '/api/Identity/Me';
+export const ME_URL = '/api/identity/me';
 
 /**
  * The user the server rendered the page for (null: a visitor), sent with the page so the browser starts
@@ -98,7 +98,7 @@ export class AccountService {
    * goes on to `followUp` (a path on this site), or home.
    */
   loginExternal(followUp?: string): void {
-    this.http.post('/api/Identity/ExternalLoginCallback', null, { responseType: 'text' }).subscribe({
+    this.http.post('/api/identity/external-login/callback', null, { responseType: 'text' }).subscribe({
       error: () => this.notifier.open("Login failed", "Close"),
       next: () => this.onSignedIn(followUp),
     });
@@ -120,7 +120,7 @@ export class AccountService {
   }
 
   logout(): void {
-    this.http.post('/api/Identity/Logout', null).subscribe({
+    this.http.post('/api/identity/logout', null).subscribe({
       error: () => this.notifier.open("Logout failed", "Close"),
       next: () => {
         this.session.signedInOrOut();
@@ -141,7 +141,7 @@ export class AccountService {
   }
 
   resetPassword(request: UsePasswordResetLinkRequestDto): Observable<string> {
-    return this.http.post('/api/identity/resetpassword', request, { responseType: 'text' });
+    return this.http.post('/api/identity/password-reset', request, { responseType: 'text' });
   }
 
   cleanupExpiredPasswordResetLinks(): Observable<string> {

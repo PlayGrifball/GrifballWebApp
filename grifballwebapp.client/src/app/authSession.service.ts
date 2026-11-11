@@ -3,7 +3,7 @@ import { Injectable, Injector, inject } from '@angular/core';
 import { Observable, Subject, catchError, filter, map, of, shareReplay } from 'rxjs';
 
 /** Where the antiforgery request token comes from (IdentityController.Antiforgery). */
-export const ANTIFORGERY_URL = '/api/Identity/Antiforgery';
+export const ANTIFORGERY_URL = '/api/identity/antiforgery-token';
 
 /**
  * The browser's session as the interceptors and the SignalR connection see it. The session itself is an

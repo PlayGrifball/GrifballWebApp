@@ -47,7 +47,7 @@ describe('EditUserComponent', () => {
 
   afterEach(() => {
     // The linked-accounts section loads its own data once the user arrives; specs that don't look at it leave it unanswered.
-    http.match('/api/ExternalLogins/UserLogins/15').forEach(req => req.flush({ hasPassword: true, logins: [] }));
+    http.match('/api/users/15/external-logins').forEach(req => req.flush({ hasPassword: true, logins: [] }));
     http.verify();
   });
 
@@ -55,7 +55,7 @@ describe('EditUserComponent', () => {
     fixture.detectChanges();
     http.expectOne('/api/usermanagement/getuser/15').flush(structuredClone(user));
     fixture.detectChanges();
-    http.expectOne('/api/ExternalLogins/UserLogins/15').flush({ hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '111', providerDisplayName: 'Discord' }] });
+    http.expectOne('/api/users/15/external-logins').flush({ hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '111', providerDisplayName: 'Discord' }] });
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -127,10 +127,10 @@ describe('EditUserComponent', () => {
     expect(el().querySelector('.linked-provider')!.textContent).toBe('Discord');
 
     (el().querySelector('.linked-login button') as HTMLButtonElement).click();
-    const req = http.expectOne('/api/ExternalLogins/RemoveUserLogin/15');
+    const req = http.expectOne('/api/users/15/external-logins/remove');
     expect(req.request.body).toEqual({ loginProvider: 'Discord', providerKey: '111' });
     req.flush(null);
-    http.expectOne('/api/ExternalLogins/UserLogins/15').flush({ hasPassword: true, logins: [] });
+    http.expectOne('/api/users/15/external-logins').flush({ hasPassword: true, logins: [] });
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -150,7 +150,7 @@ describe('EditUserComponent', () => {
 
     http.expectOne('/api/usermanagement/getuser/16').flush({ ...structuredClone(user), userID: 16, userName: 'simmons', lockoutEnd: '2026-03-04T05:06:00+00:00' });
     fixture.detectChanges();
-    http.expectOne('/api/ExternalLogins/UserLogins/16').flush({ hasPassword: true, logins: [] });
+    http.expectOne('/api/users/16/external-logins').flush({ hasPassword: true, logins: [] });
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -175,7 +175,7 @@ describe('EditUserComponent', () => {
 
     expect(component.model().userName).toBe('simmons');
     fixture.detectChanges();
-    http.expectOne('/api/ExternalLogins/UserLogins/16').flush({ hasPassword: true, logins: [] });
+    http.expectOne('/api/users/16/external-logins').flush({ hasPassword: true, logins: [] });
   });
 
   it('fills the form once the user arrives, without a manual detectChanges', async () => {

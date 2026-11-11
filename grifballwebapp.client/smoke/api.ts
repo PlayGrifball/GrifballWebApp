@@ -23,14 +23,14 @@ export class Api {
   static async login(baseURL: string, credentials: Credentials): Promise<Api> {
     const http = await request.newContext({ baseURL, timeout: API_TIMEOUT });
     const token = await Api.token(http, credentials);
-    const meta = await http.get('/api/Identity/MetaInfo', { headers: { Authorization: `Bearer ${token}` } });
+    const meta = await http.get('/api/identity/meta-info', { headers: { Authorization: `Bearer ${token}` } });
     await ok(meta, `MetaInfo for ${credentials.username}`);
     const { userID } = await meta.json() as { userID: number };
     return new Api(http, credentials, token, userID);
   }
 
   private static async token(http: APIRequestContext, credentials: Credentials): Promise<string> {
-    const res = await http.post('/api/Identity/Login?useCookies=false', { data: credentials });
+    const res = await http.post('/api/identity/login?useCookies=false', { data: credentials });
     await ok(res, `login as ${credentials.username}`);
     return (await res.json() as { accessToken: string }).accessToken;
   }
@@ -65,7 +65,7 @@ export class Api {
 export async function register(baseURL: string, credentials: Credentials): Promise<void> {
   const http = await request.newContext({ baseURL, timeout: API_TIMEOUT });
   try {
-    await ok(await http.post('/api/Identity/Register', { data: credentials }), `register ${credentials.username}`);
+    await ok(await http.post('/api/identity/register', { data: credentials }), `register ${credentials.username}`);
   } finally {
     await http.dispose();
   }

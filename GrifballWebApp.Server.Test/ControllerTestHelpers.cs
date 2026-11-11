@@ -44,6 +44,9 @@ internal static class ControllerTestHelpers
     internal static AuthorizeAttribute? ActionAuthorize(Type controller, string name) =>
         Action(controller, name).GetCustomAttribute<AuthorizeAttribute>(inherit: true);
 
+    /// <summary>The status code a result answers with.</summary>
+    internal static int? StatusOf(IActionResult result) => (result as Microsoft.AspNetCore.Mvc.Infrastructure.IStatusCodeActionResult)?.StatusCode;
+
     internal static bool ActionAllowsAnonymous(Type controller, string name) =>
         Action(controller, name).GetCustomAttribute<AllowAnonymousAttribute>(inherit: true) is not null;
 }

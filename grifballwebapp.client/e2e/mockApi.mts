@@ -508,7 +508,7 @@ const telemetryMetrics = {
   routes: [
     { route: 'GET /api/seasons/{seasonID}/summary', requests: 4210, errors: 0, p95Ms: 42.5 },
     { route: 'GET /api/season-matches/{seasonMatchID}', requests: 1830, errors: 3, p95Ms: 210 },
-    { route: 'POST /api/Identity/Login', requests: 96, errors: 0, p95Ms: 1240 },
+    { route: 'POST /api/identity/login', requests: 96, errors: 0, p95Ms: 1240 },
     { route: 'GET /hub/TeamsHub', requests: 12, errors: 0, p95Ms: null },
   ],
 };
@@ -575,8 +575,8 @@ function matchPage31(role: Role) {
 export function mockRoutes(role: Role): Record<string, MockBody> {
   return {
     // Who is signed in: a visitor gets 204 No Content
-    '/api/Identity/Me': role === 'anon' ? null : META[role],
-    '/api/Identity/Antiforgery': { token: `e2e-xsrf-${role}` },
+    '/api/identity/me': role === 'anon' ? null : META[role],
+    '/api/identity/antiforgery-token': { token: `e2e-xsrf-${role}` },
     '/api/CommitHash': { text: '9f3c2ab' },
     '/api/CommitDate': { text: '2026-10-28T21:14:00Z' },
     '/api/seasons/current': 12,
@@ -708,7 +708,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/users/999/deployment-history': [],
     '/api/users/117/commendations': commendations(117),
     '/api/users/999/commendations': commendations(999),
-    '/api/ExternalLogins/Mine': { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] },
+    '/api/me/external-logins': { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] },
     '/api/seasons/13/signups/mine': null,
     '/api/seasons/13/signups/mine/timeslots': timeslots,
     '/api/seasons/12/signups': players.map((personName, i) => ({ seasonID: 12, userID: i, personName, timestamp: `2026-10-2${i}T18:0${i}:00Z`,
@@ -729,7 +729,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/admin/generatepasswordresetlink': { resetLink: '/reset-password?token=e2e-reset-token', expiresAt: '2026-10-30T18:00:00Z' },
     ...Object.fromEntries(users.map(user => ['/api/usermanagement/getuser/' + user.userID, userDetail(user)])),
     // The accounts linked to a user, on their edit page
-    ...Object.fromEntries(users.map(user => ['/api/ExternalLogins/UserLogins/' + user.userID, { hasPassword: user.hasPassword,
+    ...Object.fromEntries(users.map(user => [`/api/users/${user.userID}/external-logins`, { hasPassword: user.hasPassword,
       logins: [{ loginProvider: 'Discord', providerKey: '8123456789012345' + user.userID, providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] }])),
     '/api/seasons/13/draft/teams': draftTeams,
     '/api/seasons/13/draft/player-pool': draftPool,

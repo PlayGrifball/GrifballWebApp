@@ -133,7 +133,7 @@ test('a signed-in user\'s page is taken over without the header changing, asking
   await page.waitForLoadState('networkidle');
   expect(await page.evaluate(() => (window as unknown as { userHeader: { removed: number } }).userHeader.removed)).toBe(0);
   // Who is signed in came with the page, as did the page's data
-  expect(calls).not.toContain('/api/Identity/Me');
+  expect(calls).not.toContain('/api/identity/me');
   expect(calls).not.toContain('/api/season-matches/31');
   expect(errors).toEqual([]);
 });
