@@ -40,6 +40,35 @@ public class ApiConventionsTests
         }
     }
 
+    [Test]
+    public void EveryAction_DeclaresItsSuccessForOpenApi()
+    {
+        // A ProducesResponseType for the 2xx (or the 302 of a sign-in's challenge) it answers, so the spec says what it returns
+        var undeclared = Actions()
+            .Where(a => !a.GetCustomAttributes<ProducesResponseTypeAttribute>().Any(p => p.StatusCode is >= 200 and < 400))
+            .Select(Name)
+            .ToList();
+
+        Assert.That(undeclared, Is.Empty);
+    }
+
+    [Test]
+    public void EveryAction_ReadsWithGet_AndChangesWithPost_AtItsOwnRoute()
+    {
+        // The owner's rules (#270): GET to read and POST for every change, no PUT/PATCH/DELETE; each action names its
+        // resource route itself rather than [controller]/[action]
+        var methods = Actions().SelectMany(a => a.GetCustomAttributes<HttpMethodAttribute>().SelectMany(h => h.HttpMethods).Select(m => (Action: Name(a), Method: m))).ToList();
+        var templates = Actions().SelectMany(a => a.GetCustomAttributes<HttpMethodAttribute>().Select(h => (Action: Name(a), h.Template))).ToList();
+        var controllerRoutes = Actions().Select(a => a.DeclaringType!).Distinct().Where(t => t.GetCustomAttribute<RouteAttribute>() is not null).Select(t => t.Name).ToList();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(methods.Where(m => m.Method is not ("GET" or "POST")), Is.Empty);
+            Assert.That(templates.Where(t => string.IsNullOrEmpty(t.Template) || t.Template.Contains('[')), Is.Empty);
+            Assert.That(controllerRoutes, Is.Empty);
+        }
+    }
+
     [TestCase(StatusCodes.Status400BadRequest, "Request refused")]
     [TestCase(StatusCodes.Status401Unauthorized, "Not signed in")]
     [TestCase(StatusCodes.Status403Forbidden, "Forbidden")]
