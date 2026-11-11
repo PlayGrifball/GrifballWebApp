@@ -114,7 +114,9 @@ public class HaloInfiniteHealthCheckTests
     [Test]
     public async Task ThrowsSynchronously_Degraded()
     {
+#pragma warning disable NS5003 // A synchronous throw from the async call is the case under test
         _factory.StatsGetMatchStats(Arg.Any<string>()).Throws(new Exception("ClientId is null or empty"));
+#pragma warning restore NS5003
 
         Assert.That((await Check()).Status, Is.EqualTo(HealthStatus.Degraded));
     }

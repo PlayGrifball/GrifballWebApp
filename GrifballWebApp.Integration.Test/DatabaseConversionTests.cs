@@ -221,7 +221,9 @@ public class DatabaseConversionTests
         if (TestDatabase.Provider == DatabaseProvider.SqlServer)
         {
             await using var db = DatabaseConverter.NewContext(source);
+#pragma warning disable EF1002 // The test database's own name, an identifier no parameter can carry
             await db.Database.ExecuteSqlRawAsync($"ALTER DATABASE [{db.Database.GetDbConnection().Database}] SET ALLOW_SNAPSHOT_ISOLATION ON");
+#pragma warning restore EF1002
         }
         var target = Database(TestDatabase.Provider);
 

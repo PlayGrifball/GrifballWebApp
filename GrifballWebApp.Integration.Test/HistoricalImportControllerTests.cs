@@ -53,7 +53,7 @@ public class HistoricalImportControllerTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    private static IFormFile File(string json)
+    private static FormFile File(string json)
     {
         var bytes = Encoding.UTF8.GetBytes(json);
         return new FormFile(new MemoryStream(bytes), 0, bytes.Length, "file", "file.json");

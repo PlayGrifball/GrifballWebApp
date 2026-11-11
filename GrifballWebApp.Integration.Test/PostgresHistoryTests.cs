@@ -282,6 +282,7 @@ public class PostgresHistoryTests
 
         // A login with the rights the Helm chart grants the app (charts/grifballwebapp, grif.pgLoginSyncScript).
         var role = $"grif_app_{Guid.NewGuid():N}";
+#pragma warning disable EF1002 // The test's own role name, an identifier no parameter can carry
         await _context.Database.ExecuteSqlRawAsync($"""
             CREATE ROLE "{role}" LOGIN PASSWORD 'app-password';
             DO $$
@@ -295,6 +296,7 @@ public class PostgresHistoryTests
               END LOOP;
             END $$;
             """);
+#pragma warning restore EF1002
         var appConnection = new NpgsqlConnectionStringBuilder(_context.Database.GetConnectionString()) { Username = role, Password = "app-password", Pooling = false }.ConnectionString;
 
         try
@@ -332,7 +334,9 @@ public class PostgresHistoryTests
         }
         finally
         {
+#pragma warning disable EF1002 // The test's own role name, an identifier no parameter can carry
             await _context.Database.ExecuteSqlRawAsync($"DROP OWNED BY \"{role}\"; DROP ROLE \"{role}\"");
+#pragma warning restore EF1002
         }
     }
 

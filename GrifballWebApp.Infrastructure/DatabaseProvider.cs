@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.Extensions.Configuration;
 
+#pragma warning disable EF1001 // EF's query compiler (IQueryCompiler), replaced for the temporal queries on Postgres and SQLite
+
 namespace GrifballWebApp.Infrastructure;
 
 /// <summary>

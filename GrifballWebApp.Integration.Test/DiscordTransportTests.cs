@@ -237,7 +237,7 @@ public class DiscordTransportTests
         }
     }
 
-    private Task KnownGamertag(long xuid, string gamertag) => _host.WithContextAsync(async context =>
+    private Task<int> KnownGamertag(long xuid, string gamertag) => _host.WithContextAsync(async context =>
     {
         // Already known, so no Halo Infinite lookup
         context.XboxUsers.Add(XboxUser.FromXbox(xuid, gamertag));

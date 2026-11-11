@@ -129,7 +129,7 @@ public class DiscordCommandsHandler
             list.Add(emded);
         }
 
-        if (list.Any())
+        if (list.Count > 0)
         {
             await discordContext.Interaction.ModifyResponseAsync(x => x.WithEmbeds(list));
         }

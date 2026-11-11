@@ -506,7 +506,7 @@ public class JobsTests
         var seen = host.Services.GetRequiredService<SeenUsers>();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await Eventually(() => Task.FromResult(seen.Ids.Count >= 1)), Is.True, "The scheduled run");
+            Assert.That(await Eventually(() => Task.FromResult(!seen.Ids.IsEmpty)), Is.True, "The scheduled run");
 
             // Run now from the Jobs page, by user 7; then one queued from a page by user 42, and one by nobody
             Assert.That(await Service(host).RunNow(Key, 7), Is.EqualTo(JobChange.Done));

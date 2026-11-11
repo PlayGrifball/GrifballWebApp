@@ -4,6 +4,8 @@ using GrifballWebApp.Domain.Players;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
+#pragma warning disable EF1001 // SQL Server's temporal root, as EF builds it, which the SQLite translation takes
+
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>

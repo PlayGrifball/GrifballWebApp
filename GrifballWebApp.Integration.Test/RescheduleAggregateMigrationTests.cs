@@ -27,7 +27,7 @@ public class RescheduleAggregateMigrationTests
 
     private static readonly DateTime Now = new(2026, 11, 7, 12, 0, 0, DateTimeKind.Utc);
 
-    private string SeasonMatches => TestDatabase.Provider == DatabaseProvider.Sqlite ? "\"SeasonMatches\"" : "\"Event\".\"SeasonMatches\"";
+    private static string SeasonMatches => TestDatabase.Provider == DatabaseProvider.Sqlite ? "\"SeasonMatches\"" : "\"Event\".\"SeasonMatches\"";
 
     [Test]
     public async Task TheActiveRequest_IsTheOnePendingRequest_AndEveryDecisionHasItsDeciderAndTime()
@@ -59,8 +59,10 @@ public class RescheduleAggregateMigrationTests
         await Add(other, "older");
         await Add(other, "newer");
         await Add(third, "bare", status: 1, modifiedBy: commissioner.Id);
+#pragma warning disable EF1002 // The table's name (an identifier) and the test's own IDs
         await _context.Database.ExecuteSqlRawAsync(
             $"UPDATE {SeasonMatches} SET \"ActiveRescheduleRequestId\" = {pointed} WHERE \"SeasonMatchID\" = {s.Match.SeasonMatchID}");
+#pragma warning restore EF1002
 
         await migrator.MigrateAsync();
 

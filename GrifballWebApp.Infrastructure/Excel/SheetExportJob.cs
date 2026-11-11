@@ -24,6 +24,6 @@ public sealed class SheetExportJob : IJob<SheetInfo>
     public async ValueTask Execute(IJobExecutionContext context, SheetInfo input, CancellationToken cancellationToken = default)
     {
         context.ReportProgress(0, $"Exporting to {input.SheetName}");
-        await _excel.ExportAll(input);
+        await _excel.ExportAll(input, cancellationToken);
     }
 }

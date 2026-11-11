@@ -20,13 +20,13 @@ namespace GrifballWebApp.Infrastructure.Conversion;
 /// is read as the converter reads it (one snapshot, where the server allows), and must have exactly this build's
 /// migrations. Run it with psql -v ON_ERROR_STOP=1, or sqlcmd -b.
 /// </summary>
-public sealed class DatabaseScriptExporter(ILogger<DatabaseConverter> logger)
+public sealed partial class DatabaseScriptExporter(ILogger<DatabaseConverter> logger)
 {
     public static bool Supports(DatabaseProvider target) => target is DatabaseProvider.SqlServer or DatabaseProvider.Postgres;
 
     /// <param name="progress">Hears each table as it's written.</param>
-    public async Task<IReadOnlyList<ConvertedTable>> WriteAsync(DatabaseEndpoint source, DatabaseProvider target, TextWriter output, CancellationToken cancellationToken = default,
-        IProgress<ConversionProgress>? progress = null)
+    public async Task<IReadOnlyList<ConvertedTable>> WriteAsync(DatabaseEndpoint source, DatabaseProvider target, TextWriter output,
+        IProgress<ConversionProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         var script = ScriptDialect.For(target);
         await using (var sourceContext = DatabaseConverter.NewContext(source))
@@ -57,14 +57,15 @@ public sealed class DatabaseScriptExporter(ILogger<DatabaseConverter> logger)
             await script.InsertAsync(output, table, table.OrderForInsert(rows).Select(table.WithoutDeferred).ToList());
             if (table.Deferred.Length > 0)
                 deferred.Add((table, table.WithDeferred(rows)));
-            logger.LogInformation("Scripted {Rows} rows of {Table}", rows.Count, table.Name);
+            LogScriptedTable(logger, rows.Count, table.Name);
             results.Add(new ConvertedTable(table.Name.Schema, table.Name.Name, rows.Count));
         }
         foreach (var (table, rows) in deferred.Where(d => d.Rows.Count > 0))
             await script.SetDeferredAsync(output, table, rows);
         await script.EndAsync(output, plan);
         await output.FlushAsync(cancellationToken);
-        logger.LogInformation("Scripted {Tables} tables, {Rows} rows, for {Target}", results.Count, results.Sum(r => r.Rows), target);
+        var scripted = results.Sum(r => r.Rows);
+        LogScripted(logger, results.Count, scripted, target);
         return results;
     }
 
@@ -94,6 +95,12 @@ public sealed class DatabaseScriptExporter(ILogger<DatabaseConverter> logger)
         }
         return tables;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Scripted {Rows} rows of {Table}")]
+    private static partial void LogScriptedTable(ILogger logger, int rows, TableName table);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Scripted {Tables} tables, {Rows} rows, for {Target}")]
+    private static partial void LogScripted(ILogger logger, int tables, int rows, DatabaseProvider target);
 }
 
 /// <summary>How each target server's script is written: its statements around the rows, and its literals.</summary>

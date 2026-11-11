@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.SqlServer.Internal;
 using Microsoft.Extensions.Caching.Memory;
 
+#pragma warning disable EF1001 // SQL Server's own messages, which the other providers' temporal queries give too
+
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>

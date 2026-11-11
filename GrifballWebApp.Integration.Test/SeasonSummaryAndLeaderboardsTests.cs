@@ -71,7 +71,7 @@ public class SeasonSummaryAndLeaderboardsTests
         return team;
     }
 
-    private PlayerSeasonStat Stat(Season season, User user, Team? team, int goals, bool playoffs = false, bool combined = false, int stint = 1, int gameVersionID = 1)
+    private static PlayerSeasonStat Stat(Season season, User user, Team? team, int goals, bool playoffs = false, bool combined = false, int stint = 1, int gameVersionID = 1)
         => PlayerSeasonStat.FromSheet(season.SeasonID, user.Id, gameVersionID,
             new StatSheetTotals { Gamertag = user.DisplayName!, GamesPlayed = 10, Goals = goals, Kills = goals * 10, Deaths = 20, CarrierKills = goals },
             team?.TeamID, stint, playoffs, combined);

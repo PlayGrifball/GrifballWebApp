@@ -38,7 +38,7 @@ internal sealed class SqliteColumns
             _schemas[table.Name] = table.Schema ?? "";
             foreach (var column in table.Columns)
             {
-                var mapping = column.PropertyMappings.First().TypeMapping;
+                var mapping = column.PropertyMappings[0].TypeMapping;
                 var converter = mapping.Converter;
                 var provider = converter?.ProviderClrType ?? mapping.ClrType;
                 _columns[(table.Name, column.Name)] = (Nullable.GetUnderlyingType(provider) ?? provider, SqliteOnly(converter) ? converter : null);

@@ -143,7 +143,9 @@ public class ScratchStopJobTests
     public async Task A_job_store_that_doesnt_answer_is_tried_again_until_the_worker_stops()
     {
         var schedulers = Substitute.For<ISchedulerFactory>();
+#pragma warning disable CA2012 // NSubstitute's setup: the call configures the substitute, its ValueTask is never awaited
         schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns<ValueTask<IScheduler>>(_ => throw new InvalidOperationException("The database isn't up yet"));
+#pragma warning restore CA2012
         var jobs = new OnDemandJobs(schedulers, Substitute.For<IExecutionHistoryStore>());
         var scaleDown = new ScratchScaleDown(jobs, NullLogger<ScratchScaleDown>.Instance) { RetryDelay = TimeSpan.FromMilliseconds(20) };
 

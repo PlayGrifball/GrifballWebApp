@@ -22,7 +22,7 @@ namespace GrifballWebApp.Integration.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class DatabaseScriptExportTests
+public partial class DatabaseScriptExportTests
 {
     private static IDatabaseContainer _other = null!;
     private readonly List<DatabaseEndpoint> _databases = [];
@@ -97,7 +97,7 @@ public class DatabaseScriptExportTests
         }
         await using var sql = new SqlConnection(database.ConnectionString);
         await sql.OpenAsync();
-        foreach (var batch in Regex.Split(script, @"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
+        foreach (var batch in GoBatches().Split(script))
         {
             if (string.IsNullOrWhiteSpace(batch))
                 continue;
@@ -168,7 +168,7 @@ public class DatabaseScriptExportTests
         await using (var sql = new SqlConnection(restored.ConnectionString))
         {
             await sql.OpenAsync();
-            foreach (var batch in Regex.Split(broken, @"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase).Where(b => !string.IsNullOrWhiteSpace(b)))
+            foreach (var batch in GoBatches().Split(broken).Where(b => !string.IsNullOrWhiteSpace(b)))
             {
                 try
                 {
@@ -215,4 +215,8 @@ public class DatabaseScriptExportTests
             Assert.That(history.Value.Any(c => c.Generated), Is.False);
         }
     }
+
+    /// <summary>A SQL Server script's batch separator, a GO on a line of its own.</summary>
+    [GeneratedRegex(@"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase)]
+    private static partial Regex GoBatches();
 }

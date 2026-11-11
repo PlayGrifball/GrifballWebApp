@@ -134,7 +134,7 @@ public class QueueServiceTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(count, Is.EqualTo(1), "There should be one active match created when 8 players have been queued");
-            Assert.That(stillQueued.Count(), Is.EqualTo(2), "There should two players left in the queue since we started with 10 queued players");
+            Assert.That(stillQueued, Has.Length.EqualTo(2), "There should two players left in the queue since we started with 10 queued players");
             Assert.That(stillQueued.Any(x => x is 9), Is.True, "Player 9 should still be in the queue since he queued recently");
             Assert.That(stillQueued.Any(x => x is 10), Is.True, "Player 10 should still be in the queue since he queued recently");
         }

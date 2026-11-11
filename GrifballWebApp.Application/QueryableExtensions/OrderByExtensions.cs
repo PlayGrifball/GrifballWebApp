@@ -89,7 +89,7 @@ public class SortCollection<TSource>
         var properties = typeof(TSource).GetProperties().ToList();
         var direction = ListSortDirection.Ascending;
 
-        if (name.StartsWith("-"))
+        if (name.StartsWith('-'))
         {
             direction = ListSortDirection.Descending;
             name = name.Substring(1);

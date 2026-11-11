@@ -902,14 +902,14 @@ public class QueueServiceBranchTests
 
     private static Task<IDiscordRestMessage> Fail() => Task.FromException<IDiscordRestMessage>(new HttpRequestException("503 Service Unavailable"));
 
-    private IDiscordRestMessage Message(ulong id)
+    private static IDiscordRestMessage Message(ulong id)
     {
         var m = Substitute.For<IDiscordRestMessage>();
         m.Id.Returns(id);
         return m;
     }
 
-    private IDiscordRestMessage MatchCreatedMessage(int matchId, IDiscordGuildThread? startedThread = null)
+    private static IDiscordRestMessage MatchCreatedMessage(int matchId, IDiscordGuildThread? startedThread = null)
     {
         var m = Message(55);
         m.Author.Id.Returns(BotId);

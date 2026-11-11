@@ -20,7 +20,7 @@ public class ExternalLoginsControllerTests
     private SignInManager<User> _signInManager;
     private IExternalLoginService _service;
     private IAuthenticationService _authenticationService;
-    private IDataProtectionProvider _dataProtection;
+    private EphemeralDataProtectionProvider _dataProtection;
     private ExternalLoginsController _controller;
 
     private static readonly AuthenticationScheme DiscordScheme = new("Discord", "Discord", typeof(IAuthenticationHandler));

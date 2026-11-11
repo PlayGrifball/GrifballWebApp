@@ -102,7 +102,6 @@ public class TeamsController : ControllerBase
         var userIDStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userIDStr == null)
             return 0;
-        int.TryParse(userIDStr, out var userID);
-        return userID;
+        return int.TryParse(userIDStr, out var userID) ? userID : 0;
     }
 }

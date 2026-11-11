@@ -95,7 +95,7 @@ public class MakeSeasonPublicAtOptionalMigrationTests
         await migrator.MigrateAsync();
     }
 
-    private Task InsertSeason(string name, DateTime publicAt, DateTime createdAt)
+    private Task<int> InsertSeason(string name, DateTime publicAt, DateTime createdAt)
     {
         var other = Literal(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         return _context.Database.ExecuteSqlRawAsync(Sql(

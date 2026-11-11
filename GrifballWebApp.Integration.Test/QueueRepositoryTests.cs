@@ -14,7 +14,7 @@ namespace GrifballWebApp.Integration.Test;
 public class QueueRepositoryTests
 {
     private GrifballContext _context;
-    private IQueueRepository _repo;
+    private QueueRepository _repo;
 
     [SetUp]
     public async Task SetUp()

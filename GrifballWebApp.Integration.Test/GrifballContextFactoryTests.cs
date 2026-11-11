@@ -12,7 +12,7 @@ namespace GrifballWebApp.Integration.Test;
 [TestFixture]
 public class GrifballContextFactoryTests
 {
-    private static IServiceProvider Provider(string? connectionString, string? provider = null)
+    private static ServiceProvider Provider(string? connectionString, string? provider = null)
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:GrifballWebApp"] = connectionString, ["Database:Provider"] = provider }).Build();

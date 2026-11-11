@@ -23,6 +23,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class ModalInteractionsTests
 {
+    private static readonly JsonSerializerOptions NumbersFromStrings = new() { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString };
+
     private GrifballContext _context;
     private IServiceScope _scope;
     private ISetGamertagService _setGamertagService;
@@ -66,8 +68,7 @@ public class ModalInteractionsTests
          "user":{"id":"1234567890","username":"discorduser","discriminator":"0"},"token":"tok","version":1,
          "locale":"en-US","entitlements":[],"authorizing_integration_owners":{},"context":1}
         """;
-        var model = JsonSerializer.Deserialize<JsonInteraction>(json,
-            new JsonSerializerOptions { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString })!;
+        var model = JsonSerializer.Deserialize<JsonInteraction>(json, NumbersFromStrings)!;
         var interaction = new ModalInteraction(model, null!, (_, cb, _, _, _) => { lock (_callbacks) _callbacks.Add(cb); return Task.FromResult<InteractionCallbackResponse?>(null); }, _rest);
         var context = new ModalInteractionContext(interaction, null!);
 

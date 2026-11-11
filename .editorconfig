@@ -31,6 +31,30 @@ dotnet_diagnostic.CS8620.severity = error
 dotnet_diagnostic.CS8625.severity = error
 dotnet_diagnostic.CS9107.severity = error
 dotnet_diagnostic.CS0618.severity = error
+# .NET analyzers' rules SonarCloud imports: no boxing or work for a log line that may be off (CA1873, LoggerMessage as
+# elsewhere), the concrete type where it's known (CA1859), static what touches no instance (CA1822), Count over Any()
+# (CA1860), TryParse's result read (CA1806), generated regexes (SYSLIB1045), ValueTasks awaited (CA2012), IsEmpty
+# (CA1836), the cancellation token last (CA1068), platform checks (CA1416), indexers over First() (CA1826), char
+# overloads (CA1866), JSON options kept (CA1869), Length over Count() (CA1829), EF's internals (EF1001) and raw SQL
+# (EF1002) only where suppressed with why, Quartz jobs that stop when asked (QZ0004), NSubstitute's async throws (NS5003)
+dotnet_diagnostic.CA1873.severity = error
+dotnet_diagnostic.CA1859.severity = error
+dotnet_diagnostic.CA1822.severity = error
+dotnet_diagnostic.CA1860.severity = error
+dotnet_diagnostic.CA1806.severity = error
+dotnet_diagnostic.SYSLIB1045.severity = error
+dotnet_diagnostic.CA2012.severity = error
+dotnet_diagnostic.CA1836.severity = error
+dotnet_diagnostic.CA1068.severity = error
+dotnet_diagnostic.CA1416.severity = error
+dotnet_diagnostic.CA1826.severity = error
+dotnet_diagnostic.CA1866.severity = error
+dotnet_diagnostic.CA1869.severity = error
+dotnet_diagnostic.CA1829.severity = error
+dotnet_diagnostic.EF1001.severity = error
+dotnet_diagnostic.EF1002.severity = error
+dotnet_diagnostic.QZ0004.severity = error
+dotnet_diagnostic.NS5003.severity = error
 
 # SonarCloud's rules for main code (it raises only its test rules on tests): the projects that aren't tests
 [{GrifballWebApp.Domain,GrifballWebApp.Application,GrifballWebApp.Infrastructure,GrifballWebApp.Server,GrifballWebApp.Seeder,GrifballWebApp.Convert,GrifballWebApp.Migrations.Postgres,GrifballWebApp.Migrations.Sqlite,GrifballWebApp.Migrations.SqlServer,DiscordInterfaces,DiscordInterfaceSourceGen}/**.cs]

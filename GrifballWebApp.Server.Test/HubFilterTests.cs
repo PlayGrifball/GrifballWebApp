@@ -17,6 +17,7 @@ public class HubFilterTests
 {
     public class FakeHub : Hub
     {
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "A hub method is an instance method")]
         public void Ping() { }
     }
 
