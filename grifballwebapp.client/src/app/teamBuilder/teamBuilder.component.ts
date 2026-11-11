@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
@@ -19,6 +20,7 @@ import { SignalRService } from '../api/signalR.service';
 import { addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTeam, movePoolPlayer, removeCaptain, removePlayerFromTeam, renameTeam, resortCaptain } from './draft';
 import { SeasonTabsComponent } from '../season/seasonTabs/seasonTabs.component';
 import { whileCurrent } from '../shared/whileCurrent';
+import { errorText } from '../shared/errorText';
 
 @Component({
     selector: 'app-team-builder',
@@ -303,13 +305,10 @@ export class TeamBuilderComponent implements OnInit {
   /**
    * Why the server refused a change. TeamService's refusals come back from GlobalExceptionHandler
    * as a 400 ProblemDetails ({ title: "Request refused", detail: "<message>" }); an unexpected error
-   * is a 500 whose detail is a generic message. A few endpoints answer with a plain string.
+   * is a 500 whose detail is a generic message.
    */
-  private static refusalReason(e: any): string {
-    const error = e?.error;
-    if (typeof error === 'string' && error)
-      return error;
-    return error?.detail || error?.title || 'the server refused it';
+  private static refusalReason(e: HttpErrorResponse): string {
+    return errorText(e, 'the server refused it');
   }
 
   private static isDrop(event: DndDropEvent): boolean {

@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
-/** A ProblemDetails' detail or title, if the body is one (an object, or its JSON text when the request read text). */
+/** A ProblemDetails' detail, its validation errors, or its title, if the body is one (an object, or its JSON text when the request read text). */
 function problemReason(body: unknown): string | null {
   let problem = body;
   if (typeof body === 'string' && body.trimStart().startsWith('{')) {
@@ -11,8 +11,10 @@ function problemReason(body: unknown): string | null {
     }
   }
   if (problem && typeof problem === 'object') {
-    const { detail, title } = problem as { detail?: string | null, title?: string | null };
-    return detail || title || null;
+    // A ValidationProblemDetails says which fields were wrong in its errors; its title is only "One or more validation errors"
+    const { detail, title, errors } = problem as { detail?: string | null, title?: string | null, errors?: Record<string, string[]> | null };
+    const invalid = errors && typeof errors === 'object' ? Object.values(errors).flat().filter(m => typeof m === 'string' && m) : [];
+    return detail || (invalid.length ? invalid.join(' ') : null) || title || null;
   }
   return null;
 }

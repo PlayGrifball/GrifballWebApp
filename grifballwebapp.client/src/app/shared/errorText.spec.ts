@@ -9,6 +9,12 @@ describe('errorText', () => {
     expect(errorText(response({ title: 'Conflict', detail: null }), 'x')).toBe('Conflict');
   });
 
+  it("reads a ValidationProblemDetails' errors before its title", () => {
+    expect(errorText(response({ title: 'One or more validation errors occurred.', errors: { Username: ['Username is required'], Password: ['Too short'] } }), 'x'))
+      .toBe('Username is required Too short');
+    expect(errorText(response({ title: 'One or more validation errors occurred.', errors: {} }), 'x')).toBe('One or more validation errors occurred.');
+  });
+
   it('reads a plain-text message', () => {
     expect(errorText(response('Plain reason'), 'x')).toBe('Plain reason');
   });
