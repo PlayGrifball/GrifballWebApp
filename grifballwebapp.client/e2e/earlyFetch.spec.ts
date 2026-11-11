@@ -30,7 +30,7 @@ const PAGES = [
   { path: '/season/12?tab=schedule', role: 'anon', ready: '.sched-match', early: ['/api/seasons/12/matches/unscheduled', '/api/seasons/12/matches/scheduled'] },
   { path: '/season/12?tab=bracket', role: 'anon', ready: '.brackets-viewer .match', early: ['/api/seasons/12/bracket/viewer-data'] },
   { path: '/seasonmatch/31', role: 'anon', ready: '.lobby-player', early: ['/api/season-matches/31'] },
-  { path: '/profile/117', role: 'player', ready: '.linked-login', early: ['/api/profile/getgamertag/117', '/api/profile/getprofilestats/117'] },
+  { path: '/profile/117', role: 'player', ready: '.linked-login', early: ['/api/users/117/gamertag', '/api/users/117/stats'] },
 ] as const;
 
 for (const { path, role, ready, early } of PAGES) {

@@ -365,11 +365,11 @@ test('the signup form ticks single slots and whole days, and submits the chosen 
 });
 
 test('the Late League queue panel shows the count the hub sends, and joins from it', async ({ page }) => {
-  // The status as GET /api/Queue/Status sends it (QueueStatusDto): signed in with a gamertag, not in the queue
+  // The status as GET /api/queue sends it (QueueStatusDto): signed in with a gamertag, not in the queue
   const status = { count: 6, open: true, signedIn: true, hasGamertag: true, inQueue: false, inMatch: false };
   await mockBackend(page, {
-    '/api/Queue/Status': route => json(route, status),
-    '/api/Queue/Join': route => json(route, { ...status, count: 10, inQueue: true }),
+    '/api/queue': route => json(route, status),
+    '/api/queue/join': route => json(route, { ...status, count: 10, inQueue: true }),
   });
   // QueueHub, as the team builder's hub above: a WebSocket without negotiating, the handshake answered
   const sockets: WebSocketRoute[] = [];

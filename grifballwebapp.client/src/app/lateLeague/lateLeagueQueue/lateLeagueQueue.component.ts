@@ -73,7 +73,7 @@ export class LateLeagueQueueComponent {
       return;
     }
     const request = ++this.latest;
-    this.http.get<QueueStatusDto>('/api/Queue/Status').subscribe({
+    this.http.get<QueueStatusDto>('/api/queue').subscribe({
       next: status => {
         if (request !== this.latest)
           return;
@@ -108,11 +108,11 @@ export class LateLeagueQueueComponent {
   }
 
   join(): void {
-    this.change(this.http.post<QueueStatusDto>('/api/Queue/Join', {}), 'You have joined the Late League queue');
+    this.change(this.http.post<QueueStatusDto>('/api/queue/join', {}), 'You have joined the Late League queue');
   }
 
   leave(): void {
-    this.change(this.http.post<QueueStatusDto>('/api/Queue/Leave', {}), 'You have left the Late League queue');
+    this.change(this.http.post<QueueStatusDto>('/api/queue/leave', {}), 'You have left the Late League queue');
   }
 
   private change(request: Observable<QueueStatusDto>, done: string): void {

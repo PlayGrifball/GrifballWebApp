@@ -86,7 +86,7 @@ export interface PastGamertagDto {
   canRemove: boolean;
 }
 
-/** What claiming a past gamertag would merge (GET /api/MyProfile/PreviewClaim): its placeholder and seasons, or why it can't be claimed. */
+/** What claiming a past gamertag would merge (GET /api/me/gamertag-claims/preview): its placeholder and seasons, or why it can't be claimed. */
 export interface ClaimPreviewDto {
   gamertag: string;
   placeholderUserID: number | null;
@@ -97,7 +97,7 @@ export interface ClaimPreviewDto {
   refusal: string | null;
 }
 
-/** A user's claim of a past gamertag (POST /api/MyProfile/ClaimGamertag); the dates are optional ISO strings. */
+/** A user's claim of a past gamertag (POST /api/me/gamertag-claims); the dates are optional ISO strings. */
 export interface SubmitGamertagClaimDto {
   gamertag: string;
   firstSeen: string | null;

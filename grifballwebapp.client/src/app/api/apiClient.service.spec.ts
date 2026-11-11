@@ -162,23 +162,23 @@ describe('ApiClientService', () => {
 
     it('fetches the leaderboards', () => {
       service.getLeaderboards().subscribe();
-      expect(httpTestingController.expectOne('/api/Leaderboards/GetLeaderboards').request.method).toBe('GET');
+      expect(httpTestingController.expectOne('/api/leaderboards').request.method).toBe('GET');
       service.getLeaderboards('Tournament').subscribe();
-      expect(httpTestingController.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'Tournament').request.method).toBe('GET');
+      expect(httpTestingController.expectOne(r => r.url === '/api/leaderboards' && r.params.get('format') === 'Tournament').request.method).toBe('GET');
     });
 
     it('runs the quick search with the query as a parameter', () => {
       service.quickSearch('blue & gold').subscribe();
-      expect(httpTestingController.expectOne(r => r.url === '/api/Search/QuickSearch' && r.params.get('q') === 'blue & gold').request.method).toBe('GET');
+      expect(httpTestingController.expectOne(r => r.url === '/api/search' && r.params.get('q') === 'blue & gold').request.method).toBe('GET');
     });
 
     it("fetches Late League's queue, seasons and a season", () => {
       service.getLateLeagueQueue().subscribe();
-      expect(httpTestingController.expectOne('/api/LateLeague/GetQueue').request.method).toBe('GET');
+      expect(httpTestingController.expectOne('/api/late-league/queue').request.method).toBe('GET');
       service.getLateLeagueSeasons().subscribe();
-      expect(httpTestingController.expectOne('/api/LateLeague/GetSeasons').request.method).toBe('GET');
+      expect(httpTestingController.expectOne('/api/late-league/seasons').request.method).toBe('GET');
       service.getLateLeagueSeason(8).subscribe();
-      expect(httpTestingController.expectOne('/api/LateLeague/GetSeason/8').request.method).toBe('GET');
+      expect(httpTestingController.expectOne('/api/late-league/seasons/8').request.method).toBe('GET');
     });
   });
 
@@ -225,10 +225,10 @@ describe('ApiClientService', () => {
       service.claimGamertag(dto).subscribe();
       service.getMyGamertagClaims().subscribe();
       service.setMyRegion(3).subscribe();
-      expect(httpTestingController.expectOne(r => r.url === '/api/MyProfile/PreviewClaim' && r.params.get('gamertag') === 'Old Me').request.method).toBe('GET');
-      expect(httpTestingController.expectOne('/api/MyProfile/ClaimGamertag').request.body).toEqual(dto);
-      expect(httpTestingController.expectOne('/api/MyProfile/GamertagClaims').request.method).toBe('GET');
-      expect(httpTestingController.expectOne('/api/MyProfile/SetRegion').request.body).toEqual({ regionID: 3 });
+      expect(httpTestingController.expectOne(r => r.url === '/api/me/gamertag-claims/preview' && r.params.get('gamertag') === 'Old Me').request.method).toBe('GET');
+      expect(httpTestingController.expectOne({ method: 'POST', url: '/api/me/gamertag-claims' }).request.body).toEqual(dto);
+      expect(httpTestingController.expectOne({ method: 'GET', url: '/api/me/gamertag-claims' }).request.method).toBe('GET');
+      expect(httpTestingController.expectOne('/api/me/region').request.body).toEqual({ regionID: 3 });
     });
   });
 

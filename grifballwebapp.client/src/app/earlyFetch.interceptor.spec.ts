@@ -59,11 +59,11 @@ describe('earlyFetchInterceptor', () => {
 
   it('matches relative URLs and query parameters as the page sent them', async () => {
     early({
-      '/api/profile/getgamertag/117': json({ gamertag: 'MasterChief117' }),
+      '/api/users/117/gamertag': json({ gamertag: 'MasterChief117' }),
       '/api/Home/PastSeasons?pageSize=10&pageNumber=1': json({ totalCount: 0, results: [] }),
     });
 
-    expect(await firstValueFrom(http.get('api/profile/getgamertag/117'))).toEqual({ gamertag: 'MasterChief117' });
+    expect(await firstValueFrom(http.get('api/users/117/gamertag'))).toEqual({ gamertag: 'MasterChief117' });
     expect(await firstValueFrom(http.get('/api/Home/PastSeasons', { params: { pageSize: 10, pageNumber: 1 } })))
       .toEqual({ totalCount: 0, results: [] });
   });

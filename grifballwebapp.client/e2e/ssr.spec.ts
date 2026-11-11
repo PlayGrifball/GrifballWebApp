@@ -14,11 +14,11 @@ const PAGES = [
   { path: '/season/12?tab=schedule', content: '.sched-match', text: 'Gravity Wells', data: ['/api/seasons/12/matches/scheduled', '/api/seasons/12/matches/unscheduled'] },
   { path: '/seasonmatch/31', content: '.lobby-player', text: 'Blue Bombers', data: ['/api/season-matches/31'] },
   { path: '/match/0f8fad5b-d9cb-469f-a165-70867728950e', content: '.md-player', text: 'Red Rampage', data: ['/api/matches/0f8fad5b-d9cb-469f-a165-70867728950e'] },
-  { path: '/profile/117', content: '.profile-card', text: 'MasterChief117', data: ['/api/profile/getgamertag/117', '/api/profile/getprofilestats/117', '/api/profile/getcommendations/117', '/api/DeploymentHistory/GetDeploymentHistory/117'] },
-  { path: '/leaderboards', content: 'app-leaderboards table.board', text: 'Legendary', data: ['/api/Leaderboards/GetLeaderboards'] },
+  { path: '/profile/117', content: '.profile-card', text: 'MasterChief117', data: ['/api/users/117/gamertag', '/api/users/117/stats', '/api/users/117/commendations', '/api/users/117/deployment-history'] },
+  { path: '/leaderboards', content: 'app-leaderboards table.board', text: 'Legendary', data: ['/api/leaderboards'] },
   { path: '/history/team/1', content: '.history-season', text: 'Summer Smash', data: ['/api/teams/1/history'] },
-  { path: '/late-league', content: 'app-late-league table.board', text: 'Late League Season 3', data: ['/api/LateLeague/GetQueue', '/api/LateLeague/GetSeasons'] },
-  { path: '/late-league/3', content: 'app-late-league table.board', text: 'MasterChief117', data: ['/api/LateLeague/GetSeason/3'] },
+  { path: '/late-league', content: 'app-late-league table.board', text: 'Late League Season 3', data: ['/api/late-league/queue', '/api/late-league/seasons'] },
+  { path: '/late-league/3', content: 'app-late-league table.board', text: 'MasterChief117', data: ['/api/late-league/seasons/3'] },
 ] as const;
 
 /** Keeps the run hermetic, and lists the API calls the browser makes and what it logs as an error. */

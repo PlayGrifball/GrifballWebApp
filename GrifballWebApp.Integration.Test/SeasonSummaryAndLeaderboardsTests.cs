@@ -403,7 +403,7 @@ public class SeasonSummaryAndLeaderboardsTests
 
         var controller = NewLeaderboardsController();
 
-        var starRank = await controller.GetPlayerRank("Star Player", null, null, CancellationToken.None);
+        var starRank = (await controller.GetPlayerRank("Star Player", null, null, CancellationToken.None)).Value;
         Assert.That(starRank, Is.Not.Null);
         using (Assert.EnterMultipleScope())
         {
@@ -422,7 +422,7 @@ public class SeasonSummaryAndLeaderboardsTests
         }
 
         // Zero User has no stats and no title: on no board, so unranked, of the 2 on the goals board
-        var zeroRank = await controller.GetPlayerRank("Zero User", null, null, CancellationToken.None);
+        var zeroRank = (await controller.GetPlayerRank("Zero User", null, null, CancellationToken.None)).Value;
         Assert.That(zeroRank, Is.Not.Null);
         using (Assert.EnterMultipleScope())
         {
@@ -463,7 +463,7 @@ public class SeasonSummaryAndLeaderboardsTests
         }
 
         // PlayerRank lookup by alias
-        var rank = await controller.GetPlayerRank("OldLegend", null, null, CancellationToken.None);
+        var rank = (await controller.GetPlayerRank("OldLegend", null, null, CancellationToken.None)).Value;
         Assert.That(rank, Is.Not.Null);
         using (Assert.EnterMultipleScope())
         {
@@ -485,7 +485,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var controller = NewLeaderboardsController();
 
         // 1. Querying for string "1337" matches player whose gamertag is "1337", even if their User.Id != 1337
-        var rankByQuery = await controller.GetPlayerRank("1337", null, null, CancellationToken.None);
+        var rankByQuery = (await controller.GetPlayerRank("1337", null, null, CancellationToken.None)).Value;
         Assert.That(rankByQuery, Is.Not.Null);
         using (Assert.EnterMultipleScope())
         {
@@ -494,7 +494,7 @@ public class SeasonSummaryAndLeaderboardsTests
         }
 
         // 2. Querying with explicit userId matches that exact user
-        var rankByUserId = await controller.GetPlayerRank(null, player1337.Id, null, CancellationToken.None);
+        var rankByUserId = (await controller.GetPlayerRank(null, player1337.Id, null, CancellationToken.None)).Value;
         Assert.That(rankByUserId, Is.Not.Null);
         using (Assert.EnterMultipleScope())
         {
@@ -517,7 +517,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var controller = NewLeaderboardsController();
 
         var boards = await controller.GetLeaderboards(null, CancellationToken.None);
-        var rank = (await controller.GetPlayerRank(null, twoGames.Id, null, CancellationToken.None))!;
+        var rank = (await controller.GetPlayerRank(null, twoGames.Id, null, CancellationToken.None)).Value!;
 
         using (Assert.EnterMultipleScope())
         {
@@ -546,9 +546,9 @@ public class SeasonSummaryAndLeaderboardsTests
         _context.ChangeTracker.Clear();
         var controller = NewLeaderboardsController();
 
-        var every = (await controller.GetPlayerRank(null, captain.Id, null, CancellationToken.None))!.Rings;
-        var tournaments = (await controller.GetPlayerRank(null, captain.Id, SeasonFormat.Tournament, CancellationToken.None))!.Rings;
-        var runnerTournaments = (await controller.GetPlayerRank(null, runner.Id, SeasonFormat.Tournament, CancellationToken.None))!.Rings;
+        var every = (await controller.GetPlayerRank(null, captain.Id, null, CancellationToken.None)).Value!.Rings;
+        var tournaments = (await controller.GetPlayerRank(null, captain.Id, SeasonFormat.Tournament, CancellationToken.None)).Value!.Rings;
+        var runnerTournaments = (await controller.GetPlayerRank(null, runner.Id, SeasonFormat.Tournament, CancellationToken.None)).Value!.Rings;
 
         using (Assert.EnterMultipleScope())
         {
@@ -568,12 +568,12 @@ public class SeasonSummaryAndLeaderboardsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That((await controller.GetPlayerRank("partial", null, null, CancellationToken.None))!.UserID, Is.EqualTo(exact.Id), "Named so, though another holds it too");
-            Assert.That((await controller.GetPlayerRank("Lonely", null, null, CancellationToken.None))!.UserID, Is.EqualTo(lone.Id), "The only one found");
-            Assert.That(await controller.GetPlayerRank("Partial M", null, null, CancellationToken.None), Is.Not.Null.And.Property("UserID").EqualTo(longer.Id));
-            Assert.That(await controller.GetPlayerRank("Nobody At All", null, null, CancellationToken.None), Is.Null);
-            Assert.That(await controller.GetPlayerRank("  ", null, null, CancellationToken.None), Is.Null);
-            Assert.That(await controller.GetPlayerRank(null, 987_654, null, CancellationToken.None), Is.Null, "A user ID that doesn't exist");
+            Assert.That((await controller.GetPlayerRank("partial", null, null, CancellationToken.None)).Value!.UserID, Is.EqualTo(exact.Id), "Named so, though another holds it too");
+            Assert.That((await controller.GetPlayerRank("Lonely", null, null, CancellationToken.None)).Value!.UserID, Is.EqualTo(lone.Id), "The only one found");
+            Assert.That((await controller.GetPlayerRank("Partial M", null, null, CancellationToken.None)).Value, Is.Not.Null.And.Property("UserID").EqualTo(longer.Id));
+            Assert.That((await controller.GetPlayerRank("Nobody At All", null, null, CancellationToken.None)).Value, Is.Null);
+            Assert.That((await controller.GetPlayerRank("  ", null, null, CancellationToken.None)).Value, Is.Null);
+            Assert.That((await controller.GetPlayerRank(null, 987_654, null, CancellationToken.None)).Value, Is.Null, "A user ID that doesn't exist");
         }
     }
 
@@ -599,7 +599,7 @@ public class SeasonSummaryAndLeaderboardsTests
             (current.Id, "Twin", (QuickSearchPlayerKind?)QuickSearchPlayerKind.Xbox, (string?)null),
             (archived.Id, "Twin", (QuickSearchPlayerKind?)QuickSearchPlayerKind.Archive, (string?)"2010"),
         }));
-            Assert.That(await controller.GetPlayerRank("Twin", null, null, CancellationToken.None), Is.Null, "Either could be meant: the list says which is which");
+            Assert.That((await controller.GetPlayerRank("Twin", null, null, CancellationToken.None)).Value, Is.Null, "Either could be meant: the list says which is which");
         }
     }
 
@@ -615,11 +615,11 @@ public class SeasonSummaryAndLeaderboardsTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(await controller.SearchPlayers("ainna", CancellationToken.None), Is.Empty, "A login name is private");
-            Assert.That(await controller.GetPlayerRank("plainname", null, null, CancellationToken.None), Is.Null);
+            Assert.That((await controller.GetPlayerRank("plainname", null, null, CancellationToken.None)).Value, Is.Null);
             Assert.That(await controller.SearchPlayers("is", CancellationToken.None), Is.Empty, "Not \"historical:\"");
             Assert.That(await controller.SearchPlayers("Z", CancellationToken.None), Is.Empty, "Two characters at least");
             Assert.That((await controller.SearchPlayers("Ze", CancellationToken.None)).Select(r => (r.UserID, r.Name)), Is.EqualTo(new[] { (archived.Id, "Zed") }));
-            var rank = await controller.GetPlayerRank("Zed", null, null, CancellationToken.None);
+            var rank = (await controller.GetPlayerRank("Zed", null, null, CancellationToken.None)).Value;
             Assert.That((rank!.UserID, rank.Gamertag, rank.IsDummyUser, rank.MatchedAlias), Is.EqualTo((archived.Id, "Zed", true, (string?)null)));
         }
     }

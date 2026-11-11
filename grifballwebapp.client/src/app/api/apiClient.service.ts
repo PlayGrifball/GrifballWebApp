@@ -109,43 +109,44 @@ export class ApiClientService {
 
   /** The Ctrl+K navigator's hits: players (by current and past gamertags), teams and seasons. */
   quickSearch(q: string): Observable<QuickSearchDto> {
-    return this.http.get<QuickSearchDto>('/api/Search/QuickSearch', { params: new HttpParams().set('q', q) });
+    return this.http.get<QuickSearchDto>('/api/search', { params: new HttpParams().set('q', q) });
   }
 
   /** The all-time leaderboards: titles (of seasons of one format, or all), dynasties and career totals. */
   getLeaderboards(format: SeasonFormat | null = null): Observable<LeaderboardsDto> {
     const params = format ? new HttpParams().set('format', format) : undefined;
-    return this.http.get<LeaderboardsDto>('/api/Leaderboards/GetLeaderboards', { params });
+    return this.http.get<LeaderboardsDto>('/api/leaderboards', { params });
   }
 
   /** Late League as it is played now: the Discord queue's reported games and each player's totals. */
   getLateLeagueQueue(): Observable<MatchmakingQueueDto> {
-    return this.http.get<MatchmakingQueueDto>('/api/LateLeague/GetQueue');
+    return this.http.get<MatchmakingQueueDto>('/api/late-league/queue');
   }
 
   /** Late League's seasons of the archive, latest first. */
   getLateLeagueSeasons(): Observable<MatchmakingSeasonDto[]> {
-    return this.http.get<MatchmakingSeasonDto[]>('/api/LateLeague/GetSeasons');
+    return this.http.get<MatchmakingSeasonDto[]>('/api/late-league/seasons');
   }
 
   /** A Late League matchmaking season and its players' stats. */
   getLateLeagueSeason(matchmakingSeasonID: number): Observable<MatchmakingSeasonDetailDto> {
-    return this.http.get<MatchmakingSeasonDetailDto>(`/api/LateLeague/GetSeason/${matchmakingSeasonID}`);
+    return this.http.get<MatchmakingSeasonDetailDto>(`/api/late-league/seasons/${matchmakingSeasonID}`);
   }
 
   /** Find a player's all-time ranking summary and totals across every tracked metric. */
-  getPlayerRank(query: string | null = null, userId: number | null = null, format: SeasonFormat | null = null): Observable<PlayerAllTimeRankDto | null> {
+  getPlayerRank(query: string | null = null, userID: number | null = null, format: SeasonFormat | null = null): Observable<PlayerAllTimeRankDto | null> {
     let params = new HttpParams();
     if (query) params = params.set('query', query);
-    if (userId != null) params = params.set('userId', userId);
+    if (userID != null) params = params.set('userID', userID);
     if (format) params = params.set('format', format);
-    return this.http.get<PlayerAllTimeRankDto | null>('/api/Leaderboards/GetPlayerRank', { params });
+    // 404: no player matches
+    return this.http.get<PlayerAllTimeRankDto>('/api/leaderboards/player-rank', { params }).pipe(nullWhenNotFound());
   }
 
   /** The leaderboards' player suggestions: the toolbar search's players, by its rules. */
   searchPlayers(query: string): Observable<QuickSearchPlayerDto[]> {
     const params = new HttpParams().set('query', query);
-    return this.http.get<QuickSearchPlayerDto[]>('/api/Leaderboards/SearchPlayers', { params });
+    return this.http.get<QuickSearchPlayerDto[]>('/api/leaderboards/players', { params });
   }
 
   /** The gamertag claims with this status, for the sysadmins to review. */
@@ -191,22 +192,22 @@ export class ApiClientService {
 
   /** What claiming a past gamertag would merge, for the signed-in user. */
   previewGamertagClaim(gamertag: string): Observable<ClaimPreviewDto> {
-    return this.http.get<ClaimPreviewDto>('/api/MyProfile/PreviewClaim', { params: new HttpParams().set('gamertag', gamertag) });
+    return this.http.get<ClaimPreviewDto>('/api/me/gamertag-claims/preview', { params: new HttpParams().set('gamertag', gamertag) });
   }
 
   /** Claims a past gamertag for the signed-in user; a refusal is a 400 with a ProblemDetails body. */
   claimGamertag(dto: SubmitGamertagClaimDto): Observable<GamertagClaimDto> {
-    return this.http.post<GamertagClaimDto>('/api/MyProfile/ClaimGamertag', dto);
+    return this.http.post<GamertagClaimDto>('/api/me/gamertag-claims', dto);
   }
 
   /** The signed-in user's claims of past gamertags. */
   getMyGamertagClaims(): Observable<GamertagClaimDto[]> {
-    return this.http.get<GamertagClaimDto[]>('/api/MyProfile/GamertagClaims');
+    return this.http.get<GamertagClaimDto[]>('/api/me/gamertag-claims');
   }
 
   /** Sets the signed-in user's region (null clears it). */
   setMyRegion(regionID: number | null): Observable<void> {
-    return this.http.post<void>('/api/MyProfile/SetRegion', { regionID });
+    return this.http.post<void>('/api/me/region', { regionID });
   }
 
   /** Records a gamertag an Xbox account went by. */

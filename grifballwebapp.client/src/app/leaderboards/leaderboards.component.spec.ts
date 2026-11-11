@@ -39,7 +39,7 @@ describe('LeaderboardsComponent', () => {
   };
 
   it('shows each board, linking players to their profiles and dynasties to their franchise history', () => {
-    http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
+    http.expectOne('/api/leaderboards').flush(boards);
     fixture.detectChanges();
 
     expect(rows()).toEqual([['1', 'Legendary', '5', 'Summer League 2011 (Pro), Winter League 2012 (Pro)']]);
@@ -63,7 +63,7 @@ describe('LeaderboardsComponent', () => {
   });
 
   it('marks the chosen board pressed, names the table after it and scopes every header to its column', () => {
-    http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
+    http.expectOne('/api/leaderboards').flush(boards);
     fixture.detectChanges();
     const pressed = () => Array.from(el().querySelectorAll('.hud-tab')).map(b => b.getAttribute('aria-pressed'));
     expect(pressed()).toEqual(['true', 'false', 'false', 'false', 'false', 'false']);
@@ -82,7 +82,7 @@ describe('LeaderboardsComponent', () => {
 
   it('has no career-total board before the boards load, or on the titles boards', () => {
     expect(fixture.componentInstance.metric()).toBeNull();
-    http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
+    http.expectOne('/api/leaderboards').flush(boards);
     fixture.detectChanges();
     expect(fixture.componentInstance.metric()).toBeNull();
     choose('Dynasties');
@@ -92,7 +92,7 @@ describe('LeaderboardsComponent', () => {
   });
 
   it('counts the titles of the chosen format, and every format again', () => {
-    http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
+    http.expectOne('/api/leaderboards').flush(boards);
     fixture.detectChanges();
     const select = el().querySelector('select')!;
     expect(select.closest('label')!.querySelector('.hud-label')!.textContent!.trim()).toBe('Titles from');
@@ -100,18 +100,18 @@ describe('LeaderboardsComponent', () => {
 
     select.value = 'Tournament';
     select.dispatchEvent(new Event('change'));
-    http.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'Tournament')
+    http.expectOne(r => r.url === '/api/leaderboards' && r.params.get('format') === 'Tournament')
       .flush({ ...boards, ringLeaders: [{ rank: 1, userID: 9, gamertag: 'Bracket King', ringsCount: 1, titles: [{ seasonID: 20, seasonName: 'Respawn', tier: 'Open', teamID: 50 }] }] });
     fixture.detectChanges();
     expect(rows()).toEqual([['1', 'Bracket King', '1', 'Respawn (Open)']]);
 
     select.value = '';
     select.dispatchEvent(new Event('change'));
-    http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
+    http.expectOne('/api/leaderboards').flush(boards);
   });
 
   it('names the game of a per-game total, and lists a player once per game', () => {
-    http.expectOne('/api/Leaderboards/GetLeaderboards').flush({
+    http.expectOne('/api/leaderboards').flush({
       ...boards,
       goalLeaders: [{ ...leader(1, 'Legendary', 120), gameVersionName: 'Halo 3' }, { ...leader(1, 'Legendary', 80), gameVersionName: 'Halo Reach' }],
     });
@@ -122,7 +122,7 @@ describe('LeaderboardsComponent', () => {
   });
 
   it('says how many of the games played were decided by vote next to a figure per game, which leaves them out', () => {
-    http.expectOne('/api/Leaderboards/GetLeaderboards').flush({
+    http.expectOne('/api/leaderboards').flush({
       ...boards,
       killLeaders: [{ ...leader(2, 'Killer', 500), gamesDecidedByVote: 1 }, leader(5, 'Boxed', 400)],
       gamesPlayedLeaders: [{ ...leader(3, 'Ironman', 30, null), gamesDecidedByVote: 1 }],
@@ -135,7 +135,7 @@ describe('LeaderboardsComponent', () => {
   });
 
   it('says when the leaderboards cannot be loaded', () => {
-    http.expectOne('/api/Leaderboards/GetLeaderboards').flush('', { status: 500, statusText: 'down' });
+    http.expectOne('/api/leaderboards').flush('', { status: 500, statusText: 'down' });
     fixture.detectChanges();
     expect(el().textContent).toContain("couldn't be loaded");
   });
@@ -154,10 +154,10 @@ describe('LeaderboardsComponent', () => {
     ...extra,
   });
   const search = () => fixture.debugElement.query(By.directive(PlayerSearchComponent)).componentInstance as PlayerSearchComponent;
-  const ranked = (match: { query?: string, userId?: string, format?: string }) => http.expectOne(r => r.url === '/api/Leaderboards/GetPlayerRank'
-    && r.params.get('query') === (match.query ?? null) && r.params.get('userId') === (match.userId ?? null) && r.params.get('format') === (match.format ?? null));
+  const ranked = (match: { query?: string, userId?: string, format?: string }) => http.expectOne(r => r.url === '/api/leaderboards/player-rank'
+    && r.params.get('query') === (match.query ?? null) && r.params.get('userID') === (match.userId ?? null) && r.params.get('format') === (match.format ?? null));
   const showBoards = () => {
-    http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
+    http.expectOne('/api/leaderboards').flush(boards);
     fixture.detectChanges();
   };
   const message = () => el().querySelector('.hud-empty')?.textContent!.trim();
@@ -194,7 +194,7 @@ describe('LeaderboardsComponent', () => {
     showBoards();
     search().query.set('Silva');
     search().submit();
-    ranked({ query: 'Silva' }).flush(null);
+    ranked({ query: 'Silva' }).flush({ status: 404, title: 'Not found' }, { status: 404, statusText: 'Not Found' });
     fixture.detectChanges();
     expect(message()).toBe('No player found matching "Silva".');
     expect(el().querySelector('app-player-spotlight')).toBeNull();
@@ -239,14 +239,14 @@ describe('LeaderboardsComponent', () => {
     const select = el().querySelector('select')!;
     select.value = 'Tournament';
     select.dispatchEvent(new Event('change'));
-    http.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === 'Tournament').flush(boards);
-    http.expectNone('/api/Leaderboards/GetPlayerRank');
+    http.expectOne(r => r.url === '/api/leaderboards' && r.params.get('format') === 'Tournament').flush(boards);
+    http.expectNone('/api/leaderboards/player-rank');
 
     search().pick({ userID: 1, name: 'Legendary', pastGamertag: null });
     ranked({ query: 'Legendary', userId: '1', format: 'Tournament' }).flush(standing(1, 'Legendary'));
     select.value = '';
     select.dispatchEvent(new Event('change'));
-    http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
+    http.expectOne('/api/leaderboards').flush(boards);
     ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary', { rings: { rank: 3, totalRanked: 90, statValue: 6 } }));
     fixture.detectChanges();
     expect(el().querySelector('app-player-spotlight .hud-grid button')!.textContent).toContain('#3');
@@ -256,7 +256,7 @@ describe('LeaderboardsComponent', () => {
     const select = el().querySelector('select')!;
     select.value = value;
     select.dispatchEvent(new Event('change'));
-    http.expectOne(r => r.url === '/api/Leaderboards/GetLeaderboards' && r.params.get('format') === (value || null)).flush(boards);
+    http.expectOne(r => r.url === '/api/leaderboards' && r.params.get('format') === (value || null)).flush(boards);
   };
 
   it('looks up the player last asked for on a new format, not the one still shown', () => {
@@ -292,7 +292,7 @@ describe('LeaderboardsComponent', () => {
     ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
     fixture.componentInstance.clearSpotlight();
     chooseFormat('Tournament');
-    expect(http.match(r => r.url === '/api/Leaderboards/GetPlayerRank')).withContext('rank lookups').toEqual([]);
+    expect(http.match(r => r.url === '/api/leaderboards/player-rank')).withContext('rank lookups').toEqual([]);
   });
 
   it('closing the standing drops the suggestions the box was still searching for', () => {
@@ -310,7 +310,7 @@ describe('LeaderboardsComponent', () => {
       el().querySelector<HTMLButtonElement>('[aria-label="Clear player standing"]')!.click();
       fixture.detectChanges();
       jasmine.clock().tick(SEARCH_DEBOUNCE_MS * 2);
-      http.expectNone(r => r.url === '/api/Leaderboards/SearchPlayers');
+      http.expectNone(r => r.url === '/api/leaderboards/players');
       expect(input.value).toBe('');
       expect(search().open()).toBeFalse();
       expect(el().querySelector('app-player-spotlight')).toBeNull();

@@ -1,3 +1,4 @@
+using StatusCodes = Microsoft.AspNetCore.Http.StatusCodes;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Domain.LateLeague;
@@ -261,14 +262,14 @@ public class QueueControllerTests
         var controller = DiscordOffController();
 
         var status = await controller.WithUser("1").Status(CancellationToken.None);
-        var join = (await controller.Join(CancellationToken.None)).Result as ConflictObjectResult;
+        var join = (await controller.Join(CancellationToken.None)).Result;
         var queued = await _context.QueuedPlayer.AnyAsync(x => x.UserID == 1);
         var left = (await controller.WithUser("3").Leave(CancellationToken.None)).Value!;
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(status.Open, Is.False);
-            Assert.That(join?.Value, Is.EqualTo("Late League is off here"));
+            join.AssertProblem(StatusCodes.Status409Conflict, "Late League is off here");
             Assert.That(queued, Is.False);
             Assert.That(left.Open, Is.False);
             Assert.That(left.InQueue, Is.False);
@@ -363,15 +364,15 @@ public class QueueControllerTests
     [Test]
     public async Task Refusals_AreConflicts_WithTheDiscordMessage()
     {
-        var noGamertag = (await _controller.WithUser("2").Join(CancellationToken.None)).Result as ConflictObjectResult;
-        var notQueued = (await _controller.WithUser("1").Leave(CancellationToken.None)).Result as ConflictObjectResult;
-        var twice = (await _controller.WithUser("3").Join(CancellationToken.None)).Result as ConflictObjectResult;
+        var noGamertag = (await _controller.WithUser("2").Join(CancellationToken.None)).Result;
+        var notQueued = (await _controller.WithUser("1").Leave(CancellationToken.None)).Result;
+        var twice = (await _controller.WithUser("3").Join(CancellationToken.None)).Result;
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(noGamertag?.Value, Is.EqualTo("You must set your gamertag first"));
-            Assert.That(notQueued?.Value, Is.EqualTo("You are not in the Late League queue."));
-            Assert.That(twice?.Value, Is.EqualTo("You are already in the Late League queue!"));
+            noGamertag.AssertProblem(StatusCodes.Status409Conflict, "You must set your gamertag first");
+            notQueued.AssertProblem(StatusCodes.Status409Conflict, "You are not in the Late League queue.");
+            twice.AssertProblem(StatusCodes.Status409Conflict, "You are already in the Late League queue!");
         }
     }
 }

@@ -1,4 +1,4 @@
-/** The matchmaking queue as the signed-in user (if any) sees it (GET /api/Queue/Status). */
+/** The matchmaking queue as the signed-in user (if any) sees it (GET /api/queue). */
 export interface QueueStatusDto {
   /** How many players are in the queue. */
   count: number;

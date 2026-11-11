@@ -587,7 +587,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       { seasonID: 13, name: 'Winter Campaign', start: '2026-11-20T00:00:00Z', end: '2027-02-15T00:00:00Z', eventType: 'Season' },
     ],
     // The home page's matchmaking queue panel (its live updates come over hub/QueueHub, which hubMock.mts answers)
-    '/api/Queue/Status': { count: 6, open: true, signedIn: role !== 'anon', hasGamertag: role !== 'anon', inQueue: false, inMatch: false },
+    '/api/queue': { count: 6, open: true, signedIn: role !== 'anon', hasGamertag: role !== 'anon', inQueue: false, inMatch: false },
     // The season list: the home page's past seasons and the seasons page (the backfilled season 5 among them)
     '/api/seasons': {
       totalCount: 7,
@@ -601,7 +601,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
           teamCount: 3, playerCount: 12, teamNames: historicalTeams.map(t => t[1]), champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
       ],
     },
-    '/api/Leaderboards/GetLeaderboards': {
+    '/api/leaderboards': {
       ringLeaders: [{ rank: 1, userID: 501, gamertag: 'Legendary', ringsCount: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1), title(9, 'Frostbite Cup', 'Open', 2)] },
         { rank: 2, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(12, 'Autumn Brawl', 'Open', 2)] }],
       dynasties: [{ rank: 1, teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1)] }],
@@ -611,7 +611,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       carrierStopLeaders: [leader(1, 501, 'Legendary', 45, 1.5)],
     },
     // "Titles from: Tournament": the titles of the tournaments only (the other boards count every game alike)
-    '/api/Leaderboards/GetLeaderboards?format=Tournament': {
+    '/api/leaderboards?format=Tournament': {
       ringLeaders: [{ rank: 1, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(8, 'Harvest Hammer', 'Open', 3)] },
         { rank: 1, userID: 12, gamertag: 'Banshee Bri', ringsCount: 1, titles: [title(8, 'Harvest Hammer', 'Open', 3)] }],
       dynasties: [{ rank: 1, teamName: 'Hammer Bros', latestTeamID: 3, latestSeasonID: 12, championshipsCount: 1, seasonsActive: 2, titles: [title(8, 'Harvest Hammer', 'Open', 3)] }],
@@ -620,7 +620,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       gamesPlayedLeaders: [leader(1, 501, 'Legendary', 30, null)],
       carrierStopLeaders: [leader(1, 501, 'Legendary', 45, 1.5)],
     },
-    '/api/Leaderboards/GetPlayerRank': {
+    '/api/leaderboards/player-rank': {
       userID: 501,
       gamertag: 'Legendary',
       matchedAlias: null,
@@ -633,7 +633,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       carrierStops: { rank: 1, totalRanked: 10, statValue: 45, secondaryText: '1.50 / G' },
     },
     // The leaderboards' player suggestions, whatever is typed: the two Old Timers, and two more of each kind
-    '/api/Leaderboards/SearchPlayers': [
+    '/api/leaderboards/players': [
       ...oldTimers,
       { userID: 501, name: 'Legendary', pastGamertag: null, matchedName: null, kind: 'Archive', years: '2011–2012' },
       { userID: 117, name: 'MasterChief117', pastGamertag: null, matchedName: null, kind: 'Xbox', years: null },
@@ -696,18 +696,18 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       { seasonMatchID: 21, scheduledTime: '2026-10-21T23:00:00Z', bestOf: 3, score: 2, result: 'Won', otherTeamID: 3, otherTeamName: 'Hammer Bros', otherScore: 1, otherResult: 'Loss' },
       { seasonMatchID: 31, scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3, score: null, result: null, otherTeamID: 2, otherTeamName: 'Blue Bombers', otherScore: null, otherResult: null },
     ],
-    '/api/profile/getgamertag/117': { gamertag: 'MasterChief117' },
-    '/api/profile/getgamertag/999': { gamertag: 'CommanderGrif' },
-    '/api/profile/getprofilestats/117': profileStats(117, 'MasterChief117'),
-    '/api/profile/getprofilestats/999': profileStats(999, 'CommanderGrif'),
+    '/api/users/117/gamertag': { gamertag: 'MasterChief117' },
+    '/api/users/999/gamertag': { gamertag: 'CommanderGrif' },
+    '/api/users/117/stats': profileStats(117, 'MasterChief117'),
+    '/api/users/999/stats': profileStats(999, 'CommanderGrif'),
     // The profile's deployment history: each team the player was on
-    '/api/DeploymentHistory/GetDeploymentHistory/117': [
+    '/api/users/117/deployment-history': [
       { season: seasonInfo(12, { leagueName: 'Grifball League', leagueSlug: 'gl', division: 'Pro' }), teamID: 2, teamName: 'Blue Bombers', isCaptain: true, wins: 5, losses: 1, recordFromSource: false, finish: 'Champion', championshipTiers: ['Pro'] },
       { season: historicalSeason, teamID: 41, teamName: 'Relentless', isCaptain: false, wins: 4, losses: 4, recordFromSource: true, finish: 'Playoffs', championshipTiers: [] },
     ],
-    '/api/DeploymentHistory/GetDeploymentHistory/999': [],
-    '/api/profile/getcommendations/117': commendations(117),
-    '/api/profile/getcommendations/999': commendations(999),
+    '/api/users/999/deployment-history': [],
+    '/api/users/117/commendations': commendations(117),
+    '/api/users/999/commendations': commendations(999),
     '/api/ExternalLogins/Mine': { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] },
     '/api/seasons/13/signups/mine': null,
     '/api/seasons/13/signups/mine/timeslots': timeslots,
@@ -770,7 +770,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
         sourceSeasons: [{ seasonID: 4, seasonName: 'Spring League 2010', year: 2010 }], targetSeasons: [{ seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }] },
     ],
     // A profile's "Claim a past gamertag", whatever is typed (?gamertag= is not matched): the archive's player of that name
-    '/api/MyProfile/PreviewClaim': { gamertag: 'Old Timer', placeholderUserID: 502, placeholderName: 'Old Timer',
+    '/api/me/gamertag-claims/preview': { gamertag: 'Old Timer', placeholderUserID: 502, placeholderName: 'Old Timer',
       seasons: [{ seasonID: 4, seasonName: 'Spring League 2010', year: 2010 }, { seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }], refusal: null },
     // The schedule's recommended times (organizers, editing the schedule): the last run's, not applied yet, one with a conflict
     '/api/seasons/12/schedule-recommendation': {
@@ -797,14 +797,14 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     },
     '/api/UserMerges/List': { totalCount: userMerges.length, results: userMerges },
     // The signed-in admin's own profile (/profile/999): their claims of past gamertags
-    '/api/MyProfile/GamertagClaims': [{ ...gamertagClaims[3], claimantUserID: 999, userID: 999, claimantName: 'Commander Grif', status: 'Rejected', rejectionReason: 'That was someone else' }],
+    '/api/me/gamertag-claims': [{ ...gamertagClaims[3], claimantUserID: 999, userID: 999, claimantName: 'Commander Grif', status: 'Rejected', rejectionReason: 'That was someone else' }],
     '/api/GamertagClaims/XuidLookupStatus': { placeholders: 12, due: 3, found: 7, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-29T09:00:00Z' },
     // A franchise's seasons, from its team of this season (the team page's "Franchise history" link)
     '/api/teams/1/history': teamHistory,
-    '/api/LateLeague/GetQueue': { gameCount: 96, players: lateLeaguePlayers(null) },
-    '/api/LateLeague/GetSeasons': lateLeagueSeasons,
-    '/api/LateLeague/GetSeason/3': { season: lateLeagueSeasons[0], players: lateLeaguePlayers(lateLeagueSeasons[0]) },
-    '/api/Search/QuickSearch': quickSearch,
+    '/api/late-league/queue': { gameCount: 96, players: lateLeaguePlayers(null) },
+    '/api/late-league/seasons': lateLeagueSeasons,
+    '/api/late-league/seasons/3': { season: lateLeagueSeasons[0], players: lateLeaguePlayers(lateLeagueSeasons[0]) },
+    '/api/search': quickSearch,
     // The database backup page (/databasebackup): a SQLite backup made (?format= is not matched), and the last export done
     '/api/Backup/Info': { provider: 'PostgreSQL', latestMigration: '20261028211400_MatchmakingSeasons', formats: ['sqlite', 'postgres', 'sqlserver', 'dump'] },
     '/api/Backup/DownloadStatus': { state: 'Succeeded', format: 'sqlite', started: '2026-10-29T17:40:00Z', finished: '2026-10-29T17:41:12Z',

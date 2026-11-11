@@ -126,7 +126,7 @@ export async function openQuickSearch(page: Page, query?: string): Promise<Locat
 
 /** The quick search's answer replaced, for the states the mock API does not give (none found, a failure). */
 async function answerQuickSearch(page: Page, answer: { status: number, body: string }): Promise<void> {
-  await page.route('**/api/Search/QuickSearch**', route => route.fulfill({ ...answer, contentType: 'application/json' }));
+  await page.route('**/api/search**', route => route.fulfill({ ...answer, contentType: 'application/json' }));
 }
 
 /**
@@ -179,13 +179,13 @@ export async function cancelPanel(page: Page, panel: Locator): Promise<void> {
 
 /** The queue panel, its status answered with `changes` (the mock's: open, joinable signed in), the page loaded again. */
 async function queueAs(page: Page, changes: Record<string, unknown>): Promise<Locator> {
-  await page.route('**/api/Queue/Status', route => route.fulfill({ status: 200, contentType: 'application/json',
+  await page.route('**/api/queue', route => route.fulfill({ status: 200, contentType: 'application/json',
     body: JSON.stringify({ ...QUEUE_STATUS, ...changes }) }));
   await open(page, page.url().slice(SITE.length));
   return page.locator('app-late-league-queue');
 }
 
-/** The queue as a signed-in player with a gamertag sees it (mockApi.mts's /api/Queue/Status). */
+/** The queue as a signed-in player with a gamertag sees it (mockApi.mts's /api/queue). */
 const QUEUE_STATUS = { count: 6, open: true, signedIn: true, hasGamertag: true, inQueue: false, inMatch: false };
 /** The queue panel's count of players, shown in every state but a failed load. */
 const QUEUE_COUNT = '.late-league-queue__count';
@@ -390,7 +390,7 @@ export const OVERLAYS: Overlay[] = [
     name: 'leaderboards, no player found', role: 'anon', path: '/leaderboards', sheet: 'leaderboards',
     parts: [HEADING, TABS],
     setup: async page => {
-      await page.route('**/api/Leaderboards/GetPlayerRank**', route => route.fulfill({ status: 204, body: '' }));
+      await page.route('**/api/leaderboards/player-rank**', route => route.fulfill({ status: 204, body: '' }));
       await page.getByRole('combobox', { name: 'Find player standing' }).fill('nobody at all');
       // The suggestions (the mock's players, whatever is typed) closed: the notice is not under them
       await page.keyboard.press('Escape');
@@ -599,7 +599,7 @@ export const OVERLAYS: Overlay[] = [
     name: 'Late League queue, joined', role: 'player', path: '/', sheet: 'home',
     parts: [HEADING, QUEUE_COUNT],
     setup: async page => {
-      await page.route('**/api/Queue/Join', route => route.fulfill({ status: 200, contentType: 'application/json',
+      await page.route('**/api/queue/join', route => route.fulfill({ status: 200, contentType: 'application/json',
         body: JSON.stringify({ ...QUEUE_STATUS, count: 7, inQueue: true }) }));
       const panel = page.locator('app-late-league-queue');
       await panel.getByRole('button', { name: 'Join the queue' }).click();
@@ -643,7 +643,7 @@ export const OVERLAYS: Overlay[] = [
     name: 'Late League queue, failed', role: 'player', path: '/', sheet: 'home',
     parts: [HEADING],
     setup: async page => {
-      await page.route('**/api/Queue/Status', route => route.fulfill({ status: 500, body: '' }));
+      await page.route('**/api/queue', route => route.fulfill({ status: 500, body: '' }));
       await open(page, page.url().slice(SITE.length));
       const panel = page.locator('app-late-league-queue');
       await expect(panel).toContainText('The Late League queue could not be loaded.');
