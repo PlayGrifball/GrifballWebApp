@@ -1,4 +1,4 @@
-/** A player's totals for one stint of the season (regular season or playoffs): GET /api/Season/GetSeasonPlayerStats/{id}. */
+/** A player's totals for one stint of the season (regular season or playoffs): GET /api/seasons/{id}/player-stats. */
 export interface SeasonPlayerStatDto {
   /** The stored row, for stored season totals; null for stats from the season's games. */
   playerSeasonStatID: number | null;

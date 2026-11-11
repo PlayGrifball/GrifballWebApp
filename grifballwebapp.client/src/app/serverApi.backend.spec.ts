@@ -32,9 +32,9 @@ describe('ServerApiBackend', () => {
   it('sends the app\'s /api calls straight to the backend, without the prefix', async () => {
     const backend = create(page());
 
-    const events = await lastValueFrom(backend.handle(new HttpRequest('GET', 'https://grifball.xyz/api/Season/getSeasonName/12?x=1')));
+    const events = await lastValueFrom(backend.handle(new HttpRequest('GET', 'https://grifball.xyz/api/seasons/12/name?x=1')));
 
-    expect(sent()[0]).toBe('http://backend:5295/Season/getSeasonName/12?x=1');
+    expect(sent()[0]).toBe('http://backend:5295/seasons/12/name?x=1');
     expect(body(events)).toEqual({ ok: true });
   });
 

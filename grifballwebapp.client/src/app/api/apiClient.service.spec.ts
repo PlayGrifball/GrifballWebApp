@@ -37,7 +37,7 @@ describe('ApiClientService', () => {
         }
       });
 
-      const req = httpTestingController.expectOne('/api/EventOrganizer/GetSeasons');
+      const req = httpTestingController.expectOne('/api/seasons/settings');
       expect(req.request.method).toBe('GET');
       req.flush(mockSeasons);
     });
@@ -58,7 +58,7 @@ describe('ApiClientService', () => {
         }
       });
 
-      const req = httpTestingController.expectOne('/api/EventOrganizer/GetSeason/1');
+      const req = httpTestingController.expectOne('/api/seasons/1/settings');
       expect(req.request.method).toBe('GET');
       req.flush(mockSeason);
     });
@@ -71,10 +71,10 @@ describe('ApiClientService', () => {
         }
       });
 
-      httpTestingController.expectOne('/api/EventOrganizer/GetSeason/2').flush({ seasonID: 2, seasonName: 'S2', publicAt: '2025-12-01T00:00:00Z', signupsOpen: '2026-01-01T00:00:00Z', signupsClose: '2026-01-08T00:00:00Z', draftStart: '2026-01-09T00:00:00Z', seasonStart: '2026-01-10T00:00:00Z', seasonEnd: '2026-03-01T00:00:00Z' });
+      httpTestingController.expectOne('/api/seasons/2/settings').flush({ seasonID: 2, seasonName: 'S2', publicAt: '2025-12-01T00:00:00Z', signupsOpen: '2026-01-01T00:00:00Z', signupsClose: '2026-01-08T00:00:00Z', draftStart: '2026-01-09T00:00:00Z', seasonStart: '2026-01-10T00:00:00Z', seasonEnd: '2026-03-01T00:00:00Z' });
     });
 
-    it('gives null for a season that does not exist (204)', (done) => {
+    it('gives null for a season that does not exist (404)', (done) => {
       service.getSeason(99).subscribe({
         next: (data) => {
           expect(data).toBeNull();
@@ -82,7 +82,7 @@ describe('ApiClientService', () => {
         }
       });
 
-      httpTestingController.expectOne('/api/EventOrganizer/GetSeason/99').flush(null, { status: 204, statusText: 'No Content' });
+      httpTestingController.expectOne('/api/seasons/99/settings').flush({ status: 404, title: 'Not found' }, { status: 404, statusText: 'Not Found' });
     });
   });
 
@@ -97,7 +97,7 @@ describe('ApiClientService', () => {
         }
       });
 
-      const req = httpTestingController.expectOne('/api/EventOrganizer/UpsertSeason/');
+      const req = httpTestingController.expectOne('/api/seasons/settings');
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(seasonDto);
       req.flush(5);
@@ -109,8 +109,8 @@ describe('ApiClientService', () => {
       let games: unknown, leagues: unknown;
       service.getGameVersions().subscribe(g => games = g);
       service.getLeagues().subscribe(l => leagues = l);
-      httpTestingController.expectOne('/api/EventOrganizer/GetGameVersions').flush([{ gameVersionID: 6, name: 'Halo Infinite' }]);
-      httpTestingController.expectOne('/api/EventOrganizer/GetLeagues').flush([{ leagueID: 1, name: 'AGLA' }]);
+      httpTestingController.expectOne('/api/game-versions').flush([{ gameVersionID: 6, name: 'Halo Infinite' }]);
+      httpTestingController.expectOne('/api/leagues').flush([{ leagueID: 1, name: 'AGLA' }]);
       expect(games).toEqual([{ gameVersionID: 6, name: 'Halo Infinite' }]);
       expect(leagues).toEqual([{ leagueID: 1, name: 'AGLA' }]);
     });
@@ -120,13 +120,13 @@ describe('ApiClientService', () => {
     it('fetches a season summary', () => {
       let name = '';
       service.getSeasonSummary(5).subscribe(s => name = s.seasonName);
-      httpTestingController.expectOne('/api/Season/getSeasonSummary/5').flush({ seasonName: 'Five' });
+      httpTestingController.expectOne('/api/seasons/5/summary').flush({ seasonName: 'Five' });
       expect(name).toBe('Five');
     });
 
     it("fetches a season's teams and rosters", () => {
       service.getSeasonTeams(5).subscribe();
-      const req = httpTestingController.expectOne('/api/Season/GetSeasonTeams/5');
+      const req = httpTestingController.expectOne('/api/seasons/5/teams');
       expect(req.request.method).toBe('GET');
       req.flush([]);
     });
@@ -135,8 +135,8 @@ describe('ApiClientService', () => {
       const got: unknown[] = [];
       service.getSeasonPlayerStats(5).subscribe(stats => got.push(stats));
       service.getSeasonPlayerStats(5, 41).subscribe(stats => got.push(stats));
-      const all = httpTestingController.expectOne(r => r.url === '/api/Season/GetSeasonPlayerStats/5' && !r.params.has('teamID'));
-      const team = httpTestingController.expectOne(r => r.url === '/api/Season/GetSeasonPlayerStats/5' && r.params.get('teamID') === '41');
+      const all = httpTestingController.expectOne(r => r.url === '/api/seasons/5/player-stats' && !r.params.has('teamID'));
+      const team = httpTestingController.expectOne(r => r.url === '/api/seasons/5/player-stats' && r.params.get('teamID') === '41');
       expect([all.request.method, team.request.method]).toEqual(['GET', 'GET']);
       all.flush([]);
       team.flush([]);
@@ -147,7 +147,7 @@ describe('ApiClientService', () => {
       const totals: number[] = [];
       service.getSeasonList({ leagueID: null, gameVersionID: null }, 250).subscribe(page => totals.push(page.totalCount));
       service.getSeasonList({ leagueID: 2, gameVersionID: 6 }, 250).subscribe(page => totals.push(page.totalCount));
-      httpTestingController.expectOne(r => r.url === '/api/Season/GetSeasons' && r.params.get('pageSize') === '250' && r.params.keys().length === 1)
+      httpTestingController.expectOne(r => r.url === '/api/seasons' && r.params.get('pageSize') === '250' && r.params.keys().length === 1)
         .flush({ totalCount: 0, results: [] });
       httpTestingController.expectOne(r => r.params.get('leagueID') === '2' && r.params.get('gameVersionID') === '6')
         .flush({ totalCount: 0, results: [] });
@@ -453,7 +453,7 @@ describe('ApiClientService', () => {
         }
       });
 
-      const req = httpTestingController.expectOne('/api/Season/getCurrentSeasonID/');
+      const req = httpTestingController.expectOne('/api/seasons/current');
       expect(req.request.method).toBe('GET');
       req.flush(3);
     });
@@ -466,7 +466,7 @@ describe('ApiClientService', () => {
         expect(result).toEqual(events);
         done();
       });
-      const req = httpTestingController.expectOne('/api/Home/CurrentAndFutureEvents/');
+      const req = httpTestingController.expectOne('/api/events');
       expect(req.request.method).toBe('GET');
       req.flush(events);
     });
@@ -481,7 +481,7 @@ describe('ApiClientService', () => {
         }
       });
 
-      const req = httpTestingController.expectOne('/api/Season/getSeasonName/1');
+      const req = httpTestingController.expectOne('/api/seasons/1/name');
       expect(req.request.method).toBe('GET');
       req.flush('Test Season');
     });
@@ -494,8 +494,8 @@ describe('ApiClientService', () => {
         }
       });
 
-      const req = httpTestingController.expectOne('/api/Season/getSeasonName/999');
-      req.flush(null);
+      const req = httpTestingController.expectOne('/api/seasons/999/name');
+      req.flush('{"status":404,"title":"Not found"}', { status: 404, statusText: 'Not Found' });
     });
   });
 

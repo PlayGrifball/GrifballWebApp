@@ -1,6 +1,6 @@
-import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { catchError, map, Observable, of, switchMap, throwError } from 'rxjs';
+import { map, Observable, switchMap } from 'rxjs';
 import type { SeasonDto } from './dtos/seasonDto';
 import { SignupResponseDto, TimeslotDto } from './dtos/signupResponseDto';
 import { SignupRequestDto } from './dtos/signupRequestDto';
@@ -33,6 +33,7 @@ import type {
 import type { JobKeyDto, JobRunDto, JobsOverviewDto } from './dtos/jobsDto';
 import type { PaginationResult } from '../shared/paginationResult';
 import type { LinkVodRequest, VodDto, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto, VodScope } from './dtos/vodDto';
+import { nullWhenNotFound } from './nullWhenNotFound';
 
 /** The VodController action of each page's VODs. */
 const VOD_ACTIONS: Record<VodScope, string> = { seasonMatch: 'ForSeasonMatch', season: 'ForSeason', team: 'ForTeam', player: 'ForPlayer' };
@@ -52,7 +53,7 @@ export class ApiClientService {
   // A season's dates are Luxon DateTimes, and Luxon is only loaded with the pages that need it
   // (season editing), not with the app: the parser is imported when a season arrives.
   getSeasons(): Observable<SeasonDto[]> {
-    return this.http.get<unknown[]>('/api/EventOrganizer/GetSeasons')
+    return this.http.get<unknown[]>('/api/seasons/settings')
       // A list never holds nulls (List<SeasonDto> on the server).
       .pipe(switchMap(async seasons => {
         const { parseSeason } = await import('./dtos/seasonDto');
@@ -60,24 +61,24 @@ export class ApiClientService {
       }));
   }
 
-  /** Null when there is no such season (the API answers 204). */
+  /** Null when there is no such season (404). */
   getSeason(seasonID: number): Observable<SeasonDto | null> {
-    return this.http.get<unknown>('/api/EventOrganizer/GetSeason/' + seasonID)
-      .pipe(switchMap(async season => (await import('./dtos/seasonDto')).parseSeason(season)));
+    return this.http.get<unknown>(`/api/seasons/${seasonID}/settings`)
+      .pipe(nullWhenNotFound(), switchMap(async season => (await import('./dtos/seasonDto')).parseSeason(season)));
   }
 
   upsertSeason(seasonDto: SeasonDto): Observable<number> {
-    return this.http.post<number>('/api/EventOrganizer/UpsertSeason/', seasonDto);
+    return this.http.post<number>('/api/seasons/settings', seasonDto);
   }
 
   /** The games a season can be played in, for the season editor. */
   getGameVersions(): Observable<GameVersionDto[]> {
-    return this.http.get<GameVersionDto[]>('/api/EventOrganizer/GetGameVersions');
+    return this.http.get<GameVersionDto[]>('/api/game-versions');
   }
 
   /** The leagues a season can belong to, for the season editor. */
   getLeagues(): Observable<LeagueDto[]> {
-    return this.http.get<LeagueDto[]>('/api/EventOrganizer/GetLeagues');
+    return this.http.get<LeagueDto[]>('/api/leagues');
   }
 
   /** A season's header, champions and how much of each kind of data it has. */
@@ -87,13 +88,13 @@ export class ApiClientService {
 
   /** The season's teams and their rosters: records, titles, and players. */
   getSeasonTeams(seasonID: number): Observable<SeasonTeamDto[]> {
-    return this.http.get<SeasonTeamDto[]>('/api/Season/GetSeasonTeams/' + seasonID);
+    return this.http.get<SeasonTeamDto[]>(`/api/seasons/${seasonID}/teams`);
   }
 
   /** The season's player stats; with a team, only that team's rows. */
   getSeasonPlayerStats(seasonID: number, teamID?: number | null): Observable<SeasonPlayerStatDto[]> {
     const params = teamID != null ? new HttpParams().set('teamID', teamID) : undefined;
-    return this.http.get<SeasonPlayerStatDto[]>('/api/Season/GetSeasonPlayerStats/' + seasonID, { params });
+    return this.http.get<SeasonPlayerStatDto[]>(`/api/seasons/${seasonID}/player-stats`, { params });
   }
 
   /** Every season, the current ones included (the seasons page), of one league, game, format and year when given. */
@@ -103,7 +104,7 @@ export class ApiClientService {
     if (filter.gameVersionID !== null) params = params.set('gameVersionID', filter.gameVersionID);
     if (filter.format) params = params.set('format', filter.format);
     if (filter.year != null) params = params.set('year', filter.year);
-    return this.http.get<PaginationResult<SeasonListItemDto>>('/api/Season/GetSeasons', { params });
+    return this.http.get<PaginationResult<SeasonListItemDto>>('/api/seasons', { params });
   }
 
   /** The Ctrl+K navigator's hits: players (by current and past gamertags), teams and seasons. */
@@ -388,21 +389,20 @@ export class ApiClientService {
       params = params.set('xboxUserID', query.xboxUserID);
     if (query.userID != null)
       params = params.set('userID', query.userID);
-    return this.http.get<PastGamertagsDto>('/api/GamertagClaims/PastGamertags', { params }).pipe(
-      catchError((error: unknown) => error instanceof HttpErrorResponse && error.status === 404 ? of(null) : throwError(() => error)));
+    return this.http.get<PastGamertagsDto>('/api/GamertagClaims/PastGamertags', { params }).pipe(nullWhenNotFound());
   }
 
   getCurrentSeasonID(): Observable<number> {
-    return this.http.get<number>('/api/Season/getCurrentSeasonID/');
+    return this.http.get<number>('/api/seasons/current');
   }
 
   /** Signups, drafts and seasons that have not ended yet (shared/seasonEvents.ts). */
   getCurrentAndFutureEvents(): Observable<SeasonEvent[]> {
-    return this.http.get<SeasonEvent[]>('/api/Home/CurrentAndFutureEvents/');
+    return this.http.get<SeasonEvent[]>('/api/events');
   }
 
   getSeasonName(seasonID: number): Observable<string | null> {
-    return this.http.get<string | null>('/api/Season/getSeasonName/' + seasonID, this.text);
+    return this.http.get<string>(`/api/seasons/${seasonID}/name`, this.text).pipe(nullWhenNotFound());
   }
 
   getSignups(seasonID: number): Observable<SignupResponseDto[]> {

@@ -413,8 +413,8 @@ export const OVERLAYS: Overlay[] = [
     parts: [HEADING, '.season-card'],
     setup: async page => {
       // The server filters the list (?gameVersionID=): the mock's seasons of that game
-      await page.route('**/api/Season/GetSeasons**', route => {
-        const { results } = JSON.parse(mockResponse('player', '/api/Season/GetSeasons')!.body) as { results: { gameVersionID?: number }[] };
+      await page.route('**/api/seasons**', route => {
+        const { results } = JSON.parse(mockResponse('player', '/api/seasons')!.body) as { results: { gameVersionID?: number }[] };
         const halo3 = results.filter(s => s.gameVersionID === 1);
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ totalCount: halo3.length, results: halo3 }) });
       });

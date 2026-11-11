@@ -123,7 +123,7 @@ export class SignupFormComponent {
   /** The season's name and dates, for the heading and the timeline. Neither is needed to sign up. */
   private loadSeasonInfo(seasonID: number): void {
     this.api.getSeasonName(seasonID).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({ next: name => this.seasonName.set(name), error: () => {} });
-    this.http.get<SeasonEvent[]>('/api/Home/CurrentAndFutureEvents/').subscribe({ next: events => this.events.set(events), error: () => {} });
+    this.http.get<SeasonEvent[]>('/api/events').subscribe({ next: events => this.events.set(events), error: () => {} });
   }
 
   /** Every edit (form fields and the availability table) replaces the model rather than mutating it. */

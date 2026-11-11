@@ -32,4 +32,15 @@ public class SeasonAndAvailabilityControllerUnitTests
             Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(AvailabilityController.GetSeasonAvailability)), Is.Null);
         }
     }
+
+    [Test]
+    public async Task UpdateSeasonAvailability_BodyOfAnotherSeason_IsRefused()
+    {
+        // Refused before the service is asked
+        var controller = new AvailabilityController(null!);
+
+        var result = await controller.UpdateSeasonAvailability(7, new SeasonAvailabilityDto { SeasonID = 8 }, CancellationToken.None);
+
+        result.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest, "The season in the body is not the route's");
+    }
 }

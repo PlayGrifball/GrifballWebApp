@@ -58,7 +58,7 @@ describe('ManualGamesComponent', () => {
   /** As a commissioner: the game versions are asked for first. */
   function createAsCommissioner(match: SeasonMatchPageDto = page()): void {
     create(match, true);
-    httpMock.expectOne('/api/EventOrganizer/GetGameVersions')
+    httpMock.expectOne('/api/game-versions')
       .flush([{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: INFINITE_GAME_VERSION_ID, name: 'Halo Infinite' }]);
     fixture.detectChanges();
   }
@@ -96,7 +96,7 @@ describe('ManualGamesComponent', () => {
 
   it('copes with no game version list from the server', () => {
     create(page(), true);
-    httpMock.expectOne('/api/EventOrganizer/GetGameVersions').flush(null);
+    httpMock.expectOne('/api/game-versions').flush(null);
     expect(component.gameVersions()).toEqual([]);
   });
 
@@ -276,7 +276,7 @@ describe('ManualGamesComponent', () => {
       page({ awayTeamID: null }),
     ]) {
       create(match, true);
-      httpMock.match('/api/EventOrganizer/GetGameVersions').forEach(r => r.flush([]));
+      httpMock.match('/api/game-versions').forEach(r => r.flush([]));
       fixture.detectChanges();
       expect(component.canAdd()).withContext(JSON.stringify(match)).toBeFalse();
     }
@@ -400,12 +400,12 @@ describe('ManualGamesComponent', () => {
 
   it('defaults to the first game listed when Halo Infinite is not among them, and copes with no list', () => {
     create(page(), true);
-    httpMock.expectOne('/api/EventOrganizer/GetGameVersions').flush([{ gameVersionID: 2, name: 'Halo Reach' }]);
+    httpMock.expectOne('/api/game-versions').flush([{ gameVersionID: 2, name: 'Halo Reach' }]);
     component.startAdd();
     expect(component.form.gameVersionID).toBe(2);
 
     create(page(), true);
-    httpMock.expectOne('/api/EventOrganizer/GetGameVersions').flush(null, { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/game-versions').flush(null, { status: 500, statusText: 'Server Error' });
     component.startAdd();
     expect(component.form.gameVersionID).toBe(INFINITE_GAME_VERSION_ID);
   });

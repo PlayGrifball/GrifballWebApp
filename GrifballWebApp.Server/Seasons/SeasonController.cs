@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.Dtos;
 using GrifballWebApp.Application.Seasons;
 
 namespace GrifballWebApp.Server.Seasons;
 
-[Route("[controller]/[action]")]
+/// <summary>The seasons as everyone sees them: the list, and each season's header, teams and stats.</summary>
 [ApiController]
+[AllowAnonymous]
 public class SeasonController : ControllerBase
 {
     private readonly SeasonService _seasonService;
@@ -15,47 +17,52 @@ public class SeasonController : ControllerBase
         _seasonService = seasonService;
     }
 
-    [AllowAnonymous]
-    [HttpGet(Name = "GetCurrentSeasonID")]
+    /// <summary>The ID of the season running now; 0 when none is.</summary>
+    [HttpGet("seasons/current", Name = "GetCurrentSeasonID")]
+    [ProducesResponseType<int>(StatusCodes.Status200OK)]
     public Task<int> GetCurrentSeasonID(CancellationToken ct)
     {
         return _seasonService.GetCurrentSeasonID(ct);
     }
 
-    [AllowAnonymous]
-    [HttpGet("{seasonID:int}", Name = "GetSeasonName")]
-    public Task<string?> GetSeasonName([FromRoute] int seasonID, CancellationToken ct)
+    [HttpGet("seasons/{seasonID:int}/name", Name = "GetSeasonName")]
+    [ProducesResponseType<string>(StatusCodes.Status200OK, "text/plain")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    public async Task<ActionResult<string>> GetSeasonName([FromRoute] int seasonID, CancellationToken ct)
     {
-        return _seasonService.GetSeasonName(seasonID, ct);
+        return await _seasonService.GetSeasonName(seasonID, ct) is { } name ? name : this.NotFoundProblem("There is no such season");
     }
 
-    [AllowAnonymous]
-    [HttpGet("{seasonID:int}", Name = "GetSeasonSummary")]
+    [HttpGet("seasons/{seasonID:int}/summary", Name = "GetSeasonSummary")]
+    [ProducesResponseType<SeasonSummaryDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<ActionResult<SeasonSummaryDto>> GetSeasonSummary([FromRoute] int seasonID, CancellationToken ct)
     {
         var summary = await _seasonService.GetSeasonSummary(seasonID, ct);
-        return summary is null ? NotFound() : summary;
+        return summary is null ? this.NotFoundProblem("There is no such season") : summary;
     }
 
-    [AllowAnonymous]
-    [HttpGet("{seasonID:int}", Name = "GetSeasonTeams")]
+    [HttpGet("seasons/{seasonID:int}/teams", Name = "GetSeasonTeams")]
+    [ProducesResponseType<List<SeasonTeamDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<ActionResult<List<SeasonTeamDto>>> GetSeasonTeams([FromRoute] int seasonID, CancellationToken ct)
     {
         var teams = await _seasonService.GetSeasonTeams(seasonID, ct);
-        return teams is null ? NotFound() : teams;
+        return teams is null ? this.NotFoundProblem("There is no such season") : teams;
     }
 
-    [AllowAnonymous]
-    [HttpGet("{seasonID:int}", Name = "GetSeasonPlayerStats")]
+    /// <summary>A season's player stats; with a team, that team's players only.</summary>
+    [HttpGet("seasons/{seasonID:int}/player-stats", Name = "GetSeasonPlayerStats")]
+    [ProducesResponseType<List<SeasonPlayerStatDto>>(StatusCodes.Status200OK)]
     public Task<List<SeasonPlayerStatDto>> GetSeasonPlayerStats([FromRoute] int seasonID, [FromQuery] int? teamID, CancellationToken ct)
     {
         return _seasonService.GetSeasonPlayerStats(seasonID, teamID, ct);
     }
 
     /// <summary>The season list (home page's past seasons, the seasons page): filtered, sorted and paged.</summary>
-    [AllowAnonymous]
-    [HttpGet(Name = "GetSeasonList")]
-    public Task<GrifballWebApp.Application.Dtos.PaginationResult<SeasonListItemDto>> GetSeasons([FromQuery] SeasonListFilter filter, CancellationToken ct)
+    [HttpGet("seasons", Name = "GetSeasonList")]
+    [ProducesResponseType<PaginationResult<SeasonListItemDto>>(StatusCodes.Status200OK)]
+    public Task<PaginationResult<SeasonListItemDto>> GetSeasons([FromQuery] SeasonListFilter filter, CancellationToken ct)
     {
         return _seasonService.GetSeasons(filter, ct);
     }

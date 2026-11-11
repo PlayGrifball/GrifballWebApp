@@ -384,7 +384,7 @@ const historicalStats = [
   historicalStat(4, 'Truthless', 43, 3), historicalStat(5, 'Legendary', 41, 4, true),
 ];
 
-/** A season in the season list (GET /api/Season/GetSeasons), played in the app unless changed. */
+/** A season in the season list (GET /api/seasons), played in the app unless changed. */
 const seasonListItem = (seasonID: number, seasonName: string, start: string, end: string, changes: Record<string, unknown> = {}) => ({
   ...seasonInfo(seasonID, { seasonName, start: start + 'T00:00:00Z', end: end + 'T00:00:00Z', year: Number(start.slice(0, 4)) }),
   teamCount: 6, playerCount: 30, champions: [], teamNames: teams.map(t => t[1]), ...changes,
@@ -506,7 +506,7 @@ const telemetryMetrics = {
     { key: 'jobs', title: 'Jobs failed', unit: 'runs', series: [] },
   ],
   routes: [
-    { route: 'GET /api/Season/getSeasonSummary/{seasonID}', requests: 4210, errors: 0, p95Ms: 42.5 },
+    { route: 'GET /api/seasons/{seasonID}/summary', requests: 4210, errors: 0, p95Ms: 42.5 },
     { route: 'GET /api/SeasonMatch/GetSeasonMatchPage/{seasonMatchID}', requests: 1830, errors: 3, p95Ms: 210 },
     { route: 'POST /api/Identity/Login', requests: 96, errors: 0, p95Ms: 1240 },
     { route: 'GET /hub/TeamsHub', requests: 12, errors: 0, p95Ms: null },
@@ -543,8 +543,8 @@ const telemetryTrace = {
 const telemetryTraces = [
   { traceId: TRACE_ID, rootName: 'POST /api/SeasonMatch/PullMatches/{seasonMatchID}', rootService: 'grifballwebapp', start: '2026-10-29T17:58:11.300Z', durationMs: 1212.4,
     route: '/api/SeasonMatch/PullMatches/{seasonMatchID}', statusCode: 500 },
-  { traceId: '6e0c63257de34c92bf9efcd03927272e', rootName: 'GET /api/Season/getSeasonSummary/{seasonID}', rootService: 'grifballwebapp', start: '2026-10-29T17:57:02.118Z', durationMs: 18.9,
-    route: '/api/Season/getSeasonSummary/{seasonID}', statusCode: 200 },
+  { traceId: '6e0c63257de34c92bf9efcd03927272e', rootName: 'GET /api/seasons/{seasonID}/summary', rootService: 'grifballwebapp', start: '2026-10-29T17:57:02.118Z', durationMs: 18.9,
+    route: '/api/seasons/{seasonID}/summary', statusCode: 200 },
   { traceId: '0af7651916cd43dd8448eb211c80319c', rootName: 'recurring/historical-refresh', rootService: 'grifballwebapp-worker', start: '2026-10-29T17:55:00.078Z', durationMs: 42,
     route: null, statusCode: null },
 ];
@@ -579,8 +579,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Identity/Antiforgery': { token: `e2e-xsrf-${role}` },
     '/api/CommitHash': { text: '9f3c2ab' },
     '/api/CommitDate': { text: '2026-10-28T21:14:00Z' },
-    '/api/Season/getCurrentSeasonID/': 12,
-    '/api/Home/CurrentAndFutureEvents/': [
+    '/api/seasons/current': 12,
+    '/api/events': [
       { seasonID: 13, name: 'Winter Campaign', start: '2026-10-20T00:00:00Z', end: signupsClose, eventType: 'Signup' },
       { seasonID: 13, name: 'Winter Campaign', start: '2026-11-14T19:00:00Z', end: '2026-11-14T23:00:00Z', eventType: 'Draft' },
       { seasonID: 12, name: 'Autumn Brawl', start: '2026-09-07T00:00:00Z', end: '2026-11-30T00:00:00Z', eventType: 'Season' },
@@ -589,7 +589,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     // The home page's matchmaking queue panel (its live updates come over hub/QueueHub, which hubMock.mts answers)
     '/api/Queue/Status': { count: 6, open: true, signedIn: role !== 'anon', hasGamertag: role !== 'anon', inQueue: false, inMatch: false },
     // The season list: the home page's past seasons and the seasons page (the backfilled season 5 among them)
-    '/api/Season/GetSeasons': {
+    '/api/seasons': {
       totalCount: 7,
       results: [
         seasonListItem(12, 'Autumn Brawl', '2026-09-07', '2026-11-30', { hasEnded: false }),
@@ -638,19 +638,19 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       { userID: 501, name: 'Legendary', pastGamertag: null, matchedName: null, kind: 'Archive', years: '2011–2012' },
       { userID: 117, name: 'MasterChief117', pastGamertag: null, matchedName: null, kind: 'Xbox', years: null },
     ],
-    ...Object.fromEntries(Object.entries(seasonNames).map(([id, name]) => [`/api/Season/getSeasonName/${id}`, { text: name }])),
-    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/Season/getSeasonSummary/${id}`, summary(Number(id))])),
-    '/api/Season/getSeasonSummary/5': {
+    ...Object.fromEntries(Object.entries(seasonNames).map(([id, name]) => [`/api/seasons/${id}/name`, { text: name }])),
+    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/summary`, summary(Number(id))])),
+    '/api/seasons/5/summary': {
       ...historicalSeason, teamCount: 3, signupCount: 0,
       matchCount: 0, bracketMatchCount: 0, playerStatCount: historicalStats.length,
       champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [
         { userID: 501, gamertag: 'Legendary', isCaptain: true }, { userID: 502, gamertag: 'Old Timer', isCaptain: false }] }],
     },
     // The season's stats, and on the team page (?teamID=41) its team's: matched on the path alone, so the same rows
-    '/api/Season/GetSeasonPlayerStats/5': historicalStats,
+    '/api/seasons/5/player-stats': historicalStats,
     // Season 12 has no stored stats yet: its team pages show no stats table
-    '/api/Season/GetSeasonPlayerStats/12': [],
-    '/api/Season/GetSeasonTeams/5': [
+    '/api/seasons/12/player-stats': [],
+    '/api/seasons/5/teams': [
       {
         teamID: 41, teamName: 'Relentless', wins: 9, losses: 1, tbd: 0, recordFromSource: true, titles: ['Pro'],
         players: [
@@ -659,15 +659,15 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
         ],
       },
     ],
-    '/api/Season/GetSeasonTeams/12': teams.map(([teamID, name], i) => ({
+    '/api/seasons/12/teams': teams.map(([teamID, name], i) => ({
       teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1, tbd: 0, recordFromSource: false, titles: [],
       players: [
         { teamPlayerID: teamID * 10 + 1, userID: teamID * 100 + 1, gamertag: `${name} Captain`, isCaptain: true },
       ],
     })),
-    '/api/TeamStandings/GetTeamStandings/5': historicalTeams.map(([teamID, teamName, wins, losses]) => ({ teamID, teamName, wins, losses, recordFromSource: true })),
-    '/api/MatchPlanner/GetScheduledMatches/5': [],
-    '/api/MatchPlanner/GetUnscheduledMatches/5': [],
+    '/api/seasons/5/standings': historicalTeams.map(([teamID, teamName, wins, losses]) => ({ teamID, teamName, wins, losses, recordFromSource: true })),
+    '/api/seasons/5/matches/scheduled': [],
+    '/api/seasons/5/matches/unscheduled': [],
     '/api/Team/Team/41': {
       teamName: 'Relentless', season: historicalSeason, recordFromSource: true,
       wins: 9, losses: 1, tbd: 0, titles: ['Pro'],
@@ -677,10 +677,11 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       ],
     },
     '/api/Team/Matches/41': [],
-    '/api/TeamStandings/GetTeamStandings/12': teams.map(([teamID, name], i) => ({ teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1 })),
-    '/api/MatchPlanner/GetScheduledMatches/12': scheduled,
-    '/api/MatchPlanner/GetUnscheduledMatches/12': [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', complete: false }],
-    '/api/Brackets/GetViewerData': bracket,
+    '/api/seasons/12/standings': teams.map(([teamID, name], i) => ({ teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1 })),
+    '/api/seasons/12/matches/scheduled': scheduled,
+    '/api/seasons/12/matches/unscheduled': [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', complete: false }],
+    // The season's playoff bracket, for any season
+    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/bracket/viewer-data`, bracket])),
     // A best of 3 at 1-1 (matchPage31); match 35, the same series once its games decided it, for its Match report and Undo
     '/api/SeasonMatch/GetSeasonMatchPage/31': matchPage31(role),
     '/api/SeasonMatch/GetSeasonMatchPage/35': { ...matchPage31(role), homeTeamScore: 2, homeTeamResult: 'Won', awayTeamResult: 'Loss', decidedBy: 'Games', canRequestReschedule: false },
@@ -712,13 +713,13 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Signups/getTimeslots/13': timeslots,
     '/api/Signups/getSignups/12': players.map((personName, i) => ({ seasonID: 12, userID: i, personName, timestamp: `2026-10-2${i}T18:0${i}:00Z`,
       teamName: i % 3 === 0 ? `${personName}'s Crew` : null, willCaptain: i % 3 === 0, requiresAssistanceDrafting: i === 3, timeslots: [] })),
-    '/api/Grades/GetGrades/12': { totals: [], perMinutes: [], letters: players.slice(0, 5).map((p, i) => grades(i, p)) },
-    '/api/EventOrganizer/GetSeasons': [12, 13, 11].map(season),
-    '/api/EventOrganizer/GetSeason/12': { ...season(12), copyFromSeasonID: null, copyAvailability: false, copySignups: false, copyTeams: false },
-    '/api/EventOrganizer/GetGameVersions': [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }],
-    '/api/EventOrganizer/GetLeagues': [{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'Late League' }],
-    // The times a season offers for signups (?seasonID=12): weeknights at 7 and 8
-    '/api/Availability/GetSeasonAvailability': ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time }))),
+    '/api/seasons/12/grades': { totals: [], perMinutes: [], letters: players.slice(0, 5).map((p, i) => grades(i, p)) },
+    '/api/seasons/settings': [12, 13, 11].map(season),
+    '/api/seasons/12/settings': { ...season(12), copyFromSeasonID: null, copyAvailability: false, copySignups: false, copyTeams: false },
+    '/api/game-versions': [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }],
+    '/api/leagues': [{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'Late League' }],
+    // The times each season offers for signups: weeknights at 7 and 8
+    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/availability`, ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time })))])),
     '/api/Admin/CheckStatus': { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' },
     // The Infinite Client page in the default Gateway mode: the gateway's in-cluster address, plain HTTP as the chart's is
     '/api/Admin/HaloStatus': { mode: 'Gateway', gatewayUrl: 'http://halo-gateway.halo-gateway.svc:8080/', gatewayAdminUrl: 'https://grunt.grifball.xyz/admin', apiKeyConfigured: true, reachable: true, accountStatus: 'Healthy', apiCode: 200, healthy: true, message: 'Halo gateway account Healthy; test call: Halo Infinite API answered 200' }, // NOSONAR(S5332): mock data, an in-cluster address
@@ -772,7 +773,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/MyProfile/PreviewClaim': { gamertag: 'Old Timer', placeholderUserID: 502, placeholderName: 'Old Timer',
       seasons: [{ seasonID: 4, seasonName: 'Spring League 2010', year: 2010 }, { seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }], refusal: null },
     // The schedule's recommended times (organizers, editing the schedule): the last run's, not applied yet, one with a conflict
-    '/api/Scheduler/Recommendation/12': {
+    '/api/seasons/12/schedule-recommendation': {
       run: { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-29T17:00:00Z', durationMs: 5400, result: 'Succeeded', error: null } },
       latest: {
         scheduleRecommendationID: 3, createdAt: '2026-10-29T17:00:05Z', requestedBy: 'Commander Grif', fitness: 0.92, generations: 400, appliedAt: null, appliedBy: null,

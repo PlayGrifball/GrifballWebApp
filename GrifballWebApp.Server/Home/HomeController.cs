@@ -6,7 +6,6 @@ using GrifballWebApp.Domain.League;
 
 namespace GrifballWebApp.Server.Seasons;
 
-[Route("[controller]/[action]")]
 [ApiController]
 public class HomeController : ControllerBase
 {
@@ -20,7 +19,8 @@ public class HomeController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpGet(Name = "CurrentAndFutureEvents")]
+    [HttpGet("events", Name = "CurrentAndFutureEvents")]
+    [ProducesResponseType<Event[]>(StatusCodes.Status200OK)]
     public async Task<Event[]> CurrentAndFutureEvents(CancellationToken ct)
     {
         var now = _time.GetUtcNow().UtcDateTime;

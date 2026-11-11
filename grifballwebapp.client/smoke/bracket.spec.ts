@@ -60,10 +60,10 @@ test.describe('playoff bracket', () => {
     }
 
     // Seeding by standings puts the teams in the first round.
-    await admin.post(`Brackets/SetSeeds/${league.seasonID}`);
+    await admin.post(`seasons/${league.seasonID}/bracket/seeds/default`);
     // The reloaded page is drawn on the server, which fetches the bracket itself (the browser then
     // makes no request for it): the data straight from the API, then the page.
-    const data = await admin.get<ViewerData>(`Brackets/GetViewerData?seasonID=${league.seasonID}`);
+    const data = await admin.get<ViewerData>(`seasons/${league.seasonID}/bracket/viewer-data`);
     await page.reload();
     for (const match of data.matches) {
       expect(typeof match.status).toBe('number');

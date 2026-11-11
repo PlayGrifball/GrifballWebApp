@@ -1,3 +1,4 @@
+using StatusCodes = Microsoft.AspNetCore.Http.StatusCodes;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Scheduler;
 using GrifballWebApp.Domain.League;
@@ -223,8 +224,8 @@ public class ScheduleServiceTests
             Assert.That(times[decided], Is.Null, "A decided match keeps its time");
             foreach (var gene in run.Genes.Skip(1))
                 Assert.That(times[gene.SeasonMatchID], Is.EqualTo(gene.ScheduledTime).Within(TimeSpan.FromSeconds(1)));
-            Assert.That(again.Result, Is.InstanceOf<ConflictResult>(), "Applied already");
-            Assert.That(missing.Result, Is.InstanceOf<NotFoundResult>());
+            again.AssertProblem(StatusCodes.Status409Conflict, "That recommendation was applied already");
+            missing.AssertProblem(StatusCodes.Status404NotFound);
             Assert.That((latest.AppliedBy, latest.AppliedAt.HasValue), Is.EqualTo(("commish", true)));
             Assert.That(latest.Matches.Single(m => m.SeasonMatchID == decided).Decided, Is.True);
             Assert.That(stored.Select(m => (m.ScheduleRecommendation.ScheduleRecommendationID, m.ScheduleRecommendation.Season.SeasonID)).Distinct(), Is.EqualTo(new[] { (saved.ScheduleRecommendationID, SeasonID) }));
@@ -297,8 +298,8 @@ public class ScheduleServiceTests
         var controller = Controller(jobs);
 
         var before = await controller.Recommendation(SeasonID, CancellationToken.None);
-        var queued = (await controller.Recommend(SeasonID, CancellationToken.None)).Value;
-        var again = (await controller.Recommend(SeasonID, CancellationToken.None)).Value;
+        var queued = (await controller.Recommend(SeasonID, CancellationToken.None)).Accepted();
+        var again = (await controller.Recommend(SeasonID, CancellationToken.None)).Accepted();
         var missing = await controller.Recommend(SeasonID + 1000, CancellationToken.None);
         var after = await controller.Recommendation(SeasonID, CancellationToken.None);
 
@@ -308,7 +309,7 @@ public class ScheduleServiceTests
             Assert.That((before.Run.State, before.Latest), Is.EqualTo((OnDemandJobState.Idle, (ScheduleRecommendationDto?)null)));
             Assert.That((queued!.State, again!.State, after.Run.State), Is.EqualTo((OnDemandJobState.Queued, OnDemandJobState.Queued, OnDemandJobState.Queued)));
             Assert.That(triggers, Has.Count.EqualTo(1), "Asked twice: one run");
-            Assert.That(missing.Result, Is.InstanceOf<NotFoundResult>());
+            missing.AssertProblem(StatusCodes.Status404NotFound, "There is no such season");
             Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(SchedulerController))?.Roles, Is.EqualTo("Commissioner,Sysadmin"));
         }
     }

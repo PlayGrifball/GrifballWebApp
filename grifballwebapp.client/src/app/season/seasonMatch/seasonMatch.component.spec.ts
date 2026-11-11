@@ -1183,7 +1183,7 @@ describe('SeasonMatchComponent with manual entry', () => {
     fixture.detectChanges();
     httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
     fixture.detectChanges();
-    httpMock.expectOne('/api/EventOrganizer/GetGameVersions').flush([{ gameVersionID: 1, name: 'Halo 3' }]);
+    httpMock.expectOne('/api/game-versions').flush([{ gameVersionID: 1, name: 'Halo 3' }]);
     fixture.detectChanges();
   }
 

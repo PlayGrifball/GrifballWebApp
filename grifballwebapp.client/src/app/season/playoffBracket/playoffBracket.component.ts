@@ -75,7 +75,7 @@ export class PlayoffBracketComponent {
 
   getViewerData(): void {
     const seasonID = this.seasonID();
-    this.http.get<ViewerData>("api/Brackets/GetViewerData?seasonID=" + seasonID)
+    this.http.get<ViewerData>(`api/seasons/${seasonID}/bracket/viewer-data`)
       .pipe(whileCurrent(seasonID, this.seasonID))
       .subscribe(
         {

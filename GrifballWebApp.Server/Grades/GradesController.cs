@@ -4,7 +4,6 @@ using GrifballWebApp.Application.Grades;
 
 namespace GrifballWebApp.Server.Grades;
 
-[Route("[controller]/[action]")]
 [ApiController]
 public class GradesController : ControllerBase
 {
@@ -16,7 +15,8 @@ public class GradesController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpGet("{seasonID:int}", Name = "GetGrades")]
+    [HttpGet("seasons/{seasonID:int}/grades", Name = "GetGrades")]
+    [ProducesResponseType<GradesDto>(StatusCodes.Status200OK)]
     public Task<GradesDto> GetGrades([FromRoute] int seasonID, CancellationToken ct)
     {
         return _gradesService.GetGrades(seasonID, ct);

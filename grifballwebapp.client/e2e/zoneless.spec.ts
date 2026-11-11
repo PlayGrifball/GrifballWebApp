@@ -35,7 +35,7 @@ async function mockBackend(page: Page, handlers: Record<string, Handler>): Promi
       return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
     if (url.pathname === '/api/CommitHash') return text(route, 'e2ehash');
     if (url.pathname === '/api/CommitDate') return text(route, '2026-01-02T03:04:05Z');
-    if (url.pathname === '/api/Season/getCurrentSeasonID/') return json(route, 0);
+    if (url.pathname === '/api/seasons/current') return json(route, 0);
     const handler = handlers[url.pathname];
     if (handler) return handler(route, url);
     return route.fulfill({ status: 404, body: '' });
@@ -46,10 +46,10 @@ async function mockBackend(page: Page, handlers: Record<string, Handler>): Promi
 
 test('home renders the events and past seasons that load after navigation', async ({ page }) => {
   await mockBackend(page, {
-    '/api/Home/CurrentAndFutureEvents/': route => json(route, [
+    '/api/events': route => json(route, [
       { seasonID: 4, name: 'Spring', start: '2026-03-01T00:00:00Z', end: '2026-05-01T00:00:00Z', eventType: 'Season' },
     ]),
-    '/api/Season/GetSeasons': route => json(route, {
+    '/api/seasons': route => json(route, {
       totalCount: 1,
       results: [{ seasonID: 3, seasonName: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
     }),
@@ -64,18 +64,18 @@ test('home renders the events and past seasons that load after navigation', asyn
 
 test('a season page reached by an in-app link renders the data it loads', async ({ page }) => {
   await mockBackend(page, {
-    '/api/Home/CurrentAndFutureEvents/': route => json(route, []),
-    '/api/Season/GetSeasons': route => json(route, {
+    '/api/events': route => json(route, []),
+    '/api/seasons': route => json(route, {
       totalCount: 1,
       results: [{ seasonID: 3, seasonName: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
     }),
-    '/api/Season/getSeasonSummary/3': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
-    '/api/TeamStandings/GetTeamStandings/3': route => json(route, [{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]),
-    '/api/MatchPlanner/GetUnscheduledMatches/3': route => json(route, [
+    '/api/seasons/3/summary': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
+    '/api/seasons/3/standings': route => json(route, [{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]),
+    '/api/seasons/3/matches/unscheduled': route => json(route, [
       { seasonMatchID: 21, homeCaptain: 'Home Cap', awayCaptain: 'Away Cap', homeTeam: 'Home Cap', awayTeam: 'Away Cap', complete: false },
     ]),
-    '/api/MatchPlanner/GetScheduledMatches/3': route => json(route, []),
-    '/api/Brackets/GetViewerData': route => json(route, { stages: [], matches: [], matchGames: [], participants: [] }),
+    '/api/seasons/3/matches/scheduled': route => json(route, []),
+    '/api/seasons/3/bracket/viewer-data': route => json(route, { stages: [], matches: [], matchGames: [], participants: [] }),
   });
 
   await page.goto('/');
@@ -114,11 +114,11 @@ test('a season with a bracket draws it with the bundled viewer and links its mat
   };
 
   await mockBackend(page, {
-    '/api/Season/getSeasonSummary/3': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
-    '/api/TeamStandings/GetTeamStandings/3': route => json(route, []),
-    '/api/MatchPlanner/GetUnscheduledMatches/3': route => json(route, []),
-    '/api/MatchPlanner/GetScheduledMatches/3': route => json(route, []),
-    '/api/Brackets/GetViewerData': route => json(route, bracket),
+    '/api/seasons/3/summary': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
+    '/api/seasons/3/standings': route => json(route, []),
+    '/api/seasons/3/matches/unscheduled': route => json(route, []),
+    '/api/seasons/3/matches/scheduled': route => json(route, []),
+    '/api/seasons/3/bracket/viewer-data': route => json(route, bracket),
   });
 
   await page.goto('/season/3?tab=bracket');
@@ -163,11 +163,11 @@ test('a double-elimination bracket draws its losers bracket and grand final', as
   };
 
   await mockBackend(page, {
-    '/api/Season/getSeasonSummary/3': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
-    '/api/TeamStandings/GetTeamStandings/3': route => json(route, []),
-    '/api/MatchPlanner/GetUnscheduledMatches/3': route => json(route, []),
-    '/api/MatchPlanner/GetScheduledMatches/3': route => json(route, []),
-    '/api/Brackets/GetViewerData': route => json(route, bracket),
+    '/api/seasons/3/summary': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
+    '/api/seasons/3/standings': route => json(route, []),
+    '/api/seasons/3/matches/unscheduled': route => json(route, []),
+    '/api/seasons/3/matches/scheduled': route => json(route, []),
+    '/api/seasons/3/bracket/viewer-data': route => json(route, bracket),
   });
 
   await page.goto('/season/3?tab=bracket');
@@ -423,7 +423,7 @@ test('a commissioner enters a game by hand, and reports a Waypoint game in place
     [`/api/SeasonMatch/GetSeasonMatchPage/${SEASON_MATCH_ID}`]: route => json(route, matchPage),
     '/api/Team/Team/1': route => json(route, team(1, 'Reds', 'Sarge')),
     '/api/Team/Team/2': route => json(route, team(2, 'Blues', 'Tucker')),
-    '/api/EventOrganizer/GetGameVersions': route => json(route, [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]),
+    '/api/game-versions': route => json(route, [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]),
     [`/api/SeasonMatch/GetPossibleMatches/${SEASON_MATCH_ID}`]: route => json(route, [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }]),
     [`/api/SeasonMatch/MatchPullStatus/${SEASON_MATCH_ID}`]: route => json(route, { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null }),
     [`/api/SeasonMatch/AddManualGame/${SEASON_MATCH_ID}`]: route => {
@@ -492,7 +492,7 @@ test('the match page does one thing at a time: an action drops a game waiting to
     [`/api/SeasonMatch/GetSeasonMatchPage/${SEASON_MATCH_ID}`]: route => json(route, current),
     '/api/Team/Team/1': route => json(route, team(1, 'Reds', 'Sarge')),
     '/api/Team/Team/2': route => json(route, team(2, 'Blues', 'Tucker')),
-    '/api/EventOrganizer/GetGameVersions': route => json(route, [{ gameVersionID: 6, name: 'Halo Infinite' }]),
+    '/api/game-versions': route => json(route, [{ gameVersionID: 6, name: 'Halo Infinite' }]),
     [`/api/SeasonMatch/GetPossibleMatches/${SEASON_MATCH_ID}`]: route => json(route, [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }]),
     [`/api/SeasonMatch/MatchPullStatus/${SEASON_MATCH_ID}`]: route => json(route, { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null }),
     [`/api/SeasonMatch/HomeForfeit/${SEASON_MATCH_ID}`]: async route => {

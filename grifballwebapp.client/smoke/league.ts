@@ -69,8 +69,8 @@ export async function createLeague(baseURL: string, admin: Api, label: string,
     signupsClose: new Date(now + 7 * day).toISOString(),
     ...FUTURE,
   };
-  const seasonID = await admin.post<number>('EventOrganizer/UpsertSeason', season);
-  await admin.post('Availability/UpdateSeasonAvailability', {
+  const seasonID = await admin.post<number>('seasons/settings', season);
+  await admin.post(`seasons/${seasonID}/availability`, {
     seasonID,
     timeslots: DAYS.flatMap(dayOfWeek => TIMES.map(time => ({ dayOfWeek, time }))),
   });
@@ -149,7 +149,7 @@ export async function newUser(baseURL: string, admin: Api, username: string):
 async function closeSeason(admin: Api, season: SeasonDto): Promise<void> {
   try {
     await admin.relogin(); // A long run outlives the 15-minute token.
-    await admin.post('EventOrganizer/UpsertSeason', {
+    await admin.post('seasons/settings', {
       ...season,
       signupsOpen: '2001-01-01T00:00:00Z',
       signupsClose: '2001-01-02T00:00:00Z',

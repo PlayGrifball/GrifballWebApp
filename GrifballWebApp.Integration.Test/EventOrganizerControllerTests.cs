@@ -1,3 +1,4 @@
+using StatusCodes = Microsoft.AspNetCore.Http.StatusCodes;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Domain.League;
@@ -57,10 +58,13 @@ public class EventOrganizerControllerTests
     [Test]
     public async Task UpsertThenGet_RoundTripsSeason()
     {
-        var id = (int)((OkObjectResult)await _controller.UpsertSeason(Dto("Round Trip"), CancellationToken.None)).Value!;
+        var id = (await _controller.UpsertSeason(Dto("Round Trip"), CancellationToken.None)).Created();
 
-        var one = (SeasonDto?)((OkObjectResult)await _controller.GetSeason(id, CancellationToken.None)).Value;
-        var all = (List<SeasonDto>)((OkObjectResult)await _controller.GetSeasons(CancellationToken.None)).Value!;
+        var one = (await _controller.GetSeason(id, CancellationToken.None)).Value;
+        var all = await _controller.GetSeasons(CancellationToken.None);
+        var dto = Dto("Round Trip");
+        dto.SeasonID = id;
+        var saved = await _controller.UpsertSeason(dto, CancellationToken.None);
 
         Assert.That(one, Is.Not.Null);
         using (Assert.EnterMultipleScope())
@@ -68,14 +72,17 @@ public class EventOrganizerControllerTests
             Assert.That(one!.SeasonName, Is.EqualTo("Round Trip"));
             Assert.That(one.DraftStart, Is.EqualTo(new DateTime(2030, 1, 12)));
             Assert.That(all.Select(s => s.SeasonID), Does.Contain(id));
+            // Saving an existing season is a 200 with its ID, not a 201
+            Assert.That(saved.Result, Is.Null);
+            Assert.That(saved.Value, Is.EqualTo(id));
         }
     }
 
     [Test]
-    public async Task GetSeason_Missing_ReturnsOkWithNull()
+    public async Task GetSeason_Missing_IsNotFound()
     {
-        var result = (OkObjectResult)await _controller.GetSeason(98765, CancellationToken.None);
-        Assert.That(result.Value, Is.Null);
+        var result = await _controller.GetSeason(98765, CancellationToken.None);
+        result.AssertProblem(StatusCodes.Status404NotFound, "There is no such season");
     }
 
     [Test]
@@ -108,7 +115,7 @@ public class EventOrganizerControllerTests
         dto.CopyAvailability = true;
         dto.CopySignups = true;
         dto.CopyTeams = true;
-        var newId = (int)((OkObjectResult)await _controller.UpsertSeason(dto, CancellationToken.None)).Value!;
+        var newId = (await _controller.UpsertSeason(dto, CancellationToken.None)).Created();
 
         _context.ChangeTracker.Clear();
         var copied = await _context.Seasons

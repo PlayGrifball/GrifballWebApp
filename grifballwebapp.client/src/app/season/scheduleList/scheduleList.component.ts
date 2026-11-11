@@ -131,7 +131,7 @@ export class ScheduleListComponent {
 
   GetUnscheduledMatches(): void {
     const seasonID = this.seasonID();
-    this.http.get<UnscheduledMatchDto[]>('/api/MatchPlanner/GetUnscheduledMatches/' + seasonID)
+    this.http.get<UnscheduledMatchDto[]>(`/api/seasons/${seasonID}/matches/unscheduled`)
     .pipe(whileCurrent(seasonID, this.seasonID))
     .subscribe({
       next: r => {
@@ -144,7 +144,7 @@ export class ScheduleListComponent {
 
   GetScheduledMatches(): void {
     const seasonID = this.seasonID();
-    this.http.get<unknown[]>('/api/MatchPlanner/GetScheduledMatches/' + seasonID)
+    this.http.get<unknown[]>(`/api/seasons/${seasonID}/matches/scheduled`)
     .pipe(whileCurrent(seasonID, this.seasonID), mapResponse(matches => matches.map(parseScheduledMatch)))
     .subscribe({
       next: r => {
@@ -214,7 +214,7 @@ export class ScheduleListComponent {
   /** The latest recommendation and where its run is; one queued or running is watched until it's done. */
   loadRecommendation(): void {
     const seasonID = this.seasonID();
-    this.http.get<ScheduleRecommendationPageDto>('/api/Scheduler/Recommendation/' + seasonID)
+    this.http.get<ScheduleRecommendationPageDto>(`/api/seasons/${seasonID}/schedule-recommendation`)
       .pipe(whileCurrent(seasonID, this.seasonID), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: page => this.showRecommendation(page),
@@ -227,7 +227,7 @@ export class ScheduleListComponent {
     this.recommendationError.set(null);
     this.confirmingApply.set(false);
     const seasonID = this.seasonID();
-    this.http.post('/api/Scheduler/Recommend/' + seasonID, null)
+    this.http.post(`/api/seasons/${seasonID}/schedule-recommendation/run`, null)
       .pipe(whileCurrent(seasonID, this.seasonID), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.loadRecommendation(),
@@ -241,7 +241,7 @@ export class ScheduleListComponent {
     if (!latest)
       return;
     this.confirmingApply.set(false);
-    this.http.post('/api/Scheduler/Apply/' + latest.scheduleRecommendationID, null)
+    this.http.post(`/api/schedule-recommendations/${latest.scheduleRecommendationID}/apply`, null)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
@@ -258,7 +258,7 @@ export class ScheduleListComponent {
       return;
     this.recommendationWatch?.unsubscribe();
     this.recommendationWatch = timer(RECOMMEND_POLL_MS, RECOMMEND_POLL_MS).pipe(
-      switchMap(() => this.http.get<ScheduleRecommendationPageDto>('/api/Scheduler/Recommendation/' + this.seasonID())),
+      switchMap(() => this.http.get<ScheduleRecommendationPageDto>(`/api/seasons/${this.seasonID()}/schedule-recommendation`)),
       takeWhile(next => next.run.state !== 'Idle', true),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({
@@ -271,7 +271,7 @@ export class ScheduleListComponent {
   onSubmit(match: UnscheduledMatchDto | WeekGameDto, time: DateTime | '' | null | undefined): void {
     // An empty picker gives '', which the server's DateTime? cannot bind: send null (no time).
     const dto: UpdateMatchTimeDto = { seasonMatchID: match.seasonMatchID, time: time || null };
-    this.http.post('/api/MatchPlanner/UpdateMatchTime/', dto)
+    this.http.post(`/api/season-matches/${dto.seasonMatchID}/time`, dto)
     .subscribe({
       next: r => this.GetMatches(),
       error: e => this.GetMatches()

@@ -65,7 +65,7 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
         UserHasHistoricalStatsException => Refusal(StatusCodes.Status409Conflict, "Conflict", "User has historical stats; merge instead."),
         GamertagClaimException => Refusal(StatusCodes.Status400BadRequest, "Request refused", exception.Message),
         GamertagClaimConflictException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
-        SeasonRefusedException e => Refusal(e.Status, e.Status == StatusCodes.Status409Conflict ? "Conflict" : "Request refused", exception.Message),
+        SeasonRefusedException e => Refusal(e.Status, ApiProblems.Title(e.Status), exception.Message),
         UserNotFoundException => Refusal(StatusCodes.Status404NotFound, "Not found", exception.Message),
         _ => null,
     };
