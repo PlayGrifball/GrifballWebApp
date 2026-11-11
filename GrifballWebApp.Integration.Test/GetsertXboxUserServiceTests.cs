@@ -84,7 +84,7 @@ public class GetsertXboxUserServiceTests
             Assert.That(result.Gamertag, Is.EqualTo("NewUser"));
             Assert.That(error, Is.Null);
         }
-        Assert.That(_context.XboxUsers.Any(x => x.XboxUserID == 456), Is.True);
+        Assert.That(await _context.XboxUsers.AnyAsync(x => x.XboxUserID == 456), Is.True);
     }
 
     [Test]
@@ -174,7 +174,7 @@ public class GetsertXboxUserServiceTests
         var (result, error) = await _service.GetsertXboxUserByGamertag("newname");
 
         await using var fresh = _context.NewContextLike();
-        var stored = fresh.XboxUsers.Single();
+        var stored = await fresh.XboxUsers.SingleAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(error, Is.Null);

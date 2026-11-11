@@ -708,7 +708,7 @@ public class QueueServiceBranchTests
         {
             Assert.That(newMatch.HomeTeam.Players.Concat(newMatch.AwayTeam.Players).Select(x => x.UserID),
                 Is.EquivalentTo(others.Select(x => x.Id).Append(kicked.Id)));
-            Assert.That(fresh.QueuedPlayer.Any(), Is.False, "Everyone queued was matched");
+            Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False, "Everyone queued was matched");
             Assert.That(_logger.Entries.Where(x => x.Level >= LogLevel.Error), Is.Empty);
         }
     }

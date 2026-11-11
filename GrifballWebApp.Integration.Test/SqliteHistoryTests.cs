@@ -97,10 +97,12 @@ public class SqliteHistoryTests
 
         // The sync path too: a connection EF opens without await.
         await using var other = NewContext(Path.Combine(Folder, $"{Guid.NewGuid():N}.db"));
+#pragma warning disable VSTHRD103 // The sync path is under test
         other.Database.OpenConnection();
         using var command = other.Database.GetDbConnection().CreateCommand();
         command.CommandText = "PRAGMA journal_mode";
         var syncJournal = (string)command.ExecuteScalar()!;
+#pragma warning restore VSTHRD103
 
         using (Assert.EnterMultipleScope())
         {
