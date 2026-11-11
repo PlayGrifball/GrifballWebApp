@@ -499,8 +499,8 @@ public class HistoricalArchiveParsingTests
     [Test]
     public void CarnageGames_WithoutTeamsOrTimestamps_SplitAtAPlayerSeenAgain_AndOneSideIsLeftOut()
     {
-        // No team column: every player is side 1, so each game has one side; a blank row marks nothing
-        var workbook = Read(Workbook(("NoTeams", [Row("Player", "Kills", "Deaths"), Row("A", 5, 1), Row(), Row("A", 3, 2)])));
+        // No team column: every player is side 1, so each game has one side; a row of blanks marks nothing
+        var workbook = Read(Workbook(("NoTeams", [Row("Player", "Kills", "Deaths"), Row("A", 5, 1), Row(" ", " "), Row("A", 3, 2)])));
         var warnings = new List<string>();
 
         var games = RecordedGameParser.Parse("w", new GamesTab { Sheet = "NoTeams", Season = "w/S", Game = "halo3" }, workbook, warnings);
@@ -532,7 +532,7 @@ public class HistoricalArchiveParsingTests
     {
         var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "S" }, Tabs = [new() { Name = "Stats", DatesSheet = "Matches" }] };
         var xlsx = Workbook(
-            ("Stats", [Row("Player", "Team", "Kills"), Row("Galvann", "Silly Kids", 5), Row(), Row("(c)", "Silly Kids", 3)]),
+            ("Stats", [Row("Player", "Team", "Kills"), Row("Galvann", "Silly Kids", 5), Row(" ", " "), Row("(c)", "Silly Kids", 3)]),
             ("Matches", [Row("Player", "Kills"), Row("Galvann", 5)]));
 
         var season = SeasonStatsParser.Parse("s", config, Read(xlsx), []).Single();
