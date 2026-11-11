@@ -26,7 +26,7 @@ public class DatabaseBackupScratchTests
     private readonly List<string> _files = [];
 
     [OneTimeSetUp]
-    public static async Task StartOtherServer() => _other = await TestDatabase.StartServer(TestDatabase.Other);
+    public static async Task StartOtherServer() => _other = await TestDatabase.StartOtherServer();
 
     [OneTimeTearDown]
     public static async Task StopOtherServer() => await _other.DisposeAsync();

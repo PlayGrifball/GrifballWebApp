@@ -393,9 +393,11 @@ public class PostgresTemporalQueryableMethodTranslatingExpressionVisitorFactory(
     INpgsqlSingletonOptions npgsqlSingletonOptions)
     : NpgsqlQueryableMethodTranslatingExpressionVisitorFactory(dependencies, relationalDependencies, npgsqlSingletonOptions)
 {
+    private readonly INpgsqlSingletonOptions _npgsqlSingletonOptions = npgsqlSingletonOptions;
+
     public override QueryableMethodTranslatingExpressionVisitor Create(QueryCompilationContext queryCompilationContext)
         => new PostgresTemporalQueryableMethodTranslatingExpressionVisitor(
-            Dependencies, RelationalDependencies, (RelationalQueryCompilationContext)queryCompilationContext, npgsqlSingletonOptions);
+            Dependencies, RelationalDependencies, (RelationalQueryCompilationContext)queryCompilationContext, _npgsqlSingletonOptions);
 }
 
 /// <summary>

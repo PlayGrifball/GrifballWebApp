@@ -3,7 +3,7 @@
 public class TotalDto
 {
     public long XboxUserID { get; set; }
-    public string Gamertag { get; set; }
+    public required string Gamertag { get; set; }
     public int TotalGoals { get; set; }
     public int TotalKDSpread { get; set; }
     public int TotalPunches { get; set; }
@@ -47,7 +47,8 @@ public class LetterDto
     public required string XFactor { get; set; }
     public required string Kills { get; set; }
     public required double GradeAvgMath { get; set; }
-    public string GradeAvg { get; set; }
+    /// <summary>Set once every grade is in: the letter of <see cref="GradeAvgMath"/> among them all.</summary>
+    public string GradeAvg { get; set; } = "";
 }
 
 public class GradesDto

@@ -16,6 +16,6 @@ public class Letter
 
 public class LetterPercentile
 {
-    public Letter Letter { get; set; }
+    public required Letter Letter { get; set; }
     public double Value { get; set; }
 }

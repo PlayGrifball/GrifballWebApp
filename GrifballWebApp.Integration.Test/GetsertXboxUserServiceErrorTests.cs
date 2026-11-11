@@ -1,3 +1,4 @@
+using GrifballWebApp.Server.Test;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
@@ -37,10 +38,10 @@ public class GetsertXboxUserServiceErrorTests
     }
 
     private static HaloApiResultContainer<List<GruntUser>, HaloApiErrorContainer> Error(string message) =>
-        new(null, new HaloApiErrorContainer { Message = message });
+        HaloResults.Of<List<GruntUser>>(null, new HaloApiErrorContainer { Message = message });
 
     private static HaloApiResultContainer<List<GruntUser>, HaloApiErrorContainer> Users(params (string Xuid, string Gt)[] users) =>
-        new(users.Select(u => new GruntUser { xuid = u.Xuid, gamertag = u.Gt }).ToList(), null);
+        HaloResults.Of(users.Select(u => new GruntUser { xuid = u.Xuid, gamertag = u.Gt }).ToList(), null);
 
     [Test]
     public async Task GetsertXboxUsersByXuid_AllExisting_DoesNotCallApi()
@@ -82,7 +83,7 @@ public class GetsertXboxUserServiceErrorTests
     [Test]
     public async Task GetsertXboxUsersByXuid_NoResultAndNoError_SaysSoRatherThanThrowingNull()
     {
-        _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(new HaloApiResultContainer<List<GruntUser>, HaloApiErrorContainer>(null!, null!));
+        _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(HaloResults.Of<List<GruntUser>>(null!, null!));
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUsersByXuid([5]));
 
@@ -116,7 +117,7 @@ public class GetsertXboxUserServiceErrorTests
     [Test]
     public async Task GetsertXboxUserByXuid_NoResultAndNoError_SaysSoRatherThanThrowingNull()
     {
-        _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(new HaloApiResultContainer<List<GruntUser>, HaloApiErrorContainer>(null!, null!));
+        _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(HaloResults.Of<List<GruntUser>>(null!, null!));
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUserByXuid(5));
 

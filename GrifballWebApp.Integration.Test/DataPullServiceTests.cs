@@ -1,3 +1,4 @@
+using GrifballWebApp.Server.Test;
 using GrifballWebApp.Infrastructure;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -42,7 +43,7 @@ public class DataPullServiceTests
     public async Task GetMatch_ShouldReturnNull_WhenApiReturnsNull()
     {
         var matchId = Guid.NewGuid();
-        _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null, null));
+        _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(HaloResults.Of<MatchStats>(null, null));
         var result = await _service.GetMatch(matchId);
         Assert.That(result, Is.Null);
     }
@@ -52,7 +53,7 @@ public class DataPullServiceTests
     {
         var matchId = Guid.NewGuid();
         var matchStats = new MatchStats { MatchId = matchId };
-        _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(matchStats, null));
+        _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(HaloResults.Of<MatchStats>(matchStats, null));
         var result = await _service.GetMatch(matchId);
         Assert.That(result, Is.EqualTo(matchStats));
     }
@@ -73,7 +74,7 @@ public class DataPullServiceTests
     public async Task GetAndSaveMatch_ShouldNotSave_WhenApiReturnsNull()
     {
         var matchId = Guid.NewGuid();
-        _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null, null));
+        _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(HaloResults.Of<MatchStats>(null, null));
         await _service.GetAndSaveMatch(matchId);
         var exists = await _context.Matches.AnyAsync(x => x.MatchID == matchId);
         Assert.That(exists, Is.False);
@@ -166,7 +167,7 @@ public class DataPullServiceTests
                 }
             ]
         };
-        _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(matchStats, null));
+        _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(HaloResults.Of<MatchStats>(matchStats, null));
         _getsertXboxUserService.GetsertXboxUserByXuid(Arg.Any<long>()).Returns(Domain.Players.XboxUser.FromXbox(long.Parse(xuid), "TestUser"));
         await _service.GetAndSaveMatch(matchId);
         var match = await _context.Matches
@@ -210,7 +211,7 @@ public class DataPullServiceTests
                 }
             ]
         };
-        _haloInfiniteClientFactory.Medals().Returns(new HaloApiResultContainer<Surprenant.Grunt.Models.HaloInfinite.Medals.MedalMetadataResponse, HaloApiErrorContainer>(medalsApiResult, null));
+        _haloInfiniteClientFactory.Medals().Returns(HaloResults.Of<Surprenant.Grunt.Models.HaloInfinite.Medals.MedalMetadataResponse>(medalsApiResult, null));
         await _service.DownloadMedals();
         _context.ChangeTracker.Clear();
 
@@ -257,14 +258,14 @@ public class DataPullServiceTests
         };
         // All other pages return empty
         _haloInfiniteClientFactory.StatsGetMatchHistory(Arg.Is<string>("xuid(123456789)"), Arg.Any<int>(), Arg.Is(25), Arg.Any<MatchType>())
-            .Returns(new HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer>(new MatchHistoryResponse()
+            .Returns(HaloResults.Of<MatchHistoryResponse>(new MatchHistoryResponse()
             {
                 Count = 0,
                 Results = [],
             }, null));
         // Mock the first page
         _haloInfiniteClientFactory.StatsGetMatchHistory(Arg.Is<string>("xuid(123456789)"), Arg.Is(0), Arg.Is(25), Arg.Any<MatchType>())
-            .Returns(new HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer>(matchHistoryResult, null));
+            .Returns(HaloResults.Of<MatchHistoryResponse>(matchHistoryResult, null));
         
         // Mock match stats response
         var matchStats = new MatchStats
@@ -342,7 +343,7 @@ public class DataPullServiceTests
                 }
             ]
         };
-        _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(matchStats, null));
+        _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(HaloResults.Of<MatchStats>(matchStats, null));
 
         _getsertXboxUserService.GetsertXboxUsersByXuid(Arg.Is<long[]>(x => x.Length == 1 && x.Contains(xuid)), Arg.Any<CancellationToken>())
             .Returns([Domain.Players.XboxUser.FromXbox(xuid, gamertag)]);

@@ -384,7 +384,7 @@ public class HistoricalImportRecordedGamesTests
             .Include(m => m.RecordedGame)
             .Include(m => m.MatchmakingSeason!).ThenInclude(s => s.GameVersion)
             .OrderBy(m => m.StartedAt).ToListAsync();
-        string[] Names(MatchedTeam side) => [.. side.Players.Select(p => p.User.DisplayName).Order()];
+        string?[] Names(MatchedTeam side) => [.. side.Players.Select(p => p.User.DisplayName).Order()];
 
         using (Assert.EnterMultipleScope())
         {

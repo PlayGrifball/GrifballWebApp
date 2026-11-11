@@ -55,7 +55,8 @@ public class PasswordResetTests
         Assert.That(expiresAt!.Value, Is.GreaterThan(DateTime.UtcNow));
 
         // Verify reset link was saved in database
-        var resetLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == PasswordResetLink.HashToken(token));
+        var hashed = PasswordResetLink.HashToken(token ?? throw new AssertionException("No token"));
+        var resetLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == hashed);
         Assert.That(resetLink, Is.Not.Null);
         using (Assert.EnterMultipleScope())
         {
@@ -149,7 +150,8 @@ public class PasswordResetTests
         Assert.That((oldSuccess, oldMessage), Is.EqualTo((false, "Reset link has expired")));
         
         // Verify new link exists
-        var newLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == PasswordResetLink.HashToken(token));
+        var hashed = PasswordResetLink.HashToken(token ?? throw new AssertionException("No token"));
+        var newLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == hashed);
         Assert.That(newLink, Is.Not.Null);
     }
 

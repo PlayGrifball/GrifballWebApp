@@ -104,9 +104,9 @@ public class HistoricalImportPipelineTests
     private static HistoricalSource Source(string id, string sheetKey, HistoricalSourceConfig? config)
         => HistoricalTestData.Source(id, $"https://docs.google.com/spreadsheets/d/{sheetKey}/edit", config?.ToJson(), sheetKey: sheetKey);
 
-    private static byte[] Stats(params (string Gamertag, string Team, int Kills)[] players) => Workbook(("Stats", StatsTab(players)));
+    private static byte[] Stats(params (string Gamertag, string? Team, int Kills)[] players) => Workbook(("Stats", StatsTab(players)));
 
-    private static readonly (string, string, int)[] FivePlayers = [("A", "Tuna", 1), ("B", "Tuna", 1), ("C", "Tuna", 1), ("D", "Bandits", 1), ("E", "Bandits", 1)];
+    private static readonly (string, string?, int)[] FivePlayers = [("A", "Tuna", 1), ("B", "Tuna", 1), ("C", "Tuna", 1), ("D", "Bandits", 1), ("E", "Bandits", 1)];
 
     private async Task<T> Jobs<T>(Func<HistoricalImportJobs, HistoricalSourceService, Task<T>> use)
     {

@@ -60,7 +60,7 @@ public class AdminControllerTests
     {
         _gateway.GetAsync(Arg.Any<CancellationToken>()).Returns(new HaloGatewayAccount(true, accountStatus, null));
         _haloInfiniteClientFactory.StatsGetMatchStats(Arg.Any<string>())
-            .Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(new MatchStats(), new HaloApiErrorContainer { Code = apiCode }));
+            .Returns(HaloResults.Of<MatchStats>(new MatchStats(), new HaloApiErrorContainer { Code = apiCode }));
     }
 
     [Test]
@@ -218,7 +218,7 @@ public class AdminControllerTests
     public async Task CheckStatus_ShouldReturnGood_WhenStatsGetMatchStatsSucceeds()
     {
         _haloInfiniteClientFactory.StatsGetMatchStats(Arg.Any<string>())
-            .Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(new MatchStats(), null));
+            .Returns(HaloResults.Of<MatchStats>(new MatchStats(), null));
         var result = await _controller.CheckStatus();
         Assert.That(result, Is.EqualTo("Good"));
     }
@@ -309,8 +309,8 @@ public class AdminControllerTests
         var result = await _controller.GeneratePasswordResetLink(request, CancellationToken.None);
         
         Assert.That(result.Result, Is.TypeOf<OkObjectResult>());
-        var okResult = (OkObjectResult)result.Result;
-        var response = (GeneratePasswordResetLinkResponseDto)okResult.Value;
+        var okResult = (OkObjectResult)result.Result!;
+        var response = (GeneratePasswordResetLinkResponseDto)okResult.Value!;
         using (Assert.EnterMultipleScope())
         {
             Assert.That(response.ResetLink, Is.EqualTo("/reset-password?token=abc123token"));

@@ -99,7 +99,7 @@ public class BracketsControllerActionTests
     [Test]
     public async Task GetViewerData_Valid_ReturnsDto()
     {
-        var dto = new ViewerDataDto();
+        var dto = new ViewerDataDto { Stages = [], Matches = [], MatchGames = [], Participants = [] };
         _service.GetViewerDataAsync(7, Arg.Any<CancellationToken>()).Returns(dto);
 
         var result = await _controller.GetViewerData(7);

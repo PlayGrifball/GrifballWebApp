@@ -32,6 +32,10 @@ internal static class TestDatabase
     /// <summary>The other server, for what runs on both at once (the conversion between them): Postgres for SQLite.</summary>
     public static DatabaseProvider Other => Provider == DatabaseProvider.Postgres ? DatabaseProvider.SqlServer : DatabaseProvider.Postgres;
 
+    /// <summary>Starts <see cref="Other"/>, which is always a server (SQL Server or Postgres).</summary>
+    public static async Task<IDatabaseContainer> StartOtherServer()
+        => await StartServer(Other) ?? throw new InvalidOperationException($"{Other} has no server");
+
     public static async Task<IDatabaseContainer?> StartServer(DatabaseProvider? provider = null)
     {
         if ((provider ?? Provider) == DatabaseProvider.Sqlite)
@@ -41,13 +45,11 @@ internal static class TestDatabase
         }
         IDatabaseContainer server = (provider ?? Provider) switch
         {
-            DatabaseProvider.Postgres => new PostgreSqlBuilder()
-                .WithImage("postgres:18-alpine")
+            DatabaseProvider.Postgres => new PostgreSqlBuilder("postgres:18-alpine")
                 // Every test's database keeps a connection pool until it's dropped.
                 .WithCommand("-c", "max_connections=500")
                 .Build(),
-            _ => new MsSqlBuilder()
-                .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+            _ => new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
                 .WithPassword("yourStrong(!)Password")
                 .Build(),
         };

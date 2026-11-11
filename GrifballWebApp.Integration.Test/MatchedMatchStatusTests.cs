@@ -194,7 +194,7 @@ public class MatchedMatchStatusTests
         {
             Assert.That(reported.Match!.MatchID, Is.EqualTo(halo.MatchID));
             Assert.That((reported.HomeTeamId, reported.AwayTeamId), Is.Not.EqualTo((0, 0)));
-            Assert.That(loadedHalo.MatchedMatch.Id, Is.EqualTo(reported.Id));
+            Assert.That(loadedHalo.MatchedMatch?.Id, Is.EqualTo(reported.Id));
             Assert.That(loadedSeason.MatchedMatches.Select(m => (m.Status, m.RecordedGame!.SourceKey, m.RecordedGame.MatchedMatch!.Id)),
                 Is.EqualTo(new[] { (MatchedMatchStatus.Reported, "archive/late/1", archive.Id) }));
         }

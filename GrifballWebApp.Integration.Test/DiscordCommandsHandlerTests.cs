@@ -188,7 +188,7 @@ public class DiscordCommandsHandlerTests
             Assert.That(fields.Select(f => f.Name), Is.EqualTo(expected));
             Assert.That(fields.Where(f => f.Name == "Players").Select(f => f.Value), Is.EquivalentTo(expectedArray));
             Assert.That(fields.Select(f => f.Value), Has.All.Not.Null.And.Not.Empty, "Discord rejects an embed field without a value");
-            Assert.That(fields.Single(f => f.Name.StartsWith("**---")).Value, Is.EqualTo("\u200B"), "The divider has a zero-width value");
+            Assert.That(fields.Single(f => f.Name is { } name && name.StartsWith("**---")).Value, Is.EqualTo("\u200B"), "The divider has a zero-width value");
         }
     }
 

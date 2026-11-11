@@ -35,7 +35,7 @@ public class DatabaseConversionTests
     private readonly List<DatabaseEndpoint> _databases = [];
 
     [OneTimeSetUp]
-    public static async Task StartOtherServer() => _other = await TestDatabase.StartServer(TestDatabase.Other);
+    public static async Task StartOtherServer() => _other = await TestDatabase.StartOtherServer();
 
     [OneTimeTearDown]
     public static async Task StopOtherServer() => await _other.DisposeAsync();

@@ -161,9 +161,11 @@ public class UserMergeServiceCombineTests
     /// transaction.</summary>
     private sealed class MatchStartedAsTheMergeBegins(DbContextOptions<GrifballContext> options, int home, int away) : GrifballContext(options)
     {
+        private readonly DbContextOptions<GrifballContext> _options = options;
+
         public override async Task StartTransactionAsync(CancellationToken cancellationToken = default)
         {
-            await using (var queue = new GrifballContext(options))
+            await using (var queue = new GrifballContext(_options))
             {
                 queue.MatchedMatches.Add(MatchedMatch.Start([home], [away]));
                 await queue.SaveChangesAsync(cancellationToken);

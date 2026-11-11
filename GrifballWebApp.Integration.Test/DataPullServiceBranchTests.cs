@@ -1,3 +1,4 @@
+using GrifballWebApp.Server.Test;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
@@ -84,7 +85,7 @@ public class DataPullServiceBranchTests
         Players = players,
     };
 
-    private static HaloApiResultContainer<T, HaloApiErrorContainer> Ok<T>(T value) => new(value, null);
+    private static HaloApiResultContainer<T, HaloApiErrorContainer> Ok<T>(T value) => HaloResults.Of(value, null);
 
     [Test]
     public async Task SaveMatchStats_MapsOutcomesAndConvertsTimesToUtc()
@@ -271,7 +272,7 @@ public class DataPullServiceBranchTests
     [Test]
     public async Task DownloadMedals_NullResult_Throws()
     {
-        _factory.Medals().Returns(new HaloApiResultContainer<MedalMetadataResponse, HaloApiErrorContainer>(null, null));
+        _factory.Medals().Returns(HaloResults.Of<MedalMetadataResponse>(null, null));
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.DownloadMedals());
 
@@ -292,7 +293,7 @@ public class DataPullServiceBranchTests
 
         // Player 1: API failure. Player 2: matches. Player 3: no matches at all.
         _factory.StatsGetMatchHistory("xuid(1)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
-            .Returns(new HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer>(null, null));
+            .Returns(HaloResults.Of<MatchHistoryResponse>(null, null));
         // Both pages of player 2 return the same records.
         _factory.StatsGetMatchHistory("xuid(2)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
             .Returns(Ok(new MatchHistoryResponse
@@ -309,7 +310,7 @@ public class DataPullServiceBranchTests
         _factory.StatsGetMatchHistory("xuid(3)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
             .Returns(Ok(new MatchHistoryResponse { Results = [] }));
         _factory.StatsGetMatchStats(newMatch).Returns(Ok(Stats(newMatch, [(0, 2), (1, 3)], Player("xuid(2)", 0, (0, 5)), Player("xuid(9)", 1, (1, 2)))));
-        _factory.StatsGetMatchStats(missingStats).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null, null));
+        _factory.StatsGetMatchStats(missingStats).Returns(HaloResults.Of<MatchStats>(null, null));
         _context.XboxUsers.Add(XboxUser.FromXbox(2, "existing"));
         await _context.SaveChangesAsync();
         _getsert.GetsertXboxUserByXuid(2, Arg.Any<CancellationToken>()).Returns(_ => _context.XboxUsers.Single(x => x.XboxUserID == 2));
@@ -362,7 +363,7 @@ public class DataPullServiceBranchTests
             page1Answered.SetResult();
             return Ok(new MatchHistoryResponse { Results = [] });
         });
-        _factory.StatsGetMatchStats(onPage0).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null, null));
+        _factory.StatsGetMatchStats(onPage0).Returns(HaloResults.Of<MatchStats>(null, null));
 
         var result = await _service.DownloadRecentMatchesForPlayers([5], startPage: 0, endPage: 3, perPage: 5);
 
@@ -416,7 +417,7 @@ public class DataPullServiceBranchTests
     public async Task GetMatch_HalosError_IsLoggedReadably()
     {
         var id = Guid.NewGuid();
-        _factory.StatsGetMatchStats(id).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null!, new HaloApiErrorContainer { Code = 503, Message = "<html><head><title>Service unavailable</title></head></html>" }));
+        _factory.StatsGetMatchStats(id).Returns(HaloResults.Of<MatchStats>(null!, new HaloApiErrorContainer { Code = 503, Message = "<html><head><title>Service unavailable</title></head></html>" }));
 
         using (Assert.EnterMultipleScope())
         {
@@ -453,8 +454,8 @@ public class DataPullServiceBranchTests
             {
                 Assert.That((match.CreatedByID, match.ModifiedByID), Is.EqualTo(((int?)9001, (int?)9001)));
                 Assert.That(match.CreatedAt, Is.GreaterThan(started));
-                Assert.That(teams, Has.Count.EqualTo(2).And.All.Matches<MatchTeam>(t => t.CreatedByID == 9001 && t.CreatedAt > started));
-                Assert.That(players, Has.Count.EqualTo(2).And.All.Matches<MatchParticipant>(p => p.CreatedByID == 9001 && p.CreatedAt > started));
+                Assert.That(teams, Has.Count.EqualTo(2).And.All.Matches<MatchTeam>(t => t is { CreatedByID: 9001 } && t.CreatedAt > started));
+                Assert.That(players, Has.Count.EqualTo(2).And.All.Matches<MatchParticipant>(p => p is { CreatedByID: 9001 } && p.CreatedAt > started));
             }
         }
         finally
@@ -482,7 +483,7 @@ public class DataPullServiceBranchTests
             }).ToArray(),
         }));
         _factory.StatsGetMatchHistory("xuid(7)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>()).Returns(Ok(new MatchHistoryResponse { Results = [] }));
-        _factory.StatsGetMatchStats(Arg.Any<Guid>()).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null!, null!));
+        _factory.StatsGetMatchStats(Arg.Any<Guid>()).Returns(HaloResults.Of<MatchStats>(null!, null!));
         // The season: games 1150 to 1210, on pages 46 (games 1150-1174) to 48 (1200-1224)
         var from = newest.AddHours(-1210);
         var to = newest.AddHours(-1150);
@@ -519,7 +520,7 @@ public class DataPullServiceBranchTests
         void History(string player, int count, int? fails = null) =>
             _factory.StatsGetMatchHistory(player, Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>()).Returns(call =>
                 call.ArgAt<int>(1) == fails
-                    ? new HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer>(null!, new HaloApiErrorContainer { Code = 503, Message = "unavailable" })
+                    ? HaloResults.Of<MatchHistoryResponse>(null!, new HaloApiErrorContainer { Code = 503, Message = "unavailable" })
                     : Ok(new MatchHistoryResponse
                     {
                         Results = Enumerable.Range(call.ArgAt<int>(1), Math.Max(0, Math.Min(call.ArgAt<int>(2), count - call.ArgAt<int>(1)))).Select(i => new PlayerMatchHistoryRecord
@@ -533,7 +534,7 @@ public class DataPullServiceBranchTests
         History("xuid(11)", 2000, fails: 4 * page);    // a page while searching
         History("xuid(12)", 2000, fails: 47 * page);   // one of the season's pages (46 to 48)
         History("xuid(13)", 30);                       // ends long before the season
-        _factory.StatsGetMatchStats(Arg.Any<Guid>()).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null!, null!));
+        _factory.StatsGetMatchStats(Arg.Any<Guid>()).Returns(HaloResults.Of<MatchStats>(null!, null!));
 
         var result = await _service.DownloadMatchesBetween([10, 11, 12, 13], from, to);
 

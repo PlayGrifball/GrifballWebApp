@@ -132,7 +132,7 @@ public class SignupButtonInteractionsTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(LastMessage(), Is.EqualTo("You must set your gamertag first"));
-            Assert.That(_rest.Requests, Has.Some.Matches<FakeRestRequestHandler.RecordedRequest>(r => r.Method == HttpMethod.Delete && r.Path.EndsWith("/messages/@original")));
+            Assert.That(_rest.Requests, Has.Some.Matches<FakeRestRequestHandler.RecordedRequest>(r => r is not null && r.Method == HttpMethod.Delete && r.Path.EndsWith("/messages/@original")));
             Assert.That(await _context.SeasonSignups.AnyAsync(), Is.False);
         }
     }

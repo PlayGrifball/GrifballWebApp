@@ -113,7 +113,7 @@ public class SortCollection<TSource>
             .GetConstructor(new[] {
                 typeof(PropertyInfo),
                 typeof(ListSortDirection)
-            });
+            }) ?? throw new InvalidOperationException($"{sortedElementType} has no (PropertyInfo, ListSortDirection) constructor");
 
         return ctor.Invoke(new object?[] {
             propertyInfo,

@@ -52,7 +52,7 @@ public class SeriesGameModelTests
         {
             Assert.That(series.SeriesGames.OrderBy(g => g.GameNumber).Select(g => (g.GameNumber, g.Match?.MatchID, g.RecordedGame?.SourceKey)),
                 Is.EqualTo(new[] { (1, (Guid?)match.MatchID, (string?)null), (2, (Guid?)null, (string?)"mcc/1") }));
-            Assert.That(linkedMatch.SeriesGame.SeasonMatchID, Is.EqualTo(seeded.SeasonMatch.SeasonMatchID));
+            Assert.That(linkedMatch.SeriesGame?.SeasonMatchID, Is.EqualTo(seeded.SeasonMatch.SeasonMatchID));
         }
     }
 

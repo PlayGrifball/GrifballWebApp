@@ -153,6 +153,6 @@ public class ScratchStopJobTests
 
         await scaleDown.StopAsync(CancellationToken.None);
         await Task.WhenAny(scaleDown.ExecuteTask!, Task.Delay(TimeSpan.FromSeconds(10)));
-        Assert.That(scaleDown.ExecuteTask.IsCanceled, Is.True, "Ended by the host stopping");
+        Assert.That(scaleDown.ExecuteTask!.IsCanceled, Is.True, "Ended by the host stopping");
     }
 }

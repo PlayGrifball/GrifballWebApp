@@ -89,7 +89,7 @@ public static class ContextExtensions
                 continue;
             }
 
-            var tableName = entityType.GetTableName();
+            var tableName = entityType.GetTableName() ?? throw new InvalidOperationException($"{entityType.DisplayName()} has rows but no table");
             var schema = entityType.GetSchema() ?? "dbo";
             if (tablesWithIdentity.Any())
                 throw new Exception("Unable to save identity column for more than one column at once");

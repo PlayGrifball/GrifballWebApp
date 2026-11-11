@@ -42,7 +42,8 @@ public class StringMenuInteractionsTests
         var logger = Substitute.For<Microsoft.Extensions.Logging.ILogger<QueueService>>();
         var dataPull = Substitute.For<IDataPullService>();
         _queueService = new QueueService(logger, options, queueRepo, _discordClient, _context, dataPull, new ContextOutbox(_context), Substitute.For<IQueueNotifier>());
-        _handler = new MatchmakingStringMenuHandler(_context, _discordClient, _queueService, _notifier = Substitute.For<IQueueNotifier>());
+        _notifier = Substitute.For<IQueueNotifier>();
+        _handler = new MatchmakingStringMenuHandler(_context, _discordClient, _queueService, _notifier);
         _discordContext = Substitute.For<IDiscordStringMenuInteractionContext>();
     }
 

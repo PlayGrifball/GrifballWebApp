@@ -173,7 +173,7 @@ public class BackupControllerTests
             Assert.That(status.Format, Is.EqualTo("sqlite"));
             Assert.That(status.FileName, Is.EqualTo("grifball-backup-20261101-123045.sqlite"));
             Assert.That(status.Started, Is.Not.Null);
-            Assert.That(status.Finished, Is.GreaterThanOrEqualTo(status.Started));
+            Assert.That(status.Finished, Is.GreaterThanOrEqualTo(status.Started ?? DateTimeOffset.MaxValue), "finished once started");
             Assert.That(status.Tables, Is.GreaterThan(0));
             Assert.That(file.FileDownloadName, Is.EqualTo("grifball-backup-20261101-123045.sqlite"));
             Assert.That(file.ContentType, Is.EqualTo("application/vnd.sqlite3"));
@@ -426,7 +426,7 @@ public class BackupControllerTests
         {
             Assert.That(status.State, Is.EqualTo(ExportState.Succeeded), status.Message);
             Assert.That(status.Provider, Is.EqualTo("Sqlite"));
-            Assert.That(status.Finished, Is.GreaterThanOrEqualTo(status.Started));
+            Assert.That(status.Finished, Is.GreaterThanOrEqualTo(status.Started ?? DateTimeOffset.MaxValue), "finished once started");
             Assert.That(status.Tables, Is.GreaterThan(0));
             Assert.That(status.Rows, Is.GreaterThan(0));
         }

@@ -155,7 +155,7 @@ public class BracketServiceQueryTests
     {
         var seasonID = await CreateSeason("No Playoffs");
 
-        var data = await _service.GetViewerDataAsync(seasonID);
+        var data = await _service.GetViewerDataAsync(seasonID) ?? throw new AssertionException("No viewer data");
 
         using (Assert.EnterMultipleScope())
         {
@@ -175,7 +175,7 @@ public class BracketServiceQueryTests
         int Sm(Bracket kind, int number) => bracket.Single(x => x.Bracket == kind && x.MatchNumber == number).SeasonMatchID;
         _context.ChangeTracker.Clear();
 
-        var data = await _service.GetViewerDataAsync(seasonID);
+        var data = await _service.GetViewerDataAsync(seasonID) ?? throw new AssertionException("No viewer data");
 
         using (Assert.EnterMultipleScope())
         {
@@ -251,7 +251,7 @@ public class BracketServiceQueryTests
         await _service.CreateBracket(4, seasonID, false, 1);
         _context.ChangeTracker.Clear();
 
-        var data = await _service.GetViewerDataAsync(seasonID);
+        var data = await _service.GetViewerDataAsync(seasonID) ?? throw new AssertionException("No viewer data");
 
         using (Assert.EnterMultipleScope())
         {
@@ -272,7 +272,7 @@ public class BracketServiceQueryTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        var data = await _service.GetViewerDataAsync(seasonID);
+        var data = await _service.GetViewerDataAsync(seasonID) ?? throw new AssertionException("No viewer data");
 
         using (Assert.EnterMultipleScope())
         {
@@ -297,7 +297,7 @@ public class BracketServiceQueryTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        var data = await _service.GetViewerDataAsync(seasonID);
+        var data = await _service.GetViewerDataAsync(seasonID) ?? throw new AssertionException("No viewer data");
 
         var m1 = data.Matches.Single(m => m.Id == w1.SeasonMatchID);
         var m2 = data.Matches.Single(m => m.Id == w2.SeasonMatchID);
@@ -340,7 +340,7 @@ public class BracketServiceQueryTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        var data = await _service.GetViewerDataAsync(seasonID);
+        var data = await _service.GetViewerDataAsync(seasonID) ?? throw new AssertionException("No viewer data");
         Status StatusOf(SeasonMatch sm) => data!.Matches.Single(m => m.Id == sm.SeasonMatchID).Status;
         var l1 = await _context.SeasonMatches.AsNoTracking().SingleAsync(x => x.BracketMatch!.Bracket == Bracket.Loser && x.BracketMatch.MatchNumber == 1);
 
@@ -365,13 +365,13 @@ public class BracketServiceQueryTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        var data = await _service.GetViewerDataAsync(seasonID);
+        var data = await _service.GetViewerDataAsync(seasonID) ?? throw new AssertionException("No viewer data");
 
         var mapped = data!.Matches.Single(m => m.Id == match.SeasonMatchID);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(mapped.Opponent2.Result, Is.EqualTo(Result.loss));
-            Assert.That(mapped.Opponent2.Forfeit, Is.True);
+            Assert.That(mapped.Opponent2?.Result, Is.EqualTo(Result.loss));
+            Assert.That(mapped.Opponent2?.Forfeit, Is.True);
         }
     }
 
@@ -384,7 +384,7 @@ public class BracketServiceQueryTests
         int Sm(Bracket kind, int number) => bracket.Single(x => x.Bracket == kind && x.MatchNumber == number).SeasonMatchID;
         _context.ChangeTracker.Clear();
 
-        var data = await _service.GetViewerDataAsync(seasonID);
+        var data = await _service.GetViewerDataAsync(seasonID) ?? throw new AssertionException("No viewer data");
 
         var byId = data!.Matches.ToDictionary(m => m.Id);
         using (Assert.EnterMultipleScope())
@@ -439,7 +439,7 @@ public class BracketServiceQueryTests
         await _context.SaveChangesAsync();
         var invalid = SeasonMatch.Seed(seasonID, null, null, bracketMatch: MatchBracketInfo.Seed(
                 matchNumber: 2, roundNumber: 1, bracket: Bracket.Winner,
-                homeTeamPreviousMatchBracketInfoID: feeder.BracketMatch.MatchBracketInfoID,
+                homeTeamPreviousMatchBracketInfoID: feeder.BracketMatch!.MatchBracketInfoID,
                 awayTeamSeedNumber: 2
             ));
         _context.SeasonMatches.Add(invalid);
@@ -461,7 +461,7 @@ public class BracketServiceQueryTests
         var invalid = SeasonMatch.Seed(seasonID, null, null, bracketMatch: MatchBracketInfo.Seed(
                 matchNumber: 2, roundNumber: 1, bracket: Bracket.Winner,
                 homeTeamSeedNumber: 1,
-                awayTeamPreviousMatchBracketInfoID: feeder.BracketMatch.MatchBracketInfoID
+                awayTeamPreviousMatchBracketInfoID: feeder.BracketMatch!.MatchBracketInfoID
             ));
         _context.SeasonMatches.Add(invalid);
         await _context.SaveChangesAsync();
@@ -481,8 +481,8 @@ public class BracketServiceQueryTests
         await _context.SaveChangesAsync();
         _context.SeasonMatches.Add(SeasonMatch.Seed(seasonID, null, null, bracketMatch: MatchBracketInfo.Seed(
                 matchNumber: 2, roundNumber: 2, bracket: Bracket.Winner,
-                homeTeamPreviousMatchBracketInfoID: feeder.BracketMatch.MatchBracketInfoID,
-                awayTeamPreviousMatchBracketInfoID: feeder.BracketMatch.MatchBracketInfoID
+                homeTeamPreviousMatchBracketInfoID: feeder.BracketMatch!.MatchBracketInfoID,
+                awayTeamPreviousMatchBracketInfoID: feeder.BracketMatch!.MatchBracketInfoID
             )));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();

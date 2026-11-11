@@ -1,3 +1,4 @@
+using GrifballWebApp.Server.Test;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
@@ -256,7 +257,7 @@ public class CustomScoreLayoutsTests
         }
     }
 
-    private static HaloApiResultContainer<MatchStats, HaloApiErrorContainer> Ok(MatchStats stats) => new(stats, null);
+    private static HaloApiResultContainer<MatchStats, HaloApiErrorContainer> Ok(MatchStats stats) => HaloResults.Of(stats, null);
 
     [Test]
     public async Task TheBackfill_SetsOnlyTheVariant_OfMatchesWithoutOne_AndLeavesTheOnesHaloDoesntGiveForLater()
@@ -270,7 +271,7 @@ public class CustomScoreLayoutsTests
         var halo = Substitute.For<IHaloInfiniteClientFactory>();
         // Fetched again, Halo's numbers differ from the saved ones: they're not the backfill's to change
         halo.StatsGetMatchStats(filled.MatchID).Returns(Ok(Stats(filled.MatchID, asset, version, (9, [Player("xuid(1)", 0, 1, 1)]))));
-        halo.StatsGetMatchStats(failing.MatchID).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null!, new HaloApiErrorContainer { Code = 404, Message = "not found" }));
+        halo.StatsGetMatchStats(failing.MatchID).Returns(HaloResults.Of<MatchStats>(null!, new HaloApiErrorContainer { Code = 404, Message = "not found" }));
         halo.StatsGetMatchStats(unanswered.MatchID).Returns(Task.FromException<HaloApiResultContainer<MatchStats, HaloApiErrorContainer>>(new TaskCanceledException("timed out")));
         halo.StatsGetMatchStats(noVariant.MatchID).Returns(Ok(Stats(noVariant.MatchID, null, null, (9, []))));
         var progress = new List<(int, int)>();

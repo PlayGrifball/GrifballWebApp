@@ -1,3 +1,4 @@
+using GrifballWebApp.Server.Test;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Players;
@@ -63,7 +64,7 @@ public class XuidLookupServiceTests
 
     private void Holds(string gamertag, string xuid, string? current = null)
         => _halo.UserByGamertag(gamertag).Returns(Task.FromResult(
-            new HaloApiResultContainer<HaloUser, HaloApiErrorContainer>(new HaloUser { gamertag = current ?? gamertag, xuid = xuid }, null)));
+            HaloResults.Of<HaloUser>(new HaloUser { gamertag = current ?? gamertag, xuid = xuid }, null)));
 
     [Test]
     public async Task Found_CreatesOnePendingClaim_WithTheCurrentHolder_AndNeverLinks()

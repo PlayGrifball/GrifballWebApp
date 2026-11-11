@@ -29,7 +29,7 @@ public class DatabaseScriptExportTests
     private static readonly string[] expected = new[] { "Already here" };
 
     [OneTimeSetUp]
-    public static async Task StartOtherServer() => _other = await TestDatabase.StartServer(TestDatabase.Other);
+    public static async Task StartOtherServer() => _other = await TestDatabase.StartOtherServer();
 
     [OneTimeTearDown]
     public static async Task StopOtherServer() => await _other.DisposeAsync();

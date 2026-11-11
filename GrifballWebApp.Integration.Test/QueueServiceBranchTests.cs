@@ -82,7 +82,8 @@ public class QueueServiceBranchTests
             LogChannel = LogChannel,
             MatchPlayers = 4,
         };
-        _service = new QueueService(_logger, Options.Create(_options), new QueueRepository(_context), _discordClient, _context, _dataPullService, new ContextOutbox(_context), _notifier = Substitute.For<IQueueNotifier>());
+        _notifier = Substitute.For<IQueueNotifier>();
+        _service = new QueueService(_logger, Options.Create(_options), new QueueRepository(_context), _discordClient, _context, _dataPullService, new ContextOutbox(_context), _notifier);
         _outbox = new OutboxTestDriver(_context, _discordClient, _options);
     }
 

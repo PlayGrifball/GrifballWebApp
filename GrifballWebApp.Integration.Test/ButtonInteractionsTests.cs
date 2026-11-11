@@ -51,7 +51,8 @@ public class ButtonInteractionsTests
         _dataPullService = Substitute.For<IDataPullService>();
         _queueService = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService, new ContextOutbox(_context), Substitute.For<IQueueNotifier>());
         _notifier = Substitute.For<IQueueNotifier>();
-        _handler = new MatchmakingButtonHandler(new QueueMembership(_queueRepository, _context, _notifier), new ServiceCollection().AddScoped(_ => _publisher).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _context, _discordClient, _queueService, _handlerLogger = new RecordingLogger<MatchmakingButtonHandler>());
+        _handlerLogger = new RecordingLogger<MatchmakingButtonHandler>();
+        _handler = new MatchmakingButtonHandler(new QueueMembership(_queueRepository, _context, _notifier), new ServiceCollection().AddScoped(_ => _publisher).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _context, _discordClient, _queueService, _handlerLogger);
 
         _discordContext = Substitute.For<IDiscordButtonInteractionContext>();
     }

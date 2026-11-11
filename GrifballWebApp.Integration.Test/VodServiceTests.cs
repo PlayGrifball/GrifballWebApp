@@ -188,8 +188,8 @@ public class VodServiceTests
         {
             Assert.That(await _context.Vods.Select(v => v.YouTubeVideoID).ToListAsync(), Is.EqualTo(expectedArray), "Two minutes is a clip");
             Assert.That((week1.DurationSeconds, week1.PublishedAtIsApproximate, week1.MatchStatus), Is.EqualTo(((int?)6601, false, VodMatchStatus.Auto)));
-            Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r.Contains("/playlistItems?") && r.Contains("key=test-key")));
-            Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r.Contains("/videos?") && r.Contains("week1video0")));
+            Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r is not null && r.Contains("/playlistItems?") && r.Contains("key=test-key")));
+            Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r is not null && r.Contains("/videos?") && r.Contains("week1video0")));
             Assert.That(result.Failed, Has.Some.Contains("feed"), "No feed answered; the API's videos still count");
         }
 
@@ -230,7 +230,7 @@ public class VodServiceTests
             Assert.That(ids, Is.SupersetOf(VodArchive.Videos.Select(v => v.VideoID)));
             Assert.That(ids, Does.Contain("8IjYNH7Vsso"));
             Assert.That(ids, Has.Count.EqualTo(VodArchive.Videos.Count + 1), "The Shorts' IDs aren't kept");
-            Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r.Contains("/videos?") && r.Contains("v327Rjqsij8")), "Every archive ID asked about");
+            Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r is not null && r.Contains("/videos?") && r.Contains("v327Rjqsij8")), "Every archive ID asked about");
             Assert.That((await Row("Hb2JmxJhQd8")).PublishedAtIsApproximate, Is.True);
         }
     }

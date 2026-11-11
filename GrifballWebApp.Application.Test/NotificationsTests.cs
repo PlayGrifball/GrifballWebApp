@@ -97,7 +97,7 @@ public class NotificationsTests
             Assert.That(Handlers<Pong>(), Is.EquivalentTo(new[] { typeof(PingPongHandler) }));
             Assert.That(Handlers<Unhandled>(), Is.Empty);
             Assert.That(services.Where(d => d.ServiceType.IsGenericType && d.ServiceType.GetGenericTypeDefinition() == typeof(INotificationHandler<>)),
-                Has.All.Matches<ServiceDescriptor>(d => d.Lifetime == ServiceLifetime.Transient));
+                Has.All.Matches<ServiceDescriptor>(d => d is { Lifetime: ServiceLifetime.Transient }));
             Assert.That(services.Single(d => d.ServiceType == typeof(IPublisher)).Lifetime, Is.EqualTo(ServiceLifetime.Transient));
         }
     }

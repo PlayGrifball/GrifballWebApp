@@ -4,10 +4,10 @@ namespace GrifballWebApp.Application.Brackets;
 
 public class ViewerDataDto
 {
-    public List<Stage> Stages { get; set; } // 1 Stage for season
-    public List<Match> Matches { get; set; } // SeasonMatches
-    public List<MatchGame> MatchGames { get; set; } // Links / Infinite Matches
-    public List<Participant> Participants { get; set; }
+    public required List<Stage> Stages { get; set; } // 1 Stage for season
+    public required List<Match> Matches { get; set; } // SeasonMatches
+    public required List<MatchGame> MatchGames { get; set; } // Links / Infinite Matches
+    public required List<Participant> Participants { get; set; }
 }
 
 //https://code-maze.com/csharp-serialize-enum-to-string/
@@ -16,9 +16,9 @@ public class Stage
 {
     public int Id { get; set; } // Season ID
     public int Tournament_id { get; set; } // SeasonID
-    public string Name { get; set; } // Season Name Playoffs
+    public required string Name { get; set; } // Season Name Playoffs
     public required StageType Type { get; set; }
-    public StageSettings Settings { get; set; }
+    public required StageSettings Settings { get; set; }
     // The number of the stage in its tournament.
     public int Number { get; set; } // 1
 }
@@ -51,12 +51,12 @@ public class StageSettings
     /// The number of participants. Also includes Byes
     /// </summary>
     public int Size { get; set; }
-    public SeedOrdering[] SeedOrdering { get; set; }
+    public required SeedOrdering[] SeedOrdering { get; set; }
     public bool BalanceByes { get; set; }
     public int MatchesChildCount { get; set; }
     public int GroupCount { get; set; }
     public RoundRobinMode RoundRobinMode { get; set; }
-    public int[][] ManualOrdering { get; set; }
+    public required int[][] ManualOrdering { get; set; }
     public bool ConsolationFinal { get; set; }
     public bool SkipFirstRound { get; set; }
     public GrandFinalType GrandFinal { get; set; }
@@ -125,7 +125,7 @@ public class MatchGame : MatchResults
     /// <summary>
     /// ID of the match game: MatchID
     /// </summary>
-    public string Id { get; set; }
+    public required string Id { get; set; }
     /// <summary>
     /// ID of the parent stage: 1
     /// </summary>
@@ -202,5 +202,5 @@ public class Participant
     /// <summary>
     /// Name of the participant: Team Name
     /// </summary>
-    public string Name { get; set; }
+    public required string Name { get; set; }
 }

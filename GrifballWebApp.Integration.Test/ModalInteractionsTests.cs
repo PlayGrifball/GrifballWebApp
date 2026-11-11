@@ -34,7 +34,8 @@ public class ModalInteractionsTests
     public async Task SetUp()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _rest = FakeRestRequestHandler.CreateClient(out _handler);
+        _rest = FakeRestRequestHandler.CreateClient(out var handler);
+        _handler = handler;
 
         var services = new ServiceCollection();
         services.AddLogging();
