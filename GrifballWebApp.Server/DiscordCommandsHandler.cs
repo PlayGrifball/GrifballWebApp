@@ -35,35 +35,37 @@ public class DiscordCommandsHandler
         _getsertXboxUserService = getsertXboxUserService;
     }
 
-    public async Task RecentMatches(IDiscordApplicationCommandContext discordContext, string? gamertag)
+    /// <summary>The Xbox account the command asks about: the gamertag's, else the caller's own. Null, the caller told why, for none.</summary>
+    private async Task<XboxUser?> XboxUserFor(IDiscordApplicationCommandContext discordContext, string? gamertag)
     {
-        await discordContext.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage());
-
-        XboxUser? xboxUser = null;
-        string? msg = null;
-
         if (!string.IsNullOrWhiteSpace(gamertag))
         {
-            (xboxUser, msg) = await _getsertXboxUserService.GetsertXboxUserByGamertag(gamertag);
+            var (xboxUser, msg) = await _getsertXboxUserService.GetsertXboxUserByGamertag(gamertag);
             if (xboxUser is null)
             {
                 // NetCord takes a null content too; the generated IDiscordMessageOptions just lost the annotation
                 await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent(msg!));
-                return;
             }
+            return xboxUser;
         }
-        else
+
+        var own = await _context.DiscordUsers
+            .Where(x => x.DiscordUserID == (long)discordContext.User.Id)
+            .Select(x => x.User!.XboxUser)
+            .FirstOrDefaultAsync();
+        if (own == null)
         {
-            xboxUser = await _context.DiscordUsers
-                .Where(x => x.DiscordUserID == (long)discordContext.User.Id)
-                .Select(x => x.User!.XboxUser)
-                .FirstOrDefaultAsync();
-            if (xboxUser == null)
-            {
-                await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent("You must set your gamertag first, or provide someone else's gamertag to search for"));
-                return;
-            }
-        } 
+            await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent("You must set your gamertag first, or provide someone else's gamertag to search for"));
+        }
+        return own;
+    }
+
+    public async Task RecentMatches(IDiscordApplicationCommandContext discordContext, string? gamertag)
+    {
+        await discordContext.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage());
+
+        if (await XboxUserFor(discordContext, gamertag) is not { } xboxUser)
+            return;
 
         try
         {

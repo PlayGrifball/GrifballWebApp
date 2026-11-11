@@ -69,46 +69,8 @@ public static class PostgresHistory
         {
             var root = table.First(e => e.BaseType is null);
             roots.Add(root);
-            var start = Builder(modelBuilder, root).Property<DateTime>(PeriodStart);
-            if (periods.ColumnType is not null)
-                start.HasColumnType(periods.ColumnType);
-            start
-                // The trigger stamps every write. A table that has rows when it gets the column gives them
-                // BeginningOfTime instead (HistoryMigrationsModelDiffer).
-                .HasDefaultValueSql(periods.PeriodStartDefault)
-                .ValueGeneratedOnAddOrUpdate();
-            // Generated: the app can't write it, and EF reads it back after each insert and update.
-            var end = Builder(modelBuilder, root).Property<DateTime>(PeriodEnd);
-            if (periods.ColumnType is not null)
-                end.HasColumnType(periods.ColumnType);
-            end.HasComputedColumnSql(periods.EndOfTime, stored: periods.EndStored)
-                .ValueGeneratedOnAddOrUpdate();
-
-            var store = StoreObjectIdentifier.Table(table.Key.Table, table.Key.Schema);
-            var columns = new Dictionary<string, IMutableProperty>();
-            foreach (var entityType in table)
-                foreach (var property in entityType.GetProperties())
-                    // PeriodEnd: the history table's own, below.
-                    if (property.GetColumnName(store) is { } column && column != PeriodEnd)
-                        columns.TryAdd(column, property);
-
-            var keyColumns = root.FindPrimaryKey()?.Properties.Select(p => p.GetColumnName(store)!).ToArray() ?? [];
-
-            modelBuilder.SharedTypeEntity<Dictionary<string, object>>(HistoryEntityName(root), b =>
-            {
-                b.ToTable(table.Key.Table + Suffix, table.Key.Schema);
-                b.HasNoKey();
-                b.HasAnnotation(HistoryOfAnnotation, table.Key.Table);
-                foreach (var (column, property) in columns)
-                    CopyColumn(b, column, property);
-                var historyEnd = b.IndexerProperty<DateTime>(PeriodEnd);
-                if (periods.ColumnType is not null)
-                    historyEnd.HasColumnType(periods.ColumnType);
-                // A row's versions, and the one in effect at a time.
-                b.HasIndex([.. keyColumns, PeriodEnd]);
-                foreach (var foreignKey in ForeignKeyColumns(table, store, keyColumns))
-                    b.HasIndex([.. foreignKey, PeriodEnd]);
-            });
+            AddPeriods(modelBuilder, root, periods);
+            AddHistoryTable(modelBuilder, table, root, periods);
         }
 
         // The triggers' functions, which the migrations create with the first history table.
@@ -116,6 +78,55 @@ public static class PostgresHistory
             modelBuilder.HasAnnotation(PostgresHistoryFunctions.Annotation, PostgresHistoryFunctions.Current);
 
         return roots;
+    }
+
+    /// <summary>The root's period columns: its start stamped by the trigger, its end computed (the end of time).</summary>
+    private static void AddPeriods(ModelBuilder modelBuilder, IMutableEntityType root, HistoryColumns periods)
+    {
+        var start = Builder(modelBuilder, root).Property<DateTime>(PeriodStart);
+        if (periods.ColumnType is not null)
+            start.HasColumnType(periods.ColumnType);
+        start
+            // The trigger stamps every write. A table that has rows when it gets the column gives them
+            // BeginningOfTime instead (HistoryMigrationsModelDiffer).
+            .HasDefaultValueSql(periods.PeriodStartDefault)
+            .ValueGeneratedOnAddOrUpdate();
+        // Generated: the app can't write it, and EF reads it back after each insert and update.
+        var end = Builder(modelBuilder, root).Property<DateTime>(PeriodEnd);
+        if (periods.ColumnType is not null)
+            end.HasColumnType(periods.ColumnType);
+        end.HasComputedColumnSql(periods.EndOfTime, stored: periods.EndStored)
+            .ValueGeneratedOnAddOrUpdate();
+    }
+
+    /// <summary>The table's history table: every column of its entity types, PeriodEnd, and the indexes temporal queries use.</summary>
+    private static void AddHistoryTable(ModelBuilder modelBuilder, IGrouping<(string? Schema, string Table), IMutableEntityType> table, IMutableEntityType root, HistoryColumns periods)
+    {
+        var store = StoreObjectIdentifier.Table(table.Key.Table, table.Key.Schema);
+        var columns = new Dictionary<string, IMutableProperty>();
+        foreach (var entityType in table)
+            foreach (var property in entityType.GetProperties())
+                // PeriodEnd: the history table's own, below.
+                if (property.GetColumnName(store) is { } column && column != PeriodEnd)
+                    columns.TryAdd(column, property);
+
+        var keyColumns = root.FindPrimaryKey()?.Properties.Select(p => p.GetColumnName(store)!).ToArray() ?? [];
+
+        modelBuilder.SharedTypeEntity<Dictionary<string, object>>(HistoryEntityName(root), b =>
+        {
+            b.ToTable(table.Key.Table + Suffix, table.Key.Schema);
+            b.HasNoKey();
+            b.HasAnnotation(HistoryOfAnnotation, table.Key.Table);
+            foreach (var (column, property) in columns)
+                CopyColumn(b, column, property);
+            var historyEnd = b.IndexerProperty<DateTime>(PeriodEnd);
+            if (periods.ColumnType is not null)
+                historyEnd.HasColumnType(periods.ColumnType);
+            // A row's versions, and the one in effect at a time.
+            b.HasIndex([.. keyColumns, PeriodEnd]);
+            foreach (var foreignKey in ForeignKeyColumns(table, store, keyColumns))
+                b.HasIndex([.. foreignKey, PeriodEnd]);
+        });
     }
 
     /// <summary>

@@ -119,38 +119,44 @@ public class XuidLookupService
             lookup.LookedUpAt = _time.GetUtcNow().UtcDateTime;
             lookup.XboxUserID = null;
             lookup.Error = null;
-            try
-            {
-                var response = await _halo.UserByGamertag(gamertag);
-                if (response?.Result is null || string.IsNullOrEmpty(response.Result.gamertag))
-                {
-                    lookup.Status = XuidLookupStatus.NotFound;
-                    report.NotFound++;
-                }
-                else if (!long.TryParse(response.Result.xuid, out var xuid))
-                {
-                    lookup.Status = XuidLookupStatus.Failed;
-                    lookup.Error = "The XUID Xbox gave isn't a number";
-                    report.Failed++;
-                }
-                else
-                {
-                    lookup.Status = XuidLookupStatus.Found;
-                    lookup.XboxUserID = xuid;
-                    report.Found++;
-                    if (await ClaimAsync(placeholder.Id, gamertag, xuid, response.Result.gamertag, lookup.LookedUpAt, ct))
-                        report.ClaimsCreated++;
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                lookup.Status = XuidLookupStatus.Failed;
-                lookup.Error = ex.Message.Length > 200 ? ex.Message[..200] : ex.Message;
-                report.Failed++;
-            }
+            await LookUpAsync(lookup, placeholder.Id, gamertag, report, ct);
             await _context.SaveChangesAsync(ct);
         }
         return report;
+    }
+
+    /// <summary>Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>.</summary>
+    private async Task LookUpAsync(XuidLookup lookup, int placeholderId, string gamertag, XuidLookupReport report, CancellationToken ct)
+    {
+        try
+        {
+            var response = await _halo.UserByGamertag(gamertag);
+            if (response?.Result is null || string.IsNullOrEmpty(response.Result.gamertag))
+            {
+                lookup.Status = XuidLookupStatus.NotFound;
+                report.NotFound++;
+            }
+            else if (!long.TryParse(response.Result.xuid, out var xuid))
+            {
+                lookup.Status = XuidLookupStatus.Failed;
+                lookup.Error = "The XUID Xbox gave isn't a number";
+                report.Failed++;
+            }
+            else
+            {
+                lookup.Status = XuidLookupStatus.Found;
+                lookup.XboxUserID = xuid;
+                report.Found++;
+                if (await ClaimAsync(placeholderId, gamertag, xuid, response.Result.gamertag, lookup.LookedUpAt, ct))
+                    report.ClaimsCreated++;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            lookup.Status = XuidLookupStatus.Failed;
+            lookup.Error = ex.Message.Length > 200 ? ex.Message[..200] : ex.Message;
+            report.Failed++;
+        }
     }
 
     /// <summary>A pending claim pairing the placeholder with the XUID, unless the pair was claimed before (pending,

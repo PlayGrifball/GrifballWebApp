@@ -54,29 +54,40 @@ public static partial class RosterParser
             var labels = Enumerable.Range(0, row.Length).Where(c => TeamNameLabel().IsMatch(row[c])).ToList();
             if (labels.Count > 0)
             {
-                blocks = [];
-                for (var i = 0; i < labels.Count; i++)
-                {
-                    var end = i + 1 < labels.Count ? labels[i + 1] : width;
-                    blocks[labels[i]] = Enumerable.Range(labels[i] + 1, end - labels[i] - 1)
-                        .ToDictionary(c => c, c => c >= row.Length || string.IsNullOrWhiteSpace(row[c]) ? null : Spaces().Replace(row[c].Trim(), " "));
-                }
+                blocks = Blocks(row, labels, width);
                 continue;
             }
             if (blocks is null)
                 continue;
             foreach (var (label, columns) in blocks)
-            {
-                if (label >= row.Length || !PlayerLabel().IsMatch(row[label]))
-                    continue;
-                var captains = CaptainLabel().IsMatch(row[label]);
-                foreach (var column in columns.Keys.Where(c => c < row.Length).ToList())
-                {
-                    if (columns[column] is null && captains && ArchiveCells.Gamertag(row[column]).Gamertag is { Length: > 0 } captain)
-                        columns[column] = captain;
-                    Add(teams, row[column], columns[column]);
-                }
-            }
+                AddBlockRow(teams, row, label, columns);
+        }
+    }
+
+    /// <summary>A row of team-name labels: each label's block, its columns up to the next label's (or the widest row's end), each with the team the row names there.</summary>
+    private static Dictionary<int, Dictionary<int, string?>> Blocks(string[] row, List<int> labels, int width)
+    {
+        var blocks = new Dictionary<int, Dictionary<int, string?>>();
+        for (var i = 0; i < labels.Count; i++)
+        {
+            var end = i + 1 < labels.Count ? labels[i + 1] : width;
+            blocks[labels[i]] = Enumerable.Range(labels[i] + 1, end - labels[i] - 1)
+                .ToDictionary(c => c, c => c >= row.Length || string.IsNullOrWhiteSpace(row[c]) ? null : Spaces().Replace(row[c].Trim(), " "));
+        }
+        return blocks;
+    }
+
+    /// <summary>A block's row of players (its label a player's, or the captains', which name a team still unnamed).</summary>
+    private static void AddBlockRow(Dictionary<string, string> teams, string[] row, int label, Dictionary<int, string?> columns)
+    {
+        if (label >= row.Length || !PlayerLabel().IsMatch(row[label]))
+            return;
+        var captains = CaptainLabel().IsMatch(row[label]);
+        foreach (var column in columns.Keys.Where(c => c < row.Length).ToList())
+        {
+            if (columns[column] is null && captains && ArchiveCells.Gamertag(row[column]).Gamertag is { Length: > 0 } captain)
+                columns[column] = captain;
+            Add(teams, row[column], columns[column]);
         }
     }
 

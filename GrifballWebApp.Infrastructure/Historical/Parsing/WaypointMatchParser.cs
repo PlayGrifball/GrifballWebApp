@@ -46,29 +46,40 @@ public static partial class WaypointMatchParser
             if (first.Length > 0)
                 inPlayoffs = PlayoffsPattern().IsMatch(first);
 
-            var ids = new List<string>();
-            foreach (var cell in row)
-            {
-                var cellIds = MatchIds(cell);
-                if (cellIds is null)
-                    unparsed.Add($"{sheet.Name}: {cell.Trim()}");
-                else
-                    ids.AddRange(cellIds);
-            }
+            var ids = RowMatchIds(sheet.Name, row, unparsed);
             (inPlayoffs ? playoffs : regular).AddRange(ids);
 
             if (headerRow < 0 || r <= headerRow)
                 continue;
             var (homeCell, awayCell) = (sheet.Cell(r, homeCol).Trim(), sheet.Cell(r, awayCol).Trim());
             if (homeCell.Length > 0 || awayCell.Length > 0)
-                sides = TeamName(homeCell) is { } home && TeamName(awayCell) is { } away && !string.Equals(home, away, StringComparison.OrdinalIgnoreCase)
-                    ? (home, away)
-                    : null;
+                sides = Sides(homeCell, awayCell);
             if (sides is { } both)
                 schedule.AddRange(ids.Select(id => new ScheduledGame { MatchId = id, Home = both.Home, Away = both.Away }));
         }
         return (regular, playoffs, schedule);
     }
+
+    /// <summary>The match IDs of a row's links; a link without one goes in <paramref name="unparsed"/>.</summary>
+    private static List<string> RowMatchIds(string sheetName, IEnumerable<string> row, List<string> unparsed)
+    {
+        var ids = new List<string>();
+        foreach (var cell in row)
+        {
+            var cellIds = MatchIds(cell);
+            if (cellIds is null)
+                unparsed.Add($"{sheetName}: {cell.Trim()}");
+            else
+                ids.AddRange(cellIds);
+        }
+        return ids;
+    }
+
+    /// <summary>The two teams a row's Home and Away cells name; null unless both name a team, and not the same one.</summary>
+    private static (string Home, string Away)? Sides(string homeCell, string awayCell)
+        => TeamName(homeCell) is { } home && TeamName(awayCell) is { } away && !string.Equals(home, away, StringComparison.OrdinalIgnoreCase)
+            ? (home, away)
+            : null;
 
     /// <summary>
     /// The team (or captain) a Home or Away cell names, cleaned like a gamertag (role notes such as "(c)" dropped) and cut

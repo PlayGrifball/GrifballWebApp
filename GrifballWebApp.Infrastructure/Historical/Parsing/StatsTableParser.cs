@@ -55,52 +55,16 @@ public static class StatsTableParser
 
         // Each season, phase and division's players, in the order they first appear: a line is a gamertag and team
         var groups = new Dictionary<(string Season, bool Playoffs, string? Division), Dictionary<(string Gamertag, string? Team), List<string[]>>>();
-        var unknownSeasons = new SortedDictionary<string, int>(StringComparer.Ordinal);
-        var noGamertag = 0;
-        var noDivision = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        var skipped = new SkippedRows();
+        var at = new RowColumns(seasonColumn, playoffsColumn, gamertagColumn, teamNameColumn, divisionColumn);
         for (var r = 1; r < sheet.Rows.Count; r++)
-        {
-            var row = sheet.Rows[r];
-            var seasonId = Value(row, seasonColumn);
-            if (seasonId is null || !table.Seasons.TryGetValue(seasonId, out var season))
-            {
-                var id = seasonId ?? "(none)";
-                unknownSeasons[id] = unknownSeasons.GetValueOrDefault(id) + 1;
-                continue;
-            }
-            var teamRow = teams?.Rows.GetValueOrDefault(Value(row, teams.Value.RowKey) ?? "");
-            string? division = null;
-            if (season.Divisions is not null)
-            {
-                var value = teamRow is null ? null : Value(teamRow, divisionColumn);
-                if (value is null || !season.Divisions.TryGetValue(value, out division))
-                {
-                    noDivision[seasonId] = noDivision.GetValueOrDefault(seasonId) + 1;
-                    continue;
-                }
-            }
-            var gamertag = Value(row, gamertagColumn)
-                ?? (players is { } p && p.Rows.GetValueOrDefault(Value(row, p.RowKey) ?? "") is { } playerRow ? Value(playerRow, p.Column) : null);
-            if (gamertag is null)
-            {
-                noGamertag++;
-                continue;
-            }
-            var team = Value(row, teamNameColumn) ?? (teamRow is null ? null : Value(teamRow, teams!.Value.Column));
-            var key = (seasonId, Number(row, playoffsColumn) == 1, division);
-            if (!groups.TryGetValue(key, out var lines))
-                groups[key] = lines = [];
-            var line = (gamertag.Trim(), team?.Trim());
-            if (!lines.TryGetValue(line, out var rows))
-                lines[line] = rows = [];
-            rows.Add(row);
-        }
-        foreach (var (id, count) in unknownSeasons)
+            AddRow(sheet.Rows[r], table, at, players, teams, groups, skipped);
+        foreach (var (id, count) in skipped.UnknownSeasons)
             warnings.Add($"{sourceId}: {table.Sheet}: {count} row(s) of season {id}, which its config doesn't name, skipped");
-        foreach (var (id, count) in noDivision)
+        foreach (var (id, count) in skipped.NoDivision)
             warnings.Add($"{sourceId}: {table.Sheet}: {count} row(s) of season {id} without one of its divisions, skipped");
-        if (noGamertag > 0)
-            warnings.Add($"{sourceId}: {table.Sheet}: {noGamertag} row(s) without a gamertag, skipped");
+        if (skipped.NoGamertag > 0)
+            warnings.Add($"{sourceId}: {table.Sheet}: {skipped.NoGamertag} row(s) without a gamertag, skipped");
 
         var games = header.Length;
         var lineColumns = columns.Values.Any(c => c.Key == "gamesPlayed")
@@ -111,33 +75,90 @@ public static class StatsTableParser
             .OrderBy(g => seasonIds.IndexOf(g.Key.Season))
             .ThenBy(g => g.Key.Playoffs)
             .ThenBy(g => g.Key.Division is null ? -1 : table.Seasons[g.Key.Season].Divisions!.Values.ToList().IndexOf(g.Key.Division))
-            .Select(g =>
-            {
-                var season = table.Seasons[g.Key.Season];
-                var stints = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                var lines = g.Value.Select(l =>
-                {
-                    var (gamertag, tradeNote, roleNote) = ArchiveCells.Gamertag(l.Key.Gamertag);
-                    var stint = stints.GetValueOrDefault(gamertag) + 1;
-                    stints[gamertag] = stint;
-                    var row = Line(l.Value, columns, games, table.PerGame);
-                    return SeasonStatsParser.Player(row, lineColumns, gamertag, l.Key.Team, tradeNote, roleNote, stint,
-                        l.Value.Count == 1 ? Extended(l.Value[0], extended) : null);
-                }).ToList();
-                return new ArchiveSeason
-                {
-                    SeasonName = g.Key.Division is null ? season.Name : $"{season.Name} ({g.Key.Division})",
-                    GameVersion = table.Game,
-                    League = config.Season?.League ?? "AGLA",
-                    Division = g.Key.Division ?? config.Season?.Division ?? "Open",
-                    Format = config.Season?.Format,
-                    SourceWorkbook = sourceId,
-                    SourceSheet = $"{table.Sheet}#s{g.Key.Season}" + (g.Key.Division is null ? "" : $"_{g.Key.Division}"),
-                    IsPlayoffs = g.Key.Playoffs,
-                    Players = lines,
-                };
-            })
+            .Select(g => SeasonOf(sourceId, config, table, g.Key, g.Value, columns, lineColumns, games, extended))
             .ToList();
+    }
+
+    /// <summary>The rows a season, phase and division's lines skipped, by why, for the warnings.</summary>
+    private sealed class SkippedRows
+    {
+        public SortedDictionary<string, int> UnknownSeasons { get; } = new(StringComparer.Ordinal);
+        public SortedDictionary<string, int> NoDivision { get; } = new(StringComparer.Ordinal);
+        public int NoGamertag { get; set; }
+    }
+
+    /// <summary>The stats table's columns a row is read by; the division's is the teams tab's.</summary>
+    private sealed record RowColumns(int Season, int Playoffs, int Gamertag, int TeamName, int Division);
+
+    /// <summary>A stats row into its season, phase and division's player line; one that can't be placed is counted in <paramref name="skipped"/>.</summary>
+    private static void AddRow(string[] row, StatsTable table, RowColumns at,
+        (SheetTable Sheet, Dictionary<string, string[]> Rows, int Column, int RowKey)? players,
+        (SheetTable Sheet, Dictionary<string, string[]> Rows, int Column, int RowKey)? teams,
+        Dictionary<(string Season, bool Playoffs, string? Division), Dictionary<(string Gamertag, string? Team), List<string[]>>> groups,
+        SkippedRows skipped)
+    {
+        var seasonId = Value(row, at.Season);
+        if (seasonId is null || !table.Seasons.TryGetValue(seasonId, out var season))
+        {
+            var id = seasonId ?? "(none)";
+            skipped.UnknownSeasons[id] = skipped.UnknownSeasons.GetValueOrDefault(id) + 1;
+            return;
+        }
+        var teamRow = teams?.Rows.GetValueOrDefault(Value(row, teams.Value.RowKey) ?? "");
+        string? division = null;
+        if (season.Divisions is not null)
+        {
+            var value = teamRow is null ? null : Value(teamRow, at.Division);
+            if (value is null || !season.Divisions.TryGetValue(value, out division))
+            {
+                skipped.NoDivision[seasonId] = skipped.NoDivision.GetValueOrDefault(seasonId) + 1;
+                return;
+            }
+        }
+        var gamertag = Value(row, at.Gamertag)
+            ?? (players is { } p && p.Rows.GetValueOrDefault(Value(row, p.RowKey) ?? "") is { } playerRow ? Value(playerRow, p.Column) : null);
+        if (gamertag is null)
+        {
+            skipped.NoGamertag++;
+            return;
+        }
+        var team = Value(row, at.TeamName) ?? (teamRow is null ? null : Value(teamRow, teams!.Value.Column));
+        var key = (seasonId, Number(row, at.Playoffs) == 1, division);
+        if (!groups.TryGetValue(key, out var lines))
+            groups[key] = lines = [];
+        var line = (gamertag.Trim(), team?.Trim());
+        if (!lines.TryGetValue(line, out var rows))
+            lines[line] = rows = [];
+        rows.Add(row);
+    }
+
+    private static ArchiveSeason SeasonOf(string sourceId, HistoricalSourceConfig config, StatsTable table, (string Season, bool Playoffs, string? Division) key,
+        Dictionary<(string Gamertag, string? Team), List<string[]>> group, Dictionary<int, (string Key, string Header)> columns,
+        Dictionary<int, (string Key, string Header)> lineColumns, int games, List<(int Column, string Metric)> extended)
+    {
+        var season = table.Seasons[key.Season];
+        var stints = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var lines = group.Select(l =>
+        {
+            var (gamertag, tradeNote, roleNote) = ArchiveCells.Gamertag(l.Key.Gamertag);
+            var stint = stints.GetValueOrDefault(gamertag) + 1;
+            stints[gamertag] = stint;
+            var row = Line(l.Value, columns, games, table.PerGame);
+            return SeasonStatsParser.Player(row, lineColumns, gamertag, l.Key.Team, tradeNote, roleNote, stint,
+                l.Value.Count == 1 ? Extended(l.Value[0], extended) : null);
+        }).ToList();
+        return new ArchiveSeason
+        {
+            SeasonName = key.Division is null ? season.Name : $"{season.Name} ({key.Division})",
+            GameVersion = table.Game,
+            League = config.Season?.League ?? "AGLA",
+            Division = key.Division ?? config.Season?.Division ?? "Open",
+            Format = config.Season?.Format,
+            SourceWorkbook = sourceId,
+            SourceSheet = $"{table.Sheet}#s{key.Season}" + (key.Division is null ? "" : $"_{key.Division}"),
+            IsPlayoffs = key.Playoffs,
+            Players = lines,
+        };
     }
 
     /// <summary>

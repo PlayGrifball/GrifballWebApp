@@ -66,6 +66,8 @@ dotnet_diagnostic.S4487.severity = error
 dotnet_diagnostic.S2365.severity = error
 # An override doesn't change a default parameter value
 dotnet_diagnostic.S1006.severity = error
+# Methods a reader can follow: cognitive complexity 15 at most
+dotnet_diagnostic.S3776.severity = error
 
 # EF's migrations: generated code (SonarCloud doesn't analyse them either)
 [GrifballWebApp.Migrations.*/Migrations/**.cs]

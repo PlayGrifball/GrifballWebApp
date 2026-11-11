@@ -42,7 +42,18 @@ public static partial class SeasonStatsParser
     public static List<ArchiveSeason> Parse(string sourceId, HistoricalSourceConfig config, SheetWorkbook workbook, List<string> warnings)
     {
         var seasons = new List<ArchiveSeason>();
-        // The teams' rosters, for players whose row names no team (or only the side of a game)
+        var rosters = Rosters(sourceId, config, workbook, warnings);
+        foreach (var tab in config.Tabs)
+        {
+            if (ParseTab(sourceId, config, workbook, tab, rosters, warnings) is { } season)
+                seasons.Add(season);
+        }
+        return seasons;
+    }
+
+    /// <summary>The teams' rosters, for players whose row names no team (or only the side of a game).</summary>
+    private static Dictionary<string, string> Rosters(string sourceId, HistoricalSourceConfig config, SheetWorkbook workbook, List<string> warnings)
+    {
         var rosters = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var name in config.RosterSheets)
         {
@@ -52,90 +63,120 @@ public static partial class SeasonStatsParser
             else
                 warnings.Add($"{sourceId}: no sheet '{name}'");
         }
-        foreach (var tab in config.Tabs)
+        return rosters;
+    }
+
+    /// <summary>A stats tab's season; null (with a warning) for a tab that isn't there or is empty.</summary>
+    private static ArchiveSeason? ParseTab(string sourceId, HistoricalSourceConfig config, SheetWorkbook workbook, StatsTab tab,
+        Dictionary<string, string> rosters, List<string> warnings)
+    {
+        var sheet = workbook.Sheet(tab.Name);
+        if (sheet is null || sheet.Rows.Count <= tab.HeaderRow + 1)
         {
-            var sheet = workbook.Sheet(tab.Name);
-            if (sheet is null || sheet.Rows.Count <= tab.HeaderRow + 1)
-            {
-                warnings.Add($"{sourceId}: no sheet '{tab.Name}', or it is empty");
-                continue;
-            }
-            var columns = ColumnsOf(sheet.Rows[tab.HeaderRow]);
-            var dataRows = sheet.Rows.Skip(tab.HeaderRow + 1).ToList();
-            // A Team column of only 0s and 1s is the side of the player's last game (the stats tool's sheets), not a team
-            var teamColumns = columns.Where(c => c.Value.Key == "teamName").Select(c => c.Key).ToList();
-            var sides = teamColumns.Count > 0 && dataRows.Select(r => teamColumns.Select(c => c < r.Length ? r[c].Trim() : "").LastOrDefault(v => v.Length > 0))
-                .OfType<string>().Where(v => v.Length > 0).DefaultIfEmpty("x").All(v => v is "0" or "1");
-            // When its games were played: the stats tool's TimeStamp column (each player's last game)
-            var stampColumn = Array.FindIndex(sheet.Rows[tab.HeaderRow], h => h.Trim().ToLowerInvariant() is "timestamp" or "time stamp");
-            var played = stampColumn < 0 ? [] : dataRows.Select(r => PlayedAt(stampColumn < r.Length ? r[stampColumn] : null)).OfType<DateTime>().ToList();
-            // or another tab's (a match history headed Timestamp), for a stats tab without one
-            if (tab.DatesSheet is { } datesName)
-            {
-                if (workbook.Sheet(datesName) is { Rows.Count: > 0 } dates)
-                {
-                    var column = Array.FindIndex(dates.Rows[0], h => h.Trim().ToLowerInvariant() is "timestamp" or "time stamp");
-                    if (column >= 0)
-                        played.AddRange(dates.Rows.Skip(1).Select(r => PlayedAt(column < r.Length ? r[column] : null)).OfType<DateTime>());
-                }
-                else
-                    warnings.Add($"{sourceId}: no sheet '{datesName}'");
-            }
-
-            var players = new List<ArchivePlayer>();
-            var stints = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            for (var r = tab.HeaderRow + 1; r < sheet.Rows.Count; r++)
-            {
-                var row = sheet.Rows[r];
-                if (row.All(string.IsNullOrWhiteSpace))
-                    continue;
-                string? rawGamertag = null, teamName = null;
-                foreach (var (c, column) in columns)
-                {
-                    if (c >= row.Length)
-                        continue;
-                    if (column.Key == "gamertag")
-                        rawGamertag = row[c];
-                    else if (column.Key == "teamName")
-                        teamName = row[c];
-                }
-                if (string.IsNullOrEmpty(rawGamertag) && tab.PlayerColumn is int playerColumn)
-                    rawGamertag = sheet.Cell(r, playerColumn);
-                // A team column without a header (its first cell blank) is where the config says
-                if (string.IsNullOrWhiteSpace(teamName) && tab.TeamColumn is int teamColumn)
-                    teamName = sheet.Cell(r, teamColumn);
-                if (string.IsNullOrWhiteSpace(rawGamertag) || TotalsRow().IsMatch(rawGamertag) || IsRepeatingHeader(rawGamertag, teamName))
-                    continue;
-                var (gamertag, tradeNote, roleNote) = ArchiveCells.Gamertag(rawGamertag);
-                if (gamertag.Length == 0)
-                    continue;
-                var stint = stints.GetValueOrDefault(gamertag) + 1;
-                stints[gamertag] = stint;
-                var team = sides || HistoricalKeys.IsExcludedTeamName(teamName) ? null : teamName?.Trim();
-                team ??= rosters.GetValueOrDefault(HistoricalKeys.Normalize(gamertag));
-                players.Add(Player(row, columns, gamertag, team, tradeNote, roleNote, stint));
-            }
-
-            var defaults = config.Season;
-            seasons.Add(new ArchiveSeason
-            {
-                SeasonName = tab.CustomSeason ?? defaults?.Name ?? sourceId,
-                GameVersion = tab.Game ?? defaults?.Game ?? "",
-                League = defaults?.League ?? "AGLA",
-                Division = defaults?.Division ?? "Open",
-                Format = defaults?.Format,
-                SourceWorkbook = sourceId,
-                SourceSheet = tab.Name,
-                IsPlayoffs = tab.IsPlayoffs,
-                IsCombined = tab.IsCombined,
-                FirstPlayedAt = played.Count > 0 ? played.Min() : null,
-                LastPlayedAt = played.Count > 0 ? played.Max() : null,
-                SourceYear = tab.Year,
-                Titles = tab.CustomSeason is null ? defaults?.Titles : null,
-                Players = players,
-            });
+            warnings.Add($"{sourceId}: no sheet '{tab.Name}', or it is empty");
+            return null;
         }
-        return seasons;
+        var columns = ColumnsOf(sheet.Rows[tab.HeaderRow]);
+        var dataRows = sheet.Rows.Skip(tab.HeaderRow + 1).ToList();
+        // A Team column of only 0s and 1s is the side of the player's last game (the stats tool's sheets), not a team
+        var teamColumns = columns.Where(c => c.Value.Key == "teamName").Select(c => c.Key).ToList();
+        var sides = teamColumns.Count > 0 && dataRows.Select(r => teamColumns.Select(c => c < r.Length ? r[c].Trim() : "").LastOrDefault(v => v.Length > 0))
+            .OfType<string>().Where(v => v.Length > 0).DefaultIfEmpty("x").All(v => v is "0" or "1");
+        var played = PlayedDates(sourceId, workbook, tab, sheet, dataRows, warnings);
+        var players = TabPlayers(sheet, tab, columns, sides, rosters);
+
+        var defaults = config.Season;
+        return new ArchiveSeason
+        {
+            SeasonName = tab.CustomSeason ?? defaults?.Name ?? sourceId,
+            GameVersion = tab.Game ?? defaults?.Game ?? "",
+            League = defaults?.League ?? "AGLA",
+            Division = defaults?.Division ?? "Open",
+            Format = defaults?.Format,
+            SourceWorkbook = sourceId,
+            SourceSheet = tab.Name,
+            IsPlayoffs = tab.IsPlayoffs,
+            IsCombined = tab.IsCombined,
+            FirstPlayedAt = played.Count > 0 ? played.Min() : null,
+            LastPlayedAt = played.Count > 0 ? played.Max() : null,
+            SourceYear = tab.Year,
+            Titles = tab.CustomSeason is null ? defaults?.Titles : null,
+            Players = players,
+        };
+    }
+
+    /// <summary>When the tab's games were played: the stats tool's TimeStamp column (each player's last game), or another
+    /// tab's (a match history headed Timestamp), for a stats tab without one.</summary>
+    private static List<DateTime> PlayedDates(string sourceId, SheetWorkbook workbook, StatsTab tab, SheetTable sheet, List<string[]> dataRows, List<string> warnings)
+    {
+        var stampColumn = StampColumn(sheet.Rows[tab.HeaderRow]);
+        var played = stampColumn < 0 ? [] : Stamps(dataRows, stampColumn);
+        if (tab.DatesSheet is { } datesName)
+        {
+            if (workbook.Sheet(datesName) is { Rows.Count: > 0 } dates)
+            {
+                var column = StampColumn(dates.Rows[0]);
+                if (column >= 0)
+                    played.AddRange(Stamps(dates.Rows.Skip(1), column));
+            }
+            else
+                warnings.Add($"{sourceId}: no sheet '{datesName}'");
+        }
+        return played;
+    }
+
+    private static int StampColumn(string[] header) => Array.FindIndex(header, h => h.Trim().ToLowerInvariant() is "timestamp" or "time stamp");
+
+    private static List<DateTime> Stamps(IEnumerable<string[]> rows, int column)
+        => rows.Select(r => PlayedAt(column < r.Length ? r[column] : null)).OfType<DateTime>().ToList();
+
+    /// <summary>The tab's player lines: a row with a gamertag (not a totals row, or the header again), a player's second
+    /// row their second stint, the team their row's (unless it is a side) or else their roster's.</summary>
+    private static List<ArchivePlayer> TabPlayers(SheetTable sheet, StatsTab tab, Dictionary<int, (string Key, string Header)> columns, bool sides,
+        Dictionary<string, string> rosters)
+    {
+        var players = new List<ArchivePlayer>();
+        var stints = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (var r = tab.HeaderRow + 1; r < sheet.Rows.Count; r++)
+        {
+            var row = sheet.Rows[r];
+            if (row.All(string.IsNullOrWhiteSpace))
+                continue;
+            var (rawGamertag, teamName) = NameCells(sheet, r, tab, columns);
+            if (string.IsNullOrWhiteSpace(rawGamertag) || TotalsRow().IsMatch(rawGamertag) || IsRepeatingHeader(rawGamertag, teamName))
+                continue;
+            var (gamertag, tradeNote, roleNote) = ArchiveCells.Gamertag(rawGamertag);
+            if (gamertag.Length == 0)
+                continue;
+            var stint = stints.GetValueOrDefault(gamertag) + 1;
+            stints[gamertag] = stint;
+            var team = sides || HistoricalKeys.IsExcludedTeamName(teamName) ? null : teamName?.Trim();
+            team ??= rosters.GetValueOrDefault(HistoricalKeys.Normalize(gamertag));
+            players.Add(Player(row, columns, gamertag, team, tradeNote, roleNote, stint));
+        }
+        return players;
+    }
+
+    /// <summary>A row's gamertag and team cells: the headed columns', else where the config says (a column without a header,
+    /// its first cell blank).</summary>
+    private static (string? Gamertag, string? TeamName) NameCells(SheetTable sheet, int r, StatsTab tab, Dictionary<int, (string Key, string Header)> columns)
+    {
+        var row = sheet.Rows[r];
+        string? rawGamertag = null, teamName = null;
+        foreach (var (c, column) in columns)
+        {
+            if (c >= row.Length)
+                continue;
+            if (column.Key == "gamertag")
+                rawGamertag = row[c];
+            else if (column.Key == "teamName")
+                teamName = row[c];
+        }
+        if (string.IsNullOrEmpty(rawGamertag) && tab.PlayerColumn is int playerColumn)
+            rawGamertag = sheet.Cell(r, playerColumn);
+        if (string.IsNullOrWhiteSpace(teamName) && tab.TeamColumn is int teamColumn)
+            teamName = sheet.Cell(r, teamColumn);
+        return (rawGamertag, teamName);
     }
 
     /// <summary>The stats a header's columns hold, by column index (a later column of the same stat wins, as the archive's

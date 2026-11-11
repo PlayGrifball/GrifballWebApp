@@ -255,6 +255,16 @@ public partial class SeasonMatchService
         if (users.Count != ids.Count)
             throw new SeasonMatchActionNotAllowedException("A player entered is not a user of the site");
 
+        CheckRosters(players, users, seasonMatch, editing);
+        return users;
+    }
+
+    /// <summary>
+    /// A rostered player plays for their team's side; a player on neither roster only stays on a game they were already
+    /// on (<paramref name="editing"/>).
+    /// </summary>
+    private static void CheckRosters(List<ManualGamePlayerRequestDto> players, Dictionary<int, User> users, SeasonMatch seasonMatch, RecordedGame? editing)
+    {
         var home = seasonMatch.HomeTeam!;
         var away = seasonMatch.AwayTeam!;
         var homeRoster = home.TeamPlayers.Select(tp => tp.UserID).ToHashSet();
@@ -270,7 +280,6 @@ public partial class SeasonMatchService
             if (!homeRoster.Contains(player.UserID) && !awayRoster.Contains(player.UserID) && !alreadyOn.Contains(player.UserID))
                 throw new SeasonMatchActionNotAllowedException($"{name} is on neither team's roster");
         }
-        return users;
     }
 
     /// <summary>What was entered, as the game's facts: a game in a bracket match is a playoff game.</summary>

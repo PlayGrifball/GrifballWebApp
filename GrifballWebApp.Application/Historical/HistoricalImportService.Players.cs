@@ -74,36 +74,47 @@ public partial class HistoricalImportService
         }
 
         if (holder is null)
+            return await LinkUnheldDiscord(player, gamertag, discordId.Value, placeholder, real, conflicting, counts, ct);
+        return await LinkHeldDiscord(gamertag, discordId.Value, holder, placeholder, conflicting, counts, ct);
+    }
+
+    /// <summary><see cref="ImportPlayer"/> for a Discord ID no user has: the player's placeholder gets it.</summary>
+    private async Task<int?> LinkUnheldDiscord(ArchivePlayerInput player, string gamertag, long discordId, User? placeholder, User? real,
+        bool conflicting, HistoricalImportReport counts, CancellationToken ct)
+    {
+        if (conflicting)
+            return real?.Id ?? placeholder?.Id;
+        if (real is not null)
         {
-            if (conflicting)
-                return real?.Id ?? placeholder?.Id;
-            if (real is not null)
-            {
-                // A signed-up user's own sign-in links their Discord: a list doesn't decide it for them
-                Warn(counts, $"Players lists: {gamertag} (Discord ID {discordId}) is {real.UserName}'s gamertag; their Discord is linked when they sign in with it");
-                return real.Id;
-            }
-            if (placeholder is null)
-            {
-                var (made, created) = await _matching.CreatePlaceholderAsync(gamertag, null, ct);
-                placeholder = made;
-                if (created)
-                    counts.DummyUsersCreated++;
-            }
-            if (placeholder.LinkDiscord(discordId.Value) is DiscordLinking.LinkedToOther)
-            {
-                Warn(counts, $"Players lists: {gamertag}'s placeholder has Discord ID {placeholder.DiscordUserID}, the list says {discordId}; left as it is");
-                return placeholder.Id;
-            }
-            if (!await _context.DiscordUsers.AnyAsync(d => d.DiscordUserID == discordId, ct))
-            {
-                _context.DiscordUsers.Add(DiscordUser.FromDiscord(discordId.Value, player.DiscordUsername));
-            }
-            await _context.SaveChangesAsync(ct);
-            counts.DiscordLinked++;
+            // A signed-up user's own sign-in links their Discord: a list doesn't decide it for them
+            Warn(counts, $"Players lists: {gamertag} (Discord ID {discordId}) is {real.UserName}'s gamertag; their Discord is linked when they sign in with it");
+            return real.Id;
+        }
+        if (placeholder is null)
+        {
+            var (made, created) = await _matching.CreatePlaceholderAsync(gamertag, null, ct);
+            placeholder = made;
+            if (created)
+                counts.DummyUsersCreated++;
+        }
+        if (placeholder.LinkDiscord(discordId) is DiscordLinking.LinkedToOther)
+        {
+            Warn(counts, $"Players lists: {gamertag}'s placeholder has Discord ID {placeholder.DiscordUserID}, the list says {discordId}; left as it is");
             return placeholder.Id;
         }
+        if (!await _context.DiscordUsers.AnyAsync(d => d.DiscordUserID == discordId, ct))
+        {
+            _context.DiscordUsers.Add(DiscordUser.FromDiscord(discordId, player.DiscordUsername));
+        }
+        await _context.SaveChangesAsync(ct);
+        counts.DiscordLinked++;
+        return placeholder.Id;
+    }
 
+    /// <summary><see cref="ImportPlayer"/> for a Discord ID a signed-up user has: the player's placeholder merged into them, or claimed.</summary>
+    private async Task<int?> LinkHeldDiscord(string gamertag, long discordId, User holder, User? placeholder, bool conflicting,
+        HistoricalImportReport counts, CancellationToken ct)
+    {
         // A signed-up user has the Discord ID
         if (placeholder is null || placeholder.Id == holder.Id || !placeholder.IsDummyUser)
             return holder.Id;

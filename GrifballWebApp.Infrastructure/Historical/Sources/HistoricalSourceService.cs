@@ -144,20 +144,8 @@ public class HistoricalSourceService
             if (progress is not null)
                 await progress($"Downloading {source.HistoricalSourceID}");
             var now = _time.GetUtcNow().UtcDateTime;
-            FetchedContent fetched;
-            try
-            {
-                fetched = await _fetcher.Fetch(source, ct);
-            }
-            catch (Exception ex) when (ex is HistoricalFetchException or HttpRequestException || (ex is TaskCanceledException && !ct.IsCancellationRequested))
-            {
-                var reason = ex is TaskCanceledException ? "timed out" : ex.Message;
-                _logger.LogWarning("Historical source {SourceID} could not be downloaded ({Reason}); its last snapshot stays", source.HistoricalSourceID, reason);
-                source.FetchFailed(now, reason);
-                failed.Add((source.HistoricalSourceID, reason));
-                await SaveAndLetGo(source, null, ct);
+            if (await TryFetch(source, now, failed, ct) is not { } fetched)
                 continue;
-            }
 
             var latest = await _context.HistoricalSources.Where(s => s.HistoricalSourceID == source.HistoricalSourceID).SelectMany(s => s.Snapshots)
                 .OrderByDescending(s => s.FetchedAt).ThenByDescending(s => s.HistoricalSourceSnapshotID).Select(s => s.Sha256).FirstOrDefaultAsync(ct);
@@ -169,6 +157,24 @@ public class HistoricalSourceService
                 changed.Add((source.HistoricalSourceID, snapshot.HistoricalSourceSnapshotID));
         }
         return new HistoricalRefreshResult(changed, failed, unchanged);
+    }
+
+    /// <summary>The source's download; null when it failed, which is noted on the source (saved) and in <paramref name="failed"/>.</summary>
+    private async Task<FetchedContent?> TryFetch(HistoricalSource source, DateTime now, List<(string, string)> failed, CancellationToken ct)
+    {
+        try
+        {
+            return await _fetcher.Fetch(source, ct);
+        }
+        catch (Exception ex) when (ex is HistoricalFetchException or HttpRequestException || (ex is TaskCanceledException && !ct.IsCancellationRequested))
+        {
+            var reason = ex is TaskCanceledException ? "timed out" : ex.Message;
+            _logger.LogWarning("Historical source {SourceID} could not be downloaded ({Reason}); its last snapshot stays", source.HistoricalSourceID, reason);
+            source.FetchFailed(now, reason);
+            failed.Add((source.HistoricalSourceID, reason));
+            await SaveAndLetGo(source, null, ct);
+            return null;
+        }
     }
 
     private async Task SaveAndLetGo(HistoricalSource source, HistoricalSourceSnapshot? snapshot, CancellationToken ct)
