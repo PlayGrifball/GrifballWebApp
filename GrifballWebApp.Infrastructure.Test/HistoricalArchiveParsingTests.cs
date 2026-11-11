@@ -836,7 +836,7 @@ public class HistoricalArchiveParsingTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(names, Is.EquivalentTo(expected15));
-            Assert.That(names, Does.Contain("STATS"), "Any case, as SheetWorkbook.Sheet finds a tab");
+            Assert.That(names, Does.Contain("STATS").IgnoreCase, "Any case, as SheetWorkbook.Sheet finds a tab");
         }
     }
 
