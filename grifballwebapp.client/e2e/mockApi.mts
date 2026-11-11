@@ -727,7 +727,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/users': { totalCount: users.length, results: users },
     // A user's password reset link (POST, the user management page's RESET PASSWORD)
     '/api/password-reset-links': { resetLink: '/reset-password?token=e2e-reset-token', expiresAt: '2026-10-30T18:00:00Z' },
-    ...Object.fromEntries(users.map(user => ['/api/usermanagement/getuser/' + user.userID, userDetail(user)])),
+    ...Object.fromEntries(users.map(user => [`/api/users/${user.userID}`, userDetail(user)])),
     // The accounts linked to a user, on their edit page
     ...Object.fromEntries(users.map(user => [`/api/users/${user.userID}/external-logins`, { hasPassword: user.hasPassword,
       logins: [{ loginProvider: 'Discord', providerKey: '8123456789012345' + user.userID, providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] }])),
