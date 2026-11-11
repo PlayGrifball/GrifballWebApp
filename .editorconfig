@@ -32,10 +32,22 @@ dotnet_diagnostic.CS8625.severity = error
 dotnet_diagnostic.CS9107.severity = error
 dotnet_diagnostic.CS0618.severity = error
 
+# SonarCloud's rules for main code (it raises only its test rules on tests): the projects that aren't tests
+[{GrifballWebApp.Domain,GrifballWebApp.Application,GrifballWebApp.Infrastructure,GrifballWebApp.Server,GrifballWebApp.Seeder,GrifballWebApp.Convert,GrifballWebApp.Migrations.Postgres,GrifballWebApp.Migrations.Sqlite,GrifballWebApp.Migrations.SqlServer,DiscordInterfaces,DiscordInterfaceSourceGen}/**.cs]
+# An override or implementation keeps its parameters' names
+dotnet_diagnostic.S927.severity = error
+# No unread private field
+dotnet_diagnostic.S4487.severity = error
+# A property doesn't copy a collection
+dotnet_diagnostic.S2365.severity = error
+# An override doesn't change a default parameter value
+dotnet_diagnostic.S1006.severity = error
+
 # DiscordInterfaceSourceGen's output, until the generator writes it without them
 [DiscordInterfaces/DiscordInteractionContextGen.cs]
 dotnet_diagnostic.CS8603.severity = warning
 dotnet_diagnostic.CS8604.severity = warning
+dotnet_diagnostic.S2365.severity = warning
 
 # EF's migrations: generated code (SonarCloud doesn't analyse them either)
 [GrifballWebApp.Migrations.*/Migrations/**.cs]

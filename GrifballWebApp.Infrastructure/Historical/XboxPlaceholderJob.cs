@@ -32,9 +32,9 @@ public sealed class XboxPlaceholderJob : IJob
         _logger = logger;
     }
 
-    public async ValueTask Execute(IJobExecutionContext context, CancellationToken ct = default)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        var made = await _matching.EnsureXboxPlaceholdersAsync(null, ct);
+        var made = await _matching.EnsureXboxPlaceholdersAsync(null, cancellationToken);
         if (made > 0)
             _logger.LogInformation("Made {Count} placeholders for Xbox accounts no user holds", made);
     }

@@ -52,7 +52,6 @@ public class DiscordSetGamertagTests
 
         _discordSetGamertag = new DiscordSetGamertag(
             _context,
-            Substitute.For<ILogger<DiscordSetGamertag>>(),
             _userManager,
             _profileService
         );

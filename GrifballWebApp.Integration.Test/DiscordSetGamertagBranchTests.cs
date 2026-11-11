@@ -43,7 +43,7 @@ public class DiscordSetGamertagBranchTests
         _scope = _provider.CreateScope();
         _userManager = _scope.ServiceProvider.GetRequiredService<UserManager<User>>();
         _setGamertagService = Substitute.For<ISetGamertagService>();
-        _sut = new DiscordSetGamertag(_context, Substitute.For<ILogger<DiscordSetGamertag>>(), _userManager, _setGamertagService);
+        _sut = new DiscordSetGamertag(_context, _userManager, _setGamertagService);
         _interaction = Substitute.For<IDiscordInteractionContext>();
         _interaction.Interaction.User.Id.Returns(DiscordId);
         _interaction.Interaction.User.Username.Returns("discorduser");

@@ -27,9 +27,9 @@ public sealed class OutboxDispatcher : BackgroundService
         _logger = logger;
     }
 
-    protected override Task ExecuteAsync(CancellationToken ct)
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _loop = Task.Run(() => RunAsync(ct), ct);
+        _loop = Task.Run(() => RunAsync(stoppingToken), stoppingToken);
         return Task.CompletedTask;
     }
 

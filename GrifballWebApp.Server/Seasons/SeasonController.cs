@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using GrifballWebApp.Application.EventOrganizer;
 using GrifballWebApp.Application.Seasons;
 
 namespace GrifballWebApp.Server.Seasons;
@@ -8,12 +7,10 @@ namespace GrifballWebApp.Server.Seasons;
 [ApiController]
 public class SeasonController : ControllerBase
 {
-    private readonly EventOrganizerService _eventOrganizerService;
     private readonly SeasonService _seasonService;
 
-    public SeasonController(EventOrganizerService eventOrganizerService, SeasonService seasonService)
+    public SeasonController(SeasonService seasonService)
     {
-        _eventOrganizerService = eventOrganizerService;
         _seasonService = seasonService;
     }
 

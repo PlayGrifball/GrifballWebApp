@@ -31,10 +31,10 @@ public sealed class SeasonEventsJob : IJob
         _failures = failures;
     }
 
-    public ValueTask Execute(IJobExecutionContext context, CancellationToken ct = default)
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         // Every 10 seconds: not traced
         JobTracing.DontRecordThisRun();
-        return _failures.RunAsync(context, _events.Go, ct);
+        return _failures.RunAsync(context, _events.Go, cancellationToken);
     }
 }

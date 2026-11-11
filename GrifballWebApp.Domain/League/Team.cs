@@ -124,7 +124,7 @@ public class Team : AuditableEntity
     public static readonly Expression<Func<Team, IEnumerable<TeamPlayer>>> PicksOf = t => t.TeamPlayers.Where(p => p.TeamPlayerID != t.CaptainID);
 
     /// <summary>The draft's picks: the players but the captain, in their draft rounds' order (<see cref="PicksOf"/> for queries).</summary>
-    public IReadOnlyList<TeamPlayer> Picks => _teamPlayers.Where(p => !IsCaptainRow(p)).OrderBy(p => p.DraftRound).ToList();
+    public IEnumerable<TeamPlayer> Picks => _teamPlayers.Where(p => !IsCaptainRow(p)).OrderBy(p => p.DraftRound);
 
     /// <summary>Renames the team; refused, nothing changed, for a blank name or one longer than its column.</summary>
     public TeamRenameResult Rename(string teamName)

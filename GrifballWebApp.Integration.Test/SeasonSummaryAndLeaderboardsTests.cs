@@ -99,7 +99,7 @@ public class SeasonSummaryAndLeaderboardsTests
     {
         var (season, champs, _, captain, runner, _) = await SeedHistorical();
 
-        var summary = (await new SeasonController(new EventOrganizerService(_context), _service).GetSeasonSummary(season.SeasonID, CancellationToken.None)).Value!;
+        var summary = (await new SeasonController(_service).GetSeasonSummary(season.SeasonID, CancellationToken.None)).Value!;
 
         using (Assert.EnterMultipleScope())
         {
@@ -116,7 +116,7 @@ public class SeasonSummaryAndLeaderboardsTests
     [Test]
     public async Task SeasonSummary_NotFound()
     {
-        var result = await new SeasonController(new EventOrganizerService(_context), _service).GetSeasonSummary(404, CancellationToken.None);
+        var result = await new SeasonController(_service).GetSeasonSummary(404, CancellationToken.None);
         Assert.That(result.Result, Is.InstanceOf<NotFoundResult>());
     }
 
@@ -125,7 +125,7 @@ public class SeasonSummaryAndLeaderboardsTests
     {
         var (season, champs, bench, _, _, _) = await SeedHistorical();
 
-        var stats = await new SeasonController(new EventOrganizerService(_context), _service).GetSeasonPlayerStats(season.SeasonID, null, CancellationToken.None);
+        var stats = await new SeasonController(_service).GetSeasonPlayerStats(season.SeasonID, null, CancellationToken.None);
 
         Assert.That(stats.Select(s => (s.Gamertag, s.Goals, s.TeamID, s.TeamName, s.IsPlayoffs, s.Source)), Is.EqualTo(new[]
         {
@@ -145,7 +145,7 @@ public class SeasonSummaryAndLeaderboardsTests
         await AddTeam(live, "Live Team", null, null, player);
         var future = await AddSeason("Next Year", DateTime.UtcNow.Year + 1, historical: false);
 
-        var catalog = (await new SeasonController(new EventOrganizerService(_context), _service).GetSeasons(new SeasonListFilter(), CancellationToken.None)).Results;
+        var catalog = (await new SeasonController(_service).GetSeasons(new SeasonListFilter(), CancellationToken.None)).Results;
 
         using (Assert.EnterMultipleScope())
         {
@@ -166,7 +166,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var other = await AddSeason("GWL Season 8", 2012, historical: true);
         other.Edited(leagueID: gwl.LeagueID, gameVersionID: 2);
         await _context.SaveChangesAsync();
-        var controller = new SeasonController(new EventOrganizerService(_context), _service);
+        var controller = new SeasonController(_service);
         async Task<int[]> Ids(SeasonListFilter filter) => (await controller.GetSeasons(filter, CancellationToken.None)).Results.Select(s => s.SeasonID).ToArray();
 
         using (Assert.EnterMultipleScope())
@@ -190,7 +190,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var other = await AddSeason("GWL Season 8", 2012, historical: true);
         await AddTeam(old, "relentless", null, null);
         await AddTeam(old, "Bomb Squad", null, null);
-        var controller = new SeasonController(new EventOrganizerService(_context), _service);
+        var controller = new SeasonController(_service);
         async Task<SeasonListItemDto[]> Seasons(int? year) => (await controller.GetSeasons(new SeasonListFilter { Year = year }, CancellationToken.None)).Results.ToArray();
 
         using (Assert.EnterMultipleScope())
@@ -246,7 +246,7 @@ public class SeasonSummaryAndLeaderboardsTests
         var respawn = await AddSeason("Respawn 2016", 2016, historical: false);
         respawn.Edited(format: SeasonFormat.Tournament);
         await _context.SaveChangesAsync();
-        var controller = new SeasonController(new EventOrganizerService(_context), _service);
+        var controller = new SeasonController(_service);
         async Task<int[]> Ids(SeasonFormat? format) => (await controller.GetSeasons(new SeasonListFilter { Format = format }, CancellationToken.None)).Results.Select(s => s.SeasonID).ToArray();
 
         var all = (await controller.GetSeasons(new SeasonListFilter(), CancellationToken.None)).Results;

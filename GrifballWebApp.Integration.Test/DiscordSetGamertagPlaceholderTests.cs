@@ -48,7 +48,7 @@ public class DiscordSetGamertagPlaceholderTests
         _userManager = _scope.ServiceProvider.GetRequiredService<UserManager<User>>();
         _setGamertag = Substitute.For<ISetGamertagService>();
         _setGamertag.SetGamertag(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
-        _sut = new DiscordSetGamertag(_context, Substitute.For<ILogger<DiscordSetGamertag>>(), _userManager, _setGamertag, new UserMergeService(_context));
+        _sut = new DiscordSetGamertag(_context, _userManager, _setGamertag, new UserMergeService(_context));
         _interaction = Substitute.For<IDiscordInteractionContext>();
         _interaction.Interaction.User.Id.Returns(DiscordId);
         _interaction.Interaction.User.Username.Returns("activehate");

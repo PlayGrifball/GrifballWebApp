@@ -28,14 +28,14 @@ public sealed class RecurringJobSeeder : IHostedService
         _logger = logger;
     }
 
-    public async Task StartAsync(CancellationToken ct)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var scheduler = await _schedulers.GetScheduler(ct);
+        var scheduler = await _schedulers.GetScheduler(cancellationToken);
         foreach (var (_, job) in _jobs.All)
-            await SeedAsync(scheduler, job, ct);
+            await SeedAsync(scheduler, job, cancellationToken);
     }
 
-    public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     /// <summary>Makes <paramref name="job"/>'s trigger when it has none (or removes it, turned off). Returns whether it made one.</summary>
     public async Task<bool> SeedAsync(IScheduler scheduler, RecurringJob job, CancellationToken ct)

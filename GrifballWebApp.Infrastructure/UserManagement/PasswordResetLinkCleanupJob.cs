@@ -25,5 +25,5 @@ public sealed class PasswordResetLinkCleanupJob : IJob
         _users = users;
     }
 
-    public async ValueTask Execute(IJobExecutionContext context, CancellationToken ct = default) => await _users.CleanupExpiredPasswordResetLinks(ct);
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => await _users.CleanupExpiredPasswordResetLinks(cancellationToken);
 }

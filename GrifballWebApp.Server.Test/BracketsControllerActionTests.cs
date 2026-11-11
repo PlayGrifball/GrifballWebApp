@@ -21,7 +21,7 @@ public class BracketsControllerActionTests
     public void Setup()
     {
         _service = Substitute.For<IBracketService>();
-        _controller = new BracketsController(Substitute.For<ILogger<BracketsController>>(), _service);
+        _controller = new BracketsController(_service);
     }
 
     [TestCase(0, 1, "Please provide participantsCount")]

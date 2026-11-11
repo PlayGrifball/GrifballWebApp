@@ -73,7 +73,6 @@ public class ModalInteractionsTests
 
         var discordSetGamertag = new DiscordSetGamertag(
             _context,
-            Substitute.For<ILogger<DiscordSetGamertag>>(),
             _scope.ServiceProvider.GetRequiredService<UserManager<User>>(),
             _setGamertagService);
         return (discordSetGamertag, context.ToDiscordContext());

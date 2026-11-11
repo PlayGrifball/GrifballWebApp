@@ -213,19 +213,19 @@ public sealed class XuidLookupWorker : BackgroundService
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken ct)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!ct.IsCancellationRequested)
+        while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                await RunUntilDoneAsync(ct);
+                await RunUntilDoneAsync(stoppingToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "XUID lookups failed; trying again later");
             }
-            await _signal.WaitAsync(_options.Value.PollInterval, ct);
+            await _signal.WaitAsync(_options.Value.PollInterval, stoppingToken);
         }
     }
 

@@ -18,19 +18,16 @@ public class DiscordSetGamertag
     public const string LinkedToOtherDiscord = "Your site account is linked to a different Discord account. Unlink it on the site, or ask a commissioner.";
 
     private readonly GrifballContext _context;
-    private readonly ILogger<DiscordSetGamertag> _logger;
     private readonly UserManager<Domain.Players.User> _userManager;
     private readonly ISetGamertagService _setGamertagService;
     private readonly IUserMergeService _merges;
     public DiscordSetGamertag(
         GrifballContext context,
-        ILogger<DiscordSetGamertag> logger,
         UserManager<Domain.Players.User> userManager,
         ISetGamertagService setGamertagService,
         IUserMergeService? merges = null)
     {
         _context = context;
-        _logger = logger;
         _userManager = userManager;
         _setGamertagService = setGamertagService;
         _merges = merges ?? new UserMergeService(context);

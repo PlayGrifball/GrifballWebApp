@@ -49,9 +49,9 @@ public sealed class HistoricalRefreshJob : IJob
         _logger = logger;
     }
 
-    public async ValueTask Execute(IJobExecutionContext context, CancellationToken ct = default)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        if (await RunAsync(ct) is null)
+        if (await RunAsync(cancellationToken) is null)
         {
             var retry = TriggerBuilder.Create()
                 .WithIdentity(RetryTriggerKey)
@@ -59,7 +59,7 @@ public sealed class HistoricalRefreshJob : IJob
                 .WithDescription(WaitingNote)
                 .StartAt(_time.GetUtcNow() + RetryAfter)
                 .Build();
-            await context.Scheduler.ScheduleTrigger(retry, TriggerConflict.Replace, ct);
+            await context.Scheduler.ScheduleTrigger(retry, TriggerConflict.Replace, cancellationToken);
         }
     }
 
