@@ -4,6 +4,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.Players;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -263,7 +264,7 @@ public class ButtonInteractionsTests
         await _handler.VoteForWinner(_discordContext, match.Id, nameof(WinnerVote.Away));
 
         await using var fresh = _context.NewContextLike();
-        Assert.That(fresh.Set<MatchedWinnerVote>().Select(v => v.WinnerVote).ToList(), Is.EqualTo(new[] { WinnerVote.Away }), "One vote, changed");
+        Assert.That(await fresh.Set<MatchedWinnerVote>().Select(v => v.WinnerVote).ToListAsync(), Is.EqualTo(new[] { WinnerVote.Away }), "One vote, changed");
     }
 
     [Test]

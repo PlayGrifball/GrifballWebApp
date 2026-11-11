@@ -541,7 +541,7 @@ public class HistoricalImportServiceTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(expected2));
-            var stats = _context.PlayerSeasonStats.AsNoTracking().ToList();
+            var stats = await _context.PlayerSeasonStats.AsNoTracking().ToListAsync();
             Assert.That(stats.Single(s => s.Gamertag == "Player1").TeamID, Is.Not.Null);
             Assert.That(stats.Where(s => s.Gamertag != "Player1").Select(s => s.TeamID), Is.All.Null);
         }

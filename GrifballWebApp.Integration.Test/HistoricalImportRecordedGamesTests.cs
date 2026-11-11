@@ -618,8 +618,8 @@ public class HistoricalImportRecordedGamesTests
         var alphaOne = await _context.Users.SingleAsync(u => u.DisplayName == "Alpha One");
         // A player with no game of the season: the sheet's row is theirs
         var stats = new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context);
-        _context.Set<MatchedPlayer>().RemoveRange(_context.Set<MatchedPlayer>().Where(p => p.User.DisplayName == "Bravo Two"));
-        _context.Set<RecordedGameParticipant>().RemoveRange(_context.Set<RecordedGameParticipant>().Where(p => p.Gamertag == "Bravo Two"));
+        _context.Set<MatchedPlayer>().RemoveRange(await _context.Set<MatchedPlayer>().Where(p => p.User.DisplayName == "Bravo Two").ToListAsync());
+        _context.Set<RecordedGameParticipant>().RemoveRange(await _context.Set<RecordedGameParticipant>().Where(p => p.Gamertag == "Bravo Two").ToListAsync());
         await _context.SaveChangesAsync();
 
         var lines = await stats.GetAsync();

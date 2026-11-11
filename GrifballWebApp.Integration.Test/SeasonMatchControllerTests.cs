@@ -138,7 +138,7 @@ public class SeasonMatchControllerTests
         {
             Assert.That((refused as BadRequestObjectResult)?.Value, Is.EqualTo("That game is not one of this match's games"));
             Assert.That(replaced, Is.InstanceOf<OkResult>());
-            Assert.That(_context.Set<SeriesGame>().Where(g => g.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID).Select(g => g.MatchID).ToList(), Is.EqualTo(new Guid?[] { match.MatchID }));
+            Assert.That(await _context.Set<SeriesGame>().Where(g => g.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID).Select(g => g.MatchID).ToListAsync(), Is.EqualTo(new Guid?[] { match.MatchID }));
         }
     }
 
