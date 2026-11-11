@@ -147,6 +147,21 @@ public class XuidLookupServiceTests
     }
 
     [Test]
+    public async Task AFailedLookup_KeepsTheFirst200CharactersOfItsError()
+    {
+        await Placeholder("Wordy Tag");
+        _halo.UserByGamertag("Wordy Tag").ThrowsAsync(new HttpRequestException(new string('e', 250)));
+
+        var report = await Service().RunBatchAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Failed, Is.EqualTo(1));
+            Assert.That(await _context.XuidLookups.Select(l => l.Error).SingleAsync(), Is.EqualTo(new string('e', 200)), "as its column holds");
+        }
+    }
+
+    [Test]
     public async Task AnXuidThatIsNotANumber_IsAFailedLookup_AndNoClaim()
     {
         await Placeholder("Odd Tag");

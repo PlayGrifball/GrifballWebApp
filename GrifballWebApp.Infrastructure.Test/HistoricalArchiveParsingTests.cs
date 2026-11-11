@@ -493,6 +493,57 @@ public class HistoricalArchiveParsingTests
         }
     }
 
+    private static readonly string[] OneSideLeftOut = ["w/NoTeams: 2 games with only one side left out"];
+    private static readonly string[] GalvannOnly = ["Galvann"];
+
+    [Test]
+    public void CarnageGames_WithoutTeamsOrTimestamps_SplitAtAPlayerSeenAgain_AndOneSideIsLeftOut()
+    {
+        // No team column: every player is side 1, so each game has one side; a blank row marks nothing
+        var workbook = Read(Workbook(("NoTeams", [Row("Player", "Kills", "Deaths"), Row("A", 5, 1), Row(), Row("A", 3, 2)])));
+        var warnings = new List<string>();
+
+        var games = RecordedGameParser.Parse("w", new GamesTab { Sheet = "NoTeams", Season = "w/S", Game = "halo3" }, workbook, warnings);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games, Is.Empty);
+            Assert.That(warnings, Is.EqualTo(OneSideLeftOut));
+        }
+    }
+
+    [Test]
+    public void BlockGames_ATitleWithNoHeaderAfterIt_IsNoGame()
+    {
+        var workbook = Read(Workbook(("Game Results", [Row("Template"), Row("Week 1 - 1/28/19 - Our Lady Tuna over Collateral Damage (5-2)"), Row("Not a header")])));
+        var warnings = new List<string>();
+
+        var games = RecordedGameParser.Parse("wl19", new GamesTab { Sheet = "Game Results", Season = "wl19/Stats", Game = "halo3", Layout = GamesLayout.Blocks }, workbook, warnings);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games, Is.Empty);
+            Assert.That(warnings, Is.Empty);
+        }
+    }
+
+    [Test]
+    public void StatsRows_BlankOrWithoutAGamertag_AreSkipped_AndADatesTabWithoutTimestampsDatesNothing()
+    {
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "S" }, Tabs = [new() { Name = "Stats", DatesSheet = "Matches" }] };
+        var xlsx = Workbook(
+            ("Stats", [Row("Player", "Team", "Kills"), Row("Galvann", "Silly Kids", 5), Row(), Row("(c)", "Silly Kids", 3)]),
+            ("Matches", [Row("Player", "Kills"), Row("Galvann", 5)]));
+
+        var season = SeasonStatsParser.Parse("s", config, Read(xlsx), []).Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(season.Players.Select(p => p.Gamertag), Is.EqualTo(GalvannOnly));
+            Assert.That(season.FirstPlayedAt, Is.Null);
+        }
+    }
+
     [TestCase("Mon Jul 11 18:02:15 2022", 2022, 7, 11)]
     [TestCase("12/8/2020 17:32:20", 2020, 12, 8)]
     [TestCase("0", null, null, null)]

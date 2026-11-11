@@ -56,6 +56,27 @@ public class PostgresTemporalQueriesTests
         }
     }
 
+    // Roots EF builds with their times in them (not parameters): as SQL Server's helper has it, a set operation takes
+    // two at the same times, and refuses two at different ones
+    [Test]
+    public void PlainRoots_AreCompatible_OnlyAtTheSameTimes()
+    {
+        using var context = Postgres();
+        var helper = context.GetService<INavigationExpansionExtensibilityHelper>();
+        var season = context.Model.FindEntityType(typeof(Season))!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(helper, Is.InstanceOf<PostgresTemporalNavigationExpansionExtensibilityHelper>());
+            Assert.That(helper.AreQueryRootsCompatible(new TemporalAsOfQueryRootExpression(season, A), new TemporalAsOfQueryRootExpression(season, A)), Is.True);
+            Assert.That(helper.AreQueryRootsCompatible(new TemporalAllQueryRootExpression(season), new TemporalAllQueryRootExpression(season)), Is.True);
+            Assert.That(helper.AreQueryRootsCompatible(new TemporalFromToQueryRootExpression(season, A, B), new TemporalFromToQueryRootExpression(season, A, B)), Is.True);
+            Assert.Throws<InvalidOperationException>(() => helper.AreQueryRootsCompatible(new TemporalAsOfQueryRootExpression(season, A), new TemporalAsOfQueryRootExpression(season, B)));
+            Assert.Throws<InvalidOperationException>(() => helper.AreQueryRootsCompatible(new TemporalAllQueryRootExpression(season), new TemporalFromToQueryRootExpression(season, A, B)));
+            Assert.Throws<InvalidOperationException>(() => helper.AreQueryRootsCompatible(new TemporalFromToQueryRootExpression(season, A, B), new TemporalFromToQueryRootExpression(season, A, B.AddDays(1))));
+        }
+    }
+
     [Test]
     public void Sql_SelectsEveryColumn_ThePeriodsIncluded()
     {
