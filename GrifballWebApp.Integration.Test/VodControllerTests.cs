@@ -82,12 +82,12 @@ public class VodControllerTests
             Assert.That(review.Select(v => v.YouTubeVideoID), Is.EqualTo(expectedArray0));
             Assert.That(seasons.Select(s => s.SeasonID), Does.Contain(_season.SeasonID));
             Assert.That(options!.Matches.Select(m => m.SeasonMatchID), Is.EqualTo(new[] { _match.SeasonMatchID }));
-            Assert.That((await _controller.LinkOptions(-1, ct)).Result, Is.InstanceOf<NotFoundResult>());
-            Assert.That(await _controller.Link(_unsure.VodID, new LinkVodRequest(), ct), Is.InstanceOf<BadRequestObjectResult>());
-            Assert.That(await _controller.Link(-1, new LinkVodRequest { SeasonID = _season.SeasonID }, ct), Is.InstanceOf<NotFoundResult>());
+            (await _controller.LinkOptions(-1, ct)).AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound);
+            (await _controller.Link(_unsure.VodID, new LinkVodRequest(), ct)).AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            (await _controller.Link(-1, new LinkVodRequest { SeasonID = _season.SeasonID }, ct)).AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound);
             Assert.That(await _controller.Link(_unsure.VodID, new LinkVodRequest { SeasonMatchID = _match.SeasonMatchID }, ct), Is.InstanceOf<NoContentResult>());
             Assert.That(await _controller.Dismiss(_linked.VodID, ct), Is.InstanceOf<NoContentResult>());
-            Assert.That(await _controller.Dismiss(-1, ct), Is.InstanceOf<NotFoundResult>());
+            (await _controller.Dismiss(-1, ct)).AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound);
             Assert.That((await _controller.ForSeasonMatch(_match.SeasonMatchID, ct)).Select(v => v.YouTubeVideoID), Is.EqualTo(expectedArray0), "Linked by hand; the dismissed one hidden");
         }
     }

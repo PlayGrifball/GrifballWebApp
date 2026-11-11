@@ -129,7 +129,7 @@ describe('ManualGamesComponent', () => {
     Object.assign(component.form.players[2], { played: true, kills: 8, deaths: 2, assists: 1, goals: 3, score: 4 });
     component.save();
 
-    const request = httpMock.expectOne('/api/SeasonMatch/AddManualGame/7');
+    const request = httpMock.expectOne('/api/season-matches/7/manual-games');
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({
       gameVersionID: INFINITE_GAME_VERSION_ID, map: 'Pit', gametype: null, playedAt: null, homeTeamScore: 3, awayTeamScore: 5,
@@ -152,7 +152,7 @@ describe('ManualGamesComponent', () => {
     expect(component.formValid()).toBeFalse();
     expect(text()).toContain("the two scores can't be equal");
     component.save();
-    httpMock.expectNone('/api/SeasonMatch/AddManualGame/7');
+    httpMock.expectNone('/api/season-matches/7/manual-games');
   });
 
   it('cancels an entry', () => {
@@ -182,7 +182,7 @@ describe('ManualGamesComponent', () => {
 
     component.form.homeTeamScore = 1;
     component.save();
-    const request = httpMock.expectOne('/api/SeasonMatch/EditManualGame/7/41');
+    const request = httpMock.expectOne('/api/season-matches/7/manual-games/41');
     expect(request.request.body.homeTeamScore).toBe(1);
     expect(request.request.body.playedAt).toBe('2026-01-10T20:30:00.000Z');
     expect(request.request.body.players.map((p: { userID: number, goals: number }) => [p.userID, p.goals])).toEqual([[1, 2], [99, 0]]);
@@ -212,7 +212,7 @@ describe('ManualGamesComponent', () => {
     component.form.slot = 60;
     expect(component.formValid()).toBeTrue();
     component.save();
-    expect(httpMock.expectOne('/api/SeasonMatch/AddManualGame/7').request.body.replacesSeriesGameID).toBe(60);
+    expect(httpMock.expectOne('/api/season-matches/7/manual-games').request.body.replacesSeriesGameID).toBe(60);
   });
 
   it('a decided series takes no new game, only a replacement; a forfeit takes neither', () => {
@@ -238,13 +238,13 @@ describe('ManualGamesComponent', () => {
     component.requestDelete(game());
     fixture.detectChanges();
     button('Confirm')!.click();
-    httpMock.expectOne('/api/SeasonMatch/RemoveGame/7/51').flush('Season match 9 that this result fed into already has games. Undo that match first.', { status: 400, statusText: 'Bad Request' });
+    httpMock.expectOne('/api/season-matches/7/games/51/remove').flush('Season match 9 that this result fed into already has games. Undo that match first.', { status: 400, statusText: 'Bad Request' });
     fixture.detectChanges();
     expect(text()).toContain('already has games');
     expect(changed).toBe(0);
 
     button('Confirm')!.click();
-    httpMock.expectOne('/api/SeasonMatch/RemoveGame/7/51').flush(null);
+    httpMock.expectOne('/api/season-matches/7/games/51/remove').flush(null);
     expect(changed).toBe(1);
     expect(component.pendingDelete()).toBeNull();
   });
@@ -264,7 +264,7 @@ describe('ManualGamesComponent', () => {
     component.form.homeTeamScore = 5;
     component.form.awayTeamScore = 0;
     component.save();
-    httpMock.expectOne('/api/SeasonMatch/AddManualGame/7').flush(null, { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/season-matches/7/manual-games').flush(null, { status: 500, statusText: 'Server Error' });
     expect(component.error()).toBe('The server could not save that.');
   });
 
@@ -342,7 +342,7 @@ describe('ManualGamesComponent', () => {
     createAsCommissioner(page({ reportedGames: [game()] }));
     component.startEdit(game());
     component.save();
-    const request = httpMock.expectOne('/api/SeasonMatch/EditManualGame/7/41');
+    const request = httpMock.expectOne('/api/season-matches/7/manual-games/41');
     fixture.detectChanges();
     expect(component.mode()).toEqual({ kind: 'saving', from: { kind: 'entering', target: 41 } });
     expect([component.saving(), component.idle(), component.editing()]).toEqual([true, false, 41]);
@@ -362,7 +362,7 @@ describe('ManualGamesComponent', () => {
     component.requestDelete(game());
     component.confirmDelete();
     expect(component.pendingDelete()).toEqual(game());
-    httpMock.expectOne('/api/SeasonMatch/RemoveGame/7/51').flush(null);
+    httpMock.expectOne('/api/season-matches/7/games/51/remove').flush(null);
     expect(component.mode()).toEqual({ kind: 'idle' });
   });
 
@@ -373,7 +373,7 @@ describe('ManualGamesComponent', () => {
     fixture.detectChanges();
     expect(button('Confirm')!.disabled).toBeTrue();
     component.confirmDelete();
-    httpMock.expectNone('/api/SeasonMatch/RemoveGame/7/51');
+    httpMock.expectNone('/api/season-matches/7/games/51/remove');
 
     component.cancel();
     fixture.detectChanges();

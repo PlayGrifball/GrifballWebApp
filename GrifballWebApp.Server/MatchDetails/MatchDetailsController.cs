@@ -4,7 +4,6 @@ using GrifballWebApp.Application.MatchDetails;
 
 namespace GrifballWebApp.Server.MatchDetails;
 
-[Route("[controller]/[action]")]
 [ApiController]
 public class MatchDetailsController : ControllerBase
 {
@@ -17,10 +16,12 @@ public class MatchDetailsController : ControllerBase
 
     /// <summary>A Halo Infinite match by its Waypoint match ID, with every stat pulled for it; 404 for one not pulled.</summary>
     [AllowAnonymous]
-    [HttpGet("{matchID:Guid}", Name = "GetMatchDetails")]
+    [HttpGet("matches/{matchID:guid}", Name = "GetMatchDetails")]
+    [ProducesResponseType<MatchDetailsDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<ActionResult<MatchDetailsDto>> GetMatchDetails([FromRoute] Guid matchID, CancellationToken ct)
     {
         var details = await _matchDetails.GetAsync(matchID, ct);
-        return details is null ? NotFound() : details;
+        return details is null ? this.NotFoundProblem("That match has not been pulled") : details;
     }
 }

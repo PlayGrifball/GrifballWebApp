@@ -72,9 +72,9 @@ describe('ExcelFormComponent', () => {
     expect(el().querySelector('mat-spinner')).not.toBeNull();
     expect(el().querySelector('form')).toBeNull();
 
-    const req = http.expectOne(r => r.url === '/api/Excel/AppendMatch/');
+    const req = http.expectOne(r => /^\/api\/matches\/[^/]+\/append-to-sheet$/.test(r.url));
     expect(req.request.method).toBe('POST');
-    expect(req.request.params.get('matchID')).toBe(guid);
+    expect(req.request.url).toBe(`/api/matches/${guid}/append-to-sheet`);
     expect(req.request.body).toEqual({ name: 'Season Stats', spreadsheetID: 'sheet-1', sheetName: 'Week 2' });
     req.flush({});
     fixture.detectChanges();
@@ -86,7 +86,7 @@ describe('ExcelFormComponent', () => {
   it('clears the submitting state after a failure too', () => {
     spyOn(console, 'log');
     component.onSubmit(guid);
-    http.expectOne(r => r.url === '/api/Excel/AppendMatch/').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne(r => /^\/api\/matches\/[^/]+\/append-to-sheet$/.test(r.url)).flush('x', { status: 500, statusText: 'Server Error' });
 
     expect(component.isSubmittingMatch()).toBeFalse();
   });
@@ -97,7 +97,7 @@ describe('ExcelFormComponent', () => {
     jasmine.clock().install();
     try {
       exportButton().click();
-      const req = http.expectOne({ method: 'POST', url: '/api/Excel/ExportAll/' });
+      const req = http.expectOne({ method: 'POST', url: '/api/sheets/export' });
       expect(req.request.body).toEqual({ name: 'Season Stats', spreadsheetID: 'sheet-1', sheetName: 'Week 1' });
       req.flush({ ...idle, state: 'Running' });
       fixture.detectChanges();
@@ -105,14 +105,14 @@ describe('ExcelFormComponent', () => {
       expect(exportButton().disabled).toBeTrue();
 
       jasmine.clock().tick(EXPORT_POLL_MS);
-      http.expectOne('/api/Excel/ExportAllStatus').flush({ ...idle, lastRun: { firedAt: '2026-11-01T18:00:00Z', durationMs: 90000, result: 'Failed', error: 'Missing GoogleSheets:Key' } });
+      http.expectOne('/api/sheets/export').flush({ ...idle, lastRun: { firedAt: '2026-11-01T18:00:00Z', durationMs: 90000, result: 'Failed', error: 'Missing GoogleSheets:Key' } });
       fixture.detectChanges();
       expect(el().textContent).toContain('Failed');
       expect(el().textContent).toContain('Missing GoogleSheets:Key');
       expect(exportButton().disabled).toBeFalse();
 
       jasmine.clock().tick(EXPORT_POLL_MS * 2);
-      http.expectNone('/api/Excel/ExportAllStatus');
+      http.expectNone('/api/sheets/export');
     } finally {
       jasmine.clock().uninstall();
     }
@@ -120,7 +120,7 @@ describe('ExcelFormComponent', () => {
 
   it('says when the export could not be started', () => {
     exportButton().click();
-    http.expectOne('/api/Excel/ExportAll/').flush('no', { status: 403, statusText: 'Forbidden' });
+    http.expectOne('/api/sheets/export').flush('no', { status: 403, statusText: 'Forbidden' });
     fixture.detectChanges();
     expect(component.exportError()).toBe("Couldn't start the export.");
   });
@@ -128,16 +128,16 @@ describe('ExcelFormComponent', () => {
     jasmine.clock().install();
     try {
       exportButton().click();
-      http.expectOne('/api/Excel/ExportAll/').flush({ ...idle, lastRun: { firedAt: '2026-11-01T18:00:00Z', durationMs: 5, result: 'Succeeded', error: null } });
+      http.expectOne('/api/sheets/export').flush({ ...idle, lastRun: { firedAt: '2026-11-01T18:00:00Z', durationMs: 5, result: 'Succeeded', error: null } });
       fixture.detectChanges();
       expect(el().textContent).toContain('Succeeded');
       jasmine.clock().tick(EXPORT_POLL_MS);
-      http.expectNone('/api/Excel/ExportAllStatus');
+      http.expectNone('/api/sheets/export');
 
       exportButton().click();
-      http.expectOne('/api/Excel/ExportAll/').flush({ ...idle, state: 'Queued' });
+      http.expectOne('/api/sheets/export').flush({ ...idle, state: 'Queued' });
       jasmine.clock().tick(EXPORT_POLL_MS);
-      http.expectOne('/api/Excel/ExportAllStatus').flush('down', { status: 502, statusText: 'Bad Gateway' });
+      http.expectOne('/api/sheets/export').flush('down', { status: 502, statusText: 'Bad Gateway' });
       expect(component.exportError()).toBe("Couldn't tell whether the export finished.");
     } finally {
       jasmine.clock().uninstall();

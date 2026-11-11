@@ -507,7 +507,7 @@ const telemetryMetrics = {
   ],
   routes: [
     { route: 'GET /api/seasons/{seasonID}/summary', requests: 4210, errors: 0, p95Ms: 42.5 },
-    { route: 'GET /api/SeasonMatch/GetSeasonMatchPage/{seasonMatchID}', requests: 1830, errors: 3, p95Ms: 210 },
+    { route: 'GET /api/season-matches/{seasonMatchID}', requests: 1830, errors: 3, p95Ms: 210 },
     { route: 'POST /api/Identity/Login', requests: 96, errors: 0, p95Ms: 1240 },
     { route: 'GET /hub/TeamsHub', requests: 12, errors: 0, p95Ms: null },
   ],
@@ -519,7 +519,7 @@ const telemetryLogs = {
   truncated: false,
   entries: [
     logLine('2026-10-29T17:58:12.512Z', 'error', 'Pulling the match history of 2535400000000117 failed: the Halo API answered 503', 'GrifballWebApp.Server.Services.MatchPullService',
-      { RequestPath: '/api/SeasonMatch/PullMatches/31', StatusCode: '500', exception_type: 'System.Net.Http.HttpRequestException' }, TRACE_ID),
+      { RequestPath: '/api/season-matches/31/match-pull', StatusCode: '500', exception_type: 'System.Net.Http.HttpRequestException' }, TRACE_ID),
     logLine('2026-10-29T17:57:40.003Z', 'warn', 'The Discord bot was rate limited for 2.5 s', 'GrifballWebApp.Server.Discord.DiscordClient'),
     logLine('2026-10-29T17:55:00.120Z', 'info', 'Job recurring/historical-refresh succeeded in 42 ms', 'GrifballWebApp.Server.Jobs.JobRunner', { JobName: 'historical-refresh' }),
     logLine('2026-10-29T17:54:31.876Z', 'debug', 'Rendered /season/12 for a visitor', 'Microsoft.AspNetCore.Hosting.Diagnostics', { RequestPath: '/season/12', StatusCode: '200' }),
@@ -532,8 +532,8 @@ const span = (spanId: string, parentSpanId: string | null, name: string, kind: s
 const telemetryTrace = {
   traceId: TRACE_ID, start: '2026-10-29T17:58:11.300Z', durationMs: 1212.4,
   spans: [
-    span('00f067aa0ba902b7', null, 'POST /api/SeasonMatch/PullMatches/{seasonMatchID}', 'Server', 'Microsoft.AspNetCore', 0, 1212.4, 'Error',
-      { 'http.response.status_code': '500', 'url.path': '/api/SeasonMatch/PullMatches/31' }, { statusMessage: 'HttpRequestException',
+    span('00f067aa0ba902b7', null, 'POST /api/season-matches/{seasonMatchID}/match-pull', 'Server', 'Microsoft.AspNetCore', 0, 1212.4, 'Error',
+      { 'http.response.status_code': '500', 'url.path': '/api/season-matches/31/match-pull' }, { statusMessage: 'HttpRequestException',
         events: [{ name: 'exception', offsetMs: 1210.2, attributes: { 'exception.type': 'System.Net.Http.HttpRequestException', 'exception.message': 'Response status code does not indicate success: 503' } }] }),
     span('b7ad6b7169203331', '00f067aa0ba902b7', 'SELECT GrifballWebApp', 'Client', 'Microsoft.EntityFrameworkCore', 3.1, 8.4, 'Unset', { 'db.system': 'postgresql' }),
     span('c1f2a3b4c5d6e7f8', '00f067aa0ba902b7', 'GET halo-gateway', 'Client', 'System.Net.Http', 14.2, 1190.6, 'Error', { 'http.response.status_code': '503' }),
@@ -541,8 +541,8 @@ const telemetryTrace = {
   ],
 };
 const telemetryTraces = [
-  { traceId: TRACE_ID, rootName: 'POST /api/SeasonMatch/PullMatches/{seasonMatchID}', rootService: 'grifballwebapp', start: '2026-10-29T17:58:11.300Z', durationMs: 1212.4,
-    route: '/api/SeasonMatch/PullMatches/{seasonMatchID}', statusCode: 500 },
+  { traceId: TRACE_ID, rootName: 'POST /api/season-matches/{seasonMatchID}/match-pull', rootService: 'grifballwebapp', start: '2026-10-29T17:58:11.300Z', durationMs: 1212.4,
+    route: '/api/season-matches/{seasonMatchID}/match-pull', statusCode: 500 },
   { traceId: '6e0c63257de34c92bf9efcd03927272e', rootName: 'GET /api/seasons/{seasonID}/summary', rootService: 'grifballwebapp', start: '2026-10-29T17:57:02.118Z', durationMs: 18.9,
     route: '/api/seasons/{seasonID}/summary', statusCode: 200 },
   { traceId: '0af7651916cd43dd8448eb211c80319c', rootName: 'recurring/historical-refresh', rootService: 'grifballwebapp-worker', start: '2026-10-29T17:55:00.078Z', durationMs: 42,
@@ -668,7 +668,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/seasons/5/standings': historicalTeams.map(([teamID, teamName, wins, losses]) => ({ teamID, teamName, wins, losses, recordFromSource: true })),
     '/api/seasons/5/matches/scheduled': [],
     '/api/seasons/5/matches/unscheduled': [],
-    '/api/Team/Team/41': {
+    '/api/teams/41': {
       teamName: 'Relentless', season: historicalSeason, recordFromSource: true,
       wins: 9, losses: 1, tbd: 0, titles: ['Pro'],
       players: [
@@ -676,23 +676,23 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
         { teamPlayerID: 4102, userID: 502, gamertag: 'Old Timer', draftCaptainOrder: null, draftRound: null, isCaptain: false },
       ],
     },
-    '/api/Team/Matches/41': [],
+    '/api/teams/41/matches': [],
     '/api/seasons/12/standings': teams.map(([teamID, name], i) => ({ teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1 })),
     '/api/seasons/12/matches/scheduled': scheduled,
     '/api/seasons/12/matches/unscheduled': [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', complete: false }],
     // The season's playoff bracket, for any season
     ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/bracket/viewer-data`, bracket])),
     // A best of 3 at 1-1 (matchPage31); match 35, the same series once its games decided it, for its Match report and Undo
-    '/api/SeasonMatch/GetSeasonMatchPage/31': matchPage31(role),
-    '/api/SeasonMatch/GetSeasonMatchPage/35': { ...matchPage31(role), homeTeamScore: 2, homeTeamResult: 'Won', awayTeamResult: 'Loss', decidedBy: 'Games', canRequestReschedule: false },
-    '/api/SeasonMatch/GetPossibleMatches/35': [],
-    '/api/SeasonMatch/MatchPullStatus/35': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null },
-    '/api/Vod/ForSeasonMatch/35': [],
-    '/api/SeasonMatch/GetPossibleMatches/31': [{ matchID: '7c9e6679-7425-40de-944b-e07fc1f90ae7', homeTeam: possibleTeam(1, 5, 'Won', 0), awayTeam: possibleTeam(2, 3, 'Lost', 10) }],
-    '/api/SeasonMatch/MatchPullStatus/31': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-30T18:00:00Z', durationMs: 42000, result: 'Succeeded', error: null } },
-    '/api/MatchDetails/GetMatchDetails/0f8fad5b-d9cb-469f-a165-70867728950e': matchDetails(),
-    ...Object.fromEntries(teams.map(([id]) => [`/api/Team/Team/${id}`, roster(id)])),
-    '/api/Team/Matches/1': [
+    '/api/season-matches/31': matchPage31(role),
+    '/api/season-matches/35': { ...matchPage31(role), homeTeamScore: 2, homeTeamResult: 'Won', awayTeamResult: 'Loss', decidedBy: 'Games', canRequestReschedule: false },
+    '/api/season-matches/35/possible-matches': [],
+    '/api/season-matches/35/match-pull': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null },
+    '/api/season-matches/35/vods': [],
+    '/api/season-matches/31/possible-matches': [{ matchID: '7c9e6679-7425-40de-944b-e07fc1f90ae7', homeTeam: possibleTeam(1, 5, 'Won', 0), awayTeam: possibleTeam(2, 3, 'Lost', 10) }],
+    '/api/season-matches/31/match-pull': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-30T18:00:00Z', durationMs: 42000, result: 'Succeeded', error: null } },
+    '/api/matches/0f8fad5b-d9cb-469f-a165-70867728950e': matchDetails(),
+    ...Object.fromEntries(teams.map(([id]) => [`/api/teams/${id}`, roster(id)])),
+    '/api/teams/1/matches': [
       { seasonMatchID: 21, scheduledTime: '2026-10-21T23:00:00Z', bestOf: 3, score: 2, result: 'Won', otherTeamID: 3, otherTeamName: 'Hammer Bros', otherScore: 1, otherResult: 'Loss' },
       { seasonMatchID: 31, scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3, score: null, result: null, otherTeamID: 2, otherTeamName: 'Blue Bombers', otherScore: null, otherResult: null },
     ],
@@ -723,7 +723,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Admin/CheckStatus': { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' },
     // The Infinite Client page in the default Gateway mode: the gateway's in-cluster address, plain HTTP as the chart's is
     '/api/Admin/HaloStatus': { mode: 'Gateway', gatewayUrl: 'http://halo-gateway.halo-gateway.svc:8080/', gatewayAdminUrl: 'https://grunt.grifball.xyz/admin', apiKeyConfigured: true, reachable: true, accountStatus: 'Healthy', apiCode: 200, healthy: true, message: 'Halo gateway account Healthy; test call: Halo Infinite API answered 200' }, // NOSONAR(S5332): mock data, an in-cluster address
-    '/api/Excel/DefaultSheetInfo': [{ name: 'Autumn Brawl results', spreadsheetID: '1xGrifballAutumnBrawl2026', sheetName: 'Week 3' }],
+    '/api/sheets/default': [{ name: 'Autumn Brawl results', spreadsheetID: '1xGrifballAutumnBrawl2026', sheetName: 'Week 3' }],
     '/api/UserManagement/GetUsers': { totalCount: users.length, results: users },
     // A user's password reset link (POST, the user management page's RESET PASSWORD)
     '/api/admin/generatepasswordresetlink': { resetLink: '/reset-password?token=e2e-reset-token', expiresAt: '2026-10-30T18:00:00Z' },
@@ -734,7 +734,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/seasons/13/draft/teams': draftTeams,
     '/api/seasons/13/draft/player-pool': draftPool,
     '/api/seasons/13/draft/captains/locked': true,
-    '/api/CommissionerDashboard/GetDashboardData': commissionerDashboard,
+    '/api/commissioner-dashboard': commissionerDashboard,
     // The historical import page (/usermanagement/historicalimport): its sources, jobs, schedule, and a guarded import's job
     '/api/HistoricalImport/Sources': historicalSources,
     '/api/HistoricalImport/Jobs': historicalJobs,
@@ -744,14 +744,14 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Jobs/List': jobsOverview,
     '/api/Jobs/History': jobHistory,
     // VODs: the match page's, the seasons', the teams' and the profiles' (through their teams), and the review list
-    '/api/Vod/ForSeasonMatch/31': [matchVod],
-    '/api/Vod/ForSeason/12': [matchVod, castVod],
-    '/api/Vod/ForSeason/5': [archiveVod],
-    '/api/Vod/ForTeam/1': [matchVod],
-    '/api/Vod/ForTeam/41': [archiveVod],
-    '/api/Vod/ForPlayer/117': [matchVod, archiveVod],
-    '/api/Vod/ForPlayer/999': [],
-    '/api/Vod/Review': vodReview,
+    '/api/season-matches/31/vods': [matchVod],
+    '/api/seasons/12/vods': [matchVod, castVod],
+    '/api/seasons/5/vods': [archiveVod],
+    '/api/teams/1/vods': [matchVod],
+    '/api/teams/41/vods': [archiveVod],
+    '/api/users/117/vods': [matchVod, archiveVod],
+    '/api/users/999/vods': [],
+    '/api/vods/review': vodReview,
     // The gamertag claims page (/usermanagement/claims): four pending claims (?status=Pending, or no status), and its
     // Approved and Rejected tabs' decided ones
     '/api/GamertagClaims/GetClaims': gamertagClaims,
@@ -790,8 +790,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       },
     },
     // Linking a VOD from the review list (the historical import page): the seasons, and the Summer Smash's teams and matches
-    '/api/Vod/LinkSeasons': [12, 11, 5].map(seasonID => ({ seasonID, seasonName: seasonID === 5 ? 'Summer League 2010' : seasonNames[seasonID] })),
-    '/api/Vod/LinkOptions/11': {
+    '/api/vods/link-seasons': [12, 11, 5].map(seasonID => ({ seasonID, seasonName: seasonID === 5 ? 'Summer League 2010' : seasonNames[seasonID] })),
+    '/api/seasons/11/vod-link-options': {
       teams: teams.slice(0, 4).map(([teamID, teamName]) => ({ teamID: teamID + 20, teamName })),
       matches: [{ seasonMatchID: 201, label: 'Week 1: Red Rampage vs Blue Bombers', teamIDs: [21, 22] }, { seasonMatchID: 202, label: 'Week 1: Hammer Bros vs Sword Swallowers', teamIDs: [23, 24] }],
     },
@@ -800,7 +800,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/MyProfile/GamertagClaims': [{ ...gamertagClaims[3], claimantUserID: 999, userID: 999, claimantName: 'Commander Grif', status: 'Rejected', rejectionReason: 'That was someone else' }],
     '/api/GamertagClaims/XuidLookupStatus': { placeholders: 12, due: 3, found: 7, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-29T09:00:00Z' },
     // A franchise's seasons, from its team of this season (the team page's "Franchise history" link)
-    '/api/Team/History/1': teamHistory,
+    '/api/teams/1/history': teamHistory,
     '/api/LateLeague/GetQueue': { gameCount: 96, players: lateLeaguePlayers(null) },
     '/api/LateLeague/GetSeasons': lateLeagueSeasons,
     '/api/LateLeague/GetSeason/3': { season: lateLeagueSeasons[0], players: lateLeaguePlayers(lateLeagueSeasons[0]) },

@@ -245,7 +245,7 @@ public class MatchDetailsServiceTests
 
         var result = await controller.GetMatchDetails(Guid.NewGuid(), CancellationToken.None);
 
-        Assert.That(result.Result, Is.InstanceOf<NotFoundResult>());
+        result.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound, "That match has not been pulled");
     }
 
     [Test]

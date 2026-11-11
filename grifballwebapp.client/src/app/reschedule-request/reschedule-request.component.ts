@@ -78,7 +78,7 @@ export class RescheduleRequestComponent {
       reason: this.reason.trim()
     };
 
-    this.httpClient.post('/api/Reschedule/RequestReschedule', request)
+    this.httpClient.post(`/api/season-matches/${request.seasonMatchID}/reschedules`, request)
     .subscribe({
       next: () => {
         this.snackBar.open('Reschedule request submitted successfully!', 'Close', { duration: 5000 });

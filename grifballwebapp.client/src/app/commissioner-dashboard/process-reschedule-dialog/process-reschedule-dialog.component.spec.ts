@@ -90,7 +90,7 @@ describe('ProcessRescheduleDialogComponent', () => {
     fixture.detectChanges();
     expect(actionButton().textContent).toContain('Processing...');
 
-    const req = http.expectOne('/api/Reschedule/ProcessReschedule/55');
+    const req = http.expectOne('/api/reschedules/55/decision');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ approved: true, commissionerNotes: 'Fine by me' });
     req.flush({});
@@ -104,7 +104,7 @@ describe('ProcessRescheduleDialogComponent', () => {
     component.commissionerNotes.set('   ');
     component.processReschedule();
 
-    const req = http.expectOne('/api/Reschedule/ProcessReschedule/55');
+    const req = http.expectOne('/api/reschedules/55/decision');
     expect(req.request.body).toEqual({ approved: false, commissionerNotes: undefined });
     req.flush({});
   });
@@ -113,7 +113,7 @@ describe('ProcessRescheduleDialogComponent', () => {
     spyOn(console, 'error');
     component.decision.set('approve');
     component.processReschedule();
-    http.expectOne('/api/Reschedule/ProcessReschedule/55').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/reschedules/55/decision').flush('x', { status: 500, statusText: 'Server Error' });
 
     expect(dialogRef.close).not.toHaveBeenCalled();
     expect(component.processing()).toBeFalse();
@@ -122,8 +122,8 @@ describe('ProcessRescheduleDialogComponent', () => {
   it("shows the server's reason when it refuses, as an alert, and stays usable", async () => {
     component.decision.set('approve');
     component.processReschedule();
-    http.expectOne('/api/Reschedule/ProcessReschedule/55')
-      .flush('This match already has a result.', { status: 400, statusText: 'Bad Request' });
+    http.expectOne('/api/reschedules/55/decision')
+      .flush({ status: 400, title: 'Request refused', detail: 'This match already has a result.' }, { status: 400, statusText: 'Bad Request' });
     await fixture.whenStable();
 
     const alert = el().querySelector('[role="alert"]')!;
@@ -136,14 +136,14 @@ describe('ProcessRescheduleDialogComponent', () => {
     component.processReschedule();
     await fixture.whenStable();
     expect(el().querySelector('[role="alert"]')).toBeNull();
-    http.expectOne('/api/Reschedule/ProcessReschedule/55').flush({});
+    http.expectOne('/api/reschedules/55/decision').flush({});
     expect(dialogRef.close).toHaveBeenCalledWith(true);
   });
 
   it('shows a general message when the server gives no reason', async () => {
     component.decision.set('approve');
     component.processReschedule();
-    http.expectOne('/api/Reschedule/ProcessReschedule/55').flush(null, { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/reschedules/55/decision').flush(null, { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
 
     expect(el().querySelector('[role="alert"]')!.textContent).toContain('The request could not be processed. Try again.');
@@ -162,7 +162,7 @@ describe('ProcessRescheduleDialogComponent', () => {
     await fixture.whenStable();
     expect(actionButton().textContent).toContain('Processing...');
 
-    http.expectOne('/api/Reschedule/ProcessReschedule/55').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/reschedules/55/decision').flush('x', { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
 
     expect(actionButton().textContent).toContain('Approve');
@@ -206,6 +206,6 @@ describe('ProcessRescheduleDialogComponent for a match that can no longer move',
     expect(action.textContent).toContain('Reject');
 
     action.click();
-    expect(http.expectOne('/api/Reschedule/ProcessReschedule/56').request.body).toEqual({ approved: false, commissionerNotes: undefined });
+    expect(http.expectOne('/api/reschedules/56/decision').request.body).toEqual({ approved: false, commissionerNotes: undefined });
   });
 });

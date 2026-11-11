@@ -355,7 +355,7 @@ describe('ApiClientService', () => {
       service.getVods('season', 2).subscribe(() => answered++);
       service.getVods('team', 3).subscribe(() => answered++);
       service.getVods('player', 4).subscribe(() => answered++);
-      for (const url of ['/api/Vod/ForSeasonMatch/1', '/api/Vod/ForSeason/2', '/api/Vod/ForTeam/3', '/api/Vod/ForPlayer/4']) {
+      for (const url of ['/api/season-matches/1/vods', '/api/seasons/2/vods', '/api/teams/3/vods', '/api/users/4/vods']) {
         const req = httpTestingController.expectOne(url);
         expect(req.request.method).withContext(url).toBe('GET');
         req.flush([]);
@@ -369,14 +369,14 @@ describe('ApiClientService', () => {
       service.getVodLinkOptions(5).subscribe();
       service.linkVod(6, { seasonID: 5, seasonMatchID: null, teamIDs: [7] }).subscribe();
       service.dismissVod(8).subscribe();
-      httpTestingController.expectOne('/api/Vod/Review').flush([]);
-      httpTestingController.expectOne('/api/Vod/LinkSeasons').flush([]);
-      httpTestingController.expectOne('/api/Vod/LinkOptions/5').flush({ teams: [], matches: [] });
-      const link = httpTestingController.expectOne('/api/Vod/Link/6');
+      httpTestingController.expectOne('/api/vods/review').flush([]);
+      httpTestingController.expectOne('/api/vods/link-seasons').flush([]);
+      httpTestingController.expectOne('/api/seasons/5/vod-link-options').flush({ teams: [], matches: [] });
+      const link = httpTestingController.expectOne('/api/vods/6/link');
       expect(link.request.method).toBe('POST');
       expect(link.request.body).toEqual({ seasonID: 5, seasonMatchID: null, teamIDs: [7] });
       link.flush(null);
-      const dismiss = httpTestingController.expectOne('/api/Vod/Dismiss/8');
+      const dismiss = httpTestingController.expectOne('/api/vods/8/dismiss');
       expect(dismiss.request.method).toBe('POST');
       dismiss.flush(null);
     });

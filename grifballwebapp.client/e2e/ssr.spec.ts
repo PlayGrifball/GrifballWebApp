@@ -12,11 +12,11 @@ const PAGES = [
   { path: '/', content: '.home-hero h1', text: 'Winter Campaign', data: ['/api/events', '/api/seasons'] },
   { path: '/season/12', content: 'app-team-standings', text: 'Red Rampage', data: ['/api/seasons/12/summary', '/api/seasons/12/standings', '/api/seasons/12/matches/scheduled'] },
   { path: '/season/12?tab=schedule', content: '.sched-match', text: 'Gravity Wells', data: ['/api/seasons/12/matches/scheduled', '/api/seasons/12/matches/unscheduled'] },
-  { path: '/seasonmatch/31', content: '.lobby-player', text: 'Blue Bombers', data: ['/api/SeasonMatch/GetSeasonMatchPage/31'] },
-  { path: '/match/0f8fad5b-d9cb-469f-a165-70867728950e', content: '.md-player', text: 'Red Rampage', data: ['/api/MatchDetails/GetMatchDetails/0f8fad5b-d9cb-469f-a165-70867728950e'] },
+  { path: '/seasonmatch/31', content: '.lobby-player', text: 'Blue Bombers', data: ['/api/season-matches/31'] },
+  { path: '/match/0f8fad5b-d9cb-469f-a165-70867728950e', content: '.md-player', text: 'Red Rampage', data: ['/api/matches/0f8fad5b-d9cb-469f-a165-70867728950e'] },
   { path: '/profile/117', content: '.profile-card', text: 'MasterChief117', data: ['/api/profile/getgamertag/117', '/api/profile/getprofilestats/117', '/api/profile/getcommendations/117', '/api/DeploymentHistory/GetDeploymentHistory/117'] },
   { path: '/leaderboards', content: 'app-leaderboards table.board', text: 'Legendary', data: ['/api/Leaderboards/GetLeaderboards'] },
-  { path: '/history/team/1', content: '.history-season', text: 'Summer Smash', data: ['/api/Team/History/1'] },
+  { path: '/history/team/1', content: '.history-season', text: 'Summer Smash', data: ['/api/teams/1/history'] },
   { path: '/late-league', content: 'app-late-league table.board', text: 'Late League Season 3', data: ['/api/LateLeague/GetQueue', '/api/LateLeague/GetSeasons'] },
   { path: '/late-league/3', content: 'app-late-league table.board', text: 'MasterChief117', data: ['/api/LateLeague/GetSeason/3'] },
 ] as const;
@@ -134,7 +134,7 @@ test('a signed-in user\'s page is taken over without the header changing, asking
   expect(await page.evaluate(() => (window as unknown as { userHeader: { removed: number } }).userHeader.removed)).toBe(0);
   // Who is signed in came with the page, as did the page's data
   expect(calls).not.toContain('/api/Identity/Me');
-  expect(calls).not.toContain('/api/SeasonMatch/GetSeasonMatchPage/31');
+  expect(calls).not.toContain('/api/season-matches/31');
   expect(errors).toEqual([]);
 });
 

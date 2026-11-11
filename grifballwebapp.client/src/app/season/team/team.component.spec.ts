@@ -73,8 +73,8 @@ describe('TeamComponent', () => {
 
   function load(t: TeamDto | null, matches: MatchDto[]): void {
     fixture.detectChanges();
-    http.expectOne('/api/Team/Team/7').flush(t);
-    http.expectOne('/api/Team/Matches/7').flush(matches);
+    http.expectOne('/api/teams/7').flush(t);
+    http.expectOne('/api/teams/7/matches').flush(matches);
     fixture.detectChanges();
   }
 
@@ -105,8 +105,8 @@ describe('TeamComponent', () => {
   it('has no history link before the team has loaded', () => {
     fixture.detectChanges();
     expect(el().querySelector('a.team-history-link')).toBeNull();
-    http.expectOne('/api/Team/Team/7').flush(null);
-    http.expectOne('/api/Team/Matches/7').flush([]);
+    http.expectOne('/api/teams/7').flush(null);
+    http.expectOne('/api/teams/7/matches').flush([]);
   });
 
   it("lists the team's VODs", () => {
@@ -171,8 +171,8 @@ describe('TeamComponent', () => {
     fixture.componentRef.setInput('teamID', 8);
     fixture.detectChanges();
 
-    http.expectOne('/api/Team/Team/8').flush({ ...team, teamName: 'Other' });
-    http.expectOne('/api/Team/Matches/8').flush([]);
+    http.expectOne('/api/teams/8').flush({ ...team, teamName: 'Other' });
+    http.expectOne('/api/teams/8/matches').flush([]);
     fixture.detectChanges();
     expect(el().querySelector('h1')!.textContent).toBe('Other');
     expect(stats().teamID()).toBe(8);

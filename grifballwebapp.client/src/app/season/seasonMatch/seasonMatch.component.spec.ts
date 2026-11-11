@@ -145,9 +145,9 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
   });
 
   function load(dto: SeasonMatchPageDto): void {
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(dto);
-    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
-    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
+    httpMock.expectOne('/api/season-matches/7').flush(dto);
+    httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
+    httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
     fixture.detectChanges();
   }
 
@@ -174,9 +174,9 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
   });
 
   it('shows the empty page for an unknown match (the API answers 204 with no body)', () => {
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(null, { status: 204, statusText: 'No Content' });
-    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
-    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
+    httpMock.expectOne('/api/season-matches/7').flush(null, { status: 204, statusText: 'No Content' });
+    httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
+    httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
     expect(() => fixture.detectChanges()).not.toThrow();
 
     expect(fixture.componentInstance.seasonMatch()).toBeNull();
@@ -310,12 +310,12 @@ describe('SeasonMatchComponent reporting', () => {
   afterEach(() => httpMock.verify());
 
   function load(dto: SeasonMatchPageDto, matches: PossibleMatchDto[] = []): void {
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(dto);
-    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush(matches);
-    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
+    httpMock.expectOne('/api/season-matches/7').flush(dto);
+    httpMock.expectOne('/api/season-matches/7/possible-matches').flush(matches);
+    httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
     fixture.detectChanges();
     // The rosters are not under test here.
-    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+    httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
     fixture.detectChanges();
   }
 
@@ -458,7 +458,7 @@ describe('SeasonMatchComponent reporting', () => {
     expect(button('Edit')).toBeUndefined();
 
     entry.changed.emit();
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne('/api/season-matches/7').flush(page());
   });
 
   it('shows an imported recorded game by its number, to unreport but not edit', () => {
@@ -531,12 +531,12 @@ describe('SeasonMatchComponent reporting', () => {
     expect(component.submitting()).toBeTrue();
     expect(button('Home Team Forfeit')!.disabled).toBeTrue();
 
-    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123' }).flush('ok');
+    httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/games/abc-123/report' }).flush('ok');
     // Reported, but the page still shows the match as it was: SUBMIT waits for the reload
     fixture.detectChanges();
     expect(component.submitting()).toBeTrue();
     expect(button('SUBMIT')!.disabled).toBeTrue();
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ ...wonByGames }));
+    httpMock.expectOne('/api/season-matches/7').flush(page({ ...wonByGames }));
     fixture.detectChanges();
     expect(component.submitting()).toBeFalse();
     expect(text()).toContain('This match has been completed.');
@@ -552,16 +552,16 @@ describe('SeasonMatchComponent reporting', () => {
   });
 
   it('says it is looking for games until the search answers, then lists them', () => {
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne('/api/season-matches/7').flush(page());
     fixture.detectChanges();
-    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+    httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
     fixture.detectChanges();
     const section = () => (fixture.nativeElement as HTMLElement).querySelector('.lobby-possibles')!;
     expect(section().textContent).toContain('Looking for games…');
     expect(section().getAttribute('aria-busy')).toBe('true');
 
-    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([possible]);
-    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
+    httpMock.expectOne('/api/season-matches/7/possible-matches').flush([possible]);
+    httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
     fixture.detectChanges();
     expect(section().textContent).not.toContain('Looking for games…');
     expect(section().textContent).toContain('abc-123: 50 - 49');
@@ -574,11 +574,11 @@ describe('SeasonMatchComponent reporting', () => {
   });
 
   it('says the search failed when it does, with no list', () => {
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
-    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush('boom', { status: 500, statusText: 'Server Error' });
-    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
+    httpMock.expectOne('/api/season-matches/7').flush(page());
+    httpMock.expectOne('/api/season-matches/7/possible-matches').flush('boom', { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
     fixture.detectChanges();
-    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+    httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
     fixture.detectChanges();
     expect(component.possibleMatchesState()).toBe('error');
     expect(text()).toContain('Could not look for games right now.');
@@ -586,11 +586,11 @@ describe('SeasonMatchComponent reporting', () => {
   });
 
   it('says when the players\' games were last pulled, or that the last pull failed', () => {
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
-    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
-    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush({ ...idlePull, lastRun: { firedAt: '2026-11-01T18:00:00Z', durationMs: 900, result: 'Failed', error: 'Halo is down' } });
+    httpMock.expectOne('/api/season-matches/7').flush(page());
+    httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
+    httpMock.expectOne('/api/season-matches/7/match-pull').flush({ ...idlePull, lastRun: { firedAt: '2026-11-01T18:00:00Z', durationMs: 900, result: 'Failed', error: 'Halo is down' } });
     fixture.detectChanges();
-    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+    httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
     fixture.detectChanges();
     expect(text()).toContain('The last pull failed');
     expect(button('Pull recent games')!.disabled).toBeFalse();
@@ -601,26 +601,26 @@ describe('SeasonMatchComponent reporting', () => {
     try {
       load(page());
       press('Pull recent games');
-      httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/PullMatches/7' }).flush({ ...idlePull, state: 'Queued' });
+      httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/match-pull' }).flush({ ...idlePull, state: 'Queued' });
       fixture.detectChanges();
       expect(text()).toContain('waiting for the worker');
       expect(button('Pull recent games')!.disabled).toBeTrue();
 
       jasmine.clock().tick(PULL_POLL_MS);
-      httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush({ ...idlePull, state: 'Running', startedAt: '2026-11-01T18:00:00Z' });
+      httpMock.expectOne('/api/season-matches/7/match-pull').flush({ ...idlePull, state: 'Running', startedAt: '2026-11-01T18:00:00Z' });
       fixture.detectChanges();
       expect(text()).toContain('Pulling the players\' recent games from Halo Infinite…');
 
       jasmine.clock().tick(PULL_POLL_MS);
-      httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush({ ...idlePull, lastRun: { firedAt: '2026-11-01T18:01:00Z', durationMs: 60000, result: 'Succeeded', error: null } });
-      httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([possible]);
+      httpMock.expectOne('/api/season-matches/7/match-pull').flush({ ...idlePull, lastRun: { firedAt: '2026-11-01T18:01:00Z', durationMs: 60000, result: 'Succeeded', error: null } });
+      httpMock.expectOne('/api/season-matches/7/possible-matches').flush([possible]);
       fixture.detectChanges();
       expect(text()).toContain('Recent games last pulled');
       expect(text()).toContain('abc-123: 50 - 49');
       expect(button('Pull recent games')!.disabled).toBeFalse();
 
       jasmine.clock().tick(PULL_POLL_MS * 2);
-      httpMock.expectNone('/api/SeasonMatch/MatchPullStatus/7');
+      httpMock.expectNone('/api/season-matches/7/match-pull');
     } finally {
       jasmine.clock().uninstall();
     }
@@ -631,14 +631,14 @@ describe('SeasonMatchComponent reporting', () => {
     try {
       load(page());
       press("Pull back to the season's start");
-      httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/PullMatches/7?backToSeasonStart=true' }).flush({ ...idlePull, state: 'Queued' });
+      httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/match-pull?backToSeasonStart=true' }).flush({ ...idlePull, state: 'Queued' });
       fixture.detectChanges();
       expect(button('Pull recent games')!.disabled).toBeTrue();
       expect(button("Pull back to the season's start")!.disabled).toBeTrue();
 
       jasmine.clock().tick(PULL_POLL_MS);
-      httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush({ ...idlePull, lastRun: { firedAt: '2026-11-01T18:01:00Z', durationMs: 60000, result: 'Succeeded', error: null } });
-      httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([possible]);
+      httpMock.expectOne('/api/season-matches/7/match-pull').flush({ ...idlePull, lastRun: { firedAt: '2026-11-01T18:01:00Z', durationMs: 60000, result: 'Succeeded', error: null } });
+      httpMock.expectOne('/api/season-matches/7/possible-matches').flush([possible]);
       fixture.detectChanges();
       expect(button("Pull back to the season's start")!.disabled).toBeFalse();
     } finally {
@@ -649,7 +649,7 @@ describe('SeasonMatchComponent reporting', () => {
   it('says why a pull could not be started', () => {
     load(page());
     press('Pull recent games');
-    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/PullMatches/7' }).flush('Forbidden', { status: 403, statusText: 'Forbidden' });
+    httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/match-pull' }).flush('Forbidden', { status: 403, statusText: 'Forbidden' });
     fixture.detectChanges();
     expect(component.pullError()).toBeTruthy();
     expect(component.pulling()).toBeFalse();
@@ -664,17 +664,17 @@ describe('SeasonMatchComponent reporting', () => {
   it('shows no pull status when it cannot be read, and says when it lost track of a pull', () => {
     jasmine.clock().install();
     try {
-      httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
-      httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
-      httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush('no', { status: 500, statusText: 'Server Error' });
+      httpMock.expectOne('/api/season-matches/7').flush(page());
+      httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
+      httpMock.expectOne('/api/season-matches/7/match-pull').flush('no', { status: 500, statusText: 'Server Error' });
       fixture.detectChanges();
-      httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+      httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
       expect(component.pull()).toBeNull();
 
       component.pullMatches();
-      httpMock.expectOne('/api/SeasonMatch/PullMatches/7').flush({ ...idlePull, state: 'Running' });
+      httpMock.expectOne('/api/season-matches/7/match-pull').flush({ ...idlePull, state: 'Running' });
       jasmine.clock().tick(PULL_POLL_MS);
-      httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush('down', { status: 502, statusText: 'Bad Gateway' });
+      httpMock.expectOne('/api/season-matches/7/match-pull').flush('down', { status: 502, statusText: 'Bad Gateway' });
       expect(component.pullError()).toContain("Couldn't tell whether the pull finished");
     } finally {
       jasmine.clock().uninstall();
@@ -682,12 +682,12 @@ describe('SeasonMatchComponent reporting', () => {
   });
 
   it('treats an empty answer as no games', () => {
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
-    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush(null);
-    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
+    httpMock.expectOne('/api/season-matches/7').flush(page());
+    httpMock.expectOne('/api/season-matches/7/possible-matches').flush(null);
+    httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
     expect(component.possibleMatches()).toEqual([]);
     expect(component.possibleMatchesState()).toBe('loaded');
-    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+    httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
   });
 
   it('asks whether a game reported to a series with games is new or replaces one, never picking for the commissioner', () => {
@@ -695,34 +695,34 @@ describe('SeasonMatchComponent reporting', () => {
     load(page({ reportedGames: [typed] }), [possible]);
     button('SUBMIT')!.click();
     fixture.detectChanges();
-    httpMock.expectNone(r => r.url.startsWith('/api/SeasonMatch/ReportMatch'));
+    httpMock.expectNone(r => /\/games\/[^/]+\/report$/.test(r.url));
     expect(text()).toContain('Is this a new game of the series, or does it replace a game already reported?');
 
     button('Replaces game 1 (entered by hand)')!.click();
-    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123?replaces=51' }).flush('ok');
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ reportedGames: [typed] }));
+    httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/games/abc-123/report?replaces=51' }).flush('ok');
+    httpMock.expectOne('/api/season-matches/7').flush(page({ reportedGames: [typed] }));
     fixture.detectChanges();
 
     button('SUBMIT')!.click();
     fixture.detectChanges();
     button('A new game (game 2)')!.click();
-    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123' }).flush('ok');
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/games/abc-123/report' }).flush('ok');
+    httpMock.expectOne('/api/season-matches/7').flush(page());
 
     component.onSubmit('abc-123');
     expect(component.placingReport()).toBeNull();
-    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123' }).flush('ok');
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/games/abc-123/report' }).flush('ok');
+    httpMock.expectOne('/api/season-matches/7').flush(page());
   });
 
   it('clears the submitting state once reloaded, and says why, when reporting fails', () => {
     load(page());
     component.onSubmit('bad');
-    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/bad' }).flush('Not a game of these teams', { status: 400, statusText: 'Bad Request' });
+    httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/games/bad/report' }).flush({ status: 400, title: 'Request refused', detail: 'Not a game of these teams' }, { status: 400, statusText: 'Bad Request' });
 
     expect(component.actionError()).toBe('Not a game of these teams');
     expect(component.submitting()).toBeTrue();
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne('/api/season-matches/7').flush(page());
     expect(component.submitting()).toBeFalse();
   });
 
@@ -730,7 +730,7 @@ describe('SeasonMatchComponent reporting', () => {
     load(page());
     press('Home Team Forfeit');
     press('Confirm');
-    httpMock.expectOne('/api/SeasonMatch/HomeForfeit/7').flush(null);
+    httpMock.expectOne('/api/season-matches/7/forfeit/home').flush(null);
     fixture.detectChanges();
 
     // Done on the server, but the page still shows the match undecided: everything waits
@@ -739,7 +739,7 @@ describe('SeasonMatchComponent reporting', () => {
     component.requestAction('AwayForfeit');
     expect(component.confirming()).toBeNull();
 
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ ...forfeited }));
+    httpMock.expectOne('/api/season-matches/7').flush(page({ ...forfeited }));
     fixture.detectChanges();
     expect(component.submitting()).toBeFalse();
     expect(text()).toContain('This match has been completed.');
@@ -750,9 +750,9 @@ describe('SeasonMatchComponent reporting', () => {
     load(page());
     component.requestAction('DoubleForfeit');
     component.confirmAction();
-    httpMock.expectOne('/api/SeasonMatch/DoubleForfeit/7').flush(null);
+    httpMock.expectOne('/api/season-matches/7/forfeit/double').flush(null);
     expect(component.submitting()).toBeTrue();
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush('down', { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/season-matches/7').flush('down', { status: 500, statusText: 'Server Error' });
     expect(component.submitting()).toBeFalse();
   });
 
@@ -765,17 +765,17 @@ describe('SeasonMatchComponent reporting', () => {
     load(page());
     press('Home Team Forfeit');
 
-    httpMock.expectNone('/api/SeasonMatch/HomeForfeit/7');
+    httpMock.expectNone('/api/season-matches/7/forfeit/home');
     expect(text()).toContain('The home team forfeits and the away team wins.');
     expect(button('Home Team Forfeit')).toBeUndefined();
 
     press('Confirm');
     expect(component.submitting()).toBeTrue();
 
-    const req = httpMock.expectOne('/api/SeasonMatch/HomeForfeit/7');
+    const req = httpMock.expectOne('/api/season-matches/7/forfeit/home');
     expect(req.request.method).toBe('POST');
     req.flush(null);
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne('/api/season-matches/7').flush(page());
     expect(component.submitting()).toBeFalse();
   });
 
@@ -785,10 +785,10 @@ describe('SeasonMatchComponent reporting', () => {
     expect(text()).toContain('The away team forfeits and the home team wins.');
     press('Confirm');
 
-    const req = httpMock.expectOne('/api/SeasonMatch/AwayForfeit/7');
+    const req = httpMock.expectOne('/api/season-matches/7/forfeit/away');
     expect(req.request.method).toBe('POST');
     req.flush('no', { status: 500, statusText: 'Server Error' });
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne('/api/season-matches/7').flush(page());
     expect(component.submitting()).toBeFalse();
     fixture.detectChanges();
     expect(component.actionError()).toBe('no');
@@ -801,10 +801,10 @@ describe('SeasonMatchComponent reporting', () => {
     expect(text()).toContain('Both teams forfeit and take a loss.');
     press('Confirm');
 
-    const req = httpMock.expectOne('/api/SeasonMatch/DoubleForfeit/7');
+    const req = httpMock.expectOne('/api/season-matches/7/forfeit/double');
     expect(req.request.method).toBe('POST');
     req.flush(null);
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne('/api/season-matches/7').flush(page());
   });
 
   it('records nothing when a forfeit is cancelled', () => {
@@ -812,7 +812,7 @@ describe('SeasonMatchComponent reporting', () => {
     press('Both Teams Forfeit');
     press('Cancel');
 
-    httpMock.expectNone('/api/SeasonMatch/DoubleForfeit/7');
+    httpMock.expectNone('/api/season-matches/7/forfeit/double');
     expect(component.confirming()).toBeNull();
     expect(button('Both Teams Forfeit')).toBeDefined();
   });
@@ -834,14 +834,14 @@ describe('SeasonMatchComponent reporting', () => {
     load(page({ ...forfeited }));
     press('Undo Result');
 
-    httpMock.expectNone('/api/SeasonMatch/UndoResult/7');
+    httpMock.expectNone('/api/season-matches/7/result/undo');
     expect(text()).toContain('This match goes back to undecided');
     press('Confirm');
 
-    const req = httpMock.expectOne('/api/SeasonMatch/UndoResult/7');
+    const req = httpMock.expectOne('/api/season-matches/7/result/undo');
     expect(req.request.method).toBe('POST');
     req.flush(null);
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne('/api/season-matches/7').flush(page());
     fixture.detectChanges();
     expect(button('Undo Result')).toBeUndefined();
     expect(button('Home Team Forfeit')).toBeDefined();
@@ -852,8 +852,8 @@ describe('SeasonMatchComponent reporting', () => {
     press('Undo Result');
     press('Confirm');
 
-    httpMock.expectOne('/api/SeasonMatch/UndoResult/7').flush('Undo that match first.', { status: 400, statusText: 'Bad Request' });
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ ...wonByGames }));
+    httpMock.expectOne('/api/season-matches/7/result/undo').flush('Undo that match first.', { status: 400, statusText: 'Bad Request' });
+    httpMock.expectOne('/api/season-matches/7').flush(page({ ...wonByGames }));
     fixture.detectChanges();
     expect(text()).toContain('Undo that match first.');
   });
@@ -938,9 +938,9 @@ describe('SeasonMatchComponent reporting', () => {
     component.onSubmit('abc-123');
     component.placeReport(51);
     expect(component.mode()).toEqual({ kind: 'submitting' });
-    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123?replaces=51' }).flush('ok');
+    httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/games/abc-123/report?replaces=51' }).flush('ok');
     expect(component.mode()).toEqual({ kind: 'submitting' });
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(withGames());
+    httpMock.expectOne('/api/season-matches/7').flush(withGames());
     expect(component.mode()).toEqual({ kind: 'idle' });
   });
 
@@ -957,7 +957,7 @@ describe('SeasonMatchComponent reporting', () => {
     load(withGames(), [possible]);
     component.requestAction('UndoResult');
     component.confirmAction();
-    const req = httpMock.expectOne('/api/SeasonMatch/UndoResult/7');
+    const req = httpMock.expectOne('/api/season-matches/7/result/undo');
     fixture.detectChanges();
     expect(component.mode()).toEqual({ kind: 'submitting' });
     expect(button('SUBMIT')!.disabled).toBeTrue();
@@ -972,7 +972,7 @@ describe('SeasonMatchComponent reporting', () => {
     expect(component.mode()).toEqual({ kind: 'submitting' });
 
     req.flush(null);
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(withGames());
+    httpMock.expectOne('/api/season-matches/7').flush(withGames());
     fixture.detectChanges();
     expect(component.mode()).toEqual({ kind: 'idle' });
     expect(manualEntry().blocked()).toBeFalse();
@@ -1012,8 +1012,8 @@ describe('SeasonMatchComponent reporting', () => {
     expect(manualEntry().cancel).toHaveBeenCalledTimes(2);
     component.placeReport('new');
     expect(manualEntry().cancel).toHaveBeenCalledTimes(3);
-    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123' }).flush('ok');
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(withGames());
+    httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/games/abc-123/report' }).flush('ok');
+    httpMock.expectOne('/api/season-matches/7').flush(withGames());
   });
 
   it('drops its Confirm or slot choice when manual entry starts something', () => {
@@ -1035,7 +1035,7 @@ describe('SeasonMatchComponent reporting', () => {
     load(page());
     component.requestAction('HomeForfeit');
     manualEntry().changed.emit();
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ ...wonByGames, reportedGames: [manualGame()], canUndo: true }));
+    httpMock.expectOne('/api/season-matches/7').flush(page({ ...wonByGames, reportedGames: [manualGame()], canUndo: true }));
     fixture.detectChanges();
     expect(component.confirming()).toBeNull();
     expect(text()).toContain('This match has been completed.');
@@ -1074,8 +1074,8 @@ describe('SeasonMatchComponent reporting', () => {
     expect(focused()).toBe(heading());
     expect(admin().getAttribute('aria-busy')).toBe('true');
 
-    httpMock.expectOne('/api/SeasonMatch/AwayForfeit/7').flush(null);
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne('/api/season-matches/7/forfeit/away').flush(null);
+    httpMock.expectOne('/api/season-matches/7').flush(page());
     await settle();
     expect(admin().getAttribute('aria-busy')).toBe('false');
   });
@@ -1101,8 +1101,8 @@ describe('SeasonMatchComponent reporting', () => {
     await pressFocused(button('SUBMIT')!);
     await pressFocused(button('Replaces game 1 (entered by hand)')!);
     expect(focused()).toBe(heading());
-    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123?replaces=51' }).flush('ok');
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(withGames());
+    httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/games/abc-123/report?replaces=51' }).flush('ok');
+    httpMock.expectOne('/api/season-matches/7').flush(withGames());
   });
 
   it('leaves focus with manual entry when it drops what the page had waiting', async () => {
@@ -1177,11 +1177,11 @@ describe('SeasonMatchComponent with manual entry', () => {
   afterEach(() => httpMock.verify());
 
   function load(dto: SeasonMatchPageDto): void {
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(dto);
-    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
-    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
+    httpMock.expectOne('/api/season-matches/7').flush(dto);
+    httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
+    httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
     fixture.detectChanges();
-    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+    httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
     fixture.detectChanges();
     httpMock.expectOne('/api/game-versions').flush([{ gameVersionID: 1, name: 'Halo 3' }]);
     fixture.detectChanges();
@@ -1205,8 +1205,8 @@ describe('SeasonMatchComponent with manual entry', () => {
     expect(component.confirming()).toBeNull();
     expect(text()).not.toContain('This match goes back to undecided');
     press('Confirm');
-    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/RemoveGame/7/51' }).flush(null);
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/games/51/remove' }).flush(null);
+    httpMock.expectOne('/api/season-matches/7').flush(page());
     fixture.detectChanges();
 
     expect(component.mode()).toEqual({ kind: 'idle' });
@@ -1227,8 +1227,8 @@ describe('SeasonMatchComponent with manual entry', () => {
     manual().form.homeTeamScore = 5;
     manual().form.awayTeamScore = 2;
     manual().save();
-    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/AddManualGame/7' }).flush(41);
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(decidedByIt());
+    httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/manual-games' }).flush(41);
+    httpMock.expectOne('/api/season-matches/7').flush(decidedByIt());
     fixture.detectChanges();
 
     expect(component.confirming()).toBeNull();
@@ -1287,9 +1287,9 @@ describe('SeasonMatchComponent lobby', () => {
   afterEach(() => httpMock.verify());
 
   function load(dto: SeasonMatchPageDto): void {
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(dto);
-    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
-    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
+    httpMock.expectOne('/api/season-matches/7').flush(dto);
+    httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
+    httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
     fixture.detectChanges();
   }
   const el = () => fixture.nativeElement as HTMLElement;
@@ -1298,8 +1298,8 @@ describe('SeasonMatchComponent lobby', () => {
 
   it("lists each side's players from its team, marking the captain", () => {
     load(page());
-    httpMock.expectOne('/api/Team/Team/10').flush(team('Home', 'Grif', 'Simmons'));
-    httpMock.expectOne('/api/Team/Team/20').flush(team('Away', 'Tucker', 'Caboose'));
+    httpMock.expectOne('/api/teams/10').flush(team('Home', 'Grif', 'Simmons'));
+    httpMock.expectOne('/api/teams/20').flush(team('Away', 'Tucker', 'Caboose'));
     fixture.detectChanges();
 
     expect(roster('home')).toEqual(['G Grif Captain', 'S Simmons']);
@@ -1308,8 +1308,8 @@ describe('SeasonMatchComponent lobby', () => {
 
   it('shows players without a gamertag (no Xbox account linked) without breaking the page', () => {
     load(page());
-    httpMock.expectOne('/api/Team/Team/10').flush({ ...team('Home', 'Grif', 'x'), players: [{ teamPlayerID: 3, userID: 3, gamertag: null, draftCaptainOrder: 1, draftRound: null }] });
-    httpMock.expectOne('/api/Team/Team/20').flush({ ...team('Away', 'Tucker', 'x'), players: [{ teamPlayerID: 4, userID: 4, gamertag: null, draftCaptainOrder: null, draftRound: 1 }] });
+    httpMock.expectOne('/api/teams/10').flush({ ...team('Home', 'Grif', 'x'), players: [{ teamPlayerID: 3, userID: 3, gamertag: null, draftCaptainOrder: 1, draftRound: null }] });
+    httpMock.expectOne('/api/teams/20').flush({ ...team('Away', 'Tucker', 'x'), players: [{ teamPlayerID: 4, userID: 4, gamertag: null, draftCaptainOrder: null, draftRound: 1 }] });
     fixture.detectChanges();
 
     expect(roster('home')).toEqual(['? Unknown Spartan Captain']);
@@ -1322,39 +1322,39 @@ describe('SeasonMatchComponent lobby', () => {
     expect(pageEl().classList).toContain('hud-waiting');
     load(page());
     expect(fixture.componentInstance.ready()).toBeFalse();
-    httpMock.expectOne('/api/Team/Team/10').flush(team('Home', 'Grif', 'Simmons'));
+    httpMock.expectOne('/api/teams/10').flush(team('Home', 'Grif', 'Simmons'));
     fixture.detectChanges();
     expect(pageEl().classList).toContain('hud-waiting');
-    httpMock.expectOne('/api/Team/Team/20').flush(team('Away', 'Tucker', 'Caboose'));
+    httpMock.expectOne('/api/teams/20').flush(team('Away', 'Tucker', 'Caboose'));
     fixture.detectChanges();
     expect(pageEl().classList).not.toContain('hud-waiting');
   });
 
   it('shows the page for a match that does not exist, or that could not be loaded', () => {
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush('x', { status: 500, statusText: 'Server Error' });
-    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
-    httpMock.expectOne('/api/SeasonMatch/MatchPullStatus/7').flush(idlePull);
+    httpMock.expectOne('/api/season-matches/7').flush('x', { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
+    httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
     fixture.detectChanges();
     expect(fixture.componentInstance.ready()).toBeTrue();
   });
 
   it('does not reload the rosters when the match page is reloaded for the same teams', () => {
     load(page());
-    httpMock.expectOne('/api/Team/Team/10').flush(team('Home', 'Grif', 'Simmons'));
-    httpMock.expectOne('/api/Team/Team/20').flush(null);
+    httpMock.expectOne('/api/teams/10').flush(team('Home', 'Grif', 'Simmons'));
+    httpMock.expectOne('/api/teams/20').flush(null);
     fixture.componentInstance.getPageDto();
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ homeTeamScore: 1, awayTeamScore: 0 }));
+    httpMock.expectOne('/api/season-matches/7').flush(page({ homeTeamScore: 1, awayTeamScore: 0 }));
     fixture.detectChanges();
 
-    httpMock.expectNone(r => r.url.startsWith('/api/Team/Team/'));
+    httpMock.expectNone(r => /^\/api\/teams\/\w+$/.test(r.url));
     expect(roster('home').length).toBe(2);
     expect(roster('away')).toEqual([]);
   });
 
   it('leaves a roster empty when it cannot be loaded, and has none for a BYE', () => {
     load(page({ isPlayoff: true, ...awayBye }));
-    httpMock.expectOne('/api/Team/Team/10').flush('x', { status: 500, statusText: 'Server Error' });
-    httpMock.expectNone('/api/Team/Team/null');
+    httpMock.expectOne('/api/teams/10').flush('x', { status: 500, statusText: 'Server Error' });
+    httpMock.expectNone('/api/teams/null');
     fixture.detectChanges();
 
     expect(roster('home')).toEqual([]);
@@ -1415,8 +1415,8 @@ describe('SeasonMatchComponent on the server', () => {
     fixture.componentRef.setInput('seasonMatchID', 7);
     fixture.detectChanges();
 
-    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7');
-    httpMock.expectNone('/api/SeasonMatch/GetPossibleMatches/7');
+    httpMock.expectOne('/api/season-matches/7');
+    httpMock.expectNone('/api/season-matches/7/possible-matches');
     // The page drawn on the server says the search is under way; the browser does it
     expect(fixture.componentInstance.possibleMatchesState()).toBe('loading');
     httpMock.verify();

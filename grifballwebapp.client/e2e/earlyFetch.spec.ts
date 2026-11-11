@@ -29,7 +29,7 @@ const PAGES = [
   { path: '/season/12', role: 'player', ready: '.week-card', early: ['/api/seasons/12/summary', '/api/seasons/12/standings', '/api/seasons/12/matches/scheduled'] },
   { path: '/season/12?tab=schedule', role: 'anon', ready: '.sched-match', early: ['/api/seasons/12/matches/unscheduled', '/api/seasons/12/matches/scheduled'] },
   { path: '/season/12?tab=bracket', role: 'anon', ready: '.brackets-viewer .match', early: ['/api/seasons/12/bracket/viewer-data'] },
-  { path: '/seasonmatch/31', role: 'anon', ready: '.lobby-player', early: ['/api/SeasonMatch/GetSeasonMatchPage/31'] },
+  { path: '/seasonmatch/31', role: 'anon', ready: '.lobby-player', early: ['/api/season-matches/31'] },
   { path: '/profile/117', role: 'player', ready: '.linked-login', early: ['/api/profile/getgamertag/117', '/api/profile/getprofilestats/117'] },
 ] as const;
 

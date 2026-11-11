@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Application.TeamPage;
 
 namespace GrifballWebApp.Server.TeamPage;
-[Route("[controller]/[action]")]
 [ApiController]
 public class TeamController : ControllerBase
 {
@@ -22,23 +21,30 @@ public class TeamController : ControllerBase
 
     /// <summary>
     /// The team: its record (from its matches, or the one its source spreadsheet gives for a season whose matches are
-    /// not in the app), roster and titles; its players' stats are Season/GetSeasonPlayerStats?teamID=.
+    /// not in the app), roster and titles; its players' stats are GET seasons/{seasonID}/player-stats?teamID=.
     /// </summary>
     [AllowAnonymous]
-    [HttpGet("{teamID:int}", Name = "Team")]
-    public Task<TeamDto?> Team([FromRoute] int teamID, CancellationToken ct) => _teams.GetAsync(teamID, ct);
+    [HttpGet("teams/{teamID:int}", Name = "Team")]
+    [ProducesResponseType<TeamDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    public async Task<ActionResult<TeamDto>> Team([FromRoute] int teamID, CancellationToken ct)
+        => await _teams.GetAsync(teamID, ct) is { } team ? team : this.NotFoundProblem("There is no such team");
 
     /// <summary>
     /// The franchise of the team <paramref name="teamID"/>: every season's team of its league with its name (trimmed,
     /// case ignored; a placeholder name like "Team 1": the team alone), newest first, with its record, roster, captain
-    /// and titles, and the franchise's totals. Null when there is no such team.
+    /// and titles, and the franchise's totals. 404 when there is no such team.
     /// </summary>
     [AllowAnonymous]
-    [HttpGet("{teamID:int}", Name = "History")]
-    public Task<TeamHistoryDto?> History([FromRoute] int teamID, CancellationToken ct) => _history.GetAsync(teamID, ct);
+    [HttpGet("teams/{teamID:int}/history", Name = "History")]
+    [ProducesResponseType<TeamHistoryDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    public async Task<ActionResult<TeamHistoryDto>> History([FromRoute] int teamID, CancellationToken ct)
+        => await _history.GetAsync(teamID, ct) is { } history ? history : this.NotFoundProblem("There is no such team");
 
     [AllowAnonymous]
-    [HttpGet("{teamID:int}", Name = "Matches")]
+    [HttpGet("teams/{teamID:int}/matches", Name = "Matches")]
+    [ProducesResponseType<MatchDto[]>(StatusCodes.Status200OK)]
     public Task<MatchDto[]> Matches([FromRoute] int teamID, CancellationToken ct)
     {
         return _context.SeasonMatches.Where(x => x.HomeTeamID == teamID)

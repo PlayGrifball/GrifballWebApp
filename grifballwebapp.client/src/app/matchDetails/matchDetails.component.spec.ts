@@ -6,7 +6,7 @@ import { MatchDetailsComponent, teamName } from './matchDetails.component';
 import { formatSeconds, fromApiTimeSpan, parseMatchDetails } from './matchDetailsDto';
 
 const MATCH_ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
-const URL = '/api/MatchDetails/GetMatchDetails/' + MATCH_ID;
+const URL = '/api/matches/' + MATCH_ID;
 
 /** A player line as the API sends it. */
 const player = (gamertag: string, overrides: Record<string, unknown> = {}) => ({
@@ -190,7 +190,7 @@ describe('MatchDetailsComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    httpMock.expectOne('/api/MatchDetails/GetMatchDetails/other');
+    httpMock.expectOne('/api/matches/other');
     expect(fixture.componentInstance.state()).toBe('loading');
     expect(fixture.componentInstance.details()).toBeNull();
   });
@@ -203,7 +203,7 @@ describe('MatchDetailsComponent', () => {
     await fixture.whenStable();
 
     expect(first.cancelled).toBeTrue();
-    httpMock.expectOne('/api/MatchDetails/GetMatchDetails/other').flush(apiMatch({ matchID: 'other' }));
+    httpMock.expectOne('/api/matches/other').flush(apiMatch({ matchID: 'other' }));
     await fixture.whenStable();
 
     expect(fixture.componentInstance.state()).toBe('loaded');

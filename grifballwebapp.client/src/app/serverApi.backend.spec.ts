@@ -82,7 +82,7 @@ describe('ServerApiBackend', () => {
       fetch.and.returnValue(new Promise<Response>(() => { }));
       const backend = create(page());
       let error: unknown;
-      backend.handle(new HttpRequest('GET', 'https://grifball.xyz/api/SeasonMatch/GetPossibleMatches/1')).subscribe({ error: e => error = e });
+      backend.handle(new HttpRequest('GET', 'https://grifball.xyz/api/season-matches/1/possible-matches')).subscribe({ error: e => error = e });
 
       jasmine.clock().tick(SERVER_API_TIMEOUT_MS - 1);
       expect(error).toBeUndefined();
@@ -90,7 +90,7 @@ describe('ServerApiBackend', () => {
 
       expect(error).toEqual(jasmine.any(HttpErrorResponse));
       expect((error as HttpErrorResponse).status).toBe(504);
-      expect((error as HttpErrorResponse).url).toBe('http://backend:5295/SeasonMatch/GetPossibleMatches/1');
+      expect((error as HttpErrorResponse).url).toBe('http://backend:5295/season-matches/1/possible-matches');
     } finally {
       jasmine.clock().uninstall();
     }

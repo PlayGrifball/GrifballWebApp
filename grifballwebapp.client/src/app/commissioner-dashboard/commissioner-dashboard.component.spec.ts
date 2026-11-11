@@ -102,7 +102,7 @@ describe('CommissionerDashboardComponent', () => {
 
     component.ngOnInit();
 
-    const req = httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData');
+    const req = httpTestingController.expectOne('/api/commissioner-dashboard');
     expect(req.request.method).toBe('GET');
     req.flush(mockDashboardData);
 
@@ -114,7 +114,7 @@ describe('CommissionerDashboardComponent', () => {
   it('should handle error when loading dashboard data', () => {
     component.ngOnInit();
 
-    const req = httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData');
+    const req = httpTestingController.expectOne('/api/commissioner-dashboard');
     req.flush('Error loading data', { status: 500, statusText: 'Internal Server Error' });
 
     expect(component.loading()).toBeFalsy();
@@ -191,12 +191,12 @@ describe('CommissionerDashboardComponent', () => {
 
     component.createDiscordThread(mockReschedule);
 
-    const req = httpTestingController.expectOne(`/api/Reschedule/CreateDiscordThread/${mockReschedule.matchRescheduleID}`);
+    const req = httpTestingController.expectOne(`/api/reschedules/${mockReschedule.matchRescheduleID}/discord-thread`);
     expect(req.request.method).toBe('POST');
     req.flush({});
     
     // After the POST completes, the component calls loadDashboardData()
-    const refreshReq = httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData');
+    const refreshReq = httpTestingController.expectOne('/api/commissioner-dashboard');
     refreshReq.flush({ pendingReschedules: [], overdueMatches: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0 } });
   });
 
@@ -213,7 +213,7 @@ describe('CommissionerDashboardComponent', () => {
       component.openProcessRescheduleDialog(reschedule);
 
       expect(component['dialog'].open).toHaveBeenCalledWith(jasmine.any(Function), { width: '600px', data: reschedule });
-      httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData').flush(empty);
+      httpTestingController.expectOne('/api/commissioner-dashboard').flush(empty);
     });
 
     it('does not reload when the dialog is cancelled', () => {
@@ -223,15 +223,15 @@ describe('CommissionerDashboardComponent', () => {
 
       component.openProcessRescheduleDialog(reschedule);
       expect(ref.afterClosed).toHaveBeenCalled();
-      httpTestingController.expectNone('/api/CommissionerDashboard/GetDashboardData');
+      httpTestingController.expectNone('/api/commissioner-dashboard');
     });
 
     it('still reloads and logs when creating the Discord thread fails', () => {
       const err = spyOn(console, 'error');
       component.createDiscordThread(reschedule);
-      httpTestingController.expectOne('/api/Reschedule/CreateDiscordThread/4').flush('x', { status: 500, statusText: 'Server Error' });
+      httpTestingController.expectOne('/api/reschedules/4/discord-thread').flush('x', { status: 500, statusText: 'Server Error' });
 
-      httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData').flush(empty);
+      httpTestingController.expectOne('/api/commissioner-dashboard').flush(empty);
       expect(err).toHaveBeenCalledWith('Failed to create Discord thread:', jasmine.anything());
     });
   });
@@ -240,7 +240,7 @@ describe('CommissionerDashboardComponent', () => {
     await fixture.whenStable();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Loading dashboard data...');
 
-    httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData').flush({
+    httpTestingController.expectOne('/api/commissioner-dashboard').flush({
       pendingReschedules: [], overdueMatches: [],
       summary: { pendingRescheduleCount: 4, overdueMatchCount: 0, criticalOverdueCount: 0 },
     });
@@ -253,7 +253,7 @@ describe('CommissionerDashboardComponent', () => {
 
   it('links each overdue match to its match page and marks how late it is', async () => {
     await fixture.whenStable();
-    httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData').flush({
+    httpTestingController.expectOne('/api/commissioner-dashboard').flush({
       pendingReschedules: [],
       overdueMatches: [{ seasonMatchID: 33, homeCaptain: 'A', awayCaptain: 'B', scheduledTime: '2026-10-27T00:30:00Z', hoursOverdue: 80 }],
       summary: { pendingRescheduleCount: 0, overdueMatchCount: 1, criticalOverdueCount: 1 },
@@ -271,7 +271,7 @@ describe('CommissionerDashboardComponent', () => {
   it('shows the error once the request fails, without a manual detectChanges', async () => {
     spyOn(console, 'error');
     await fixture.whenStable();
-    httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData').flush('x', { status: 500, statusText: 'Server Error' });
+    httpTestingController.expectOne('/api/commissioner-dashboard').flush('x', { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Failed to load dashboard data');
@@ -283,7 +283,7 @@ describe('CommissionerDashboardComponent', () => {
     const decided: RescheduleDto = { ...base, matchRescheduleID: 7, canApprove: false, whyNotApprovable: 'This match already has a result.' };
     const open: RescheduleDto = { ...base, matchRescheduleID: 8, canApprove: true, whyNotApprovable: null };
     await fixture.whenStable();
-    httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData').flush({
+    httpTestingController.expectOne('/api/commissioner-dashboard').flush({
       pendingReschedules: [decided, open], overdueMatches: [],
       summary: { pendingRescheduleCount: 2, overdueMatchCount: 0, criticalOverdueCount: 0 },
     });

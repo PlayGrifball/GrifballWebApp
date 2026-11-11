@@ -53,7 +53,7 @@ describe('TeamHistoryComponent', () => {
   afterEach(() => http.verify());
 
   const el = () => fixture.nativeElement as HTMLElement;
-  const request = (teamID = 20) => http.expectOne(`/api/Team/History/${teamID}`);
+  const request = (teamID = 20) => http.expectOne(`/api/teams/${teamID}/history`);
 
   async function settle(): Promise<void> {
     await fixture.whenStable();

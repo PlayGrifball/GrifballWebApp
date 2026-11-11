@@ -3,7 +3,7 @@ export interface VodTeamDto {
   teamName: string;
 }
 
-/** A VOD on a season, team, match or player page (GET /api/Vod/For...). */
+/** A VOD on a season, team, match or player page (GET /api/{seasons|teams|users|season-matches}/{id}/vods). */
 export interface VodDto {
   vodID: number;
   youTubeVideoID: string;
@@ -17,7 +17,7 @@ export interface VodDto {
   teams: VodTeamDto[];
 }
 
-/** A VOD waiting for a sysadmin (GET /api/Vod/Review), with the matcher's suggestion in its season, match and teams. */
+/** A VOD waiting for a sysadmin (GET /api/vods/review), with the matcher's suggestion in its season, match and teams. */
 export interface VodReviewDto extends VodDto {
   description?: string | null;
   publishedAtIsApproximate: boolean;

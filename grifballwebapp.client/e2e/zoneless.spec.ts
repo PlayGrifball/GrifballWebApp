@@ -201,12 +201,12 @@ test('processing a reschedule in the dialog refreshes the commissioner dashboard
   };
   let processed = false;
   await mockBackend(page, {
-    '/api/CommissionerDashboard/GetDashboardData': route => json(route, {
+    '/api/commissioner-dashboard': route => json(route, {
       pendingReschedules: processed ? [] : [reschedule],
       overdueMatches: [],
       summary: { pendingRescheduleCount: processed ? 0 : 1, overdueMatchCount: 0, criticalOverdueCount: 0 },
     }),
-    '/api/Reschedule/ProcessReschedule/8': route => {
+    '/api/reschedules/8/decision': route => {
       processed = true;
       return json(route, {});
     },
@@ -421,19 +421,19 @@ test('a commissioner enters a game by hand, and reports a Waypoint game in place
     ({ teamID, score, outcome: score > 3 ? 'Won' : 'Lost', players: [{ xboxUserID: teamID, gamertag, score: 900, kills: 12, deaths: 7, isOnTeam: true }] });
   const posted: unknown[] = [];
   const requests = await mockBackend(page, {
-    [`/api/SeasonMatch/GetSeasonMatchPage/${SEASON_MATCH_ID}`]: route => json(route, matchPage),
-    '/api/Team/Team/1': route => json(route, team(1, 'Reds', 'Sarge')),
-    '/api/Team/Team/2': route => json(route, team(2, 'Blues', 'Tucker')),
+    [`/api/season-matches/${SEASON_MATCH_ID}`]: route => json(route, matchPage),
+    '/api/teams/1': route => json(route, team(1, 'Reds', 'Sarge')),
+    '/api/teams/2': route => json(route, team(2, 'Blues', 'Tucker')),
     '/api/game-versions': route => json(route, [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]),
-    [`/api/SeasonMatch/GetPossibleMatches/${SEASON_MATCH_ID}`]: route => json(route, [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }]),
-    [`/api/SeasonMatch/MatchPullStatus/${SEASON_MATCH_ID}`]: route => json(route, { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null }),
-    [`/api/SeasonMatch/AddManualGame/${SEASON_MATCH_ID}`]: route => {
+    [`/api/season-matches/${SEASON_MATCH_ID}/possible-matches`]: route => json(route, [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }]),
+    [`/api/season-matches/${SEASON_MATCH_ID}/match-pull`]: route => json(route, { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null }),
+    [`/api/season-matches/${SEASON_MATCH_ID}/manual-games`]: route => {
       posted.push(route.request().postDataJSON());
       return route.fulfill({ status: 200, body: '' });
     },
-    [`/api/SeasonMatch/ReportMatch/${SEASON_MATCH_ID}/${WAYPOINT_ID}`]: route => json(route, 'Reported'),
+    [`/api/season-matches/${SEASON_MATCH_ID}/games/${WAYPOINT_ID}/report`]: route => json(route, 'Reported'),
   });
-  const pageLoads = () => requests.filter(r => r === `GET /api/SeasonMatch/GetSeasonMatchPage/${SEASON_MATCH_ID}`).length;
+  const pageLoads = () => requests.filter(r => r === `GET /api/season-matches/${SEASON_MATCH_ID}`).length;
 
   await page.goto(`/seasonmatch/${SEASON_MATCH_ID}`);
   await page.getByRole('button', { name: 'Enter a game by hand' }).click();
@@ -461,7 +461,7 @@ test('a commissioner enters a game by hand, and reports a Waypoint game in place
   await page.locator('.lobby-possible').getByRole('button', { name: 'SUBMIT' }).click();
   const choice = page.getByRole('group', { name: 'Is this a new game, or does it replace one?' });
   await choice.getByRole('button', { name: 'Replaces game 1 (from Waypoint)' }).click();
-  await expect.poll(() => requests).toContain(`POST /api/SeasonMatch/ReportMatch/${SEASON_MATCH_ID}/${WAYPOINT_ID}?replaces=1`);
+  await expect.poll(() => requests).toContain(`POST /api/season-matches/${SEASON_MATCH_ID}/games/${WAYPOINT_ID}/report?replaces=1`);
   await expect(choice).toHaveCount(0);
 });
 
@@ -490,13 +490,13 @@ test('the match page does one thing at a time: an action drops a game waiting to
   const possibleTeam = (teamID: number, score: number, gamertag: string) =>
     ({ teamID, score, outcome: score > 3 ? 'Won' : 'Lost', players: [{ xboxUserID: teamID, gamertag, score: 900, kills: 12, deaths: 7, isOnTeam: true }] });
   const requests = await mockBackend(page, {
-    [`/api/SeasonMatch/GetSeasonMatchPage/${SEASON_MATCH_ID}`]: route => json(route, current),
-    '/api/Team/Team/1': route => json(route, team(1, 'Reds', 'Sarge')),
-    '/api/Team/Team/2': route => json(route, team(2, 'Blues', 'Tucker')),
+    [`/api/season-matches/${SEASON_MATCH_ID}`]: route => json(route, current),
+    '/api/teams/1': route => json(route, team(1, 'Reds', 'Sarge')),
+    '/api/teams/2': route => json(route, team(2, 'Blues', 'Tucker')),
     '/api/game-versions': route => json(route, [{ gameVersionID: 6, name: 'Halo Infinite' }]),
-    [`/api/SeasonMatch/GetPossibleMatches/${SEASON_MATCH_ID}`]: route => json(route, [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }]),
-    [`/api/SeasonMatch/MatchPullStatus/${SEASON_MATCH_ID}`]: route => json(route, { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null }),
-    [`/api/SeasonMatch/HomeForfeit/${SEASON_MATCH_ID}`]: async route => {
+    [`/api/season-matches/${SEASON_MATCH_ID}/possible-matches`]: route => json(route, [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }]),
+    [`/api/season-matches/${SEASON_MATCH_ID}/match-pull`]: route => json(route, { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null }),
+    [`/api/season-matches/${SEASON_MATCH_ID}/forfeit/home`]: async route => {
       await answered;
       current = forfeited;
       return json(route, 'Forfeited');
@@ -534,7 +534,7 @@ test('the match page does one thing at a time: an action drops a game waiting to
   // While the forfeit is sent, nothing else can be: reporting, other actions, and entering or unreporting a game by hand
   await homeForfeit.click();
   await admin.getByRole('button', { name: 'Confirm' }).click();
-  await expect.poll(() => requests).toContain(`POST /api/SeasonMatch/HomeForfeit/${SEASON_MATCH_ID}`);
+  await expect.poll(() => requests).toContain(`POST /api/season-matches/${SEASON_MATCH_ID}/forfeit/home`);
   await expect(heading).toBeFocused();
   await expect(admin).toHaveAttribute('aria-busy', 'true');
   await expect(submit).toBeDisabled();
