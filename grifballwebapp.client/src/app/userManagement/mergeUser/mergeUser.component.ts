@@ -40,6 +40,11 @@ export class MergeUserComponent {
   mergeFromUser = computed(() => this.mergeFrom.hasValue() ? this.mergeFrom.value() : undefined);
   mergeToUser = computed(() => this.mergeTo.hasValue() ? this.mergeTo.value() : undefined);
 
+  /** A lookup that failed: not a 404, which only says there is no such user (shown as "User not found."). */
+  failedToLoad(error: unknown): boolean {
+    return !!error && !(error instanceof HttpErrorResponse && error.status === 404);
+  }
+
   transferDiscord = signal(true);
   transferLogins = signal(true);
   transferXbox = signal(true);

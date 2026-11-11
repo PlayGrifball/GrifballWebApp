@@ -53,16 +53,15 @@ describe('MergeUserComponent', () => {
     expect(mergeButton().disabled).toBeFalse();
   });
 
-  it('shows "User not found." for an unknown ID (the API answers 204 with no body)', async () => {
+  it('shows "User not found." for an unknown ID (the API answers 404), not an error', async () => {
     fixture.componentRef.setInput('fromInput', 1);
     fixture.componentRef.setInput('toInput', 2);
     fixture.detectChanges();
-    httpMock.expectOne('/api/users/1').flush(null, { status: 204, statusText: 'No Content' });
+    httpMock.expectOne('/api/users/1').flush({ status: 404, title: 'Not found', detail: 'There is no such user' }, { status: 404, statusText: 'Not Found' });
     httpMock.expectOne('/api/users/2').flush(user(2));
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(component.mergeFrom.status()).not.toBe('error');
     expect(el().querySelectorAll('[role="alert"]').length).toBe(0);
     expect(el().textContent).toContain('User not found.');
     expect(el().textContent).toContain('user2');
