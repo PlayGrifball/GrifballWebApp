@@ -198,7 +198,7 @@ public sealed class XuidLookupSignal
 
 /// <summary>Runs the XUID lookups in the background, in the discord role only (one per deployment, <see cref="Hosting.AppRole.DiscordHostedServices"/>): batches until none is due, when woken
 /// or every PollInterval.</summary>
-public sealed class XuidLookupWorker : BackgroundService
+public sealed partial class XuidLookupWorker : BackgroundService
 {
     private readonly IServiceScopeFactory _scopes;
     private readonly XuidLookupSignal _signal;
@@ -239,9 +239,12 @@ public sealed class XuidLookupWorker : BackgroundService
             var report = await scope.ServiceProvider.GetRequiredService<XuidLookupService>().RunBatchAsync(ct);
             total += report.LookedUp;
             if (report.LookedUp > 0)
-                _logger.LogInformation("XUID lookups: {Found} found, {NotFound} not found, {Failed} failed, {Claims} claims", report.Found, report.NotFound, report.Failed, report.ClaimsCreated);
+                LogLookups(_logger, report.Found, report.NotFound, report.Failed, report.ClaimsCreated);
             if (report.LookedUp < Math.Max(1, _options.Value.BatchSize) || ct.IsCancellationRequested)
                 return total;
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "XUID lookups: {Found} found, {NotFound} not found, {Failed} failed, {Claims} claims")]
+    private static partial void LogLookups(ILogger logger, int found, int notFound, int failed, int claims);
 }

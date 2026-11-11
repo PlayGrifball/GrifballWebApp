@@ -21,7 +21,7 @@ namespace GrifballWebApp.Infrastructure.Historical;
 /// </list>
 /// HistoricalImportService stays the only importer; this only builds its input from the snapshots.
 /// </summary>
-public class HistoricalImportRunner
+public partial class HistoricalImportRunner
 {
     private readonly GrifballContext _context;
     private readonly HistoricalSourceService _sources;
@@ -85,8 +85,7 @@ public class HistoricalImportRunner
             _logger.LogWarning("Historical sources refreshed ({Trigger}): {Changed} changed, {Unchanged} unchanged, {Failed} failed ({Failures}); import job {ImportJobID}",
                 job.Trigger, result.Changed.Count, result.Unchanged, result.Failed.Count, string.Join("; ", report.SourcesFailed), report.ImportJobID);
         else
-            _logger.LogInformation("Historical sources refreshed ({Trigger}): {Changed} changed, {Unchanged} unchanged, {Failed} failed; import job {ImportJobID}",
-                job.Trigger, result.Changed.Count, result.Unchanged, result.Failed.Count, report.ImportJobID);
+            LogSourcesRefreshed(_logger, job.Trigger, result.Changed.Count, result.Unchanged, result.Failed.Count, report.ImportJobID);
         return report;
     }
 
@@ -137,8 +136,7 @@ public class HistoricalImportRunner
             _logger.LogWarning("Historical {Kind} job {JobID} ({Trigger}): {Seasons} seasons, {Stopped} need review, {Errors} failed",
                 job.Kind, job.HistoricalImportJobID, job.Trigger, report.SeasonsCreated + report.SeasonsUpdated, stopped, report.Errors.Count);
         else
-            _logger.LogInformation("Historical {Kind} job {JobID} ({Trigger}): {Seasons} seasons, none need review",
-                job.Kind, job.HistoricalImportJobID, job.Trigger, report.SeasonsCreated + report.SeasonsUpdated);
+            LogImported(_logger, job.Kind, job.HistoricalImportJobID, job.Trigger, report.SeasonsCreated + report.SeasonsUpdated);
         return report;
     }
 
@@ -162,4 +160,10 @@ public class HistoricalImportRunner
 
     private static List<int>? ParseIds(string? ids)
         => ids is null ? null : ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(int.Parse).ToList();
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Historical sources refreshed ({Trigger}): {Changed} changed, {Unchanged} unchanged, {Failed} failed; import job {ImportJobID}")]
+    private static partial void LogSourcesRefreshed(ILogger logger, HistoricalImportJobTrigger trigger, int changed, int unchanged, int failed, int? importJobID);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Historical {Kind} job {JobID} ({Trigger}): {Seasons} seasons, none need review")]
+    private static partial void LogImported(ILogger logger, HistoricalImportJobKind kind, int jobID, HistoricalImportJobTrigger trigger, int seasons);
 }

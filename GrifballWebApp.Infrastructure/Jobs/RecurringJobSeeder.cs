@@ -11,7 +11,7 @@ namespace GrifballWebApp.Infrastructure.Jobs;
 /// trigger that is there is left alone (<see cref="TriggerConflict.Keep"/>, decided under the store's lock, so two pods
 /// starting at once make it once).
 /// </summary>
-public sealed class RecurringJobSeeder : IHostedService
+public sealed partial class RecurringJobSeeder : IHostedService
 {
     private readonly ISchedulerFactory _schedulers;
     private readonly RecurringJobs _jobs;
@@ -43,7 +43,7 @@ public sealed class RecurringJobSeeder : IHostedService
         if (!job.Enabled)
         {
             if (await scheduler.UnscheduleJob(job.TriggerKey, ct))
-                _logger.LogInformation("Recurring job {Job} is off: its trigger was removed", job.Key);
+                LogTriggerRemoved(_logger, job.Key);
             return false;
         }
 
@@ -51,7 +51,7 @@ public sealed class RecurringJobSeeder : IHostedService
         if (result.Outcome != ScheduleOutcome.Created)
             return false;
 
-        _logger.LogInformation("Recurring job {Job} scheduled from its default, first at {Next}", job.Key, result.NextFireTimeUtc);
+        LogScheduled(_logger, job.Key, result.NextFireTimeUtc);
         if (job.OnCreated is not null)
         {
             await using var scope = _scopes.CreateAsyncScope();
@@ -59,4 +59,10 @@ public sealed class RecurringJobSeeder : IHostedService
         }
         return true;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Recurring job {Job} is off: its trigger was removed")]
+    private static partial void LogTriggerRemoved(ILogger logger, JobKey job);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Recurring job {Job} scheduled from its default, first at {Next}")]
+    private static partial void LogScheduled(ILogger logger, JobKey job, DateTimeOffset? next);
 }

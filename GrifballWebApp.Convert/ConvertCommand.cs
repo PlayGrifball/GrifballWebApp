@@ -15,7 +15,7 @@ namespace GrifballWebApp.Convert;
 /// Exit code 0 once the copy is committed and checked, 1 if it refused or failed (the target is then
 /// dropped if the conversion created it, or emptied again if it was there), 2 for missing or wrong settings.
 /// </summary>
-public static class ConvertCommand
+public static partial class ConvertCommand
 {
     /// <summary>The settings from the environment, then the command line; logs to the console.</summary>
     public static async Task<int> MainAsync(string[] args)
@@ -50,7 +50,7 @@ public static class ConvertCommand
             return 2;
         }
 
-        logger.LogInformation("Converting a {Source} database into a new {Target} one", source.Provider, target.Provider);
+        LogConverting(logger, source.Provider, target.Provider);
         try
         {
             await new DatabaseConverter(loggerFactory.CreateLogger<DatabaseConverter>()).ConvertAsync(source, target, cancellationToken);
@@ -82,4 +82,7 @@ public static class ConvertCommand
             throw new InvalidOperationException($"{section}:ConnectionString is required.");
         return new DatabaseEndpoint(parsed, connectionString);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Converting a {Source} database into a new {Target} one")]
+    private static partial void LogConverting(ILogger logger, DatabaseProvider source, DatabaseProvider target);
 }
