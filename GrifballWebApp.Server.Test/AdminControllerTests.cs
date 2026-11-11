@@ -60,7 +60,7 @@ public class AdminControllerTests
     {
         _gateway.GetAsync(Arg.Any<CancellationToken>()).Returns(new HaloGatewayAccount(true, accountStatus, null));
         _haloInfiniteClientFactory.StatsGetMatchStats(Arg.Any<string>())
-            .Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(new MatchStats(), new HaloApiErrorContainer { Code = apiCode }));
+            .Returns(HaloResults.Of<MatchStats>(new MatchStats(), new HaloApiErrorContainer { Code = apiCode }));
     }
 
     [Test]
@@ -70,8 +70,11 @@ public class AdminControllerTests
 
         var result = await controller.SetCode("testcode");
 
-        Assert.That(result, Is.TypeOf<ConflictObjectResult>());
-        Assert.That(((ConflictObjectResult)result).Value, Is.EqualTo(AdminController.GatewayModeMessage));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<ConflictObjectResult>());
+            Assert.That(((ConflictObjectResult)result).Value, Is.EqualTo(AdminController.GatewayModeMessage));
+        }
         await _accountAuthorization.DidNotReceiveWithAnyArgs().SetCodeAsync(default!);
     }
 
@@ -80,8 +83,11 @@ public class AdminControllerTests
     {
         var result = Controller(Gateway).DeleteTokens();
 
-        Assert.That(result, Is.TypeOf<ConflictObjectResult>());
-        Assert.That(((ConflictObjectResult)result).Value, Does.Contain("Halo gateway"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<ConflictObjectResult>());
+            Assert.That(((ConflictObjectResult)result).Value, Does.Contain("Halo gateway"));
+        }
     }
 
     [Test]
@@ -89,13 +95,13 @@ public class AdminControllerTests
     {
         var status = await _controller.HaloStatus(CancellationToken.None);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(status.Mode, Is.EqualTo(HaloInfiniteMode.Direct));
             Assert.That(status.GatewayUrl, Is.Null);
             Assert.That(status.Healthy, Is.False);
             await _haloInfiniteClientFactory.DidNotReceiveWithAnyArgs().StatsGetMatchStats(default(string)!);
-        });
+        }
     }
 
     [Test]
@@ -107,7 +113,7 @@ public class AdminControllerTests
         var first = await controller.HaloStatus(CancellationToken.None);
         var second = await controller.HaloStatus(CancellationToken.None);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first.Mode, Is.EqualTo(HaloInfiniteMode.Gateway));
             Assert.That(first.GatewayUrl, Is.EqualTo("http://gateway.test:8080/"));
@@ -121,7 +127,7 @@ public class AdminControllerTests
             Assert.That(second.Healthy, Is.True);
             // Each request probes again, whatever the health check has cached.
             await _haloInfiniteClientFactory.Received(2).StatsGetMatchStats(Arg.Any<string>());
-        });
+        }
     }
 
     [Test]
@@ -131,12 +137,12 @@ public class AdminControllerTests
 
         var status = await Controller(Gateway).HaloStatus(CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(status.Healthy, Is.False);
             Assert.That(status.AccountStatus, Is.EqualTo("Degraded"));
             Assert.That(status.Message, Does.Contain("Degraded"));
-        });
+        }
     }
 
     [Test]
@@ -147,11 +153,11 @@ public class AdminControllerTests
         var status = await Controller(Gateway).HaloStatus(CancellationToken.None);
         var json = System.Text.Json.JsonSerializer.Serialize(status, GrifballWebApp.Server.ApiJson.Options());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(json, Does.Not.Contain("the-key"));
             Assert.That(json, Does.Contain("\"mode\":\"Gateway\""));
-        });
+        }
     }
 
     [TestCase("Healthy", 200, "Good")]
@@ -163,11 +169,11 @@ public class AdminControllerTests
 
         var result = await Controller(Gateway).CheckStatus();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Does.Contain(expected));
             Assert.That(result, Does.Not.StartWith("https://login.live.com"));
-        });
+        }
     }
 
     [Test]
@@ -212,7 +218,7 @@ public class AdminControllerTests
     public async Task CheckStatus_ShouldReturnGood_WhenStatsGetMatchStatsSucceeds()
     {
         _haloInfiniteClientFactory.StatsGetMatchStats(Arg.Any<string>())
-            .Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(new MatchStats(), null));
+            .Returns(HaloResults.Of<MatchStats>(new MatchStats(), null));
         var result = await _controller.CheckStatus();
         Assert.That(result, Is.EqualTo("Good"));
     }
@@ -303,10 +309,13 @@ public class AdminControllerTests
         var result = await _controller.GeneratePasswordResetLink(request, CancellationToken.None);
         
         Assert.That(result.Result, Is.TypeOf<OkObjectResult>());
-        var okResult = (OkObjectResult)result.Result;
-        var response = (GeneratePasswordResetLinkResponseDto)okResult.Value;
-        Assert.That(response.ResetLink, Is.EqualTo("/reset-password?token=abc123token"));
-        Assert.That(response.ExpiresAt, Is.EqualTo(expiresAt));
+        var okResult = (OkObjectResult)result.Result!;
+        var response = (GeneratePasswordResetLinkResponseDto)okResult.Value!;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.ResetLink, Is.EqualTo("/reset-password?token=abc123token"));
+            Assert.That(response.ExpiresAt, Is.EqualTo(expiresAt));
+        }
     }
 
     [Test]

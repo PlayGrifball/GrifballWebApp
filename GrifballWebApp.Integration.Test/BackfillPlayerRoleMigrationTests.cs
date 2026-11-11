@@ -15,13 +15,15 @@ namespace GrifballWebApp.Integration.Test;
 public class BackfillPlayerRoleMigrationTests
 {
     private GrifballContext _context;
+    private static readonly string[] expected = new[] { "Player" };
+    private static readonly string[] expectedArray = new[] { "Commissioner" };
 
     [SetUp]
     public async Task SetUp()
     {
         if (TestDatabase.Provider == DatabaseProvider.Sqlite)
             Assert.Ignore("A migration of SQL Server's and Postgres's: SQLite's migrations start after it, from one baseline.");
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
     }
 
     // Not after SetUp ignored the test (SQLite), which made no database
@@ -103,11 +105,11 @@ public class BackfillPlayerRoleMigrationTests
         var roles = await _context.UserRoles
             .Select(x => new { x.UserId, x.Role.Name })
             .ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(roles.Where(x => x.UserId == noRoles.Id).Select(x => x.Name), Is.EqualTo(new[] { "Player" }));
+            Assert.That(roles.Where(x => x.UserId == noRoles.Id).Select(x => x.Name), Is.EqualTo(expected));
             Assert.That(roles.Where(x => x.UserId == dummy.Id), Is.Empty, "Placeholder accounts don't sign in");
-            Assert.That(roles.Where(x => x.UserId == commissioner.Id).Select(x => x.Name), Is.EqualTo(new[] { "Commissioner" }), "Accounts with a role keep just theirs");
-        });
+            Assert.That(roles.Where(x => x.UserId == commissioner.Id).Select(x => x.Name), Is.EqualTo(expectedArray), "Accounts with a role keep just theirs");
+        }
     }
 }

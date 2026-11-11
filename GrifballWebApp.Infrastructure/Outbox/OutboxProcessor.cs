@@ -13,7 +13,7 @@ namespace GrifballWebApp.Infrastructure.Outbox;
 /// Takes due outbox messages and sends them with their handlers (<see cref="IOutboxHandler"/>), one at a time, each in
 /// its own scope. <see cref="OutboxDispatcher"/> runs it; tests call it directly.
 /// </summary>
-public sealed class OutboxProcessor
+public sealed partial class OutboxProcessor
 {
     public const string PreviewSkipReason = "Discord is disabled in preview mode";
 
@@ -112,7 +112,7 @@ public sealed class OutboxProcessor
 
             if (_discordOptions.Value.DisableGlobally)
             {
-                _logger.LogInformation("Preview without Discord: skipping outbox message {OutboxId} ({Kind})", message.Id, message.Kind);
+                LogSkipping(_logger, message.Id, message.Kind);
                 Finish(message, OutboxStatus.Skipped, PreviewSkipReason);
                 await context.SaveChangesAsync(ct);
                 return;
@@ -143,7 +143,7 @@ public sealed class OutboxProcessor
         }
         catch (PreviewDiscordDisabledException ex)
         {
-            _logger.LogInformation(ex, "Preview without Discord: skipping outbox message {OutboxId}", id);
+            LogSkipping(_logger, ex, id);
             await UpdateAsync(id, (message, _, _) =>
             {
                 Finish(message, OutboxStatus.Skipped, PreviewSkipReason);
@@ -226,7 +226,16 @@ public sealed class OutboxProcessor
                      || (x.Status == OutboxStatus.DeadLettered && x.SentAt < deadBefore))
             .ExecuteDeleteAsync(ct);
         if (deleted > 0)
-            _logger.LogInformation("Deleted {Count} old outbox messages", deleted);
+            LogDeleted(_logger, deleted);
         return deleted;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Preview without Discord: skipping outbox message {OutboxId} ({Kind})")]
+    private static partial void LogSkipping(ILogger logger, long outboxId, string kind);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Preview without Discord: skipping outbox message {OutboxId}")]
+    private static partial void LogSkipping(ILogger logger, Exception exception, long outboxId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Deleted {Count} old outbox messages")]
+    private static partial void LogDeleted(ILogger logger, int count);
 }

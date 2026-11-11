@@ -33,7 +33,7 @@ public class SeriesSidesTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var championships = new ChampionshipService(_context);
         _seasonMatches = new SeasonMatchService(_context, Substitute.For<IDataPullService>(),
             new BracketService(_context, new TeamStandingsService(_context), championships), championships);
@@ -52,13 +52,13 @@ public class SeriesSidesTests
         var noMatch = await SeriesRosters.LoadAsync(_context, -1);
         var noTeams = await SeriesRosters.LoadAsync(_context, null, null);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(rosters.Home, Is.EquivalentTo(SeasonMatchTestData.HomeXbox));
             Assert.That(rosters.Away, Is.EquivalentTo(SeasonMatchTestData.AwayXbox));
             Assert.That(noMatch, Is.SameAs(SeriesRosters.None), "No such match");
             Assert.That(noTeams, Is.SameAs(SeriesRosters.None), "Teams not decided");
-        });
+        }
     }
 
     /// <summary>A Waypoint game of the series, reported when its players matched the rosters exactly: the away team was
@@ -103,14 +103,14 @@ public class SeriesSidesTests
         await _seasonMatches.AddManualGame(seeded.SeasonMatch.SeasonMatchID, HomeWin());
         var scored = await _context.SeasonMatches.AsNoTracking().SingleAsync(sm => sm.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((game.HomeScore, game.AwayScore), Is.EqualTo(((int?)5, (int?)3)), "Box score");
             Assert.That(game.HomePlayers.Select(p => p.Gamertag), Is.EquivalentTo(SeasonMatchTestData.HomeXbox.Select(x => $"GT{x}")));
             Assert.That(details.Teams.Single(t => t.TeamID == 1).SeasonTeamID, Is.EqualTo(seeded.Home.TeamID), "Match page");
             Assert.That(details.Teams.Single(t => t.TeamID == 0).SeasonTeamID, Is.EqualTo(seeded.Away.TeamID));
             Assert.That((scored.HomeTeamScore, scored.AwayTeamScore, scored.HomeTeamResult), Is.EqualTo(((int?)2, (int?)0, (SeasonMatchResult?)SeasonMatchResult.Won)), "Series");
-        });
+        }
     }
 
     [Test]
@@ -124,12 +124,12 @@ public class SeriesSidesTests
         var details = (await _matchDetails.GetAsync(match.MatchID))!;
         var refusal = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _seasonMatches.AddManualGame(seeded.SeasonMatch.SeasonMatchID, HomeWin()));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(refusal!.Message, Does.Contain("no longer matches the teams' rosters"));
             Assert.That(details.Teams.All(t => t.SeasonTeamID == null), Is.True);
             // The box score still lays the game out, by in-game team
             Assert.That((game.HomeScore, game.AwayScore), Is.EqualTo(((int?)3, (int?)5)));
-        });
+        }
     }
 }

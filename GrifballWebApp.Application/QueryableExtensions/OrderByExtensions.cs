@@ -63,7 +63,7 @@ public class SortCollection<TSource>
     { }
 
     public SortCollection(string value)
-        : this(value.Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries))
+        : this(value.Split(',', StringSplitOptions.RemoveEmptyEntries))
     {
     }
 
@@ -89,7 +89,7 @@ public class SortCollection<TSource>
         var properties = typeof(TSource).GetProperties().ToList();
         var direction = ListSortDirection.Ascending;
 
-        if (name.StartsWith("-"))
+        if (name.StartsWith('-'))
         {
             direction = ListSortDirection.Descending;
             name = name.Substring(1);
@@ -113,7 +113,7 @@ public class SortCollection<TSource>
             .GetConstructor(new[] {
                 typeof(PropertyInfo),
                 typeof(ListSortDirection)
-            });
+            }) ?? throw new InvalidOperationException($"{sortedElementType} has no (PropertyInfo, ListSortDirection) constructor");
 
         return ctor.Invoke(new object?[] {
             propertyInfo,

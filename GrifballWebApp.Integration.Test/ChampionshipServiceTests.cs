@@ -22,7 +22,7 @@ public class ChampionshipServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new ChampionshipService(_context);
     }
 
@@ -43,7 +43,7 @@ public class ChampionshipServiceTests
         var again = await _service.RecordChampionsAsync(season.SeasonID, team.TeamID);
 
         var titles = await _context.Set<PlayerChampionship>().AsNoTracking().OrderBy(c => c.UserID).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first, Is.EqualTo(new ChampionshipChanges(2, 0, 0)));
             Assert.That(again, Is.EqualTo(new ChampionshipChanges(0, 2, 0)));
@@ -52,7 +52,7 @@ public class ChampionshipServiceTests
                 (captain.Id, team.TeamID, "Pro", true, "Cap", (int?)6),
                 (player.Id, team.TeamID, "Pro", false, "No Xbox", (int?)6),
             }));
-        });
+        }
     }
 
     [Test]
@@ -69,12 +69,18 @@ public class ChampionshipServiceTests
         season.Edited(division: "pro ");
         await _context.SaveChangesAsync();
         var moved = await _service.RecordChampionsAsync(season.SeasonID, b.TeamID);
-        Assert.That(moved, Is.EqualTo(new ChampionshipChanges(1, 0, 1)), "The tier is matched whatever its case and spacing");
-        Assert.That(await _context.Set<PlayerChampionship>().Where(c => c.Tier == "Pro").Select(c => c.TeamID).ToListAsync(), Is.EqualTo(new[] { b.TeamID }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(moved, Is.EqualTo(new ChampionshipChanges(1, 0, 1)), "The tier is matched whatever its case and spacing");
+            Assert.That(await _context.Set<PlayerChampionship>().Where(c => c.Tier == "Pro").Select(c => c.TeamID).ToListAsync(), Is.EqualTo(new[] { b.TeamID }));
+        }
 
         var removed = await _service.RecordChampionsAsync(season.SeasonID, null);
-        Assert.That(removed, Is.EqualTo(new ChampionshipChanges(0, 0, 1)));
-        Assert.That(await _context.Set<PlayerChampionship>().Select(c => c.Tier).ToListAsync(), Is.EqualTo(new List<string> { "Amateur" }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(removed, Is.EqualTo(new ChampionshipChanges(0, 0, 1)));
+            Assert.That(await _context.Set<PlayerChampionship>().Select(c => c.Tier).ToListAsync(), Is.EqualTo(new List<string> { "Amateur" }));
+        }
     }
 
     [Test]
@@ -87,9 +93,12 @@ public class ChampionshipServiceTests
         var changes = season.RecordChampions(team, [new ChampionMember(other.Id, "Other", true), new ChampionMember(other.Id, "Other again", false)]);
         await _context.SaveChangesAsync();
 
-        Assert.That(changes, Is.EqualTo(new ChampionshipChanges(1, 0, 0)));
-        Assert.That(await _context.Set<PlayerChampionship>().Select(c => new { c.UserID, c.IsCaptain, c.GamertagUsed, c.Tier }).SingleAsync(),
-            Is.EqualTo(new { UserID = other.Id, IsCaptain = true, GamertagUsed = "Other", Tier = ChampionshipService.DefaultTier }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(changes, Is.EqualTo(new ChampionshipChanges(1, 0, 0)));
+            Assert.That(await _context.Set<PlayerChampionship>().Select(c => new { c.UserID, c.IsCaptain, c.GamertagUsed, c.Tier }).SingleAsync(),
+                Is.EqualTo(new { UserID = other.Id, IsCaptain = true, GamertagUsed = "Other", Tier = ChampionshipService.DefaultTier }));
+        }
     }
 
     [Test]
@@ -99,20 +108,23 @@ public class ChampionshipServiceTests
         var team = await _context.AddTeam(season, "A", await _context.AddUser("cap"), 1);
         await _service.RecordChampionsAsync(season.SeasonID, team.TeamID);
 
-        Assert.That(await _service.AwardFromBracketAsync(season.SeasonID), Is.EqualTo(new ChampionshipChanges(0, 0, 1)), "No bracket (deleted): undecided");
-        Assert.That(await _context.Set<PlayerChampionship>().AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _service.AwardFromBracketAsync(season.SeasonID), Is.EqualTo(new ChampionshipChanges(0, 0, 1)), "No bracket (deleted): undecided");
+            Assert.That(await _context.Set<PlayerChampionship>().AnyAsync(), Is.False);
+        }
 
         var imported = await _context.AddSeason("Summer League 2010");
         _context.MarkImported(imported, "wb/sml10");
         await _context.SaveChangesAsync();
         var champs = await _context.AddTeam(imported, "Champs", await _context.AddUser("old"), 1);
         await _context.SeedChampionsAsync(imported.SeasonID, "Pro", champs.TeamID);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _service.AwardFromBracketAsync(imported.SeasonID), Is.Null, "Its titles are its record's");
             Assert.That(await _service.RecordChampionsAsync(imported.SeasonID, null), Is.Null, "Nor are they the app's to take away");
             Assert.That(await _context.Set<PlayerChampionship>().CountAsync(), Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -143,7 +155,7 @@ public class SeasonMatchChampionshipTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var bracketService = new BracketService(_context, new TeamStandingsService(_context), new GrifballWebApp.Application.Championships.ChampionshipService(_context));
         _bracketService = bracketService;
         _service = new SeasonMatchService(_context, Substitute.For<IDataPullService>(), bracketService, new ChampionshipService(_context));
@@ -198,12 +210,12 @@ public class SeasonMatchChampionshipTests
         var again = await new ChampionshipService(_context).AwardFromBracketAsync(seeded.Season.SeasonID);
 
         var titles = await Titles();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(titles, Has.Count.EqualTo(SeasonMatchTestData.HomeXbox.Length));
             Assert.That(titles, Is.All.EqualTo((seeded.Home.TeamID, ChampionshipService.DefaultTier)), "A season without a division has one open tier");
             Assert.That(again, Is.EqualTo(new ChampionshipChanges(0, SeasonMatchTestData.HomeXbox.Length, 0)));
-        });
+        }
     }
 
     [Test]

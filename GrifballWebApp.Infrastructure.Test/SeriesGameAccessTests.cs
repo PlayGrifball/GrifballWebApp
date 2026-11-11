@@ -26,12 +26,12 @@ public class SeriesGameAccessTests
         var sets = typeof(GrifballContext).GetProperties(Public | BindingFlags.NonPublic).Where(p => p.PropertyType == typeof(DbSet<SeriesGame>));
         var query = typeof(GrifballContext).GetProperty(nameof(GrifballContext.SeasonSeriesGames), Public)!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sets, Is.Empty, "A part: reached through its season match");
             Assert.That(query.PropertyType, Is.EqualTo(typeof(IQueryable<SeriesGame>)), "To read, not to add or remove");
             Assert.That(query.CanWrite, Is.False);
-        });
+        }
     }
 
     [TestCase(typeof(RecordedGame), nameof(RecordedGame.SeriesGame))]
@@ -40,7 +40,7 @@ public class SeriesGameAccessTests
     {
         var property = type.GetProperty(navigation, Public)!;
 
-        Assert.That(property.SetMethod is { IsPublic: false, IsAssembly: false }, Is.True, $"{type.Name}.{navigation} has a private setter");
+        Assert.That(property.SetMethod, Has.Property(nameof(MethodInfo.IsPublic)).False.And.Property(nameof(MethodInfo.IsAssembly)).False, $"{type.Name}.{navigation} has a private setter");
     }
 
     [Test]
@@ -50,10 +50,10 @@ public class SeriesGameAccessTests
         var setters = typeof(SeriesGame).GetProperties(Public).Where(p => p.SetMethod is not null).Select(p => (p.Name, p.SetMethod!.IsPublic));
         var constructors = typeof(SeriesGame).GetConstructors(Public);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(setters.Where(s => s.IsPublic).Select(s => s.Name), Is.Empty);
             Assert.That(constructors, Is.Empty);
-        });
+        }
     }
 }

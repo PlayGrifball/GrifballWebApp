@@ -24,7 +24,7 @@ public class SeasonDatesInOrderMigrationTests
     private GrifballContext _context = null!;
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
@@ -67,27 +67,27 @@ public class SeasonDatesInOrderMigrationTests
 
         _context.ChangeTracker.Clear();
         var seasons = await _context.Seasons.AsNoTracking().ToDictionaryAsync(s => s.SeasonID, s => (s.SignupsOpen, s.SignupsClose, s.DraftStart, s.SeasonStart, s.SeasonEnd));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(seasons[ids.Item1], Is.EqualTo((Open, Open.AddDays(14), Open.AddDays(16), Open.AddDays(21), Open.AddDays(90))), "Left alone");
             Assert.That(seasons[ids.Item2], Is.EqualTo((Open, Open, Open.AddDays(16), Open.AddDays(21), Open.AddDays(90))), "Signups close as they open");
             Assert.That(seasons[ids.Item3], Is.EqualTo((Open, Open.AddDays(14), Open.AddDays(21), Open.AddDays(21), Open.AddDays(90))), "The draft at the start");
             Assert.That(seasons[ids.Item4], Is.EqualTo((Open, Open.AddDays(14), Open.AddDays(16), Open.AddDays(21), Open.AddDays(21))), "Ends as it starts");
             Assert.That(seasons[imported.SeasonID], Is.EqualTo((importedAt, importedAt, importedAt, importedAt, importedAt)), "The imported season back to its end");
-        });
+        }
 
         // Between the import and the start it used to have, the imported season is over, not upcoming
         var now = importedAt.AddDays(1);
         var settled = await _context.Seasons.AsNoTracking().SingleAsync(s => s.SeasonID == imported.SeasonID);
         var notEnded = await _context.Seasons.AsNoTracking().Where(Season.NotEndedAt(now)).Select(s => s.SeasonID).ToListAsync();
         var ended = await _context.Seasons.AsNoTracking().Where(Season.EndedAt(now)).Select(s => s.SeasonID).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(settled.PublicAt, Is.EqualTo(importedAt), "Public since it began");
             Assert.That(settled.HasEndedAt(now), Is.True);
             Assert.That(settled.PhaseAt(now), Is.EqualTo(SeasonPhase.Ended));
             Assert.That(ended, Does.Contain(imported.SeasonID));
             Assert.That(notEnded, Does.Not.Contain(imported.SeasonID), "Not listed as upcoming");
-        });
+        }
     }
 }

@@ -21,6 +21,10 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class PostgresHistoryTests
 {
+    private static readonly string[] expectedSql = ["""CALL public.grif_refresh_versioning('"Event"."SeasonList"');"""];
+    private static readonly string[] expected2 = ["First", "Second", "Third"];
+    private static readonly string[] expected3 = ["SeasonList.period_start", "SeasonList.versioning_delete", "SeasonList.versioning_truncate", "SeasonList.versioning_update", "SeasonListHistory.read_only"];
+    private static readonly string[] expected1 = ["First", "Second", "Third", "Third"];
     private GrifballContext _context;
 
     [SetUp]
@@ -28,7 +32,7 @@ public class PostgresHistoryTests
     {
         if (TestDatabase.Provider != DatabaseProvider.Postgres)
             Assert.Ignore("Postgres's row history: SQL Server's is its temporal tables.");
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
     }
 
     [TearDown]
@@ -39,6 +43,14 @@ public class PostgresHistoryTests
     }
 
     private static readonly DateTime Now = new(2026, 10, 10, 12, 0, 0);
+    private static readonly string[] expected = new[] { "period_start", "versioning_update", "versioning_delete", "versioning_truncate", "read_only" };
+    private static readonly string[] expectedArray = new[] { "First" };
+    private static readonly string[] expectedArray0 = new[] { "Second" };
+    private static readonly string[] expectedArray1 = new[] { "Third" };
+    private static readonly string[] expectedArray2 = new[] { "Old" };
+    private static readonly string[] expectedArray3 = new[] { "Seasons", "SeasonsHistory" };
+    private static readonly string[] expectedArray4 = new[] { "Seasons", "SeasonsHistory" };
+    private static readonly string[] expectedArray5 = new[] { """CALL public.grif_refresh_versioning('"Event"."Seasons"');""" };
 
     private static Season NewSeason(string name) => Season.Seed(seasonName: name).WithDates(publicAt: Now, signupsOpen: Now, signupsClose: Now.AddDays(7), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(14), seasonEnd: Now.AddDays(60));
 
@@ -82,7 +94,7 @@ public class PostgresHistoryTests
                   FROM pg_trigger WHERE tgrelid = format('%I.%I', {0}, {1})::regclass AND tgname LIKE 'versioning%'
                 """, schema, table);
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 // Same names, types and collations; PeriodEnd is generated on the table, a time in its history.
                 Assert.That(copy.Select(c => (c.Name, c.Type, c.Collation)),
@@ -93,9 +105,9 @@ public class PostgresHistoryTests
                 // No identity, default or NOT NULL but the periods'.
                 Assert.That(copy.Where(c => c.Identity || c.Default), Is.Empty, $"{schema}.{history}");
                 Assert.That(copy.Where(c => c.NotNull).Select(c => c.Name), Is.EquivalentTo(new[] { PostgresHistory.PeriodStart, PostgresHistory.PeriodEnd }), $"{schema}.{history}");
-                Assert.That(triggers, Is.EquivalentTo(new[] { "period_start", "versioning_update", "versioning_delete", "versioning_truncate", "read_only" }), $"{schema}.{table}");
+                Assert.That(triggers, Is.EquivalentTo(expected), $"{schema}.{table}");
                 Assert.That(ownFunction, Is.True, $"{schema}.{table}: its own versioning function");
-            });
+            }
         }
     }
 
@@ -124,14 +136,14 @@ public class PostgresHistoryTests
         var updated = PeriodStart(season);
 
         var history = await History("Event", "Seasons", "SeasonID", season.SeasonID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(updated, Is.GreaterThan(inserted));
             Assert.That(history, Has.Count.EqualTo(1));
             Assert.That(history[0]["SeasonName"], Is.EqualTo("Before"));
             Assert.That(history[0][PostgresHistory.PeriodStart], Is.EqualTo(inserted));
             Assert.That(history[0][PostgresHistory.PeriodEnd], Is.EqualTo(updated));
-        });
+        }
     }
 
     [Test]
@@ -159,13 +171,13 @@ public class PostgresHistoryTests
         await _context.SaveChangesAsync();
 
         var history = await History("Event", "Seasons", "SeasonID", season.SeasonID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(history, Has.Count.EqualTo(1));
             Assert.That(history[0]["SeasonName"], Is.EqualTo("Deleted"));
             Assert.That(history[0][PostgresHistory.PeriodStart], Is.EqualTo(inserted));
             Assert.That((DateTime)history[0][PostgresHistory.PeriodEnd], Is.GreaterThan(inserted));
-        });
+        }
     }
 
     [Test]
@@ -181,14 +193,14 @@ public class PostgresHistoryTests
 
         var seasons = await History("Event", "Seasons", "SeasonID", season.SeasonID);
         var availability = await History("Event", "SeasonAvailability", "SeasonID", season.SeasonID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(deleted, Is.EqualTo(1));
             Assert.That(seasons, Has.Count.EqualTo(1));
             Assert.That(availability, Has.Count.EqualTo(1));
             Assert.That(availability[0]["AvailabilityOptionID"], Is.EqualTo(option.AvailabilityOptionID));
             Assert.That(availability[0][PostgresHistory.PeriodEnd], Is.EqualTo(seasons[0][PostgresHistory.PeriodEnd]), "one transaction, one time");
-        });
+        }
     }
 
     [Test]
@@ -201,12 +213,12 @@ public class PostgresHistoryTests
         var none = await _context.Seasons.Where(s => s.SeasonName == "Nobody").ExecuteUpdateAsync(s => s.SetProperty(x => x.CaptainsLocked, false));
 
         var history = await Scalar<int>("SELECT count(*)::int AS \"Value\" FROM \"Event\".\"SeasonsHistory\" WHERE NOT \"CaptainsLocked\"");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(updated, Is.EqualTo(3));
             Assert.That(none, Is.Zero);
             Assert.That(history, Is.EqualTo(3));
-        });
+        }
     }
 
     [Test]
@@ -220,11 +232,11 @@ public class PostgresHistoryTests
 
         var seasons = await Scalar<int>("SELECT count(*)::int AS \"Value\" FROM \"Event\".\"SeasonsHistory\"");
         var availability = await Scalar<int>("SELECT count(*)::int AS \"Value\" FROM \"Event\".\"SeasonAvailabilityHistory\"");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(seasons, Is.EqualTo(1));
             Assert.That(availability, Is.EqualTo(1));
-        });
+        }
     }
 
     // EF's TemporalAsOf (PostgresTemporalQueries), at the times SaveChanges reads back: TemporalQueryTests
@@ -251,14 +263,14 @@ public class PostgresHistoryTests
         var beforeSecond = await At(second.AddTicks(-10));
         var atSecond = await At(second);
         var atThird = await At(third);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(before, Is.Empty);
-            Assert.That(atFirst, Is.EqualTo(new[] { "First" }));
-            Assert.That(beforeSecond, Is.EqualTo(new[] { "First" }));
-            Assert.That(atSecond, Is.EqualTo(new[] { "Second" }));
-            Assert.That(atThird, Is.EqualTo(new[] { "Third" }));
-        });
+            Assert.That(atFirst, Is.EqualTo(expectedArray));
+            Assert.That(beforeSecond, Is.EqualTo(expectedArray));
+            Assert.That(atSecond, Is.EqualTo(expectedArray0));
+            Assert.That(atThird, Is.EqualTo(expectedArray1));
+        }
     }
 
     [Test]
@@ -270,6 +282,7 @@ public class PostgresHistoryTests
 
         // A login with the rights the Helm chart grants the app (charts/grifballwebapp, grif.pgLoginSyncScript).
         var role = $"grif_app_{Guid.NewGuid():N}";
+#pragma warning disable EF1002 // The test's own role name, an identifier no parameter can carry
         await _context.Database.ExecuteSqlRawAsync($"""
             CREATE ROLE "{role}" LOGIN PASSWORD 'app-password';
             DO $$
@@ -283,6 +296,7 @@ public class PostgresHistoryTests
               END LOOP;
             END $$;
             """);
+#pragma warning restore EF1002
         var appConnection = new NpgsqlConnectionStringBuilder(_context.Database.GetConnectionString()) { Username = role, Password = "app-password", Pooling = false }.ConnectionString;
 
         try
@@ -310,17 +324,19 @@ public class PostgresHistoryTests
             await using var read = new NpgsqlCommand("SELECT \"SeasonName\" FROM \"Event\".\"SeasonsHistory\"", connection);
             var kept = await read.ExecuteScalarAsync();
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(kept, Is.EqualTo("Guarded"), "the app's update kept the old version, and the app can read it");
                 Assert.That(insert.MessageText, Is.EqualTo("history table Event.SeasonsHistory is read-only"));
                 Assert.That(new[] { insert, update, delete, truncate, disable }.Select(e => e.SqlState),
                     Is.All.EqualTo(PostgresErrorCodes.InsufficientPrivilege));
-            });
+            }
         }
         finally
         {
+#pragma warning disable EF1002 // The test's own role name, an identifier no parameter can carry
             await _context.Database.ExecuteSqlRawAsync($"DROP OWNED BY \"{role}\"; DROP ROLE \"{role}\"");
+#pragma warning restore EF1002
         }
     }
 
@@ -355,9 +371,9 @@ public class PostgresHistoryTests
         await _context.SaveChangesAsync();
         var history = await History("Event", "Seasons", "SeasonID", old.SeasonID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(asOfBefore, Is.EqualTo(new[] { "Old" }));
+            Assert.That(asOfBefore, Is.EqualTo(expectedArray2));
             Assert.That(oldStart, Is.EqualTo(DateTime.MinValue));
             Assert.That(defaults, Is.EqualTo(new[] { PostgresHistory.PeriodStartDefault }), "the default for rows written after");
             Assert.That(PeriodStart(season), Is.GreaterThan(beforeSave));
@@ -365,7 +381,7 @@ public class PostgresHistoryTests
             Assert.That(history.Single()["SeasonName"], Is.EqualTo("Old"));
             Assert.That(history.Single()[PostgresHistory.PeriodStart], Is.EqualTo(DateTime.MinValue));
             Assert.That(history.Single()[PostgresHistory.PeriodEnd], Is.EqualTo(PeriodStart(season)));
-        });
+        }
     }
 
     [Test]
@@ -390,11 +406,11 @@ public class PostgresHistoryTests
         await _context.SaveChangesAsync();
 
         var history = await History("Event", "Seasons", "SeasonID", season.SeasonID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(down, Is.True, "Down() takes away everything Up() adds");
             Assert.That(history, Has.Count.EqualTo(1));
-        });
+        }
     }
 
     /// <summary>Applies the migration migrations add would scaffold from this context's model to <paramref name="target"/>'s.</summary>
@@ -440,19 +456,19 @@ public class PostgresHistoryTests
             .OrderBy(s => EF.Property<DateTime>(s, PostgresHistory.PeriodStart)).Select(s => s.SeasonName).ToListAsync();
         var columns = (await Columns("Event", "SeasonsHistory")).Select(c => c.Name).ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(operations.OfType<RenameColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Seasons", "SeasonsHistory" }));
-            Assert.That(operations.OfType<AddColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Seasons", "SeasonsHistory" }));
-            Assert.That(operations.OfType<DropColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Seasons", "SeasonsHistory" }));
-            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { """CALL public.grif_refresh_versioning('"Event"."Seasons"');""" }));
+            Assert.That(operations.OfType<RenameColumnOperation>().Select(o => o.Table), Is.EquivalentTo(expectedArray3));
+            Assert.That(operations.OfType<AddColumnOperation>().Select(o => o.Table), Is.EquivalentTo(expectedArray3));
+            Assert.That(operations.OfType<DropColumnOperation>().Select(o => o.Table), Is.EquivalentTo(expectedArray4));
+            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(expectedArray5));
             Assert.That(history, Is.EqualTo(new[]
             {
                 new NamedNote("First", null), new NamedNote("Second", null), new NamedNote("Third", "noted"), new NamedNote("Third", "noted again"),
             }), "every version, the renamed and the new column in each");
-            Assert.That(all, Is.EqualTo(new[] { "First", "Second", "Third", "Third" }));
+            Assert.That(all, Is.EqualTo(expected1));
             Assert.That(columns, Does.Contain("Name").And.Contain("Note").And.No.Contain("SeasonName").And.No.Contain("CaptainsLocked"));
-        });
+        }
     }
 
     /// <summary>GrifballContext, with Seasons' SeasonName column called Name, a new column Note, and no CaptainsLocked.</summary>
@@ -537,21 +553,17 @@ public class PostgresHistoryTests
         var gone = await Scalar<bool>("""SELECT to_regclass('"Event"."Seasons"') IS NULL AND to_regclass('"Event"."SeasonsHistory"') IS NULL AS "Value" """);
         var function = await Scalar<bool>("""SELECT to_regprocedure('"Event"."SeasonList_versioning"()') IS NOT NULL AND to_regprocedure('"Event"."Seasons_versioning"()') IS NULL AS "Value" """);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(operations.OfType<RenameTableOperation>().Select(o => (o.Name, o.NewName)),
                 Is.EquivalentTo(new[] { ("Seasons", "SeasonList"), ("SeasonsHistory", "SeasonListHistory") }));
             Assert.That(operations.OfType<CreateTableOperation>(), Is.Empty);
-            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { """CALL public.grif_refresh_versioning('"Event"."SeasonList"');""" }));
-            Assert.That(all, Is.EqualTo(new[] { "First", "Second", "Third" }), "the history from before the rename, and after");
+            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(expectedSql));
+            Assert.That(all, Is.EqualTo(expected2), "the history from before the rename, and after");
             Assert.That(function, Is.True, "the versioning function renamed with its table");
-            Assert.That(triggers, Is.EqualTo(new[]
-            {
-                "SeasonList.period_start", "SeasonList.versioning_delete", "SeasonList.versioning_truncate", "SeasonList.versioning_update",
-                "SeasonListHistory.read_only",
-            }));
+            Assert.That(triggers, Is.EqualTo(expected3));
             Assert.That(gone, Is.True);
-        });
+        }
     }
 
     /// <summary>GrifballContext, with Seasons renamed SeasonList: its history as AddHistoryTables makes it.</summary>

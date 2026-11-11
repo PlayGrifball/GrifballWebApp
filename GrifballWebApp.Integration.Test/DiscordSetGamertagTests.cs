@@ -29,7 +29,7 @@ public class DiscordSetGamertagTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
 
         // All this to get a UserManager<User> instance, not mocking it cause I sort of want to be sure its working
         var services = new ServiceCollection();
@@ -52,7 +52,6 @@ public class DiscordSetGamertagTests
 
         _discordSetGamertag = new DiscordSetGamertag(
             _context,
-            Substitute.For<ILogger<DiscordSetGamertag>>(),
             _userManager,
             _profileService
         );
@@ -86,7 +85,7 @@ public class DiscordSetGamertagTests
             .FirstOrDefaultAsync();
 
         // Assert
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(user, Is.Not.Null, "User should be created");
             // Gamertag will not be set unless we 1 mock it, or 2 have a real Profile service
@@ -106,7 +105,7 @@ public class DiscordSetGamertagTests
                 await _interactionContext.Interaction.Received(1)
                 .DeleteResponseAsync();
             }, "Message should be deleted");
-        });
+        }
         
     }
 
@@ -128,7 +127,7 @@ public class DiscordSetGamertagTests
             .FirstOrDefaultAsync();
 
         // Assert
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(user, Is.Not.Null, "User should be created");
             // Gamertag will not be set unless we 1 mock it, or 2 have a real Profile service
@@ -147,7 +146,7 @@ public class DiscordSetGamertagTests
                 await _interactionContext.Interaction.Received(1)
                 .DeleteResponseAsync();
             }, "Message should be deleted");
-        });
+        }
 
     }
 
@@ -180,7 +179,7 @@ public class DiscordSetGamertagTests
             .FirstOrDefaultAsync();
 
         // Assert
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(user, Is.Not.Null, "User should be created");
             // Gamertag will not be set unless we 1 mock it, or 2 have a real Profile service
@@ -199,7 +198,7 @@ public class DiscordSetGamertagTests
                 await _interactionContext.Interaction.Received(1)
                 .DeleteResponseAsync();
             }, "Message should be deleted");
-        });
+        }
 
     }
 }

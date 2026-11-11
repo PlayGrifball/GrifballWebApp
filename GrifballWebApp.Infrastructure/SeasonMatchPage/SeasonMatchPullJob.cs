@@ -53,18 +53,18 @@ public sealed class SeasonMatchPullJob : IJob<SeasonMatchPull>
             .With("historiesFailed", result.FailedHistories.Count)
             .With("historiesCapped", result.CappedHistories?.Count ?? 0);
 
-    public async ValueTask Execute(IJobExecutionContext context, SeasonMatchPull input, CancellationToken ct = default)
+    public async ValueTask Execute(IJobExecutionContext context, SeasonMatchPull input, CancellationToken cancellationToken = default)
     {
-        var players = await _seasonMatches.PlayerXboxIDs(input.SeasonMatchID, ct);
-        if (input.BackToSeasonStart && await _seasonMatches.SeasonWindow(input.SeasonMatchID, ct) is { } window)
+        var players = await _seasonMatches.PlayerXboxIDs(input.SeasonMatchID, cancellationToken);
+        if (input.BackToSeasonStart && await _seasonMatches.SeasonWindow(input.SeasonMatchID, cancellationToken) is { } window)
         {
             context.ReportProgress(0, $"Finding {players.Count} players' games from {window.From:d MMM yyyy} to {window.To:d MMM yyyy}");
-            var season = await _dataPull.DownloadMatchesBetween(players, window.From, window.To, ct: ct);
+            var season = await _dataPull.DownloadMatchesBetween(players, window.From, window.To, ct: cancellationToken);
             context.Result = Report(season, $"{window.From:yyyy-MM-dd} to {window.To:yyyy-MM-dd}: ");
             return;
         }
         context.ReportProgress(0, $"Looking through {players.Count} players' recent games");
-        var result = await _dataPull.DownloadRecentMatchesForPlayers(players, ct: ct);
+        var result = await _dataPull.DownloadRecentMatchesForPlayers(players, ct: cancellationToken);
         context.Result = Report(result);
     }
 }
@@ -115,15 +115,15 @@ public sealed class ActiveSeasonPullJob : IJob
             .ToListAsync(ct);
     }
 
-    public async ValueTask Execute(IJobExecutionContext context, CancellationToken ct = default)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        var players = await PlayersInActiveSeasons(ct);
+        var players = await PlayersInActiveSeasons(cancellationToken);
         if (players.Count == 0)
         {
             context.Result = JobRunReport.Skipped("No season under way");
             return;
         }
-        var result = await _dataPull.DownloadRecentMatchesForPlayers(players, startPage: 0, endPage: 0, ct: ct);
+        var result = await _dataPull.DownloadRecentMatchesForPlayers(players, startPage: 0, endPage: 0, ct: cancellationToken);
         context.Result = SeasonMatchPullJob.Report(result);
     }
 }

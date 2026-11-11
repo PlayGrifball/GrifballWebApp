@@ -28,7 +28,7 @@ public class TemporalConversionTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _connectionString = _context.Database.GetConnectionString()!;
     }
 
@@ -42,6 +42,8 @@ public class TemporalConversionTests
 
     private const string PeriodStart = "PeriodStart";
     private const string PeriodEnd = "PeriodEnd";
+    private static readonly string[] expected = new[] { "a", "b" };
+    private static readonly string[] expectedArray = new[] { "a", "a2" };
 
     [Test]
     public async Task RowsATableHasWhenItBecomesTemporal_AreCurrentFromTheBeginningOfTime()
@@ -76,17 +78,17 @@ public class TemporalConversionTests
             .Select(n => new { n.Text, Start = EF.Property<DateTime>(n, PeriodStart), End = EF.Property<DateTime>(n, PeriodEnd) })
             .ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(asOfBefore, Is.EqualTo(new[] { "a", "b" }), "TemporalAsOf a time before the table was temporal");
+            Assert.That(asOfBefore, Is.EqualTo(expected), "TemporalAsOf a time before the table was temporal");
             Assert.That(starts, Is.EqualTo(new[] { DateTime.MinValue }));
             Assert.That(addedStart, Is.InRange(beforeSave, afterSave), "a row written after has the transaction's time");
-            Assert.That(versionsOfA.Select(v => v.Text), Is.EqualTo(new[] { "a", "a2" }));
+            Assert.That(versionsOfA.Select(v => v.Text), Is.EqualTo(expectedArray));
             Assert.That(versionsOfA[0].Start, Is.EqualTo(DateTime.MinValue));
             Assert.That(versionsOfA[0].End, Is.EqualTo(versionsOfA[1].Start));
             Assert.That(versionsOfA[1].Start, Is.InRange(beforeSave, afterSave));
             Assert.That(versionsOfA[1].End, Is.EqualTo(DateTime.MaxValue));
-        });
+        }
     }
 
     [Test]
@@ -107,11 +109,11 @@ public class TemporalConversionTests
 
         var start = await temporal.Notes.Select(n => EF.Property<DateTime>(n, PeriodStart)).SingleAsync();
         var asOfBefore = await temporal.Notes.TemporalAsOf(beforeSave).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(start, Is.InRange(beforeSave, afterSave));
             Assert.That(asOfBefore, Is.Empty);
-        });
+        }
     }
 
     private DbContextOptions<T> Options<T>() where T : DbContext

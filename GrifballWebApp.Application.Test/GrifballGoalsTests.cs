@@ -23,11 +23,11 @@ public class GrifballGoalsTests
     [Test]
     public void Infinite_NotDecodedYet_IsAScoreOfUpTo20_NotObjectivesCompleted()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(GrifballGoals.Infinite(In(null, 3, objectives: 5)), Is.EqualTo(3));
             Assert.That(GrifballGoals.Infinite(In(null, 20)), Is.EqualTo(20));
-        });
+        }
     }
 
     [Test]
@@ -40,12 +40,12 @@ public class GrifballGoalsTests
     [Test]
     public void Infinite_Decoded_IsTheDecodedGoals()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(GrifballGoals.Infinite(In(CustomScoreLayout.Plain, 4, goals: 4)), Is.EqualTo(4));
             Assert.That(GrifballGoals.Infinite(In(CustomScoreLayout.B, 504_010_048, goals: 5)), Is.EqualTo(5));
             Assert.That(GrifballGoals.Infinite(In(CustomScoreLayout.Undecoded, 504_010_048)), Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -55,11 +55,11 @@ public class GrifballGoalsTests
             players.Sum(p => GrifballGoals.Infinite(p)) + GrifballGoals.Infinite(players[0]));
 
         var players = new List<MatchParticipant> { In(null, 2, objectives: 9), In(CustomScoreLayout.B, 504_010_048, goals: 4) };
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(new GoalsCallFinder().Found(inlined), Is.False, "A query provider would not know the call");
             Assert.That(inlined.Compile()(players), Is.EqualTo(2 + 4 + 2));
-        });
+        }
     }
 
     [Test]
@@ -70,14 +70,14 @@ public class GrifballGoalsTests
             p.MatchTeam.Match.Apply(Match.WithHalosPoints) ? (int?)p.PersonalScore : null);
 
         var score = inlined.Compile();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(new ModelRulesCallFinder().Found(inlined), Is.False, "A query provider would not know the call");
             Assert.That(score(In(null, 3, personalScore: 450)), Is.EqualTo(450), "Not decoded yet");
             Assert.That(score(In(CustomScoreLayout.Plain, 3, personalScore: 450)), Is.EqualTo(450));
             Assert.That(score(In(CustomScoreLayout.B, 504_010_048, personalScore: 2801)), Is.Null, "Packed counts, not points");
             Assert.That(In(CustomScoreLayout.B, 504_010_048).MatchTeam.Match.HasHalosPoints, Is.False);
-        });
+        }
     }
 
     [Test]

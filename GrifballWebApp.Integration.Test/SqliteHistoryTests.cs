@@ -63,6 +63,7 @@ public class SqliteHistoryTests
     private string File_ => new SqliteConnectionStringBuilder(_context.Database.GetConnectionString()).DataSource;
 
     private static readonly DateTime Now = new(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly string[] expected = new[] { "Late League" };
 
     private static Season NewSeason(string name) => Season.Seed(seasonName: name).WithDates(publicAt: Now, signupsOpen: Now, signupsClose: Now.AddDays(7), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(14), seasonEnd: Now.AddDays(60));
 
@@ -101,12 +102,12 @@ public class SqliteHistoryTests
         command.CommandText = "PRAGMA journal_mode";
         var syncJournal = (string)command.ExecuteScalar()!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(journal, Is.EqualTo("wal"));
             Assert.That(syncJournal, Is.EqualTo("wal"));
             Assert.That(readOnlyJournal, Is.EqualTo("wal"), "the file's, set by the connection before");
-        });
+        }
     }
 
     [Test]
@@ -127,13 +128,13 @@ public class SqliteHistoryTests
             .SingleAsync();
         var history = await History(season.SeasonID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(second, Is.GreaterThan(first), "the trigger's stamp, read back after the update (no RETURNING)");
             Assert.That(stored.Start, Is.EqualTo(second));
             Assert.That(stored.End, Is.EqualTo(DateTime.MaxValue));
             Assert.That(history, Is.EqualTo(new[] { new Version("First", first, second) }));
-        });
+        }
     }
 
     [Test]
@@ -148,13 +149,13 @@ public class SqliteHistoryTests
         await _context.SaveChangesAsync();
 
         var history = await History(season.SeasonID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(history, Has.Count.EqualTo(1));
             Assert.That(history[0].SeasonName, Is.EqualTo("Only"));
             Assert.That(history[0].PeriodStart, Is.EqualTo(start));
             Assert.That(history[0].PeriodEnd, Is.GreaterThanOrEqualTo(start).And.LessThan(DateTime.MaxValue));
-        });
+        }
     }
 
     [Test]
@@ -174,13 +175,13 @@ public class SqliteHistoryTests
         await _context.SaveChangesAsync();
         var empty = "";
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(await _context.Seasons.Where(s => s.SeasonName.Contains("late")).Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(new[] { "Late League" }));
+            Assert.That(await _context.Seasons.Where(s => s.SeasonName.Contains("late")).Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(expected));
             Assert.That(await _context.Seasons.CountAsync(s => s.SeasonName.Contains("LEAGUE")), Is.EqualTo(2));
             Assert.That(await _context.Seasons.CountAsync(s => s.SeasonName.Contains(empty)), Is.EqualTo(2));
             Assert.That(await _context.Seasons.CountAsync(s => s.SeasonName.Contains("summer")), Is.Zero);
-        });
+        }
     }
 
     /// <summary>Applies the migration migrations add would scaffold from <paramref name="source"/>'s model to <paramref name="target"/>'s.</summary>
@@ -220,7 +221,7 @@ public class SqliteHistoryTests
             "SELECT \"Name\", \"Note\" FROM \"SeasonsHistory\" WHERE \"SeasonID\" = {0} ORDER BY \"PeriodEnd\", rowid", season.SeasonID).ToListAsync();
         var sql = operations.OfType<SqlOperation>().Select(o => o.Sql).ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sql, Has.Count.EqualTo(2));
             Assert.That(operations[0], Is.InstanceOf<SqlOperation>(), "the triggers dropped first");
@@ -231,7 +232,7 @@ public class SqliteHistoryTests
             {
                 new NamedNote("First", null), new NamedNote("Second", null), new NamedNote("Third", "noted"),
             }), "every version, the renamed and the new column in each");
-        });
+        }
     }
 
     /// <summary>GrifballContext, with Seasons' SeasonName column called Name, a new column Note, and no CaptainsLocked.</summary>
@@ -271,7 +272,7 @@ public class SqliteHistoryTests
         await after.SaveChangesAsync();
 
         var history = await after.Database.SqlQueryRaw<Version>("SELECT \"SeasonName\", \"PeriodStart\", \"PeriodEnd\" FROM \"SeasonsHistory\"").ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(operations.OfType<AddColumnOperation>().Single(o => o.Table == "Seasons" && o.Name == PostgresHistory.PeriodStart).DefaultValueSql,
                 Is.EqualTo(SqliteHistory.BeginningOfTime));
@@ -280,8 +281,8 @@ public class SqliteHistoryTests
             Assert.That(history, Has.Count.EqualTo(1));
             Assert.That(history[0].SeasonName, Is.EqualTo("Old"));
             Assert.That(history[0].PeriodStart, Is.EqualTo(DateTime.MinValue));
-            Assert.That(after.Entry(old).Property(PostgresHistory.PeriodStart).CurrentValue, Is.GreaterThan(DateTime.MinValue));
-        });
+            Assert.That(after.Entry(old).Property<DateTime>(PostgresHistory.PeriodStart).CurrentValue, Is.GreaterThan(DateTime.MinValue));
+        }
     }
 
     // Dropping a table's history drops its triggers first, and nothing is created for it after.
@@ -295,12 +296,12 @@ public class SqliteHistoryTests
             .GetDifferences(with.GetService<IDesignTimeModel>().Model.GetRelationalModel(), without.GetService<IDesignTimeModel>().Model.GetRelationalModel());
 
         var sql = operations.OfType<SqlOperation>().Select(o => o.Sql).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sql, Does.Contain(SqliteHistory.DropTriggers("Seasons")));
             Assert.That(sql, Has.None.Contains("CREATE TRIGGER \"Seasons_History_Update\""));
             Assert.That(operations.TakeWhile(o => o is SqlOperation).Count(), Is.EqualTo(operations.OfType<SqlOperation>().Count(o => o.Sql.StartsWith("DROP TRIGGER"))));
-        });
+        }
     }
 
     // dotnet ef builds its services the same way, from the startup assembly (this project's migrations)
@@ -313,12 +314,12 @@ public class SqliteHistoryTests
             assembly, assembly, new Microsoft.EntityFrameworkCore.Design.Internal.OperationReporter(null), []).Build(_context);
 #pragma warning restore EF1001
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(services.GetService(typeof(IMigrationsModelDiffer)), Is.InstanceOf<SqliteHistoryMigrationsModelDiffer>());
             Assert.That(services.GetService(typeof(Microsoft.EntityFrameworkCore.Migrations.Design.ICSharpMigrationOperationGenerator)),
                 Is.InstanceOf<GrifballWebApp.Migrations.Postgres.RawSqlMigrationOperationGenerator>());
-        });
+        }
     }
 
     [Test]
@@ -328,11 +329,11 @@ public class SqliteHistoryTests
         var model = context.GetService<IDesignTimeModel>().Model.GetRelationalModel();
         var differ = new SqliteHistoryMigrationsModelDiffer(context.GetService<IMigrationsModelDiffer>());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(differ.HasDifferences(model, model), Is.False);
             Assert.That(differ.GetDifferences(model, model), Is.Empty);
-        });
+        }
     }
 
     // The renamed table's triggers are dropped by its old name and created by its new.
@@ -346,11 +347,11 @@ public class SqliteHistoryTests
             .GetDifferences(context.GetService<IDesignTimeModel>().Model.GetRelationalModel(), renamed.GetService<IDesignTimeModel>().Model.GetRelationalModel())
             .OfType<SqlOperation>().Select(o => o.Sql).ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sql, Does.Contain(SqliteHistory.DropTriggers("Seasons")));
             Assert.That(sql, Has.Some.Contains("CREATE TRIGGER \"Leagues2_History_Update\" AFTER UPDATE ON \"Leagues2\""));
-        });
+        }
     }
 
     // A table moved to another schema only (no new name): a rename SQLite ignores, its triggers made again all the same
@@ -363,11 +364,11 @@ public class SqliteHistoryTests
             .GetDifferences(_context.GetService<IDesignTimeModel>().Model.GetRelationalModel(), moved.GetService<IDesignTimeModel>().Model.GetRelationalModel())
             .OfType<SqlOperation>().Select(o => o.Sql).ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sql, Does.Contain(SqliteHistory.DropTriggers("Seasons")));
             Assert.That(sql, Has.Some.Contains("CREATE TRIGGER \"Seasons_History_Update\""));
-        });
+        }
     }
 
     /// <summary>GrifballContext, with Seasons and its history in the schema Archive.</summary>

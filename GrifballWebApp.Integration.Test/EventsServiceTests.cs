@@ -28,7 +28,7 @@ namespace GrifballWebApp.Integration.Test
         [SetUp]
         public async Task SetUp()
         {
-            _context = await SetUpFixture.NewGrifballContext();
+            _context = await TestDatabase.NewGrifballContext();
             _logger = Substitute.For<ILogger<EventsService>>();
             _discordOptions = Substitute.For<IOptions<DiscordOptions>>();
             _discordOptions.Value.Returns(new DiscordOptions { EventsChannel = 123456 });

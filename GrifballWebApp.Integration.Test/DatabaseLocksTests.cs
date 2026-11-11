@@ -12,7 +12,7 @@ public class DatabaseLocksTests
     private GrifballContext _context;
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
@@ -86,7 +86,8 @@ public class DatabaseLocksTests
     public async Task A_name_is_required_and_its_number_is_the_same_everywhere()
     {
         await Assert.ThrowsAsync<ArgumentException>(async () => await _context.Database.AcquireLockAsync(" "));
-        Assert.That(DatabaseLocks.Key("matchmaking-queue"), Is.EqualTo(DatabaseLocks.Key("matchmaking-queue")));
+        var key = DatabaseLocks.Key("matchmaking-queue");
+        Assert.That(DatabaseLocks.Key("matchmaking-queue"), Is.EqualTo(key));
         Assert.That(DatabaseLocks.Key("matchmaking-queue"), Is.Not.EqualTo(DatabaseLocks.Key("other")));
     }
 }

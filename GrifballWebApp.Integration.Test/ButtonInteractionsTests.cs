@@ -39,7 +39,7 @@ public class ButtonInteractionsTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _queueRepository = Substitute.For<IQueueRepository>();
         // The user, gamertag and match as the database has them, unless a test says otherwise
         _queueRepository.PlayerStateByDiscord(default, default).ReturnsForAnyArgs(ci => new QueueRepository(_context).PlayerStateByDiscord(ci.ArgAt<long>(0), ci.ArgAt<CancellationToken>(1)));
@@ -51,7 +51,8 @@ public class ButtonInteractionsTests
         _dataPullService = Substitute.For<IDataPullService>();
         _queueService = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService, new ContextOutbox(_context), Substitute.For<IQueueNotifier>());
         _notifier = Substitute.For<IQueueNotifier>();
-        _handler = new MatchmakingButtonHandler(new QueueMembership(_queueRepository, _context, _notifier), new ServiceCollection().AddScoped(_ => _publisher).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _context, _discordClient, _queueService, _handlerLogger = new RecordingLogger<MatchmakingButtonHandler>());
+        _handlerLogger = new RecordingLogger<MatchmakingButtonHandler>();
+        _handler = new MatchmakingButtonHandler(new QueueMembership(_queueRepository, _context, _notifier), new ServiceCollection().AddScoped(_ => _publisher).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _context, _discordClient, _queueService, _handlerLogger);
 
         _discordContext = Substitute.For<IDiscordButtonInteractionContext>();
     }

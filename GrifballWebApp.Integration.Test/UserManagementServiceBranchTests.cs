@@ -18,11 +18,14 @@ public class UserManagementServiceBranchTests
     private UserManager<User> _userManager;
     private IGetsertXboxUserService _getsert;
     private UserManagementService _service;
+    private static readonly string[] expected = new[] { "alice", "bob", "carl" };
+    private static readonly string[] second = new[] { "Sysadmin" };
+    private static readonly string[] secondArray = new[] { "Commissioner" };
 
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _userManager = Substitute.For<UserManager<User>>(
             Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null);
         _getsert = Substitute.For<IGetsertXboxUserService>();
@@ -66,7 +69,7 @@ public class UserManagementServiceBranchTests
 
         var names = result.Results.Select(r => r.UserName).ToList();
         Assert.That(names, Is.Ordered);
-        Assert.That(names, Is.SupersetOf(new[] { "alice", "bob", "carl" }));
+        Assert.That(names, Is.SupersetOf(expected));
     }
 
     [TestCase("bob", "bob")]        // user name
@@ -78,8 +81,11 @@ public class UserManagementServiceBranchTests
 
         var result = await _service.GetUsers(new PaginationFilter(1, 10), search, CancellationToken.None);
 
-        Assert.That(result.TotalCount, Is.EqualTo(1));
-        Assert.That(result.Results.Single().UserName, Is.EqualTo(expectedUser));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.TotalCount, Is.EqualTo(1));
+            Assert.That(result.Results.Single().UserName, Is.EqualTo(expectedUser));
+        }
     }
 
     [Test]
@@ -96,10 +102,13 @@ public class UserManagementServiceBranchTests
         var dto = await _service.GetUser(alice.Id, CancellationToken.None);
 
         Assert.That(dto, Is.Not.Null);
-        Assert.That(dto!.Gamertag, Is.EqualTo("AliceGT"));
-        Assert.That(dto.HasPassword, Is.False);
-        Assert.That(dto.Roles.Single(r => r.RoleName == "TestRole").HasRole, Is.True);
-        Assert.That(dto.Roles.Single(r => r.RoleName == "OtherRole").HasRole, Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dto!.Gamertag, Is.EqualTo("AliceGT"));
+            Assert.That(dto.HasPassword, Is.False);
+            Assert.That(dto.Roles.Single(r => r.RoleName == "TestRole").HasRole, Is.True);
+            Assert.That(dto.Roles.Single(r => r.RoleName == "OtherRole").HasRole, Is.False);
+        }
     }
 
     [Test]
@@ -186,8 +195,11 @@ public class UserManagementServiceBranchTests
 
         var result = await _service.CreateUser(CreateReq(), CancellationToken.None);
 
-        Assert.That(result, Is.Null);
-        Assert.That(alice.XboxUserID, Is.Null, "previous owner should lose the gamertag");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.Null);
+            Assert.That(alice.XboxUserID, Is.Null, "previous owner should lose the gamertag");
+        }
         await _userManager.Received(1).CreateAsync(Arg.Is<User>(u => u.XboxUser == aliceXbox));
     }
 
@@ -231,9 +243,12 @@ public class UserManagementServiceBranchTests
         Assert.That(result, Is.Null);
         _context.ChangeTracker.Clear();
         var reloaded = await _context.Users.SingleAsync(u => u.Id == alice.Id);
-        Assert.That(reloaded.XboxUserID, Is.Null);
-        Assert.That(reloaded.DisplayName, Is.EqualTo("Edited"));
-        Assert.That(reloaded.IsDummyUser, Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reloaded.XboxUserID, Is.Null);
+            Assert.That(reloaded.DisplayName, Is.EqualTo("Edited"));
+            Assert.That(reloaded.IsDummyUser, Is.True);
+        }
         await _getsert.DidNotReceiveWithAnyArgs().GetsertXboxUserByGamertag(default!, default);
     }
 
@@ -272,8 +287,11 @@ public class UserManagementServiceBranchTests
 
         Assert.That(result, Is.Null);
         _context.ChangeTracker.Clear();
-        Assert.That((await _context.Users.SingleAsync(u => u.Id == bob.Id)).XboxUserID, Is.EqualTo(11));
-        Assert.That((await _context.Users.SingleAsync(u => u.Id == alice.Id)).XboxUserID, Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _context.Users.SingleAsync(u => u.Id == bob.Id)).XboxUserID, Is.EqualTo(11));
+            Assert.That((await _context.Users.SingleAsync(u => u.Id == alice.Id)).XboxUserID, Is.Null);
+        }
     }
 
     /// <summary>User.TieToXbox refuses a user tied to another account and an account another user holds: a sysadmin's edit
@@ -290,9 +308,12 @@ public class UserManagementServiceBranchTests
 
         Assert.That(result, Is.Null);
         _context.ChangeTracker.Clear();
-        Assert.That((await _context.Users.SingleAsync(u => u.Id == carl.Id)).XboxUserID, Is.EqualTo(11));
-        Assert.That((await _context.Users.SingleAsync(u => u.Id == alice.Id)).XboxUserID, Is.Null);
-        Assert.That(await _context.XboxUsers.AnyAsync(x => x.XboxUserID == 12), Is.True, "Carl's old account stays, untied");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _context.Users.SingleAsync(u => u.Id == carl.Id)).XboxUserID, Is.EqualTo(11));
+            Assert.That((await _context.Users.SingleAsync(u => u.Id == alice.Id)).XboxUserID, Is.Null);
+            Assert.That(await _context.XboxUsers.AnyAsync(x => x.XboxUserID == 12), Is.True, "Carl's old account stays, untied");
+        }
     }
 
     [Test]
@@ -388,7 +409,7 @@ public class UserManagementServiceBranchTests
         var result = await _service.EditUser(EditFrom(bob, null, roles), CancellationToken.None);
 
         Assert.That(result, Is.Null);
-        await _userManager.Received(1).AddToRolesAsync(Arg.Any<User>(), Arg.Is<IEnumerable<string>>(r => r.SequenceEqual(new[] { "Sysadmin" })));
-        await _userManager.Received(1).RemoveFromRolesAsync(Arg.Any<User>(), Arg.Is<IEnumerable<string>>(r => r.SequenceEqual(new[] { "Commissioner" })));
+        await _userManager.Received(1).AddToRolesAsync(Arg.Any<User>(), Arg.Is<IEnumerable<string>>(r => r.SequenceEqual(second)));
+        await _userManager.Received(1).RemoveFromRolesAsync(Arg.Any<User>(), Arg.Is<IEnumerable<string>>(r => r.SequenceEqual(secondArray)));
     }
 }

@@ -24,7 +24,7 @@ public class ServiceRecordTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _profiles = new ProfileStatsService(_context, new SeasonStatsService(_context), new MatchmakingStatsService(_context));
     }
 
@@ -56,7 +56,7 @@ public class ServiceRecordTests
 
         var record = (await _profiles.GetAsync(users[101].Id))!.ServiceRecord!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(record.Mmr, Is.EqualTo(1234));
             // 101 has 1 kill, 1 death and 1 goal a game on the winning side, 2 deaths and no goal on the losing one
@@ -65,7 +65,7 @@ public class ServiceRecordTests
             Assert.That((record.Matchmaking.GamesPlayed, record.Matchmaking.Losses, record.Matchmaking.Deaths, record.Matchmaking.BombScores), Is.EqualTo((1, 1, 2, 0L)));
             Assert.That((record.All.GamesPlayed, record.All.Wins, record.All.Kills, record.All.Deaths, record.All.KdRatio), Is.EqualTo((3, 2, 3, 4, (decimal?)0.75m)));
             Assert.That((record.All.BombScores, record.All.UncountedBombScoreGames), Is.EqualTo((1L, 1)));
-        });
+        }
     }
 
     [Test]
@@ -92,12 +92,12 @@ public class ServiceRecordTests
 
         var record = (await _profiles.GetAsync(users[101].Id))!.ServiceRecord!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(record.League.GamesPlayed, Is.EqualTo(2));
             Assert.That((record.League.BombScores, record.League.UncountedBombScoreGames), Is.EqualTo((2L, 1)), "The decoded game's 2 goals; the other can't be read");
             Assert.That((record.All.BombScores, record.All.UncountedBombScoreGames), Is.EqualTo((2L, 1)));
-        });
+        }
     }
 
     [Test]
@@ -125,12 +125,12 @@ public class ServiceRecordTests
         var record = (await _profiles.GetAsync(users[101].Id))!.ServiceRecord!;
         var played = await _context.Set<MatchParticipant>().Include(p => p.MatchTeam.Match).Where(p => p.XboxUserID == 101).ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(record.League.UncountedBombScoreGames, Is.EqualTo(played.Count(p => GrifballGoals.Infinite(p) == null)));
             Assert.That(record.League.UncountedBombScoreGames, Is.EqualTo(2));
             Assert.That(record.League.BombScores, Is.EqualTo(5L), "The plain game's 3 and the decoded game's 2");
-        });
+        }
     }
 
     [Test]
@@ -142,11 +142,11 @@ public class ServiceRecordTests
 
         var record = (await _profiles.GetAsync(user.Id))!.ServiceRecord!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(record.Mmr, Is.Null, "Everyone starts at the same default MMR");
             Assert.That((record.All.GamesPlayed, record.All.BombScores, record.All.KdRatio), Is.EqualTo((0, 0L, (decimal?)null)));
-        });
+        }
     }
 
     [Test]
@@ -178,10 +178,10 @@ public class ServiceRecordTests
 
         var record = (await _profiles.GetAsync(user.Id))!.ServiceRecord!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(record.Mmr, Is.Null, "Only the queue rates a player");
             Assert.That((record.Matchmaking.GamesPlayed, record.All.GamesPlayed), Is.EqualTo((4, 4)));
-        });
+        }
     }
 }

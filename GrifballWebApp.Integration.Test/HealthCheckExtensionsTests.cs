@@ -44,7 +44,7 @@ public class HealthCheckExtensionsTests
 
         builder.Services.AddDbContext<GrifballContext>(options => options.UseGrifballDatabase(TestDatabase.Provider, connectionString));
         builder.Services.AddSingleton(new DiscordGatewayHealthCheck(discordConnected));
-        builder.Services.AddSingleton<IHaloInfiniteClient>(HaloInfiniteHealthCheckTests.Answering(haloStatusCode));
+        builder.Services.AddSingleton<IHaloInfiniteClient>(HaloInfiniteHealthCheckTestData.Answering(haloStatusCode));
         builder.Services.AddAppHealthChecks(builder.Configuration);
 
         var app = builder.Build();

@@ -12,11 +12,17 @@ public class TeamHistoryServiceTests
 {
     private GrifballContext _context = null!;
     private TeamHistoryService _service = null!;
+    private static readonly string[] expected = new[] { "Season 2023", "Season 2021", "Season 2019", "Season 2017" };
+    private static readonly string[] expectedArray = new[] { "TROPHY HUNTERS", "Trophy Hunters", "trophy hunters", "  Trophy Hunters " };
+    private static readonly string[] expectedArray0 = new[] { "Open", "Pro" };
+    private static readonly string[] expectedArray1 = new[] { "Captain Grif", "Donut", "Simmons" };
+    private static readonly bool[] expectedArray2 = new[] { true, false, false };
+    private static readonly string[] expectedArray3 = new[] { "Pro" };
 
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new TeamHistoryService(_context);
     }
 
@@ -85,7 +91,7 @@ public class TeamHistoryServiceTests
         var history = await _service.GetAsync(mid.TeamID);
 
         Assert.That(history, Is.Not.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(history!.TeamName, Is.EqualTo("TROPHY HUNTERS"));
             Assert.That(history.LeagueName, Is.EqualTo("AGLA"));
@@ -95,15 +101,15 @@ public class TeamHistoryServiceTests
             Assert.That(history.Championships, Is.EqualTo(3));
             Assert.That(history.Players, Is.EqualTo(4));
             Assert.That(history.Seasons.Select(s => s.TeamID), Is.EqualTo(new[] { latest.TeamID, mid.TeamID, old.TeamID, untrimmed.TeamID }));
-            Assert.That(history.Seasons.Select(s => s.Season.SeasonName), Is.EqualTo(new[] { "Season 2023", "Season 2021", "Season 2019", "Season 2017" }));
-            Assert.That(history.Seasons.Select(s => s.TeamName), Is.EqualTo(new[] { "TROPHY HUNTERS", "Trophy Hunters", "trophy hunters", "  Trophy Hunters " }));
+            Assert.That(history.Seasons.Select(s => s.Season.SeasonName), Is.EqualTo(expected));
+            Assert.That(history.Seasons.Select(s => s.TeamName), Is.EqualTo(expectedArray));
 
             var newest = history.Seasons[0];
-            Assert.That(newest.Titles, Is.EqualTo(new[] { "Open", "Pro" }));
+            Assert.That(newest.Titles, Is.EqualTo(expectedArray0));
             Assert.That((newest.Wins, newest.Losses, newest.RecordFromSource), Is.EqualTo((0, 0, false)));
             // Captain first, then by draft round
-            Assert.That(newest.Players.Select(p => p.Gamertag), Is.EqualTo(new[] { "Captain Grif", "Donut", "Simmons" }));
-            Assert.That(newest.Players.Select(p => p.IsCaptain), Is.EqualTo(new[] { true, false, false }));
+            Assert.That(newest.Players.Select(p => p.Gamertag), Is.EqualTo(expectedArray1));
+            Assert.That(newest.Players.Select(p => p.IsCaptain), Is.EqualTo(expectedArray2));
 
             var middle = history.Seasons[1];
             Assert.That((middle.Wins, middle.Losses, middle.RecordFromSource), Is.EqualTo((2, 1, false)));
@@ -112,9 +118,9 @@ public class TeamHistoryServiceTests
 
             var older = history.Seasons[2];
             Assert.That((older.Wins, older.Losses, older.RecordFromSource), Is.EqualTo((7, 2, true)));
-            Assert.That(older.Titles, Is.EqualTo(new[] { "Pro" }));
+            Assert.That(older.Titles, Is.EqualTo(expectedArray3));
             Assert.That(older.Season.IsHistorical, Is.True);
-        });
+        }
     }
 
     [Test]
@@ -130,11 +136,11 @@ public class TeamHistoryServiceTests
         var fromTrimmed = await _service.GetAsync(trimmed.TeamID);
 
         var both = new[] { trimmed.TeamID, untrimmed.TeamID };
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(fromUntrimmed!.Seasons.Select(s => s.TeamID), Is.EqualTo(both));
             Assert.That(fromTrimmed!.Seasons.Select(s => s.TeamID), Is.EqualTo(both));
-        });
+        }
     }
 
     [Test]
@@ -149,12 +155,12 @@ public class TeamHistoryServiceTests
         var firstHistory = await _service.GetAsync(first.TeamID);
         var secondHistory = await _service.GetAsync(second.TeamID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(firstHistory!.Seasons.Select(s => s.TeamID), Is.EqualTo(new[] { first.TeamID }));
             Assert.That((firstHistory.Appearances, firstHistory.Players), Is.EqualTo((1, 1)));
             Assert.That(secondHistory!.Seasons.Select(s => s.TeamID), Is.EqualTo(new[] { second.TeamID }));
-        });
+        }
     }
 
     private async Task AddFinal(Season season, Team home, Team away, bool homeWon)
@@ -177,9 +183,12 @@ public class TeamHistoryServiceTests
         var history = await _service.GetAsync(team.TeamID);
         var page = await new TeamPageService(_context).GetAsync(team.TeamID);
 
-        Assert.That(history!.Seasons.Single().Titles, Is.Empty);
-        Assert.That(history.Championships, Is.Zero);
-        Assert.That(page!.Titles, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(history!.Seasons.Single().Titles, Is.Empty);
+            Assert.That(history.Championships, Is.Zero);
+            Assert.That(page!.Titles, Is.Empty);
+        }
     }
 
     [Test]
@@ -197,7 +206,7 @@ public class TeamHistoryServiceTests
         var aglaHistory = await _service.GetAsync(ours.TeamID);
         var otherHistory = await _service.GetAsync(theirs.TeamID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(aglaHistory!.Seasons.Select(s => s.TeamID), Is.EqualTo(new[] { ours.TeamID }));
             Assert.That(aglaHistory.Players, Is.EqualTo(1));
@@ -205,6 +214,6 @@ public class TeamHistoryServiceTests
             Assert.That(otherHistory!.Seasons.Select(s => s.TeamID), Is.EqualTo(new[] { theirs.TeamID }));
             Assert.That(otherHistory.LeagueName, Is.EqualTo("Other League"));
             Assert.That(otherHistory.Seasons[0].Season.LeagueSlug, Is.EqualTo("other"));
-        });
+        }
     }
 }

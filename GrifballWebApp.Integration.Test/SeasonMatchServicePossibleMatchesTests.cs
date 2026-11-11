@@ -22,7 +22,7 @@ public class SeasonMatchServicePossibleMatchesTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
         _service = new SeasonMatchService(_context, _dataPullService, Substitute.For<IBracketService>(), new GrifballWebApp.Application.Championships.ChampionshipService(_context));
     }
@@ -93,19 +93,22 @@ public class SeasonMatchServicePossibleMatchesTests
         // The players' games are pulled by a job (SeasonMatchPullJob, over these players), not by the page
         await _dataPullService.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);
         var players = await _service.PlayerXboxIDs(seeded.SeasonMatch.SeasonMatchID);
-        Assert.That(players.Count == 8 && h.All(players.Contains) && a.All(players.Contains), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(players.Count == 8 && h.All(players.Contains) && a.All(players.Contains), Is.True);
 
-        Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { valid2.MatchID, valid1.MatchID }), "ordered by start time desc");
+            Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { valid2.MatchID, valid1.MatchID }), "ordered by start time desc");
+        }
 
         var first = result[1]; // valid1
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first.HomeTeam.TeamID, Is.EqualTo(1));
             Assert.That(first.HomeTeam.Score, Is.EqualTo(7));
             Assert.That(first.HomeTeam.Outcome, Is.EqualTo(Outcomes.Won));
             Assert.That(first.HomeTeam.Players.Select(p => p.XboxUserID), Is.EquivalentTo(h));
             Assert.That(first.HomeTeam.Players.All(p => p.IsOnTeam), Is.True);
-            Assert.That(first.AwayTeam.TeamID, Is.EqualTo(0));
+            Assert.That(first.AwayTeam.TeamID, Is.Zero);
             Assert.That(first.AwayTeam.Score, Is.EqualTo(2));
             Assert.That(first.AwayTeam.Outcome, Is.EqualTo(Outcomes.Lost));
             var p201 = first.AwayTeam.Players.Single(p => p.XboxUserID == 201);
@@ -113,15 +116,15 @@ public class SeasonMatchServicePossibleMatchesTests
             Assert.That(p201.Kills, Is.EqualTo(1));
             Assert.That(p201.Deaths, Is.EqualTo(1));
             Assert.That(p201.Score, Is.EqualTo(1));
-        });
+        }
 
         var second = result[0]; // valid2, ringer o[0]
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(second.HomeTeam.TeamID, Is.EqualTo(0));
+            Assert.That(second.HomeTeam.TeamID, Is.Zero);
             Assert.That(second.AwayTeam.Players.Single(p => p.XboxUserID == o[0]).IsOnTeam, Is.False);
             Assert.That(second.AwayTeam.Players.Count(p => p.IsOnTeam), Is.EqualTo(3));
-        });
+        }
     }
 
     [Test]
@@ -139,12 +142,12 @@ public class SeasonMatchServicePossibleMatchesTests
 
         var result = await _service.GetPossibleMatches(seeded.SeasonMatch.SeasonMatchID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Has.Count.EqualTo(200));
             Assert.That(result[0].MatchID, Is.EqualTo(newest.MatchID), "The newest is never the one cut");
             Assert.That(result.Select(x => x.MatchID), Does.Not.Contain(MatchAt(start)), "The oldest is");
-        });
+        }
 
         Guid MatchAt(DateTime time) => _context.Matches.Single(x => x.StartTime == time).MatchID;
     }
@@ -179,8 +182,11 @@ public class SeasonMatchServicePossibleMatchesTests
 
         Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { weekAfter.MatchID, during.MatchID, dayBefore.MatchID }));
         var window = await _service.SeasonWindow(seeded.SeasonMatch.SeasonMatchID);
-        Assert.That(window, Is.EqualTo(((DateTime From, DateTime To)?)(seasonStart.AddDays(-1), seasonEnd.AddDays(7))));
-        Assert.That(await _service.SeasonWindow(-1), Is.Null, "No such match");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(window, Is.EqualTo(((DateTime From, DateTime To)?)(seasonStart.AddDays(-1), seasonEnd.AddDays(7))));
+            Assert.That(await _service.SeasonWindow(-1), Is.Null, "No such match");
+        }
     }
 
     [Test]
@@ -201,11 +207,11 @@ public class SeasonMatchServicePossibleMatchesTests
         var result = await _service.GetPossibleMatches(seeded.SeasonMatch.SeasonMatchID);
         var window = await _service.SeasonWindow(seeded.SeasonMatch.SeasonMatchID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Select(x => x.MatchID), Is.EqualTo(new[] { played.MatchID }));
             Assert.That(window, Is.EqualTo(((DateTime From, DateTime To)?)(seasonStart.AddDays(-1), rescheduled.AddDays(1))));
-        });
+        }
     }
 
     [Test]

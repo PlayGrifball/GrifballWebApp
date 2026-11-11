@@ -8,14 +8,14 @@ namespace GrifballWebApp.Infrastructure.Outbox;
 /// Degraded (as registered) while the outbox holds dead letters: Discord messages given up on, which someone should
 /// look at. They are deleted after <see cref="OutboxOptions.DeadLetterRetention"/>.
 /// </summary>
-public sealed class OutboxHealthCheck(GrifballContext context) : IHealthCheck
+public sealed class OutboxHealthCheck(GrifballContext db) : IHealthCheck
 {
-    public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext healthContext, CancellationToken cancellationToken = default)
+    public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
-        var deadLetters = await context.Outbox.CountAsync(x => x.Status == OutboxStatus.DeadLettered, cancellationToken);
+        var deadLetters = await db.Outbox.CountAsync(x => x.Status == OutboxStatus.DeadLettered, cancellationToken);
         return deadLetters == 0
             ? HealthCheckResult.Healthy()
-            : new HealthCheckResult(healthContext.Registration.FailureStatus, $"{deadLetters} Discord outbox messages were dead-lettered",
+            : new HealthCheckResult(context.Registration.FailureStatus, $"{deadLetters} Discord outbox messages were dead-lettered",
                 data: new Dictionary<string, object> { ["dead_letters"] = deadLetters });
     }
 }

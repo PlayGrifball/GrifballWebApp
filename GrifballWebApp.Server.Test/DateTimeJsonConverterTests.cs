@@ -19,11 +19,11 @@ public class DateTimeJsonConverterTests
         var result = JsonSerializer.Deserialize<DateTime>("\"2024-03-01T10:00:00+02:00\"", Options());
 
         // DateTime equality ignores Kind, so it's checked on its own.
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo(new DateTime(2024, 3, 1, 8, 0, 0)));
             Assert.That(result.Kind, Is.EqualTo(DateTimeKind.Utc));
-        });
+        }
     }
 
     [Test]
@@ -31,11 +31,11 @@ public class DateTimeJsonConverterTests
     {
         var result = JsonSerializer.Deserialize<DateTime>("\"2024-03-01T23:59:30.5Z\"", Options());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo(new DateTime(2024, 3, 1, 23, 59, 30, 500)));
             Assert.That(result.Kind, Is.EqualTo(DateTimeKind.Utc));
-        });
+        }
     }
 
     [Test]

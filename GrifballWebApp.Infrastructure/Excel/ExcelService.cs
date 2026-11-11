@@ -57,7 +57,7 @@ public class ExcelService
     }
 
 
-    private async Task<List<Guid>> FetchMatchIDsFromExcel()
+    private async Task<List<Guid>> FetchMatchIDsFromExcel(CancellationToken ct)
     {
         var guids = new List<Guid>();
 
@@ -65,7 +65,7 @@ public class ExcelService
             ?? throw new Exception("Missing GoogleSheets:CopySpreadsheetID");
         var sheetName = _configuration.GetValue<string>("GoogleSheets:CopySheetNameRange")
             ?? throw new Exception("Missing GoogleSheets:CopySheetNameRange");
-        var response = await _sheetsService.Spreadsheets.Values.Get(spreadsheetID, sheetName).ExecuteAsync();
+        var response = await _sheetsService.Spreadsheets.Values.Get(spreadsheetID, sheetName).ExecuteAsync(ct);
 
         var rows = response.Values.Skip(1).SelectMany(x => x).Cast<string>().ToList();
 
@@ -102,9 +102,9 @@ public class ExcelService
         return info;
     }
 
-    public async Task ExportAll(SheetInfo sheetInfo)
+    public async Task ExportAll(SheetInfo sheetInfo, CancellationToken ct = default)
     {
-        var guids = await FetchMatchIDsFromExcel();
+        var guids = await FetchMatchIDsFromExcel(ct);
 
         // Example tinker data
         //var testRange = "A2:GO12";
@@ -112,7 +112,7 @@ public class ExcelService
         //response.Values[0][11] = "Test";
         //await UpdateData(spreadsheetID, sheetName, response.Values);
 
-        await ExportToExcel(guids, sheetInfo, overwrite: true);
+        await ExportToExcel(guids, sheetInfo, overwrite: true, ct);
     }
 
     public async Task AppendMatch(SheetInfo sheetInfo, Guid matchID)
@@ -125,7 +125,7 @@ public class ExcelService
         //response.Values[0][11] = "Test";
         //await UpdateData(spreadsheetID, sheetName, response.Values);
 
-        await ExportToExcel([matchID], sheetInfo, overwrite: false);
+        await ExportToExcel([matchID], sheetInfo, overwrite: false, CancellationToken.None);
     }
 
     /// <summary>
@@ -134,7 +134,7 @@ public class ExcelService
     /// <param name="guids">MatchIDs to export</param>
     /// <param name="sheetInfo">SpreadsheetID and SheetName to export to</param>
     /// <param name="overwrite">If true all data in sheet is overriden. If false then perform append to end</param>
-    private async Task ExportToExcel(List<Guid> guids, SheetInfo sheetInfo, bool overwrite)
+    private async Task ExportToExcel(List<Guid> guids, SheetInfo sheetInfo, bool overwrite, CancellationToken ct)
     {
         var matches = await _context.Matches
                     .AsNoTracking()
@@ -148,14 +148,14 @@ public class ExcelService
                             .ThenInclude(x => x.XboxUser)
                     .OrderBy(x => x.StartTime)
                     .Where(x => guids.Contains(x.MatchID))
-                    .ToArrayAsync();
+                    .ToArrayAsync(ct);
 
         var startRow = 2;
 
         if (overwrite is false)
         {
             // Find first empty row
-            var x = await _sheetsService.Spreadsheets.Values.Get(sheetInfo.SpreadsheetID, sheetInfo.SheetName + "!L:L").ExecuteAsync();
+            var x = await _sheetsService.Spreadsheets.Values.Get(sheetInfo.SpreadsheetID, sheetInfo.SheetName + "!L:L").ExecuteAsync(ct);
             startRow = x.Values.Count + 1;
         }
 
@@ -386,10 +386,10 @@ public class ExcelService
         if (data.Count == 0)
             return;
 
-        var response = await UpdateData(sheetInfo.SpreadsheetID, sheetInfo.SheetName, data, startRow);
+        var response = await UpdateData(sheetInfo.SpreadsheetID, sheetInfo.SheetName, data, startRow, ct);
     }
 
-    private async Task<BatchUpdateValuesResponse> UpdateData(string spreadsheetID, string sheet, IList<IList<object>> data, int startRow = 2)
+    private async Task<BatchUpdateValuesResponse> UpdateData(string spreadsheetID, string sheet, IList<IList<object>> data, int startRow, CancellationToken ct)
     {
         var range = GetExcelRange(data, startRow);
         var full = $"{sheet}!{range}";
@@ -404,7 +404,7 @@ public class ExcelService
         requestBody.ValueInputOption = "USER_ENTERED";
         requestBody.Data = updateData;
         updateData.Add(dataValueRange);
-        var response = await _sheetsService.Spreadsheets.Values.BatchUpdate(requestBody, spreadsheetID).ExecuteAsync();
+        var response = await _sheetsService.Spreadsheets.Values.BatchUpdate(requestBody, spreadsheetID).ExecuteAsync(ct);
         return response;
     }
 }

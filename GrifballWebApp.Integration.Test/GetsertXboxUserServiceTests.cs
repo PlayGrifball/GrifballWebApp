@@ -1,3 +1,4 @@
+using GrifballWebApp.Server.Test;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +23,7 @@ public class GetsertXboxUserServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _logger = Substitute.For<ILogger<GetsertXboxUserService>>();
         _haloInfiniteClientFactory = Substitute.For<IHaloInfiniteClientFactory>();
         _service = new GetsertXboxUserService(_logger, _context, _haloInfiniteClientFactory, TimeProvider.System);
@@ -42,11 +43,12 @@ public class GetsertXboxUserServiceTests
         await _context.SaveChangesAsync();
 
         var (result, error) = await _service.GetsertXboxUserByGamertag("TestUser");
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(result, Is.Not.Null);
             Assert.That(result!.XboxUserID, Is.EqualTo(123));
             Assert.That(error, Is.Null);
-        });
+        }
     }
 
     // Gamertags match whatever their case, on both databases (Postgres's case-insensitive collation): a
@@ -59,53 +61,56 @@ public class GetsertXboxUserServiceTests
 
         var (result, error) = await _service.GetsertXboxUserByGamertag("tESTuSER");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result?.XboxUserID, Is.EqualTo(123));
             Assert.That(error, Is.Null);
-        });
+        }
         await _haloInfiniteClientFactory.DidNotReceiveWithAnyArgs().UserByGamertag(default!);
     }
 
     [Test]
     public async Task GetsertXboxUserByGamertag_ShouldCreateUser_WhenNotExistsAndApiReturnsValid()
     {
-        var apiResponse = new HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>(
+        var apiResponse = HaloResults.Of<Surprenant.Grunt.Models.User>(
             new Surprenant.Grunt.Models.User { gamertag = "NewUser", xuid = "456" }, null);
         _haloInfiniteClientFactory.UserByGamertag("NewUser").Returns(Task.FromResult(apiResponse));
 
         var (result, error) = await _service.GetsertXboxUserByGamertag("NewUser");
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(result, Is.Not.Null);
             Assert.That(result!.XboxUserID, Is.EqualTo(456));
             Assert.That(result.Gamertag, Is.EqualTo("NewUser"));
             Assert.That(error, Is.Null);
-        });
+        }
         Assert.That(_context.XboxUsers.Any(x => x.XboxUserID == 456), Is.True);
     }
 
     [Test]
     public async Task GetsertXboxUserByGamertag_ShouldReturnError_WhenApiReturnsNull()
     {
-        _haloInfiniteClientFactory.UserByGamertag("MissingUser").Returns(Task.FromResult<HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>>(null));
+        _haloInfiniteClientFactory.UserByGamertag("MissingUser").Returns(Task.FromResult<HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>>(null!)); // null, which the client's signature rules out and the service guards against
         var (result, error) = await _service.GetsertXboxUserByGamertag("MissingUser");
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(result, Is.Null);
             Assert.That(error, Is.EqualTo("Did not find that gamertag"));
-        });
+        }
     }
 
     [Test]
     public async Task GetsertXboxUserByGamertag_ShouldReturnError_WhenApiReturnsInvalidXuid()
     {
-        var apiResponse = new HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>(
+        var apiResponse = HaloResults.Of<Surprenant.Grunt.Models.User>(
             new Surprenant.Grunt.Models.User { gamertag = "BadUser", xuid = "notanumber" }, null);
         _haloInfiniteClientFactory.UserByGamertag("BadUser").Returns(Task.FromResult(apiResponse));
         var (result, error) = await _service.GetsertXboxUserByGamertag("BadUser");
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(result, Is.Null);
             Assert.That(error, Is.EqualTo("Failed to parse xuid. Contact sysadmin"));
-        });
+        }
     }
 
     [Test]
@@ -122,14 +127,17 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUserByXuid_ShouldCreateUser_WhenNotExistsAndApiReturnsValid()
     {
-        var apiResponse = new HaloApiResultContainer<List<Surprenant.Grunt.Models.User>, HaloApiErrorContainer>(
+        var apiResponse = HaloResults.Of<List<Surprenant.Grunt.Models.User>>(
             new List<Surprenant.Grunt.Models.User> { new Surprenant.Grunt.Models.User { gamertag = "XuidNew", xuid = "101112" } }, null);
         _haloInfiniteClientFactory.Users(Arg.Is<IEnumerable<string>>(x => x.Contains("101112"))).Returns(apiResponse);
         var fooo = await _haloInfiniteClientFactory.Users(["101112"]);
         var result = await _service.GetsertXboxUserByXuid(101112);
         Assert.That(result, Is.Not.Null);
-        Assert.That(result.XboxUserID, Is.EqualTo(101112));
-        Assert.That(result.Gamertag, Is.EqualTo("XuidNew"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.XboxUserID, Is.EqualTo(101112));
+            Assert.That(result.Gamertag, Is.EqualTo("XuidNew"));
+        }
     }
 
     [Test]
@@ -138,16 +146,19 @@ public class GetsertXboxUserServiceTests
         var existing = XboxUser.FromXbox(1, "Existing");
         _context.XboxUsers.Add(existing);
         await _context.SaveChangesAsync();
-        var apiResponse = new HaloApiResultContainer<List<Surprenant.Grunt.Models.User>, HaloApiErrorContainer>(
+        var apiResponse = HaloResults.Of<List<Surprenant.Grunt.Models.User>>(
             new List<Surprenant.Grunt.Models.User> {
                 //new Surprenant.Grunt.Models.User { gamertag = "Existing", xuid = "1" }, // The service is smart enough to not call the API for existing users
                 new Surprenant.Grunt.Models.User { gamertag = "NewGuy", xuid = "2" }
             }, null);
         _haloInfiniteClientFactory.Users(Arg.Is<IEnumerable<string>>(x => x.Contains("2") && x.Count() == 1)).Returns(apiResponse);
         var result = await _service.GetsertXboxUsersByXuid([1, 2]);
-        Assert.That(result.Length, Is.EqualTo(2));
-        Assert.That(result.Any(x => x.XboxUserID == 1), Is.True);
-        Assert.That(result.Any(x => x.XboxUserID == 2), Is.True);
+        Assert.That(result, Has.Length.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Any(x => x.XboxUserID == 1), Is.True);
+            Assert.That(result.Any(x => x.XboxUserID == 2), Is.True);
+        }
     }
 
     [Test]
@@ -156,7 +167,7 @@ public class GetsertXboxUserServiceTests
         var owner = GrifballWebApp.Domain.Players.User.Seed(userName: "owner", xboxUser: XboxUser.FromXbox(789, "OldName"));
         _context.Users.Add(owner);
         await _context.SaveChangesAsync();
-        var apiResponse = new HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>(
+        var apiResponse = HaloResults.Of<Surprenant.Grunt.Models.User>(
             new Surprenant.Grunt.Models.User { gamertag = "NewName", xuid = "789" }, null);
         _haloInfiniteClientFactory.UserByGamertag("newname").Returns(Task.FromResult(apiResponse));
 
@@ -164,13 +175,13 @@ public class GetsertXboxUserServiceTests
 
         await using var fresh = _context.NewContextLike();
         var stored = fresh.XboxUsers.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(error, Is.Null);
             Assert.That(result!.XboxUserID, Is.EqualTo(789));
             Assert.That(result.User?.UserName, Is.EqualTo("owner"), "Still the same account's, so it can't be taken");
             Assert.That(stored.Gamertag, Is.EqualTo("NewName"), "Halo's spelling");
-        });
+        }
     }
 
     [Test]
@@ -179,7 +190,7 @@ public class GetsertXboxUserServiceTests
         var before = DateTime.UtcNow.AddSeconds(-1);
         _context.XboxUsers.Add(XboxUser.FromXbox(789, "OldName"));
         await _context.SaveChangesAsync();
-        var apiResponse = new HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>(
+        var apiResponse = HaloResults.Of<Surprenant.Grunt.Models.User>(
             new Surprenant.Grunt.Models.User { gamertag = "NewName", xuid = "789" }, null);
         _haloInfiniteClientFactory.UserByGamertag("NewName").Returns(Task.FromResult(apiResponse));
 
@@ -187,12 +198,12 @@ public class GetsertXboxUserServiceTests
 
         await using var fresh = _context.NewContextLike();
         var history = await fresh.Set<XboxGamertagHistory>().SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((history.XboxUserID, history.Gamertag, history.NormalizedGamertag, history.Source), Is.EqualTo((789L, "OldName", "OLDNAME", GamertagHistorySource.RenameDetected)));
             Assert.That(history.FirstSeen is null || history.FirstSeen <= history.LastSeen, "From when it was stored (its last change), if known");
             Assert.That(history.LastSeen, Is.GreaterThan(before), "Until the rename was seen");
-        });
+        }
     }
 
     [Test]
@@ -203,7 +214,10 @@ public class GetsertXboxUserServiceTests
         // Found by the case-insensitive lookup first; asked of the API only when it isn't
         var (result, _) = await _service.GetsertXboxUserByGamertag("some name");
 
-        Assert.That(result!.XboxUserID, Is.EqualTo(789));
-        Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result!.XboxUserID, Is.EqualTo(789));
+            Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
+        }
     }
 }

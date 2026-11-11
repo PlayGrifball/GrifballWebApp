@@ -20,7 +20,7 @@ public class MatchPlannerControllerTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _controller = new MatchPlannerController(Substitute.For<ILogger<MatchPlannerController>>(), new MatchPlannerService(_context));
     }
 
@@ -59,7 +59,7 @@ public class MatchPlannerControllerTests
         var unsched = (List<UnscheduledMatchDto>)((OkObjectResult)await _controller.GetUnscheduledMatches(season.SeasonID)).Value!;
 
         Assert.That(sched, Has.Count.EqualTo(1));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sched[0].SeasonMatchID, Is.EqualTo(scheduled.SeasonMatchID));
             Assert.That(sched[0].HomeCaptain, Is.EqualTo("Alpha"));
@@ -68,7 +68,7 @@ public class MatchPlannerControllerTests
             Assert.That(sched[0].Time, Is.EqualTo(t1));
             Assert.That(unsched.Single().SeasonMatchID, Is.EqualTo(unscheduled.SeasonMatchID));
             Assert.That(unsched.Single().Complete, Is.False);
-        });
+        }
 
         var t2 = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         await _controller.UpdateMatchTime(new UpdateMatchTimeDto { SeasonMatchID = unscheduled.SeasonMatchID, Time = t2 });

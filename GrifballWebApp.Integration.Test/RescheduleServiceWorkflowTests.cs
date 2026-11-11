@@ -35,7 +35,7 @@ public class RescheduleServiceWorkflowTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _discordClient = Substitute.For<IDiscordRestClient>();
         var options = Substitute.For<IOptions<DiscordOptions>>();
         options.Value.Returns(new DiscordOptions { ReschedulesChannel = Channel });

@@ -28,11 +28,12 @@ public class XboxPlaceholderTests
 {
     private GrifballContext _context;
     private GamertagMatching _matching;
+    private static readonly int[] expected = new[] { 1 };
 
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _matching = new GamertagMatching(_context);
     }
 
@@ -50,7 +51,7 @@ public class XboxPlaceholderTests
         var second = await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
 
         var placeholders = await _context.Users.Where(u => u.IsDummyUser).OrderBy(u => u.XboxUserID).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((first, second), Is.EqualTo((2, 0)));
             Assert.That(placeholders.Select(p => (p.UserName, p.DisplayName, p.XboxUserID)), Is.EqualTo(new[]
@@ -58,7 +59,7 @@ public class XboxPlaceholderTests
                 ("historical:Sub One", "Sub One", (long?)1),
                 ("historical:Sub Two", "Sub Two", (long?)2),
             }));
-        });
+        }
     }
 
     [Test]
@@ -67,9 +68,12 @@ public class XboxPlaceholderTests
         _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "Sub One"), XboxUser.FromXbox(2, "Sub Two"));
         await _context.SaveChangesAsync();
 
-        Assert.That(await _matching.EnsureXboxPlaceholdersAsync([], CancellationToken.None), Is.Zero);
-        Assert.That(await _matching.EnsureXboxPlaceholdersAsync([2], CancellationToken.None), Is.EqualTo(1));
-        Assert.That(await _context.Users.Select(u => u.XboxUserID).SingleAsync(), Is.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _matching.EnsureXboxPlaceholdersAsync([], CancellationToken.None), Is.Zero);
+            Assert.That(await _matching.EnsureXboxPlaceholdersAsync([2], CancellationToken.None), Is.EqualTo(1));
+            Assert.That(await _context.Users.Select(u => u.XboxUserID).SingleAsync(), Is.EqualTo(2));
+        }
     }
 
     [Test]
@@ -116,12 +120,12 @@ public class XboxPlaceholderTests
         var sub = await _context.Users.SingleAsync(u => u.XboxUserID == 301);
         var stats = await new SeasonStatsService(_context).GetAsync(seasonID: seeded.Season.SeasonID);
         var boards = await new LeaderboardsController(new GrifballWebApp.Application.Leaderboards.LeaderboardsService(_context, new SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Application.Leaderboards.LeaderboardsService>.Instance)).GetLeaderboards(null, CancellationToken.None);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sub.IsDummyUser);
-            Assert.That(stats.Where(s => s.UserID == sub.Id).Select(s => s.GamesPlayed), Is.EqualTo(new[] { 1 }));
+            Assert.That(stats.Where(s => s.UserID == sub.Id).Select(s => s.GamesPlayed), Is.EqualTo(expected));
             Assert.That(boards.KillLeaders.Select(k => k.UserID), Does.Contain(sub.Id));
-        });
+        }
     }
 
     [Test]
@@ -142,13 +146,13 @@ public class XboxPlaceholderTests
 
         _context.ChangeTracker.Clear();
         var merge = await _context.UserMerges.SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(error, Is.Null);
             Assert.That(await _context.Users.Where(u => u.Id == person.Id).Select(u => u.XboxUserID).SingleAsync(), Is.EqualTo(301));
             Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.False);
             Assert.That((merge.Trigger, merge.SourceUserID, merge.TargetUserID, merge.TriggeredByUserID), Is.EqualTo((MergeTrigger.SetGamertag, placeholder.Id, person.Id, (int?)person.Id)));
-        });
+        }
     }
 
     [Test]
@@ -167,10 +171,10 @@ public class XboxPlaceholderTests
 
         _context.ChangeTracker.Clear();
         var merge = await _context.UserMerges.SingleAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((merge.Trigger, merge.Reason, merge.SourceUserID), Is.EqualTo((MergeTrigger.XboxPlaceholder, $"claim {claim.GamertagClaimID}", historical.Id)));
             Assert.That(await _context.Users.CountAsync(), Is.EqualTo(1));
-        });
+        }
     }
 }

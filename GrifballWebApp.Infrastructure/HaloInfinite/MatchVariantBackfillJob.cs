@@ -16,7 +16,7 @@ namespace GrifballWebApp.Infrastructure.HaloInfinite;
 [DisallowConcurrentExecution]
 // Also for "run now" on the Jobs page: the Halo calls stay one job at a time with the pulls'
 [ExecutionGroup(JobsServiceCollectionExtensions.HaloMatchPulls)]
-public sealed class MatchVariantBackfillJob : IJob
+public sealed partial class MatchVariantBackfillJob : IJob
 {
     public const int DefaultBatchSize = 200;
 
@@ -56,18 +56,21 @@ public sealed class MatchVariantBackfillJob : IJob
             .With("decoded", decoded);
     }
 
-    public async ValueTask Execute(IJobExecutionContext context, CancellationToken ct = default)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         var result = await _dataPull.BackfillGameVariants(_batchSize,
-            (done, of) => context.ReportProgress(of == 0 ? 100 : done * 100 / of, $"{done} of {of} matches looked up"), ct);
+            (done, of) => context.ReportProgress(of == 0 ? 100 : done * 100 / of, $"{done} of {of} matches looked up"), cancellationToken);
 
         var decoded = await new CustomScoreLayouts(_context).DecodeAsync(result.Versions ?? [],
-            (done, of) => context.ReportProgress(of == 0 ? 100 : done * 100 / of, $"{done} of {of} matches decoded"), ct);
+            (done, of) => context.ReportProgress(of == 0 ? 100 : done * 100 / of, $"{done} of {of} matches decoded"), cancellationToken);
         if (decoded > 0)
-            _logger.LogInformation("Decoded the custom scores of {Count} matches again", decoded);
+            LogDecoded(_logger, decoded);
 
         context.Result = result.Missing == 0 && decoded == 0
             ? JobRunReport.Skipped("Every match has its game variant and is decoded")
             : Report(result, decoded);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Decoded the custom scores of {Count} matches again")]
+    private static partial void LogDecoded(ILogger logger, int count);
 }

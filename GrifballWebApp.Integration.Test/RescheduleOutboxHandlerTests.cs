@@ -26,7 +26,7 @@ public class RescheduleOutboxHandlerTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _discord = Substitute.For<IDiscordRestClient>();
         _discord.GetMessagesAsync(Arg.Any<ulong>(), Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>())
             .Returns(_ => AsyncEnumerable.Empty<IDiscordRestMessage>());
@@ -73,8 +73,11 @@ public class RescheduleOutboxHandlerTests
 
         await _outbox.DrainAsync();
 
-        Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
-        Assert.That(_discord.ReceivedCalls(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
+            Assert.That(_discord.ReceivedCalls(), Is.Empty);
+        }
     }
 
     [Test]
@@ -93,8 +96,11 @@ public class RescheduleOutboxHandlerTests
 
         await _outbox.DrainAsync();
 
-        Assert.That(calls, Is.EqualTo(1));
-        Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
+        }
     }
 
     [Test]
@@ -110,13 +116,13 @@ public class RescheduleOutboxHandlerTests
         await _outbox.RunDueAsync();
 
         var messages = await _outbox.MessagesAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(messages[0].Status, Is.EqualTo(OutboxStatus.Failed));
             Assert.That(messages[0].LastError, Is.EqualTo($"Reschedule {r.MatchRescheduleID} has no request post to make its thread from"));
             Assert.That(messages[1].LastError, Is.EqualTo($"Reschedule {r.MatchRescheduleID} has no thread"));
             Assert.That(messages[2].Status, Is.EqualTo(OutboxStatus.Sent), "Its errors were posted: not again");
-        });
+        }
     }
 
     [Test]
@@ -127,7 +133,10 @@ public class RescheduleOutboxHandlerTests
 
         await _outbox.DrainAsync();
 
-        Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
-        Assert.That(_discord.ReceivedCalls(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
+            Assert.That(_discord.ReceivedCalls(), Is.Empty);
+        }
     }
 }

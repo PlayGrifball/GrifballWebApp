@@ -20,7 +20,7 @@ public class SignupsServiceTimeslotTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new SignupsService(_context);
     }
 
@@ -36,12 +36,15 @@ public class SignupsServiceTimeslotTests
         var slots = await _service.GetTimeslots(season.SeasonID, 120, userID: 0);
 
         Assert.That(slots, Has.Length.EqualTo(2));
-        // Saturday 23:17 + 2h => Sunday 01:17, which sorts first (Sunday = 0)
-        Assert.That(slots[0].DayOfWeek, Is.EqualTo(DayOfWeek.Sunday));
-        Assert.That(slots[0].Time, Is.EqualTo(new TimeOnly(1, 17)));
-        Assert.That(slots[1].DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
-        Assert.That(slots[1].Time, Is.EqualTo(new TimeOnly(12, 17)));
-        Assert.That(slots.All(s => s.IsChecked is false));
+        using (Assert.EnterMultipleScope())
+        {
+            // Saturday 23:17 + 2h => Sunday 01:17, which sorts first (Sunday = 0)
+            Assert.That(slots[0].DayOfWeek, Is.EqualTo(DayOfWeek.Sunday));
+            Assert.That(slots[0].Time, Is.EqualTo(new TimeOnly(1, 17)));
+            Assert.That(slots[1].DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
+            Assert.That(slots[1].Time, Is.EqualTo(new TimeOnly(12, 17)));
+            Assert.That(slots.All(s => s.IsChecked is false));
+        }
     }
 
     [Test]
@@ -102,9 +105,12 @@ public class SignupsServiceTimeslotTests
         });
 
         var second = await _service.GetSignup(season.SeasonID, 0, user.Id);
-        Assert.That(second!.TeamName, Is.EqualTo("T2"));
-        Assert.That(second.Timeslots.Where(s => s.IsChecked).Select(s => s.OptionID), Is.EqualTo(new[] { opts[1].AvailabilityOptionID }));
-        Assert.That(await _context.Set<SignupAvailability>().CountAsync(), Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(second!.TeamName, Is.EqualTo("T2"));
+            Assert.That(second.Timeslots.Where(s => s.IsChecked).Select(s => s.OptionID), Is.EqualTo(new[] { opts[1].AvailabilityOptionID }));
+            Assert.That(await _context.Set<SignupAvailability>().CountAsync(), Is.EqualTo(1));
+        }
     }
 
     [Test]

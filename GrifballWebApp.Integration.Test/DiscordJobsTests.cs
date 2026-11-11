@@ -34,7 +34,7 @@ public class DiscordJobsTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _discordClient = Substitute.For<IDiscordRestClient>();
         _discordClient.GetMessagesAsync(Arg.Any<ulong>(), Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>())
             .Returns(_ => AsyncEnumerable.Empty<IDiscordRestMessage>());
@@ -77,7 +77,10 @@ public class DiscordJobsTests
         await using var check = _context.NewContextLike();
         var queued = await check.Outbox.SingleOrDefaultAsync();
         Assert.That(queued, Is.Not.Null);
-        Assert.That(queued!.Kind, Is.EqualTo(EventsOutbox.SeasonUpsert));
-        Assert.That(queued.Payload, Does.Contain("\"seasonName\":\"BG Season\""));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(queued!.Kind, Is.EqualTo(EventsOutbox.SeasonUpsert));
+            Assert.That(queued.Payload, Does.Contain("\"seasonName\":\"BG Season\""));
+        }
     }
 }

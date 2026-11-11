@@ -25,6 +25,8 @@ public class ModelRulesTests
 
     /// <summary>A rule that uses another: inlined too.</summary>
     private static readonly Expression<Func<Source, bool>> BigWithEvens = s => s.Apply(IsBig) && s.Apply(EvenItems).Any();
+    private static readonly int[] expected = new[] { 2, 4 };
+    private static readonly int[] expectedArray = new[] { 2 };
 
     [Test]
     public void Apply_OutsideAnInlinedQuery_Throws()
@@ -48,24 +50,24 @@ public class ModelRulesTests
         var big = compiled(new Source(11, 4, [1, 2, 3, 4]));
         var small = compiled(new Source(1, 3, [2]));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(inlined.ToString(), Does.Not.Contain(nameof(ModelRules.Apply)), "Only the rules' own expressions are left for the database");
             Assert.That(inlined.ToString(), Does.Contain("s.A > 10"));
             Assert.That((big.A, big.B), Is.EqualTo((1, 1)));
-            Assert.That(big.Items, Is.EqualTo(new[] { 2, 4 }), "A rule of any result");
+            Assert.That(big.Items, Is.EqualTo(expected), "A rule of any result");
             Assert.That((small.A, small.B, small.Items.Count), Is.EqualTo((0, 0, 0)));
-        });
+        }
     }
 
     [Test]
     public void Evaluate_RunsTheRuleOnALoadedObject_CompilingItOnce()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ModelRules.Evaluate(new Source(11, 0, []), IsBig), Is.True);
             Assert.That(ModelRules.Evaluate(new Source(1, 0, []), IsBig), Is.False, "The cached rule, on another object");
-            Assert.That(ModelRules.Evaluate(new Source(1, 0, [1, 2]), EvenItems), Is.EqualTo(new[] { 2 }));
-        });
+            Assert.That(ModelRules.Evaluate(new Source(1, 0, [1, 2]), EvenItems), Is.EqualTo(expectedArray));
+        }
     }
 }

@@ -21,7 +21,7 @@ public class SignupsControllerTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _controller = new SignupsController(new SignupsService(_context));
     }
 
@@ -110,8 +110,11 @@ public class SignupsControllerTests
 
         var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = true, TeamName = new string('x', Team.TeamNameMaxLength + 1) }, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Team name must be 30 characters or fewer"));
-        Assert.That(await _context.SeasonSignups.AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Team name must be 30 characters or fewer"));
+            Assert.That(await _context.SeasonSignups.AnyAsync(), Is.False);
+        }
     }
 
     [Test]
@@ -124,8 +127,11 @@ public class SignupsControllerTests
 
         var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = true, TeamName = name }, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<OkResult>());
-        Assert.That((await _context.SeasonSignups.SingleAsync()).TeamName, Is.EqualTo(name));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<OkResult>());
+            Assert.That((await _context.SeasonSignups.SingleAsync()).TeamName, Is.EqualTo(name));
+        }
     }
 
     [Test]
@@ -138,8 +144,11 @@ public class SignupsControllerTests
 
         var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = true, TeamName = "  " + name + " " }, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<OkResult>());
-        Assert.That((await _context.SeasonSignups.SingleAsync()).TeamName, Is.EqualTo(name));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<OkResult>());
+            Assert.That((await _context.SeasonSignups.SingleAsync()).TeamName, Is.EqualTo(name));
+        }
     }
 
     [Test]

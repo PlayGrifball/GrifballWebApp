@@ -114,6 +114,8 @@ internal static class YouTubeFixtures
 public class YouTubeFeedsTests
 {
     private static readonly DateTime FetchedAt = new(2026, 10, 30, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly string[] expected = new[] { "Hb2JmxJhQd8", "OldVideo001" };
+    private static readonly string[] expectedArray = new[] { "v1", "v2" };
 
     [Test]
     public void ParseFeed_ReadsEachUpload_AndKnowsAShort()
@@ -126,7 +128,7 @@ public class YouTubeFeedsTests
         var videos = YouTubeFeeds.ParseFeed(xml);
 
         Assert.That(videos, Has.Count.EqualTo(2));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(videos[0].VideoID, Is.EqualTo("Hb2JmxJhQd8"));
             Assert.That(videos[0].Title, Does.StartWith("AGLA Summer Minor Championship"));
@@ -137,7 +139,7 @@ public class YouTubeFeedsTests
             Assert.That(videos[0].IsShort, Is.False);
             Assert.That(videos[1].IsShort, Is.True);
             Assert.That(videos[1].Description, Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -152,10 +154,10 @@ public class YouTubeFeedsTests
 
         var videos = YouTubeFeeds.ParseChannelPage(html, FetchedAt, YouTubeFixtures.ChannelID);
 
-        Assert.That(videos.Select(v => v.VideoID), Is.EquivalentTo(new[] { "Hb2JmxJhQd8", "OldVideo001" }));
+        Assert.That(videos.Select(v => v.VideoID), Is.EquivalentTo(expected));
         var lockup = videos.Single(v => v.VideoID == "Hb2JmxJhQd8");
         var old = videos.Single(v => v.VideoID == "OldVideo001");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(lockup.Title, Is.EqualTo("AGLA Summer Minor Championship"), "The first listing");
             Assert.That(lockup.PublishedAt, Is.EqualTo(FetchedAt.AddDays(-14)));
@@ -165,7 +167,7 @@ public class YouTubeFeedsTests
             Assert.That(old.Title, Is.EqualTo("SL24 Week 3 - Alpha vs Bravo"));
             Assert.That(old.PublishedAt, Is.EqualTo(FetchedAt.AddYears(-2)));
             Assert.That(old.DurationSeconds, Is.EqualTo(3500));
-        });
+        }
     }
 
     [TestCase("<html>no data</html>")]
@@ -186,18 +188,18 @@ public class YouTubeFeedsTests
     [Test]
     public void Ago_ReadsMonthsAndYears_AndNothingElse()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(YouTubeFeeds.Ago("4mo ago", FetchedAt), Is.EqualTo(FetchedAt.AddMonths(-4)));
             Assert.That(YouTubeFeeds.Ago("1y ago", FetchedAt), Is.EqualTo(FetchedAt.AddYears(-1)));
             Assert.That(YouTubeFeeds.Ago("43 views", FetchedAt), Is.Null);
-        });
+        }
     }
 
     [Test]
     public void Durations_AreReadInSeconds()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(YouTubeFeeds.Clock("1:50:01"), Is.EqualTo(6601));
             Assert.That(YouTubeFeeds.Clock("12:34"), Is.EqualTo(754));
@@ -207,18 +209,18 @@ public class YouTubeFeedsTests
             Assert.That(YouTubeFeeds.IsoDuration("P1DT2H"), Is.EqualTo(93600), "Past a day");
             Assert.That(YouTubeFeeds.IsoDuration("soon"), Is.Null);
             Assert.That(YouTubeFeeds.IsoDuration(" "), Is.Null);
-        });
+        }
     }
 
     [Test]
     public void ChannelIdFromUrl_ReadsAChannelLink()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(YouTubeFeeds.ChannelIdFromUrl("https://www.youtube.com/channel/UCTVJapRl-GGwLCfioTb9N8w"), Is.EqualTo(YouTubeFixtures.ChannelID));
             Assert.That(YouTubeFeeds.ChannelIdFromUrl("https://www.youtube.com/@grifball"), Is.Null);
             Assert.That(YouTubeFeeds.FeedUrl(YouTubeFixtures.ChannelID), Is.EqualTo("https://www.youtube.com/feeds/videos.xml?channel_id=UCTVJapRl-GGwLCfioTb9N8w"));
-        });
+        }
     }
 
     [Test]
@@ -230,14 +232,14 @@ public class YouTubeFeedsTests
 
         var merged = page.Merge(feed).Merge(later);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(merged.Title, Is.EqualTo("Title (edited)"));
             Assert.That(merged.Description, Is.EqualTo("Desc"));
             Assert.That((merged.PublishedAt, merged.PublishedAtIsApproximate), Is.EqualTo(((DateTime?)new DateTime(2026, 10, 15, 23, 4, 11, DateTimeKind.Utc), false)), "An exact date stays");
             Assert.That(merged.DurationSeconds, Is.EqualTo(600));
             Assert.That(merged.IsShort, Is.True);
-        });
+        }
     }
 
     // The client, over a fake handler
@@ -274,14 +276,14 @@ public class YouTubeFeedsTests
 
         var videos = await client.Uploads(YouTubeFixtures.ChannelID, "test-key", CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(videos.Select(v => v.VideoID), Is.EqualTo(new[] { "v1", "v2" }));
+            Assert.That(videos.Select(v => v.VideoID), Is.EqualTo(expectedArray));
             Assert.That(videos[0].PublishedAt, Is.EqualTo(new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc)));
             Assert.That(videos[0].Description, Is.Null, "A blank description is none");
             Assert.That(handler.Requests, Has.Count.EqualTo(2));
             Assert.That(handler.Requests[0], Does.Contain("playlistId=UUTVJapRl-GGwLCfioTb9N8w").And.Contain("key=test-key"));
-        });
+        }
     }
 
     [Test]
@@ -294,12 +296,12 @@ public class YouTubeFeedsTests
 
         var videos = await client.Videos(ids, "test-key", CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(handler.Requests, Has.Count.EqualTo(2));
             Assert.That(videos.Select(v => (v.VideoID, v.DurationSeconds)), Is.EqualTo(new[] { ("vid00000000", (int?)6601), ("vid00000050", (int?)3500) }));
             Assert.That(videos[0].Description, Is.EqualTo("About First"));
-        });
+        }
     }
 
     [TestCase(HttpStatusCode.Forbidden, "{}")]

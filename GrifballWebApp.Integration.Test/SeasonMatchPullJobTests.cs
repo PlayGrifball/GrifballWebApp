@@ -27,7 +27,7 @@ public class SeasonMatchPullJobTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _dataPull = Substitute.For<IDataPullService>();
         _dataPull.DownloadRecentMatchesForPlayers(default!).ReturnsForAnyArgs(new MatchPullResult(8, [], 10, 4, 6, []));
     }
@@ -62,8 +62,11 @@ public class SeasonMatchPullJobTests
         await new SeasonMatchPullJob(SeasonMatches(), _dataPull).Execute(context, new SeasonMatchPull(seeded.SeasonMatch.SeasonMatchID));
 
         var report = (JobRunReport)context.Result!;
-        Assert.That(report.Result, Is.EqualTo(JobRunResult.Failed));
-        Assert.That(report.Summary, Is.EqualTo("8 players, 10 Grifball games found, 4 saved before, 4 new saved; 2 games Halo didn't give, not saved (the next pull tries them again); 1 players' match histories incomplete"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Result, Is.EqualTo(JobRunResult.Failed));
+            Assert.That(report.Summary, Is.EqualTo("8 players, 10 Grifball games found, 4 saved before, 4 new saved; 2 games Halo didn't give, not saved (the next pull tries them again); 1 players' match histories incomplete"));
+        }
     }
 
     [Test]
@@ -83,8 +86,11 @@ public class SeasonMatchPullJobTests
             Arg.Is(DataPullService.DefaultMaxCallsBack), Arg.Any<CancellationToken>());
         await _dataPull.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);
         var report = (JobRunReport)context.Result!;
-        Assert.That(report.Result, Is.EqualTo(JobRunResult.Succeeded), "Histories too long to search are reported, not a failure");
-        Assert.That(report.Summary, Is.EqualTo($"{from:yyyy-MM-dd} to {to:yyyy-MM-dd}: 8 players, 30 Grifball games found, 10 saved before, 20 new saved; 1 players' histories too long to search back to the season"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Result, Is.EqualTo(JobRunResult.Succeeded), "Histories too long to search are reported, not a failure");
+            Assert.That(report.Summary, Is.EqualTo($"{from:yyyy-MM-dd} to {to:yyyy-MM-dd}: 8 players, 30 Grifball games found, 10 saved before, 20 new saved; 1 players' histories too long to search back to the season"));
+        }
     }
 
     [Test]

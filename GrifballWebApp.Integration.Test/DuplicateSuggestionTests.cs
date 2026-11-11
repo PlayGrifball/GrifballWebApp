@@ -25,7 +25,7 @@ public class DuplicateSuggestionTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new DuplicateSuggestionService(_context, new UserMergeService(_context), new FakeTimeProvider());
     }
 
@@ -54,9 +54,12 @@ public class DuplicateSuggestionTests
         await _context.SaveChangesAsync();
         var matching = new GamertagMatching(_context);
 
-        Assert.That((await matching.PlaceholderAsync("Shadow#1234", untiedOnly: true, CancellationToken.None))?.Id, Is.EqualTo(plain.Id));
-        Assert.That((await matching.PlaceholderAsync("Pie", untiedOnly: true, CancellationToken.None))?.Id, Is.EqualTo(suffixed.Id));
-        Assert.That(await matching.PlaceholderAsync("Nobody#1", untiedOnly: true, CancellationToken.None), Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await matching.PlaceholderAsync("Shadow#1234", untiedOnly: true, CancellationToken.None))?.Id, Is.EqualTo(plain.Id));
+            Assert.That((await matching.PlaceholderAsync("Pie", untiedOnly: true, CancellationToken.None))?.Id, Is.EqualTo(suffixed.Id));
+            Assert.That(await matching.PlaceholderAsync("Nobody#1", untiedOnly: true, CancellationToken.None), Is.Null);
+        }
     }
 
     [Test]
@@ -177,10 +180,13 @@ public class DuplicateSuggestionTests
         var merged = await controller.MergeDuplicate(new DuplicatePairRequest { SourceUserID = one.Id, TargetUserID = real.Id }, CancellationToken.None);
         var dismissed = await controller.DismissDuplicate(new DuplicatePairRequest { SourceUserID = two.Id, TargetUserID = padre.Id }, CancellationToken.None);
 
-        Assert.That(listed, Has.Count.EqualTo(2));
-        Assert.That(merged, Is.TypeOf<NoContentResult>());
-        Assert.That(dismissed, Is.TypeOf<NoContentResult>());
-        Assert.That(await controller.DuplicateSuggestions(50, CancellationToken.None), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(listed, Has.Count.EqualTo(2));
+            Assert.That(merged, Is.TypeOf<NoContentResult>());
+            Assert.That(dismissed, Is.TypeOf<NoContentResult>());
+            Assert.That(await controller.DuplicateSuggestions(50, CancellationToken.None), Is.Empty);
+        }
     }
 
     [Test]
@@ -280,14 +286,17 @@ public class DuplicateSuggestionTests
         var all = await _service.List();
         var two = await _service.List(2);
 
-        Assert.That(all.Select(s => (s.SourceUserID, s.Match, s.Distance)), Is.EqualTo(new[]
+        using (Assert.EnterMultipleScope())
         {
+            Assert.That(all.Select(s => (s.SourceUserID, s.Match, s.Distance)), Is.EqualTo(new[]
+                {
             (exact.Id, DuplicateMatch.Exact, 0),
             (typo.Id, DuplicateMatch.Edits, 2),
             (framing.Id, DuplicateMatch.Framing, 4),
             (tokenSource.Id, DuplicateMatch.Token, 9),
         }));
-        Assert.That(all.Last().TargetUserID, Is.EqualTo(token.Id));
-        Assert.That(two.Select(s => s.SourceUserID), Is.EqualTo(new[] { exact.Id, typo.Id }));
+            Assert.That(all.Last().TargetUserID, Is.EqualTo(token.Id));
+            Assert.That(two.Select(s => s.SourceUserID), Is.EqualTo(new[] { exact.Id, typo.Id }));
+        }
     }
 }

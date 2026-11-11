@@ -25,6 +25,9 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class HistoricalImportRecordedGamesTests
 {
+    private static readonly string[] strings = ["Alpha One", "Bravo One"];
+    private static readonly string[] strings1 = ["Alpha Two", "Bravo Two"];
+    private static readonly string[] expected1 = ["l/1"];
     private static readonly DateTime T = new(2015, 6, 1, 20, 0, 0, DateTimeKind.Utc);
 
     private GrifballContext _context;
@@ -33,7 +36,7 @@ public class HistoricalImportRecordedGamesTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new HistoricalImportService(_context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }), NullLogger<HistoricalImportService>.Instance,
             new GamertagMatching(_context), TimeProvider.System);
     }
@@ -96,13 +99,13 @@ public class HistoricalImportRecordedGamesTests
         var report = await _service.Import(Summer2015(corrected));
 
         _context.ChangeTracker.Clear();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That(await _context.Set<RecordedGameTeam>().Where(t => t.RecordedGame.SourceKey == "s/edit").Select(t => t.Side).OrderBy(x => x).ToListAsync(), Is.EqualTo(new List<int> { 1, 2 }));
             Assert.That(await _context.Set<RecordedGameParticipant>().Where(x => x.RecordedGame.SourceKey == "s/edit").Select(x => x.Gamertag).ToListAsync(),
-                Is.EquivalentTo(new[] { "Alpha One", "Alpha Two", "Bravo One" }));
-        });
+                Is.EquivalentTo(expected));
+        }
     }
 
     [Test]
@@ -121,13 +124,13 @@ public class HistoricalImportRecordedGamesTests
         _context.ChangeTracker.Clear();
         var teams = await _context.Teams.AsNoTracking().ToDictionaryAsync(t => t.TeamName, t => t.TeamID);
         var sides = await _context.Set<RecordedGameTeam>().AsNoTracking().OrderBy(t => t.Side).Select(t => t.TeamID).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That(report.TeamsRemoved, Is.EqualTo(1));
-            Assert.That(teams.Keys, Is.EquivalentTo(new[] { "Alpha", "Charlie" }));
+            Assert.That(teams.Keys, Is.EquivalentTo(expectedArray));
             Assert.That(sides, Is.EqualTo(new int?[] { teams["Alpha"], teams["Charlie"] }), $"No side is team {bravo.TeamID} any more");
-        });
+        }
     }
 
     [Test]
@@ -158,7 +161,7 @@ public class HistoricalImportRecordedGamesTests
             .Include(p => p.RecordedGameTeam).ThenInclude(t => t!.Team)
             .Include(p => p.User)
             .SingleAsync(p => p.RecordedGame.SourceKey == "s/1" && p.Gamertag == "Alpha One");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(line.RecordedGameID, Is.EqualTo(line.RecordedGame.RecordedGameID));
             Assert.That(line.RecordedGameTeamID, Is.EqualTo(line.RecordedGameTeam!.RecordedGameTeamID));
@@ -168,8 +171,8 @@ public class HistoricalImportRecordedGamesTests
             Assert.That(line.RecordedGame.GameVersion.GameVesionID, Is.EqualTo(line.RecordedGame.GameVersionID));
             Assert.That(line.RecordedGame.Season!.SeasonID, Is.EqualTo(series[0].SeasonID));
             Assert.That(series[0].SeriesGames.Select(g => g.SeriesGameID), Has.All.GreaterThan(0));
-        });
-        Assert.Multiple(async () =>
+        }
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That((report.RecordedGamesImported, report.SeasonMatchesCreated, report.GamesLinked), Is.EqualTo((4, 2, 3)));
@@ -181,7 +184,7 @@ public class HistoricalImportRecordedGamesTests
                 ((int?)teams["Alpha"], (int?)teams["Bravo"], (int?)2, (int?)0, 2, false),
                 ((int?)teams["Alpha"], (int?)teams["Bravo"], (int?)1, (int?)0, 1, true),
             }), "Two games 30 minutes apart are one series; the playoff game a bracket match");
-            Assert.That(series[0].SeriesGames.OrderBy(g => g.GameNumber).Select(g => g.RecordedGame!.SourceKey), Is.EqualTo(new[] { "s/1", "s/2" }));
+            Assert.That(series[0].SeriesGames.OrderBy(g => g.GameNumber).Select(g => g.RecordedGame!.SourceKey), Is.EqualTo(expectedArray0));
             Assert.That((scrim.SeriesGame, scrim.SeasonID), Is.EqualTo(((SeriesGame?)null, (int?)series[0].SeasonID)), "A scrim is in no series but is the season's");
             Assert.That((alphaOne.FromMatches, alphaOne.GamesPlayed, alphaOne.Wins, alphaOne.Goals, alphaOne.TeamID), Is.EqualTo((true, 3, 3, 2 + 0 + 2, (int?)teams["Alpha"])), "Two series games and the scrim");
             Assert.That(await _context.Users.CountAsync(u => u.IsDummyUser), Is.EqualTo(4), "Recorded players are the sheets' placeholders");
@@ -189,7 +192,7 @@ public class HistoricalImportRecordedGamesTests
             Assert.That((again.RecordedGamesImported, again.SeasonMatchesCreated, again.RecordedGamesRemoved), Is.EqualTo((4, 0, 0)));
             Assert.That(await _context.Set<RecordedGameParticipant>().CountAsync(), Is.EqualTo(16));
             Assert.That(await _context.SeasonMatches.CountAsync(), Is.EqualTo(2));
-        });
+        }
     }
 
     [Test]
@@ -199,13 +202,13 @@ public class HistoricalImportRecordedGamesTests
 
         var report = await _service.Import(Summer2015(Game(Summer, "s/2", T.AddDays(2), [.. Alpha, .. Bravo], scrim: true)));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.RecordedGamesRemoved, Is.EqualTo(1));
-            Assert.That(await _context.RecordedGames.Select(g => g.SourceKey).ToListAsync(), Is.EqualTo(new[] { "s/2" }));
+            Assert.That(await _context.RecordedGames.Select(g => g.SourceKey).ToListAsync(), Is.EqualTo(expectedArray1));
             Assert.That(await _context.Set<SeriesGame>().AnyAsync(), Is.False);
             Assert.That(await _context.SeasonMatches.AnyAsync(), Is.False, "Series left with no games go");
-        });
+        }
     }
 
     /// <summary>A 2-1 series: Alpha wins games 1 and 2, Bravo (on side 1, so the sides are swapped) game 3.</summary>
@@ -228,17 +231,17 @@ public class HistoricalImportRecordedGamesTests
     public async Task ADecidedSeries_LosingAWinnersGame_OnReImport_IsADraw_Undecided()
     {
         await _service.Import(Summer2015(TwoOne()));
-        Assert.That(await TheSeries(), Is.EqualTo(((int?)2, (int?)1, (SeasonMatchResult?)SeasonMatchResult.Won, (SeasonMatchResult?)SeasonMatchResult.Loss, 3, new[] { "s/1", "s/2", "s/3" })));
+        Assert.That(await TheSeries(), Is.EqualTo(((int?)2, (int?)1, (SeasonMatchResult?)SeasonMatchResult.Won, (SeasonMatchResult?)SeasonMatchResult.Loss, 3, expectedArray2)));
 
         var report = await _service.Import(Summer2015(TwoOne()[0], TwoOne()[2]));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That(report.RecordedGamesRemoved, Is.EqualTo(1));
-            Assert.That(await TheSeries(), Is.EqualTo(((int?)1, (int?)1, (SeasonMatchResult?)null, (SeasonMatchResult?)null, 2, new[] { "s/1", "s/3" })),
+            Assert.That(await TheSeries(), Is.EqualTo(((int?)1, (int?)1, (SeasonMatchResult?)null, (SeasonMatchResult?)null, 2, expectedArray3)),
                 "Its score is its games', and an even count is undecided, as an import of the games left gives");
-        });
+        }
     }
 
     [Test]
@@ -249,13 +252,13 @@ public class HistoricalImportRecordedGamesTests
         // The loser's win goes: gone from the archive, or a scrim now (kept, in no series)
         var report = await _service.Import(Summer2015(asScrim ? TwoOne(scrim3: true) : TwoOne()[..2]));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Errors, Is.Empty);
-            Assert.That(await TheSeries(), Is.EqualTo(((int?)2, (int?)0, (SeasonMatchResult?)SeasonMatchResult.Won, (SeasonMatchResult?)SeasonMatchResult.Loss, 3, new[] { "s/1", "s/2" })),
+            Assert.That(await TheSeries(), Is.EqualTo(((int?)2, (int?)0, (SeasonMatchResult?)SeasonMatchResult.Won, (SeasonMatchResult?)SeasonMatchResult.Loss, 3, expectedArray0)),
                 "Bravo's win comes off Bravo's score, though Bravo was on side 1");
             Assert.That(await _context.RecordedGames.AnyAsync(g => g.SourceKey == "s/3"), Is.EqualTo(asScrim));
-        });
+        }
     }
 
     [Test]
@@ -293,17 +296,17 @@ public class HistoricalImportRecordedGamesTests
 
         var second = await _service.Import(Archive(withWaypoint: true));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((first.RecordedGamesImported, first.RecordedGamesSkippedAsWaypoint), Is.EqualTo((2, 1)));
             Assert.That((second.RecordedGamesImported, second.RecordedGamesSkippedAsWaypoint, second.RecordedGamesRemoved), Is.EqualTo((1, 2, 1)),
                 "Now the game ten minutes from the Waypoint game is its duplicate too, and the one the first run added goes");
             Assert.That(second.Warnings, Has.Some.Contains("w/by-id"));
             Assert.That(second.Warnings, Has.Some.Contains("w/near"));
-            Assert.That(await _context.RecordedGames.Select(g => g.SourceKey).ToListAsync(), Is.EqualTo(new[] { "w/later" }));
+            Assert.That(await _context.RecordedGames.Select(g => g.SourceKey).ToListAsync(), Is.EqualTo(expectedArray4));
             Assert.That(await _context.Set<SeriesGame>().CountAsync(l => l.MatchID == waypoint), Is.EqualTo(1), "The Waypoint game wins");
             Assert.That(await _context.Set<SeriesGame>().CountAsync(l => l.RecordedGameID != null), Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -326,17 +329,28 @@ public class HistoricalImportRecordedGamesTests
 
         var formats = await _context.Seasons.AsNoTracking().ToDictionaryAsync(s => s.SeasonName, s => s.Format);
 
-        // Late League is no season at all: a matchmaking season
-        Assert.That(await _context.MatchmakingSeasons.Select(s => s.Name).ToListAsync(), Is.EqualTo(new[] { "Late League Season 8 (Halo 3)" }));
-        Assert.That(formats, Is.EquivalentTo(new Dictionary<string, SeasonFormat>
+        using (Assert.EnterMultipleScope())
         {
-            ["Respawn Fall Series 1"] = SeasonFormat.Tournament,
-            ["Summer League 2015"] = SeasonFormat.LeagueSeason,
-            ["Spring Cup 2016"] = SeasonFormat.Tournament,
-        }));
+            // Late League is no season at all: a matchmaking season
+            Assert.That(await _context.MatchmakingSeasons.Select(s => s.Name).ToListAsync(), Is.EqualTo(expectedArray5));
+            Assert.That(formats, Is.EquivalentTo(new Dictionary<string, SeasonFormat>
+            {
+                ["Respawn Fall Series 1"] = SeasonFormat.Tournament,
+                ["Summer League 2015"] = SeasonFormat.LeagueSeason,
+                ["Spring Cup 2016"] = SeasonFormat.Tournament,
+            }));
+        }
     }
 
     private const string Late = "late-league-season-8-halo-3/Stats";
+    private static readonly string[] expected = new[] { "Alpha One", "Alpha Two", "Bravo One" };
+    private static readonly string[] expectedArray = new[] { "Alpha", "Charlie" };
+    private static readonly string[] expectedArray0 = new[] { "s/1", "s/2" };
+    private static readonly string[] expectedArray1 = new[] { "s/2" };
+    private static readonly string[] expectedArray2 = new[] { "s/1", "s/2", "s/3" };
+    private static readonly string[] expectedArray3 = new[] { "s/1", "s/3" };
+    private static readonly string[] expectedArray4 = new[] { "w/later" };
+    private static readonly string[] expectedArray5 = new[] { "Late League Season 8 (Halo 3)" };
 
     /// <summary>Late League Season 8 (Halo 3), filed under AGLA but LateLeague by its format, with a title the record gives it.</summary>
     private static HistoricalArchiveInput LateLeague8(params RecordedGameInput[] games)
@@ -370,9 +384,9 @@ public class HistoricalImportRecordedGamesTests
             .Include(m => m.RecordedGame)
             .Include(m => m.MatchmakingSeason!).ThenInclude(s => s.GameVersion)
             .OrderBy(m => m.StartedAt).ToListAsync();
-        string[] Names(MatchedTeam side) => [.. side.Players.Select(p => p.User.DisplayName).Order()];
+        string?[] Names(MatchedTeam side) => [.. side.Players.Select(p => p.User.DisplayName).Order()];
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That(report.MatchmakingSeasonsCreated, Is.EqualTo(1));
@@ -385,10 +399,10 @@ public class HistoricalImportRecordedGamesTests
                 Is.EqualTo(new[] { ("l/1", (int?)season.MatchmakingSeasonID, MatchedMatchStatus.Reported, T), ("l/2", (int?)season.MatchmakingSeasonID, MatchedMatchStatus.Reported, T.AddDays(1)) }));
             Assert.That((Names(matches[0].HomeTeam), Names(matches[0].AwayTeam)), Is.EqualTo((Alpha, Bravo)));
             Assert.That((matches[0].RecordedGameID, matches[0].MatchmakingSeason!.GameVersion!.Slug), Is.EqualTo(((int?)matches[0].RecordedGame!.RecordedGameID, "halo3")));
-            Assert.That((Names(matches[1].HomeTeam), Names(matches[1].AwayTeam)), Is.EqualTo((new[] { "Alpha One", "Bravo One" }, new[] { "Alpha Two", "Bravo Two" })), "Random sides each game");
+            Assert.That((Names(matches[1].HomeTeam), Names(matches[1].AwayTeam)), Is.EqualTo((strings, strings1)), "Random sides each game");
             Assert.That(await _context.RecordedGames.Select(g => new { g.SeasonID, g.IsPlayoffs }).ToListAsync(), Is.All.EqualTo(new { SeasonID = (int?)null, IsPlayoffs = false }));
             Assert.That(await _context.MatchmakingPlayerStats.CountAsync(s => s.MatchmakingSeasonID == season.MatchmakingSeasonID), Is.EqualTo(4), "The sheet's rows");
-        });
+        }
     }
 
     [Test]
@@ -403,7 +417,7 @@ public class HistoricalImportRecordedGamesTests
         droppedInput.Seasons.Seasons[0].Players.RemoveAt(3);
         var dropped = await _service.Import(droppedInput);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((again.MatchmakingSeasonsCreated, again.MatchmakingSeasonsUpdated, again.RecordedGamesRemoved, again.StatsRemoved), Is.EqualTo((0, 1, 0, 0)));
             Assert.That(counts, Is.EqualTo((2, 8, 4)));
@@ -412,8 +426,8 @@ public class HistoricalImportRecordedGamesTests
             Assert.That(await _context.MatchedMatches.CountAsync(), Is.EqualTo(1));
             Assert.That(await _context.Set<MatchedTeam>().CountAsync(), Is.EqualTo(2));
             Assert.That(await _context.Set<MatchedPlayer>().CountAsync(), Is.EqualTo(3));
-            Assert.That(await _context.RecordedGames.Select(g => g.SourceKey).ToListAsync(), Is.EqualTo(new[] { "l/1" }));
-        });
+            Assert.That(await _context.RecordedGames.Select(g => g.SourceKey).ToListAsync(), Is.EqualTo(expected1));
+        }
     }
 
     [Test]
@@ -426,14 +440,14 @@ public class HistoricalImportRecordedGamesTests
         var season = (await controller.GetSeason(seasons.Single().MatchmakingSeasonID, CancellationToken.None)).Value!;
         var missing = await controller.GetSeason(seasons.Single().MatchmakingSeasonID + 1, CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(seasons.Select(s => (s.Name, s.GameVersionSlug, s.GameCount, s.PlayerCount, s.IsHistorical)),
                 Is.EqualTo(new[] { ("Late League Season 8 (Halo 3)", (string?)"halo3", 2, 4, true) }));
             Assert.That(season.Players.Select(p => (p.Gamertag, p.Source, p.GamesPlayed, p.Wins)).OrderBy(p => p.Gamertag),
                 Is.EqualTo(new[] { ("Alpha One", "Matches", 2, 2), ("Alpha Two", "Matches", 2, 2), ("Bravo One", "Matches", 2, 0), ("Bravo Two", "Matches", 2, 0) }));
             Assert.That(missing.Result, Is.TypeOf<Microsoft.AspNetCore.Mvc.NotFoundResult>());
-        });
+        }
     }
 
     [Test]
@@ -448,12 +462,12 @@ public class HistoricalImportRecordedGamesTests
         shrunk.Seasons.Seasons[0].Players.RemoveRange(1, 3);
         var guarded = await _service.Run(shrunk, new HistoricalImportRunOptions { Guardrail = new HistoricalGuardrailOptions() });
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(guarded.SeasonRemovals.Single().Stopped, Is.True);
             Assert.That(guarded.Warnings, Has.Some.Contains("stopped for review"));
             Assert.That(await _context.MatchmakingPlayerStats.CountAsync(), Is.EqualTo(4), "Left as it was");
-        });
+        }
     }
 
     [Test]
@@ -464,12 +478,12 @@ public class HistoricalImportRecordedGamesTests
 
         var report = await failing.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo])));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Errors, Is.EqualTo(new[] { $"{Late}: The clock broke" }));
             Assert.That(await _context.MatchmakingSeasons.AnyAsync(), Is.False);
             Assert.That(await _context.RecordedGames.AnyAsync(), Is.False);
-        });
+        }
     }
 
     /// <summary>A clock that fails when read: the import fails partway through a season.</summary>
@@ -490,14 +504,14 @@ public class HistoricalImportRecordedGamesTests
         input.Seasons.Seasons[0].Players.Add(new ArchivePlayer { Gamertag = "alpha one", GamesPlayed = 3 });
         var report = await _service.Import(input);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Skipped, Has.Some.Contains("l/1: listed twice"));
             Assert.That(report.Skipped, Has.Some.Contains("alpha one is a second row for the same player"));
             Assert.That(report.Skipped, Has.Some.Contains("l/halo9: unknown game version 'halo9'"));
             Assert.That(report.Skipped, Has.Some.Contains("l/one-side: a matchmaking game has two sides, it has 1"));
             Assert.That(await _context.MatchedMatches.CountAsync(), Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -509,13 +523,13 @@ public class HistoricalImportRecordedGamesTests
 
         await _service.Import(LateLeague8(Game(Late, "l/1", T, [.. Alpha, .. Bravo])));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Set<SeriesGame>().AnyAsync(), Is.False);
             Assert.That(await _context.SeasonMatches.AnyAsync(), Is.False, "Its series had no other game");
             Assert.That(await _context.RecordedGames.Select(g => new { g.SourceKey, g.SeasonID, Matched = g.MatchedMatch != null }).SingleAsync(),
                 Is.EqualTo(new { SourceKey = "l/1", SeasonID = (int?)null, Matched = true }));
-        });
+        }
     }
 
     [Test]
@@ -532,12 +546,12 @@ public class HistoricalImportRecordedGamesTests
 
         var queue = await new GrifballWebApp.Server.LateLeague.LateLeagueController(new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context)).GetQueue(CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(lines.Select(l => (l.MatchmakingSeasonID, l.MatchmakingSeasonName, l.SeasonKey, l.FromMatches, l.GamesPlayed, l.Wins, l.GameVersionSlug)),
                 Is.EqualTo(new[] { ((int?)null, (string?)null, (string?)null, true, 1, 1, (string?)"infinite") }));
             Assert.That((queue.GameCount, queue.Players.Count, queue.Players.All(p => p.MatchmakingSeasonID == null)), Is.EqualTo((1, 4, true)), "Late League as it is played now");
-        });
+        }
     }
 
     [Test]
@@ -549,13 +563,13 @@ public class HistoricalImportRecordedGamesTests
         await _service.Import(Summer2015(Game(Summer, "l/1", T, [.. Alpha, .. Bravo])));
         var lateLeague = await new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context).GetAsync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.MatchedMatches.AnyAsync(), Is.False);
             Assert.That(await _context.Set<MatchedPlayer>().AnyAsync(), Is.False);
             Assert.That(await _context.Set<SeriesGame>().CountAsync(l => l.RecordedGameID != null), Is.EqualTo(1));
             Assert.That(lateLeague.Where(l => l.FromMatches), Is.Empty, "Its sheet's rows are all Late League has of it");
-        });
+        }
 
         // And a season's game the archive drops, once a Late League game, goes cleanly
         await _service.Import(LateLeague8(Game(Late, "l/2", T, [.. Alpha, .. Bravo])));
@@ -565,8 +579,11 @@ public class HistoricalImportRecordedGamesTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var report = await _service.Import(Summer2015(Game(Summer, "l/1", T, [.. Alpha, .. Bravo])));
-        Assert.That(report.Errors, Is.Empty);
-        Assert.That((await _context.RecordedGames.AnyAsync(g => g.SourceKey == "l/2"), await _context.MatchedMatches.AnyAsync()), Is.EqualTo((false, false)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That((await _context.RecordedGames.AnyAsync(g => g.SourceKey == "l/2"), await _context.MatchedMatches.AnyAsync()), Is.EqualTo((false, false)));
+        }
     }
 
     [Test]
@@ -585,13 +602,13 @@ public class HistoricalImportRecordedGamesTests
 
         var report = await _service.Import(input);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Skipped, Has.Some.Contains("a Late League season's games are its recorded games"));
             Assert.That(report.Warnings, Has.Some.Contains("l/wp: has Waypoint match"));
             Assert.That(report.WaypointMatchesPulled, Is.Zero);
             Assert.That(await _context.MatchedMatches.CountAsync(), Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -608,15 +625,15 @@ public class HistoricalImportRecordedGamesTests
         var lines = await stats.GetAsync();
         var profile = await new GrifballWebApp.Application.Profile.ProfileStatsService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), stats).GetAsync(alphaOne.Id);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(lines.Select(l => (l.Gamertag, l.FromMatches, l.GamesPlayed, l.Kills)).OrderBy(l => l.Gamertag),
                 Is.EqualTo(new[] { ("Alpha One", true, 1, 5), ("Alpha Two", true, 1, 5), ("Bravo One", true, 1, 5), ("Bravo Two", false, 1, 0) }));
-            Assert.That(lines.Select(l => l.MatchmakingSeasonName).Distinct(), Is.EqualTo(new[] { "Late League Season 8 (Halo 3)" }));
+            Assert.That(lines.Select(l => l.MatchmakingSeasonName).Distinct(), Is.EqualTo(expectedArray5));
             Assert.That(profile!.LateLeague.Single().Wins, Is.EqualTo(1));
             Assert.That(profile.Seasons, Is.Empty);
             Assert.That((profile.OverallCareer!.GamesPlayed, profile.OverallCareer.Kills, profile.OverallCareer.SeasonsCount), Is.EqualTo((1, 5, 1)), "Late League counts in the career");
-        });
+        }
     }
 
     [Test]
@@ -634,7 +651,7 @@ public class HistoricalImportRecordedGamesTests
                 Teams = [.. twiceSide.Teams, new RecordedTeamInput { Side = 1, Outcome = Outcomes.Lost }], Players = twiceSide.Players,
             }));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That(report.Skipped, Has.Some.Contains("s/1: listed twice"));
@@ -645,6 +662,6 @@ public class HistoricalImportRecordedGamesTests
             Assert.That(await _context.Set<RecordedGameTeam>().CountAsync(t => t.RecordedGame.SourceKey == "s/side-twice"), Is.EqualTo(2), "A side listed twice is taken once");
             Assert.That(await _context.Set<RecordedGameTeam>().Where(t => t.RecordedGame.SourceKey == "s/same-team").Select(t => t.TeamID).ToListAsync(), Is.All.Null);
             Assert.That(await _context.Set<RecordedGameParticipant>().CountAsync(p => p.RecordedGame.SourceKey == "s/strangers"), Is.EqualTo(3));
-        });
+        }
     }
 }

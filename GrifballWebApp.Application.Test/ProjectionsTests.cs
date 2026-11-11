@@ -55,11 +55,11 @@ public class ProjectionsTests
     {
         var extended = Projections.Extend((Source s) => new Base { A = s.Apply(IsBig) ? 1 : 0, B = s.B }, (Source s) => new Derived { C = s.Apply(Exceeds(5)) ? 1 : 0 });
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(extended.ToString(), Does.Not.Contain(nameof(ModelRules.Apply)));
             var derived = extended.Compile()(new Source(11, 0));
             Assert.That((derived.A, derived.B, derived.C), Is.EqualTo((1, 0, 1)));
-        });
+        }
     }
 }

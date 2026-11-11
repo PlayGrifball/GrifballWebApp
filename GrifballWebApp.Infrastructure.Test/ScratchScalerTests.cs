@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging.Abstractions;
 using GrifballWebApp.Infrastructure.DatabaseBackup;
+using static GrifballWebApp.Infrastructure.Test.ScratchScalerTestData;
 
 namespace GrifballWebApp.Infrastructure.Test;
 
@@ -47,10 +48,13 @@ public class ScratchScalerTests
         await Scaler(api).StartAsync(CancellationToken.None);
 
         Assert.That(api.Requests, Has.Count.EqualTo(4));
-        Assert.That(api.Requests[0], Is.EqualTo((HttpMethod.Patch, Deployment + "/scale", "Bearer token-1", "application/merge-patch+json", """{"spec":{"replicas":1}}""")));
-        Assert.That(api.Requests.Skip(1).Select(r => (r.Method, r.Path)), Is.All.EqualTo((HttpMethod.Get, Deployment)));
-        // Read again for each call: the kubelet rotates it.
-        Assert.That(api.Requests[3].Authorization, Is.EqualTo("Bearer token-4"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(api.Requests[0], Is.EqualTo((HttpMethod.Patch, Deployment + "/scale", "Bearer token-1", "application/merge-patch+json", """{"spec":{"replicas":1}}""")));
+            Assert.That(api.Requests.Skip(1).Select(r => (r.Method, r.Path)), Is.All.EqualTo((HttpMethod.Get, Deployment)));
+            // Read again for each call: the kubelet rotates it.
+            Assert.That(api.Requests[3].Authorization, Is.EqualTo("Bearer token-4"));
+        }
     }
 
     [Test]
@@ -80,8 +84,11 @@ public class ScratchScalerTests
 
         var e = await Assert.ThrowsAsync<InvalidOperationException>(() => Scaler(api).StopAsync(CancellationToken.None));
 
-        Assert.That(e!.Message, Does.StartWith("Couldn't scale to 0 the scratch server (grif-backup-scratch): the Kubernetes API answered 403."));
-        Assert.That(e.Message, Does.Contain("ServiceAccount").And.Contain("apiServerTo").And.EndWith("""{"reason":"Forbidden"}"""));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(e!.Message, Does.StartWith("Couldn't scale to 0 the scratch server (grif-backup-scratch): the Kubernetes API answered 403."));
+            Assert.That(e.Message, Does.Contain("ServiceAccount").And.Contain("apiServerTo").And.EndWith("""{"reason":"Forbidden"}"""));
+        }
     }
 
     [Test]
@@ -103,34 +110,13 @@ public class ScratchScalerTests
         var request = new CertificateRequest("CN=kubernetes", serverKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         using var server = request.Create(ca, DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow.AddHours(1), [1, 2, 3, 4]);
 
-        Assert.That(KubernetesScratchScaler.TrustedBy(ca, server), Is.True);
-        Assert.That(KubernetesScratchScaler.TrustedBy(other, server), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(KubernetesScratchScaler.TrustedBy(ca, server), Is.True);
+            Assert.That(KubernetesScratchScaler.TrustedBy(other, server), Is.False);
+        }
         caKey.Dispose();
         otherKey.Dispose();
     }
 
-    private sealed class RecordingScaler(Exception? stopFails = null) : IScratchScaler
-    {
-        public readonly List<string> Calls = [];
-
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            Calls.Add("start");
-            return Task.CompletedTask;
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            Calls.Add("stop");
-            return stopFails is null ? Task.CompletedTask : Task.FromException(stopFails);
-        }
-    }
-
-    /// <summary>For DatabaseBackupScratchTests.</summary>
-    internal static IScratchScaler Recording(out List<string> calls)
-    {
-        var scaler = new RecordingScaler();
-        calls = scaler.Calls;
-        return scaler;
-    }
 }

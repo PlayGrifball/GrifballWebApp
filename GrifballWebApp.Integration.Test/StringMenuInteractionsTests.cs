@@ -28,11 +28,13 @@ public class StringMenuInteractionsTests
     private MatchmakingStringMenuHandler _handler;
     private IDiscordStringMenuInteractionContext _discordContext;
     private IQueueNotifier _notifier;
+    private static readonly int[] second = new[] { 2 };
+    private static readonly int[] secondArray = new[] { 4 };
 
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _discordClient = Substitute.For<IDiscordRestClient>();
         var options = Substitute.For<IOptions<DiscordOptions>>();
         options.Value.Returns(new DiscordOptions { QueueChannel = 123456 });
@@ -40,7 +42,8 @@ public class StringMenuInteractionsTests
         var logger = Substitute.For<Microsoft.Extensions.Logging.ILogger<QueueService>>();
         var dataPull = Substitute.For<IDataPullService>();
         _queueService = new QueueService(logger, options, queueRepo, _discordClient, _context, dataPull, new ContextOutbox(_context), Substitute.For<IQueueNotifier>());
-        _handler = new MatchmakingStringMenuHandler(_context, _discordClient, _queueService, _notifier = Substitute.For<IQueueNotifier>());
+        _notifier = Substitute.For<IQueueNotifier>();
+        _handler = new MatchmakingStringMenuHandler(_context, _discordClient, _queueService, _notifier);
         _discordContext = Substitute.For<IDiscordStringMenuInteractionContext>();
     }
 
@@ -237,7 +240,7 @@ public class StringMenuInteractionsTests
         Assert.That(kicked.Kicked, Is.True);
         await _discordContext.AssertSendResponse($"{them.ToDisplayName()} has been kicked");
         // Out of the match: their home page offers the queue again
-        await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { 2 })));
+        await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(second)));
     }
 
     [Test]
@@ -264,7 +267,7 @@ public class StringMenuInteractionsTests
 
         await using var fresh = _context.NewContextLike();
         var votes = fresh.Set<MatchedKickVote>().Select(v => new { v.VoterMatchedPlayerId, v.KickMatchedPlayerId }).ToList();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(votes, Is.EquivalentTo(new[]
             {
@@ -274,7 +277,7 @@ public class StringMenuInteractionsTests
             Assert.That(fresh.Set<MatchedPlayer>().Any(p => p.Kicked), Is.False);
             await _discordContext.AssertSendResponse("GT1 has voted to kick GT3");
             await _discordContext.AssertSendResponse("GT1 has voted to kick GT4");
-        });
+        }
     }
 
     [Test]
@@ -310,15 +313,15 @@ public class StringMenuInteractionsTests
         }
 
         await using var fresh = _context.NewContextLike();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await fresh.Set<MatchedKickVote>().CountAsync(), Is.EqualTo(3));
             Assert.That(await fresh.Set<MatchedPlayer>().Where(p => p.Kicked).Select(p => p.UserID).ToListAsync(), Is.EqualTo(new List<int> { 4 }),
                 "Decided again on the saved votes: 3 of 4");
             await second.AssertSendResponse("GT2 has voted to kick GT4");
             await _discordContext.AssertSendResponse($"{players[3].ToDisplayName()} has been kicked");
-            await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(new[] { 4 })));
-        });
+            await _notifier.Received(1).SendStatusChanged(Arg.Is<IReadOnlyCollection<int>>(x => x.SequenceEqual(secondArray)));
+        }
     }
 
     /// <summary>A handler's context whose first save waits for another handler's to finish first: the two at once.</summary>

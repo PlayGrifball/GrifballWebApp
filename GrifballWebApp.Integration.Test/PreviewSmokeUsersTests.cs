@@ -22,11 +22,12 @@ public class PreviewSmokeUsersTests
     private ServiceProvider _provider;
     private IServiceScope _scope;
     private UserManager<User> _userManager;
+    private static readonly string[] expected = new[] { "Sysadmin", "Commissioner" };
 
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
 
         var services = new ServiceCollection();
         services.AddLogging();
@@ -72,13 +73,13 @@ public class PreviewSmokeUsersTests
             Assert.That(user, Is.Not.Null, userName);
             var passwordOk = await _userManager.CheckPasswordAsync(user!, Password);
             var roles = await _userManager.GetRolesAsync(user!);
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(passwordOk, Is.True, userName);
-                Assert.That(roles, Is.EquivalentTo(new[] { "Sysadmin", "Commissioner" }), userName);
+                Assert.That(roles, Is.EquivalentTo(expected), userName);
                 Assert.That(user!.DisplayName, Is.EqualTo(userName));
                 Assert.That(user.LockoutEnd, Is.Null);
-            });
+            }
         }
     }
 
@@ -86,16 +87,22 @@ public class PreviewSmokeUsersTests
     [TestCase("false")]
     public async Task Should_DoNothing_WhenPreviewModeIsOff(string? preview)
     {
-        Assert.That(await Ensure(preview: preview), Is.Null);
-        Assert.That(await AnySmokeUser(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Ensure(preview: preview), Is.Null);
+            Assert.That(await AnySmokeUser(), Is.False);
+        }
     }
 
     [TestCase(null)]
     [TestCase("")]
     public async Task Should_DoNothing_WhenThePasswordIsNotSet(string? password)
     {
-        Assert.That(await Ensure(password: password), Is.Null);
-        Assert.That(await AnySmokeUser(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Ensure(password: password), Is.Null);
+            Assert.That(await AnySmokeUser(), Is.False);
+        }
     }
 
     [Test]
@@ -104,7 +111,7 @@ public class PreviewSmokeUsersTests
         await Ensure();
         var ids = await _context.Users.Where(u => PreviewSmokeUsers.UserNames.Contains(u.UserName!)).Select(u => u.Id).ToListAsync();
 
-        Assert.That(await Ensure(), Is.EqualTo(0));
+        Assert.That(await Ensure(), Is.Zero);
 
         var idsAfter = await _context.Users.Where(u => PreviewSmokeUsers.UserNames.Contains(u.UserName!)).Select(u => u.Id).ToListAsync();
         Assert.That(idsAfter, Is.EquivalentTo(ids));
@@ -129,14 +136,14 @@ public class PreviewSmokeUsersTests
         var newOk = await _userManager.CheckPasswordAsync(user, rotated);
         var oldOk = await _userManager.CheckPasswordAsync(user, Password);
         var roles = await _userManager.GetRolesAsync(user);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(newOk, Is.True);
             Assert.That(oldOk, Is.False);
-            Assert.That(roles, Is.EquivalentTo(new[] { "Sysadmin", "Commissioner" }));
+            Assert.That(roles, Is.EquivalentTo(expected));
             Assert.That(user.LockoutEnd, Is.Null);
             Assert.That(user.AccessFailedCount, Is.Zero);
-        });
+        }
     }
 
     [Test]
@@ -154,8 +161,11 @@ public class PreviewSmokeUsersTests
     [Test]
     public async Task Should_SkipAndNotThrow_WhenThePasswordIsRefused()
     {
-        // Too short and too simple for the identity password rules.
-        Assert.That(await Ensure(password: "short"), Is.EqualTo(0));
-        Assert.That(await AnySmokeUser(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            // Too short and too simple for the identity password rules.
+            Assert.That(await Ensure(password: "short"), Is.Zero);
+            Assert.That(await AnySmokeUser(), Is.False);
+        }
     }
 }

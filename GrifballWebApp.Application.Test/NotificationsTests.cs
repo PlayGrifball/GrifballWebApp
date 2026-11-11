@@ -91,16 +91,20 @@ public class NotificationsTests
             .Select(d => d.ImplementationType!)
             .ToArray();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Handlers<Ping>(), Is.EquivalentTo(new[] { typeof(FirstPingHandler), typeof(SecondPingHandler), typeof(PingPongHandler) }));
             Assert.That(Handlers<Pong>(), Is.EquivalentTo(new[] { typeof(PingPongHandler) }));
             Assert.That(Handlers<Unhandled>(), Is.Empty);
             Assert.That(services.Where(d => d.ServiceType.IsGenericType && d.ServiceType.GetGenericTypeDefinition() == typeof(INotificationHandler<>)),
-                Has.All.Matches<ServiceDescriptor>(d => d.Lifetime == ServiceLifetime.Transient));
+                Has.All.Matches<ServiceDescriptor>(d => d is { Lifetime: ServiceLifetime.Transient }));
             Assert.That(services.Single(d => d.ServiceType == typeof(IPublisher)).Lifetime, Is.EqualTo(ServiceLifetime.Transient));
-        });
+        }
     }
+
+    private static readonly string[] stringArray = new[] { "first start 1", "first end 1" };
+    private static readonly string[] stringArray0 = new[] { "second 1" };
+    private static readonly string[] stringArray1 = new[] { "pingpong ping 1" };
 
     [Test]
     public async Task Publish_Should_RunEveryHandler_OneAfterAnother_InRegistrationOrder()
@@ -114,9 +118,7 @@ public class NotificationsTests
 
         // Registration order is the assembly's type order; what matters is that each handler finishes before the next.
         var order = scope.ServiceProvider.GetServices<INotificationHandler<Ping>>().Select(h => h.GetType()).ToList();
-        var expected = order.SelectMany(t => t == typeof(FirstPingHandler) ? new[] { "first start 1", "first end 1" }
-            : t == typeof(SecondPingHandler) ? new[] { "second 1" }
-            : new[] { "pingpong ping 1" }).Append("pingpong pong");
+        var expected = order.SelectMany(t => t == typeof(FirstPingHandler) ? stringArray : t == typeof(SecondPingHandler) ? stringArray0 : stringArray1).Append("pingpong pong");
         Assert.That(log.Entries, Is.EqualTo(expected));
     }
 

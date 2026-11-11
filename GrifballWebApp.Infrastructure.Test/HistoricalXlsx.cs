@@ -69,7 +69,7 @@ internal static class HistoricalXlsx
         ("h_teams", [Row("teamid", "teamname", "division", "season"), Row(20, "Four Guys One Ball", 5, 20), Row(21, "Hybrid Theory", 2, 20)]));
 
     /// <summary>A season stats tab: Player, Team, Games, Wins, Losses, Goals, Kills, Deaths, Assists.</summary>
-    public static object?[][] StatsTab(params (string Gamertag, string Team, int Kills)[] players)
+    public static object?[][] StatsTab(params (string Gamertag, string? Team, int Kills)[] players)
         => [Row("Player", "Team", "Games", "Wins", "Losses", "Goals", "Kills", "Deaths", "Assists"),
             .. players.Select(p => Row(p.Gamertag, p.Team, 4, 2, 2, 1, p.Kills, 10, 3))];
 }

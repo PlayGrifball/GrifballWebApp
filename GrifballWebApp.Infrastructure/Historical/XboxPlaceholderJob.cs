@@ -10,7 +10,7 @@ namespace GrifballWebApp.Infrastructure.Historical;
 /// hourly by default: the accounts known before placeholders were made for them, and those a gamertag lookup stored
 /// since. Idempotent, one cheap query when there are none; one run at a time, or two would race to make the same one.
 /// </summary>
-public sealed class XboxPlaceholderJob : IJob
+public sealed partial class XboxPlaceholderJob : IJob
 {
     public static readonly JobKey Key = new("xbox-placeholders", RecurringJobs.Group);
 
@@ -32,10 +32,13 @@ public sealed class XboxPlaceholderJob : IJob
         _logger = logger;
     }
 
-    public async ValueTask Execute(IJobExecutionContext context, CancellationToken ct = default)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        var made = await _matching.EnsureXboxPlaceholdersAsync(null, ct);
+        var made = await _matching.EnsureXboxPlaceholdersAsync(null, cancellationToken);
         if (made > 0)
-            _logger.LogInformation("Made {Count} placeholders for Xbox accounts no user holds", made);
+            LogPlaceholders(_logger, made);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Made {Count} placeholders for Xbox accounts no user holds")]
+    private static partial void LogPlaceholders(ILogger logger, int count);
 }

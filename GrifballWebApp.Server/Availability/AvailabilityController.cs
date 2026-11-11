@@ -8,12 +8,10 @@ namespace GrifballWebApp.Server.Availability;
 [ApiController]
 public class AvailabilityController : ControllerBase
 {
-    private readonly ILogger<AvailabilityController> _logger;
     private readonly AvailabilityService _availabilityService;
 
-    public AvailabilityController(ILogger<AvailabilityController> logger, AvailabilityService availabilityService)
+    public AvailabilityController(AvailabilityService availabilityService)
     {
-        _logger = logger;
         _availabilityService = availabilityService;
     }
 

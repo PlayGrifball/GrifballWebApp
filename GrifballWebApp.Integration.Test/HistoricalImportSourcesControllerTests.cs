@@ -27,7 +27,7 @@ public class HistoricalImportSourcesControllerTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _signal = new HistoricalImportSignal();
         var sources = new HistoricalSourceService(_context, new HistoricalSourceFetcher(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(HttpStatusCode.NotFound)))),
             TimeProvider.System, NullLogger<HistoricalSourceService>.Instance);

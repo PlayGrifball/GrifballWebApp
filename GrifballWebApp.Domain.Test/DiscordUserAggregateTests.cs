@@ -15,14 +15,14 @@ public class DiscordUserAggregateTests
     {
         var account = DiscordUser.FromDiscord(42, "alice");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(account.DiscordUserID, Is.EqualTo(42));
             Assert.That(account.DiscordUsername, Is.EqualTo("alice"));
             Assert.That(account.User, Is.Null);
             Assert.That(account.SentMessages, Is.Empty);
             Assert.That(account.ReceivedMessages, Is.Empty);
-        });
+        }
     }
 
     [TestCase(null)]
@@ -36,11 +36,11 @@ public class DiscordUserAggregateTests
     {
         var account = DiscordUser.FromDiscord(42, "alice");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(account.Rename("alice_2"), Is.EqualTo(DiscordRename.Renamed));
             Assert.That(account.DiscordUsername, Is.EqualTo("alice_2"));
-        });
+        }
     }
 
     [Test]
@@ -48,13 +48,13 @@ public class DiscordUserAggregateTests
     {
         var account = DiscordUser.FromDiscord(42, "  alice ");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(account.DiscordUsername, Is.EqualTo("alice"));
             Assert.That(account.Rename(" alice  "), Is.EqualTo(DiscordRename.Unchanged));
             Assert.That(account.Rename(" bob "), Is.EqualTo(DiscordRename.Renamed));
             Assert.That(account.DiscordUsername, Is.EqualTo("bob"));
-        });
+        }
     }
 
     [Test]
@@ -62,11 +62,11 @@ public class DiscordUserAggregateTests
     {
         var account = DiscordUser.FromDiscord(42, "alice");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(account.Rename("alice"), Is.EqualTo(DiscordRename.Unchanged));
             Assert.That(account.DiscordUsername, Is.EqualTo("alice"));
-        });
+        }
     }
 
     [TestCase(null)]
@@ -76,23 +76,23 @@ public class DiscordUserAggregateTests
     {
         var account = DiscordUser.FromDiscord(42, "alice");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(account.Rename(username), Is.EqualTo(DiscordRename.NoUsername));
             Assert.That(account.DiscordUsername, Is.EqualTo("alice"));
-        });
+        }
     }
 
     [Test]
     public void IsUsername_refuses_a_blank_one()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(DiscordUser.IsUsername("alice"), Is.True);
             Assert.That(DiscordUser.IsUsername(null), Is.False);
             Assert.That(DiscordUser.IsUsername(""), Is.False);
             Assert.That(DiscordUser.IsUsername(" "), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -101,11 +101,11 @@ public class DiscordUserAggregateTests
         var account = DiscordUser.FromDiscord(42, "alice");
         var user = User.Seed(userName: "alice");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(user.LinkDiscord(account), Is.EqualTo(DiscordLinking.Linked));
             Assert.That(user.DiscordUser, Is.SameAs(account));
             Assert.That(user.DiscordUserID, Is.EqualTo(42));
-        });
+        }
     }
 }

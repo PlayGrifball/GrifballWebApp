@@ -16,13 +16,16 @@ public class UserAggregateTests
     private const int Central = 2;
 
     private static readonly LateLeagueRules Rules = new(KFactor: 32, WinThreshold: 3, BonusPerWin: 10, MaxBonus: 20, LossThreshold: 3, PenaltyPerLoss: 10, MaxPenalty: 20);
+    private static readonly int[] expected = new[] { 24, 24, 34, 44, 44 };
+    private static readonly int[] expectedArray = new[] { 20, 20, 30, 40 };
+    private static readonly int[] expectedArray0 = new[] { 1, 2 };
 
     [Test]
     public void Register_IsARealUser_TiedToNothing()
     {
         var user = User.Register("alice", "alice@example.com", "Alice");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((user.UserName, user.Email, user.DisplayName), Is.EqualTo(("alice", "alice@example.com", "Alice")));
             Assert.That(user.IsDummyUser, Is.False);
@@ -33,7 +36,7 @@ public class UserAggregateTests
             Assert.That(User.Register("bob").DisplayName, Is.Null);
             Assert.Throws<ArgumentException>(() => User.Register(" "), "A user has a user name");
             Assert.Throws<ArgumentException>(() => User.Register("carol", displayName: new string('n', User.DisplayNameMaxLength + 1)), "A display name fits its column");
-        });
+        }
     }
 
     [Test]
@@ -43,7 +46,7 @@ public class UserAggregateTests
         var tied = User.ImportPlaceholder("historical:Tag:123", "Tag", 123);
         var longName = User.ImportPlaceholder("historical:" + new string('g', 40), new string('g', 40), null);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((placeholder.UserName, placeholder.NormalizedUserName, placeholder.DisplayName), Is.EqualTo(("historical:Old Tag", "HISTORICAL:OLD TAG", "Old Tag")));
             Assert.That(placeholder.IsDummyUser, Is.True);
@@ -53,7 +56,7 @@ public class UserAggregateTests
             Assert.That(longName.DisplayName, Has.Length.EqualTo(User.DisplayNameMaxLength));
             Assert.Throws<ArgumentException>(() => User.ImportPlaceholder("oldtag", "Old Tag", null), "A placeholder's name has the prefix");
             Assert.Throws<ArgumentException>(() => User.ImportPlaceholder("historical:Old Tag", " ", null), "And a gamertag");
-        });
+        }
     }
 
     [Test]
@@ -62,7 +65,7 @@ public class UserAggregateTests
         var user = User.Register("alice");
         var xbox = XboxUser.FromXbox(10, "Alice");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(user.TieToXbox(xbox), Is.EqualTo(XboxTie.Tied));
             Assert.That(user.TieToXbox(xbox), Is.EqualTo(XboxTie.AlreadyTied));
@@ -71,33 +74,36 @@ public class UserAggregateTests
             Assert.That(user.TieToXbox(20), Is.EqualTo(XboxTie.TiedToOther), "Tied already: untie first");
             Assert.That(user.TieToXbox(XboxUser.FromXbox(20, "Other")), Is.EqualTo(XboxTie.TiedToOther));
             Assert.That((user.XboxUserID, user.XboxUser), Is.EqualTo(((long?)10, xbox)), "Refused, nothing changed");
-        });
+        }
 
         var holder = User.Seed(id: 1, xboxUser: XboxUser.FromXbox(30, "Held"));
         var held = holder.XboxUser!;
         // As EF fixes up the inverse of a tracked pair
         typeof(XboxUser).GetProperty(nameof(XboxUser.User))!.SetValue(held, holder);
         var taker = User.Register("taker");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(taker.TieToXbox(held), Is.EqualTo(XboxTie.HeldByOther), "Another user holds it");
             Assert.That((taker.XboxUserID, taker.XboxUser), Is.EqualTo(((long?)null, (XboxUser?)null)), "Refused, nothing changed");
             Assert.That(user.TieToXbox(held), Is.EqualTo(XboxTie.TiedToOther), "Its own account first: untie that first");
             Assert.That(holder.TieToXbox(held), Is.EqualTo(XboxTie.AlreadyTied), "The holder itself");
-        });
+        }
 
         holder.UntieXbox();
         Assert.That(taker.TieToXbox(held), Is.EqualTo(XboxTie.Tied));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((holder.XboxUserID, holder.XboxUser), Is.EqualTo(((long?)null, (XboxUser?)null)));
             Assert.That(taker.XboxUserID, Is.EqualTo(30), "Untied from its holder, it may be taken");
-        });
+        }
 
         user.UntieXbox();
         user.UntieXbox();
-        Assert.That(user.TieToXbox(20), Is.EqualTo(XboxTie.Tied));
-        Assert.That(user.XboxUserID, Is.EqualTo(20), "Untied, the user may be tied to another");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(user.TieToXbox(20), Is.EqualTo(XboxTie.Tied));
+            Assert.That(user.XboxUserID, Is.EqualTo(20), "Untied, the user may be tied to another");
+        }
     }
 
     [Test]
@@ -106,11 +112,11 @@ public class UserAggregateTests
         var placeholder = User.ImportPlaceholder("historical:Old Tag", "Old Tag", null);
 
         placeholder.BecomeRealUser();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(placeholder.IsDummyUser, Is.False);
             Assert.That(placeholder.IsImportPlaceholder, Is.False, "A real user is no placeholder");
-        });
+        }
 
         placeholder.BecomeDummy();
         Assert.That(placeholder.IsDummyUser, Is.True);
@@ -134,26 +140,29 @@ public class UserAggregateTests
     {
         var user = User.Register("alice");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(user.LinkDiscord(5), Is.EqualTo(DiscordLinking.Linked));
             Assert.That(user.LinkDiscord(5), Is.EqualTo(DiscordLinking.AlreadyLinked));
             Assert.That(user.LinkDiscord(6), Is.EqualTo(DiscordLinking.LinkedToOther));
             Assert.That(user.DiscordUserID, Is.EqualTo(5), "Refused: still the first");
-        });
+        }
 
         var account = DiscordUser.FromDiscord(6, "alice");
-        Assert.That(user.LinkDiscord(account), Is.EqualTo(DiscordLinking.LinkedToOther));
-        Assert.That(user.DiscordUser, Is.Null, "Refused: the navigation stays too");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(user.LinkDiscord(account), Is.EqualTo(DiscordLinking.LinkedToOther));
+            Assert.That(user.DiscordUser, Is.Null, "Refused: the navigation stays too");
+        }
 
         user.UnlinkDiscord();
         Assert.That(user.DiscordUserID, Is.Null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(user.LinkDiscord(account), Is.EqualTo(DiscordLinking.Linked));
             Assert.That((user.DiscordUserID, user.DiscordUser), Is.EqualTo(((long?)6, account)));
             Assert.That(user.ShownName(), Is.EqualTo("alice"), "Its Discord name is the name shown");
-        });
+        }
     }
 
     [Test]
@@ -161,7 +170,7 @@ public class UserAggregateTests
     {
         var user = User.Register("alice");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(user.ChooseRegion(West, RegionSource.User), Is.EqualTo(RegionChoice.Set));
             Assert.That((user.RegionID, user.RegionSource), Is.EqualTo(((int?)West, (RegionSource?)RegionSource.User)));
@@ -172,7 +181,7 @@ public class UserAggregateTests
             Assert.That((user.RegionID, user.RegionSource), Is.EqualTo(((int?)null, (RegionSource?)null)), "Cleared: nobody's choice");
             Assert.That(user.ChooseRegion(null, RegionSource.User), Is.EqualTo(RegionChoice.Unchanged));
             Assert.Throws<ArgumentOutOfRangeException>(() => user.ChooseRegion(West, (RegionSource)9));
-        });
+        }
     }
 
     [Test]
@@ -184,7 +193,7 @@ public class UserAggregateTests
         var admin = User.Register("admin");
         admin.ChooseRegion(West, RegionSource.Sysadmin);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(empty.ChooseRegion(null, RegionSource.Import), Is.EqualTo(RegionChoice.Unchanged), "No region to fill in");
             Assert.That(empty.ChooseRegion(West, RegionSource.Import), Is.EqualTo(RegionChoice.Set));
@@ -198,7 +207,7 @@ public class UserAggregateTests
             Assert.That(admin.ChooseRegion(Central, RegionSource.Import), Is.EqualTo(RegionChoice.KeptChosen));
             Assert.That((chosen.RegionID, admin.RegionID), Is.EqualTo(((int?)West, (int?)West)), "The user's and the sysadmin's choices stay");
             Assert.That(empty.ChooseRegion(West, RegionSource.User), Is.EqualTo(RegionChoice.Set), "A person's choice is over the import's");
-        });
+        }
     }
 
     [Test]
@@ -209,12 +218,12 @@ public class UserAggregateTests
 
         var gains = Enumerable.Range(0, 5).Select(_ => user.RecordLateLeagueWin(Rules)).ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(gains, Is.EqualTo(new[] { 24, 24, 34, 44, 44 }), "From the third win in a row +10 a win, up to +20");
+            Assert.That(gains, Is.EqualTo(expected), "From the third win in a row +10 a win, up to +20");
             Assert.That((user.Wins, user.Losses, user.WinStreak, user.LossStreak), Is.EqualTo((5, 2, 5, 0)), "A win ends the loss streak");
             Assert.That(user.MMR, Is.EqualTo(User.StartingMMR + gains.Sum()));
-        });
+        }
     }
 
     [Test]
@@ -225,19 +234,19 @@ public class UserAggregateTests
 
         var losses = Enumerable.Range(0, 4).Select(_ => user.RecordLateLeagueLoss(Rules)).ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(losses, Is.EqualTo(new[] { 20, 20, 30, 40 }), "From the third loss in a row -10 a loss, up to -20");
+            Assert.That(losses, Is.EqualTo(expectedArray), "From the third loss in a row -10 a loss, up to -20");
             Assert.That((user.Wins, user.Losses, user.WinStreak, user.LossStreak), Is.EqualTo((1, 4, 0, 4)), "A loss ends the win streak");
             Assert.That(user.MMR, Is.EqualTo(User.StartingMMR - 110));
-        });
+        }
 
         user.SeedLateLeagueRecord(mmr: 15);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(user.RecordLateLeagueLoss(Rules), Is.EqualTo(15), "Only what it had");
             Assert.That(user.MMR, Is.Zero);
-        });
+        }
         Assert.Throws<ArgumentNullException>(() => user.RecordLateLeagueLoss(null!));
         Assert.Throws<ArgumentNullException>(() => user.RecordLateLeagueWin(null!));
     }
@@ -252,11 +261,11 @@ public class UserAggregateTests
 
         to.TakeLateLeagueRecordFrom(from);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((to.MMR, to.Wins, to.Losses, to.WinStreak, to.LossStreak), Is.EqualTo((1000, 4, 4, 2, 0)), "Its own streak, having played");
             Assert.That((from.Wins, from.Losses, from.WinStreak, from.LossStreak), Is.EqualTo((0, 0, 0, 0)));
-        });
+        }
 
         var fresh = User.Register("fresh");
         var veteran = User.Register("veteran");
@@ -277,11 +286,11 @@ public class UserAggregateTests
         to.TakeXboxFrom(from);
         to.TakeDiscordFrom(from);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((to.XboxUserID, to.DiscordUserID), Is.EqualTo(((long?)20, (long?)6)), "The source's accounts, in place of its own");
             Assert.That((from.XboxUserID, from.DiscordUserID), Is.EqualTo(((long?)null, (long?)null)));
-        });
+        }
 
         to.TakeXboxFrom(from);
         to.TakeDiscordFrom(from);
@@ -302,10 +311,10 @@ public class UserAggregateTests
 
         to.TakeExperiencesFrom(from);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(to.PersonExperiences.Select(e => e.GameVersionID), Is.EquivalentTo(new[] { 1, 2 }), "Each version once");
+            Assert.That(to.PersonExperiences.Select(e => e.GameVersionID), Is.EquivalentTo(expectedArray0), "Each version once");
             Assert.That(from.PersonExperiences, Is.Empty);
-        });
+        }
     }
 }

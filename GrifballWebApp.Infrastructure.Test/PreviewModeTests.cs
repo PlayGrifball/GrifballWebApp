@@ -63,11 +63,11 @@ public class PreviewModeTests
     {
         var configuration = Configuration(new() { ["Preview:Enabled"] = preview, ["Discord:Token"] = token });
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(PreviewMode.DisablesDiscord(configuration), Is.EqualTo(disables));
             Assert.That(PreviewMode.HasDiscord(configuration), Is.EqualTo(hasDiscord));
-        });
+        }
     }
 
     private static ServiceProvider PreviewServices(Dictionary<string, string?> values)
@@ -85,8 +85,11 @@ public class PreviewModeTests
 
         var options = provider.GetRequiredService<IOptions<DiscordOptions>>().Value;
 
-        Assert.That(options.Token, Is.Null);
-        Assert.That(options.DisableGlobally, Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(options.Token, Is.Null);
+            Assert.That(options.DisableGlobally, Is.True);
+        }
     }
 
     [Test]
@@ -96,8 +99,11 @@ public class PreviewModeTests
 
         var options = provider.GetRequiredService<IOptions<DiscordOptions>>().Value;
 
-        Assert.That(options.DisableGlobally, Is.True);
-        Assert.That(options.DraftChannel, Is.EqualTo(123UL));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(options.DisableGlobally, Is.True);
+            Assert.That(options.DraftChannel, Is.EqualTo(123UL));
+        }
     }
 
     [Test]

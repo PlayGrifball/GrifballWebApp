@@ -16,7 +16,7 @@ public class UserMergeAggregateDatabaseTests
     private GrifballContext _context = null!;
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
@@ -28,7 +28,7 @@ public class UserMergeAggregateDatabaseTests
         async Task<bool> Refused(Action<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<UserMerge>> change)
         {
             await using var ctx = _context.NewContextLike();
-            var entry = ctx.UserMerges.Add(UserMergeAggregateTests.Merge());
+            var entry = ctx.UserMerges.Add(UserMergeTestData.Merge());
             change(entry);
             try
             {
@@ -60,16 +60,16 @@ public class UserMergeAggregateDatabaseTests
     public async Task Standing_and_LaterStandingMergesOfItsUsers_in_a_query_agree_with_the_loaded_records()
     {
         // Made before the first, of its users: never later
-        var before = UserMergeAggregateTests.Merge(source: 2, target: 9);
+        var before = UserMergeTestData.Merge(source: 2, target: 9);
         _context.UserMerges.Add(before);
         await _context.SaveChangesAsync();
-        var first = UserMergeAggregateTests.Merge(source: 1, target: 2);
-        var intoTheTarget = UserMergeAggregateTests.Merge(source: 3, target: 2);
-        var ofTheTargetOut = UserMergeAggregateTests.Merge(source: 2, target: 4);
-        var intoTheSource = UserMergeAggregateTests.Merge(source: 5, target: 1);
-        var undone = UserMergeAggregateTests.Merge(source: 1, target: 6);
+        var first = UserMergeTestData.Merge(source: 1, target: 2);
+        var intoTheTarget = UserMergeTestData.Merge(source: 3, target: 2);
+        var ofTheTargetOut = UserMergeTestData.Merge(source: 2, target: 4);
+        var intoTheSource = UserMergeTestData.Merge(source: 5, target: 1);
+        var undone = UserMergeTestData.Merge(source: 1, target: 6);
         undone.Undo(MergedAt, null, null);
-        var unrelated = UserMergeAggregateTests.Merge(source: 7, target: 8);
+        var unrelated = UserMergeTestData.Merge(source: 7, target: 8);
         _context.UserMerges.Add(first);
         await _context.SaveChangesAsync();
         _context.UserMerges.AddRange(intoTheTarget, ofTheTargetOut, intoTheSource, undone, unrelated);
@@ -100,7 +100,7 @@ public class UserMergeAggregateDatabaseTests
         var rows = new Dictionary<string, UserMerge>();
         void Row(string name, Action<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<UserMerge>>? change = null, bool undo = false)
         {
-            var merge = UserMergeAggregateTests.Merge(source: 100 + rows.Count, target: 200 + rows.Count);
+            var merge = UserMergeTestData.Merge(source: 100 + rows.Count, target: 200 + rows.Count);
             if (undo)
                 merge.Undo(MergedAt, 9, "wrong person");
             var entry = _context.UserMerges.Add(merge);

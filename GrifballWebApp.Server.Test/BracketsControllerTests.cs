@@ -12,16 +12,14 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class BracketsControllerTests
 {
-    private ILogger<BracketsController> _logger;
     private IBracketService _bracketService;
     private BracketsController _controller;
 
     [SetUp]
     public void Setup()
     {
-        _logger = Substitute.For<ILogger<BracketsController>>();
         _bracketService = Substitute.For<IBracketService>();
-        _controller = new BracketsController(_logger, _bracketService);
+        _controller = new BracketsController(_bracketService);
     }
 
     [Test]

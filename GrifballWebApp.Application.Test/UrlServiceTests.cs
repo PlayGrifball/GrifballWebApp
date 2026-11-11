@@ -99,13 +99,13 @@ public class UrlServiceTests
         const int negativeSeasonId = -1;
 
         // Act & Assert
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_service.SignupForm(negativeSeasonId), Is.EqualTo("https://localhost:4200/login?followUp=/season/-1/signupForm"));
             Assert.That(_service.ViewSignups(negativeSeasonId), Is.EqualTo("https://localhost:4200/season/-1/signups"));
             Assert.That(_service.Draft(negativeSeasonId), Is.EqualTo("https://localhost:4200/season/-1/draft"));
             Assert.That(_service.Season(negativeSeasonId), Is.EqualTo("https://localhost:4200/season/-1"));
-        });
+        }
     }
 
     [Test]
@@ -115,13 +115,13 @@ public class UrlServiceTests
         const int zeroSeasonId = 0;
 
         // Act & Assert
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_service.SignupForm(zeroSeasonId), Is.EqualTo("https://localhost:4200/login?followUp=/season/0/signupForm"));
             Assert.That(_service.ViewSignups(zeroSeasonId), Is.EqualTo("https://localhost:4200/season/0/signups"));
             Assert.That(_service.Draft(zeroSeasonId), Is.EqualTo("https://localhost:4200/season/0/draft"));
             Assert.That(_service.Season(zeroSeasonId), Is.EqualTo("https://localhost:4200/season/0"));
-        });
+        }
     }
 
     [Test]
@@ -139,12 +139,12 @@ public class UrlServiceTests
         var customService = new UrlService(customConfig);
 
         // Act & Assert
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(customService.SignupForm(seasonId), Is.EqualTo("https://prod.example.com/login?followUp=/season/42/signupForm"));
             Assert.That(customService.ViewSignups(seasonId), Is.EqualTo("https://prod.example.com/season/42/signups"));
             Assert.That(customService.Draft(seasonId), Is.EqualTo("https://prod.example.com/season/42/draft"));
             Assert.That(customService.Season(seasonId), Is.EqualTo("https://prod.example.com/season/42"));
-        });
+        }
     }
 }

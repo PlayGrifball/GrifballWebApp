@@ -152,10 +152,10 @@ public class AdminController : ControllerBase
     }
 
     /// <summary>409 with <see cref="GatewayModeMessage"/> unless the app signs in to Halo itself (Direct mode).</summary>
-    private ObjectResult? DirectOnly() =>
+    private ConflictObjectResult? DirectOnly() =>
         _haloSettings.IsGateway || _accountAuthorization is null ? Conflict(GatewayModeMessage) : null;
 
-    private string GenerateAuthUrl(string clientId, string redirectUrl, string[]? scopes = null)
+    private static string GenerateAuthUrl(string clientId, string redirectUrl, string[]? scopes = null)
     {
         NameValueCollection queryString = System.Web.HttpUtility.ParseQueryString(string.Empty);
 
@@ -169,7 +169,7 @@ public class AdminController : ControllerBase
         }
         else
         {
-            queryString.Add("scope", string.Join(" ", new string[] { "Xboxlive.signin", "Xboxlive.offline_access" }));
+            queryString.Add("scope", "Xboxlive.signin Xboxlive.offline_access");
         }
 
         queryString.Add("redirect_uri", redirectUrl);

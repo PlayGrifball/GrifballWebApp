@@ -12,6 +12,14 @@ public class SeasonSignupAggregateTests
     private static readonly DateTime Open = new(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Close = Open.AddDays(7);
     private static readonly DateTime During = Open.AddDays(1);
+    private static readonly int[] expected = new[] { 1, 2 };
+    private static readonly int[] expectedArray = new[] { 9, 8 };
+    private static readonly int[] expectedArray0 = new[] { 2, 3 };
+    private static readonly int[] expectedArray1 = new[] { 5 };
+    private static readonly int[] expectedArray2 = new[] { 1, 4 };
+    private static readonly int[] expectedArray3 = new[] { 1 };
+    private static readonly int[] expectedArray4 = new[] { 2 };
+    private static readonly int[] expectedArray5 = new[] { 1, 3 };
 
     /// <summary>A season with signups open from <see cref="Open"/> to <see cref="Close"/>, offering the timeslots 1, 2 and 3.</summary>
     private static Season OpenSeason(int seasonID = 5)
@@ -35,14 +43,14 @@ public class SeasonSignupAggregateTests
         var outcome = SeasonSignup.SignUp(OpenSeason(), 7, During, Choices("  The Hammers ", true, true, 1, 2, 2));
 
         var signup = outcome.Signup!;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(outcome.Result, Is.EqualTo(SignupResult.SignedUp));
             Assert.That((signup.SeasonID, signup.UserID, signup.Timestamp), Is.EqualTo((5, 7, During)));
             Assert.That(signup.TeamName, Is.EqualTo("The Hammers"));
             Assert.That((signup.WillCaptain, signup.RequiresAssistanceDrafting), Is.EqualTo((true, true)));
-            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 1, 2 }));
-        });
+            Assert.That(Timeslots(signup), Is.EqualTo(expected));
+        }
     }
 
     [Test]
@@ -50,24 +58,24 @@ public class SeasonSignupAggregateTests
     {
         var signup = SeasonSignup.SignUp(OpenSeason(), 7, During, Choices("   ", willCaptain: false, assistance: true)).Signup!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(signup.TeamName, Is.Null);
             Assert.That(signup.RequiresAssistanceDrafting, Is.False, "Only a captain drafts");
             Assert.That(signup.SignupAvailability, Is.Empty);
-        });
+        }
     }
 
     [Test]
     public void SignUp_OutsideTheWindow_IsRefused()
     {
         // Open from their open, included, to their close, not included (Season.SignupsAreOpenAt)
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(SeasonSignup.SignUp(OpenSeason(), 7, Open.AddTicks(-1), Choices()), Is.EqualTo(new SignupOutcome(SignupResult.SignupsClosed)));
             Assert.That(SeasonSignup.SignUp(OpenSeason(), 7, Close, Choices()), Is.EqualTo(new SignupOutcome(SignupResult.SignupsClosed)));
             Assert.That(SeasonSignup.SignUp(OpenSeason(), 7, Open, Choices()).Result, Is.EqualTo(SignupResult.SignedUp));
-        });
+        }
     }
 
     [Test]
@@ -75,12 +83,12 @@ public class SeasonSignupAggregateTests
     {
         var outcome = SeasonSignup.SignUp(OpenSeason(), 7, During, Choices(null, false, false, 1, 9, 8, 9));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(outcome.Result, Is.EqualTo(SignupResult.TimeslotsNotOffered));
             Assert.That(outcome.Signup, Is.Null);
-            Assert.That(outcome.RefusedTimeslots, Is.EqualTo(new[] { 9, 8 }));
-        });
+            Assert.That(outcome.RefusedTimeslots, Is.EqualTo(expectedArray));
+        }
     }
 
     [Test]
@@ -91,14 +99,14 @@ public class SeasonSignupAggregateTests
 
         var outcome = signup.Change(season, During.AddHours(1), Choices("Anvils ", false, true, 2, 3));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(outcome, Is.EqualTo(new SignupOutcome(SignupResult.Changed, signup)));
             Assert.That(signup.Timestamp, Is.EqualTo(During.AddHours(1)), "When they last changed it");
             Assert.That(signup.TeamName, Is.EqualTo("Anvils"), "Kept, as the signups page shows it");
             Assert.That((signup.WillCaptain, signup.RequiresAssistanceDrafting), Is.EqualTo((false, false)));
-            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 2, 3 }));
-        });
+            Assert.That(Timeslots(signup), Is.EqualTo(expectedArray0));
+        }
     }
 
     [Test]
@@ -110,14 +118,14 @@ public class SeasonSignupAggregateTests
         var kept = signup.Change(season, During, Choices("Hammers", false, false, 1, 4));
         var refused = signup.Change(season, During.AddHours(1), Choices("Other", false, false, 4, 5));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(kept.Result, Is.EqualTo(SignupResult.Changed));
             Assert.That(refused.Result, Is.EqualTo(SignupResult.TimeslotsNotOffered));
-            Assert.That(refused.RefusedTimeslots, Is.EqualTo(new[] { 5 }));
+            Assert.That(refused.RefusedTimeslots, Is.EqualTo(expectedArray1));
             Assert.That((signup.TeamName, signup.Timestamp), Is.EqualTo(("Hammers", During)), "Nothing changed by the refusal");
-            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 1, 4 }));
-        });
+            Assert.That(Timeslots(signup), Is.EqualTo(expectedArray2));
+        }
     }
 
     [Test]
@@ -126,14 +134,14 @@ public class SeasonSignupAggregateTests
         var tooLong = new string('x', Team.TeamNameMaxLength + 1);
         var atTheLimit = "  " + new string('x', Team.TeamNameMaxLength) + " ";
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(SeasonSignup.SignUp(OpenSeason(), 7, During, Choices(tooLong, willCaptain: true)), Is.EqualTo(new SignupOutcome(SignupResult.TeamNameTooLong)));
             Assert.That(SeasonSignup.SignUp(OpenSeason(), 7, Close, Choices(tooLong, true, false, 9)).Result, Is.EqualTo(SignupResult.TeamNameTooLong),
                 "Before the window and the timeslots, as the signups page always refused it");
             var signedUp = SeasonSignup.SignUp(OpenSeason(), 7, During, Choices(atTheLimit, willCaptain: true));
             Assert.That((signedUp.Result, signedUp.Signup!.TeamName), Is.EqualTo((SignupResult.SignedUp, atTheLimit.Trim())), "Counted trimmed");
-        });
+        }
     }
 
     [Test]
@@ -154,20 +162,20 @@ public class SeasonSignupAggregateTests
         var signup = SeasonSignup.Seed(season.SeasonID, 7, Open, teamName: longName, timeslots: [1]);
 
         var refused = signup.Change(season, During, Choices(longName, true, true, 2));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(refused, Is.EqualTo(new SignupOutcome(SignupResult.TeamNameTooLong, signup)));
             Assert.That((signup.WillCaptain, signup.RequiresAssistanceDrafting, signup.Timestamp), Is.EqualTo((false, false, Open)), "Nothing changed by the refusal");
-            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 1 }));
-        });
+            Assert.That(Timeslots(signup), Is.EqualTo(expectedArray3));
+        }
 
         var kept = signup.Change(season, During, Choices(longName, false, false, 2));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(kept.Result, Is.EqualTo(SignupResult.Changed), "An old long name doesn't block a player who won't captain");
             Assert.That(signup.TeamName, Is.EqualTo(longName));
-            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 2 }));
-        });
+            Assert.That(Timeslots(signup), Is.EqualTo(expectedArray4));
+        }
     }
 
     [Test]
@@ -178,12 +186,12 @@ public class SeasonSignupAggregateTests
 
         var outcome = signup.Change(season, Close, Choices("Anvils", false, false));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(outcome.Result, Is.EqualTo(SignupResult.SignupsClosed));
             Assert.That((signup.TeamName, signup.WillCaptain, signup.Timestamp), Is.EqualTo(("Hammers", true, During)));
-            Assert.That(Timeslots(signup), Is.EqualTo(new[] { 1 }));
-        });
+            Assert.That(Timeslots(signup), Is.EqualTo(expectedArray3));
+        }
     }
 
     [Test]
@@ -201,14 +209,14 @@ public class SeasonSignupAggregateTests
 
         var copy = signup.Copy();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(copy, Is.Not.SameAs(signup));
             Assert.That((copy.SeasonID, copy.UserID, copy.Timestamp), Is.EqualTo((0, 7, During)), "The season it is added to gives its key");
             Assert.That((copy.TeamName, copy.WillCaptain, copy.RequiresAssistanceDrafting), Is.EqualTo(("Hammers", true, true)));
-            Assert.That(Timeslots(copy), Is.EqualTo(new[] { 1, 3 }));
+            Assert.That(Timeslots(copy), Is.EqualTo(expectedArray5));
             Assert.That(copy.SignupAvailability.Intersect(signup.SignupAvailability), Is.Empty, "Timeslots of its own");
-        });
+        }
     }
 
     [Test]
@@ -224,11 +232,11 @@ public class SeasonSignupAggregateTests
     [Test]
     public void TeamNameAtDraft_IsTheirs_ElseTheCaptainsTeam()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(SeasonSignup.Seed(5, 7, teamName: "Hammers", willCaptain: true).TeamNameAtDraft("Cap"), Is.EqualTo("Hammers"));
             Assert.That(SeasonSignup.Seed(5, 7).TeamNameAtDraft("Cap"), Is.EqualTo("Cap's Team"));
-        });
+        }
     }
 
     [Test]
@@ -236,11 +244,11 @@ public class SeasonSignupAggregateTests
     {
         var of = SeasonSignup.Of(5, 7).Compile();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(of(SeasonSignup.Seed(5, 7)), Is.True);
             Assert.That(of(SeasonSignup.Seed(5, 8)), Is.False);
             Assert.That(of(SeasonSignup.Seed(6, 7)), Is.False);
-        });
+        }
     }
 }

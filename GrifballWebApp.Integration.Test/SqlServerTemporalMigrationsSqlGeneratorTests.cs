@@ -51,7 +51,7 @@ public class SqlServerTemporalMigrationsSqlGeneratorTests
 
         var sql = string.Join("\n", generator.Generate(MakeTemporal(), context.Model).Select(c => c.CommandText));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(generator, Is.TypeOf<SqlServerTemporalMigrationsSqlGenerator>());
             foreach (var column in new[] { "PeriodStart", "PeriodEnd" })
@@ -62,7 +62,7 @@ public class SqlServerTemporalMigrationsSqlGeneratorTests
                 Assert.That(dropped, Is.GreaterThan(added), $"{column}'s default is dropped after it's added");
             }
             Assert.That(sql, Does.Contain("ADD PERIOD FOR SYSTEM_TIME"));
-        });
+        }
     }
 
     [Test]
@@ -73,11 +73,11 @@ public class SqlServerTemporalMigrationsSqlGeneratorTests
 
         var sql = string.Join("\n", context.GetService<IMigrationsSqlGenerator>().Generate([column], context.Model).Select(c => c.CommandText));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sql, Does.Contain("ADD [Notes] int NOT NULL DEFAULT 0"));
             Assert.That(sql, Does.Not.Contain("default_constraints"));
-        });
+        }
     }
 
     [Test]
@@ -85,7 +85,7 @@ public class SqlServerTemporalMigrationsSqlGeneratorTests
     {
         if (TestDatabase.Provider != DatabaseProvider.SqlServer)
             Assert.Ignore("SQL Server's temporal tables only");
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var withDefaults = await context.Database.SqlQueryRaw<string>("""

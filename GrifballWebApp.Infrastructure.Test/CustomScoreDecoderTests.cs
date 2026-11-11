@@ -58,21 +58,21 @@ public class CustomScoreDecoderTests
         var borrowed = CustomScoreDecoder.Decode(CustomScoreLayout.C, 2090000, 105060092);
         var issue = CustomScoreDecoder.Decode(CustomScoreLayout.C, 0, 132199996);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((borrowed.Goals, borrowed.BallPunches, borrowed.BallHeldTime), Is.EqualTo(((int?)1, (int?)6, (TimeSpan?)Seconds(52.5))));
             Assert.That((issue.Goals, issue.BallPunches, issue.BallHeldTime), Is.EqualTo(((int?)0, (int?)20, (TimeSpan?)Seconds(66))), "132199996 is 132200000 less 4");
-        });
+        }
     }
 
     [Test]
     public void Plain_IsTheScore_UpTo20()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(CustomScoreDecoder.Decode(CustomScoreLayout.Plain, 3, 2801), Is.EqualTo(new DecodedScore(3)));
             Assert.That(CustomScoreDecoder.Decode(CustomScoreLayout.Plain, 21, 21), Is.EqualTo(DecodedScore.None));
-        });
+        }
     }
 
     [TestCase(CustomScoreLayout.A)]
@@ -105,13 +105,13 @@ public class CustomScoreDecoderTests
         // SML25 Legacy rows 218, 219 (4 goals) against 221 (0)
         var b = new[] { Team(4, (201000048, 201000054), (208040240, 208040236)), Team(0, (7030041, 7030041)) };
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(CustomScoreDecoder.ByTeamScores(a), Is.EqualTo((CustomScoreLayout.A, true)));
             Assert.That(CustomScoreDecoder.ByTeamScores(b), Is.EqualTo((CustomScoreLayout.B, true)));
             Assert.That(CustomScoreDecoder.ByTeamScores(SL26Game), Is.EqualTo((CustomScoreLayout.C, true)));
             Assert.That(CustomScoreDecoder.Fits(CustomScoreLayout.A, b), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -131,12 +131,12 @@ public class CustomScoreDecoderTests
         var (layout, fitted) = CustomScoreDecoder.ByTeamScores(nilNil);
         var decoded = CustomScoreDecoder.DecodeMatch(layout, nilNil);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((layout, fitted), Is.EqualTo((CustomScoreLayout.Ambiguous, true)));
             Assert.That(decoded.Select(d => d.Goals), Is.All.EqualTo(0));
             Assert.That(decoded.Select(d => d.BallHeldTime), Is.All.Null, "Only goals: which layout's held time is unknown");
-        });
+        }
     }
 
     [Test]
@@ -146,11 +146,11 @@ public class CustomScoreDecoderTests
         // and 100000000 (no goals under A, 1 under B): the team's 2 is made up differently under each
         var game = new[] { Team(2, (120001056, 120001056), (0, 100000000)), Team(0) };
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(CustomScoreDecoder.Fitting(game), Is.EqualTo(new[] { CustomScoreLayout.A, CustomScoreLayout.B }));
             Assert.That(CustomScoreDecoder.DecodeMatch(CustomScoreLayout.Ambiguous, game).Select(d => d.Goals), Is.EqualTo(new int?[] { null, null }));
-        });
+        }
     }
 
     [Test]
@@ -161,11 +161,11 @@ public class CustomScoreDecoderTests
 
         var (layout, fitted) = CustomScoreDecoder.ByTeamScores(game);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((layout, fitted), Is.EqualTo((CustomScoreLayout.Undecoded, false)));
             Assert.That(CustomScoreDecoder.DecodeMatch(layout, game), Is.All.EqualTo(DecodedScore.None));
-        });
+        }
     }
 
     [Test]
@@ -190,13 +190,13 @@ public class CustomScoreDecoderTests
         var nilNil = new[] { A(0, 2081, 1004), A(0, 41, 0) };
         var noFit = new[] { A(3, 30001124, 10203081), A(0, 2081, 1004) };
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(CustomScoreDecoder.VariantLayout([aGame, aGame, noFit, nilNil, nilNil, nilNil]), Is.EqualTo(CustomScoreLayout.A));
             Assert.That(CustomScoreDecoder.VariantLayout([aGame, noFit]), Is.Null, "Half isn't most");
             Assert.That(CustomScoreDecoder.VariantLayout([nilNil, noFit]), Is.Null, "Nothing fits");
             Assert.That(CustomScoreDecoder.VariantLayout([]), Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -205,7 +205,7 @@ public class CustomScoreDecoderTests
         var nilNil = new[] { A(0, 2081, 1004), A(0, 41, 0) };
         var plainBig = new[] { Team(0, (25, 25)) };
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(CustomScoreDecoder.Choose(nilNil, CustomScoreLayout.A), Is.EqualTo(CustomScoreLayout.A));
             Assert.That(CustomScoreDecoder.DecodeMatch(CustomScoreLayout.A, nilNil)[0].BallHeldTime, Is.EqualTo(Seconds(162)));
@@ -213,6 +213,6 @@ public class CustomScoreDecoderTests
             Assert.That(CustomScoreDecoder.Choose(SL26Game, CustomScoreLayout.Undecoded), Is.EqualTo(CustomScoreLayout.C), "Not a layout: the team scores decide");
             Assert.That(CustomScoreDecoder.Choose(plainBig, CustomScoreLayout.Plain), Is.EqualTo(CustomScoreLayout.Undecoded), "A Plain variant never makes 25 goals");
             Assert.That(CustomScoreDecoder.Choose([Team(1, (1, 300))], CustomScoreLayout.Plain), Is.EqualTo(CustomScoreLayout.Plain));
-        });
+        }
     }
 }

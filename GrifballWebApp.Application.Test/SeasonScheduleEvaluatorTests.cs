@@ -25,7 +25,7 @@ public class SeasonScheduleEvaluatorTests
 
     private static AvailabilityOption[] OptionsAvailableFor(params int[] teamIDs)
     {
-        return SeasonScheduleChromosomeTests.EveryDayFor(teamIDs, 20, 21);
+        return AvailabilityTestData.EveryDayFor(teamIDs, 20, 21);
     }
 
     [Test]
@@ -78,7 +78,7 @@ public class SeasonScheduleEvaluatorTests
         var options = OptionsAvailableFor(1, 2, 3, 4);
         var chromosome = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(1, 3, 4, Monday20.AddDays(1)));
 
-        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(0));
+        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.Zero);
     }
 
     [Test]

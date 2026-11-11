@@ -21,7 +21,7 @@ public class BracketsControllerActionTests
     public void Setup()
     {
         _service = Substitute.For<IBracketService>();
-        _controller = new BracketsController(Substitute.For<ILogger<BracketsController>>(), _service);
+        _controller = new BracketsController(_service);
     }
 
     [TestCase(0, 1, "Please provide participantsCount")]
@@ -31,8 +31,11 @@ public class BracketsControllerActionTests
     {
         var result = await _controller.CreateBracket(participants, seasonID, true, 3, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo(message));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+            Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo(message));
+        }
         await _service.DidNotReceiveWithAnyArgs().CreateBracket(default, default, default, default, default);
     }
 
@@ -74,8 +77,11 @@ public class BracketsControllerActionTests
         Assert.That(ok, Is.Not.Null);
         Assert.That(ok!.Value, Is.SameAs(dto));
         var value = (BracketDto)ok.Value!;
-        Assert.That(value.WinnerRounds[0].Matches[0].HomeTeam, Is.EqualTo("Seed 1"));
-        Assert.That(value.GrandFinal.MatchNumber, Is.EqualTo("W2"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(value.WinnerRounds[0].Matches[0].HomeTeam, Is.EqualTo("Seed 1"));
+            Assert.That(value.GrandFinal.MatchNumber, Is.EqualTo("W2"));
+        }
     }
 
     [Test]
@@ -83,14 +89,17 @@ public class BracketsControllerActionTests
     {
         var result = await _controller.GetViewerData(-3);
 
-        Assert.That(result.Result, Is.TypeOf<BadRequestObjectResult>());
-        Assert.That(((BadRequestObjectResult)result.Result!).Value, Is.EqualTo("Please provide seasonID"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Result, Is.TypeOf<BadRequestObjectResult>());
+            Assert.That(((BadRequestObjectResult)result.Result!).Value, Is.EqualTo("Please provide seasonID"));
+        }
     }
 
     [Test]
     public async Task GetViewerData_Valid_ReturnsDto()
     {
-        var dto = new ViewerDataDto();
+        var dto = new ViewerDataDto { Stages = [], Matches = [], MatchGames = [], Participants = [] };
         _service.GetViewerDataAsync(7, Arg.Any<CancellationToken>()).Returns(dto);
 
         var result = await _controller.GetViewerData(7);
@@ -105,8 +114,11 @@ public class BracketsControllerActionTests
 
         var result = await _controller.GetViewerData(5);
 
-        Assert.That(result.Result, Is.TypeOf<NotFoundObjectResult>());
-        Assert.That(((NotFoundObjectResult)result.Result!).Value, Is.EqualTo("Season does not exist"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Result, Is.TypeOf<NotFoundObjectResult>());
+            Assert.That(((NotFoundObjectResult)result.Result!).Value, Is.EqualTo("Season does not exist"));
+        }
     }
 
     [Test]
@@ -164,7 +176,7 @@ public class BracketsControllerActionTests
         var match = root.GetProperty("Matches")[0];
         var game = root.GetProperty("MatchGames")[0];
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(stage.GetProperty("Type").GetString(), Is.EqualTo("double_elimination"));
             Assert.That(stage.GetProperty("Settings").GetProperty("GrandFinal").GetString(), Is.EqualTo("double"));
@@ -181,7 +193,7 @@ public class BracketsControllerActionTests
             Assert.That(opp2.GetProperty("Forfeit").GetBoolean(), Is.True);
             Assert.That((game.GetProperty("Id").GetString(), game.GetProperty("Stage_id").GetInt32(), game.GetProperty("parent_id").GetInt32(), game.GetProperty("Number").GetInt32()),
                 Is.EqualTo(("g", 1, 3, 1)));
-        });
+        }
     }
 
     [Test]
@@ -214,7 +226,7 @@ public class BracketsControllerActionTests
         var match = root.GetProperty("matches")[0];
         var settings = root.GetProperty("stages")[0].GetProperty("settings");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // brackets-model Status is numeric (Locked = 0 ... Archived = 5); brackets-viewer compares numbers.
             Assert.That(match.GetProperty("status").ValueKind, Is.EqualTo(JsonValueKind.Number));
@@ -232,6 +244,6 @@ public class BracketsControllerActionTests
             Assert.That(matchGame.TryGetProperty("opponent1", out _), Is.True);
             Assert.That(matchGame.TryGetProperty("opponent2", out _), Is.True);
             Assert.That(match.GetProperty("stage_id").GetInt32(), Is.EqualTo(1));
-        });
+        }
     }
 }

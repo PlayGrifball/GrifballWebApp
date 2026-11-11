@@ -1,6 +1,4 @@
 ﻿using DotNet.Testcontainers.Containers;
-using GrifballWebApp.Infrastructure;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -24,10 +22,5 @@ public class SetUpFixture
     {
         if (DatabaseContainer is not null)
             await DatabaseContainer.DisposeAsync();
-    }
-
-    internal static async Task<GrifballContext> NewGrifballContext(params IInterceptor[] interceptors)
-    {
-        return await Utility.NewGrifballContext(SetUpFixture.DatabaseContainer, interceptors);
     }
 }

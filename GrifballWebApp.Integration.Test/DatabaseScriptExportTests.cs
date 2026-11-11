@@ -22,13 +22,14 @@ namespace GrifballWebApp.Integration.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class DatabaseScriptExportTests
+public partial class DatabaseScriptExportTests
 {
     private static IDatabaseContainer _other = null!;
     private readonly List<DatabaseEndpoint> _databases = [];
+    private static readonly string[] expected = new[] { "Already here" };
 
     [OneTimeSetUp]
-    public static async Task StartOtherServer() => _other = await TestDatabase.StartServer(TestDatabase.Other);
+    public static async Task StartOtherServer() => _other = await TestDatabase.StartOtherServer();
 
     [OneTimeTearDown]
     public static async Task StopOtherServer() => await _other.DisposeAsync();
@@ -84,7 +85,7 @@ public class DatabaseScriptExportTests
     }
 
     /// <summary>The script run as psql -v ON_ERROR_STOP=1 or sqlcmd -b runs it: stopping at the first error.</summary>
-    internal static async Task RunAsync(DatabaseEndpoint database, string script)
+    private static async Task RunAsync(DatabaseEndpoint database, string script)
     {
         if (database.Provider == DatabaseProvider.Postgres)
         {
@@ -96,7 +97,7 @@ public class DatabaseScriptExportTests
         }
         await using var sql = new SqlConnection(database.ConnectionString);
         await sql.OpenAsync();
-        foreach (var batch in Regex.Split(script, @"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
+        foreach (var batch in GoBatches().Split(script))
         {
             if (string.IsNullOrWhiteSpace(batch))
                 continue;
@@ -110,7 +111,7 @@ public class DatabaseScriptExportTests
     public async Task Restores_EveryRowAndItsHistory_OnEitherServer(DatabaseProvider target)
     {
         var source = Database(TestDatabase.Provider);
-        var filled = await DatabaseConversionTests.Fill(source);
+        var filled = await DatabaseConversionTestData.Fill(source);
         var restored = EmptyDatabase(target);
 
         await RunAsync(restored, await ScriptAsync(source, target));
@@ -137,7 +138,7 @@ public class DatabaseScriptExportTests
     public async Task Refuses_ADatabaseThatHasTables_AndLeavesIt(DatabaseProvider target)
     {
         var source = Database(TestDatabase.Provider);
-        await DatabaseConversionTests.Fill(source);
+        await DatabaseConversionTestData.Fill(source);
         var script = await ScriptAsync(source, target);
         var existing = Database(target);
         await using (var db = DatabaseConverter.NewContext(existing))
@@ -151,14 +152,14 @@ public class DatabaseScriptExportTests
 
         Assert.That(e!.Message, Does.Contain("already has tables"));
         await using var check = DatabaseConverter.NewContext(existing);
-        Assert.That(await check.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(new[] { "Already here" }));
+        Assert.That(await check.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(expected));
     }
 
     [Test]
     public async Task A_failure_part_way_leaves_nothing_on_SqlServer_even_without_stopping()
     {
         var source = Database(TestDatabase.Provider);
-        await DatabaseConversionTests.Fill(source);
+        await DatabaseConversionTestData.Fill(source);
         var script = await ScriptAsync(source, DatabaseProvider.SqlServer);
         var restored = EmptyDatabase(DatabaseProvider.SqlServer);
         // A batch that fails after the migrations, run as sqlcmd without -b: the batches after it go on.
@@ -167,7 +168,7 @@ public class DatabaseScriptExportTests
         await using (var sql = new SqlConnection(restored.ConnectionString))
         {
             await sql.OpenAsync();
-            foreach (var batch in Regex.Split(broken, @"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase).Where(b => !string.IsNullOrWhiteSpace(b)))
+            foreach (var batch in GoBatches().Split(broken).Where(b => !string.IsNullOrWhiteSpace(b)))
             {
                 try
                 {
@@ -183,14 +184,14 @@ public class DatabaseScriptExportTests
         await using var connection = new SqlConnection(restored.ConnectionString);
         await connection.OpenAsync();
         await using var tables = new SqlCommand("SELECT COUNT(*) FROM sys.tables WHERE is_ms_shipped = 0", connection);
-        Assert.That(await tables.ExecuteScalarAsync(), Is.EqualTo(0), "rolled back, and nothing after it ran");
+        Assert.That(await tables.ExecuteScalarAsync(), Is.Zero, "rolled back, and nothing after it ran");
     }
 
     [Test]
     public async Task Compare_names_the_tables_that_differ()
     {
         var source = Database(TestDatabase.Provider);
-        await DatabaseConversionTests.Fill(source);
+        await DatabaseConversionTestData.Fill(source);
         var empty = Database(TestDatabase.Provider);
         await using (var db = DatabaseConverter.NewContext(empty))
             await db.Database.MigrateAsync();
@@ -208,7 +209,14 @@ public class DatabaseScriptExportTests
         var seasons = tables.Single(t => t.Key.Name == "Seasons");
         var history = tables.Single(t => t.Key.Name == context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Season))!.GetHistoryTableName());
 
-        Assert.That(history.Value.Select(c => c.Name), Is.EqualTo(seasons.Value.Select(c => c.Name)));
-        Assert.That(history.Value.Any(c => c.Generated), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(history.Value.Select(c => c.Name), Is.EqualTo(seasons.Value.Select(c => c.Name)));
+            Assert.That(history.Value.Any(c => c.Generated), Is.False);
+        }
     }
+
+    /// <summary>A SQL Server script's batch separator, a GO on a line of its own.</summary>
+    [GeneratedRegex(@"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase)]
+    private static partial Regex GoBatches();
 }

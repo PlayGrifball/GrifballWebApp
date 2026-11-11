@@ -18,7 +18,7 @@ public class DiscordUserAggregateDatabaseTests
     private GrifballContext _context = null!;
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();

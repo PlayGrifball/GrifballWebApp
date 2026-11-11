@@ -17,7 +17,7 @@ public class MatchRescheduleTests
 
     private static async Task<(GrifballContext Context, int MatchID, int UserID)> SeedAsync()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         var s = await RescheduleTestData.SeedAsync(context);
         return (context, s.Match.SeasonMatchID, s.Requester.Id);
     }

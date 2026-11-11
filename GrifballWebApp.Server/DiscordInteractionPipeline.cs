@@ -19,7 +19,7 @@ namespace GrifballWebApp.Server;
 /// Hooked into NetCord's pre-execution and result handlers so every slash command, button, string menu and modal
 /// runs with the current user set for audit columns and gets a generic reply when it throws.
 /// </summary>
-public static class DiscordInteractionPipeline
+public static partial class DiscordInteractionPipeline
 {
     public const string GenericErrorMessage = "Something went wrong. Please contact a sysadmin.";
 
@@ -122,7 +122,7 @@ public static class DiscordInteractionPipeline
         }
         else
         {
-            logger.LogDebug("Discord interaction {InteractionName} failed with '{Message}'", name, failResult.Message);
+            LogFailed(logger, name, failResult.Message);
             message = new() { Content = failResult.Message };
         }
 
@@ -136,6 +136,9 @@ public static class DiscordInteractionPipeline
             await interaction.SendFollowupMessageAsync(message);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Discord interaction {InteractionName} failed with '{Message}'")]
+    private static partial void LogFailed(ILogger logger, string interactionName, string message);
 }
 
 public sealed class ApplicationCommandPipeline<TContext> : IApplicationCommandPreExecutionHandler<TContext>, IApplicationCommandResultHandler<TContext>

@@ -1,0 +1,74 @@
+# Analyzer rules SonarCloud raised and the Sonar paydown took to zero: errors here, so the build keeps them at zero.
+# These settings win over the generated analyzers/*.globalconfig (sonar-rules.sh). Nothing else (formatting, style)
+# is set here. EF's migrations are generated code, which analyzers skip.
+root = true
+
+[*.cs]
+# NUnit: Assert.EnterMultipleScope over Assert.Multiple
+dotnet_diagnostic.NUnit2056.severity = error
+# NUnit: independent asserts in one multiple scope
+dotnet_diagnostic.NUnit2045.severity = error
+# CA1861: constant arrays as arguments are static readonly fields
+dotnet_diagnostic.CA1861.severity = error
+# NUnit: the specific constraint (Is.Null, Is.Zero, Is.Default ...)
+dotnet_diagnostic.NUnit4002.severity = error
+# NUnit: Has.Length/Has.Count, Is.EqualTo and Does.Contain over comparisons in the actual value; no actual that is its own expected; comparable values only; only tests public in a fixture
+dotnet_diagnostic.NUnit2046.severity = error
+dotnet_diagnostic.NUnit2010.severity = error
+dotnet_diagnostic.NUnit2014.severity = error
+dotnet_diagnostic.NUnit2009.severity = error
+dotnet_diagnostic.NUnit2042.severity = error
+dotnet_diagnostic.NUnit1028.severity = error
+# Nullable references: no null where the type says none (CS8600-CS8625), a primary constructor parameter kept once
+# (CS9107), nothing obsolete (CS0618)
+dotnet_diagnostic.CS8600.severity = error
+dotnet_diagnostic.CS8601.severity = error
+dotnet_diagnostic.CS8602.severity = error
+dotnet_diagnostic.CS8603.severity = error
+dotnet_diagnostic.CS8604.severity = error
+dotnet_diagnostic.CS8618.severity = error
+dotnet_diagnostic.CS8620.severity = error
+dotnet_diagnostic.CS8625.severity = error
+dotnet_diagnostic.CS9107.severity = error
+dotnet_diagnostic.CS0618.severity = error
+# .NET analyzers' rules SonarCloud imports: no boxing or work for a log line that may be off (CA1873, LoggerMessage as
+# elsewhere), the concrete type where it's known (CA1859), static what touches no instance (CA1822), Count over Any()
+# (CA1860), TryParse's result read (CA1806), generated regexes (SYSLIB1045), ValueTasks awaited (CA2012), IsEmpty
+# (CA1836), the cancellation token last (CA1068), platform checks (CA1416), indexers over First() (CA1826), char
+# overloads (CA1866), JSON options kept (CA1869), Length over Count() (CA1829), EF's internals (EF1001) and raw SQL
+# (EF1002) only where suppressed with why, Quartz jobs that stop when asked (QZ0004), NSubstitute's async throws (NS5003)
+dotnet_diagnostic.CA1873.severity = error
+dotnet_diagnostic.CA1859.severity = error
+dotnet_diagnostic.CA1822.severity = error
+dotnet_diagnostic.CA1860.severity = error
+dotnet_diagnostic.CA1806.severity = error
+dotnet_diagnostic.SYSLIB1045.severity = error
+dotnet_diagnostic.CA2012.severity = error
+dotnet_diagnostic.CA1836.severity = error
+dotnet_diagnostic.CA1068.severity = error
+dotnet_diagnostic.CA1416.severity = error
+dotnet_diagnostic.CA1826.severity = error
+dotnet_diagnostic.CA1866.severity = error
+dotnet_diagnostic.CA1869.severity = error
+dotnet_diagnostic.CA1829.severity = error
+dotnet_diagnostic.EF1001.severity = error
+dotnet_diagnostic.EF1002.severity = error
+dotnet_diagnostic.QZ0004.severity = error
+dotnet_diagnostic.NS5003.severity = error
+
+# SonarCloud's rules for main code (it raises only its test rules on tests): the projects that aren't tests
+[{GrifballWebApp.Domain,GrifballWebApp.Application,GrifballWebApp.Infrastructure,GrifballWebApp.Server,GrifballWebApp.Seeder,GrifballWebApp.Convert,GrifballWebApp.Migrations.Postgres,GrifballWebApp.Migrations.Sqlite,GrifballWebApp.Migrations.SqlServer,DiscordInterfaces,DiscordInterfaceSourceGen}/**.cs]
+# An override or implementation keeps its parameters' names
+dotnet_diagnostic.S927.severity = error
+# No unread private field
+dotnet_diagnostic.S4487.severity = error
+# A property doesn't copy a collection
+dotnet_diagnostic.S2365.severity = error
+# An override doesn't change a default parameter value
+dotnet_diagnostic.S1006.severity = error
+# Methods a reader can follow: cognitive complexity 15 at most
+dotnet_diagnostic.S3776.severity = error
+
+# EF's migrations: generated code (SonarCloud doesn't analyse them either)
+[GrifballWebApp.Migrations.*/Migrations/**.cs]
+generated_code = true

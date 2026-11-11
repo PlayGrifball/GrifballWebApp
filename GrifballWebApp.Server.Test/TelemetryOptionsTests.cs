@@ -25,7 +25,7 @@ public class TelemetryOptionsTests
     {
         var options = From(new() { ["HOSTNAME"] = "grif-backend-abc" });
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(options.ServiceName, Is.EqualTo("GrifballWebApp.Server"));
             Assert.That(options.Environment, Is.EqualTo("production"));
@@ -37,7 +37,7 @@ public class TelemetryOptionsTests
             Assert.That(options.MetricExportInterval, Is.EqualTo(TimeSpan.FromSeconds(30)));
             Assert.That(options.SignalEndpoint("traces"), Is.Null);
             Assert.That(options.ResourceAttributes.ContainsKey("service.version"), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -59,7 +59,7 @@ public class TelemetryOptionsTests
             ["HOSTNAME"] = "grif-backend-1",
         }, version: "abc1234");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(options.ServiceName, Is.EqualTo("grif-prod"));
             Assert.That(options.Environment, Is.EqualTo("prod"));
@@ -73,7 +73,7 @@ public class TelemetryOptionsTests
                 ["deployment.environment.name"] = "prod",
                 ["team"] = "grif ball",
             }));
-        });
+        }
     }
 
     [Test]
@@ -86,7 +86,7 @@ public class TelemetryOptionsTests
             ["OTEL_RESOURCE_ATTRIBUTES"] = "deployment.environment=test",
         });
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(options.ServiceName, Is.EqualTo("grif-test"));
             Assert.That(options.OtlpEndpoint, Is.EqualTo(new Uri("http://otel-collector:4317")));
@@ -94,7 +94,7 @@ public class TelemetryOptionsTests
             // The deprecated key is normalised to the current one, not sent twice.
             Assert.That(options.ResourceAttributes.ContainsKey("deployment.environment"), Is.False);
             Assert.That(options.ResourceAttributes["deployment.environment.name"], Is.EqualTo("test"));
-        });
+        }
     }
 
     [TestCase(null, null)]
@@ -151,12 +151,12 @@ public class TelemetryOptionsTests
             ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "http/protobuf",
         });
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(options.SignalEndpoint("traces"), Is.EqualTo(new Uri("http://collector:4318/v1/traces")));
             Assert.That(options.SignalEndpoint("metrics"), Is.EqualTo(new Uri("http://collector:4318/v1/metrics")));
             Assert.That(options.SignalEndpoint("logs"), Is.EqualTo(new Uri("http://collector:4318/v1/logs")));
-        });
+        }
     }
 
     [Test]

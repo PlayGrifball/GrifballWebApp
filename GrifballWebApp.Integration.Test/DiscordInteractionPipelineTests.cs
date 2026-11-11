@@ -39,7 +39,7 @@ public class DiscordInteractionPipelineTests : DiscordInteractionPipelineFixture
     {
         var ambient = new AmbientCurrentUser();
         var currentUserService = new CurrentUserService(new HttpContextAccessor(), ambient);
-        _context = await SetUpFixture.NewGrifballContext(new Domain.Shared.AuditInterceptor(currentUserService));
+        _context = await TestDatabase.NewGrifballContext(new Domain.Shared.AuditInterceptor(currentUserService));
         return new ServiceCollection()
             .AddSingleton<GrifballContext>(_context)
             .AddSingleton<ICurrentUserService>(currentUserService)
@@ -60,7 +60,7 @@ public class DiscordInteractionPipelineTests : DiscordInteractionPipelineFixture
         var season = NewSeason();
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.SameAs(PreExecutionResult.Continue));
             Assert.That(season.CreatedByID, Is.EqualTo(user.Id));
@@ -68,7 +68,7 @@ public class DiscordInteractionPipelineTests : DiscordInteractionPipelineFixture
             // Set after the lookup's await, yet seen here, by the awaiting caller (NetCord, in production)
             Assert.That(services.GetRequiredService<IAmbientCurrentUser>().UserId, Is.EqualTo(user.Id));
             Assert.That(_logger.Entries, Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -81,13 +81,13 @@ public class DiscordInteractionPipelineTests : DiscordInteractionPipelineFixture
         var season = NewSeason();
         _context!.Seasons.Add(season);
         await _context.SaveChangesAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.SameAs(PreExecutionResult.Continue));
             Assert.That(season.CreatedByID, Is.Null);
             Assert.That(season.ModifiedByID, Is.Null);
             Assert.That(services.GetRequiredService<ICurrentUserService>().GetCurrentUserId(), Is.Null);
-        });
+        }
     }
 
     // The real NetCord hosting pipeline (its internal ComponentInteractionHandler), registered like Program.cs, running
@@ -95,7 +95,7 @@ public class DiscordInteractionPipelineTests : DiscordInteractionPipelineFixture
     // handler into the module, and not out of the interaction.
     private async Task<(IInteractionCreateGatewayHandler Handler, FactoryAuditModule.Probe Probe)> RealPipeline()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:GrifballWebApp"] = _context.Database.GetConnectionString(),
@@ -144,14 +144,14 @@ public class DiscordInteractionPipelineTests : DiscordInteractionPipelineFixture
         await handler.HandleAsync(Button("factory-audit:one").Interaction);
 
         var season = await SavedSeason("one");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_callbacks, Is.Empty, "the module failed");
-            Assert.That(season.CreatedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(season.CreatedAt, Is.Not.Default);
             Assert.That(season.CreatedByID, Is.EqualTo(user.Id));
             Assert.That(season.ModifiedByID, Is.EqualTo(user.Id));
             Assert.That(probe.SeenInModule["one"], Is.EqualTo(user.Id));
-        });
+        }
     }
 
     [Test]
@@ -165,13 +165,13 @@ public class DiscordInteractionPipelineTests : DiscordInteractionPipelineFixture
 
         var first = await SavedSeason("first");
         var second = await SavedSeason("second");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first.CreatedByID, Is.EqualTo(user.Id));
             Assert.That(second.CreatedByID, Is.Null);
-            Assert.That(second.CreatedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(second.CreatedAt, Is.Not.Default);
             Assert.That(new AmbientCurrentUser().UserId, Is.Null, "the test's own flow must not see an interaction's user");
-        });
+        }
     }
 
     [Test]
@@ -188,11 +188,11 @@ public class DiscordInteractionPipelineTests : DiscordInteractionPipelineFixture
 
         var aliceSeason = await SavedSeason("alice");
         var bobSeason = await SavedSeason("bob");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(aliceSeason.CreatedByID, Is.EqualTo(alice.Id));
             Assert.That(bobSeason.CreatedByID, Is.EqualTo(bob.Id));
-        });
+        }
     }
 
     [Test]
@@ -205,11 +205,11 @@ public class DiscordInteractionPipelineTests : DiscordInteractionPipelineFixture
         probe.InteractionEnded.SetResult();
         var seenAfterwards = await probe.Background!;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(probe.SeenInModule["background"], Is.EqualTo(user.Id));
             Assert.That(seenAfterwards, Is.Null);
-        });
+        }
     }
 }
 

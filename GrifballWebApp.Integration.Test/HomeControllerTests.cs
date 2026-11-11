@@ -20,7 +20,7 @@ public class HomeControllerTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _controller = new HomeController(_context);
     }
 
@@ -279,6 +279,6 @@ public class HomeControllerTests
 
     /// <summary>The home page's past seasons: the season list of the seasons that have ended.</summary>
     private Task<GrifballWebApp.Application.Dtos.PaginationResult<SeasonListItemDto>> PastSeasons(PaginationFilter filter, CancellationToken ct)
-        => new SeasonController(new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(_context), new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context)))
+        => new SeasonController(new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context)))
             .GetSeasons(new SeasonListFilter { Ended = true, PageNumber = filter.PageNumber, PageSize = filter.PageSize, SortColumn = filter.SortColumn, SortDirection = filter.SortDirection }, ct);
 }

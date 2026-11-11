@@ -38,7 +38,7 @@ internal sealed class SqliteColumns
             _schemas[table.Name] = table.Schema ?? "";
             foreach (var column in table.Columns)
             {
-                var mapping = column.PropertyMappings.First().TypeMapping;
+                var mapping = column.PropertyMappings[0].TypeMapping;
                 var converter = mapping.Converter;
                 var provider = converter?.ProviderClrType ?? mapping.ClrType;
                 _columns[(table.Name, column.Name)] = (Nullable.GetUnderlyingType(provider) ?? provider, SqliteOnly(converter) ? converter : null);
@@ -63,28 +63,31 @@ internal sealed class SqliteColumns
         return mapped.Undo is { } undo ? undo.ConvertFromProvider(value)! : value;
     }
 
-    internal static object ReadAs(DbDataReader reader, int ordinal, Type type)
+    /// <summary>How each provider type is read from any server's reader (<see cref="ReadAs"/>).</summary>
+    private static readonly Dictionary<Type, Func<DbDataReader, int, object>> Readers = new()
     {
-        if (type == typeof(DateTime)) return reader.GetFieldValue<DateTime>(ordinal);
-        if (type == typeof(DateTimeOffset)) return reader.GetFieldValue<DateTimeOffset>(ordinal);
-        if (type == typeof(Guid)) return reader.GetFieldValue<Guid>(ordinal);
-        if (type == typeof(bool)) return reader.GetFieldValue<bool>(ordinal);
-        if (type == typeof(byte)) return reader.GetFieldValue<byte>(ordinal);
-        if (type == typeof(short)) return reader.GetFieldValue<short>(ordinal);
-        if (type == typeof(int)) return reader.GetFieldValue<int>(ordinal);
-        if (type == typeof(long)) return reader.GetFieldValue<long>(ordinal);
+        [typeof(DateTime)] = (reader, ordinal) => reader.GetFieldValue<DateTime>(ordinal),
+        [typeof(DateTimeOffset)] = (reader, ordinal) => reader.GetFieldValue<DateTimeOffset>(ordinal),
+        [typeof(Guid)] = (reader, ordinal) => reader.GetFieldValue<Guid>(ordinal),
+        [typeof(bool)] = (reader, ordinal) => reader.GetFieldValue<bool>(ordinal),
+        [typeof(byte)] = (reader, ordinal) => reader.GetFieldValue<byte>(ordinal),
+        [typeof(short)] = (reader, ordinal) => reader.GetFieldValue<short>(ordinal),
+        [typeof(int)] = (reader, ordinal) => reader.GetFieldValue<int>(ordinal),
+        [typeof(long)] = (reader, ordinal) => reader.GetFieldValue<long>(ordinal),
         // As SQL Server and Postgres read theirs (decimal(20,0), numeric(20,0)), so it writes to them as is
-        if (type == typeof(ulong)) return (decimal)reader.GetFieldValue<ulong>(ordinal);
-        if (type == typeof(double)) return reader.GetFieldValue<double>(ordinal);
-        if (type == typeof(float)) return reader.GetFieldValue<float>(ordinal);
-        if (type == typeof(decimal)) return reader.GetFieldValue<decimal>(ordinal);
-        if (type == typeof(TimeSpan)) return reader.GetFieldValue<TimeSpan>(ordinal);
-        if (type == typeof(TimeOnly)) return reader.GetFieldValue<TimeOnly>(ordinal);
-        if (type == typeof(DateOnly)) return reader.GetFieldValue<DateOnly>(ordinal);
-        if (type == typeof(string)) return reader.GetFieldValue<string>(ordinal);
-        if (type == typeof(byte[])) return reader.GetFieldValue<byte[]>(ordinal);
-        return reader.GetValue(ordinal);
-    }
+        [typeof(ulong)] = (reader, ordinal) => (decimal)reader.GetFieldValue<ulong>(ordinal),
+        [typeof(double)] = (reader, ordinal) => reader.GetFieldValue<double>(ordinal),
+        [typeof(float)] = (reader, ordinal) => reader.GetFieldValue<float>(ordinal),
+        [typeof(decimal)] = (reader, ordinal) => reader.GetFieldValue<decimal>(ordinal),
+        [typeof(TimeSpan)] = (reader, ordinal) => reader.GetFieldValue<TimeSpan>(ordinal),
+        [typeof(TimeOnly)] = (reader, ordinal) => reader.GetFieldValue<TimeOnly>(ordinal),
+        [typeof(DateOnly)] = (reader, ordinal) => reader.GetFieldValue<DateOnly>(ordinal),
+        [typeof(string)] = (reader, ordinal) => reader.GetFieldValue<string>(ordinal),
+        [typeof(byte[])] = (reader, ordinal) => reader.GetFieldValue<byte[]>(ordinal),
+    };
+
+    internal static object ReadAs(DbDataReader reader, int ordinal, Type type)
+        => Readers.TryGetValue(type, out var read) ? read(reader, ordinal) : reader.GetValue(ordinal);
 
     /// <summary>
     /// A value read from any server, as EF stores it on SQLite: a DateTime as its text (UTC, the app's:

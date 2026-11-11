@@ -46,18 +46,22 @@ public class OrderByExtensionsTests
         Assert.That(result, Is.SameAs(q));
     }
 
+    private static readonly int[] expected = new[] { 20, 25, 30, 30 };
+
     [Test]
     public void OrderByFilter_Asc_SortsAscending()
     {
         var result = Query().OrderBy(new PaginationFilter { SortColumn = "Age", SortDirection = SortDirection.Asc }).Select(x => x.Age).ToList();
-        Assert.That(result, Is.EqualTo(new[] { 20, 25, 30, 30 }));
+        Assert.That(result, Is.EqualTo(expected));
     }
+
+    private static readonly int[] expected2 = new[] { 30, 30, 25, 20 };
 
     [Test]
     public void OrderByFilter_Desc_SortsDescending()
     {
         var result = Query().OrderBy(new PaginationFilter { SortColumn = "Age", SortDirection = SortDirection.Desc }).Select(x => x.Age).ToList();
-        Assert.That(result, Is.EqualTo(new[] { 30, 30, 25, 20 }));
+        Assert.That(result, Is.EqualTo(expected2));
     }
 
     [Test]
@@ -75,51 +79,63 @@ public class OrderByExtensionsTests
         Assert.That(result, Is.EqualTo(People().Select(x => x.Name)));
     }
 
+    private static readonly string[] expected3 = new[] { "Alice", "Bob", "Carol", "Dave" };
+
     [Test]
     public void OrderByString_IsCaseInsensitiveOnPropertyName()
     {
         var result = Query().OrderBy("nAmE").Select(x => x.Name).ToList();
         // string comparison itself is the default (culture) comparer
-        Assert.That(result, Is.EqualTo(new[] { "Alice", "Bob", "Carol", "Dave" }));
+        Assert.That(result, Is.EqualTo(expected3));
     }
+
+    private static readonly string[] expected4 = new[] { "Dave", "Carol", "Bob", "Alice" };
 
     [Test]
     public void OrderByString_LeadingDash_SortsDescending()
     {
         var result = Query().OrderBy("-name").Select(x => x.Name).ToList();
-        Assert.That(result, Is.EqualTo(new[] { "Dave", "Carol", "Bob", "Alice" }));
+        Assert.That(result, Is.EqualTo(expected4));
     }
+
+    private static readonly string[] expected5 = new[] { "Bob", "Carol", "Alice", "Dave" };
 
     [Test]
     public void OrderByString_MultipleColumns_UsesThenBy()
     {
         var result = Query().OrderBy("-Age,Name").Select(x => x.Name).ToList();
-        Assert.That(result, Is.EqualTo(new[] { "Bob", "Carol", "Alice", "Dave" }));
+        Assert.That(result, Is.EqualTo(expected5));
     }
+
+    private static readonly string[] expected6 = new[] { "Bob", "Carol", "Alice", "Dave" };
 
     [Test]
     public void OrderByString_SkipsGarbageAndEmptyEntries()
     {
         var result = Query().OrderBy(",,Nope,-Age,,Name,").Select(x => x.Name).ToList();
-        Assert.That(result, Is.EqualTo(new[] { "Bob", "Carol", "Alice", "Dave" }));
+        Assert.That(result, Is.EqualTo(expected6));
     }
+
+    private static readonly int[] expected7 = new[] { 20, 25, 30, 30 };
 
     [Test]
     public void OrderByString_TrimsWhitespace()
     {
         var result = Query().OrderBy("  Age ").Select(x => x.Age).ToList();
-        Assert.That(result, Is.EqualTo(new[] { 20, 25, 30, 30 }));
+        Assert.That(result, Is.EqualTo(expected7));
     }
+
+    private static readonly string[] expected8 = new[] { "Name", "Age" };
 
     [Test]
     public void OrderByString_WhitespaceBeforeDash_IsRecognized()
     {
         var sorts = new SortCollection<Person>("Name, -Age");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(sorts.Sorts.Select(x => x.PropertyName), Is.EqualTo(new[] { "Name", "Age" }));
+            Assert.That(sorts.Sorts.Select(x => x.PropertyName), Is.EqualTo(expected8));
             Assert.That(sorts.Sorts.Select(x => x.Direction), Is.EqualTo(new[] { ListSortDirection.Ascending, ListSortDirection.Descending }));
-        });
+        }
     }
 
     [Test]
@@ -127,8 +143,11 @@ public class OrderByExtensionsTests
     {
         var q = Query();
         var sorts = new SortCollection<Person>("Home.City");
-        Assert.That(sorts.Sorts, Is.Empty);
-        Assert.That(q.OrderBy("Home.City").Select(x => x.Name), Is.EqualTo(People().Select(x => x.Name)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sorts.Sorts, Is.Empty);
+            Assert.That(q.OrderBy("Home.City").Select(x => x.Name), Is.EqualTo(People().Select(x => x.Name)));
+        }
     }
 
     [Test]
@@ -136,54 +155,65 @@ public class OrderByExtensionsTests
     {
         var asc = Query().OrderBy("Score").Select(x => x.Score).ToList();
         var desc = Query().OrderBy("-Score").Select(x => x.Score).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(asc, Is.EqualTo(new int?[] { null, 1, 3, 5 }));
             Assert.That(desc, Is.EqualTo(new int?[] { 5, 3, 1, null }));
-        });
+        }
     }
+
+    private static readonly string[] expected9 = new[] { "Bob", "Carol", "Alice", "Dave" };
 
     [Test]
     public void OrderByString_OnAlreadyOrderedQuery_AppendsThenBy()
     {
         // Existing OrderBy(Age) must remain primary; Name becomes the tie breaker
         var result = Query().OrderByDescending(x => x.Age).OrderBy("Name").Select(x => x.Name).ToList();
-        Assert.That(result, Is.EqualTo(new[] { "Bob", "Carol", "Alice", "Dave" }));
+        Assert.That(result, Is.EqualTo(expected9));
     }
+
+    private static readonly string[] expected10 = new[] { "Carol", "Bob", "Alice", "Dave" };
 
     [Test]
     public void OrderByString_OnAlreadyOrderedQuery_AppendsThenByDescending()
     {
         var result = Query().OrderByDescending(x => x.Age).OrderBy("-Name").Select(x => x.Name).ToList();
-        Assert.That(result, Is.EqualTo(new[] { "Carol", "Bob", "Alice", "Dave" }));
+        Assert.That(result, Is.EqualTo(expected10));
     }
+
+    private static readonly string[] expected11 = new[] { "Carol", "Bob", "Alice" };
 
     [Test]
     public void OrderByString_WhereBeforeSort_IsNotMistakenForOrdering()
     {
         var result = Query().Where(x => x.Age > 20).OrderBy("-Name").Select(x => x.Name).ToList();
-        Assert.That(result, Is.EqualTo(new[] { "Carol", "Bob", "Alice" }));
+        Assert.That(result, Is.EqualTo(expected11));
     }
+
+    private static readonly string[] expected12 = new[] { "Dave", "Alice", "Carol", "Bob" };
 
     [Test]
     public void OrderByParams_AppliesEachSort()
     {
         var result = Query().OrderBy("Age", "-Name").Select(x => x.Name).ToList();
-        Assert.That(result, Is.EqualTo(new[] { "Dave", "Alice", "Carol", "Bob" }));
+        Assert.That(result, Is.EqualTo(expected12));
     }
+
+    private static readonly string[] expected13 = new[] { "Bob", "Carol", "Alice", "Dave" };
+    private static readonly string[] expectedArray = new[] { "Age", "Name" };
 
     [Test]
     public void OrderByOut_ExposesParsedSorts()
     {
         var result = Query().OrderBy("-age,NAME,bogus", out var sortCollection).Select(x => x.Name).ToList();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.EqualTo(new[] { "Bob", "Carol", "Alice", "Dave" }));
-            Assert.That(sortCollection.Sorts.Select(x => x.PropertyName), Is.EqualTo(new[] { "Age", "Name" }));
+            Assert.That(result, Is.EqualTo(expected13));
+            Assert.That(sortCollection.Sorts.Select(x => x.PropertyName), Is.EqualTo(expectedArray));
             Assert.That(sortCollection.Sorts.Select(x => x.Direction), Is.EqualTo(new[] { ListSortDirection.Descending, ListSortDirection.Ascending }));
             Assert.That(sortCollection.ToString(), Is.EqualTo("-Age,Name"));
-        });
+        }
     }
 
     [Test]
@@ -191,12 +221,12 @@ public class OrderByExtensionsTests
     {
         var q = Query();
         var sorts = new SortCollection<Person>();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sorts.Apply(q), Is.SameAs(q));
             Assert.That(sorts.ToString(), Is.Empty);
             Assert.That(sorts.Sorts, Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -210,19 +240,22 @@ public class OrderByExtensionsTests
     public void AddOrUpdate_AddsNewProperty()
     {
         var sorts = new SortCollection<Person>("Name");
-        Assert.That(sorts.AddOrUpdate("-age"), Is.EqualTo("Name,-Age"));
-        // Original collection is not mutated
-        Assert.That(sorts.ToString(), Is.EqualTo("Name"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sorts.AddOrUpdate("-age"), Is.EqualTo("Name,-Age"));
+            // Original collection is not mutated
+            Assert.That(sorts.ToString(), Is.EqualTo("Name"));
+        }
     }
 
     [Test]
     public void AddOrUpdate_FlipsExistingDirection()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(new SortCollection<Person>("Name,Age").AddOrUpdate("age"), Is.EqualTo("Name,-Age"));
             Assert.That(new SortCollection<Person>("-Name").AddOrUpdate("Name"), Is.EqualTo("Name"));
-        });
+        }
     }
 
     [Test]
@@ -235,14 +268,14 @@ public class OrderByExtensionsTests
     public void Remove_RemovesExistingProperty_RegardlessOfDirection()
     {
         var sorts = new SortCollection<Person>("Name,-Age");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(sorts.Remove("age"), Is.EqualTo("Name"));
             Assert.That(sorts.Remove("-Name"), Is.EqualTo("-Age"));
             Assert.That(sorts.Remove("Score"), Is.EqualTo("Name,-Age"));
             Assert.That(sorts.Remove("bogus"), Is.EqualTo("Name,-Age"));
             Assert.That(sorts.ToString(), Is.EqualTo("Name,-Age"));
-        });
+        }
     }
 
     [Test]

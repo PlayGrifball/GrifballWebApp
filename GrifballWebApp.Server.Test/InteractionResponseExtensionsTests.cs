@@ -36,9 +36,12 @@ public class InteractionResponseExtensionsTests
     {
         await _ctx.EphemeralResponse("hello");
 
-        Assert.That(SentMessage().Content, Is.EqualTo("hello"));
-        Assert.That(SentMessage().Flags, Is.EqualTo(MessageFlags.Ephemeral));
-        Assert.That(_rest.Requests, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(SentMessage().Content, Is.EqualTo("hello"));
+            Assert.That(SentMessage().Flags, Is.EqualTo(MessageFlags.Ephemeral));
+            Assert.That(_rest.Requests, Is.Empty);
+        }
     }
 
     [Test]
@@ -46,9 +49,12 @@ public class InteractionResponseExtensionsTests
     {
         await _ctx.TempResponse("temp");
 
-        Assert.That(SentMessage().Content, Is.EqualTo("temp"));
-        Assert.That(_rest.Requests.Single().Method, Is.EqualTo(HttpMethod.Delete));
-        Assert.That(_rest.Requests.Single().Path, Does.EndWith("/webhooks/2/tok/messages/@original"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(SentMessage().Content, Is.EqualTo("temp"));
+            Assert.That(_rest.Requests.Single().Method, Is.EqualTo(HttpMethod.Delete));
+            Assert.That(_rest.Requests.Single().Path, Does.EndWith("/webhooks/2/tok/messages/@original"));
+        }
     }
 
     [Test]
@@ -56,10 +62,13 @@ public class InteractionResponseExtensionsTests
     {
         await _ctx.ModifyTempResponse("modified");
 
-        Assert.That(_callbacks, Is.Empty);
-        Assert.That(_rest.Requests.Select(r => r.Method), Is.EqualTo(new[] { HttpMethod.Patch, HttpMethod.Delete }));
-        Assert.That(_rest.Requests[0].Path, Does.EndWith("/webhooks/2/tok/messages/@original"));
-        Assert.That(_rest.Requests[0].Body, Does.Contain("\"content\":\"modified\""));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_callbacks, Is.Empty);
+            Assert.That(_rest.Requests.Select(r => r.Method), Is.EqualTo(new[] { HttpMethod.Patch, HttpMethod.Delete }));
+            Assert.That(_rest.Requests[0].Path, Does.EndWith("/webhooks/2/tok/messages/@original"));
+            Assert.That(_rest.Requests[0].Body, Does.Contain("\"content\":\"modified\""));
+        }
     }
 
     [Test]

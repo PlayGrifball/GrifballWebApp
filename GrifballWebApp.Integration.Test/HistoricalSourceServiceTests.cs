@@ -25,7 +25,7 @@ public class HistoricalSourceServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
         _respond = _ => FakeSourcesHandler.Status(HttpStatusCode.NotFound);
         _handler = new FakeSourcesHandler(request => _respond(request));
@@ -36,6 +36,12 @@ public class HistoricalSourceServiceTests
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
     private static readonly byte[] Xlsx = HistoricalXlsx.Workbook(("Stats", HistoricalXlsx.StatsTab(("A", "T", 1))));
+    private static readonly string[] expected = new[] { "2019-wl19-schedule-stats", "late-league-website" };
+    private static readonly string[] expectedArray = new[] { "late-league-website" };
+    private static readonly string[] expectedArray0 = new[] { "2019-wl19-schedule-stats", "late-league-website", "late-league-website" };
+    private static readonly string[] expectedArray1 = new[] { "youtube-grifball-channel" };
+    private static readonly string[] expectedArray2 = new[] { "https://www.youtube.com/channel/UCTVJapRl-GGwLCfioTb9N8w" };
+    private static readonly string[] expectedArray3 = new[] { "https://web.archive.org/web/20250329022355id_/https://playgrifball.com/", "https://docs.google.com/spreadsheets/d/key/gviz/tq?tqx=out:csv" };
 
     /// <summary>Only these catalog sources stay enabled: the test's downloads.</summary>
     private async Task OnlyEnabled(params string[] ids)
@@ -59,7 +65,7 @@ public class HistoricalSourceServiceTests
 
         _context.ChangeTracker.Clear();
         var again = await _context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(list, Has.Count.EqualTo(HistoricalSourceCatalog.Sources.Count));
             Assert.That((again.Enabled, again.Title), Is.EqualTo((false, "WL19 Schedule & Stats")), "Enabled is the sysadmin's, the rest the catalog's");
@@ -68,7 +74,7 @@ public class HistoricalSourceServiceTests
             Assert.That((dead.IsDead, dead.Enabled, dead.Imported), Is.EqualTo((true, false, false)));
             var stats = list.Single(s => s.SourceID == "2019-wl19-schedule-stats");
             Assert.That((stats.Imported, stats.Kind, stats.League, stats.GameVersion, stats.SnapshotCount, stats.LatestSnapshotSize), Is.EqualTo((true, "GoogleSheet", (string?)"AGLA", (string?)"halo3", 0, (long?)null)));
-        });
+        }
     }
 
     [Test]
@@ -90,12 +96,12 @@ public class HistoricalSourceServiceTests
         var snapshots = await _context.Set<HistoricalSourceSnapshot>().AsNoTracking().OrderBy(s => s.HistoricalSourceSnapshotID)
             .Select(s => new { s.HistoricalSourceID, s.Sha256, s.Size, s.ContentType }).ToListAsync();
         var list = await _service.List();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(first.Changed.Select(c => c.SourceID), Is.EquivalentTo(new[] { "2019-wl19-schedule-stats", "late-league-website" }));
+            Assert.That(first.Changed.Select(c => c.SourceID), Is.EquivalentTo(expected));
             Assert.That((second.Changed.Count, second.Unchanged, second.Failed.Count), Is.EqualTo((0, 2, 0)));
-            Assert.That(third.Changed.Select(c => c.SourceID), Is.EqualTo(new[] { "late-league-website" }));
-            Assert.That(snapshots.Select(s => s.HistoricalSourceID), Is.EqualTo(new[] { "2019-wl19-schedule-stats", "late-league-website", "late-league-website" }));
+            Assert.That(third.Changed.Select(c => c.SourceID), Is.EqualTo(expectedArray));
+            Assert.That(snapshots.Select(s => s.HistoricalSourceID), Is.EqualTo(expectedArray0));
             Assert.That(snapshots.Select(s => s.Sha256.Length), Is.All.EqualTo(64));
             Assert.That(snapshots[0].ContentType, Is.EqualTo(HistoricalSourceFetcher.XlsxContentType));
             Assert.That(snapshots[0].Size, Is.EqualTo(Xlsx.Length));
@@ -106,7 +112,7 @@ public class HistoricalSourceServiceTests
             Assert.That(list.Single(s => s.SourceID == "2019-wl19-schedule-stats").LastFetchStatus, Is.EqualTo("Unchanged"));
             var latest = await _service.LatestSnapshotIds();
             Assert.That(latest, Is.EquivalentTo(new[] { first.Changed[0].SnapshotID, third.Changed[0].SnapshotID }), "Each source's newest");
-        });
+        }
     }
 
     [Test]
@@ -131,7 +137,7 @@ public class HistoricalSourceServiceTests
 
         var latest = await _service.LatestSnapshotIds();
         var contents = await _service.Load(latest);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(privateNow.Failed.Single(), Is.EqualTo(("2019-wl19-schedule-stats", "the xlsx export answered 200")));
             Assert.That(unreachable.Failed.Single().Reason, Is.EqualTo("no route"));
@@ -141,7 +147,7 @@ public class HistoricalSourceServiceTests
             Assert.That(latest, Is.EqualTo(new[] { first.Changed.Single().SnapshotID }));
             Assert.That(contents.Single().Content, Is.EqualTo(Xlsx), "The import reads the last snapshot");
             Assert.That(contents[0].Source.HistoricalSourceID, Is.EqualTo("2019-wl19-schedule-stats"));
-        });
+        }
     }
 
     [Test]
@@ -158,13 +164,13 @@ public class HistoricalSourceServiceTests
         var refused = await _service.Refresh();
 
         var snapshot = await _context.Set<HistoricalSourceSnapshot>().AsNoTracking().SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(ok.Changed, Has.Count.EqualTo(1));
             Assert.That(snapshot.ContentType, Is.EqualTo("text/csv"));
             Assert.That(_handler.Requests, Does.Contain(HistoricalSourceFetcher.CsvUrl("1DBxPmiTg6yGyL7fjy5NmwSL0sr2ei1thnXD-vP32oNk", "1497794987")));
             Assert.That(refused.Failed.Single().Reason, Is.EqualTo("the CSV export answered 401 (text/html)"));
-        });
+        }
     }
 
     [Test]
@@ -176,11 +182,11 @@ public class HistoricalSourceServiceTests
 
         var result = await _service.Refresh();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(result.Changed.Select(c => c.SourceID), Is.EqualTo(new[] { "youtube-grifball-channel" }));
-            Assert.That(_handler.Requests, Is.EqualTo(new[] { "https://www.youtube.com/channel/UCTVJapRl-GGwLCfioTb9N8w" }));
-        });
+            Assert.That(result.Changed.Select(c => c.SourceID), Is.EqualTo(expectedArray1));
+            Assert.That(_handler.Requests, Is.EqualTo(expectedArray2));
+        }
     }
 
     [Test]
@@ -200,12 +206,12 @@ public class HistoricalSourceServiceTests
         _context.ChangeTracker.Clear();
         var website = await _context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "late-league-website");
         var stats = await _context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((website.IsDead, website.Enabled, website.LastFetchStatus), Is.EqualTo((false, true, (string?)HistoricalSource.ChangedStatus)), "Never downloaded: the catalog's");
             Assert.That((stats.IsDead, stats.Enabled), Is.EqualTo((false, false)), "Downloaded before: the sysadmin's off is kept");
-            Assert.That(result.Changed.Select(c => c.SourceID), Is.EqualTo(new[] { "late-league-website" }));
-        });
+            Assert.That(result.Changed.Select(c => c.SourceID), Is.EqualTo(expectedArray));
+        }
     }
 
     [Test]
@@ -213,14 +219,14 @@ public class HistoricalSourceServiceTests
     {
         await _service.EnsureCatalog();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _service.SetEnabled("late-league-website", false), Is.EqualTo(HistoricalSourceSetEnabledResult.Set));
             Assert.That(await _service.SetEnabled("2018-fl18-schedule", true), Is.EqualTo(HistoricalSourceSetEnabledResult.Dead), "A dead source is never enabled");
             Assert.That(await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "2018-fl18-schedule").Select(s => s.Enabled).SingleAsync(), Is.False);
             Assert.That(await _service.SetEnabled("nope", true), Is.Null);
             Assert.That(await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "late-league-website").Select(s => s.Enabled).SingleAsync(), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -232,15 +238,15 @@ public class HistoricalSourceServiceTests
         var wayback = await fetcher.Fetch(HistoricalTestData.Source(url: "https://playgrifball.com/", kind: HistoricalSourceKind.Wayback, waybackTimestamp: "20250329022355"), CancellationToken.None);
         var csv = await fetcher.Fetch(HistoricalTestData.Source(url: "x", kind: HistoricalSourceKind.GoogleSheetCsv, sheetKey: "key"), CancellationToken.None);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(_handler.Requests, Is.EqualTo(new[] { "https://web.archive.org/web/20250329022355id_/https://playgrifball.com/", "https://docs.google.com/spreadsheets/d/key/gviz/tq?tqx=out:csv" }));
+            Assert.That(_handler.Requests, Is.EqualTo(expectedArray3));
             Assert.That(wayback.ContentType, Is.EqualTo("text/html"), "A page without a content type is HTML");
             Assert.That(csv.ContentType, Is.EqualTo("text/csv"));
             await Assert.ThrowsAsync<HistoricalFetchException>(() => fetcher.Fetch(HistoricalTestData.Source(url: "x", kind: HistoricalSourceKind.GoogleSheet), CancellationToken.None));
             await Assert.ThrowsAsync<HistoricalFetchException>(() => fetcher.Fetch(HistoricalTestData.Source(url: "x", kind: HistoricalSourceKind.GoogleSheetCsv), CancellationToken.None));
             await Assert.ThrowsAsync<HistoricalFetchException>(() => fetcher.Fetch(HistoricalTestData.Source(url: "x", kind: HistoricalSourceKind.Wayback), CancellationToken.None));
             await Assert.ThrowsAsync<HistoricalFetchException>(() => fetcher.Fetch(HistoricalTestData.Source(url: "https://empty.example/", kind: HistoricalSourceKind.WebPage), CancellationToken.None));
-        });
+        }
     }
 }

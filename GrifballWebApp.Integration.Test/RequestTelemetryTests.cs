@@ -56,14 +56,14 @@ public class RequestTelemetryTests
             await Task.Delay(100); // room for a wrongly logged /health line to show up too
 
             var requestLog = sink.Events.Single();
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(response.Response.Headers.ContainsKey(RequestTelemetryMiddleware.TraceResponseHeader), Is.True);
                 Assert.That(requestLog.Properties["RequestPath"].ToString(), Is.EqualTo("\"/api/hello\""));
                 Assert.That(requestLog.Properties["StatusCode"].ToString(), Is.EqualTo("200"));
                 Assert.That(requestLog.Properties["ClientIp"].ToString(), Is.EqualTo("\"68.41.224.97\""));
                 Assert.That(requestLog.TraceId?.ToHexString(), Is.EqualTo(response.Response.Headers["traceresponse"].ToString().Split('-')[1]));
-            });
+            }
         }
         finally
         {

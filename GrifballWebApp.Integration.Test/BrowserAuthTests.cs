@@ -92,8 +92,11 @@ public class BrowserAuthTests
     private static async Task<string> AntiforgeryToken(HttpClient client)
     {
         using var response = await client.GetAsync("/Identity/Antiforgery");
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(response.Headers.CacheControl?.NoStore, Is.True, "a token is per user: never cached");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(response.Headers.CacheControl?.NoStore, Is.True, "a token is per user: never cached");
+        }
         return (await response.Content.ReadFromJsonAsync<AntiforgeryTokenResponse>())!.Token;
     }
 
@@ -115,7 +118,7 @@ public class BrowserAuthTests
         var cookie = SetCookie(response, BrowserAuth.CookieName);
         Assert.That(cookie, Is.Not.Null, "the session cookie");
         var attributes = cookie!.Split(';').Skip(1).Select(a => a.Trim().ToLowerInvariant()).ToList();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(attributes, Does.Contain("httponly"));
             Assert.That(attributes, Does.Contain("secure"));
@@ -125,7 +128,7 @@ public class BrowserAuthTests
             Assert.That(attributes, Has.None.StartsWith("domain="));
             // Persistent: it outlives the browser session
             Assert.That(attributes, Has.Some.StartsWith("expires="));
-        });
+        }
         // No token in the body for scripts on the page to read
         Assert.That(await response.Content.ReadAsStringAsync(), Is.Empty);
     }
@@ -138,11 +141,17 @@ public class BrowserAuthTests
             Assert.That(login.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         using var me = await client.GetAsync("/Identity/Me");
-        Assert.That(me.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(me.Headers.CacheControl?.NoStore, Is.True, "who is signed in is never cached");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(me.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(me.Headers.CacheControl?.NoStore, Is.True, "who is signed in is never cached");
+        }
         var info = await me.Content.ReadFromJsonAsync<MetaInfoResponse>();
-        Assert.That(info!.DisplayName, Is.EqualTo(UserName));
-        Assert.That(info.IsSysAdmin && info.IsCommissioner, Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(info!.DisplayName, Is.EqualTo(UserName));
+            Assert.That(info.IsSysAdmin && info.IsCommissioner, Is.True);
+        }
 
         using var metaInfo = await client.GetAsync("/Identity/MetaInfo");
         Assert.That(metaInfo.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -157,8 +166,11 @@ public class BrowserAuthTests
         Assert.That(me.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
 
         using var metaInfo = await client.GetAsync("/Identity/MetaInfo");
-        Assert.That(metaInfo.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
-        Assert.That(metaInfo.Headers.Location, Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(metaInfo.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+            Assert.That(metaInfo.Headers.Location, Is.Null);
+        }
 
         using var admin = await client.SendAsync(Post(AdminPost));
         Assert.That(admin.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
@@ -176,8 +188,11 @@ public class BrowserAuthTests
 
         using var response = await client.SendAsync(Post(AdminPost, await AntiforgeryToken(client)));
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
-        Assert.That(response.Headers.Location, Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+            Assert.That(response.Headers.Location, Is.Null);
+        }
     }
 
     [Test]
@@ -188,8 +203,11 @@ public class BrowserAuthTests
 
         using var response = await client.SendAsync(Post(AdminPost));
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That(response.Headers.TryGetValues(BrowserAuth.AntiforgeryRejectedHeader, out _), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(response.Headers.TryGetValues(BrowserAuth.AntiforgeryRejectedHeader, out _), Is.True);
+        }
     }
 
     [Test]
@@ -226,8 +244,11 @@ public class BrowserAuthTests
 
         using var response = await client.SendAsync(Post(AdminPost, visitorToken));
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That(response.Headers.TryGetValues(BrowserAuth.AntiforgeryRejectedHeader, out _), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(response.Headers.TryGetValues(BrowserAuth.AntiforgeryRejectedHeader, out _), Is.True);
+        }
     }
 
     [Test]
@@ -236,16 +257,25 @@ public class BrowserAuthTests
         using var client = Script();
         using var login = await Login(client, "?useCookies=false");
 
-        Assert.That(login.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(SetCookie(login, BrowserAuth.CookieName), Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(login.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(SetCookie(login, BrowserAuth.CookieName), Is.Null);
+        }
         var token = (await login.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Authentication.BearerToken.AccessTokenResponse>())!;
-        Assert.That(token.AccessToken, Is.Not.Empty);
-        Assert.That(token.RefreshToken, Is.Not.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(token.AccessToken, Is.Not.Empty);
+            Assert.That(token.RefreshToken, Is.Not.Empty);
+        }
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
         using var metaInfo = await client.GetAsync("/Identity/MetaInfo");
-        Assert.That(metaInfo.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That((await metaInfo.Content.ReadFromJsonAsync<MetaInfoResponse>())!.DisplayName, Is.EqualTo(UserName));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(metaInfo.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That((await metaInfo.Content.ReadFromJsonAsync<MetaInfoResponse>())!.DisplayName, Is.EqualTo(UserName));
+        }
 
         // A browser never sends this header by itself, so no antiforgery token is needed
         using var post = await client.SendAsync(Post(AdminPost));
@@ -442,8 +472,11 @@ public class BrowserAuthTests
 
         using var response = await client.SendAsync(request);
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
-        Assert.That(SetCookie(response, BrowserAuth.CookieName), Is.Null, "not signed in");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+            Assert.That(SetCookie(response, BrowserAuth.CookieName), Is.Null, "not signed in");
+        }
     }
 
     [TestCase(null, null)]

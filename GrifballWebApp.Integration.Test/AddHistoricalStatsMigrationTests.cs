@@ -18,13 +18,15 @@ namespace GrifballWebApp.Integration.Test;
 public class AddHistoricalStatsMigrationTests
 {
     private GrifballContext _context;
+    private static readonly string[] expected = new[] { "AGLA", "AGLA" };
+    private static readonly string[] expectedArray = new[] { "halo3", "reach", "reach-dash", "halo4", "halo5", "infinite" };
 
     [SetUp]
     public async Task SetUp()
     {
         if (TestDatabase.Provider == DatabaseProvider.Sqlite)
             Assert.Ignore("A migration of SQL Server's and Postgres's: SQLite's migrations start after it, from one baseline.");
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
     }
 
     // Not after SetUp ignored the test (SQLite), which made no database
@@ -65,14 +67,14 @@ public class AddHistoricalStatsMigrationTests
 
         var seasons = await _context.Seasons.AsNoTracking().Include(s => s.League).OrderBy(s => s.SeasonName).ToListAsync();
         var gameVersions = await _context.GameVersions.AsNoTracking().ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(seasons.Select(s => s.League.LeagueName), Is.EqualTo(new[] { "AGLA", "AGLA" }));
+            Assert.That(seasons.Select(s => s.League.LeagueName), Is.EqualTo(expected));
             Assert.That(seasons.Select(s => s.LeagueID), Is.All.EqualTo(League.DefaultLeagueID));
             Assert.That(seasons.Select(s => s.GameVersionID), Is.All.EqualTo(6), "The app's seasons so far are Halo Infinite's");
             Assert.That(seasons.Select(s => s.HistoricalSourceID), Is.All.Null);
-            Assert.That(gameVersions.Select(g => g.Slug), Is.EquivalentTo(new[] { "halo3", "reach", "reach-dash", "halo4", "halo5", "infinite" }));
-        });
+            Assert.That(gameVersions.Select(g => g.Slug), Is.EquivalentTo(expectedArray));
+        }
     }
 
     [Test]
@@ -175,13 +177,13 @@ public class AddHistoricalStatsMigrationTests
         var users = await _context.Database
             .SqlQueryRaw<string>(Sql("SELECT [UserName] AS [Value] FROM [Auth].[Users]", """SELECT "UserName" AS "Value" FROM "Auth"."Users" """))
             .ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             var id = longName.SeasonID.ToString();
             Assert.That(names, Is.EquivalentTo(new[] { "Season of the app's own", $"{longName.SeasonName[..(29 - id.Length)]}~{id}", "Shared", $"Shared~{sharedElsewhere.SeasonID}" }));
             Assert.That(names.Select(n => n.Length), Is.All.LessThanOrEqualTo(30));
             Assert.That(users, Has.Member("dummy").And.No.Member("historical:Someone"), "The import's placeholders go; other dummy users stay");
-        });
+        }
 
         await migrator.MigrateAsync();
         Assert.That(await _context.Seasons.Select(s => s.LeagueID).Distinct().SingleAsync(), Is.EqualTo(League.DefaultLeagueID), "Up gives them the app's league again");
@@ -205,7 +207,7 @@ public class AddHistoricalStatsMigrationTests
         await migrator.MigrateAsync();
 
         var history = await _context.Set<XboxGamertagHistory>().AsNoTracking().OrderBy(h => h.Gamertag).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(history.Select(h => (h.XboxUserID, h.Gamertag, h.NormalizedGamertag, h.Source)), Is.EqualTo(new[]
             {
@@ -214,7 +216,7 @@ public class AddHistoricalStatsMigrationTests
             }), "Not the current gamertag, and nothing for an account never renamed");
             Assert.That(history.Select(h => h.LastSeen), Is.All.Not.Null);
             Assert.That(history.All(h => h.FirstSeen is null || h.FirstSeen <= h.LastSeen));
-        });
+        }
     }
 
     private static Season NewSeason(string name, int leagueId = League.DefaultLeagueID, string? sourceId = null) => Season.Seed(seasonName: name, leagueID: leagueId, historicalSourceID: sourceId).WithDates(signupsOpen: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), signupsClose: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), draftStart: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonStart: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));

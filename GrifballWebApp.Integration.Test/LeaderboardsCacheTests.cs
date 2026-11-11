@@ -44,7 +44,7 @@ public class LeaderboardsCacheTests
     public async Task StopRedis() => await _redis.DisposeAsync();
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();

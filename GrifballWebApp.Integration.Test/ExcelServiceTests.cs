@@ -34,11 +34,15 @@ public class ExcelServiceTests
     private string _copySheetJson = """{"values":[]}""";
 
     private static readonly SheetInfo Target = new() { Name = "Target", SpreadsheetID = TargetSpreadsheet, SheetName = "Stats" };
+    private static readonly string[] expected = new[] { "Amy200", "Zed200", "Bob200", "Amy100", "Zed100", "Bob100" };
+    private static readonly int[] expectedArray = new[] { 1, 1, 0, 1, 1, 0 };
+    private static readonly int[] expectedArray0 = new[] { 2, 2, 3, 2, 2, 3 };
+    private static readonly string[] expectedArray1 = new[] { "Amy300", "Zed300", "Bob300" };
 
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _dataPull = Substitute.For<IDataPullService>();
         _handler = new FakeSheetsHandler
         {
@@ -186,9 +190,12 @@ public class ExcelServiceTests
         var info = service.GetDefaultInfo();
 
         Assert.That(info, Has.Length.EqualTo(1));
-        Assert.That(info[0].Name, Is.EqualTo("Enter your spreadsheetID and sheet name below"));
-        Assert.That(info[0].SpreadsheetID, Is.Empty);
-        Assert.That(info[0].SheetName, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(info[0].Name, Is.EqualTo("Enter your spreadsheetID and sheet name below"));
+            Assert.That(info[0].SpreadsheetID, Is.Empty);
+            Assert.That(info[0].SheetName, Is.Empty);
+        }
     }
 
     [Test]
@@ -231,16 +238,16 @@ public class ExcelServiceTests
         Assert.That(get.Url, Does.Contain($"spreadsheets/{CopySpreadsheet}/values/Matches!A:Z"));
 
         var (range, rows, inputOption) = SingleBatchUpdate();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(inputOption, Is.EqualTo("USER_ENTERED"));
             Assert.That(range, Is.EqualTo("Stats!A2:GO7"));
             Assert.That(rows, Has.Length.EqualTo(6));
             Assert.That(rows.All(r => r.Length == ColumnsPerRow), Is.True);
             // Earliest match first, winners first, then by gamertag
-            Assert.That(rows.Select(r => r[11].GetString()), Is.EqualTo(new[] { "Amy200", "Zed200", "Bob200", "Amy100", "Zed100", "Bob100" }));
-            Assert.That(rows.Select(r => r[1].GetInt32()), Is.EqualTo(new[] { 1, 1, 0, 1, 1, 0 }), "team id");
-            Assert.That(rows.Select(r => r[2].GetInt32()), Is.EqualTo(new[] { 2, 2, 3, 2, 2, 3 }), "outcome");
+            Assert.That(rows.Select(r => r[11].GetString()), Is.EqualTo(expected));
+            Assert.That(rows.Select(r => r[1].GetInt32()), Is.EqualTo(expectedArray), "team id");
+            Assert.That(rows.Select(r => r[2].GetInt32()), Is.EqualTo(expectedArray0), "outcome");
             Assert.That(rows[0][0].GetString(), Is.Empty);
             Assert.That(rows[0][6].GetString(), Is.Empty, "null LastLeaveTime is sent as empty string");
             Assert.That(rows[0][10].GetDouble(), Is.EqualTo(600), "time played in seconds");
@@ -248,12 +255,12 @@ public class ExcelServiceTests
             // Medal counts via Exts.Count: Killing Spree and Double Kill for Amy, zero otherwise
             Assert.That(rows[0][30].GetInt32(), Is.EqualTo(3));
             Assert.That(rows[0][85].GetInt32(), Is.EqualTo(2));
-            Assert.That(rows[0][31].GetInt32(), Is.EqualTo(0));
-            Assert.That(rows[1][30].GetInt32(), Is.EqualTo(0));
+            Assert.That(rows[0][31].GetInt32(), Is.Zero);
+            Assert.That(rows[1][30].GetInt32(), Is.Zero);
             Assert.That(rows[0][181].GetInt32(), Is.EqualTo(5), "melee kills");
             Assert.That(rows[0][196].GetInt32(), Is.EqualTo(1), "rank is the last column");
             Assert.That(rows[2][196].GetInt32(), Is.EqualTo(3));
-        });
+        }
     }
 
     [Test]
@@ -275,8 +282,11 @@ public class ExcelServiceTests
 
         var ex = await Assert.ThrowsAsync<Exception>(() => service.ExportAll(Target));
 
-        Assert.That(ex!.Message, Is.EqualTo("Missing GoogleSheets:CopySpreadsheetID"));
-        Assert.That(_handler.Requests, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("Missing GoogleSheets:CopySpreadsheetID"));
+            Assert.That(_handler.Requests, Is.Empty);
+        }
     }
 
     [Test]
@@ -304,8 +314,11 @@ public class ExcelServiceTests
         var get = _handler.Requests.Single(r => r.Method == HttpMethod.Get);
         Assert.That(get.Url, Does.Contain($"spreadsheets/{TargetSpreadsheet}/values/Stats!L:L"));
         var (range, rows, _) = SingleBatchUpdate();
-        Assert.That(range, Is.EqualTo("Stats!A6:GO8"));
-        Assert.That(rows.Select(r => r[11].GetString()), Is.EqualTo(new[] { "Amy300", "Zed300", "Bob300" }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(range, Is.EqualTo("Stats!A6:GO8"));
+            Assert.That(rows.Select(r => r[11].GetString()), Is.EqualTo(expectedArray1));
+        }
     }
 
     [Test]
@@ -318,8 +331,11 @@ public class ExcelServiceTests
         await service.AppendMatch(Target, matchID);
 
         await _dataPull.Received(1).GetAndSaveMatch(matchID);
-        Assert.That(_handler.Requests.Count(r => r.Method == HttpMethod.Get), Is.EqualTo(1));
-        Assert.That(_handler.Requests.Any(r => r.Method == HttpMethod.Post), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_handler.Requests.Count(r => r.Method == HttpMethod.Get), Is.EqualTo(1));
+            Assert.That(_handler.Requests.Any(r => r.Method == HttpMethod.Post), Is.False);
+        }
     }
 
     // ---------------- ExcelController ----------------
@@ -347,13 +363,13 @@ public class ExcelServiceTests
         var queued = await controller.ExportAll(Target, jobs.OnDemand, CancellationToken.None);
         var again = await controller.ExportAll(Target, jobs.OnDemand, CancellationToken.None);
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((idle.State, queued.State, again.State), Is.EqualTo((OnDemandJobState.Idle, OnDemandJobState.Queued, OnDemandJobState.Queued)));
             Assert.That((await controller.ExportAllStatus(jobs.OnDemand, CancellationToken.None)).State, Is.EqualTo(OnDemandJobState.Queued));
             Assert.That(await jobs.Scheduler.GetTriggersOfJob(OnDemandJobs.JobKeyOf(typeof(SheetExportJob))), Has.Count.EqualTo(1));
             Assert.That(_handler.Requests, Is.Empty, "Nothing written until the worker runs it");
-        });
+        }
     }
 
     [Test]

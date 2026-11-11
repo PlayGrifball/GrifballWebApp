@@ -15,10 +15,10 @@ namespace GrifballWebApp.Migrations.Postgres;
 /// </summary>
 public class DesignTimeServices : IDesignTimeServices
 {
-    public void ConfigureDesignTimeServices(IServiceCollection services)
+    public void ConfigureDesignTimeServices(IServiceCollection serviceCollection)
     {
-        services.AddSingleton<IMigrationsModelDiffer>(provider => new HistoryMigrationsModelDiffer(
+        serviceCollection.AddSingleton<IMigrationsModelDiffer>(provider => new HistoryMigrationsModelDiffer(
             provider.GetRequiredService<ICurrentDbContext>().Context.GetService<IMigrationsModelDiffer>()));
-        services.AddSingleton<ICSharpMigrationOperationGenerator, RawSqlMigrationOperationGenerator>();
+        serviceCollection.AddSingleton<ICSharpMigrationOperationGenerator, RawSqlMigrationOperationGenerator>();
     }
 }

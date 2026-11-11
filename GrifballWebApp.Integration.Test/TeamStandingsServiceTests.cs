@@ -16,7 +16,7 @@ public class TeamStandingsServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new TeamStandingsService(_context);
     }
 

@@ -25,7 +25,7 @@ public class ScheduleServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new ScheduleService(_context, Substitute.For<ILogger<ScheduleService>>());
     }
 
@@ -49,7 +49,7 @@ public class ScheduleServiceTests
 
         var teams = Enumerable.Range(1, 4).Select(i => Team.Seed(seasonID: SeasonID, teamName: $"T{i}")).ToList();
         _context.Teams.AddRange(teams);
-        var options = SeasonScheduleChromosomeTests.EveryDay(20, 21);
+        var options = AvailabilityTestData.EveryDay(20, 21);
         _context.Availability.AddRange(options);
         await _context.SaveChangesAsync();
         foreach (var o in options)
@@ -90,13 +90,13 @@ public class ScheduleServiceTests
         var eastern = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
         var start = TimeZoneInfo.ConvertTimeFromUtc(new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc), eastern);
         var end = TimeZoneInfo.ConvertTimeFromUtc(new DateTime(2024, 1, 29, 12, 0, 0, DateTimeKind.Utc), eastern);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(genes.Select(g => g.SeasonMatchID), Is.EquivalentTo(expectedIDs));
             Assert.That(genes.All(g => teams.Any(t => t.TeamID == g.HomeTeamID) && teams.Any(t => t.TeamID == g.AwayTeamID)), Is.True);
             Assert.That(genes.All(g => g.ScheduledTime >= start && g.ScheduledTime <= end), Is.True);
             Assert.That(genes.All(g => g.ScheduledTime.Hour is 20 or 21 && g.ScheduledTime.Minute == 0), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -117,8 +117,11 @@ public class ScheduleServiceTests
 
         var genes = await _service.GetTimeRecommendations(SeasonID);
 
-        Assert.That(genes.Select(g => g.SeasonMatchID), Does.Not.Contain(other.SeasonMatchID));
-        Assert.That(genes, Has.Count.EqualTo(3));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(genes.Select(g => g.SeasonMatchID), Does.Not.Contain(other.SeasonMatchID));
+            Assert.That(genes, Has.Count.EqualTo(3));
+        }
     }
 
     [Test]
@@ -139,13 +142,13 @@ public class ScheduleServiceTests
 
         var run = await _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 5, TimeBudget = TimeSpan.FromMinutes(1) }, (generation, _) => heard.Add(generation));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(run.Genes, Has.Count.EqualTo(3));
             Assert.That(run.Generations, Is.InRange(1, 5), "At most the limit; fewer at a perfect schedule");
             Assert.That(heard, Is.EqualTo(Enumerable.Range(1, run.Generations)));
             Assert.That(run.Fitness, Is.InRange(0.0, 1.0));
-        });
+        }
     }
 
     [Test]
@@ -179,7 +182,7 @@ public class ScheduleServiceTests
         await job.Execute(context, new RecommendSchedule(SeasonID, "commish"));
 
         var latest = await Recommendations().Latest(SeasonID);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(latest, Is.Not.Null);
             Assert.That((latest!.RequestedBy, latest.AppliedAt), Is.EqualTo(("commish", (DateTime?)null)));
@@ -190,7 +193,7 @@ public class ScheduleServiceTests
             Assert.That(((Quartz.JobRunReport)context.Result!).Summary, Does.Contain("of 3 matches with a conflict"));
             Assert.That(job.Percent(1, TimeSpan.Zero), Is.EqualTo(33));
             Assert.That(job.Percent(3, TimeSpan.Zero), Is.EqualTo(99), "Never 100 before it's saved");
-        });
+        }
     }
 
     [Test]
@@ -214,7 +217,7 @@ public class ScheduleServiceTests
         var latest = (await controller.Recommendation(SeasonID, CancellationToken.None)).Latest!;
         var stored = await _context.Set<ScheduleRecommendationMatch>().AsNoTracking().Include(m => m.ScheduleRecommendation).ThenInclude(r => r.Season)
             .Where(m => m.ScheduleRecommendationID == saved.ScheduleRecommendationID).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(applied.Value!.MatchesScheduled, Is.EqualTo(2));
             Assert.That(times[decided], Is.Null, "A decided match keeps its time");
@@ -226,7 +229,7 @@ public class ScheduleServiceTests
             Assert.That(latest.Matches.Single(m => m.SeasonMatchID == decided).Decided, Is.True);
             Assert.That(stored.Select(m => (m.ScheduleRecommendation.ScheduleRecommendationID, m.ScheduleRecommendation.Season.SeasonID)).Distinct(), Is.EqualTo(new[] { (saved.ScheduleRecommendationID, SeasonID) }));
             Assert.That(stored.Select(m => m.ScheduleRecommendationMatchID).Distinct().Count(), Is.EqualTo(3));
-        });
+        }
     }
 
     [Test]
@@ -253,14 +256,14 @@ public class ScheduleServiceTests
         var stamp = await ctx.ScheduleRecommendations.AsNoTracking().Where(r => r.ScheduleRecommendationID == saved.ScheduleRecommendationID)
             .Select(r => new { r.AppliedBy, r.AppliedAt }).SingleAsync();
         var after = await ctx.SeasonMatches.AsNoTracking().ToDictionaryAsync(m => m.SeasonMatchID, m => m.ScheduledTime);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(rival.Stamped, Is.True, "The rival ran in the gap");
             Assert.That(applied, Is.Null, "The 409 path");
             Assert.That(stamp.AppliedBy, Is.EqualTo("other"));
             Assert.That(stamp.AppliedAt, Is.EqualTo(rivalAt).Within(TimeSpan.FromSeconds(1)));
             Assert.That(after, Is.EqualTo(before), "No match time changed");
-        });
+        }
     }
 
     /// <summary>
@@ -300,14 +303,14 @@ public class ScheduleServiceTests
         var after = await controller.Recommendation(SeasonID, CancellationToken.None);
 
         var triggers = await jobs.Scheduler.GetTriggersOfJob(OnDemandJobs.JobKeyOf(typeof(ScheduleRecommendationJob)));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((before.Run.State, before.Latest), Is.EqualTo((OnDemandJobState.Idle, (ScheduleRecommendationDto?)null)));
             Assert.That((queued!.State, again!.State, after.Run.State), Is.EqualTo((OnDemandJobState.Queued, OnDemandJobState.Queued, OnDemandJobState.Queued)));
             Assert.That(triggers, Has.Count.EqualTo(1), "Asked twice: one run");
             Assert.That(missing.Result, Is.InstanceOf<NotFoundResult>());
             Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(SchedulerController))?.Roles, Is.EqualTo("Commissioner,Sysadmin"));
-        });
+        }
     }
 
     [Test]

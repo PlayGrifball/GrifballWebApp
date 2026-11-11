@@ -19,7 +19,7 @@ public class SeasonPhaseTests
     private GrifballContext _context = null!;
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
@@ -82,12 +82,12 @@ public class SeasonPhaseTests
             }
         }
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await Refused(e => e.Property(s => s.SignupsClose).CurrentValue = Open.AddTicks(-10)), Is.True, "Signups close before they open");
             Assert.That(await Refused(e => e.Property(s => s.DraftStart).CurrentValue = Start.AddDays(1)), Is.True, "A draft after the start");
             Assert.That(await Refused(e => e.Property(s => s.SeasonEnd).CurrentValue = Start.AddDays(-1)), Is.True, "Ends before it starts");
             Assert.That(await Refused(e => e.Property(s => s.SignupsClose).CurrentValue = End.AddDays(1)), Is.False, "Late signups are fine");
-        });
+        }
     }
 }

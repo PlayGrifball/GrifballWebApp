@@ -38,7 +38,7 @@ public class DiscordSetGamertagPlaceholderTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddScoped(_ => _context);
@@ -48,7 +48,7 @@ public class DiscordSetGamertagPlaceholderTests
         _userManager = _scope.ServiceProvider.GetRequiredService<UserManager<User>>();
         _setGamertag = Substitute.For<ISetGamertagService>();
         _setGamertag.SetGamertag(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
-        _sut = new DiscordSetGamertag(_context, Substitute.For<ILogger<DiscordSetGamertag>>(), _userManager, _setGamertag, new UserMergeService(_context));
+        _sut = new DiscordSetGamertag(_context, _userManager, _setGamertag, new UserMergeService(_context));
         _interaction = Substitute.For<IDiscordInteractionContext>();
         _interaction.Interaction.User.Id.Returns(DiscordId);
         _interaction.Interaction.User.Username.Returns("activehate");
@@ -77,11 +77,11 @@ public class DiscordSetGamertagPlaceholderTests
         var users = await fresh.Users.AsNoTracking().ToListAsync();
         var merge = await fresh.UserMerges.SingleAsync();
         var person = users.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((person.UserName, person.IsDummyUser, person.DiscordUserID), Is.EqualTo(("activehate", false, (long?)DiscordId)));
             Assert.That((merge.Trigger, merge.Reason, merge.SourceUserID, merge.TargetUserID), Is.EqualTo((MergeTrigger.DiscordMatch, "Discord set gamertag", _placeholder.Id, person.Id)));
-        });
+        }
         await _setGamertag.Received(1).SetGamertag(person.Id, "ActiveHate", Arg.Any<CancellationToken>());
     }
 
@@ -95,8 +95,11 @@ public class DiscordSetGamertagPlaceholderTests
         await _sut.SetGamertag(_interaction, "ActiveHate");
 
         await using var fresh = _context.NewContextLike();
-        Assert.That(await fresh.Users.Select(u => u.Id).ToListAsync(), Is.EqualTo(new[] { site.Id }));
-        Assert.That((await fresh.UserMerges.SingleAsync()).TargetUserID, Is.EqualTo(site.Id));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await fresh.Users.Select(u => u.Id).ToListAsync(), Is.EqualTo(new[] { site.Id }));
+            Assert.That((await fresh.UserMerges.SingleAsync()).TargetUserID, Is.EqualTo(site.Id));
+        }
         await _setGamertag.Received(1).SetGamertag(site.Id, "ActiveHate", Arg.Any<CancellationToken>());
     }
 

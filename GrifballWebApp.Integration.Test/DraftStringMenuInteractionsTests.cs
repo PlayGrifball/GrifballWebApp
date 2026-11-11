@@ -39,7 +39,7 @@ public class DraftStringMenuInteractionsTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _rest = FakeRestRequestHandler.CreateClient(out _handler);
         _logger = new RecordingLogger<DraftStringMenuHandler>();
     }

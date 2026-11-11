@@ -50,13 +50,13 @@ public sealed record ReadyBackup(string FileId, string FileName, string ContentT
 /// (<see cref="BackupRuns"/>). A failure is reported with what went wrong, for the page.
 /// </summary>
 [DisallowConcurrentExecution]
-public sealed class DatabaseBackupJob(DatabaseBackupService backups, BackupFiles files, IConfiguration configuration, ILogger<DatabaseBackupJob> logger) : IJob<BackupRequest>
+public sealed partial class DatabaseBackupJob(DatabaseBackupService backups, BackupFiles files, IConfiguration configuration, ILogger<DatabaseBackupJob> logger) : IJob<BackupRequest>
 {
     public const string Description = "Makes the database as a file to download (from the Database Backup page)";
     /// <summary>A format's run: each format keeps its own backup (BackupFiles) and its own last run.</summary>
     public static string RunName(BackupFormat format) => $"database-backup-{format.ToString().ToLowerInvariant()}";
 
-    public async ValueTask Execute(IJobExecutionContext context, BackupRequest input, CancellationToken ct = default)
+    public async ValueTask Execute(IJobExecutionContext context, BackupRequest input, CancellationToken cancellationToken = default)
     {
         var format = input.Format.ToString().ToLowerInvariant();
         // One kept a format: its last one goes as the next one starts
@@ -64,10 +64,10 @@ public sealed class DatabaseBackupJob(DatabaseBackupService backups, BackupFiles
         context.ReportProgress(0, $"Making the {format} backup");
         try
         {
-            var built = await backups.MakeAsync(input.Format, ct, new JobProgress(context)) ?? throw new InvalidOperationException("Another backup or export is running in this process.");
+            var built = await backups.MakeAsync(input.Format, cancellationToken, new JobProgress(context)) ?? throw new InvalidOperationException("Another backup or export is running in this process.");
             var size = new FileInfo(built.Path).Length;
             var id = files.Keep(input.Format, built.Path);
-            logger.LogInformation("{User}'s {Format} backup is made: {FileName}", input.RequestedBy, format, built.FileName);
+            LogBackupMade(logger, input.RequestedBy, format, built.FileName);
             context.Result = JobRunReport.Succeeded($"{built.FileName}: {built.Tables.Count} tables, {built.Tables.Sum(t => t.Rows)} rows")
                 .With(BackupRuns.FileMetric, id)
                 .With(BackupRuns.FileNameMetric, built.FileName)
@@ -85,6 +85,9 @@ public sealed class DatabaseBackupJob(DatabaseBackupService backups, BackupFiles
             context.Result = JobRunReport.Failed(DatabaseBackupService.DescribeBackup(e)).With(BackupRuns.FormatMetric, format);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{User}'s {Format} backup is made: {FileName}")]
+    private static partial void LogBackupMade(ILogger logger, string? user, string format, string fileName);
 }
 
 /// <summary>
@@ -93,12 +96,12 @@ public sealed class DatabaseBackupJob(DatabaseBackupService backups, BackupFiles
 /// here only; a request older than <see cref="BackupRuns.ExportRequestLifetime"/> is refused.
 /// </summary>
 [DisallowConcurrentExecution]
-public sealed class DatabaseExportJob(DatabaseBackupService backups, IDataProtectionProvider protection, ILogger<DatabaseExportJob> logger) : IJob<ExportRequest>
+public sealed partial class DatabaseExportJob(DatabaseBackupService backups, IDataProtectionProvider protection, ILogger<DatabaseExportJob> logger) : IJob<ExportRequest>
 {
     public const string Description = "Copies the database into a new one on another server (from the Database Backup page)";
     public const string RunName = "database-export";
 
-    public async ValueTask Execute(IJobExecutionContext context, ExportRequest input, CancellationToken ct = default)
+    public async ValueTask Execute(IJobExecutionContext context, ExportRequest input, CancellationToken cancellationToken = default)
     {
         context.ReportProgress(0, $"Exporting to {input.Provider}");
         try
@@ -112,8 +115,8 @@ public sealed class DatabaseExportJob(DatabaseBackupService backups, IDataProtec
             {
                 throw new InvalidOperationException("The export waited too long to start, and its connection string is no longer readable: start it again.");
             }
-            var tables = await backups.ExportAsync(input.Provider, connectionString, ct, new JobProgress(context)) ?? throw new InvalidOperationException("Another backup or export is running in this process.");
-            logger.LogInformation("{User}'s export to {Provider} is done: {Tables} tables", input.RequestedBy, input.Provider, tables.Count);
+            var tables = await backups.ExportAsync(input.Provider, connectionString, cancellationToken, new JobProgress(context)) ?? throw new InvalidOperationException("Another backup or export is running in this process.");
+            LogExportDone(logger, input.RequestedBy, input.Provider, tables.Count);
             context.Result = JobRunReport.Succeeded($"{input.Provider}: {tables.Count} tables, {tables.Sum(t => t.Rows)} rows")
                 .With(BackupRuns.ProviderMetric, input.Provider.ToString())
                 .With(BackupRuns.TablesMetric, tables.Count)
@@ -125,6 +128,9 @@ public sealed class DatabaseExportJob(DatabaseBackupService backups, IDataProtec
             context.Result = JobRunReport.Failed(DatabaseBackupService.Describe(e)).With(BackupRuns.ProviderMetric, input.Provider.ToString());
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{User}'s export to {Provider} is done: {Tables} tables")]
+    private static partial void LogExportDone(ILogger logger, string? user, DatabaseProvider provider, int tables);
 }
 
 /// <summary>

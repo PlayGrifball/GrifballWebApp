@@ -52,10 +52,13 @@ public class DataProtectionAtRestTests
             var protectedText = Provider(keys, certificate).CreateProtector("test").Protect("secret");
 
             var stored = Directory.GetFiles(keys, "key-*.xml");
-            Assert.That(stored, Has.Length.EqualTo(1));
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey(File.ReadAllText(stored[0])), Is.False);
-            // A new provider (another pod, or after a restart) reads the encrypted key with the certificate.
-            Assert.That(Provider(keys, certificate).CreateProtector("test").Unprotect(protectedText), Is.EqualTo("secret"));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(stored, Has.Length.EqualTo(1));
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey(File.ReadAllText(stored[0])), Is.False);
+                // A new provider (another pod, or after a restart) reads the encrypted key with the certificate.
+                Assert.That(Provider(keys, certificate).CreateProtector("test").Unprotect(protectedText), Is.EqualTo("secret"));
+            }
         }
         finally
         {
@@ -75,12 +78,15 @@ public class DataProtectionAtRestTests
             var encrypted = Directory.CreateDirectory(Path.Combine(folder, "encrypted")).FullName;
             Provider(encrypted, certificate).CreateProtector("test").Protect("secret");
 
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey(File.ReadAllText(Directory.GetFiles(plain, "key-*.xml").Single())), Is.True);
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey(File.ReadAllText(Directory.GetFiles(encrypted, "key-*.xml").Single())), Is.False);
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey("<revocation version=\"1\"><revocationDate>2026-01-01T00:00:00Z</revocationDate><key id=\"*\" /></revocation>"), Is.False);
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey(null), Is.False);
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey(""), Is.False);
-            Assert.That(DataProtectionAtRest.IsUnencryptedKey("<key id=\"broken\""), Is.False, "Unreadable XML is left alone");
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey(File.ReadAllText(Directory.GetFiles(plain, "key-*.xml").Single())), Is.True);
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey(File.ReadAllText(Directory.GetFiles(encrypted, "key-*.xml").Single())), Is.False);
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey("<revocation version=\"1\"><revocationDate>2026-01-01T00:00:00Z</revocationDate><key id=\"*\" /></revocation>"), Is.False);
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey(null), Is.False);
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey(""), Is.False);
+                Assert.That(DataProtectionAtRest.IsUnencryptedKey("<key id=\"broken\""), Is.False, "Unreadable XML is left alone");
+            }
         }
         finally
         {
@@ -124,11 +130,13 @@ public class DataProtectionAtRestTests
         }
     }
 
+    private static readonly string[] expected = new[] { "encrypted" };
+
     [Test]
     public async Task Discards_only_the_keys_kept_in_the_clear()
     {
         var folder = CertificateFolder();
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var plain = Directory.CreateDirectory(Path.Combine(folder, "plain")).FullName;
@@ -148,10 +156,10 @@ public class DataProtectionAtRestTests
 
             // With one (startup): the key in the clear deleted.
             await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context, certificate, NullLogger.Instance);
-            Assert.That(await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context), Is.EqualTo(0));
+            Assert.That(await DataProtectionAtRest.DiscardUnencryptedKeysAsync(context), Is.Zero);
 
             var left = await context.DataProtectionKeys.AsNoTracking().ToListAsync();
-            Assert.That(left.Select(k => k.FriendlyName), Is.EqualTo(new[] { "encrypted" }));
+            Assert.That(left.Select(k => k.FriendlyName), Is.EqualTo(expected));
         }
         finally
         {

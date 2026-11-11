@@ -30,7 +30,7 @@ public class DiscordAccountLinkServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new DiscordAccountLinkService(_context, Substitute.For<ILogger<DiscordAccountLinkService>>());
     }
 
@@ -56,13 +56,13 @@ public class DiscordAccountLinkServiceTests
         var bob = await NewUser("bob", 111);
         await NewUser("alice");
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await _service.FindBotLinkedUserAsync("Discord", "111"))?.Id, Is.EqualTo(bob.Id));
             Assert.That(await _service.FindBotLinkedUserAsync("Discord", "222"), Is.Null);
             Assert.That(await _service.FindBotLinkedUserAsync("Discord", "not-a-number"), Is.Null);
             Assert.That(await _service.FindBotLinkedUserAsync("Google", "111"), Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -72,12 +72,12 @@ public class DiscordAccountLinkServiceTests
 
         var result = await _service.LinkAsync(alice, "Discord", "111", "alice_discord");
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo(DiscordLinkResult.Linked));
             Assert.That(await LinkOf(alice.Id), Is.EqualTo(111));
             Assert.That((await Row(111))?.DiscordUsername, Is.EqualTo("alice_discord"));
-        });
+        }
     }
 
     [Test]
@@ -89,13 +89,13 @@ public class DiscordAccountLinkServiceTests
 
         var result = await _service.LinkAsync(alice, "Discord", "111", "new_name");
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo(DiscordLinkResult.Linked));
             Assert.That(await LinkOf(alice.Id), Is.EqualTo(111));
             Assert.That(await _context.DiscordUsers.CountAsync(), Is.EqualTo(1));
             Assert.That((await Row(111))?.DiscordUsername, Is.EqualTo("new_name"));
-        });
+        }
     }
 
     [Test]
@@ -109,11 +109,11 @@ public class DiscordAccountLinkServiceTests
         await _service.LinkAsync(alice, "Discord", "111", null);
         await _service.LinkAsync(bob, "Discord", "222", "");
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await Row(111))?.DiscordUsername, Is.EqualTo("kept"));
             Assert.That((await Row(222))?.DiscordUsername, Is.EqualTo("222"));
-        });
+        }
     }
 
     [Test]
@@ -123,11 +123,11 @@ public class DiscordAccountLinkServiceTests
 
         var result = await _service.LinkAsync(bob, "Discord", "111", "bob_renamed");
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo(DiscordLinkResult.AlreadyLinked));
             Assert.That((await Row(111))?.DiscordUsername, Is.EqualTo("bob_renamed"));
-        });
+        }
     }
 
     [Test]
@@ -137,12 +137,12 @@ public class DiscordAccountLinkServiceTests
 
         var result = await _service.LinkAsync(bob, "Discord", "222", "someone");
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo(DiscordLinkResult.UserLinkedToOtherDiscord));
             Assert.That(await LinkOf(bob.Id), Is.EqualTo(111));
             Assert.That(await Row(222), Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -153,12 +153,12 @@ public class DiscordAccountLinkServiceTests
 
         var result = await _service.LinkAsync(alice, "Discord", "111", "alice_discord");
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo(DiscordLinkResult.DiscordLinkedToAnotherUser));
             Assert.That(await LinkOf(alice.Id), Is.Null);
             Assert.That((await Row(111))?.DiscordUsername, Is.EqualTo("bot-bob"));
-        });
+        }
     }
 
     [TestCase("Google", "111")]
@@ -167,8 +167,11 @@ public class DiscordAccountLinkServiceTests
     {
         var alice = await NewUser("alice");
 
-        Assert.That(await _service.LinkAsync(alice, provider, key, "x"), Is.EqualTo(DiscordLinkResult.NotDiscord));
-        Assert.That(await _context.DiscordUsers.CountAsync(), Is.EqualTo(0));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _service.LinkAsync(alice, provider, key, "x"), Is.EqualTo(DiscordLinkResult.NotDiscord));
+            Assert.That(await _context.DiscordUsers.CountAsync(), Is.Zero);
+        }
     }
 
     [Test]
@@ -180,12 +183,12 @@ public class DiscordAccountLinkServiceTests
 
         var result = await _service.TryLinkAsync(alice, "Discord", "111", "alice_discord");
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo(DiscordLinkResult.Failed));
             Assert.That(_context.ChangeTracker.Entries().Any(e => e.State is EntityState.Added or EntityState.Modified), Is.False);
             Assert.That(await Row(111), Is.Null);
-        });
+        }
         // The context still saves afterwards
         _context.DiscordUsers.Add(DiscordUser.FromDiscord(5, "five"));
         await Assert.DoesNotThrowAsync(() => _context.SaveChangesAsync());
@@ -194,27 +197,33 @@ public class DiscordAccountLinkServiceTests
     [Test]
     public async Task InTransaction_CommitsOnTrue()
     {
-        Assert.That(await _service.InTransactionAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
-            _context.DiscordUsers.Add(DiscordUser.FromDiscord(1, "kept"));
-            await _context.SaveChangesAsync();
-            return true;
-        }), Is.True);
+            Assert.That(await _service.InTransactionAsync(async () =>
+                {
+                    _context.DiscordUsers.Add(DiscordUser.FromDiscord(1, "kept"));
+                    await _context.SaveChangesAsync();
+                    return true;
+                }), Is.True);
 
-        Assert.That(await _context.DiscordUsers.AsNoTracking().AnyAsync(d => d.DiscordUserID == 1), Is.True);
+            Assert.That(await _context.DiscordUsers.AsNoTracking().AnyAsync(d => d.DiscordUserID == 1), Is.True);
+        }
     }
 
     [Test]
     public async Task InTransaction_RollsBackOnFalse()
     {
-        Assert.That(await _service.InTransactionAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
-            _context.DiscordUsers.Add(DiscordUser.FromDiscord(2, "dropped"));
-            await _context.SaveChangesAsync();
-            return false;
-        }), Is.False);
+            Assert.That(await _service.InTransactionAsync(async () =>
+                {
+                    _context.DiscordUsers.Add(DiscordUser.FromDiscord(2, "dropped"));
+                    await _context.SaveChangesAsync();
+                    return false;
+                }), Is.False);
 
-        Assert.That(await _context.DiscordUsers.AsNoTracking().AnyAsync(d => d.DiscordUserID == 2), Is.False);
+            Assert.That(await _context.DiscordUsers.AsNoTracking().AnyAsync(d => d.DiscordUserID == 2), Is.False);
+        }
     }
 
     [Test]
@@ -245,7 +254,7 @@ public class IdentityControllerDiscordLinkTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _userManager = IdentityTestHelpers.NewUserManager(_context);
         _signInManager = Substitute.For<SignInManager<User>>(
             _userManager, Substitute.For<IHttpContextAccessor>(),
@@ -298,14 +307,14 @@ public class IdentityControllerDiscordLinkTests
         var result = await _controller.ExternalLoginCallback(useCookies, CancellationToken.None);
 
         Assert.That(result, Is.TypeOf<EmptyResult>());
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Users.CountAsync(), Is.EqualTo(1));
             Assert.That((await _userManager.FindByLoginAsync("Discord", "111"))?.Id, Is.EqualTo(bob.Id));
             Assert.That(await _context.UserRoles.CountAsync(r => r.UserId == bob.Id), Is.Zero, "roles unchanged");
             Assert.That((await _context.DiscordUsers.AsNoTracking().SingleAsync()).DiscordUsername, Is.EqualTo("bob_discord"));
             Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(useCookies ? IdentityConstants.ApplicationScheme : IdentityConstants.BearerScheme));
-        });
+        }
         await _signInManager.Received(1).ExternalLoginSignInAsync("Discord", "111", true, true);
         await _signInManager.DidNotReceiveWithAnyArgs().SignInAsync(default!, default(bool), default);
     }
@@ -320,13 +329,13 @@ public class IdentityControllerDiscordLinkTests
 
         Assert.That(result, Is.TypeOf<EmptyResult>());
         var carol = await _context.Users.AsNoTracking().SingleAsync();
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(carol.UserName, Is.EqualTo("carol"));
             Assert.That(carol.DiscordUserID, Is.EqualTo(222));
             Assert.That((await _context.DiscordUsers.AsNoTracking().SingleAsync()).DiscordUsername, Is.EqualTo("carol"));
             Assert.That((await _userManager.FindByLoginAsync("Discord", "222"))?.Id, Is.EqualTo(carol.Id));
-        });
+        }
         await _signInManager.Received(1).SignInAsync(Arg.Is<User>(u => u.Id == carol.Id), true, null);
     }
 
@@ -341,11 +350,11 @@ public class IdentityControllerDiscordLinkTests
         await _controller.ExternalLoginCallback(true, CancellationToken.None);
 
         var dave = await _context.Users.AsNoTracking().SingleAsync();
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(dave.DiscordUserID, Is.EqualTo(333));
             Assert.That((await _context.DiscordUsers.AsNoTracking().SingleAsync()).DiscordUsername, Is.EqualTo("dave"));
-        });
+        }
     }
 
     [Test]
@@ -356,11 +365,11 @@ public class IdentityControllerDiscordLinkTests
         SignInFromDiscord("444", "erin");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _controller.ExternalLoginCallback(true, CancellationToken.None));
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Users.AsNoTracking().CountAsync(), Is.Zero);
             Assert.That(await _context.DiscordUsers.AsNoTracking().CountAsync(), Is.Zero);
-        });
+        }
     }
 
     [Test]
@@ -371,12 +380,12 @@ public class IdentityControllerDiscordLinkTests
 
         await _controller.ExternalLoginCallback(true, CancellationToken.None);
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await Reload(frank.Id)).DiscordUserID, Is.EqualTo(555));
             Assert.That((await _context.DiscordUsers.AsNoTracking().SingleAsync()).DiscordUsername, Is.EqualTo("frank_discord"));
             Assert.That(await _context.Users.CountAsync(), Is.EqualTo(1));
-        });
+        }
     }
 
     [Test]
@@ -387,11 +396,11 @@ public class IdentityControllerDiscordLinkTests
 
         await _controller.ExternalLoginCallback(true, CancellationToken.None);
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await Reload(gina.Id)).DiscordUserID, Is.EqualTo(777));
             Assert.That(await _context.DiscordUsers.AnyAsync(d => d.DiscordUserID == 666), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -403,11 +412,11 @@ public class IdentityControllerDiscordLinkTests
 
         await _controller.ExternalLoginCallback(true, CancellationToken.None);
 
-        await Assert.MultipleAsync(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await Reload(hank.Id)).DiscordUserID, Is.Null);
             Assert.That((await Reload(holder.Id)).DiscordUserID, Is.EqualTo(888));
-        });
+        }
         await _signInManager.Received(1).ExternalLoginSignInAsync("Discord", "888", true, true);
     }
 }

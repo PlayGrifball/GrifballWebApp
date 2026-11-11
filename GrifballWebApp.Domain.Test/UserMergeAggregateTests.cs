@@ -1,4 +1,5 @@
 using GrifballWebApp.Domain.Players;
+using static GrifballWebApp.Domain.Test.UserMergeTestData;
 
 namespace GrifballWebApp.Domain.Test;
 
@@ -10,17 +11,12 @@ namespace GrifballWebApp.Domain.Test;
 [Parallelizable(ParallelScope.All)]
 public class UserMergeAggregateTests
 {
-    private static readonly DateTime MergedAt = new(2026, 11, 1, 12, 0, 0, DateTimeKind.Utc);
-
-    internal static UserMerge Merge(int source = 1, int target = 2, string? reason = "claim 12", int moved = 3, int removed = 2, int added = 1)
-        => UserMerge.Record(MergedAt, MergeTrigger.ClaimApproval, 7, reason, source, "historical:Old Tag", target, "real", "{}", moved, removed, added);
-
     [Test]
     public void Record_StandsAsTheMergeWasMade_WithItsReasonCutToWhatARowHolds()
     {
         var merge = Merge(reason: new string('r', UserMerge.ReasonMaxLength + 5));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((merge.MergedAt, merge.Trigger, merge.TriggeredByUserID), Is.EqualTo((MergedAt, MergeTrigger.ClaimApproval, (int?)7)));
             Assert.That((merge.SourceUserID, merge.SourceUserName, merge.TargetUserID, merge.TargetUserName), Is.EqualTo((1, "historical:Old Tag", 2, "real")));
@@ -29,13 +25,13 @@ public class UserMergeAggregateTests
             Assert.That(merge.IsStanding, Is.True);
             Assert.That((merge.UndoneAt, merge.UndoneByUserID, merge.UndoNote), Is.EqualTo(((DateTime?)null, (int?)null, (string?)null)));
             Assert.That(Merge(reason: null).Reason, Is.Null);
-        });
+        }
     }
 
     [Test]
     public void Record_RefusesWhatNoMergeMakes()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(() => Merge(source: 4, target: 4), Throws.ArgumentException, "A user into itself");
             Assert.That(() => Merge(moved: -1), Throws.InstanceOf<ArgumentOutOfRangeException>());
@@ -45,7 +41,7 @@ public class UserMergeAggregateTests
                 Throws.InstanceOf<ArgumentOutOfRangeException>(), "A trigger the model doesn't know");
             Assert.That(() => UserMerge.Record(MergedAt, MergeTrigger.Manual, null, null, 1, null, 2, null, null!, 0, 0, 0),
                 Throws.ArgumentNullException, "No manifest");
-        });
+        }
     }
 
     [Test]
@@ -54,7 +50,7 @@ public class UserMergeAggregateTests
         var merge = Merge();
         var undoneAt = MergedAt.AddDays(1);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(merge.Undo(undoneAt, 9, "  wrong person  "), Is.EqualTo(UserMergeUndo.Undone));
             Assert.That((merge.UndoneAt, merge.UndoneByUserID, merge.UndoNote), Is.EqualTo(((DateTime?)undoneAt, (int?)9, "wrong person")), "Trimmed");
@@ -62,7 +58,7 @@ public class UserMergeAggregateTests
 
             Assert.That(merge.Undo(undoneAt.AddDays(1), 10, "again"), Is.EqualTo(UserMergeUndo.AlreadyUndone));
             Assert.That((merge.UndoneAt, merge.UndoneByUserID, merge.UndoNote), Is.EqualTo(((DateTime?)undoneAt, (int?)9, "wrong person")), "As it was");
-        });
+        }
     }
 
     [Test]
@@ -75,11 +71,11 @@ public class UserMergeAggregateTests
         var tooLong = Merge();
         tooLong.Undo(MergedAt, null, new string('n', UserMerge.UndoNoteMaxLength + 1));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(blank.UndoNote, Is.Null);
             Assert.That(none.UndoNote, Is.Null);
             Assert.That(tooLong.UndoNote, Is.EqualTo(new string('n', UserMerge.UndoNoteMaxLength)));
-        });
+        }
     }
 }

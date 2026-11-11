@@ -20,14 +20,14 @@ public class RescheduleAggregateMigrationTests
     private GrifballContext _context;
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
     private static readonly DateTime Now = new(2026, 11, 7, 12, 0, 0, DateTimeKind.Utc);
 
-    private string SeasonMatches => TestDatabase.Provider == DatabaseProvider.Sqlite ? "\"SeasonMatches\"" : "\"Event\".\"SeasonMatches\"";
+    private static string SeasonMatches => TestDatabase.Provider == DatabaseProvider.Sqlite ? "\"SeasonMatches\"" : "\"Event\".\"SeasonMatches\"";
 
     [Test]
     public async Task TheActiveRequest_IsTheOnePendingRequest_AndEveryDecisionHasItsDeciderAndTime()
@@ -59,14 +59,16 @@ public class RescheduleAggregateMigrationTests
         await Add(other, "older");
         await Add(other, "newer");
         await Add(third, "bare", status: 1, modifiedBy: commissioner.Id);
+#pragma warning disable EF1002 // The table's name (an identifier) and the test's own IDs
         await _context.Database.ExecuteSqlRawAsync(
             $"UPDATE {SeasonMatches} SET \"ActiveRescheduleRequestId\" = {pointed} WHERE \"SeasonMatchID\" = {s.Match.SeasonMatchID}");
+#pragma warning restore EF1002
 
         await migrator.MigrateAsync();
 
         _context.ChangeTracker.Clear();
         var saved = await _context.MatchReschedules.AsNoTracking().ToDictionaryAsync(r => r.Reason);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(saved["pointed"].Status, Is.EqualTo(RescheduleStatus.Pending), "the pointer's request stays active");
             Assert.That(saved["stray"].Status, Is.EqualTo(RescheduleStatus.Rejected));
@@ -78,6 +80,6 @@ public class RescheduleAggregateMigrationTests
             Assert.That(saved["pointed"].ApprovedByUserID, Is.Null);
             Assert.That(saved["pointed"].ProcessedAt, Is.Null);
             Assert.That(saved.Values.Where(r => r.Status != RescheduleStatus.Pending).Select(r => r.ApprovedByUserID), Is.All.Not.Null);
-        });
+        }
     }
 }

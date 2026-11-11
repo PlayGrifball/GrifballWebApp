@@ -15,9 +15,10 @@ namespace GrifballWebApp.Integration.Test;
 public class UserImportPlaceholderTests
 {
     private GrifballContext _context;
+    private static readonly string[] expected = new[] { "historical:Old Tag", "HISTORICAL:Upper Tag" };
 
     [SetUp]
-    public async Task Setup() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task Setup() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
@@ -43,7 +44,7 @@ public class UserImportPlaceholderTests
         var loaded = await _context.Users.AsNoTracking().ToListAsync();
 
         // The query and the bool agree, case and all, on every database
-        Assert.That(matched, Is.EquivalentTo(new[] { "historical:Old Tag", "HISTORICAL:Upper Tag" }));
+        Assert.That(matched, Is.EquivalentTo(expected));
         Assert.That(matched, Is.EquivalentTo(loaded.Where(u => u.IsImportPlaceholder).Select(u => u.UserName)));
     }
 }

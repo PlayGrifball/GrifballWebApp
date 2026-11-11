@@ -18,7 +18,7 @@ public class QuickSearchTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _controller = new SearchController(new QuickSearchService(_context));
     }
 
@@ -52,12 +52,12 @@ public class QuickSearchTests
 
         var result = await Search(q);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Players, Is.Empty);
             Assert.That(result.Teams, Is.Empty);
             Assert.That(result.Seasons, Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -99,14 +99,14 @@ public class QuickSearchTests
 
         var players = (await Search("Hellmasker")).Players.ToDictionary(p => p.UserID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((players[holder.Id].Kind, players[holder.Id].Years), Is.EqualTo(((QuickSearchPlayerKind?)QuickSearchPlayerKind.Xbox, (string?)null)));
             Assert.That((players[archive.Id].Kind, players[archive.Id].Years), Is.EqualTo(((QuickSearchPlayerKind?)QuickSearchPlayerKind.Archive, "2009–2011")));
             Assert.That((players[unplayed.Id].Kind, players[unplayed.Id].Years), Is.EqualTo(((QuickSearchPlayerKind?)QuickSearchPlayerKind.Archive, (string?)null)), "No seasons, no years");
             Assert.That(players[discord.Id].Kind, Is.Null, "A signed-up player known by a Discord name");
             Assert.That(QuickSearchService.YearSpan(2010, 2010), Is.EqualTo("2010"));
-        });
+        }
     }
 
     [Test]
@@ -240,11 +240,11 @@ public class QuickSearchTests
 
         var result = await Search("grif");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Players.Select(p => p.Name), Is.EqualTo(Enumerable.Range(0, QuickSearchService.Limit).Select(i => $"GrifZ{i}")));
             Assert.That(result.Players.Select(p => p.PastGamertag), Is.All.Null);
-        });
+        }
     }
 
     [Test]
@@ -267,11 +267,11 @@ public class QuickSearchTests
         await _context.AddUser("grifLogin");
         var named = await _context.AddUser("grifLogin2", displayName: "Shown");
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await Search("grifLogin")).Players, Is.Empty);
             Assert.That((await Search("shown")).Players.Select(p => (p.UserID, p.Name)), Is.EqualTo(new[] { (named.Id, "Shown") }));
-        });
+        }
     }
 
     [Test]
@@ -323,11 +323,14 @@ public class QuickSearchTests
 
         var result = await Search("summer");
 
-        Assert.That(result.Seasons.Select(s => s.SeasonID), Is.EqualTo(new[] { summer21.SeasonID, summer19.SeasonID, proSummer.SeasonID }));
-        Assert.That(result.Seasons[0].SeasonName, Is.EqualTo("Summer League 2021"));
-        Assert.That(result.Seasons[0].Start, Is.EqualTo(new DateTime(2021, 6, 1)));
-        Assert.That(result.Seasons[0].End, Is.EqualTo(new DateTime(2021, 8, 1)));
-        Assert.That(result.Seasons[0].Years, Is.EqualTo("2021"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Seasons.Select(s => s.SeasonID), Is.EqualTo(new[] { summer21.SeasonID, summer19.SeasonID, proSummer.SeasonID }));
+            Assert.That(result.Seasons[0].SeasonName, Is.EqualTo("Summer League 2021"));
+            Assert.That(result.Seasons[0].Start, Is.EqualTo(new DateTime(2021, 6, 1)));
+            Assert.That(result.Seasons[0].End, Is.EqualTo(new DateTime(2021, 8, 1)));
+            Assert.That(result.Seasons[0].Years, Is.EqualTo("2021"));
+        }
     }
 
     [Test]
@@ -340,12 +343,15 @@ public class QuickSearchTests
 
         var result = await Search("2019");
 
-        Assert.That(result.Seasons.Select(s => s.SeasonID), Is.EquivalentTo(new[] { named.SeasonID, spanning.SeasonID, inYear.SeasonID }));
-        // The latest first
-        Assert.That(result.Seasons[0].SeasonID, Is.EqualTo(named.SeasonID));
-        // The years each ran in, across a new year too
-        Assert.That(result.Seasons.Single(s => s.SeasonID == spanning.SeasonID).Years, Is.EqualTo("2018–2019"));
-        Assert.That(result.Seasons.Single(s => s.SeasonID == inYear.SeasonID).Years, Is.EqualTo("2019"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Seasons.Select(s => s.SeasonID), Is.EquivalentTo(new[] { named.SeasonID, spanning.SeasonID, inYear.SeasonID }));
+            // The latest first
+            Assert.That(result.Seasons[0].SeasonID, Is.EqualTo(named.SeasonID));
+            // The years each ran in, across a new year too
+            Assert.That(result.Seasons.Single(s => s.SeasonID == spanning.SeasonID).Years, Is.EqualTo("2018–2019"));
+            Assert.That(result.Seasons.Single(s => s.SeasonID == inYear.SeasonID).Years, Is.EqualTo("2019"));
+        }
     }
 
     [Test]

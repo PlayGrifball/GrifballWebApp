@@ -14,11 +14,14 @@ public class DeploymentHistoryTests
 {
     private GrifballContext _context;
     private DeploymentHistoryController _controller;
+    private static readonly string[] expected = new[] { "Charlie", "Bravo", "Dynasty", "Delta" };
+    private static readonly string[] expectedArray = new[] { "Pro" };
+    private static readonly string[] expectedArray0 = new[] { "Amateur", "Pro" };
 
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _controller = new DeploymentHistoryController(new DeploymentHistoryService(_context));
     }
 
@@ -87,8 +90,8 @@ public class DeploymentHistoryTests
 
         var history = (await _controller.GetDeploymentHistory(player.Id, CancellationToken.None)).Value!;
 
-        Assert.That(history.Select(h => h.TeamName), Is.EqualTo(new[] { "Charlie", "Bravo", "Dynasty", "Delta" }));
-        Assert.Multiple(() =>
+        Assert.That(history.Select(h => h.TeamName), Is.EqualTo(expected));
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((history[0].TeamID, history[0].Season.SeasonID, history[0].Finish, history[0].Wins, history[0].Losses), Is.EqualTo((charlie.TeamID, current.SeasonID, DeploymentFinish.InProgress, 0, 0)));
             Assert.That(history[0].IsCaptain, Is.False);
@@ -98,13 +101,13 @@ public class DeploymentHistoryTests
             Assert.That(history[1].ChampionshipTiers, Is.Empty);
 
             Assert.That((history[2].Finish, history[2].IsCaptain), Is.EqualTo((DeploymentFinish.Champion, true)));
-            Assert.That(history[2].ChampionshipTiers, Is.EqualTo(new[] { "Pro" }));
+            Assert.That(history[2].ChampionshipTiers, Is.EqualTo(expectedArray));
             Assert.That((history[2].Wins, history[2].Losses, history[2].RecordFromSource), Is.EqualTo((8, 2, true)));
             Assert.That(history[2].Season.IsHistorical, Is.True);
 
             Assert.That((history[3].Finish, history[3].Wins, history[3].Losses, history[3].RecordFromSource), Is.EqualTo((DeploymentFinish.RegularSeason, 0, 1, false)));
             Assert.That(history[3].Season.SeasonName, Is.EqualTo("Season 1"));
-        });
+        }
     }
 
     [Test]
@@ -118,8 +121,11 @@ public class DeploymentHistoryTests
 
         var history = (await _controller.GetDeploymentHistory(player.Id, CancellationToken.None)).Value!;
 
-        Assert.That(history, Has.Count.EqualTo(1));
-        Assert.That((history[0].Finish, history[0].IsCaptain), Is.EqualTo((DeploymentFinish.Playoffs, true)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(history, Has.Count.EqualTo(1));
+            Assert.That((history[0].Finish, history[0].IsCaptain), Is.EqualTo((DeploymentFinish.Playoffs, true)));
+        }
     }
 
     [Test]
@@ -138,8 +144,11 @@ public class DeploymentHistoryTests
         var history = (await _controller.GetDeploymentHistory(player.Id, CancellationToken.None)).Value!;
 
         Assert.That(history, Has.Count.EqualTo(1));
-        Assert.That(history[0].Finish, Is.EqualTo(DeploymentFinish.Champion));
-        Assert.That(history[0].ChampionshipTiers, Is.EqualTo(new[] { "Amateur", "Pro" }), "Each tier once, A to Z");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(history[0].Finish, Is.EqualTo(DeploymentFinish.Champion));
+            Assert.That(history[0].ChampionshipTiers, Is.EqualTo(expectedArray0), "Each tier once, A to Z");
+        }
     }
 
     [Test]

@@ -37,8 +37,11 @@ public class SeasonMatchGeneTests
         var a = Gene(1, 1, 2, Monday20);
         var b = Gene(2, home, away, Monday20.AddMinutes(minutesOffset));
 
-        Assert.That(a.HasOverlap(b), Is.EqualTo(expected));
-        Assert.That(b.HasOverlap(a), Is.EqualTo(expected), "overlap is symmetric");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(a.HasOverlap(b), Is.EqualTo(expected));
+            Assert.That(b.HasOverlap(a), Is.EqualTo(expected), "overlap is symmetric");
+        }
     }
 
     [Test]
@@ -49,13 +52,13 @@ public class SeasonMatchGeneTests
         var c = Gene(3, 4, 5, Monday20);
         var list = new List<SeasonMatchGene> { a, b, c };
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(a.GetOverlap(list), Is.EqualTo(new[] { b }));
             Assert.That(a.AnyOverlap(list), Is.True);
             Assert.That(c.AnyOverlap(list), Is.False);
             Assert.That(a.AnyOverlap([a]), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -69,14 +72,14 @@ public class SeasonMatchGeneTests
         };
         var g = Gene(1, 1, 2, Monday20);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(g.HomeTeamAvailable(options), Is.True);
             Assert.That(g.AwayTeamAvailable(options), Is.False);
             var later = Gene(1, 1, 2, Monday20.AddHours(1));
             Assert.That(later.HomeTeamAvailable(options), Is.False);
             Assert.That(later.AwayTeamAvailable(options), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -85,7 +88,10 @@ public class SeasonMatchGeneTests
         var g = Gene(1, 1, 2, Monday20.AddMinutes(30));
         var options = new[] { Option(DayOfWeek.Monday, 20, 1, 2) };
 
-        Assert.That(Assert.Throws<Exception>(() => g.HomeTeamAvailable(options))!.Message, Is.EqualTo("Missing option"));
-        Assert.That(Assert.Throws<Exception>(() => g.AwayTeamAvailable(options))!.Message, Is.EqualTo("Missing option"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Assert.Throws<Exception>(() => g.HomeTeamAvailable(options))!.Message, Is.EqualTo("Missing option"));
+            Assert.That(Assert.Throws<Exception>(() => g.AwayTeamAvailable(options))!.Message, Is.EqualTo("Missing option"));
+        }
     }
 }

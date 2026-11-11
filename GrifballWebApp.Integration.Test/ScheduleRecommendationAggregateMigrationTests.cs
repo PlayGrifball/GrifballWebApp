@@ -22,7 +22,7 @@ public class ScheduleRecommendationAggregateMigrationTests
     private GrifballContext _context = null!;
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
@@ -34,7 +34,7 @@ public class ScheduleRecommendationAggregateMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_ScheduleRecommendationAggregate"))) - 1]);
 
-        var season = await ScheduleRecommendationTests.AddSeason(_context);
+        var season = await ScheduleRecommendationDatabaseTestData.AddSeason(_context);
         // As anything but the job and the apply could have written them: past the private setters, as the old model's public ones were
         ScheduleRecommendation Old(double fitness, int generations, DateTime? appliedAt, string? appliedBy)
         {
@@ -59,14 +59,14 @@ public class ScheduleRecommendationAggregateMigrationTests
         var rows = await _context.ScheduleRecommendations.AsNoTracking()
             .ToDictionaryAsync(r => r.ScheduleRecommendationID, r => (r.Fitness, r.Generations, r.AppliedAt, r.AppliedBy));
         var matches = await _context.Set<ScheduleRecommendationMatch>().CountAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(rows[fine.ScheduleRecommendationID], Is.EqualTo((0.75, 40, (DateTime?)At, "commish")), "Left alone");
             Assert.That(rows[tooFit.ScheduleRecommendationID].Fitness, Is.EqualTo(1));
-            Assert.That(rows[unfit.ScheduleRecommendationID].Fitness, Is.EqualTo(0));
-            Assert.That(rows[negative.ScheduleRecommendationID].Generations, Is.EqualTo(0));
+            Assert.That(rows[unfit.ScheduleRecommendationID].Fitness, Is.Zero);
+            Assert.That(rows[negative.ScheduleRecommendationID].Generations, Is.Zero);
             Assert.That(rows[appliedByNobody.ScheduleRecommendationID], Is.EqualTo((0.5, 40, (DateTime?)null, (string?)null)), "Not applied: nobody applied it");
             Assert.That(matches, Is.EqualTo(5), "Their matches kept");
-        });
+        }
     }
 }

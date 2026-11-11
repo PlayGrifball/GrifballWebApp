@@ -51,7 +51,7 @@ public class ScheduleServiceOperatorsTests
     {
         var matches = RoundRobin();
         var expectedIDs = matches.Select(m => m.SeasonMatchID).ToArray();
-        var adam = Adam(matches, SeasonScheduleChromosomeTests.EveryDay(20, 21));
+        var adam = Adam(matches, AvailabilityTestData.EveryDay(20, 21));
         var crossover = ScheduleService.CreateCrossover();
         var mutation = ScheduleService.CreateMutation();
         var pool = Enumerable.Range(0, 10).Select(_ => adam.CreateNew()).ToList();
@@ -73,7 +73,7 @@ public class ScheduleServiceOperatorsTests
     [Test]
     public void Crossover_KeepsEachMatchAtItsIndexWithATimeFromOneParent()
     {
-        var adam = Adam(RoundRobin(), SeasonScheduleChromosomeTests.EveryDay(20, 21));
+        var adam = Adam(RoundRobin(), AvailabilityTestData.EveryDay(20, 21));
         var first = adam.CreateNew();
         var second = adam.CreateNew();
 
@@ -93,27 +93,27 @@ public class ScheduleServiceOperatorsTests
     [Test]
     public void Mutation_GivesMatchesNewTimes()
     {
-        var chromosome = Adam(RoundRobin(), SeasonScheduleChromosomeTests.EveryDay(20, 21));
+        var chromosome = Adam(RoundRobin(), AvailabilityTestData.EveryDay(20, 21));
         var before = Genes(chromosome);
 
         // Probability 1: every gene is regenerated.
         ScheduleService.CreateMutation().Mutate(chromosome, 1f);
 
         var after = Genes(chromosome);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(after.Select(g => (g.SeasonMatchID, g.HomeTeamID, g.AwayTeamID)),
                 Is.EqualTo(before.Select(g => (g.SeasonMatchID, g.HomeTeamID, g.AwayTeamID))));
             // InsertionMutation only reordered genes, so no match ever got a time it didn't start with.
             Assert.That(after.Select(g => g.ScheduledTime), Is.Not.EqualTo(before.Select(g => g.ScheduledTime)));
             Assert.That(after.All(g => g.ScheduledTime.Hour is 20 or 21 && g.ScheduledTime.Minute == 0), Is.True);
-        });
+        }
     }
 
     [Test]
     public void Mutation_ProbabilityZero_ChangesNothing()
     {
-        var chromosome = Adam(RoundRobin(), SeasonScheduleChromosomeTests.EveryDay(20, 21));
+        var chromosome = Adam(RoundRobin(), AvailabilityTestData.EveryDay(20, 21));
         var before = Genes(chromosome);
 
         ScheduleService.CreateMutation().Mutate(chromosome, 0f);
@@ -125,7 +125,7 @@ public class ScheduleServiceOperatorsTests
     public void GeneticAlgorithm_BestScheduleHasEveryMatchExactlyOnce()
     {
         var matches = RoundRobin();
-        var options = SeasonScheduleChromosomeTests.EveryDayFor([1, 2, 3, 4], 20, 21);
+        var options = AvailabilityTestData.EveryDayFor([1, 2, 3, 4], 20, 21);
 
         var ga = new GeneticAlgorithm(new Population(10, 100, Adam(matches, options)), new SeasonScheduleEvaluator(options),
             new EliteSelection(), ScheduleService.CreateCrossover(), ScheduleService.CreateMutation())
@@ -135,10 +135,10 @@ public class ScheduleServiceOperatorsTests
         ga.Start();
 
         var best = Genes(ga.BestChromosome);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(best.Select(g => g.SeasonMatchID), Is.EqualTo(matches.Select(m => m.SeasonMatchID)));
             Assert.That(ga.BestChromosome.Fitness, Is.GreaterThan(0));
-        });
+        }
     }
 }

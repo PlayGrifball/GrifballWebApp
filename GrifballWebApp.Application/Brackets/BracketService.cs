@@ -373,10 +373,8 @@ public class BracketService : IBracketService
         var exceptLosers = seasonMatches.Where(x => x.BracketMatch!.Bracket is Bracket.Winner).ToList();
         var losers = seasonMatches.Where(x => x.BracketMatch!.Bracket is Bracket.Loser).ToList();
 
-        var result = new ViewerDataDto();
-
         // All teams, or if not yet decided then seeds
-        result.Participants = new List<Participant>();
+        var participants = new List<Participant>();
 
         foreach (var seasonMatch in exceptLosers.Where(x => x.BracketMatch!.RoundNumber is 1 && x.BracketMatch.Bracket is Bracket.Winner))
         {
@@ -385,8 +383,8 @@ public class BracketService : IBracketService
             if (seasonMatch.AwayTeam is null && seasonMatch.AwayTeamID is not null)
                 throw new Exception("Away team not included");
 
-            AddParticipant(result.Participants, seasonMatch, SeasonMatchSide.Home, seasonMatch.HomeTeam, seasonMatch.BracketMatch!.HomeTeamSeedNumber, "Missing home seed", seasonID);
-            AddParticipant(result.Participants, seasonMatch, SeasonMatchSide.Away, seasonMatch.AwayTeam, seasonMatch.BracketMatch.AwayTeamSeedNumber, "Missing away seed", seasonID);
+            AddParticipant(participants, seasonMatch, SeasonMatchSide.Home, seasonMatch.HomeTeam, seasonMatch.BracketMatch!.HomeTeamSeedNumber, "Missing home seed", seasonID);
+            AddParticipant(participants, seasonMatch, SeasonMatchSide.Away, seasonMatch.AwayTeam, seasonMatch.BracketMatch.AwayTeamSeedNumber, "Missing away seed", seasonID);
         }
 
         var stageType = losers.Count > 0 ? StageType.double_elimination : StageType.single_elimination;
@@ -395,7 +393,7 @@ public class BracketService : IBracketService
                              seasonMatches.Any(x => x.BracketMatch!.Bracket is Bracket.GrandFinal) ? GrandFinalType.simple
                              : GrandFinalType.none;
 
-        result.Stages = new List<Stage>()
+        var stages = new List<Stage>()
         {
             new Stage()
             {
@@ -421,19 +419,22 @@ public class BracketService : IBracketService
             }
         };
 
-        result.Matches = exceptLosers.Select(sm => WinnerBracketMatch(sm, exceptLosers)).ToList();
+        var matches = exceptLosers.Select(sm => WinnerBracketMatch(sm, exceptLosers)).ToList();
 
         var finalRound = exceptLosers.MaxBy(x => x.BracketMatch!.RoundNumber)?.BracketMatch!.RoundNumber ?? 0;
 
-        var mappedLosers = losers.Select(sm => LoserBracketMatch(sm, losers, finalRound, result.Matches)).ToList();
-        result.Matches.AddRange(mappedLosers);
+        var mappedLosers = losers.Select(sm => LoserBracketMatch(sm, losers, finalRound, matches)).ToList();
+        matches.AddRange(mappedLosers);
 
-        result.Matches.AddRange(GrandFinalMatches(seasonMatches));
+        matches.AddRange(GrandFinalMatches(seasonMatches));
 
-        //result.MatchGames - Does not seem to matter
-        result.MatchGames = new();
-
-        return result;
+        return new ViewerDataDto
+        {
+            Stages = stages,
+            Matches = matches,
+            MatchGames = [], // Does not seem to matter
+            Participants = participants,
+        };
     }
 
     /// <summary>A first round side's participant: its team, else its seed's placeholder. A BYE is not a participant.</summary>

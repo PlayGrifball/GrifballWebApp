@@ -18,7 +18,7 @@ public class DuplicateDismissalAggregateTests
     {
         var dismissal = DuplicateDismissal.Dismiss(userId, otherUserId, DismissedAt, 7);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((dismissal.LowUserID, dismissal.HighUserID), Is.EqualTo((3, 8)));
             Assert.That(dismissal.DismissedAt, Is.EqualTo(DismissedAt));
@@ -27,7 +27,7 @@ public class DuplicateDismissalAggregateTests
             Assert.That(dismissal.IsOf(8, 3), Is.True);
             Assert.That(dismissal.IsOf(3, 9), Is.False);
             Assert.That(dismissal.IsOf(3, 3), Is.False);
-        });
+        }
     }
 
     [Test]
@@ -37,12 +37,12 @@ public class DuplicateDismissalAggregateTests
     [Test]
     public void Dismiss_RefusesAUserPairedWithItself()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(DuplicateDismissal.CheckPair(4, 4), Is.EqualTo(DuplicatePair.SameUser));
             Assert.That(DuplicateDismissal.CheckPair(4, 5), Is.EqualTo(DuplicatePair.Ok));
             Assert.That(() => DuplicateDismissal.Dismiss(4, 4, DismissedAt, 7), Throws.ArgumentException);
-        });
+        }
     }
 
     [TestCase(1, 2, 1, 2)]

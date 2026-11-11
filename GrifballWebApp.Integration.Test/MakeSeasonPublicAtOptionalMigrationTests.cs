@@ -19,7 +19,7 @@ public class MakeSeasonPublicAtOptionalMigrationTests
     {
         if (TestDatabase.Provider == DatabaseProvider.Sqlite)
             Assert.Ignore("A migration of SQL Server's and Postgres's: SQLite's migrations start after it, from one baseline.");
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
     }
 
     // Not after SetUp ignored the test (SQLite), which made no database
@@ -48,12 +48,12 @@ public class MakeSeasonPublicAtOptionalMigrationTests
         await migrator.MigrateAsync();
 
         var seasons = await _context.Seasons.AsNoTracking().ToDictionaryAsync(s => s.SeasonName, s => s.PublicAt);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(seasons["Never set"], Is.EqualTo(created));
             Assert.That(seasons["No creation time"], Is.EqualTo(DateTime.MinValue), "Still public");
             Assert.That(seasons["Set"], Is.EqualTo(announced));
-        });
+        }
     }
 
     [Test, NonParallelizable] // Its Down alters system-versioned tables, which deadlocks with another Down on SQL Server
@@ -95,7 +95,7 @@ public class MakeSeasonPublicAtOptionalMigrationTests
         await migrator.MigrateAsync();
     }
 
-    private Task InsertSeason(string name, DateTime publicAt, DateTime createdAt)
+    private Task<int> InsertSeason(string name, DateTime publicAt, DateTime createdAt)
     {
         var other = Literal(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         return _context.Database.ExecuteSqlRawAsync(Sql(

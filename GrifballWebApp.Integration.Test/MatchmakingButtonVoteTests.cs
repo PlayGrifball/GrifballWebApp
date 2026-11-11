@@ -30,7 +30,7 @@ public class MatchmakingButtonVoteTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var discordClient = Substitute.For<IDiscordRestClient>();
         var options = Options.Create(new DiscordOptions { QueueChannel = 1 });
         var repo = Substitute.For<IQueueRepository>();

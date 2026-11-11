@@ -27,9 +27,10 @@ public class ScratchStopJobTests
 {
     private GrifballContext _context = null!;
     private IHost? _host;
+    private static readonly string[] expected = new[] { "stop" };
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown()
@@ -103,7 +104,7 @@ public class ScratchStopJobTests
         await UntilAsync(() => Task.FromResult(scaler.Calls.Contains("stop")), "the stop job");
         var jobs = services.GetRequiredService<OnDemandJobs>();
         await UntilAsync(async () => (await jobs.Status<ScratchStopJob>(ScratchStopJob.RunName)).LastRun is { Result: "Succeeded" }, "the stop's run recorded");
-        Assert.That(scaler.Calls, Is.EqualTo(new[] { "stop" }));
+        Assert.That(scaler.Calls, Is.EqualTo(expected));
     }
 
     [Test]
@@ -122,8 +123,11 @@ public class ScratchStopJobTests
 
             await ScaleDownAsync(services);
             await Task.Delay(TimeSpan.FromSeconds(3));
-            Assert.That(scaler.Calls, Is.Empty, "Not stopped under the backup");
-            Assert.That((await jobs.Status<ScratchStopJob>(ScratchStopJob.RunName)).State, Is.EqualTo(OnDemandJobState.Queued));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(scaler.Calls, Is.Empty, "Not stopped under the backup");
+                Assert.That((await jobs.Status<ScratchStopJob>(ScratchStopJob.RunName)).State, Is.EqualTo(OnDemandJobState.Queued));
+            }
 
             release.SetResult();
             await UntilAsync(() => Task.FromResult(scaler.Calls.Contains("stop")), "the stop once the backup is done");
@@ -139,7 +143,9 @@ public class ScratchStopJobTests
     public async Task A_job_store_that_doesnt_answer_is_tried_again_until_the_worker_stops()
     {
         var schedulers = Substitute.For<ISchedulerFactory>();
+#pragma warning disable CA2012 // NSubstitute's setup: the call configures the substitute, its ValueTask is never awaited
         schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns<ValueTask<IScheduler>>(_ => throw new InvalidOperationException("The database isn't up yet"));
+#pragma warning restore CA2012
         var jobs = new OnDemandJobs(schedulers, Substitute.For<IExecutionHistoryStore>());
         var scaleDown = new ScratchScaleDown(jobs, NullLogger<ScratchScaleDown>.Instance) { RetryDelay = TimeSpan.FromMilliseconds(20) };
 
@@ -149,6 +155,6 @@ public class ScratchStopJobTests
 
         await scaleDown.StopAsync(CancellationToken.None);
         await Task.WhenAny(scaleDown.ExecuteTask!, Task.Delay(TimeSpan.FromSeconds(10)));
-        Assert.That(scaleDown.ExecuteTask.IsCanceled, Is.True, "Ended by the host stopping");
+        Assert.That(scaleDown.ExecuteTask!.IsCanceled, Is.True, "Ended by the host stopping");
     }
 }

@@ -1,3 +1,4 @@
+using GrifballWebApp.Server.Test;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
@@ -19,11 +20,12 @@ public class GetsertXboxUserServiceErrorTests
     private RecordingLogger<GetsertXboxUserService> _logger;
     private IHaloInfiniteClientFactory _factory;
     private GetsertXboxUserService _service;
+    private static readonly string[] expected = new[] { "a", "b" };
 
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _logger = new RecordingLogger<GetsertXboxUserService>();
         _factory = Substitute.For<IHaloInfiniteClientFactory>();
         _service = new GetsertXboxUserService(_logger, _context, _factory, TimeProvider.System);
@@ -36,10 +38,10 @@ public class GetsertXboxUserServiceErrorTests
     }
 
     private static HaloApiResultContainer<List<GruntUser>, HaloApiErrorContainer> Error(string message) =>
-        new(null, new HaloApiErrorContainer { Message = message });
+        HaloResults.Of<List<GruntUser>>(null, new HaloApiErrorContainer { Message = message });
 
     private static HaloApiResultContainer<List<GruntUser>, HaloApiErrorContainer> Users(params (string Xuid, string Gt)[] users) =>
-        new(users.Select(u => new GruntUser { xuid = u.Xuid, gamertag = u.Gt }).ToList(), null);
+        HaloResults.Of(users.Select(u => new GruntUser { xuid = u.Xuid, gamertag = u.Gt }).ToList(), null);
 
     [Test]
     public async Task GetsertXboxUsersByXuid_AllExisting_DoesNotCallApi()
@@ -49,8 +51,11 @@ public class GetsertXboxUserServiceErrorTests
 
         var result = await _service.GetsertXboxUsersByXuid([1, 2]);
 
-        Assert.That(result.Select(x => x.Gamertag), Is.EquivalentTo(new[] { "a", "b" }));
-        Assert.That(_factory.ReceivedCalls(), Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Select(x => x.Gamertag), Is.EquivalentTo(expected));
+            Assert.That(_factory.ReceivedCalls(), Is.Empty);
+        }
     }
 
     [Test]
@@ -78,7 +83,7 @@ public class GetsertXboxUserServiceErrorTests
     [Test]
     public async Task GetsertXboxUsersByXuid_NoResultAndNoError_SaysSoRatherThanThrowingNull()
     {
-        _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(new HaloApiResultContainer<List<GruntUser>, HaloApiErrorContainer>(null!, null!));
+        _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(HaloResults.Of<List<GruntUser>>(null!, null!));
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUsersByXuid([5]));
 
@@ -92,8 +97,11 @@ public class GetsertXboxUserServiceErrorTests
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUsersByXuid([5, 6, 7]));
 
-        Assert.That(ex!.Message, Is.EqualTo("Failed to find the following xbox users: 6,7"));
-        Assert.That(await _context.XboxUsers.AnyAsync(), Is.False, "Nothing is saved when any user is missing");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("Failed to find the following xbox users: 6,7"));
+            Assert.That(await _context.XboxUsers.AnyAsync(), Is.False, "Nothing is saved when any user is missing");
+        }
     }
 
     [Test]
@@ -109,7 +117,7 @@ public class GetsertXboxUserServiceErrorTests
     [Test]
     public async Task GetsertXboxUserByXuid_NoResultAndNoError_SaysSoRatherThanThrowingNull()
     {
-        _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(new HaloApiResultContainer<List<GruntUser>, HaloApiErrorContainer>(null!, null!));
+        _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(HaloResults.Of<List<GruntUser>>(null!, null!));
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUserByXuid(5));
 
@@ -125,8 +133,11 @@ public class GetsertXboxUserServiceErrorTests
 
         Assert.That(ex!.Message, Is.EqualTo("Failed to find user"));
         var entry = _logger.Entries.Single();
-        Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
-        Assert.That(entry.Message, Is.EqualTo("Gamertag 5 not found"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
+            Assert.That(entry.Message, Is.EqualTo("Gamertag 5 not found"));
+        }
     }
 
     /// <summary>Halo gave the XUID with a blank gamertag: missing too (XboxUser.FromXbox refuses a blank one), the log naming it.</summary>
@@ -138,9 +149,12 @@ public class GetsertXboxUserServiceErrorTests
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUserByXuid(5));
 
-        Assert.That(ex!.Message, Is.EqualTo("Failed to find user"));
-        Assert.That(_logger.Entries.Single().Message, Is.EqualTo("Gamertag 5 not found"));
-        Assert.That(await _context.XboxUsers.AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("Failed to find user"));
+            Assert.That(_logger.Entries.Single().Message, Is.EqualTo("Gamertag 5 not found"));
+            Assert.That(await _context.XboxUsers.AnyAsync(), Is.False);
+        }
     }
 
     /// <summary>A blank gamertag in a batch is missing too: the error names its XUID, not the framework's "empty string".</summary>
@@ -151,7 +165,10 @@ public class GetsertXboxUserServiceErrorTests
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUsersByXuid([5, 6]));
 
-        Assert.That(ex!.Message, Is.EqualTo("Failed to find the following xbox users: 6"));
-        Assert.That(await _context.XboxUsers.AnyAsync(), Is.False, "Nothing is saved when any user is missing");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("Failed to find the following xbox users: 6"));
+            Assert.That(await _context.XboxUsers.AnyAsync(), Is.False, "Nothing is saved when any user is missing");
+        }
     }
 }

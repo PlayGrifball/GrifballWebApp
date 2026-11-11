@@ -11,7 +11,7 @@ namespace GrifballWebApp.Server.Preview;
 /// changes nothing but what drifted, so a rotated password or a smoke run that locked an account out is put right by a
 /// restart. Outside preview mode it does nothing, whatever the configuration says.
 /// </summary>
-public static class PreviewSmokeUsers
+public static partial class PreviewSmokeUsers
 {
     public const string PasswordKey = "Preview:SmokeUserPassword";
 
@@ -33,7 +33,7 @@ public static class PreviewSmokeUsers
         var password = configuration[PasswordKey];
         if (string.IsNullOrEmpty(password))
         {
-            logger.LogInformation("{Key} is not set: no smoke-test users", PasswordKey);
+            LogNoPassword(logger, PasswordKey);
             return null;
         }
 
@@ -51,7 +51,7 @@ public static class PreviewSmokeUsers
             }
         }
 
-        logger.LogInformation("Preview smoke-test users ready ({Changed} created or updated)", changed);
+        LogReady(logger, changed);
         return changed;
     }
 
@@ -96,7 +96,7 @@ public static class PreviewSmokeUsers
         }
 
         if (changed)
-            logger.LogInformation("Preview smoke-test user {UserName} created or updated", userName);
+            LogUserReady(logger, userName);
         return changed;
     }
 
@@ -106,4 +106,13 @@ public static class PreviewSmokeUsers
             throw new InvalidOperationException(
                 $"Could not {action} preview smoke-test user {userName}: {string.Join(" ", result.Errors.Select(e => e.Description))}");
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{Key} is not set: no smoke-test users")]
+    private static partial void LogNoPassword(ILogger logger, string key);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Preview smoke-test users ready ({Changed} created or updated)")]
+    private static partial void LogReady(ILogger logger, int changed);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Preview smoke-test user {UserName} created or updated")]
+    private static partial void LogUserReady(ILogger logger, string userName);
 }

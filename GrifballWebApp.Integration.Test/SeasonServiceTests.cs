@@ -17,7 +17,7 @@ public class SeasonServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context));
     }
 

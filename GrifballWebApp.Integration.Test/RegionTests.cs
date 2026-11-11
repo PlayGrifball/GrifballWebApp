@@ -26,7 +26,7 @@ public class RegionTests
     private GrifballContext _context;
 
     [SetUp]
-    public async Task Setup() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task Setup() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
@@ -63,13 +63,13 @@ public class RegionTests
 
         _context.ChangeTracker.Clear();
         var saved = await _context.Users.SingleAsync(u => u.Id == user.Id);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(set, Is.TypeOf<NoContentResult>());
             Assert.That((saved.RegionID, saved.RegionSource), Is.EqualTo(((int?)Regions.CentralNorthAmerica, (RegionSource?)RegionSource.User)));
             Assert.That(regions.Select(r => r.RegionName), Does.Contain("Central North America"));
             Assert.That((profile.Value!.RegionID, profile.Value.RegionName), Is.EqualTo(((int?)Regions.CentralNorthAmerica, "Central North America")));
-        });
+        }
     }
 
     [Test]
@@ -85,8 +85,11 @@ public class RegionTests
 
         _context.ChangeTracker.Clear();
         var saved = await _context.Users.SingleAsync(u => u.Id == user.Id);
-        Assert.That(unknown, Is.TypeOf<BadRequestObjectResult>());
-        Assert.That((saved.RegionID, saved.RegionSource), Is.EqualTo(((int?)null, (RegionSource?)null)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(unknown, Is.TypeOf<BadRequestObjectResult>());
+            Assert.That((saved.RegionID, saved.RegionSource), Is.EqualTo(((int?)null, (RegionSource?)null)));
+        }
     }
 
     [Test]
@@ -114,10 +117,13 @@ public class RegionTests
 
         _context.ChangeTracker.Clear();
         var saved = await _context.Users.SingleAsync(u => u.Id == user.Id);
-        Assert.That(unknown, Is.EqualTo("There is no such region"));
-        Assert.That(result, Is.Null);
-        Assert.That((saved.RegionID, saved.RegionSource), Is.EqualTo(((int?)Regions.Europe, (RegionSource?)RegionSource.Sysadmin)));
-        Assert.That((await service.GetUser(user.Id, CancellationToken.None))!.RegionID, Is.EqualTo(Regions.Europe));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(unknown, Is.EqualTo("There is no such region"));
+            Assert.That(result, Is.Null);
+            Assert.That((saved.RegionID, saved.RegionSource), Is.EqualTo(((int?)Regions.Europe, (RegionSource?)RegionSource.Sysadmin)));
+            Assert.That((await service.GetUser(user.Id, CancellationToken.None))!.RegionID, Is.EqualTo(Regions.Europe));
+        }
     }
 
     [Test]
@@ -147,7 +153,7 @@ public class RegionTests
 
         _context.ChangeTracker.Clear();
         var regions = await _context.Users.OrderBy(u => u.Id).Select(u => new { u.UserName, u.RegionID, u.RegionSource }).ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.RegionsSet, Is.EqualTo(2));
             Assert.That(regions.Select(r => (r.UserName, r.RegionID, r.RegionSource)), Is.EqualTo(new[]
@@ -157,6 +163,6 @@ public class RegionTests
                 ("historical:Admin", (int?)Regions.WestNorthAmerica, (RegionSource?)RegionSource.Sysadmin),
                 ("historical:Imported", (int?)Regions.EastNorthAmerica, (RegionSource?)RegionSource.Import),
             }), "Nobody has no placeholder and no Discord ID: nothing made for a region alone");
-        });
+        }
     }
 }

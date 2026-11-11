@@ -33,7 +33,7 @@ public class BackupControllerTests
     private readonly List<IHost> _hosts = [];
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown()
@@ -61,6 +61,11 @@ public class BackupControllerTests
         }).Build();
 
     private static readonly DateTimeOffset Now = new(2026, 11, 1, 12, 30, 45, TimeSpan.Zero);
+    private static readonly string[] expected = new[] { "Backed up" };
+    private static readonly string[] expectedArray = new[] { "Exported" };
+    private static readonly string[] expectedArray0 = new[] { "sqlite", "postgres", "sqlserver", "bak" };
+    private static readonly string[] expectedArray1 = new[] { "sqlite", "postgres", "sqlserver", "dump" };
+    private static readonly string[] expectedArray2 = new[] { "sqlite", "postgres", "sqlserver" };
 
     private DatabaseBackupService Service(ILoggerFactory? loggerFactory = null, IConfiguration? configuration = null)
         => new(configuration ?? Configuration(), loggerFactory ?? NullLoggerFactory.Instance, new FakeTimeProvider(Now));
@@ -163,20 +168,23 @@ public class BackupControllerTests
         var file = await DownloadAsync(controller, "sqlite");
 
         var status = await StatusAsync(controller, "sqlite");
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(status.Format, Is.EqualTo("sqlite"));
             Assert.That(status.FileName, Is.EqualTo("grifball-backup-20261101-123045.sqlite"));
             Assert.That(status.Started, Is.Not.Null);
-            Assert.That(status.Finished, Is.GreaterThanOrEqualTo(status.Started));
+            Assert.That(status.Finished, Is.GreaterThanOrEqualTo(status.Started ?? DateTimeOffset.MaxValue), "finished once started");
             Assert.That(status.Tables, Is.GreaterThan(0));
             Assert.That(file.FileDownloadName, Is.EqualTo("grifball-backup-20261101-123045.sqlite"));
             Assert.That(file.ContentType, Is.EqualTo("application/vnd.sqlite3"));
-        });
+        }
         var original = ((FileStream)file.FileStream).Name;
-        // Rolled back from WAL: nothing beside the file.
-        Assert.That(status.Size, Is.EqualTo(new FileInfo(original).Length), "its size, for the page to show before it's downloaded");
-        Assert.That(File.Exists(original + "-wal"), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            // Rolled back from WAL: nothing beside the file.
+            Assert.That(status.Size, Is.EqualTo(new FileInfo(original).Length), "its size, for the page to show before it's downloaded");
+            Assert.That(File.Exists(original + "-wal"), Is.False);
+        }
 
         var copy = await SaveAsync(file.FileStream);
         Assert.That(File.Exists(original), Is.True, "kept, so a download that broke off can be fetched again");
@@ -191,8 +199,11 @@ public class BackupControllerTests
         }
 
         await using var backup = DatabaseConverter.NewContext(new DatabaseEndpoint(DatabaseProvider.Sqlite, $"Data Source={copy};Pooling=False"));
-        Assert.That(await backup.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(new[] { "Backed up" }));
-        Assert.That(await backup.Database.GetAppliedMigrationsAsync(), Is.EqualTo(backup.Database.GetMigrations()));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await backup.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(expected));
+            Assert.That(await backup.Database.GetAppliedMigrationsAsync(), Is.EqualTo(backup.Database.GetMigrations()));
+        }
     }
 
     [Test]
@@ -200,10 +211,13 @@ public class BackupControllerTests
     {
         var controller = await StartAsync();
 
-        Assert.That((await StatusAsync(controller, "sqlite")).State, Is.EqualTo(ExportState.None));
-        Assert.That(await controller.Download("sqlite", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
-        Assert.That((await controller.DownloadStatus("mysql", CancellationToken.None)).Result, Is.TypeOf<BadRequestObjectResult>());
-        Assert.That(await controller.Download("mysql", CancellationToken.None), Is.TypeOf<BadRequestObjectResult>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await StatusAsync(controller, "sqlite")).State, Is.EqualTo(ExportState.None));
+            Assert.That(await controller.Download("sqlite", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+            Assert.That((await controller.DownloadStatus("mysql", CancellationToken.None)).Result, Is.TypeOf<BadRequestObjectResult>());
+            Assert.That(await controller.Download("mysql", CancellationToken.None), Is.TypeOf<BadRequestObjectResult>());
+        }
     }
 
     [Test]
@@ -218,12 +232,12 @@ public class BackupControllerTests
 
         clock.Advance(TimeSpan.FromHours(2));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(File.Exists(path), Is.False);
             Assert.That((await StatusAsync(controller, "postgres")).State, Is.EqualTo(ExportState.None));
             Assert.That(await controller.Download("postgres", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
-        });
+        }
     }
 
     [Test]
@@ -238,23 +252,23 @@ public class BackupControllerTests
         var other = await DownloadAsync(controller, "sqlserver");
         var otherPath = ((FileStream)other.FileStream).Name;
         await other.FileStream.DisposeAsync();
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(File.Exists(firstPath), Is.True);
             Assert.That((await StatusAsync(controller, "postgres")).FileName, Does.EndWith(".postgres.sql"));
             Assert.That((await StatusAsync(controller, "sqlserver")).FileName, Does.EndWith(".sqlserver.sql"));
             Assert.That((await StatusAsync(controller, "sqlite")).State, Is.EqualTo(ExportState.None));
-        });
+        }
 
         // The same format again: it replaces that one only
         var again = await DownloadAsync(controller, "postgres");
         await again.FileStream.DisposeAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(File.Exists(firstPath), Is.False);
             Assert.That(File.Exists(otherPath), Is.True);
             Assert.That(again.FileDownloadName, Does.EndWith(".postgres.sql"));
-        });
+        }
     }
 
     [Test]
@@ -267,13 +281,13 @@ public class BackupControllerTests
         Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
 
         var status = await FinishedDownloadAsync(controller);
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(status.State, Is.EqualTo(ExportState.Failed));
             Assert.That(status.Format, Is.EqualTo("sqlite"));
             Assert.That(status.Message, Is.Not.Empty);
             Assert.That(await controller.Download("sqlite", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
-        });
+        }
         // Not left busy: the next one runs
         Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
         await FinishedDownloadAsync(controller);
@@ -284,18 +298,22 @@ public class BackupControllerTests
     {
         var logging = new PausingLoggerFactory();
         var controller = await StartAsync(backupLogging: logging);
-        Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
-        Assert.That(logging.Paused.Wait(TimeSpan.FromMinutes(2)), Is.True, "the backup started");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
+            Assert.That(logging.Paused.Wait(TimeSpan.FromMinutes(2)), Is.True, "the backup started");
+        }
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((await StatusAsync(controller, "sqlite")).State, Is.EqualTo(ExportState.Running));
             // Another format's status says which is being made
-            Assert.That((await StatusAsync(controller, "postgres")) is { State: ExportState.None, RunningFormat: "sqlite" }, Is.True);
+            var status = await StatusAsync(controller, "postgres");
+            Assert.That((status.State, status.RunningFormat), Is.EqualTo((ExportState.None, "sqlite")));
             Assert.That(await controller.StartDownload("postgres", CancellationToken.None), Is.TypeOf<ConflictObjectResult>());
             Assert.That(await controller.Export(new ExportRequestDto("Sqlite", NewSqliteTarget()), CancellationToken.None), Is.TypeOf<ConflictObjectResult>());
             Assert.That((await controller.ExportStatus(CancellationToken.None)).State, Is.EqualTo(ExportState.None));
-        });
+        }
 
         logging.Resume.Set();
         Assert.That((await FinishedDownloadAsync(controller)).State, Is.EqualTo(ExportState.Succeeded));
@@ -319,13 +337,13 @@ public class BackupControllerTests
         await new DatabaseExportJob(service, protection, NullLogger<DatabaseExportJob>.Instance)
             .Execute(exportRun, new ExportRequest(DatabaseProvider.Sqlite, BackupRuns.ExportProtector(protection).Protect(NewSqliteTarget(), BackupRuns.ExportRequestLifetime), "admin"));
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await service.MakeAsync(BackupFormat.Postgres, CancellationToken.None), Is.Null);
             Assert.That(await service.ExportAsync(DatabaseProvider.Sqlite, NewSqliteTarget(), CancellationToken.None), Is.Null);
             Assert.That(((JobRunReport)backupRun.Result!).Summary, Does.Contain("Another backup or export"));
             Assert.That(((JobRunReport)exportRun.Result!).Summary, Does.Contain("Another backup or export"));
-        });
+        }
 
         logging.Resume.Set();
         var made = await first;
@@ -352,12 +370,12 @@ public class BackupControllerTests
         await new DatabaseBackupJob(Service(), files, configuration, NullLogger<DatabaseBackupJob>.Instance).Execute(run, new BackupRequest(BackupFormat.Postgres, "admin"));
 
         var report = (JobRunReport)run.Result!;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Result, Is.EqualTo(JobRunResult.Succeeded), report.Summary);
             Assert.That(report.Metrics![BackupRuns.NodeMetric], Is.EqualTo("http://10.42.0.7:5295"));
             Assert.That(files.Open((string)report.Metrics[BackupRuns.FileMetric]!), Is.Not.Null.And.Property("CanRead").True);
-        });
+        }
     }
 
     /// <summary>Hears progress as it's reported (Progress<T> would post it to the thread pool).</summary>
@@ -376,7 +394,7 @@ public class BackupControllerTests
         var export = new Recorder();
         var tables = await Service().ExportAsync(DatabaseProvider.Sqlite, NewSqliteTarget(), CancellationToken.None, export);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // A script: one step a table, as it's written
             Assert.That(script.Heard.Select(p => p.Done), Is.EqualTo(Enumerable.Range(0, made.Tables.Count)));
@@ -388,7 +406,7 @@ public class BackupControllerTests
             Assert.That(export.Heard[0].Message, Does.StartWith("Copying "));
             Assert.That(export.Heard[^1].Message, Is.EqualTo($"Checking the copy ({tables.Count} of {tables.Count})"));
             Assert.That(new ConversionProgress(1, 0, "x").Percent, Is.Zero, "nothing to do: no division");
-        });
+        }
     }
 
     [Test]
@@ -404,17 +422,17 @@ public class BackupControllerTests
 
         Assert.That(((BackupExportStatus)((AcceptedResult)started).Value!).Provider, Is.EqualTo("Sqlite"));
         var status = await FinishedExportAsync(controller);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(status.State, Is.EqualTo(ExportState.Succeeded), status.Message);
             Assert.That(status.Provider, Is.EqualTo("Sqlite"));
-            Assert.That(status.Finished, Is.GreaterThanOrEqualTo(status.Started));
+            Assert.That(status.Finished, Is.GreaterThanOrEqualTo(status.Started ?? DateTimeOffset.MaxValue), "finished once started");
             Assert.That(status.Tables, Is.GreaterThan(0));
             Assert.That(status.Rows, Is.GreaterThan(0));
-        });
+        }
 
         await using var exported = DatabaseConverter.NewContext(new DatabaseEndpoint(DatabaseProvider.Sqlite, target));
-        Assert.That(await exported.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(new[] { "Exported" }));
+        Assert.That(await exported.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(expectedArray));
     }
 
     [Test]
@@ -426,8 +444,11 @@ public class BackupControllerTests
         await controller.Export(new ExportRequestDto(TestDatabase.Provider.ToString(), _context.Database.GetConnectionString()!), CancellationToken.None);
 
         var status = await FinishedExportAsync(controller);
-        Assert.That(status.State, Is.EqualTo(ExportState.Failed));
-        Assert.That(status.Message, Does.Contain("already has tables"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(status.State, Is.EqualTo(ExportState.Failed));
+            Assert.That(status.Message, Does.Contain("already has tables"));
+        }
     }
 
     [Test]
@@ -436,8 +457,11 @@ public class BackupControllerTests
         // A backup under way holds the one-at-a-time group, so an export queued meanwhile waits in the store
         var logging = new PausingLoggerFactory();
         var controller = await StartAsync(backupLogging: logging);
-        Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
-        Assert.That(logging.Paused.Wait(TimeSpan.FromMinutes(2)), Is.True, "the backup started");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
+            Assert.That(logging.Paused.Wait(TimeSpan.FromMinutes(2)), Is.True, "the backup started");
+        }
         var host = _hosts.Single();
         var protection = host.Services.GetRequiredService<IDataProtectionProvider>();
         var target = NewSqliteTarget();
@@ -447,11 +471,11 @@ public class BackupControllerTests
         var scheduler = await host.Services.GetRequiredService<ISchedulerFactory>().GetScheduler();
         var stored = await scheduler.GetTrigger(OnDemandJobs.TriggerKeyOf<DatabaseExportJob>(DatabaseExportJob.RunName));
         var input = string.Join(" ", stored!.JobDataMap.Values.Select(v => v?.ToString()));
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(input, Does.Not.Contain(target), "only the protected form is stored");
             Assert.That(BackupRuns.ExportProtector(protection).Unprotect(request.ProtectedConnectionString), Is.EqualTo(target));
-        });
+        }
 
         // Once the backup is done, the export runs, reading it back
         logging.Resume.Set();
@@ -470,8 +494,11 @@ public class BackupControllerTests
         await new DatabaseExportJob(Service(), protection, NullLogger<DatabaseExportJob>.Instance)
             .Execute(context, new ExportRequest(DatabaseProvider.Sqlite, "not-protected", "admin"));
 
-        Assert.That(((JobRunReport)context.Result!).Summary, Does.Contain("start it again"));
-        Assert.That(((JobRunReport)context.Result!).Result, Is.EqualTo(JobRunResult.Failed));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(((JobRunReport)context.Result!).Summary, Does.Contain("start it again"));
+            Assert.That(((JobRunReport)context.Result!).Result, Is.EqualTo(JobRunResult.Failed));
+        }
     }
 
     [TestCase("MySql", "Data Source=x", "The provider must be")]
@@ -483,8 +510,11 @@ public class BackupControllerTests
     {
         var result = await (await StartAsync()).Export(new ExportRequestDto(provider, connectionString), CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-        Assert.That((string)((BadRequestObjectResult)result).Value!, Does.Contain(message));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+            Assert.That((string)((BadRequestObjectResult)result).Value!, Does.Contain(message));
+        }
     }
 
     [TestCase("postgres", "postgres.sql", false)]
@@ -492,11 +522,17 @@ public class BackupControllerTests
     public async Task Download_writes_each_servers_script(string format, string suffix, bool byteOrderMark)
     {
         var file = await DownloadAsync(await StartAsync(), format);
-        Assert.That(file.FileDownloadName, Is.EqualTo($"grifball-backup-20261101-123045.{suffix}"));
-        Assert.That(file.ContentType, Is.EqualTo("application/sql"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(file.FileDownloadName, Is.EqualTo($"grifball-backup-20261101-123045.{suffix}"));
+            Assert.That(file.ContentType, Is.EqualTo("application/sql"));
+        }
         var bytes = await File.ReadAllBytesAsync(await SaveAsync(file.FileStream));
-        Assert.That(bytes.Take(3).SequenceEqual(new byte[] { 0xEF, 0xBB, 0xBF }), Is.EqualTo(byteOrderMark));
-        Assert.That(System.Text.Encoding.UTF8.GetString(bytes).TrimStart('﻿'), Does.StartWith("-- GrifballWebApp database export"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bytes.Take(3).SequenceEqual(new byte[] { 0xEF, 0xBB, 0xBF }), Is.EqualTo(byteOrderMark));
+            Assert.That(System.Text.Encoding.UTF8.GetString(bytes).TrimStart('﻿'), Does.StartWith("-- GrifballWebApp database export"));
+        }
     }
 
     [Test]
@@ -504,8 +540,11 @@ public class BackupControllerTests
     {
         var controller = await StartAsync();
 
-        Assert.That(await controller.StartDownload("mysql", CancellationToken.None), Is.TypeOf<BadRequestObjectResult>());
-        Assert.That(await controller.StartDownload("9", CancellationToken.None), Is.TypeOf<BadRequestObjectResult>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await controller.StartDownload("mysql", CancellationToken.None), Is.TypeOf<BadRequestObjectResult>());
+            Assert.That(await controller.StartDownload("9", CancellationToken.None), Is.TypeOf<BadRequestObjectResult>());
+        }
     }
 
     [Test]
@@ -516,16 +555,19 @@ public class BackupControllerTests
         var configuration = Configuration();
         // pg_dump as the suite's runner may not have it, or have an older one than the server: a stand-in that writes
         // the archive's magic.
-        var pgDump = NativeBackupsTests.FakePgDump("printf PGDMP > \"$file\"");
+        var pgDump = BackupTestData.FakePgDump("printf PGDMP > \"$file\"");
         _files.Add(pgDump);
         configuration[NativeBackups.PgDumpKey] = pgDump;
         var bak = TestDatabase.Provider == DatabaseProvider.SqlServer;
 
         var file = await DownloadAsync(await StartAsync(configuration), bak ? "bak" : "dump");
         var bytes = await File.ReadAllBytesAsync(await SaveAsync(file.FileStream));
-        Assert.That(file.FileDownloadName, Does.EndWith(bak ? ".bak" : ".dump"));
-        // A compressed .bak's header (NativeBackupsTests.CompressedBakHeader); pg_dump's archive's
-        Assert.That(System.Text.Encoding.ASCII.GetString(bytes, 0, bak ? 4 : 5), Is.EqualTo(bak ? NativeBackupsTests.CompressedBakHeader : "PGDMP"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(file.FileDownloadName, Does.EndWith(bak ? ".bak" : ".dump"));
+            // A compressed .bak's header (BackupTestData.CompressedBakHeader); pg_dump's archive's
+            Assert.That(System.Text.Encoding.ASCII.GetString(bytes, 0, bak ? 4 : 5), Is.EqualTo(bak ? BackupTestData.CompressedBakHeader : "PGDMP"));
+        }
     }
 
     [Test]
@@ -535,8 +577,11 @@ public class BackupControllerTests
 
         var result = await (await StartAsync()).StartDownload(other, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<UnprocessableEntityObjectResult>());
-        Assert.That((string)((UnprocessableEntityObjectResult)result).Value!, Does.Contain("backupScratch"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<UnprocessableEntityObjectResult>());
+            Assert.That((string)((UnprocessableEntityObjectResult)result).Value!, Does.Contain("backupScratch"));
+        }
     }
 
     [Test]
@@ -547,16 +592,19 @@ public class BackupControllerTests
         var configuration = Configuration();
         configuration[NativeBackups.PgDumpKey] = "/nonexistent/pg_dump";
         if (TestDatabase.Provider == DatabaseProvider.SqlServer)
-            configuration["ConnectionStrings:GrifballWebApp"] = await NativeBackupsTests.ReadOnlyLoginAsync(_context.Database.GetConnectionString()!);
+            configuration["ConnectionStrings:GrifballWebApp"] = await BackupTestData.ReadOnlyLoginAsync(_context.Database.GetConnectionString()!);
 
         var controller = await StartAsync(configuration);
         var native = TestDatabase.Provider == DatabaseProvider.SqlServer ? "bak" : "dump";
         Assert.That(await controller.StartDownload(native, CancellationToken.None), Is.TypeOf<AcceptedResult>());
 
         var status = await FinishedDownloadAsync(controller, native);
-        Assert.That(status.State, Is.EqualTo(ExportState.Failed));
-        Assert.That(status.Message, Does.Contain("instead"));
-        Assert.That(await controller.Download(native, CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(status.State, Is.EqualTo(ExportState.Failed));
+            Assert.That(status.Message, Does.Contain("instead"));
+            Assert.That(await controller.Download(native, CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+        }
     }
 
     [TestCase(DatabaseProvider.SqlServer, null, null, new[] { "Sqlite", "Postgres", "SqlServer", "Bak" })]
@@ -581,16 +629,22 @@ public class BackupControllerTests
     public async Task A_backup_a_restart_took_is_no_longer_offered()
     {
         var controller = await StartAsync();
-        Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
-        Assert.That((await FinishedDownloadAsync(controller)).State, Is.EqualTo(ExportState.Succeeded));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
+            Assert.That((await FinishedDownloadAsync(controller)).State, Is.EqualTo(ExportState.Succeeded));
+        }
 
         // The pod that made it restarted: its run still says it's ready, its file is gone.
         foreach (var file in Directory.GetFiles(_directories[^1]))
             File.Delete(file);
 
         var status = await StatusAsync(controller, "sqlite");
-        Assert.That((status.State, status.Message), Is.EqualTo((ExportState.None, BackupController.Gone)));
-        Assert.That(await controller.Download("sqlite", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((status.State, status.Message), Is.EqualTo((ExportState.None, BackupController.Gone)));
+            Assert.That(await controller.Download("sqlite", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+        }
     }
 
     [Test]
@@ -615,12 +669,15 @@ public class BackupControllerTests
         // PostgreSQL's: pg_dump (a stand-in), on the app's connection string.
         var configuration = Configuration("Host=db.example;Database=GrifballWebApp");
         configuration["Database:Provider"] = "Postgres";
-        var pgDump = NativeBackupsTests.FakePgDump("printf PGDMP > \"$file\"");
+        var pgDump = BackupTestData.FakePgDump("printf PGDMP > \"$file\"");
         _files.Add(pgDump);
         configuration[NativeBackups.PgDumpKey] = pgDump;
         var dump = await Service(configuration: configuration).CreateAsync(BackupFormat.Dump, CancellationToken.None);
-        Assert.That(dump!.FileName, Does.EndWith(".dump"));
-        Assert.That(await File.ReadAllTextAsync(await SaveAsync(dump.File)), Is.EqualTo("PGDMP"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dump!.FileName, Does.EndWith(".dump"));
+            Assert.That(await File.ReadAllTextAsync(await SaveAsync(dump.File)), Is.EqualTo("PGDMP"));
+        }
 
         // SQL Server's: BACKUP DATABASE on its server, here one that isn't there.
         configuration["ConnectionStrings:GrifballWebApp"] = "Server=127.0.0.1,9;Database=nope;User Id=sa;Password=x;Connect Timeout=2;TrustServerCertificate=True";
@@ -645,14 +702,17 @@ public class BackupControllerTests
     {
         var info = (await StartAsync()).Info();
 
-        Assert.That(info.Provider, Is.EqualTo(TestDatabase.Provider.ToString()));
-        Assert.That(info.LatestMigration, Is.EqualTo(_context.Database.GetMigrations().Last()));
-        Assert.That(info.Formats, Is.EqualTo(TestDatabase.Provider switch
+        using (Assert.EnterMultipleScope())
         {
-            DatabaseProvider.SqlServer => new[] { "sqlite", "postgres", "sqlserver", "bak" },
-            DatabaseProvider.Postgres => new[] { "sqlite", "postgres", "sqlserver", "dump" },
-            _ => new[] { "sqlite", "postgres", "sqlserver" },
-        }));
+            Assert.That(info.Provider, Is.EqualTo(TestDatabase.Provider.ToString()));
+            Assert.That(info.LatestMigration, Is.EqualTo(_context.Database.GetMigrations().Last()));
+            Assert.That(info.Formats, Is.EqualTo(TestDatabase.Provider switch
+            {
+                DatabaseProvider.SqlServer => expectedArray0,
+                DatabaseProvider.Postgres => expectedArray1,
+                _ => expectedArray2,
+            }));
+        }
     }
 
     /// <summary>Holds the converter at its first log line, a backup under way, until the test resumes it.</summary>

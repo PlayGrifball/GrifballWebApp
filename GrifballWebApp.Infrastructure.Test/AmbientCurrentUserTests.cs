@@ -34,12 +34,12 @@ public class AmbientCurrentUserTests
     {
         // Why Begin exists: an AsyncLocal assigned inside an async method doesn't flow back to its caller, so a value
         // set without an enclosing slot would silently be lost. Fail loudly instead.
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_ambient.IsActive, Is.False);
             Assert.That(() => _ambient.UserId = 7, Throws.InvalidOperationException);
             Assert.That(_ambient.UserId, Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -49,11 +49,11 @@ public class AmbientCurrentUserTests
         var afterBegin = _ambient.IsActive;
         _ambient.End();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(afterBegin, Is.True);
             Assert.That(_ambient.IsActive, Is.False);
-        });
+        }
     }
 
     [Test]
@@ -73,11 +73,11 @@ public class AmbientCurrentUserTests
 
         var seenInBackground = await background;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(seenInBackground, Is.Null);
             Assert.That(_ambient.UserId, Is.Null);
-        });
+        }
     }
 
     [Test]

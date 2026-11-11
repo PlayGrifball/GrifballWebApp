@@ -21,7 +21,7 @@ public class PasswordResetTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _userManager = Substitute.For<UserManager<User>>(
             Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null);
         _getsertXboxUserService = Substitute.For<IGetsertXboxUserService>();
@@ -44,19 +44,26 @@ public class PasswordResetTests
         // Act
         var (success, message, token, expiresAt) = await _service.GeneratePasswordResetLink("testuser", CancellationToken.None);
 
-        // Assert
-        Assert.That(success, Is.True);
-        Assert.That(message, Is.EqualTo("Password reset link generated successfully"));
-        Assert.That(token, Is.Not.Null.And.Not.Empty);
-        Assert.That(expiresAt, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            // Assert
+            Assert.That(success, Is.True);
+            Assert.That(message, Is.EqualTo("Password reset link generated successfully"));
+            Assert.That(token, Is.Not.Null.And.Not.Empty);
+            Assert.That(expiresAt, Is.Not.Null);
+        }
         Assert.That(expiresAt!.Value, Is.GreaterThan(DateTime.UtcNow));
 
         // Verify reset link was saved in database
-        var resetLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == PasswordResetLink.HashToken(token));
+        var hashed = PasswordResetLink.HashToken(token ?? throw new AssertionException("No token"));
+        var resetLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == hashed);
         Assert.That(resetLink, Is.Not.Null);
-        Assert.That(resetLink.UserId, Is.EqualTo(user.Id));
-        Assert.That(resetLink.UsedAt, Is.Null);
-        Assert.That(await _context.PasswordResetLinks.AnyAsync(x => x.Token == token), Is.False, "Only the token's hash is kept");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(resetLink.UserId, Is.EqualTo(user.Id));
+            Assert.That(resetLink.UsedAt, Is.Null);
+            Assert.That(await _context.PasswordResetLinks.AnyAsync(x => x.Token == token), Is.False, "Only the token's hash is kept");
+        }
     }
 
     [Test]
@@ -68,11 +75,14 @@ public class PasswordResetTests
         // Act
         var (success, message, token, expiresAt) = await _service.GeneratePasswordResetLink("nonexistentuser", CancellationToken.None);
 
-        // Assert
-        Assert.That(success, Is.False);
-        Assert.That(message, Is.EqualTo("User not found"));
-        Assert.That(token, Is.Null);
-        Assert.That(expiresAt, Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            // Assert
+            Assert.That(success, Is.False);
+            Assert.That(message, Is.EqualTo("User not found"));
+            Assert.That(token, Is.Null);
+            Assert.That(expiresAt, Is.Null);
+        }
     }
 
     [Test]
@@ -88,18 +98,24 @@ public class PasswordResetTests
         // Act
         var (success, message, token, expiresAt) = await _service.GeneratePasswordResetLink("oauthuser", CancellationToken.None);
 
-        // Assert
-        Assert.That(success, Is.True);
-        Assert.That(message, Is.EqualTo("Password reset link generated successfully"));
-        Assert.That(token, Is.Not.Null.And.Not.Empty);
-        Assert.That(expiresAt, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            // Assert
+            Assert.That(success, Is.True);
+            Assert.That(message, Is.EqualTo("Password reset link generated successfully"));
+            Assert.That(token, Is.Not.Null.And.Not.Empty);
+            Assert.That(expiresAt, Is.Not.Null);
+        }
         Assert.That(expiresAt!.Value, Is.GreaterThan(DateTime.UtcNow));
 
         // Verify reset link was saved in database
         var resetLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == PasswordResetLink.HashToken(token));
         Assert.That(resetLink, Is.Not.Null);
-        Assert.That(resetLink.UserId, Is.EqualTo(user.Id));
-        Assert.That(resetLink.UsedAt, Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(resetLink.UserId, Is.EqualTo(user.Id));
+            Assert.That(resetLink.UsedAt, Is.Null);
+        }
     }
 
     [Test]
@@ -125,13 +141,17 @@ public class PasswordResetTests
         
         // Verify old link expired (unused): the cleanup deletes it
         var oldLink = await _context.PasswordResetLinks.SingleAsync(x => x.Token == PasswordResetLink.HashToken("oldtoken"));
-        Assert.That(oldLink.IsUsableAt(DateTime.UtcNow), Is.False);
-        Assert.That(oldLink.UsedAt, Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(oldLink.IsUsableAt(DateTime.UtcNow), Is.False);
+            Assert.That(oldLink.UsedAt, Is.Null);
+        }
         var (oldSuccess, oldMessage) = await _service.UsePasswordResetLink("oldtoken", "newpassword", CancellationToken.None);
         Assert.That((oldSuccess, oldMessage), Is.EqualTo((false, "Reset link has expired")));
         
         // Verify new link exists
-        var newLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == PasswordResetLink.HashToken(token));
+        var hashed = PasswordResetLink.HashToken(token ?? throw new AssertionException("No token"));
+        var newLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == hashed);
         Assert.That(newLink, Is.Not.Null);
     }
 
@@ -153,9 +173,12 @@ public class PasswordResetTests
         // Act
         var (success, message) = await _service.UsePasswordResetLink("validtoken", "newpassword", CancellationToken.None);
 
-        // Assert
-        Assert.That(success, Is.True);
-        Assert.That(message, Is.EqualTo("Password set successfully"));
+        using (Assert.EnterMultipleScope())
+        {
+            // Assert
+            Assert.That(success, Is.True);
+            Assert.That(message, Is.EqualTo("Password set successfully"));
+        }
 
         // Verify reset link is used, and can't be used again
         var linkAfterUse = await _context.PasswordResetLinks.SingleAsync(x => x.Token == PasswordResetLink.HashToken("validtoken"));
@@ -194,9 +217,12 @@ public class PasswordResetTests
         // Act
         var (success, message) = await _service.UsePasswordResetLink("validtoken", "newpassword", CancellationToken.None);
 
-        // Assert
-        Assert.That(success, Is.False);
-        Assert.That(message, Is.EqualTo("Invalid or already used reset link"));
+        using (Assert.EnterMultipleScope())
+        {
+            // Assert
+            Assert.That(success, Is.False);
+            Assert.That(message, Is.EqualTo("Invalid or already used reset link"));
+        }
     }
 
     [Test]
@@ -205,9 +231,12 @@ public class PasswordResetTests
         // Act
         var (success, message) = await _service.UsePasswordResetLink("invalidtoken", "newpassword", CancellationToken.None);
 
-        // Assert
-        Assert.That(success, Is.False);
-        Assert.That(message, Is.EqualTo("Invalid or already used reset link"));
+        using (Assert.EnterMultipleScope())
+        {
+            // Assert
+            Assert.That(success, Is.False);
+            Assert.That(message, Is.EqualTo("Invalid or already used reset link"));
+        }
     }
 
     [Test]
@@ -225,9 +254,12 @@ public class PasswordResetTests
         // Act
         var (success, message) = await _service.UsePasswordResetLink("expiredtoken", "newpassword", CancellationToken.None);
 
-        // Assert
-        Assert.That(success, Is.False);
-        Assert.That(message, Is.EqualTo("Reset link has expired"));
+        using (Assert.EnterMultipleScope())
+        {
+            // Assert
+            Assert.That(success, Is.False);
+            Assert.That(message, Is.EqualTo("Reset link has expired"));
+        }
 
         // Verify expired link is cleaned up
         var linkAfterUse = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == PasswordResetLink.HashToken("expiredtoken"));
@@ -253,10 +285,13 @@ public class PasswordResetTests
         // Act
         var (success, message) = await _service.UsePasswordResetLink("validtoken", "weak", CancellationToken.None);
 
-        // Assert
-        Assert.That(success, Is.False);
-        Assert.That(message, Is.EqualTo("Failed to set password: Password too weak"));
-        Assert.That(resetLink.UsedAt, Is.Null, "Still usable: no password was set");
+        using (Assert.EnterMultipleScope())
+        {
+            // Assert
+            Assert.That(success, Is.False);
+            Assert.That(message, Is.EqualTo("Failed to set password: Password too weak"));
+            Assert.That(resetLink.UsedAt, Is.Null, "Still usable: no password was set");
+        }
     }
 
     [Test]
@@ -276,9 +311,12 @@ public class PasswordResetTests
         // Act
         var (success, message) = await _service.UsePasswordResetLink("validtoken", "newpassword", CancellationToken.None);
 
-        // Assert
-        Assert.That(success, Is.True);
-        Assert.That(message, Is.EqualTo("Password set successfully"));
+        using (Assert.EnterMultipleScope())
+        {
+            // Assert
+            Assert.That(success, Is.True);
+            Assert.That(message, Is.EqualTo("Password set successfully"));
+        }
 
         // Verify reset link is used
         var linkAfterUse = await _context.PasswordResetLinks.SingleAsync(x => x.Token == PasswordResetLink.HashToken("validtoken"));
@@ -310,7 +348,7 @@ public class PasswordResetTests
 
         // Assert
         var remainingLinks = await _context.PasswordResetLinks.ToListAsync();
-        Assert.That(remainingLinks.Count, Is.EqualTo(1));
+        Assert.That(remainingLinks, Has.Count.EqualTo(1));
         Assert.That(remainingLinks[0].Token, Is.EqualTo(PasswordResetLink.HashToken("validtoken")));
     }
 }

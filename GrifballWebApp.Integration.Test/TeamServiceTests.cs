@@ -23,7 +23,7 @@ public class TeamServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _publisher = Substitute.For<IPublisher>();
         _service = new TeamService(_context, _publisher, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
     }

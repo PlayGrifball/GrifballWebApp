@@ -23,6 +23,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class ModalInteractionsTests
 {
+    private static readonly JsonSerializerOptions NumbersFromStrings = new() { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString };
+
     private GrifballContext _context;
     private IServiceScope _scope;
     private ISetGamertagService _setGamertagService;
@@ -33,8 +35,9 @@ public class ModalInteractionsTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
-        _rest = FakeRestRequestHandler.CreateClient(out _handler);
+        _context = await TestDatabase.NewGrifballContext();
+        _rest = FakeRestRequestHandler.CreateClient(out var handler);
+        _handler = handler;
 
         var services = new ServiceCollection();
         services.AddLogging();
@@ -65,14 +68,12 @@ public class ModalInteractionsTests
          "user":{"id":"1234567890","username":"discorduser","discriminator":"0"},"token":"tok","version":1,
          "locale":"en-US","entitlements":[],"authorizing_integration_owners":{},"context":1}
         """;
-        var model = JsonSerializer.Deserialize<JsonInteraction>(json,
-            new JsonSerializerOptions { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString })!;
+        var model = JsonSerializer.Deserialize<JsonInteraction>(json, NumbersFromStrings)!;
         var interaction = new ModalInteraction(model, null!, (_, cb, _, _, _) => { lock (_callbacks) _callbacks.Add(cb); return Task.FromResult<InteractionCallbackResponse?>(null); }, _rest);
         var context = new ModalInteractionContext(interaction, null!);
 
         var discordSetGamertag = new DiscordSetGamertag(
             _context,
-            Substitute.For<ILogger<DiscordSetGamertag>>(),
             _scope.ServiceProvider.GetRequiredService<UserManager<User>>(),
             _setGamertagService);
         return (discordSetGamertag, context.ToDiscordContext());

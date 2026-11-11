@@ -19,7 +19,7 @@ public class SeriesGameModelTests
     private GrifballContext _context;
 
     [SetUp]
-    public async Task Setup() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task Setup() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
@@ -48,12 +48,12 @@ public class SeriesGameModelTests
             .SingleAsync(m => m.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID);
         var linkedMatch = await _context.Matches.Include(m => m.SeriesGame).SingleAsync(m => m.MatchID == match.MatchID);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(series.SeriesGames.OrderBy(g => g.GameNumber).Select(g => (g.GameNumber, g.Match?.MatchID, g.RecordedGame?.SourceKey)),
                 Is.EqualTo(new[] { (1, (Guid?)match.MatchID, (string?)null), (2, (Guid?)null, (string?)"mcc/1") }));
-            Assert.That(linkedMatch.SeriesGame.SeasonMatchID, Is.EqualTo(seeded.SeasonMatch.SeasonMatchID));
-        });
+            Assert.That(linkedMatch.SeriesGame?.SeasonMatchID, Is.EqualTo(seeded.SeasonMatch.SeasonMatchID));
+        }
     }
 
     [Test]
@@ -102,12 +102,12 @@ public class SeriesGameModelTests
 
         await _context.RecordedGames.Where(g => g.RecordedGameID == recorded.RecordedGameID).ExecuteDeleteAsync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.Set<SeriesGame>().AnyAsync(), Is.False, "The database cascades to the series game");
             Assert.That(await _context.Set<RecordedGameTeam>().AnyAsync(), Is.False);
             Assert.That(await _context.SeasonMatches.AnyAsync(m => m.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID), Is.True, "The series stays");
-        });
+        }
     }
 
     [Test]

@@ -84,14 +84,14 @@ public static class ContextExtensions
                 })
                 .ToList();
 
-            if (any.Any() is false)
+            if (any.Count == 0)
             {
                 continue;
             }
 
-            var tableName = entityType.GetTableName();
+            var tableName = entityType.GetTableName() ?? throw new InvalidOperationException($"{entityType.DisplayName()} has rows but no table");
             var schema = entityType.GetSchema() ?? "dbo";
-            if (tablesWithIdentity.Any())
+            if (tablesWithIdentity.Count > 0)
                 throw new Exception("Unable to save identity column for more than one column at once");
             tablesWithIdentity.Add((schema, tableName));
         }

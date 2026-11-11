@@ -19,14 +19,14 @@ public class XboxUserAggregateTests
     {
         var xbox = XboxUser.FromXbox(42, "Shadow S16");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((xbox.XboxUserID, xbox.Gamertag), Is.EqualTo((42L, "Shadow S16")));
             Assert.That(xbox.PastGamertags, Is.Empty);
             Assert.That(xbox.LastRenamedAt, Is.Null);
             Assert.Throws<ArgumentException>(() => XboxUser.FromXbox(42, " "));
             Assert.Throws<ArgumentNullException>(() => XboxUser.FromXbox(42, null!));
-        });
+        }
     }
 
     [Test]
@@ -38,14 +38,14 @@ public class XboxUserAggregateTests
         xbox.Renamed("New Name", Utc(2024));
 
         var past = xbox.PastGamertags.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(xbox.Gamertag, Is.EqualTo("New Name"));
             Assert.That((past.XboxUserID, past.Gamertag, past.NormalizedGamertag, past.FirstSeen, past.LastSeen, past.Source),
                 Is.EqualTo((1L, "Old Name", "OLD NAME", (DateTime?)Utc(2020), (DateTime?)Utc(2024), GamertagHistorySource.RenameDetected)));
             Assert.That(past.XboxUser, Is.SameAs(xbox));
             Assert.That(xbox.LastRenamedAt, Is.EqualTo(Utc(2024)));
-        });
+        }
     }
 
     /// <summary>The row's last change (the wall clock) after the rename's time (the caller's clock, e.g. another pod's or a
@@ -59,11 +59,11 @@ public class XboxUserAggregateTests
         xbox.Renamed("New Name", Utc(2024));
 
         var past = xbox.PastGamertags.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(xbox.Gamertag, Is.EqualTo("New Name"));
             Assert.That((past.Gamertag, past.FirstSeen, past.LastSeen), Is.EqualTo(("Old Name", (DateTime?)Utc(2024), (DateTime?)Utc(2024))));
-        });
+        }
     }
 
     [Test]
@@ -74,13 +74,13 @@ public class XboxUserAggregateTests
         var respelled = XboxUser.FromXbox(2, "shadow s16");
         respelled.Renamed("Shadow  S16", Utc(2024));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(unsaved.PastGamertags.Single().FirstSeen, Is.Null, "Never saved: when it was first used is unknown");
             Assert.That(respelled.Gamertag, Is.EqualTo("Shadow  S16"), "Xbox's spelling");
             Assert.That(respelled.PastGamertags, Is.Empty, "The same gamertag, spelled differently");
             Assert.Throws<ArgumentException>(() => respelled.Renamed("", Utc(2024)));
-        });
+        }
     }
 
     [Test]
@@ -96,13 +96,13 @@ public class XboxUserAggregateTests
         };
 
         var past = xbox.PastGamertags.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(results, Is.All.EqualTo(RecordPastGamertagResult.Recorded));
             Assert.That((past.Gamertag, past.NormalizedGamertag, past.FirstSeen, past.LastSeen, past.Source),
                 Is.EqualTo(("Old Tag", "OLD TAG", (DateTime?)Utc(2018), (DateTime?)Utc(2021), GamertagHistorySource.Manual)), "Widened; the source it was first known by");
             Assert.That(past.Note, Is.EqualTo("WL 2019 sheet"), "A blank note leaves the note");
-        });
+        }
     }
 
     [TestCase(null, null, 2019, 2020, 2019, 2020)]
@@ -154,14 +154,14 @@ public class XboxUserAggregateTests
     {
         var xbox = XboxUser.FromXbox(1, "Now");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(xbox.RecordPastGamertag(" ", null, null, GamertagHistorySource.Manual), Is.EqualTo(RecordPastGamertagResult.NoGamertag));
             Assert.That(xbox.RecordPastGamertag("Tag", Utc(2021), Utc(2020), GamertagHistorySource.Manual), Is.EqualTo(RecordPastGamertagResult.DatesOutOfOrder));
             Assert.That(xbox.PastGamertags, Is.Empty);
             Assert.That(xbox.RecordPastGamertag("Tag", null, null, GamertagHistorySource.Manual, new string('n', 250)), Is.EqualTo(RecordPastGamertagResult.Recorded));
             Assert.That(xbox.PastGamertags.Single().Note, Has.Length.EqualTo(XboxGamertagHistory.MaxNoteLength));
-        });
+        }
     }
 
     [Test]
@@ -175,14 +175,14 @@ public class XboxUserAggregateTests
         manual.XboxGamertagHistoryID = 10;
         seen.XboxGamertagHistoryID = 11;
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((manual.IsRemovable, seen.IsRemovable), Is.EqualTo((true, false)));
             Assert.That(xbox.RemovePastGamertag(99), Is.EqualTo(RemovePastGamertagResult.NotFound));
             Assert.That(xbox.RemovePastGamertag(11), Is.EqualTo(RemovePastGamertagResult.NotManual));
             Assert.That(xbox.RemovePastGamertag(10), Is.EqualTo(RemovePastGamertagResult.Removed));
             Assert.That(xbox.PastGamertags, Is.EqualTo(new[] { seen }));
-        });
+        }
     }
 
     [TestCase(null, null, true)]

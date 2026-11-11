@@ -34,7 +34,7 @@ public class SqlServerTemporalMigrationsSqlGenerator(MigrationsSqlGeneratorDepen
         return base.Generate(operations, model, options);
     }
 
-    protected override void Generate(AddColumnOperation operation, IModel? model, MigrationCommandListBuilder builder, bool terminate = true)
+    protected override void Generate(AddColumnOperation operation, IModel? model, MigrationCommandListBuilder builder, bool terminate)
     {
         base.Generate(operation, model, builder, terminate);
         if (!terminate || !_periodColumnsAdded.Contains((operation.Schema, operation.Table, operation.Name)))

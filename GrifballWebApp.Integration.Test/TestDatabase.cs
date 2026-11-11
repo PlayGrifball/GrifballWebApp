@@ -2,6 +2,7 @@ using DotNet.Testcontainers.Containers;
 using GrifballWebApp.Infrastructure;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
 using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
@@ -15,6 +16,10 @@ namespace GrifballWebApp.Integration.Test;
 /// </summary>
 internal static class TestDatabase
 {
+    /// <summary>A new test database on the run's server (<see cref="SetUpFixture.DatabaseContainer"/>), and a context on it.</summary>
+    internal static Task<GrifballContext> NewGrifballContext(params IInterceptor[] interceptors)
+        => Utility.NewGrifballContext(SetUpFixture.DatabaseContainer, interceptors);
+
     public static DatabaseProvider Provider { get; } = ProviderFrom(Environment.GetEnvironmentVariable("GRIF_TEST_DATABASE"));
 
     internal static DatabaseProvider ProviderFrom(string? value)
@@ -27,6 +32,10 @@ internal static class TestDatabase
     /// <summary>The other server, for what runs on both at once (the conversion between them): Postgres for SQLite.</summary>
     public static DatabaseProvider Other => Provider == DatabaseProvider.Postgres ? DatabaseProvider.SqlServer : DatabaseProvider.Postgres;
 
+    /// <summary>Starts <see cref="Other"/>, which is always a server (SQL Server or Postgres).</summary>
+    public static async Task<IDatabaseContainer> StartOtherServer()
+        => await StartServer(Other) ?? throw new InvalidOperationException($"{Other} has no server");
+
     public static async Task<IDatabaseContainer?> StartServer(DatabaseProvider? provider = null)
     {
         if ((provider ?? Provider) == DatabaseProvider.Sqlite)
@@ -36,13 +45,11 @@ internal static class TestDatabase
         }
         IDatabaseContainer server = (provider ?? Provider) switch
         {
-            DatabaseProvider.Postgres => new PostgreSqlBuilder()
-                .WithImage("postgres:18-alpine")
+            DatabaseProvider.Postgres => new PostgreSqlBuilder("postgres:18-alpine")
                 // Every test's database keeps a connection pool until it's dropped.
                 .WithCommand("-c", "max_connections=500")
                 .Build(),
-            _ => new MsSqlBuilder()
-                .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+            _ => new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
                 .WithPassword("yourStrong(!)Password")
                 .Build(),
         };

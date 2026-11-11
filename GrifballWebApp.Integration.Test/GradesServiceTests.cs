@@ -14,7 +14,7 @@ public class GradesServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _service = new GradesService(_context);
     }
 
@@ -35,7 +35,10 @@ public class GradesServiceTests
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        Assert.That(result.Totals, Is.Empty);
-        Assert.That(result.PerMinutes, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Totals, Is.Empty);
+            Assert.That(result.PerMinutes, Is.Empty);
+        }
     }
 }

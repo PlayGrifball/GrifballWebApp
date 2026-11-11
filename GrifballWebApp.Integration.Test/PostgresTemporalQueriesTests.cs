@@ -43,7 +43,7 @@ public class PostgresTemporalQueriesTests
         var asOf = Sql(e => new TemporalAsOfQueryRootExpression(e, A));
         var all = Sql(e => new TemporalAllQueryRootExpression(e));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(asOf, Does.StartWith("SELECT \"SeasonID\", "));
             Assert.That(asOf, Does.Contain($" FROM \"Event\".\"Seasons\" WHERE {start} <= {a} AND {end} > {a} UNION ALL SELECT "));
@@ -53,7 +53,28 @@ public class PostgresTemporalQueriesTests
             Assert.That(Sql(e => new TemporalFromToQueryRootExpression(e, A, B)), Does.EndWith($"WHERE {start} < {b} AND {end} > {a} AND {start} < {end}"));
             Assert.That(Sql(e => new TemporalBetweenQueryRootExpression(e, A, B)), Does.EndWith($"WHERE {start} <= {b} AND {end} > {a} AND {start} < {end}"));
             Assert.That(Sql(e => new TemporalContainedInQueryRootExpression(e, A, B)), Does.EndWith($"WHERE {start} >= {a} AND {end} <= {b} AND {start} < {end}"));
-        });
+        }
+    }
+
+    // Roots EF builds with their times in them (not parameters): as SQL Server's helper has it, a set operation takes
+    // two at the same times, and refuses two at different ones
+    [Test]
+    public void PlainRoots_AreCompatible_OnlyAtTheSameTimes()
+    {
+        using var context = Postgres();
+        var helper = context.GetService<INavigationExpansionExtensibilityHelper>();
+        var season = context.Model.FindEntityType(typeof(Season))!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(helper, Is.InstanceOf<PostgresTemporalNavigationExpansionExtensibilityHelper>());
+            Assert.That(helper.AreQueryRootsCompatible(new TemporalAsOfQueryRootExpression(season, A), new TemporalAsOfQueryRootExpression(season, A)), Is.True);
+            Assert.That(helper.AreQueryRootsCompatible(new TemporalAllQueryRootExpression(season), new TemporalAllQueryRootExpression(season)), Is.True);
+            Assert.That(helper.AreQueryRootsCompatible(new TemporalFromToQueryRootExpression(season, A, B), new TemporalFromToQueryRootExpression(season, A, B)), Is.True);
+            Assert.Throws<InvalidOperationException>(() => helper.AreQueryRootsCompatible(new TemporalAsOfQueryRootExpression(season, A), new TemporalAsOfQueryRootExpression(season, B)));
+            Assert.Throws<InvalidOperationException>(() => helper.AreQueryRootsCompatible(new TemporalAllQueryRootExpression(season), new TemporalFromToQueryRootExpression(season, A, B)));
+            Assert.Throws<InvalidOperationException>(() => helper.AreQueryRootsCompatible(new TemporalFromToQueryRootExpression(season, A, B), new TemporalFromToQueryRootExpression(season, A, B.AddDays(1))));
+        }
     }
 
     [Test]
@@ -65,8 +86,11 @@ public class PostgresTemporalQueriesTests
 
         var sql = Sql(e => new TemporalAllQueryRootExpression(e));
 
-        Assert.That(sql, Does.StartWith($"SELECT {string.Join(", ", columns.Select(c => $"\"{c}\""))} FROM "));
-        Assert.That(columns, Does.Contain("PeriodStart").And.Contain("PeriodEnd"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sql, Does.StartWith($"SELECT {string.Join(", ", columns.Select(c => $"\"{c}\""))} FROM "));
+            Assert.That(columns, Does.Contain("PeriodStart").And.Contain("PeriodEnd"));
+        }
     }
 
     [Test]
@@ -97,7 +121,7 @@ public class PostgresTemporalQueriesTests
         var b = B.AddTicks(1);
         var up = TimeSpan.FromTicks(TimeSpan.TicksPerMicrosecond - 1);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(PostgresTemporalQueries.Instants(new TemporalAsOfQueryRootExpression(e, a)), Is.EqualTo(new[] { A }));
             Assert.That(PostgresTemporalQueries.Instants(new TemporalFromToQueryRootExpression(e, a, b)), Is.EqualTo(new[] { A, b + up }));
@@ -106,7 +130,7 @@ public class PostgresTemporalQueriesTests
             Assert.That(PostgresTemporalQueries.Instants(new TemporalAllQueryRootExpression(e)), Is.Empty);
             Assert.That(PostgresTemporalQueries.Instants(new PostgresTemporalAsOfQueryRootExpression(e, "p")), Is.Null, "its times are its parameter's");
             Assert.That(PostgresTemporalQueries.Instants(new SomeOtherTemporalQueryRoot(e)), Is.Null);
-        });
+        }
     }
 
     [Test]
@@ -115,7 +139,7 @@ public class PostgresTemporalQueriesTests
         const string start = "\"PeriodStart\"";
         const string end = "\"PeriodEnd\"";
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Sql(e => new PostgresTemporalAsOfQueryRootExpression(e, "p")),
                 Does.EndWith($" FROM \"Event\".\"SeasonsHistory\" WHERE {start} <= {{0}} AND {end} > {{0}} AND {start} < {end}"));
@@ -123,7 +147,7 @@ public class PostgresTemporalQueriesTests
             Assert.That(Sql(e => new PostgresTemporalFromToQueryRootExpression(e, "p")), Does.EndWith($"WHERE {start} < {{1}} AND {end} > {{0}} AND {start} < {end}"));
             Assert.That(Sql(e => new PostgresTemporalBetweenQueryRootExpression(e, "p")), Does.EndWith($"WHERE {start} <= {{1}} AND {end} > {{0}} AND {start} < {end}"));
             Assert.That(Sql(e => new PostgresTemporalContainedInQueryRootExpression(e, "p")), Does.EndWith($"WHERE {start} >= {{0}} AND {end} <= {{1}} AND {start} < {end}"));
-        });
+        }
     }
 
     private static IEnumerable<Func<IEntityType, string, TemporalQueryRootExpression>> ParameterRoots() =>
@@ -145,16 +169,21 @@ public class PostgresTemporalQueriesTests
         var root = create(season, "p");
         var operation = root.GetType().Name.Replace("PostgresTemporal", "Temporal").Replace("QueryRootExpression", "");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(root, Is.EqualTo(create(season, "p")));
             Assert.That(root.GetHashCode(), Is.EqualTo(create(season, "p").GetHashCode()));
             Assert.That(root, Is.Not.EqualTo(create(season, "q")));
             Assert.That(root, Is.Not.EqualTo(create(team, "p")));
             Assert.That(root, Is.Not.EqualTo(ParameterRoots().Select(c => c(season, "p")).First(r => r.GetType() != root.GetType())));
-            Assert.That(root.Equals(root), Is.True);
-            Assert.That(root.Equals(null), Is.False);
-            Assert.That(((IPostgresTemporalParameterRoot)root).ParameterName, Is.EqualTo("p"));
+#pragma warning disable NUnit2010 // Equals itself is under test (reflexive, and false for null); Is.EqualTo would not call it on one instance
+            // Through locals: a check against the null literal itself would tell the compiler root might be null
+            var same = root;
+            object? nothing = null;
+            Assert.That(root.Equals(same), Is.True);
+            Assert.That(root.Equals(nothing), Is.False);
+#pragma warning restore NUnit2010
+            Assert.That(root, Is.InstanceOf<IPostgresTemporalParameterRoot>().And.Property(nameof(IPostgresTemporalParameterRoot.ParameterName)).EqualTo("p"));
             Assert.That(root.DetachQueryProvider(), Is.SameAs(root));
             Assert.That(root.UpdateEntityType(season), Is.EqualTo(root));
             Assert.Throws<InvalidOperationException>(() => root.UpdateEntityType(team));
@@ -168,7 +197,7 @@ public class PostgresTemporalQueriesTests
             Assert.That(times, Is.Not.Empty);
             foreach (var time in times)
                 Assert.That(Assert.Throws<InvalidOperationException>(time)!.Message, Does.Contain("'p'"));
-        });
+        }
     }
 
     // The query compiler (registered by UseGrifballDatabase) takes each root's times out into the query's
@@ -190,7 +219,7 @@ public class PostgresTemporalQueriesTests
         var roots = Roots(compiler.ExtractParameters(query, parameters, logger));
         var compiledRoots = Roots(compiler.ExtractParameters(query, compiledParameters, logger, compiledQuery: true));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(roots.Select(r => (r.GetType().Name, (r as IPostgresTemporalParameterRoot)?.ParameterName)), Is.EquivalentTo(new (string, string?)[]
             {
@@ -210,7 +239,7 @@ public class PostgresTemporalQueriesTests
                 nameof(TemporalFromToQueryRootExpression), nameof(TemporalAllQueryRootExpression),
             }));
             Assert.That(compiledParameters.Keys.Where(k => k.StartsWith("__grif_temporal_")), Is.Empty);
-        });
+        }
     }
 
     private static List<TemporalQueryRootExpression> Roots(Expression expression)
@@ -241,14 +270,14 @@ public class PostgresTemporalQueriesTests
         var a = Sql(A);
         var b = Sql(B);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(WithoutParameters(a), Is.EqualTo(WithoutParameters(b)));
             Assert.That(WithoutParameters(a), Does.Not.Contain("2026"));
             Assert.That(a, Does.Contain("2026-10-01"));
             Assert.That(b, Does.Contain("2026-10-02"));
             Assert.That(a.Split('\n').Count(l => l.StartsWith("-- ")), Is.EqualTo(2), "the time once, for the season and its teams, and the key");
-        });
+        }
     }
 
     private sealed class SomeOtherTemporalQueryRoot(IEntityType entityType) : TemporalQueryRootExpression(entityType)

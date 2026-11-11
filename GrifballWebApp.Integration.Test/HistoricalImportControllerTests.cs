@@ -28,11 +28,15 @@ public class HistoricalImportControllerTests
     private GamertagClaimsController _claims = null!;
     private XuidLookupSignal _lookupSignal = null!;
     private IHistoricalImportService _import;
+    private static readonly string[] expected = new[] { "look at this" };
+    private static readonly string[] expectedArray = new[] { "x" };
+    private static readonly string[] expectedArray0 = new[] { "w0", "w1", "w2", "w3", "w4", "... and 2 more" };
+    private static readonly string[] expectedArray1 = new[] { "one" };
 
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _signal = new HistoricalImportSignal();
         _controller = new HistoricalImportController(new HistoricalImportJobs(_context, _signal),
             new GrifballWebApp.Infrastructure.Historical.Sources.HistoricalSourceService(_context,
@@ -49,7 +53,7 @@ public class HistoricalImportControllerTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    private static IFormFile File(string json)
+    private static FormFile File(string json)
     {
         var bytes = Encoding.UTF8.GetBytes(json);
         return new FormFile(new MemoryStream(bytes), 0, bytes.Length, "file", "file.json");
@@ -89,23 +93,26 @@ public class HistoricalImportControllerTests
         var jobId = ((HistoricalImportQueued)accepted.Value!).JobID;
         Assert.That(accepted.ActionName, Is.EqualTo(nameof(HistoricalImportController.Job)));
         var queued = (await _controller.Job(jobId, CancellationToken.None)).Value!;
-        Assert.That((queued.Status, queued.Report), Is.EqualTo(("Queued", (HistoricalImportReport?)null)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((queued.Status, queued.Report), Is.EqualTo(("Queued", (HistoricalImportReport?)null)));
 
-        Assert.That(await Worker().RunNextAsync(CancellationToken.None), Is.True);
+            Assert.That(await Worker().RunNextAsync(CancellationToken.None), Is.True);
+        }
 
         var done = (await _controller.Job(jobId, CancellationToken.None)).Value!;
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((done.Status, done.Stage, done.SeasonsTotal), Is.EqualTo(("Succeeded", "Done", 1)));
             Assert.That(done.Report!.SeasonsCreated, Is.EqualTo(1));
-            Assert.That(done.Report.Warnings, Is.EqualTo(new[] { "look at this" }));
+            Assert.That(done.Report.Warnings, Is.EqualTo(expected));
             Assert.That((done.StartedAt, done.FinishedAt), Is.Not.EqualTo(((DateTime?)null, (DateTime?)null)));
             Assert.That(passed!.Seasons.Seasons.Single().Players.Single().Kills, Is.EqualTo(3));
             Assert.That(passed.Championships!.Champions.Single().Tier, Is.EqualTo("Pro"));
-            Assert.That(passed.WaypointMatches!["s/Stats"].Regular, Is.EqualTo(new[] { "x" }));
+            Assert.That(passed.WaypointMatches!["s/Stats"].Regular, Is.EqualTo(expectedArray));
             Assert.That(passed.Catalog!.Sources.Single().Url, Is.EqualTo("https://example.org/w"));
             Assert.That(await _context.HistoricalImportJobs.Select(j => j.Payload).SingleAsync(), Is.Null, "The archive isn't kept once the job ends");
-        });
+        }
         Assert.That(await Worker().RunNextAsync(CancellationToken.None), Is.False, "Nothing queued");
     }
 
@@ -135,8 +142,11 @@ public class HistoricalImportControllerTests
         Assert.That(await _context.HistoricalImportJobs.Select(j => j.Status).ToListAsync(), Is.EqualTo(new[] { HistoricalImportJobStatus.Failed }));
         var report = new HistoricalImportReport { Warnings = [.. Enumerable.Range(0, 7).Select(i => $"w{i}")], Skipped = ["one"] };
         HistoricalImportWorker.Cap(report, 5);
-        Assert.That(report.Warnings, Is.EqualTo(new[] { "w0", "w1", "w2", "w3", "w4", "... and 2 more" }));
-        Assert.That(report.Skipped, Is.EqualTo(new[] { "one" }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Warnings, Is.EqualTo(expectedArray0));
+            Assert.That(report.Skipped, Is.EqualTo(expectedArray1));
+        }
     }
 
     [Test]
@@ -237,8 +247,11 @@ public class HistoricalImportControllerTests
 
         unreachable = false;
         finish.SetResult();
-        Assert.That(await running.WaitAsync(TimeSpan.FromSeconds(30)), Is.True);
-        Assert.That((await _controller.Job(jobId, CancellationToken.None)).Value!.Status, Is.EqualTo("Succeeded"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await running.WaitAsync(TimeSpan.FromSeconds(30)), Is.True);
+            Assert.That((await _controller.Job(jobId, CancellationToken.None)).Value!.Status, Is.EqualTo("Succeeded"));
+        }
     }
 
     /// <summary>What the worker logged at <paramref name="level"/>, as text.</summary>
@@ -250,8 +263,11 @@ public class HistoricalImportControllerTests
     /// <summary>Another replica queues the job again as stale and claims it at <paramref name="at"/>.</summary>
     private async Task ClaimedByAnotherReplica(int jobId, DateTime at)
     {
-        Assert.That(await HistoricalImportJob.RequeueStaleAsync(_context.HistoricalImportJobs, at), Is.EqualTo(1));
-        Assert.That(await HistoricalImportJob.ClaimAsync(_context.HistoricalImportJobs, jobId, at), Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await HistoricalImportJob.RequeueStaleAsync(_context.HistoricalImportJobs, at), Is.EqualTo(1));
+            Assert.That(await HistoricalImportJob.ClaimAsync(_context.HistoricalImportJobs, jobId, at), Is.Not.Null);
+        }
     }
 
     [Test]
@@ -271,13 +287,13 @@ public class HistoricalImportControllerTests
         Assert.That(await Worker(new FixedTimeProvider(now), logger).RunNextAsync(CancellationToken.None), Is.True);
 
         var row = await _context.HistoricalImportJobs.AsNoTracking().SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((row.Status, row.StartedAt, row.Report, row.FinishedAt), Is.EqualTo((HistoricalImportJobStatus.Running, (DateTime?)now.AddHours(1), (string?)null, (DateTime?)null)),
                 "The other replica's run is left alone");
             Assert.That(Logged(logger, Microsoft.Extensions.Logging.LogLevel.Warning), Has.Some.Contains($"job {jobId} was queued again under this run; its report is dropped"));
             Assert.That(Logged(logger, Microsoft.Extensions.Logging.LogLevel.Information), Has.None.Contains("finished"));
-        });
+        }
     }
 
     [Test]
@@ -313,13 +329,13 @@ public class HistoricalImportControllerTests
         await stopped.Task.WaitAsync(TimeSpan.FromSeconds(30));
         Assert.That(await running.WaitAsync(TimeSpan.FromSeconds(30)), Is.True);
         var row = await _context.HistoricalImportJobs.AsNoTracking().SingleAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((row.Status, row.StartedAt, row.HeartbeatAt, row.Error), Is.EqualTo((HistoricalImportJobStatus.Running, (DateTime?)start.UtcDateTime.AddHours(1), (DateTime?)start.UtcDateTime.AddHours(1), (string?)null)),
                 "The other replica's run is left alone: not beaten, not ended");
             Assert.That(Logged(logger, Microsoft.Extensions.Logging.LogLevel.Warning), Has.Some.Contains($"job {jobId} was queued again under this run; the run stops"));
             Assert.That(Logged(logger, Microsoft.Extensions.Logging.LogLevel.Error), Is.Empty, "Stopping isn't a failure");
-        });
+        }
     }
 
     [Test]
@@ -349,8 +365,11 @@ public class HistoricalImportControllerTests
     {
         var result = await _controller.Import(File(json), null, null, null, CancellationToken.None);
 
-        Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
-        Assert.That(await _context.HistoricalImportJobs.AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+            Assert.That(await _context.HistoricalImportJobs.AnyAsync(), Is.False);
+        }
     }
 
     [Test]
@@ -366,14 +385,17 @@ public class HistoricalImportControllerTests
         await _context.SaveChangesAsync();
 
         var pending = await _claims.GetClaims(ct: CancellationToken.None);
-        Assert.That(pending, Has.Count.EqualTo(2));
-        Assert.That(await _claims.RejectClaim(pending[1].GamertagClaimID, null, CancellationToken.None), Is.InstanceOf<NoContentResult>());
-        Assert.That(await _claims.ApproveClaim(pending[0].GamertagClaimID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
-        Assert.That(await _claims.AddGamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 2, Gamertag = "Older" }, CancellationToken.None), Is.InstanceOf<NoContentResult>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(pending, Has.Count.EqualTo(2));
+            Assert.That(await _claims.RejectClaim(pending[1].GamertagClaimID, null, CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That(await _claims.ApproveClaim(pending[0].GamertagClaimID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That(await _claims.AddGamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 2, Gamertag = "Older" }, CancellationToken.None), Is.InstanceOf<NoContentResult>());
 
-        Assert.That(await _claims.GetClaims(ct: CancellationToken.None), Is.Empty);
-        Assert.That(await _claims.GetClaims(GamertagClaimStatus.Approved, CancellationToken.None), Has.Count.EqualTo(1));
-        Assert.That(await _context.Set<XboxGamertagHistory>().CountAsync(), Is.EqualTo(2));
+            Assert.That(await _claims.GetClaims(ct: CancellationToken.None), Is.Empty);
+            Assert.That(await _claims.GetClaims(GamertagClaimStatus.Approved, CancellationToken.None), Has.Count.EqualTo(1));
+            Assert.That(await _context.Set<XboxGamertagHistory>().CountAsync(), Is.EqualTo(2));
+        }
     }
 
     [Test]
@@ -389,11 +411,11 @@ public class HistoricalImportControllerTests
         var result = await _claims.LookUpXuids(CancellationToken.None);
 
         var status = (XuidLookupStatusDto)((AcceptedResult)result.Result!).Value!;
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((status.Placeholders, status.Due, status.NotFound), Is.EqualTo((1, 1, 0)));
             Assert.That(await _lookupSignal.WaitAsync(TimeSpan.Zero, CancellationToken.None), Is.True, "The worker is woken (in the worker role's pod)");
-        });
+        }
     }
 
     [Test]
@@ -405,9 +427,12 @@ public class HistoricalImportControllerTests
         await _claims.AddGamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 77, Gamertag = "Then", Note = "WL19" }, CancellationToken.None);
 
         var listed = (await _claims.PastGamertags(77, null, CancellationToken.None)).Value!;
-        Assert.That(listed.PastGamertags.Select(p => (p.Gamertag, p.Note)), Is.EqualTo(new[] { ("Then", (string?)"WL19") }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(listed.PastGamertags.Select(p => (p.Gamertag, p.Note)), Is.EqualTo(new[] { ("Then", (string?)"WL19") }));
 
-        Assert.That(await _claims.RemoveGamertagHistory(listed.PastGamertags[0].XboxGamertagHistoryID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
-        Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
+            Assert.That(await _claims.RemoveGamertagHistory(listed.PastGamertags[0].XboxGamertagHistoryID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That(await _context.Set<XboxGamertagHistory>().AnyAsync(), Is.False);
+        }
     }
 }

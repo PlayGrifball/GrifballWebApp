@@ -4,6 +4,8 @@ using GrifballWebApp.Domain.Players;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
+#pragma warning disable EF1001 // SQL Server's temporal root, as EF builds it, which the SQLite translation takes
+
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>
@@ -42,6 +44,8 @@ public class SqliteQueryTranslationTests
     public async Task TearDown() => await _context.DisposeAsync();
 
     private static readonly DateTime Now = new(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly string[] expected = new[] { "Gold" };
+    private static readonly string[] expectedArray = new[] { "Gold" };
 
     private async Task<(Team Champions, Team Others)> TwoTeams()
     {
@@ -69,13 +73,13 @@ public class SqliteQueryTranslationTests
 
         var teams = await query.ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(query.ToQueryString(), Does.Contain("LEFT JOIN").And.Not.Contain("APPLY"));
             Assert.That(teams.Select(t => t.TeamID), Is.EqualTo(new[] { champions.TeamID, others.TeamID }));
-            Assert.That(teams[0].Tiers, Is.EqualTo(new[] { "Gold" }));
+            Assert.That(teams[0].Tiers, Is.EqualTo(expected));
             Assert.That(teams[1].Tiers, Is.Empty);
-        });
+        }
     }
 
     // The same in a split query: CROSS APPLY, an INNER JOIN
@@ -88,7 +92,7 @@ public class SqliteQueryTranslationTests
             .Select(t => new { t.TeamName, Titles = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToArray() })
             .SingleAsync();
 
-        Assert.That(team.Titles, Is.EqualTo(new[] { "Gold" }));
+        Assert.That(team.Titles, Is.EqualTo(expected));
     }
 
     // Every row of a table, with something of the outer row in the projection: CROSS APPLY of a table, a CROSS JOIN
@@ -107,8 +111,11 @@ public class SqliteQueryTranslationTests
             .Select(u => new { u.Id, Roles = _context.Roles.OrderBy(r => r.Name).Select(r => new { r.Name, Has = r.UserRoles.Any(ur => ur.UserId == u.Id) }).ToList() })
             .ToListAsync();
 
-        Assert.That(roles, Has.Count.GreaterThan(1));
-        Assert.That(users.Single().Roles.Select(r => (r.Name, r.Has)), Is.EqualTo(roles.Select((r, i) => (r.Name, i == 0))));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(roles, Has.Count.GreaterThan(1));
+            Assert.That(users.Single().Roles.Select(r => (r.Name, r.Has)), Is.EqualTo(roles.Select((r, i) => (r.Name, i == 0))));
+        }
     }
 
     // The same in a single query: OUTER APPLY of a table, a LEFT JOIN on 1 = 1
@@ -136,14 +143,14 @@ public class SqliteQueryTranslationTests
 
         var teams = await query.ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(query.ToQueryString(), Does.Contain("JOIN").And.Contain("Silver").And.Not.Contain("APPLY"));
-            Assert.That(teams[0].Titles, Is.EqualTo(new[] { "Gold" }));
+            Assert.That(teams[0].Titles, Is.EqualTo(expectedArray));
             Assert.That(teams[1].TeamID, Is.EqualTo(others.TeamID));
             Assert.That(teams[1].Titles, Is.Empty);
             Assert.That(teams[0].TeamID, Is.EqualTo(champions.TeamID));
-        });
+        }
     }
 
     // A subquery that refers to the outer row other than by an equality isn't a join: refused
@@ -192,7 +199,7 @@ public class SqliteQueryTranslationTests
         var season = _context.Model.FindEntityType(typeof(Season))!;
         var asOf = new Microsoft.EntityFrameworkCore.SqlServer.Query.Internal.TemporalAsOfQueryRootExpression(season, new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc).AddTicks(1234567));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(TemporalSql.Sqlite.Name("Event", "Seasons"), Is.EqualTo("\"Seasons\""));
             Assert.That(TemporalSql.Sqlite.Literal(DateTime.MaxValue), Is.EqualTo("'9999-12-31 23:59:59.9999999'"), "the current rows' PeriodEnd");
@@ -202,7 +209,7 @@ public class SqliteQueryTranslationTests
             Assert.That(PostgresTemporalQueries.Sql(asOf, TemporalSql.Sqlite),
                 Does.Contain("FROM \"Seasons\" WHERE").And.Contain("UNION ALL").And.Contain("FROM \"SeasonsHistory\"")
                 .And.Contain("'2026-10-10 12:00:00.1234567'").And.Not.Contain("\"Event\""));
-        });
+        }
     }
 
     // A function's result has no collation on SQLite: compared case-insensitively all the same
@@ -213,11 +220,11 @@ public class SqliteQueryTranslationTests
         await _context.SaveChangesAsync();
         var name = "SHADOWS16";
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.XboxUsers.CountAsync(x => x.Gamertag.Replace(" ", "") == name), Is.EqualTo(1));
             Assert.That(await _context.XboxUsers.CountAsync(x => x.Gamertag.Replace(" ", "") != name), Is.Zero);
             Assert.That(await _context.XboxUsers.CountAsync(x => x.Gamertag.Replace(" ", "") == "other"), Is.Zero);
-        });
+        }
     }
 }

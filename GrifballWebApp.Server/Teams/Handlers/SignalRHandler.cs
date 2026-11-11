@@ -14,5 +14,5 @@ public abstract class SignalRHandler<T>(IHubContext<TeamsHub, ITeamsHubClient> h
     protected ITeamsHubClient Others(string? connectionId) =>
         string.IsNullOrEmpty(connectionId) ? _hubContext.Clients.All : _hubContext.Clients.AllExcept(connectionId);
 
-    public abstract Task Handle(T request, CancellationToken cancellationToken);
+    public abstract Task Handle(T notification, CancellationToken cancellationToken);
 }

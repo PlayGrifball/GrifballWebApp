@@ -28,7 +28,7 @@ public class HistoricalScheduleTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _time = new FakeTimeProvider(DateTimeOffset.UtcNow);
     }
 

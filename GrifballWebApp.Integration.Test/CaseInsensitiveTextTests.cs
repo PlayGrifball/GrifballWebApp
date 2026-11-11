@@ -13,9 +13,13 @@ namespace GrifballWebApp.Integration.Test;
 public class CaseInsensitiveTextTests
 {
     private GrifballContext _context;
+    private static readonly long[] expected = new[] { 1L };
+    private static readonly long[] expectedArray = new[] { 1L };
+    private static readonly long[] expectedArray0 = new[] { 2L };
+    private static readonly string[] expectedArray1 = new[] { "alpha", "bravo", "Charlie" };
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
@@ -35,16 +39,16 @@ public class CaseInsensitiveTextTests
         _context.XboxUsers.Add(XboxUser.FromXbox(2, "Noé"));
         await _context.SaveChangesAsync();
 
-        Assert.Multiple(async () =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(await _context.XboxUsers.Where(x => x.Gamertag == "noahs").Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new[] { 1L }));
-            Assert.That(await _context.XboxUsers.Where(x => x.Gamertag.Contains("OAH")).Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new[] { 1L }));
-            Assert.That(await _context.XboxUsers.Where(x => x.Gamertag.StartsWith("noah")).Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(new[] { 1L }));
+            Assert.That(await _context.XboxUsers.Where(x => x.Gamertag == "noahs").Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(expected));
+            Assert.That(await _context.XboxUsers.Where(x => x.Gamertag.Contains("OAH")).Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(expected));
+            Assert.That(await _context.XboxUsers.Where(x => x.Gamertag.StartsWith("noah")).Select(x => x.XboxUserID).ToListAsync(), Is.EqualTo(expectedArray));
             // SQLite's NOCASE folds ASCII letters only: "É" isn't "é" there (docs/sqlite.md)
             Assert.That(await _context.XboxUsers.Where(x => x.Gamertag == "NOÉ").Select(x => x.XboxUserID).ToListAsync(),
-                TestDatabase.Provider == DatabaseProvider.Sqlite ? Is.Empty : Is.EqualTo(new[] { 2L }));
+                TestDatabase.Provider == DatabaseProvider.Sqlite ? Is.Empty : Is.EqualTo(expectedArray0));
             Assert.That(await _context.XboxUsers.Where(x => x.Gamertag == "noe").Select(x => x.XboxUserID).ToListAsync(), Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -68,6 +72,6 @@ public class CaseInsensitiveTextTests
 
         var sorted = await _context.XboxUsers.OrderBy(x => x.Gamertag).Select(x => x.Gamertag).ToListAsync();
 
-        Assert.That(sorted, Is.EqualTo(new[] { "alpha", "bravo", "Charlie" }));
+        Assert.That(sorted, Is.EqualTo(expectedArray1));
     }
 }

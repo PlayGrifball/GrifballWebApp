@@ -16,10 +16,10 @@ namespace GrifballWebApp.Migrations.Sqlite;
 /// </summary>
 public class DesignTimeServices : IDesignTimeServices
 {
-    public void ConfigureDesignTimeServices(IServiceCollection services)
+    public void ConfigureDesignTimeServices(IServiceCollection serviceCollection)
     {
-        services.AddSingleton<IMigrationsModelDiffer>(provider => new SqliteHistoryMigrationsModelDiffer(
+        serviceCollection.AddSingleton<IMigrationsModelDiffer>(provider => new SqliteHistoryMigrationsModelDiffer(
             provider.GetRequiredService<ICurrentDbContext>().Context.GetService<IMigrationsModelDiffer>()));
-        services.AddSingleton<ICSharpMigrationOperationGenerator, RawSqlMigrationOperationGenerator>();
+        serviceCollection.AddSingleton<ICSharpMigrationOperationGenerator, RawSqlMigrationOperationGenerator>();
     }
 }

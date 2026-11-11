@@ -29,7 +29,7 @@ public class ExternalLoginsControllerDatabaseTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _userManager = IdentityTestHelpers.NewUserManager(_context);
         _signInManager = Substitute.For<SignInManager<User>>(
             _userManager, Substitute.For<IHttpContextAccessor>(),

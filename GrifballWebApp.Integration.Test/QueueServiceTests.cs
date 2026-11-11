@@ -34,7 +34,7 @@ public class QueueServiceTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
 
         // Substitute dependencies
         _logger = Substitute.For<ILogger<QueueService>>();
@@ -131,13 +131,13 @@ public class QueueServiceTests
         var stillQueued = await _context.QueuedPlayer
             .Select(x => x.UserID)
             .ToArrayAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(count, Is.EqualTo(1), "There should be one active match created when 8 players have been queued");
-            Assert.That(stillQueued.Count(), Is.EqualTo(2), "There should two players left in the queue since we started with 10 queued players");
+            Assert.That(stillQueued, Has.Length.EqualTo(2), "There should two players left in the queue since we started with 10 queued players");
             Assert.That(stillQueued.Any(x => x is 9), Is.True, "Player 9 should still be in the queue since he queued recently");
             Assert.That(stillQueued.Any(x => x is 10), Is.True, "Player 10 should still be in the queue since he queued recently");
-        });
+        }
 
         // Check the dataPullerService check match has been called 
         await _dataPullService.Received(1).DownloadRecentMatchesForPlayers(Arg.Is<List<long>>(x => x.Count == 0), 0, 0, 2, Arg.Any<CancellationToken>());
@@ -173,11 +173,11 @@ public class QueueServiceTests
         var count3 = await _context.MatchedMatches
             .Where(x => x.Status == MatchedMatchStatus.Reported && x.MatchID != null && x.WinnerSide == null)
             .CountAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(count2, Is.EqualTo(0), "There should be no active matches after we pull in a 'matched' infinite match");
+            Assert.That(count2, Is.Zero, "There should be no active matches after we pull in a 'matched' infinite match");
             Assert.That(count3, Is.EqualTo(1), "The previously active match is reported with the Infinite match pulled in");
-        });
+        }
 
         // Check the players MMR has been adjusted
         var winners = await _context.Users
@@ -189,13 +189,13 @@ public class QueueServiceTests
             .Select(x => x.MMR)
             .ToArrayAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(winners.Length, Is.EqualTo(4), "There should be 4 winners");
-            Assert.That(losers.Length, Is.EqualTo(4), "There should be 4 losers");
+            Assert.That(winners, Has.Length.EqualTo(4), "There should be 4 winners");
+            Assert.That(losers, Has.Length.EqualTo(4), "There should be 4 losers");
             Assert.That(winners.All(x => x > 1000), Is.True, "All winners should have an MMR greater than 1000");
             Assert.That(losers.All(x => x < 1000), Is.True, "All losers should have an MMR less than 1000");
-        });
+        }
     }
 
     [Test]
@@ -219,7 +219,7 @@ public class QueueServiceTests
         var count = await _context.MatchedMatches
             .Where(x => x.Status == MatchedMatchStatus.Active)
             .CountAsync();
-        Assert.That(count, Is.EqualTo(0), "There should be no active matches when only 1 player has been queued");
+        Assert.That(count, Is.Zero, "There should be no active matches when only 1 player has been queued");
     }
 
     [Test]
@@ -250,7 +250,7 @@ public class QueueServiceCountTests
     private GrifballContext _context;
 
     [SetUp]
-    public async Task Setup() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task Setup() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();

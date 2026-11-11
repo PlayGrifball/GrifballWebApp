@@ -19,7 +19,7 @@ public class SeasonAndAvailabilityControllerTests
     private GrifballContext _context;
 
     [SetUp]
-    public async Task Setup() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task Setup() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
@@ -32,25 +32,31 @@ public class SeasonAndAvailabilityControllerTests
         var current = Season.Seed(seasonName: "Current").WithDates(seasonStart: now.AddDays(-1), seasonEnd: now.AddDays(10));
         _context.Seasons.AddRange(past, current);
         await _context.SaveChangesAsync();
-        var controller = new SeasonController(new EventOrganizerService(_context), new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context)));
+        var controller = new SeasonController(new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context)));
 
-        Assert.That(await controller.GetCurrentSeasonID(CancellationToken.None), Is.EqualTo(current.SeasonID));
-        Assert.That(await controller.GetSeasonName(past.SeasonID, CancellationToken.None), Is.EqualTo("Past"));
-        Assert.That(await controller.GetSeasonName(123456, CancellationToken.None), Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await controller.GetCurrentSeasonID(CancellationToken.None), Is.EqualTo(current.SeasonID));
+            Assert.That(await controller.GetSeasonName(past.SeasonID, CancellationToken.None), Is.EqualTo("Past"));
+            Assert.That(await controller.GetSeasonName(123456, CancellationToken.None), Is.Null);
+        }
     }
 
     [Test]
     public async Task AvailabilityController_UpdateThenGet_RoundTrips()
     {
         var season = await TeamsTestData.AddCurrentSeason(_context);
-        var controller = new AvailabilityController(Substitute.For<ILogger<AvailabilityController>>(), new AvailabilityService(_context));
+        var controller = new AvailabilityController(new AvailabilityService(_context));
         var slot = new AvailabilityTimeslotDto { DayOfWeek = DayOfWeek.Thursday, Time = new TimeOnly(7, 17) };
 
         await controller.UpdateSeasonAvailability(new SeasonAvailabilityDto { SeasonID = season.SeasonID, Timeslots = [slot] }, CancellationToken.None);
         var result = await controller.GetSeasonAvailability(season.SeasonID, CancellationToken.None);
 
         Assert.That(result, Has.Length.EqualTo(1));
-        Assert.That(result[0].DayOfWeek, Is.EqualTo(DayOfWeek.Thursday));
-        Assert.That(result[0].Time, Is.EqualTo(new TimeOnly(7, 17)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result[0].DayOfWeek, Is.EqualTo(DayOfWeek.Thursday));
+            Assert.That(result[0].Time, Is.EqualTo(new TimeOnly(7, 17)));
+        }
     }
 }

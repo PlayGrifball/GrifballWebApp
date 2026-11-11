@@ -393,9 +393,11 @@ public class PostgresTemporalQueryableMethodTranslatingExpressionVisitorFactory(
     INpgsqlSingletonOptions npgsqlSingletonOptions)
     : NpgsqlQueryableMethodTranslatingExpressionVisitorFactory(dependencies, relationalDependencies, npgsqlSingletonOptions)
 {
+    private readonly INpgsqlSingletonOptions _npgsqlSingletonOptions = npgsqlSingletonOptions;
+
     public override QueryableMethodTranslatingExpressionVisitor Create(QueryCompilationContext queryCompilationContext)
         => new PostgresTemporalQueryableMethodTranslatingExpressionVisitor(
-            Dependencies, RelationalDependencies, (RelationalQueryCompilationContext)queryCompilationContext, npgsqlSingletonOptions);
+            Dependencies, RelationalDependencies, (RelationalQueryCompilationContext)queryCompilationContext, _npgsqlSingletonOptions);
 }
 
 /// <summary>
@@ -476,28 +478,9 @@ public class PostgresTemporalNavigationExpansionExtensibilityHelper(NavigationEx
         var firstTemporal = first is TemporalQueryRootExpression;
         var secondTemporal = second is TemporalQueryRootExpression;
 
-        if (firstTemporal && secondTemporal)
+        if (firstTemporal && secondTemporal && SameTimes(first, second))
         {
-            if (first is TemporalAsOfQueryRootExpression firstAsOf
-                && second is TemporalAsOfQueryRootExpression secondAsOf
-                && firstAsOf.PointInTime == secondAsOf.PointInTime)
-            {
-                return true;
-            }
-
-            if (first is TemporalAllQueryRootExpression
-                && second is TemporalAllQueryRootExpression)
-            {
-                return true;
-            }
-
-            if (first is TemporalRangeQueryRootExpression firstRange
-                && second is TemporalRangeQueryRootExpression secondRange
-                && firstRange.From == secondRange.From
-                && firstRange.To == secondRange.To)
-            {
-                return true;
-            }
+            return true;
         }
 
         if (firstTemporal || secondTemporal)
@@ -508,5 +491,27 @@ public class PostgresTemporalNavigationExpansionExtensibilityHelper(NavigationEx
         }
 
         return true;
+    }
+
+    /// <summary>Two temporal roots of the same operation at the same times: as of one instant, all, or one range.</summary>
+    private static bool SameTimes(EntityQueryRootExpression? first, EntityQueryRootExpression? second)
+    {
+        if (first is TemporalAsOfQueryRootExpression firstAsOf
+            && second is TemporalAsOfQueryRootExpression secondAsOf
+            && firstAsOf.PointInTime == secondAsOf.PointInTime)
+        {
+            return true;
+        }
+
+        if (first is TemporalAllQueryRootExpression
+            && second is TemporalAllQueryRootExpression)
+        {
+            return true;
+        }
+
+        return first is TemporalRangeQueryRootExpression firstRange
+            && second is TemporalRangeQueryRootExpression secondRange
+            && firstRange.From == secondRange.From
+            && firstRange.To == secondRange.To;
     }
 }

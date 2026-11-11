@@ -26,7 +26,7 @@ public class VoteDecidedStatsTests
     private GrifballContext _context = null!;
 
     [SetUp]
-    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+    public async Task SetUp() => _context = await TestDatabase.NewGrifballContext();
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
@@ -47,12 +47,12 @@ public class VoteDecidedStatsTests
 
         var lines = (await new MatchmakingStatsService(_context).GetQueueAsync()).Players.ToDictionary(p => p.UserID, p => p.Gamertag);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(lines[discord.Id], Is.EqualTo("disc-name"), "The Discord name, before the display name");
             Assert.That(lines[display.Id], Is.EqualTo("Shown Display"));
             Assert.That(lines.Values, Has.None.StartsWith("login-"), "A login name is private");
-        });
+        }
     }
 
     [Test]
@@ -93,7 +93,7 @@ public class VoteDecidedStatsTests
         var queue = await stats.GetQueueAsync();
         var lines = queue.Players.ToDictionary(p => p.Gamertag);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((queue.GameCount, queue.VoteDecidedGameCount), Is.EqualTo((2, 1)));
             // 101: won in Halo (1 kill, 1 death), lost the vote
@@ -107,12 +107,12 @@ public class VoteDecidedStatsTests
                 Is.EqualTo((1, 1, 1, 0, 0, 0L, (int?)6)));
             Assert.That(lines, Does.Not.ContainKey("GT103"), "Kicked: neither won nor lost it");
             Assert.That(lines, Does.Not.ContainKey("GT104"), "An active match counts for nobody yet");
-        });
+        }
 
         // A profile's career: the game counts, but every stat per game is over the games with a box score
         var profile = (await new ProfileStatsService(_context, new SeasonStatsService(_context), stats).GetAsync(users[101]))!;
         var infinite = profile.CareerByGame.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((infinite.GamesPlayed, infinite.GamesDecidedByVote, infinite.GamesWithStats), Is.EqualTo((2, 1, 1)));
             Assert.That(infinite.GoalsPerGame, Is.EqualTo((decimal)infinite.Goals!.Value), "Goals over the one game with a box score");
@@ -121,7 +121,7 @@ public class VoteDecidedStatsTests
                 Is.EqualTo((2, 1, 1)));
             Assert.That(profile.LateLeague.Single().GamesDecidedByVote, Is.EqualTo(1));
             Assert.That(infinite.StopsPerGame, Is.EqualTo(3m), "Stops over the one game with a box score, not 3 over 2");
-        });
+        }
 
         // The leaderboards: each per-game figure is over the games with a box score, and the board says how many of the games
         // played were decided by vote, so GP and per game add up
@@ -129,12 +129,12 @@ public class VoteDecidedStatsTests
             new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())), NullLogger<LeaderboardsService>.Instance).GetAsync(null);
         static (long, int, int, decimal?) Row(MetricLeaderDto l) => (l.StatValue, l.GamesPlayed, l.GamesDecidedByVote, l.PerGame);
         var goals = boards.GoalLeaders.Single(l => l.UserID == users[101]);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Row(boards.KillLeaders.Single(l => l.UserID == users[101])), Is.EqualTo((1L, 2, 1, (decimal?)1m)), "1 kill in the 1 game with a box score");
             Assert.That(Row(goals), Is.EqualTo((goals.StatValue, 2, 1, (decimal?)goals.StatValue)), "Goals per game over the 1 game with a box score");
             Assert.That(Row(boards.CarrierStopLeaders.Single(l => l.UserID == users[101])), Is.EqualTo((3L, 2, 1, (decimal?)3m)), "3 stops in the 1 game with a box score");
             Assert.That(boards.KillLeaders.Any(l => l.UserID == users[203]), Is.False, "A vote-only player has no kills");
-        });
+        }
     }
 }

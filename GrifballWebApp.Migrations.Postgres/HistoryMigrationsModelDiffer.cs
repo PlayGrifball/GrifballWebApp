@@ -39,6 +39,17 @@ public class HistoryMigrationsModelDiffer(IMigrationsModelDiffer inner, IReadOnl
     {
         var operations = inner.GetDifferences(source, target).ToList();
 
+        DropFunctionsAlters(operations);
+        DisableVersioningOfDropped(source, operations);
+        var enabled = EnableVersioningOfCreated(target, operations);
+        RefreshVersioningOfChanged(target, operations, enabled);
+        BackdateNewPeriodStarts(target, operations);
+        AddOrDropFunctions(source, target, operations);
+        return operations;
+    }
+
+    private static void DropFunctionsAlters(List<MigrationOperation> operations)
+    {
         // EF sees a new version of the functions as an AlterDatabase (PostgresHistoryAnnotationProvider),
         // which does nothing on Postgres: the SQL below does it instead.
         foreach (var alter in operations.OfType<AlterDatabaseOperation>().ToList())
@@ -48,14 +59,20 @@ public class HistoryMigrationsModelDiffer(IMigrationsModelDiffer inner, IReadOnl
             if (alter.Collation == alter.OldDatabase.Collation && SameAnnotations(alter, alter.OldDatabase))
                 operations.Remove(alter);
         }
+    }
 
+    private static void DisableVersioningOfDropped(IRelationalModel? source, List<MigrationOperation> operations)
+    {
         // First, while the tables are as the source has them.
         foreach (var drop in operations.OfType<DropTableOperation>().ToList())
         {
             if (HistoryOf(source, drop.Name, drop.Schema) is { } table)
                 operations.Insert(0, Call("grif_disable_versioning", drop.Schema, table));
         }
+    }
 
+    private static HashSet<(string?, string)> EnableVersioningOfCreated(IRelationalModel? target, List<MigrationOperation> operations)
+    {
         var enabled = new HashSet<(string?, string)>();
         foreach (var create in operations.OfType<CreateTableOperation>().ToList())
         {
@@ -65,7 +82,11 @@ public class HistoryMigrationsModelDiffer(IMigrationsModelDiffer inner, IReadOnl
                 enabled.Add((create.Schema, table));
             }
         }
+        return enabled;
+    }
 
+    private static void RefreshVersioningOfChanged(IRelationalModel? target, List<MigrationOperation> operations, HashSet<(string?, string)> enabled)
+    {
         // A table with history whose columns or name change (or its history table's): its versioning
         // function written again after the last change, unless versioning only starts in this migration.
         var lastChange = new Dictionary<(string? Schema, string Table), int>();
@@ -84,7 +105,10 @@ public class HistoryMigrationsModelDiffer(IMigrationsModelDiffer inner, IReadOnl
         }
         foreach (var ((schema, table), index) in lastChange.OrderByDescending(c => c.Value))
             operations.Insert(index + 1, Call("grif_refresh_versioning", schema, table));
+    }
 
+    private static void BackdateNewPeriodStarts(IRelationalModel? target, List<MigrationOperation> operations)
+    {
         // A table that gets history and already has rows: they get PeriodStart -infinity, which Npgsql reads
         // as DateTime.MinValue, as SQL Server gives them 0001-01-01. Then the column default goes back to
         // the model's, for rows written after. Both are changes to the catalog only: no row is rewritten.
@@ -117,7 +141,10 @@ public class HistoryMigrationsModelDiffer(IMigrationsModelDiffer inner, IReadOnl
                 },
             });
         }
+    }
 
+    private void AddOrDropFunctions(IRelationalModel? source, IRelationalModel? target, List<MigrationOperation> operations)
+    {
         // The functions: there before anything calls them, and gone once nothing does. Each version's
         // Create replaces any other, and a migration's Down goes back to the version before.
         var from = FunctionsVersion(source);
@@ -126,8 +153,6 @@ public class HistoryMigrationsModelDiffer(IMigrationsModelDiffer inner, IReadOnl
             operations.Insert(0, new SqlOperation { Sql = Functions(version).Create });
         else if (to is null && from is { } old)
             operations.Add(new SqlOperation { Sql = Functions(old).Drop });
-
-        return operations;
     }
 
     /// <summary>The version of row history's functions <paramref name="model"/> has, if it has history.</summary>

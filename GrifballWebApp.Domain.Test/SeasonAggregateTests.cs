@@ -26,7 +26,7 @@ public class SeasonAggregateTests
         var season = Season.Organized("Spring 2026", 3, 1, " Pro ", SeasonFormat.Tournament);
         var open = Season.Organized("Fall 2026", 3, 1, "  ");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((season.SeasonName, season.LeagueID, season.GameVersionID, season.Division, season.Format), Is.EqualTo(("Spring 2026", 3, (int?)1, "Pro", SeasonFormat.Tournament)));
             Assert.That(season.IsImported, Is.False);
@@ -35,7 +35,7 @@ public class SeasonAggregateTests
             Assert.That(season.ChampionTier, Is.EqualTo("Pro"));
             Assert.That(open.Division, Is.Null, "A blank division is none");
             Assert.That(open.ChampionTier, Is.EqualTo(Season.DefaultChampionTier));
-        });
+        }
     }
 
     [Test]
@@ -43,12 +43,12 @@ public class SeasonAggregateTests
     {
         var season = Imported();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((season.HistoricalSourceID, season.HistoricalSourceUrl, season.LeagueID, season.Division), Is.EqualTo(("wb/Total Stats", "https://sheets/wb", 2, "Pro")));
             Assert.That(season.IsImported, Is.True);
             Assert.That(() => Season.Imported(" ", "S", 1, null, null, null, SeasonFormat.LeagueSeason), Throws.ArgumentException);
-        });
+        }
     }
 
     [Test]
@@ -57,13 +57,13 @@ public class SeasonAggregateTests
         var season = Organized();
         var imported = Imported();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(season.Edit("Spring 2027", 2, 3, " Rookie ", SeasonFormat.Tournament), Is.EqualTo(SeasonEditResult.Edited));
             Assert.That((season.SeasonName, season.LeagueID, season.GameVersionID, season.Division, season.Format), Is.EqualTo(("Spring 2027", 2, (int?)3, "Rookie", SeasonFormat.Tournament)));
             Assert.That(imported.Edit("Renamed", 1, null, null, SeasonFormat.Tournament), Is.EqualTo(SeasonEditResult.Imported));
             Assert.That((imported.SeasonName, imported.LeagueID, imported.Format), Is.EqualTo(("Summer League 2018", 2, SeasonFormat.LeagueSeason)), "Nothing changed");
-        });
+        }
     }
 
     [Test]
@@ -74,7 +74,7 @@ public class SeasonAggregateTests
         imported.UpdateArchived("Summer League 2018 (Pro)", 3, 2, "Legacy", "https://sheets/other", SeasonFormat.Tournament);
         imported.AdoptArchiveSource("other/Stats");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((imported.SeasonName, imported.LeagueID, imported.GameVersionID, imported.Division, imported.HistoricalSourceUrl, imported.Format, imported.HistoricalSourceID),
                 Is.EqualTo(("Summer League 2018 (Pro)", 3, (int?)2, "Legacy", "https://sheets/other", SeasonFormat.Tournament, "other/Stats")));
@@ -82,7 +82,7 @@ public class SeasonAggregateTests
             Assert.That(() => season.AdoptArchiveSource("x/Stats"), Throws.InvalidOperationException);
             Assert.That(() => imported.AdoptArchiveSource(""), Throws.ArgumentException);
             Assert.That(season.HistoricalSourceID, Is.Null, "An app season stays the app's");
-        });
+        }
     }
 
     [Test]
@@ -91,12 +91,12 @@ public class SeasonAggregateTests
         var imported = Imported();
         var other = Organized();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(() => imported.CopyAvailabilityFrom(other), Throws.InvalidOperationException.With.Message.Contains("only the import changes it"));
             Assert.That(() => imported.CopySignupsFrom(other), Throws.InvalidOperationException);
             Assert.That(() => imported.CopyTeamsFrom(other), Throws.InvalidOperationException);
-        });
+        }
     }
 
     [Test]
@@ -122,13 +122,13 @@ public class SeasonAggregateTests
 
         season.SetAvailability([monday, unsaved]);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(season.SeasonAvailability, Has.Count.EqualTo(2));
             Assert.That(season.SeasonAvailability, Does.Contain(kept), "A slot it had stays as it is");
             Assert.That(season.SeasonAvailability.Select(a => a.AvailabilityOption), Is.EquivalentTo(new[] { monday, unsaved }));
             Assert.That(season.SeasonAvailability.All(a => a.Season == season), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -138,13 +138,15 @@ public class SeasonAggregateTests
         var organized = Organized();
         var monday = AvailabilityOption.Seed(1, DayOfWeek.Monday, new TimeOnly(18, 0));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(season.SetAvailability([monday]), Is.EqualTo(SeasonEditResult.Imported));
             Assert.That(season.SeasonAvailability, Is.Empty, "Nothing changed");
             Assert.That(organized.SetAvailability([monday]), Is.EqualTo(SeasonEditResult.Edited));
-        });
+        }
     }
+
+    private static readonly int[] expected = new[] { 1, 3 };
 
     [Test]
     public void CopyAvailabilityFrom_TakesTheOthersSlots()
@@ -157,11 +159,11 @@ public class SeasonAggregateTests
 
         season.CopyAvailabilityFrom(from);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(season.SeasonAvailability.Select(a => a.AvailabilityOptionID), Is.EquivalentTo(new[] { 1, 3 }));
+            Assert.That(season.SeasonAvailability.Select(a => a.AvailabilityOptionID), Is.EquivalentTo(expected));
             Assert.That(season.SeasonAvailability, Does.Contain(kept));
-        });
+        }
     }
 
     [Test]
@@ -173,7 +175,7 @@ public class SeasonAggregateTests
         var changes = season.RecordChampions(team, [new ChampionMember(1, "Captain", true), new ChampionMember(2, new string('x', 60), false)]);
         var imported = Imported();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(changes, Is.EqualTo(new ChampionshipChanges(2, 0, 0)));
             Assert.That(season.PlayerChampionships.Select(c => (c.UserID, c.Tier, c.TeamID, c.IsCaptain, c.GameVersionID)),
@@ -182,8 +184,10 @@ public class SeasonAggregateTests
             Assert.That(imported.RecordChampions(TeamOf(imported, 1), [new ChampionMember(1, "A", true)]), Is.Null, "Its titles are its record's");
             Assert.That(imported.PlayerChampionships, Is.Empty);
             Assert.That(() => season.RecordChampions(Team.Seed(teamID: 9, seasonID: 99), []), Throws.ArgumentException, "Another season's team");
-        });
+        }
     }
+
+    private static readonly string[] expectedTiers = new[] { "Pro", "Amateur" };
 
     [Test]
     public void RecordArchivedChampions_AnyTier_OnlyAnImportedSeason()
@@ -195,14 +199,16 @@ public class SeasonAggregateTests
         var amateur = imported.RecordArchivedChampions(" Amateur ", team, [new ChampionMember(2, "B", false)], null);
         var again = imported.RecordArchivedChampions("pro", team, [new ChampionMember(1, "A", true)], 6);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((pro, amateur, again), Is.EqualTo((new ChampionshipChanges(1, 0, 0), new ChampionshipChanges(1, 0, 0), new ChampionshipChanges(0, 1, 0))));
-            Assert.That(imported.PlayerChampionships.Select(c => c.Tier), Is.EquivalentTo(new[] { "Pro", "Amateur" }), "Kept as the tier first spelled it, trimmed");
+            Assert.That(imported.PlayerChampionships.Select(c => c.Tier), Is.EquivalentTo(expectedTiers), "Kept as the tier first spelled it, trimmed");
             Assert.That(() => Organized().RecordArchivedChampions("Pro", team, [], null), Throws.InvalidOperationException);
             Assert.That(() => imported.RecordArchivedChampions("Pro", null!, [], null), Throws.ArgumentNullException);
-        });
+        }
     }
+
+    private static readonly string[] expectedTier = new[] { "Pro" };
 
     [Test]
     public void TheImportRemovesTitles_OfTiersAndTeamsGone_OnlyFromAnImportedSeason()
@@ -216,13 +222,13 @@ public class SeasonAggregateTests
         var tiersGone = imported.RemoveArchivedTitlesExcept(new HashSet<string>(["pro", "Amateur"], StringComparer.OrdinalIgnoreCase));
         var teamsGone = imported.RemoveArchivedTitlesOf([5]);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((tiersGone, teamsGone), Is.EqualTo((1, 1)));
-            Assert.That(imported.PlayerChampionships.Select(c => c.Tier), Is.EqualTo(new[] { "Pro" }));
+            Assert.That(imported.PlayerChampionships.Select(c => c.Tier), Is.EqualTo(expectedTier));
             Assert.That(() => season.RemoveArchivedTitlesExcept(new HashSet<string>()), Throws.InvalidOperationException);
             Assert.That(() => season.RemoveArchivedTitlesOf([1]), Throws.InvalidOperationException);
-        });
+        }
     }
 
     [Test]
@@ -235,11 +241,11 @@ public class SeasonAggregateTests
 
         var moved = season.MergeTitles(fromUserID: 2, toUserID: 1);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(moved, Is.EqualTo(1), "The Amateur title moves; the Pro one both held goes");
             Assert.That(season.PlayerChampionships.Select(c => (c.UserID, c.Tier, c.IsCaptain)), Is.EquivalentTo(new[] { (1, "Pro", true), (1, "Amateur", false) }),
                 "The target keeps its own title, with the source's captaincy");
-        });
+        }
     }
 }

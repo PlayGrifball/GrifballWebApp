@@ -20,7 +20,7 @@ public class CommissionerDashboardControllerTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var service = new RescheduleService(_context, new ContextOutbox(_context));
         _controller = new CommissionerDashboardController(service);
     }

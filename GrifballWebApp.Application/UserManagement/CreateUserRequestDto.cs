@@ -2,7 +2,7 @@
 
 public record CreateUserRequestDto
 {
-    public string DisplayName { get; set; }
-    public string Gamertag { get; set; }
-    public string UserName { get; set; }
+    public required string DisplayName { get; set; }
+    public required string Gamertag { get; set; }
+    public required string UserName { get; set; }
 }

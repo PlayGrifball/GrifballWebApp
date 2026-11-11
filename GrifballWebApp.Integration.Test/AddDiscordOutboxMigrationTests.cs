@@ -19,7 +19,7 @@ public class AddDiscordOutboxMigrationTests
     {
         if (TestDatabase.Provider == DatabaseProvider.Sqlite)
             Assert.Ignore("A migration of SQL Server's and Postgres's: SQLite's migrations start after it, from one baseline.");
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
     }
 
     // Not after SetUp ignored the test (SQLite), which made no database
@@ -61,10 +61,10 @@ public class AddDiscordOutboxMigrationTests
         _context.Outbox.Add(new OutboxMessage { Kind = "k", Payload = "{}", GroupKey = "match:1", Sequence = 0 });
         var duplicate = await Assert.ThrowsAsync<DbUpdateException>(() => _context.SaveChangesAsync());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(afterDown, Is.False);
             Assert.That(duplicate, Is.Not.Null, "A group's sequence numbers are unique; ungrouped messages don't clash");
-        });
+        }
     }
 }

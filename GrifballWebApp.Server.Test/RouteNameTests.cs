@@ -24,7 +24,10 @@ public class RouteNameTests
         var clashes = names.GroupBy(r => r.Name).Where(g => g.Count() > 1)
             .Select(g => $"{g.Key}: {string.Join(", ", g.Select(r => r.Action))}").ToList();
 
-        Assert.That(names, Is.Not.Empty);
-        Assert.That(clashes, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(names, Is.Not.Empty);
+            Assert.That(clashes, Is.Empty);
+        }
     }
 }

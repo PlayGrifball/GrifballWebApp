@@ -39,24 +39,29 @@ public static class JobUser
         if (data.TryGetValue(DataKey, out var value) && value is not null && int.TryParse(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture), out var id))
             return id;
         if (data.TryGetValue(SchedulerConstants.JobInput, out var input) && input is string { Length: > 0 } json)
+            return OfInput(json);
+        return null;
+    }
+
+    /// <summary>The stored input's <see cref="IRequestedByUser.RequestedByUserID"/>, if it is JSON with one.</summary>
+    private static int? OfInput(string json)
+    {
+        try
         {
-            try
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind == JsonValueKind.Object)
             {
-                using var document = JsonDocument.Parse(json);
-                if (document.RootElement.ValueKind == JsonValueKind.Object)
+                foreach (var property in document.RootElement.EnumerateObject())
                 {
-                    foreach (var property in document.RootElement.EnumerateObject())
-                    {
-                        if (string.Equals(property.Name, nameof(IRequestedByUser.RequestedByUserID), StringComparison.OrdinalIgnoreCase)
-                            && property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetInt32(out var fromInput))
-                            return fromInput;
-                    }
+                    if (string.Equals(property.Name, nameof(IRequestedByUser.RequestedByUserID), StringComparison.OrdinalIgnoreCase)
+                        && property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetInt32(out var fromInput))
+                        return fromInput;
                 }
             }
-            catch (JsonException)
-            {
-                // Not JSON: an input with no user
-            }
+        }
+        catch (JsonException)
+        {
+            // Not JSON: an input with no user
         }
         return null;
     }

@@ -26,7 +26,7 @@ public class ProfileControllerTests
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         _setGamertagService = Substitute.For<ISetGamertagService>();
         _controller = new ProfileController(_context, _setGamertagService, new GrifballWebApp.Application.Profile.ProfileStatsService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context)), new GrifballWebApp.Application.Profile.ProfileCommendationsService(_context));
     }

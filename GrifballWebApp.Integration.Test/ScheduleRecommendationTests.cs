@@ -2,6 +2,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 using static GrifballWebApp.Domain.Test.ScheduleRecommendationTestData;
+using static GrifballWebApp.Integration.Test.ScheduleRecommendationDatabaseTestData;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -18,7 +19,7 @@ public class ScheduleRecommendationTests
     [Test]
     public async Task Unapplied_MatchesTheLoadedRule_InTheDatabase()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var season = await AddSeason(context);
@@ -33,13 +34,13 @@ public class ScheduleRecommendationTests
             var loaded = await context.ScheduleRecommendations.AsNoTracking().Include(r => r.Matches).ToListAsync();
             var children = await context.Set<ScheduleRecommendationMatch>().CountAsync();
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(unapplied, Is.EqualTo(new[] { open.ScheduleRecommendationID }));
                 Assert.That(loaded.Where(r => !r.IsApplied).Select(r => r.ScheduleRecommendationID), Is.EqualTo(unapplied));
                 Assert.That(loaded.Select(r => r.Matches.Count), Is.All.EqualTo(3), "Saved with the recommendation");
                 Assert.That(children, Is.EqualTo(6));
-            });
+            }
         }
         finally
         {
@@ -50,7 +51,7 @@ public class ScheduleRecommendationTests
     [Test]
     public async Task TheDatabase_RefusesImpossibleRecommendations()
     {
-        var context = await SetUpFixture.NewGrifballContext();
+        var context = await TestDatabase.NewGrifballContext();
         try
         {
             var season = await AddSeason(context);
@@ -71,7 +72,7 @@ public class ScheduleRecommendationTests
                 }
             }
 
-            Assert.Multiple(async () =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(await Refused(e => e.Property(r => r.Fitness).CurrentValue = 1.5), Is.True, "Fitness above 1");
                 Assert.That(await Refused(e => e.Property(r => r.Fitness).CurrentValue = -0.5), Is.True, "Fitness below 0");
@@ -79,7 +80,7 @@ public class ScheduleRecommendationTests
                 Assert.That(await Refused(e => e.Property(r => r.AppliedBy).CurrentValue = "commish"), Is.True, "Applied by someone, never applied");
                 Assert.That(await Refused(e => e.Property(r => r.AppliedAt).CurrentValue = At), Is.False, "Applied by nobody signed in");
                 Assert.That(await Refused(_ => { }), Is.False, "As proposed");
-            });
+            }
         }
         finally
         {
@@ -87,11 +88,4 @@ public class ScheduleRecommendationTests
         }
     }
 
-    internal static async Task<Season> AddSeason(GrifballContext context)
-    {
-        var season = Season.Seed(seasonName: "S1").WithDates(seasonStart: At, seasonEnd: At.AddDays(28));
-        context.Seasons.Add(season);
-        await context.SaveChangesAsync();
-        return season;
-    }
 }

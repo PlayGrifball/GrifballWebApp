@@ -16,7 +16,7 @@ public class MatchedChildrenTests
     public void A_matchs_parts_are_its_own_and_set_their_state_only_privately_but_for_a_key()
     {
         var key = typeof(MatchedPlayer).GetProperty(nameof(MatchedPlayer.Id))!;
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             // The key is internal: the database makes it, and tests may give one
             Assert.That(key.SetMethod!.IsAssembly, Is.True, "MatchedPlayer.Id: internal");
@@ -28,7 +28,7 @@ public class MatchedChildrenTests
                     .Where(p => p.SetMethod is not null && p != key))
                     Assert.That(property.SetMethod!.IsPrivate, Is.True, $"{part.Name}.{property.Name}: changed only by its methods, which the match calls");
             }
-        });
+        }
     }
 
     [Test]
@@ -38,11 +38,11 @@ public class MatchedChildrenTests
 
         player.Kick();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(player.Kicked, Is.True);
             Assert.That(player.Kick, Throws.InvalidOperationException, "Kicked already");
-        });
+        }
     }
 
     [Test]
@@ -66,11 +66,11 @@ public class MatchedChildrenTests
 
         var winnerVote = match.MatchedWinnerVotes.Single();
         var kickVote = match.MatchedKickVotes.Single();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((winnerVote.MatchedMatch, winnerVote.MatchedPlayer.UserID, winnerVote.WinnerVote), Is.EqualTo((match, 1, WinnerVote.Cancel)));
             Assert.That((kickVote.MatchedMatch, kickVote.VoterMatchedPlayer.UserID, kickVote.KickMatchedPlayer.UserID), Is.EqualTo((match, 1, 4)));
-        });
+        }
     }
 
     [Test]
@@ -78,10 +78,10 @@ public class MatchedChildrenTests
     {
         var match = MatchedMatch.Start([1], [2]);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(match.ReassignPlayer(1, 3), Is.EqualTo(PlayerReassignment.Moved));
             Assert.That(match.HomeTeam.Players.Single().UserID, Is.EqualTo(3));
-        });
+        }
     }
 }

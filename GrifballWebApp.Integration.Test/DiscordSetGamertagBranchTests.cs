@@ -34,7 +34,7 @@ public class DiscordSetGamertagBranchTests
     [SetUp]
     public async Task SetUp()
     {
-        _context = await SetUpFixture.NewGrifballContext();
+        _context = await TestDatabase.NewGrifballContext();
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddScoped(_ => _context);
@@ -43,7 +43,7 @@ public class DiscordSetGamertagBranchTests
         _scope = _provider.CreateScope();
         _userManager = _scope.ServiceProvider.GetRequiredService<UserManager<User>>();
         _setGamertagService = Substitute.For<ISetGamertagService>();
-        _sut = new DiscordSetGamertag(_context, Substitute.For<ILogger<DiscordSetGamertag>>(), _userManager, _setGamertagService);
+        _sut = new DiscordSetGamertag(_context, _userManager, _setGamertagService);
         _interaction = Substitute.For<IDiscordInteractionContext>();
         _interaction.Interaction.User.Id.Returns(DiscordId);
         _interaction.Interaction.User.Username.Returns("discorduser");
@@ -81,11 +81,11 @@ public class DiscordSetGamertagBranchTests
         await _sut.SetGamertag(_interaction, "Grunt Padre");
 
         var users = await _context.Users.AsNoTracking().ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(users, Has.Count.EqualTo(1), "No new account is created");
             Assert.That(users.Single().DiscordUserID, Is.EqualTo((long)DiscordId));
-        });
+        }
         await _setGamertagService.Received(1).SetGamertag(existing.Id, "Grunt Padre", Arg.Any<CancellationToken>());
         ModifiedResponse().Received(1).WithContent("Gamertag has been set");
     }
@@ -105,11 +105,11 @@ public class DiscordSetGamertagBranchTests
 
         _context.ChangeTracker.Clear();
         var users = await _context.Users.AsNoTracking().ToListAsync();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(users, Has.Count.EqualTo(1), "No new account is created");
             Assert.That(users.Single().DiscordUserID, Is.EqualTo(OtherDiscordId), "Still linked to the other Discord account");
-        });
+        }
         ModifiedResponse().Received(1).WithContent(DiscordSetGamertag.LinkedToOtherDiscord);
         await _setGamertagService.DidNotReceiveWithAnyArgs().SetGamertag(default, default!, default);
     }

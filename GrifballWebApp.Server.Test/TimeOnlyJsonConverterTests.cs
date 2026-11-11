@@ -45,10 +45,10 @@ public class TimeOnlyJsonConverterTests
         var json = JsonSerializer.Serialize(value, options);
         var back = JsonSerializer.Deserialize<TimeOnly>(json, options);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(json, Is.EqualTo("\"07:05:03\""));
             Assert.That(back, Is.EqualTo(value));
-        });
+        }
     }
 }

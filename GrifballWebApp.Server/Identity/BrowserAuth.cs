@@ -14,7 +14,7 @@ namespace GrifballWebApp.Server.Identity;
 /// Authorization header. <see cref="Scheme"/> picks one per request: bearer when the request has that header,
 /// the cookie otherwise.
 /// </summary>
-public static class BrowserAuth
+public static partial class BrowserAuth
 {
     /// <summary>The default scheme: forwards to bearer or the Identity cookie (see <see cref="SelectScheme"/>).</summary>
     public const string Scheme = "Identity.CookieOrBearer";
@@ -85,8 +85,8 @@ public static class BrowserAuth
     {
         if (context.GetEndpoint()?.Metadata.GetMetadata<HubMetadata>() is null || !IsForeignHubRequest(context))
             return next(context);
-        context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(BrowserAuth).FullName!)
-            .LogInformation("Refused hub request {Path} from another origin", context.Request.Path);
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(BrowserAuth).FullName!);
+        LogRefusedHubRequest(logger, context.Request.Path);
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
         return Task.CompletedTask;
     }
@@ -129,6 +129,9 @@ public static class BrowserAuth
         options.Cookie.SameSite = SameSiteMode.Strict;
         options.Cookie.Path = "/";
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Refused hub request {Path} from another origin")]
+    private static partial void LogRefusedHubRequest(ILogger logger, PathString path);
 }
 
 /// <summary>
@@ -148,7 +151,7 @@ public static class BrowserAuth
 /// <item>A change from a browser without Fetch Metadata whose Origin header names another host is refused.</item>
 /// </list>
 /// </summary>
-public sealed class CookieAntiforgeryFilter(IAntiforgery antiforgery, ILogger<CookieAntiforgeryFilter> logger) : IAsyncAuthorizationFilter
+public sealed partial class CookieAntiforgeryFilter(IAntiforgery antiforgery, ILogger<CookieAntiforgeryFilter> logger) : IAsyncAuthorizationFilter
 {
     public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
     {
@@ -156,7 +159,7 @@ public sealed class CookieAntiforgeryFilter(IAntiforgery antiforgery, ILogger<Co
         if ((IsCookieSession(context.HttpContext) || !IsSafeMethod(context.HttpContext.Request.Method))
             && IsFromAnotherSite(context.HttpContext.Request))
         {
-            logger.LogInformation("Refused {Method} {Path} from another site", context.HttpContext.Request.Method, context.HttpContext.Request.Path);
+            LogRefusedFromAnotherSite(logger, context.HttpContext.Request.Method, context.HttpContext.Request.Path);
             context.Result = new ObjectResult(new ProblemDetails
             {
                 Status = StatusCodes.Status403Forbidden,
@@ -168,7 +171,7 @@ public sealed class CookieAntiforgeryFilter(IAntiforgery antiforgery, ILogger<Co
 
         if (IsUnsafeFromAnotherOriginWithoutFetchMetadata(context.HttpContext))
         {
-            logger.LogInformation("Refused {Method} {Path} from another origin", context.HttpContext.Request.Method, context.HttpContext.Request.Path);
+            LogRefusedFromAnotherOrigin(logger, context.HttpContext.Request.Method, context.HttpContext.Request.Path);
             context.Result = new ObjectResult(new ProblemDetails
             {
                 Status = StatusCodes.Status403Forbidden,
@@ -187,7 +190,7 @@ public sealed class CookieAntiforgeryFilter(IAntiforgery antiforgery, ILogger<Co
         }
         catch (AntiforgeryValidationException ex)
         {
-            logger.LogInformation("Refused {Method} {Path}: {Reason}", context.HttpContext.Request.Method, context.HttpContext.Request.Path, ex.Message);
+            LogRefused(logger, context.HttpContext.Request.Method, context.HttpContext.Request.Path, ex.Message);
             context.HttpContext.Response.Headers[BrowserAuth.AntiforgeryRejectedHeader] = "true";
             context.Result = new ObjectResult(new ProblemDetails
             {
@@ -233,6 +236,15 @@ public sealed class CookieAntiforgeryFilter(IAntiforgery antiforgery, ILogger<Co
     /// </summary>
     public static bool IsFromAnotherSite(HttpRequest request)
         => request.Headers["Sec-Fetch-Site"].ToString() is "cross-site" or "same-site";
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Refused {Method} {Path} from another site")]
+    private static partial void LogRefusedFromAnotherSite(ILogger logger, string method, PathString path);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Refused {Method} {Path} from another origin")]
+    private static partial void LogRefusedFromAnotherOrigin(ILogger logger, string method, PathString path);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Refused {Method} {Path}: {Reason}")]
+    private static partial void LogRefused(ILogger logger, string method, PathString path, string reason);
 }
 
 /// <summary>The antiforgery request token, for <see cref="BrowserAuth.AntiforgeryHeader"/>.</summary>

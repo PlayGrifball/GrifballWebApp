@@ -14,7 +14,7 @@ namespace GrifballWebApp.Infrastructure.Historical;
 /// one: a run that falls due while a job is queued or running tries again <see cref="RetryAfter"/> later, until none is.
 /// Paused (its trigger, from the Historical Import page or the Jobs page), it queues nothing.
 /// </summary>
-public sealed class HistoricalRefreshJob : IJob
+public sealed partial class HistoricalRefreshJob : IJob
 {
     public static readonly JobKey Key = new("historical-refresh", RecurringJobs.Group);
     public static readonly TriggerKey TriggerKey = new(Key.Name, Key.Group);
@@ -49,9 +49,9 @@ public sealed class HistoricalRefreshJob : IJob
         _logger = logger;
     }
 
-    public async ValueTask Execute(IJobExecutionContext context, CancellationToken ct = default)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        if (await RunAsync(ct) is null)
+        if (await RunAsync(cancellationToken) is null)
         {
             var retry = TriggerBuilder.Create()
                 .WithIdentity(RetryTriggerKey)
@@ -59,7 +59,7 @@ public sealed class HistoricalRefreshJob : IJob
                 .WithDescription(WaitingNote)
                 .StartAt(_time.GetUtcNow() + RetryAfter)
                 .Build();
-            await context.Scheduler.ScheduleTrigger(retry, TriggerConflict.Replace, ct);
+            await context.Scheduler.ScheduleTrigger(retry, TriggerConflict.Replace, cancellationToken);
         }
     }
 
@@ -80,7 +80,7 @@ public sealed class HistoricalRefreshJob : IJob
         var jobId = await _jobs.Enqueue(HistoricalImportJob.Refresh(HistoricalImportJobTrigger.Scheduled), ct);
         settings.ScheduledRunQueued(jobId, now);
         await _context.SaveChangesAsync(ct);
-        _logger.LogInformation("Scheduled historical refresh queued as job {JobID}", jobId);
+        LogRefreshQueued(_logger, jobId);
         return jobId;
     }
 
@@ -98,6 +98,9 @@ public sealed class HistoricalRefreshJob : IJob
             s.PauseCarriedOver();
         await context.SaveChangesAsync(ct);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Scheduled historical refresh queued as job {JobID}")]
+    private static partial void LogRefreshQueued(ILogger logger, int jobID);
 }
 
 /// <summary>The scheduled refresh as the Historical Import page shows it: its trigger, and the last run it queued.</summary>

@@ -22,7 +22,7 @@ public class SeasonMatchModelTests
     {
         var match = SeasonMatch.Between(1, 10, 20, 3, new DateTime(2030, 1, 1));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((match.SeasonID, match.HomeTeamID, match.AwayTeamID, match.BestOf, match.ScheduledTime),
                 Is.EqualTo((1, (int?)10, (int?)20, 3, (DateTime?)new DateTime(2030, 1, 1))));
@@ -30,7 +30,7 @@ public class SeasonMatchModelTests
             Assert.That(match.DecidedBy, Is.Null);
             Assert.That(match.HasBothTeams, Is.True);
             Assert.Throws<ArgumentException>(() => SeasonMatch.Between(1, 10, 10, 3));
-        });
+        }
     }
 
     [Test]
@@ -40,14 +40,14 @@ public class SeasonMatchModelTests
         var plain = SeasonMatch.InBracket(1, info, 3);
         var bye = SeasonMatch.InBracket(1, MatchBracketInfo.Seed(), 3, awayBye: true);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(plain.BracketMatch, Is.SameAs(info));
             Assert.That((plain.HomeTeamID, plain.AwayTeamID, plain.IsDecided), Is.EqualTo(((int?)null, (int?)null, false)));
             Assert.That((bye.HomeTeamResult, bye.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)SeasonMatchResult.Bye)));
             Assert.That(bye.DecidedBy, Is.EqualTo(SeasonMatchDecision.Bye));
             Assert.That(bye.Winner, Is.Null, "Nobody won yet: the team facing the BYE is still to come");
-        });
+        }
     }
 
     [TestCase(3, 1, SeasonMatchSide.Home)]
@@ -58,12 +58,12 @@ public class SeasonMatchModelTests
         // A side the import could not tell has no team, and still wins or loses
         var match = SeasonMatch.Imported(1, null, 20, homeWins, awayWins, 5, null, null);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(match.Winner, Is.EqualTo(winner));
             Assert.That(match.DecidedBy, Is.EqualTo(winner is null ? null : (SeasonMatchDecision?)SeasonMatchDecision.Games));
             Assert.That((match.HomeTeamScore, match.AwayTeamScore), Is.EqualTo(((int?)homeWins, (int?)awayWins)));
-        });
+        }
     }
 
     [Test]
@@ -77,7 +77,7 @@ public class SeasonMatchModelTests
         var won = Ready(bestOf: 5);
         won.DecideByGames(1, 3);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(first, Is.False, "2-1 of a best of 5 is under way");
             Assert.That(match.IsDecided, Is.False);
@@ -86,7 +86,7 @@ public class SeasonMatchModelTests
             Assert.That((won.Winner, won.Loser, won.DecidedBy), Is.EqualTo(((SeasonMatchSide?)SeasonMatchSide.Away, (SeasonMatchSide?)SeasonMatchSide.Home, (SeasonMatchDecision?)SeasonMatchDecision.Games)));
             Assert.That((won.HomeTeamResult, won.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Loss, (SeasonMatchResult?)SeasonMatchResult.Won)));
             Assert.That((won.WinnerTeamID, won.LoserTeamID), Is.EqualTo(((int?)20, (int?)10)));
-        });
+        }
     }
 
     [Test]
@@ -102,12 +102,12 @@ public class SeasonMatchModelTests
     [Test]
     public void DecideByGames_IsRefused_ForADecidedMatch_OrOneMissingATeam()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.Throws<InvalidOperationException>(() => Ready().WonBy(SeasonMatchSide.Home).DecideByGames(2, 0), "Reopened first");
             Assert.Throws<InvalidOperationException>(() => SeasonMatch.Seed(1, 10, null, 3).DecideByGames(2, 0));
             Assert.Throws<ArgumentOutOfRangeException>(() => Ready().DecideByGames(-1, 0));
-        });
+        }
     }
 
     [TestCase(Forfeiter.Home, SeasonMatchResult.Forfeit, SeasonMatchResult.Won, SeasonMatchSide.Away)]
@@ -119,7 +119,7 @@ public class SeasonMatchModelTests
 
         var result = match.Forfeit(forfeiter);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo(ForfeitResult.Forfeited));
             Assert.That((match.HomeTeamResult, match.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)home, (SeasonMatchResult?)away)));
@@ -127,7 +127,7 @@ public class SeasonMatchModelTests
             Assert.That(match.Winner, Is.EqualTo(winner));
             Assert.That(match.Loser, Is.EqualTo(winner is { } w ? SeasonMatch.Other(w) : (SeasonMatchSide?)null), "Both forfeiting leaves no single loser");
             Assert.That((match.HomeTeamScore, match.AwayTeamScore), Is.EqualTo(((int?)1, (int?)0)), "The games before it stay");
-        });
+        }
     }
 
     [Test]
@@ -137,7 +137,7 @@ public class SeasonMatchModelTests
         var suddenDeath = SeasonMatch.Seed(1, 10, 20, 3, bracketMatch: MatchBracketInfo.Seed(bracket: Bracket.GrandFinalSuddenDeath));
         var bye = SeasonMatch.Seed(1, null, 20, 3).WithBye(SeasonMatchSide.Home);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(SeasonMatch.Seed(1, 10, null, 3).Forfeit(Forfeiter.Home), Is.EqualTo(ForfeitResult.TeamsMissing));
             Assert.That(bye.Forfeit(Forfeiter.Away), Is.EqualTo(ForfeitResult.TeamsMissing));
@@ -146,7 +146,7 @@ public class SeasonMatchModelTests
             Assert.That(grandFinal.Forfeit(Forfeiter.Home), Is.EqualTo(ForfeitResult.GrandFinal));
             Assert.That(suddenDeath.Forfeit(Forfeiter.Both), Is.EqualTo(ForfeitResult.GrandFinal));
             Assert.That(grandFinal.IsDecided, Is.False);
-        });
+        }
     }
 
     [Test]
@@ -161,7 +161,7 @@ public class SeasonMatchModelTests
         forfeited.Reopen();
         undecided.Reopen();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((won.IsDecided, won.HomeTeamScore, won.AwayTeamScore), Is.EqualTo((false, (int?)2, (int?)1)));
             Assert.That((forfeited.IsDecided, forfeited.HomeTeamScore), Is.EqualTo((false, (int?)1)));
@@ -169,7 +169,7 @@ public class SeasonMatchModelTests
             Assert.That(bye.CanReopen, Is.False);
             Assert.Throws<InvalidOperationException>(() => bye.Reopen());
             Assert.That(bye.Winner, Is.EqualTo(SeasonMatchSide.Away), "Unchanged");
-        });
+        }
     }
 
     [Test]
@@ -178,13 +178,13 @@ public class SeasonMatchModelTests
         var full = SeasonMatch.Seed(1, 10, 20, 1);
         full.Game(1, recorded: RecordedGame.Seed("manual/1"));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Ready().WhyNoNewGame(), Is.Null);
             Assert.That(Ready().WonBy(SeasonMatchSide.Away).WhyNoNewGame(), Is.EqualTo(NewGameRefusal.Decided));
             Assert.That(Ready().Forfeited(Forfeiter.Both).WhyNoNewGame(), Is.EqualTo(NewGameRefusal.Decided));
             Assert.That(full.WhyNoNewGame(), Is.EqualTo(NewGameRefusal.Full));
-        });
+        }
     }
 
     [Test]
@@ -194,14 +194,14 @@ public class SeasonMatchModelTests
         withGames.AddGame(RecordedGame.Seed("manual/1"), 1);
         var bye = SeasonMatch.Seed(1, null, 20, 3).WonOnBye(SeasonMatchSide.Home);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Ready().CanUndoResult, Is.False, "Nothing to take back");
             Assert.That(withGames.CanUndoResult, Is.True, "Its games");
             Assert.That(Ready().WonBy(SeasonMatchSide.Home).CanUndoResult, Is.True);
             Assert.That(Ready().Forfeited(Forfeiter.Both).CanUndoResult, Is.True);
             Assert.That(bye.CanUndoResult, Is.False, "The bracket's");
-        });
+        }
     }
 
     [Test]
@@ -211,14 +211,14 @@ public class SeasonMatchModelTests
         withGames.AddGame(RecordedGame.Seed("manual/1"), 1);
         var bye = SeasonMatch.Seed(1, null, 20, 3).WonOnBye(SeasonMatchSide.Home);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(Ready().BlocksFeederUndo, Is.EqualTo(FeederUndoBlock.None));
             Assert.That(bye.BlocksFeederUndo, Is.EqualTo(FeederUndoBlock.None), "The win a BYE gave out is taken back with it");
             Assert.That(withGames.BlocksFeederUndo, Is.EqualTo(FeederUndoBlock.Games));
             Assert.That(Ready().WonBy(SeasonMatchSide.Home).BlocksFeederUndo, Is.EqualTo(FeederUndoBlock.OwnResult));
             Assert.That(Ready().Forfeited(Forfeiter.Away).BlocksFeederUndo, Is.EqualTo(FeederUndoBlock.OwnResult));
-        });
+        }
     }
 
     [Test]
@@ -231,13 +231,13 @@ public class SeasonMatchModelTests
         match.NumberGame(first, 1);
         var stranger = Ready().AddGame(RecordedGame.Seed("manual/3"), 1);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(match.SeriesGames, Is.EquivalentTo(new[] { first, second }));
             Assert.That((first.SeasonMatch, first.Match, first.GameNumber), Is.EqualTo((match, halo, 1)));
             Assert.Throws<InvalidOperationException>(() => match.NumberGame(stranger, 3), "Not its game");
             Assert.Throws<InvalidOperationException>(() => match.RemoveGame(stranger));
-        });
+        }
 
         match.DecideByGames(2, 0);
         Assert.Throws<InvalidOperationException>(() => match.RemoveGame(first), "Reopened first");
@@ -248,12 +248,12 @@ public class SeasonMatchModelTests
         Assert.That(match.SeriesGames, Is.EqualTo(new[] { second }));
 
         var cleared = match.ClearSeries();
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(cleared, Is.EqualTo(new[] { second }));
             Assert.That(match.SeriesGames, Is.Empty);
             Assert.That((match.HomeTeamScore, match.AwayTeamScore), Is.EqualTo(((int?)null, (int?)null)));
-        });
+        }
     }
 
     [Test]
@@ -287,7 +287,7 @@ public class SeasonMatchModelTests
         var left = match.RemoveImportedGame(gone, homeWon, awayWon);
 
         var fresh = SeasonMatch.Imported(1, 10, 20, home, away, SeasonMatch.ImportedBestOf(2, home, away), null, null);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(left, Is.True);
             Assert.That(match.SeriesGames, Has.Count.EqualTo(2).And.No.Member(gone));
@@ -295,7 +295,7 @@ public class SeasonMatchModelTests
                 Is.EqualTo(((int?)home, (int?)away, homeResult, awayResult, bestOf)));
             Assert.That((match.HomeTeamResult, match.AwayTeamResult, match.BestOf), Is.EqualTo((fresh.HomeTeamResult, fresh.AwayTeamResult, fresh.BestOf)),
                 "The same as importing the games left");
-        });
+        }
     }
 
     [Test]
@@ -319,12 +319,12 @@ public class SeasonMatchModelTests
 
         var left = match.RemoveImportedGame(only, homeWon: true, awayWon: false);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(left, Is.False);
             Assert.That(match.SeriesGames, Is.Empty);
             Assert.That((match.HomeTeamScore, match.AwayTeamScore, match.IsDecided, match.BestOf), Is.EqualTo(((int?)0, (int?)0, false, 1)));
-        });
+        }
     }
 
     [Test]
@@ -347,11 +347,11 @@ public class SeasonMatchModelTests
         var (match, _) = ImportedTwoOne();
         var (_, others) = ImportedTwoOne();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.Throws<InvalidOperationException>(() => match.RemoveImportedGame(others[0], true, false));
             Assert.That((match.SeriesGames.Count, match.HomeTeamScore, match.AwayTeamScore), Is.EqualTo((3, (int?)2, (int?)1)), "Unchanged");
-        });
+        }
     }
 
     [TestCase(1, 1, 0, ExpectedResult = 1)]
@@ -369,12 +369,12 @@ public class SeasonMatchModelTests
         var placed = match.PlaceTeam(SeasonMatchSide.Home, 10);
         var again = match.PlaceTeam(SeasonMatchSide.Home, 10);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((placed, again, match.HomeTeamID), Is.EqualTo((true, false, (int?)10)));
             Assert.Throws<InvalidOperationException>(() => match.PlaceTeam(SeasonMatchSide.Away, 10));
             Assert.Throws<InvalidOperationException>(() => SeasonMatch.Seed(1, null, null, 3).WithBye(SeasonMatchSide.Away).PlaceTeam(SeasonMatchSide.Away, 20));
-        });
+        }
     }
 
     [Test]
@@ -390,7 +390,7 @@ public class SeasonMatchModelTests
         var won = match.AwardByeWin();
         var wonAgain = match.AwardByeWin();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((placed, again), Is.EqualTo((true, false)));
             Assert.That(waiting, Is.EqualTo(((SeasonMatchDecision?)SeasonMatchDecision.Bye, (SeasonMatchSide?)null, true)));
@@ -398,13 +398,13 @@ public class SeasonMatchModelTests
             Assert.That((match.Winner, match.WinnerTeamID, match.Loser), Is.EqualTo(((SeasonMatchSide?)SeasonMatchSide.Home, (int?)10, (SeasonMatchSide?)null)),
                 "A BYE is no team: nobody lost");
             Assert.That(match.HasBye, Is.True);
-        });
+        }
     }
 
     [Test]
     public void ABYE_IsRefused_OnASideWithATeam_OrInAMatchItsGamesOrAForfeitDecided()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.Throws<InvalidOperationException>(() => Ready().PlaceBye(SeasonMatchSide.Home));
             Assert.Throws<InvalidOperationException>(() => SeasonMatch.Imported(1, null, 20, 2, 0, 3, null, null).PlaceBye(SeasonMatchSide.Home));
@@ -412,7 +412,7 @@ public class SeasonMatchModelTests
             Assert.Throws<InvalidOperationException>(() => SeasonMatch.Seed(1, null, null, 3).WithBye(SeasonMatchSide.Home).WithBye(SeasonMatchSide.Away).AwardByeWin(),
                 "Two BYEs: no team to win");
             Assert.That(SeasonMatch.Seed(1, null, null, 3).WithBye(SeasonMatchSide.Home).WithBye(SeasonMatchSide.Away).DecidedBy, Is.EqualTo(SeasonMatchDecision.Bye));
-        });
+        }
     }
 
     [Test]
@@ -424,13 +424,13 @@ public class SeasonMatchModelTests
         byeWin.ClearSide(SeasonMatchSide.Home);
         waiting.ClearSide(SeasonMatchSide.Away);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That((byeWin.HomeTeamResult, byeWin.AwayTeamResult, byeWin.AwayTeamID), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null, (int?)20)));
             Assert.That((waiting.HomeTeamID, waiting.AwayTeamID), Is.EqualTo(((int?)10, (int?)null)));
             Assert.Throws<InvalidOperationException>(() => Ready().WonBy(SeasonMatchSide.Home).ClearSide(SeasonMatchSide.Away), "Undone first");
             Assert.Throws<InvalidOperationException>(() => Ready().Forfeited(Forfeiter.Home).ClearSide(SeasonMatchSide.Home));
-        });
+        }
     }
 
     [Test]
@@ -467,7 +467,7 @@ public class SeasonMatchModelTests
     {
         var match = make();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(match.DecidedBy, Is.EqualTo(by));
             Assert.That(match.IsDecided, Is.EqualTo(by is not null));
@@ -476,6 +476,6 @@ public class SeasonMatchModelTests
             Assert.That(match.Loser, Is.EqualTo(loser));
             Assert.That(match.WinnerTeamID, Is.EqualTo(winner is { } w ? match.TeamOf(w) : null));
             Assert.That(match.LoserTeamID, Is.EqualTo(loser is { } l ? match.TeamOf(l) : null));
-        });
+        }
     }
 }

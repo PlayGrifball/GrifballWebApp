@@ -31,12 +31,12 @@ public class DatabaseProviderTests
     {
         using var context = Context(provider);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(context.Database.ProviderName, Is.EqualTo(providerName));
             Assert.That(context.GetService<IMigrationsAssembly>().Assembly.GetName().Name, Is.EqualTo(migrationsAssembly));
             Assert.That(context.Database.GetMigrations(), Is.Not.Empty);
-        });
+        }
     }
 
     [Test]
@@ -192,11 +192,11 @@ public class DatabaseProviderTests
                 .SequenceEqual(new[] { SqliteHistory.DeleteTrigger(e.GetTableName()!), SqliteHistory.UpdateTrigger(e.GetTableName()!) }.Order()))
             .Select(e => e.DisplayName());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(HistoryTables(sqlite), Is.EqualTo(HistoryTables(postgres)).And.Not.Empty);
             Assert.That(withoutTriggers, Is.Empty);
-        });
+        }
     }
 
     [Test]
@@ -243,13 +243,13 @@ public class DesignTimeContextFactoryTests
 
         using (context)
         {
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(context.Database.IsNpgsql(), Is.EqualTo(provider == DatabaseProvider.Postgres));
                 Assert.That(context.Database.IsSqlite(), Is.EqualTo(provider == DatabaseProvider.Sqlite));
                 Assert.That(output.ToString(), Does.Contain($"Using {provider} connection string for {logged}"));
                 Assert.That(output.ToString(), Does.Not.Contain("hunter2"));
-            });
+            }
         }
     }
 }
