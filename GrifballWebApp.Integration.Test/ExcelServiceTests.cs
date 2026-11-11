@@ -228,9 +228,9 @@ public class ExcelServiceTests
 
         Received.InOrder(() =>
         {
-            _dataPull.GetAndSaveMatch(late);
-            _dataPull.GetAndSaveMatch(early);
-            _dataPull.GetAndSaveMatch(notInDb);
+            _ = _dataPull.GetAndSaveMatch(late);
+            _ = _dataPull.GetAndSaveMatch(early);
+            _ = _dataPull.GetAndSaveMatch(notInDb);
         });
         await _dataPull.ReceivedWithAnyArgs(3).GetAndSaveMatch(default);
 
