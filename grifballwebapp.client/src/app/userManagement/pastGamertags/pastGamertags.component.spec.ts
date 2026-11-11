@@ -6,7 +6,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { PastGamertagsComponent } from './pastGamertags.component';
 import type { PastGamertagsDto } from '../../api/dtos/gamertagClaimDto';
 
-const pastGamertagsUrl = '/api/GamertagClaims/PastGamertags';
+const pastGamertagsUrl = '/api/past-gamertags';
 
 function account(changes: Partial<PastGamertagsDto> = {}): PastGamertagsDto {
   return {
@@ -105,7 +105,7 @@ describe('PastGamertagsComponent', () => {
 
     findButton('Remove').click();
     fixture.detectChanges();
-    http.expectOne('/api/GamertagClaims/RemoveGamertagHistory/1').flush(null, { status: 204, statusText: 'No Content' });
+    http.expectOne('/api/past-gamertags/1/remove').flush(null, { status: 204, statusText: 'No Content' });
     fixture.detectChanges();
     http.expectOne(r => r.url === pastGamertagsUrl).flush(account({ pastGamertags: [account().pastGamertags[1]] }));
     await settle();
@@ -119,7 +119,7 @@ describe('PastGamertagsComponent', () => {
     await settle();
 
     findButton('Remove').click();
-    http.expectOne('/api/GamertagClaims/RemoveGamertagHistory/1')
+    http.expectOne('/api/past-gamertags/1/remove')
       .flush({ title: 'That row cannot be removed.' }, { status: 400, statusText: 'Bad Request' });
     expect(snackBar.open).toHaveBeenCalledWith('That row cannot be removed.', 'Close');
   });
@@ -134,7 +134,7 @@ describe('PastGamertagsComponent', () => {
     type('pg-note', 'From an old roster');
     findButton('Add gamertag').click();
 
-    const req = http.expectOne('/api/GamertagClaims/AddGamertagHistory');
+    const req = http.expectOne('/api/past-gamertags');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({
       xboxUserID: 2535400000000117, gamertag: 'New Tag', firstSeen: '2015-05-01T00:00:00Z', lastSeen: null, note: 'From an old roster',
@@ -154,7 +154,7 @@ describe('PastGamertagsComponent', () => {
 
     type('pg-gamertag', 'New Tag');
     findButton('Add gamertag').click();
-    http.expectOne('/api/GamertagClaims/AddGamertagHistory').flush({ title: 'That gamertag is already recorded.' }, { status: 400, statusText: 'Bad Request' });
+    http.expectOne('/api/past-gamertags').flush({ title: 'That gamertag is already recorded.' }, { status: 400, statusText: 'Bad Request' });
     fixture.detectChanges();
 
     expect(el().querySelector('[role="alert"]')!.textContent).toContain('That gamertag is already recorded.');

@@ -63,7 +63,7 @@ test.describe('dates', () => {
     await page.getByRole('button', { name: 'Update User' }).click();
     expect((await saved).status()).toBe(200);
 
-    const after = await admin.get<UserResponseDto>(`UserManagement/GetUser/${user.userID}`);
+    const after = await admin.get<UserResponseDto>(`users/${user.userID}`);
     expect(after.displayName).toBe(displayName);
     expect(after.lockoutEnd).toBe(user.lockoutEnd);
   });

@@ -423,7 +423,7 @@ public class HistoricalImportControllerTests
     {
         _context.XboxUsers.Add(XboxUser.FromXbox(77, "Now"));
         await _context.SaveChangesAsync();
-        Assert.That((await _claims.PastGamertags(78, null, CancellationToken.None)).Result, Is.InstanceOf<NotFoundResult>());
+        (await _claims.PastGamertags(78, null, CancellationToken.None)).AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound);
         await _claims.AddGamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 77, Gamertag = "Then", Note = "WL19" }, CancellationToken.None);
 
         var listed = (await _claims.PastGamertags(77, null, CancellationToken.None)).Value!;

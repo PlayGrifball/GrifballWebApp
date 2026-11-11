@@ -14,8 +14,8 @@ function claim(id: number, changes: Partial<GamertagClaimDto> = {}): GamertagCla
   };
 }
 
-const claimsUrl = '/api/GamertagClaims/GetClaims';
-const xuidStatusUrl = '/api/GamertagClaims/XuidLookupStatus';
+const claimsUrl = '/api/gamertag-claims';
+const xuidStatusUrl = '/api/xuid-lookups/status';
 const noLookupsYet = { placeholders: 0, due: 0, found: 0, notFound: 0, failed: 0, lastLookedUpAt: null };
 
 describe('GamertagClaimsComponent', () => {
@@ -129,7 +129,7 @@ describe('GamertagClaimsComponent', () => {
     lookUpButton.click();
     fixture.detectChanges();
     expect(lookUpButton.disabled).toBeTrue();
-    http.expectOne('/api/GamertagClaims/LookUpXuids').flush(
+    http.expectOne('/api/xuid-lookups/run').flush(
       { placeholders: 5, due: 5, found: 0, notFound: 0, failed: 0, lastLookedUpAt: null }, { status: 202, statusText: 'Accepted' });
     fixture.detectChanges();
     http.expectOne(xuidStatusUrl).flush({ placeholders: 5, due: 2, found: 2, notFound: 1, failed: 0, lastLookedUpAt: '2026-10-29T10:00:00Z' });
@@ -147,7 +147,7 @@ describe('GamertagClaimsComponent', () => {
     await loadPending([]);
     const lookUpButton = Array.from(el().querySelectorAll('button')).find(b => b.textContent!.trim() === 'Look up XUIDs')!;
     lookUpButton.click();
-    http.expectOne('/api/GamertagClaims/LookUpXuids').flush('busy', { status: 500, statusText: 'down' });
+    http.expectOne('/api/xuid-lookups/run').flush('busy', { status: 500, statusText: 'down' });
     // problemText returns the server's plain-text body ("busy") rather than the fallback here.
     expect(snackBar.open).toHaveBeenCalledWith('busy', 'Close');
   });
@@ -178,7 +178,7 @@ describe('GamertagClaimsComponent', () => {
     await loadPending();
     button(rows()[0], 'Approve').click();
     fixture.detectChanges();
-    const approve = http.expectOne('/api/GamertagClaims/ApproveClaim/1');
+    const approve = http.expectOne('/api/gamertag-claims/1/approve');
     expect(approve.request.method).toBe('POST');
     expect(button(rows()[1], 'Reject').disabled).withContext('one decision at a time').toBeTrue();
 
@@ -194,7 +194,7 @@ describe('GamertagClaimsComponent', () => {
   it('rejects a claim', async () => {
     await loadPending();
     button(rows()[1], 'Reject').click();
-    http.expectOne('/api/GamertagClaims/RejectClaim/2').flush(null, { status: 204, statusText: 'No Content' });
+    http.expectOne('/api/gamertag-claims/2/reject').flush(null, { status: 204, statusText: 'No Content' });
     expect(snackBar.open).toHaveBeenCalledWith('Rejected the claim to Old Timer.', 'Close');
     fixture.detectChanges();
     claimsRequest('Pending').flush([claim(1)]);
@@ -204,7 +204,7 @@ describe('GamertagClaimsComponent', () => {
   it("says why a decision was refused, reloading when someone else decided it first (409)", async () => {
     await loadPending();
     button(rows()[0], 'Approve').click();
-    http.expectOne('/api/GamertagClaims/ApproveClaim/1')
+    http.expectOne('/api/gamertag-claims/1/approve')
       .flush({ title: 'Conflict', status: 409, detail: 'This claim was already rejected.' }, { status: 409, statusText: 'Conflict' });
     expect(snackBar.open).toHaveBeenCalledWith('This claim was already rejected.', 'Close');
     fixture.detectChanges();
@@ -215,7 +215,7 @@ describe('GamertagClaimsComponent', () => {
   it('says why a decision was refused (400), keeping the list', async () => {
     await loadPending();
     button(rows()[0], 'Reject').click();
-    http.expectOne('/api/GamertagClaims/RejectClaim/1')
+    http.expectOne('/api/gamertag-claims/1/reject')
       .flush({ title: 'The placeholder already has an Xbox account.', status: 400 }, { status: 400, statusText: 'Bad Request' });
     fixture.detectChanges();
     expect(snackBar.open).toHaveBeenCalledWith('The placeholder already has an Xbox account.', 'Close');
@@ -295,7 +295,7 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
     reason.value = '  Not you  ';
     reason.dispatchEvent(new Event('input'));
     buttonNamed(row, 'Reject').click();
-    const reject = http.expectOne('/api/GamertagClaims/RejectClaim/7');
+    const reject = http.expectOne('/api/gamertag-claims/7/reject');
     expect(reject.request.body).toEqual({ reason: 'Not you' });
     reject.flush(null, { status: 204, statusText: 'No Content' });
     fixture.detectChanges();
@@ -326,7 +326,7 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
     expect(el().querySelector('.claims-duplicates table')).toBeNull();
     buttonNamed(el(), 'Find possible duplicates').click();
     fixture.detectChanges();
-    http.expectOne('/api/GamertagClaims/DuplicateSuggestions').flush(body, { status, statusText: status === 200 ? 'OK' : 'Error' });
+    http.expectOne('/api/duplicate-suggestions').flush(body, { status, statusText: status === 200 ? 'OK' : 'Error' });
     await settle();
   }
 
@@ -340,12 +340,12 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
     buttonNamed(rows[0], 'Merge').click();
     fixture.detectChanges();
     expect(buttonNamed(rows[1], 'Dismiss').disabled).toBeTrue();
-    const merge = http.expectOne('/api/GamertagClaims/MergeDuplicate');
+    const merge = http.expectOne('/api/duplicate-suggestions/merge');
     expect(merge.request.body).toEqual({ sourceUserID: 501, targetUserID: 117 });
     merge.flush(null, { status: 204, statusText: 'No Content' });
     expect(snackBar.open).toHaveBeenCalledWith('Merged Shadow into Shadow#1234.', 'Close');
     fixture.detectChanges();
-    http.expectOne('/api/GamertagClaims/DuplicateSuggestions').flush([]);
+    http.expectOne('/api/duplicate-suggestions').flush([]);
     await settle();
     expect(el().querySelector('.claims-duplicates .hud-empty')!.textContent).toContain('No possible duplicates.');
   });
@@ -375,18 +375,18 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
     const row = el().querySelector('.claims-duplicates tbody tr')!;
     expect(row.textContent).toContain('2 letters apart');
     buttonNamed(row, 'Merge').click();
-    http.expectOne('/api/GamertagClaims/MergeDuplicate').flush({ title: 'Conflict', detail: 'Both users are on different teams.' }, { status: 409, statusText: 'Conflict' });
+    http.expectOne('/api/duplicate-suggestions/merge').flush({ title: 'Conflict', detail: 'Both users are on different teams.' }, { status: 409, statusText: 'Conflict' });
     expect(snackBar.open).toHaveBeenCalledWith('Both users are on different teams.', 'Close');
     fixture.detectChanges();
     buttonNamed(row, 'Dismiss').click();
-    http.expectOne('/api/GamertagClaims/DismissDuplicate').flush(null, { status: 204, statusText: 'No Content' });
+    http.expectOne('/api/duplicate-suggestions/dismiss').flush(null, { status: 204, statusText: 'No Content' });
     expect(snackBar.open).toHaveBeenCalledWith('Dismissed Shadow and Shadow#1234.', 'Close');
     fixture.detectChanges();
-    http.expectOne('/api/GamertagClaims/DuplicateSuggestions').flush([pair]);
+    http.expectOne('/api/duplicate-suggestions').flush([pair]);
     await settle();
     buttonNamed(el(), 'Find possible duplicates').click();
     fixture.detectChanges();
-    http.expectOne('/api/GamertagClaims/DuplicateSuggestions').flush([]);
+    http.expectOne('/api/duplicate-suggestions').flush([]);
     await settle();
   });
 

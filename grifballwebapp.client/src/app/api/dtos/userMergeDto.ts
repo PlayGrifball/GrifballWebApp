@@ -1,4 +1,4 @@
-/** One user merged into another, from the merges' audit trail (GET /api/UserMerges/List). */
+/** One user merged into another, from the merges' audit trail (GET /api/user-merges). */
 export interface UserMergeDto {
   userMergeID: number;
   mergedAt: string;

@@ -185,7 +185,7 @@ describe('ApiClientService', () => {
   describe('gamertag claims', () => {
     it('lists the claims with a status', () => {
       service.getGamertagClaims('Rejected').subscribe();
-      const req = httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/GetClaims');
+      const req = httpTestingController.expectOne(r => r.url === '/api/gamertag-claims');
       expect(req.request.params.get('status')).toBe('Rejected');
       req.flush([]);
     });
@@ -194,9 +194,9 @@ describe('ApiClientService', () => {
       service.approveGamertagClaim(3).subscribe();
       service.rejectGamertagClaim(4).subscribe();
       service.rejectGamertagClaim(5, 'Not them').subscribe();
-      const approve = httpTestingController.expectOne('/api/GamertagClaims/ApproveClaim/3');
-      const reject = httpTestingController.expectOne('/api/GamertagClaims/RejectClaim/4');
-      const withReason = httpTestingController.expectOne('/api/GamertagClaims/RejectClaim/5');
+      const approve = httpTestingController.expectOne('/api/gamertag-claims/3/approve');
+      const reject = httpTestingController.expectOne('/api/gamertag-claims/4/reject');
+      const withReason = httpTestingController.expectOne('/api/gamertag-claims/5/reject');
       expect([approve.request.method, reject.request.method]).toEqual(['POST', 'POST']);
       expect(approve.request.body).toBeNull();
       expect(reject.request.body).toEqual({ reason: null });
@@ -210,9 +210,9 @@ describe('ApiClientService', () => {
       service.getDuplicateSuggestions().subscribe();
       service.mergeDuplicate(1, 2).subscribe();
       service.dismissDuplicate(3, 4).subscribe();
-      expect(httpTestingController.expectOne('/api/GamertagClaims/DuplicateSuggestions').request.method).toBe('GET');
-      const merge = httpTestingController.expectOne('/api/GamertagClaims/MergeDuplicate');
-      const dismiss = httpTestingController.expectOne('/api/GamertagClaims/DismissDuplicate');
+      expect(httpTestingController.expectOne('/api/duplicate-suggestions').request.method).toBe('GET');
+      const merge = httpTestingController.expectOne('/api/duplicate-suggestions/merge');
+      const dismiss = httpTestingController.expectOne('/api/duplicate-suggestions/dismiss');
       expect(merge.request.body).toEqual({ sourceUserID: 1, targetUserID: 2 });
       expect(dismiss.request.body).toEqual({ sourceUserID: 3, targetUserID: 4 });
       merge.flush(null, { status: 204, statusText: 'No Content' });
@@ -386,9 +386,9 @@ describe('ApiClientService', () => {
     it('lists a page of merges and undoes one with a note', () => {
       service.getUserMerges(2, 25).subscribe();
       service.undoUserMerge(7, 'wrong person').subscribe();
-      const list = httpTestingController.expectOne(r => r.url === '/api/UserMerges/List');
+      const list = httpTestingController.expectOne(r => r.url === '/api/user-merges');
       expect([list.request.params.get('pageNumber'), list.request.params.get('pageSize')]).toEqual(['2', '25']);
-      const undo = httpTestingController.expectOne('/api/UserMerges/Undo/7');
+      const undo = httpTestingController.expectOne('/api/user-merges/7/undo');
       expect([undo.request.method, undo.request.body]).toEqual(['POST', { note: 'wrong person' }]);
       list.flush({ totalCount: 0, results: [] });
       undo.flush(null, { status: 204, statusText: 'No Content' });
@@ -397,7 +397,7 @@ describe('ApiClientService', () => {
     it('adds a gamertag to an Xbox account history', () => {
       const dto = { xboxUserID: 2535400000000001, gamertag: 'Old Tag', firstSeen: '2010-01-01T00:00:00Z', lastSeen: null, note: 'From an old roster' };
       service.addGamertagHistory(dto).subscribe();
-      const req = httpTestingController.expectOne('/api/GamertagClaims/AddGamertagHistory');
+      const req = httpTestingController.expectOne('/api/past-gamertags');
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(dto);
       req.flush(null, { status: 204, statusText: 'No Content' });
@@ -405,8 +405,8 @@ describe('ApiClientService', () => {
 
     it('removes a row from the history', () => {
       service.removeGamertagHistory(77).subscribe();
-      const req = httpTestingController.expectOne('/api/GamertagClaims/RemoveGamertagHistory/77');
-      expect(req.request.method).toBe('DELETE');
+      const req = httpTestingController.expectOne('/api/past-gamertags/77/remove');
+      expect(req.request.method).toBe('POST');
       req.flush(null, { status: 204, statusText: 'No Content' });
     });
 
@@ -415,11 +415,11 @@ describe('ApiClientService', () => {
       let lookUpResult: unknown, statusResult: unknown;
       service.lookUpXuids().subscribe(r => lookUpResult = r);
       service.getXuidLookupStatus().subscribe(r => statusResult = r);
-      const lookUp = httpTestingController.expectOne('/api/GamertagClaims/LookUpXuids');
+      const lookUp = httpTestingController.expectOne('/api/xuid-lookups/run');
       expect(lookUp.request.method).toBe('POST');
       expect(lookUp.request.body).toBeNull();
       lookUp.flush(status, { status: 202, statusText: 'Accepted' });
-      httpTestingController.expectOne('/api/GamertagClaims/XuidLookupStatus').flush(status);
+      httpTestingController.expectOne('/api/xuid-lookups/status').flush(status);
       expect(lookUpResult).toEqual(status);
       expect(statusResult).toEqual(status);
     });
@@ -428,8 +428,8 @@ describe('ApiClientService', () => {
       const gamertags: string[] = [];
       service.getPastGamertags({ xboxUserID: 2535400000000117 }).subscribe(account => gamertags.push(account?.currentGamertag ?? 'none'));
       service.getPastGamertags({ userID: 117 }).subscribe(account => gamertags.push(account?.currentGamertag ?? 'none'));
-      const byXuid = httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/PastGamertags' && r.params.get('xboxUserID') === '2535400000000117' && !r.params.has('userID'));
-      const byUserID = httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/PastGamertags' && r.params.get('userID') === '117' && !r.params.has('xboxUserID'));
+      const byXuid = httpTestingController.expectOne(r => r.url === '/api/past-gamertags' && r.params.get('xboxUserID') === '2535400000000117' && !r.params.has('userID'));
+      const byUserID = httpTestingController.expectOne(r => r.url === '/api/past-gamertags' && r.params.get('userID') === '117' && !r.params.has('xboxUserID'));
       byXuid.flush({ xboxUserID: 2535400000000117, currentGamertag: 'Legendary', userID: 117, pastGamertags: [] });
       byUserID.flush({ xboxUserID: 2535400000000117, currentGamertag: 'Legendary', userID: 117, pastGamertags: [] });
       expect(gamertags).toEqual(['Legendary', 'Legendary']);
@@ -440,7 +440,7 @@ describe('ApiClientService', () => {
         expect(result).toBeNull();
         done();
       });
-      httpTestingController.expectOne(r => r.url === '/api/GamertagClaims/PastGamertags').flush('Not found', { status: 404, statusText: 'Not Found' });
+      httpTestingController.expectOne(r => r.url === '/api/past-gamertags').flush('Not found', { status: 404, statusText: 'Not Found' });
     });
   });
 

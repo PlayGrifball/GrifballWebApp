@@ -14,7 +14,7 @@ const sessionCookie = async (context: BrowserContext) =>
 
 /** What the app shows as this user's name (no display name: the user name). */
 async function shownName(admin: { get<T>(path: string): Promise<T> }, userID: number): Promise<string> {
-  const user = await admin.get<UserResponseDto>(`UserManagement/GetUser/${userID}`);
+  const user = await admin.get<UserResponseDto>(`users/${userID}`);
   return user.displayName || user.userName;
 }
 
@@ -152,13 +152,13 @@ test.describe('session', () => {
     const request = await sent;
     expect((await request.allHeaders())['x-xsrf-token'], 'X-XSRF-TOKEN').toBeTruthy();
     expect((await request.response())?.status()).toBe(200);
-    const saved = await admin.get<UserResponseDto>(`UserManagement/GetUser/${user.userID}`);
+    const saved = await admin.get<UserResponseDto>(`users/${user.userID}`);
     expect(saved.displayName).toBe(displayName);
 
     // The same change with the browser's cookies (session and antiforgery) but no token
     const forged = await page.request.post('/api/UserManagement/EditUser', { data: { ...saved, displayName: `${user.userName} bad` } });
     expect([400, 403]).toContain(forged.status());
-    const after = await admin.get<UserResponseDto>(`UserManagement/GetUser/${user.userID}`);
+    const after = await admin.get<UserResponseDto>(`users/${user.userID}`);
     expect(after.displayName).toBe(displayName);
   });
 

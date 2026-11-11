@@ -80,7 +80,7 @@ export class EditUserComponent {
     }
 
     // Fetch from backend
-    this.http.get<any>('/api/usermanagement/getuser/' + userID)
+    this.http.get<any>(`/api/users/${userID}`)
       .pipe(whileCurrent(userID, this.userID))
       .subscribe({
         next: (raw) => {
@@ -101,7 +101,7 @@ export class EditUserComponent {
     const unchanged = user.lockoutEnd === loaded
       || (user.lockoutEnd !== null && loaded !== null && user.lockoutEnd.toMillis() === loaded.toMillis());
     const lockoutEnd = unchanged ? this.loadedLockoutEnd.raw : toApiDate(user.lockoutEnd);
-    this.http.post('/api/usermanagement/edituser/', { ...user, lockoutEnd }).subscribe({
+    this.http.post(`/api/users/${this.userID()}`, { ...user, lockoutEnd }).subscribe({
       next: (result) => console.log('Updated user'),
       error: (result) => console.log(result),
     });

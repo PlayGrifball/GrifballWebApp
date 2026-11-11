@@ -33,7 +33,7 @@ export class UserManagementComponent {
   private snackBar = inject(MatSnackBar);
 
   public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'actions'];
-  url = '/api/UserManagement/GetUsers';
+  url = '/api/users';
   // Rows of the user list are never null (PaginationResult<UserResponseDto> on the server).
   readonly parseUser = (row: unknown) => parseUser(row)!;
 

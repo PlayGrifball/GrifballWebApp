@@ -151,43 +151,43 @@ export class ApiClientService {
 
   /** The gamertag claims with this status, for the sysadmins to review. */
   getGamertagClaims(status: GamertagClaimStatus): Observable<GamertagClaimDto[]> {
-    return this.http.get<GamertagClaimDto[]>('/api/GamertagClaims/GetClaims', { params: new HttpParams().set('status', status) });
+    return this.http.get<GamertagClaimDto[]>('/api/gamertag-claims', { params: new HttpParams().set('status', status) });
   }
 
   /** Answers 204; a refusal is a 400 or 409 with a ProblemDetails body. */
   approveGamertagClaim(gamertagClaimID: number): Observable<void> {
-    return this.http.post<void>('/api/GamertagClaims/ApproveClaim/' + gamertagClaimID, null);
+    return this.http.post<void>(`/api/gamertag-claims/${gamertagClaimID}/approve`, null);
   }
 
   /** Answers 204; a refusal is a 400 or 409 with a ProblemDetails body. The reason, if any, is shown to the claimant. */
   rejectGamertagClaim(gamertagClaimID: number, reason: string | null = null): Observable<void> {
-    return this.http.post<void>('/api/GamertagClaims/RejectClaim/' + gamertagClaimID, { reason });
+    return this.http.post<void>(`/api/gamertag-claims/${gamertagClaimID}/reject`, { reason });
   }
 
   /** Placeholders that may be the same player as another user, for a sysadmin to merge or dismiss. */
   getDuplicateSuggestions(): Observable<DuplicateSuggestionDto[]> {
-    return this.http.get<DuplicateSuggestionDto[]>('/api/GamertagClaims/DuplicateSuggestions');
+    return this.http.get<DuplicateSuggestionDto[]>('/api/duplicate-suggestions');
   }
 
   /** Merges the suggested placeholder into the other user (audited); a refusal is a 400 or 409 with a ProblemDetails body. */
   mergeDuplicate(sourceUserID: number, targetUserID: number): Observable<void> {
-    return this.http.post<void>('/api/GamertagClaims/MergeDuplicate', { sourceUserID, targetUserID });
+    return this.http.post<void>('/api/duplicate-suggestions/merge', { sourceUserID, targetUserID });
   }
 
   /** The pair are different players: not suggested again. */
   dismissDuplicate(sourceUserID: number, targetUserID: number): Observable<void> {
-    return this.http.post<void>('/api/GamertagClaims/DismissDuplicate', { sourceUserID, targetUserID });
+    return this.http.post<void>('/api/duplicate-suggestions/dismiss', { sourceUserID, targetUserID });
   }
 
   /** The merges' audit trail, newest first. */
   getUserMerges(pageNumber: number, pageSize: number): Observable<PaginationResult<UserMergeDto>> {
     const params = new HttpParams().set('pageNumber', pageNumber).set('pageSize', pageSize);
-    return this.http.get<PaginationResult<UserMergeDto>>('/api/UserMerges/List', { params });
+    return this.http.get<PaginationResult<UserMergeDto>>('/api/user-merges', { params });
   }
 
   /** Puts back what a merge changed; a refusal is a 409 whose ProblemDetails says why. */
   undoUserMerge(userMergeID: number, note: string | null): Observable<void> {
-    return this.http.post<void>('/api/UserMerges/Undo/' + userMergeID, { note });
+    return this.http.post<void>(`/api/user-merges/${userMergeID}/undo`, { note });
   }
 
   /** What claiming a past gamertag would merge, for the signed-in user. */
@@ -212,17 +212,17 @@ export class ApiClientService {
 
   /** Records a gamertag an Xbox account went by. */
   addGamertagHistory(dto: AddGamertagHistoryDto): Observable<void> {
-    return this.http.post<void>('/api/GamertagClaims/AddGamertagHistory', dto);
+    return this.http.post<void>('/api/past-gamertags', dto);
   }
 
   /** Removes a row from an Xbox account's gamertag history; a refusal (not removable) is a 400 with a message. */
   removeGamertagHistory(xboxGamertagHistoryID: number): Observable<void> {
-    return this.http.delete<void>('/api/GamertagClaims/RemoveGamertagHistory/' + xboxGamertagHistoryID);
+    return this.http.post<void>(`/api/past-gamertags/${xboxGamertagHistoryID}/remove`, null);
   }
 
   /** Queues the background lookup of placeholders' current Xbox gamertags; answers 202 with the status right away. */
   lookUpXuids(): Observable<XuidLookupStatusDto> {
-    return this.http.post<XuidLookupStatusDto>('/api/GamertagClaims/LookUpXuids', null);
+    return this.http.post<XuidLookupStatusDto>('/api/xuid-lookups/run', null);
   }
 
   /** The historical archive's sources, with their last download. */
@@ -380,7 +380,7 @@ export class ApiClientService {
 
   /** How the background XUID lookup is going (for the gamertag claims page). */
   getXuidLookupStatus(): Observable<XuidLookupStatusDto> {
-    return this.http.get<XuidLookupStatusDto>('/api/GamertagClaims/XuidLookupStatus');
+    return this.http.get<XuidLookupStatusDto>('/api/xuid-lookups/status');
   }
 
   /** An Xbox account's current gamertag and history, by its XUID or a user's ID; null when there is no such account (404). */
@@ -390,7 +390,7 @@ export class ApiClientService {
       params = params.set('xboxUserID', query.xboxUserID);
     if (query.userID != null)
       params = params.set('userID', query.userID);
-    return this.http.get<PastGamertagsDto>('/api/GamertagClaims/PastGamertags', { params }).pipe(nullWhenNotFound());
+    return this.http.get<PastGamertagsDto>('/api/past-gamertags', { params }).pipe(nullWhenNotFound());
   }
 
   getCurrentSeasonID(): Observable<number> {

@@ -53,7 +53,7 @@ describe('EditUserComponent', () => {
 
   async function load(): Promise<void> {
     fixture.detectChanges();
-    http.expectOne('/api/usermanagement/getuser/15').flush(structuredClone(user));
+    http.expectOne('/api/users/15').flush(structuredClone(user));
     fixture.detectChanges();
     http.expectOne('/api/users/15/external-logins').flush({ hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '111', providerDisplayName: 'Discord' }] });
     fixture.detectChanges();
@@ -83,7 +83,7 @@ describe('EditUserComponent', () => {
   it('logs a failed load', () => {
     const log = spyOn(console, 'log');
     fixture.detectChanges();
-    http.expectOne('/api/usermanagement/getuser/15').flush('x', { status: 404, statusText: 'Not Found' });
+    http.expectOne('/api/users/15').flush('x', { status: 404, statusText: 'Not Found' });
     expect(log).toHaveBeenCalled();
   });
 
@@ -104,7 +104,7 @@ describe('EditUserComponent', () => {
     expect(before.displayName).toBe('Grif');
 
     component.onSubmit();
-    const req = http.expectOne('/api/usermanagement/edituser/');
+    const req = http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url));
     expect(req.request.method).toBe('POST');
     expect(req.request.body.displayName).toBe('Private Grif');
     expect(req.request.body.roles).toEqual([{ roleName: 'Sysadmin', hasRole: true }, { roleName: 'Commissioner', hasRole: true }]);
@@ -116,7 +116,7 @@ describe('EditUserComponent', () => {
     await load();
     const log = spyOn(console, 'log');
     component.onSubmit();
-    http.expectOne('/api/usermanagement/edituser/').flush('x', { status: 400, statusText: 'Bad Request' });
+    http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url)).flush('x', { status: 400, statusText: 'Bad Request' });
     expect(log).toHaveBeenCalled();
     expect(log).not.toHaveBeenCalledWith('Updated user');
   });
@@ -148,7 +148,7 @@ describe('EditUserComponent', () => {
     expect(component.model().userName).toBeUndefined();
     expect(el().textContent).not.toContain('Linked accounts');
 
-    http.expectOne('/api/usermanagement/getuser/16').flush({ ...structuredClone(user), userID: 16, userName: 'simmons', lockoutEnd: '2026-03-04T05:06:00+00:00' });
+    http.expectOne('/api/users/16').flush({ ...structuredClone(user), userID: 16, userName: 'simmons', lockoutEnd: '2026-03-04T05:06:00+00:00' });
     fixture.detectChanges();
     http.expectOne('/api/users/16/external-logins').flush({ hasPassword: true, logins: [] });
     await fixture.whenStable();
@@ -159,18 +159,18 @@ describe('EditUserComponent', () => {
     expect(el().textContent).toContain('No linked accounts.');
     // The new user's lockout is the one sent back untouched
     component.onSubmit();
-    const save = http.expectOne('/api/usermanagement/edituser/');
+    const save = http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url));
     expect(save.request.body.lockoutEnd).toBe('2026-03-04T05:06:00+00:00');
     save.flush(null);
   });
 
   it("drops the previous user's answer when it arrives late", () => {
     fixture.detectChanges();
-    const late = http.expectOne('/api/usermanagement/getuser/15');
+    const late = http.expectOne('/api/users/15');
 
     fixture.componentRef.setInput('userID', '16');
     fixture.detectChanges();
-    http.expectOne('/api/usermanagement/getuser/16').flush({ ...structuredClone(user), userID: 16, userName: 'simmons' });
+    http.expectOne('/api/users/16').flush({ ...structuredClone(user), userID: 16, userName: 'simmons' });
     late.flush(structuredClone(user));
 
     expect(component.model().userName).toBe('simmons');
@@ -180,7 +180,7 @@ describe('EditUserComponent', () => {
 
   it('fills the form once the user arrives, without a manual detectChanges', async () => {
     await fixture.whenStable();
-    http.expectOne('/api/usermanagement/getuser/15').flush(structuredClone(user));
+    http.expectOne('/api/users/15').flush(structuredClone(user));
     await fixture.whenStable();
 
     expect(el().querySelector('h1')?.textContent).toContain('Edit User 15');
@@ -189,13 +189,13 @@ describe('EditUserComponent', () => {
 
   it('loads lockoutEnd as a DateTime and sends it back unchanged when untouched', async () => {
     fixture.detectChanges();
-    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: '2026-03-04T05:06:00+00:00' });
+    http.expectOne('/api/users/15').flush({ ...structuredClone(user), lockoutEnd: '2026-03-04T05:06:00+00:00' });
     await fixture.whenStable();
     expect(component.model().lockoutEnd instanceof DateTime).toBeTrue();
 
     spyOn(console, 'log');
     component.onSubmit();
-    const req = http.expectOne('/api/usermanagement/edituser/');
+    const req = http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url));
     expect(req.request.body.lockoutEnd).toBe('2026-03-04T05:06:00+00:00');
     req.flush({});
   });
@@ -204,54 +204,54 @@ describe('EditUserComponent', () => {
     // DateTimeOffset.MaxValue, as the API sends it; any re-serialization would change it.
     const permanent = '9999-12-31T23:59:59.9999999+00:00';
     fixture.detectChanges();
-    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: permanent });
+    http.expectOne('/api/users/15').flush({ ...structuredClone(user), lockoutEnd: permanent });
     await fixture.whenStable();
     component.patch({ displayName: 'Renamed' });
 
     spyOn(console, 'log');
     component.onSubmit();
-    const body = http.expectOne('/api/usermanagement/edituser/').request.body;
+    const body = http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url)).request.body;
     expect(body.lockoutEnd).toBe(permanent);
     expect(body.displayName).toBe('Renamed');
   });
 
   it('sends the original string when the same instant is picked again', async () => {
     fixture.detectChanges();
-    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: '2026-03-04T05:06:07.1234567+00:00' });
+    http.expectOne('/api/users/15').flush({ ...structuredClone(user), lockoutEnd: '2026-03-04T05:06:07.1234567+00:00' });
     await fixture.whenStable();
     // A new DateTime for the same instant, in another zone, as a picker might hand back.
     component.patch({ lockoutEnd: component.model().lockoutEnd!.setZone('Europe/Berlin') });
 
     spyOn(console, 'log');
     component.onSubmit();
-    expect(http.expectOne('/api/usermanagement/edituser/').request.body.lockoutEnd).toBe('2026-03-04T05:06:07.1234567+00:00');
+    expect(http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url)).request.body.lockoutEnd).toBe('2026-03-04T05:06:07.1234567+00:00');
   });
 
   it('sends a changed lockout as ISO 8601 in UTC', async () => {
     fixture.detectChanges();
-    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: null });
+    http.expectOne('/api/users/15').flush({ ...structuredClone(user), lockoutEnd: null });
     await fixture.whenStable();
     component.patch({ lockoutEnd: DateTime.fromISO('2026-05-06T07:08:00+02:00') });
 
     spyOn(console, 'log');
     component.onSubmit();
-    expect(http.expectOne('/api/usermanagement/edituser/').request.body.lockoutEnd).toBe('2026-05-06T05:08:00.000Z');
+    expect(http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url)).request.body.lockoutEnd).toBe('2026-05-06T05:08:00.000Z');
   });
 
   it('sends a cleared lockout as null', async () => {
     fixture.detectChanges();
-    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: '2026-03-04T05:06:00+00:00' });
+    http.expectOne('/api/users/15').flush({ ...structuredClone(user), lockoutEnd: '2026-03-04T05:06:00+00:00' });
     await fixture.whenStable();
     component.patch({ lockoutEnd: null });
 
     spyOn(console, 'log');
     component.onSubmit();
-    expect(http.expectOne('/api/usermanagement/edituser/').request.body.lockoutEnd).toBeNull();
+    expect(http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url)).request.body.lockoutEnd).toBeNull();
   });
 
   it('keeps the empty form for a user that does not exist (204)', async () => {
     fixture.detectChanges();
-    http.expectOne('/api/usermanagement/getuser/15').flush(null, { status: 204, statusText: 'No Content' });
+    http.expectOne('/api/users/15').flush(null, { status: 204, statusText: 'No Content' });
     await fixture.whenStable();
     expect(el().querySelector<HTMLInputElement>('input[name="userName"]')!.value).toBe('');
   });
@@ -270,7 +270,7 @@ describe('EditUserComponent', () => {
     component.setRegion("3");
     spyOn(console, "log");
     component.onSubmit();
-    const req = http.expectOne("/api/usermanagement/edituser/");
+    const req = http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url));
     expect(req.request.body.regionID).toBe(3);
     req.flush({});
   });

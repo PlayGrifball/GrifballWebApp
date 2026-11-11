@@ -29,7 +29,7 @@ export class CreateUserComponent {
 
 
   onSubmit(): void {
-    this.http.post("/api/usermanagement/createuser", this.model).subscribe({
+    this.http.post("/api/users", this.model).subscribe({
       next: r => {
         this.snackbar.open('Created User');
       },

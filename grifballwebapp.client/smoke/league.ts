@@ -129,7 +129,7 @@ export async function createLockedOutUser(baseURL: string, admin: Api): Promise<
   const { user, api } = await newUser(baseURL, admin, `smoke-${smokeTag()}-lock`);
   await api.dispose();
   await admin.post('UserManagement/EditUser', { ...user, lockoutEnd: '9999-12-31T23:59:59.9999999+00:00' });
-  return admin.get<UserResponseDto>(`UserManagement/GetUser/${user.userID}`);
+  return admin.get<UserResponseDto>(`users/${user.userID}`);
 }
 
 /**
@@ -141,7 +141,7 @@ export async function newUser(baseURL: string, admin: Api, username: string):
   const credentials = { username, password: randomPassword() };
   await register(baseURL, credentials);
   const api = await Api.login(baseURL, credentials);
-  const user = await admin.get<UserResponseDto>(`UserManagement/GetUser/${api.userID}`);
+  const user = await admin.get<UserResponseDto>(`users/${api.userID}`);
   return { credentials, user, api };
 }
 

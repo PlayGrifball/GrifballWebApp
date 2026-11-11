@@ -234,13 +234,13 @@ test('the user search box debounces typing and the table shows the filtered user
   });
   const users = [user(1, 'grif', 'Grif', 'SgtGrif'), user(2, 'simmons', 'Simmons', 'Simmons')];
   const requests = await mockBackend(page, {
-    '/api/UserManagement/GetUsers': (route, url) => {
+    '/api/users': (route, url) => {
       const search = url.searchParams.get('search') ?? '';
       const results = users.filter(u => u.userName.includes(search));
       return json(route, { totalCount: results.length, results });
     },
   });
-  const searches = () => requests.filter(r => r.startsWith('GET /api/UserManagement/GetUsers') && r.includes('search='));
+  const searches = () => requests.filter(r => r.startsWith('GET /api/users') && r.includes('search='));
 
   await page.goto('/usermanagement');
   await expect(page.locator('tr.mat-mdc-row')).toHaveCount(2);

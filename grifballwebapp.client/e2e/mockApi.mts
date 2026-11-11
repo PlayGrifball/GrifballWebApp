@@ -724,7 +724,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     // The Infinite Client page in the default Gateway mode: the gateway's in-cluster address, plain HTTP as the chart's is
     '/api/Admin/HaloStatus': { mode: 'Gateway', gatewayUrl: 'http://halo-gateway.halo-gateway.svc:8080/', gatewayAdminUrl: 'https://grunt.grifball.xyz/admin', apiKeyConfigured: true, reachable: true, accountStatus: 'Healthy', apiCode: 200, healthy: true, message: 'Halo gateway account Healthy; test call: Halo Infinite API answered 200' }, // NOSONAR(S5332): mock data, an in-cluster address
     '/api/sheets/default': [{ name: 'Autumn Brawl results', spreadsheetID: '1xGrifballAutumnBrawl2026', sheetName: 'Week 3' }],
-    '/api/UserManagement/GetUsers': { totalCount: users.length, results: users },
+    '/api/users': { totalCount: users.length, results: users },
     // A user's password reset link (POST, the user management page's RESET PASSWORD)
     '/api/admin/generatepasswordresetlink': { resetLink: '/reset-password?token=e2e-reset-token', expiresAt: '2026-10-30T18:00:00Z' },
     ...Object.fromEntries(users.map(user => ['/api/usermanagement/getuser/' + user.userID, userDetail(user)])),
@@ -754,16 +754,16 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/vods/review': vodReview,
     // The gamertag claims page (/usermanagement/claims): four pending claims (?status=Pending, or no status), and its
     // Approved and Rejected tabs' decided ones
-    '/api/GamertagClaims/GetClaims': gamertagClaims,
-    '/api/GamertagClaims/GetClaims?status=Approved': [
+    '/api/gamertag-claims': gamertagClaims,
+    '/api/gamertag-claims?status=Approved': [
       { ...gamertagClaims[0], gamertagClaimID: 11, status: 'Approved', createdAt: '2026-10-20T15:20:00Z' },
       { ...gamertagClaims[2], gamertagClaimID: 13, status: 'Approved', createdAt: '2026-10-21T08:00:00Z' },
     ],
-    '/api/GamertagClaims/GetClaims?status=Rejected': [
+    '/api/gamertag-claims?status=Rejected': [
       { ...gamertagClaims[3], gamertagClaimID: 14, status: 'Rejected', rejectionReason: 'That was someone else: the 2009 roster lists Timer Old on Benchwarmers' },
     ],
     // Its "Find possible duplicates": an archive placeholder that looks like a user, and two placeholders alike
-    '/api/GamertagClaims/DuplicateSuggestions': [
+    '/api/duplicate-suggestions': [
       { sourceUserID: 503, sourceGamertag: 'Old School', targetUserID: 2, targetGamertag: 'OldSchool #1234', targetIsPlaceholder: false, match: 'Framing', distance: 0,
         sourceSeasons: [{ seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }], targetSeasons: [{ seasonID: 12, seasonName: 'Autumn Brawl', year: 2026 }] },
       { sourceUserID: 504, sourceGamertag: 'Timer Old', targetUserID: 502, targetGamertag: 'Old Timer', targetIsPlaceholder: true, match: 'Token', distance: 2,
@@ -795,10 +795,10 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       teams: teams.slice(0, 4).map(([teamID, teamName]) => ({ teamID: teamID + 20, teamName })),
       matches: [{ seasonMatchID: 201, label: 'Week 1: Red Rampage vs Blue Bombers', teamIDs: [21, 22] }, { seasonMatchID: 202, label: 'Week 1: Hammer Bros vs Sword Swallowers', teamIDs: [23, 24] }],
     },
-    '/api/UserMerges/List': { totalCount: userMerges.length, results: userMerges },
+    '/api/user-merges': { totalCount: userMerges.length, results: userMerges },
     // The signed-in admin's own profile (/profile/999): their claims of past gamertags
     '/api/me/gamertag-claims': [{ ...gamertagClaims[3], claimantUserID: 999, userID: 999, claimantName: 'Commander Grif', status: 'Rejected', rejectionReason: 'That was someone else' }],
-    '/api/GamertagClaims/XuidLookupStatus': { placeholders: 12, due: 3, found: 7, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-29T09:00:00Z' },
+    '/api/xuid-lookups/status': { placeholders: 12, due: 3, found: 7, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-29T09:00:00Z' },
     // A franchise's seasons, from its team of this season (the team page's "Franchise history" link)
     '/api/teams/1/history': teamHistory,
     '/api/late-league/queue': { gameCount: 96, players: lateLeaguePlayers(null) },
@@ -817,7 +817,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Telemetry/Traces': telemetryTraces,
     '/api/Telemetry/Trace': telemetryTrace,
     // The past gamertags page (/usermanagement/pastgamertags?xboxUserID=...): one manually-added row, one detected from a rename
-    '/api/GamertagClaims/PastGamertags': {
+    '/api/past-gamertags': {
       xboxUserID: 2535400000000117, currentGamertag: 'MasterChief117', userID: 117,
       pastGamertags: [
         { xboxGamertagHistoryID: 1, xboxUserID: 2535400000000117, gamertag: 'Legendary', firstSeen: '2010-01-01T00:00:00Z',
