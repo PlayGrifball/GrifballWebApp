@@ -309,7 +309,7 @@ test('the team builder renders a captain added by another user over SignalR', as
 });
 
 test('the signup form ticks single slots and whole days, and submits the chosen option ids', async ({ page }) => {
-  // Exactly what GET /api/Signups/getTimeslots sends (GrifballWebApp.Server.Signups.TimeslotDto):
+  // Exactly what GET /api/seasons/{seasonID}/signups/mine/timeslots sends (GrifballWebApp.Server.Signups.TimeslotDto):
   // optionID, the day as the enum name, the time as "HH:mm:ss", isChecked.
   const timeslots = [
     { optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
@@ -319,13 +319,14 @@ test('the signup form ticks single slots and whole days, and submits the chosen 
   ];
   const posted: any[] = [];
   await mockBackend(page, {
-    // No signup yet: the action returns Ok(null), which ASP.NET sends as 204 No Content.
-    '/api/Signups/getSignup/5': route => route.fulfill({ status: 204, body: '' }),
-    '/api/Signups/getTimeslots/5': route => json(route, timeslots),
-    '/api/Signups/UpsertSignup/': route => {
+    // GET: no signup yet (204 No Content); POST: the signup, saved (204)
+    '/api/seasons/5/signups/mine': route => {
+      if (route.request().method() === 'GET')
+        return route.fulfill({ status: 204, body: '' });
       posted.push(route.request().postDataJSON());
-      return route.fulfill({ status: 200, body: '' });
+      return route.fulfill({ status: 204, body: '' });
     },
+    '/api/seasons/5/signups/mine/timeslots': route => json(route, timeslots),
   });
 
   await page.goto('/season/5/signupForm');

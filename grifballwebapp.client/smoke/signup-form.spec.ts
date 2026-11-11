@@ -64,7 +64,7 @@ test.describe('signup form', () => {
     await expect(page.getByText('Signup Submitted')).toBeVisible();
 
     // The payload names slots by the season's optionIDs.
-    const options = await admin.get<TimeslotDto[]>(`Signups/GetTimeslots/${league.seasonID}?offset=0`);
+    const options = await admin.get<TimeslotDto[]>(`seasons/${league.seasonID}/signups/mine/timeslots?offset=0`);
     const optionID = new Map(options.map(o => [key(o), o.optionID]));
     const wanted = ['Monday 19:00:00', 'Monday 21:00:00', 'Tuesday 21:00:00',
       'Wednesday 19:00:00', 'Wednesday 20:00:00', 'Wednesday 21:00:00', 'Wednesday 22:00:00'];
@@ -74,7 +74,7 @@ test.describe('signup form', () => {
     expect(sentTicked.map(key).sort()).toEqual([...wanted].sort());
 
     // The server kept exactly those, and the form shows them again after a reload.
-    const saved = await admin.get<{ timeslots: TimeslotDto[] }>(`Signups/GetSignup/${league.seasonID}?offset=0`);
+    const saved = await admin.get<{ timeslots: TimeslotDto[] }>(`seasons/${league.seasonID}/signups/mine?offset=0`);
     expect(saved.timeslots.filter(t => t.isChecked).map(key).sort()).toEqual([...wanted].sort());
 
     await page.reload();

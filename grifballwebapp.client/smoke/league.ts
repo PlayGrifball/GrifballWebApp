@@ -110,8 +110,8 @@ async function createPlayer(baseURL: string, admin: Api, username: string, seaso
       roles: user.roles.map(r => ({ ...r, hasRole: r.hasRole || r.roleName === 'Player' })),
     });
     await api.relogin(); // Roles are in the token.
-    const timeslots = await api.get<TimeslotDto[]>(`Signups/GetTimeslots/${seasonID}?offset=0`);
-    await api.post('Signups/UpsertSignup', {
+    const timeslots = await api.get<TimeslotDto[]>(`seasons/${seasonID}/signups/mine/timeslots?offset=0`);
+    await api.post(`seasons/${seasonID}/signups/mine`, {
       seasonID,
       teamName: captainOf,
       willCaptain: captainOf !== null,

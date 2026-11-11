@@ -60,6 +60,8 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
     {
         TeamServiceException => Refusal(StatusCodes.Status400BadRequest, "Request refused", exception.Message),
         SignupsClosedException => Refusal(StatusCodes.Status400BadRequest, "Request refused", "Signups are closed for this season"),
+        SignupNeedsGamertagException => Refusal(StatusCodes.Status400BadRequest, "Request refused", exception.Message),
+        SignupTeamNameTooLongException => Refusal(StatusCodes.Status400BadRequest, "Request refused", exception.Message),
         MergeConflictException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
         MergeUndoRefusedException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
         UserHasHistoricalStatsException => Refusal(StatusCodes.Status409Conflict, "Conflict", "User has historical stats; merge instead."),

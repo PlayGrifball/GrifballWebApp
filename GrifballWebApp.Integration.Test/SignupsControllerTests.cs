@@ -37,23 +37,26 @@ public class SignupsControllerTests
     }
 
     [Test]
-    public async Task GetSignupDateInfo_UsesPersonIdClaim()
+    public async Task GetSignups_ShowsTheDisplayName_NeverTheLoginName()
     {
-        var user = await AddUser();
-        var season = await SignupTestData.OpenSeason(_context);
-        _context.SeasonSignups.Add(SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: DateTime.UtcNow, teamName: "x"));
+        // Public: a player with only a display name is listed by it; one with no name to show by none, not their login
+        var shown = User.Seed(userName: "login-shown", displayName: "Shown Name");
+        var nameless = User.Seed(userName: "login-nameless");
+        _context.Users.AddRange(shown, nameless);
         await _context.SaveChangesAsync();
-        _controller.ControllerContext = new ControllerContext
+        var season = await SignupTestData.OpenSeason(_context);
+        _context.SeasonSignups.AddRange(SeasonSignup.Seed(season.SeasonID, shown.Id, timestamp: DateTime.UtcNow, teamName: "a"),
+            SeasonSignup.Seed(season.SeasonID, nameless.Id, timestamp: DateTime.UtcNow, teamName: "b"));
+        await _context.SaveChangesAsync();
+
+        var result = await _controller.GetSignups(season.SeasonID, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
         {
-            HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext
-            {
-                User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim("PersonID", user.Id.ToString())], "Test")),
-            },
-        };
-
-        var result = (SignupDateInfoDto[])((OkObjectResult)await _controller.GetSignupDateInfo(CancellationToken.None)).Value!;
-
-        Assert.That(result.Single(r => r.SeasonID == season.SeasonID).IsSignedUp, Is.True);
+            Assert.That(result.Single(r => r.UserID == shown.Id).PersonName, Is.EqualTo("Shown Name"));
+            Assert.That(result.Single(r => r.UserID == nameless.Id).PersonName, Is.Empty);
+            Assert.That(result.Select(r => r.PersonName), Has.None.StartsWith("login-"));
+        }
     }
 
     [Test]
@@ -77,42 +80,41 @@ public class SignupsControllerTests
         var season = await SignupTestData.OpenSeason(_context);
         _controller.WithUser(user.Id.ToString(), "player", "Player");
 
-        var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID, UserID = other.Id, TeamName = "Mine" }, CancellationToken.None);
+        var result = await _controller.UpsertSignup(season.SeasonID, new SignupRequestDto { SeasonID = season.SeasonID, UserID = other.Id, TeamName = "Mine" }, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<OkResult>());
+        Assert.That(result, Is.TypeOf<NoContentResult>());
         var signup = await _context.SeasonSignups.SingleAsync();
         Assert.That(signup.UserID, Is.EqualTo(user.Id));
 
         var get = (SignupResponseDto)((OkObjectResult)await _controller.GetSignup(season.SeasonID, 0, CancellationToken.None)).Value!;
         Assert.That(get.TeamName, Is.EqualTo("Mine"));
-        var slots = (TimeslotDto[])((OkObjectResult)await _controller.GetTimeslots(season.SeasonID, 0, CancellationToken.None)).Value!;
+        var slots = (await _controller.GetTimeslots(season.SeasonID, 0, CancellationToken.None)).Value!;
         Assert.That(slots, Is.Empty);
     }
 
     [Test]
-    public async Task UpsertSignup_SignupsClosed_ReturnsBadRequest()
+    public async Task UpsertSignup_SignupsClosed_IsRefused()
     {
         var user = await AddUser();
         var season = await SignupTestData.OpenSeason(_context, open: false);
         _controller.WithUser(user.Id.ToString());
 
-        var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID }, CancellationToken.None);
-
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Signups are closed for this season"));
+        // GlobalExceptionHandler answers it as a 400 ProblemDetails
+        Assert.That(() => _controller.UpsertSignup(season.SeasonID, new SignupRequestDto { SeasonID = season.SeasonID }, CancellationToken.None),
+            Throws.InstanceOf<SignupsClosedException>());
     }
 
     [Test]
-    public async Task UpsertSignup_CaptainTeamNameTooLong_ReturnsBadRequest_AndSavesNothing()
+    public async Task UpsertSignup_CaptainTeamNameTooLong_IsRefused_AndSavesNothing()
     {
         var user = await AddUser();
         var season = await SignupTestData.OpenSeason(_context);
         _controller.WithUser(user.Id.ToString());
 
-        var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = true, TeamName = new string('x', Team.TeamNameMaxLength + 1) }, CancellationToken.None);
-
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Team name must be 30 characters or fewer"));
+            Assert.That(() => _controller.UpsertSignup(season.SeasonID, new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = true, TeamName = new string('x', Team.TeamNameMaxLength + 1) }, CancellationToken.None),
+                Throws.InstanceOf<SignupTeamNameTooLongException>().With.Message.EqualTo("Team name must be 30 characters or fewer"));
             Assert.That(await _context.SeasonSignups.AnyAsync(), Is.False);
         }
     }
@@ -125,11 +127,11 @@ public class SignupsControllerTests
         _controller.WithUser(user.Id.ToString());
         var name = new string('x', Team.TeamNameMaxLength);
 
-        var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = true, TeamName = name }, CancellationToken.None);
+        var result = await _controller.UpsertSignup(season.SeasonID, new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = true, TeamName = name }, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.TypeOf<OkResult>());
+            Assert.That(result, Is.TypeOf<NoContentResult>());
             Assert.That((await _context.SeasonSignups.SingleAsync()).TeamName, Is.EqualTo(name));
         }
     }
@@ -142,11 +144,11 @@ public class SignupsControllerTests
         _controller.WithUser(user.Id.ToString());
         var name = new string('x', Team.TeamNameMaxLength);
 
-        var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = true, TeamName = "  " + name + " " }, CancellationToken.None);
+        var result = await _controller.UpsertSignup(season.SeasonID, new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = true, TeamName = "  " + name + " " }, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.TypeOf<OkResult>());
+            Assert.That(result, Is.TypeOf<NoContentResult>());
             Assert.That((await _context.SeasonSignups.SingleAsync()).TeamName, Is.EqualTo(name));
         }
     }
@@ -158,20 +160,19 @@ public class SignupsControllerTests
         var season = await SignupTestData.OpenSeason(_context);
         _controller.WithUser(user.Id.ToString());
 
-        var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = false, TeamName = new string('x', 40) }, CancellationToken.None);
+        var result = await _controller.UpsertSignup(season.SeasonID, new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = false, TeamName = new string('x', 40) }, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<OkResult>());
+        Assert.That(result, Is.TypeOf<NoContentResult>());
     }
 
     [Test]
-    public async Task UpsertSignup_WithoutAGamertag_ReturnsBadRequestSayingHowToSetOne()
+    public async Task UpsertSignup_WithoutAGamertag_IsRefusedSayingHowToSetOne()
     {
         var user = await AddUser("no-gamertag");
         var season = await SignupTestData.OpenSeason(_context, open: true);
         _controller.WithUser(user.Id.ToString());
 
-        var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID }, CancellationToken.None);
-
-        Assert.That((result as BadRequestObjectResult)?.Value, Is.EqualTo(SignupNeedsGamertagException.Reason));
+        Assert.That(() => _controller.UpsertSignup(season.SeasonID, new SignupRequestDto { SeasonID = season.SeasonID }, CancellationToken.None),
+            Throws.InstanceOf<SignupNeedsGamertagException>().With.Message.EqualTo(SignupNeedsGamertagException.Reason));
     }
 }

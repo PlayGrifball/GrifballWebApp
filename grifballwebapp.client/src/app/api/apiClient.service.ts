@@ -406,24 +406,24 @@ export class ApiClientService {
   }
 
   getSignups(seasonID: number): Observable<SignupResponseDto[]> {
-    return this.http.get<SignupResponseDto[]>('/api/Signups/getSignups/' + seasonID);
+    return this.http.get<SignupResponseDto[]>(`/api/seasons/${seasonID}/signups`);
   }
 
   getTimeslots(seasonID: number, offset: number): Observable<TimeslotDto[]> {
-    let path = '/api/Signups/getTimeslots/' + seasonID;
+    let path = `/api/seasons/${seasonID}/signups/mine/timeslots`;
     path += '?offset=' + offset;
     return this.http.get<TimeslotDto[]>(path);
   }
 
   getSignup(seasonID: number, offset: number): Observable<SignupResponseDto> {
-    let path = '/api/Signups/getSignup/' + seasonID;
+    let path = `/api/seasons/${seasonID}/signups/mine`;
     path += '?offset=' + offset;
     return this.http.get<SignupResponseDto>(path);
   }
 
   // The timeslots keep the API's time format: the availability table only formats copies for display.
   upsertSignup(signupDto: SignupRequestDto): Observable<Object> {
-    return this.http.post('/api/Signups/UpsertSignup/', signupDto);
+    return this.http.post(`/api/seasons/${signupDto.seasonID}/signups/mine`, signupDto);
   }
 
   getTeams(seasonID: number): Observable<TeamResponseDto[]> {

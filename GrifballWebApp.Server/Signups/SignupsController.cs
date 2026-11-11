@@ -5,10 +5,12 @@ using GrifballWebApp.Application.Signups;
 
 namespace GrifballWebApp.Server.Signups;
 
-[Route("[controller]/[action]")]
+/// <summary>A season's signups: the public list, and the signed-in player's own signup and its timeslots.</summary>
 [ApiController]
 public class SignupsController : ControllerBase
 {
+    private const string NotSignedIn = "You must be logged in to sign up for a season";
+
     private readonly SignupsService _signupsService;
 
     public SignupsController(SignupsService signupsService)
@@ -16,71 +18,66 @@ public class SignupsController : ControllerBase
         _signupsService = signupsService;
     }
 
-    // TODO: Can this be removed? I don't see it being called
+    /// <summary>The season's signups, each by the name the app shows for the player (never their login name).</summary>
     [AllowAnonymous]
-    [HttpGet(Name = "GetSignupDateInfo")]
-    public async Task<IActionResult> GetSignupDateInfo(CancellationToken ct)
-    {
-        var personID = int.TryParse(User.FindFirstValue("PersonID"), out var id) ? id : 0;
-        return Ok(await _signupsService.GetSignupDateInfo(personID, ct));
-    }
-
-    [AllowAnonymous]
-    [HttpGet("{seasonID:int}", Name = "GetSignups")]
+    [HttpGet("seasons/{seasonID:int}/signups", Name = "GetSignups")]
+    [ProducesResponseType<List<SignupResponseDto>>(StatusCodes.Status200OK)]
     public Task<List<SignupResponseDto>> GetSignups([FromRoute] int seasonID, CancellationToken ct)
     {
         return _signupsService.GetSignups(seasonID: seasonID, ct);
     }
 
+    /// <summary>The season's timeslots, checked where the signed-in player's signup has them, in their time zone (offset in minutes).</summary>
     [Authorize]
-    [HttpGet("{seasonID:int}", Name = "GetTimeslots")]
-    public async Task<IActionResult> GetTimeslots([FromRoute] int seasonID, [FromQuery] int offset, CancellationToken ct)
+    [HttpGet("seasons/{seasonID:int}/signups/mine/timeslots", Name = "GetTimeslots")]
+    [ProducesResponseType<TimeslotDto[]>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+    public async Task<ActionResult<TimeslotDto[]>> GetTimeslots([FromRoute] int seasonID, [FromQuery] int offset, CancellationToken ct)
     {
         var userID = GetUserID();
         if (userID == 0)
-            return Unauthorized("You must be logged in to get timeslots");
+            return this.UnauthorizedProblem(NotSignedIn);
 
-        return Ok(await _signupsService.GetTimeslots(seasonID: seasonID, offset: offset, userID: userID, ct));
+        return await _signupsService.GetTimeslots(seasonID: seasonID, offset: offset, userID: userID, ct);
     }
 
+    /// <summary>The signed-in player's signup for the season; 204 when they have none.</summary>
     [Authorize(Roles = "Player,Sysadmin")]
-    [HttpGet("{seasonID:int}", Name = "GetSignup")]
+    [HttpGet("seasons/{seasonID:int}/signups/mine", Name = "GetSignup")]
+    [ProducesResponseType<SignupResponseDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
     public async Task<IActionResult> GetSignup([FromRoute] int seasonID, [FromQuery] int offset, CancellationToken ct)
     {
         var userID = GetUserID();
         if (userID == 0)
-            return Unauthorized("You must be logged in to get signup data");
+            return this.UnauthorizedProblem(NotSignedIn);
 
-        return Ok(await _signupsService.GetSignup(seasonID: seasonID, offset: offset, userID: userID, ct));
+        return await _signupsService.GetSignup(seasonID: seasonID, offset: offset, userID: userID, ct) is { } signup ? Ok(signup) : NoContent();
     }
 
+    /// <summary>Signs the signed-in player up for the season, or changes their signup.</summary>
     [Authorize(Roles = "Player,Sysadmin")]
-    [HttpPost(Name = "UpsertSignup")]
-    public async Task<IActionResult> UpsertSignup([FromBody] SignupRequestDto signupDto, CancellationToken ct)
+    [HttpPost("seasons/{seasonID:int}/signups/mine", Name = "UpsertSignup")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
+    public async Task<IActionResult> UpsertSignup([FromRoute] int seasonID, [FromBody] SignupRequestDto signupDto, CancellationToken ct)
     {
+        if (RouteIDs.Differs(signupDto.SeasonID, seasonID))
+            return this.BadRequestProblem(RouteIDs.Mismatch("season"));
         var userID = GetUserID();
         if (userID == 0)
-            return Unauthorized("You must be logged in to sign up for a season");
+            return this.UnauthorizedProblem(NotSignedIn);
 
+        signupDto.SeasonID = seasonID;
+        // The signed-in player's own signup, whoever the body names
         signupDto.UserID = userID;
-
-        try
-        {
-            await _signupsService.UpsertSignup(signupDto, ct);
-            return Ok();
-        }
-        catch (SignupsClosedException)
-        {
-            return BadRequest("Signups are closed for this season");
-        }
-        catch (SignupNeedsGamertagException e)
-        {
-            return BadRequest(e.Message);
-        }
-        catch (SignupTeamNameTooLongException e)
-        {
-            return BadRequest(e.Message);
-        }
+        // Closed signups, no gamertag or a team name too long: refused by GlobalExceptionHandler as 400 ProblemDetails
+        await _signupsService.UpsertSignup(signupDto, ct);
+        return NoContent();
     }
 
     private int GetUserID()
@@ -90,5 +87,4 @@ public class SignupsController : ControllerBase
             return 0;
         return int.TryParse(userIDStr, out var userID) ? userID : 0;
     }
-
 }

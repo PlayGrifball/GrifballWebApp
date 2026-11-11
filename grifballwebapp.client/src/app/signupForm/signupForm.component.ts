@@ -1,6 +1,6 @@
 import { Component, ChangeDetectionStrategy, computed, effect, inject, input, numberAttribute, untracked, viewChild, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -16,6 +16,7 @@ import { AvailabilityService } from '../availability.service';
 import { AccountService } from '../account.service';
 import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 import { whileCurrent } from '../shared/whileCurrent';
+import { errorText } from '../shared/errorText';
 
 @Component({
     selector: 'app-signup-form',
@@ -138,10 +139,10 @@ export class SignupFormComponent {
 
     this.api.upsertSignup(this.model()).subscribe({
       next: (result) => this.snackBar.open('Signup Submitted', 'OK'),
-      error: (result) =>
+      error: (result: HttpErrorResponse) =>
       {
         console.log(result);
-        this.snackBar.open('Error Occurred: ' + result.error, 'OK');
+        this.snackBar.open('Error Occurred: ' + errorText(result, 'The signup could not be saved'), 'OK');
       },
       });
   }

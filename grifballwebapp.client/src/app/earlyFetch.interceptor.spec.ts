@@ -80,12 +80,12 @@ describe('earlyFetchInterceptor', () => {
     early({
       '/api/CommitHash': { status: 200, contentType: 'text/plain', body: '9f3c2ab' },
       '/api/seasons/12/name': { status: 200, contentType: 'text/plain', body: 'Season 12' },
-      '/api/Signups/getSignup/13': { status: 204, contentType: null, body: '' },
+      '/api/seasons/13/signups/mine': { status: 204, contentType: null, body: '' },
     });
 
     expect(await firstValueFrom(http.get('/api/CommitHash', { responseType: 'text' }))).toBe('9f3c2ab');
     expect(await firstValueFrom(http.get('/api/seasons/12/name', { responseType: 'text' }))).toBe('Season 12');
-    expect(await firstValueFrom(http.get('/api/Signups/getSignup/13'))).toBeNull();
+    expect(await firstValueFrom(http.get('/api/seasons/13/signups/mine'))).toBeNull();
   });
 
   it('keeps the status and headers of the early response', async () => {

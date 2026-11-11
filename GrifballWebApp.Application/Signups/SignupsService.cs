@@ -17,25 +17,6 @@ public class SignupsService
         _time = time ?? TimeProvider.System;
         _context = grifballContext;
     }
-    public Task<SignupDateInfoDto[]> GetSignupDateInfo(int personID, CancellationToken ct)
-    {
-        // Signups opening within 30 days (by date) and closed no more than 3 days ago. Day boundaries
-        // worked out here rather than with DATEDIFF, which only SQL Server has.
-        var today = _time.GetUtcNow().UtcDateTime.Date;
-        var opensBefore = today.AddDays(31);
-        var closesFrom = today.AddDays(-3);
-        return _context.Seasons
-            .Where(s => s.SignupsOpen < opensBefore && s.SignupsClose >= closesFrom)
-            .Select(s => new SignupDateInfoDto()
-            {
-                SeasonID = s.SeasonID,
-                IsSignedUp = s.SeasonSignups.Any(x => x.UserID == personID),
-                SignupsClose = s.SignupsClose,
-                SignupsOpen = s.SignupsOpen,
-            })
-            .ToArrayAsync(ct);
-    }
-
     public Task<List<SignupResponseDto>> GetSignups(int seasonID, CancellationToken ct = default)
     {
         return _context.SeasonSignups

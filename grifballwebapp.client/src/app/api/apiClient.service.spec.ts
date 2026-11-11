@@ -510,7 +510,7 @@ describe('ApiClientService', () => {
         }
       });
 
-      const req = httpTestingController.expectOne('/api/Signups/getSignups/1');
+      const req = httpTestingController.expectOne('/api/seasons/1/signups');
       expect(req.request.method).toBe('GET');
       req.flush(mockSignups);
     });
@@ -527,7 +527,7 @@ describe('ApiClientService', () => {
         }
       });
 
-      const req = httpTestingController.expectOne('/api/Signups/getTimeslots/1?offset=300');
+      const req = httpTestingController.expectOne('/api/seasons/1/signups/mine/timeslots?offset=300');
       expect(req.request.method).toBe('GET');
       req.flush(mockTimeslots);
     });
@@ -544,7 +544,7 @@ describe('ApiClientService', () => {
         }
       });
 
-      const req = httpTestingController.expectOne('/api/Signups/getSignup/1?offset=300');
+      const req = httpTestingController.expectOne('/api/seasons/1/signups/mine?offset=300');
       expect(req.request.method).toBe('GET');
       req.flush(mockSignup);
     });
@@ -764,7 +764,7 @@ describe('ApiClientService', () => {
         next: () => done()
       });
 
-      const req = httpTestingController.expectOne('/api/Signups/UpsertSignup/');
+      const req = httpTestingController.expectOne('/api/seasons/1/signups/mine');
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(signupDto);
       expect(req.request.body.timeslots.map((t: any) => [t.optionID, t.isChecked])).toEqual([[41, true], [42, false]]);
