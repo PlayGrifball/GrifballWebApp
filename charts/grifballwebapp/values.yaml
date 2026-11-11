@@ -752,8 +752,8 @@ sqlExporter:
   # exporter connects (pgx) to the postgres database: its queries read the server's views, and it
   # works before the app's database exists.
   dsnOptions: ""
-  # Collectors the target runs, from the files below. Empty: the provider's, mssql_standard or
-  # pg_standard.
+  # Collectors the target runs, from the files below. Empty: the provider's, mssql_standard and
+  # mssql_io_writes, or pg_standard.
   collectors: []
   # More collector files (name.collector.yml: content), beside the provider's.
   extraCollectorFiles: {}

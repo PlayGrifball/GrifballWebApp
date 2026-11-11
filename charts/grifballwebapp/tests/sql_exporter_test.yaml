@@ -27,9 +27,11 @@ tests:
         documentIndex: 1
       - equal: { path: spec.template.spec.automountServiceAccountToken, value: false }
         documentIndex: 1
-      - matchRegex: { path: "data['sql_exporter.yml']", pattern: 'collectors: \["mssql_standard"\]' }
+      - matchRegex: { path: "data['sql_exporter.yml']", pattern: 'collectors: \["mssql_standard","mssql_io_writes"\]' }
         documentIndex: 0
       - matchRegex: { path: "data['mssql_standard.collector.yml']", pattern: "collector_name: mssql_standard" }
+        documentIndex: 0
+      - matchRegex: { path: "data['mssql_io_writes.collector.yml']", pattern: "collector_name: mssql_io_writes" }
         documentIndex: 0
 
   - it: uses its own login against an external server, with extra collectors

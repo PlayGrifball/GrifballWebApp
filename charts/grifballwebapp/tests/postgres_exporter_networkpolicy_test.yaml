@@ -20,6 +20,8 @@ tests:
         documentIndex: 0
       - notExists: { path: "data['mssql_standard.collector.yml']" }
         documentIndex: 0
+      - notExists: { path: "data['mssql_io_writes.collector.yml']" }
+        documentIndex: 0
       - matchRegex:
           path: "spec.template.spec.containers[0].args[0]"
           pattern: 'export SQLEXPORTER_TARGET_DSN="pgx://\$DB_USER:\$enc@\$DB_HOST:\$DB_PORT/postgres\?\$DSN_OPTIONS"'
