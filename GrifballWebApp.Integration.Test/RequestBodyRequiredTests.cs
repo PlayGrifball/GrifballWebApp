@@ -100,4 +100,20 @@ public class RequestBodyRequiredTests
         // What the action makes of it (a source or job that isn't there, a schedule not made yet) isn't this test's
         Assert.That(response.StatusCode, Is.Not.EqualTo(HttpStatusCode.BadRequest), await response.Content.ReadAsStringAsync());
     }
+
+    [Test]
+    public async Task A_create_answers_201_with_its_Location_under_the_api()
+    {
+        // The callers reach the API under /api (the Angular server strips it): the Location says so too
+        using var response = await _client.PostAsJsonAsync("/seasons/settings", new
+        {
+            SeasonID = 0, SeasonName = $"Location {Guid.NewGuid():N}"[..20], GameVersionID = 6,
+            SignupsOpen = "2030-01-01T00:00:00Z", SignupsClose = "2030-01-08T00:00:00Z", DraftStart = "2030-01-09T00:00:00Z",
+            SeasonStart = "2030-01-10T00:00:00Z", SeasonEnd = "2030-03-01T00:00:00Z",
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created), await response.Content.ReadAsStringAsync());
+        var seasonID = await response.Content.ReadFromJsonAsync<int>();
+        Assert.That(response.Headers.Location?.AbsolutePath, Is.EqualTo($"/api/seasons/{seasonID}/settings"));
+    }
 }

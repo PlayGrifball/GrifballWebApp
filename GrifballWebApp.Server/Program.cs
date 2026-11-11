@@ -346,6 +346,8 @@ public class Program
         // The workers and the discord process answer their health endpoints only.
         if (role.ServesApi)
         {
+            // A created or accepted answer's Location as its caller reaches it, under /api
+            app.Use(ApiLocations.UsePublicPrefix);
             app.MapControllers();
 
             // Hubs are not MVC, so CookieAntiforgeryFilter does not see them: refuse cookie sessions from other origins.

@@ -16,10 +16,31 @@ public class ApiConventionsTests
     private static IEnumerable<MethodInfo> Actions() =>
         typeof(GrifballWebApp.Server.Seasons.SeasonController).Assembly.GetTypes()
             .Where(t => typeof(ControllerBase).IsAssignableFrom(t) && !t.IsAbstract)
+            // Every action MVC would route: each public instance method a controller declares (not its property
+            // accessors or a [NonAction]), whether or not it has an Http* attribute
             .SelectMany(t => t.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly))
-            .Where(m => m.GetCustomAttributes<HttpMethodAttribute>().Any());
+            .Where(m => !m.IsSpecialName && m.GetCustomAttribute<NonActionAttribute>() is null);
 
     private static string Name(MethodInfo action) => $"{action.DeclaringType!.Name}.{action.Name}";
+
+    [Test]
+    public void EveryAction_HasAnHttpMethodAttribute()
+    {
+        // [HttpGet] or [HttpPost] with its route: not a bare [Route] or [AcceptVerbs], which the other rules here
+        // wouldn't see
+        var unmarked = Actions()
+            .Where(a => !a.GetCustomAttributes<HttpMethodAttribute>().Any()
+                || a.GetCustomAttributes<RouteAttribute>().Any()
+                || a.GetCustomAttributes<AcceptVerbsAttribute>().Any())
+            .Select(Name)
+            .ToList();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Actions(), Is.Not.Empty);
+            Assert.That(unmarked, Is.Empty);
+        }
+    }
 
     [Test]
     public void EveryAction_SaysWhoMayCallIt()
@@ -106,4 +127,45 @@ public class ApiConventionsTests
     }
 
     private sealed class ProbeController : ControllerBase;
+}
+
+[TestFixture]
+public class ApiLocationsTests
+{
+    private static DefaultHttpContext Answer(int status, string? location)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Host = new HostString("grifball.example");
+        context.Response.StatusCode = status;
+        if (location is not null)
+            context.Response.Headers.Location = location;
+        return context;
+    }
+
+    [TestCase(StatusCodes.Status201Created, "https://grifball.example/seasons/12/settings", "https://grifball.example/api/seasons/12/settings")]
+    [TestCase(StatusCodes.Status202Accepted, "/historical-imports/4", "/api/historical-imports/4")]
+    [TestCase(StatusCodes.Status201Created, "https://grifball.example/api/seasons/12/settings", "https://grifball.example/api/seasons/12/settings")]
+    [TestCase(StatusCodes.Status201Created, "/api/seasons/12/settings", "/api/seasons/12/settings")]
+    [TestCase(StatusCodes.Status201Created, "https://elsewhere.example/x", "https://elsewhere.example/x")]
+    [TestCase(StatusCodes.Status201Created, "//elsewhere.example/x", "//elsewhere.example/x")]
+    [TestCase(StatusCodes.Status201Created, "relative/x", "relative/x")]
+    [TestCase(StatusCodes.Status302Found, "/signin-discord", "/signin-discord")]
+    public void Prefix_PutsACreatedOrAcceptedLocationOnThisHostUnderTheApi(int status, string location, string expected)
+    {
+        var context = Answer(status, location);
+
+        ApiLocations.Prefix(context);
+
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Prefix_LeavesAnAnswerWithoutALocation()
+    {
+        var context = Answer(StatusCodes.Status201Created, null);
+
+        ApiLocations.Prefix(context);
+
+        Assert.That(context.Response.Headers.ContainsKey("Location"), Is.False);
+    }
 }
