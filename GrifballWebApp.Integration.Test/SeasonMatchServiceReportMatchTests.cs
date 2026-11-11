@@ -341,7 +341,7 @@ public class SeasonMatchServiceReportMatchTests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(ex!.Message, Is.EqualTo(SeasonMatchService.SeriesChangedMessage));
-                Assert.That(context.NewContextLike().Set<SeriesGame>().Select(g => g.MatchID), Is.EqualTo(new Guid?[] { first.MatchID }), "The series is as it was");
+                Assert.That(await context.NewContextLike().Set<SeriesGame>().Select(g => g.MatchID).ToListAsync(), Is.EqualTo(new Guid?[] { first.MatchID }), "The series is as it was");
             }
         });
     }
