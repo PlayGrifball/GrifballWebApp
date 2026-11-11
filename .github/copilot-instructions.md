@@ -9,7 +9,7 @@ GrifballWebApp is a full-stack web application for planning and organizing Grifb
 - **Framework**: .NET 10 with ASP.NET Core Web API
 - **Real-time**: SignalR for live updates
 - **Database**: Entity Framework Core with SQL Server (default) or PostgreSQL (`Database:Provider`)
-- **Authentication**: ASP.NET Identity with an HttpOnly session cookie and antiforgery tokens for browsers (password or Discord OAuth); bearer tokens for scripts (`/Identity/Login?useCookies=false`)
+- **Authentication**: ASP.NET Identity with an HttpOnly session cookie and antiforgery tokens for browsers (password or Discord OAuth); bearer tokens for scripts (`POST /api/identity/login?useCookies=false`)
 - **Logging**: Serilog with console, debug, and SQL Server sinks
 - **API Documentation**: Swagger/OpenAPI (Swashbuckle)
 - **External Integrations**: Discord bot integration, Google Sheets API, Halo Infinite stats via Grunt API

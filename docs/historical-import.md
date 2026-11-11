@@ -38,15 +38,15 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
 
 Sysadmins: User management > Historical Import (`/usermanagement/historicalimport`). "Refresh sources" downloads;
 "Import" runs a preview first, listing what each season would lose, then "Apply this import" imports exactly what was
-previewed. A compiled archive (the old JSON files) can still be uploaded with `POST /HistoricalImport/Import`.
+previewed. A compiled archive (the old JSON files) can still be uploaded with `POST /api/historical-imports`.
 
 ## Reading it
 
 An imported season is a season like any other, read through the same endpoints and pages as one run in the app or by
 the Discord bot; there is no separate archive API. What makes it imported is `Season.HistoricalSourceID` being set.
 
-- **Seasons**: `Season/GetSeasons` (the seasons page and the home page's past seasons) and
-  `Season/GetSeasonSummary/{id}` (the season page). Every DTO of or about a season carries `SeasonInfoDto`, projected in
+- **Seasons**: `GET /api/seasons` (the seasons page and the home page's past seasons) and
+  `GET /api/seasons/{seasonID}/summary` (the season page). Every DTO of or about a season carries `SeasonInfoDto`, projected in
   one place (`Seasons/SeasonInfoDto.cs`).
 - **Stats**: `SeasonStatsService` is the only reader of season player stats, for the season page, team page, profiles and
   leaderboards. A player's phase of a season (regular season or playoffs) is totalled from its games where the app has
@@ -56,8 +56,8 @@ the Discord bot; there is no separate archive API. What makes it imported is `Se
   archive Late League season (league or format Late League, or a name starting "Late League") a `MatchmakingSeason`,
   its games finished `MatchedMatch`es of recorded games, and its sheet totals `MatchmakingPlayerStat` rows. No teams,
   series, playoffs or titles. `MatchmakingStatsService` reads its stats (games first, as for seasons), for
-  `LateLeague/GetQueue` (the Discord queue's games: Late League as it is played now), `LateLeague/GetSeasons`,
-  `LateLeague/GetSeason/{id}`, profiles and the career leaderboards.
+  `GET /api/late-league/queue` (the Discord queue's games: Late League as it is played now), `GET /api/late-league/seasons`,
+  `GET /api/late-league/seasons/{matchmakingSeasonID}`, profiles and the career leaderboards.
 - **Records and titles**: a team's record is `TeamRecord.Of` (its matches, or its sheet's record when its matches are
   not in the app); titles are written by `ChampionshipService`, from the bracket for the app's seasons and from the
   champions record for imported ones (their bracket is rebuilt from game order and decides nothing).

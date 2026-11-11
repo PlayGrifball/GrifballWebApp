@@ -10,13 +10,13 @@ The password reset feature allows system administrators to generate secure, time
 
 ### Admin Endpoints (Sysadmin Only)
 
-The site itself calls these with the browser's session cookie (and an antiforgery token). From a script, sign in for a
-bearer token instead: `POST /Identity/Login?useCookies=false` with `{ "username": ..., "password": ... }` answers
+The API is under `/api` (the Angular server strips it on the way to the backend). The site itself calls these with the browser's session cookie (and an antiforgery token). From a script, sign in for a
+bearer token instead: `POST /api/identity/login?useCookies=false` with `{ "username": ..., "password": ... }` answers
 `{ "accessToken": ..., "refreshToken": ..., "expiresIn": ... }`; send the access token as below.
 
 #### Generate Password Reset Link
 ```http
-POST /Admin/GeneratePasswordResetLink
+POST /api/password-reset-links
 Authorization: Bearer <sysadmin-jwt-token>
 Content-Type: application/json
 
@@ -33,31 +33,25 @@ Content-Type: application/json
 }
 ```
 
-**Response (Error):**
+**Response (Error):** a 400 ProblemDetails whose `detail` says why, ex.
 ```json
-"User not found"
+{ "title": "Request refused", "status": 400, "detail": "User not found" }
 ```
-or
-```json
-"User does not have a password set (likely uses external login only)"
-```
+or `"detail": "User does not have a password set (likely uses external login only)"`.
 
 #### Cleanup Expired Links
 ```http
-POST /Admin/CleanupExpiredPasswordResetLinks
+POST /api/password-reset-links/cleanup
 Authorization: Bearer <sysadmin-jwt-token>
 ```
 
-**Response:**
-```json
-"Expired password reset links cleaned up"
-```
+**Response:** 204 No Content.
 
 ### Public Endpoint
 
 #### Use Password Reset Link
 ```http
-POST /Identity/ResetPassword
+POST /api/identity/password-reset
 Content-Type: application/json
 
 {
@@ -71,18 +65,8 @@ Content-Type: application/json
 "Password reset successfully"
 ```
 
-**Response (Error):**
-```json
-"Invalid or already used reset link"
-```
-or
-```json
-"Reset link has expired"
-```
-or
-```json
-"Failed to reset password: Password too weak"
-```
+**Response (Error):** a 400 ProblemDetails whose `detail` says why: `"Invalid or already used reset link"`,
+`"Reset link has expired"` or `"Failed to reset password: Password too weak"`.
 
 ## Security Features
 

@@ -158,11 +158,11 @@ the setting. Without either, the app still runs; only the Halo features (match i
 
 The **Infinite Client** page (`/infiniteclient`, sysadmins) shows which mode is active:
 
-- Gateway: the gateway's status from a fresh check (`Admin/HaloStatus`): whether the gateway answered, its Halo
+- Gateway: the gateway's status from a fresh check (`GET /api/halo/status`): whether the gateway answered, its Halo
   account's status (Healthy, or Degraded when it has to be signed in again), what a test call (one match's stats)
   through it answered, and whether this environment has an API key. The sign-in code and Delete Tokens controls are
-  hidden: the account is signed in centrally on the gateway's admin page, which the page links to. `Admin/SetCode` and
-  `Admin/DeleteTokens` answer 409 Conflict in this mode.
+  hidden: the account is signed in centrally on the gateway's admin page, which the page links to. `POST /api/halo/auth-code` and
+  `POST /api/halo/tokens/delete` answer 409 Conflict in this mode.
 - Direct: the page as it always was. Check status, open the Microsoft sign-in link it gives when signed out, and paste
   the code from the redirect; Delete Tokens clears the stored tokens.
 

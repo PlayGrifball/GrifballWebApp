@@ -109,7 +109,7 @@ empty). Stop the app first, or let it run: SQLite's source is read from one snap
 ## Backups from the site
 
 Sysadmins download the whole database from the **Database Backup** page (`/databasebackup`,
-`POST api/Backup/StartDownload?format=`), whichever server the site is on, in any of these formats:
+`POST api/backups/{format}`), whichever server the site is on, in any of these formats:
 
 - `sqlite`: a SQLite database made by the converter and checked against the source; a working database.
 - `postgres`, `sqlserver`: a script that builds the database on that server (`DatabaseScriptExporter`): the
@@ -122,11 +122,11 @@ Sysadmins download the whole database from the **Database Backup** page (`/datab
   backed up, and dropped.
 
 Each is made in the background, in the backend's temp folder, since a large one takes longer than a proxy waits for a
-response (Cloudflare gives up after 100 seconds): the page follows it (`api/Backup/DownloadStatus`), then fetches it
-(`api/Backup/Download`). It's kept for an hour, or until the next one starts. One backup or export runs at a time.
+response (Cloudflare gives up after 100 seconds): the page follows it (`api/backups/{format}/status`), then fetches it
+(`api/backups/{format}/file`). It's kept for an hour, or until the next one starts. One backup or export runs at a time.
 
-The same page exports the database straight into a new PostgreSQL, SQL Server or SQLite database (`api/Backup/Export`):
+The same page exports the database straight into a new PostgreSQL, SQL Server or SQLite database (`api/database-exports`):
 give the server and a connection string to a database that's missing or empty, and the converter runs in the
-backend, in the background, the page following it (`api/Backup/ExportStatus`). A database that already has tables is
+backend, in the background, the page following it (`api/database-exports/status`). A database that already has tables is
 refused. The connection string is used for that export only, never stored or logged. The backend's NetworkPolicy
 lets it reach its own database only: add the target to `networkPolicy.backend.extraEgress` first.
