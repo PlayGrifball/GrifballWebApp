@@ -130,7 +130,7 @@ public class ScheduleServiceTests
     {
         await Arrange();
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         Assert.That(async () => await _service.GetTimeRecommendations(SeasonID, cts.Token), Throws.InstanceOf<OperationCanceledException>());
     }

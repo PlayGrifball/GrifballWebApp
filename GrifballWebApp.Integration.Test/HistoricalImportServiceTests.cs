@@ -934,8 +934,8 @@ public class HistoricalImportServiceTests
         var playoff = Guid.NewGuid();
         // One match is in the database already; the others come through the data pull service
         await AddMatch(first, (100, "Hells Angel cx", Outcomes.Won, 30, 10), (200, "Inf3ktion", Outcomes.Lost, 10, 30));
-        _dataPull.When(d => d.GetAndSaveMatch(second)).Do(_ => AddMatch(second, (100, "Hells Angel cx", Outcomes.Lost, 20, 20)).GetAwaiter().GetResult());
-        _dataPull.When(d => d.GetAndSaveMatch(playoff)).Do(_ => AddMatch(playoff, (100, "Hells Angel cx", Outcomes.Won, 5, 1)).GetAwaiter().GetResult());
+        _dataPull.GetAndSaveMatch(second).Returns(_ => AddMatch(second, (100, "Hells Angel cx", Outcomes.Lost, 20, 20)));
+        _dataPull.GetAndSaveMatch(playoff).Returns(_ => AddMatch(playoff, (100, "Hells Angel cx", Outcomes.Won, 5, 1)));
         var input = new HistoricalArchiveInput
         {
             Seasons = new UnifiedArchive

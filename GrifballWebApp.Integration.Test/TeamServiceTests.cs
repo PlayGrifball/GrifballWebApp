@@ -257,7 +257,7 @@ public class TeamServiceTests
         for (var i = 0; i < 4; i++)
             await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = users[i].Id, OrderNumber = i + 1 }, resortOnly: false);
 
-        var secondTeam = _context.Teams.Single(t => t.TeamName == "Team user2");
+        var secondTeam = await _context.Teams.SingleAsync(t => t.TeamName == "Team user2");
         _context.Set<TeamPlayer>().Add(TeamPlayer.Seed(teamID: secondTeam.TeamID, userID: users[4].Id, draftRound: 1));
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
@@ -280,7 +280,7 @@ public class TeamServiceTests
             Assert.That(teams.Select(t => t.Captain.PersonID), Is.EqualTo(new[] { users[0].Id, users[2].Id, users[3].Id }));
             Assert.That(teams.Select(t => t.Captain.Order), Is.EqualTo(new int?[] { 1, 2, 3 }));
             Assert.That(captainOrders.Select(c => c.DraftCaptainOrder), Is.EqualTo(new int?[] { 1, 2, 3 }), "stored DraftCaptainOrder");
-            Assert.That(_context.Teams.Any(t => t.TeamID == secondTeam.TeamID), Is.False, "removed captain's team is deleted");
+            Assert.That(await _context.Teams.AnyAsync(t => t.TeamID == secondTeam.TeamID), Is.False, "removed captain's team is deleted");
             Assert.That(pool.Select(p => p.PersonID), Is.EquivalentTo(new[] { users[1].Id, users[4].Id }), "captain and their pick are back in the pool");
         }
     }

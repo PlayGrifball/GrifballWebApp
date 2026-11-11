@@ -150,7 +150,7 @@ public class DiscordJobsUnitTests
     public async Task AStoppingJob_IsNotTakenForAFailure()
     {
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
         var failures = Failures();
         var context = Firing(MatchmakingQueueJob.Key);
         await Assert.CatchAsync<OperationCanceledException>(async () => await failures.RunAsync(context, ct => Task.FromCanceled(ct), cts.Token));

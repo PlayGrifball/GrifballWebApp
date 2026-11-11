@@ -118,7 +118,7 @@ public class SeasonServiceTests
     {
         // Arrange
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         // Act & Assert
         await Assert.CatchAsync<OperationCanceledException>(() => _service.GetCurrentSeasonID(cts.Token));
@@ -196,7 +196,7 @@ public class SeasonServiceTests
     {
         // Arrange
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         // Act & Assert
         await Assert.CatchAsync<OperationCanceledException>(() => _service.GetSeasonName(1, cts.Token));
