@@ -59,9 +59,9 @@ test.describe('dates', () => {
 
     const displayName = `${user.userName} new`; // Display names: 30 characters at most.
     await page.locator('input[name="displayName"]').fill(displayName);
-    const saved = page.waitForResponse(r => /\/api\/UserManagement\/EditUser/i.test(r.url()));
+    const saved = page.waitForResponse(r => /\/api\/users\/\d+$/i.test(r.url()) && r.request().method() === 'POST');
     await page.getByRole('button', { name: 'Update User' }).click();
-    expect((await saved).status()).toBe(200);
+    expect((await saved).status()).toBe(204);
 
     const after = await admin.get<UserResponseDto>(`users/${user.userID}`);
     expect(after.displayName).toBe(displayName);

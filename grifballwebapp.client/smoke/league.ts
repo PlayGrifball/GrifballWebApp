@@ -105,7 +105,7 @@ async function createPlayer(baseURL: string, admin: Api, username: string, seaso
   captainOf: string | null): Promise<Player> {
   const { credentials, user, api } = await newUser(baseURL, admin, username);
   try {
-    await admin.post('UserManagement/EditUser', {
+    await admin.post(`users/${user.userID}`, {
       ...user,
       roles: user.roles.map(r => ({ ...r, hasRole: r.hasRole || r.roleName === 'Player' })),
     });
@@ -128,7 +128,7 @@ async function createPlayer(baseURL: string, admin: Api, username: string, seaso
 export async function createLockedOutUser(baseURL: string, admin: Api): Promise<UserResponseDto> {
   const { user, api } = await newUser(baseURL, admin, `smoke-${smokeTag()}-lock`);
   await api.dispose();
-  await admin.post('UserManagement/EditUser', { ...user, lockoutEnd: '9999-12-31T23:59:59.9999999+00:00' });
+  await admin.post(`users/${user.userID}`, { ...user, lockoutEnd: '9999-12-31T23:59:59.9999999+00:00' });
   return admin.get<UserResponseDto>(`users/${user.userID}`);
 }
 

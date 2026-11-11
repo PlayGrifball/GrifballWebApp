@@ -9,7 +9,7 @@ interface ViewerData {
   matches: { id: number; status: unknown; opponent1: { id: number | null } | null; opponent2: { id: number | null } | null }[];
 }
 
-const viewerData = (page: Page) => page.waitForResponse(r => /\/api\/Brackets\/GetViewerData/i.test(r.url()) && r.request().method() === 'GET');
+const viewerData = (page: Page) => page.waitForResponse(r => /\/api\/seasons\/\d+\/bracket\/viewer-data/i.test(r.url()) && r.request().method() === 'GET');
 
 test.describe('playoff bracket', () => {
   let league: League;

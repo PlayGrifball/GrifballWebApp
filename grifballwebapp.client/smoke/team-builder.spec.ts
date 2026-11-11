@@ -79,7 +79,7 @@ test.describe('team builder', () => {
 
       // 1. Draft a pool player onto a team, before the other browser is connected. Once it is, it
       //    loads the board again and shows the pick, without a page reload.
-      const pickSaved = a.waitForResponse(r => /\/api\/Teams\/addPlayerToTeam/i.test(r.url()));
+      const pickSaved = a.waitForResponse(r => /\/api\/seasons\/\d+\/draft\/picks/i.test(r.url()));
       await drag(poolItem(a, p3.name), playersArea(a, team1));
       await expect.poll(() => roster(a, team1)).toEqual([`1 ${p3.name}`]);
       await expect(poolItem(a, p3.name)).toHaveCount(0);
@@ -121,7 +121,7 @@ test.describe('team builder', () => {
       await openTeamBuilder(stale, league, { hub: false });
 
       // Saved before the stale browser tries: otherwise its request could win the race.
-      const saved = a.waitForResponse(r => /\/api\/Teams\/addPlayerToTeam/i.test(r.url()));
+      const saved = a.waitForResponse(r => /\/api\/seasons\/\d+\/draft\/picks/i.test(r.url()));
       await drag(poolItem(a, p5.name), playersArea(a, team2));
       expect((await saved).ok()).toBe(true);
       await expect.poll(() => roster(a, team2)).toEqual([`1 ${p3.name}`, `2 ${p5.name}`]);

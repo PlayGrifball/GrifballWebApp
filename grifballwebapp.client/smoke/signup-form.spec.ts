@@ -58,7 +58,7 @@ test.describe('signup form', () => {
     const expected = ['Monday 1', 'Monday 3', 'Tuesday 3', 'Wednesday 1', 'Wednesday 2', 'Wednesday 3', 'Wednesday 4'];
     await expect.poll(() => ticked(page)).toEqual(expected);
 
-    const upsert = page.waitForRequest(r => /\/api\/Signups\/UpsertSignup/i.test(r.url()) && r.method() === 'POST');
+    const upsert = page.waitForRequest(r => /\/api\/seasons\/\d+\/signups\/mine$/i.test(r.url()) && r.method() === 'POST');
     await page.getByRole('button', { name: 'Submit' }).click();
     const sent = (await upsert).postDataJSON() as { seasonID: number; timeslots: TimeslotDto[] };
     await expect(page.getByText('Signup Submitted')).toBeVisible();
