@@ -59,7 +59,7 @@ public sealed class AppRedis : IAsyncDisposable, IDisposable
         lock (_lock)
             connection = _connection;
         if (connection is { IsCompletedSuccessfully: true })
-            await connection.Result.DisposeAsync();
+            await (await connection).DisposeAsync();
     }
 
     // A container disposed synchronously (a test's using) closes it too
@@ -69,7 +69,9 @@ public sealed class AppRedis : IAsyncDisposable, IDisposable
         lock (_lock)
             connection = _connection;
         if (connection is { IsCompletedSuccessfully: true })
+#pragma warning disable VSTHRD002 // The task has completed (checked above): its Result can't block
             connection.Result.Dispose();
+#pragma warning restore VSTHRD002
     }
 }
 

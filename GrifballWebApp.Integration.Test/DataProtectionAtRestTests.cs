@@ -144,9 +144,9 @@ public class DataProtectionAtRestTests
             using var certificate = DataProtectionAtRest.Certificate(Configuration((DataProtectionAtRest.CertificateKey, Path.Combine(folder, "both.pem"))));
             var encrypted = Directory.CreateDirectory(Path.Combine(folder, "encrypted")).FullName;
             Provider(encrypted, certificate).CreateProtector("test").Protect("secret");
-            var encryptedXml = File.ReadAllText(Directory.GetFiles(encrypted, "key-*.xml").Single());
+            var encryptedXml = await File.ReadAllTextAsync(Directory.GetFiles(encrypted, "key-*.xml").Single());
             context.DataProtectionKeys.AddRange(
-                new DataProtectionKey { FriendlyName = "plain", Xml = File.ReadAllText(Directory.GetFiles(plain, "key-*.xml").Single()) },
+                new DataProtectionKey { FriendlyName = "plain", Xml = await File.ReadAllTextAsync(Directory.GetFiles(plain, "key-*.xml").Single()) },
                 new DataProtectionKey { FriendlyName = "encrypted", Xml = encryptedXml });
             await context.SaveChangesAsync();
 

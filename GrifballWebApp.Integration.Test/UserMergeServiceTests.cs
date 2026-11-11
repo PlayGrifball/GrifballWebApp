@@ -37,7 +37,7 @@ public class UserMergeServiceTests
         // Arrange
         var mergeFromUser = User.Seed(userName: "mergefrom", displayName: "Merge From");
         _context.Users.Add(mergeFromUser);
-        _context.SaveChanges();
+        await _context.SaveChangesAsync();
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<UserNotFoundException>(() => _service.Merge(999, mergeFromUser.Id, null, CancellationToken.None));
@@ -50,7 +50,7 @@ public class UserMergeServiceTests
         // Arrange
         var mergeToUser = User.Seed(userName: "mergeto", displayName: "Merge To");
         _context.Users.Add(mergeToUser);
-        _context.SaveChanges();
+        await _context.SaveChangesAsync();
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<UserNotFoundException>(() => _service.Merge(mergeToUser.Id, 999, null, CancellationToken.None));

@@ -31,7 +31,9 @@ public class AppForwardedHeadersTests
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(settings);
         if (cloudflare is null)
+#pragma warning disable VSTHRD103 // The sync overload is under test (the async one in the else)
             builder.Services.ConfigureAppForwardedHeaders(builder.Configuration);
+#pragma warning restore VSTHRD103
         else
             await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration, cloudflare);
 

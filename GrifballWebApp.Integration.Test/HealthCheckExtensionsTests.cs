@@ -26,7 +26,7 @@ public class HealthCheckExtensionsTests
         return TestDatabase.ConnectionString(SetUpFixture.DatabaseContainer, name);
     });
 
-    private static string ReachableDatabase() => MigratedDatabase.Value.GetAwaiter().GetResult();
+    private static Task<string> ReachableDatabase() => MigratedDatabase.Value;
 
     // Far above what the test process allocates, so the memory check (Degraded over its limit) can't decide a test that
     // expects Healthy: at the default limit, the whole suite's allocations sometimes tipped it.
@@ -63,7 +63,7 @@ public class HealthCheckExtensionsTests
     [Test]
     public async Task AllHealthy()
     {
-        await using var app = await StartApp(ReachableDatabase(), discordConnected: true, maxAllocatedMegabytes: NoMemoryLimitMegabytes);
+        await using var app = await StartApp(await ReachableDatabase(), discordConnected: true, maxAllocatedMegabytes: NoMemoryLimitMegabytes);
 
         using (Assert.EnterMultipleScope())
         {
@@ -89,7 +89,7 @@ public class HealthCheckExtensionsTests
     [Test]
     public async Task DiscordDownOrHighMemory_OnlyDegrades_AndNeverGatesReadiness()
     {
-        await using var app = await StartApp(ReachableDatabase(), discordConnected: false, maxAllocatedMegabytes: 1);
+        await using var app = await StartApp(await ReachableDatabase(), discordConnected: false, maxAllocatedMegabytes: 1);
 
         using (Assert.EnterMultipleScope())
         {
@@ -101,7 +101,7 @@ public class HealthCheckExtensionsTests
     [Test]
     public async Task HaloDown_OnlyDegrades_AndNeverGatesReadiness()
     {
-        await using var app = await StartApp(ReachableDatabase(), discordConnected: true, haloStatusCode: 503);
+        await using var app = await StartApp(await ReachableDatabase(), discordConnected: true, haloStatusCode: 503);
 
         using (Assert.EnterMultipleScope())
         {
@@ -114,7 +114,7 @@ public class HealthCheckExtensionsTests
     [Test]
     public async Task ConfiguredPaths_AreMapped_AndRecognised()
     {
-        await using var app = await StartApp(ReachableDatabase(), discordConnected: true, maxAllocatedMegabytes: NoMemoryLimitMegabytes, settings: new Dictionary<string, string?>
+        await using var app = await StartApp(await ReachableDatabase(), discordConnected: true, maxAllocatedMegabytes: NoMemoryLimitMegabytes, settings: new Dictionary<string, string?>
         {
             ["HealthChecks:Path"] = "/healthz",
             ["HealthChecks:LivePath"] = "/livez",

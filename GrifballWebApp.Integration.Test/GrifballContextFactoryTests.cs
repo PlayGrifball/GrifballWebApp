@@ -114,12 +114,12 @@ public class GrifballContextFactoryTests
             using var factoryContext = GrifballContextTestExtensions.FactoryFor(context).CreateDbContext();
             var season = NewSeason();
             factoryContext.Seasons.Add(season);
-            factoryContext.SaveChanges();
+            await factoryContext.SaveChangesAsync();
             var createdAt = season.CreatedAt;
 
             await Task.Delay(50);
             season.Edited(seasonName: "Renamed");
-            factoryContext.SaveChanges();
+            await factoryContext.SaveChangesAsync();
 
             using (Assert.EnterMultipleScope())
             {

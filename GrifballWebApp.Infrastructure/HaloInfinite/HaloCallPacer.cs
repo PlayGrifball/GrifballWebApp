@@ -142,14 +142,15 @@ public sealed class HaloCallPacer : IAsyncDisposable
         return true;
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 0)
         {
-            _stopping.Cancel();
+            await _stopping.CancelAsync();
             _stopping.Dispose();
         }
-        return _limiter?.DisposeAsync() ?? ValueTask.CompletedTask;
+        if (_limiter is not null)
+            await _limiter.DisposeAsync();
     }
 }
 

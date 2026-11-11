@@ -316,7 +316,7 @@ public class SeasonMatchServiceReportMatchTests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(ex!.Message, Is.EqualTo(SeasonMatchService.SeriesChangedMessage));
-                Assert.That(context.NewContextLike().Set<SeriesGame>().Any(), Is.False, "Nothing was saved");
+                Assert.That(await context.NewContextLike().Set<SeriesGame>().AnyAsync(), Is.False, "Nothing was saved");
             }
         });
     }

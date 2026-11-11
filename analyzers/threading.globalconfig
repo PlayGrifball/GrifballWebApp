@@ -1,0 +1,60 @@
+# Not generated (sonar-rules.sh writes the sonar-*.globalconfig files): Microsoft.VisualStudio.Threading.Analyzers.
+# The rules about .NET async correctness are errors; the rules that need Visual Studio's main thread or a
+# JoinableTaskFactory are off: Grif is an ASP.NET Core app (no SynchronizationContext, no main thread).
+# https://github.com/microsoft/vs-threading/blob/main/docfx/analyzers/index.md
+is_global = true
+
+# No sync blocking on a Task (.Result, .Wait(), GetAwaiter().GetResult())
+dotnet_diagnostic.VSTHRD002.severity = error
+# No async void (an exception crashes the process)
+dotnet_diagnostic.VSTHRD100.severity = error
+# No async lambda passed as a void-returning delegate
+dotnet_diagnostic.VSTHRD101.severity = error
+# In an async method, the async overload when there is one
+dotnet_diagnostic.VSTHRD103.severity = error
+# No overload that silently uses TaskScheduler.Current (Task.Factory.StartNew, ContinueWith without a scheduler)
+dotnet_diagnostic.VSTHRD105.severity = error
+# A Task in a using is awaited, not disposed
+dotnet_diagnostic.VSTHRD107.severity = error
+# A Task's result is observed (awaited, returned or assigned): no lost exceptions
+dotnet_diagnostic.VSTHRD110.severity = error
+# System.IAsyncDisposable alongside the VS IAsyncDisposable, and checked for
+dotnet_diagnostic.VSTHRD112.severity = error
+dotnet_diagnostic.VSTHRD113.severity = error
+# A Task-returning method never returns null
+dotnet_diagnostic.VSTHRD114.severity = error
+# [ThreadStatic] only on static fields, never initialized in a type initializer
+dotnet_diagnostic.VSTHRD116.severity = error
+dotnet_diagnostic.VSTHRD117.severity = error
+
+# Off: legacy VS thread switching (SwitchToMainThread); there is no main thread
+dotnet_diagnostic.VSTHRD001.severity = none
+# Off: "foreign Tasks" are about deadlocking a JoinableTaskFactory main thread; ASP.NET Core has none
+dotnet_diagnostic.VSTHRD003.severity = none
+# Off: SwitchToMainThreadAsync is a JoinableTaskFactory API
+dotnet_diagnostic.VSTHRD004.severity = none
+# Off: single-threaded (STA/main-thread) types are a VS concept
+dotnet_diagnostic.VSTHRD010.severity = none
+# Off: AsyncLazy<T> is the JoinableTaskFactory-aware Lazy; Lazy<Task<T>> can't deadlock without a main thread
+dotnet_diagnostic.VSTHRD011.severity = none
+# Off: JoinableTaskFactory parameters; not used
+dotnet_diagnostic.VSTHRD012.severity = none
+# Off: CompletedTaskAttribute only feeds VSTHRD003, which is off
+dotnet_diagnostic.VSTHRD013.severity = none
+# Off: "implement internal logic asynchronously" is about blocking a JoinableTaskFactory main thread
+dotnet_diagnostic.VSTHRD102.severity = none
+# Off: suggests a JoinableTaskFactory.Run-based async alternative to sync APIs
+dotnet_diagnostic.VSTHRD104.severity = none
+# Off: InvokeAsync is the VS.Threading AsyncEventHandler helper; not used
+dotnet_diagnostic.VSTHRD106.severity = none
+# Off: thread-affinity asserts (ThreadHelper) are VS main-thread checks
+dotnet_diagnostic.VSTHRD108.severity = none
+dotnet_diagnostic.VSTHRD109.severity = none
+# Off: ConfigureAwait(false) matters only under a SynchronizationContext; ASP.NET Core has none
+dotnet_diagnostic.VSTHRD111.severity = none
+# Off: JoinableTaskContext is not used
+dotnet_diagnostic.VSTHRD115.severity = none
+# Off for now: the Async suffix on every Task-returning method is a mass rename; the owner decides
+dotnet_diagnostic.VSTHRD200.severity = none
+# Off: eliding async/await is a micro-optimization that changes stack traces and exception timing, not a correctness rule
+dotnet_diagnostic.VSTHRD202.severity = none
