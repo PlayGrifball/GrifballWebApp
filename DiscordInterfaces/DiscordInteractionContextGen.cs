@@ -287,8 +287,8 @@ public partial interface IDiscordUser
     NetCord.PremiumType? PremiumType { get; }
     NetCord.UserFlags? PublicFlags { get; }
     IDiscordAvatarDecorationData? AvatarDecorationData { get; }
-    IDiscordCollectibles Collectibles { get; }
-    IDiscordUserPrimaryGuild PrimaryGuild { get; }
+    IDiscordCollectibles? Collectibles { get; }
+    IDiscordUserPrimaryGuild? PrimaryGuild { get; }
     bool HasAvatar { get; }
     bool HasBanner { get; }
     bool HasAvatarDecoration { get; }
@@ -344,7 +344,7 @@ public partial interface IDiscordJsonInteraction
     NetCord.Permissions AppPermissions { get; set; }
     string? UserLocale { get; set; }
     string? GuildLocale { get; set; }
-    IDiscordJsonEntitlement[] Entitlements { get; set; }
+    IReadOnlyList<IDiscordJsonEntitlement> Entitlements { get; set; }
     IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong>? AuthorizingIntegrationOwners { get; set; }
     NetCord.InteractionContextType? Context { get; set; }
     long AttachmentSizeLimit { get; set; }
@@ -770,8 +770,8 @@ public partial interface IDiscordGuildUser
     NetCord.PremiumType? PremiumType { get; }
     NetCord.UserFlags? PublicFlags { get; }
     IDiscordAvatarDecorationData? AvatarDecorationData { get; }
-    IDiscordCollectibles Collectibles { get; }
-    IDiscordUserPrimaryGuild PrimaryGuild { get; }
+    IDiscordCollectibles? Collectibles { get; }
+    IDiscordUserPrimaryGuild? PrimaryGuild { get; }
     bool HasAvatar { get; }
     bool HasBanner { get; }
     bool HasAvatarDecoration { get; }
@@ -1051,8 +1051,8 @@ public partial interface IDiscordPartialGuildUser
     NetCord.PremiumType? PremiumType { get; }
     NetCord.UserFlags? PublicFlags { get; }
     IDiscordAvatarDecorationData? AvatarDecorationData { get; }
-    IDiscordCollectibles Collectibles { get; }
-    IDiscordUserPrimaryGuild PrimaryGuild { get; }
+    IDiscordCollectibles? Collectibles { get; }
+    IDiscordUserPrimaryGuild? PrimaryGuild { get; }
     bool HasAvatar { get; }
     bool HasBanner { get; }
     bool HasAvatarDecoration { get; }
@@ -1184,9 +1184,9 @@ public partial interface IDiscordRestAuditLogEntry
     string? Reason { get; }
     ulong GuildId { get; }
     System.DateTimeOffset CreatedAt { get; }
-    bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, out IDiscordAuditLogChange change);
+    bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out IDiscordAuditLogChange change);
     IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression);
-    bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo, out IDiscordAuditLogChange change);
+    bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out IDiscordAuditLogChange change);
     IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo);
 }
 
@@ -2243,7 +2243,7 @@ public partial interface IDiscordJsonChannel
     NetCord.ChannelType Type { get; set; }
     ulong? GuildId { get; set; }
     int? Position { get; set; }
-    IDiscordJsonPermissionOverwrite[]? PermissionOverwrites { get; set; }
+    IReadOnlyList<IDiscordJsonPermissionOverwrite>? PermissionOverwrites { get; set; }
     string? Name { get; set; }
     string? Topic { get; set; }
     bool? Nsfw { get; set; }
@@ -2251,7 +2251,7 @@ public partial interface IDiscordJsonChannel
     int? Bitrate { get; set; }
     int? UserLimit { get; set; }
     int? Slowmode { get; set; }
-    IDiscordJsonUser[]? Users { get; set; }
+    IReadOnlyList<IDiscordJsonUser>? Users { get; set; }
     string? IconHash { get; set; }
     ulong? OwnerId { get; set; }
     ulong? ApplicationId { get; set; }
@@ -2268,7 +2268,7 @@ public partial interface IDiscordJsonChannel
     NetCord.Permissions? Permissions { get; set; }
     NetCord.ChannelFlags? Flags { get; set; }
     int? TotalMessageSent { get; set; }
-    IDiscordJsonForumTag[]? AvailableTags { get; set; }
+    IReadOnlyList<IDiscordJsonForumTag>? AvailableTags { get; set; }
     ulong[]? AppliedTags { get; set; }
     IDiscordJsonForumGuildChannelDefaultReaction? DefaultReactionEmoji { get; set; }
     int? DefaultThreadSlowmode { get; set; }
@@ -2308,7 +2308,7 @@ public partial interface IDiscordTypingScopeProperties
 {
     NetCord.Rest.TypingScopeProperties Original { get; }
     System.TimeSpan? Interval { get; set; }
-    TimeProvider TimeProvider { get; set; }
+    TimeProvider? TimeProvider { get; set; }
     IDiscordTypingScopeProperties WithInterval(System.TimeSpan? interval);
     IDiscordTypingScopeProperties WithTimeProvider(TimeProvider? timeProvider);
 }
@@ -2363,10 +2363,10 @@ public partial interface IDiscordUserPrimaryGuild
     NetCord.UserPrimaryGuild Original { get; }
     ulong? IdentityGuildId { get; }
     bool? IdentityEnabled { get; }
-    string Tag { get; }
-    string BadgeHash { get; }
+    string? Tag { get; }
+    string? BadgeHash { get; }
     bool HasBadge { get; }
-    IDiscordImageUrl GetBadgeUrl(NetCord.ImageFormat format);
+    IDiscordImageUrl? GetBadgeUrl(NetCord.ImageFormat format);
 }
 
 
@@ -2417,13 +2417,13 @@ public partial interface IDiscordJsonInteractionData
     string? Name { get; set; }
     NetCord.ApplicationCommandType? Type { get; set; }
     IDiscordJsonInteractionResolvedData? ResolvedData { get; set; }
-    IDiscordJsonApplicationCommandInteractionDataOption[]? Options { get; set; }
+    IReadOnlyList<IDiscordJsonApplicationCommandInteractionDataOption>? Options { get; set; }
     ulong? GuildId { get; set; }
     string? CustomId { get; set; }
     NetCord.ComponentType? ComponentType { get; set; }
     string[]? SelectedValues { get; set; }
     ulong? TargetId { get; set; }
-    IDiscordJsonComponent[]? Components { get; set; }
+    IReadOnlyList<IDiscordJsonComponent>? Components { get; set; }
 }
 
 
@@ -2475,8 +2475,8 @@ public partial interface IDiscordJsonUser
     NetCord.PremiumType? PremiumType { get; set; }
     NetCord.UserFlags? PublicFlags { get; set; }
     IDiscordJsonAvatarDecorationData? AvatarDecorationData { get; set; }
-    IDiscordJsonCollectibles Collectibles { get; set; }
-    IDiscordJsonUserPrimaryGuild PrimaryGuild { get; set; }
+    IDiscordJsonCollectibles? Collectibles { get; set; }
+    IDiscordJsonUserPrimaryGuild? PrimaryGuild { get; set; }
     IDiscordJsonGuildUser? GuildUser { get; set; }
     ulong Id { get; set; }
 }
@@ -2491,12 +2491,12 @@ public partial interface IDiscordJsonMessage
     System.DateTimeOffset? EditedAt { get; set; }
     bool? IsTts { get; set; }
     bool? MentionEveryone { get; set; }
-    IDiscordJsonUser[]? MentionedUsers { get; set; }
+    IReadOnlyList<IDiscordJsonUser>? MentionedUsers { get; set; }
     ulong[]? MentionedRoleIds { get; set; }
-    IDiscordJsonGuildChannelMention[]? MentionedChannels { get; set; }
-    IDiscordJsonAttachment[]? Attachments { get; set; }
-    IDiscordJsonEmbed[]? Embeds { get; set; }
-    IDiscordJsonMessageReaction[]? Reactions { get; set; }
+    IReadOnlyList<IDiscordJsonGuildChannelMention>? MentionedChannels { get; set; }
+    IReadOnlyList<IDiscordJsonAttachment>? Attachments { get; set; }
+    IReadOnlyList<IDiscordJsonEmbed>? Embeds { get; set; }
+    IReadOnlyList<IDiscordJsonMessageReaction>? Reactions { get; set; }
     string? Nonce { get; set; }
     bool? IsPinned { get; set; }
     ulong? WebhookId { get; set; }
@@ -2506,12 +2506,12 @@ public partial interface IDiscordJsonMessage
     ulong? ApplicationId { get; set; }
     NetCord.MessageFlags? Flags { get; set; }
     IDiscordJsonMessageReference? MessageReference { get; set; }
-    IDiscordJsonMessageSnapshot[]? MessageSnapshots { get; set; }
+    IReadOnlyList<IDiscordJsonMessageSnapshot>? MessageSnapshots { get; set; }
     IDiscordJsonMessage? ReferencedMessage { get; set; }
     IDiscordJsonMessageInteractionMetadata? InteractionMetadata { get; set; }
     IDiscordJsonChannel? StartedThread { get; set; }
-    IDiscordJsonComponent[]? Components { get; set; }
-    IDiscordJsonMessageSticker[]? Stickers { get; set; }
+    IReadOnlyList<IDiscordJsonComponent>? Components { get; set; }
+    IReadOnlyList<IDiscordJsonMessageSticker>? Stickers { get; set; }
     int? Position { get; set; }
     IDiscordJsonRoleSubscriptionData? RoleSubscriptionData { get; set; }
     ulong? GuildId { get; set; }
@@ -2519,7 +2519,7 @@ public partial interface IDiscordJsonMessage
     IDiscordJsonInteractionResolvedData? ResolvedData { get; set; }
     IDiscordJsonMessagePoll? Poll { get; set; }
     IDiscordJsonMessageCall? Call { get; set; }
-    IDiscordJsonSharedClientTheme SharedClientTheme { get; set; }
+    IDiscordJsonSharedClientTheme? SharedClientTheme { get; set; }
     ulong Id { get; set; }
 }
 
@@ -2560,8 +2560,8 @@ public partial interface IDiscordCurrentUser
     NetCord.PremiumType? PremiumType { get; }
     NetCord.UserFlags? PublicFlags { get; }
     IDiscordAvatarDecorationData? AvatarDecorationData { get; }
-    IDiscordCollectibles Collectibles { get; }
-    IDiscordUserPrimaryGuild PrimaryGuild { get; }
+    IDiscordCollectibles? Collectibles { get; }
+    IDiscordUserPrimaryGuild? PrimaryGuild { get; }
     bool HasAvatar { get; }
     bool HasBanner { get; }
     bool HasAvatarDecoration { get; }
@@ -2617,7 +2617,7 @@ public partial interface IDiscordCurrentApplication
     IReadOnlyList<string>? RedirectUris { get; }
     string? InteractionsEndpointUrl { get; }
     string? RoleConnectionsVerificationUrl { get; }
-    string EventWebhooksUrl { get; }
+    string? EventWebhooksUrl { get; }
     NetCord.ApplicationEventWebhooksStatus EventWebhooksStatus { get; }
     IReadOnlyList<string>? EventWebhooksTypes { get; }
     IReadOnlyList<string>? Tags { get; }
@@ -3290,7 +3290,7 @@ public partial interface IDiscordApplication
     IReadOnlyList<string>? RedirectUris { get; }
     string? InteractionsEndpointUrl { get; }
     string? RoleConnectionsVerificationUrl { get; }
-    string EventWebhooksUrl { get; }
+    string? EventWebhooksUrl { get; }
     NetCord.ApplicationEventWebhooksStatus EventWebhooksStatus { get; }
     IReadOnlyList<string>? EventWebhooksTypes { get; }
     IReadOnlyList<string>? Tags { get; }
@@ -3536,8 +3536,8 @@ public partial interface IDiscordInteractionCallbackResponseResource
 {
     NetCord.Rest.InteractionCallbackResponseResource Original { get; }
     NetCord.Rest.InteractionCallbackType Type { get; }
-    IDiscordActivityInstance ActivityInstance { get; }
-    IDiscordRestMessage Message { get; }
+    IDiscordActivityInstance? ActivityInstance { get; }
+    IDiscordRestMessage? Message { get; }
 }
 
 
@@ -3720,17 +3720,17 @@ public partial interface IDiscordSharedClientTheme
 public partial interface IDiscordReplyMessageProperties  
 {
     NetCord.Rest.ReplyMessageProperties Original { get; }
-    string Content { get; set; }
-    IDiscordNonceProperties Nonce { get; set; }
+    string? Content { get; set; }
+    IDiscordNonceProperties? Nonce { get; set; }
     bool Tts { get; set; }
     IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get; set; }
     IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get; set; }
-    NetCord.Rest.AllowedMentionsProperties AllowedMentions { get; set; }
+    NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get; set; }
     bool? FailIfNotExists { get; set; }
     IEnumerable<NetCord.Rest.IMessageComponentProperties>? Components { get; set; }
-    IEnumerable<ulong> StickerIds { get; set; }
+    IEnumerable<ulong>? StickerIds { get; set; }
     NetCord.MessageFlags? Flags { get; set; }
-    IDiscordMessagePollProperties Poll { get; set; }
+    IDiscordMessagePollProperties? Poll { get; set; }
     NetCord.Rest.MessageProperties ToMessageProperties(ulong messageReferenceId);
     IDiscordReplyMessageProperties WithContent(string content);
     IDiscordReplyMessageProperties WithNonce(IDiscordNonceProperties? nonce);
@@ -4301,7 +4301,7 @@ public partial interface IDiscordJsonApplicationCommandInteractionDataOption
     string Name { get; set; }
     NetCord.ApplicationCommandOptionType Type { get; set; }
     string? Value { get; set; }
-    IDiscordJsonApplicationCommandInteractionDataOption[]? Options { get; set; }
+    IReadOnlyList<IDiscordJsonApplicationCommandInteractionDataOption>? Options { get; set; }
     bool Focused { get; set; }
 }
 
@@ -4325,7 +4325,7 @@ public partial interface IDiscordJsonAvatarDecorationData
 public partial interface IDiscordJsonCollectibles  
 {
     NetCord.JsonModels.JsonCollectibles Original { get; }
-    IDiscordJsonNameplate Nameplate { get; set; }
+    IDiscordJsonNameplate? Nameplate { get; set; }
 }
 
 
@@ -4334,8 +4334,8 @@ public partial interface IDiscordJsonUserPrimaryGuild
     NetCord.JsonModels.JsonUserPrimaryGuild Original { get; }
     ulong? IdentityGuildId { get; set; }
     bool? IdentityEnabled { get; set; }
-    string Tag { get; set; }
-    string BadgeHash { get; set; }
+    string? Tag { get; set; }
+    string? BadgeHash { get; set; }
 }
 
 
@@ -4361,15 +4361,15 @@ public partial interface IDiscordJsonAttachment
     string ProxyUrl { get; set; }
     int? Height { get; set; }
     int? Width { get; set; }
-    string Placeholder { get; set; }
+    string? Placeholder { get; set; }
     int? PlaceholderVersion { get; set; }
     bool Ephemeral { get; set; }
     double? DurationSeconds { get; set; }
     byte[]? Waveform { get; set; }
     NetCord.AttachmentFlags Flags { get; set; }
-    IDiscordJsonUser[]? ClipParticipants { get; set; }
+    IReadOnlyList<IDiscordJsonUser>? ClipParticipants { get; set; }
     System.DateTimeOffset? ClipCreatedAt { get; set; }
-    IDiscordJsonApplication Application { get; set; }
+    IDiscordJsonApplication? Application { get; set; }
     ulong Id { get; set; }
 }
 
@@ -4389,7 +4389,7 @@ public partial interface IDiscordJsonEmbed
     IDiscordJsonEmbedVideo? Video { get; set; }
     IDiscordJsonEmbedProvider? Provider { get; set; }
     IDiscordJsonEmbedAuthor? Author { get; set; }
-    IDiscordJsonEmbedField[] Fields { get; set; }
+    IReadOnlyList<IDiscordJsonEmbedField> Fields { get; set; }
 }
 
 
@@ -4439,7 +4439,7 @@ public partial interface IDiscordJsonApplication
     string[]? RedirectUris { get; set; }
     string? InteractionsEndpointUrl { get; set; }
     string? RoleConnectionsVerificationUrl { get; set; }
-    string EventWebhooksUrl { get; set; }
+    string? EventWebhooksUrl { get; set; }
     NetCord.ApplicationEventWebhooksStatus EventWebhooksStatus { get; set; }
     string[]? EventWebhooksTypes { get; set; }
     string[]? Tags { get; set; }
@@ -4504,7 +4504,7 @@ public partial interface IDiscordJsonMessagePoll
 {
     NetCord.JsonModels.JsonMessagePoll Original { get; }
     IDiscordJsonMessagePollMedia Question { get; set; }
-    IDiscordJsonMessagePollAnswer[] Answers { get; set; }
+    IReadOnlyList<IDiscordJsonMessagePollAnswer> Answers { get; set; }
     System.DateTimeOffset? ExpiresAt { get; set; }
     bool AllowMultiselect { get; set; }
     NetCord.MessagePollLayoutType LayoutType { get; set; }
@@ -4835,8 +4835,8 @@ public partial interface IDiscordEmoji
 public partial interface IDiscordParty  
 {
     NetCord.Gateway.Party Original { get; }
-    string Id { get; }
-    IDiscordPartySize Size { get; }
+    string? Id { get; }
+    IDiscordPartySize? Size { get; }
 }
 
 
@@ -4977,8 +4977,8 @@ public partial interface IDiscordJsonGuild
     NetCord.VerificationLevel VerificationLevel { get; set; }
     NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel { get; set; }
     NetCord.ContentFilter ContentFilter { get; set; }
-    IDiscordJsonRole[] Roles { get; set; }
-    IDiscordJsonEmoji[] Emojis { get; set; }
+    IReadOnlyList<IDiscordJsonRole> Roles { get; set; }
+    IReadOnlyList<IDiscordJsonEmoji> Emojis { get; set; }
     string[] Features { get; set; }
     NetCord.MfaLevel MfaLevel { get; set; }
     ulong? ApplicationId { get; set; }
@@ -4989,11 +4989,11 @@ public partial interface IDiscordJsonGuild
     bool IsLarge { get; set; }
     bool IsUnavailable { get; set; }
     int UserCount { get; set; }
-    IDiscordJsonVoiceState[] VoiceStates { get; set; }
-    IDiscordJsonGuildUser[] Users { get; set; }
-    IDiscordJsonChannel[] Channels { get; set; }
-    IDiscordJsonChannel[] ActiveThreads { get; set; }
-    IDiscordJsonPresence[] Presences { get; set; }
+    IReadOnlyList<IDiscordJsonVoiceState> VoiceStates { get; set; }
+    IReadOnlyList<IDiscordJsonGuildUser> Users { get; set; }
+    IReadOnlyList<IDiscordJsonChannel> Channels { get; set; }
+    IReadOnlyList<IDiscordJsonChannel> ActiveThreads { get; set; }
+    IReadOnlyList<IDiscordJsonPresence> Presences { get; set; }
     int? MaxPresences { get; set; }
     int? MaxUsers { get; set; }
     string? VanityUrlCode { get; set; }
@@ -5009,9 +5009,9 @@ public partial interface IDiscordJsonGuild
     int? ApproximatePresenceCount { get; set; }
     IDiscordJsonGuildWelcomeScreen? WelcomeScreen { get; set; }
     NetCord.NsfwLevel NsfwLevel { get; set; }
-    IDiscordJsonStageInstance[] StageInstances { get; set; }
-    IDiscordJsonSticker[] Stickers { get; set; }
-    IDiscordJsonGuildScheduledEvent[] ScheduledEvents { get; set; }
+    IReadOnlyList<IDiscordJsonStageInstance> StageInstances { get; set; }
+    IReadOnlyList<IDiscordJsonSticker> Stickers { get; set; }
+    IReadOnlyList<IDiscordJsonGuildScheduledEvent> ScheduledEvents { get; set; }
     bool PremiumProgressBarEnabled { get; set; }
     ulong? SafetyAlertsChannelId { get; set; }
     ulong Id { get; set; }
@@ -5138,7 +5138,7 @@ public partial interface IDiscordJsonTeam
 {
     NetCord.JsonModels.JsonTeam Original { get; }
     string? IconHash { get; set; }
-    IDiscordJsonTeamUser[] Users { get; set; }
+    IReadOnlyList<IDiscordJsonTeamUser> Users { get; set; }
     string Name { get; set; }
     ulong OwnerId { get; set; }
     ulong Id { get; set; }
@@ -5165,15 +5165,15 @@ public partial interface IDiscordJsonMessageSnapshotMessage
     NetCord.JsonModels.JsonMessageSnapshotMessage Original { get; }
     NetCord.MessageType Type { get; set; }
     string Content { get; set; }
-    IDiscordJsonEmbed[] Embeds { get; set; }
-    IDiscordJsonAttachment[] Attachments { get; set; }
+    IReadOnlyList<IDiscordJsonEmbed> Embeds { get; set; }
+    IReadOnlyList<IDiscordJsonAttachment> Attachments { get; set; }
     System.DateTimeOffset CreatedAt { get; set; }
     System.DateTimeOffset? EditedAt { get; set; }
     NetCord.MessageFlags? Flags { get; set; }
-    IDiscordJsonUser[] MentionedUsers { get; set; }
+    IReadOnlyList<IDiscordJsonUser> MentionedUsers { get; set; }
     ulong[] MentionedRoleIds { get; set; }
-    IDiscordJsonComponent[]? Components { get; set; }
-    IDiscordJsonMessageSticker[]? Stickers { get; set; }
+    IReadOnlyList<IDiscordJsonComponent>? Components { get; set; }
+    IReadOnlyList<IDiscordJsonMessageSticker>? Stickers { get; set; }
 }
 
 
@@ -5198,7 +5198,7 @@ public partial interface IDiscordJsonMessagePollResults
 {
     NetCord.JsonModels.JsonMessagePollResults Original { get; }
     bool IsFinalized { get; set; }
-    IDiscordJsonMessagePollAnswerCount[] Answers { get; set; }
+    IReadOnlyList<IDiscordJsonMessagePollAnswerCount> Answers { get; set; }
     ulong Id { get; set; }
 }
 
@@ -5226,8 +5226,8 @@ public partial interface IDiscordTeamUser
     NetCord.PremiumType? PremiumType { get; }
     NetCord.UserFlags? PublicFlags { get; }
     IDiscordAvatarDecorationData? AvatarDecorationData { get; }
-    IDiscordCollectibles Collectibles { get; }
-    IDiscordUserPrimaryGuild PrimaryGuild { get; }
+    IDiscordCollectibles? Collectibles { get; }
+    IDiscordUserPrimaryGuild? PrimaryGuild { get; }
     bool HasAvatar { get; }
     bool HasBanner { get; }
     bool HasAvatarDecoration { get; }
@@ -5292,7 +5292,7 @@ public partial interface IDiscordJsonPresence
     IDiscordJsonUser User { get; set; }
     ulong? GuildId { get; set; }
     NetCord.UserStatusType Status { get; set; }
-    IDiscordJsonUserActivity[]? Activities { get; set; }
+    IReadOnlyList<IDiscordJsonUserActivity>? Activities { get; set; }
     IReadOnlyDictionary<NetCord.Gateway.Platform, NetCord.UserStatusType> Platform { get; set; }
 }
 
@@ -5301,7 +5301,7 @@ public partial interface IDiscordJsonGuildWelcomeScreen
 {
     NetCord.JsonModels.JsonGuildWelcomeScreen Original { get; }
     string? Description { get; set; }
-    IDiscordJsonWelcomeScreenChannel[] WelcomeChannels { get; set; }
+    IReadOnlyList<IDiscordJsonWelcomeScreenChannel> WelcomeChannels { get; set; }
 }
 
 
@@ -5442,7 +5442,7 @@ public partial interface IDiscordJsonGuildScheduledEventRecurrenceRule
     NetCord.GuildScheduledEventRecurrenceRuleFrequency Frequency { get; set; }
     int Interval { get; set; }
     NetCord.GuildScheduledEventRecurrenceRuleWeekday[]? ByWeekday { get; set; }
-    IDiscordJsonGuildScheduledEventRecurrenceRuleNWeekday[]? ByNWeekday { get; set; }
+    IReadOnlyList<IDiscordJsonGuildScheduledEventRecurrenceRuleNWeekday>? ByNWeekday { get; set; }
     NetCord.GuildScheduledEventRecurrenceRuleMonth[]? ByMonth { get; set; }
     int[]? ByMonthDay { get; set; }
     int[]? ByYearDay { get; set; }
@@ -5525,7 +5525,7 @@ public partial class DiscordInteraction : IDiscordInteraction
     public NetCord.Permissions AppPermissions => _original.AppPermissions;
     public string UserLocale => _original.UserLocale;
     public string? GuildLocale => _original.GuildLocale;
-    public IReadOnlyList<IDiscordEntitlement> Entitlements => _original.Entitlements.Select(x => new DiscordEntitlement(x)).ToList();
+    public IReadOnlyList<IDiscordEntitlement> Entitlements => _original.Entitlements.Project(x => new DiscordEntitlement(x));
     public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong> AuthorizingIntegrationOwners => _original.AuthorizingIntegrationOwners;
     public NetCord.InteractionContextType Context => _original.Context;
     public long AttachmentSizeLimit => _original.AttachmentSizeLimit;
@@ -6141,7 +6141,7 @@ public partial class DiscordTextChannel : IDiscordTextChannel
     {
         return _original.EnterTypingScope(scopeProperties?.Original, properties);
     }
-    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default) 
     {
         await foreach(var original in _original.GetPinsAsync(paginationProperties, properties, cancellationToken))
         {
@@ -6199,8 +6199,8 @@ public partial class DiscordUser : IDiscordUser
     public NetCord.PremiumType? PremiumType => _original.PremiumType;
     public NetCord.UserFlags? PublicFlags => _original.PublicFlags;
     public IDiscordAvatarDecorationData? AvatarDecorationData => _original.AvatarDecorationData is null ? null : new DiscordAvatarDecorationData(_original.AvatarDecorationData);
-    public IDiscordCollectibles Collectibles => new DiscordCollectibles(_original.Collectibles);
-    public IDiscordUserPrimaryGuild PrimaryGuild => new DiscordUserPrimaryGuild(_original.PrimaryGuild);
+    public IDiscordCollectibles? Collectibles => _original.Collectibles is null ? null : new DiscordCollectibles(_original.Collectibles);
+    public IDiscordUserPrimaryGuild? PrimaryGuild => _original.PrimaryGuild is null ? null : new DiscordUserPrimaryGuild(_original.PrimaryGuild);
     public bool HasAvatar => _original.HasAvatar;
     public bool HasBanner => _original.HasBanner;
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
@@ -6295,7 +6295,7 @@ public partial class DiscordJsonInteraction : IDiscordJsonInteraction
     public NetCord.Permissions AppPermissions { get { return _original.AppPermissions; } set { _original.AppPermissions = value; } }
     public string? UserLocale { get { return _original.UserLocale; } set { _original.UserLocale = value; } }
     public string? GuildLocale { get { return _original.GuildLocale; } set { _original.GuildLocale = value; } }
-    public IDiscordJsonEntitlement[] Entitlements { get { return _original.Entitlements.Select(x => new DiscordJsonEntitlement(x)).ToArray(); } set { _original.Entitlements = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonEntitlement> Entitlements { get { return _original.Entitlements.Project(x => new DiscordJsonEntitlement(x)); } set { _original.Entitlements = value.Select(x => x.Original).ToArray(); } }
     public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong>? AuthorizingIntegrationOwners { get { return _original.AuthorizingIntegrationOwners; } set { _original.AuthorizingIntegrationOwners = value; } }
     public NetCord.InteractionContextType? Context { get { return _original.Context; } set { _original.Context = value; } }
     public long AttachmentSizeLimit { get { return _original.AttachmentSizeLimit; } set { _original.AttachmentSizeLimit = value; } }
@@ -6585,7 +6585,7 @@ public partial class DiscordRestClient : IDiscordRestClient
     {
         return _original.EnterTypingScope(channelId, scopeProperties?.Original, properties);
     }
-    public async IAsyncEnumerable<IDiscordMessagePin> GetChannelPinsAsync(ulong channelId, NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async IAsyncEnumerable<IDiscordMessagePin> GetChannelPinsAsync(ulong channelId, NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default) 
     {
         await foreach(var original in _original.GetChannelPinsAsync(channelId, paginationProperties, properties, cancellationToken))
         {
@@ -7346,12 +7346,12 @@ public partial class DiscordRestMessage : IDiscordRestMessage
     public System.DateTimeOffset? EditedAt => _original.EditedAt;
     public bool IsTts => _original.IsTts;
     public bool MentionEveryone => _original.MentionEveryone;
-    public IReadOnlyList<IDiscordUser> MentionedUsers => _original.MentionedUsers.Select(x => new DiscordUser(x)).ToList();
+    public IReadOnlyList<IDiscordUser> MentionedUsers => _original.MentionedUsers.Project(x => new DiscordUser(x));
     public IReadOnlyList<ulong> MentionedRoleIds => _original.MentionedRoleIds;
-    public IReadOnlyList<IDiscordGuildChannelMention> MentionedChannels => _original.MentionedChannels.Select(x => new DiscordGuildChannelMention(x)).ToList();
-    public IReadOnlyList<IDiscordAttachment> Attachments => _original.Attachments.Select(x => new DiscordAttachment(x)).ToList();
-    public IReadOnlyList<IDiscordEmbed> Embeds => _original.Embeds.Select(x => new DiscordEmbed(x)).ToList();
-    public IReadOnlyList<IDiscordMessageReaction> Reactions => _original.Reactions.Select(x => new DiscordMessageReaction(x)).ToList();
+    public IReadOnlyList<IDiscordGuildChannelMention> MentionedChannels => _original.MentionedChannels.Project(x => new DiscordGuildChannelMention(x));
+    public IReadOnlyList<IDiscordAttachment> Attachments => _original.Attachments.Project(x => new DiscordAttachment(x));
+    public IReadOnlyList<IDiscordEmbed> Embeds => _original.Embeds.Project(x => new DiscordEmbed(x));
+    public IReadOnlyList<IDiscordMessageReaction> Reactions => _original.Reactions.Project(x => new DiscordMessageReaction(x));
     public string? Nonce => _original.Nonce;
     public bool IsPinned => _original.IsPinned;
     public ulong? WebhookId => _original.WebhookId;
@@ -7361,12 +7361,12 @@ public partial class DiscordRestMessage : IDiscordRestMessage
     public ulong? ApplicationId => _original.ApplicationId;
     public NetCord.MessageFlags Flags => _original.Flags;
     public IDiscordMessageReference? MessageReference => _original.MessageReference is null ? null : new DiscordMessageReference(_original.MessageReference);
-    public IReadOnlyList<IDiscordMessageSnapshot> MessageSnapshots => _original.MessageSnapshots.Select(x => new DiscordMessageSnapshot(x)).ToList();
+    public IReadOnlyList<IDiscordMessageSnapshot> MessageSnapshots => _original.MessageSnapshots.Project(x => new DiscordMessageSnapshot(x));
     public IDiscordRestMessage? ReferencedMessage => _original.ReferencedMessage is null ? null : new DiscordRestMessage(_original.ReferencedMessage);
     public IDiscordMessageInteractionMetadata? InteractionMetadata => _original.InteractionMetadata is null ? null : new DiscordMessageInteractionMetadata(_original.InteractionMetadata);
     public IDiscordGuildThread? StartedThread => _original.StartedThread is null ? null : new DiscordGuildThread(_original.StartedThread);
-    public IReadOnlyList<IDiscordMessageComponent> Components => _original.Components.Select(x => new DiscordMessageComponent(x)).ToList();
-    public IReadOnlyList<IDiscordMessageSticker> Stickers => _original.Stickers.Select(x => new DiscordMessageSticker(x)).ToList();
+    public IReadOnlyList<IDiscordMessageComponent> Components => _original.Components.Project(x => new DiscordMessageComponent(x));
+    public IReadOnlyList<IDiscordMessageSticker> Stickers => _original.Stickers.Project(x => new DiscordMessageSticker(x));
     public int? Position => _original.Position;
     public IDiscordRoleSubscriptionData? RoleSubscriptionData => _original.RoleSubscriptionData is null ? null : new DiscordRoleSubscriptionData(_original.RoleSubscriptionData);
     public IDiscordInteractionResolvedData? ResolvedData => _original.ResolvedData is null ? null : new DiscordInteractionResolvedData(_original.ResolvedData);
@@ -7640,8 +7640,8 @@ public partial class DiscordGuildUser : IDiscordGuildUser
     public NetCord.PremiumType? PremiumType => _original.PremiumType;
     public NetCord.UserFlags? PublicFlags => _original.PublicFlags;
     public IDiscordAvatarDecorationData? AvatarDecorationData => _original.AvatarDecorationData is null ? null : new DiscordAvatarDecorationData(_original.AvatarDecorationData);
-    public IDiscordCollectibles Collectibles => new DiscordCollectibles(_original.Collectibles);
-    public IDiscordUserPrimaryGuild PrimaryGuild => new DiscordUserPrimaryGuild(_original.PrimaryGuild);
+    public IDiscordCollectibles? Collectibles => _original.Collectibles is null ? null : new DiscordCollectibles(_original.Collectibles);
+    public IDiscordUserPrimaryGuild? PrimaryGuild => _original.PrimaryGuild is null ? null : new DiscordUserPrimaryGuild(_original.PrimaryGuild);
     public bool HasAvatar => _original.HasAvatar;
     public bool HasBanner => _original.HasBanner;
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
@@ -7953,7 +7953,7 @@ public partial class DiscordGuildThread : IDiscordGuildThread
     {
         return _original.EnterTypingScope(scopeProperties?.Original, properties);
     }
-    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default) 
     {
         await foreach(var original in _original.GetPinsAsync(paginationProperties, properties, cancellationToken))
         {
@@ -7997,7 +7997,7 @@ public partial class DiscordPresence : IDiscordPresence
     public IDiscordUser User => new DiscordUser(_original.User);
     public ulong GuildId => _original.GuildId;
     public NetCord.UserStatusType Status => _original.Status;
-    public IReadOnlyList<IDiscordUserActivity> Activities => _original.Activities.Select(x => new DiscordUserActivity(x)).ToList();
+    public IReadOnlyList<IDiscordUserActivity> Activities => _original.Activities.Project(x => new DiscordUserActivity(x));
     public IReadOnlyDictionary<NetCord.Gateway.Platform, NetCord.UserStatusType> Platform => _original.Platform;
 }
 
@@ -8250,8 +8250,8 @@ public partial class DiscordPartialGuildUser : IDiscordPartialGuildUser
     public NetCord.PremiumType? PremiumType => _original.PremiumType;
     public NetCord.UserFlags? PublicFlags => _original.PublicFlags;
     public IDiscordAvatarDecorationData? AvatarDecorationData => _original.AvatarDecorationData is null ? null : new DiscordAvatarDecorationData(_original.AvatarDecorationData);
-    public IDiscordCollectibles Collectibles => new DiscordCollectibles(_original.Collectibles);
-    public IDiscordUserPrimaryGuild PrimaryGuild => new DiscordUserPrimaryGuild(_original.PrimaryGuild);
+    public IDiscordCollectibles? Collectibles => _original.Collectibles is null ? null : new DiscordCollectibles(_original.Collectibles);
+    public IDiscordUserPrimaryGuild? PrimaryGuild => _original.PrimaryGuild is null ? null : new DiscordUserPrimaryGuild(_original.PrimaryGuild);
     public bool HasAvatar => _original.HasAvatar;
     public bool HasBanner => _original.HasBanner;
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
@@ -8319,20 +8319,20 @@ public partial class DiscordRestAuditLogEntry : IDiscordRestAuditLogEntry
     public string? Reason => _original.Reason;
     public ulong GuildId => _original.GuildId;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, out IDiscordAuditLogChange change) 
+    public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out IDiscordAuditLogChange change) 
     {
         var result = _original.TryGetChange<TObjectParam, TValueParam>(expression, out var changeTemp);
-        change = new DiscordAuditLogChange(changeTemp);
+        change = changeTemp is null ? null : new DiscordAuditLogChange(changeTemp);
         return result;
     }
     public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression) 
     {
         return new DiscordAuditLogChange<TValueParam>(_original.GetChange<TObjectParam, TValueParam>(expression));
     }
-    public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo, out IDiscordAuditLogChange change) 
+    public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out IDiscordAuditLogChange change) 
     {
         var result = _original.TryGetChange<TObjectParam, TValueParam>(expression, jsonTypeInfo, out var changeTemp);
-        change = new DiscordAuditLogChange(changeTemp);
+        change = changeTemp is null ? null : new DiscordAuditLogChange(changeTemp);
         return result;
     }
     public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo) 
@@ -8393,7 +8393,7 @@ public partial class DiscordAutoModerationRule : IDiscordAutoModerationRule
     public NetCord.AutoModerationRuleEventType EventType => _original.EventType;
     public NetCord.AutoModerationRuleTriggerType TriggerType => _original.TriggerType;
     public IDiscordAutoModerationRuleTriggerMetadata TriggerMetadata => new DiscordAutoModerationRuleTriggerMetadata(_original.TriggerMetadata);
-    public IReadOnlyList<IDiscordAutoModerationAction> Actions => _original.Actions.Select(x => new DiscordAutoModerationAction(x)).ToList();
+    public IReadOnlyList<IDiscordAutoModerationAction> Actions => _original.Actions.Project(x => new DiscordAutoModerationAction(x));
     public bool Enabled => _original.Enabled;
     public IReadOnlyList<ulong> ExemptRoles => _original.ExemptRoles;
     public IReadOnlyList<ulong> ExemptChannels => _original.ExemptChannels;
@@ -9845,7 +9845,7 @@ public partial class DiscordRestInvite : IDiscordRestInvite
     public System.DateTimeOffset? ExpiresAt => _original.ExpiresAt;
     public IDiscordGuildScheduledEvent? GuildScheduledEvent => _original.GuildScheduledEvent is null ? null : new DiscordGuildScheduledEvent(_original.GuildScheduledEvent);
     public NetCord.InviteFlags? Flags => _original.Flags;
-    public IReadOnlyList<IDiscordRole>? Roles => _original.Roles is null ? null : _original.Roles.Select(x => new DiscordRole(x)).ToList();
+    public IReadOnlyList<IDiscordRole>? Roles => _original.Roles is null ? null : _original.Roles.Project(x => new DiscordRole(x));
     public int? Uses => _original.Uses;
     public int? MaxUses => _original.MaxUses;
     public int? MaxAge => _original.MaxAge;
@@ -9997,7 +9997,7 @@ public partial class DiscordGuildOnboarding : IDiscordGuildOnboarding
     }
     public NetCord.Rest.GuildOnboarding Original => _original;
     public ulong GuildId => _original.GuildId;
-    public IReadOnlyList<IDiscordGuildOnboardingPrompt> Prompts => _original.Prompts.Select(x => new DiscordGuildOnboardingPrompt(x)).ToList();
+    public IReadOnlyList<IDiscordGuildOnboardingPrompt> Prompts => _original.Prompts.Project(x => new DiscordGuildOnboardingPrompt(x));
     public IReadOnlyList<ulong> DefaultChannelIds => _original.DefaultChannelIds;
     public bool Enabled => _original.Enabled;
     public NetCord.Rest.GuildOnboardingMode Mode => _original.Mode;
@@ -10305,7 +10305,7 @@ public partial class DiscordGuildApplicationCommand : IDiscordGuildApplicationCo
     public string Description => _original.Description;
     public IReadOnlyDictionary<string, string>? DescriptionLocalizations => _original.DescriptionLocalizations;
     public NetCord.Permissions? DefaultGuildPermissions => _original.DefaultGuildPermissions;
-    public IReadOnlyList<IDiscordApplicationCommandOption> Options => _original.Options.Select(x => new DiscordApplicationCommandOption(x)).ToList();
+    public IReadOnlyList<IDiscordApplicationCommandOption> Options => _original.Options.Project(x => new DiscordApplicationCommandOption(x));
     public bool Nsfw => _original.Nsfw;
     public IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes => _original.IntegrationTypes;
     public IReadOnlyList<NetCord.InteractionContextType>? Contexts => _original.Contexts;
@@ -10709,7 +10709,7 @@ public partial class DiscordJsonChannel : IDiscordJsonChannel
     public NetCord.ChannelType Type { get { return _original.Type; } set { _original.Type = value; } }
     public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
     public int? Position { get { return _original.Position; } set { _original.Position = value; } }
-    public IDiscordJsonPermissionOverwrite[]? PermissionOverwrites { get { return _original.PermissionOverwrites is null ? null : _original.PermissionOverwrites.Select(x => new DiscordJsonPermissionOverwrite(x)).ToArray(); } set { _original.PermissionOverwrites = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonPermissionOverwrite>? PermissionOverwrites { get { return _original.PermissionOverwrites is null ? null : _original.PermissionOverwrites.Project(x => new DiscordJsonPermissionOverwrite(x)); } set { _original.PermissionOverwrites = value?.Select(x => x.Original).ToArray(); } }
     public string? Name { get { return _original.Name; } set { _original.Name = value; } }
     public string? Topic { get { return _original.Topic; } set { _original.Topic = value; } }
     public bool? Nsfw { get { return _original.Nsfw; } set { _original.Nsfw = value; } }
@@ -10717,7 +10717,7 @@ public partial class DiscordJsonChannel : IDiscordJsonChannel
     public int? Bitrate { get { return _original.Bitrate; } set { _original.Bitrate = value; } }
     public int? UserLimit { get { return _original.UserLimit; } set { _original.UserLimit = value; } }
     public int? Slowmode { get { return _original.Slowmode; } set { _original.Slowmode = value; } }
-    public IDiscordJsonUser[]? Users { get { return _original.Users is null ? null : _original.Users.Select(x => new DiscordJsonUser(x)).ToArray(); } set { _original.Users = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonUser>? Users { get { return _original.Users is null ? null : _original.Users.Project(x => new DiscordJsonUser(x)); } set { _original.Users = value?.Select(x => x.Original).ToArray(); } }
     public string? IconHash { get { return _original.IconHash; } set { _original.IconHash = value; } }
     public ulong? OwnerId { get { return _original.OwnerId; } set { _original.OwnerId = value; } }
     public ulong? ApplicationId { get { return _original.ApplicationId; } set { _original.ApplicationId = value; } }
@@ -10734,7 +10734,7 @@ public partial class DiscordJsonChannel : IDiscordJsonChannel
     public NetCord.Permissions? Permissions { get { return _original.Permissions; } set { _original.Permissions = value; } }
     public NetCord.ChannelFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
     public int? TotalMessageSent { get { return _original.TotalMessageSent; } set { _original.TotalMessageSent = value; } }
-    public IDiscordJsonForumTag[]? AvailableTags { get { return _original.AvailableTags is null ? null : _original.AvailableTags.Select(x => new DiscordJsonForumTag(x)).ToArray(); } set { _original.AvailableTags = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonForumTag>? AvailableTags { get { return _original.AvailableTags is null ? null : _original.AvailableTags.Project(x => new DiscordJsonForumTag(x)); } set { _original.AvailableTags = value?.Select(x => x.Original).ToArray(); } }
     public ulong[]? AppliedTags { get { return _original.AppliedTags; } set { _original.AppliedTags = value; } }
     public IDiscordJsonForumGuildChannelDefaultReaction? DefaultReactionEmoji { get { return _original.DefaultReactionEmoji is null ? null : new DiscordJsonForumGuildChannelDefaultReaction(_original.DefaultReactionEmoji); } set { _original.DefaultReactionEmoji = value?.Original; } }
     public int? DefaultThreadSlowmode { get { return _original.DefaultThreadSlowmode; } set { _original.DefaultThreadSlowmode = value; } }
@@ -10807,7 +10807,7 @@ public partial class DiscordTypingScopeProperties : IDiscordTypingScopePropertie
     }
     public NetCord.Rest.TypingScopeProperties Original => _original;
     public System.TimeSpan? Interval { get { return _original.Interval; } set { _original.Interval = value; } }
-    public TimeProvider TimeProvider { get { return _original.TimeProvider; } set { _original.TimeProvider = value; } }
+    public TimeProvider? TimeProvider { get { return _original.TimeProvider; } set { _original.TimeProvider = value; } }
     public IDiscordTypingScopeProperties WithInterval(System.TimeSpan? interval) 
     {
         return new DiscordTypingScopeProperties(_original.WithInterval(interval));
@@ -10907,12 +10907,13 @@ public partial class DiscordUserPrimaryGuild : IDiscordUserPrimaryGuild
     public NetCord.UserPrimaryGuild Original => _original;
     public ulong? IdentityGuildId => _original.IdentityGuildId;
     public bool? IdentityEnabled => _original.IdentityEnabled;
-    public string Tag => _original.Tag;
-    public string BadgeHash => _original.BadgeHash;
+    public string? Tag => _original.Tag;
+    public string? BadgeHash => _original.BadgeHash;
     public bool HasBadge => _original.HasBadge;
-    public IDiscordImageUrl GetBadgeUrl(NetCord.ImageFormat format) 
+    public IDiscordImageUrl? GetBadgeUrl(NetCord.ImageFormat format) 
     {
-        return new DiscordImageUrl(_original.GetBadgeUrl(format));
+        var temp = _original.GetBadgeUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
     }
 }
 
@@ -11009,7 +11010,7 @@ public partial class DiscordDMChannel : IDiscordDMChannel
     {
         return _original.EnterTypingScope(scopeProperties?.Original, properties);
     }
-    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default) 
     {
         await foreach(var original in _original.GetPinsAsync(paginationProperties, properties, cancellationToken))
         {
@@ -11054,13 +11055,13 @@ public partial class DiscordJsonInteractionData : IDiscordJsonInteractionData
     public string? Name { get { return _original.Name; } set { _original.Name = value; } }
     public NetCord.ApplicationCommandType? Type { get { return _original.Type; } set { _original.Type = value; } }
     public IDiscordJsonInteractionResolvedData? ResolvedData { get { return _original.ResolvedData is null ? null : new DiscordJsonInteractionResolvedData(_original.ResolvedData); } set { _original.ResolvedData = value?.Original; } }
-    public IDiscordJsonApplicationCommandInteractionDataOption[]? Options { get { return _original.Options is null ? null : _original.Options.Select(x => new DiscordJsonApplicationCommandInteractionDataOption(x)).ToArray(); } set { _original.Options = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonApplicationCommandInteractionDataOption>? Options { get { return _original.Options is null ? null : _original.Options.Project(x => new DiscordJsonApplicationCommandInteractionDataOption(x)); } set { _original.Options = value?.Select(x => x.Original).ToArray(); } }
     public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
     public string? CustomId { get { return _original.CustomId; } set { _original.CustomId = value; } }
     public NetCord.ComponentType? ComponentType { get { return _original.ComponentType; } set { _original.ComponentType = value; } }
     public string[]? SelectedValues { get { return _original.SelectedValues; } set { _original.SelectedValues = value; } }
     public ulong? TargetId { get { return _original.TargetId; } set { _original.TargetId = value; } }
-    public IDiscordJsonComponent[]? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordJsonComponent(x)).ToArray(); } set { _original.Components = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonComponent>? Components { get { return _original.Components is null ? null : _original.Components.Project(x => new DiscordJsonComponent(x)); } set { _original.Components = value?.Select(x => x.Original).ToArray(); } }
 }
 
 
@@ -11127,8 +11128,8 @@ public partial class DiscordJsonUser : IDiscordJsonUser
     public NetCord.PremiumType? PremiumType { get { return _original.PremiumType; } set { _original.PremiumType = value; } }
     public NetCord.UserFlags? PublicFlags { get { return _original.PublicFlags; } set { _original.PublicFlags = value; } }
     public IDiscordJsonAvatarDecorationData? AvatarDecorationData { get { return _original.AvatarDecorationData is null ? null : new DiscordJsonAvatarDecorationData(_original.AvatarDecorationData); } set { _original.AvatarDecorationData = value?.Original; } }
-    public IDiscordJsonCollectibles Collectibles { get { return new DiscordJsonCollectibles(_original.Collectibles); } set { _original.Collectibles = value.Original; } }
-    public IDiscordJsonUserPrimaryGuild PrimaryGuild { get { return new DiscordJsonUserPrimaryGuild(_original.PrimaryGuild); } set { _original.PrimaryGuild = value.Original; } }
+    public IDiscordJsonCollectibles? Collectibles { get { return _original.Collectibles is null ? null : new DiscordJsonCollectibles(_original.Collectibles); } set { _original.Collectibles = value?.Original; } }
+    public IDiscordJsonUserPrimaryGuild? PrimaryGuild { get { return _original.PrimaryGuild is null ? null : new DiscordJsonUserPrimaryGuild(_original.PrimaryGuild); } set { _original.PrimaryGuild = value?.Original; } }
     public IDiscordJsonGuildUser? GuildUser { get { return _original.GuildUser is null ? null : new DiscordJsonGuildUser(_original.GuildUser); } set { _original.GuildUser = value?.Original; } }
     public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
 }
@@ -11148,12 +11149,12 @@ public partial class DiscordJsonMessage : IDiscordJsonMessage
     public System.DateTimeOffset? EditedAt { get { return _original.EditedAt; } set { _original.EditedAt = value; } }
     public bool? IsTts { get { return _original.IsTts; } set { _original.IsTts = value; } }
     public bool? MentionEveryone { get { return _original.MentionEveryone; } set { _original.MentionEveryone = value; } }
-    public IDiscordJsonUser[]? MentionedUsers { get { return _original.MentionedUsers is null ? null : _original.MentionedUsers.Select(x => new DiscordJsonUser(x)).ToArray(); } set { _original.MentionedUsers = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonUser>? MentionedUsers { get { return _original.MentionedUsers is null ? null : _original.MentionedUsers.Project(x => new DiscordJsonUser(x)); } set { _original.MentionedUsers = value?.Select(x => x.Original).ToArray(); } }
     public ulong[]? MentionedRoleIds { get { return _original.MentionedRoleIds; } set { _original.MentionedRoleIds = value; } }
-    public IDiscordJsonGuildChannelMention[]? MentionedChannels { get { return _original.MentionedChannels is null ? null : _original.MentionedChannels.Select(x => new DiscordJsonGuildChannelMention(x)).ToArray(); } set { _original.MentionedChannels = value?.Select(x => x.Original).ToArray(); } }
-    public IDiscordJsonAttachment[]? Attachments { get { return _original.Attachments is null ? null : _original.Attachments.Select(x => new DiscordJsonAttachment(x)).ToArray(); } set { _original.Attachments = value?.Select(x => x.Original).ToArray(); } }
-    public IDiscordJsonEmbed[]? Embeds { get { return _original.Embeds is null ? null : _original.Embeds.Select(x => new DiscordJsonEmbed(x)).ToArray(); } set { _original.Embeds = value?.Select(x => x.Original).ToArray(); } }
-    public IDiscordJsonMessageReaction[]? Reactions { get { return _original.Reactions is null ? null : _original.Reactions.Select(x => new DiscordJsonMessageReaction(x)).ToArray(); } set { _original.Reactions = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonGuildChannelMention>? MentionedChannels { get { return _original.MentionedChannels is null ? null : _original.MentionedChannels.Project(x => new DiscordJsonGuildChannelMention(x)); } set { _original.MentionedChannels = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonAttachment>? Attachments { get { return _original.Attachments is null ? null : _original.Attachments.Project(x => new DiscordJsonAttachment(x)); } set { _original.Attachments = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonEmbed>? Embeds { get { return _original.Embeds is null ? null : _original.Embeds.Project(x => new DiscordJsonEmbed(x)); } set { _original.Embeds = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonMessageReaction>? Reactions { get { return _original.Reactions is null ? null : _original.Reactions.Project(x => new DiscordJsonMessageReaction(x)); } set { _original.Reactions = value?.Select(x => x.Original).ToArray(); } }
     public string? Nonce { get { return _original.Nonce; } set { _original.Nonce = value; } }
     public bool? IsPinned { get { return _original.IsPinned; } set { _original.IsPinned = value; } }
     public ulong? WebhookId { get { return _original.WebhookId; } set { _original.WebhookId = value; } }
@@ -11163,12 +11164,12 @@ public partial class DiscordJsonMessage : IDiscordJsonMessage
     public ulong? ApplicationId { get { return _original.ApplicationId; } set { _original.ApplicationId = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
     public IDiscordJsonMessageReference? MessageReference { get { return _original.MessageReference is null ? null : new DiscordJsonMessageReference(_original.MessageReference); } set { _original.MessageReference = value?.Original; } }
-    public IDiscordJsonMessageSnapshot[]? MessageSnapshots { get { return _original.MessageSnapshots is null ? null : _original.MessageSnapshots.Select(x => new DiscordJsonMessageSnapshot(x)).ToArray(); } set { _original.MessageSnapshots = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonMessageSnapshot>? MessageSnapshots { get { return _original.MessageSnapshots is null ? null : _original.MessageSnapshots.Project(x => new DiscordJsonMessageSnapshot(x)); } set { _original.MessageSnapshots = value?.Select(x => x.Original).ToArray(); } }
     public IDiscordJsonMessage? ReferencedMessage { get { return _original.ReferencedMessage is null ? null : new DiscordJsonMessage(_original.ReferencedMessage); } set { _original.ReferencedMessage = value?.Original; } }
     public IDiscordJsonMessageInteractionMetadata? InteractionMetadata { get { return _original.InteractionMetadata is null ? null : new DiscordJsonMessageInteractionMetadata(_original.InteractionMetadata); } set { _original.InteractionMetadata = value?.Original; } }
     public IDiscordJsonChannel? StartedThread { get { return _original.StartedThread is null ? null : new DiscordJsonChannel(_original.StartedThread); } set { _original.StartedThread = value?.Original; } }
-    public IDiscordJsonComponent[]? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordJsonComponent(x)).ToArray(); } set { _original.Components = value?.Select(x => x.Original).ToArray(); } }
-    public IDiscordJsonMessageSticker[]? Stickers { get { return _original.Stickers is null ? null : _original.Stickers.Select(x => new DiscordJsonMessageSticker(x)).ToArray(); } set { _original.Stickers = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonComponent>? Components { get { return _original.Components is null ? null : _original.Components.Project(x => new DiscordJsonComponent(x)); } set { _original.Components = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonMessageSticker>? Stickers { get { return _original.Stickers is null ? null : _original.Stickers.Project(x => new DiscordJsonMessageSticker(x)); } set { _original.Stickers = value?.Select(x => x.Original).ToArray(); } }
     public int? Position { get { return _original.Position; } set { _original.Position = value; } }
     public IDiscordJsonRoleSubscriptionData? RoleSubscriptionData { get { return _original.RoleSubscriptionData is null ? null : new DiscordJsonRoleSubscriptionData(_original.RoleSubscriptionData); } set { _original.RoleSubscriptionData = value?.Original; } }
     public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
@@ -11176,7 +11177,7 @@ public partial class DiscordJsonMessage : IDiscordJsonMessage
     public IDiscordJsonInteractionResolvedData? ResolvedData { get { return _original.ResolvedData is null ? null : new DiscordJsonInteractionResolvedData(_original.ResolvedData); } set { _original.ResolvedData = value?.Original; } }
     public IDiscordJsonMessagePoll? Poll { get { return _original.Poll is null ? null : new DiscordJsonMessagePoll(_original.Poll); } set { _original.Poll = value?.Original; } }
     public IDiscordJsonMessageCall? Call { get { return _original.Call is null ? null : new DiscordJsonMessageCall(_original.Call); } set { _original.Call = value?.Original; } }
-    public IDiscordJsonSharedClientTheme SharedClientTheme { get { return new DiscordJsonSharedClientTheme(_original.SharedClientTheme); } set { _original.SharedClientTheme = value.Original; } }
+    public IDiscordJsonSharedClientTheme? SharedClientTheme { get { return _original.SharedClientTheme is null ? null : new DiscordJsonSharedClientTheme(_original.SharedClientTheme); } set { _original.SharedClientTheme = value?.Original; } }
     public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
 }
 
@@ -11227,8 +11228,8 @@ public partial class DiscordCurrentUser : IDiscordCurrentUser
     public NetCord.PremiumType? PremiumType => _original.PremiumType;
     public NetCord.UserFlags? PublicFlags => _original.PublicFlags;
     public IDiscordAvatarDecorationData? AvatarDecorationData => _original.AvatarDecorationData is null ? null : new DiscordAvatarDecorationData(_original.AvatarDecorationData);
-    public IDiscordCollectibles Collectibles => new DiscordCollectibles(_original.Collectibles);
-    public IDiscordUserPrimaryGuild PrimaryGuild => new DiscordUserPrimaryGuild(_original.PrimaryGuild);
+    public IDiscordCollectibles? Collectibles => _original.Collectibles is null ? null : new DiscordCollectibles(_original.Collectibles);
+    public IDiscordUserPrimaryGuild? PrimaryGuild => _original.PrimaryGuild is null ? null : new DiscordUserPrimaryGuild(_original.PrimaryGuild);
     public bool HasAvatar => _original.HasAvatar;
     public bool HasBanner => _original.HasBanner;
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
@@ -11336,7 +11337,7 @@ public partial class DiscordCurrentApplication : IDiscordCurrentApplication
     public IReadOnlyList<string>? RedirectUris => _original.RedirectUris;
     public string? InteractionsEndpointUrl => _original.InteractionsEndpointUrl;
     public string? RoleConnectionsVerificationUrl => _original.RoleConnectionsVerificationUrl;
-    public string EventWebhooksUrl => _original.EventWebhooksUrl;
+    public string? EventWebhooksUrl => _original.EventWebhooksUrl;
     public NetCord.ApplicationEventWebhooksStatus EventWebhooksStatus => _original.EventWebhooksStatus;
     public IReadOnlyList<string>? EventWebhooksTypes => _original.EventWebhooksTypes;
     public IReadOnlyList<string>? Tags => _original.Tags;
@@ -12138,7 +12139,7 @@ public partial class DiscordForumGuildThread : IDiscordForumGuildThread
     {
         return _original.EnterTypingScope(scopeProperties?.Original, properties);
     }
-    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default) 
     {
         await foreach(var original in _original.GetPinsAsync(paginationProperties, properties, cancellationToken))
         {
@@ -12428,7 +12429,7 @@ public partial class DiscordApplicationCommand : IDiscordApplicationCommand
     public string Description => _original.Description;
     public IReadOnlyDictionary<string, string>? DescriptionLocalizations => _original.DescriptionLocalizations;
     public NetCord.Permissions? DefaultGuildPermissions => _original.DefaultGuildPermissions;
-    public IReadOnlyList<IDiscordApplicationCommandOption> Options => _original.Options.Select(x => new DiscordApplicationCommandOption(x)).ToList();
+    public IReadOnlyList<IDiscordApplicationCommandOption> Options => _original.Options.Project(x => new DiscordApplicationCommandOption(x));
     public bool Nsfw => _original.Nsfw;
     public IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes => _original.IntegrationTypes;
     public IReadOnlyList<NetCord.InteractionContextType>? Contexts => _original.Contexts;
@@ -12693,7 +12694,7 @@ public partial class DiscordStickerPack : IDiscordStickerPack
         _original = original;
     }
     public NetCord.Rest.StickerPack Original => _original;
-    public IReadOnlyList<IDiscordSticker> Stickers => _original.Stickers.Select(x => new DiscordSticker(x)).ToList();
+    public IReadOnlyList<IDiscordSticker> Stickers => _original.Stickers.Project(x => new DiscordSticker(x));
     public string Name => _original.Name;
     public ulong SkuId => _original.SkuId;
     public ulong? CoverStickerId => _original.CoverStickerId;
@@ -12787,7 +12788,7 @@ public partial class DiscordApplication : IDiscordApplication
     public IReadOnlyList<string>? RedirectUris => _original.RedirectUris;
     public string? InteractionsEndpointUrl => _original.InteractionsEndpointUrl;
     public string? RoleConnectionsVerificationUrl => _original.RoleConnectionsVerificationUrl;
-    public string EventWebhooksUrl => _original.EventWebhooksUrl;
+    public string? EventWebhooksUrl => _original.EventWebhooksUrl;
     public NetCord.ApplicationEventWebhooksStatus EventWebhooksStatus => _original.EventWebhooksStatus;
     public IReadOnlyList<string>? EventWebhooksTypes => _original.EventWebhooksTypes;
     public IReadOnlyList<string>? Tags => _original.Tags;
@@ -13018,7 +13019,7 @@ public partial class DiscordGroupDMChannel : IDiscordGroupDMChannel
     {
         return _original.EnterTypingScope(scopeProperties?.Original, properties);
     }
-    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default) 
     {
         await foreach(var original in _original.GetPinsAsync(paginationProperties, properties, cancellationToken))
         {
@@ -13088,7 +13089,7 @@ public partial class DiscordConnection : IDiscordConnection
     public string Name => _original.Name;
     public NetCord.Rest.ConnectionType Type => _original.Type;
     public bool? Revoked => _original.Revoked;
-    public IReadOnlyList<IDiscordIntegration>? Integrations => _original.Integrations is null ? null : _original.Integrations.Select(x => new DiscordIntegration(x)).ToList();
+    public IReadOnlyList<IDiscordIntegration>? Integrations => _original.Integrations is null ? null : _original.Integrations.Project(x => new DiscordIntegration(x));
     public bool Verified => _original.Verified;
     public bool FriendSync => _original.FriendSync;
     public bool ShowActivity => _original.ShowActivity;
@@ -13371,8 +13372,8 @@ public partial class DiscordInteractionCallbackResponseResource : IDiscordIntera
     }
     public NetCord.Rest.InteractionCallbackResponseResource Original => _original;
     public NetCord.Rest.InteractionCallbackType Type => _original.Type;
-    public IDiscordActivityInstance ActivityInstance => new DiscordActivityInstance(_original.ActivityInstance);
-    public IDiscordRestMessage Message => new DiscordRestMessage(_original.Message);
+    public IDiscordActivityInstance? ActivityInstance => _original.ActivityInstance is null ? null : new DiscordActivityInstance(_original.ActivityInstance);
+    public IDiscordRestMessage? Message => _original.Message is null ? null : new DiscordRestMessage(_original.Message);
 }
 
 
@@ -13438,7 +13439,7 @@ public partial class DiscordEmbed : IDiscordEmbed
     public IDiscordEmbedVideo? Video => _original.Video is null ? null : new DiscordEmbedVideo(_original.Video);
     public IDiscordEmbedProvider? Provider => _original.Provider is null ? null : new DiscordEmbedProvider(_original.Provider);
     public IDiscordEmbedAuthor? Author => _original.Author is null ? null : new DiscordEmbedAuthor(_original.Author);
-    public IReadOnlyList<IDiscordEmbedField> Fields => _original.Fields.Select(x => new DiscordEmbedField(x)).ToList();
+    public IReadOnlyList<IDiscordEmbedField> Fields => _original.Fields.Project(x => new DiscordEmbedField(x));
 }
 
 
@@ -13585,7 +13586,7 @@ public partial class DiscordMessagePoll : IDiscordMessagePoll
     }
     public NetCord.MessagePoll Original => _original;
     public IDiscordMessagePollMedia Question => new DiscordMessagePollMedia(_original.Question);
-    public IReadOnlyList<IDiscordMessagePollAnswer> Answers => _original.Answers.Select(x => new DiscordMessagePollAnswer(x)).ToList();
+    public IReadOnlyList<IDiscordMessagePollAnswer> Answers => _original.Answers.Project(x => new DiscordMessagePollAnswer(x));
     public System.DateTimeOffset? ExpiresAt => _original.ExpiresAt;
     public bool AllowMultiselect => _original.AllowMultiselect;
     public NetCord.MessagePollLayoutType LayoutType => _original.LayoutType;
@@ -13630,17 +13631,17 @@ public partial class DiscordReplyMessageProperties : IDiscordReplyMessagePropert
         _original = original;
     }
     public NetCord.Rest.ReplyMessageProperties Original => _original;
-    public string Content { get { return _original.Content; } set { _original.Content = value; } }
-    public IDiscordNonceProperties Nonce { get { return new DiscordNonceProperties(_original.Nonce); } set { _original.Nonce = value.Original; } }
+    public string? Content { get { return _original.Content; } set { _original.Content = value; } }
+    public IDiscordNonceProperties? Nonce { get { return _original.Nonce is null ? null : new DiscordNonceProperties(_original.Nonce); } set { _original.Nonce = value?.Original; } }
     public bool Tts { get { return _original.Tts; } set { _original.Tts = value; } }
     public IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get { return _original.Attachments; } set { _original.Attachments = value; } }
     public IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get { return _original.Embeds; } set { _original.Embeds = value; } }
-    public NetCord.Rest.AllowedMentionsProperties AllowedMentions { get { return _original.AllowedMentions; } set { _original.AllowedMentions = value; } }
+    public NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions; } set { _original.AllowedMentions = value; } }
     public bool? FailIfNotExists { get { return _original.FailIfNotExists; } set { _original.FailIfNotExists = value; } }
     public IEnumerable<NetCord.Rest.IMessageComponentProperties>? Components { get { return _original.Components; } set { _original.Components = value; } }
-    public IEnumerable<ulong> StickerIds { get { return _original.StickerIds; } set { _original.StickerIds = value; } }
+    public IEnumerable<ulong>? StickerIds { get { return _original.StickerIds; } set { _original.StickerIds = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
-    public IDiscordMessagePollProperties Poll { get { return new DiscordMessagePollProperties(_original.Poll); } set { _original.Poll = value.Original; } }
+    public IDiscordMessagePollProperties? Poll { get { return _original.Poll is null ? null : new DiscordMessagePollProperties(_original.Poll); } set { _original.Poll = value?.Original; } }
     public NetCord.Rest.MessageProperties ToMessageProperties(ulong messageReferenceId) 
     {
         return _original.ToMessageProperties(messageReferenceId);
@@ -13816,7 +13817,7 @@ public partial class DiscordUserActivity : IDiscordUserActivity
     public IDiscordUserActivitySecrets? Secrets => _original.Secrets is null ? null : new DiscordUserActivitySecrets(_original.Secrets);
     public bool? Instance => _original.Instance;
     public NetCord.Gateway.UserActivityFlags? Flags => _original.Flags;
-    public IReadOnlyList<IDiscordUserActivityButton> Buttons => _original.Buttons.Select(x => new DiscordUserActivityButton(x)).ToList();
+    public IReadOnlyList<IDiscordUserActivityButton> Buttons => _original.Buttons.Project(x => new DiscordUserActivityButton(x));
     public ulong GuildId => _original.GuildId;
 }
 
@@ -13834,7 +13835,7 @@ public partial class DiscordGuildScheduledEventRecurrenceRule : IDiscordGuildSch
     public NetCord.GuildScheduledEventRecurrenceRuleFrequency Frequency => _original.Frequency;
     public int Interval => _original.Interval;
     public IReadOnlyList<NetCord.GuildScheduledEventRecurrenceRuleWeekday>? ByWeekday => _original.ByWeekday;
-    public IReadOnlyList<IDiscordGuildScheduledEventRecurrenceRuleNWeekday>? ByNWeekday => _original.ByNWeekday is null ? null : _original.ByNWeekday.Select(x => new DiscordGuildScheduledEventRecurrenceRuleNWeekday(x)).ToList();
+    public IReadOnlyList<IDiscordGuildScheduledEventRecurrenceRuleNWeekday>? ByNWeekday => _original.ByNWeekday is null ? null : _original.ByNWeekday.Project(x => new DiscordGuildScheduledEventRecurrenceRuleNWeekday(x));
     public IReadOnlyList<NetCord.GuildScheduledEventRecurrenceRuleMonth>? ByMonth => _original.ByMonth;
     public IReadOnlyList<int>? ByMonthDay => _original.ByMonthDay;
     public IReadOnlyList<int>? ByYearDay => _original.ByYearDay;
@@ -14254,7 +14255,7 @@ public partial class DiscordGuildOnboardingPrompt : IDiscordGuildOnboardingPromp
     public NetCord.Rest.GuildOnboardingPrompt Original => _original;
     public ulong Id => _original.Id;
     public NetCord.Rest.GuildOnboardingPromptType Type => _original.Type;
-    public IReadOnlyList<IDiscordGuildOnboardingPromptOption> Options => _original.Options.Select(x => new DiscordGuildOnboardingPromptOption(x)).ToList();
+    public IReadOnlyList<IDiscordGuildOnboardingPromptOption> Options => _original.Options.Project(x => new DiscordGuildOnboardingPromptOption(x));
     public string Title => _original.Title;
     public bool SingleSelect => _original.SingleSelect;
     public bool Required => _original.Required;
@@ -14367,8 +14368,8 @@ public partial class DiscordApplicationCommandOption : IDiscordApplicationComman
     public string Description => _original.Description;
     public IReadOnlyDictionary<string, string>? DescriptionLocalizations => _original.DescriptionLocalizations;
     public bool Required => _original.Required;
-    public IReadOnlyList<IDiscordApplicationCommandOptionChoice>? Choices => _original.Choices is null ? null : _original.Choices.Select(x => new DiscordApplicationCommandOptionChoice(x)).ToList();
-    public IReadOnlyList<IDiscordApplicationCommandOption>? Options => _original.Options is null ? null : _original.Options.Select(x => new DiscordApplicationCommandOption(x)).ToList();
+    public IReadOnlyList<IDiscordApplicationCommandOptionChoice>? Choices => _original.Choices is null ? null : _original.Choices.Project(x => new DiscordApplicationCommandOptionChoice(x));
+    public IReadOnlyList<IDiscordApplicationCommandOption>? Options => _original.Options is null ? null : _original.Options.Project(x => new DiscordApplicationCommandOption(x));
     public IReadOnlyList<NetCord.ChannelType>? ChannelTypes => _original.ChannelTypes;
     public double? MinValue => _original.MinValue;
     public double? MaxValue => _original.MaxValue;
@@ -14651,7 +14652,7 @@ public partial class DiscordJsonApplicationCommandInteractionDataOption : IDisco
     public string Name { get { return _original.Name; } set { _original.Name = value; } }
     public NetCord.ApplicationCommandOptionType Type { get { return _original.Type; } set { _original.Type = value; } }
     public string? Value { get { return _original.Value; } set { _original.Value = value; } }
-    public IDiscordJsonApplicationCommandInteractionDataOption[]? Options { get { return _original.Options is null ? null : _original.Options.Select(x => new DiscordJsonApplicationCommandInteractionDataOption(x)).ToArray(); } set { _original.Options = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonApplicationCommandInteractionDataOption>? Options { get { return _original.Options is null ? null : _original.Options.Project(x => new DiscordJsonApplicationCommandInteractionDataOption(x)); } set { _original.Options = value?.Select(x => x.Original).ToArray(); } }
     public bool Focused { get { return _original.Focused; } set { _original.Focused = value; } }
 }
 
@@ -14690,7 +14691,7 @@ public partial class DiscordJsonCollectibles : IDiscordJsonCollectibles
         _original = original;
     }
     public NetCord.JsonModels.JsonCollectibles Original => _original;
-    public IDiscordJsonNameplate Nameplate { get { return new DiscordJsonNameplate(_original.Nameplate); } set { _original.Nameplate = value.Original; } }
+    public IDiscordJsonNameplate? Nameplate { get { return _original.Nameplate is null ? null : new DiscordJsonNameplate(_original.Nameplate); } set { _original.Nameplate = value?.Original; } }
 }
 
 
@@ -14704,8 +14705,8 @@ public partial class DiscordJsonUserPrimaryGuild : IDiscordJsonUserPrimaryGuild
     public NetCord.JsonModels.JsonUserPrimaryGuild Original => _original;
     public ulong? IdentityGuildId { get { return _original.IdentityGuildId; } set { _original.IdentityGuildId = value; } }
     public bool? IdentityEnabled { get { return _original.IdentityEnabled; } set { _original.IdentityEnabled = value; } }
-    public string Tag { get { return _original.Tag; } set { _original.Tag = value; } }
-    public string BadgeHash { get { return _original.BadgeHash; } set { _original.BadgeHash = value; } }
+    public string? Tag { get { return _original.Tag; } set { _original.Tag = value; } }
+    public string? BadgeHash { get { return _original.BadgeHash; } set { _original.BadgeHash = value; } }
 }
 
 
@@ -14741,15 +14742,15 @@ public partial class DiscordJsonAttachment : IDiscordJsonAttachment
     public string ProxyUrl { get { return _original.ProxyUrl; } set { _original.ProxyUrl = value; } }
     public int? Height { get { return _original.Height; } set { _original.Height = value; } }
     public int? Width { get { return _original.Width; } set { _original.Width = value; } }
-    public string Placeholder { get { return _original.Placeholder; } set { _original.Placeholder = value; } }
+    public string? Placeholder { get { return _original.Placeholder; } set { _original.Placeholder = value; } }
     public int? PlaceholderVersion { get { return _original.PlaceholderVersion; } set { _original.PlaceholderVersion = value; } }
     public bool Ephemeral { get { return _original.Ephemeral; } set { _original.Ephemeral = value; } }
     public double? DurationSeconds { get { return _original.DurationSeconds; } set { _original.DurationSeconds = value; } }
     public byte[]? Waveform { get { return _original.Waveform; } set { _original.Waveform = value; } }
     public NetCord.AttachmentFlags Flags { get { return _original.Flags; } set { _original.Flags = value; } }
-    public IDiscordJsonUser[]? ClipParticipants { get { return _original.ClipParticipants is null ? null : _original.ClipParticipants.Select(x => new DiscordJsonUser(x)).ToArray(); } set { _original.ClipParticipants = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonUser>? ClipParticipants { get { return _original.ClipParticipants is null ? null : _original.ClipParticipants.Project(x => new DiscordJsonUser(x)); } set { _original.ClipParticipants = value?.Select(x => x.Original).ToArray(); } }
     public System.DateTimeOffset? ClipCreatedAt { get { return _original.ClipCreatedAt; } set { _original.ClipCreatedAt = value; } }
-    public IDiscordJsonApplication Application { get { return new DiscordJsonApplication(_original.Application); } set { _original.Application = value.Original; } }
+    public IDiscordJsonApplication? Application { get { return _original.Application is null ? null : new DiscordJsonApplication(_original.Application); } set { _original.Application = value?.Original; } }
     public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
 }
 
@@ -14774,7 +14775,7 @@ public partial class DiscordJsonEmbed : IDiscordJsonEmbed
     public IDiscordJsonEmbedVideo? Video { get { return _original.Video is null ? null : new DiscordJsonEmbedVideo(_original.Video); } set { _original.Video = value?.Original; } }
     public IDiscordJsonEmbedProvider? Provider { get { return _original.Provider is null ? null : new DiscordJsonEmbedProvider(_original.Provider); } set { _original.Provider = value?.Original; } }
     public IDiscordJsonEmbedAuthor? Author { get { return _original.Author is null ? null : new DiscordJsonEmbedAuthor(_original.Author); } set { _original.Author = value?.Original; } }
-    public IDiscordJsonEmbedField[] Fields { get { return _original.Fields.Select(x => new DiscordJsonEmbedField(x)).ToArray(); } set { _original.Fields = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonEmbedField> Fields { get { return _original.Fields.Project(x => new DiscordJsonEmbedField(x)); } set { _original.Fields = value.Select(x => x.Original).ToArray(); } }
 }
 
 
@@ -14839,7 +14840,7 @@ public partial class DiscordJsonApplication : IDiscordJsonApplication
     public string[]? RedirectUris { get { return _original.RedirectUris; } set { _original.RedirectUris = value; } }
     public string? InteractionsEndpointUrl { get { return _original.InteractionsEndpointUrl; } set { _original.InteractionsEndpointUrl = value; } }
     public string? RoleConnectionsVerificationUrl { get { return _original.RoleConnectionsVerificationUrl; } set { _original.RoleConnectionsVerificationUrl = value; } }
-    public string EventWebhooksUrl { get { return _original.EventWebhooksUrl; } set { _original.EventWebhooksUrl = value; } }
+    public string? EventWebhooksUrl { get { return _original.EventWebhooksUrl; } set { _original.EventWebhooksUrl = value; } }
     public NetCord.ApplicationEventWebhooksStatus EventWebhooksStatus { get { return _original.EventWebhooksStatus; } set { _original.EventWebhooksStatus = value; } }
     public string[]? EventWebhooksTypes { get { return _original.EventWebhooksTypes; } set { _original.EventWebhooksTypes = value; } }
     public string[]? Tags { get { return _original.Tags; } set { _original.Tags = value; } }
@@ -14934,7 +14935,7 @@ public partial class DiscordJsonMessagePoll : IDiscordJsonMessagePoll
     }
     public NetCord.JsonModels.JsonMessagePoll Original => _original;
     public IDiscordJsonMessagePollMedia Question { get { return new DiscordJsonMessagePollMedia(_original.Question); } set { _original.Question = value.Original; } }
-    public IDiscordJsonMessagePollAnswer[] Answers { get { return _original.Answers.Select(x => new DiscordJsonMessagePollAnswer(x)).ToArray(); } set { _original.Answers = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonMessagePollAnswer> Answers { get { return _original.Answers.Project(x => new DiscordJsonMessagePollAnswer(x)); } set { _original.Answers = value.Select(x => x.Original).ToArray(); } }
     public System.DateTimeOffset? ExpiresAt { get { return _original.ExpiresAt; } set { _original.ExpiresAt = value; } }
     public bool AllowMultiselect { get { return _original.AllowMultiselect; } set { _original.AllowMultiselect = value; } }
     public NetCord.MessagePollLayoutType LayoutType { get { return _original.LayoutType; } set { _original.LayoutType = value; } }
@@ -14981,7 +14982,7 @@ public partial class DiscordTeam : IDiscordTeam
     public NetCord.Team Original => _original;
     public ulong Id => _original.Id;
     public string? IconHash => _original.IconHash;
-    public IReadOnlyList<IDiscordTeamUser> Users => _original.Users.Select(x => new DiscordTeamUser(x)).ToList();
+    public IReadOnlyList<IDiscordTeamUser> Users => _original.Users.Project(x => new DiscordTeamUser(x));
     public string Name => _original.Name;
     public ulong OwnerId => _original.OwnerId;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
@@ -15375,14 +15376,14 @@ public partial class DiscordMessageSnapshotMessage : IDiscordMessageSnapshotMess
     public NetCord.MessageSnapshotMessage Original => _original;
     public NetCord.MessageType Type => _original.Type;
     public string Content => _original.Content;
-    public IReadOnlyList<IDiscordEmbed> Embeds => _original.Embeds.Select(x => new DiscordEmbed(x)).ToList();
-    public IReadOnlyList<IDiscordAttachment> Attachments => _original.Attachments.Select(x => new DiscordAttachment(x)).ToList();
+    public IReadOnlyList<IDiscordEmbed> Embeds => _original.Embeds.Project(x => new DiscordEmbed(x));
+    public IReadOnlyList<IDiscordAttachment> Attachments => _original.Attachments.Project(x => new DiscordAttachment(x));
     public System.DateTimeOffset? EditedAt => _original.EditedAt;
     public NetCord.MessageFlags Flags => _original.Flags;
-    public IReadOnlyList<IDiscordUser> MentionedUsers => _original.MentionedUsers.Select(x => new DiscordUser(x)).ToList();
+    public IReadOnlyList<IDiscordUser> MentionedUsers => _original.MentionedUsers.Project(x => new DiscordUser(x));
     public IReadOnlyList<ulong> MentionedRoleIds => _original.MentionedRoleIds;
-    public IReadOnlyList<IDiscordMessageComponent> Components => _original.Components.Select(x => new DiscordMessageComponent(x)).ToList();
-    public IReadOnlyList<IDiscordMessageSticker> Stickers => _original.Stickers.Select(x => new DiscordMessageSticker(x)).ToList();
+    public IReadOnlyList<IDiscordMessageComponent> Components => _original.Components.Project(x => new DiscordMessageComponent(x));
+    public IReadOnlyList<IDiscordMessageSticker> Stickers => _original.Stickers.Project(x => new DiscordMessageSticker(x));
 }
 
 
@@ -15421,7 +15422,7 @@ public partial class DiscordMessagePollResults : IDiscordMessagePollResults
     }
     public NetCord.MessagePollResults Original => _original;
     public bool IsFinalized => _original.IsFinalized;
-    public IReadOnlyList<IDiscordMessagePollAnswerCount> Answers => _original.Answers.Select(x => new DiscordMessagePollAnswerCount(x)).ToList();
+    public IReadOnlyList<IDiscordMessagePollAnswerCount> Answers => _original.Answers.Project(x => new DiscordMessagePollAnswerCount(x));
 }
 
 
@@ -15512,8 +15513,8 @@ public partial class DiscordParty : IDiscordParty
         _original = original;
     }
     public NetCord.Gateway.Party Original => _original;
-    public string Id => _original.Id;
-    public IDiscordPartySize Size => new DiscordPartySize(_original.Size);
+    public string? Id => _original.Id;
+    public IDiscordPartySize? Size => _original.Size is null ? null : new DiscordPartySize(_original.Size);
 }
 
 
@@ -15763,8 +15764,8 @@ public partial class DiscordJsonGuild : IDiscordJsonGuild
     public NetCord.VerificationLevel VerificationLevel { get { return _original.VerificationLevel; } set { _original.VerificationLevel = value; } }
     public NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel { get { return _original.DefaultMessageNotificationLevel; } set { _original.DefaultMessageNotificationLevel = value; } }
     public NetCord.ContentFilter ContentFilter { get { return _original.ContentFilter; } set { _original.ContentFilter = value; } }
-    public IDiscordJsonRole[] Roles { get { return _original.Roles.Select(x => new DiscordJsonRole(x)).ToArray(); } set { _original.Roles = value.Select(x => x.Original).ToArray(); } }
-    public IDiscordJsonEmoji[] Emojis { get { return _original.Emojis.Select(x => new DiscordJsonEmoji(x)).ToArray(); } set { _original.Emojis = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonRole> Roles { get { return _original.Roles.Project(x => new DiscordJsonRole(x)); } set { _original.Roles = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonEmoji> Emojis { get { return _original.Emojis.Project(x => new DiscordJsonEmoji(x)); } set { _original.Emojis = value.Select(x => x.Original).ToArray(); } }
     public string[] Features { get { return _original.Features; } set { _original.Features = value; } }
     public NetCord.MfaLevel MfaLevel { get { return _original.MfaLevel; } set { _original.MfaLevel = value; } }
     public ulong? ApplicationId { get { return _original.ApplicationId; } set { _original.ApplicationId = value; } }
@@ -15775,11 +15776,11 @@ public partial class DiscordJsonGuild : IDiscordJsonGuild
     public bool IsLarge { get { return _original.IsLarge; } set { _original.IsLarge = value; } }
     public bool IsUnavailable { get { return _original.IsUnavailable; } set { _original.IsUnavailable = value; } }
     public int UserCount { get { return _original.UserCount; } set { _original.UserCount = value; } }
-    public IDiscordJsonVoiceState[] VoiceStates { get { return _original.VoiceStates.Select(x => new DiscordJsonVoiceState(x)).ToArray(); } set { _original.VoiceStates = value.Select(x => x.Original).ToArray(); } }
-    public IDiscordJsonGuildUser[] Users { get { return _original.Users.Select(x => new DiscordJsonGuildUser(x)).ToArray(); } set { _original.Users = value.Select(x => x.Original).ToArray(); } }
-    public IDiscordJsonChannel[] Channels { get { return _original.Channels.Select(x => new DiscordJsonChannel(x)).ToArray(); } set { _original.Channels = value.Select(x => x.Original).ToArray(); } }
-    public IDiscordJsonChannel[] ActiveThreads { get { return _original.ActiveThreads.Select(x => new DiscordJsonChannel(x)).ToArray(); } set { _original.ActiveThreads = value.Select(x => x.Original).ToArray(); } }
-    public IDiscordJsonPresence[] Presences { get { return _original.Presences.Select(x => new DiscordJsonPresence(x)).ToArray(); } set { _original.Presences = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonVoiceState> VoiceStates { get { return _original.VoiceStates.Project(x => new DiscordJsonVoiceState(x)); } set { _original.VoiceStates = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonGuildUser> Users { get { return _original.Users.Project(x => new DiscordJsonGuildUser(x)); } set { _original.Users = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonChannel> Channels { get { return _original.Channels.Project(x => new DiscordJsonChannel(x)); } set { _original.Channels = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonChannel> ActiveThreads { get { return _original.ActiveThreads.Project(x => new DiscordJsonChannel(x)); } set { _original.ActiveThreads = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonPresence> Presences { get { return _original.Presences.Project(x => new DiscordJsonPresence(x)); } set { _original.Presences = value.Select(x => x.Original).ToArray(); } }
     public int? MaxPresences { get { return _original.MaxPresences; } set { _original.MaxPresences = value; } }
     public int? MaxUsers { get { return _original.MaxUsers; } set { _original.MaxUsers = value; } }
     public string? VanityUrlCode { get { return _original.VanityUrlCode; } set { _original.VanityUrlCode = value; } }
@@ -15795,9 +15796,9 @@ public partial class DiscordJsonGuild : IDiscordJsonGuild
     public int? ApproximatePresenceCount { get { return _original.ApproximatePresenceCount; } set { _original.ApproximatePresenceCount = value; } }
     public IDiscordJsonGuildWelcomeScreen? WelcomeScreen { get { return _original.WelcomeScreen is null ? null : new DiscordJsonGuildWelcomeScreen(_original.WelcomeScreen); } set { _original.WelcomeScreen = value?.Original; } }
     public NetCord.NsfwLevel NsfwLevel { get { return _original.NsfwLevel; } set { _original.NsfwLevel = value; } }
-    public IDiscordJsonStageInstance[] StageInstances { get { return _original.StageInstances.Select(x => new DiscordJsonStageInstance(x)).ToArray(); } set { _original.StageInstances = value.Select(x => x.Original).ToArray(); } }
-    public IDiscordJsonSticker[] Stickers { get { return _original.Stickers.Select(x => new DiscordJsonSticker(x)).ToArray(); } set { _original.Stickers = value.Select(x => x.Original).ToArray(); } }
-    public IDiscordJsonGuildScheduledEvent[] ScheduledEvents { get { return _original.ScheduledEvents.Select(x => new DiscordJsonGuildScheduledEvent(x)).ToArray(); } set { _original.ScheduledEvents = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonStageInstance> StageInstances { get { return _original.StageInstances.Project(x => new DiscordJsonStageInstance(x)); } set { _original.StageInstances = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonSticker> Stickers { get { return _original.Stickers.Project(x => new DiscordJsonSticker(x)); } set { _original.Stickers = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonGuildScheduledEvent> ScheduledEvents { get { return _original.ScheduledEvents.Project(x => new DiscordJsonGuildScheduledEvent(x)); } set { _original.ScheduledEvents = value.Select(x => x.Original).ToArray(); } }
     public bool PremiumProgressBarEnabled { get { return _original.PremiumProgressBarEnabled; } set { _original.PremiumProgressBarEnabled = value; } }
     public ulong? SafetyAlertsChannelId { get { return _original.SafetyAlertsChannelId; } set { _original.SafetyAlertsChannelId = value; } }
     public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
@@ -15984,7 +15985,7 @@ public partial class DiscordJsonTeam : IDiscordJsonTeam
     }
     public NetCord.JsonModels.JsonTeam Original => _original;
     public string? IconHash { get { return _original.IconHash; } set { _original.IconHash = value; } }
-    public IDiscordJsonTeamUser[] Users { get { return _original.Users.Select(x => new DiscordJsonTeamUser(x)).ToArray(); } set { _original.Users = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonTeamUser> Users { get { return _original.Users.Project(x => new DiscordJsonTeamUser(x)); } set { _original.Users = value.Select(x => x.Original).ToArray(); } }
     public string Name { get { return _original.Name; } set { _original.Name = value; } }
     public ulong OwnerId { get { return _original.OwnerId; } set { _original.OwnerId = value; } }
     public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
@@ -16026,15 +16027,15 @@ public partial class DiscordJsonMessageSnapshotMessage : IDiscordJsonMessageSnap
     public NetCord.JsonModels.JsonMessageSnapshotMessage Original => _original;
     public NetCord.MessageType Type { get { return _original.Type; } set { _original.Type = value; } }
     public string Content { get { return _original.Content; } set { _original.Content = value; } }
-    public IDiscordJsonEmbed[] Embeds { get { return _original.Embeds.Select(x => new DiscordJsonEmbed(x)).ToArray(); } set { _original.Embeds = value.Select(x => x.Original).ToArray(); } }
-    public IDiscordJsonAttachment[] Attachments { get { return _original.Attachments.Select(x => new DiscordJsonAttachment(x)).ToArray(); } set { _original.Attachments = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonEmbed> Embeds { get { return _original.Embeds.Project(x => new DiscordJsonEmbed(x)); } set { _original.Embeds = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonAttachment> Attachments { get { return _original.Attachments.Project(x => new DiscordJsonAttachment(x)); } set { _original.Attachments = value.Select(x => x.Original).ToArray(); } }
     public System.DateTimeOffset CreatedAt { get { return _original.CreatedAt; } set { _original.CreatedAt = value; } }
     public System.DateTimeOffset? EditedAt { get { return _original.EditedAt; } set { _original.EditedAt = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
-    public IDiscordJsonUser[] MentionedUsers { get { return _original.MentionedUsers.Select(x => new DiscordJsonUser(x)).ToArray(); } set { _original.MentionedUsers = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonUser> MentionedUsers { get { return _original.MentionedUsers.Project(x => new DiscordJsonUser(x)); } set { _original.MentionedUsers = value.Select(x => x.Original).ToArray(); } }
     public ulong[] MentionedRoleIds { get { return _original.MentionedRoleIds; } set { _original.MentionedRoleIds = value; } }
-    public IDiscordJsonComponent[]? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordJsonComponent(x)).ToArray(); } set { _original.Components = value?.Select(x => x.Original).ToArray(); } }
-    public IDiscordJsonMessageSticker[]? Stickers { get { return _original.Stickers is null ? null : _original.Stickers.Select(x => new DiscordJsonMessageSticker(x)).ToArray(); } set { _original.Stickers = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonComponent>? Components { get { return _original.Components is null ? null : _original.Components.Project(x => new DiscordJsonComponent(x)); } set { _original.Components = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonMessageSticker>? Stickers { get { return _original.Stickers is null ? null : _original.Stickers.Project(x => new DiscordJsonMessageSticker(x)); } set { _original.Stickers = value?.Select(x => x.Original).ToArray(); } }
 }
 
 
@@ -16074,7 +16075,7 @@ public partial class DiscordJsonMessagePollResults : IDiscordJsonMessagePollResu
     }
     public NetCord.JsonModels.JsonMessagePollResults Original => _original;
     public bool IsFinalized { get { return _original.IsFinalized; } set { _original.IsFinalized = value; } }
-    public IDiscordJsonMessagePollAnswerCount[] Answers { get { return _original.Answers.Select(x => new DiscordJsonMessagePollAnswerCount(x)).ToArray(); } set { _original.Answers = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonMessagePollAnswerCount> Answers { get { return _original.Answers.Project(x => new DiscordJsonMessagePollAnswerCount(x)); } set { _original.Answers = value.Select(x => x.Original).ToArray(); } }
     public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
 }
 
@@ -16107,8 +16108,8 @@ public partial class DiscordTeamUser : IDiscordTeamUser
     public NetCord.PremiumType? PremiumType => _original.PremiumType;
     public NetCord.UserFlags? PublicFlags => _original.PublicFlags;
     public IDiscordAvatarDecorationData? AvatarDecorationData => _original.AvatarDecorationData is null ? null : new DiscordAvatarDecorationData(_original.AvatarDecorationData);
-    public IDiscordCollectibles Collectibles => new DiscordCollectibles(_original.Collectibles);
-    public IDiscordUserPrimaryGuild PrimaryGuild => new DiscordUserPrimaryGuild(_original.PrimaryGuild);
+    public IDiscordCollectibles? Collectibles => _original.Collectibles is null ? null : new DiscordCollectibles(_original.Collectibles);
+    public IDiscordUserPrimaryGuild? PrimaryGuild => _original.PrimaryGuild is null ? null : new DiscordUserPrimaryGuild(_original.PrimaryGuild);
     public bool HasAvatar => _original.HasAvatar;
     public bool HasBanner => _original.HasBanner;
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
@@ -16216,7 +16217,7 @@ public partial class DiscordJsonPresence : IDiscordJsonPresence
     public IDiscordJsonUser User { get { return new DiscordJsonUser(_original.User); } set { _original.User = value.Original; } }
     public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
     public NetCord.UserStatusType Status { get { return _original.Status; } set { _original.Status = value; } }
-    public IDiscordJsonUserActivity[]? Activities { get { return _original.Activities is null ? null : _original.Activities.Select(x => new DiscordJsonUserActivity(x)).ToArray(); } set { _original.Activities = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonUserActivity>? Activities { get { return _original.Activities is null ? null : _original.Activities.Project(x => new DiscordJsonUserActivity(x)); } set { _original.Activities = value?.Select(x => x.Original).ToArray(); } }
     public IReadOnlyDictionary<NetCord.Gateway.Platform, NetCord.UserStatusType> Platform { get { return _original.Platform; } set { _original.Platform = value; } }
 }
 
@@ -16230,7 +16231,7 @@ public partial class DiscordJsonGuildWelcomeScreen : IDiscordJsonGuildWelcomeScr
     }
     public NetCord.JsonModels.JsonGuildWelcomeScreen Original => _original;
     public string? Description { get { return _original.Description; } set { _original.Description = value; } }
-    public IDiscordJsonWelcomeScreenChannel[] WelcomeChannels { get { return _original.WelcomeChannels.Select(x => new DiscordJsonWelcomeScreenChannel(x)).ToArray(); } set { _original.WelcomeChannels = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonWelcomeScreenChannel> WelcomeChannels { get { return _original.WelcomeChannels.Project(x => new DiscordJsonWelcomeScreenChannel(x)); } set { _original.WelcomeChannels = value.Select(x => x.Original).ToArray(); } }
 }
 
 
@@ -16426,7 +16427,7 @@ public partial class DiscordJsonGuildScheduledEventRecurrenceRule : IDiscordJson
     public NetCord.GuildScheduledEventRecurrenceRuleFrequency Frequency { get { return _original.Frequency; } set { _original.Frequency = value; } }
     public int Interval { get { return _original.Interval; } set { _original.Interval = value; } }
     public NetCord.GuildScheduledEventRecurrenceRuleWeekday[]? ByWeekday { get { return _original.ByWeekday; } set { _original.ByWeekday = value; } }
-    public IDiscordJsonGuildScheduledEventRecurrenceRuleNWeekday[]? ByNWeekday { get { return _original.ByNWeekday is null ? null : _original.ByNWeekday.Select(x => new DiscordJsonGuildScheduledEventRecurrenceRuleNWeekday(x)).ToArray(); } set { _original.ByNWeekday = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyList<IDiscordJsonGuildScheduledEventRecurrenceRuleNWeekday>? ByNWeekday { get { return _original.ByNWeekday is null ? null : _original.ByNWeekday.Project(x => new DiscordJsonGuildScheduledEventRecurrenceRuleNWeekday(x)); } set { _original.ByNWeekday = value?.Select(x => x.Original).ToArray(); } }
     public NetCord.GuildScheduledEventRecurrenceRuleMonth[]? ByMonth { get { return _original.ByMonth; } set { _original.ByMonth = value; } }
     public int[]? ByMonthDay { get { return _original.ByMonthDay; } set { _original.ByMonthDay = value; } }
     public int[]? ByYearDay { get { return _original.ByYearDay; } set { _original.ByYearDay = value; } }

@@ -60,7 +60,7 @@ public class Program
     private static void GenerateInterfaceAndClass(Type type, HashSet<string> generatedTypes, Queue<Type> interfaceQueue, List<string> interfaceBodies, List<string> classBodies)
     {
         string typeName = type.Name;
-        if (typeName.EndsWith("&") || typeName.EndsWith("[]"))
+        if (typeName.EndsWith('&') || typeName.EndsWith("[]"))
         {
             return;
         }
@@ -73,7 +73,7 @@ public class Program
             typeName = $"{typeName}<{final}>";
         }
         // Remove leading 'I' if present
-        if (typeName.StartsWith("I") && type.IsInterface && typeName.Length > 1 && char.IsUpper(typeName[1]))
+        if (typeName.StartsWith('I') && type.IsInterface && typeName.Length > 1 && char.IsUpper(typeName[1]))
             typeName = typeName.Substring(1);
         var interfaceName = $"IDiscord{typeName}";
         var className = $"Discord{typeName}";
@@ -113,7 +113,7 @@ public class Program
         {
             if (prop.CustomAttributes.Any(a => a.AttributeType.FullName == "System.ObsoleteAttribute"))
                 continue; // Skip obsolete properties
-            var memberTypeName = GetDiscordTypeName(prop.PropertyType, interfaceQueue);
+            var memberTypeName = ListOfWrappers(prop, GetDiscordTypeName(prop.PropertyType, interfaceQueue));
             var isStatic = prop.GetMethod?.IsStatic is true;
             var staticModifier = isStatic ? "static " : "";
             if (isStatic)
@@ -124,7 +124,7 @@ public class Program
             else
             {
                 string nullableModifier = NullabilityModifier(prop);
-                if (memberTypeName.EndsWith("?"))
+                if (memberTypeName.EndsWith('?'))
                     nullableModifier = ""; // Already handled in type name
                 var hasSetter = prop.SetMethod != null && prop.SetMethod.IsPublic;
                 var accessor = hasSetter ? "{ get; set; }" : "{ get; }";
@@ -172,8 +172,8 @@ public class Program
             var hasSetter = prop.SetMethod != null && prop.SetMethod.IsPublic;
             var nullCheck = isNullable ? $"_original.{prop.Name} is null ? null : " : "";
 
-            var memberTypeName = GetDiscordTypeName(prop.PropertyType, interfaceQueue);
-            if (memberTypeName.EndsWith("?"))
+            var memberTypeName = ListOfWrappers(prop, GetDiscordTypeName(prop.PropertyType, interfaceQueue));
+            if (memberTypeName.EndsWith('?'))
                 nullableModifier = ""; // Already handled in type name
 
             if (prop.GetMethod?.IsStatic is true)
@@ -233,11 +233,11 @@ public class Program
                     var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, interfaceQueue, false)}";
                     if (!hasSetter)
                     {
-                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x)).ToArray();");
+                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.Project(x => new {argClassName}(x));");
                     }
                     else
                     {
-                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} {{ get {{ return {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x)).ToArray(); }} set {{ _original.{prop.Name} = value{nullableModifier}.Select(x => x.Original).ToArray(); }} }}");
+                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} {{ get {{ return {nullCheck}_original.{prop.Name}.Project(x => new {argClassName}(x)); }} set {{ _original.{prop.Name} = value{nullableModifier}.Select(x => x.Original).ToArray(); }} }}");
                     }
                     continue;
                 }
@@ -250,7 +250,7 @@ public class Program
                 if (argTypeName.StartsWith("IDiscord"))
                 {
                     var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, interfaceQueue, false)}";
-                    classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x)).ToList();");
+                    classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.Project(x => new {argClassName}(x));");
                     continue;
                 }
             }
@@ -324,6 +324,24 @@ public class Program
         classBodies.Add(classSb.ToString());
     }
 
+    /// <summary>
+    /// An array of the original's models is a read-only list of their wrappers here (IReadOnlyList), which a getter gives as a
+    /// view of the original's (ProjectedList) rather than a copy.
+    /// </summary>
+    private static string ListOfWrappers(PropertyInfo prop, string memberTypeName)
+    {
+        if (!prop.PropertyType.IsArray || !memberTypeName.StartsWith("IDiscord"))
+            return memberTypeName;
+        var nullable = memberTypeName.EndsWith('?') ? "?" : "";
+        var element = memberTypeName.TrimEnd('?');
+        return $"IReadOnlyList<{element[..^2]}>{nullable}";
+    }
+
+    /// <summary>Whether an out parameter may be left null when its method returns false ([MaybeNullWhen(false)]).</summary>
+    private static bool MaybeNullWhenFalse(ParameterInfo param) => param.CustomAttributes.Any(a =>
+        a.AttributeType.FullName == "System.Diagnostics.CodeAnalysis.MaybeNullWhenAttribute"
+        && a.ConstructorArguments.Count == 1 && a.ConstructorArguments[0].Value is false);
+
     private static string NullabilityModifier(Type prop)
     {
         bool isNullableValueType = Nullable.GetUnderlyingType(prop) != null;
@@ -346,6 +364,9 @@ public class Program
         bool isNullableReferenceType = nullable != null &&
             nullable.ConstructorArguments.Count > 0 &&
             (nullable.ConstructorArguments[0].Value?.ToString() == "2");
+        // Then what the compiler wrote for the return, read as it reads it (its context attributes included)
+        if (!isNullableReferenceType && !prop.ReturnType.IsValueType && prop.ReturnType != typeof(void) && !prop.ReturnType.IsGenericParameter)
+            isNullableReferenceType = new NullabilityInfoContext().Create(prop.ReturnParameter).ReadState == NullabilityState.Nullable;
         //bool isNullable = isNullableValueType || isNullableReferenceType;
         bool isNullable = isNullableReferenceType;
         var nullableModifier = isNullable ? "?" : "";
@@ -730,6 +751,10 @@ public class Program
             }
         }
 
+        // Then what the compiler wrote, read as it reads it (its context attributes included)
+        if (!isNullableReferenceType && !prop.PropertyType.IsValueType)
+            isNullableReferenceType = new NullabilityInfoContext().Create(prop).ReadState == NullabilityState.Nullable;
+
         // Final check: use dictionary from build warnings
         if (!isNullableReferenceType)
         {
@@ -788,7 +813,9 @@ public class Program
                 var paramStr = $"{paramType} {param.Name}";
                 if (param.IsOut)
                 {
-                    paramStr = $"out {paramType.Split("`")[0]} {param.Name}";
+                    // An out the original may leave null (its [MaybeNullWhen(false)]) may be null here too
+                    var maybeNull = MaybeNullWhenFalse(param) ? "[System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] " : "";
+                    paramStr = $"{maybeNull}out {paramType.Split("`")[0]} {param.Name}";
                 }
                 if (param.HasDefaultValue)
                 {
@@ -1028,7 +1055,7 @@ public class Program
             {
                 //if (method.IsStatic)
                 //    continue; // Static methods not supported in classes for now
-                var nullableModifier = NullabilityModifier(method); // This might be wrong for generic methods
+                var nullableModifier = returnType.EndsWith('?') ? "" : NullabilityModifier(method); // This might be wrong for generic methods
                 if (method.IsStatic)
                 {
                     sb.AppendLine($"    {staticModifier}{returnType}{nullableModifier} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}){genericConstraint}");
@@ -1060,7 +1087,9 @@ public class Program
                         {
                             var bar = GetDiscordTypeName(parameters.First(p => p.Name == outParam).ParameterType, interfaceQueue);
                             var withoutI = bar.Split("`")[0].Substring(1);
-                            sb.AppendLine($"        {outParam} = new {withoutI}({outParam}Temp);");
+                            sb.AppendLine(MaybeNullWhenFalse(parameters.First(p => p.Name == outParam))
+                                ? $"        {outParam} = {outParam}Temp is null ? null : new {withoutI}({outParam}Temp);"
+                                : $"        {outParam} = new {withoutI}({outParam}Temp);");
                         }
                         sb.AppendLine($"        return result;");
                         sb.AppendLine("    }");
@@ -1076,7 +1105,9 @@ public class Program
                         {
                             var bar = GetDiscordTypeName(parameters.First(p => p.Name == outParam).ParameterType, interfaceQueue);
                             var withoutI = bar.Split("`")[0].Substring(1);
-                            sb.AppendLine($"        {outParam} = new {withoutI}({outParam}Temp);");
+                            sb.AppendLine(MaybeNullWhenFalse(parameters.First(p => p.Name == outParam))
+                                ? $"        {outParam} = {outParam}Temp is null ? null : new {withoutI}({outParam}Temp);"
+                                : $"        {outParam} = new {withoutI}({outParam}Temp);");
                         }
                         sb.AppendLine($"        return result;");
                         sb.AppendLine("    }");
@@ -1187,7 +1218,9 @@ public class Program
                         if (argTypeName.StartsWith("IDiscord"))
                         {
                             var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, interfaceQueue, method.IsGenericMethod)}";
-                            sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) {genericConstraint}");
+                            // The cancellation token reaches the enumerator ([EnumeratorCancellation]), as the original's does
+                            var iteratorParams = paramStrings.Select(p => p.StartsWith("System.Threading.CancellationToken ") ? $"[System.Runtime.CompilerServices.EnumeratorCancellation] {p}" : p);
+                            sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", iteratorParams)}) {genericConstraint}");
                             sb.AppendLine($"    {{");
                             sb.AppendLine($"        await foreach(var original in _original.{CallMethod(method)}({string.Join(", ", argNames)}))");
                             sb.AppendLine($"        {{");
@@ -1202,8 +1235,8 @@ public class Program
                     if (returnType.StartsWith("IDiscord"))
                     {
                         var returnClassName = $"Discord{GetTypeNameWithoutLeadingI(method.ReturnType, interfaceQueue, method.IsGenericMethod)}";
-                        var nullableModifier = NullabilityModifier(method);
-                        var isNullable = nullableModifier is "?" || returnType.EndsWith("?"); // Nullable reflection check busted on some types so gotta check the ending of the returnType
+                        var nullableModifier = returnType.EndsWith('?') ? "" : NullabilityModifier(method);
+                        var isNullable = nullableModifier is "?" || returnType.EndsWith('?'); // Nullable reflection check busted on some types so gotta check the ending of the returnType
                         sb.AppendLine($"    public {returnType}{nullableModifier} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) {genericConstraint}");
                         sb.AppendLine($"    {{");
                         if (isNullable)
@@ -1220,7 +1253,7 @@ public class Program
                     }
                     else
                     {
-                        var nullableModifier = NullabilityModifier(method);
+                        var nullableModifier = returnType.EndsWith('?') ? "" : NullabilityModifier(method);
                         sb.AppendLine($"    public {returnType}{nullableModifier} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) {genericConstraint}");
                         sb.AppendLine($"    {{");
                         var returnModifier = returnType == "void" ? "" : "return ";
@@ -1321,7 +1354,7 @@ public class Program
         if (type.Namespace != null && type.Namespace.StartsWith("NetCord"))
         {
             var typeName = type.Name;
-            if (typeName.StartsWith("I") && type.IsInterface && typeName.Length > 1 && char.IsUpper(typeName[1]))
+            if (typeName.StartsWith('I') && type.IsInterface && typeName.Length > 1 && char.IsUpper(typeName[1]))
                 typeName = typeName.Substring(1);
             var interfaceName = $"IDiscord{typeName}";
             // Only enqueue, never generate inline
@@ -1390,7 +1423,7 @@ public class Program
             var final = string.Join(", ", types.Select(t => GetDiscordTypeName(t, interfaceQueue, isGenericMethod)));
             typeName = $"{typeName}<{final}>";
         }
-        if (typeName.StartsWith("I") && type.IsInterface && typeName.Length > 1 && char.IsUpper(typeName[1]))
+        if (typeName.StartsWith('I') && type.IsInterface && typeName.Length > 1 && char.IsUpper(typeName[1]))
             typeName = typeName.Substring(1);
         return typeName;
     }

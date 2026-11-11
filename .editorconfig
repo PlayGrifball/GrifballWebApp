@@ -67,12 +67,6 @@ dotnet_diagnostic.S2365.severity = error
 # An override doesn't change a default parameter value
 dotnet_diagnostic.S1006.severity = error
 
-# DiscordInterfaceSourceGen's output, until the generator writes it without them
-[DiscordInterfaces/DiscordInteractionContextGen.cs]
-dotnet_diagnostic.CS8603.severity = warning
-dotnet_diagnostic.CS8604.severity = warning
-dotnet_diagnostic.S2365.severity = warning
-
 # EF's migrations: generated code (SonarCloud doesn't analyse them either)
 [GrifballWebApp.Migrations.*/Migrations/**.cs]
 generated_code = true
