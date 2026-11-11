@@ -61,7 +61,7 @@ public static partial class RecordedGameParser
 
     /// <summary>A Carnage sheet's columns (-1 for one it hasn't): the player's, and the stats a game's rows give.</summary>
     private sealed record CarnageColumns(int Player, int Team, int GamesPlayed, int Wins, int Losses, int Goals, int Kills, int Assists, int Deaths,
-        int Betrayals, int Hammer, int Sword, int Ball, int Stops, int Timestamp, int GameTime, int Game)
+        int Betrayals, int Hammer, int Sword, int Ball, int Stops, int Stamp, int GameTime, int Game)
     {
         public static CarnageColumns Of(string[] header)
         {
@@ -116,7 +116,7 @@ public static partial class RecordedGameParser
             }
             if (k is null)
                 continue;
-            var stampText = c.Timestamp < 0 ? null : Cell(row, c.Timestamp).Trim();
+            var stampText = c.Stamp < 0 ? null : Cell(row, c.Stamp).Trim();
             var playedAt = Timestamp(stampText);
             var time = Int(row, c.GameTime);
             var side = c.TeamOf(row).Trim();
