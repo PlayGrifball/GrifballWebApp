@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Application.TeamStandings;
+﻿using Microsoft.AspNetCore.Authorization;
+using GrifballWebApp.Application.TeamStandings;
 
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,6 +16,7 @@ public class TeamStandingsController : ControllerBase
         _teamStandingsService = teamStandingsService;
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonID:int}", Name = "GetTeamStandings")]
     public Task<TeamStandingDto[]> GetTeamStandings([FromRoute] int seasonID, CancellationToken ct)
     {

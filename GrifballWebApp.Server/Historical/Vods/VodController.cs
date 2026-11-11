@@ -19,16 +19,20 @@ public class VodController : ControllerBase
         _vods = vods;
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonMatchID:int}", Name = "GetSeasonMatchVods")]
     public Task<List<VodDto>> ForSeasonMatch([FromRoute] int seasonMatchID, CancellationToken ct) => _vods.ForSeasonMatch(seasonMatchID, ct);
 
+    [AllowAnonymous]
     [HttpGet("{seasonID:int}", Name = "GetSeasonVods")]
     public Task<List<VodDto>> ForSeason([FromRoute] int seasonID, CancellationToken ct) => _vods.ForSeason(seasonID, ct);
 
+    [AllowAnonymous]
     [HttpGet("{teamID:int}", Name = "GetTeamVods")]
     public Task<List<VodDto>> ForTeam([FromRoute] int teamID, CancellationToken ct) => _vods.ForTeam(teamID, ct);
 
     /// <summary>The VODs of the player's teams.</summary>
+    [AllowAnonymous]
     [HttpGet("{userID:int}", Name = "GetPlayerVods")]
     public Task<List<VodDto>> ForPlayer([FromRoute] int userID, CancellationToken ct) => _vods.ForPlayer(userID, ct);
 

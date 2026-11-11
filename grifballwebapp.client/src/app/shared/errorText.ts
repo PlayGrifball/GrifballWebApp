@@ -1,16 +1,19 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
-/** The server's plain-text error message, if it sent one, else the fallback. */
+/**
+ * Why the server refused: a ProblemDetails' detail or title (every API error is one), a plain-text message, or the
+ * fallback.
+ */
 export function errorText(e: HttpErrorResponse, fallback: string): string {
-  return typeof e.error === 'string' && e.error.length > 0 ? e.error : fallback;
-}
-
-/** A refusal's reason: a ProblemDetails' detail or title, a plain-text message, or the fallback. */
-export function problemText(error: HttpErrorResponse, fallback: string): string {
-  const body = error.error;
+  const body: unknown = e.error;
   if (body && typeof body === 'object') {
     const problem = body as { detail?: string | null, title?: string | null };
     return problem.detail || problem.title || fallback;
   }
+  return typeof body === 'string' && body.length > 0 ? body : fallback;
+}
+
+/** A refusal's reason: the same as errorText (kept for its callers). */
+export function problemText(error: HttpErrorResponse, fallback: string): string {
   return errorText(error, fallback);
 }

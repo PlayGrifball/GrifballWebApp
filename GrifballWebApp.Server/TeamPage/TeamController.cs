@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Application.Database;
+﻿using Microsoft.AspNetCore.Authorization;
+using GrifballWebApp.Application.Database;
 using GrifballWebApp.Domain.League;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,7 @@ public class TeamController : ControllerBase
     /// The team: its record (from its matches, or the one its source spreadsheet gives for a season whose matches are
     /// not in the app), roster and titles; its players' stats are Season/GetSeasonPlayerStats?teamID=.
     /// </summary>
+    [AllowAnonymous]
     [HttpGet("{teamID:int}", Name = "Team")]
     public Task<TeamDto?> Team([FromRoute] int teamID, CancellationToken ct) => _teams.GetAsync(teamID, ct);
 
@@ -31,9 +33,11 @@ public class TeamController : ControllerBase
     /// case ignored; a placeholder name like "Team 1": the team alone), newest first, with its record, roster, captain
     /// and titles, and the franchise's totals. Null when there is no such team.
     /// </summary>
+    [AllowAnonymous]
     [HttpGet("{teamID:int}", Name = "History")]
     public Task<TeamHistoryDto?> History([FromRoute] int teamID, CancellationToken ct) => _history.GetAsync(teamID, ct);
 
+    [AllowAnonymous]
     [HttpGet("{teamID:int}", Name = "Matches")]
     public Task<MatchDto[]> Matches([FromRoute] int teamID, CancellationToken ct)
     {

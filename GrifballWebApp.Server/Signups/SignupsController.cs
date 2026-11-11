@@ -17,6 +17,7 @@ public class SignupsController : ControllerBase
     }
 
     // TODO: Can this be removed? I don't see it being called
+    [AllowAnonymous]
     [HttpGet(Name = "GetSignupDateInfo")]
     public async Task<IActionResult> GetSignupDateInfo(CancellationToken ct)
     {
@@ -24,12 +25,14 @@ public class SignupsController : ControllerBase
         return Ok(await _signupsService.GetSignupDateInfo(personID, ct));
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonID:int}", Name = "GetSignups")]
     public Task<List<SignupResponseDto>> GetSignups([FromRoute] int seasonID, CancellationToken ct)
     {
         return _signupsService.GetSignups(seasonID: seasonID, ct);
     }
 
+    [Authorize]
     [HttpGet("{seasonID:int}", Name = "GetTimeslots")]
     public async Task<IActionResult> GetTimeslots([FromRoute] int seasonID, [FromQuery] int offset, CancellationToken ct)
     {

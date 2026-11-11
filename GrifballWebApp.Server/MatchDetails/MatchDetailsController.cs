@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.MatchDetails;
 
@@ -15,6 +16,7 @@ public class MatchDetailsController : ControllerBase
     }
 
     /// <summary>A Halo Infinite match by its Waypoint match ID, with every stat pulled for it; 404 for one not pulled.</summary>
+    [AllowAnonymous]
     [HttpGet("{matchID:Guid}", Name = "GetMatchDetails")]
     public async Task<ActionResult<MatchDetailsDto>> GetMatchDetails([FromRoute] Guid matchID, CancellationToken ct)
     {

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.LateLeague;
 
@@ -16,12 +17,15 @@ public class LateLeagueController : ControllerBase
         _stats = stats;
     }
 
+    [AllowAnonymous]
     [HttpGet(Name = "GetLateLeagueQueue")]
     public Task<MatchmakingQueueDto> GetQueue(CancellationToken ct) => _stats.GetQueueAsync(ct);
 
+    [AllowAnonymous]
     [HttpGet(Name = "GetLateLeagueSeasons")]
     public Task<List<MatchmakingSeasonDto>> GetSeasons(CancellationToken ct) => _stats.GetSeasonsAsync(ct);
 
+    [AllowAnonymous]
     [HttpGet("{matchmakingSeasonID:int}", Name = "GetLateLeagueSeason")]
     public async Task<ActionResult<MatchmakingSeasonDetailDto>> GetSeason([FromRoute] int matchmakingSeasonID, CancellationToken ct)
         => await _stats.GetSeasonAsync(matchmakingSeasonID, ct) is { } season ? season : NotFound();

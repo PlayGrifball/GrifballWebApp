@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Profile;
 
@@ -15,6 +16,7 @@ public class DeploymentHistoryController : ControllerBase
         _history = history;
     }
 
+    [AllowAnonymous]
     [HttpGet("{userID:int}", Name = "GetDeploymentHistory")]
     public async Task<ActionResult<List<DeploymentHistoryDto>>> GetDeploymentHistory([FromRoute] int userID, CancellationToken ct)
     {

@@ -323,6 +323,8 @@ public class Program
         app.UseRequestTelemetry();
 
         app.UseExceptionHandler();
+        // An error answered without a body (an empty 401/403/404/405, the auth middleware's too) gets a ProblemDetails one
+        app.UseStatusCodePages();
 
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())

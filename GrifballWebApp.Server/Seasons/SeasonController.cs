@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Seasons;
 
@@ -14,18 +15,21 @@ public class SeasonController : ControllerBase
         _seasonService = seasonService;
     }
 
+    [AllowAnonymous]
     [HttpGet(Name = "GetCurrentSeasonID")]
     public Task<int> GetCurrentSeasonID(CancellationToken ct)
     {
         return _seasonService.GetCurrentSeasonID(ct);
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonID:int}", Name = "GetSeasonName")]
     public Task<string?> GetSeasonName([FromRoute] int seasonID, CancellationToken ct)
     {
         return _seasonService.GetSeasonName(seasonID, ct);
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonID:int}", Name = "GetSeasonSummary")]
     public async Task<ActionResult<SeasonSummaryDto>> GetSeasonSummary([FromRoute] int seasonID, CancellationToken ct)
     {
@@ -33,6 +37,7 @@ public class SeasonController : ControllerBase
         return summary is null ? NotFound() : summary;
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonID:int}", Name = "GetSeasonTeams")]
     public async Task<ActionResult<List<SeasonTeamDto>>> GetSeasonTeams([FromRoute] int seasonID, CancellationToken ct)
     {
@@ -40,6 +45,7 @@ public class SeasonController : ControllerBase
         return teams is null ? NotFound() : teams;
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonID:int}", Name = "GetSeasonPlayerStats")]
     public Task<List<SeasonPlayerStatDto>> GetSeasonPlayerStats([FromRoute] int seasonID, [FromQuery] int? teamID, CancellationToken ct)
     {
@@ -47,6 +53,7 @@ public class SeasonController : ControllerBase
     }
 
     /// <summary>The season list (home page's past seasons, the seasons page): filtered, sorted and paged.</summary>
+    [AllowAnonymous]
     [HttpGet(Name = "GetSeasonList")]
     public Task<GrifballWebApp.Application.Dtos.PaginationResult<SeasonListItemDto>> GetSeasons([FromQuery] SeasonListFilter filter, CancellationToken ct)
     {

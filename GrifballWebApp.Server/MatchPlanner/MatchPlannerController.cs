@@ -32,6 +32,7 @@ public class MatchPlannerController : ControllerBase
         return Ok();
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonID:int}", Name = "GetUnscheduledMatches")]
     public async Task<ActionResult> GetUnscheduledMatches([FromRoute] int seasonID)
     {
@@ -42,6 +43,7 @@ public class MatchPlannerController : ControllerBase
         return Ok(result);
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonID:int}", Name = "GetScheduledMatches")]
     public async Task<ActionResult> GetScheduledMatches([FromRoute] int seasonID)
     {

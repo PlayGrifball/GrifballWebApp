@@ -19,6 +19,7 @@ public class SeasonMatchController : ControllerBase
         _seasonMatchService = seasonMatchService;
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonMatchID:int}", Name = "GetSeasonMatchPage")]
     public Task<SeasonMatchPageDto?> GetSeasonMatchPage([FromRoute] int seasonMatchID, CancellationToken ct)
     {
@@ -117,6 +118,7 @@ public class SeasonMatchController : ControllerBase
         return Ok();
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonMatchID:int}", Name = "GetPossibleMatches")]
     public Task<List<PossibleMatchDto>> GetPossibleMatches([FromRoute] int seasonMatchID, CancellationToken ct)
     {
@@ -124,6 +126,7 @@ public class SeasonMatchController : ControllerBase
     }
 
     /// <summary>Where the pull of this match's players' recent games from Halo Infinite is (<see cref="SeasonMatchPullJob"/>).</summary>
+    [AllowAnonymous]
     [HttpGet("{seasonMatchID:int}", Name = "GetMatchPullStatus")]
     public Task<OnDemandJobStatusDto> MatchPullStatus([FromRoute] int seasonMatchID, [FromServices] OnDemandJobs jobs, CancellationToken ct)
         => jobs.Status<SeasonMatchPullJob>(SeasonMatchPullJob.RunName(seasonMatchID), ct);

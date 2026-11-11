@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Grades;
 
 namespace GrifballWebApp.Server.Grades;
@@ -14,6 +15,7 @@ public class GradesController : ControllerBase
         _gradesService = gradesService;
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonID:int}", Name = "GetGrades")]
     public Task<GradesDto> GetGrades([FromRoute] int seasonID, CancellationToken ct)
     {

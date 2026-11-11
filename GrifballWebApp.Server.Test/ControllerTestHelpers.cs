@@ -47,3 +47,27 @@ internal static class ControllerTestHelpers
     internal static bool ActionAllowsAnonymous(Type controller, string name) =>
         Action(controller, name).GetCustomAttribute<AllowAnonymousAttribute>(inherit: true) is not null;
 }
+
+internal static class ProblemAssertions
+{
+    /// <summary>The result is a ProblemDetails refusal with this status (and detail, when given); returns it.</summary>
+    internal static ProblemDetails AssertProblem(this IActionResult? result, int status, string? detail = null)
+    {
+        Assert.That(result, Is.InstanceOf<ObjectResult>());
+        var objectResult = (ObjectResult)result!;
+        Assert.That(objectResult.Value, Is.InstanceOf<ProblemDetails>(), "the body is a ProblemDetails, not a bare string");
+        var problem = (ProblemDetails)objectResult.Value!;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(objectResult.StatusCode ?? problem.Status, Is.EqualTo(status));
+            Assert.That(problem.Status, Is.EqualTo(status));
+            if (detail is not null)
+                Assert.That(problem.Detail, Is.EqualTo(detail));
+        }
+        return problem;
+    }
+
+    /// <summary>The same for an ActionResult&lt;T&gt;'s result.</summary>
+    internal static ProblemDetails AssertProblem<T>(this ActionResult<T> result, int status, string? detail = null)
+        => result.Result.AssertProblem(status, detail);
+}

@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Application.Database;
+﻿using Microsoft.AspNetCore.Authorization;
+using GrifballWebApp.Application.Database;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Domain.League;
@@ -18,6 +19,7 @@ public class HomeController : ControllerBase
         _context = context;
     }
 
+    [AllowAnonymous]
     [HttpGet(Name = "CurrentAndFutureEvents")]
     public async Task<Event[]> CurrentAndFutureEvents(CancellationToken ct)
     {

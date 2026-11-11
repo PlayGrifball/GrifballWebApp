@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Search;
 
@@ -15,6 +16,7 @@ public class SearchController : ControllerBase
     }
 
     /// <summary>The Ctrl+K navigator's hits for <paramref name="q"/>: players (current and past gamertags), teams and seasons.</summary>
+    [AllowAnonymous]
     [HttpGet(Name = "QuickSearch")]
     public Task<QuickSearchDto> QuickSearch([FromQuery] string? q, CancellationToken ct) => _search.SearchAsync(q, ct);
 }

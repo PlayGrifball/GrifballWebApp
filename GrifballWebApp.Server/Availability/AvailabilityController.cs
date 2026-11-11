@@ -15,6 +15,7 @@ public class AvailabilityController : ControllerBase
         _availabilityService = availabilityService;
     }
 
+    [AllowAnonymous]
     [HttpGet(Name = "GetSeasonAvailability")]
     public Task<TimeslotDto[]> GetSeasonAvailability([FromQuery] int seasonID, CancellationToken ct)
     {

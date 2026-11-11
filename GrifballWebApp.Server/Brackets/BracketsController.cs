@@ -29,6 +29,7 @@ public class BracketsController : ControllerBase
         return Ok();
     }
 
+    [AllowAnonymous]
     [HttpGet(Name = "GetBracket")]
     public async Task<ActionResult<BracketDto>> GetBracket([FromQuery] int seasonID)
     {
@@ -39,6 +40,7 @@ public class BracketsController : ControllerBase
         return Ok(bracketDto);
     }
 
+    [AllowAnonymous]
     [HttpGet(Name = "GetViewerData")]
     public async Task<ActionResult<ViewerDataDto>> GetViewerData([FromQuery] int seasonID)
     {

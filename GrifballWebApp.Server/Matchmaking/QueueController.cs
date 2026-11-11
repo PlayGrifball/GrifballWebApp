@@ -45,6 +45,7 @@ public class QueueController : ControllerBase
         _open = !PreviewMode.DisablesDiscord(configuration);
     }
 
+    [AllowAnonymous]
     [HttpGet(Name = "GetQueueStatus")]
     public Task<QueueStatusDto> Status(CancellationToken ct) => StatusOf(JobUser.IdOf(User), ct);
 

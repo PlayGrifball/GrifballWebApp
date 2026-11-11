@@ -25,6 +25,7 @@ public class ProfileController : ControllerBase
         _commendations = commendations;
     }
 
+    [AllowAnonymous]
     [HttpGet("{userID:int}", Name = "GetGamertag")]
     public Task<ProfileDto?> GetGamertag([FromRoute] int userID, CancellationToken ct)
     {
@@ -37,6 +38,7 @@ public class ProfileController : ControllerBase
             .FirstOrDefaultAsync(ct);
     }
 
+    [AllowAnonymous]
     [HttpGet("{userID:int}", Name = "GetProfileStats")]
     public async Task<ActionResult<ProfileStatsDto>> GetProfileStats([FromRoute] int userID, CancellationToken ct)
     {
@@ -47,6 +49,7 @@ public class ProfileController : ControllerBase
     }
 
     /// <summary>The player's most earned Halo Infinite medals; empty for an unknown user or one with no Xbox account.</summary>
+    [AllowAnonymous]
     [HttpGet("{userID:int}", Name = "GetCommendations")]
     public Task<ProfileCommendationsDto> GetCommendations([FromRoute] int userID, [FromQuery] int top = ProfileCommendationsService.DefaultTop, CancellationToken ct = default)
     {

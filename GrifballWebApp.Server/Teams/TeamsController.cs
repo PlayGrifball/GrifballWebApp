@@ -16,12 +16,14 @@ public class TeamsController : ControllerBase
         _teamService = teamService;
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonID:int}", Name = "GetTeams")]
     public Task<List<TeamResponseDto>> GetTeams([FromRoute] int seasonID, CancellationToken ct)
     {
         return _teamService.GetTeams(seasonID, ct);
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonID:int}", Name = "GetPlayerPool")]
     public Task<List<PlayerDto>> GetPlayerPool([FromRoute] int seasonID, CancellationToken ct)
     {
@@ -91,6 +93,7 @@ public class TeamsController : ControllerBase
         return _teamService.LockCaptains(seasonID, @lock: false, signalRConnectionID, ct);
     }
 
+    [AllowAnonymous]
     [HttpGet("{seasonID:int}", Name = "AreCaptainsLocked")]
     public Task<bool> AreCaptainsLocked([FromRoute] int seasonID, CancellationToken ct)
     {

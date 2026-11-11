@@ -43,6 +43,7 @@ public class IdentityController : ControllerBase
     /// empty 200. With <paramref name="useCookies"/> false the answer is a bearer token instead
     /// (<see cref="AccessTokenResponse"/>), for clients that are not browsers.
     /// </summary>
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     [HttpPost(Name = "Login")]
@@ -70,6 +71,7 @@ public class IdentityController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [HttpPost(Name = "Register")]
@@ -112,6 +114,7 @@ public class IdentityController : ControllerBase
     /// page calls <see cref="ExternalLoginCallback"/>. <paramref name="followUp"/>, the page to go on to, is kept
     /// only if it is a path on this site (<see cref="IsAppRelativePath"/>), escaped as one query value.
     /// </summary>
+    [AllowAnonymous]
     [HttpGet(Name = "ExternalLogin")]
     public IActionResult ExternalLogin([FromQuery] string? followUp)
     {
@@ -140,6 +143,7 @@ public class IdentityController : ControllerBase
     /// A POST, as it creates the user and signs in: the browser comes back from Discord to the login page (a page
     /// of the app, not this action), which then calls this with the antiforgery token like any other change.
     /// </summary>
+    [AllowAnonymous]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     [HttpPost(Name = "ExternalLoginCallback")]
     public async Task<IActionResult> ExternalLoginCallback([FromQuery] bool useCookies = true, CancellationToken ct = default)
@@ -272,6 +276,7 @@ public class IdentityController : ControllerBase
     }
 
     /// <summary>A new bearer token for a refresh token (bearer clients only; browsers have the cookie).</summary>
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     [HttpPost(Name = "Refresh")]
@@ -313,6 +318,7 @@ public class IdentityController : ControllerBase
     /// visitor's cookie): <see cref="MetaInfo"/>, or 204 No Content for a visitor. Unlike MetaInfo, a visitor is
     /// not an error, so the client asks on every first load without logging a failed request.
     /// </summary>
+    [AllowAnonymous]
     [ProducesResponseType(typeof(MetaInfoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
@@ -325,6 +331,7 @@ public class IdentityController : ControllerBase
     /// every change (<see cref="CookieAntiforgeryFilter"/>). Also sets the antiforgery cookie it pairs with. The
     /// token belongs to the user signed in when it was made, so the client asks again after signing in or out.
     /// </summary>
+    [AllowAnonymous]
     [ProducesResponseType(typeof(AntiforgeryTokenResponse), StatusCodes.Status200OK)]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [HttpGet(Name = "Antiforgery")]
@@ -337,6 +344,7 @@ public class IdentityController : ControllerBase
     /// keeps the cookie off cross-site POSTs. Also changes the user's security stamp, so a copy of the cookie (and
     /// the user's other sessions) stops working within <see cref="BrowserAuth.SecurityStampValidationInterval"/>.
     /// </summary>
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [IgnoreAntiforgeryToken] // NOSONAR S4502: exempt on purpose (see above); the Fetch Metadata and Origin checks still refuse it from another site
     [HttpPost(Name = "Logout")]
@@ -348,6 +356,7 @@ public class IdentityController : ControllerBase
         return NoContent();
     }
 
+    [AllowAnonymous]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [HttpPost(Name = "ResetPassword")]
