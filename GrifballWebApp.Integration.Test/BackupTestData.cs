@@ -5,13 +5,13 @@ namespace GrifballWebApp.Integration.Test;
 /// <summary>The backups' test doubles and logins: a fake pg_dump, and SQL Server logins as the chart makes them.</summary>
 internal static class BackupTestData
 {
+    /// <summary>A compressed .bak's first bytes (the test servers are Developer edition, so they compress); an uncompressed one starts TAPE.</summary>
+    internal const string CompressedBakHeader = "MSSQ";
+
     /// <summary>
     /// A stand-in for pg_dump: a shell script that finds its --file and --dbname arguments (as $file and $db) and runs <paramref name="body"/>.
     /// The caller deletes it.
     /// </summary>
-    /// <summary>A compressed .bak's first bytes (the test servers are Developer edition, so they compress); an uncompressed one starts TAPE.</summary>
-    internal const string CompressedBakHeader = "MSSQ";
-
     internal static string FakePgDump(string body)
     {
         var path = Path.Combine(Path.GetTempPath(), $"grif-backup-test-pgdump-{Guid.NewGuid():N}.sh");
