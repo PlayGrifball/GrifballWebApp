@@ -71,7 +71,8 @@ test('links Discord to the signed-in account through the provider round trip', a
 
   const link = calls.find(c => c.path === '/api/external-logins/link');
   expect(link?.search).toBe('?provider=Discord&token=signed-token');
-  expect(calls.filter(c => c.path === '/api/me/external-logins').map(c => c.method)).toEqual(['POST']);
+  // The linking itself: one POST (the GETs of the same path read the account's logins)
+  expect(calls.filter(c => c.path === '/api/me/external-logins' && c.method === 'POST')).toHaveLength(1);
 });
 
 test('unlinks a login while a password remains', async ({ page }) => {
