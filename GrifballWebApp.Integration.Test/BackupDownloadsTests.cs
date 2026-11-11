@@ -161,12 +161,16 @@ public class BackupDownloadsTests
             Assert.That(() => stream.SetLength(1), Throws.InstanceOf<NotSupportedException>());
             Assert.That(() => stream.Write(new byte[1], 0, 1), Throws.InstanceOf<NotSupportedException>());
         }
+#pragma warning disable VSTHRD103 // The stream's sync members are under test, as its async ones
         stream!.Flush();
+#pragma warning restore VSTHRD103
         var first = new byte[8];
         var next = new byte[8];
         using (Assert.EnterMultipleScope())
         {
+#pragma warning disable VSTHRD103 // The sync Read is under test
             Assert.That(stream.Read(first, 0, 8), Is.EqualTo(8));
+#pragma warning restore VSTHRD103
 #pragma warning disable CA1835 // The stream's array overload is the one under test (the memory one is read below)
             Assert.That(await stream.ReadAsync(next, 0, 8), Is.EqualTo(8));
 #pragma warning restore CA1835
@@ -238,7 +242,7 @@ public class BackupDownloadsTests
         var cancelledDirectory = NewDirectory();
         var cancelled = ApiPod(new FakeWorker(_ => throw new TaskCanceledException()), Protection(), cancelledDirectory);
         using var cancel = new CancellationTokenSource();
-        cancel.Cancel();
+        await cancel.CancelAsync();
         await Assert.CatchAsync<OperationCanceledException>(() => cancelled.OpenAsync(backup, cancel.Token));
         Directory.Delete(cancelledDirectory, recursive: true);
     }

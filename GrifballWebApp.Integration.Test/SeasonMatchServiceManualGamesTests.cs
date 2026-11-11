@@ -190,9 +190,9 @@ public class SeasonMatchServiceManualGamesTests
         {
             Assert.That(sm.SeriesGames.Select(g => (g.RecordedGameID, g.GameNumber)), Is.EqualTo(new[] { ((int?)second, 1) }));
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)0, (int?)1)));
-            Assert.That(_context.RecordedGames.Any(g => g.RecordedGameID == first), Is.False);
-            Assert.That(_context.Set<RecordedGameParticipant>().Any(p => p.RecordedGameID == first), Is.False);
-            Assert.That(_context.Set<RecordedGameTeam>().Any(t => t.RecordedGameID == first), Is.False);
+            Assert.That(await _context.RecordedGames.AnyAsync(g => g.RecordedGameID == first), Is.False);
+            Assert.That(await _context.Set<RecordedGameParticipant>().AnyAsync(p => p.RecordedGameID == first), Is.False);
+            Assert.That(await _context.Set<RecordedGameTeam>().AnyAsync(t => t.RecordedGameID == first), Is.False);
         }
     }
 
@@ -226,10 +226,10 @@ public class SeasonMatchServiceManualGamesTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(_context.RecordedGames.Any(g => g.RecordedGameID == id), Is.False);
+            Assert.That(await _context.RecordedGames.AnyAsync(g => g.RecordedGameID == id), Is.False);
             // The Waypoint match is only freed, to be reported again
-            Assert.That(_context.Matches.Any(m => m.MatchID == waypoint.MatchID), Is.True);
-            Assert.That(_context.Set<SeriesGame>().Any(), Is.False);
+            Assert.That(await _context.Matches.AnyAsync(m => m.MatchID == waypoint.MatchID), Is.True);
+            Assert.That(await _context.Set<SeriesGame>().AnyAsync(), Is.False);
         }
     }
 
@@ -354,10 +354,10 @@ public class SeasonMatchServiceManualGamesTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(_context.RecordedGames.Any(), Is.False);
-            Assert.That(_context.Set<RecordedGameTeam>().Any(), Is.False);
-            Assert.That(_context.Set<RecordedGameParticipant>().Any(), Is.False);
-            Assert.That(PlayerGameStatsQuery.Query(_context).Any(), Is.False);
+            Assert.That(await _context.RecordedGames.AnyAsync(), Is.False);
+            Assert.That(await _context.Set<RecordedGameTeam>().AnyAsync(), Is.False);
+            Assert.That(await _context.Set<RecordedGameParticipant>().AnyAsync(), Is.False);
+            Assert.That(await PlayerGameStatsQuery.Query(_context).AnyAsync(), Is.False);
         }
     }
 
@@ -419,7 +419,7 @@ public class SeasonMatchServiceManualGamesTests
             Assert.That(sm.SeriesGames.OrderBy(g => g.GameNumber).Select(g => (g.MatchID, g.RecordedGameID, g.GameNumber)),
                 Is.EqualTo(new[] { ((Guid?)real.MatchID, (int?)null, 1), ((Guid?)null, (int?)second, 2) }), "In game 1's place");
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)1, (int?)1)));
-            Assert.That(_context.RecordedGames.Any(g => g.RecordedGameID == typed), Is.False, "Typed in, so nothing to go back to");
+            Assert.That(await _context.RecordedGames.AnyAsync(g => g.RecordedGameID == typed), Is.False, "Typed in, so nothing to go back to");
         }
     }
 
@@ -486,7 +486,7 @@ public class SeasonMatchServiceManualGamesTests
         {
             Assert.That(sm.SeriesGames.Select(g => (g.MatchID, g.RecordedGameID, g.GameNumber)), Is.EqualTo(new[] { ((Guid?)null, (int?)typed, 1) }));
             Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)0, (int?)1)));
-            Assert.That(_context.Matches.Any(m => m.MatchID == waypoint.MatchID), Is.True, "The Waypoint game stays, to be reported again");
+            Assert.That(await _context.Matches.AnyAsync(m => m.MatchID == waypoint.MatchID), Is.True, "The Waypoint game stays, to be reported again");
         }
     }
 
@@ -553,7 +553,7 @@ public class SeasonMatchServiceManualGamesTests
         _context.ChangeTracker.Clear();
         await _service.EditManualGame(smID, id, Game(5, 3, null, new ManualGamePlayerRequestDto { UserID = sub.Id, IsHomeTeam = false, Kills = 4 }));
 
-        Assert.That(_context.Set<RecordedGameParticipant>().Single(p => p.RecordedGameID == id).UserID, Is.EqualTo(sub.Id));
+        Assert.That((await _context.Set<RecordedGameParticipant>().SingleAsync(p => p.RecordedGameID == id)).UserID, Is.EqualTo(sub.Id));
     }
 
     private static async Task<string> Refused(Func<Task> action)
@@ -769,7 +769,7 @@ public class SeasonMatchServiceManualGamesTests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(message, Is.EqualTo(SeasonMatchService.SeriesChangedMessage));
-                Assert.That(context.NewContextLike().RecordedGames.Any(), Is.False, "Nothing was saved");
+                Assert.That(await context.NewContextLike().RecordedGames.AnyAsync(), Is.False, "Nothing was saved");
             }
         }
         finally

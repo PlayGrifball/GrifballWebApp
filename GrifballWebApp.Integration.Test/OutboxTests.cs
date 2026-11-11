@@ -462,8 +462,10 @@ public class OutboxTests
         await using (var transaction = await context.Database.BeginTransactionAsync())
         {
             await outbox.EnqueueAsync(TestHandler.TestKind, new TestPayload("c"));
+#pragma warning disable VSTHRD103 // The interceptor's sync path (SavingChanges, SavedChanges) is under test, as the async one above
             context.SaveChanges();
             transaction.Rollback();
+#pragma warning restore VSTHRD103
         }
         var afterRollback = await Signaled();
 

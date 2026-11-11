@@ -20,7 +20,7 @@ public class RequestTelemetryTests
         builder.WebHost.UseTestServer();
         builder.Configuration["ForwardedHeaders:KnownIPNetworks:0"] = "10.42.0.0/16";
         builder.Configuration["ForwardedHeaders:ForwardedForHeaderName"] = "X-Real-IP";
-        builder.Services.ConfigureAppForwardedHeaders(builder.Configuration);
+        await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration);
         // Only the request log. UseSerilogRequestLogging writes to the static logger, as in Program.
         var previous = Log.Logger;
         Log.Logger = new LoggerConfiguration()

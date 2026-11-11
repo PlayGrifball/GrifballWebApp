@@ -235,7 +235,7 @@ public class TeamStandingsServiceTests
         // Arrange
         const int seasonId = 1;
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         // Act & Assert
         // SqlClient throws TaskCanceledException, Npgsql its base OperationCanceledException

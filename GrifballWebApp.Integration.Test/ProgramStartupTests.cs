@@ -283,7 +283,7 @@ public class ProgramStartupTests
         using var client = factory.CreateClient();
 
         var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
-        TestContext.Out.WriteLine("Hosted services: " + string.Join(", ", hostedTypes.Select(t => t?.FullName)));
+        await TestContext.Out.WriteLineAsync("Hosted services: " + string.Join(", ", hostedTypes.Select(t => t?.FullName)));
 
         using (Assert.EnterMultipleScope())
         {
@@ -648,7 +648,7 @@ public class ProgramStartupTests
         using var client = factory.CreateClient();
 
         var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
-        TestContext.Out.WriteLine("Hosted services: " + string.Join(", ", hostedTypes.Select(t => t?.FullName)));
+        await TestContext.Out.WriteLineAsync("Hosted services: " + string.Join(", ", hostedTypes.Select(t => t?.FullName)));
         using (Assert.EnterMultipleScope())
         {
             Assert.That(factory.Services.GetRequiredService<AppRole>().Kind, Is.EqualTo(AppRoleKind.Api));

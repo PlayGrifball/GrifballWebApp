@@ -109,17 +109,17 @@ public class TeamsHubTests
 
     [TestCase(null)]
     [TestCase("abc")]
-    public void AddPlayerToTeam_Should_Throw_When_NotLoggedIn(string? claim)
+    public async Task AddPlayerToTeam_Should_Throw_When_NotLoggedIn(string? claim)
     {
         SetUser(claim);
-        var ex = Assert.Throws<Exception>(() => _hub.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 }));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _hub.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 }));
         Assert.That(ex!.Message, Is.EqualTo("You must be logged in to add a player to a team"));
     }
 
     [Test]
-    public void AddPlayerToTeam_Should_Throw_When_NoUserOnContext()
+    public async Task AddPlayerToTeam_Should_Throw_When_NoUserOnContext()
     {
         _callerContext.User.Returns((ClaimsPrincipal?)null);
-        Assert.Throws<Exception>(() => _hub.AddPlayerToTeam(new AddPlayerToTeamRequestDto()));
+        await Assert.ThrowsAsync<Exception>(() => _hub.AddPlayerToTeam(new AddPlayerToTeamRequestDto()));
     }
 }

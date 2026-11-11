@@ -274,7 +274,7 @@ public class StringMenuInteractionsTests
                 new { VoterMatchedPlayerId = players[0].Id, KickMatchedPlayerId = players[2].Id },
                 new { VoterMatchedPlayerId = players[0].Id, KickMatchedPlayerId = players[3].Id },
             }));
-            Assert.That(fresh.Set<MatchedPlayer>().Any(p => p.Kicked), Is.False);
+            Assert.That(await fresh.Set<MatchedPlayer>().AnyAsync(p => p.Kicked), Is.False);
             await _discordContext.AssertSendResponse("GT1 has voted to kick GT3");
             await _discordContext.AssertSendResponse("GT1 has voted to kick GT4");
         }

@@ -33,7 +33,7 @@ public class DataPullServiceBranchUnitTests
     public async Task DownloadRecentMatchesForPlayers_CancelledToken_Throws()
     {
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => _service.DownloadRecentMatchesForPlayers([1], ct: cts.Token));
         Assert.That(_factory.ReceivedCalls(), Is.Empty);

@@ -62,7 +62,7 @@ internal abstract class TargetWriter(DbConnection connection, DbTransaction tran
         {
             var row = new object?[reader.FieldCount];
             for (var i = 0; i < row.Length; i++)
-                row[i] = reader.IsDBNull(i) ? null : reader.GetValue(i);
+                row[i] = await reader.IsDBNullAsync(i, cancellationToken) ? null : reader.GetValue(i);
             rows.Add(row);
         }
         return rows;

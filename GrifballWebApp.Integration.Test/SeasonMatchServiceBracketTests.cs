@@ -155,7 +155,7 @@ public class SeasonMatchServiceBracketTests
         {
             Assert.That(next.HomeTeamID, Is.EqualTo(b.Seeded.Home.TeamID));
             Assert.That(loserNext.AwayTeamID, Is.EqualTo(b.Seeded.Away.TeamID));
-            Assert.That(ctx.RecordedGames.Single(g => g.RecordedGameID == id).IsPlayoffs, Is.True);
+            Assert.That((await ctx.RecordedGames.SingleAsync(g => g.RecordedGameID == id)).IsPlayoffs, Is.True);
         }
     }
 
@@ -192,9 +192,9 @@ public class SeasonMatchServiceBracketTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(_context.RecordedGames.Any(), Is.False);
-            Assert.That(_context.Set<RecordedGameParticipant>().Any(), Is.False);
-            Assert.That(GrifballWebApp.Application.Stats.PlayerGameStatsQuery.Query(_context).Any(), Is.False);
+            Assert.That(await _context.RecordedGames.AnyAsync(), Is.False);
+            Assert.That(await _context.Set<RecordedGameParticipant>().AnyAsync(), Is.False);
+            Assert.That(await GrifballWebApp.Application.Stats.PlayerGameStatsQuery.Query(_context).AnyAsync(), Is.False);
         }
     }
 
@@ -261,8 +261,8 @@ public class SeasonMatchServiceBracketTests
             Assert.That((sm.HomeTeamResult, sm.HomeTeamScore), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Won, (int?)1)));
             Assert.That((next.HomeTeamID, next.HomeTeamResult), Is.EqualTo(((int?)b.Seeded.Home.TeamID, (SeasonMatchResult?)SeasonMatchResult.Won)));
             Assert.That(loserNext.AwayTeamID, Is.EqualTo(b.Seeded.Away.TeamID));
-            Assert.That(ctx.Set<RecordedGameTeam>().Single(t => t.RecordedGameID == id && t.Side == 1).Score, Is.EqualTo(6));
-            Assert.That(ctx.Set<RecordedGameParticipant>().Single(p => p.RecordedGameID == id).Kills, Is.EqualTo(7));
+            Assert.That((await ctx.Set<RecordedGameTeam>().SingleAsync(t => t.RecordedGameID == id && t.Side == 1)).Score, Is.EqualTo(6));
+            Assert.That((await ctx.Set<RecordedGameParticipant>().SingleAsync(p => p.RecordedGameID == id)).Kills, Is.EqualTo(7));
         }
     }
 

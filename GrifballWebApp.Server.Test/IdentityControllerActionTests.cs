@@ -404,8 +404,8 @@ public class IdentityControllerActionTests
         // Discord's half-finished sign-in cookie is dropped, before signing in (a bearer sign-in writes the response)
         Received.InOrder(() =>
         {
-            authentication.SignOutAsync(Arg.Any<HttpContext>(), IdentityConstants.ExternalScheme, Arg.Any<AuthenticationProperties?>());
-            _signInManager.SignInAsync(Arg.Any<User>(), true, null);
+            _ = authentication.SignOutAsync(Arg.Any<HttpContext>(), IdentityConstants.ExternalScheme, Arg.Any<AuthenticationProperties?>());
+            _ = _signInManager.SignInAsync(Arg.Any<User>(), true, null);
         });
         await _userManager.Received(1).CreateAsync(Arg.Is<User>(u => u.UserName == "discordName" && u.Email == "a@b.c"));
         await _userManager.Received(1).AddToRoleAsync(Arg.Is<User>(u => u.UserName == "discordName"), "Player");
@@ -450,9 +450,9 @@ public class IdentityControllerActionTests
         }
         Received.InOrder(() =>
         {
-            _userManager.AddLoginAsync(botLinked, info);
-            _discordLinks.TryLinkAsync(botLinked, "Discord", "key-1", "discordName", Arg.Any<CancellationToken>());
-            _signInManager.ExternalLoginSignInAsync("Discord", "key-1", true, true);
+            _ = _userManager.AddLoginAsync(botLinked, info);
+            _ = _discordLinks.TryLinkAsync(botLinked, "Discord", "key-1", "discordName", Arg.Any<CancellationToken>());
+            _ = _signInManager.ExternalLoginSignInAsync("Discord", "key-1", true, true);
         });
         await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
         await _userManager.DidNotReceiveWithAnyArgs().AddToRoleAsync(default!, default!);
@@ -486,8 +486,8 @@ public class IdentityControllerActionTests
 
         Received.InOrder(() =>
         {
-            _discordLinks.TryLinkAsync(user, "Discord", "key-1", "discordName", Arg.Any<CancellationToken>());
-            _signInManager.ExternalLoginSignInAsync("Discord", "key-1", true, true);
+            _ = _discordLinks.TryLinkAsync(user, "Discord", "key-1", "discordName", Arg.Any<CancellationToken>());
+            _ = _signInManager.ExternalLoginSignInAsync("Discord", "key-1", true, true);
         });
         await _discordLinks.DidNotReceiveWithAnyArgs().FindBotLinkedUserAsync(default!, default!, default);
     }
@@ -509,9 +509,9 @@ public class IdentityControllerActionTests
         await _discordLinks.Received(1).InTransactionAsync(Arg.Any<Func<Task<bool>>>(), Arg.Any<CancellationToken>());
         Received.InOrder(() =>
         {
-            _userManager.AddLoginAsync(Arg.Any<User>(), info);
-            _discordLinks.LinkAsync(Arg.Is<User>(u => u.UserName == "discordName"), "Discord", "key-1", "discordName", Arg.Any<CancellationToken>());
-            _signInManager.SignInAsync(Arg.Any<User>(), true, null);
+            _ = _userManager.AddLoginAsync(Arg.Any<User>(), info);
+            _ = _discordLinks.LinkAsync(Arg.Is<User>(u => u.UserName == "discordName"), "Discord", "key-1", "discordName", Arg.Any<CancellationToken>());
+            _ = _signInManager.SignInAsync(Arg.Any<User>(), true, null);
         });
         await _discordLinks.DidNotReceiveWithAnyArgs().TryLinkAsync(default!, default!, default!, default, default);
     }
