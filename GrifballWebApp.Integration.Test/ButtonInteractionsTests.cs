@@ -240,7 +240,7 @@ public class ButtonInteractionsTests
 
         // Assert
         // Vote is saved
-        var vote = _context.Set<MatchedWinnerVote>().FirstOrDefault(x => x.MatchId == match.Id && x.MatchedPlayerId == matchedPlayer.Id);
+        var vote = await _context.Set<MatchedWinnerVote>().FirstOrDefaultAsync(x => x.MatchId == match.Id && x.MatchedPlayerId == matchedPlayer.Id);
         Assert.That(vote, Is.Not.Null, "Vote was not saved to the database.");
         Assert.That(vote.WinnerVote, Is.EqualTo(voteFor));
 
@@ -287,7 +287,7 @@ public class ButtonInteractionsTests
 
         // Assert
         // Vote is saved
-        var vote = _context.Set<MatchedWinnerVote>().FirstOrDefault();
+        var vote = await _context.Set<MatchedWinnerVote>().FirstOrDefaultAsync();
         Assert.That(vote, Is.Null, "Vote was saved to the database for some reason.");
 
         // User receives thanks message
@@ -313,7 +313,7 @@ public class ButtonInteractionsTests
 
         // Assert
         // Vote is saved
-        var vote = _context.Set<MatchedWinnerVote>().FirstOrDefault();
+        var vote = await _context.Set<MatchedWinnerVote>().FirstOrDefaultAsync();
         Assert.That(vote, Is.Null, "Vote was saved to the database for some reason.");
 
         // User receives thanks message
@@ -336,7 +336,7 @@ public class ButtonInteractionsTests
 
         // Assert
         // Vote is not saved
-        var vote = _context.Set<MatchedWinnerVote>().FirstOrDefault();
+        var vote = await _context.Set<MatchedWinnerVote>().FirstOrDefaultAsync();
         Assert.That(vote, Is.Null, "Vote was saved to the database for some reason.");
 
         // User receives thanks message
