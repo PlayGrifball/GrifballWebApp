@@ -87,7 +87,7 @@ public class RegionTests
         var saved = await _context.Users.SingleAsync(u => u.Id == user.Id);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(unknown, Is.TypeOf<BadRequestObjectResult>());
+            unknown.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest, "There is no such region");
             Assert.That((saved.RegionID, saved.RegionSource), Is.EqualTo(((int?)null, (RegionSource?)null)));
         }
     }
@@ -95,7 +95,7 @@ public class RegionTests
     [Test]
     public async Task SetRegion_ForAUserThatIsGone_IsNotFound()
     {
-        Assert.That(await Controller(999).SetRegion(new SetRegionRequest { RegionID = 1 }, CancellationToken.None), Is.TypeOf<NotFoundResult>());
+        (await Controller(999).SetRegion(new SetRegionRequest { RegionID = 1 }, CancellationToken.None)).AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound, "There is no such user");
     }
 
     [Test]

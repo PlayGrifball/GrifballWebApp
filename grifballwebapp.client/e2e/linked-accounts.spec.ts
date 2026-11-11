@@ -34,7 +34,7 @@ async function openProfile(page: Page, start: { hasPassword: boolean; logins: Lo
       return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
     if (path === `/api/users/${USER_ID}/gamertag`) return json({ gamertag: 'Sgt Grif' });
     if (path === `/api/users/${USER_ID}/stats`) return json({ userID: USER_ID, gamertag: 'Sgt Grif', displayName: 'Sgt Grif', isDummyUser: false, pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [] });
-    if (path === '/api/me/external-logins')
+    if (path === '/api/me/external-logins' && request.method() === 'GET')
       return json({ ...state, providers: [{ name: 'Discord', displayName: 'Discord' }] });
     if (path === '/api/me/external-logins/link-token') return json({ token: 'signed-token' });
     if (path === '/api/external-logins/link')
@@ -47,7 +47,7 @@ async function openProfile(page: Page, start: { hasPassword: boolean; logins: Lo
     if (path === '/api/me/external-logins/remove') {
       const body = request.postDataJSON() as { providerKey: string };
       state.logins = state.logins.filter(l => l.providerKey !== body.providerKey);
-      return route.fulfill({ status: 200, body: '' });
+      return route.fulfill({ status: 204, body: '' });
     }
     return route.fulfill({ status: 404, body: '' });
   });
