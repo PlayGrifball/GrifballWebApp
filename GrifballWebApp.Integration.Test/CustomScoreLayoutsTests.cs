@@ -339,7 +339,14 @@ public class CustomScoreLayoutsTests
         // As if the backfill had just given the variant its matches: the 0-0 game is read again
         await _context.Matches.Where(m => m.MatchID == nilNil.MatchID).ExecuteUpdateAsync(s => s.SetProperty(m => m.ScoreLayout, CustomScoreLayout.Ambiguous));
         var dataPull = Substitute.For<IDataPullService>();
-        dataPull.BackfillGameVariants(default).ReturnsForAnyArgs(new VariantBackfillResult(5, 3, 2, 0, [Guid.NewGuid()], [version]));
+        dataPull.BackfillGameVariants(default).ReturnsForAnyArgs(call =>
+        {
+            // Progress as the pull reports it, which the job passes on: none to look up, then part way
+            var progress = call.ArgAt<Action<int, int>?>(1);
+            progress?.Invoke(0, 0);
+            progress?.Invoke(1, 3);
+            return new VariantBackfillResult(5, 3, 2, 0, [Guid.NewGuid()], [version]);
+        });
         var context = Substitute.For<IJobExecutionContext>();
 
         await Job(dataPull, batchSize: 3).Execute(context);
