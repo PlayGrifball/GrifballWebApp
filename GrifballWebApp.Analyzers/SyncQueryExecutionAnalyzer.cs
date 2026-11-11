@@ -54,7 +54,7 @@ public sealed class SyncQueryExecutionAnalyzer : DiagnosticAnalyzer
                 start.Compilation.GetTypeByMetadataName("System.Threading.Tasks.ValueTask"),
                 start.Compilation.GetTypeByMetadataName("System.Threading.Tasks.ValueTask`1"));
             start.RegisterOperationAction(c => AnalyzeCall(c, types, ((IInvocationOperation)c.Operation).TargetMethod, ((IInvocationOperation)c.Operation).Arguments), OperationKind.Invocation);
-            start.RegisterOperationAction(c => AnalyzeCall(c, types, ((IObjectCreationOperation)c.Operation).Constructor, ((IObjectCreationOperation)c.Operation).Arguments), OperationKind.ObjectCreation);
+            start.RegisterOperationAction(c => AnalyzeCreation(c, types), OperationKind.ObjectCreation);
             start.RegisterSyntaxNodeAction(c => AnalyzeForEach(c, types), SyntaxKind.ForEachStatement, SyntaxKind.ForEachVariableStatement);
             start.RegisterSyntaxNodeAction(c => AnalyzeSpread(c, types), SyntaxKind.SpreadElement);
         });
@@ -72,14 +72,22 @@ public sealed class SyncQueryExecutionAnalyzer : DiagnosticAnalyzer
                && (SymbolEqualityComparer.Default.Equals(type, queryable) || type.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, queryable)));
 
         public bool IsTask(ITypeSymbol type)
-            => tasks.Any(t => t is not null && SymbolEqualityComparer.Default.Equals(type.OriginalDefinition, t));
+            => tasks.Any(t => SymbolEqualityComparer.Default.Equals(type.OriginalDefinition, t));
     }
 
-    private static void AnalyzeCall(OperationAnalysisContext context, KnownTypes types, IMethodSymbol? method, ImmutableArray<IArgumentOperation> arguments)
+    /// <summary>A constructor call, when it binds to a constructor</summary>
+    private static void AnalyzeCreation(OperationAnalysisContext context, KnownTypes types)
+    {
+        var creation = (IObjectCreationOperation)context.Operation;
+        if (creation.Constructor is { } constructor)
+            AnalyzeCall(context, types, constructor, creation.Arguments);
+    }
+
+    private static void AnalyzeCall(OperationAnalysisContext context, KnownTypes types, IMethodSymbol method, ImmutableArray<IArgumentOperation> arguments)
     {
         // Queryable's operators take a query and add to it (Concat, Join and Zip take their second sequence as an
         // IEnumerable, and translate a query there too)
-        if (method is null || SymbolEqualityComparer.Default.Equals(method.ContainingType, types.Queryable))
+        if (SymbolEqualityComparer.Default.Equals(method.ContainingType, types.Queryable))
             return;
         var isEnumerable = SymbolEqualityComparer.Default.Equals(method.ContainingType, types.Enumerable);
         foreach (var argument in arguments)
@@ -87,7 +95,7 @@ public sealed class SyncQueryExecutionAnalyzer : DiagnosticAnalyzer
             if (argument.Parameter is not { } parameter || types.IsQuery(parameter.Type) || !IsSequence(parameter.Type)
                 || !types.IsQuery(Unconverted(argument.Value).Type))
                 continue;
-            if (!IsAsyncContext(context.Operation.Syntax, context.Operation.SemanticModel, types, context.CancellationToken))
+            if (!IsAsyncContext(context.Operation.Syntax, context.Operation.SemanticModel!, types, context.CancellationToken))
                 return;
             var (call, fix) = isEnumerable
                 ? Describe(method)
@@ -150,28 +158,22 @@ public sealed class SyncQueryExecutionAnalyzer : DiagnosticAnalyzer
 
     /// <summary>
     /// Whether the code at <paramref name="node"/> runs in an async context, as VSTHRD103 has it: its nearest
-    /// enclosing method, local function or lambda is async or returns a Task or ValueTask.
+    /// enclosing method, local function or lambda is async or returns a Task or ValueTask. A field's or property's
+    /// initializer is in none.
     /// </summary>
-    private static bool IsAsyncContext(SyntaxNode node, SemanticModel? model, KnownTypes types, System.Threading.CancellationToken cancellationToken)
+    private static bool IsAsyncContext(SyntaxNode node, SemanticModel model, KnownTypes types, System.Threading.CancellationToken cancellationToken)
     {
-        if (model is null)
-            return false;
-        foreach (var ancestor in node.AncestorsAndSelf())
+        var scope = node.AncestorsAndSelf().FirstOrDefault(a => a is AnonymousFunctionExpressionSyntax or LocalFunctionStatementSyntax
+            or AccessorDeclarationSyntax or ArrowExpressionClauseSyntax { Parent: BasePropertyDeclarationSyntax } or MemberDeclarationSyntax);
+        var function = scope switch
         {
-            var function = ancestor switch
-            {
-                AnonymousFunctionExpressionSyntax lambda => model.GetSymbolInfo(lambda, cancellationToken).Symbol as IMethodSymbol,
-                LocalFunctionStatementSyntax or BaseMethodDeclarationSyntax or AccessorDeclarationSyntax => model.GetDeclaredSymbol(ancestor, cancellationToken) as IMethodSymbol,
-                ArrowExpressionClauseSyntax { Parent: BasePropertyDeclarationSyntax property } => (model.GetDeclaredSymbol(property, cancellationToken) as IPropertySymbol)?.GetMethod,
-                // A top-level statement: the generated Main, async when the statements await
-                GlobalStatementSyntax => model.GetEnclosingSymbol(ancestor.SpanStart, cancellationToken) as IMethodSymbol,
-                _ => null,
-            };
-            if (function is not null)
-                return function.IsAsync || types.IsTask(function.ReturnType);
-            if (ancestor is MemberDeclarationSyntax)
-                return false;
-        }
-        return false;
+            AnonymousFunctionExpressionSyntax lambda => model.GetSymbolInfo(lambda, cancellationToken).Symbol as IMethodSymbol,
+            LocalFunctionStatementSyntax or BaseMethodDeclarationSyntax or AccessorDeclarationSyntax => model.GetDeclaredSymbol(scope, cancellationToken) as IMethodSymbol,
+            ArrowExpressionClauseSyntax arrow => ((IPropertySymbol)model.GetDeclaredSymbol(arrow.Parent!, cancellationToken)!).GetMethod,
+            // A top-level statement: the generated Main, async when the statements await
+            GlobalStatementSyntax global => model.GetEnclosingSymbol(global.SpanStart, cancellationToken) as IMethodSymbol,
+            _ => null,
+        };
+        return function is not null && (function.IsAsync || types.IsTask(function.ReturnType));
     }
 }

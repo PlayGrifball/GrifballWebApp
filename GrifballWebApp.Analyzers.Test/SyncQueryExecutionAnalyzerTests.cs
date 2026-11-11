@@ -34,12 +34,14 @@ public class SyncQueryExecutionAnalyzerTests
     // A foreach, and a spread into a collection expression
     [TestCase("foreach (var thing in db.Things) { list.Add(thing); }", "A foreach over a query", "await foreach over AsAsyncEnumerable()")]
     [TestCase("foreach (var (id, name) in db.Things.Select(t => new KeyValuePair<int, string>(t.Id, t.Name))) { list.Add(new Thing { Id = id, Name = name }); }", "A foreach over a query", "await foreach")]
+    [TestCase("System.Linq.IQueryable untyped = db.Things; foreach (var thing in untyped) { _ = thing; }", "A foreach over a query", "await foreach")]
     [TestCase("List<Thing> all = [.. db.Things];", "Spreading a query", "ToListAsync")]
     // A query passed where an IEnumerable is taken
     [TestCase("_ = new List<Thing>(db.Things);", "Passing a query to", "ToListAsync")]
     [TestCase("_ = new HashSet<int>(db.Things.Select(t => t.Id));", "Passing a query to", "ToListAsync")]
     [TestCase("_ = string.Join(\",\", db.Things.Select(t => t.Name));", "Passing a query to", "ToListAsync")]
     [TestCase("list.AddRange(db.Things.Where(t => t.Id > 0));", "Passing a query to", "ToListAsync")]
+    [TestCase("_ = Enumerate(db.Things);", "Passing a query to", "ToListAsync")]
     public async Task ASyncQuery_InAnAsyncMethod_IsReported(string statements, string call, string fix)
     {
         var diagnostics = await InAsyncMethod(statements);
@@ -95,6 +97,7 @@ public class SyncQueryExecutionAnalyzerTests
     [TestCase("_ = await db.Things.Select(t => db.Things.Where(x => x.Id == t.Id).ToList()).ToListAsync(ct);")]
     [TestCase("_ = await db.Things.Select(t => t.Id).ToListAsync(ct); _ = list.AsQueryable();")]
     [TestCase("_ = await Task.FromResult(db.Things);")]
+    [TestCase("_ = new KeyValuePair<int, string>(); _ = new CancellationToken();")]
     // A sync lambda or local function in async code is sync code, as VSTHRD103 has it
     [TestCase("Func<List<Thing>> load = () => db.Things.ToList(); _ = load;")]
     [TestCase("_ = Load(); List<Thing> Load() => db.Things.ToList();")]
@@ -113,6 +116,12 @@ public class SyncQueryExecutionAnalyzerTests
     public async Task ASyncQuery_InSyncCode_IsNotReported(string members)
     {
         Assert.That(await Compilations.Diagnose(members), Is.Empty);
+    }
+
+    [Test]
+    public async Task AForeachOverNull_WhichDoesNotCompile_IsNotReported()
+    {
+        Assert.That(await Compilations.DiagnoseUnchecked("public async Task M() { await Task.Yield(); foreach (var x in null) { } }"), Is.Empty);
     }
 
     [Test]

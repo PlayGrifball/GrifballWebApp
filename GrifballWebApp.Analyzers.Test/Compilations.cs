@@ -44,10 +44,16 @@ internal static class Compilations
             {
                 private readonly ProbeContext db = new();
                 private readonly List<Thing> list = [];
+                private static int Enumerate(System.Collections.IEnumerable items) => items.GetHashCode();
 
                 {{members}}
             }
             """ + Types, OutputKind.DynamicallyLinkedLibrary, References.Value);
+
+    /// <summary>GRIF001's diagnostics on <paramref name="members"/> that need not compile (a foreach over null).</summary>
+    public static Task<List<Diagnostic>> DiagnoseUnchecked(string members)
+        => Analyze(CSharpCompilation.Create("Probe", [CSharpSyntaxTree.ParseText(Usings + "public class Probe { " + members + " }")], References.Value,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)));
 
     /// <summary>GRIF001's diagnostics on a program of top-level <paramref name="statements"/>.</summary>
     public static Task<List<Diagnostic>> DiagnoseProgram(string statements)
