@@ -1,0 +1,7 @@
+# Not generated (sonar-rules.sh writes the sonar-*.globalconfig files): Grif's own analyzers (GrifballWebApp.Analyzers)
+# are errors.
+is_global = true
+
+# GRIF001: no query (IQueryable) run synchronously in async code: ToListAsync and the other async operators, or
+# AsAsyncEnumerable with await foreach
+dotnet_diagnostic.GRIF001.severity = error

@@ -26,6 +26,20 @@
     <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/banned-api.globalconfig" />
   </ItemGroup>
   <!--
+    Grif's own analyzers (GrifballWebApp.Analyzers, errors in analyzers/grif-analyzers.globalconfig): GRIF001 holds
+    async code to EF Core's async operators, which VSTHRD103 doesn't for Enumerable's ToList, ToArray and the others.
+    Not in the analyzers' own projects, and not where analyzers are off (RunAnalyzers=false: the Docker image's build).
+    An analyzer the compiler can't load (CS8032) or built against a newer Roslyn than the SDK's (CS9057) is only a
+    warning and the rules quietly stop: errors here, so GRIF001 can't drop out unnoticed.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' And '$(RunAnalyzers)' != 'false' And '$(MSBuildProjectName)' != 'GrifballWebApp.Analyzers' And '$(MSBuildProjectName)' != 'GrifballWebApp.Analyzers.Test'">
+    <WarningsAsErrors>$(WarningsAsErrors);CS9057;CS8032</WarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' And '$(RunAnalyzers)' != 'false' And '$(MSBuildProjectName)' != 'GrifballWebApp.Analyzers' And '$(MSBuildProjectName)' != 'GrifballWebApp.Analyzers.Test'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)GrifballWebApp.Analyzers/GrifballWebApp.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/grif-analyzers.globalconfig" />
+  </ItemGroup>
+  <!--
     Async misuse fails the build: Microsoft.VisualStudio.Threading.Analyzers (the VSTHRD rules), configured in
     analyzers/threading.globalconfig (the .NET async correctness rules errors, the Visual Studio main-thread ones off).
   -->

@@ -266,7 +266,7 @@ public class StringMenuInteractionsTests
         }
 
         await using var fresh = _context.NewContextLike();
-        var votes = fresh.Set<MatchedKickVote>().Select(v => new { v.VoterMatchedPlayerId, v.KickMatchedPlayerId }).ToList();
+        var votes = await fresh.Set<MatchedKickVote>().Select(v => new { v.VoterMatchedPlayerId, v.KickMatchedPlayerId }).ToListAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(votes, Is.EquivalentTo(new[]

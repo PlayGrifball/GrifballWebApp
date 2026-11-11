@@ -139,7 +139,7 @@ public class SeasonMatchControllerTests
         {
             refused.AssertProblem(StatusCodes.Status400BadRequest, "That game is not one of this match's games");
             Assert.That(replaced, Is.InstanceOf<NoContentResult>());
-            Assert.That(_context.Set<SeriesGame>().Where(g => g.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID).Select(g => g.MatchID).ToList(), Is.EqualTo(new Guid?[] { match.MatchID }));
+            Assert.That(await _context.Set<SeriesGame>().Where(g => g.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID).Select(g => g.MatchID).ToListAsync(), Is.EqualTo(new Guid?[] { match.MatchID }));
         }
     }
 
