@@ -61,13 +61,14 @@ public class ConvertCommandTests
     [Test]
     public async Task Command_WhenTheConversionSucceeds_ReturnsZero()
     {
-        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), NullLoggerFactory.Instance, CancellationToken.None,
+        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), NullLoggerFactory.Instance,
             convert: (source, target, logger, ct) =>
             {
                 Assert.That((source.Provider, source.ConnectionString), Is.EqualTo((DatabaseProvider.SqlServer, "source")));
                 Assert.That((target.Provider, target.ConnectionString), Is.EqualTo((DatabaseProvider.Postgres, "target")));
                 return Task.CompletedTask;
-            });
+            },
+            CancellationToken.None);
 
         Assert.That(code, Is.EqualTo(0));
     }
@@ -75,8 +76,9 @@ public class ConvertCommandTests
     [Test]
     public async Task Command_WhenTheConversionRefuses_ReturnsOne()
     {
-        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), NullLoggerFactory.Instance, CancellationToken.None,
-            convert: (_, _, _, _) => throw new ConversionException("The target database already has tables."));
+        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), NullLoggerFactory.Instance,
+            convert: (_, _, _, _) => throw new ConversionException("The target database already has tables."),
+            CancellationToken.None);
 
         Assert.That(code, Is.EqualTo(1));
     }
@@ -84,8 +86,9 @@ public class ConvertCommandTests
     [Test]
     public async Task Command_WhenTheConversionThrows_ReturnsOne()
     {
-        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), NullLoggerFactory.Instance, CancellationToken.None,
-            convert: (_, _, _, _) => throw new InvalidOperationException("boom"));
+        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), NullLoggerFactory.Instance,
+            convert: (_, _, _, _) => throw new InvalidOperationException("boom"),
+            CancellationToken.None);
 
         Assert.That(code, Is.EqualTo(1));
     }

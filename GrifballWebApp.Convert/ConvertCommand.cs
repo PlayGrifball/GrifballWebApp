@@ -36,15 +36,15 @@ public static partial class ConvertCommand
     }
 
     public static Task<int> RunAsync(IConfiguration configuration, ILoggerFactory loggerFactory, CancellationToken cancellationToken = default)
-        => RunAsync(configuration, loggerFactory, cancellationToken, convert: null);
+        => RunAsync(configuration, loggerFactory, convert: null, cancellationToken);
 
     /// <summary>
     /// <paramref name="convert"/> is the real conversion (a new DatabaseConverter) unless given: a database-free unit
     /// test gives its own, since DatabaseConverter is sealed (no interface a test double could stand in for) and always
     /// needs a real database to run.
     /// </summary>
-    internal static async Task<int> RunAsync(IConfiguration configuration, ILoggerFactory loggerFactory, CancellationToken cancellationToken,
-        Func<DatabaseEndpoint, DatabaseEndpoint, ILogger<DatabaseConverter>, CancellationToken, Task>? convert)
+    internal static async Task<int> RunAsync(IConfiguration configuration, ILoggerFactory loggerFactory,
+        Func<DatabaseEndpoint, DatabaseEndpoint, ILogger<DatabaseConverter>, CancellationToken, Task>? convert, CancellationToken cancellationToken)
     {
         convert ??= static (source, target, logger, ct) => new DatabaseConverter(logger).ConvertAsync(source, target, ct);
         var logger = loggerFactory.CreateLogger(typeof(ConvertCommand));
