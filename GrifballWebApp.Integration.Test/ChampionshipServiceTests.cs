@@ -227,7 +227,7 @@ public class SeasonMatchChampionshipTests
         Assert.That(await Titles(), Is.Not.Empty);
 
         // The final has been played: drawing the bracket again would delete it (review of #390)
-        Assert.ThrowsAsync<GrifballWebApp.Application.EventOrganizer.SeasonRefusedException>(() => _bracketService.CreateBracket(2, seeded.Season.SeasonID, false, 1));
+        await Assert.ThrowsAsync<GrifballWebApp.Application.EventOrganizer.SeasonRefusedException>(() => _bracketService.CreateBracket(2, seeded.Season.SeasonID, false, 1));
 
         _context.ChangeTracker.Clear();
         Assert.That(await Titles(), Is.Not.Empty, "The title stays with the final's winner");

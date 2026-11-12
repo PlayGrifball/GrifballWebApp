@@ -351,7 +351,7 @@ public class SeasonMatchServiceManualGamesTests
         _context.ChangeTracker.Clear();
 
         // A played schedule is never made again: it would delete its results (review of #390)
-        Assert.ThrowsAsync<GrifballWebApp.Application.EventOrganizer.SeasonRefusedException>(() =>
+        await Assert.ThrowsAsync<GrifballWebApp.Application.EventOrganizer.SeasonRefusedException>(() =>
             new GrifballWebApp.Application.MatchPlanner.MatchPlannerService(_context).CreateSeasonMatches(seeded.Season.SeasonID, 1, 3));
 
         _context.ChangeTracker.Clear();
