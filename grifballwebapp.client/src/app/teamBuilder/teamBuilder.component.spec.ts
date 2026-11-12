@@ -2,7 +2,7 @@ import type { CaptainAddedResponseDto } from '@api/models';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TeamBuilderComponent } from './teamBuilder.component';
 import { provideRouter } from '@angular/router';
-import { ApiClientService } from '../api/apiClient.service';
+import { SeasonService, TeamsService } from '@api/services';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '../account.service';
 import { SignalRService } from '../api/signalR.service';
@@ -19,17 +19,17 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 describe('TeamBuilderComponent', () => {
   let component: TeamBuilderComponent;
   let fixture: ComponentFixture<TeamBuilderComponent>;
-  let mockApiClient: jasmine.SpyObj<ApiClientService>;
+  let mockDraft: jasmine.SpyObj<TeamsService>;
+  let mockSeason: jasmine.SpyObj<SeasonService>;
   let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
   let mockAccountService: jasmine.SpyObj<AccountService>;
   let mockSignalR: jasmine.SpyObj<SignalRService>;
 
   beforeEach(async () => {
-    mockApiClient = jasmine.createSpyObj('ApiClientService', [
+    mockDraft = jasmine.createSpyObj<TeamsService>('TeamsService', [
       'getTeams',
       'getPlayerPool',
       'areCaptainsLocked',
-      'getCurrentSeasonID',
       'lockCaptains',
       'unlockCaptains',
       'addCaptain',
@@ -39,6 +39,7 @@ describe('TeamBuilderComponent', () => {
       'movePlayerToTeam',
       'removePlayerFromTeam'
     ]);
+    mockSeason = jasmine.createSpyObj<SeasonService>('SeasonService', ['getCurrentSeasonId']);
 
     mockSnackBar = jasmine.createSpyObj('MatSnackBar', ['open', 'dismiss']);
     mockAccountService = jasmine.createSpyObj('AccountService', ['isEventOrganizer', 'isSysAdmin', 'personID']);
@@ -61,9 +62,9 @@ describe('TeamBuilderComponent', () => {
       if (jasmine.isSpy(method)) method.and.callFake(() => jasmine.createSpy(`off ${String(name)}`));
     }
 
-    mockApiClient.getTeams.and.returnValue(of([]));
-    mockApiClient.getPlayerPool.and.returnValue(of([]));
-    mockApiClient.areCaptainsLocked.and.returnValue(of(true));
+    mockDraft.getTeams.and.returnValue(of([]));
+    mockDraft.getPlayerPool.and.returnValue(of([]));
+    mockDraft.areCaptainsLocked.and.returnValue(of(true));
     mockAccountService.isEventOrganizer.and.returnValue(false);
     mockAccountService.personID.and.returnValue(0);
 
@@ -71,7 +72,8 @@ describe('TeamBuilderComponent', () => {
       imports: [TeamBuilderComponent],
       providers: [
         provideRouter([]),
-        { provide: ApiClientService, useValue: mockApiClient },
+        { provide: TeamsService, useValue: mockDraft },
+        { provide: SeasonService, useValue: mockSeason },
         { provide: MatSnackBar, useValue: mockSnackBar },
         { provide: AccountService, useValue: mockAccountService },
         { provide: SignalRService, useValue: mockSignalR }
@@ -91,9 +93,9 @@ describe('TeamBuilderComponent', () => {
   it('should load teams and player pool on init when seasonID is provided', () => {
     fixture.detectChanges();
 
-    expect(mockApiClient.getTeams).toHaveBeenCalledWith(5);
-    expect(mockApiClient.getPlayerPool).toHaveBeenCalledWith(5);
-    expect(mockApiClient.areCaptainsLocked).toHaveBeenCalledWith(5);
+    expect(mockDraft.getTeams).toHaveBeenCalledWith({ seasonID: 5 });
+    expect(mockDraft.getPlayerPool).toHaveBeenCalledWith({ seasonID: 5 });
+    expect(mockDraft.areCaptainsLocked).toHaveBeenCalledWith({ seasonID: 5 });
   });
 
   it('heads the page as the draft board, with one link back to the rosters page', () => {
@@ -109,11 +111,11 @@ describe('TeamBuilderComponent', () => {
 
   it('should get current season ID when route param is 0', () => {
     fixture.componentRef.setInput('seasonID', '0');
-    mockApiClient.getCurrentSeasonID.and.returnValue(of(10));
+    mockSeason.getCurrentSeasonId.and.returnValue(of(10));
 
     fixture.detectChanges();
 
-    expect(mockApiClient.getCurrentSeasonID).toHaveBeenCalled();
+    expect(mockSeason.getCurrentSeasonId).toHaveBeenCalled();
   });
 
   describe('when the route moves to another season', () => {
@@ -121,16 +123,16 @@ describe('TeamBuilderComponent', () => {
       ({ teamID, teamName: name, captain: { name: 'Captain ' + name, personID: teamID, order: 1, region: null }, players: [] });
 
     it("loads that season's draft in place of the one shown", () => {
-      mockApiClient.getTeams.and.callFake((id: number) => of([team(id, 'Season ' + id)]));
-      mockApiClient.getPlayerPool.and.callFake((id: number) => of([{ name: 'Pool ' + id, personID: 100 + id, pick: null, round: null, region: null }]));
-      mockApiClient.areCaptainsLocked.and.callFake((id: number) => of(id === 5));
+      mockDraft.getTeams.and.callFake(p => of([team(p.seasonID, 'Season ' + p.seasonID)]));
+      mockDraft.getPlayerPool.and.callFake(p => of([{ name: 'Pool ' + p.seasonID, personID: 100 + p.seasonID, pick: null, round: null, region: null }]));
+      mockDraft.areCaptainsLocked.and.callFake(p => of(p.seasonID === 5));
       fixture.detectChanges();
       expect(component.teams().map(t => t.teamName)).toEqual(['Season 5']);
 
       fixture.componentRef.setInput('seasonID', '6');
       fixture.detectChanges();
 
-      expect(mockApiClient.getTeams).toHaveBeenCalledWith(6);
+      expect(mockDraft.getTeams).toHaveBeenCalledWith({ seasonID: 6 });
       expect(component.teams().map(t => t.teamName)).toEqual(['Season 6']);
       expect(component.playerPool().map(p => p.name)).toEqual(['Pool 6']);
       expect(component.captainLocked()).toBeFalse();
@@ -141,11 +143,11 @@ describe('TeamBuilderComponent', () => {
 
     it("drops the previous season's draft when it arrives late", () => {
       const late = new Subject<TeamResponseDto[]>();
-      mockApiClient.getTeams.and.callFake((id: number) => id === 5 ? late : of([team(6, 'Season 6')]));
+      mockDraft.getTeams.and.callFake(p => p.seasonID === 5 ? late : of([team(6, 'Season 6')]));
       fixture.detectChanges();
 
       fixture.componentRef.setInput('seasonID', '0');
-      mockApiClient.getCurrentSeasonID.and.returnValue(new Subject<number>());
+      mockSeason.getCurrentSeasonId.and.returnValue(new Subject<number>());
       fixture.detectChanges();
       late.next([team(5, 'Season 5')]);
       late.complete();
@@ -158,7 +160,7 @@ describe('TeamBuilderComponent', () => {
 
     it("drops the current season's ID when the route moves on before it arrives", () => {
       const current = new Subject<number>();
-      mockApiClient.getCurrentSeasonID.and.returnValue(current);
+      mockSeason.getCurrentSeasonId.and.returnValue(current);
       fixture.componentRef.setInput('seasonID', '0');
       fixture.detectChanges();
 
@@ -166,8 +168,8 @@ describe('TeamBuilderComponent', () => {
       fixture.detectChanges();
       current.next(10);
 
-      expect(mockApiClient.getTeams).not.toHaveBeenCalledWith(10);
-      expect(mockApiClient.getTeams).toHaveBeenCalledWith(6);
+      expect(mockDraft.getTeams).not.toHaveBeenCalledWith({ seasonID: 10 });
+      expect(mockDraft.getTeams).toHaveBeenCalledWith({ seasonID: 6 });
     });
 
     it('ignores hub updates for the previous season', () => {
@@ -185,11 +187,11 @@ describe('TeamBuilderComponent', () => {
 
   it('should load the current season when route param is 0', () => {
     fixture.componentRef.setInput('seasonID', '0');
-    mockApiClient.getCurrentSeasonID.and.returnValue(of(10));
+    mockSeason.getCurrentSeasonId.and.returnValue(of(10));
 
     fixture.detectChanges();
 
-    expect(mockApiClient.getTeams).toHaveBeenCalledWith(10);
+    expect(mockDraft.getTeams).toHaveBeenCalledWith({ seasonID: 10 });
   });
 
   it('should initialize with empty teams and player pool', () => {
@@ -206,7 +208,7 @@ describe('TeamBuilderComponent', () => {
       const mockTeams: TeamResponseDto[] = [
         { teamID: 0, teamName: 'Team 1', captain: { name: 'Captain 1', personID: 1, order: 1, region: null }, players: [] }
       ];
-      mockApiClient.getTeams.and.returnValue(of(mockTeams));
+      mockDraft.getTeams.and.returnValue(of(mockTeams));
 
       component.load();
 
@@ -217,7 +219,7 @@ describe('TeamBuilderComponent', () => {
       const mockPlayers: TeamsPlayerDto[] = [
         { name: 'Player 1', personID: 2, pick: null, round: null, region: null }
       ];
-      mockApiClient.getPlayerPool.and.returnValue(of(mockPlayers));
+      mockDraft.getPlayerPool.and.returnValue(of(mockPlayers));
 
       component.load();
 
@@ -225,7 +227,7 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('should update captainLocked status', () => {
-      mockApiClient.areCaptainsLocked.and.returnValue(of(false));
+      mockDraft.areCaptainsLocked.and.returnValue(of(false));
 
       component.load();
 
@@ -236,21 +238,21 @@ describe('TeamBuilderComponent', () => {
   describe('lockCaptainsButtonClicked', () => {
     it('should unlock captains when currently locked', () => {
       component.captainLocked.set(true);
-      mockApiClient.unlockCaptains.and.returnValue(of({}));
+      mockDraft.unlockCaptains.and.returnValue(of({}));
 
       component.lockCaptainsButtonClicked();
 
-      expect(mockApiClient.unlockCaptains).toHaveBeenCalled();
+      expect(mockDraft.unlockCaptains).toHaveBeenCalled();
       expect(component.captainLocked()).toBe(false);
     });
 
     it('should lock captains when currently unlocked', () => {
       component.captainLocked.set(false);
-      mockApiClient.lockCaptains.and.returnValue(of({}));
+      mockDraft.lockCaptains.and.returnValue(of({}));
 
       component.lockCaptainsButtonClicked();
 
-      expect(mockApiClient.lockCaptains).toHaveBeenCalled();
+      expect(mockDraft.lockCaptains).toHaveBeenCalled();
       expect(component.captainLocked()).toBe(true);
     });
   });
@@ -457,13 +459,13 @@ describe('TeamBuilderComponent', () => {
     const grab = (thing: unknown, kind: GrabbedThing) => component.onDragStart(thing as any, new DragEvent('dragstart'), kind);
 
     beforeEach(() => {
-      mockApiClient.getTeams.and.returnValue(of([
+      mockDraft.getTeams.and.returnValue(of([
         { teamID: 1, teamName: 'Alpha', captain: cap(101, 1), players: [player(1, 1), player(2, 2)] },
         { teamID: 2, teamName: 'Bravo', captain: cap(102, 2), players: [] },
       ]));
-      mockApiClient.getPlayerPool.and.returnValue(of([player(3), player(4), player(5)]));
+      mockDraft.getPlayerPool.and.returnValue(of([player(3), player(4), player(5)]));
       for (const m of ['addCaptain', 'resortCaptain', 'removeCaptain', 'addPlayerToTeam', 'movePlayerToTeam', 'removePlayerFromTeam'] as const) {
-        (mockApiClient[m] as jasmine.Spy).and.returnValue(of(m === 'addCaptain' ? { teamName: 'Named', teamID: 9 } : {}));
+        (mockDraft[m] as jasmine.Spy).and.returnValue(of(m === 'addCaptain' ? { teamName: 'Named', teamID: 9 } : {}));
       }
       spyOn(console, 'log');
       fixture.detectChanges();
@@ -471,32 +473,34 @@ describe('TeamBuilderComponent', () => {
 
     it('makes a pool player a captain at the drop position and takes the name the server answers with', () => {
       const saved = new Subject<CaptainAddedResponseDto>();
-      mockApiClient.addCaptain.and.returnValue(saved);
+      mockDraft.addCaptain.and.returnValue(saved);
       grab(component.playerPool()[1], GrabbedThing.AvailablePlayer);
       component.onDropInTeam(drop(component.playerPool()[1], 1));
 
       expect(teamNames()).toEqual(['1:101', '2:4', '3:102']);
       expect(pool()).toEqual([3, 5]);
       expect(component.teams()[1].teamName).toBe("Player 4's Team");
-      expect(mockApiClient.addCaptain).toHaveBeenCalledWith(jasmine.objectContaining({ seasonID: 5, personID: 4, orderNumber: 2 }), 'test-connection-id');
+      expect(mockDraft.addCaptain).toHaveBeenCalledWith(jasmine.objectContaining({
+        seasonID: 5, signalRConnectionID: 'test-connection-id', body: jasmine.objectContaining({ seasonID: 5, personID: 4, orderNumber: 2 }),
+      }));
 
       // A later pick is still on its way; the answer must not reload over it.
-      mockApiClient.addPlayerToTeam.and.returnValue(new Subject<Object>());
+      mockDraft.addPlayerToTeam.and.returnValue(new Subject<Object>());
       grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[0]);
-      const loads = mockApiClient.getTeams.calls.count();
+      const loads = mockDraft.getTeams.calls.count();
 
       saved.next({ teamName: 'The Fours', teamID: 44 });
       saved.complete();
 
-      expect(mockApiClient.getTeams.calls.count()).toBe(loads);
+      expect(mockDraft.getTeams.calls.count()).toBe(loads);
       expect(component.teams()[1].teamName).toBe('The Fours');
       expect(component.teams()[1].teamID).toBe(44);
       expect(roster(101)).toEqual(['1:1', '2:2', '3:3']);
     });
 
     // Every drop is applied before the server answers; a refusal must not leave it on screen.
-    const refusals: [string, keyof ApiClientService, () => void][] = [
+    const refusals: [string, keyof TeamsService, () => void][] = [
       ['new captain', 'addCaptain', () => { grab(component.playerPool()[1], GrabbedThing.AvailablePlayer); component.onDropInTeam(drop(component.playerPool()[1], 1)); }],
       ['re-sort', 'resortCaptain', () => { grab(component.teams()[0], GrabbedThing.Team); component.onDropInTeam(drop(component.teams()[0], 2)); }],
       ['draft pick', 'addPlayerToTeam', () => { grab(component.playerPool()[0], GrabbedThing.AvailablePlayer); component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]); }],
@@ -517,14 +521,14 @@ describe('TeamBuilderComponent', () => {
     for (const [name, request, act] of refusals) {
       it(`says why and reloads the real draft when the server refuses a drop (${name})`, () => {
         // As GlobalExceptionHandler sends a TeamServiceException.
-        (mockApiClient[request] as jasmine.Spy).and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { title: 'Request refused', status: 400, detail: 'It is not your turn to be making a draft pick' } })));
-        const loads = mockApiClient.getTeams.calls.count();
+        (mockDraft[request] as jasmine.Spy).and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { title: 'Request refused', status: 400, detail: 'It is not your turn to be making a draft pick' } })));
+        const loads = mockDraft.getTeams.calls.count();
 
         act();
 
-        expect(mockApiClient[request]).toHaveBeenCalled();
+        expect(mockDraft[request]).toHaveBeenCalled();
         expect(mockSnackBar.open).toHaveBeenCalledWith('Draft change not saved: It is not your turn to be making a draft pick', 'Close');
-        expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+        expect(mockDraft.getTeams.calls.count()).toBe(loads + 1);
         expect(teamNames()).toEqual(['1:101', '2:102']);
         expect(roster(101)).toEqual(['1:1', '2:2']);
         expect(pool()).toEqual([3, 4, 5]);
@@ -536,7 +540,7 @@ describe('TeamBuilderComponent', () => {
 
     describe('when the hub connection comes up after the draft loaded', () => {
       const connected = () => (mockSignalR.connected.calls.mostRecent().args[0] as () => void)();
-      const loads = () => mockApiClient.getTeams.calls.count();
+      const loads = () => mockDraft.getTeams.calls.count();
 
       it('loads the draft again, once: a change sent before the connection was up was missed', () => {
         const before = loads();
@@ -570,7 +574,7 @@ describe('TeamBuilderComponent', () => {
 
       it('waits for a save on its way, as other reloads do', () => {
         const saved = new Subject<Object>();
-        mockApiClient.addPlayerToTeam.and.returnValue(saved);
+        mockDraft.addPlayerToTeam.and.returnValue(saved);
         grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
         component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
         component.onDragEnd();
@@ -591,26 +595,26 @@ describe('TeamBuilderComponent', () => {
 
     it('lets a save finish after the page is gone, without touching it', () => {
       const saved = new Subject<Object>();
-      mockApiClient.addPlayerToTeam.and.returnValue(saved);
+      mockDraft.addPlayerToTeam.and.returnValue(saved);
       grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
-      const loads = mockApiClient.getTeams.calls.count();
+      const loads = mockDraft.getTeams.calls.count();
 
       fixture.destroy();
       expect(saved.observed).toBeTrue(); // still being sent
 
       saved.error(new HttpErrorResponse({ status: 400, error: { title: 'Request refused', detail: 'No' } }));
       expect(mockSnackBar.open).not.toHaveBeenCalled();
-      expect(mockApiClient.getTeams.calls.count()).toBe(loads);
+      expect(mockDraft.getTeams.calls.count()).toBe(loads);
     });
 
     it('applies only the latest reload; an older one still loading is cancelled', () => {
       const older = new Subject<TeamResponseDto[]>();
-      mockApiClient.getTeams.and.returnValue(older);
+      mockDraft.getTeams.and.returnValue(older);
       component.load();
       expect(older.observed).toBeTrue();
 
-      mockApiClient.getTeams.and.returnValue(of([{ teamID: 9, teamName: 'Newest', captain: cap(109, 1), players: [] }]));
+      mockDraft.getTeams.and.returnValue(of([{ teamID: 9, teamName: 'Newest', captain: cap(109, 1), players: [] }]));
       component.load();
       expect(older.observed).toBeFalse();
       older.next([{ teamID: 8, teamName: 'Older', captain: cap(108, 1), players: [] }]);
@@ -619,15 +623,15 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('takes the lock state from the reload too', () => {
-      mockApiClient.areCaptainsLocked.and.returnValue(of(false));
+      mockDraft.areCaptainsLocked.and.returnValue(of(false));
       component.load();
       expect(component.captainLocked()).toBeFalse();
     });
 
     it('keeps teams and pool together when part of a reload fails, and still takes the lock state', () => {
-      mockApiClient.getTeams.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
-      mockApiClient.getPlayerPool.and.returnValue(of([player(9)]));
-      mockApiClient.areCaptainsLocked.and.returnValue(of(false));
+      mockDraft.getTeams.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+      mockDraft.getPlayerPool.and.returnValue(of([player(9)]));
+      mockDraft.areCaptainsLocked.and.returnValue(of(false));
       const teams = component.teams();
       const playerPool = component.playerPool();
 
@@ -639,13 +643,13 @@ describe('TeamBuilderComponent', () => {
       expect(mockSnackBar.open).toHaveBeenCalledWith('Failed to load the draft', 'Close');
 
       // the same when the pool is the part that fails
-      mockApiClient.getTeams.and.returnValue(of([]));
-      mockApiClient.getPlayerPool.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+      mockDraft.getTeams.and.returnValue(of([]));
+      mockDraft.getPlayerPool.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
       component.load();
       expect(component.teams()).toBe(teams);
 
       // and the next full reload still works
-      mockApiClient.getPlayerPool.and.returnValue(of([player(9)]));
+      mockDraft.getPlayerPool.and.returnValue(of([player(9)]));
       component.load();
       expect(component.teams()).toEqual([]);
       expect(pool()).toEqual([9]);
@@ -657,24 +661,24 @@ describe('TeamBuilderComponent', () => {
       rxjsConfig.onUnhandledError = unhandled;
       try {
         // A null AddCaptain answer makes the name lookup throw inside the save's callback.
-        mockApiClient.addCaptain.and.returnValue(of(null as any));
-        mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { title: 'Request refused', detail: 'No' } })));
+        mockDraft.addCaptain.and.returnValue(of(null as any));
+        mockDraft.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { title: 'Request refused', detail: 'No' } })));
         const pending = new Subject<Object>();
-        mockApiClient.addPlayerToTeam.and.returnValue(pending);
+        mockDraft.addPlayerToTeam.and.returnValue(pending);
         grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
         component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]); // stays in flight
         grab(component.playerPool()[1], GrabbedThing.AvailablePlayer);
         component.onDropInTeam(drop(component.playerPool()[1], 1)); // its answer throws
         grab(component.teams()[0], GrabbedThing.Team);
         component.onDropInTeam(drop(component.teams()[0], 2)); // refused: wants a reload
-        const loads = mockApiClient.getTeams.calls.count();
+        const loads = mockDraft.getTeams.calls.count();
 
         pending.next({});
         pending.complete();
         await new Promise(resolve => setTimeout(resolve)); // RxJS reports the thrown error asynchronously
 
         expect(unhandled).toHaveBeenCalled();
-        expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1); // the count got back to 0
+        expect(mockDraft.getTeams.calls.count()).toBe(loads + 1); // the count got back to 0
       } finally {
         rxjsConfig.onUnhandledError = previous;
       }
@@ -682,61 +686,61 @@ describe('TeamBuilderComponent', () => {
 
     it('does not reload again because of updates that land while a reload is loading', () => {
       const loading = new Subject<TeamResponseDto[]>();
-      mockApiClient.getTeams.and.returnValue(loading);
+      mockDraft.getTeams.and.returnValue(loading);
       component.load();
-      const loads = mockApiClient.getTeams.calls.count();
+      const loads = mockDraft.getTeams.calls.count();
 
       const addPlayer = mockSignalR.addPlayerToTeam.calls.mostRecent().args[0] as (dto: any) => void;
       addPlayer({ seasonID: 5, captainID: 101, personID: 3 });
       loading.next([{ teamID: 1, teamName: 'Alpha', captain: cap(101, 1), players: [player(1, 1), player(2, 2), player(3, 3)] }]);
       loading.complete();
 
-      expect(mockApiClient.getTeams.calls.count()).toBe(loads);
+      expect(mockDraft.getTeams.calls.count()).toBe(loads);
       expect(roster(101)).toEqual(['1:1', '2:2', '3:3']);
     });
 
     it('does not load once the page is gone', () => {
-      const loads = mockApiClient.getTeams.calls.count();
+      const loads = mockDraft.getTeams.calls.count();
       fixture.destroy();
       component.load();
-      expect(mockApiClient.getTeams.calls.count()).toBe(loads);
+      expect(mockDraft.getTeams.calls.count()).toBe(loads);
     });
 
     it('reloads after a refusal only once the other saves from this page are done, and once', () => {
       const refused = new Subject<Object>();
       const pending = new Subject<Object>();
-      mockApiClient.resortCaptain.and.returnValue(refused);
-      mockApiClient.addPlayerToTeam.and.returnValue(pending);
+      mockDraft.resortCaptain.and.returnValue(refused);
+      mockDraft.addPlayerToTeam.and.returnValue(pending);
       grab(component.teams()[0], GrabbedThing.Team);
       component.onDropInTeam(drop(component.teams()[0], 2));
       grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
-      const loads = mockApiClient.getTeams.calls.count();
+      const loads = mockDraft.getTeams.calls.count();
 
       refused.error(new HttpErrorResponse({ status: 400, error: { title: 'Request refused', detail: 'No' } }));
       expect(mockSnackBar.open).toHaveBeenCalledWith('Draft change not saved: No', 'Close');
-      expect(mockApiClient.getTeams.calls.count()).toBe(loads); // the pick is still on its way
+      expect(mockDraft.getTeams.calls.count()).toBe(loads); // the pick is still on its way
 
       pending.next({});
       pending.complete();
-      expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+      expect(mockDraft.getTeams.calls.count()).toBe(loads + 1);
     });
 
     it('does not reload after a successful save', () => {
-      const loads = mockApiClient.getTeams.calls.count();
+      const loads = mockDraft.getTeams.calls.count();
       grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
-      expect(mockApiClient.getTeams.calls.count()).toBe(loads);
+      expect(mockDraft.getTeams.calls.count()).toBe(loads);
     });
 
     it('does not apply a reload that was loading when a drop was saved; loads again after that save', () => {
       const loading = new Subject<TeamResponseDto[]>();
-      mockApiClient.getTeams.and.returnValue(loading);
+      mockDraft.getTeams.and.returnValue(loading);
       component.load();
 
       // A pick is dropped and its save starts while the reload is still loading.
       const pick = new Subject<Object>();
-      mockApiClient.addPlayerToTeam.and.returnValue(pick);
+      mockDraft.addPlayerToTeam.and.returnValue(pick);
       grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
       expect(roster(102)).toEqual(['1:3']);
@@ -745,50 +749,50 @@ describe('TeamBuilderComponent', () => {
       loading.next([{ teamID: 2, teamName: 'Bravo', captain: cap(102, 1), players: [] }]);
       loading.complete();
       expect(roster(102)).toEqual(['1:3']);
-      const loads = mockApiClient.getTeams.calls.count();
+      const loads = mockDraft.getTeams.calls.count();
 
       // Once the pick is saved, the page loads again (and that answer has it).
-      mockApiClient.getTeams.and.returnValue(of([
+      mockDraft.getTeams.and.returnValue(of([
         { teamID: 1, teamName: 'Alpha', captain: cap(101, 1), players: [player(1, 1), player(2, 2)] },
         { teamID: 2, teamName: 'Bravo', captain: cap(102, 2), players: [player(3, 1)] },
       ]));
       pick.next({});
       pick.complete();
-      expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+      expect(mockDraft.getTeams.calls.count()).toBe(loads + 1);
       expect(roster(102)).toEqual(['1:3']);
     });
 
     it('holds an out-of-sync reload until the page\'s saves are done', () => {
       const pick = new Subject<Object>();
-      mockApiClient.addPlayerToTeam.and.returnValue(pick);
+      mockDraft.addPlayerToTeam.and.returnValue(pick);
       grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
-      const loads = mockApiClient.getTeams.calls.count();
+      const loads = mockDraft.getTeams.calls.count();
 
       // Another user's update names a team this page does not know.
       const addPlayer = mockSignalR.addPlayerToTeam.calls.mostRecent().args[0] as (dto: any) => void;
       addPlayer({ seasonID: 5, captainID: 999, personID: 4 });
-      expect(mockApiClient.getTeams.calls.count()).toBe(loads);
+      expect(mockDraft.getTeams.calls.count()).toBe(loads);
 
       pick.next({});
       pick.complete();
-      expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+      expect(mockDraft.getTeams.calls.count()).toBe(loads + 1);
     });
 
     it('uses the title, or a plain-text body, when there is no detail', () => {
-      mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 403, error: { title: 'Forbidden', status: 403 } })));
+      mockDraft.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 403, error: { title: 'Forbidden', status: 403 } })));
       grab(component.teams()[0], GrabbedThing.Team);
       component.onDropInTeam(drop(component.teams()[0], 2));
       expect(mockSnackBar.open).toHaveBeenCalledWith('Draft change not saved: Forbidden', 'Close');
 
-      mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: 'You must be logged in' })));
+      mockDraft.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: 'You must be logged in' })));
       grab(component.teams()[0], GrabbedThing.Team);
       component.onDropInTeam(drop(component.teams()[0], 2));
       expect(mockSnackBar.open).toHaveBeenCalledWith('Draft change not saved: You must be logged in', 'Close');
     });
 
     it('gives a generic reason when the refusal has no message', () => {
-      mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 403 })));
+      mockDraft.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 403 })));
       grab(component.teams()[0], GrabbedThing.Team);
       component.onDropInTeam(drop(component.teams()[0], 2));
       expect(mockSnackBar.open).toHaveBeenCalledWith('Draft change not saved: the server refused it', 'Close');
@@ -811,7 +815,9 @@ describe('TeamBuilderComponent', () => {
       component.onDropInTeam(drop(component.teams()[0], 2)); // after Bravo
 
       expect(teamNames()).toEqual(['1:102', '2:101']);
-      expect(mockApiClient.resortCaptain).toHaveBeenCalledWith(jasmine.objectContaining({ personID: 101, orderNumber: 2 }), 'test-connection-id');
+      expect(mockDraft.resortCaptain).toHaveBeenCalledWith(jasmine.objectContaining({
+        signalRConnectionID: 'test-connection-id', body: jasmine.objectContaining({ personID: 101, orderNumber: 2 }),
+      }));
     });
 
     it('drafts a pool player onto a team', () => {
@@ -820,7 +826,9 @@ describe('TeamBuilderComponent', () => {
 
       expect(roster(102)).toEqual(['1:3']);
       expect(pool()).toEqual([4, 5]);
-      expect(mockApiClient.addPlayerToTeam).toHaveBeenCalledWith({ seasonID: 5, captainID: 102, personID: 3 }, 'test-connection-id');
+      expect(mockDraft.addPlayerToTeam).toHaveBeenCalledWith({
+        seasonID: 5, signalRConnectionID: 'test-connection-id', body: { seasonID: 5, captainID: 102, personID: 3 },
+      });
     });
 
     it('moves a pick to another team and renumbers both', () => {
@@ -831,7 +839,9 @@ describe('TeamBuilderComponent', () => {
 
       expect(roster(101)).toEqual(['1:2']);
       expect(roster(102)).toEqual(['1:1']);
-      expect(mockApiClient.movePlayerToTeam).toHaveBeenCalledWith({ seasonID: 5, previousCaptainID: 101, newCaptainID: 102, personID: 1, roundNumber: 1 }, 'test-connection-id');
+      expect(mockDraft.movePlayerToTeam).toHaveBeenCalledWith({
+        seasonID: 5, signalRConnectionID: 'test-connection-id', body: { seasonID: 5, previousCaptainID: 101, newCaptainID: 102, personID: 1, roundNumber: 1 },
+      });
     });
 
     it('moves a pick to the end of its own team', () => {
@@ -841,7 +851,9 @@ describe('TeamBuilderComponent', () => {
       component.onDropPickInTeam(drop(grabbed), component.teams()[0]);
 
       expect(roster(101)).toEqual(['1:2', '2:1']);
-      expect(mockApiClient.movePlayerToTeam).toHaveBeenCalledWith(jasmine.objectContaining({ previousCaptainID: 101, newCaptainID: 101, roundNumber: 2 }), 'test-connection-id');
+      expect(mockDraft.movePlayerToTeam).toHaveBeenCalledWith(jasmine.objectContaining({
+        signalRConnectionID: 'test-connection-id', body: jasmine.objectContaining({ previousCaptainID: 101, newCaptainID: 101, roundNumber: 2 }),
+      }));
     });
 
     it('moves a pick within its own team to the drop position', () => {
@@ -862,7 +874,9 @@ describe('TeamBuilderComponent', () => {
       expect(roster(101)).toEqual(['1:1']);
       expect(pool()).toEqual([3, 2, 4, 5]);
       expect(component.playerPool()[1].round).toBeNull();
-      expect(mockApiClient.removePlayerFromTeam).toHaveBeenCalledWith({ seasonID: 5, captainID: 101, personID: 2 }, 'test-connection-id');
+      expect(mockDraft.removePlayerFromTeam).toHaveBeenCalledWith({
+        seasonID: 5, signalRConnectionID: 'test-connection-id', body: { seasonID: 5, captainID: 101, personID: 2 },
+      });
     });
 
     it('reorders the pool without telling the backend', () => {
@@ -870,7 +884,7 @@ describe('TeamBuilderComponent', () => {
       component.onDropInPool(drop(component.playerPool()[0], 3)); // to the end
 
       expect(pool()).toEqual([4, 5, 3]);
-      expect(mockApiClient.removePlayerFromTeam).not.toHaveBeenCalled();
+      expect(mockDraft.removePlayerFromTeam).not.toHaveBeenCalled();
     });
 
     it('logs an unexpected drag type dropped in the pool', () => {
@@ -917,7 +931,7 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('appends when the drop has no index', () => {
-      mockApiClient.addCaptain.and.returnValue(new Subject<CaptainAddedResponseDto>());
+      mockDraft.addCaptain.and.returnValue(new Subject<CaptainAddedResponseDto>());
       grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
       component.onDropInTeam(drop(component.playerPool()[0]));
       expect(teamNames()).toEqual(['1:101', '2:102', '3:3']);
@@ -938,19 +952,19 @@ describe('TeamBuilderComponent', () => {
       const ghostTeam = { teamID: 9, teamName: 'Gone', captain: cap(999, 9), players: [player(998, 1)] };
       const ghostPick = component.createDraggedPlayer(player(998, 1), ghostTeam);
       return [
-        ['new captain', () => { grab(player(997), GrabbedThing.AvailablePlayer); component.onDropInTeam(drop(player(997), 0)); }, mockApiClient.addCaptain],
-        ['re-sorted team', () => { grab(ghostTeam, GrabbedThing.Team); component.onDropInTeam(drop(ghostTeam, 0)); }, mockApiClient.resortCaptain],
-        ['pick to pool', () => { grab(ghostPick, GrabbedThing.Player); component.onDropInPool(drop(ghostPick, 0)); }, mockApiClient.removePlayerFromTeam],
-        ['team to pool', () => { grab(ghostTeam, GrabbedThing.Team); component.onDropInPool(drop(ghostTeam, 0)); }, mockApiClient.removeCaptain],
-        ['pick to team', () => { grab(ghostPick, GrabbedThing.Player); component.onDropPickInTeam(drop(ghostPick), component.teams()[1]); }, mockApiClient.movePlayerToTeam],
+        ['new captain', () => { grab(player(997), GrabbedThing.AvailablePlayer); component.onDropInTeam(drop(player(997), 0)); }, mockDraft.addCaptain],
+        ['re-sorted team', () => { grab(ghostTeam, GrabbedThing.Team); component.onDropInTeam(drop(ghostTeam, 0)); }, mockDraft.resortCaptain],
+        ['pick to pool', () => { grab(ghostPick, GrabbedThing.Player); component.onDropInPool(drop(ghostPick, 0)); }, mockDraft.removePlayerFromTeam],
+        ['team to pool', () => { grab(ghostTeam, GrabbedThing.Team); component.onDropInPool(drop(ghostTeam, 0)); }, mockDraft.removeCaptain],
+        ['pick to team', () => { grab(ghostPick, GrabbedThing.Player); component.onDropPickInTeam(drop(ghostPick), component.teams()[1]); }, mockDraft.movePlayerToTeam],
       ];
     };
     for (const name of ['new captain', 're-sorted team', 'pick to pool', 'team to pool', 'pick to team']) {
       it(`reloads instead of announcing a stale drop (${name})`, () => {
         const [, act, request] = stale().find(([n]) => n === name)!;
-        const loads = mockApiClient.getTeams.calls.count();
+        const loads = mockDraft.getTeams.calls.count();
         act();
-        expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+        expect(mockDraft.getTeams.calls.count()).toBe(loads + 1);
         expect(request).not.toHaveBeenCalled();
       });
     }
@@ -959,12 +973,12 @@ describe('TeamBuilderComponent', () => {
       const dragged = component.playerPool()[0];
       grab(dragged, GrabbedThing.AvailablePlayer);
       component.playerPool.set(component.playerPool().slice(1)); // already drafted elsewhere
-      const loads = mockApiClient.getTeams.calls.count();
+      const loads = mockDraft.getTeams.calls.count();
 
       component.onDropPickInTeam(drop(dragged), component.teams()[1]);
 
-      expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
-      expect(mockApiClient.addPlayerToTeam).not.toHaveBeenCalled();
+      expect(mockDraft.getTeams.calls.count()).toBe(loads + 1);
+      expect(mockDraft.addPlayerToTeam).not.toHaveBeenCalled();
     });
   });
 
@@ -976,17 +990,17 @@ describe('TeamBuilderComponent', () => {
 
     // The callback the component registered with the given SignalRService method.
     const handler = <T>(spy: jasmine.Spy) => spy.calls.mostRecent().args[0] as (dto: T) => void;
-    const loads = () => mockApiClient.getTeams.calls.count();
+    const loads = () => mockDraft.getTeams.calls.count();
     const teamNames = () => component.teams().map(t => `${t.captain.order}:${t.teamName}`);
     const pool = () => component.playerPool().map(p => p.personID);
     const roster = (captainID: number) => component.teams().find(t => t.captain.personID === captainID)!.players.map(p => `${p.round}:${p.personID}`);
 
     beforeEach(() => {
-      mockApiClient.getTeams.and.callFake(() => of([
+      mockDraft.getTeams.and.callFake(() => of([
         { teamID: 1, teamName: 'Alpha', captain: cap(101, 1), players: [player(1, 1), player(2, 2)] },
         { teamID: 2, teamName: 'Bravo', captain: cap(102, 2), players: [] },
       ]));
-      mockApiClient.getPlayerPool.and.callFake(() => of([player(3), player(4), player(5)]));
+      mockDraft.getPlayerPool.and.callFake(() => of([player(3), player(4), player(5)]));
       fixture.detectChanges();
     });
 
@@ -1026,8 +1040,8 @@ describe('TeamBuilderComponent', () => {
       expect(component.playerPool()).toBe(playerPool);
 
       // Out of sync: the page reloads instead (the mock returns fresh lists).
-      mockApiClient.getTeams.and.returnValue(new Subject<TeamResponseDto[]>());
-      mockApiClient.getPlayerPool.and.returnValue(new Subject<TeamsPlayerDto[]>());
+      mockDraft.getTeams.and.returnValue(new Subject<TeamResponseDto[]>());
+      mockDraft.getPlayerPool.and.returnValue(new Subject<TeamsPlayerDto[]>());
       handler<any>(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 99, personID: 1, roundNumber: 1 });
       expect(component.teams()).toBe(teams);
       expect(component.playerPool()).toBe(playerPool);
@@ -1155,11 +1169,11 @@ describe('TeamBuilderComponent', () => {
     }
 
     beforeEach(() => {
-      mockApiClient.getTeams.and.returnValue(of([
+      mockDraft.getTeams.and.returnValue(of([
         { teamID: 1, teamName: 'Alpha', captain: cap(1), players: [player(1, 1), player(2, 2)] },
         { teamID: 2, teamName: 'Bravo', captain: cap(2), players: [] }
       ]));
-      mockApiClient.getPlayerPool.and.returnValue(of([player(3, 0), player(4, 0), player(5, 0)]));
+      mockDraft.getPlayerPool.and.returnValue(of([player(3, 0), player(4, 0), player(5, 0)]));
       fixture.detectChanges();
     });
 
@@ -1250,7 +1264,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
     component = fixture.componentInstance;
     fixture.componentRef.setInput('seasonID', '7');
 
-    // The first change detection loads season 7 through the real ApiClientService.
+    // The first change detection loads season 7 through the real TeamsService.
     fixture.detectChanges();
     httpTesting.expectOne('/api/seasons/7/draft/teams').flush([
       { teamID: 1, teamName: 'Alpha', captain: captain(11, 1), players: [pooled(21)] },
@@ -1307,7 +1321,7 @@ describe('TeamBuilderComponent hub handler registration (real SignalRService)', 
     const signalR = Object.create(SignalRService.prototype) as SignalRService;
     signalR.hubConnection = hubConnection as any;
 
-    const api = jasmine.createSpyObj('ApiClientService', ['getTeams', 'getPlayerPool', 'areCaptainsLocked']);
+    const api = jasmine.createSpyObj<TeamsService>('TeamsService', ['getTeams', 'getPlayerPool', 'areCaptainsLocked']);
     api.getTeams.and.returnValue(of([]));
     api.getPlayerPool.and.returnValue(of([]));
     api.areCaptainsLocked.and.returnValue(of(true));
@@ -1317,7 +1331,7 @@ describe('TeamBuilderComponent hub handler registration (real SignalRService)', 
       imports: [TeamBuilderComponent],
       providers: [
         provideRouter([]),
-        { provide: ApiClientService, useValue: api },
+        { provide: TeamsService, useValue: api },
         { provide: AccountService, useValue: account },
         { provide: SignalRService, useValue: signalR },
       ]

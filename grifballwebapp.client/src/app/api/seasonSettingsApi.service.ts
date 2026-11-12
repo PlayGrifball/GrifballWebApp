@@ -2,7 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, switchMap } from 'rxjs';
 import { EventOrganizerService } from '@api/services';
 import type { SeasonDto } from '@api/models';
-import { SeasonSettings } from './seasonSettings';
+// Type-only: pulling in SeasonSettings as a value would import Luxon into the main bundle (see getSeasons/getSeason).
+import type { SeasonSettings } from './seasonSettings';
 import { nullWhenNotFound } from './nullWhenNotFound';
 
 /**

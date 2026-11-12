@@ -2,7 +2,7 @@ import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of, Subscription } from 'rxjs';
-import { ApiClientService } from '../api/apiClient.service';
+import { LateLeagueService } from '@api/services';
 import { LateLeagueQueueComponent } from './lateLeagueQueue/lateLeagueQueue.component';
 import { MatchmakingPlayerStatDto, MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeasonDto } from '@api/models';
 
@@ -19,7 +19,7 @@ import { MatchmakingPlayerStatDto, MatchmakingQueueDto, MatchmakingSeasonDetailD
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LateLeagueComponent {
-  private api = inject(ApiClientService);
+  private api = inject(LateLeagueService);
   /** The route's season; none for Late League as a whole. */
   readonly matchmakingSeasonID = input<string | undefined>(undefined);
 
@@ -39,7 +39,7 @@ export class LateLeagueComponent {
       const done = () => this.loaded.set(true);
       // Each part on its own: one that fails doesn't take the other with it
       this.request = id > 0
-        ? this.api.getLateLeagueSeason(id).subscribe({ next: d => this.detail.set(d), error: done, complete: done })
+        ? this.api.getLateLeagueSeason({ matchmakingSeasonID: id }).subscribe({ next: d => this.detail.set(d), error: done, complete: done })
         : forkJoin({
             queue: this.api.getLateLeagueQueue().pipe(catchError(() => of(null))),
             seasons: this.api.getLateLeagueSeasons().pipe(catchError(() => of(null))),

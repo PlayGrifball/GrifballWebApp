@@ -3,7 +3,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ApiClientService } from '../api/apiClient.service';
+import { SeasonService, TeamsService } from '@api/services';
 import type { TeamResponseDto } from '@api/models';
 import type { TeamsPlayerDto } from '@api/models';
 import { DndDropEvent, DndModule } from 'ngx-drag-drop';
@@ -42,7 +42,8 @@ import { errorText } from '../shared/errorText';
     host: { ngSkipHydration: 'true' },
 })
 export class TeamBuilderComponent implements OnInit {
-  private api = inject(ApiClientService);
+  private draft = inject(TeamsService);
+  private seasons = inject(SeasonService);
   private snackBarService = inject(MatSnackBar);
   accountService = inject(AccountService);
   private signalR = inject(SignalRService);
@@ -106,9 +107,9 @@ export class TeamBuilderComponent implements OnInit {
         const savesStarted = this.savesStarted;
         const seasonID = this.shownSeasonID();
         return forkJoin({
-          teams: part(this.api.getTeams(seasonID)),
-          pool: part(this.api.getPlayerPool(seasonID)),
-          locked: part(this.api.areCaptainsLocked(seasonID)),
+          teams: part(this.draft.getTeams({ seasonID })),
+          pool: part(this.draft.getPlayerPool({ seasonID })),
+          locked: part(this.draft.areCaptainsLocked({ seasonID })),
         }).pipe(whileCurrent(seasonID, this.shownSeasonID), map(snapshot => ({ ...snapshot, savesStarted })));
       }),
       takeUntilDestroyed(),
@@ -140,7 +141,7 @@ export class TeamBuilderComponent implements OnInit {
         this.playerPool.set([]);
         this.captainLocked.set(true);
         if (routeSeasonID === 0) {
-          this.api.getCurrentSeasonID()
+          this.seasons.getCurrentSeasonId()
             .pipe(whileCurrent(routeSeasonID, this.seasonID))
             .subscribe({
               next: (result) => {
@@ -225,13 +226,13 @@ export class TeamBuilderComponent implements OnInit {
 
   lockCaptainsButtonClicked(): void {
     if (this.captainLocked()) {
-      this.api.unlockCaptains(this.shownSeasonID(), this.signalR.hubConnection.connectionId)
+      this.draft.unlockCaptains({ seasonID: this.shownSeasonID(), signalRConnectionID: this.signalR.hubConnection.connectionId || undefined })
         .subscribe({
           next: r => this.captainLocked.set(false)
         })
     }
     else {
-      this.api.lockCaptains(this.shownSeasonID(), this.signalR.hubConnection.connectionId)
+      this.draft.lockCaptains({ seasonID: this.shownSeasonID(), signalRConnectionID: this.signalR.hubConnection.connectionId || undefined })
         .subscribe(
           {
             next: r => this.captainLocked.set(true)
@@ -334,7 +335,7 @@ export class TeamBuilderComponent implements OnInit {
       const dto: CaptainPlacementDto = { seasonID: this.shownSeasonID(), personID: added.captain.personID, orderNumber: added.captain.order! };
       // The server names the team (the signup's team name, or "<display name>'s Team") and
       // answers with that name; the broadcast to others skips this connection.
-      this.save(this.api.addCaptain(dto, this.signalR.hubConnection.connectionId),
+      this.save(this.draft.addCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.signalR.hubConnection.connectionId || undefined, body: dto }),
         added => this.applyDraft(draft => renameTeam(draft, player.personID, added.teamName, added.teamID)));
       console.log('Added new captain ' + added.captain.name + ' with pick order ' + added.captain.order);
     }
@@ -348,7 +349,7 @@ export class TeamBuilderComponent implements OnInit {
       // Order must not be null
       const dto: CaptainPlacementDto = { seasonID: this.shownSeasonID(), personID: moved.captain.personID, orderNumber: moved.captain.order! };
       // Announce to backend that team has been resorted
-      this.save(this.api.resortCaptain(dto, this.signalR.hubConnection.connectionId));
+      this.save(this.draft.resortCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.signalR.hubConnection.connectionId || undefined, body: dto }));
       console.log('Resorted captains ' + moved.captain.name + ' now has pick order ' + moved.captain.order);
     }
   }
@@ -380,11 +381,15 @@ export class TeamBuilderComponent implements OnInit {
       if (!this.applyDraft(draft => removePlayerFromTeam(draft, captainID, personID, index)))
         return;
       // Announce player is now available
-      this.save(this.api.removePlayerFromTeam({
+      this.save(this.draft.removePlayerFromTeam({
         seasonID: this.shownSeasonID(),
-        captainID: captainID,
-        personID: personID,
-      }, this.signalR.hubConnection.connectionId));
+        signalRConnectionID: this.signalR.hubConnection.connectionId || undefined,
+        body: {
+          seasonID: this.shownSeasonID(),
+          captainID: captainID,
+          personID: personID,
+        },
+      }));
     }
     // Team -> AvailablePlayer = the captain and their picks are available again
     else if (this.grabbedThing === GrabbedThing.Team) {
@@ -395,7 +400,7 @@ export class TeamBuilderComponent implements OnInit {
       // Announce to backend that player is now available. RemoveCaptainDto carries no order
       // number: the server re-sequences the remaining captains 1..n itself (TeamService.RemoveCaptain).
       const dto: RemoveCaptainDto = { seasonID: this.shownSeasonID(), personID };
-      this.save(this.api.removeCaptain(dto, this.signalR.hubConnection.connectionId));
+      this.save(this.draft.removeCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.signalR.hubConnection.connectionId || undefined, body: dto }));
     }
     else {
       console.log('Unexpected type placed in draft pool: ' + this.grabbedThing);
@@ -421,13 +426,17 @@ export class TeamBuilderComponent implements OnInit {
         return;
       const player = next.teams.find(t => t.captain.personID === captainID)!.players.find(p => p.personID === personID)!;
       // Announce player moved
-      this.save(this.api.movePlayerToTeam({
+      this.save(this.draft.movePlayerToTeam({
         seasonID: this.shownSeasonID(),
-        previousCaptainID: previousCaptainID,
-        newCaptainID: captainID,
-        personID: personID,
-        roundNumber: player.round!, // MUST NOT BE NULL :(
-      }, this.signalR.hubConnection.connectionId));
+        signalRConnectionID: this.signalR.hubConnection.connectionId || undefined,
+        body: {
+          seasonID: this.shownSeasonID(),
+          previousCaptainID: previousCaptainID,
+          newCaptainID: captainID,
+          personID: personID,
+          roundNumber: player.round!, // MUST NOT BE NULL :(
+        },
+      }));
       console.log(team.captain.name + '\'s ' + player.round + ' pick is ' + player.name);
     }
     else {
@@ -439,11 +448,15 @@ export class TeamBuilderComponent implements OnInit {
         return;
       const player = next.teams.find(t => t.captain.personID === captainID)!.players.find(p => p.personID === personID)!;
       // Announce player added to team
-      this.save(this.api.addPlayerToTeam({
+      this.save(this.draft.addPlayerToTeam({
         seasonID: this.shownSeasonID(),
-        captainID: captainID,
-        personID: personID,
-      }, this.signalR.hubConnection.connectionId));
+        signalRConnectionID: this.signalR.hubConnection.connectionId || undefined,
+        body: {
+          seasonID: this.shownSeasonID(),
+          captainID: captainID,
+          personID: personID,
+        },
+      }));
       console.log(team.captain.name + '\'s ' + player.round + ' pick is ' + player.name);
     }
   }
