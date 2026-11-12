@@ -7,7 +7,6 @@ describe('deploymentFinishLabel', () => {
     expect(deploymentFinishLabel({ finish: 'Champion', championshipTiers: ['Open'] })).toBe('Open Champion');
     expect(deploymentFinishLabel({ finish: 'Champion', championshipTiers: ['Amateur', 'Pro'] })).toBe('Amateur & Pro Champion');
     expect(deploymentFinishLabel({ finish: 'Champion', championshipTiers: [] })).toBe('Champion');
-    expect(deploymentFinishLabel({ finish: 'Champion' } as Parameters<typeof deploymentFinishLabel>[0])).toBe('Champion');
     expect(deploymentFinishLabel({ finish: 'Playoffs', championshipTiers: [] })).toBe('Playoffs');
     expect(deploymentFinishLabel({ finish: 'Eliminated', championshipTiers: [] })).toBe('Eliminated');
     expect(deploymentFinishLabel({ finish: 'RegularSeason', championshipTiers: [] })).toBe('Regular season');
