@@ -348,7 +348,12 @@ public class Program
                 var configured = httpRequest.HttpContext.RequestServices.GetRequiredService<IOptions<OpenApiServersOptions>>().Value.Servers;
                 document.Servers = OpenApiServers.Build(requestUrl, configured, app.Environment.IsDevelopment());
             }));
-            app.UseSwaggerUI(options => options.SwaggerEndpoint("v1/swagger.json", "GrifballWebApp"));
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("v1/swagger.json", "GrifballWebApp");
+                // A signed-in browser's changes need the antiforgery token, as the site's own calls do
+                options.UseRequestInterceptor(SwaggerUiAntiforgery.RequestInterceptor);
+            });
         }
 
         //app.UseHttpsRedirection();
