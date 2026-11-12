@@ -26,9 +26,13 @@ public class HaloGatewayModeUnitTests
     private static IConfiguration Config(params (string Key, string? Value)[] values) =>
         new ConfigurationBuilder().AddInMemoryCollection(values.Select(v => new KeyValuePair<string, string?>(v.Key, v.Value))).Build();
 
+    // CreateEmptyBuilder, not CreateBuilder: no appsettings*.json, no environment variables, no ambient defaults that
+    // could change the result. Only the values given here, plus logging (AddHaloInfinite's retry policy resolves
+    // ILogger<HaloInfiniteSettings> when a request actually goes through it).
     private static WebApplicationBuilder Builder(params (string Key, string? Value)[] values)
     {
-        var builder = WebApplication.CreateBuilder();
+        var builder = WebApplication.CreateEmptyBuilder(new());
+        builder.Services.AddLogging();
         builder.Configuration.AddInMemoryCollection(values.Select(v => new KeyValuePair<string, string?>(v.Key, v.Value)));
         return builder;
     }
@@ -43,6 +47,7 @@ public class HaloGatewayModeUnitTests
     public void Gateway_RegistersTheGatewayClient_AndNoSignIn()
     {
         using var services = Register(Builder(
+            (HaloInfiniteSettings.ModeKey, "Gateway"),
             (HaloInfiniteSettings.BaseUrlKey, "http://gw.test:8080"),
             (HaloInfiniteSettings.ApiKeyKey, "the-key"),
             ("HaloGateway:Retry:MaxAttempts", "5")));
