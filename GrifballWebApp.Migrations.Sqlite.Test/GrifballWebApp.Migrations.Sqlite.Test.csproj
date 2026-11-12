@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- GrifballWebApp.Migrations.Sqlite's own types (its design-time context factory and services, the row-history
+       model differ) and the row-history scaffolding (GrifballWebApp.Infrastructure's SqliteHistory, a migrated
+       database) only they exercise: no real database server, no host, no containers, no network. A GrifballContext
+       on in-memory or a temp-file SQLite is fine (it needs no server). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- dotnet ef's own services, to test what this provider scaffolds with -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" />
+    <PackageReference Include="coverlet.collector" Version="10.1.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="NUnit" Version="5.0.0" />
+    <PackageReference Include="NUnit.Analyzers" Version="4.15.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter" Version="6.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Migrations.Sqlite\GrifballWebApp.Migrations.Sqlite.csproj" />
+    <!-- The domain test data (Season.Seed, Edited) the history tests build their rows from -->
+    <ProjectReference Include="..\GrifballWebApp.Domain.Test\GrifballWebApp.Domain.Test.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+
+</Project>

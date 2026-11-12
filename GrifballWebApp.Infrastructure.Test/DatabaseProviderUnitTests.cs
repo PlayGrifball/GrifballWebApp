@@ -49,8 +49,8 @@ public class DatabaseProviderUnitTests
         Assert.That(ex!.Message, Does.Contain(value).And.Contain("SqlServer, Postgres, Sqlite"));
     }
 
-    // UseGrifballDatabase_UsesTheProviderAndItsMigrations: GrifballWebApp.Migrations.Test's
-    // DatabaseProviderMigrationsTests (it needs the migrations assembly loaded).
+    // UseGrifballDatabase_UsesTheProviderAndItsMigrations: each migrations project's own Test (it needs that
+    // provider's migrations assembly loaded) has it, as DatabaseProviderMigrationsTests.
 
     [Test]
     public void UseGrifballDatabase_FromConfiguration_UsesTheConfiguredProvider()
@@ -88,8 +88,8 @@ public class DatabaseProviderUnitTests
             new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase((DatabaseProvider)7, SqlServerConnectionString));
     }
 
-    // Migrations_MatchTheModel, NewestMigration_DesignerMatchesTheSnapshot: GrifballWebApp.Migrations.Test's
-    // DatabaseProviderMigrationsTests (they need the migrations assembly loaded).
+    // Migrations_MatchTheModel, NewestMigration_DesignerMatchesTheSnapshot: each migrations project's own Test (they
+    // need that provider's migrations assembly loaded) has them, as DatabaseProviderMigrationsTests.
 
     [Test]
     public void Postgres_StoresDateTimeAsTimestamptz()
@@ -191,7 +191,7 @@ public class DatabaseProviderUnitTests
     }
 }
 
-// DesignTimeContextFactoryTests: GrifballWebApp.Migrations.Test's (it needs each provider's migrations assembly).
+// DesignTimeContextFactoryTests: each migrations project's own Test (it needs that provider's migrations assembly).
 
 /// <summary>DatabaseProviderTests' helpers, shared with its integration tests.</summary>
 internal static class DatabaseProviderTestData

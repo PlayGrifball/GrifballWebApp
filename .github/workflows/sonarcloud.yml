@@ -157,7 +157,9 @@ jobs:
         dotnet build GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
         dotnet build GrifballWebApp.Architecture.Test/GrifballWebApp.Architecture.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
         dotnet build GrifballWebApp.Convert.Test/GrifballWebApp.Convert.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
-        dotnet build GrifballWebApp.Migrations.Test/GrifballWebApp.Migrations.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
+        dotnet build GrifballWebApp.Migrations.Postgres.Test/GrifballWebApp.Migrations.Postgres.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
+        dotnet build GrifballWebApp.Migrations.Sqlite.Test/GrifballWebApp.Migrations.Sqlite.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
+        dotnet build GrifballWebApp.Migrations.SqlServer.Test/GrifballWebApp.Migrations.SqlServer.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
         dotnet build GrifballWebApp.Analyzers.Test/GrifballWebApp.Analyzers.Test.csproj --configuration Release /p:DefineConstants=DOCKER_BUILD
 
     # Coverage for the quality gate from every test project. dotnet-tests.yml is what gates on test results.
@@ -166,7 +168,7 @@ jobs:
       continue-on-error: true
       run: |
         status=0
-        for project in GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test GrifballWebApp.Seeder.Test GrifballWebApp.Convert.Test GrifballWebApp.Migrations.Test GrifballWebApp.Analyzers.Test GrifballWebApp.Architecture.Test; do
+        for project in GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test GrifballWebApp.Seeder.Test GrifballWebApp.Convert.Test GrifballWebApp.Migrations.Postgres.Test GrifballWebApp.Migrations.Sqlite.Test GrifballWebApp.Migrations.SqlServer.Test GrifballWebApp.Analyzers.Test GrifballWebApp.Architecture.Test; do
           dotnet test "$project/$project.csproj" \
           --no-build \
           --configuration Release \

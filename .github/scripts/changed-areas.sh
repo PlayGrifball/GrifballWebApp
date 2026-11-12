@@ -36,7 +36,7 @@ frontend="$shared|^grifballwebapp\.client/|^\.github/workflows/frontend-tests\.y
 # and the steps that build it. App code compiles to arm64 alike (and master builds both platforms on every push).
 images="$shared|Dockerfile$|\.dockerignore$|package(-lock)?\.json$|\.csproj$|^Directory\.[A-Za-z]+\.props$|^global\.json$|^[Nn]u[Gg]et\.[Cc]onfig$|^\.config/dotnet-tools\.json$|^\.github/workflows/docker-publish\.yml$|^\.github/scripts/master-migrations\.sh$|apk\.lock$|build-manifest\.mjs$|^\.github/scripts/(apk-archive|rebuild-image)\.sh$"
 # What the image's migrations stage builds from: the bundles, the lists and the hashes (GrifballWebApp.Server/Dockerfile).
-# The three migrations projects, never their unit tests (GrifballWebApp.Migrations.Test: backend alone, no image step).
+# The three migrations projects, never their unit tests (GrifballWebApp.Migrations.*.Test: backend alone, no image step).
 migrations="$shared|^GrifballWebApp\.Migrations\.(SqlServer|Postgres|Sqlite)/|^GrifballWebApp\.Infrastructure/DesignTimeContext\.cs$"
 
 # A here-string, not a pipe: grep -q stops at the first match, and under pipefail the writer's broken pipe would

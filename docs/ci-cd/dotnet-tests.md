@@ -60,9 +60,12 @@ or the network push a test into the integration project.
   with test doubles.
 - **`GrifballWebApp.Seeder.Test`** and **`GrifballWebApp.Convert.Test`**: the types of the two host apps beside the
   server, the seeder (GrifballWebApp.Seeder) and the conversion command (GrifballWebApp.Convert), each in its own project.
-- **`GrifballWebApp.Migrations.Test`**: the three migrations projects' own types (GrifballWebApp.Migrations.Postgres,
-  .Sqlite and .SqlServer: each provider's design-time services and SQL generator) and the row-history scaffolding
-  (HistoryMigrationsModelDiffer, the design-time migration snapshot) only they exercise.
+- **`GrifballWebApp.Migrations.Postgres.Test`**, **`GrifballWebApp.Migrations.Sqlite.Test`** and
+  **`GrifballWebApp.Migrations.SqlServer.Test`**: each migrations project's own types (its design-time context
+  factory and services, the SQL generator) and the row-history scaffolding (HistoryMigrationsModelDiffer, the
+  design-time migration snapshot) only it exercises. One project per provider, not one for all three: a failing
+  migration is that provider's alone, so each targets 100% of lines (the coverage-by-layer comment, below), not the
+  usual 70%.
 - **`GrifballWebApp.Architecture.Test`**: the architecture's rules, read from the compiled assemblies with Mono.Cecil:
   the layers depend inwards only (Domain <- Application <- Infrastructure <- Server), a type of one of the Domain's
   bounded contexts names another context's only where `ContextCrossings.Allowed` lists it, and an aggregate's
@@ -102,7 +105,7 @@ The integration tests use Testcontainers to provision an isolated database serve
 dotnet restore GrifballWebApp.slnx
 dotnet build GrifballWebApp.slnx --configuration Release
 # Unit tests (one project per layer and per host app) and the architecture tests: no database, no Docker
-for project in GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test GrifballWebApp.Seeder.Test GrifballWebApp.Convert.Test GrifballWebApp.Migrations.Test GrifballWebApp.Architecture.Test; do
+for project in GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test GrifballWebApp.Seeder.Test GrifballWebApp.Convert.Test GrifballWebApp.Migrations.Postgres.Test GrifballWebApp.Migrations.Sqlite.Test GrifballWebApp.Migrations.SqlServer.Test GrifballWebApp.Architecture.Test; do
   dotnet test "$project/$project.csproj" --configuration Release
 done
 # Integration tests (Testcontainers: Docker; GRIF_TEST_DATABASE picks SqlServer, Postgres or Sqlite)

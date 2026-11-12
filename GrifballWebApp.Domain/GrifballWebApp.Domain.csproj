@@ -14,7 +14,7 @@
     <InternalsVisibleTo Include="GrifballWebApp.Application.Test" />
     <InternalsVisibleTo Include="GrifballWebApp.Infrastructure.Test" />
     <InternalsVisibleTo Include="GrifballWebApp.Server.Test" />
-    <InternalsVisibleTo Include="GrifballWebApp.Migrations.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Migrations.Sqlite.Test" />
     <InternalsVisibleTo Include="GrifballWebApp.Architecture.Test" />
   </ItemGroup>
 

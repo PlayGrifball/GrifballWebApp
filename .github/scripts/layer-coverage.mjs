@@ -5,17 +5,20 @@
 //
 //   collect <dir> <out.json>: every <dir>/<Project>.Test.cobertura.xml (one per unit test project, as dotnet-tests.yml
 //     copies them) to one JSON file: { "<Layer>": { lines, linesCovered, branches, branchesCovered } }. A project whose
-//     layer isn't in its report (the architecture tests) is left out. GrifballWebApp.Migrations.Test reports as
-//     "Migrations", its three provider assemblies (Postgres, Sqlite, SqlServer) summed as one layer.
-//   render <current.json> [<base.json>] [<sha>]: the Markdown table, against master's numbers when there are any. Exits 1
-//     when a layer master had at the target is now below it: once a layer reaches the target it stays there (a layer
-//     still below it only reports).
+//     layer isn't in its report (the architecture tests) is left out.
+//   render <current.json> [<base.json>] [<sha>]: the Markdown table, against master's numbers when there are any. Each
+//     layer has its own target (targetFor): the three migrations projects at 100% of lines (one failing migration
+//     fails that provider alone), every other layer at LAYER_COVERAGE_TARGET. Exits 1 when a layer master had at its
+//     target is now below it: once a layer reaches its target it stays there (a layer still below it only reports).
 //
-// Env: LAYER_COVERAGE_TARGET, the line coverage every layer should reach (percent, default 70).
+// Env: LAYER_COVERAGE_TARGET, the line coverage every layer but the migrations projects should reach (percent, default 70).
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const target = Number(process.env.LAYER_COVERAGE_TARGET ?? 70);
+
+// A migrations project is one failing migration away from a broken provider: it targets 100%, not the usual target.
+const targetFor = (layer) => (layer.startsWith('GrifballWebApp.Migrations.') ? 100 : target);
 
 // The attributes of one tag's text (what's between < and >): split at the quotes, each name ends the text before its
 // value (no regular expression, so nothing to backtrack over)
@@ -50,16 +53,15 @@ function record(lines, file, line) {
   });
 }
 
-// One or more packages' numbers from a Cobertura report, summed: a line can be listed more than once (by its class
-// and by its method, or by two classes in one file, or in two of the packages), it counts once.
-export function packageCoverage(xml, names) {
-  const wanted = new Set(Array.isArray(names) ? names : [names]);
+// One package's numbers from a Cobertura report. A line can be listed more than once (by its class and by its method,
+// or by two classes in one file): it counts once.
+export function packageCoverage(xml, name) {
   const lines = new Map();
   let inPackage = false;
   let file = '';
   for (const tag of tags(xml)) {
     if (tag.startsWith('package ') || tag === '/package') {
-      inPackage = tag !== '/package' && wanted.has(attributes(tag).name);
+      inPackage = tag !== '/package' && attributes(tag).name === name;
     } else if (inPackage && tag.startsWith('class ')) {
       file = attributes(tag).filename ?? '';
     } else if (inPackage && tag.startsWith('line ')) {
@@ -76,18 +78,11 @@ export function packageCoverage(xml, names) {
   };
 }
 
-// A layer's package(s) in its Cobertura report: its own name, except GrifballWebApp.Migrations.Test, built from the
-// three provider assemblies (GrifballWebApp.Migrations.Postgres, .Sqlite and .SqlServer) summed as one layer.
-const packagesOf = (layer) =>
-  layer === 'GrifballWebApp.Migrations'
-    ? ['GrifballWebApp.Migrations.Postgres', 'GrifballWebApp.Migrations.Sqlite', 'GrifballWebApp.Migrations.SqlServer']
-    : layer;
-
 export function collect(dir) {
   const layers = {};
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.Test.cobertura.xml')).sort()) {
     const layer = file.slice(0, -'.Test.cobertura.xml'.length);
-    const coverage = packageCoverage(readFileSync(join(dir, file), 'utf8'), packagesOf(layer));
+    const coverage = packageCoverage(readFileSync(join(dir, file), 'utf8'), layer);
     if (coverage) layers[layer] = coverage;
   }
   return layers;
@@ -105,15 +100,16 @@ function delta(now, before) {
 
 const shortName = (layer) => layer.replace(/^GrifballWebApp\./, '');
 
-// One layer's row, and whether it's at the target now and was on master
+// One layer's row, and whether it's at its own target now and was on master
 function row(layer, c, was) {
+  const goal = targetFor(layer);
   const lines = percent(c.linesCovered, c.lines);
   const branches = percent(c.branchesCovered, c.branches);
   const linesWas = was ? percent(was.linesCovered, was.lines) : null;
   const branchesWas = was ? percent(was.branchesCovered, was.branches) : null;
-  const met = lines !== null && lines >= target;
-  const wasMet = linesWas !== null && linesWas >= target;
-  const short = `${wasMet ? '⛔ was at target on master,' : '❌'} ${Math.ceil((target / 100) * c.lines - c.linesCovered)} lines short`;
+  const met = lines !== null && lines >= goal;
+  const wasMet = linesWas !== null && linesWas >= goal;
+  const short = `${wasMet ? '⛔ was at target on master,' : '❌'} ${Math.ceil((goal / 100) * c.lines - c.linesCovered)} lines short`;
   const text =
     `| ${shortName(layer)} | ${show(lines)}${delta(lines, linesWas)} · ${c.linesCovered}/${c.lines} | ` +
     `${show(branches)}${delta(branches, branchesWas)} | ${met ? '✅' : short} |`;
@@ -125,7 +121,7 @@ export function render(current, base, sha) {
     '### Unit test coverage by layer',
     '',
     `Each layer's coverage from its own unit tests alone (the other layers substituted), ${sha ? `as of ${sha}` : 'this run'}` +
-      `${base ? ', change from master in brackets' : ''}. Target: ${target}% of lines.`,
+      `${base ? ', change from master in brackets' : ''}. Target: ${target}% of lines, the three migrations projects at 100%.`,
     '',
     '| Layer | Lines | Branches | |',
     '|---|---|---|---|',
@@ -138,9 +134,9 @@ export function render(current, base, sha) {
     if (!met) below++;
     if (wasMet && !met) dropped.push(shortName(layer));
   }
-  out.push('', below === 0 ? `Every layer is at ${target}% or more.` : `${below} layer(s) below ${target}%.`);
+  out.push('', below === 0 ? 'Every layer is at its target or more.' : `${below} layer(s) below their target.`);
   if (dropped.length) {
-    out.push('', `**${dropped.join(', ')} dropped below ${target}%**: a layer at the target on master has to stay there.`);
+    out.push('', `**${dropped.join(', ')} dropped below their target**: a layer at its target on master has to stay there.`);
   }
   return { markdown: out.join('\n'), dropped };
 }

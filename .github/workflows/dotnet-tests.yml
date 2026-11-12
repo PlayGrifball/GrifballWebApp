@@ -110,9 +110,9 @@ jobs:
   # The integration suite once per database the app supports (Database:Provider): each test gets its own
   # database on a Testcontainers server of that kind (GrifballWebApp.Integration.Test/TestDatabase.cs). The unit
   # tests, one project per layer (Domain, Application, Infrastructure, Server), one per host app beside the server
-  # (Seeder, Convert), the migrations projects' unit tests (Migrations), the analyzers' tests (Analyzers) and the
-  # architecture tests, touch no real database server (an in-memory or temp-file SQLite is fine): they run once,
-  # as the Unit leg.
+  # (Seeder, Convert), one per migrations project (Migrations.Postgres, Migrations.Sqlite, Migrations.SqlServer),
+  # the analyzers' tests (Analyzers) and the architecture tests, touch no real database server (an in-memory or
+  # temp-file SQLite is fine): they run once, as the Unit leg.
   # Each leg runs the build job's binaries: nothing builds here.
   test:
     name: test (${{ matrix.database }})
@@ -131,7 +131,7 @@ jobs:
         projects: [GrifballWebApp.Integration.Test]
         include:
         - database: Unit
-          projects: GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test GrifballWebApp.Seeder.Test GrifballWebApp.Convert.Test GrifballWebApp.Migrations.Test GrifballWebApp.Analyzers.Test GrifballWebApp.Architecture.Test
+          projects: GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test GrifballWebApp.Seeder.Test GrifballWebApp.Convert.Test GrifballWebApp.Migrations.Postgres.Test GrifballWebApp.Migrations.Sqlite.Test GrifballWebApp.Migrations.SqlServer.Test GrifballWebApp.Analyzers.Test GrifballWebApp.Architecture.Test
     env:
       # Read by the integration tests alone (the Unit leg has no database)
       GRIF_TEST_DATABASE: ${{ matrix.database }}

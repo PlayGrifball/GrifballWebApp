@@ -17,7 +17,9 @@ dotnet test GrifballWebApp.Infrastructure.Test/GrifballWebApp.Infrastructure.Tes
 dotnet test GrifballWebApp.Server.Test/GrifballWebApp.Server.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 dotnet test GrifballWebApp.Seeder.Test/GrifballWebApp.Seeder.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 dotnet test GrifballWebApp.Convert.Test/GrifballWebApp.Convert.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
-dotnet test GrifballWebApp.Migrations.Test/GrifballWebApp.Migrations.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+dotnet test GrifballWebApp.Migrations.Postgres.Test/GrifballWebApp.Migrations.Postgres.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+dotnet test GrifballWebApp.Migrations.Sqlite.Test/GrifballWebApp.Migrations.Sqlite.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+dotnet test GrifballWebApp.Migrations.SqlServer.Test/GrifballWebApp.Migrations.SqlServer.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 dotnet test GrifballWebApp.Architecture.Test/GrifballWebApp.Architecture.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 dotnet test GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 ```

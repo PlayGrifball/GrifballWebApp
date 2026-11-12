@@ -172,8 +172,9 @@ ng test
   fine, approved 2026-11-12): in the test project of the layer whose type it tests, `GrifballWebApp.Domain.Test`,
   `GrifballWebApp.Application.Test`, `GrifballWebApp.Infrastructure.Test`, `GrifballWebApp.Server.Test`,
   `GrifballWebApp.Seeder.Test`, `GrifballWebApp.Convert.Test` (the host apps beside the server) or
-  `GrifballWebApp.Migrations.Test` (the three migrations projects). A unit test project never references the
-  integration tests. A class with both kinds is split by test.
+  `GrifballWebApp.Migrations.Postgres.Test`, `GrifballWebApp.Migrations.Sqlite.Test`,
+  `GrifballWebApp.Migrations.SqlServer.Test` (one per migrations project, each targeting 100% of lines). A unit test
+  project never references the integration tests. A class with both kinds is split by test.
 - **Architecture test** (`GrifballWebApp.Architecture.Test`): a rule about the code's shape, read from the compiled
   assemblies with Mono.Cecil: the layers depend inwards only (Domain <- Application <- Infrastructure <- Server), the
   Domain's bounded contexts cross only where `ContextCrossings.Allowed` lists it (a new crossing is added there, in
@@ -316,7 +317,9 @@ GrifballWebApp.Infrastructure.Test/ # Unit tests of Infrastructure types (no rea
 GrifballWebApp.Server.Test/         # Unit tests of Server types (controllers, hubs, telemetry; test doubles only)
 GrifballWebApp.Seeder.Test/         # Unit tests of the Seeder app's types
 GrifballWebApp.Convert.Test/        # Unit tests of the Convert app's types (the database conversion command)
-GrifballWebApp.Migrations.Test/     # Unit tests of the three migrations projects (design-time services, history differs)
+GrifballWebApp.Migrations.Postgres.Test/  # Unit tests of GrifballWebApp.Migrations.Postgres (design-time services, history differ); 100% of lines
+GrifballWebApp.Migrations.Sqlite.Test/    # Unit tests of GrifballWebApp.Migrations.Sqlite; 100% of lines
+GrifballWebApp.Migrations.SqlServer.Test/ # Unit tests of GrifballWebApp.Migrations.SqlServer; 100% of lines
 GrifballWebApp.Architecture.Test/   # Architecture rules: layering, bounded-context crossings, aggregates, project references
 GrifballWebApp.Integration.Test/    # Integration tests: a real database server, the hosted app, Discord transports, or the network
 GrifballWebApp.Seeder/          # Database seeding

@@ -6,7 +6,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace GrifballWebApp.Migrations.Test;
+namespace GrifballWebApp.Migrations.Sqlite.Test;
 
 /// <summary>
 /// The conversion from one SQLite file into another: SQLite on both sides, so these run on every leg of the suite.

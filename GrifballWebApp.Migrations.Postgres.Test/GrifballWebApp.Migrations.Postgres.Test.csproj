@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- The three migrations projects' own types (GrifballWebApp.Migrations.Postgres, .Sqlite, .SqlServer: each
-       provider's design-time services and SQL generator) and GrifballWebApp.Infrastructure's row-history scaffolding
-       that only they exercise: no real database server, no host, no containers, no network. A GrifballContext on
-       in-memory or a temp-file SQLite is fine. -->
+  <!-- GrifballWebApp.Migrations.Postgres's own types (its design-time context factory and services, the row-history
+       model differ, the raw-SQL C# generator) and the row-history scaffolding (GrifballWebApp.Infrastructure's
+       PostgresHistory, PostgresHistoryFunctions) only they exercise: no real database server, no host, no
+       containers, no network. A GrifballContext on in-memory or a temp-file SQLite is fine. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
@@ -13,7 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- dotnet ef's own services, to test what each provider scaffolds with -->
+    <!-- dotnet ef's own services, to test what this provider scaffolds with -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" />
     <PackageReference Include="coverlet.collector" Version="10.1.0">
       <PrivateAssets>all</PrivateAssets>
@@ -30,11 +30,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
-    <!-- The domain test data (Season.Seed, Edited) the history tests build their rows from -->
-    <ProjectReference Include="..\GrifballWebApp.Domain.Test\GrifballWebApp.Domain.Test.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Migrations.Postgres\GrifballWebApp.Migrations.Postgres.csproj" />
-    <ProjectReference Include="..\GrifballWebApp.Migrations.Sqlite\GrifballWebApp.Migrations.Sqlite.csproj" />
-    <ProjectReference Include="..\GrifballWebApp.Migrations.SqlServer\GrifballWebApp.Migrations.SqlServer.csproj" />
   </ItemGroup>
 
   <ItemGroup>
