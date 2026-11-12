@@ -17,13 +17,13 @@ id=$(node -e '
   const newest = runs.reduce((a, b) => (b.id > (a?.id ?? -1) ? b : a), undefined);
   if (newest && newest.status !== "completed") console.log(newest.id);
 ' "$runs")
-if [ -z "$id" ]; then
+if [[ -z "$id" ]]; then
   echo "$NAME: nothing stuck"
   exit 0
 fi
 
 conclusion=failure
-[ "$OUTCOME" = success ] && conclusion=success
+[[ "$OUTCOME" = success ]] && conclusion=success
 echo "$NAME: check run $id is still in progress; completing it as $conclusion (the tests' outcome: $OUTCOME)"
 # GitHub 404s updates to a run for a few seconds after creating it (the reporter's own update is refused that way):
 # tried again over about a minute before giving up
@@ -35,7 +35,7 @@ for attempt in 1 2 3 4 5 6; do
     echo "$NAME: completed as $conclusion (attempt $attempt)"
     exit 0
   fi
-  [ "$attempt" = 6 ] || sleep "${REPORT_RETRY_SECONDS:-$((attempt * 4))}"
+  [[ "$attempt" = 6 ]] || sleep "${REPORT_RETRY_SECONDS:-$((attempt * 4))}"
 done
 echo "::error::$NAME: check run $id is stuck in progress and couldn't be completed: rerun this job"
 exit 1

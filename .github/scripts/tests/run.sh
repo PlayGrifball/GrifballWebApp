@@ -367,13 +367,13 @@ if report "$stuck" success && grep -q 'check-runs/9 ' "$work/patched" && grep -q
 then ok "close-stuck-report: a stuck report gets the tests' success"; else bad "close-stuck-report: success not set:"; cat "$work/out" "$work/patched"; fi
 if report "$stuck" failure && grep -q 'conclusion=failure' "$work/patched"
 then ok "close-stuck-report: and their failure"; else bad "close-stuck-report: failure not set:"; cat "$work/out" "$work/patched"; fi
-if report '{"check_runs":[{"id":9,"status":"completed","conclusion":"success"}]}' success && [ ! -s "$work/patched" ]
+if report '{"check_runs":[{"id":9,"status":"completed","conclusion":"success"}]}' success && [[ ! -s "$work/patched" ]]
 then ok "close-stuck-report: a completed report is left alone"; else bad "close-stuck-report: touched a completed report"; fi
-if report '{"check_runs":[]}' success && [ ! -s "$work/patched" ]
+if report '{"check_runs":[]}' success && [[ ! -s "$work/patched" ]]
 then ok "close-stuck-report: no report, nothing to do"; else bad "close-stuck-report: no report"; cat "$work/out"; fi
 # GitHub 404s an update in the seconds after the run is created (#401: created at :24.0, updates refused at :24.9 and
 # :25.7): retried
-if report "$stuck" success 2 && [ "$(wc -l < "$work/patched")" = 3 ]
+if report "$stuck" success 2 && [[ "$(wc -l < "$work/patched")" = 3 ]]
 then ok "close-stuck-report: a 404 right after creation is retried"; else bad "close-stuck-report: no retry:"; cat "$work/out" "$work/patched"; fi
 if report "$stuck" success all; then bad "close-stuck-report: a failed PATCH passed"
 else ok "close-stuck-report: a report it can't complete fails the job"; fi
