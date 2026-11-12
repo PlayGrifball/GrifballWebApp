@@ -81,7 +81,9 @@ public partial class ClientErrorsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     [EnableRateLimiting(RateLimitPolicy)]
-    [IgnoreAntiforgeryToken] // NOSONAR S4502: anonymous and only logged; the Fetch Metadata and Origin checks still refuse it from another site
+#pragma warning disable S4502 // anonymous and only logged; the Fetch Metadata and Origin checks still refuse it from another site
+    [IgnoreAntiforgeryToken]
+#pragma warning restore S4502
     public IActionResult Report([FromBody] ClientErrorDto report)
     {
         if (!_options.Enabled)
