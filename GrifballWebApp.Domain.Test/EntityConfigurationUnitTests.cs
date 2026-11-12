@@ -38,8 +38,8 @@ public class EntityConfigurationUnitTests
         {
             Assert.That((entity.GetSchema(), entity.GetTableName()), Is.EqualTo(("Event", "SeasonMatches")));
             Assert.That(entity.IsTemporal(), Is.True);
-            Assert.That(entity.FindPrimaryKey()!.Properties.Select(p => p.Name), Is.EqualTo(new[] { "SeasonMatchID" }));
-            Assert.That(entity.GetCheckConstraints().Select(c => c.ModelName), Is.EquivalentTo(new[]
+            Assert.That(entity.FindPrimaryKey()!.Properties.Select(p => p.Name), Is.EqualTo(new List<string> { "SeasonMatchID" }));
+            Assert.That(entity.GetCheckConstraints().Select(c => c.ModelName), Is.EquivalentTo(new List<string>
             {
                 "CK_Event_SeasonMatches_MustBeDifferentTeams", "CK_Event_SeasonMatches_LegalResults", "CK_Event_SeasonMatches_ByeHasNoTeam",
             }));
@@ -60,7 +60,7 @@ public class EntityConfigurationUnitTests
         {
             Assert.That((entity.GetSchema(), entity.GetTableName()), Is.EqualTo(("Event", "GamertagClaims")));
             Assert.That(entity.IsTemporal(), Is.True);
-            Assert.That(entity.FindPrimaryKey()!.Properties.Select(p => p.Name), Is.EqualTo(new[] { "GamertagClaimID" }));
+            Assert.That(entity.FindPrimaryKey()!.Properties.Select(p => p.Name), Is.EqualTo(new List<string> { "GamertagClaimID" }));
             Assert.That(entity.FindProperty(nameof(GamertagClaim.Gamertag))!.GetMaxLength(), Is.EqualTo(50));
             Assert.That(entity.FindProperty(nameof(GamertagClaim.Gamertag))!.IsNullable, Is.False);
             Assert.That(entity.FindProperty(nameof(GamertagClaim.RejectionReason))!.GetMaxLength(), Is.EqualTo(GamertagClaim.MaxRejectionReasonLength));
@@ -88,7 +88,7 @@ public class EntityConfigurationUnitTests
             var byUser = entity.FindNavigation(nameof(PlayerSeasonStat.User))!.ForeignKey;
             Assert.That(byUser.DeleteBehavior, Is.EqualTo(DeleteBehavior.Restrict), "A merge moves a user's stats before it deletes the user");
             var unique = entity.GetIndexes().Single(i => i.IsUnique);
-            Assert.That(unique.Properties.Select(p => p.Name), Is.EqualTo(new[] { "SeasonID", "UserID", "StintIndex", "IsPlayoffs" }));
+            Assert.That(unique.Properties.Select(p => p.Name), Is.EqualTo(new List<string> { "SeasonID", "UserID", "StintIndex", "IsPlayoffs" }));
         }
     }
 
@@ -124,7 +124,7 @@ public class EntityConfigurationUnitTests
             Assert.That(entity.FindProperty(nameof(Season.SeasonName))!.GetMaxLength(), Is.EqualTo(100));
             Assert.That(entity.FindProperty("IsImported"), Is.Null, "Worked out from its fields");
             var uniqueSeasonName = entity.GetIndexes().Single(i => i.Properties.Count == 2);
-            Assert.That(uniqueSeasonName.Properties.Select(p => p.Name), Is.EqualTo(new[] { "LeagueID", "SeasonName" }));
+            Assert.That(uniqueSeasonName.Properties.Select(p => p.Name), Is.EqualTo(new List<string> { "LeagueID", "SeasonName" }));
             Assert.That(uniqueSeasonName.IsUnique, Is.True, "Two leagues can each have a \"Winter League 2019\"");
             var byLeague = entity.FindNavigation(nameof(Season.League))!.ForeignKey;
             Assert.That(byLeague.IsRequired, Is.True);
@@ -142,7 +142,7 @@ public class EntityConfigurationUnitTests
         {
             Assert.That((entity.GetSchema(), entity.GetTableName()), Is.EqualTo(("Matchmaking", "MatchedMatches")));
             Assert.That(entity.IsTemporal(), Is.True);
-            Assert.That(entity.GetCheckConstraints().Select(c => c.ModelName), Is.EquivalentTo(new[]
+            Assert.That(entity.GetCheckConstraints().Select(c => c.ModelName), Is.EquivalentTo(new List<string>
             {
                 "CK_Matchmaking_MatchedMatches_ActiveHasNoResult", "CK_Matchmaking_MatchedMatches_WinnerSideOnlyWhenVoteDecided",
                 "CK_Matchmaking_MatchedMatches_OneKindOfResult", "CK_Matchmaking_MatchedMatches_ReportedHasResult",
@@ -198,7 +198,7 @@ public class EntityConfigurationUnitTests
             Assert.That(matchEntity.GetTableName(), Is.EqualTo("ScheduleRecommendationMatches"));
             Assert.That(matchEntity.FindProperty("HasConflict"), Is.Null, "Worked out from its flags");
             var unique = matchEntity.GetIndexes().Single();
-            Assert.That(unique.Properties.Select(p => p.Name), Is.EqualTo(new[] { "ScheduleRecommendationID", "SeasonMatchID" }));
+            Assert.That(unique.Properties.Select(p => p.Name), Is.EqualTo(new List<string> { "ScheduleRecommendationID", "SeasonMatchID" }));
             Assert.That(unique.IsUnique, Is.True);
         }
     }
@@ -213,8 +213,8 @@ public class EntityConfigurationUnitTests
             Assert.That((entity.GetSchema(), entity.GetTableName()), Is.EqualTo(("Auth", "Roles")));
             Assert.That(entity.IsTemporal(), Is.True);
             var seeded = entity.GetSeedData().ToList();
-            Assert.That(seeded.Select(r => r["Name"]), Is.EqualTo(new[] { "Sysadmin", "Commissioner", "Player" }));
-            Assert.That(seeded.Select(r => r["NormalizedName"]), Is.EqualTo(new[] { "SYSADMIN", "COMMISSIONER", "PLAYER" }));
+            Assert.That(seeded.Select(r => r["Name"]), Is.EqualTo(new List<string> { "Sysadmin", "Commissioner", "Player" }));
+            Assert.That(seeded.Select(r => r["NormalizedName"]), Is.EqualTo(new List<string> { "SYSADMIN", "COMMISSIONER", "PLAYER" }));
         }
     }
 
@@ -234,7 +234,7 @@ public class EntityConfigurationUnitTests
             Assert.That((byUser.DeleteBehavior, bySeason.DeleteBehavior, byTeam.DeleteBehavior),
                 Is.EqualTo((DeleteBehavior.Restrict, DeleteBehavior.Cascade, DeleteBehavior.NoAction)));
             var unique = entity.GetIndexes().Single(i => i.IsUnique);
-            Assert.That(unique.Properties.Select(p => p.Name), Is.EqualTo(new[] { "SeasonID", "Tier", "UserID" }));
+            Assert.That(unique.Properties.Select(p => p.Name), Is.EqualTo(new List<string> { "SeasonID", "Tier", "UserID" }));
         }
     }
 
