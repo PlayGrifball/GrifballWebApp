@@ -8,6 +8,3 @@ export interface SeasonListFilter {
   /** Only seasons that started in this year. */
   year?: number | null;
 }
-
-/** The URL of a season's summary (index.html fetches it early for the season page). */
-export const seasonSummaryUrl = (seasonID: number) => `/api/seasons/${seasonID}/summary`;

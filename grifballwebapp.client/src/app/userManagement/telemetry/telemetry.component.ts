@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal, type OnInit } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { ApiClientService } from '../../api/apiClient.service';
+import { TelemetryService } from '@api/services';
 import { LOG_LEVELS, type LogLevel } from '../../api/telemetryQueries';
 import type { LogEntryDto, SpanDto, TraceDto } from '@api/models';
 import { problemText } from '../../shared/errorText';
@@ -71,7 +71,7 @@ export function msText(ms: number): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TelemetryComponent implements OnInit {
-  private api = inject(ApiClientService);
+  private api = inject(TelemetryService);
 
   /** ?trace=<id> (router input binding): a link straight to a trace. */
   readonly trace = input<string | undefined>(undefined);
@@ -90,7 +90,7 @@ export class TelemetryComponent implements OnInit {
   /** Only the open tab reads; each reads again when its inputs change, or on Refresh. */
   readonly metrics = rxResource({
     params: () => this.tab() === 'overview' && this.status.hasValue() && this.status.value().metrics ? { minutes: this.minutes() } : undefined,
-    stream: ({ params }) => this.api.getTelemetryMetrics(params.minutes),
+    stream: ({ params }) => this.api.getTelemetryMetrics(params),
   });
   /** An ISO time as the charts take it, in Unix milliseconds. */
   readonly ms = (iso: string) => Date.parse(iso);
@@ -103,7 +103,7 @@ export class TelemetryComponent implements OnInit {
   readonly limit = signal(200);
   readonly logs = rxResource({
     params: () => this.tab() === 'logs' && this.status.hasValue() && this.status.value().logs
-      ? { minutes: this.minutes(), levels: this.pickedLevels(), search: this.search(), traceId: this.traceFilter(), limit: this.limit() }
+      ? { minutes: this.minutes(), level: this.pickedLevels(), search: this.search(), traceId: this.traceFilter(), limit: this.limit() }
       : undefined,
     stream: ({ params }) => this.api.getTelemetryLogs(params),
   });
@@ -123,7 +123,7 @@ export class TelemetryComponent implements OnInit {
   readonly traceId = signal<string | null>(null);
   readonly traceDetail = rxResource({
     params: () => this.traceId() ?? undefined,
-    stream: ({ params }) => this.api.getTelemetryTrace(params),
+    stream: ({ params }) => this.api.getTelemetryTrace({ traceID: params }),
   });
   readonly rows = computed(() => this.traceDetail.hasValue() ? waterfall(this.traceDetail.value()) : []);
   readonly openSpan = signal<SpanDto | null>(null);

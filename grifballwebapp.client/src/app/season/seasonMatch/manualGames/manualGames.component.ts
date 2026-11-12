@@ -1,4 +1,4 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,7 +7,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { DateTime } from 'luxon';
-import { ApiClientService } from '../../../api/apiClient.service';
+import { Observable } from 'rxjs';
+import { EventOrganizerService, SeasonMatchService } from '@api/services';
 import type { GameVersionOptionDto } from '@api/models';
 import { errorText } from '../../../shared/errorText';
 import { PlayerDto } from '../../team/team.component';
@@ -114,8 +115,8 @@ const IDLE: ManualGamesMode = { kind: 'idle' };
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ManualGamesComponent {
-  private readonly http = inject(HttpClient);
-  private readonly api = inject(ApiClientService);
+  private readonly eventOrganizer = inject(EventOrganizerService);
+  private readonly seasonMatch = inject(SeasonMatchService);
 
   readonly seasonMatchID = input.required<number>();
   /** The match, null while the page loads. */
@@ -187,7 +188,7 @@ export class ManualGamesComponent {
       if (!this.canManage() || this.versionsRequested)
         return;
       this.versionsRequested = true;
-      this.api.getGameVersions().subscribe({
+      this.eventOrganizer.getGameVersions().subscribe({
         next: versions => this.gameVersions.set(versions ?? []),
         error: () => this.gameVersions.set([]),
       });
@@ -245,11 +246,11 @@ export class ManualGamesComponent {
     if (mode.kind !== 'entering' || !this.formValid())
       return;
     const editing = mode.target;
-    const body = editing === 'new' ? toRequest(this.form) : { ...toRequest(this.form), replacesSeriesGameID: null };
-    const url = editing === 'new'
-      ? `/api/season-matches/${this.seasonMatchID()}/manual-games`
-      : `/api/season-matches/${this.seasonMatchID()}/manual-games/${editing}`;
-    this.send(mode, url, body);
+    const seasonMatchID = this.seasonMatchID();
+    const request = editing === 'new'
+      ? this.seasonMatch.addManualGame({ seasonMatchID, body: toRequest(this.form) })
+      : this.seasonMatch.editManualGame({ seasonMatchID, recordedGameID: editing, body: { ...toRequest(this.form), replacesSeriesGameID: null } });
+    this.send(mode, request);
   }
 
   /** Asks to confirm unreporting a game of the series. */
@@ -265,16 +266,16 @@ export class ManualGamesComponent {
     const mode = this.mode();
     if (mode.kind !== 'confirmDelete')
       return;
-    this.send(mode, `/api/season-matches/${this.seasonMatchID()}/games/${mode.game.seriesGameID}/remove`, null);
+    this.send(mode, this.seasonMatch.removeGame({ seasonMatchID: this.seasonMatchID(), seriesGameID: mode.game.seriesGameID }));
   }
 
   /** Sends what is shown: done, manual entry is idle and the page reloads; refused, it is shown again with why. */
-  private send(from: Entering | ConfirmingDelete, url: string, body: unknown): void {
+  private send(from: Entering | ConfirmingDelete, request: Observable<unknown>): void {
     if (this.blocked())
       return;
     this._mode.set({ kind: 'saving', from });
     this.error.set(null);
-    this.http.post(url, body).subscribe({
+    request.subscribe({
       next: () => {
         this._mode.set(IDLE);
         this.changed.emit();
