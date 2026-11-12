@@ -349,7 +349,10 @@ cat > "$work/reportbin/gh" <<'GH'
 #!/usr/bin/env bash
 case "$*" in
   *check-runs\?check_name=*) cat "$REPORT_RUNS" ;;
-  *-X\ PATCH*) echo "$*" >> "$REPORT_PATCHED"; [ -z "${REPORT_PATCH_FAILS:-}" ] ;;
+  # REPORT_PATCH_FAILS: how many PATCHes 404 before one works ("all": every one)
+  *-X\ PATCH*) echo "$*" >> "$REPORT_PATCHED"
+    [ "${REPORT_PATCH_FAILS:-0}" = all ] && exit 1
+    [ "$(wc -l < "$REPORT_PATCHED")" -gt "${REPORT_PATCH_FAILS:-0}" ] ;;
   *) echo "unexpected gh $*" >&2; exit 9 ;;
 esac
 GH
@@ -357,7 +360,7 @@ chmod +x "$work/reportbin/gh"
 report() { # report <runs json> <outcome> [patch fails]: the script's exit code; PATCHes in $work/patched
   printf '%s' "$1" > "$work/runs"; : > "$work/patched"
   REPORT_RUNS="$work/runs" REPORT_PATCHED="$work/patched" REPORT_PATCH_FAILS="${3:-}" PATH="$work/reportbin:$PATH" \
-    REPO=o/r SHA=abc NAME='.NET Test Results (Unit)' OUTCOME="$2" "$scripts/close-stuck-report.sh" > "$work/out" 2>&1
+    REPORT_RETRY_SECONDS=0 REPO=o/r SHA=abc NAME='.NET Test Results (Unit)' OUTCOME="$2" "$scripts/close-stuck-report.sh" > "$work/out" 2>&1
 }
 stuck='{"check_runs":[{"id":7,"status":"completed","conclusion":"success"},{"id":9,"status":"in_progress","conclusion":null}]}'
 if report "$stuck" success && grep -q 'check-runs/9 ' "$work/patched" && grep -q 'conclusion=success' "$work/patched"
@@ -368,7 +371,11 @@ if report '{"check_runs":[{"id":9,"status":"completed","conclusion":"success"}]}
 then ok "close-stuck-report: a completed report is left alone"; else bad "close-stuck-report: touched a completed report"; fi
 if report '{"check_runs":[]}' success && [ ! -s "$work/patched" ]
 then ok "close-stuck-report: no report, nothing to do"; else bad "close-stuck-report: no report"; cat "$work/out"; fi
-if report "$stuck" success fails; then bad "close-stuck-report: a failed PATCH passed"
+# GitHub 404s an update in the seconds after the run is created (#401: created at :24.0, updates refused at :24.9 and
+# :25.7): retried
+if report "$stuck" success 2 && [ "$(wc -l < "$work/patched")" = 3 ]
+then ok "close-stuck-report: a 404 right after creation is retried"; else bad "close-stuck-report: no retry:"; cat "$work/out" "$work/patched"; fi
+if report "$stuck" success all; then bad "close-stuck-report: a failed PATCH passed"
 else ok "close-stuck-report: a report it can't complete fails the job"; fi
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi

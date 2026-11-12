@@ -7,7 +7,7 @@
 # can be rerun, a pending one only sits there.
 #
 # Env: GH_TOKEN (checks: write), REPO (owner/name), SHA (the commit the report is on), NAME (the report's check name),
-# OUTCOME (the test step's steps.<id>.outcome).
+# OUTCOME (the test step's steps.<id>.outcome); REPORT_RETRY_SECONDS overrides the wait between tries (the tests: 0).
 set -euo pipefail
 
 runs=$(gh api "repos/$REPO/commits/$SHA/check-runs?check_name=$(node -p 'encodeURIComponent(process.argv[1])' "$NAME")&per_page=100")
@@ -25,7 +25,17 @@ fi
 conclusion=failure
 [ "$OUTCOME" = success ] && conclusion=success
 echo "$NAME: check run $id is still in progress; completing it as $conclusion (the tests' outcome: $OUTCOME)"
-gh api -X PATCH "repos/$REPO/check-runs/$id" -f status=completed -f conclusion=$conclusion \
-  -f "output[title]=Tests $conclusion" \
-  -f "output[summary]=The test report couldn't update this check itself (GitHub answered it with an error), so the workflow completed it with the test step's outcome: $OUTCOME. The full results are in the run's test-results artifact." \
-  > /dev/null || { echo "::error::$NAME: check run $id is stuck in progress and couldn't be completed: rerun this job"; exit 1; }
+# GitHub 404s updates to a run for a few seconds after creating it (the reporter's own update is refused that way):
+# tried again over about a minute before giving up
+for attempt in 1 2 3 4 5 6; do
+  if gh api -X PATCH "repos/$REPO/check-runs/$id" -f status=completed -f conclusion=$conclusion \
+    -f "output[title]=Tests $conclusion" \
+    -f "output[summary]=The test report couldn't update this check itself (GitHub answered it with an error), so the workflow completed it with the test step's outcome: $OUTCOME. The full results are in the run's test-results artifact." \
+    > /dev/null; then
+    echo "$NAME: completed as $conclusion (attempt $attempt)"
+    exit 0
+  fi
+  [ "$attempt" = 6 ] || sleep "${REPORT_RETRY_SECONDS:-$((attempt * 4))}"
+done
+echo "::error::$NAME: check run $id is stuck in progress and couldn't be completed: rerun this job"
+exit 1
