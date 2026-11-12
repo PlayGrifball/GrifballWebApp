@@ -24,6 +24,7 @@ public class ProfileController : ControllerBase
         _commendations = commendations;
     }
 
+    /// <summary>A player's current gamertag.</summary>
     [AllowAnonymous]
     [HttpGet("users/{userID:int}/gamertag", Name = "GetGamertag")]
     [ProducesResponseType<ProfileDto>(StatusCodes.Status200OK)]
@@ -40,6 +41,7 @@ public class ProfileController : ControllerBase
         return profile is null ? this.NotFoundProblem("There is no such user") : profile;
     }
 
+    /// <summary>A player's profile stats.</summary>
     [AllowAnonymous]
     [HttpGet("users/{userID:int}/stats", Name = "GetProfileStats")]
     [ProducesResponseType<ProfileStatsDto>(StatusCodes.Status200OK)]
@@ -61,6 +63,7 @@ public class ProfileController : ControllerBase
         return _commendations.GetAsync(userID, top, ct);
     }
 
+    /// <summary>Sets a player's gamertag. A player may only set their own.</summary>
     [Authorize(Roles = "Player")]
     [HttpPost("users/{userID:int}/gamertag", Name = "SetGamertag")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

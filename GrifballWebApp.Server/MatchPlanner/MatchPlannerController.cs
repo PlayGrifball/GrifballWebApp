@@ -33,6 +33,7 @@ public class MatchPlannerController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>A season's regular matches that have no time yet.</summary>
     [AllowAnonymous]
     [HttpGet("seasons/{seasonID:int}/matches/unscheduled", Name = "GetUnscheduledMatches")]
     [ProducesResponseType<List<UnscheduledMatchDto>>(StatusCodes.Status200OK)]
@@ -41,6 +42,7 @@ public class MatchPlannerController : ControllerBase
         return _matchPlannerService.GetUnscheduledMatches(seasonID, ct);
     }
 
+    /// <summary>A season's regular matches that have a time.</summary>
     [AllowAnonymous]
     [HttpGet("seasons/{seasonID:int}/matches/scheduled", Name = "GetScheduledMatches")]
     [ProducesResponseType<List<ScheduledMatchDto>>(StatusCodes.Status200OK)]

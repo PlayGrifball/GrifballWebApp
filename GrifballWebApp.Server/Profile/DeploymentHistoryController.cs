@@ -15,6 +15,7 @@ public class DeploymentHistoryController : ControllerBase
         _history = history;
     }
 
+    /// <summary>A player's deployment history: the seasons and teams they played for.</summary>
     [AllowAnonymous]
     [HttpGet("users/{userID:int}/deployment-history", Name = "GetDeploymentHistory")]
     [ProducesResponseType<List<DeploymentHistoryDto>>(StatusCodes.Status200OK)]
