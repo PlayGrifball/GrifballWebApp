@@ -433,4 +433,15 @@ public class AdminCommandsTests
             Assert.That(decide.Content(), Is.EqualTo("Rejected."));
         }
     }
+
+    [Test]
+    public async Task UnlockCaptains_Should_UnlockThem()
+    {
+        var season = await _context.AddSeason("Locked", captainsLocked: true);
+        var discord = As(_commissioner);
+
+        await _handler.LockCaptains(discord.Context, season.SeasonID.ToString(), @lock: false);
+
+        Assert.That(discord.Content(), Is.EqualTo("The captains are unlocked."));
+    }
 }

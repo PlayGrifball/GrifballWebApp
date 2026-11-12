@@ -412,38 +412,52 @@ public class DiscordTransportTests
     public async Task AdminJobCommands_RunThroughTheScheduler_ForStaff()
     {
         var staff = await LinkedUser(6101, "JobStaff");
-        var match = await _host.WithContextAsync(async context =>
+        var (match, recommendation) = await _host.WithContextAsync(async context =>
         {
             foreach (var role in await context.Roles.Where(r => r.Name == "Commissioner" || r.Name == "Sysadmin").ToListAsync())
                 context.UserRoles.Add(new UserRole { UserId = staff.Id, RoleId = role.Id });
             var season = Season.Seed(seasonName: "Transport Jobs").WithDates(seasonStart: new DateTime(2025, 1, 1), seasonEnd: new DateTime(2025, 3, 1));
             context.Seasons.Add(season);
             await context.SaveChangesAsync();
-            var seasonMatch = SeasonMatch.Seed(season.SeasonID, null, null);
+            var home = Team.Seed(seasonID: season.SeasonID, teamName: "Jobs Home");
+            var away = Team.Seed(seasonID: season.SeasonID, teamName: "Jobs Away");
+            context.Teams.AddRange(home, away);
+            await context.SaveChangesAsync();
+            var seasonMatch = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID);
             context.SeasonMatches.Add(seasonMatch);
             await context.SaveChangesAsync();
-            return seasonMatch;
+            // A recommendation the scheduler could have made, for show and apply
+            var proposed = ScheduleRecommendation.Propose(season.SeasonID, "commish", 0.5, 10,
+                [new ProposedMatchTime(seasonMatch.SeasonMatchID, new DateTime(2030, 1, 2, 20, 0, 0, DateTimeKind.Utc), false, true, true)]);
+            context.ScheduleRecommendations.Add(proposed);
+            await context.SaveChangesAsync();
+            return (seasonMatch, proposed.ScheduleRecommendationID);
         });
         var season = match.SeasonID.ToString();
 
         var pull = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin match pull", 6101, ("match", match.SeasonMatchID.ToString())));
         var run = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin schedule run", 6101, ("season", season)));
         var show = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin schedule show", 6101, ("season", season)));
+        var apply = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin schedule apply", 6101, ("recommendation", recommendation.ToString())));
         var jobs = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs list", 6101));
         var unknown = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs run", 6101, ("job", "nope/nothing")));
         // Run (then pause) a job the list shows: its first line is `group/name` · state
         var listing = jobs[^1].Data.GetProperty("embeds")[0].GetProperty("description").GetString()!;
         var listed = listing.StartsWith('`') ? listing[1..listing.IndexOf('`', 1)] : "";
         var ran = listed.Length > 0 ? await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs run", 6101, ("job", listed))) : null;
+        var paused = listed.Length > 0 ? await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs pause", 6101, ("job", listed))) : null;
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(pull[^1].Content, Does.StartWith("The pull is "));
             Assert.That(run[^1].Content, Does.StartWith("The recommendation is "));
             Assert.That(show[^1].Data.GetProperty("embeds")[0].GetProperty("title").GetString(), Does.StartWith("Schedule ("));
+            Assert.That(show[^1].Data.GetProperty("embeds")[0].GetProperty("description").GetString(), Does.StartWith($"Recommendation #{recommendation}, not applied").And.Contain("Jobs Home vs Jobs Away"));
+            Assert.That(apply[^1].Content, Is.EqualTo("1 matches are scheduled."));
             Assert.That(jobs[^1].Data.GetProperty("embeds")[0].GetProperty("title").GetString(), Is.EqualTo("Jobs"));
             Assert.That(unknown[^1].Content, Is.EqualTo("There is no such job."));
             Assert.That(ran is null || ran[^1].Content is AdminCommandsHandler.Done || ran[^1].Content!.StartsWith("The job can't"), Is.True, listed);
+            Assert.That(paused is null || paused[^1].Content is AdminCommandsHandler.Done || paused[^1].Content!.StartsWith("The job can't"), Is.True, listed);
             Assert.That(new[] { pull, run, show, jobs, unknown }.Select(r => r[0].CallbackType), Has.All.EqualTo(DiscordRequest.DeferredChannelMessage));
         }
     }

@@ -291,4 +291,16 @@ public class PersonalCommandsTests
             Assert.That(reschedule.Content(), Is.EqualTo(MatchCommandsHandler.NoSuchMatch));
         }
     }
+
+    [Test]
+    public async Task QueueStatus_Should_SayTheCallerIsInAMatch()
+    {
+        var other = await _context.AddUser("opponent", gamertag: "OpponentGT");
+        _context.MatchedMatches.Add(MatchedMatch.Start(new MatchedTeam([new MatchedPlayer(_me.Id)]), new MatchedTeam([new MatchedPlayer(other.Id)])));
+        await _context.SaveChangesAsync();
+
+        await _handler.QueueStatus(_discord.Context);
+
+        Assert.That(_discord.Content(), Does.EndWith("You are in a Late League match."));
+    }
 }

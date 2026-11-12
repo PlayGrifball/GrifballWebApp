@@ -28,11 +28,6 @@ public class UrlService
         return $"{_baseUrl}/season/{seasonId}";
     }
 
-    public string SeasonTeams(int seasonId)
-    {
-        return $"{_baseUrl}/season/{seasonId}/teams";
-    }
-
     public string Grades(int seasonId)
     {
         return $"{_baseUrl}/season/{seasonId}/playergrades";
