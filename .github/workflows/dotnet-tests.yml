@@ -110,7 +110,8 @@ jobs:
   # The integration suite once per database the app supports (Database:Provider): each test gets its own
   # database on a Testcontainers server of that kind (GrifballWebApp.Integration.Test/TestDatabase.cs). The unit
   # tests, one project per layer (Domain, Application, Infrastructure, Server), one per host app beside the server
-  # (Seeder, Convert), the analyzers' tests (Analyzers) and the architecture tests, touch no database: they run once, as the Unit leg.
+  # (Seeder, Convert), the analyzers' tests (Analyzers) and the architecture tests, touch no real database server
+  # (an in-memory or temp-file SQLite is fine): they run once, as the Unit leg.
   # Each leg runs the build job's binaries: nothing builds here.
   test:
     name: test (${{ matrix.database }})
