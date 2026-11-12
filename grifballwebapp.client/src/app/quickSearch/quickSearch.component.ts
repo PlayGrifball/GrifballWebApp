@@ -113,9 +113,8 @@ export class QuickSearchComponent {
     source: () => {
       if (this.tooShort() || this.failed())
         return [];
-      if (this.results.hasValue())
-        return toGroups(this.results.value());
-      return this.loading() ? null : [];
+      // With a term long enough and no error, the search has its hits or is loading them: null keeps the last shown
+      return this.results.hasValue() ? toGroups(this.results.value()) : null;
     },
     computation: (next, previous) => next ?? previous?.value ?? [],
   });
