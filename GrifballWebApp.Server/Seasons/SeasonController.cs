@@ -25,6 +25,7 @@ public class SeasonController : ControllerBase
         return _seasonService.GetCurrentSeasonID(ct);
     }
 
+    /// <summary>A season's display name.</summary>
     [HttpGet("seasons/{seasonID:int}/name", Name = "GetSeasonName")]
     [ProducesResponseType<string>(StatusCodes.Status200OK, "text/plain")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -33,6 +34,7 @@ public class SeasonController : ControllerBase
         return await _seasonService.GetSeasonName(seasonID, ct) is { } name ? name : this.NotFoundProblem("There is no such season");
     }
 
+    /// <summary>A season's header summary (name, dates, format).</summary>
     [HttpGet("seasons/{seasonID:int}/summary", Name = "GetSeasonSummary")]
     [ProducesResponseType<SeasonSummaryDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -42,6 +44,7 @@ public class SeasonController : ControllerBase
         return summary is null ? this.NotFoundProblem("There is no such season") : summary;
     }
 
+    /// <summary>A season's teams.</summary>
     [HttpGet("seasons/{seasonID:int}/teams", Name = "GetSeasonTeams")]
     [ProducesResponseType<List<SeasonTeamDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]

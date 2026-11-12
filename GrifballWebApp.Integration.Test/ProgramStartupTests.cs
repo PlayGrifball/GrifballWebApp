@@ -687,6 +687,9 @@ public class ProgramStartupTests
         {
             Assert.That(document.RootElement.GetProperty("servers")[0].GetProperty("url").GetString(), Is.EqualTo("/api"));
             Assert.That(document.RootElement.GetProperty("paths").TryGetProperty("/seasons", out _), Is.True, "The controllers' routes");
+            // The actions' XML doc <summary> (GenerateDocumentationFile, IncludeXmlComments) flows into the document.
+            var seasonsGet = document.RootElement.GetProperty("paths").GetProperty("/seasons").GetProperty("get");
+            Assert.That(seasonsGet.TryGetProperty("summary", out var summary) && !string.IsNullOrWhiteSpace(summary.GetString()), Is.True, "GET /seasons has a summary");
         }
     }
 

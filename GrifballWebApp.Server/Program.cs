@@ -153,6 +153,12 @@ public class Program
         {
             option.CustomSchemaIds(x => x.FullName);
 
+            // Controller actions' <summary>/<param>/<returns>/<remarks> (GenerateDocumentationFile, the .csproj),
+            // into the OpenAPI document. The file sits next to this assembly in every environment, including the
+            // Docker publish (GenerateDocumentationFile copies it there by default).
+            var xmlFile = Path.Combine(AppContext.BaseDirectory, $"{typeof(Program).Assembly.GetName().Name}.xml");
+            option.IncludeXmlComments(xmlFile);
+
             option.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
             {
                 In = ParameterLocation.Header,

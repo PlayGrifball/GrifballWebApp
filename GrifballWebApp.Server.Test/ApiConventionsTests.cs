@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Xml.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +23,39 @@ public class ApiConventionsTests
             .Where(m => !m.IsSpecialName && m.GetCustomAttribute<NonActionAttribute>() is null);
 
     private static string Name(MethodInfo action) => $"{action.DeclaringType!.Name}.{action.Name}";
+
+    // The XML doc comment ID the compiler writes for a member (ECMA-334 Appendix D), e.g.
+    // "M:GrifballWebApp.Server.Seasons.SeasonController.GetSeasons(System.Threading.CancellationToken)": what
+    // GenerateDocumentationFile's XML file keys its <member> entries by. Good enough for this codebase's actions,
+    // which take no ref/out parameters or generic methods.
+    private static string DocId(MethodInfo action)
+    {
+        var typeName = (action.DeclaringType!.FullName ?? action.DeclaringType!.Name).Replace('+', '.');
+        var parameters = action.GetParameters();
+        if (parameters.Length == 0)
+            return $"M:{typeName}.{action.Name}";
+
+        return $"M:{typeName}.{action.Name}({string.Join(",", parameters.Select(p => DocId(p.ParameterType)))})";
+    }
+
+    private static string DocId(Type type)
+    {
+        if (type.IsByRef)
+            return DocId(type.GetElementType()!) + "@";
+        if (type.IsArray)
+            return DocId(type.GetElementType()!) + "[]";
+        if (type.IsGenericType)
+        {
+            var definitionName = (type.GetGenericTypeDefinition().FullName ?? type.Name).Replace('+', '.');
+            var tick = definitionName.IndexOf('`');
+            if (tick >= 0)
+                definitionName = definitionName[..tick];
+            var args = string.Join(",", type.GetGenericArguments().Select(DocId));
+            return $"{definitionName}{{{args}}}";
+        }
+
+        return (type.FullName ?? type.Name).Replace('+', '.');
+    }
 
     [Test]
     public void EveryAction_HasAnHttpMethodAttribute()
@@ -87,6 +121,30 @@ public class ApiConventionsTests
             Assert.That(methods.Where(m => m.Method is not ("GET" or "POST")), Is.Empty);
             Assert.That(templates.Where(t => string.IsNullOrEmpty(t.Template) || t.Template.Contains('[')), Is.Empty);
             Assert.That(controllerRoutes, Is.Empty);
+        }
+    }
+
+    [Test]
+    public void EveryAction_HasANonEmptySummary()
+    {
+        // GenerateDocumentationFile (the .csproj) writes the Server assembly's XML doc file beside its DLL; a
+        // project reference copies it here too, the same way IncludeXmlComments finds it in Program.cs.
+        var assemblyPath = typeof(GrifballWebApp.Server.Seasons.SeasonController).Assembly.Location;
+        var xmlPath = Path.ChangeExtension(assemblyPath, ".xml");
+        Assert.That(File.Exists(xmlPath), Is.True, $"{xmlPath} is missing: is GenerateDocumentationFile set on GrifballWebApp.Server.csproj?");
+
+        var members = XDocument.Load(xmlPath).Root!.Element("members")!.Elements("member")
+            .ToDictionary(m => (string)m.Attribute("name")!, m => (string?)m.Element("summary"));
+
+        var missing = Actions()
+            .Where(a => !members.TryGetValue(DocId(a), out var summary) || string.IsNullOrWhiteSpace(summary))
+            .Select(Name)
+            .ToList();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Actions(), Is.Not.Empty);
+            Assert.That(missing, Is.Empty);
         }
     }
 

@@ -66,6 +66,7 @@ public class RescheduleController : ControllerBase
         }
     }
 
+    /// <summary>The reschedule requests still awaiting a decision.</summary>
     [HttpGet("reschedules/pending", Name = "GetPendingReschedules")]
     [Authorize(Roles = "Commissioner,Sysadmin")]
     [ProducesResponseType<List<RescheduleDto>>(StatusCodes.Status200OK)]
