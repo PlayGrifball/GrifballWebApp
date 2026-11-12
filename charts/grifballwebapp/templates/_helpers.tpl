@@ -439,3 +439,30 @@ Secret (secretName/secretKey), so both read the one Secret. Empty secretName: no
 {{- end -}}
 {{- toJson $ref -}}
 {{- end }}
+
+{{/* The OpenTelemetry identity the backend and the frontend share (backend.telemetry): service.name (default the
+   namespace), the resource attributes and the metric interval, so both land as one service on the Telemetry page
+   (and telemetry-gate allows one per environment). Env entries; takes the root. */}}
+{{- define "grif.otelServiceEnv" -}}
+{{- $bt := .Values.backend.telemetry -}}
+- name: OTEL_SERVICE_NAME
+  value: {{ $bt.serviceName | default .Release.Namespace | quote }}
+{{- $attrs := list }}
+{{- if $bt.environment }}{{ $attrs = append $attrs (printf "deployment.environment.name=%s" $bt.environment) }}{{ end }}
+{{- range $k, $v := $bt.resourceAttributes }}{{ $attrs = append $attrs (printf "%s=%v" $k $v) }}{{ end }}
+{{- if $attrs }}
+- name: OTEL_RESOURCE_ATTRIBUTES
+  value: {{ join "," $attrs | quote }}
+{{- end }}
+{{- if $bt.metricExportInterval }}
+- name: OTEL_METRIC_EXPORT_INTERVAL
+  value: {{ $bt.metricExportInterval | quote }}
+{{- end }}
+{{- end }}
+
+{{/* A URL's port: the one after its host's colon, else 443 for https and 80 otherwise. Only digits after a colon
+   count, so a host's own digits (http://otel2) are no port. Takes the URL. */}}
+{{- define "grif.urlPort" -}}
+{{- $u := urlParse . -}}
+{{- trimPrefix ":" (regexFind ":[0-9]+$" $u.host) | default (ternary "443" "80" (eq $u.scheme "https")) -}}
+{{- end }}

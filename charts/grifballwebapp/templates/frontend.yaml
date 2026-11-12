@@ -69,9 +69,27 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with $f.extraEnv }}
+          {{- $t := $f.telemetry | default dict }}
+          {{- if or $t.enabled $t.logLevel $t.browser $f.extraEnv }}
           env:
+            {{- if $t.enabled }}
+            # OpenTelemetry (frontend.telemetry), as the backend's service (grif.otelServiceEnv)
+            {{- include "grif.otelServiceEnv" . | nindent 12 }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ required "frontend.telemetry.endpoint is required when telemetry is enabled" $t.endpoint | quote }}
+            {{- end }}
+            {{- if $t.browser }}
+            # The API takes the browser's telemetry (frontend.telemetry.browser): pages tell the browser to record it
+            - name: BROWSER_TELEMETRY
+              value: "true"
+            {{- end }}
+            {{- if $t.logLevel }}
+            - name: LOG_LEVEL
+              value: {{ $t.logLevel | quote }}
+            {{- end }}
+            {{- with $f.extraEnv }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
           # A writable /tmp, with a read-only root filesystem.
           volumeMounts:

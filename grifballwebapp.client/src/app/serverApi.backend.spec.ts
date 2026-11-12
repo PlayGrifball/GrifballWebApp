@@ -40,8 +40,8 @@ describe('ServerApiBackend', () => {
     expect(body(events)).toEqual({ ok: true });
   });
 
-  it('passes the visitor\'s cookies and address on, and not other headers', async () => {
-    const backend = create(page({ cookie: 'a=b', 'x-real-ip': '203.0.113.9', 'x-forwarded-for': '203.0.113.9', 'user-agent': 'test' }));
+  it('passes the visitor\'s cookies, address and trace on, and not other headers', async () => {
+    const backend = create(page({ cookie: 'a=b', 'x-real-ip': '203.0.113.9', 'x-forwarded-for': '203.0.113.9', 'traceparent': '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01', 'user-agent': 'test' }));
 
     await lastValueFrom(backend.handle(new HttpRequest('GET', 'https://grifball.xyz/api/CommitHash', { responseType: 'text' })));
 
@@ -49,6 +49,7 @@ describe('ServerApiBackend', () => {
     expect(headers.get('cookie')).toBe('a=b');
     expect(headers.get('x-real-ip')).toBe('203.0.113.9');
     expect(headers.get('x-forwarded-for')).toBe('203.0.113.9');
+    expect(headers.get('traceparent')).toBe('00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01');
     expect(headers.get('user-agent')).toBeNull();
   });
 

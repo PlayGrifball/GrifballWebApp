@@ -9,6 +9,9 @@
 //                     (grifball.xyz and its subdomains) and localhost. "*.example.com" allows the
 //                     subdomains. A request for any other host, or an address (ex. a probe on the
 //                     pod's), gets the page that renders in the browser instead.
+//   OTEL_*, LOG_LEVEL OpenTelemetry and the logs (app/serverTelemetry.ts): each request's span, log line
+//                     and metrics, its trace passed on to the backend.
+//   SHUTDOWN_DELAY_MS how long it keeps serving after SIGTERM (default 10000), then it exits
 import {
   AngularNodeAppEngine,
   createNodeRequestHandler,
@@ -20,11 +23,14 @@ import express, { type Request, type Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import type { ClientRequest, IncomingMessage } from 'node:http';
 import { join } from 'node:path';
-import { loadScriptsAfterFirstPaint } from './app/afterFirstPaint';
 import { isAllowedHost, parseAllowedHosts } from './app/allowedHosts';
 import { apiUrl } from './app/apiUrl';
-import { forLog } from './app/forLog';
-import { pageCacheHeaders } from './app/pageCache';
+import { announceServing, pageHandler } from './app/pageHandler';
+import { drainThenExit, shutdownDelay } from './app/shutdown';
+import { serverTelemetrySettings } from './app/serverTelemetry';
+import { startServerTelemetry } from './server.telemetry';
+
+const telemetry = startServerTelemetry(serverTelemetrySettings(process.env));
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 const backendUrl = apiUrl(process.env['API_URL']);
@@ -35,6 +41,9 @@ const angularApp = new AngularNodeAppEngine({ allowedHosts });
 
 // Not "X-Powered-By: Express"
 app.disable('x-powered-by');
+
+// First, so it sees every request: its span (which the backend continues), log line and metrics.
+app.use(telemetry.requests);
 
 // The backend, as nginx proxied it: /api/x and /hub/x to /x, /signin-discord as it is (the Discord
 // sign-in callback), with the same headers. The request's own headers go along (the backend reads
@@ -50,7 +59,11 @@ const toBackend = (prefix: string) => createProxyMiddleware<Request, Response>({
   ws: prefix === '/hub',
   proxyTimeout: 100_000,
   on: {
-    proxyReq: (proxyReq, req) => setForwardedHeaders(proxyReq, req),
+    proxyReq: (proxyReq, req) => {
+      setForwardedHeaders(proxyReq, req);
+      // The request's span is the backend's parent: one trace from here to the database
+      telemetry.inject(req, (name, value) => proxyReq.setHeader(name, value));
+    },
     proxyReqWs: (proxyReq, req) => setForwardedHeaders(proxyReq, req),
   },
 });
@@ -109,42 +122,27 @@ app.use((req, res, next) => {
   sendClientPage(res, next);
 });
 
-// Every other request: the page, rendered on the server or (for the pages in
-// app.routes.server.ts that render in the browser) the page that loads the app. Should rendering
-// fail, the browser renders the page instead. A page rendered with the visitor's session cookie
-// (which its API calls carried) is theirs alone: private and no-store (app/pageCache.ts). The page's
-// scripts load once it has painted (app/afterFirstPaint.ts).
-app.use((req, res, next) => {
-  angularApp
-    .handle(req)
-    .then(async response => {
-      if (!response)
-        return sendClientPage(res, next);
-      if (response.headers.get('Content-Type')?.startsWith('text/html')) {
-        const headers = new Headers(response.headers);
-        headers.delete('Content-Length');
-        response = new Response(loadScriptsAfterFirstPaint(await response.text()), { status: response.status, statusText: response.statusText, headers });
-      }
-      for (const [name, value] of Object.entries(pageCacheHeaders(req.headers.cookie)))
-        response.headers.set(name, value);
-      return writeResponseToNodeResponse(response, res);
-    })
-    .catch(error => {
-      // The URL as an argument, never in the format string: a % in it stays text
-      console.error('Rendering %s failed, sending the page that renders in the browser:', forLog(req.originalUrl), error);
-      sendClientPage(res, next);
-    });
-});
+// Every other request: the page (app/pageHandler.ts)
+app.use(pageHandler({
+  handle: (req: Request) => angularApp.handle(req),
+  write: writeResponseToNodeResponse,
+  sendClientPage,
+  telemetry,
+}));
 
 if (isMainModule(import.meta.url)) {
   const port = Number(process.env['PORT'] ?? 80);
   const server = app.listen(port, error => {
     if (error)
       throw error;
-    console.log(`Serving on http://localhost:${port}, the API at ${backendUrl}`);
+    announceServing(telemetry, port, backendUrl);
   });
   // SignalR's WebSocket upgrade, for /hub
   server.on('upgrade', proxies[1].upgrade);
+  // Kubernetes is stopping the pod. It keeps serving for SHUTDOWN_DELAY_MS while the ingress stops sending it
+  // requests (the endpoint's removal reaches it after the signal), then lets go of the port, sends the telemetry
+  // that's queued and exits. As PID 1 without this, Node ignored the signal and served until it was killed.
+  process.once('SIGTERM', () => drainThenExit(server, telemetry.shutdown, code => process.exit(code), shutdownDelay(process.env['SHUTDOWN_DELAY_MS'])));
 }
 
 /** The request handler for the Angular CLI (ng serve, and the build's route extraction). */

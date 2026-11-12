@@ -372,6 +372,16 @@
         },
         "readinessProbe": { "$ref": "#/definitions/probe" },
         "livenessProbe": { "$ref": "#/definitions/probe" },
+        "telemetry": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "endpoint": { "type": "string" },
+            "logLevel": { "enum": ["", "debug", "info", "warn", "error"] },
+            "browser": { "type": "boolean" }
+          }
+        },
         "resources": { "$ref": "#/definitions/k8sObject" },
         "podSecurityContext": { "$ref": "#/definitions/k8sObject" },
         "securityContext": { "$ref": "#/definitions/k8sObject" },
@@ -690,6 +700,7 @@
           "additionalProperties": false,
           "properties": {
             "from": { "$ref": "#/definitions/peers" },
+            "telemetryTo": { "$ref": "#/definitions/peers" },
             "extraIngress": { "$ref": "#/definitions/rules" },
             "extraEgress": { "$ref": "#/definitions/rules" }
           }

@@ -50,6 +50,19 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.backend.port }}
+    {{- with .Values.frontend.telemetry }}
+    {{- if and .enabled .endpoint }}
+    {{- $port := include "grif.urlPort" .endpoint }}
+    # OpenTelemetry collector (frontend.telemetry).
+    - ports:
+        - protocol: TCP
+          port: {{ $port | int }}
+      {{- with $np.frontend.telemetryTo }}
+      to:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
     {{- with $np.frontend.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -512,9 +525,21 @@ spec:
 {{- end }}
 {{- with .root.Values.backend.telemetry }}
 {{- if and .enabled .endpoint }}
-{{- $u := urlParse .endpoint }}
-{{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
+{{- $port := include "grif.urlPort" .endpoint }}
 # OpenTelemetry collector.
+- ports:
+    - protocol: TCP
+      port: {{ $port | int }}
+  {{- with $np.backend.telemetryTo }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- with .root.Values.frontend.telemetry }}
+{{- if and .browser .endpoint }}
+{{- $port := include "grif.urlPort" .endpoint }}
+# OpenTelemetry collector's OTLP/HTTP: the browser's telemetry, passed on (frontend.telemetry.browser).
 - ports:
     - protocol: TCP
       port: {{ $port | int }}
@@ -526,8 +551,7 @@ spec:
 {{- end }}
 {{- $haloGateway := include "grif.haloGatewayUrl" .root }}
 {{- if and (eq (include "grif.haloMode" .root) "gateway") $haloGateway }}
-{{- $u := urlParse $haloGateway }}
-{{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
+{{- $port := include "grif.urlPort" $haloGateway }}
 {{- if include "grif.haloGatewayInRelease" .root }}
 # The bundled Halo gateway (halo-gateway.enabled), in this namespace, on its pods' port.
 - to:
@@ -610,8 +634,7 @@ spec:
 {{- range $name, $url := .query }}
 {{- if $url }}
 {{- $peer := get $peers (trimSuffix "Url" $name) | default dict }}
-{{- $u := urlParse $url }}
-{{- $port := $peer.port | default (trimPrefix ":" (regexFind ":[0-9]+$" $u.host)) | default (ternary "443" "80" (eq $u.scheme "https")) }}
+{{- $port := $peer.port | default (include "grif.urlPort" $url) }}
 # The Telemetry page: {{ trimSuffix "Url" $name | title }} (backend.telemetry.query).
 - ports:
     - protocol: TCP

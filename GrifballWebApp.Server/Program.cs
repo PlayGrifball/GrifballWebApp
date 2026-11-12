@@ -18,6 +18,7 @@ using GrifballWebApp.Server.SignalR;
 using GrifballWebApp.Server.Signups;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Telemetry;
+using GrifballWebApp.Server.Telemetry.Browser;
 using GrifballWebApp.Server.Telemetry.Query;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
@@ -126,6 +127,9 @@ public class Program
         builder.Services.AddMetricsAndTracing(telemetry, builder.Configuration);
         // The Telemetry page: the same telemetry read back from Loki, Prometheus and Tempo (TelemetryQuery:*)
         builder.Services.AddTelemetryQuery(builder.Configuration, telemetry.ServiceName);
+        // The browser's telemetry (ClientTelemetry:*): its spans and logs on to the collector, its Web Vitals as
+        // metrics; rate-limited per client while signed out
+        builder.Services.AddClientTelemetry(builder.Configuration, telemetry);
         builder.Services.AddAppHealthChecks(builder.Configuration, discord: !discordOff && role.RunsDiscord, haloInfinite: haloHealthCheck);
         (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
 
@@ -375,6 +379,8 @@ public class Program
         // Discord a redirect_uri other than the https one the sign-in started with (invalid_grant).
         app.UseAuthentication();
         app.UseAuthorization();
+        // Per-endpoint limits ([EnableRateLimiting]): the browser's telemetry batches
+        app.UseRateLimiter();
 
         app.MapAppHealthChecks();
 

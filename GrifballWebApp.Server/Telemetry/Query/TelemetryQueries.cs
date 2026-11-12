@@ -86,6 +86,14 @@ public static partial class TelemetryQueries
             new("exceptions", "Exceptions", "/min", $"sum(rate(dotnet_exceptions_total{{{s}}}[{w}])) * 60"),
             new("memory", "Memory (working set)", "MB", $"sum by (k8s_pod_name) (dotnet_process_memory_working_set_bytes{{{s}}}) / 1048576", "k8s_pod_name"),
             new("cpu", "CPU", "cores", $"sum by (k8s_pod_name) (rate(dotnet_process_cpu_time_seconds_total{{{s}}}[{w}]))", "k8s_pod_name"),
+            // The app's server (grifballwebapp.client/src/server.telemetry.ts), which shares this service.name
+            new("render", "Page render on the server (p95)", "ms", $"histogram_quantile(0.95, sum by (le) (rate(grif_frontend_render_duration_seconds_bucket{{{s},outcome=\"server\"}}[{w}]))) * 1000"),
+            new("renderFailures", "Pages left to the browser after failing", "/min", $"sum(rate(grif_frontend_render_duration_seconds_count{{{s},outcome=\"failed\"}}[{w}])) * 60"),
+            new("frontendMemory", "Frontend memory (resident)", "MB", $"sum by (k8s_pod_name) (grif_frontend_memory_rss_bytes{{{s}}}) / 1048576", "k8s_pod_name"),
+            // The browser's Web Vitals (Browser/BrowserMetrics), at p75 as Google rates them
+            new("lcp", "Largest Contentful Paint (p75)", "ms", $"histogram_quantile(0.75, sum by (le) (rate(grif_browser_lcp_seconds_bucket{{{s}}}[{w}]))) * 1000"),
+            new("inp", "Interaction to Next Paint (p75)", "ms", $"histogram_quantile(0.75, sum by (le) (rate(grif_browser_inp_seconds_bucket{{{s}}}[{w}]))) * 1000"),
+            new("cls", "Cumulative Layout Shift (p75)", "score", $"histogram_quantile(0.75, sum by (le) (rate(grif_browser_cls_bucket{{{s}}}[{w}])))"),
         ];
     }
 
@@ -100,15 +108,62 @@ public static partial class TelemetryQueries
             $"histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{{{requests}}}[{r}]))) * 1000");
     }
 
-    /// <summary>The Traces tab's search: the service's traces, failed ones only, slower than a minimum. Selects each match's route and status code.</summary>
-    public static string Traces(string serviceName, bool errorsOnly, int? minDurationMs)
+    /// <summary>
+    /// The span attribute the app's server (and the browser) set on the spans of a request they handle: page, navigation,
+    /// api, hub, signin (grifballwebapp.client's REQUEST_KIND_ATTRIBUTE). The backend's own spans have none.
+    /// </summary>
+    public const string RequestKindAttribute = "grif.request.kind";
+
+    /// <summary>
+    /// The Traces tab's search: the service's traces, failed ones only, slower than a minimum. Selects each matched span's
+    /// route, status code, method and request kind, which <see cref="TraceRow"/> reads. <paramref name="requestSpansOnly"/>:
+    /// only the spans of a request (a route or a request kind), the rows' second search - a busy trace's first matched
+    /// spans may be all database calls.
+    /// </summary>
+    public static string Traces(string serviceName, bool errorsOnly, int? minDurationMs, bool requestSpansOnly = false)
     {
         var query = new StringBuilder("{resource.service.name=").Append(Quote(serviceName));
+        if (requestSpansOnly)
+            query.Append(" && (span.http.route != nil || span.").Append(RequestKindAttribute).Append(" != nil)");
         if (errorsOnly)
             query.Append(" && status=error");
         if (minDurationMs is > 0)
             query.Append(" && duration>=").Append(minDurationMs.Value.ToString(CultureInfo.InvariantCulture)).Append("ms");
-        return query.Append("} | select(span.http.route, span.http.response.status_code)").ToString();
+        return query.Append("} | select(span.http.route, span.http.response.status_code, span.http.request.method, span.")
+            .Append(RequestKindAttribute).Append(')').ToString();
+    }
+
+    /// <summary>
+    /// A trace's row in the list, from its matched spans' attributes (by what each span is, never by its name):
+    /// <list type="bullet">
+    /// <item>A page or a navigation (a span whose request kind says so): its root's name, and that span's route and status.
+    /// The backend calls its render made are only parts of it.</item>
+    /// <item>An API call passed on by the app's server (request kind api): its method and the backend's route, and the
+    /// backend's status - the frontend only knows /api/*.</item>
+    /// <item>Anything else (a job, a call straight to the API): its root's name, and the first route and status.</item>
+    /// </list>
+    /// </summary>
+    public static (string Name, string? Route, int? Status) TraceRow(string rootName, IReadOnlyList<IReadOnlyDictionary<string, string>> spans)
+    {
+        static string? Kind(IReadOnlyDictionary<string, string> span) => span.GetValueOrDefault(RequestKindAttribute);
+        static int? Status(IReadOnlyDictionary<string, string>? span) =>
+            int.TryParse(span?.GetValueOrDefault("http.response.status_code"), CultureInfo.InvariantCulture, out var status) ? status : null;
+
+        var page = spans.FirstOrDefault(s => Kind(s) is "page" or "navigation");
+        if (page is not null)
+            return (rootName, page.GetValueOrDefault("http.route"), Status(page));
+
+        var call = spans.FirstOrDefault(s => Kind(s) == "api");
+        var backend = spans.FirstOrDefault(s => Kind(s) is null && s.ContainsKey("http.route"));
+        if (call is not null && backend is not null)
+        {
+            var route = backend["http.route"];
+            var method = backend.GetValueOrDefault("http.request.method") ?? call.GetValueOrDefault("http.request.method");
+            return (method is null ? route : $"{method} {route}", route, Status(backend));
+        }
+
+        var routed = spans.FirstOrDefault(s => s.ContainsKey("http.route"));
+        return (rootName, routed?.GetValueOrDefault("http.route"), Status(routed ?? spans.FirstOrDefault(s => s.ContainsKey("http.response.status_code"))));
     }
 
     [GeneratedRegex(@"[\\.+*?()|\[\]{}^$]")]

@@ -1,3 +1,4 @@
+using GrifballWebApp.Server.Telemetry.Browser;
 using Serilog;
 using Serilog.AspNetCore;
 using Serilog.Context;
@@ -63,12 +64,12 @@ public static class RequestTelemetryExtensions
         options.EnrichDiagnosticContext = EnrichDiagnosticContext;
     }
 
-    /// <summary>Errors for 5xx and exceptions, Verbose (dropped) for health probes, Information otherwise.</summary>
+    /// <summary>Errors for 5xx and exceptions, Verbose (dropped) for health probes and the browser's telemetry batches, Information otherwise.</summary>
     public static LogEventLevel GetLevel(HttpContext context, double elapsedMilliseconds, Exception? exception)
     {
         if (exception is not null || context.Response.StatusCode >= StatusCodes.Status500InternalServerError)
             return LogEventLevel.Error;
-        if (HealthCheckExtensions.IsHealthPath(context))
+        if (HealthCheckExtensions.IsHealthPath(context) || ClientTelemetryExtensions.IsClientTelemetryPath(context.Request.Path))
             return LogEventLevel.Verbose;
         return LogEventLevel.Information;
     }

@@ -3,6 +3,7 @@ using OpenTelemetry;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using GrifballWebApp.Server.Telemetry.Browser;
 using Quartz.Diagnostics;
 
 namespace GrifballWebApp.Server.Telemetry;
@@ -19,6 +20,8 @@ public static class MetricsAndTracingExtensions
         "Microsoft.AspNetCore.Authentication",
         "Microsoft.AspNetCore.Authorization",
         "Microsoft.AspNetCore.Identity",
+        // grif.browser.*: the browser's Web Vitals (Browser/BrowserMetrics)
+        BrowserMetrics.MeterName,
     ];
 
     /// <summary>
@@ -55,7 +58,9 @@ public static class MetricsAndTracingExtensions
             .WithTracing(tracing =>
             {
                 tracing
-                    .AddAspNetCoreInstrumentation(options => options.Filter = context => !healthPaths.IsHealthPath(context.Request.Path))
+                    // Not the health probes, or the browser's telemetry batches (every few seconds a visitor)
+                    .AddAspNetCoreInstrumentation(options => options.Filter = context =>
+                        !healthPaths.IsHealthPath(context.Request.Path) && !ClientTelemetryExtensions.IsClientTelemetryPath(context.Request.Path))
                     .AddHttpClientInstrumentation()
                     .AddSqlClientInstrumentation()
                     .AddNpgsql()

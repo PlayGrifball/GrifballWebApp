@@ -1,0 +1,127 @@
+suite: frontend telemetry
+templates:
+  - templates/frontend.yaml
+  - templates/networkpolicy.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: sets OpenTelemetry with the backend's service name, environment and attributes
+    template: templates/frontend.yaml
+    documentIndex: 0
+    set:
+      backend.telemetry: { environment: test, resourceAttributes: { team: grif }, metricExportInterval: "15000" }
+      frontend.telemetry: { enabled: true, endpoint: "http://otel:4318", logLevel: debug }
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_SERVICE_NAME, value: grif-x } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel:4318" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_RESOURCE_ATTRIBUTES, value: "deployment.environment.name=test,team=grif" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_METRIC_EXPORT_INTERVAL, value: "15000" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: LOG_LEVEL, value: debug } }
+
+  - it: takes the backend's service name when it has one
+    template: templates/frontend.yaml
+    documentIndex: 0
+    set:
+      backend.telemetry.serviceName: grif-named
+      frontend.telemetry: { enabled: true, endpoint: "http://otel:4318" }
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_SERVICE_NAME, value: grif-named } }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_RESOURCE_ATTRIBUTES }, any: true }
+
+  - it: keeps extraEnv alongside it
+    template: templates/frontend.yaml
+    documentIndex: 0
+    set:
+      frontend.telemetry: { enabled: true, endpoint: "http://otel:4318" }
+      frontend.extraEnv: [{ name: NG_ALLOWED_HOSTS, value: preview.example.com }]
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: NG_ALLOWED_HOSTS, value: preview.example.com } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel:4318" } }
+
+  - it: sets only the log level with telemetry off
+    template: templates/frontend.yaml
+    documentIndex: 0
+    set:
+      frontend.telemetry.logLevel: warn
+    asserts:
+      - equal: { path: "spec.template.spec.containers[0].env", value: [{ name: LOG_LEVEL, value: warn }] }
+
+  - it: sets no environment by default
+    template: templates/frontend.yaml
+    documentIndex: 0
+    asserts:
+      - notExists: { path: "spec.template.spec.containers[0].env" }
+
+  - it: requires an endpoint when telemetry is enabled
+    template: templates/frontend.yaml
+    set:
+      frontend.telemetry.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: frontend.telemetry.endpoint is required when telemetry is enabled
+
+  - it: lets the frontend reach the collector on the endpoint's port
+    template: templates/networkpolicy.yaml
+    documentIndex: 0
+    set:
+      frontend.telemetry: { enabled: true, endpoint: "http://otel.opentelemetry:4318" }
+      networkPolicy.frontend.telemetryTo: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: opentelemetry } } }]
+    asserts:
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 4318 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: opentelemetry } } }]
+
+  - it: lets it reach any collector on 443 for an https endpoint without a port
+    template: templates/networkpolicy.yaml
+    documentIndex: 0
+    set:
+      frontend.telemetry: { enabled: true, endpoint: "https://otel.example" }
+    asserts:
+      - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 443 }] } }
+
+  - it: opens nothing for telemetry with it off
+    template: templates/networkpolicy.yaml
+    documentIndex: 0
+    asserts:
+      - lengthEqual: { path: spec.egress, count: 2 }
+
+  - it: reads the port only after a colon, not from digits in the host's name
+    template: templates/networkpolicy.yaml
+    documentIndex: 0
+    set:
+      frontend.telemetry: { enabled: true, endpoint: "http://otel2" }
+    asserts:
+      - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 80 }] } }
+
+  - it: does the same for the backend's collector
+    template: templates/networkpolicy.yaml
+    documentIndex: 1
+    set:
+      backend.telemetry: { enabled: true, endpoint: "https://10.0.0.5" }
+    asserts:
+      - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 443 }] } }
+
+  - it: lets the backend reach the frontend's collector port when it passes the browser's telemetry on
+    template: templates/networkpolicy.yaml
+    documentIndex: 1
+    set:
+      frontend.telemetry: { browser: true, endpoint: "http://otel.opentelemetry:4318" }
+      networkPolicy.backend.telemetryTo: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: opentelemetry } } }]
+    asserts:
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 4318 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: opentelemetry } } }]
+
+  - it: tells the app's server browser telemetry is on, so the page lets the browser trace
+    template: templates/frontend.yaml
+    documentIndex: 0
+    set:
+      frontend.telemetry: { enabled: true, endpoint: "http://otel:4318", browser: true }
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: BROWSER_TELEMETRY, value: "true" } }

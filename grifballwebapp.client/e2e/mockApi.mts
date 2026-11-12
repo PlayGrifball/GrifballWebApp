@@ -578,6 +578,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     // Who is signed in: a visitor gets 204 No Content
     '/api/identity/me': role === 'anon' ? null : META[role],
     '/api/identity/antiforgery-token': { token: `e2e-xsrf-${role}` },
+    // The browser's telemetry batches (a browser not under automation, Lighthouse, may send them): taken
+    '/api/client-telemetry': null,
     '/api/CommitHash': { text: '9f3c2ab' },
     '/api/CommitDate': { text: '2026-10-28T21:14:00Z' },
     '/api/seasons/current': 12,
