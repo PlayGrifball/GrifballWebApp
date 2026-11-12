@@ -38,8 +38,9 @@ describe('ManualGamesComponent', () => {
     ...overrides
   });
 
-  const roster = (userID: number, gamertag: string | null): TeamPagePlayerDto =>
-    ({ teamPlayerID: userID * 10, userID, gamertag, draftCaptainOrder: null, draftRound: null });
+  // The API always sends a gamertag; null! is a player the page must still cope with
+  const roster = (userID: number, gamertag: string): TeamPagePlayerDto =>
+    ({ teamPlayerID: userID * 10, userID, gamertag, draftCaptainOrder: null, draftRound: null, isCaptain: false, region: null });
 
   function create(match: SeasonMatchPageDto | null, canEdit: boolean): void {
     fixture = TestBed.createComponent(ManualGamesComponent);
@@ -48,7 +49,7 @@ describe('ManualGamesComponent', () => {
     component.changed.subscribe(() => changed++);
     fixture.componentRef.setInput('seasonMatchID', 7);
     fixture.componentRef.setInput('match', match);
-    fixture.componentRef.setInput('homeRoster', [roster(1, 'Grif'), roster(2, null)]);
+    fixture.componentRef.setInput('homeRoster', [roster(1, 'Grif'), roster(2, null!)]);
     fixture.componentRef.setInput('awayRoster', [roster(3, 'Tucker')]);
     fixture.componentRef.setInput('canEdit', canEdit);
     fixture.detectChanges();
