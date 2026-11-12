@@ -4,7 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { RouterModule } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import type { ScheduleRecommendationMatchDto, ScheduleRecommendationPageDto, UnscheduledMatchDto, UpdateMatchTimeDto as UpdateMatchTimeRequest } from '@api/models';
+import type { ScheduleRecommendationMatchDto, ScheduleRecommendationPageDto, UnscheduledMatchDto, UpdateMatchTimeDto } from '@api/models';
 import { MatDividerModule } from '@angular/material/divider';
 import { AccountService } from '../../account.service';
 import { ErrorMessageComponent } from "../../validation/errorMessage.component";
@@ -13,9 +13,9 @@ import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
-import { UpdateMatchTimeDto } from './updateMatchTimeDto';
 import { parseScheduledMatch, ScheduledMatchDto } from './scheduledMatchDto';
 import { DateTime } from 'luxon';
+import { toApiDate } from '../../shared/apiDates';
 import { TimeDto } from './timeDto';
 import { groupBy, map, orderBy } from 'lodash-es';
 import { map as mapResponse, Subscription, switchMap, takeWhile, timer } from 'rxjs';
@@ -272,9 +272,8 @@ export class ScheduleListComponent {
   /** `time` is the row's own form value; the loaded match objects are never edited. */
   onSubmit(match: UnscheduledMatchDto | WeekGameDto, time: DateTime | '' | null | undefined): void {
     // An empty picker gives '', which the server's DateTime? cannot bind: send null (no time).
-    const dto: UpdateMatchTimeDto = { seasonMatchID: match.seasonMatchID, time: time || null };
-    // dto's time is a Luxon DateTime (or null), which serializes to the API's ISO string (DateTime.toJSON).
-    this.matchPlanner.updateMatchTime({ seasonMatchID: dto.seasonMatchID, body: dto as unknown as UpdateMatchTimeRequest })
+    const dto: UpdateMatchTimeDto = { seasonMatchID: match.seasonMatchID, time: toApiDate(time || null) };
+    this.matchPlanner.updateMatchTime({ seasonMatchID: dto.seasonMatchID, body: dto })
     .subscribe({
       next: r => this.GetMatches(),
       error: e => this.GetMatches()

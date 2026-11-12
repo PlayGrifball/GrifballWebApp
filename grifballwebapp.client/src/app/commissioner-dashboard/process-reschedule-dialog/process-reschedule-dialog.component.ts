@@ -10,11 +10,6 @@ import type { ProcessRescheduleDto, RescheduleDto } from '@api/models';
 import { RescheduleService } from '@api/services/reschedule.service';
 import { errorText } from '../../shared/errorText';
 
-interface ProcessRescheduleRequest {
-  approved: boolean;
-  commissionerNotes?: string;
-}
-
 @Component({
   selector: 'app-process-reschedule-dialog',
   standalone: true,
@@ -52,17 +47,15 @@ export class ProcessRescheduleDialogComponent {
   processReschedule(): void {
     if (this.decision() === null) return;
 
-    const request: ProcessRescheduleRequest = {
+    const request: ProcessRescheduleDto = {
       approved: this.decision() === 'approve',
-      commissionerNotes: this.commissionerNotes().trim() || undefined
+      commissionerNotes: this.commissionerNotes().trim() || null
     };
 
     this.processing.set(true);
     this.error.set(null);
 
-    // ProcessRescheduleRequest's commissionerNotes is undefined (never null) when empty, like the old body: a
-    // field JSON.stringify drops, same as the explicit null the generated model's type calls for.
-    this.rescheduleService.processReschedule({ rescheduleID: this.reschedule.matchRescheduleID, body: request as unknown as ProcessRescheduleDto })
+    this.rescheduleService.processReschedule({ rescheduleID: this.reschedule.matchRescheduleID, body: request })
     .subscribe({
       next: () => {
         this.dialogRef.close(true); // Signal success

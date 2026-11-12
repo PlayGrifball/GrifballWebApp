@@ -11,11 +11,12 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { provideDatePickers } from '../../shared/datePickers';
 import { RouterLink } from '@angular/router';
 import { AvailabilityService } from '@api/services/availability.service';
-import type { AvailabilityTimeslotDto, SeasonAvailabilityDto } from '@api/models';
+import type { AvailabilityTimeslotDto, DayOfWeek, SeasonAvailabilityDto } from '@api/models';
 
 
+/** A row of the editor: a timeslot, its day empty until one is picked. */
 export class AvailabilityOption {
-  dayOfWeek: string = '';
+  dayOfWeek: DayOfWeek | '' = '';
   time: string = '';
 }
 
@@ -136,19 +137,18 @@ export class SeasonAvailabilityComponent implements OnInit {
   updateSeasonAvailability() {
     const body: SeasonAvailabilityDto = {
       seasonID: this.seasonID(),
-      // The checkboxes' names are always one of DayOfWeek's seven values.
-      timeslots: this.options() as unknown as AvailabilityTimeslotDto[],
+      // A row whose day was never picked goes as it is, and the server refuses the save, as it always has
+      timeslots: this.options().map(o => ({ dayOfWeek: o.dayOfWeek as DayOfWeek, time: o.time })),
     };
     return this.availability.updateSeasonAvailability({ seasonID: this.seasonID(), body });
   }
 
-  getSeasonAvailability(): Observable<AvailabilityOption[]> {
-    // AvailabilityOption is AvailabilityTimeslotDto's shape, just with dayOfWeek widened to string.
-    return this.availability.getSeasonAvailability({ seasonID: this.seasonID() }) as unknown as Observable<AvailabilityOption[]>;
+  getSeasonAvailability(): Observable<AvailabilityTimeslotDto[]> {
+    return this.availability.getSeasonAvailability({ seasonID: this.seasonID() });
   }
 }
 
 export interface DayOfWeekCheckbox {
-  name: string;
+  name: DayOfWeek;
   isChecked: boolean;
 }

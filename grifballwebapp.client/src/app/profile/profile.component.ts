@@ -1,7 +1,5 @@
-import type { MatchmakingPlayerStatDto } from '@api/models';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ChangeDetectionStrategy, inject, signal, computed, effect, input, numberAttribute, untracked } from '@angular/core';
-import { map } from 'rxjs';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AccountService } from '../account.service';
@@ -14,95 +12,14 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { DeploymentHistoryComponent } from './deploymentHistory/deploymentHistory.component';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
-import { ServiceRecordComponent, type ServiceRecordDto } from './serviceRecord/serviceRecord.component';
+import { ServiceRecordComponent } from './serviceRecord/serviceRecord.component';
 import { VodListComponent } from '../shared/vodList/vodList.component';
 import { ProfileCommendationsComponent } from './profileCommendations/profileCommendations.component';
 import { errorText } from '../shared/errorText';
 import { whileCurrent } from '../shared/whileCurrent';
-import type { SeasonInfoDto } from '@api/models';
-import type { SeasonPlayerStatDto } from '@api/models';
-import type { ProfileStatsDto as ProfileStatsApiDto } from '@api/models';
+import type { GameCareerSummaryDto, MatchmakingPlayerStatDto, PlayerSeasonStatDetailDto, ProfileStatsDto } from '@api/models';
 import { nullWhenNotFound } from '../api/nullWhenNotFound';
 import { ProfileService } from '@api/services/profile.service';
-
-export interface PlayerChampionshipDto {
-  playerChampionshipID: number;
-  season: SeasonInfoDto;
-  /** The game the title was won on, which can differ from the season's. */
-  gameVersionID?: number | null;
-  gameVersionName?: string | null;
-  gameVersionSlug?: string | null;
-  tier: string;
-  teamID: number;
-  teamName: string;
-  isCaptain: boolean;
-  gamertagUsed: string;
-}
-
-export interface GameCareerSummaryDto {
-  gameVersionID?: number | null;
-  gameVersionName: string;
-  gameVersionSlug: string;
-  seasonsCount: number;
-  gamesPlayed: number;
-  /** Of gamesPlayed, the Late League games decided by their players' vote: no box score, so left out of every figure per game. */
-  gamesDecidedByVote: number;
-  wins: number;
-  losses: number;
-  winPercent?: number | null;
-  /** Null on the all-games row: goals, carrier stops and medals are only totalled per game. */
-  goals: number | null;
-  goalsPerGame?: number | null;
-  kills: number;
-  deaths: number;
-  assists: number;
-  kdRatio?: number | null;
-  kdSpread: number;
-  carrierKills: number | null;
-  stopsPerGame?: number | null;
-  sprees: number | null;
-  multiKills: number | null;
-  exterminations: number | null;
-  betrayals: number | null;
-  hammerKills?: number | null;
-  swordKills?: number | null;
-  ballKills?: number | null;
-  punches?: number | null;
-  damageDealt?: number | null;
-  damageTaken?: number | null;
-  score?: number | null;
-}
-
-export interface PlayerSeasonStatDetailDto extends SeasonPlayerStatDto {
-  season: SeasonInfoDto;
-  /** The line's game, which can differ from the season's. */
-  gameVersionID: number;
-  gameVersionName: string;
-  gameVersionSlug: string;
-  damageDealt?: number | null;
-  damageTaken?: number | null;
-  score?: number | null;
-}
-
-export interface ProfileStatsDto {
-  userID: number;
-  gamertag?: string | null;
-  displayName?: string | null;
-  isDummyUser: boolean;
-  /** Where the player plays from (Other.Regions); null when not set. */
-  regionID?: number | null;
-  regionName?: string | null;
-  pastGamertags: string[];
-  championships: PlayerChampionshipDto[];
-  careerByGame: GameCareerSummaryDto[];
-  overallCareer?: GameCareerSummaryDto | null;
-  seasons: PlayerSeasonStatDetailDto[];
-  /** Late League (matchmaking): a line per matchmaking season, and one for the queue's games outside any. */
-  lateLeague: MatchmakingPlayerStatDto[];
-  /** The stat strip at the top: MMR, K/D and bomb scores, over league, Late League and both. */
-  serviceRecord?: ServiceRecordDto | null;
-}
-
 
 @Component({
   selector: 'app-profile',
@@ -212,11 +129,8 @@ export class ProfileComponent {
   getProfileStats(): void {
     const userID = this.userID();
     this.statsLoading.set(true);
-    // Cast: the generated ProfileStatsDto's nested models aren't a byte-for-byte match with this file's
-    // hand-written ones (several fields here are optional where the server's are always present);
-    // same JSON either way.
     this.profile.getProfileStats({ userID })
-      .pipe(map((s: ProfileStatsApiDto) => s as unknown as ProfileStatsDto), whileCurrent(userID, this.userID))
+      .pipe(whileCurrent(userID, this.userID))
       .subscribe({
         next: s => {
           this.profileStats.set(s);

@@ -4,7 +4,8 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ProfileComponent, ProfileStatsDto } from './profile.component';
+import { ProfileComponent } from './profile.component';
+import type { ProfileStatsDto } from '@api/models';
 import { seasonInfo } from '../api/seasonInfo.stub';
 import { AccountService } from '../account.service';
 import { Component } from '@angular/core';
@@ -432,7 +433,7 @@ describe('ProfileComponent', () => {
           multiKills: 8,
           exterminations: 2, damageDealt: null, damageTaken: null, punches: null, roleNote: null, score: null, swordKills: null, tradeNote: null
         }
-      ]
+      ], regionID: null, regionName: null, serviceRecord: null
     };
 
     fixture.detectChanges();

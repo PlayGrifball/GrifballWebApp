@@ -1,28 +1,6 @@
 import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
-
-export interface ServiceRecordTotalsDto {
-  gamesPlayed: number;
-  wins: number;
-  losses: number;
-  winPercent?: number | null;
-  kills: number;
-  deaths: number;
-  kdRatio?: number | null;
-  /** Bomb scores (goals), every game's alike. */
-  bombScores: number;
-  /** Halo Infinite games whose score isn't goals (a custom mode's encoded counts), left out of the bomb scores. */
-  uncountedBombScoreGames: number;
-}
-
-/** A profile's stat strip: MMR, and career totals over league seasons, matchmaking (Late League) and both. */
-export interface ServiceRecordDto {
-  /** The Late League rating; null for a player who has never played matchmaking. */
-  mmr?: number | null;
-  all: ServiceRecordTotalsDto;
-  league: ServiceRecordTotalsDto;
-  matchmaking: ServiceRecordTotalsDto;
-}
+import type { ServiceRecordDto } from '@api/models';
 
 export type ServiceRecordScope = 'all' | 'league' | 'matchmaking';
 

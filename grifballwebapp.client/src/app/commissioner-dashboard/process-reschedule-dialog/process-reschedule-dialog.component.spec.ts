@@ -107,7 +107,7 @@ describe('ProcessRescheduleDialogComponent', () => {
     component.processReschedule();
 
     const req = http.expectOne('/api/reschedules/55/decision');
-    expect(req.request.body).toEqual({ approved: false, commissionerNotes: undefined });
+    expect(req.request.body).toEqual({ approved: false, commissionerNotes: null });
     req.flush({});
   });
 
@@ -209,6 +209,6 @@ describe('ProcessRescheduleDialogComponent for a match that can no longer move',
     expect(action.textContent).toContain('Reject');
 
     action.click();
-    expect(http.expectOne('/api/reschedules/56/decision').request.body).toEqual({ approved: false, commissionerNotes: undefined });
+    expect(http.expectOne('/api/reschedules/56/decision').request.body).toEqual({ approved: false, commissionerNotes: null });
   });
 });

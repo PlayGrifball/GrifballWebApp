@@ -11,12 +11,6 @@ import { errorText } from '../shared/errorText';
 import { RescheduleService } from '@api/services/reschedule.service';
 import type { RescheduleRequestDto } from '@api/models';
 
-interface RescheduleRequest {
-  seasonMatchID: number;
-  newScheduledTime?: string;
-  reason: string;
-}
-
 @Component({
   selector: 'app-reschedule-request',
   standalone: true,
@@ -66,7 +60,7 @@ export class RescheduleRequestComponent {
 
     this.submitting.set(true);
 
-    let newScheduledTime: string | undefined;
+    let newScheduledTime: string | null = null;
     if (this.newDate && this.newTime) {
       const [hours, minutes] = this.newTime.split(':').map(Number);
       const dateTime = new Date(this.newDate);
@@ -74,15 +68,13 @@ export class RescheduleRequestComponent {
       newScheduledTime = dateTime.toISOString();
     }
 
-    const request: RescheduleRequest = {
+    const request: RescheduleRequestDto = {
       seasonMatchID: this.seasonMatchID(),
       newScheduledTime,
       reason: this.reason.trim()
     };
 
-    // newScheduledTime is undefined (never null) when none was picked, like the old body: a field
-    // JSON.stringify drops, same as the explicit null the generated model's type calls for.
-    this.rescheduleService.requestReschedule({ seasonMatchID: request.seasonMatchID, body: request as unknown as RescheduleRequestDto })
+    this.rescheduleService.requestReschedule({ seasonMatchID: request.seasonMatchID, body: request })
     .subscribe({
       next: () => {
         this.snackBar.open('Reschedule request submitted successfully!', 'Close', { duration: 5000 });

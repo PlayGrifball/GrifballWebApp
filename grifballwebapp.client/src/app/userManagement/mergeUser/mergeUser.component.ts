@@ -82,7 +82,7 @@ export class MergeUserComponent {
   }
 
   submit() {
-    const dto = {
+    const dto: MergeRequest = {
       mergeToId: this.mergeToId(),
       mergeFromId: this.mergeFromId(),
       mergeOptions: {
@@ -93,14 +93,19 @@ export class MergeUserComponent {
         transferExperiences: this.transferExperiences(),
         transferSignups: this.transferSignups(),
         deleteMergeFrom: this.deleteMergeFrom(),
+        // Not on the form: the server's defaults
+        transferSeasonStats: true,
+        transferChampionships: true,
+        reason: null,
+        // The server records the merge as a manual one by whoever is signed in, whatever is sent
+        trigger: 'Manual',
+        triggeredByUserID: null,
       },
     };
 
     this.submitting.set(true);
     this.result.set(null);
-    // The generated MergeOptions model also has reason/transferChampionships/transferSeasonStats/trigger/
-    // triggeredByUserID: fields this form doesn't collect yet. Casting keeps the request exactly as it was.
-    this.userManagement.mergeUser({ body: dto as unknown as MergeRequest }).subscribe({
+    this.userManagement.mergeUser({ body: dto }).subscribe({
       next: () => {
         console.log('Merged user');
         this.submitting.set(false);

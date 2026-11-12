@@ -7,6 +7,7 @@ import { DateTime } from 'luxon';
 import { provideRouter } from '@angular/router';
 import { SeasonAvailabilityComponent } from './seasonAvailability.component';
 import { AvailabilityOption } from './seasonAvailability.component';
+import type { DayOfWeek } from '@api/models';
 
 describe('SeasonAvailabilityComponent', () => {
   let fixture: ComponentFixture<SeasonAvailabilityComponent>;
@@ -14,7 +15,7 @@ describe('SeasonAvailabilityComponent', () => {
   let http: HttpTestingController;
   let snackBar: jasmine.SpyObj<MatSnackBar>;
 
-  const option = (dayOfWeek: string, time: string): AvailabilityOption => Object.assign(new AvailabilityOption(), { dayOfWeek, time });
+  const option = (dayOfWeek: DayOfWeek | '', time: string): AvailabilityOption => Object.assign(new AvailabilityOption(), { dayOfWeek, time });
 
   beforeEach(async () => {
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
@@ -108,7 +109,7 @@ describe('SeasonAvailabilityComponent', () => {
 
     const req = http.expectOne('/api/seasons/14/availability');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ seasonID: 14, timeslots: [option('Monday', '19:00:00')] });
+    expect(req.request.body).toEqual({ seasonID: 14, timeslots: [{ dayOfWeek: 'Monday', time: '19:00:00' }] });
     req.flush({});
     expect(snackBar.open).toHaveBeenCalledWith('Saved');
   });

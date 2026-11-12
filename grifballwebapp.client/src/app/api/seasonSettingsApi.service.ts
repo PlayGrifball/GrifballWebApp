@@ -32,7 +32,23 @@ export class SeasonSettingsApiService {
   }
 
   upsertSeason(seasonDto: SeasonSettings): Observable<number> {
-    // SeasonSettings' dates are Luxon DateTimes, which serialize to the API's ISO strings (DateTime.toJSON).
-    return this.api.upsertSeason({ body: seasonDto as unknown as SeasonDto });
+    return this.api.upsertSeason({ body: toSeasonDto(seasonDto) });
   }
+}
+
+/**
+ * The settings as the API takes them: each date as ISO 8601 in UTC (the DateTimes' own methods, so Luxon itself is not
+ * imported here).
+ */
+export function toSeasonDto(settings: SeasonSettings): SeasonDto {
+  const iso = (date: SeasonSettings['seasonStart']) => date.toUTC().toISO()!;
+  return {
+    ...settings,
+    publicAt: settings.publicAt ? iso(settings.publicAt) : null,
+    signupsOpen: iso(settings.signupsOpen),
+    signupsClose: iso(settings.signupsClose),
+    draftStart: iso(settings.draftStart),
+    seasonStart: iso(settings.seasonStart),
+    seasonEnd: iso(settings.seasonEnd),
+  };
 }

@@ -187,7 +187,7 @@ describe('ScheduleListComponent behaviour', () => {
 
     const req = http.expectOne('/api/season-matches/5/time');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ seasonMatchID: 5, time });
+    expect(req.request.body).toEqual({ seasonMatchID: 5, time: '2026-02-01T19:00:00.000Z' });
     req.flush({});
 
     http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
@@ -272,7 +272,7 @@ describe('ScheduleListComponent behaviour', () => {
     (fixture.nativeElement as HTMLElement).querySelector('form')!.dispatchEvent(new Event('submit'));
 
     const req = http.expectOne('/api/season-matches/1/time');
-    expect(req.request.body).toEqual({ seasonMatchID: 1, time: picked });
+    expect(req.request.body).toEqual({ seasonMatchID: 1, time: '2026-01-09T20:00:00.000Z' });
     expect(before.time).toBe(original);
     req.flush({});
     http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);

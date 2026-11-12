@@ -70,8 +70,18 @@ describe('SeasonSettingsApiService', () => {
     const req = http.expectOne('/api/seasons/settings');
     expect(req.request.method).toBe('POST');
     expect(req.request.body.seasonName).toBe('New Season');
+    // Dates go as ISO 8601 in UTC
+    expect(req.request.body.seasonStart).toBe(settings.seasonStart.toUTC().toISO());
+    expect(req.request.body.publicAt).toBeNull();
     req.flush(12);
 
     expect(savedID).toBe(12);
+  });
+
+  it('sends a season\'s announcement as ISO 8601 in UTC', () => {
+    const settings = Object.assign(new SeasonSettings(), { seasonID: 3, seasonName: 'S', publicAt: t, signupsOpen: t, signupsClose: t, draftStart: t, seasonStart: t, seasonEnd: t });
+    service.upsertSeason(settings).subscribe();
+
+    expect(http.expectOne('/api/seasons/settings').request.body.publicAt).toBe(t.toUTC().toISO());
   });
 });
