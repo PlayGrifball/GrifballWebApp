@@ -24,6 +24,8 @@ describe('shutdown', () => {
       closeCalls = 0;
       exit.calls.reset();
       flush.calls.reset();
+      // A test may make it hang: each starts with one that sends at once
+      flush.and.callFake(() => Promise.resolve());
       drainThenExit(server, flush, exit, 10_000, (run, ms) => scheduled.push({ run, ms }));
     });
 

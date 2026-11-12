@@ -91,6 +91,8 @@ describe('server telemetry core', () => {
   it('counts a page that fails after rendering (writing it) as failed, not rendered', async () => {
     const { telemetry, spans } = setUp();
     const req = request('/season/12') as ServerRequest & { headers: { cookie?: string; traceparent?: string } };
+    // As server.ts has it: the request middleware first, which traces the page
+    telemetry.requests(req, response(), () => undefined);
     let sentClientPage!: () => void;
     const sent = new Promise<void>(resolve => sentClientPage = resolve);
 
