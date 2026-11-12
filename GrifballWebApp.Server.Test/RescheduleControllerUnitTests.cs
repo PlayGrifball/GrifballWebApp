@@ -5,17 +5,21 @@ using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using System.Reflection;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Application.Outbox;
 using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Server.Test;
 
-/// <summary>RescheduleControllerTests's unit tests: no database, host, file or network. Its other tests stay in
-/// GrifballWebApp.Integration.Test.</summary>
+/// <summary>RescheduleControllerTests's unit tests: a real GrifballContext (temp-file SQLite, #402) for
+/// RescheduleService, which needs nothing else (IOutbox substituted, never reached by these "not found" cases).
+/// Its other tests stay in GrifballWebApp.Integration.Test.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class RescheduleControllerUnitTests
+public class RescheduleControllerUnitTests : SqliteGrifballContextFixture
 {
+    private RescheduleController Controller() => new(new RescheduleService(Db, Substitute.For<IOutbox>()));
+
     [Test]
     public void Authorization_IsConfigured()
     {
@@ -29,5 +33,43 @@ public class RescheduleControllerUnitTests
         {
             Assert.That(ControllerTestHelpers.ActionAuthorize(type, name)?.Roles, Is.EqualTo("Commissioner,Sysadmin"), name);
         }
+    }
+
+    [Test]
+    public async Task RequestReschedule_RepliesNotFound_ForANonExistentMatch()
+    {
+        var controller = Controller().WithUser("5");
+
+        var result = await controller.RequestReschedule(999, new RescheduleRequestDto { Reason = "Can't make it" }, CancellationToken.None);
+
+        result.AssertProblem(StatusCodes.Status404NotFound, "Season match not found");
+    }
+
+    [Test]
+    public async Task ProcessReschedule_RepliesNotFound_ForANonExistentRequest()
+    {
+        var controller = Controller().WithUser("5");
+
+        var result = await controller.ProcessReschedule(999, new ProcessRescheduleDto { Approved = true }, CancellationToken.None);
+
+        result.AssertProblem(StatusCodes.Status404NotFound, "Reschedule request not found");
+    }
+
+    [Test]
+    public async Task CreateDiscordThread_RepliesNotFound_ForANonExistentRequest()
+    {
+        var controller = Controller().WithUser("5");
+
+        var result = await controller.CreateDiscordThread(999, CancellationToken.None);
+
+        result.AssertProblem(StatusCodes.Status404NotFound, "Reschedule request not found");
+    }
+
+    [Test]
+    public async Task GetPendingReschedules_ReturnsNone_WhenThereAreNoReschedules()
+    {
+        var result = await Controller().GetPendingReschedules(CancellationToken.None);
+
+        Assert.That(result, Is.Empty);
     }
 }
