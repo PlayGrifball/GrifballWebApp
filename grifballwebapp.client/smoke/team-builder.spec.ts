@@ -32,11 +32,20 @@ async function draft(page: Page): Promise<{ titles: string[]; rosters: string[][
   return { titles: await titles(page), rosters, pool: await pool(page) };
 }
 
+/**
+ * Resolves once the page's Teams hub is connected: the server's answer to SignalR's handshake ("{}" and the record
+ * separator) on the hub's WebSocket. The app logs nothing when it connects.
+ */
+async function hubConnected(page: Page, timeout: number): Promise<void> {
+  const socket = await page.waitForEvent('websocket', { predicate: ws => /\/hub\/TeamsHub/i.test(ws.url()), timeout });
+  await socket.waitForEvent('framereceived', { predicate: frame => frame.payload === '{}\u001e', timeout });
+}
+
 /** Opens the team builder; `hub: false` for a page whose Teams hub is cut off on purpose. */
 async function openTeamBuilder(page: Page, league: League, { hub = true } = {}): Promise<void> {
   // Changes reach the other browser over the Teams hub: one made before its connection is up is
   // never sent to it (seen in CI: the first drop came 0.6 s before the other page connected).
-  const connected = hub && page.waitForEvent('console', { predicate: m => m.text() === 'Connection started', timeout: 30_000 });
+  const connected = hub && hubConnected(page, 30_000);
   await page.goto(`/season/${league.seasonID}/draft`);
   await expect(teamCard(page, teamName(league, 0))).toBeVisible();
   // The last player is never drafted: the pool has loaded.
@@ -73,7 +82,7 @@ test.describe('team builder', () => {
       let release!: () => void;
       const held = new Promise<void>(resolve => release = resolve);
       await b.routeWebSocket(/\/hub\/TeamsHub/, async ws => { await held; ws.connectToServer(); });
-      const bConnected = b.waitForEvent('console', { predicate: m => m.text() === 'Connection started', timeout: 60_000 });
+      const bConnected = hubConnected(b, 60_000);
       await openTeamBuilder(b, league, { hub: false });
       await b.evaluate(() => { (window as unknown as { notReloaded: boolean }).notReloaded = true; });
 
