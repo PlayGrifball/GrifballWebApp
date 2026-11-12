@@ -1,0 +1,69 @@
+using GrifballWebApp.Application;
+using GrifballWebApp.Application.Home;
+using GrifballWebApp.Application.LateLeague;
+using GrifballWebApp.Application.Search;
+using GrifballWebApp.Server.Commands;
+using Microsoft.Extensions.Configuration;
+
+namespace GrifballWebApp.Server.Test;
+
+/// <summary>
+/// BrowseCommandsHandler's unit tests, over the real services that need nothing but a GrifballContext (temp-file SQLite,
+/// #402): HomeEventsService, QuickSearchService, MatchmakingStatsService. Leaderboard and Rank, whose LeaderboardsService
+/// also needs a distributed cache and stats services, stay GrifballWebApp.Integration.Test's.
+/// </summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class BrowseCommandsHandlerUnitTests : SqliteGrifballContextFixture
+{
+    private static UrlService Urls() => new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
+
+    private BrowseCommandsHandler Handler() => new(null!, new MatchmakingStatsService(Db), new HomeEventsService(Db), new QuickSearchService(Db), null!, Urls());
+
+    [Test]
+    public async Task Events_RepliesNothingIsComingUp_ForAnEmptyDatabase()
+    {
+        var discord = new CommandContextRecorder();
+
+        await Handler().Events(discord.Context);
+
+        Assert.That(discord.Embed().Description, Is.EqualTo("Nothing is coming up."));
+    }
+
+    [Test]
+    public async Task Search_RepliesNoneForEveryKind_ForAnEmptyDatabase()
+    {
+        var discord = new CommandContextRecorder();
+
+        await Handler().Search(discord.Context, "winter");
+
+        var fields = discord.Embed().Fields!;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(fields[0].Value, Is.EqualTo("None"));
+            Assert.That(fields[1].Value, Is.EqualTo("None"));
+            Assert.That(fields[2].Value, Is.EqualTo("None"));
+        }
+    }
+
+    [Test]
+    public async Task LateLeagueSeasons_RepliesNoSeasonsYet_ForAnEmptyDatabase()
+    {
+        var discord = new CommandContextRecorder();
+
+        await Handler().LateLeagueSeasons(discord.Context);
+
+        Assert.That(discord.Embed().Description, Is.EqualTo("No Late League seasons yet."));
+    }
+
+    [Test]
+    public async Task LateLeagueSeason_RepliesNoSuchSeason_ForAnEmptyDatabase()
+    {
+        var discord = new CommandContextRecorder();
+
+        await Handler().LateLeagueSeason(discord.Context, null);
+
+        Assert.That(discord.Content(), Is.EqualTo(BrowseCommandsHandler.NoSuchLateLeagueSeason));
+    }
+}

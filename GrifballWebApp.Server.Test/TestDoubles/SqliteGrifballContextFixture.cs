@@ -42,7 +42,9 @@ public abstract class SqliteGrifballContextFixture
     protected async Task<User> AddDiscordOnlyUser(ulong discordUserId, string name = "someone")
     {
         var user = User.Register(name);
-        user.LinkDiscord((long)discordUserId);
+        // The object overload, not the raw ID one: User.DiscordUserID is a foreign key to the Discord row, so both must
+        // be inserted together.
+        user.LinkDiscord(DiscordUser.FromDiscord((long)discordUserId, name));
         Db.Users.Add(user);
         await Db.SaveChangesAsync();
         return user;
@@ -53,7 +55,7 @@ public abstract class SqliteGrifballContextFixture
     protected async Task<User> AddUser(ulong discordUserId, string gamertag, params string[] roles)
     {
         var user = User.Register(gamertag);
-        user.LinkDiscord((long)discordUserId);
+        user.LinkDiscord(DiscordUser.FromDiscord((long)discordUserId, gamertag));
         user.TieToXbox(XboxUser.FromXbox((long)discordUserId, gamertag));
         Db.Users.Add(user);
         await Db.SaveChangesAsync();
