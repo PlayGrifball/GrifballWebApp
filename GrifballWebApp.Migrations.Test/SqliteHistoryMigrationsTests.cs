@@ -2,6 +2,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Migrations.Sqlite;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Domain.Test;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
