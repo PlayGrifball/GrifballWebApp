@@ -16,7 +16,7 @@ export interface PaginationParams {
 export function getPaginationResource<T>(
     // Takes this page's request and returns the generated service call for it. Its rows are the raw,
     // pre-parseRow shape (e.g. a generated model with dates as strings), hence any: parseRow below is
-    // what actually turns them into T, same as the raw JSON httpResource once parsed itself.
+    // what actually turns them into T, same as the raw JSON this used to parse directly.
     request: (params: PaginationParams) => Observable<PaginationResult<any>>,
     paginationFilter: PaginationFilter,
     additionalFilters?: () => Filter[] | undefined,
