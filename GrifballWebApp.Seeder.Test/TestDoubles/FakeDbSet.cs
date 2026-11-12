@@ -57,14 +57,25 @@ internal sealed class FakeAsyncQueryable<T> : EnumerableQuery<T>, IQueryable<T>,
 
     IQueryProvider IQueryable.Provider => _provider;
 
-    public async IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+    public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+        => new Enumerator(((IEnumerable<T>)this).GetEnumerator(), cancellationToken);
+
+    /// <summary>The LINQ to Objects results, one at a time; a cancelled token throws, as EF's own enumerator does.</summary>
+    private sealed class Enumerator(IEnumerator<T> inner, CancellationToken cancellationToken) : IAsyncEnumerator<T>
     {
-        foreach (var item in this.AsEnumerable())
+        public T Current => inner.Current;
+
+        public ValueTask<bool> MoveNextAsync()
         {
             cancellationToken.ThrowIfCancellationRequested();
-            yield return item;
+            return ValueTask.FromResult(inner.MoveNext());
         }
-        await Task.CompletedTask;
+
+        public ValueTask DisposeAsync()
+        {
+            inner.Dispose();
+            return ValueTask.CompletedTask;
+        }
     }
 }
 
