@@ -41,7 +41,7 @@ describe('PlayerGradesComponent', () => {
 
   const page = () => fixture.nativeElement as HTMLElement;
   const empty = { totals: [], perMinutes: [], letters: [] };
-  const grade: LetterDto = { xboxUserID: 1, gamertag: 'Grif', goals: 'A', kdSpread: 'A', punches: 'A', sprees: 'A', doubleKills: 'A',
+  const grade: LetterDto = { xboxUserID: 1, userID: null, gamertag: 'Grif', goals: 'A', kdSpread: 'A', punches: 'A', sprees: 'A', doubleKills: 'A',
     tripleKills: 'A', multiKills: 'A', xFactor: 'A', kills: 'A', gradeAvgMath: 3, gradeAvg: 'A' };
 
   it('says a backfilled season without matches has no grades, with its spreadsheet, and has no table', () => {
@@ -213,7 +213,7 @@ describe('PlayerGradesComponent', () => {
         ],
         letters: [
           {
-            xboxUserID: 1, gamertag: 'Player1',
+            xboxUserID: 1, userID: null, gamertag: 'Player1',
             goals: 'A',
             kdSpread: 'B+',
             punches: 'S',
@@ -231,7 +231,7 @@ describe('PlayerGradesComponent', () => {
 
       component.getGrades();
 
-      const req = httpTestingController.expectOne((request) => 
+      const req = httpTestingController.expectOne((request) =>
         /^\/api\/seasons\/\d+\/grades$/.test(request.url)
       );
       expect(req.request.method).toBe('GET');
@@ -263,7 +263,7 @@ describe('PlayerGradesComponent', () => {
     });
 
     it('should handle multiple players', () => {
-      const grade = (gamertag: string): LetterDto => ({ xboxUserID: 1, gamertag, goals: 'A', kdSpread: 'A', punches: 'A', sprees: 'A',
+      const grade = (gamertag: string): LetterDto => ({ xboxUserID: 1, userID: null, gamertag, goals: 'A', kdSpread: 'A', punches: 'A', sprees: 'A',
         doubleKills: 'A', tripleKills: 'A', multiKills: 'A', xFactor: 'A', kills: 'A', gradeAvgMath: 3, gradeAvg: 'A' });
       const mockGrades: GradesDto = {
         totals: [], perMinutes: [],
@@ -399,7 +399,7 @@ describe('PlayerGradesComponent', () => {
 
     it('should format letterColumn cells correctly', () => {
       const mockData: LetterDto = {
-        xboxUserID: 1, gamertag: 'TestPlayer',
+        xboxUserID: 1, userID: null, gamertag: 'TestPlayer',
         goals: 'A',
         kdSpread: 'B',
         punches: 'S',
@@ -419,7 +419,7 @@ describe('PlayerGradesComponent', () => {
 
     it('should apply colors to letter columns', () => {
       const mockData: LetterDto = {
-        xboxUserID: 1, gamertag: 'TestPlayer',
+        xboxUserID: 1, userID: null, gamertag: 'TestPlayer',
         goals: 'S+',
         kdSpread: 'A',
         punches: 'B',
@@ -454,7 +454,7 @@ describe('PlayerGradesComponent', () => {
           { xboxUserID: 1, gamertag: 'Player1', goalsPM: 0.5, kdSpreadPM: 1.2, punchesPM: 2.1, spreesPM: 0.3, doubleKillsPM: 0.4, tripleKillsPM: 0.1, multiKillsPM: 0.5, xFactorPM: 3.5, killsPM: 5.2 }
         ],
         letters: [
-          { xboxUserID: 1, gamertag: 'Player1', goals: 'A', kdSpread: 'B+', punches: 'S', sprees: 'C', doubleKills: 'B', tripleKills: 'A-', multiKills: 'A+', xFactor: 'S+', kills: 'A', gradeAvgMath: 3.75, gradeAvg: 'A' }
+          { xboxUserID: 1, userID: null, gamertag: 'Player1', goals: 'A', kdSpread: 'B+', punches: 'S', sprees: 'C', doubleKills: 'B', tripleKills: 'A-', multiKills: 'A+', xFactor: 'S+', kills: 'A', gradeAvgMath: 3.75, gradeAvg: 'A' }
         ]
       };
 
@@ -490,7 +490,7 @@ describe('PlayerGradesComponent rendering', () => {
   let http: HttpTestingController;
 
   const letter: LetterDto = {
-    xboxUserID: 1, gamertag: 'Grif',
+    xboxUserID: 1, userID: null, gamertag: 'Grif',
     goals: 'S+', kdSpread: 'A', punches: 'B-', sprees: 'C', doubleKills: 'D+',
     tripleKills: 'E', multiKills: 'F-', xFactor: 'A+', kills: 'S',
     gradeAvgMath: 3, gradeAvg: 'B+'
