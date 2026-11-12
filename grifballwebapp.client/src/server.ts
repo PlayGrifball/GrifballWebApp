@@ -11,6 +11,7 @@
 //                     pod's), gets the page that renders in the browser instead.
 //   OTEL_*, LOG_LEVEL OpenTelemetry and the logs (app/serverTelemetry.ts): each request's span, log line
 //                     and metrics, its trace passed on to the backend.
+//   SHUTDOWN_DELAY_MS how long it keeps serving after SIGTERM (default 10000), then it exits
 import {
   AngularNodeAppEngine,
   createNodeRequestHandler,
@@ -26,6 +27,7 @@ import { loadScriptsAfterFirstPaint } from './app/afterFirstPaint';
 import { isAllowedHost, parseAllowedHosts } from './app/allowedHosts';
 import { apiUrl } from './app/apiUrl';
 import { forLog } from './app/forLog';
+import { redactUrl } from './app/redactUrl';
 import { pageCacheHeaders } from './app/pageCache';
 import { serverTelemetrySettings } from './app/serverTelemetry';
 import { startServerTelemetry } from './server.telemetry';
@@ -147,7 +149,7 @@ app.use((req, res, next) => {
       return writeResponseToNodeResponse(response, res);
     })
     .catch(error => {
-      telemetry.log('error', 'Rendering failed, sending the page that renders in the browser', { path: forLog(req.originalUrl), error });
+      telemetry.log('error', 'Rendering failed, sending the page that renders in the browser', { path: forLog(redactUrl(req.originalUrl)), error });
       sendClientPage(res, next);
     });
 });
@@ -162,10 +164,15 @@ if (isMainModule(import.meta.url)) {
   });
   // SignalR's WebSocket upgrade, for /hub
   server.on('upgrade', proxies[1].upgrade);
-  // Kubernetes is stopping the pod: what telemetry is queued goes out first
+  // Kubernetes is stopping the pod. It keeps serving for SHUTDOWN_DELAY_MS while the ingress stops sending it
+  // requests (the endpoint's removal reaches it after the signal), then lets go of the port, sends the telemetry
+  // that's queued and exits. As PID 1 without this, Node ignored the signal and served until it was killed.
   process.once('SIGTERM', () => {
-    server.close();
-    void telemetry.shutdown().finally(() => process.exit(0));
+    const delay = Number(process.env['SHUTDOWN_DELAY_MS'] ?? 10_000);
+    setTimeout(() => {
+      server.close();
+      void telemetry.shutdown().finally(() => process.exit(0));
+    }, Number.isFinite(delay) && delay > 0 ? delay : 0);
   });
 }
 

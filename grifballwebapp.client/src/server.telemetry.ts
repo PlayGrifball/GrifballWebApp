@@ -42,6 +42,7 @@ import {
   serverTimingHeader,
   spanName,
 } from './app/serverTelemetry';
+import { redactUrl } from './app/redactUrl';
 
 const SCOPE = 'grifballwebapp.client';
 
@@ -144,6 +145,7 @@ export function startServerTelemetry(settings: ServerTelemetrySettings): ServerT
           'http.request.method': req.method,
           'http.route': routeOf(kind),
           'url.path': req.path,
+          'url.query': redactUrl(req.originalUrl).split('?')[1],
           'url.scheme': req.protocol,
           'user_agent.original': userAgent,
         },
@@ -202,7 +204,7 @@ export function startServerTelemetry(settings: ServerTelemetrySettings): ServerT
 
   async function render<T>(req: IncomingMessage, run: (traceparent: string) => Promise<T>, outcome: (result: T) => RenderOutcome): Promise<T> {
     const start = performance.now();
-    const span = tracer.startSpan('render', { attributes: { 'url.path': req.url } }, contextOf(req));
+    const span = tracer.startSpan('render', { attributes: { 'url.path': redactUrl(req.url).split('?')[0] } }, contextOf(req));
     const { traceId, spanId, traceFlags } = span.spanContext();
     const done = (how: RenderOutcome, error?: unknown) => {
       renderDuration.record((performance.now() - start) / 1000, { outcome: how });

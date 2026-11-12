@@ -37,7 +37,8 @@ backend.on('upgrade', (req, socket) => {
 backend.listen(apiPort, '127.0.0.1', () => {
   // It prints "Serving on ..." once it listens (lighthouserc.cjs waits for that).
   const server = spawn(process.execPath, [serverEntry], {
-    env: { ...process.env, PORT: String(port), API_URL: `http://127.0.0.1:${apiPort}` },
+    // SHUTDOWN_DELAY_MS 0: a test run stops it at once, with no ingress to wait for
+    env: { ...process.env, PORT: String(port), API_URL: `http://127.0.0.1:${apiPort}`, SHUTDOWN_DELAY_MS: '0' },
     stdio: 'inherit',
   });
   server.on('exit', code => process.exit(code ?? 1));

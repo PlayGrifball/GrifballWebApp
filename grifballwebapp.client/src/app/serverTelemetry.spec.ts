@@ -109,6 +109,10 @@ describe('server telemetry', () => {
       expect(requestKind('/media/rajdhani.woff2')).toBe('file');
       expect(requestKind('/')).toBe('page');
       expect(requestKind('/season/12')).toBe('page');
+      expect(requestKind('/players/john.doe')).toBe('page');
+      expect(requestKind('/favicon.ico')).toBe('file');
+      expect(requestKind('/robots.txt')).toBe('file');
+      expect(requestKind('/build-manifest.JSON')).toBe('file');
     });
 
     it('traces neither the build\'s files nor probes', () => {

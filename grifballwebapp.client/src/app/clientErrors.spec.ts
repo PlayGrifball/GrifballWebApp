@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ErrorHandler, PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { appConfig } from './app.config';
+import { redactUrl } from './redactUrl';
 import {
   CLIENT_ERRORS_URL,
   ClientErrorReport,
@@ -15,7 +16,8 @@ import {
   describeError,
   isReportedFailure,
   pageTraceparent,
-  pathOf,
+  isCancelledByBrowser,
+  reportedUrl,
   validTraceparent,
 } from './clientErrors';
 
@@ -52,11 +54,20 @@ describe('client errors', () => {
     });
   });
 
-  it('keeps a URL\'s path and drops its query', () => {
-    expect(pathOf('https://grifball.xyz/api/Identity/Reset?token=secret', 'https://grifball.xyz/')).toBe('/api/Identity/Reset');
-    expect(pathOf('/api/Teams?x=1', 'https://grifball.xyz/')).toBe('/api/Teams');
-    expect(pathOf(null, 'https://grifball.xyz/')).toBe('');
-    expect(pathOf('http://[bad', 'https://grifball.xyz/')).toBe('');
+  it('reports a URL\'s path and query, its sensitive values redacted', () => {
+    expect(reportedUrl('https://grifball.xyz/api/Identity/Reset?token=secret&page=2', 'https://grifball.xyz/')).toBe('/api/Identity/Reset?token=REDACTED&page=2');
+    expect(reportedUrl('/api/Teams?x=1', 'https://grifball.xyz/')).toBe('/api/Teams?x=1');
+    expect(reportedUrl(null, 'https://grifball.xyz/')).toBe('');
+    expect(reportedUrl('/' + 'a'.repeat(400), 'https://grifball.xyz/').length).toBe(300);
+  });
+
+  it('takes a call with no answer for the browser\'s doing while the page goes away or hides, or offline', () => {
+    const visible = { visibilityState: 'visible' } as Document;
+    const online = { onLine: true } as Navigator;
+    expect(isCancelledByBrowser(false, visible, online)).toBeFalse();
+    expect(isCancelledByBrowser(true, visible, online)).toBeTrue();
+    expect(isCancelledByBrowser(false, { visibilityState: 'hidden' } as Document, online)).toBeTrue();
+    expect(isCancelledByBrowser(false, visible, { onLine: false } as Navigator)).toBeTrue();
   });
 
   it('describes whatever was thrown', () => {
@@ -100,28 +111,50 @@ describe('client errors', () => {
       const report = sent()[0];
       expect(report.kind).toBe('error');
       expect(report.message).toBe('Error: boom');
-      expect(report.page).toBe(location.pathname);
+      expect(report.page).toBe(redactUrl(location.href));
       expect(report.stack).toContain('boom');
     });
 
-    it('sends a failed call with its method, path, status and trace', () => {
+    it('sends a failed call with its method, URL, status and trace, the URL\'s token redacted everywhere', () => {
       reporter().reportCall('GET', new HttpErrorResponse({
-        status: 502, statusText: 'Bad Gateway', url: 'https://grifball.xyz/api/Teams?token=x',
+        status: 502, statusText: 'Bad Gateway', url: 'https://grifball.xyz/api/Teams?token=s3cret&season=4',
         headers: new HttpHeaders({ traceresponse: CALL_TRACEPARENT }),
       }));
 
-      expect(sent()[0]).toEqual(jasmine.objectContaining({
-        kind: 'http', method: 'GET', url: '/api/Teams', status: 502, traceparent: CALL_TRACEPARENT,
+      const report = sent()[0];
+      expect(report).toEqual(jasmine.objectContaining({
+        kind: 'http', method: 'GET', url: '/api/Teams?token=REDACTED&season=4', status: 502, traceparent: CALL_TRACEPARENT,
       }));
+      expect(report.message).toBe('Http failure response for /api/Teams?token=REDACTED&season=4: 502 Bad Gateway');
+      expect(JSON.stringify(report)).not.toContain('s3cret');
+    });
+
+    it('leaves out a call with no answer once the page is going away', () => {
+      const r = reporter();
+      dispatchEvent(new Event('pagehide'));
+
+      r.reportCall('GET', new HttpErrorResponse({ status: 0, url: '/api/Teams' }));
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('leaves out a call with no answer while offline, and still sends a 5xx', () => {
+      spyOnProperty(Navigator.prototype, 'onLine', 'get').and.returnValue(false);
+      const r = reporter();
+
+      r.reportCall('GET', new HttpErrorResponse({ status: 0, url: '/api/Teams' }));
+      r.reportCall('GET', new HttpErrorResponse({ status: 503, url: '/api/Teams' }));
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(sent()[0].status).toBe(503);
     });
 
     it('falls back to the page\'s trace for a call that brought none back', () => {
       spyOn(performance, 'getEntriesByType').and.returnValue([{ serverTiming: [{ name: 'traceparent', description: TRACEPARENT }] }] as unknown as PerformanceEntryList);
 
-      reporter().reportCall('GET', new HttpErrorResponse({ status: 0, url: '/api/Teams' }));
+      reporter().reportCall('GET', new HttpErrorResponse({ status: 503, url: '/api/Teams' }));
 
       expect(sent()[0].traceparent).toBe(TRACEPARENT);
-      expect(sent()[0].status).toBe(0);
     });
 
     it('sends each error once', () => {
@@ -160,8 +193,10 @@ describe('client errors', () => {
       await expectAsync(fetchSpy.calls.mostRecent().returnValue).toBeRejected();
     });
 
-    it('sends nothing on the server', () => {
-      reporter('server').reportError(new Error('boom'));
+    it('sends nothing on the server, and reads none of the browser\'s globals there', () => {
+      const r = reporter('server');
+      r.reportError(new Error('boom'));
+      r.reportCall('GET', new HttpErrorResponse({ status: 504, url: 'http://backend/Teams' }));
 
       expect(fetchSpy).not.toHaveBeenCalled();
     });

@@ -2,6 +2,7 @@ import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { ErrorHandler, Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { catchError, throwError } from 'rxjs';
+import { redactUrl, redactUrlIn } from './redactUrl';
 
 /**
  * The browser's error reports: unhandled errors and failed API calls, sent to the API (POST /api/client-errors,
@@ -49,15 +50,9 @@ export function callTraceparent(error: HttpErrorResponse): string | undefined {
     ?? validTraceparent((error.error as { traceId?: unknown } | null)?.traceId);
 }
 
-/** A URL's path alone: a query string can carry tokens (password resets, sign-in callbacks). */
-export function pathOf(url: string | null | undefined, base: string): string {
-  if (!url)
-    return '';
-  try {
-    return new URL(url, base).pathname.slice(0, MAX_PATH);
-  } catch {
-    return '';
-  }
+/** A URL as a report carries it: its path and query, the query's sensitive values redacted (redactUrl.ts). */
+export function reportedUrl(url: string | null | undefined, base: string): string {
+  return redactUrl(url, base).slice(0, MAX_PATH);
 }
 
 /** An error's message and stack, whatever was thrown. */
@@ -78,39 +73,62 @@ export function isReportedFailure(error: HttpErrorResponse): boolean {
   return error.status === 0 || error.status >= 500;
 }
 
+/**
+ * Whether a call with no answer (status 0) is the browser's doing rather than the server's: the page is going
+ * away or hidden (a reload or a link out cancels what is in flight), or the browser is offline.
+ */
+export function isCancelledByBrowser(leaving: boolean, doc: Pick<Document, 'visibilityState'>, nav: Pick<Navigator, 'onLine'>): boolean {
+  return leaving || doc.visibilityState === 'hidden' || !nav.onLine;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ClientErrorReporter {
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private off = false;
   private sent = 0;
   private readonly seen = new Set<string>();
+  private leaving = false;
+
+  constructor() {
+    if (this.browser)
+      addEventListener('pagehide', () => this.leaving = true);
+  }
 
   /** An unhandled error, in the page's trace. */
   reportError(error: unknown): void {
+    if (!this.canSend())
+      return;
     this.send({ kind: 'error', ...describeError(error), page: this.page(), traceparent: pageTraceparent() });
   }
 
-  /** A failed API call, in its own trace (or the page's). */
+  /** A failed API call, in its own trace (or the page's). The URL's sensitive query values are redacted, in its message too. */
   reportCall(method: string, error: HttpErrorResponse): void {
+    if (!this.canSend() || (error.status === 0 && isCancelledByBrowser(this.leaving, document, navigator)))
+      return;
     this.send({
       kind: 'http',
-      message: error.message.slice(0, MAX_MESSAGE),
+      message: redactUrlIn(error.message, error.url, location.href).slice(0, MAX_MESSAGE),
       page: this.page(),
       traceparent: callTraceparent(error) ?? pageTraceparent(),
       method,
-      url: pathOf(error.url, location.href),
+      url: reportedUrl(error.url, location.href),
       status: error.status,
     });
   }
 
+  /**
+   * Checked before anything reads the browser's globals (location, document): on the server there are none.
+   * navigator.webdriver: a browser under automation (Playwright, Lighthouse).
+   */
+  private canSend(): boolean {
+    return this.browser && !navigator.webdriver && !this.off && this.sent < MAX_REPORTS;
+  }
+
   private page(): string {
-    return location.pathname.slice(0, MAX_PATH);
+    return reportedUrl(location.href, location.href);
   }
 
   private send(report: ClientErrorReport): void {
-    // navigator.webdriver: a browser under automation (Playwright, Lighthouse)
-    if (!this.browser || navigator.webdriver || this.off || this.sent >= MAX_REPORTS)
-      return;
     const key = `${report.kind}|${report.message}|${report.url ?? ''}|${report.page}`;
     if (this.seen.has(key))
       return;

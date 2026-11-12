@@ -118,9 +118,13 @@ export function requestKind(path: string): RequestKind {
     return 'hub';
   if (path === '/signin-discord' || path.startsWith('/signin-discord/'))
     return 'signin';
-  // A file name's extension in the last segment: main-<hash>.js, media/x.woff2, favicon.ico
-  return /\.[A-Za-z0-9]{1,8}$/.test(path) ? 'file' : 'page';
+  // One of the build's kinds of file (main-<hash>.js, media/x.woff2, favicon.ico), not just any dot: a
+  // page's path can have one (a name in it)
+  return FILE_EXTENSION.test(path) ? 'file' : 'page';
 }
+
+/** The extensions of what the build and src/assets serve. */
+export const FILE_EXTENSION = /\.(js|mjs|css|map|html|ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|otf|txt|xml|json|webmanifest)$/i;
 
 /** Kubernetes' probes: every few seconds on every pod, never traced or logged. */
 export function isProbe(userAgent: string | undefined): boolean {
