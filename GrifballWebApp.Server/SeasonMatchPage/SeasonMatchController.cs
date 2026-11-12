@@ -24,6 +24,7 @@ public class SeasonMatchController : ControllerBase
         _seasonMatchService = seasonMatchService;
     }
 
+    /// <summary>A season match's page: its games, results and whether the signed-in user may ask to reschedule it.</summary>
     [AllowAnonymous]
     [HttpGet("season-matches/{seasonMatchID:int}", Name = "GetSeasonMatchPage")]
     [ProducesResponseType<SeasonMatchPageDto>(StatusCodes.Status200OK)]
@@ -50,6 +51,7 @@ public class SeasonMatchController : ControllerBase
         return await Run(() => _seasonMatchService.ReportMatch(seasonMatchID, matchID, replaces, ct));
     }
 
+    /// <summary>Forfeits the match for the home team. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("season-matches/{seasonMatchID:int}/forfeit/home", Name = "HomeForfeit")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -61,6 +63,7 @@ public class SeasonMatchController : ControllerBase
         return Run(() => _seasonMatchService.HomeForfeit(seasonMatchID, ct));
     }
 
+    /// <summary>Forfeits the match for the away team. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("season-matches/{seasonMatchID:int}/forfeit/away", Name = "AwayForfeit")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -72,6 +75,7 @@ public class SeasonMatchController : ControllerBase
         return Run(() => _seasonMatchService.AwayForfeit(seasonMatchID, ct));
     }
 
+    /// <summary>Forfeits the match for both teams. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("season-matches/{seasonMatchID:int}/forfeit/double", Name = "DoubleForfeit")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -83,6 +87,7 @@ public class SeasonMatchController : ControllerBase
         return Run(() => _seasonMatchService.DoubleForfeit(seasonMatchID, ct));
     }
 
+    /// <summary>Undoes a match's recorded result (a forfeit or a finished series), leaving it to be decided again. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("season-matches/{seasonMatchID:int}/result/undo", Name = "UndoResult")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -114,6 +119,7 @@ public class SeasonMatchController : ControllerBase
         }
     }
 
+    /// <summary>Edits a game entered by hand. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("season-matches/{seasonMatchID:int}/manual-games/{recordedGameID:int}", Name = "EditManualGame")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -125,6 +131,7 @@ public class SeasonMatchController : ControllerBase
         return Run(() => _seasonMatchService.EditManualGame(seasonMatchID, recordedGameID, dto, ct));
     }
 
+    /// <summary>Removes a game from the series. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("season-matches/{seasonMatchID:int}/games/{seriesGameID:int}/remove", Name = "RemoveGame")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
