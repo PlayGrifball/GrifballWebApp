@@ -164,7 +164,8 @@ jobs:
         path: grifballwebapp.client/lighthouse-*/
         retention-days: 30
 
-  # The shards' tables merged into one per session and preset, on the run's summary page
+  # The shards' tables merged into one per session and preset, on the run's summary page and, for a run on a PR's
+  # branch, in a comment on the PR (its own, updated in place by later runs)
   summary:
     name: Lighthouse summary
     needs: lighthouse
@@ -173,6 +174,8 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
+      # The comment
+      pull-requests: write
 
     steps:
     # For e2e/lighthouse-merge.mjs
@@ -202,4 +205,35 @@ jobs:
           # shellcheck disable=SC2086 # one path per shard job, without spaces
           node grifballwebapp.client/e2e/lighthouse-merge.mjs $files
           echo
-        done >> "$GITHUB_STEP_SUMMARY"
+        done > scores.md
+        cat scores.md >> "$GITHUB_STEP_SUMMARY"
+
+    # A run started by hand knows its branch, not its PR: the open PR from that branch, if there is one
+    - name: Comment on the PR
+      if: github.ref != 'refs/heads/master'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        BRANCH: ${{ github.ref_name }}
+        SHA: ${{ github.sha }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        set -euo pipefail
+        pr=$(gh pr list -R "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+        [ -n "$pr" ] || { echo "No open PR from $BRANCH: no comment"; exit 0; }
+        marker='<!-- lighthouse-scores -->'
+        body="$marker
+        ### Lighthouse
+
+        As of $SHA ([the run]($RUN_URL)):
+
+        $(cat scores.md 2>/dev/null || true)"
+        [ -s scores.md ] || body="$body
+        _No scores: see the Lighthouse jobs._"
+        existing=$(gh api "repos/$REPO/issues/$pr/comments" --paginate \
+          --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\")))][0].id // empty" | head -n1)
+        if [ -n "$existing" ]; then
+          gh api -X PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" > /dev/null
+        else
+          gh pr comment "$pr" -R "$REPO" --body "$body"
+        fi
