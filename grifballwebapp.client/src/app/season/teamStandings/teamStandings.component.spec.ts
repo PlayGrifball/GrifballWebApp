@@ -40,7 +40,7 @@ describe('TeamStandingsComponent', () => {
 
   it('renders one row per team', () => {
     fixture.detectChanges();
-    http.expectOne('api/seasons/2/standings').flush([
+    http.expectOne('/api/seasons/2/standings').flush([
       { teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 },
       { teamID: 11, teamName: 'Bravo', wins: 2, losses: 3 },
     ]);
@@ -56,7 +56,7 @@ describe('TeamStandingsComponent', () => {
 
   it("says the records are the source spreadsheet's when they are", () => {
     fixture.detectChanges();
-    http.expectOne('api/seasons/2/standings').flush([
+    http.expectOne('/api/seasons/2/standings').flush([
       { teamID: 10, teamName: 'Alpha', wins: 9, losses: 1, recordFromSource: true },
     ]);
     fixture.detectChanges();
@@ -66,7 +66,7 @@ describe('TeamStandingsComponent', () => {
 
   it('has no note for records from matches', () => {
     fixture.detectChanges();
-    http.expectOne('api/seasons/2/standings').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
+    http.expectOne('/api/seasons/2/standings').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Records from the source spreadsheet');
   });
@@ -77,7 +77,7 @@ describe('TeamStandingsComponent', () => {
     // Not "no standings" while they load
     expect(fixture.componentInstance.loaded()).toBeFalse();
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('No standings yet.');
-    http.expectOne('api/seasons/2/standings').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/seasons/2/standings').flush('x', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     expect(log).toHaveBeenCalled();
@@ -87,7 +87,7 @@ describe('TeamStandingsComponent', () => {
 
   it("replaces the standings with the new season's when the season changes", () => {
     fixture.detectChanges();
-    http.expectOne('api/seasons/2/standings').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
+    http.expectOne('/api/seasons/2/standings').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
     fixture.detectChanges();
 
     fixture.componentRef.setInput('seasonID', 3);
@@ -96,18 +96,18 @@ describe('TeamStandingsComponent', () => {
     expect(rows()).toEqual([]);
     expect(fixture.componentInstance.loaded()).toBeFalse();
 
-    http.expectOne('api/seasons/3/standings').flush([{ teamID: 20, teamName: 'Charlie', wins: 1, losses: 0 }]);
+    http.expectOne('/api/seasons/3/standings').flush([{ teamID: 20, teamName: 'Charlie', wins: 1, losses: 0 }]);
     fixture.detectChanges();
     expect(rows()).toEqual([['1', 'Charlie', '1', '0']]);
   });
 
   it("drops the previous season's standings when they arrive late", () => {
     fixture.detectChanges();
-    const late = http.expectOne('api/seasons/2/standings');
+    const late = http.expectOne('/api/seasons/2/standings');
     fixture.componentRef.setInput('seasonID', 3);
     fixture.detectChanges();
 
-    http.expectOne('api/seasons/3/standings').flush([{ teamID: 20, teamName: 'Charlie', wins: 1, losses: 0 }]);
+    http.expectOne('/api/seasons/3/standings').flush([{ teamID: 20, teamName: 'Charlie', wins: 1, losses: 0 }]);
     late.flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
     fixture.detectChanges();
 
@@ -116,7 +116,7 @@ describe('TeamStandingsComponent', () => {
 
   it('renders the standings once they arrive, without a manual detectChanges', async () => {
     await fixture.whenStable();
-    http.expectOne('api/seasons/2/standings').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
+    http.expectOne('/api/seasons/2/standings').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
     await fixture.whenStable();
 
     expect(rows()).toEqual([['1', 'Alpha', '4', '1']]);
@@ -134,7 +134,7 @@ describe('TeamStandingsComponent links', () => {
     });
     const harness = await RouterTestingHarness.create();
     await harness.navigateByUrl('/season/2', TeamStandingsComponent);
-    TestBed.inject(HttpTestingController).expectOne('api/seasons/2/standings')
+    TestBed.inject(HttpTestingController).expectOne('/api/seasons/2/standings')
       .flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
     harness.detectChanges();
 

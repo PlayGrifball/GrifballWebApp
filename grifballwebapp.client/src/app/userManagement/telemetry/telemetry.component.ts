@@ -103,7 +103,7 @@ export class TelemetryComponent implements OnInit {
   readonly limit = signal(200);
   readonly logs = rxResource({
     params: () => this.tab() === 'logs' && this.status.hasValue() && this.status.value().logs
-      ? { minutes: this.minutes(), level: this.pickedLevels(), search: this.search(), traceId: this.traceFilter(), limit: this.limit() }
+      ? { minutes: this.minutes(), level: this.pickedLevels(), search: this.search().trim() || undefined, traceId: this.traceFilter().trim() || undefined, limit: this.limit() }
       : undefined,
     stream: ({ params }) => this.api.getTelemetryLogs(params),
   });

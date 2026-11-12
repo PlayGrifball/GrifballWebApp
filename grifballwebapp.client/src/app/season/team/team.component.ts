@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, input, signal, WritableSignal, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -7,6 +6,7 @@ import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { RouterModule } from '@angular/router';
 import { DateTime } from 'luxon';
 import { map, Observable } from 'rxjs';
+import { TeamService } from '@api/services';
 import { fromApiDate } from '../../shared/apiDates';
 import { nullWhenNotFound } from '../../api/nullWhenNotFound';
 
@@ -36,7 +36,7 @@ import { SeasonInfoDto } from '@api/models';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamComponent {
-  private http = inject(HttpClient);
+  private api = inject(TeamService);
 
 
   teamID = input.required<number>();
@@ -74,13 +74,13 @@ export class TeamComponent {
   }
 
   getTeam(): Observable<TeamDto | null> {
-    return this.http.get<TeamDto>(`/api/teams/${this.teamID()}`).pipe(nullWhenNotFound());
+    return (this.api.team({ teamID: this.teamID() }) as Observable<TeamDto>).pipe(nullWhenNotFound());
   }
 
   getMatches(): Observable<MatchDto[]> {
-    return this.http.get<unknown[]>(`/api/teams/${this.teamID()}/matches`)
+    return this.api.matches({ teamID: this.teamID() })
       .pipe(map(matches => matches.map(parseTeamMatch)));
-  } 
+  }
 }
 
 export interface TeamDto
