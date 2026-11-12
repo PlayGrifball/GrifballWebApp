@@ -70,6 +70,8 @@ public class GlobalExceptionHandlerTests
         yield return new TestCaseData(new GrifballWebApp.Application.Historical.GamertagClaimException("There is no claim 7"), 400, "There is no claim 7").SetName("GamertagClaimException_Is400");
         yield return new TestCaseData(new GrifballWebApp.Application.Historical.GamertagClaimConflictException("Changed"), 409, "Changed").SetName("GamertagClaimConflictException_Is409");
         yield return new TestCaseData(new GrifballWebApp.Application.EventOrganizer.SeasonRefusedException("Name taken", 409), 409, "Name taken").SetName("SeasonRefusedException_KeepsItsStatus");
+        // Review finding 9 (#390): the match page's refusals, which Discord replies with too
+        yield return new TestCaseData(new GrifballWebApp.Application.SeasonMatchPage.SeasonMatchActionNotAllowedException("This match has no result to undo"), 400, "This match has no result to undo").SetName("SeasonMatchActionNotAllowedException_Is400");
         yield return new TestCaseData(new GrifballWebApp.Application.EventOrganizer.SeasonRefusedException("Read only"), 400, "Read only").SetName("SeasonRefusedException_Is400ByDefault");
         yield return new TestCaseData(new GrifballWebApp.Application.Profile.UserNotFoundException(7), 404, "Did not find user 7").SetName("UserNotFoundException_Is404");
         yield return new TestCaseData(new GrifballWebApp.Application.Reschedule.RescheduleNotAllowedException("This match already has a result."), 400, "This match already has a result.").SetName("RescheduleNotAllowedException_Is400");

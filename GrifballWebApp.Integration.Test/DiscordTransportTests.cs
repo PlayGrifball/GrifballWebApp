@@ -496,4 +496,34 @@ public class DiscordTransportTests
             Assert.That(requests[0].Data.GetProperty("choices").GetArrayLength(), Is.Positive, path);
         }
     }
+
+    /// <summary>Review finding 2 (#390): /signup with one option changed keeps the ones left out, as Discord leaves them out.</summary>
+    [Test]
+    public async Task SlashCommand_Signup_KeepsWhatItWasNotGiven()
+    {
+        var player = await LinkedUser(6301, "SignupKeeper");
+        var season = await _host.WithContextAsync(async context =>
+        {
+            var role = await context.Roles.SingleAsync(r => r.Name == "Player");
+            context.UserRoles.Add(new UserRole { UserId = player.Id, RoleId = role.Id });
+            var now = DateTime.UtcNow;
+            var open = Season.Seed(seasonName: "Transport Signups").WithDates(signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(6),
+                seasonStart: now.AddDays(7), seasonEnd: now.AddDays(40));
+            context.Seasons.Add(open);
+            await context.SaveChangesAsync();
+            return open;
+        });
+        var id = season.SeasonID.ToString();
+
+        await _host.SendAsync(DiscordInteractionJson.SubCommand("signup", 6301, ("season", id), ("team_name", "Bombers"), ("will_captain", "true")));
+        await _host.SendAsync(DiscordInteractionJson.SubCommand("signup", 6301, ("season", id), ("draft_help", "true")));
+
+        var signup = await _host.WithContextAsync(context => context.SeasonSignups.AsNoTracking().SingleAsync(x => x.SeasonID == season.SeasonID && x.UserID == player.Id));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(signup.TeamName, Is.EqualTo("Bombers"));
+            Assert.That(signup.WillCaptain, Is.True);
+            Assert.That(signup.RequiresAssistanceDrafting, Is.True);
+        }
+    }
 }
