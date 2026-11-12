@@ -120,8 +120,8 @@ describe('HomeComponent', () => {
 
       const req = httpTestingController.expectOne((request) => 
         request.url === '/api/seasons' &&
-        request.params.get('pageSize') === '10' &&
-        request.params.get('pageNumber') === '1'
+        request.params.get('PageSize') === '10' &&
+        request.params.get('PageNumber') === '1'
       );
       expect(req.request.method).toBe('GET');
       req.flush(mockResult);
@@ -141,8 +141,8 @@ describe('HomeComponent', () => {
 
       const req = httpTestingController.expectOne((request) => 
         request.url === '/api/seasons' &&
-        request.params.get('sortDirection') === 'asc' &&
-        request.params.get('sortColumn') === 'seasonName'
+        request.params.get('SortDirection') === 'asc' &&
+        request.params.get('SortColumn') === 'seasonName'
       );
       expect(req.request.method).toBe('GET');
       req.flush(mockResult);
@@ -165,8 +165,8 @@ describe('HomeComponent', () => {
 
       const req = httpTestingController.expectOne((request) => {
         return request.url === '/api/seasons' &&
-               !request.params.has('sortDirection') &&
-               !request.params.has('sortColumn');
+               !request.params.has('SortDirection') &&
+               !request.params.has('SortColumn');
       });
       req.flush(mockResult);
     });
@@ -231,7 +231,7 @@ describe('HomeComponent', () => {
 
       const req = httpTestingController.expectOne((request) => 
         request.url === '/api/seasons' &&
-        request.params.get('pageSize') === '25'
+        request.params.get('PageSize') === '25'
       );
       req.flush(mockResult);
     });
@@ -253,7 +253,7 @@ describe('HomeComponent', () => {
 
       const req = httpTestingController.expectOne((request) => 
         request.url === '/api/seasons' &&
-        request.params.get('pageNumber') === '3'
+        request.params.get('PageNumber') === '3'
       );
       req.flush(mockResult);
     });
@@ -275,8 +275,8 @@ describe('HomeComponent', () => {
 
       const req = httpTestingController.expectOne((request) => 
         request.url === '/api/seasons' &&
-        request.params.get('sortDirection') === 'desc' &&
-        request.params.get('sortColumn') === 'seasonName'
+        request.params.get('SortDirection') === 'desc' &&
+        request.params.get('SortColumn') === 'seasonName'
       );
       req.flush(mockResult);
     });
@@ -325,9 +325,9 @@ describe('HomeComponent paginator and sort wiring', () => {
 
   it('requests the first page of past seasons once the paginator is ready', async () => {
     const req = pastSeasonsRequest();
-    expect(req.request.params.get('pageSize')).toBe('10');
-    expect(req.request.params.get('pageNumber')).toBe('1');
-    expect(req.request.params.has('sortColumn')).toBeFalse();
+    expect(req.request.params.get('PageSize')).toBe('10');
+    expect(req.request.params.get('PageNumber')).toBe('1');
+    expect(req.request.params.has('SortColumn')).toBeFalse();
     req.flush(page(['Season 1', 'Season 2'], 12));
     fixture.detectChanges();
 
@@ -343,8 +343,8 @@ describe('HomeComponent paginator and sort wiring', () => {
     await settle();
 
     const req = pastSeasonsRequest();
-    expect(req.request.params.get('pageSize')).toBe('20');
-    expect(req.request.params.get('pageNumber')).toBe('3');
+    expect(req.request.params.get('PageSize')).toBe('20');
+    expect(req.request.params.get('PageNumber')).toBe('3');
     req.flush(page(['c'], 30));
   });
 
@@ -356,8 +356,8 @@ describe('HomeComponent paginator and sort wiring', () => {
     await settle();
 
     const req = pastSeasonsRequest();
-    expect(req.request.params.get('sortColumn')).toBe('seasonName');
-    expect(req.request.params.get('sortDirection')).toBe('desc');
+    expect(req.request.params.get('SortColumn')).toBe('seasonName');
+    expect(req.request.params.get('SortDirection')).toBe('desc');
     req.flush(page(['z'], 1));
   });
 

@@ -63,7 +63,7 @@ describe('ProfileComponent', () => {
   });
 
   afterEach(() => {
-    const pendingStats = http.match('api/users/21/stats');
+    const pendingStats = http.match('/api/users/21/stats');
     for (const req of pendingStats) {
       if (!req.cancelled) {
         req.flush(null);
@@ -74,8 +74,8 @@ describe('ProfileComponent', () => {
 
   function load(body: { gamertag: string | null } | null): void {
     fixture.detectChanges();
-    http.expectOne('api/users/21/gamertag').flush(body);
-    const stats = http.match('api/users/21/stats');
+    http.expectOne('/api/users/21/gamertag').flush(body);
+    const stats = http.match('/api/users/21/stats');
     if (stats.length > 0) {
       stats[0].flush({
         userID: 21,
@@ -159,8 +159,8 @@ describe('ProfileComponent', () => {
       expect(component.selectedGame()).toBe('all');
       expect(component.settingGamertag()).toBeFalse();
 
-      http.expectOne('api/users/42/gamertag').flush({ gamertag: 'Caboose' });
-      http.expectOne('api/users/42/stats').flush(stats(42, 'Caboose'));
+      http.expectOne('/api/users/42/gamertag').flush({ gamertag: 'Caboose' });
+      http.expectOne('/api/users/42/stats').flush(stats(42, 'Caboose'));
       fixture.detectChanges();
 
       expect(name()).toBe('Caboose');
@@ -171,13 +171,13 @@ describe('ProfileComponent', () => {
 
     it('drops a slow answer for the previous user', () => {
       fixture.detectChanges();
-      const oldGamertag = http.expectOne('api/users/21/gamertag');
-      const oldStats = http.expectOne('api/users/21/stats');
+      const oldGamertag = http.expectOne('/api/users/21/gamertag');
+      const oldStats = http.expectOne('/api/users/21/stats');
 
       fixture.componentRef.setInput('userID', 42);
       fixture.detectChanges();
-      http.expectOne('api/users/42/gamertag').flush({ gamertag: 'Caboose' });
-      http.expectOne('api/users/42/stats').flush(stats(42, 'Caboose'));
+      http.expectOne('/api/users/42/gamertag').flush({ gamertag: 'Caboose' });
+      http.expectOne('/api/users/42/stats').flush(stats(42, 'Caboose'));
       oldGamertag.flush({ gamertag: 'Sgt Grif' });
       oldStats.flush(stats(21, 'Sgt Grif'));
       fixture.detectChanges();
@@ -188,16 +188,16 @@ describe('ProfileComponent', () => {
 
     it("drops a failure for the previous user's gamertag", () => {
       fixture.detectChanges();
-      const oldGamertag = http.expectOne('api/users/21/gamertag');
-      http.expectOne('api/users/21/stats').flush(stats(21, 'Sgt Grif'));
+      const oldGamertag = http.expectOne('/api/users/21/gamertag');
+      http.expectOne('/api/users/21/stats').flush(stats(21, 'Sgt Grif'));
 
       fixture.componentRef.setInput('userID', 42);
       fixture.detectChanges();
       oldGamertag.flush(null, { status: 500, statusText: 'Server Error' });
 
       expect(snackBar.open).not.toHaveBeenCalled();
-      http.expectOne('api/users/42/gamertag').flush({ gamertag: 'Caboose' });
-      http.expectOne('api/users/42/stats').flush(stats(42, 'Caboose'));
+      http.expectOne('/api/users/42/gamertag').flush({ gamertag: 'Caboose' });
+      http.expectOne('/api/users/42/stats').flush(stats(42, 'Caboose'));
     });
   });
 
@@ -232,7 +232,7 @@ describe('ProfileComponent', () => {
   it('reports a failure to load the gamertag', () => {
     spyOn(console, 'log');
     fixture.detectChanges();
-    http.expectOne('api/users/21/gamertag').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/users/21/gamertag').flush('x', { status: 500, statusText: 'Server Error' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed get gamertag', 'Close');
   });
 
@@ -242,7 +242,7 @@ describe('ProfileComponent', () => {
     component.gamertag.set('NewTag');
     component.setGamertag();
 
-    http.expectOne(r => r.method === 'POST' && r.url === 'api/users/21/gamertag' && r.body?.gamertag === 'NewTag').flush({});
+    http.expectOne(r => r.method === 'POST' && r.url === '/api/users/21/gamertag' && r.body?.gamertag === 'NewTag').flush({});
     fixture.detectChanges();
     expect(component.settingGamertag()).toBeFalse();
     expect(name()).toBe('NewTag');
@@ -254,8 +254,8 @@ describe('ProfileComponent', () => {
     component.gamertag.set('NewTag');
     component.setGamertag();
 
-    http.expectOne(r => r.method === 'POST' && r.url === 'api/users/21/gamertag' && r.body?.gamertag === 'NewTag').flush({});
-    expect(http.match('api/users/21/stats')).toHaveSize(1);
+    http.expectOne(r => r.method === 'POST' && r.url === '/api/users/21/gamertag' && r.body?.gamertag === 'NewTag').flush({});
+    expect(http.match('/api/users/21/stats')).toHaveSize(1);
   });
 
   it('sends a gamertag with a space, &, and + as it is, in the body', () => {
@@ -264,7 +264,7 @@ describe('ProfileComponent', () => {
     component.gamertag.set('Sgt Grif & Co+');
     component.setGamertag();
 
-    const req = http.expectOne({ method: 'POST', url: 'api/users/21/gamertag' });
+    const req = http.expectOne({ method: 'POST', url: '/api/users/21/gamertag' });
     expect(req.request.body).toEqual({ gamertag: 'Sgt Grif & Co+' });
     req.flush(null, { status: 204, statusText: 'No Content' });
     fixture.detectChanges();
@@ -276,7 +276,7 @@ describe('ProfileComponent', () => {
     load({ gamertag: null });
     component.setGamertag();
 
-    const req = http.expectOne({ method: 'POST', url: 'api/users/21/gamertag' });
+    const req = http.expectOne({ method: 'POST', url: '/api/users/21/gamertag' });
     expect(req.request.body).toEqual({ gamertag: '' });
     req.flush(null, { status: 204, statusText: 'No Content' });
     expect(component.settingGamertag()).toBeFalse();
@@ -289,7 +289,7 @@ describe('ProfileComponent', () => {
     component.gamertag.set('NewTag');
     component.setGamertag();
 
-    http.expectOne(r => r.method === 'POST' && r.url === 'api/users/21/gamertag' && r.body?.gamertag === 'NewTag').flush(null, { status: 400, statusText: 'Bad Request' });
+    http.expectOne(r => r.method === 'POST' && r.url === '/api/users/21/gamertag' && r.body?.gamertag === 'NewTag').flush(null, { status: 400, statusText: 'Bad Request' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed set gamertag', 'Close');
     expect(component.settingGamertag()).toBeTrue();
   });
@@ -301,7 +301,7 @@ describe('ProfileComponent', () => {
     component.gamertag.set('NewTag');
     component.setGamertag();
 
-    http.expectOne(r => r.method === 'POST' && r.url === 'api/users/21/gamertag' && r.body?.gamertag === 'NewTag')
+    http.expectOne(r => r.method === 'POST' && r.url === '/api/users/21/gamertag' && r.body?.gamertag === 'NewTag')
       .flush('Gamertag is already set for this user. Contact sysadmin if it needs to be changed', { status: 400, statusText: 'Bad Request' });
     expect(snackBar.open).toHaveBeenCalledWith(
       'Gamertag is already set for this user. Contact sysadmin if it needs to be changed', 'Close');
@@ -310,7 +310,7 @@ describe('ProfileComponent', () => {
 
   it('shows the gamertag once it arrives, without a manual detectChanges', async () => {
     await fixture.whenStable();
-    http.expectOne('api/users/21/gamertag').flush({ gamertag: 'Sgt Grif' });
+    http.expectOne('/api/users/21/gamertag').flush({ gamertag: 'Sgt Grif' });
     await fixture.whenStable();
 
     expect(name()).toBe('Sgt Grif');
@@ -319,13 +319,13 @@ describe('ProfileComponent', () => {
   it('leaves edit mode once the gamertag is saved, without a manual detectChanges', async () => {
     personID.set(21);
     await fixture.whenStable();
-    http.expectOne('api/users/21/gamertag').flush({ gamertag: null });
+    http.expectOne('/api/users/21/gamertag').flush({ gamertag: null });
     await fixture.whenStable();
     expect(text()).toContain('Please set your gamertag');
 
     component.gamertag.set('NewTag');
     component.setGamertag();
-    http.expectOne(r => r.method === 'POST' && r.url === 'api/users/21/gamertag' && r.body?.gamertag === 'NewTag').flush({});
+    http.expectOne(r => r.method === 'POST' && r.url === '/api/users/21/gamertag' && r.body?.gamertag === 'NewTag').flush({});
     await fixture.whenStable();
 
     expect(name()).toBe('NewTag');
@@ -436,8 +436,8 @@ describe('ProfileComponent', () => {
     };
 
     fixture.detectChanges();
-    http.expectOne('api/users/21/gamertag').flush({ gamertag: 'MasterChief' });
-    http.expectOne('api/users/21/stats').flush(stats);
+    http.expectOne('/api/users/21/gamertag').flush({ gamertag: 'MasterChief' });
+    http.expectOne('/api/users/21/stats').flush(stats);
     fixture.detectChanges();
 
     const el = fixture.nativeElement as HTMLElement;
@@ -510,7 +510,7 @@ describe('ProfileComponent linked accounts', () => {
   });
 
   afterEach(() => {
-    const pendingStats = http.match('api/users/21/stats');
+    const pendingStats = http.match('/api/users/21/stats');
     for (const req of pendingStats) {
       if (!req.cancelled) {
         req.flush(null);
@@ -521,7 +521,7 @@ describe('ProfileComponent linked accounts', () => {
 
   function render(): HTMLElement {
     fixture.detectChanges();
-    http.expectOne('api/users/21/gamertag').flush({ gamertag: 'Sgt Grif' });
+    http.expectOne('/api/users/21/gamertag').flush({ gamertag: 'Sgt Grif' });
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
   }
@@ -529,8 +529,8 @@ describe('ProfileComponent linked accounts', () => {
   it('lists the player\'s Late League queue games and archive seasons, by the game chosen, and none when there are none', () => {
     const line = { userID: 21, gamertag: 'MasterChief', gamesPlayed: 10, wins: 7, losses: 3, winPercent: 70, goals: 9, kills: 40, deaths: 30, assists: 2, kdRatio: 1.33, kdSpread: 10, carrierKills: 4 };
     fixture.detectChanges();
-    http.expectOne('api/users/21/gamertag').flush({ gamertag: 'MasterChief' });
-    http.expectOne('api/users/21/stats').flush({
+    http.expectOne('/api/users/21/gamertag').flush({ gamertag: 'MasterChief' });
+    http.expectOne('/api/users/21/stats').flush({
       userID: 21, gamertag: 'MasterChief', displayName: 'MasterChief', isDummyUser: false,
       pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [],
       lateLeague: [
@@ -561,8 +561,8 @@ describe('ProfileComponent linked accounts', () => {
   it('shows a Late League line\'s games decided by vote, and that they have no box score', () => {
     const line = { userID: 21, gamertag: 'MasterChief', gamesPlayed: 10, gamesDecidedByVote: 0, wins: 7, losses: 3, winPercent: 70, goals: 9, kills: 40, deaths: 30, assists: 2, kdRatio: 1.33, kdSpread: 10, carrierKills: 4 };
     fixture.detectChanges();
-    http.expectOne('api/users/21/gamertag').flush({ gamertag: 'MasterChief' });
-    http.expectOne('api/users/21/stats').flush({
+    http.expectOne('/api/users/21/gamertag').flush({ gamertag: 'MasterChief' });
+    http.expectOne('/api/users/21/stats').flush({
       userID: 21, gamertag: 'MasterChief', displayName: 'MasterChief', isDummyUser: false,
       pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [],
       lateLeague: [
@@ -585,8 +585,8 @@ describe('ProfileComponent linked accounts', () => {
   it('shows the service record strip at the top when the profile has one, and none when it has none', () => {
     const totals = { gamesPlayed: 3, wins: 2, losses: 1, winPercent: 66.7, kills: 6, deaths: 4, kdRatio: 1.5, bombScores: 2, uncountedBombScoreGames: 0 };
     fixture.detectChanges();
-    http.expectOne('api/users/21/gamertag').flush({ gamertag: 'MasterChief' });
-    http.expectOne('api/users/21/stats').flush({
+    http.expectOne('/api/users/21/gamertag').flush({ gamertag: 'MasterChief' });
+    http.expectOne('/api/users/21/stats').flush({
       userID: 21, gamertag: 'MasterChief', displayName: 'MasterChief', isDummyUser: false,
       pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [], lateLeague: [],
       serviceRecord: { mmr: 1100, all: totals, league: totals, matchmaking: totals },
@@ -646,8 +646,8 @@ describe('ProfileComponent: region and identity', () => {
 
   function render(regionName: string | null): HTMLElement {
     fixture.detectChanges();
-    http.expectOne('api/users/21/gamertag').flush({ gamertag: 'Sgt Grif' });
-    http.expectOne('api/users/21/stats').flush({
+    http.expectOne('/api/users/21/gamertag').flush({ gamertag: 'Sgt Grif' });
+    http.expectOne('/api/users/21/stats').flush({
       userID: 21, gamertag: 'Sgt Grif', displayName: null, isDummyUser: false, regionID: regionName ? 2 : null, regionName,
       pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [],
     });
@@ -670,7 +670,7 @@ describe('ProfileComponent: region and identity', () => {
     expect(page.querySelector('app-profile-identity')).not.toBeNull();
     expect((identity.componentInstance as ProfileIdentityStubComponent).regionID()).toBe(2);
     (identity.componentInstance as ProfileIdentityStubComponent).changed.emit();
-    http.expectOne('api/users/21/stats').flush(null);
+    http.expectOne('/api/users/21/stats').flush(null);
   });
 
   it("hides them on someone else's profile", () => {

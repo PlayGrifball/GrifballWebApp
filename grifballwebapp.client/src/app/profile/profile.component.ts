@@ -1,6 +1,7 @@
 import type { MatchmakingPlayerStatDto } from '@api/models';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ChangeDetectionStrategy, inject, signal, computed, effect, input, numberAttribute, untracked } from '@angular/core';
+import { map } from 'rxjs';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AccountService } from '../account.service';
@@ -20,7 +21,9 @@ import { errorText } from '../shared/errorText';
 import { whileCurrent } from '../shared/whileCurrent';
 import type { SeasonInfoDto } from '@api/models';
 import type { SeasonPlayerStatDto } from '@api/models';
+import type { ProfileStatsDto as ProfileStatsApiDto } from '@api/models';
 import { nullWhenNotFound } from '../api/nullWhenNotFound';
+import { ProfileService } from '@api/services/profile.service';
 
 export interface PlayerChampionshipDto {
   playerChampionshipID: number;
@@ -100,9 +103,6 @@ export interface ProfileStatsDto {
   serviceRecord?: ServiceRecordDto | null;
 }
 
-export interface ProfileDto {
-  gamertag: string | null;
-}
 
 @Component({
   selector: 'app-profile',
@@ -127,7 +127,7 @@ export interface ProfileDto {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProfileComponent {
-  private http = inject(HttpClient);
+  private profile = inject(ProfileService);
   accountService = inject(AccountService);
   private snackbar = inject(MatSnackBar);
 
@@ -195,7 +195,7 @@ export class ProfileComponent {
 
   getGamertag(): void {
     const userID = this.userID();
-    this.http.get<ProfileDto>(`api/users/${userID}/gamertag`)
+    this.profile.getGamertag({ userID })
       .pipe(nullWhenNotFound(), whileCurrent(userID, this.userID))
       .subscribe({
         next: r => {
@@ -212,8 +212,11 @@ export class ProfileComponent {
   getProfileStats(): void {
     const userID = this.userID();
     this.statsLoading.set(true);
-    this.http.get<ProfileStatsDto>(`api/users/${userID}/stats`)
-      .pipe(whileCurrent(userID, this.userID))
+    // Cast: the generated ProfileStatsDto's nested models aren't a byte-for-byte match with this file's
+    // hand-written ones (several fields here are optional where the server's are always present);
+    // same JSON either way.
+    this.profile.getProfileStats({ userID })
+      .pipe(map((s: ProfileStatsApiDto) => s as unknown as ProfileStatsDto), whileCurrent(userID, this.userID))
       .subscribe({
         next: s => {
           this.profileStats.set(s);
@@ -233,7 +236,7 @@ export class ProfileComponent {
   }
 
   setGamertag(): void {
-    this.http.post(`api/users/${this.userID()}/gamertag`, { gamertag: this.gamertag() ?? '' })
+    this.profile.setGamertag({ userID: this.userID(), body: { gamertag: this.gamertag() ?? '' } })
       .subscribe({
         next: () => {
           this.settingGamertag.set(false);

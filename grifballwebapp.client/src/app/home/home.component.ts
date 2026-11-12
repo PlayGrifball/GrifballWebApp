@@ -1,5 +1,4 @@
 import { DatePipe } from '@angular/common';
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, computed, OnInit, signal, viewChild, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { MatPaginator } from '@angular/material/paginator';
@@ -10,9 +9,11 @@ import { combineLatest, Observable, of, switchMap, tap } from 'rxjs';
 import { PaginationResult } from '../shared/paginationResult';
 import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 import { pageNow } from '../shared/pageNow';
-import type { SeasonListItemDto } from '@api/models';
+import type { SeasonListItemDto, SortDirection as ApiSortDirection } from '@api/models';
 import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
 import { rowEnterAnimation } from '../shared/rowEnterAnimation';
+import { HomeService } from '@api/services/home.service';
+import { SeasonService } from '@api/services/season.service';
 
 @Component({
     selector: 'app-home',
@@ -34,7 +35,8 @@ import { rowEnterAnimation } from '../shared/rowEnterAnimation';
 export class HomeComponent implements OnInit {
   /** The rows' fade-in, once hydration is past (rowEnterAnimation) */
   readonly rowEnter = rowEnterAnimation();
-  private http = inject(HttpClient);
+  private home = inject(HomeService);
+  private seasonService = inject(SeasonService);
 
 
   private datePipe = new DatePipe('en-US');
@@ -113,18 +115,22 @@ export class HomeComponent implements OnInit {
   }
 
   getCurrentAndFutureEvents(): Observable<Event[]> {
-    return this.http.get<Event[]>('/api/events');
+    // The generated Event is this shape already (historicalSourceUrl is optional here, and not in its schema);
+    // cast since Observable<T> doesn't structurally widen T on its own.
+    return this.home.currentAndFutureEvents() as unknown as Observable<Event[]>;
   }
 
   getPastSeasons(pageSize: number, pageNumber: number, sortDirection: SortDirection | undefined, sortColumn: string | undefined): Observable<PaginationResult<SeasonListItemDto>> {
     // The season list's seasons that have ended (index.html fetches the first page early, with these parameters in this order)
-    let params = new HttpParams().set('ended', true).set('pageSize', pageSize).set('pageNumber', pageNumber);
-    if (sortColumn && sortDirection) {
-      params = params.set('sortDirection', sortDirection);
-      params = params.set('sortColumn', sortColumn);
-    }
-
-    return this.http.get<PaginationResult<SeasonListItemDto>>('/api/seasons', { params })
+    const sorted = !!(sortColumn && sortDirection);
+    return this.seasonService.getSeasonList({
+      Ended: true,
+      PageNumber: pageNumber,
+      PageSize: pageSize,
+      // Material's Sort gives 'asc'/'desc' (lowercase); the server's enum binds case-insensitively, as it always has.
+      SortDirection: sorted ? sortDirection as unknown as ApiSortDirection : undefined,
+      SortColumn: sorted ? sortColumn : undefined,
+    })
     .pipe(
       tap((result) => {
       this.total.set(result.totalCount);

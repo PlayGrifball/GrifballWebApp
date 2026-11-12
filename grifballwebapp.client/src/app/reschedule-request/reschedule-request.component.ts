@@ -6,9 +6,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
 import { Location } from '@angular/common';
 import { errorText } from '../shared/errorText';
+import { RescheduleService } from '@api/services/reschedule.service';
+import type { RescheduleRequestDto } from '@api/models';
 
 interface RescheduleRequest {
   seasonMatchID: number;
@@ -34,7 +35,7 @@ interface RescheduleRequest {
 })
 export class RescheduleRequestComponent {
   location = inject(Location);
-  private httpClient = inject(HttpClient);
+  private rescheduleService = inject(RescheduleService);
   private snackBar = inject(MatSnackBar);
 
   /** The :seasonMatchID of the route. */
@@ -79,7 +80,9 @@ export class RescheduleRequestComponent {
       reason: this.reason.trim()
     };
 
-    this.httpClient.post(`/api/season-matches/${request.seasonMatchID}/reschedules`, request)
+    // newScheduledTime is undefined (never null) when none was picked, like the old body: a field
+    // JSON.stringify drops, same as the explicit null the generated model's type calls for.
+    this.rescheduleService.requestReschedule({ seasonMatchID: request.seasonMatchID, body: request as unknown as RescheduleRequestDto })
     .subscribe({
       next: () => {
         this.snackBar.open('Reschedule request submitted successfully!', 'Close', { duration: 5000 });
