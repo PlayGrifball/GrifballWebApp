@@ -44,11 +44,13 @@ public class QueueController : ControllerBase
         _open = !PreviewMode.DisablesDiscord(configuration);
     }
 
+    /// <summary>The matchmaking queue's size and whether it's open, plus the signed-in user's own membership in it.</summary>
     [AllowAnonymous]
     [HttpGet("queue", Name = "GetQueueStatus")]
     [ProducesResponseType<QueueStatusDto>(StatusCodes.Status200OK)]
     public Task<QueueStatusDto> Status(CancellationToken ct) => StatusOf(JobUser.IdOf(User), ct);
 
+    /// <summary>Joins the signed-in user to the matchmaking queue.</summary>
     [Authorize]
     [HttpPost("queue/join", Name = "JoinQueue")]
     [ProducesResponseType<QueueStatusDto>(StatusCodes.Status200OK)]

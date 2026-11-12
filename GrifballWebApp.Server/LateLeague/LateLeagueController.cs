@@ -16,16 +16,19 @@ public class LateLeagueController : ControllerBase
         _stats = stats;
     }
 
+    /// <summary>Late League's current Discord matchmaking queue.</summary>
     [AllowAnonymous]
     [HttpGet("late-league/queue", Name = "GetLateLeagueQueue")]
     [ProducesResponseType<MatchmakingQueueDto>(StatusCodes.Status200OK)]
     public Task<MatchmakingQueueDto> GetQueue(CancellationToken ct) => _stats.GetQueueAsync(ct);
 
+    /// <summary>Late League's matchmaking seasons, archived and current.</summary>
     [AllowAnonymous]
     [HttpGet("late-league/seasons", Name = "GetLateLeagueSeasons")]
     [ProducesResponseType<List<MatchmakingSeasonDto>>(StatusCodes.Status200OK)]
     public Task<List<MatchmakingSeasonDto>> GetSeasons(CancellationToken ct) => _stats.GetSeasonsAsync(ct);
 
+    /// <summary>A Late League matchmaking season's detail.</summary>
     [AllowAnonymous]
     [HttpGet("late-league/seasons/{matchmakingSeasonID:int}", Name = "GetLateLeagueSeason")]
     [ProducesResponseType<MatchmakingSeasonDetailDto>(StatusCodes.Status200OK)]

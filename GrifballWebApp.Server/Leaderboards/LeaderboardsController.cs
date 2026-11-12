@@ -17,6 +17,7 @@ public class LeaderboardsController : ControllerBase
         _leaderboards = leaderboards;
     }
 
+    /// <summary>The all-time leaderboards.</summary>
     /// <param name="format">Count only the titles of seasons of this format; null: every format.</param>
     [AllowAnonymous]
     [HttpGet("leaderboards", Name = "GetLeaderboards")]
