@@ -2,7 +2,9 @@ import { ChangeDetectionStrategy, Component, input, signal, TemplateRef, content
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
-import { getPaginationResource } from '../getPaginationResource';
+import { getPaginationResource, PaginationParams } from '../getPaginationResource';
+import { PaginationResult } from '../paginationResult';
+import { Observable } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -32,7 +34,8 @@ export class TableComponent<T> {
   parseRow = input<(row: any) => T>();
   
   displayedColumns = input.required<string[]>();
-  url = input.required<string>();
+  /** This page's generated-service call for one page of rows. */
+  request = input.required<(params: PaginationParams) => Observable<PaginationResult<T>>>();
   columns = input.required<Column<T>[]>();
   pageSize = signal(10);
   pageNumber = signal(1);
@@ -50,7 +53,7 @@ export class TableComponent<T> {
     this.sort.set(event);
   }
 
-  paginationResource = getPaginationResource<T>(this.url, {
+  paginationResource = getPaginationResource<T>(params => this.request()(params), {
       pageSize: () => this.pageSize(),
       pageNumber: () => this.pageNumber(),
       sortDirection: () => this.sort()?.direction,
