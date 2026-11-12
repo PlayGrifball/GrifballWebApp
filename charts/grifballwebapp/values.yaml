@@ -486,6 +486,16 @@ frontend:
   livenessProbe:
     periodSeconds: 20
     timeoutSeconds: 3
+  # OpenTelemetry from the app's server: a span per request (continued by the backend's), its logs and
+  # metrics, pushed over OTLP/HTTP. It shares backend.telemetry's serviceName, environment,
+  # resourceAttributes and metricExportInterval, so the Telemetry page shows both. Off: nothing is exported
+  # (logs still go to stdout).
+  telemetry:
+    enabled: false
+    # The collector's OTLP/HTTP port (the Node server sends no gRPC). Ex: http://otel-collector.example:4318
+    endpoint: ""
+    # The lowest level logged: debug, info, warn or error. Empty: info.
+    logLevel: ""
   # Node, rendering pages on the server: about 120-160 MiB resident under load.
   resources:
     requests:
@@ -985,6 +995,8 @@ networkPolicy:
     # Who may reach the frontend (its port 80). Empty: anyone - the ingress controller, wherever it
     # runs.
     from: []
+    # OpenTelemetry (frontend.telemetry): the collector, on the endpoint's port. Empty: anywhere.
+    telemetryTo: []
     extraIngress: []
     extraEgress: []
   backend:

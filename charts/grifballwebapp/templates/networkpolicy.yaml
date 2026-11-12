@@ -50,6 +50,20 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.backend.port }}
+    {{- with .Values.frontend.telemetry }}
+    {{- if and .enabled .endpoint }}
+    {{- $u := urlParse .endpoint }}
+    {{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
+    # OpenTelemetry collector (frontend.telemetry).
+    - ports:
+        - protocol: TCP
+          port: {{ $port | int }}
+      {{- with $np.frontend.telemetryTo }}
+      to:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
     {{- with $np.frontend.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

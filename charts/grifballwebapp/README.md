@@ -572,7 +572,7 @@ what it needs.
 
 | Pod | In | Out |
 | --- | --- | --- |
-| frontend | port 80 from anyone (`frontend.from`) | DNS, the backend |
+| frontend | port 80 from anyone (`frontend.from`) | DNS, the backend, the OpenTelemetry endpoint's port (`frontend.telemetry`, `frontend.telemetryTo`) |
 | backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo in Direct mode, Google), the OpenTelemetry endpoint's port, the Halo gateway's port in Gateway mode (`backend.haloGatewayTo`, or the bundled gateway's pods), Redis, the Telemetry page's Loki, Prometheus and Tempo (`backend.telemetry.query`, `backend.telemetryQuery`) |
 | worker (`worker.enabled`) | - (`worker.extraIngress`) | the backend's |
 | Redis (`redis.enabled`) | backend, worker | - |

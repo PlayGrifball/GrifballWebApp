@@ -50,6 +50,10 @@ frontend:
   image:
     tag: test
     pullPolicy: Always
+  telemetry:
+    enabled: true
+    endpoint: http://otel-collector.example:4318
+    logLevel: info
 ingressRoute:
   enabled: true
   host: grifball.example
@@ -99,6 +103,8 @@ networkPolicy:
   frontend:
     from:
       - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } }
+    telemetryTo:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: opentelemetry } }
   backend:
     telemetryTo:
       - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: opentelemetry } }
