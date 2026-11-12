@@ -25,6 +25,18 @@ public sealed class Sample
     public int? Score { get; set; }
 }
 
+/// <summary>What Swashbuckle builds its filters with: the API's JSON options and its serializer contract.</summary>
+internal static class FilterServices
+{
+    public static IServiceProvider For(JsonSerializerOptions json)
+    {
+        var services = new ServiceCollection();
+        services.Configure<JsonOptions>(o => o.JsonSerializerOptions.PropertyNamingPolicy = json.PropertyNamingPolicy);
+        services.AddSingleton<ISerializerDataContractResolver>(new JsonSerializerDataContractResolver(json));
+        return services.BuildServiceProvider();
+    }
+}
+
 /// <summary>
 /// The OpenAPI document's schema names and required properties (OpenApiSchemas.cs), which the client's generated types
 /// are made from.
@@ -36,14 +48,6 @@ public class OpenApiSchemasTests
     private static readonly string[] SampleRequired = ["id", "name", "renamed"];
     private static readonly string[] PascalRequired = ["Id", "Name", "renamed"];
 
-    /// <summary>What Swashbuckle's filters are built with: the API's JSON options and its serializer contract.</summary>
-    internal static IServiceProvider Services(JsonSerializerOptions json)
-    {
-        var services = new ServiceCollection();
-        services.Configure<JsonOptions>(o => o.JsonSerializerOptions.PropertyNamingPolicy = json.PropertyNamingPolicy);
-        services.AddSingleton<ISerializerDataContractResolver>(new JsonSerializerDataContractResolver(json));
-        return services.BuildServiceProvider();
-    }
 
     [Test]
     public void For_NamesATypeByItsOwnName()
@@ -111,7 +115,7 @@ public class OpenApiSchemasTests
                 ["Score"] = new OpenApiSchema(),
             },
         };
-        var filter = ActivatorUtilities.CreateInstance<EveryPropertyRequiredFilter>(Services(new JsonSerializerOptions()));
+        var filter = ActivatorUtilities.CreateInstance<EveryPropertyRequiredFilter>(FilterServices.For(new JsonSerializerOptions()));
 
         filter.Apply(schema, Context(typeof(Sample)));
 
@@ -237,7 +241,7 @@ public class CamelCaseQueryParametersFilterTests
     {
         // No naming policy: the JSON keeps .NET's names, so the query does too
         var operation = new OpenApiOperation { Parameters = [new OpenApiParameter { Name = "PageNumber", In = ParameterLocation.Query }] };
-        var filter = ActivatorUtilities.CreateInstance<CamelCaseQueryParametersFilter>(OpenApiSchemasTests.Services(new JsonSerializerOptions()));
+        var filter = ActivatorUtilities.CreateInstance<CamelCaseQueryParametersFilter>(FilterServices.For(new JsonSerializerOptions()));
 
         filter.Apply(operation, null!);
 
