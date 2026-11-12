@@ -120,17 +120,6 @@ public class TelemetryQueriesTests
     }
 
     [Test]
-    public async Task Traces_search_asks_for_enough_spans_to_find_the_backends_route()
-    {
-        var backends = new FakeBackends(_ => Json("""{"traces":[]}"""));
-
-        await Service(backends).Traces(30, false, null, 500, default);
-
-        // One span a trace is only the root: the app server's /api/* when a browser's call started it
-        Assert.That(int.Parse(Query(backends.Asked.Single(), "spss"), System.Globalization.CultureInfo.InvariantCulture), Is.GreaterThanOrEqualTo(3));
-    }
-
-    [Test]
     public void Traces_adds_errors_and_duration()
     {
         using (Assert.EnterMultipleScope())
@@ -383,6 +372,17 @@ public class TelemetryQueryServiceTests
             Assert.That(traces[1].Route, Is.Null);
             Assert.That(traces[1].DurationMs, Is.EqualTo(411));
         }
+    }
+
+    [Test]
+    public async Task Traces_search_asks_for_enough_spans_to_find_the_backends_route()
+    {
+        var backends = new FakeBackends(_ => Json("""{"traces":[]}"""));
+
+        await Service(backends).Traces(30, false, null, 500, default);
+
+        // One span a trace is only the root: the app server's /api/* when a browser's call started it
+        Assert.That(int.Parse(Query(backends.Asked.Single(), "spss"), System.Globalization.CultureInfo.InvariantCulture), Is.GreaterThanOrEqualTo(3));
     }
 
     [Test]
