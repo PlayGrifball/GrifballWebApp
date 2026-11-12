@@ -15,7 +15,7 @@ class TestReader extends MetricReader {
 
 function setUp(logLevel: LogLevel = 'info') {
   const spans = new InMemorySpanExporter();
-  const tracerProvider = new TracerProvider({ spanProcessors: [new SimpleSpanProcessor(spans)] });
+  const tracerProvider = new TracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter: spans })] });
   const reader = new TestReader();
   const meterProvider = new MeterProvider({ readers: [reader] });
   const lines: string[] = [];
