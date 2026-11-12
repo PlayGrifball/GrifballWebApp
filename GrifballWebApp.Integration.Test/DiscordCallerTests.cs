@@ -38,13 +38,13 @@ public class DiscordCallerTests
 
         var caller = await _caller.Require(discord.Context, DiscordCaller.Roles.Anyone);
 
-        var message = discord.Message();
-        var button = message.Components!.OfType<ActionRowProperties>().Single().OfType<ButtonProperties>().Single();
+        // The reply was deferred (ephemerally) before the lookup: the refusal is its edit
+        var components = (IEnumerable<IMessageComponentProperties>)discord.EditArgument(nameof(DiscordInterface.Generated.IDiscordMessageOptions.WithComponents))!;
+        var button = components.OfType<ActionRowProperties>().Single().OfType<ButtonProperties>().Single();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(caller, Is.Null);
-            Assert.That(message.Content, Is.EqualTo(DiscordCaller.NoGamertag));
-            Assert.That(message.Flags, Is.EqualTo(MessageFlags.Ephemeral));
+            Assert.That(discord.Content(), Is.EqualTo(DiscordCaller.NoGamertag));
             Assert.That(button.CustomId, Is.EqualTo(DiscordButtonContants.SetGamertag));
         }
     }
@@ -60,7 +60,7 @@ public class DiscordCallerTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(caller, Is.Null);
-            Assert.That(discord.Message().Content, Is.EqualTo(DiscordCaller.NoGamertag));
+            Assert.That(discord.Content(), Is.EqualTo(DiscordCaller.NoGamertag));
         }
     }
 
@@ -72,12 +72,10 @@ public class DiscordCallerTests
 
         var caller = await _caller.Require(discord.Context, DiscordCaller.Roles.Staff);
 
-        var message = discord.Message();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(caller, Is.Null);
-            Assert.That(message.Content, Is.EqualTo("Only a commissioner or sysadmin can do that."));
-            Assert.That(message.Flags, Is.EqualTo(MessageFlags.Ephemeral));
+            Assert.That(discord.Content(), Is.EqualTo("Only a commissioner or sysadmin can do that."));
         }
     }
 

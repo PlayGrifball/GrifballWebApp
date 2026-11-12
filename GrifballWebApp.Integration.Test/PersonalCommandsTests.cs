@@ -91,7 +91,7 @@ public class PersonalCommandsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(stranger.Message().Content, Is.EqualTo(DiscordCaller.NoGamertag));
+            Assert.That(stranger.Content(), Is.EqualTo(DiscordCaller.NoGamertag));
             Assert.That(await _context.QueuedPlayer.CountAsync(), Is.Zero);
         }
     }
@@ -180,7 +180,7 @@ public class PersonalCommandsTests
     {
         await _handler.Signup(_discord.Context, null, null, false, false);
 
-        Assert.That(_discord.Message().Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.PlayerOrSysadmin)));
+        Assert.That(_discord.Content(), Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.PlayerOrSysadmin)));
     }
 
     [Test]
@@ -220,9 +220,9 @@ public class PersonalCommandsTests
     {
         var seeded = await RescheduleTestData.SeedAsync(_context, scheduled: DateTime.UtcNow.AddDays(3));
 
-        await _handler.RequestReschedule(_discord.Context, seeded.Match.SeasonMatchID.ToString(), "Just because", null);
-
-        Assert.That(_discord.Content(), Is.EqualTo(new RescheduleForbiddenException().Message));
+        // The pipeline replies with its message (GlobalExceptionHandler.Expected), as the site's 403 does
+        Assert.That(async () => await _handler.RequestReschedule(_discord.Context, seeded.Match.SeasonMatchID.ToString(), "Just because", null),
+            Throws.TypeOf<RescheduleForbiddenException>());
     }
 
     [Test]
@@ -264,14 +264,14 @@ public class PersonalCommandsTests
         var tooLong = new CommandContextRecorder((ulong)_me.DiscordUserID!.Value);
         var unknown = new CommandContextRecorder((ulong)_me.DiscordUserID!.Value);
 
-        await _handler.Signup(_discord.Context, closed.SeasonID.ToString(), null, false, false);
-        await _handler.Signup(tooLong.Context, open.SeasonID.ToString(), new string('x', 500), true, false);
         await _handler.Signup(unknown.Context, "999999", null, false, false);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(_discord.Content(), Is.EqualTo("Signups for Closed are closed."));
-            Assert.That(tooLong.Content(), Is.EqualTo(new SignupTeamNameTooLongException().Message));
+            // The service's refusals reach the pipeline, which replies with their message (GlobalExceptionHandler.Expected)
+            Assert.That(async () => await _handler.Signup(_discord.Context, closed.SeasonID.ToString(), null, false, false), Throws.TypeOf<SignupsClosedException>());
+            Assert.That(async () => await _handler.Signup(tooLong.Context, open.SeasonID.ToString(), new string('x', 500), true, false),
+                Throws.TypeOf<SignupTeamNameTooLongException>());
             Assert.That(unknown.Content(), Is.EqualTo(SeasonCommandsHandler.NoSuchSeason));
         }
     }

@@ -1,3 +1,4 @@
+using DiscordInterface.Generated;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -7,14 +8,31 @@ using NetCord.Services.ApplicationCommands;
 
 namespace GrifballWebApp.Server.Commands;
 
+/// <summary>Which season a command means when none is named.</summary>
+public enum SeasonDefault
+{
+    /// <summary>The season running now, else the latest: what the season pages show.</summary>
+    Current,
+    /// <summary>The next season to start (signing up, drafting), else the current one: for /signup, the draft and availability.</summary>
+    Upcoming,
+}
+
 /// <summary>
-/// The season, team and player a command names. The options autocomplete to IDs (<see cref="SeasonAutocomplete"/> and the
-/// rest), but Discord sends whatever was typed when no choice was picked, so a name is looked up too.
+/// The season, team, player and season match a command names. A choice picked from the autocomplete is sent as its ID
+/// (<see cref="ChoiceValue"/>: "id:12"); anything else is what was typed, looked up by name: the exact name (a team's or
+/// season's newest), else the only one whose name has it, else, for digits that name nothing, the ID they are. A typed name
+/// that fits several is none: the caller is told to pick one, so an action never lands on a guess.
 /// String options, not integer ones: Discord lets only digits be typed into an integer option, so names couldn't be searched.
 /// Names match whatever their case: the database compares text case-insensitively (CaseInsensitiveTextTests).
 /// </summary>
 public class CommandLookups
 {
+    public const string NoSuchSeason = "I found no single season for that: pick one from the list.";
+    public const string NoSuchMatch = "I found no single match for that: pick one from the list.";
+
+    /// <summary>What a picked choice's value starts with.</summary>
+    public const string ChoicePrefix = "id:";
+
     /// <summary>Discord shows at most 25 choices.</summary>
     private const int MaxChoices = 25;
 
@@ -27,64 +45,109 @@ public class CommandLookups
         _seasons = seasons;
     }
 
-    /// <summary>The season named or picked; with none given, the one running now, else the latest. Null when there is no such season.</summary>
-    public async Task<int?> Season(string? input, CancellationToken ct = default)
+    /// <summary>A choice's value: the ID, marked as picked so that a name of digits is still a name.</summary>
+    public static string ChoiceValue(int id) => ChoicePrefix + id;
+
+    private static int? Picked(string input)
+        => input.StartsWith(ChoicePrefix, StringComparison.Ordinal) && int.TryParse(input[ChoicePrefix.Length..], out var id) ? id : null;
+
+    /// <summary>The only one of <paramref name="ids"/>, or null when there are none or several.</summary>
+    private static async Task<int?> OnlyOne(IQueryable<int> ids, CancellationToken ct)
     {
+        var two = await ids.Take(2).ToListAsync(ct);
+        return two.Count == 1 ? two[0] : null;
+    }
+
+    /// <summary>The season named or picked; with none given, the <paramref name="default"/>. Null when there is no single such season.</summary>
+    public async Task<int?> Season(string? input, SeasonDefault @default = SeasonDefault.Current, CancellationToken ct = default)
+    {
+        var seasons = _context.Seasons.AsNoTracking();
         if (string.IsNullOrWhiteSpace(input))
         {
+            if (@default is SeasonDefault.Upcoming
+                && await seasons.Where(GrifballWebApp.Domain.League.Season.NotStartedAt(DateTime.UtcNow)).OrderBy(x => x.SeasonStart)
+                    .Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct) is int upcoming)
+                return upcoming;
             var current = await _seasons.GetCurrentSeasonID(ct);
             if (current != 0)
                 return current;
-            return await _context.Seasons.OrderByDescending(x => x.SeasonID).Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct);
+            return await seasons.OrderByDescending(x => x.SeasonID).Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct);
         }
 
-        if (int.TryParse(input, out var id))
-            return await _context.Seasons.Where(x => x.SeasonID == id).Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct);
-
         var name = input.Trim();
-        return await _context.Seasons
-            .Where(x => x.SeasonName.Contains(name))
-            .OrderByDescending(x => x.SeasonName == name)
-            .ThenByDescending(x => x.SeasonID)
-            .Select(x => (int?)x.SeasonID)
-            .FirstOrDefaultAsync(ct);
+        var id = Picked(name);
+        if (id is null)
+        {
+            id = await seasons.Where(x => x.SeasonName == name).OrderByDescending(x => x.SeasonID).Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct)
+                ?? await OnlyOne(seasons.Where(x => x.SeasonName.Contains(name)).Select(x => x.SeasonID), ct);
+            if (id is not null)
+                return id;
+            if (!int.TryParse(name, out var typed))
+                return null;
+            id = typed;
+        }
+        return await seasons.Where(x => x.SeasonID == id).Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct);
     }
 
-    /// <summary>The team named or picked, latest season first for a name. Null when there is no such team.</summary>
+    /// <summary>The season named or picked, or null with the caller told there is no single one (call after deferring).</summary>
+    public async Task<int?> SeasonFor(IDiscordInteractionContext context, string? input, SeasonDefault @default = SeasonDefault.Current)
+    {
+        if (await Season(input, @default) is int id)
+            return id;
+        await context.Reply(NoSuchSeason);
+        return null;
+    }
+
+    /// <summary>The team named (its newest season's) or picked. Null when there is no single such team.</summary>
     public async Task<(int SeasonID, int TeamID)?> Team(string input, CancellationToken ct = default)
     {
         var teams = _context.Teams.AsNoTracking();
-        if (int.TryParse(input, out var id))
-            teams = teams.Where(x => x.TeamID == id);
-        else
-        {
-            var name = input.Trim();
-            teams = teams.Where(x => x.TeamName.Contains(name))
-                .OrderByDescending(x => x.TeamName == name)
-                .ThenByDescending(x => x.SeasonID);
-        }
-
-        var team = await teams.Select(x => new { x.SeasonID, x.TeamID }).FirstOrDefaultAsync(ct);
+        var name = input.Trim();
+        var id = Picked(name)
+            ?? await teams.Where(x => x.TeamName == name).OrderByDescending(x => x.SeasonID).Select(x => (int?)x.TeamID).FirstOrDefaultAsync(ct)
+            ?? await OnlyOne(teams.Where(x => x.TeamName.Contains(name)).Select(x => x.TeamID), ct)
+            ?? (int.TryParse(name, out var typed) ? (int?)typed : null);
+        var team = id is null ? null : await teams.Where(x => x.TeamID == id).Select(x => new { x.SeasonID, x.TeamID }).FirstOrDefaultAsync(ct);
         return team is null ? null : (team.SeasonID, team.TeamID);
     }
 
-    /// <summary>The player named (by gamertag) or picked. Null when there is no such player.</summary>
+    /// <summary>The player named (by gamertag) or picked. Null when there is no single such player.</summary>
     public async Task<int?> Player(string input, CancellationToken ct = default)
     {
         var users = _context.Users.AsNoTracking().Where(x => x.XboxUser != null);
-        if (int.TryParse(input, out var id))
-            return await users.Where(x => x.Id == id).Select(x => (int?)x.Id).FirstOrDefaultAsync(ct);
-
         var gamertag = input.Trim();
-        return await users
-            .Where(x => x.XboxUser!.Gamertag.Contains(gamertag))
-            .OrderByDescending(x => x.XboxUser!.Gamertag == gamertag)
-            .ThenBy(x => x.XboxUser!.Gamertag)
-            .Select(x => (int?)x.Id)
-            .FirstOrDefaultAsync(ct);
+        var id = Picked(gamertag)
+            ?? await users.Where(x => x.XboxUser!.Gamertag == gamertag).Select(x => (int?)x.Id).FirstOrDefaultAsync(ct)
+            ?? await OnlyOne(users.Where(x => x.XboxUser!.Gamertag.Contains(gamertag)).Select(x => x.Id), ct)
+            ?? (int.TryParse(gamertag, out var typed) ? (int?)typed : null);
+        return id is null ? null : await users.Where(x => x.Id == id).Select(x => (int?)x.Id).FirstOrDefaultAsync(ct);
     }
 
-    /// <summary>Seasons whose name has <paramref name="input"/>, newest first: a season option's choices, valued by ID.</summary>
+    /// <summary>
+    /// The season match picked, or the only one of a team typed by name (exactly, else in part). Null when there is no single
+    /// such match: a team plays many, and a guess could forfeit the wrong one.
+    /// </summary>
+    public async Task<int?> SeasonMatch(string input, CancellationToken ct = default)
+    {
+        var matches = _context.SeasonMatches.AsNoTracking();
+        var name = input.Trim();
+        var id = Picked(name)
+            ?? await OnlyOne(matches.Where(x => x.HomeTeam!.TeamName == name || x.AwayTeam!.TeamName == name).Select(x => x.SeasonMatchID), ct)
+            ?? await OnlyOne(matches.Where(x => x.HomeTeam!.TeamName.Contains(name) || x.AwayTeam!.TeamName.Contains(name)).Select(x => x.SeasonMatchID), ct)
+            ?? (int.TryParse(name, out var typed) ? (int?)typed : null);
+        return id is null ? null : await matches.Where(x => x.SeasonMatchID == id).Select(x => (int?)x.SeasonMatchID).FirstOrDefaultAsync(ct);
+    }
+
+    /// <summary>The season match named or picked, or null with the caller told there is no single one (call after deferring).</summary>
+    public async Task<int?> SeasonMatchFor(IDiscordInteractionContext context, string input)
+    {
+        if (await SeasonMatch(input) is int id)
+            return id;
+        await context.Reply(NoSuchMatch);
+        return null;
+    }
+
+    /// <summary>Seasons whose name has <paramref name="input"/>, newest first: a season option's choices.</summary>
     public async Task<List<ApplicationCommandOptionChoiceProperties>> SeasonChoices(string? input, CancellationToken ct = default)
     {
         var name = (input ?? "").Trim();
@@ -94,10 +157,10 @@ public class CommandLookups
             .Take(MaxChoices)
             .Select(x => new { x.SeasonID, x.SeasonName })
             .ToListAsync(ct);
-        return seasons.Select(x => new ApplicationCommandOptionChoiceProperties(ChoiceName(x.SeasonName), x.SeasonID.ToString())).ToList();
+        return seasons.Select(x => new ApplicationCommandOptionChoiceProperties(ChoiceName(x.SeasonName), ChoiceValue(x.SeasonID))).ToList();
     }
 
-    /// <summary>Teams whose name has <paramref name="input"/>, labelled with their season, newest season first; valued by ID.</summary>
+    /// <summary>Teams whose name has <paramref name="input"/>, labelled with their season, newest season first.</summary>
     public async Task<List<ApplicationCommandOptionChoiceProperties>> TeamChoices(string? input, CancellationToken ct = default)
     {
         var name = (input ?? "").Trim();
@@ -108,10 +171,10 @@ public class CommandLookups
             .Take(MaxChoices)
             .Select(x => new { x.TeamID, x.TeamName, x.Season.SeasonName })
             .ToListAsync(ct);
-        return teams.Select(x => new ApplicationCommandOptionChoiceProperties(ChoiceName($"{x.TeamName} ({x.SeasonName})"), x.TeamID.ToString())).ToList();
+        return teams.Select(x => new ApplicationCommandOptionChoiceProperties(ChoiceName($"{x.TeamName} ({x.SeasonName})"), ChoiceValue(x.TeamID))).ToList();
     }
 
-    /// <summary>Players (users with a gamertag) whose gamertag has <paramref name="input"/>; valued by user ID.</summary>
+    /// <summary>Players (users with a gamertag) whose gamertag has <paramref name="input"/>.</summary>
     public async Task<List<ApplicationCommandOptionChoiceProperties>> PlayerChoices(string? input, CancellationToken ct = default)
     {
         var gamertag = (input ?? "").Trim();
@@ -121,28 +184,10 @@ public class CommandLookups
             .Take(MaxChoices)
             .Select(x => new { x.Id, x.XboxUser!.Gamertag })
             .ToListAsync(ct);
-        return players.Select(x => new ApplicationCommandOptionChoiceProperties(ChoiceName(x.Gamertag), x.Id.ToString())).ToList();
+        return players.Select(x => new ApplicationCommandOptionChoiceProperties(ChoiceName(x.Gamertag), ChoiceValue(x.Id))).ToList();
     }
 
-    /// <summary>
-    /// The season match picked, or found by its teams' names (latest season first, then soonest). Null when there is no such match.
-    /// </summary>
-    public async Task<int?> SeasonMatch(string input, CancellationToken ct = default)
-    {
-        var matches = _context.SeasonMatches.AsNoTracking();
-        if (int.TryParse(input, out var id))
-            return await matches.Where(x => x.SeasonMatchID == id).Select(x => (int?)x.SeasonMatchID).FirstOrDefaultAsync(ct);
-
-        var name = input.Trim();
-        return await matches
-            .Where(x => x.HomeTeam!.TeamName.Contains(name) || x.AwayTeam!.TeamName.Contains(name))
-            .OrderByDescending(x => x.SeasonID)
-            .ThenBy(x => x.ScheduledTime)
-            .Select(x => (int?)x.SeasonMatchID)
-            .FirstOrDefaultAsync(ct);
-    }
-
-    /// <summary>Season matches with a team whose name has <paramref name="input"/>, latest season first; valued by ID.</summary>
+    /// <summary>Season matches with a team whose name has <paramref name="input"/>, latest season first.</summary>
     public async Task<List<ApplicationCommandOptionChoiceProperties>> SeasonMatchChoices(string? input, CancellationToken ct = default)
     {
         var name = (input ?? "").Trim();
@@ -153,7 +198,7 @@ public class CommandLookups
             .Take(MaxChoices)
             .Select(x => new { x.SeasonMatchID, Home = x.HomeTeam!.TeamName, Away = x.AwayTeam!.TeamName, x.Season.SeasonName })
             .ToListAsync(ct);
-        return matches.Select(x => new ApplicationCommandOptionChoiceProperties(ChoiceName($"{x.Home ?? "TBD"} vs {x.Away ?? "TBD"} ({x.SeasonName})"), x.SeasonMatchID.ToString())).ToList();
+        return matches.Select(x => new ApplicationCommandOptionChoiceProperties(ChoiceName($"{x.Home ?? "TBD"} vs {x.Away ?? "TBD"} ({x.SeasonName})"), ChoiceValue(x.SeasonMatchID))).ToList();
     }
 
     /// <summary>A time typed in UTC (2026-11-20 20:00, or any invariant date and time): Discord has no date option.</summary>

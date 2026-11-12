@@ -15,17 +15,18 @@ public class MatchPlannerService
         _grifballContext = grifballContext;
     }
 
+    /// <summary>What making a season's matches again is told while one has been played.</summary>
+    public const string PlayedMatches = "This season's matches have been played: making them again would delete their results. Undo or remove them first.";
+
     public async Task CreateSeasonMatches(int seasonID, int homeMatchesPerTeam, int bestOf, CancellationToken ct = default)
     {
         using var t = await _grifballContext.Database.BeginTransactionAsync(ct);
         var regularSeason = _grifballContext.SeasonMatches.Where(x => x.SeasonID == seasonID && x.BracketMatch == null);
+        // The matches are made again from scratch: never over ones already played, whose results would go with them
+        if (await regularSeason.AnyAsync(SeasonMatch.Played, ct))
+            throw new SeasonRefusedException(PlayedMatches, StatusCodes.Status409Conflict);
         await _grifballContext.RecordedGames.DeleteManualForAsync(regularSeason, ct);
-        var deletedCount = await regularSeason.ExecuteDeleteAsync(ct);
-
-        if (deletedCount > 0)
-        {
-            // TODO add guard against user deleting unless they approve
-        }
+        await regularSeason.ExecuteDeleteAsync(ct);
 
         var teams = await _grifballContext.Teams.Where(t => t.SeasonID == seasonID).ToListAsync(ct);
 

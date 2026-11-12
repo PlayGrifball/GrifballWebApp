@@ -13,7 +13,7 @@ namespace GrifballWebApp.Server.Commands;
 /// </summary>
 public class MatchCommandsHandler
 {
-    public const string NoSuchMatch = "I found no such match.";
+    public const string NoSuchMatch = CommandLookups.NoSuchMatch;
     public const string NoSuchGame = "I found no such game. Give its Halo match ID.";
 
     private readonly CommandLookups _lookups;
@@ -32,11 +32,9 @@ public class MatchCommandsHandler
     public async Task Info(IDiscordInteractionContext context, string match)
     {
         await context.Defer(ephemeral: false);
-        if (await _lookups.SeasonMatch(match) is not int id || await _seasonMatches.GetSeasonMatchPage(id) is not { } page)
-        {
-            await context.Reply(NoSuchMatch);
+        if (await _lookups.SeasonMatchFor(context, match) is not int id)
             return;
-        }
+        var page = (await _seasonMatches.GetSeasonMatchPage(id))!;
 
         var home = page.HomeTeamName ?? "TBD";
         var away = page.AwayTeamName ?? "TBD";

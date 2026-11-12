@@ -160,8 +160,8 @@ public class TeamAndPlayerCommandsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(discord.Message().Content, Is.EqualTo(DiscordCaller.NoGamertag));
-            Assert.That(discord.Edits, Is.Empty);
+            Assert.That(discord.DeferredPublicly(), Is.True);
+            Assert.That(discord.Content(), Is.EqualTo(DiscordCaller.NoGamertag));
         }
     }
 
@@ -188,7 +188,7 @@ public class TeamAndPlayerCommandsTests
     }
 
     [Test]
-    public async Task PlayerCommands_Should_SayThereIsNoSuchPlayer_Privately()
+    public async Task PlayerCommands_Should_SayThereIsNoSuchPlayer()
     {
         var profile = new CommandContextRecorder();
         var matches = new CommandContextRecorder();
@@ -198,9 +198,8 @@ public class TeamAndPlayerCommandsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(profile.Message().Content, Is.EqualTo(PlayerCommandsHandler.NoSuchPlayer));
-            Assert.That(profile.Message().Flags, Is.EqualTo(MessageFlags.Ephemeral));
-            Assert.That(matches.Message().Content, Is.EqualTo(PlayerCommandsHandler.NoSuchPlayer));
+            Assert.That(profile.Content(), Is.EqualTo(PlayerCommandsHandler.NoSuchPlayer));
+            Assert.That(matches.Content(), Is.EqualTo(PlayerCommandsHandler.NoSuchPlayer));
         }
     }
 

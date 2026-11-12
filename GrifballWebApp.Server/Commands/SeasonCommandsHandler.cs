@@ -26,7 +26,7 @@ public enum SeasonStat
 /// </summary>
 public class SeasonCommandsHandler
 {
-    public const string NoSuchSeason = "I found no such season.";
+    public const string NoSuchSeason = CommandLookups.NoSuchSeason;
     private const int Top = 10;
 
     private readonly CommandLookups _lookups;
@@ -54,10 +54,7 @@ public class SeasonCommandsHandler
     /// <summary>The season asked for, with its name; null when there is none, the caller told so.</summary>
     private async Task<(int ID, string Name)?> SeasonFor(IDiscordInteractionContext context, string? season)
     {
-        if (await _lookups.Season(season) is int id && await _seasons.GetSeasonName(id) is { } name)
-            return (id, name);
-        await context.Reply(NoSuchSeason);
-        return null;
+        return await _lookups.SeasonFor(context, season) is int id ? (id, (await _seasons.GetSeasonName(id))!) : null;
     }
 
     public async Task List(IDiscordInteractionContext context)
@@ -67,9 +64,8 @@ public class SeasonCommandsHandler
         var lines = seasons.Results
             .Select(x => $"{x.SeasonName.LinkMarkdown(_urls.Season(x.SeasonID))} · {x.LeagueName} · {x.Year}{(x.HasEnded ? "" : " · **running**")}")
             .ToList();
-        var description = CommandReplies.Lines(lines, "There are no seasons yet.");
-        if (seasons.TotalCount > lines.Count)
-            description += "\n" + CommandReplies.More(seasons.TotalCount - lines.Count);
+        var description = CommandReplies.Lines(lines, "There are no seasons yet.",
+            tail: seasons.TotalCount > lines.Count ? "\n" + CommandReplies.More(seasons.TotalCount - lines.Count) : "");
         await context.Reply(CommandReplies.Embed("Seasons", _urls.Page("seasons"), description));
     }
 
@@ -120,9 +116,8 @@ public class SeasonCommandsHandler
             .OrderBy(x => x.Time)
             .Select(x => $"{x.Time.DiscordTimeEmbed()} · {$"{x.HomeTeam} vs {x.AwayTeam}".LinkMarkdown(_urls.SeasonMatch(x.SeasonMatchID))}")
             .ToList();
-        var description = CommandReplies.Lines(lines, "No upcoming matches are scheduled.");
-        if (unscheduled.Count > 0)
-            description += $"\n\n{unscheduled.Count} more {(unscheduled.Count == 1 ? "match is" : "matches are")} not scheduled yet.";
+        var description = CommandReplies.Lines(lines, "No upcoming matches are scheduled.",
+            tail: unscheduled.Count > 0 ? $"\n\n{unscheduled.Count} more {(unscheduled.Count == 1 ? "match is" : "matches are")} not scheduled yet." : "");
         await context.Reply(CommandReplies.Embed($"{s.Name} schedule", _urls.Season(s.ID), description));
     }
 

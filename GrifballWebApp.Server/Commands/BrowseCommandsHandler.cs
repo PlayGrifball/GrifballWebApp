@@ -141,8 +141,8 @@ public class BrowseCommandsHandler
             .Take(Top)
             .Select((x, i) => $"{i + 1}. {x.Gamertag.LinkMarkdown(_urls.Profile(x.UserID))} · {x.Wins}-{x.Losses} · {x.Goals} goals")
             .ToList();
-        var description = $"{detail.Season.StartsAt.DiscordTimeEmbed()} to {detail.Season.EndsAt.DiscordTimeEmbed()} · {detail.Season.GameCount} games\n\n"
-            + CommandReplies.Lines(lines, "No games yet.");
+        var description = CommandReplies.Lines(lines, "No games yet.",
+            head: $"{detail.Season.StartsAt.DiscordTimeEmbed()} to {detail.Season.EndsAt.DiscordTimeEmbed()} · {detail.Season.GameCount} games\n\n");
         await context.Reply(CommandReplies.Embed(detail.Season.Name, _urls.Page($"late-league/{picked.MatchmakingSeasonID}"), description));
     }
 

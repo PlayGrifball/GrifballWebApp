@@ -101,11 +101,11 @@ public class DiscordModuleRegistrationTests
 
         Assert.That(commands, Is.EqualTo(new[]
         {
-            "/admin bracket create \"Make the season's bracket\" permissions: default, preconditions: 0"
+            "/admin bracket create \"Make the season's bracket (refused once any of it is played)\" permissions: default, preconditions: 0"
+                + " [season: String \"The season (its matches not played yet are replaced)\" autocomplete: SeasonAutocomplete, preconditions: 0]"
                 + " [participants: Int32 \"Teams in the bracket\" autocomplete: none, preconditions: 0]"
                 + " [best_of: Int32 \"Games per match\" autocomplete: none, preconditions: 0]"
-                + " [double_elimination: Boolean = False \"Double elimination\" autocomplete: none, preconditions: 0]"
-                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+                + " [double_elimination: Boolean = False \"Double elimination\" autocomplete: none, preconditions: 0]",
             "/admin bracket seed \"Seed the bracket by the standings\" permissions: default, preconditions: 0"
                 + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
             "/admin claims approve \"Approve a claim\" permissions: default, preconditions: 0"
@@ -116,9 +116,9 @@ public class DiscordModuleRegistrationTests
                 + " [reason: String = null \"Why, for the claimant\" autocomplete: none, preconditions: 0]",
             "/admin dashboard \"Pending reschedules and overdue matches, counted\" permissions: default, preconditions: 0",
             "/admin draft lock \"Lock the captains\" permissions: default, preconditions: 0"
-                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+                + " [season: String = null \"The season (default: the next to start)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
             "/admin draft unlock \"Unlock the captains\" permissions: default, preconditions: 0"
-                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+                + " [season: String = null \"The season (default: the next to start)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
             "/admin halo pull \"Pull a Halo game's stats\" permissions: default, preconditions: 0"
                 + " [match_id: String \"The game's Halo match ID\" autocomplete: none, preconditions: 0]",
             "/admin jobs list \"The jobs and their state\" permissions: default, preconditions: 0",
@@ -149,12 +149,12 @@ public class DiscordModuleRegistrationTests
                 + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
             "/admin schedule show \"The latest recommendation\" permissions: default, preconditions: 0"
                 + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
-            "/admin season generate \"Make the season's matches\" permissions: default, preconditions: 0"
+            "/admin season generate \"Make the season's matches (refused once any is played)\" permissions: default, preconditions: 0"
+                + " [season: String \"The season (its matches not played yet are replaced)\" autocomplete: SeasonAutocomplete, preconditions: 0]"
                 + " [home_matches: Int32 \"Home matches per team\" autocomplete: none, preconditions: 0]"
-                + " [best_of: Int32 \"Games per match\" autocomplete: none, preconditions: 0]"
-                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+                + " [best_of: Int32 \"Games per match\" autocomplete: none, preconditions: 0]",
             "/availability show \"A season's match times\" permissions: default, preconditions: 0"
-                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+                + " [season: String = null \"The season (default: the next to start)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
             "/events \"Upcoming signups, drafts and seasons\" permissions: default, preconditions: 0",
             "/help \"The bot's commands\" permissions: default, preconditions: 0"
                 + " [command: String = null \"A command, like season or admin, for its parts\" autocomplete: none, preconditions: 0]",
@@ -226,10 +226,10 @@ public class DiscordModuleRegistrationTests
             "/setgamertag \"Set your gamertag\" permissions: default, preconditions: 0"
                 + " [gamertag: String \"No description provided.\" autocomplete: none, preconditions: 0]",
             "/signup \"Sign up for a season, or change your signup\" permissions: default, preconditions: 0"
-                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]"
-                + " [team_name: String = null \"The team name you'd use as captain\" autocomplete: none, preconditions: 0]"
-                + " [will_captain: Boolean = False \"You'd captain a team\" autocomplete: none, preconditions: 0]"
-                + " [draft_help: Boolean = False \"You'd like help drafting\" autocomplete: none, preconditions: 0]",
+                + " [season: String = null \"The season (default: the next to start)\" autocomplete: SeasonAutocomplete, preconditions: 0]"
+                + " [team_name: String = null \"The team name you'd use as captain (default: as it is)\" autocomplete: none, preconditions: 0]"
+                + " [will_captain: Nullable`1 = null \"You'd captain a team (default: as it is)\" autocomplete: none, preconditions: 0]"
+                + " [draft_help: Nullable`1 = null \"You'd like help drafting (default: as it is)\" autocomplete: none, preconditions: 0]",
             "/team history \"A team's seasons across the league's history\" permissions: default, preconditions: 0"
                 + " [team: String \"The team\" autocomplete: TeamAutocomplete, preconditions: 0]",
             "/team info \"A team's season, record, captain and titles\" permissions: default, preconditions: 0"

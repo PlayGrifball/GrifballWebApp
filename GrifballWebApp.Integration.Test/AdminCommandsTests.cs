@@ -92,11 +92,10 @@ public class AdminCommandsTests
 
         await _handler.Dashboard(discord.Context);
 
-        var message = discord.Message();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(message.Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.Staff)));
-            Assert.That(message.Flags, Is.EqualTo(MessageFlags.Ephemeral));
+            Assert.That(discord.DeferredPublicly(), Is.False);
+            Assert.That(discord.Content(), Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.Staff)));
         }
     }
 
@@ -137,7 +136,7 @@ public class AdminCommandsTests
 
         await _handler.Forfeit(sysadmin.Context, "1", ForfeitSide.Home);
 
-        Assert.That(sysadmin.Message().Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.CommissionerOnly)));
+        Assert.That(sysadmin.Content(), Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.CommissionerOnly)));
     }
 
     [Test]
@@ -167,9 +166,9 @@ public class AdminCommandsTests
         var match = await AddMatch();
         var discord = As(_commissioner);
 
-        await _handler.UndoResult(discord.Context, match.SeasonMatchID.ToString());
-
-        Assert.That(discord.Content(), Is.EqualTo("This match has no result to undo"));
+        // The pipeline replies with its message (GlobalExceptionHandler.Expected), as the site's 400 does
+        Assert.That(async () => await _handler.UndoResult(discord.Context, match.SeasonMatchID.ToString()),
+            Throws.TypeOf<SeasonMatchActionNotAllowedException>().With.Message.EqualTo("This match has no result to undo"));
     }
 
     [Test]
@@ -259,7 +258,7 @@ public class AdminCommandsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(discord.Message().Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.SysadminOnly)));
+            Assert.That(discord.Content(), Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.SysadminOnly)));
             await _dataPull.DidNotReceive().DownloadMedals();
         }
     }

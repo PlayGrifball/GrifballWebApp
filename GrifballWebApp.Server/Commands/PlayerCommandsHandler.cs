@@ -4,7 +4,6 @@ using GrifballWebApp.Application;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.Historical.Vods;
 using GrifballWebApp.Application.Profile;
-using GrifballWebApp.Server.Extensions;
 using NetCord.Rest;
 
 namespace GrifballWebApp.Server.Commands;
@@ -41,28 +40,24 @@ public class PlayerCommandsHandler
     }
 
     /// <summary>
-    /// The player named, else the caller; then the reply deferred. Null when there is none, the caller told why (no such
+    /// The reply deferred, then the player named, else the caller. Null when there is none, the caller told why (no such
     /// player, or the Set Gamertag button for their own).
     /// </summary>
     private async Task<ProfileStatsDto?> PlayerFor(IDiscordInteractionContext context, string? player)
     {
-        int userID;
-        if (player is null)
-        {
-            if (await _caller.Require(context, DiscordCaller.Roles.Anyone) is not { } caller)
-                return null;
-            userID = caller.UserID;
-        }
-        else if (await _lookups.Player(player) is int found)
-            userID = found;
-        else
-        {
-            await context.EphemeralResponse(NoSuchPlayer);
-            return null;
-        }
-
         await context.Defer(ephemeral: false);
-        return (await _profiles.GetAsync(userID))!;
+        return await UserFor(context, player) is int userID ? (await _profiles.GetAsync(userID))! : null;
+    }
+
+    /// <summary>The user named, else the caller (after deferring). Null when there is none, the caller told why.</summary>
+    private async Task<int?> UserFor(IDiscordInteractionContext context, string? player)
+    {
+        if (player is null)
+            return (await _caller.Require(context, DiscordCaller.Roles.Anyone))?.UserID;
+        if (await _lookups.Player(player) is int found)
+            return found;
+        await context.Reply(NoSuchPlayer);
+        return null;
     }
 
     /// <summary>The player's gamertag: every player found here has one (<see cref="CommandLookups.Player"/>, <see cref="DiscordCaller"/>).</summary>
@@ -109,7 +104,7 @@ public class PlayerCommandsHandler
         var lines = commendations.Commendations
             .Select(x => $"{x.MedalName} · {x.Count}" + (x.Tier > 0 ? $" · tier {x.Tier}" : ""))
             .ToList();
-        var description = $"{commendations.TotalMedals} medals, {commendations.DistinctMedals} kinds\n\n" + CommandReplies.Lines(lines, "No medals yet.");
+        var description = CommandReplies.Lines(lines, "No medals yet.", head: $"{commendations.TotalMedals} medals, {commendations.DistinctMedals} kinds\n\n");
         await context.Reply(CommandReplies.Embed($"{Name(p)} commendations", _urls.Profile(p.UserID), description));
     }
 
@@ -136,16 +131,18 @@ public class PlayerCommandsHandler
     /// <summary>The player's recent Halo matches: /matches, by the player's gamertag.</summary>
     public async Task Matches(IDiscordApplicationCommandContext context, string? player)
     {
-        string? gamertag = null;
-        if (player is not null)
+        await context.Defer(ephemeral: false);
+        if (player is null)
         {
-            if (await _lookups.Player(player) is not int userID)
-            {
-                await context.EphemeralResponse(NoSuchPlayer);
-                return;
-            }
-            gamertag = (await _profiles.GetAsync(userID))!.Gamertag;
+            // The caller's own: /matches finds them by their Discord account
+            await _recentMatches.RecentMatchesDeferred(context, null);
+            return;
         }
-        await _recentMatches.RecentMatches(context, gamertag);
+        if (await _lookups.Player(player) is not int userID)
+        {
+            await context.Reply(NoSuchPlayer);
+            return;
+        }
+        await _recentMatches.RecentMatchesDeferred(context, (await _profiles.GetAsync(userID))!.Gamertag);
     }
 }

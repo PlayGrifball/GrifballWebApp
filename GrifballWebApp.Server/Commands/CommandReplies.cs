@@ -26,10 +26,13 @@ public static class CommandReplies
     public static Task Reply(this IDiscordInteractionContext context, string content)
         => context.Interaction.ModifyResponseAsync(x => x.WithContent(content));
 
-    /// <summary>An embed titled <paramref name="title"/> that links to the site's page for it.</summary>
+    /// <summary>Discord's limit on an embed's title.</summary>
+    internal const int TitleLimit = 256;
+
+    /// <summary>An embed titled <paramref name="title"/> (cut to Discord's limit) that links to the site's page for it.</summary>
     public static EmbedProperties Embed(string title, string url, string? description = null) => new()
     {
-        Title = title,
+        Title = title.Length <= TitleLimit ? title : title[..(TitleLimit - 1)] + "…",
         Url = url,
         Description = description,
         Color = Blue,
@@ -38,8 +41,15 @@ public static class CommandReplies
     /// <summary>Lines for an embed field's value, as many as fit, then how many more there are on the site.</summary>
     public static string FieldLines(IReadOnlyCollection<string> lines, string empty) => Lines(lines, empty, FieldLimit);
 
-    /// <summary>Lines for an embed's description, as many as fit, then how many more there are on the site.</summary>
-    public static string Lines(IReadOnlyCollection<string> lines, string empty, int limit = DescriptionLimit)
+    /// <summary>
+    /// An embed's description: <paramref name="head"/>, then as many lines as fit before <paramref name="tail"/>, then how many
+    /// more there are on the site, then the tail; all within Discord's <paramref name="limit"/>. With no lines, <paramref name="empty"/>
+    /// takes their place.
+    /// </summary>
+    public static string Lines(IReadOnlyCollection<string> lines, string empty, int limit = DescriptionLimit, string head = "", string tail = "")
+        => head + Body(lines, empty, limit - head.Length - tail.Length) + tail;
+
+    private static string Body(IReadOnlyCollection<string> lines, string empty, int limit)
     {
         if (lines.Count == 0)
             return empty;

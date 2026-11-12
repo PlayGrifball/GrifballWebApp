@@ -212,8 +212,8 @@ public class SeasonCommandsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(seasons.Select(x => (x.Name, x.StringValue)), Is.EqualTo(new[] { ("Season Seven", season.SeasonID.ToString()) }));
-            Assert.That(teams.Select(x => (x.Name, x.StringValue)), Is.EqualTo(new[] { ("Alpha (Season Seven)", alpha.TeamID.ToString()) }));
+            Assert.That(seasons.Select(x => (x.Name, x.StringValue)), Is.EqualTo(new[] { ("Season Seven", CommandLookups.ChoiceValue(season.SeasonID)) }));
+            Assert.That(teams.Select(x => (x.Name, x.StringValue)), Is.EqualTo(new[] { ("Alpha (Season Seven)", CommandLookups.ChoiceValue(alpha.TeamID)) }));
         }
     }
 

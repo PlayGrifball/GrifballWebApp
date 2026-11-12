@@ -12,6 +12,9 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
 {
     private const string MatchDescription = "The match (search by team)";
     private const string SeasonDescription = "The season (default: the current one)";
+    /// <summary>Making matches or a bracket replaces the ones there: never a season by default.</summary>
+    private const string RebuiltSeasonDescription = "The season (its matches not played yet are replaced)";
+    private const string UpcomingSeasonDescription = "The season (default: the next to start)";
     private readonly AdminCommandsHandler _handler;
 
     public AdminCommands(AdminCommandsHandler handler)
@@ -76,11 +79,11 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
             _handler = handler;
         }
 
-        [SubSlashCommand("generate", "Make the season's matches")]
+        [SubSlashCommand("generate", "Make the season's matches (refused once any is played)")]
         public Task Generate(
+            [SlashCommandParameter(Description = RebuiltSeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string season,
             [SlashCommandParameter(Name = "home_matches", Description = "Home matches per team")] int homeMatchesPerTeam,
-            [SlashCommandParameter(Name = "best_of", Description = "Games per match")] int bestOf,
-            [SlashCommandParameter(Description = SeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string? season = null)
+            [SlashCommandParameter(Name = "best_of", Description = "Games per match")] int bestOf)
             => _handler.GenerateMatches(Context.ToDiscordContext(), season, homeMatchesPerTeam, bestOf);
     }
 
@@ -94,12 +97,12 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
             _handler = handler;
         }
 
-        [SubSlashCommand("create", "Make the season's bracket")]
+        [SubSlashCommand("create", "Make the season's bracket (refused once any of it is played)")]
         public Task Create(
+            [SlashCommandParameter(Description = RebuiltSeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string season,
             [SlashCommandParameter(Description = "Teams in the bracket")] int participants,
             [SlashCommandParameter(Name = "best_of", Description = "Games per match")] int bestOf,
-            [SlashCommandParameter(Name = "double_elimination", Description = "Double elimination")] bool doubleElimination = false,
-            [SlashCommandParameter(Description = SeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string? season = null)
+            [SlashCommandParameter(Name = "double_elimination", Description = "Double elimination")] bool doubleElimination = false)
             => _handler.CreateBracket(Context.ToDiscordContext(), season, participants, doubleElimination, bestOf);
 
         [SubSlashCommand("seed", "Seed the bracket by the standings")]
@@ -118,11 +121,11 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
         }
 
         [SubSlashCommand("lock", "Lock the captains")]
-        public Task Lock([SlashCommandParameter(Description = SeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string? season = null)
+        public Task Lock([SlashCommandParameter(Description = UpcomingSeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string? season = null)
             => _handler.LockCaptains(Context.ToDiscordContext(), season, @lock: true);
 
         [SubSlashCommand("unlock", "Unlock the captains")]
-        public Task Unlock([SlashCommandParameter(Description = SeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string? season = null)
+        public Task Unlock([SlashCommandParameter(Description = UpcomingSeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string? season = null)
             => _handler.LockCaptains(Context.ToDiscordContext(), season, @lock: false);
     }
 

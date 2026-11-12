@@ -17,8 +17,13 @@ command's subcommands. The handlers are in `GrifballWebApp.Server/Commands`.
   any channel.
 - A refusal the site answers with a 4xx (`GlobalExceptionHandler.Expected`) gets the same message on Discord.
 
-Seasons, teams, players and season matches autocomplete. A name typed without picking a choice is looked up too.
+Seasons, teams, players and season matches autocomplete. A name typed without picking a choice is looked up too: the
+exact name, else the only one whose name has it, else (for digits that name nothing) that ID. A typed name that fits
+several is refused, and the caller is asked to pick one, so a staff action never lands on a guess. With no season named,
+the season pages mean the one running now, and `/signup`, `/availability show` and `/admin draft` mean the next to start.
 Discord has no date option, so times are typed in UTC, like `2026-11-20 20:00`.
+
+Every command answers Discord at once (deferred), then looks things up: Discord gives an interaction 3 seconds.
 
 ## Anyone
 
@@ -47,7 +52,7 @@ Discord has no date option, so times are typed in UTC, like `2026-11-20 20:00`.
 | `/me region` | Profile: region |
 | `/me claim\|claims` | Profile: claim a past gamertag, your claims |
 | `/me logins` | A link to the profile page: linking a sign-in runs in a browser |
-| `/signup` | The signup form, minus the times you can play (kept, set on the form). Player or Sysadmin |
+| `/signup` | The signup form, minus the times you can play (kept, set on the form). What isn't given keeps its value. Player or Sysadmin |
 | `/reschedule request` | The reschedule request form. The service decides who may (a player on either team, or a commissioner) |
 
 ## Staff
@@ -57,7 +62,7 @@ Discord has no date option, so times are typed in UTC, like `2026-11-20 20:00`.
 | `/admin dashboard\|overdue`, `/reschedule pending\|decide` | Commissioner or Sysadmin |
 | `/admin match report\|forfeit\|undo\|time` | Commissioner |
 | `/admin match pull` | Commissioner or Sysadmin |
-| `/admin season generate`, `/admin bracket create\|seed`, `/admin draft lock\|unlock` | Commissioner |
+| `/admin season generate`, `/admin bracket create\|seed`, `/admin draft lock\|unlock` | Commissioner. Generate and create name their season and are refused once a match is played (on the site too): they replace the matches |
 | `/admin schedule show\|run\|apply` | Commissioner or Sysadmin |
 | `/admin halo pull`, `/admin medals`, `/admin jobs list\|run\|pause`, `/admin claims list\|approve\|reject` | Sysadmin |
 

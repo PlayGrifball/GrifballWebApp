@@ -67,45 +67,18 @@ public class AdminCommandsHandler
         _urls = urls;
     }
 
-    /// <summary>The caller when they have one of <paramref name="roles"/>, the reply then deferred ephemerally; null otherwise, told why.</summary>
+    /// <summary>The reply deferred ephemerally, then the caller when they have one of <paramref name="roles"/>; null otherwise, told why.</summary>
     private async Task<CallerUser?> Staff(IDiscordInteractionContext context, IReadOnlyCollection<string> roles)
     {
-        if (await _caller.Require(context, roles) is not { } caller)
-            return null;
         await context.Defer(ephemeral: true);
-        return caller;
+        return await _caller.Require(context, roles);
     }
 
-    /// <summary>The season match named, or null with the caller told there is none.</summary>
-    private async Task<int?> SeasonMatchFor(IDiscordInteractionContext context, string match)
-    {
-        if (await _lookups.SeasonMatch(match) is int id)
-            return id;
-        await context.Reply(MatchCommandsHandler.NoSuchMatch);
-        return null;
-    }
-
-    /// <summary>The season named, or null with the caller told there is none.</summary>
-    private async Task<int?> SeasonFor(IDiscordInteractionContext context, string? season)
-    {
-        if (await _lookups.Season(season) is int id)
-            return id;
-        await context.Reply(SeasonCommandsHandler.NoSuchSeason);
-        return null;
-    }
-
-    /// <summary>Runs a season match action; its refusal (<see cref="SeasonMatchActionNotAllowedException"/>) is the reply, as the site's 400 is.</summary>
+    /// <summary>Runs a season match action, then says it is done; its refusal (SeasonMatchActionNotAllowedException) is the reply
+    /// instead, as the site's 400 is (DiscordInteractionPipeline).</summary>
     private static async Task Act(IDiscordInteractionContext context, Func<Task> action, string done = Done)
     {
-        try
-        {
-            await action();
-        }
-        catch (SeasonMatchActionNotAllowedException ex)
-        {
-            await context.Reply(ex.Message);
-            return;
-        }
+        await action();
         await context.Reply(done);
     }
 
@@ -163,7 +136,7 @@ public class AdminCommandsHandler
 
     public async Task ReportGame(IDiscordInteractionContext context, string match, string gameID, int? replaces)
     {
-        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await SeasonMatchFor(context, match) is not int id)
+        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonMatchFor(context, match) is not int id)
             return;
         if (!Guid.TryParse(gameID.Trim(), out var matchID) || matchID == Guid.Empty)
         {
@@ -175,7 +148,7 @@ public class AdminCommandsHandler
 
     public async Task Forfeit(IDiscordInteractionContext context, string match, ForfeitSide side)
     {
-        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await SeasonMatchFor(context, match) is not int id)
+        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonMatchFor(context, match) is not int id)
             return;
         await Act(context, () => side switch
         {
@@ -187,7 +160,7 @@ public class AdminCommandsHandler
 
     public async Task UndoResult(IDiscordInteractionContext context, string match)
     {
-        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await SeasonMatchFor(context, match) is not int id)
+        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonMatchFor(context, match) is not int id)
             return;
         await Act(context, () => _seasonMatches.UndoResult(id), "The result is undone.");
     }
@@ -195,7 +168,7 @@ public class AdminCommandsHandler
     /// <summary>Queues a pull of the match's players' recent games, as the match page does.</summary>
     public async Task PullGames(IDiscordInteractionContext context, string match)
     {
-        if (await Staff(context, DiscordCaller.Roles.Staff) is not { } caller || await SeasonMatchFor(context, match) is not int id)
+        if (await Staff(context, DiscordCaller.Roles.Staff) is not { } caller || await _lookups.SeasonMatchFor(context, match) is not int id)
             return;
         var status = await _onDemand.Enqueue<SeasonMatchPullJob, SeasonMatchPull>(SeasonMatchPullJob.RunName(id), new SeasonMatchPull(id, caller.UserID),
             $"Season match {id}", JobsServiceCollectionExtensions.HaloMatchPulls);
@@ -204,7 +177,7 @@ public class AdminCommandsHandler
 
     public async Task SetTime(IDiscordInteractionContext context, string match, string time)
     {
-        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await SeasonMatchFor(context, match) is not int id)
+        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonMatchFor(context, match) is not int id)
             return;
         if (!CommandLookups.TryParseUtc(time, out var when))
         {
@@ -217,7 +190,7 @@ public class AdminCommandsHandler
 
     public async Task GenerateMatches(IDiscordInteractionContext context, string? season, int homeMatchesPerTeam, int bestOf)
     {
-        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await SeasonFor(context, season) is not int id)
+        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonFor(context, season) is not int id)
             return;
         if (homeMatchesPerTeam <= 0 || bestOf <= 0)
         {
@@ -230,7 +203,7 @@ public class AdminCommandsHandler
 
     public async Task CreateBracket(IDiscordInteractionContext context, string? season, int participants, bool doubleElimination, int bestOf)
     {
-        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await SeasonFor(context, season) is not int id)
+        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonFor(context, season) is not int id)
             return;
         if (participants <= 0)
         {
@@ -243,7 +216,7 @@ public class AdminCommandsHandler
 
     public async Task SeedBracket(IDiscordInteractionContext context, string? season)
     {
-        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await SeasonFor(context, season) is not int id)
+        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonFor(context, season) is not int id)
             return;
         await _brackets.SetSeeds(id);
         await context.Reply("The bracket is seeded by the standings.");
@@ -251,7 +224,7 @@ public class AdminCommandsHandler
 
     public async Task LockCaptains(IDiscordInteractionContext context, string? season, bool @lock)
     {
-        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await SeasonFor(context, season) is not int id)
+        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonFor(context, season, SeasonDefault.Upcoming) is not int id)
             return;
         await _teams.LockCaptains(id, @lock);
         await context.Reply(@lock ? "The captains are locked." : "The captains are unlocked.");
@@ -260,7 +233,7 @@ public class AdminCommandsHandler
     /// <summary>The season's latest schedule recommendation, and whether one is being worked out.</summary>
     public async Task ScheduleShow(IDiscordInteractionContext context, string? season)
     {
-        if (await Staff(context, DiscordCaller.Roles.Staff) is null || await SeasonFor(context, season) is not int id)
+        if (await Staff(context, DiscordCaller.Roles.Staff) is null || await _lookups.SeasonFor(context, season) is not int id)
             return;
         var run = await _onDemand.Status<ScheduleRecommendationJob>(ScheduleRecommendationJob.RunName(id));
         var latest = await _recommendations.Latest(id);
@@ -272,12 +245,12 @@ public class AdminCommandsHandler
             ? "No recommendation yet: /admin schedule run works one out."
             : $"Recommendation #{latest.ScheduleRecommendationID}" + (latest.AppliedAt is { } applied ? $", applied {applied.DiscordTimeEmbed()}" : ", not applied");
         await context.Reply(CommandReplies.Embed($"Schedule ({run.State.ToString().ToLowerInvariant()})", _urls.Season(id),
-            head + "\n\n" + CommandReplies.Lines(lines, "No matches.")));
+            CommandReplies.Lines(lines, "No matches.", head: head + "\n\n")));
     }
 
     public async Task ScheduleRun(IDiscordInteractionContext context, string? season)
     {
-        if (await Staff(context, DiscordCaller.Roles.Staff) is not { } caller || await SeasonFor(context, season) is not int id)
+        if (await Staff(context, DiscordCaller.Roles.Staff) is not { } caller || await _lookups.SeasonFor(context, season) is not int id)
             return;
         var status = await _onDemand.Enqueue<ScheduleRecommendationJob, RecommendSchedule>(ScheduleRecommendationJob.RunName(id),
             new RecommendSchedule(id, caller.Gamertag, caller.UserID), $"Season {id}");

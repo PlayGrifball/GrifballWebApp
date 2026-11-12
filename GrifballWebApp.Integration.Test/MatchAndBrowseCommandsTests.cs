@@ -116,7 +116,7 @@ public class MatchAndBrowseCommandsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(choices.Single().StringValue, Is.EqualTo(match.SeasonMatchID.ToString()));
+            Assert.That(choices.Single().StringValue, Is.EqualTo(CommandLookups.ChoiceValue(match.SeasonMatchID)));
             Assert.That(choices.Single().Name, Does.Contain(" vs ").And.EndWith("(Summer)"));
         }
     }

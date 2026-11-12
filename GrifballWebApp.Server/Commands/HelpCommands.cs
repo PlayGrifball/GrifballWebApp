@@ -62,7 +62,7 @@ public class HelpCommandsHandler
                 : $"`{g.Key}` · {string.Join(", ", g.Select(x => x.Path[(g.Key.Length + 1)..]))}")
             .ToList();
         await context.Reply(CommandReplies.Embed("Commands", _urls.Page(""),
-            CommandReplies.Lines(groups, "No commands.") + "\n\n/help with a command shows what each of its parts does. Staff commands reply only to you."));
+            CommandReplies.Lines(groups, "No commands.", tail: "\n\n/help with a command shows what each of its parts does. Staff commands reply only to you.")));
     }
 }
 

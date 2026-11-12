@@ -63,29 +63,22 @@ public class DiscordCaller
 
     /// <summary>
     /// The caller, when they have an account with a gamertag and one of <paramref name="roles"/> (none: any account will do).
-    /// Otherwise null, and they were told why: privately, as the interaction's first response, so call this before deferring.
+    /// Otherwise null, and they were told why in the reply. Call it after deferring: the lookup must not hold up Discord's
+    /// 3 seconds, so the reply is deferred ephemerally first (only the caller sees why).
     /// </summary>
     public async Task<CallerUser?> Require(IDiscordInteractionContext context, IReadOnlyCollection<string> roles)
     {
         var user = await Find(context.Interaction.User.Id);
         if (user is null)
         {
-            await context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = NoGamertag,
-                Components = [new ActionRowProperties([new ButtonProperties(DiscordButtonContants.SetGamertag, "Set Gamertag", ButtonStyle.Primary)])],
-                Flags = MessageFlags.Ephemeral,
-            }));
+            await context.Interaction.ModifyResponseAsync(x => x.WithContent(NoGamertag)
+                .WithComponents([new ActionRowProperties([new ButtonProperties(DiscordButtonContants.SetGamertag, "Set Gamertag", ButtonStyle.Primary)])]));
             return null;
         }
 
         if (!user.IsInAnyRole(roles))
         {
-            await context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = MissingRole(roles),
-                Flags = MessageFlags.Ephemeral,
-            }));
+            await context.Reply(MissingRole(roles));
             return null;
         }
 

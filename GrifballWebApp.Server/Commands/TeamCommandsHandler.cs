@@ -83,8 +83,8 @@ public class TeamCommandsHandler
             .Select(x => $"{x.Season.SeasonName.LinkMarkdown(_urls.Team(x.Season.SeasonID, x.TeamID))} · {x.Wins}-{x.Losses}"
                 + (x.Titles.Length > 0 ? $" · {string.Join(", ", x.Titles)}" : ""))
             .ToList();
-        var description = $"{history.Appearances} seasons · {history.Wins}-{history.Losses} · {history.Championships} championships\n\n"
-            + CommandReplies.Lines(lines, "No seasons yet.");
+        var description = CommandReplies.Lines(lines, "No seasons yet.",
+            head: $"{history.Appearances} seasons · {history.Wins}-{history.Losses} · {history.Championships} championships\n\n");
         await context.Reply(CommandReplies.Embed($"{history.TeamName} history", _urls.TeamHistory(t.TeamID), description));
     }
 
