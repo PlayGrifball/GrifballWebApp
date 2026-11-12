@@ -29,6 +29,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.14" />
+    <!-- Roslyn, for AnalyzerTests (it used to come with EF Core Design, which moved to the unit projects) -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.11.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
