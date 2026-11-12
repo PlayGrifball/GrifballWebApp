@@ -50,7 +50,7 @@ describe('PlayerSearchComponent', () => {
     fixture.detectChanges();
     return event;
   };
-  const searched = (text: string): TestRequest => http.expectOne(r => r.url === '/api/Leaderboards/SearchPlayers' && r.params.get('query') === text);
+  const searched = (text: string): TestRequest => http.expectOne(r => r.url === '/api/leaderboards/players' && r.params.get('query') === text);
   /** Types the text, waits out the pause and answers with the players found. */
   const showResults = (text = 'Le', results = found) => {
     type(text);
@@ -63,7 +63,7 @@ describe('PlayerSearchComponent', () => {
     type('S');
     type('Si');
     jasmine.clock().tick(SEARCH_DEBOUNCE_MS - 1);
-    http.expectNone('/api/Leaderboards/SearchPlayers');
+    http.expectNone('/api/leaderboards/players');
     type(' Sil ');
     jasmine.clock().tick(SEARCH_DEBOUNCE_MS);
     searched('Sil').flush(found);
@@ -79,7 +79,7 @@ describe('PlayerSearchComponent', () => {
     showResults();
     type('L');
     jasmine.clock().tick(SEARCH_DEBOUNCE_MS);
-    http.expectNone('/api/Leaderboards/SearchPlayers');
+    http.expectNone('/api/leaderboards/players');
     expect(list().hidden).toBeTrue();
     expect(input().getAttribute('aria-expanded')).toBe('false');
   });
@@ -113,7 +113,7 @@ describe('PlayerSearchComponent', () => {
     el().querySelector<HTMLButtonElement>('.search__clear')!.click();
     fixture.detectChanges();
     jasmine.clock().tick(SEARCH_DEBOUNCE_MS * 2);
-    http.expectNone('/api/Leaderboards/SearchPlayers');
+    http.expectNone('/api/leaderboards/players');
     expect(cleared).toBe(1);
     expect(fixture.componentInstance.query()).toBe('');
     expect(el().querySelector('.search__clear')).toBeNull();
@@ -141,7 +141,7 @@ describe('PlayerSearchComponent', () => {
     type('  abc ');
     el().querySelector<HTMLButtonElement>('.hud-btn')!.click();
     jasmine.clock().tick(SEARCH_DEBOUNCE_MS * 2);
-    http.expectNone('/api/Leaderboards/SearchPlayers');
+    http.expectNone('/api/leaderboards/players');
     expect(submitted).toEqual(['abc']);
 
     type('   ');

@@ -25,12 +25,12 @@ async function mockBackend(page: Page, role: Role, failFirst: string[] = []): Pr
 }
 
 const PAGES = [
-  { path: '/', role: 'anon', ready: 'tr.mat-mdc-row', early: ['/api/Home/CurrentAndFutureEvents/', '/api/Season/GetSeasons?ended=true&pageSize=10&pageNumber=1'] },
-  { path: '/season/12', role: 'player', ready: '.week-card', early: ['/api/Season/getSeasonSummary/12', '/api/TeamStandings/GetTeamStandings/12', '/api/MatchPlanner/GetScheduledMatches/12'] },
-  { path: '/season/12?tab=schedule', role: 'anon', ready: '.sched-match', early: ['/api/MatchPlanner/GetUnscheduledMatches/12', '/api/MatchPlanner/GetScheduledMatches/12'] },
-  { path: '/season/12?tab=bracket', role: 'anon', ready: '.brackets-viewer .match', early: ['/api/Brackets/GetViewerData?seasonID=12'] },
-  { path: '/seasonmatch/31', role: 'anon', ready: '.lobby-player', early: ['/api/SeasonMatch/GetSeasonMatchPage/31'] },
-  { path: '/profile/117', role: 'player', ready: '.linked-login', early: ['/api/profile/getgamertag/117', '/api/profile/getprofilestats/117'] },
+  { path: '/', role: 'anon', ready: 'tr.mat-mdc-row', early: ['/api/events', '/api/seasons?ended=true&pageSize=10&pageNumber=1'] },
+  { path: '/season/12', role: 'player', ready: '.week-card', early: ['/api/seasons/12/summary', '/api/seasons/12/standings', '/api/seasons/12/matches/scheduled'] },
+  { path: '/season/12?tab=schedule', role: 'anon', ready: '.sched-match', early: ['/api/seasons/12/matches/unscheduled', '/api/seasons/12/matches/scheduled'] },
+  { path: '/season/12?tab=bracket', role: 'anon', ready: '.brackets-viewer .match', early: ['/api/seasons/12/bracket/viewer-data'] },
+  { path: '/seasonmatch/31', role: 'anon', ready: '.lobby-player', early: ['/api/season-matches/31'] },
+  { path: '/profile/117', role: 'player', ready: '.linked-login', early: ['/api/users/117/gamertag', '/api/users/117/stats'] },
 ] as const;
 
 for (const { path, role, ready, early } of PAGES) {
@@ -40,7 +40,7 @@ for (const { path, role, ready, early } of PAGES) {
     await expect(page.locator(ready).first()).toBeVisible();
 
     // The app's own calls on every page (who is signed in, too), and this page's
-    for (const url of ['/api/Season/getCurrentSeasonID/', '/api/CommitHash', '/api/CommitDate', '/api/Identity/Me', ...early])
+    for (const url of ['/api/seasons/current', '/api/CommitHash', '/api/CommitDate', '/api/identity/me', ...early])
       expect(calls.get(url), url).toBe(1);
     // The inline script fetched them, and the app used its answers (each is dropped once used)
     expect(await page.evaluate(() => typeof window.grifEarly?.at)).toBe('number');
@@ -49,12 +49,12 @@ for (const { path, role, ready, early } of PAGES) {
 }
 
 test('the app asks again when an early call fails', async ({ page }) => {
-  const calls = await mockBackend(page, 'anon', ['/api/Home/CurrentAndFutureEvents/']);
+  const calls = await mockBackend(page, 'anon', ['/api/events']);
   await page.goto('/');
 
   await expect(page.locator('.home-hero h1')).toBeVisible();
   await expect(page.locator('tr.mat-mdc-row').first()).toBeVisible();
-  expect(calls.get('/api/Home/CurrentAndFutureEvents/')).toBe(2);
+  expect(calls.get('/api/events')).toBe(2);
 });
 
 declare global {

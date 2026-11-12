@@ -24,6 +24,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using NetCord.Hosting.Gateway;
 using NetCord.Hosting.Rest;
@@ -149,9 +150,19 @@ public class Program
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
 
+        // "OpenApi:Servers" (appsettings.json): every other environment's URL, offered in the document alongside the
+        // one it was requested from (OpenApiServers.Build, MapEndpoints).
+        builder.Services.Configure<OpenApiServersOptions>(builder.Configuration.GetSection("OpenApi"));
+
         builder.Services.AddSwaggerGen(option =>
         {
             option.CustomSchemaIds(x => x.FullName);
+
+            // Controller actions' <summary>/<param>/<returns>/<remarks> (GenerateDocumentationFile, the .csproj),
+            // into the OpenAPI document. The file sits next to this assembly in every environment, including the
+            // Docker publish (GenerateDocumentationFile copies it there by default).
+            var xmlFile = Path.Combine(AppContext.BaseDirectory, $"{typeof(Program).Assembly.GetName().Name}.xml");
+            option.IncludeXmlComments(xmlFile);
 
             option.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
             {
@@ -323,12 +334,26 @@ public class Program
         app.UseRequestTelemetry();
 
         app.UseExceptionHandler();
+        // An error answered without a body (an empty 401/403/404/405, the auth middleware's too) gets a ProblemDetails one
+        app.UseStatusCodePages();
 
-        // Configure the HTTP request pipeline.
-        if (app.Environment.IsDevelopment())
+        // The API's description in every environment, wherever the API is served: callers reach it at /api/swagger.
+        // The page asks for its document relative to itself, so it works under the prefix, and "Try it out" calls the
+        // API through /api (or the backend itself, with no proxy in front, in development).
+        if (role.ServesApi)
         {
-            app.UseSwagger();
-            app.UseSwaggerUI();
+            app.UseSwagger(options => options.PreSerializeFilters.Add((document, httpRequest) =>
+            {
+                var requestUrl = $"{httpRequest.Scheme}://{httpRequest.Host}{ApiLocations.PublicPrefix}";
+                var configured = httpRequest.HttpContext.RequestServices.GetRequiredService<IOptions<OpenApiServersOptions>>().Value.Servers;
+                document.Servers = OpenApiServers.Build(requestUrl, configured, app.Environment.IsDevelopment());
+            }));
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("v1/swagger.json", "GrifballWebApp");
+                // A signed-in browser's changes need the antiforgery token, as the site's own calls do
+                options.UseRequestInterceptor(SwaggerUiAntiforgery.RequestInterceptor);
+            });
         }
 
         //app.UseHttpsRedirection();
@@ -344,6 +369,8 @@ public class Program
         // The workers and the discord process answer their health endpoints only.
         if (role.ServesApi)
         {
+            // A created or accepted answer's Location as its caller reaches it, under /api
+            app.Use(ApiLocations.UsePublicPrefix);
             app.MapControllers();
 
             // Hubs are not MVC, so CookieAntiforgeryFilter does not see them: refuse cookie sessions from other origins.

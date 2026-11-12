@@ -1,6 +1,6 @@
 import { Component, ChangeDetectionStrategy, computed, effect, inject, input, numberAttribute, untracked, viewChild, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -16,6 +16,7 @@ import { AvailabilityService } from '../availability.service';
 import { AccountService } from '../account.service';
 import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 import { whileCurrent } from '../shared/whileCurrent';
+import { errorText } from '../shared/errorText';
 
 @Component({
     selector: 'app-signup-form',
@@ -123,7 +124,7 @@ export class SignupFormComponent {
   /** The season's name and dates, for the heading and the timeline. Neither is needed to sign up. */
   private loadSeasonInfo(seasonID: number): void {
     this.api.getSeasonName(seasonID).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({ next: name => this.seasonName.set(name), error: () => {} });
-    this.http.get<SeasonEvent[]>('/api/Home/CurrentAndFutureEvents/').subscribe({ next: events => this.events.set(events), error: () => {} });
+    this.http.get<SeasonEvent[]>('/api/events').subscribe({ next: events => this.events.set(events), error: () => {} });
   }
 
   /** Every edit (form fields and the availability table) replaces the model rather than mutating it. */
@@ -138,10 +139,10 @@ export class SignupFormComponent {
 
     this.api.upsertSignup(this.model()).subscribe({
       next: (result) => this.snackBar.open('Signup Submitted', 'OK'),
-      error: (result) =>
+      error: (result: HttpErrorResponse) =>
       {
         console.log(result);
-        this.snackBar.open('Error Occurred: ' + result.error, 'OK');
+        this.snackBar.open('Error Occurred: ' + errorText(result, 'The signup could not be saved'), 'OK');
       },
       });
   }

@@ -1,11 +1,11 @@
-﻿using GrifballWebApp.Application.Database;
+﻿using Microsoft.AspNetCore.Authorization;
+using GrifballWebApp.Application.Database;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Domain.League;
 
 namespace GrifballWebApp.Server.Seasons;
 
-[Route("[controller]/[action]")]
 [ApiController]
 public class HomeController : ControllerBase
 {
@@ -18,7 +18,10 @@ public class HomeController : ControllerBase
         _context = context;
     }
 
-    [HttpGet(Name = "CurrentAndFutureEvents")]
+    /// <summary>Current and upcoming signups, drafts and seasons, for the home page's calendar.</summary>
+    [AllowAnonymous]
+    [HttpGet("events", Name = "CurrentAndFutureEvents")]
+    [ProducesResponseType<Event[]>(StatusCodes.Status200OK)]
     public async Task<Event[]> CurrentAndFutureEvents(CancellationToken ct)
     {
         var now = _time.GetUtcNow().UtcDateTime;

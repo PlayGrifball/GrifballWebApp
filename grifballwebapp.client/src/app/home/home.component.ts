@@ -122,7 +122,7 @@ export class HomeComponent implements OnInit {
   }
 
   getCurrentAndFutureEvents(): Observable<Event[]> {
-    return this.http.get<Event[]>('/api/Home/CurrentAndFutureEvents/');
+    return this.http.get<Event[]>('/api/events');
   }
 
   getPastSeasons(pageSize: number, pageNumber: number, sortDirection: SortDirection | undefined, sortColumn: string | undefined): Observable<PaginationResult<SeasonListItemDto>> {
@@ -133,7 +133,7 @@ export class HomeComponent implements OnInit {
       params = params.set('sortColumn', sortColumn);
     }
 
-    return this.http.get<PaginationResult<SeasonListItemDto>>('/api/Season/GetSeasons', { params })
+    return this.http.get<PaginationResult<SeasonListItemDto>>('/api/seasons', { params })
     .pipe(
       tap((result) => {
       this.total.set(result.totalCount);

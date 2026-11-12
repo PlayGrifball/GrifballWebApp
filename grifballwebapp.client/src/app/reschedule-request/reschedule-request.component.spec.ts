@@ -65,14 +65,14 @@ describe('RescheduleRequestComponent', () => {
 
     expect(snackBar.open).toHaveBeenCalledWith('Please provide a reason for the reschedule', 'Close', { duration: 3000 });
     expect(component.submitting()).toBeFalse();
-    http.expectNone('/api/Reschedule/RequestReschedule');
+    http.expectNone('/api/season-matches/31/reschedules');
   });
 
   it('sends a trimmed reason without a time when no new time is proposed', () => {
     component.reason = '  Team conflict  ';
     component.submitRescheduleRequest();
 
-    const req = http.expectOne('/api/Reschedule/RequestReschedule');
+    const req = http.expectOne('/api/season-matches/31/reschedules');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ seasonMatchID: 31, newScheduledTime: undefined, reason: 'Team conflict' });
     req.flush({});
@@ -91,7 +91,7 @@ describe('RescheduleRequestComponent', () => {
 
     component.reason = 'Travel';
     component.submitRescheduleRequest();
-    expect(http.expectOne('/api/Reschedule/RequestReschedule').request.body.seasonMatchID).toBe(32);
+    expect(http.expectOne('/api/season-matches/32/reschedules').request.body.seasonMatchID).toBe(32);
   });
 
   it('ignores a date without a time', () => {
@@ -99,7 +99,7 @@ describe('RescheduleRequestComponent', () => {
     component.newDate = new Date(2026, 2, 4);
     component.submitRescheduleRequest();
 
-    expect(http.expectOne('/api/Reschedule/RequestReschedule').request.body.newScheduledTime).toBeUndefined();
+    expect(http.expectOne('/api/season-matches/31/reschedules').request.body.newScheduledTime).toBeUndefined();
   });
 
   it('combines the chosen date and time into an ISO timestamp', () => {
@@ -108,7 +108,7 @@ describe('RescheduleRequestComponent', () => {
     component.newTime = '19:30';
     component.submitRescheduleRequest();
 
-    const body = http.expectOne('/api/Reschedule/RequestReschedule').request.body;
+    const body = http.expectOne('/api/season-matches/31/reschedules').request.body;
     expect(body.newScheduledTime).toBe(new Date(2026, 2, 4, 19, 30, 0, 0).toISOString());
   });
 
@@ -120,7 +120,7 @@ describe('RescheduleRequestComponent', () => {
     expect(submitButton().textContent).toContain('Submitting...');
     expect(submitButton().disabled).toBeTrue();
 
-    http.expectOne('/api/Reschedule/RequestReschedule').flush({});
+    http.expectOne('/api/season-matches/31/reschedules').flush({});
 
     expect(snackBar.open).toHaveBeenCalledWith('Reschedule request submitted successfully!', 'Close', { duration: 5000 });
     expect(location.back).toHaveBeenCalled();
@@ -131,11 +131,23 @@ describe('RescheduleRequestComponent', () => {
     spyOn(console, 'error');
     component.reason = 'x';
     component.submitRescheduleRequest();
-    http.expectOne('/api/Reschedule/RequestReschedule').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/season-matches/31/reschedules').flush(null, { status: 500, statusText: 'Server Error' });
 
     expect(snackBar.open).toHaveBeenCalledWith('Failed to submit reschedule request. Please try again.', 'Close', { duration: 5000 });
     expect(location.back).not.toHaveBeenCalled();
     expect(component.submitting()).toBeFalse();
+  });
+
+  it("shows the server's reason for a refusal", () => {
+    spyOn(console, 'error');
+    component.reason = 'x';
+    component.submitRescheduleRequest();
+    http.expectOne('/api/season-matches/31/reschedules').flush(
+      { title: 'Conflict', status: 409, detail: 'There is already an active reschedule request for this match.' },
+      { status: 409, statusText: 'Conflict' });
+
+    expect(snackBar.open).toHaveBeenCalledWith('There is already an active reschedule request for this match.', 'Close', { duration: 5000 });
+    expect(location.back).not.toHaveBeenCalled();
   });
 
   it('goes back when cancel is clicked', () => {

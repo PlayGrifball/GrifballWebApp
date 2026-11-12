@@ -1,4 +1,4 @@
-/** A team member in a season's roster (GET /api/Season/GetSeasonTeams/{id}). */
+/** A team member in a season's roster (GET /api/seasons/{id}/teams). */
 export interface SeasonTeamMemberDto {
   teamPlayerID: number;
   userID: number;
@@ -10,7 +10,7 @@ export interface SeasonTeamMemberDto {
   region?: string | null;
 }
 
-/** A team and its roster in a season (GET /api/Season/GetSeasonTeams/{id}). */
+/** A team and its roster in a season (GET /api/seasons/{id}/teams). */
 export interface SeasonTeamDto {
   teamID: number;
   teamName: string;

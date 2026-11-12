@@ -21,7 +21,7 @@ public class MatchPlannerControllerTests
     public async Task Setup()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _controller = new MatchPlannerController(Substitute.For<ILogger<MatchPlannerController>>(), new MatchPlannerService(_context));
+        _controller = new MatchPlannerController(new MatchPlannerService(_context));
     }
 
     [TearDown]
@@ -37,7 +37,7 @@ public class MatchPlannerControllerTests
 
         var result = await _controller.CreateSeasonMatches(season.SeasonID, 2, 3, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<OkResult>());
+        Assert.That(result, Is.TypeOf<NoContentResult>());
         var matches = await _context.SeasonMatches.Where(x => x.SeasonID == season.SeasonID).ToListAsync();
         Assert.That(matches, Has.Count.EqualTo(3 * 2 * 2));
         Assert.That(matches.All(m => m.BestOf == 3));
@@ -55,8 +55,8 @@ public class MatchPlannerControllerTests
         _context.SeasonMatches.AddRange(scheduled, unscheduled);
         await _context.SaveChangesAsync();
 
-        var sched = (List<ScheduledMatchDto>)((OkObjectResult)await _controller.GetScheduledMatches(season.SeasonID)).Value!;
-        var unsched = (List<UnscheduledMatchDto>)((OkObjectResult)await _controller.GetUnscheduledMatches(season.SeasonID)).Value!;
+        var sched = await _controller.GetScheduledMatches(season.SeasonID, CancellationToken.None);
+        var unsched = await _controller.GetUnscheduledMatches(season.SeasonID, CancellationToken.None);
 
         Assert.That(sched, Has.Count.EqualTo(1));
         using (Assert.EnterMultipleScope())
@@ -71,9 +71,10 @@ public class MatchPlannerControllerTests
         }
 
         var t2 = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        await _controller.UpdateMatchTime(new UpdateMatchTimeDto { SeasonMatchID = unscheduled.SeasonMatchID, Time = t2 });
+        var updated = await _controller.UpdateMatchTime(unscheduled.SeasonMatchID, new UpdateMatchTimeDto { Time = t2 }, CancellationToken.None);
+        Assert.That(updated, Is.TypeOf<NoContentResult>());
 
-        var after = (List<ScheduledMatchDto>)((OkObjectResult)await _controller.GetScheduledMatches(season.SeasonID)).Value!;
+        var after = await _controller.GetScheduledMatches(season.SeasonID, CancellationToken.None);
         Assert.That(after.Select(x => x.SeasonMatchID), Is.EqualTo(new[] { unscheduled.SeasonMatchID, scheduled.SeasonMatchID }));
     }
 }

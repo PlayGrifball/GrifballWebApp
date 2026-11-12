@@ -48,7 +48,7 @@ export class SeedOrderingDialogComponent implements OnInit {
   }
 
   loadTeamStandings(): void {
-    this.http.get<TeamStanding[]>(`api/TeamStandings/GetTeamStandings/${this.seasonID}`)
+    this.http.get<TeamStanding[]>(`api/seasons/${this.seasonID}/standings`)
       .subscribe({
         next: (standings) => {
           this.teams.set(standings.map((team, index) => ({
@@ -106,7 +106,7 @@ export class SeedOrderingDialogComponent implements OnInit {
       seed: team.seed!
     }));
 
-    this.http.post(`api/Brackets/SetCustomSeeds/${this.seasonID}`, customSeeding)
+    this.http.post(`api/seasons/${this.seasonID}/bracket/seeds`, customSeeding)
       .subscribe({
         next: () => {
           this.seedingOrder.next();

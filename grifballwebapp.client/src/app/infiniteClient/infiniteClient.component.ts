@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -10,7 +10,7 @@ import { ActivatedRoute } from '@angular/router';
 
 export type HaloMode = 'Gateway' | 'Direct';
 
-/** api/Admin/HaloStatus: the active mode and, in Gateway mode, the gateway's status. */
+/** api/halo/status: the active mode and, in Gateway mode, the gateway's status. */
 export interface HaloStatus {
   mode: HaloMode;
   gatewayUrl?: string | null;
@@ -46,7 +46,7 @@ export class InfiniteClientComponent implements OnInit {
   static readonly defaultGatewayAdminUrl = 'https://grunt.grifball.xyz/admin';
 
   code: string = "";
-  /** Direct mode: what api/Admin/CheckStatus said ("" while checking). */
+  /** Direct mode: what api/halo/check said ("" while checking). */
   readonly status = signal("");
   /** The server's mode; null until it answers. */
   readonly mode = signal<HaloMode | null>(null);
@@ -68,7 +68,7 @@ export class InfiniteClientComponent implements OnInit {
    */
   loadStatus() {
     this.checking.set(true);
-    this.http.get<HaloStatus>("api/Admin/HaloStatus").subscribe({
+    this.http.get<HaloStatus>('api/halo/status').subscribe({
       next: r => {
         this.checking.set(false);
         this.mode.set(r.mode);
@@ -96,8 +96,8 @@ export class InfiniteClientComponent implements OnInit {
   }
 
   setCode() {
-    const params = new HttpParams().set('code', this.code);
-    this.http.post("api/Admin/SetCode", null, { params }).subscribe({
+    // In the body: a code in the URL would be kept by the access logs and traces
+    this.http.post('api/halo/auth-code', { code: this.code }).subscribe({
       next: r => this.snackbar.open('Success', "Close"),
       error: r => {
         console.log(r);
@@ -107,7 +107,7 @@ export class InfiniteClientComponent implements OnInit {
   }
 
   checkStatus() {
-    this.http.get<string>("api/Admin/CheckStatus", this.text).subscribe({
+    this.http.get<string>('api/halo/check', this.text).subscribe({
       next: r => this.status.set(r),
       error: r => {
         console.log(r);
@@ -118,7 +118,7 @@ export class InfiniteClientComponent implements OnInit {
   }
 
   deleteTokens() {
-    this.http.post("api/Admin/DeleteTokens", null).subscribe({
+    this.http.post('api/halo/tokens/delete', null).subscribe({
       next: r => this.snackbar.open('Success', "Close"),
       error: r => {
         console.log(r);

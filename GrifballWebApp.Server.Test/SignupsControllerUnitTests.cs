@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using GrifballWebApp.Server.Signups;
 using Microsoft.AspNetCore.Mvc;
 using User = GrifballWebApp.Domain.Players.User;
@@ -28,7 +29,9 @@ public class SignupsControllerUnitTests
             Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(SignupsController.GetSignup))!.Roles, Is.EqualTo("Player,Sysadmin"));
             Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(SignupsController.UpsertSignup))!.Roles, Is.EqualTo("Player,Sysadmin"));
             Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(SignupsController.GetSignups)), Is.Null);
-            Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(SignupsController.GetTimeslots)), Is.Null);
+            // A signed-in player's own timeslots: signed in, any role
+            Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(SignupsController.GetTimeslots))?.Roles, Is.Null);
+            Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(SignupsController.GetTimeslots)), Is.Not.Null);
         }
     }
 
@@ -39,9 +42,9 @@ public class SignupsControllerUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await _controller.GetTimeslots(1, 0, CancellationToken.None), Is.TypeOf<UnauthorizedObjectResult>());
-            Assert.That(await _controller.GetSignup(1, 0, CancellationToken.None), Is.TypeOf<UnauthorizedObjectResult>());
-            Assert.That(await _controller.UpsertSignup(new SignupRequestDto { SeasonID = 1 }, CancellationToken.None), Is.TypeOf<UnauthorizedObjectResult>());
+            (await _controller.GetTimeslots(1, 0, CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
+            (await _controller.GetSignup(1, 0, CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
+            (await _controller.UpsertSignup(1, new SignupRequestDto { SeasonID = 1 }, CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
         }
     }
 
@@ -50,6 +53,6 @@ public class SignupsControllerUnitTests
     {
         _controller.WithUser("abc");
 
-        Assert.That(await _controller.GetTimeslots(1, 0, CancellationToken.None), Is.TypeOf<UnauthorizedObjectResult>());
+        (await _controller.GetTimeslots(1, 0, CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
     }
 }

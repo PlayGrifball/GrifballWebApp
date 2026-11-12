@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
@@ -68,8 +69,8 @@ public class UserManagementControllerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await _controller.GetUser(4, CancellationToken.None), Is.SameAs(dto));
-            Assert.That(await _controller.GetUser(5, CancellationToken.None), Is.Null);
+            Assert.That((await _controller.GetUser(4, CancellationToken.None)).Value, Is.SameAs(dto));
+            (await _controller.GetUser(5, CancellationToken.None)).AssertProblem(StatusCodes.Status404NotFound, "There is no such user");
         }
     }
 
@@ -81,7 +82,7 @@ public class UserManagementControllerTests
 
         var result = await _controller.CreateUser(req, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<OkResult>());
+        Assert.That(result, Is.TypeOf<NoContentResult>());
         await _service.Received(1).CreateUser(req, Arg.Any<CancellationToken>());
     }
 
@@ -93,7 +94,7 @@ public class UserManagementControllerTests
 
         var result = await _controller.CreateUser(req, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("User name is taken"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("User name is taken"));
     }
 
     [Test]
@@ -102,7 +103,7 @@ public class UserManagementControllerTests
         var dto = Dto(2);
         _service.EditUser(dto, Arg.Any<CancellationToken>()).Returns((string?)null);
 
-        Assert.That(await _controller.EditUser(dto, CancellationToken.None), Is.TypeOf<OkResult>());
+        Assert.That(await _controller.EditUser(2, dto, CancellationToken.None), Is.TypeOf<NoContentResult>());
     }
 
     [Test]
@@ -111,9 +112,9 @@ public class UserManagementControllerTests
         var dto = Dto(2);
         _service.EditUser(dto, Arg.Any<CancellationToken>()).Returns("Failed to set username");
 
-        var result = await _controller.EditUser(dto, CancellationToken.None);
+        var result = await _controller.EditUser(2, dto, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Failed to set username"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Failed to set username"));
     }
 
     [Test]
@@ -124,7 +125,7 @@ public class UserManagementControllerTests
 
         var result = await _controller.MergeUser(req, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<OkResult>());
+        Assert.That(result, Is.TypeOf<NoContentResult>());
         await _mergeService.Received(1).Merge(1, 2, options, Arg.Any<CancellationToken>());
     }
 
@@ -139,8 +140,8 @@ public class UserManagementControllerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.TypeOf<NotFoundObjectResult>());
-            Assert.That(((NotFoundObjectResult)result).Value, Is.EqualTo("Did not find user 2. It may already have been merged or deleted."));
+            result.AssertProblem(StatusCodes.Status404NotFound);
+            Assert.That(result.AssertProblem(StatusCodes.Status404NotFound).Detail, Is.EqualTo("Did not find user 2. It may already have been merged or deleted."));
         }
     }
 
@@ -152,7 +153,7 @@ public class UserManagementControllerTests
 
         var result = await _controller.MergeUser(req, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Cannot merge a user into itself"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Cannot merge a user into itself"));
     }
 
     [Test]
@@ -163,7 +164,7 @@ public class UserManagementControllerTests
 
         var result = await _controller.MergeUser(req, CancellationToken.None);
 
-        Assert.That(((ConflictObjectResult)result).Value, Is.EqualTo("Both users are on different teams in season S1."));
+        Assert.That(result.AssertProblem(StatusCodes.Status409Conflict).Detail, Is.EqualTo("Both users are on different teams in season S1."));
     }
 
     [Test]
@@ -174,6 +175,6 @@ public class UserManagementControllerTests
 
         var result = await _controller.MergeUser(req, CancellationToken.None);
 
-        Assert.That(((ConflictObjectResult)result).Value, Is.EqualTo("The users could not be merged because their data conflicts. Nothing was changed."));
+        Assert.That(result.AssertProblem(StatusCodes.Status409Conflict).Detail, Is.EqualTo("The users could not be merged because their data conflicts. Nothing was changed."));
     }
 }

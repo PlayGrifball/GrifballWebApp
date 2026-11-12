@@ -1,6 +1,6 @@
-import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { catchError, map, Observable, of, switchMap, throwError } from 'rxjs';
+import { map, Observable, switchMap } from 'rxjs';
 import type { SeasonDto } from './dtos/seasonDto';
 import { SignupResponseDto, TimeslotDto } from './dtos/signupResponseDto';
 import { SignupRequestDto } from './dtos/signupRequestDto';
@@ -33,9 +33,13 @@ import type {
 import type { JobKeyDto, JobRunDto, JobsOverviewDto } from './dtos/jobsDto';
 import type { PaginationResult } from '../shared/paginationResult';
 import type { LinkVodRequest, VodDto, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto, VodScope } from './dtos/vodDto';
+import { nullWhenNotFound } from './nullWhenNotFound';
 
-/** The VodController action of each page's VODs. */
-const VOD_ACTIONS: Record<VodScope, string> = { seasonMatch: 'ForSeasonMatch', season: 'ForSeason', team: 'ForTeam', player: 'ForPlayer' };
+/** A job's resource: its group and name, each a path segment. */
+const jobPath = (job: JobKeyDto) => `/api/jobs/${encodeURIComponent(job.group)}/${encodeURIComponent(job.name)}`;
+
+/** The resource whose VODs each page shows. */
+const VOD_OWNERS: Record<VodScope, string> = { seasonMatch: 'season-matches', season: 'seasons', team: 'teams', player: 'users' };
 
 @Injectable({
   providedIn: 'root'
@@ -52,7 +56,7 @@ export class ApiClientService {
   // A season's dates are Luxon DateTimes, and Luxon is only loaded with the pages that need it
   // (season editing), not with the app: the parser is imported when a season arrives.
   getSeasons(): Observable<SeasonDto[]> {
-    return this.http.get<unknown[]>('/api/EventOrganizer/GetSeasons')
+    return this.http.get<unknown[]>('/api/seasons/settings')
       // A list never holds nulls (List<SeasonDto> on the server).
       .pipe(switchMap(async seasons => {
         const { parseSeason } = await import('./dtos/seasonDto');
@@ -60,24 +64,24 @@ export class ApiClientService {
       }));
   }
 
-  /** Null when there is no such season (the API answers 204). */
+  /** Null when there is no such season (404). */
   getSeason(seasonID: number): Observable<SeasonDto | null> {
-    return this.http.get<unknown>('/api/EventOrganizer/GetSeason/' + seasonID)
-      .pipe(switchMap(async season => (await import('./dtos/seasonDto')).parseSeason(season)));
+    return this.http.get<unknown>(`/api/seasons/${seasonID}/settings`)
+      .pipe(nullWhenNotFound(), switchMap(async season => (await import('./dtos/seasonDto')).parseSeason(season)));
   }
 
   upsertSeason(seasonDto: SeasonDto): Observable<number> {
-    return this.http.post<number>('/api/EventOrganizer/UpsertSeason/', seasonDto);
+    return this.http.post<number>('/api/seasons/settings', seasonDto);
   }
 
   /** The games a season can be played in, for the season editor. */
   getGameVersions(): Observable<GameVersionDto[]> {
-    return this.http.get<GameVersionDto[]>('/api/EventOrganizer/GetGameVersions');
+    return this.http.get<GameVersionDto[]>('/api/game-versions');
   }
 
   /** The leagues a season can belong to, for the season editor. */
   getLeagues(): Observable<LeagueDto[]> {
-    return this.http.get<LeagueDto[]>('/api/EventOrganizer/GetLeagues');
+    return this.http.get<LeagueDto[]>('/api/leagues');
   }
 
   /** A season's header, champions and how much of each kind of data it has. */
@@ -87,13 +91,13 @@ export class ApiClientService {
 
   /** The season's teams and their rosters: records, titles, and players. */
   getSeasonTeams(seasonID: number): Observable<SeasonTeamDto[]> {
-    return this.http.get<SeasonTeamDto[]>('/api/Season/GetSeasonTeams/' + seasonID);
+    return this.http.get<SeasonTeamDto[]>(`/api/seasons/${seasonID}/teams`);
   }
 
   /** The season's player stats; with a team, only that team's rows. */
   getSeasonPlayerStats(seasonID: number, teamID?: number | null): Observable<SeasonPlayerStatDto[]> {
     const params = teamID != null ? new HttpParams().set('teamID', teamID) : undefined;
-    return this.http.get<SeasonPlayerStatDto[]>('/api/Season/GetSeasonPlayerStats/' + seasonID, { params });
+    return this.http.get<SeasonPlayerStatDto[]>(`/api/seasons/${seasonID}/player-stats`, { params });
   }
 
   /** Every season, the current ones included (the seasons page), of one league, game, format and year when given. */
@@ -103,223 +107,223 @@ export class ApiClientService {
     if (filter.gameVersionID !== null) params = params.set('gameVersionID', filter.gameVersionID);
     if (filter.format) params = params.set('format', filter.format);
     if (filter.year != null) params = params.set('year', filter.year);
-    return this.http.get<PaginationResult<SeasonListItemDto>>('/api/Season/GetSeasons', { params });
+    return this.http.get<PaginationResult<SeasonListItemDto>>('/api/seasons', { params });
   }
 
   /** The Ctrl+K navigator's hits: players (by current and past gamertags), teams and seasons. */
   quickSearch(q: string): Observable<QuickSearchDto> {
-    return this.http.get<QuickSearchDto>('/api/Search/QuickSearch', { params: new HttpParams().set('q', q) });
+    return this.http.get<QuickSearchDto>('/api/search', { params: new HttpParams().set('q', q) });
   }
 
   /** The all-time leaderboards: titles (of seasons of one format, or all), dynasties and career totals. */
   getLeaderboards(format: SeasonFormat | null = null): Observable<LeaderboardsDto> {
     const params = format ? new HttpParams().set('format', format) : undefined;
-    return this.http.get<LeaderboardsDto>('/api/Leaderboards/GetLeaderboards', { params });
+    return this.http.get<LeaderboardsDto>('/api/leaderboards', { params });
   }
 
   /** Late League as it is played now: the Discord queue's reported games and each player's totals. */
   getLateLeagueQueue(): Observable<MatchmakingQueueDto> {
-    return this.http.get<MatchmakingQueueDto>('/api/LateLeague/GetQueue');
+    return this.http.get<MatchmakingQueueDto>('/api/late-league/queue');
   }
 
   /** Late League's seasons of the archive, latest first. */
   getLateLeagueSeasons(): Observable<MatchmakingSeasonDto[]> {
-    return this.http.get<MatchmakingSeasonDto[]>('/api/LateLeague/GetSeasons');
+    return this.http.get<MatchmakingSeasonDto[]>('/api/late-league/seasons');
   }
 
   /** A Late League matchmaking season and its players' stats. */
   getLateLeagueSeason(matchmakingSeasonID: number): Observable<MatchmakingSeasonDetailDto> {
-    return this.http.get<MatchmakingSeasonDetailDto>(`/api/LateLeague/GetSeason/${matchmakingSeasonID}`);
+    return this.http.get<MatchmakingSeasonDetailDto>(`/api/late-league/seasons/${matchmakingSeasonID}`);
   }
 
   /** Find a player's all-time ranking summary and totals across every tracked metric. */
-  getPlayerRank(query: string | null = null, userId: number | null = null, format: SeasonFormat | null = null): Observable<PlayerAllTimeRankDto | null> {
+  getPlayerRank(query: string | null = null, userID: number | null = null, format: SeasonFormat | null = null): Observable<PlayerAllTimeRankDto | null> {
     let params = new HttpParams();
     if (query) params = params.set('query', query);
-    if (userId != null) params = params.set('userId', userId);
+    if (userID != null) params = params.set('userID', userID);
     if (format) params = params.set('format', format);
-    return this.http.get<PlayerAllTimeRankDto | null>('/api/Leaderboards/GetPlayerRank', { params });
+    // 404: no player matches
+    return this.http.get<PlayerAllTimeRankDto>('/api/leaderboards/player-rank', { params }).pipe(nullWhenNotFound());
   }
 
   /** The leaderboards' player suggestions: the toolbar search's players, by its rules. */
   searchPlayers(query: string): Observable<QuickSearchPlayerDto[]> {
     const params = new HttpParams().set('query', query);
-    return this.http.get<QuickSearchPlayerDto[]>('/api/Leaderboards/SearchPlayers', { params });
+    return this.http.get<QuickSearchPlayerDto[]>('/api/leaderboards/players', { params });
   }
 
   /** The gamertag claims with this status, for the sysadmins to review. */
   getGamertagClaims(status: GamertagClaimStatus): Observable<GamertagClaimDto[]> {
-    return this.http.get<GamertagClaimDto[]>('/api/GamertagClaims/GetClaims', { params: new HttpParams().set('status', status) });
+    return this.http.get<GamertagClaimDto[]>('/api/gamertag-claims', { params: new HttpParams().set('status', status) });
   }
 
   /** Answers 204; a refusal is a 400 or 409 with a ProblemDetails body. */
   approveGamertagClaim(gamertagClaimID: number): Observable<void> {
-    return this.http.post<void>('/api/GamertagClaims/ApproveClaim/' + gamertagClaimID, null);
+    return this.http.post<void>(`/api/gamertag-claims/${gamertagClaimID}/approve`, null);
   }
 
   /** Answers 204; a refusal is a 400 or 409 with a ProblemDetails body. The reason, if any, is shown to the claimant. */
   rejectGamertagClaim(gamertagClaimID: number, reason: string | null = null): Observable<void> {
-    return this.http.post<void>('/api/GamertagClaims/RejectClaim/' + gamertagClaimID, { reason });
+    return this.http.post<void>(`/api/gamertag-claims/${gamertagClaimID}/reject`, { reason });
   }
 
   /** Placeholders that may be the same player as another user, for a sysadmin to merge or dismiss. */
   getDuplicateSuggestions(): Observable<DuplicateSuggestionDto[]> {
-    return this.http.get<DuplicateSuggestionDto[]>('/api/GamertagClaims/DuplicateSuggestions');
+    return this.http.get<DuplicateSuggestionDto[]>('/api/duplicate-suggestions');
   }
 
   /** Merges the suggested placeholder into the other user (audited); a refusal is a 400 or 409 with a ProblemDetails body. */
   mergeDuplicate(sourceUserID: number, targetUserID: number): Observable<void> {
-    return this.http.post<void>('/api/GamertagClaims/MergeDuplicate', { sourceUserID, targetUserID });
+    return this.http.post<void>('/api/duplicate-suggestions/merge', { sourceUserID, targetUserID });
   }
 
   /** The pair are different players: not suggested again. */
   dismissDuplicate(sourceUserID: number, targetUserID: number): Observable<void> {
-    return this.http.post<void>('/api/GamertagClaims/DismissDuplicate', { sourceUserID, targetUserID });
+    return this.http.post<void>('/api/duplicate-suggestions/dismiss', { sourceUserID, targetUserID });
   }
 
   /** The merges' audit trail, newest first. */
   getUserMerges(pageNumber: number, pageSize: number): Observable<PaginationResult<UserMergeDto>> {
     const params = new HttpParams().set('pageNumber', pageNumber).set('pageSize', pageSize);
-    return this.http.get<PaginationResult<UserMergeDto>>('/api/UserMerges/List', { params });
+    return this.http.get<PaginationResult<UserMergeDto>>('/api/user-merges', { params });
   }
 
   /** Puts back what a merge changed; a refusal is a 409 whose ProblemDetails says why. */
   undoUserMerge(userMergeID: number, note: string | null): Observable<void> {
-    return this.http.post<void>('/api/UserMerges/Undo/' + userMergeID, { note });
+    return this.http.post<void>(`/api/user-merges/${userMergeID}/undo`, { note });
   }
 
   /** What claiming a past gamertag would merge, for the signed-in user. */
   previewGamertagClaim(gamertag: string): Observable<ClaimPreviewDto> {
-    return this.http.get<ClaimPreviewDto>('/api/MyProfile/PreviewClaim', { params: new HttpParams().set('gamertag', gamertag) });
+    return this.http.get<ClaimPreviewDto>('/api/me/gamertag-claims/preview', { params: new HttpParams().set('gamertag', gamertag) });
   }
 
   /** Claims a past gamertag for the signed-in user; a refusal is a 400 with a ProblemDetails body. */
   claimGamertag(dto: SubmitGamertagClaimDto): Observable<GamertagClaimDto> {
-    return this.http.post<GamertagClaimDto>('/api/MyProfile/ClaimGamertag', dto);
+    return this.http.post<GamertagClaimDto>('/api/me/gamertag-claims', dto);
   }
 
   /** The signed-in user's claims of past gamertags. */
   getMyGamertagClaims(): Observable<GamertagClaimDto[]> {
-    return this.http.get<GamertagClaimDto[]>('/api/MyProfile/GamertagClaims');
+    return this.http.get<GamertagClaimDto[]>('/api/me/gamertag-claims');
   }
 
   /** Sets the signed-in user's region (null clears it). */
   setMyRegion(regionID: number | null): Observable<void> {
-    return this.http.post<void>('/api/MyProfile/SetRegion', { regionID });
+    return this.http.post<void>('/api/me/region', { regionID });
   }
 
   /** Records a gamertag an Xbox account went by. */
   addGamertagHistory(dto: AddGamertagHistoryDto): Observable<void> {
-    return this.http.post<void>('/api/GamertagClaims/AddGamertagHistory', dto);
+    return this.http.post<void>('/api/past-gamertags', dto);
   }
 
   /** Removes a row from an Xbox account's gamertag history; a refusal (not removable) is a 400 with a message. */
   removeGamertagHistory(xboxGamertagHistoryID: number): Observable<void> {
-    return this.http.delete<void>('/api/GamertagClaims/RemoveGamertagHistory/' + xboxGamertagHistoryID);
+    return this.http.post<void>(`/api/past-gamertags/${xboxGamertagHistoryID}/remove`, null);
   }
 
   /** Queues the background lookup of placeholders' current Xbox gamertags; answers 202 with the status right away. */
   lookUpXuids(): Observable<XuidLookupStatusDto> {
-    return this.http.post<XuidLookupStatusDto>('/api/GamertagClaims/LookUpXuids', null);
+    return this.http.post<XuidLookupStatusDto>('/api/xuid-lookups/run', null);
   }
 
   /** The historical archive's sources, with their last download. */
   getHistoricalSources(): Observable<HistoricalSourceDto[]> {
-    return this.http.get<HistoricalSourceDto[]>('/api/HistoricalImport/Sources');
+    return this.http.get<HistoricalSourceDto[]>('/api/historical-sources');
   }
 
   /** A disabled source is no longer downloaded (the import keeps its last snapshot). */
   setHistoricalSourceEnabled(sourceID: string, enabled: boolean): Observable<void> {
-    return this.http.post<void>('/api/HistoricalImport/SetSourceEnabled/' + encodeURIComponent(sourceID), { enabled });
+    return this.http.post<void>(`/api/historical-sources/${encodeURIComponent(sourceID)}/enabled`, { enabled });
   }
 
   /** Queues a download of every enabled source (no import). */
   refreshHistoricalSources(): Observable<HistoricalImportQueuedDto> {
-    return this.http.post<HistoricalImportQueuedDto>('/api/HistoricalImport/Refresh', null);
+    return this.http.post<HistoricalImportQueuedDto>('/api/historical-sources/refresh', null);
   }
 
   /** Queues a dry run of the import: its job lists what each season would lose. */
   previewHistoricalImport(): Observable<HistoricalImportQueuedDto> {
-    return this.http.post<HistoricalImportQueuedDto>('/api/HistoricalImport/Preview', null);
+    return this.http.post<HistoricalImportQueuedDto>('/api/historical-imports/preview', null);
   }
 
   /** Queues the import of what a finished preview read. */
   applyHistoricalImportPreview(jobID: number): Observable<HistoricalImportQueuedDto> {
-    return this.http.post<HistoricalImportQueuedDto>('/api/HistoricalImport/ApplyPreview/' + jobID, null);
+    return this.http.post<HistoricalImportQueuedDto>(`/api/historical-imports/${jobID}/apply`, null);
   }
 
   /** Imports a season the guardrail stopped. */
   approveHistoricalSeasonReview(reviewID: number): Observable<HistoricalImportQueuedDto> {
-    return this.http.post<HistoricalImportQueuedDto>('/api/HistoricalImport/ApproveReview/' + reviewID, null);
+    return this.http.post<HistoricalImportQueuedDto>(`/api/historical-reviews/${reviewID}/approve`, null);
   }
 
   /** Leaves a season the guardrail stopped as it is. */
   skipHistoricalSeasonReview(reviewID: number): Observable<void> {
-    return this.http.post<void>('/api/HistoricalImport/SkipReview/' + reviewID, null);
+    return this.http.post<void>(`/api/historical-reviews/${reviewID}/skip`, null);
   }
 
   /** The latest historical import jobs, newest first. */
   getHistoricalImportJobs(): Observable<HistoricalImportJobSummaryDto[]> {
-    return this.http.get<HistoricalImportJobSummaryDto[]>('/api/HistoricalImport/Jobs');
+    return this.http.get<HistoricalImportJobSummaryDto[]>('/api/historical-imports');
   }
 
   /** A historical import job: its progress, report and season reviews. */
   getHistoricalImportJob(jobID: number): Observable<HistoricalImportJobDto> {
-    return this.http.get<HistoricalImportJobDto>('/api/HistoricalImport/Job/' + jobID);
+    return this.http.get<HistoricalImportJobDto>(`/api/historical-imports/${jobID}`);
   }
 
   getHistoricalImportSchedule(): Observable<HistoricalImportScheduleDto> {
-    return this.http.get<HistoricalImportScheduleDto>('/api/HistoricalImport/Schedule');
+    return this.http.get<HistoricalImportScheduleDto>('/api/historical-imports/schedule');
   }
 
   /** Paused, the scheduled refresh queues nothing (manual runs still work). */
   setHistoricalImportSchedulePaused(paused: boolean): Observable<HistoricalImportScheduleDto> {
-    return this.http.post<HistoricalImportScheduleDto>('/api/HistoricalImport/SetSchedulePaused', { paused });
+    return this.http.post<HistoricalImportScheduleDto>('/api/historical-imports/schedule/paused', { paused });
   }
 
   /** The background jobs, their schedules and last runs, and the schedulers checked in (sysadmins). */
   getJobs(): Observable<JobsOverviewDto> {
-    return this.http.get<JobsOverviewDto>('/api/Jobs/List');
+    return this.http.get<JobsOverviewDto>('/api/jobs');
   }
 
   /** A job's latest runs, newest first. */
   getJobHistory(job: JobKeyDto, take = 50): Observable<JobRunDto[]> {
-    const params = new HttpParams().set('group', job.group).set('name', job.name).set('take', take);
-    return this.http.get<JobRunDto[]>('/api/Jobs/History', { params });
+    return this.http.get<JobRunDto[]>(`${jobPath(job)}/runs`, { params: new HttpParams().set('take', take) });
   }
 
   /** Runs a job now, on the worker. */
   runJob(job: JobKeyDto): Observable<void> {
-    return this.http.post<void>('/api/Jobs/Run', { group: job.group, name: job.name });
+    return this.http.post<void>(`${jobPath(job)}/run`, null);
   }
 
   setJobPaused(job: JobKeyDto, paused: boolean): Observable<void> {
-    return this.http.post<void>('/api/Jobs/SetPaused', { group: job.group, name: job.name, paused });
+    return this.http.post<void>(`${jobPath(job)}/paused`, { paused });
   }
 
   /** A recurring job runs every intervalSeconds from now on. */
   setJobInterval(job: JobKeyDto, intervalSeconds: number): Observable<void> {
-    return this.http.post<void>('/api/Jobs/SetInterval', { group: job.group, name: job.name, intervalSeconds });
+    return this.http.post<void>(`${jobPath(job)}/interval`, { intervalSeconds });
   }
 
   /** A recurring job back on its default schedule. */
   resetJobSchedule(job: JobKeyDto): Observable<void> {
-    return this.http.post<void>('/api/Jobs/ResetSchedule', { group: job.group, name: job.name });
+    return this.http.post<void>(`${jobPath(job)}/schedule/reset`, null);
   }
 
   /** Asks a running job to stop. */
   interruptJob(fireInstanceID: string): Observable<void> {
-    return this.http.post<void>('/api/Jobs/Interrupt', { fireInstanceID });
+    return this.http.post<void>(`/api/job-runs/${encodeURIComponent(fireInstanceID)}/interrupt`, null);
   }
 
   /** Which of the Telemetry page's backends are configured, and the service they are scoped to (sysadmins). */
   getTelemetryStatus(): Observable<TelemetryStatusDto> {
-    return this.http.get<TelemetryStatusDto>('/api/Telemetry/Status');
+    return this.http.get<TelemetryStatusDto>('/api/telemetry/status');
   }
 
   /** The Overview's charts and busiest routes over the last minutes. */
   getTelemetryMetrics(minutes: number): Observable<MetricsDto> {
-    return this.http.get<MetricsDto>('/api/Telemetry/Metrics', { params: new HttpParams().set('minutes', minutes) });
+    return this.http.get<MetricsDto>('/api/telemetry/metrics', { params: new HttpParams().set('minutes', minutes) });
   }
 
   /** Log lines, newest first: some levels only (none: every level), lines containing a text, one trace's. */
@@ -331,7 +335,7 @@ export class ApiClientService {
       params = params.set('search', query.search.trim());
     if (query.traceId.trim())
       params = params.set('traceId', query.traceId.trim());
-    return this.http.get<LogsDto>('/api/Telemetry/Logs', { params });
+    return this.http.get<LogsDto>('/api/telemetry/logs', { params });
   }
 
   /** Traces over the last minutes, newest first: failed ones only, slower than a minimum. */
@@ -339,46 +343,46 @@ export class ApiClientService {
     let params = new HttpParams().set('minutes', query.minutes).set('errorsOnly', query.errorsOnly);
     if (query.minDurationMs)
       params = params.set('minDurationMs', query.minDurationMs);
-    return this.http.get<TraceSummaryDto[]>('/api/Telemetry/Traces', { params });
+    return this.http.get<TraceSummaryDto[]>('/api/telemetry/traces', { params });
   }
 
   /** One trace's spans from this app; 404 when it has none. */
   getTelemetryTrace(id: string): Observable<TraceDto> {
-    return this.http.get<TraceDto>('/api/Telemetry/Trace', { params: new HttpParams().set('id', id) });
+    return this.http.get<TraceDto>(`/api/telemetry/traces/${encodeURIComponent(id)}`);
   }
 
   /** The VODs linked to a season match, season, team, or a player's teams; newest first. */
   getVods(scope: VodScope, id: number): Observable<VodDto[]> {
-    return this.http.get<VodDto[]>(`/api/Vod/${VOD_ACTIONS[scope]}/${id}`);
+    return this.http.get<VodDto[]>(`/api/${VOD_OWNERS[scope]}/${id}/vods`);
   }
 
   /** The VODs the matcher wasn't sure of (sysadmins). */
   getVodReview(): Observable<VodReviewDto[]> {
-    return this.http.get<VodReviewDto[]>('/api/Vod/Review');
+    return this.http.get<VodReviewDto[]>('/api/vods/review');
   }
 
   getVodLinkSeasons(): Observable<VodLinkSeasonDto[]> {
-    return this.http.get<VodLinkSeasonDto[]>('/api/Vod/LinkSeasons');
+    return this.http.get<VodLinkSeasonDto[]>('/api/vods/link-seasons');
   }
 
   /** A season's teams and matches, to link a VOD to. */
   getVodLinkOptions(seasonID: number): Observable<VodLinkOptionsDto> {
-    return this.http.get<VodLinkOptionsDto>('/api/Vod/LinkOptions/' + seasonID);
+    return this.http.get<VodLinkOptionsDto>(`/api/seasons/${seasonID}/vod-link-options`);
   }
 
   /** Links a VOD as the sysadmin says: no refresh changes it again. */
   linkVod(vodID: number, request: LinkVodRequest): Observable<void> {
-    return this.http.post<void>('/api/Vod/Link/' + vodID, request);
+    return this.http.post<void>(`/api/vods/${vodID}/link`, request);
   }
 
   /** Not a VOD of anything: hidden, and never suggested again. */
   dismissVod(vodID: number): Observable<void> {
-    return this.http.post<void>('/api/Vod/Dismiss/' + vodID, null);
+    return this.http.post<void>(`/api/vods/${vodID}/dismiss`, null);
   }
 
   /** How the background XUID lookup is going (for the gamertag claims page). */
   getXuidLookupStatus(): Observable<XuidLookupStatusDto> {
-    return this.http.get<XuidLookupStatusDto>('/api/GamertagClaims/XuidLookupStatus');
+    return this.http.get<XuidLookupStatusDto>('/api/xuid-lookups/status');
   }
 
   /** An Xbox account's current gamertag and history, by its XUID or a user's ID; null when there is no such account (404). */
@@ -388,50 +392,49 @@ export class ApiClientService {
       params = params.set('xboxUserID', query.xboxUserID);
     if (query.userID != null)
       params = params.set('userID', query.userID);
-    return this.http.get<PastGamertagsDto>('/api/GamertagClaims/PastGamertags', { params }).pipe(
-      catchError((error: unknown) => error instanceof HttpErrorResponse && error.status === 404 ? of(null) : throwError(() => error)));
+    return this.http.get<PastGamertagsDto>('/api/past-gamertags', { params }).pipe(nullWhenNotFound());
   }
 
   getCurrentSeasonID(): Observable<number> {
-    return this.http.get<number>('/api/Season/getCurrentSeasonID/');
+    return this.http.get<number>('/api/seasons/current');
   }
 
   /** Signups, drafts and seasons that have not ended yet (shared/seasonEvents.ts). */
   getCurrentAndFutureEvents(): Observable<SeasonEvent[]> {
-    return this.http.get<SeasonEvent[]>('/api/Home/CurrentAndFutureEvents/');
+    return this.http.get<SeasonEvent[]>('/api/events');
   }
 
   getSeasonName(seasonID: number): Observable<string | null> {
-    return this.http.get<string | null>('/api/Season/getSeasonName/' + seasonID, this.text);
+    return this.http.get<string>(`/api/seasons/${seasonID}/name`, this.text).pipe(nullWhenNotFound());
   }
 
   getSignups(seasonID: number): Observable<SignupResponseDto[]> {
-    return this.http.get<SignupResponseDto[]>('/api/Signups/getSignups/' + seasonID);
+    return this.http.get<SignupResponseDto[]>(`/api/seasons/${seasonID}/signups`);
   }
 
   getTimeslots(seasonID: number, offset: number): Observable<TimeslotDto[]> {
-    let path = '/api/Signups/getTimeslots/' + seasonID;
+    let path = `/api/seasons/${seasonID}/signups/mine/timeslots`;
     path += '?offset=' + offset;
     return this.http.get<TimeslotDto[]>(path);
   }
 
   getSignup(seasonID: number, offset: number): Observable<SignupResponseDto> {
-    let path = '/api/Signups/getSignup/' + seasonID;
+    let path = `/api/seasons/${seasonID}/signups/mine`;
     path += '?offset=' + offset;
     return this.http.get<SignupResponseDto>(path);
   }
 
   // The timeslots keep the API's time format: the availability table only formats copies for display.
   upsertSignup(signupDto: SignupRequestDto): Observable<Object> {
-    return this.http.post('/api/Signups/UpsertSignup/', signupDto);
+    return this.http.post(`/api/seasons/${signupDto.seasonID}/signups/mine`, signupDto);
   }
 
   getTeams(seasonID: number): Observable<TeamResponseDto[]> {
-    return this.http.get<TeamResponseDto[]>('/api/Teams/GetTeams/' + seasonID);
+    return this.http.get<TeamResponseDto[]>(`/api/seasons/${seasonID}/draft/teams`);
   }
 
   getPlayerPool(seasonID: number): Observable<PlayerDto[]> {
-    return this.http.get<PlayerDto[]>('/api/Teams/GetPlayerPool/' + seasonID);
+    return this.http.get<PlayerDto[]>(`/api/seasons/${seasonID}/draft/player-pool`);
   }
 
   // The hub connection's id is null (or undefined/empty) until it has connected: send no header then.
@@ -449,39 +452,39 @@ export class ApiClientService {
 
   /** Answers with the name the server gave the new team (it is not sent back over SignalR). */
   addCaptain(dto: CaptainPlacementDto, connectionID: string | null): Observable<CaptainAddedResponseDto> {
-    return this.http.post<CaptainAddedResponseDto>('/api/Teams/AddCaptain/', dto, this.prepareHeaders(connectionID));
+    return this.http.post<CaptainAddedResponseDto>(`/api/seasons/${dto.seasonID}/draft/captains`, dto, this.prepareHeaders(connectionID));
   }
 
   resortCaptain(dto: CaptainPlacementDto, connectionID: string | null): Observable<Object> {
-    return this.http.post('/api/Teams/ResortCaptain/', dto, this.prepareHeaders(connectionID));
+    return this.http.post(`/api/seasons/${dto.seasonID}/draft/captains/resort`, dto, this.prepareHeaders(connectionID));
   }
 
   removeCaptain(dto: RemoveCaptainDto, connectionID: string | null): Observable<Object> {
-    return this.http.post('/api/Teams/RemoveCaptain/', dto, this.prepareHeaders(connectionID));
+    return this.http.post(`/api/seasons/${dto.seasonID}/draft/captains/remove`, dto, this.prepareHeaders(connectionID));
   }
 
   removePlayerFromTeam(dto: RemovePlayerFromTeamRequestDto, connectionID: string | null): Observable<Object> {
-    return this.http.post('/api/Teams/removePlayerFromTeam/', dto, this.prepareHeaders(connectionID));
+    return this.http.post(`/api/seasons/${dto.seasonID}/draft/players/remove`, dto, this.prepareHeaders(connectionID));
   }
 
   movePlayerToTeam(dto: MovePlayerToTeamRequestDto, connectionID: string | null): Observable<Object> {
-    return this.http.post('/api/Teams/movePlayerToTeam/', dto, this.prepareHeaders(connectionID));
+    return this.http.post(`/api/seasons/${dto.seasonID}/draft/players/move`, dto, this.prepareHeaders(connectionID));
   }
 
   addPlayerToTeam(dto: AddPlayerToTeamRequestDto, connectionID: string | null): Observable<Object> {
-    return this.http.post('/api/Teams/addPlayerToTeam/', dto, this.prepareHeaders(connectionID));
+    return this.http.post(`/api/seasons/${dto.seasonID}/draft/picks`, dto, this.prepareHeaders(connectionID));
   }
 
   lockCaptains(seasonID: number, connectionID: string | null): Observable<Object> {
-    return this.http.post('/api/Teams/lockCaptains/' + seasonID, null, this.prepareHeaders(connectionID));
+    return this.http.post(`/api/seasons/${seasonID}/draft/captains/lock`, null, this.prepareHeaders(connectionID));
   }
 
   unlockCaptains(seasonID: number, connectionID: string | null): Observable<Object> {
-    return this.http.post('/api/Teams/unlockCaptains/' + seasonID, null, this.prepareHeaders(connectionID));
+    return this.http.post(`/api/seasons/${seasonID}/draft/captains/unlock`, null, this.prepareHeaders(connectionID));
   }
 
   areCaptainsLocked(seasonID: number): Observable<boolean> {
-    return this.http.get<boolean>('/api/Teams/areCaptainsLocked/' + seasonID);
+    return this.http.get<boolean>(`/api/seasons/${seasonID}/draft/captains/locked`);
   }
 
   commitHash(): Observable<string> {

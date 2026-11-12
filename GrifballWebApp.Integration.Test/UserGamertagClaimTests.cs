@@ -1,3 +1,4 @@
+using StatusCodes = Microsoft.AspNetCore.Http.StatusCodes;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Profile;
@@ -265,13 +266,13 @@ public class UserGamertagClaimTests
         var controller = Controller(_user.Id);
 
         var preview = await controller.PreviewClaim("Old Me", CancellationToken.None);
-        var claim = await controller.ClaimGamertag(Request(), CancellationToken.None);
+        var claim = (await controller.ClaimGamertag(Request(), CancellationToken.None)).Created();
         var mine = await controller.GamertagClaims(CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(preview.Value!.PlaceholderUserID, Is.EqualTo(_placeholder.Id));
-            Assert.That(claim.Value!.Status, Is.EqualTo("Pending"));
+            Assert.That(claim.Status, Is.EqualTo("Pending"));
             Assert.That(mine.Value, Has.Count.EqualTo(1));
         }
     }
@@ -283,10 +284,10 @@ public class UserGamertagClaimTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That((await controller.PreviewClaim("Old Me", CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
-            Assert.That((await controller.ClaimGamertag(Request(), CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
-            Assert.That((await controller.GamertagClaims(CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
-            Assert.That(await controller.SetRegion(new SetRegionRequest { RegionID = 1 }, CancellationToken.None), Is.TypeOf<UnauthorizedResult>());
+            (await controller.PreviewClaim("Old Me", CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
+            (await controller.ClaimGamertag(Request(), CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
+            (await controller.GamertagClaims(CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
+            (await controller.SetRegion(new SetRegionRequest { RegionID = 1 }, CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
         }
     }
 

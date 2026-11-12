@@ -32,4 +32,5 @@ public class SeasonAndAvailabilityControllerUnitTests
             Assert.That(ControllerTestHelpers.ActionAuthorize(t, nameof(AvailabilityController.GetSeasonAvailability)), Is.Null);
         }
     }
+
 }

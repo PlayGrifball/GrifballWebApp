@@ -1,5 +1,6 @@
 using GrifballWebApp.Server.Brackets;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -24,39 +25,31 @@ public class BracketsControllerActionTests
         _controller = new BracketsController(_service);
     }
 
-    [TestCase(0, 1, "Please provide participantsCount")]
-    [TestCase(-1, 1, "Please provide participantsCount")]
-    [TestCase(4, 0, "Please provide seasonID")]
-    public async Task CreateBracket_InvalidInput_ReturnsBadRequest(int participants, int seasonID, string message)
+    [TestCase(0)]
+    [TestCase(-1)]
+    public async Task CreateBracket_InvalidInput_IsABadRequestProblem(int participants)
     {
-        var result = await _controller.CreateBracket(participants, seasonID, true, 3, CancellationToken.None);
+        var result = await _controller.CreateBracket(1, participants, true, 3, CancellationToken.None);
 
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-            Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo(message));
-        }
+        result.AssertProblem(StatusCodes.Status400BadRequest, "Please provide participantsCount");
         await _service.DidNotReceiveWithAnyArgs().CreateBracket(default, default, default, default, default);
     }
 
     [Test]
-    public async Task CreateBracket_Valid_CallsServiceAndReturnsOk()
+    public async Task CreateBracket_Valid_CallsServiceAndIsCreatedAtTheBracket()
     {
         using var cts = new CancellationTokenSource();
 
-        var result = await _controller.CreateBracket(8, 2, true, 3, cts.Token);
+        var result = await _controller.CreateBracket(2, 8, true, 3, cts.Token);
 
-        Assert.That(result, Is.TypeOf<OkResult>());
+        var created = result as CreatedAtActionResult;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(created, Is.Not.Null);
+            Assert.That(created!.ActionName, Is.EqualTo(nameof(BracketsController.GetBracket)));
+            Assert.That(created.RouteValues!["seasonID"], Is.EqualTo(2));
+        }
         await _service.Received(1).CreateBracket(8, 2, true, 3, cts.Token);
-    }
-
-    [Test]
-    public async Task GetBracket_InvalidSeason_ReturnsBadRequest()
-    {
-        var result = await _controller.GetBracket(0);
-
-        Assert.That(result.Result, Is.TypeOf<BadRequestObjectResult>());
-        await _service.DidNotReceiveWithAnyArgs().GetBracketsAsync(default, default);
     }
 
     [Test]
@@ -71,28 +64,13 @@ public class BracketsControllerActionTests
         };
         _service.GetBracketsAsync(5, Arg.Any<CancellationToken>()).Returns(dto);
 
-        var result = await _controller.GetBracket(5);
+        var value = await _controller.GetBracket(5, CancellationToken.None);
 
-        var ok = result.Result as OkObjectResult;
-        Assert.That(ok, Is.Not.Null);
-        Assert.That(ok!.Value, Is.SameAs(dto));
-        var value = (BracketDto)ok.Value!;
+        Assert.That(value, Is.SameAs(dto));
         using (Assert.EnterMultipleScope())
         {
             Assert.That(value.WinnerRounds[0].Matches[0].HomeTeam, Is.EqualTo("Seed 1"));
             Assert.That(value.GrandFinal.MatchNumber, Is.EqualTo("W2"));
-        }
-    }
-
-    [Test]
-    public async Task GetViewerData_InvalidSeason_ReturnsBadRequest()
-    {
-        var result = await _controller.GetViewerData(-3);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.Result, Is.TypeOf<BadRequestObjectResult>());
-            Assert.That(((BadRequestObjectResult)result.Result!).Value, Is.EqualTo("Please provide seasonID"));
         }
     }
 
@@ -102,9 +80,9 @@ public class BracketsControllerActionTests
         var dto = new ViewerDataDto { Stages = [], Matches = [], MatchGames = [], Participants = [] };
         _service.GetViewerDataAsync(7, Arg.Any<CancellationToken>()).Returns(dto);
 
-        var result = await _controller.GetViewerData(7);
+        var result = await _controller.GetViewerData(7, CancellationToken.None);
 
-        Assert.That((result.Result as OkObjectResult)?.Value, Is.SameAs(dto));
+        Assert.That(result.Value, Is.SameAs(dto));
     }
 
     [Test]
@@ -112,13 +90,9 @@ public class BracketsControllerActionTests
     {
         _service.GetViewerDataAsync(5, Arg.Any<CancellationToken>()).Returns((ViewerDataDto?)null);
 
-        var result = await _controller.GetViewerData(5);
+        var result = await _controller.GetViewerData(5, CancellationToken.None);
 
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.Result, Is.TypeOf<NotFoundObjectResult>());
-            Assert.That(((NotFoundObjectResult)result.Result!).Value, Is.EqualTo("Season does not exist"));
-        }
+        result.AssertProblem(StatusCodes.Status404NotFound, "Season does not exist");
     }
 
     [Test]
@@ -126,8 +100,9 @@ public class BracketsControllerActionTests
     {
         using var cts = new CancellationTokenSource();
 
-        await _controller.SetSeeds(9, cts.Token);
+        var result = await _controller.SetSeeds(9, cts.Token);
 
+        Assert.That(result, Is.TypeOf<NoContentResult>());
         await _service.Received(1).SetSeeds(9, null, cts.Token);
     }
 

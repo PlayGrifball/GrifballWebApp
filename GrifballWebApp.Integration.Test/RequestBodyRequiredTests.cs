@@ -13,8 +13,8 @@ using ServerProgram = GrifballWebApp.Server.Program;
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>
-/// The request bodies whose value-type fields are required (SetEnabledRequest, SetPausedRequest, SetJobPausedRequest,
-/// SetJobIntervalRequest), through the real app (<see cref="ServerProgram"/>, signed in as a preview Sysadmin): a body
+/// The request bodies whose value-type fields are required (SetEnabledRequest, SetPausedRequest, JobPausedRequest,
+/// JobIntervalRequest), through the real app (<see cref="ServerProgram"/>, signed in as a preview Sysadmin): a body
 /// without the value is refused with MVC's 400 rather than read as false or 0, which would turn a job or a source off,
 /// or unpause one, that the caller never asked about; a body with it gets past binding to the action.
 /// Non-parallelizable because Program.Main swaps the static Serilog logger.
@@ -58,7 +58,7 @@ public class RequestBodyRequiredTests
             HandleCookies = false,
             AllowAutoRedirect = false,
         });
-        using var login = await _client.PostAsJsonAsync("/Identity/Login?useCookies=false", new { Username = PreviewSmokeUsers.UserNames[0], Password });
+        using var login = await _client.PostAsJsonAsync("/identity/login?useCookies=false", new { Username = PreviewSmokeUsers.UserNames[0], Password });
         Assert.That(login.StatusCode, Is.EqualTo(HttpStatusCode.OK), "the preview Sysadmin signs in");
         var token = await login.Content.ReadFromJsonAsync<AccessTokenResponse>() ?? throw new AssertionException("No token");
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
@@ -75,10 +75,10 @@ public class RequestBodyRequiredTests
     private async Task<HttpResponseMessage> Post(string path, string json)
         => await _client.PostAsync(path, new StringContent(json, Encoding.UTF8, "application/json"));
 
-    [TestCase("/HistoricalImport/SetSourceEnabled/some-source", "{}", "enabled")]
-    [TestCase("/HistoricalImport/SetSchedulePaused", "{}", "paused")]
-    [TestCase("/Jobs/SetPaused", """{"group":"g","name":"n"}""", "paused")]
-    [TestCase("/Jobs/SetInterval", """{"group":"g","name":"n"}""", "intervalSeconds")]
+    [TestCase("/historical-sources/some-source/enabled", "{}", "enabled")]
+    [TestCase("/historical-imports/schedule/paused", "{}", "paused")]
+    [TestCase("/jobs/g/n/paused", "{}", "paused")]
+    [TestCase("/jobs/g/n/interval", "{}", "intervalSeconds")]
     public async Task A_body_without_the_value_is_refused(string path, string json, string field)
     {
         using var response = await Post(path, json);
@@ -89,15 +89,31 @@ public class RequestBodyRequiredTests
         Assert.That(problem.Errors["$"], Has.Some.Contains($"'{field}'"), "naming the missing property");
     }
 
-    [TestCase("/HistoricalImport/SetSourceEnabled/some-source", """{"enabled":false}""")]
-    [TestCase("/HistoricalImport/SetSchedulePaused", """{"paused":true}""")]
-    [TestCase("/Jobs/SetPaused", """{"group":"g","name":"n","paused":false}""")]
-    [TestCase("/Jobs/SetInterval", """{"group":"g","name":"n","intervalSeconds":3600}""")]
+    [TestCase("/historical-sources/some-source/enabled", """{"enabled":false}""")]
+    [TestCase("/historical-imports/schedule/paused", """{"paused":true}""")]
+    [TestCase("/jobs/g/n/paused", """{"paused":false}""")]
+    [TestCase("/jobs/g/n/interval", """{"intervalSeconds":3600}""")]
     public async Task A_body_with_the_value_reaches_the_action(string path, string json)
     {
         using var response = await Post(path, json);
 
         // What the action makes of it (a source or job that isn't there, a schedule not made yet) isn't this test's
         Assert.That(response.StatusCode, Is.Not.EqualTo(HttpStatusCode.BadRequest), await response.Content.ReadAsStringAsync());
+    }
+
+    [Test]
+    public async Task A_create_answers_201_with_its_Location_under_the_api()
+    {
+        // The callers reach the API under /api (the Angular server strips it): the Location says so too
+        using var response = await _client.PostAsJsonAsync("/seasons/settings", new
+        {
+            SeasonID = 0, SeasonName = $"Location {Guid.NewGuid():N}"[..20], GameVersionID = 6,
+            SignupsOpen = "2030-01-01T00:00:00Z", SignupsClose = "2030-01-08T00:00:00Z", DraftStart = "2030-01-09T00:00:00Z",
+            SeasonStart = "2030-01-10T00:00:00Z", SeasonEnd = "2030-03-01T00:00:00Z",
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created), await response.Content.ReadAsStringAsync());
+        var seasonID = await response.Content.ReadFromJsonAsync<int>();
+        Assert.That(response.Headers.Location?.AbsolutePath, Is.EqualTo($"/api/seasons/{seasonID}/settings"));
     }
 }

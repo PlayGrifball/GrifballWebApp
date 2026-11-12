@@ -45,7 +45,7 @@ describe('PlayerGradesComponent', () => {
     summary = of({ isHistorical: true, hasEnded: true, matchCount: 0, bracketMatchCount: 0, historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x' });
     fixture.detectChanges();
     // Nothing to grade: the grades aren't asked for
-    httpTestingController.expectNone('/api/Grades/GetGrades/7');
+    httpTestingController.expectNone('/api/seasons/7/grades');
     const notice = page().querySelector('app-data-notice')!;
     expect(notice.textContent).toContain('Player grades come from');
     expect(notice.querySelector('a')!.getAttribute('href')).toBe('https://docs.google.com/spreadsheets/d/x');
@@ -55,7 +55,7 @@ describe('PlayerGradesComponent', () => {
   it('says an ended season of the app\'s own without matches has no grades, and has no table', () => {
     summary = of({ isHistorical: false, hasEnded: true, matchCount: 0, bracketMatchCount: 0, historicalSourceUrl: null });
     fixture.detectChanges();
-    httpTestingController.expectNone('/api/Grades/GetGrades/7');
+    httpTestingController.expectNone('/api/seasons/7/grades');
     const notice = page().querySelector('app-data-notice')!;
     expect(notice.textContent).toContain('none were recorded for this season');
     expect(notice.querySelector('a')).toBeNull();
@@ -65,7 +65,7 @@ describe('PlayerGradesComponent', () => {
   it('says an ended season with a schedule but no Halo Infinite games has no grades, and has no table', () => {
     summary = of({ isHistorical: false, hasEnded: true, matchCount: 12, bracketMatchCount: 3, historicalSourceUrl: null });
     fixture.detectChanges();
-    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush(empty);
+    httpTestingController.expectOne('/api/seasons/7/grades').flush(empty);
     fixture.detectChanges();
     expect(page().querySelector('app-data-notice')!.textContent).toContain('none were recorded for this season');
     expect(page().querySelector('table')).toBeNull();
@@ -75,7 +75,7 @@ describe('PlayerGradesComponent', () => {
     const pending = new Subject<Partial<SeasonSummaryDto>>();
     summary = pending;
     fixture.detectChanges();
-    httpTestingController.expectNone('/api/Grades/GetGrades/7');
+    httpTestingController.expectNone('/api/seasons/7/grades');
     expect(page().querySelector('table')).toBeNull();
     expect(page().querySelector('app-data-notice')).toBeNull();
 
@@ -88,7 +88,7 @@ describe('PlayerGradesComponent', () => {
   it('shows neither the table nor the notice until the grades have loaded', () => {
     summary = of({ isHistorical: true, hasEnded: true, matchCount: 4, bracketMatchCount: 0 });
     fixture.detectChanges();
-    const req = httpTestingController.expectOne('/api/Grades/GetGrades/7');
+    const req = httpTestingController.expectOne('/api/seasons/7/grades');
     expect(page().querySelector('table')).toBeNull();
     expect(page().querySelector('app-data-notice')).toBeNull();
 
@@ -100,7 +100,7 @@ describe('PlayerGradesComponent', () => {
 
   it('says a season still going without games yet has no grades yet, inside the table', () => {
     fixture.detectChanges();
-    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush(empty);
+    httpTestingController.expectOne('/api/seasons/7/grades').flush(empty);
     fixture.detectChanges();
     expect(page().querySelector('app-data-notice')).toBeNull();
     expect(page().querySelector('table')).not.toBeNull();
@@ -114,7 +114,7 @@ describe('PlayerGradesComponent', () => {
   it('says the grades could not be loaded, inside the table, when they fail', () => {
     summary = of({ isHistorical: true, hasEnded: true, matchCount: 4, bracketMatchCount: 0 });
     fixture.detectChanges();
-    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush('down', { status: 500, statusText: 'Server Error' });
+    httpTestingController.expectOne('/api/seasons/7/grades').flush('down', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
     // A failure isn't proof the season has no games: no notice
     expect(page().querySelector('app-data-notice')).toBeNull();
@@ -127,7 +127,7 @@ describe('PlayerGradesComponent', () => {
   it('shows the table for a season with graded games, or when the season cannot be loaded', () => {
     summary = of({ isHistorical: true, hasEnded: true, matchCount: 4, bracketMatchCount: 0 });
     fixture.detectChanges();
-    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ ...empty, letters: [grade] });
+    httpTestingController.expectOne('/api/seasons/7/grades').flush({ ...empty, letters: [grade] });
     fixture.detectChanges();
     expect(page().querySelector('app-data-notice')).toBeNull();
     expect(page().querySelector('table tr.mat-mdc-row td')!.textContent!.trim()).toBe('Grif');
@@ -136,7 +136,7 @@ describe('PlayerGradesComponent', () => {
     const other = TestBed.createComponent(PlayerGradesComponent);
     other.componentRef.setInput('seasonID', 7);
     other.detectChanges();
-    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush(empty);
+    httpTestingController.expectOne('/api/seasons/7/grades').flush(empty);
     other.detectChanges();
     expect((other.nativeElement as HTMLElement).querySelector('app-data-notice')).toBeNull();
     expect((other.nativeElement as HTMLElement).querySelector('table')).not.toBeNull();
@@ -155,14 +155,14 @@ describe('PlayerGradesComponent', () => {
   it('loads the grades of the season in the route', () => {
     fixture.detectChanges();
 
-    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [] });
+    httpTestingController.expectOne('/api/seasons/7/grades').flush({ totals: [], perMinutes: [], letters: [] });
     expect(component.seasonID()).toBe(7);
   });
 
   it("replaces the grades with the new season's when the route moves to another season", () => {
     summary = of({ isHistorical: false, hasEnded: false, matchCount: 4, bracketMatchCount: 0 });
     fixture.detectChanges();
-    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [grade] });
+    httpTestingController.expectOne('/api/seasons/7/grades').flush({ totals: [], perMinutes: [], letters: [grade] });
     expect(component.letters()).toEqual([grade]);
 
     fixture.componentRef.setInput('seasonID', 8);
@@ -172,7 +172,7 @@ describe('PlayerGradesComponent', () => {
     expect(component.showTable()).toBeFalse();
 
     const other = { ...grade, gamertag: 'Simmons' };
-    httpTestingController.expectOne('/api/Grades/GetGrades/8').flush({ totals: [], perMinutes: [], letters: [other] });
+    httpTestingController.expectOne('/api/seasons/8/grades').flush({ totals: [], perMinutes: [], letters: [other] });
     fixture.detectChanges();
     expect(component.letters()).toEqual([other]);
     expect(page().querySelector('app-season-tabs a')!.getAttribute('href')).toBe('/season/8');
@@ -181,11 +181,11 @@ describe('PlayerGradesComponent', () => {
   it("drops the previous season's grades when they arrive late", () => {
     summary = of({ isHistorical: false, hasEnded: false, matchCount: 4, bracketMatchCount: 0 });
     fixture.detectChanges();
-    const late = httpTestingController.expectOne('/api/Grades/GetGrades/7');
+    const late = httpTestingController.expectOne('/api/seasons/7/grades');
 
     fixture.componentRef.setInput('seasonID', 8);
     fixture.detectChanges();
-    httpTestingController.expectOne('/api/Grades/GetGrades/8').flush({ totals: [], perMinutes: [], letters: [] });
+    httpTestingController.expectOne('/api/seasons/8/grades').flush({ totals: [], perMinutes: [], letters: [] });
     late.flush({ totals: [], perMinutes: [], letters: [grade] });
 
     expect(component.letters()).toEqual([]);
@@ -229,7 +229,7 @@ describe('PlayerGradesComponent', () => {
       component.getGrades();
 
       const req = httpTestingController.expectOne((request) => 
-        request.url.includes('/api/Grades/GetGrades/')
+        /^\/api\/seasons\/\d+\/grades$/.test(request.url)
       );
       expect(req.request.method).toBe('GET');
       req.flush(mockGrades);
@@ -241,7 +241,7 @@ describe('PlayerGradesComponent', () => {
       component.getGrades();
 
       const req = httpTestingController.expectOne((request) => 
-        request.url.includes('/api/Grades/GetGrades/')
+        /^\/api\/seasons\/\d+\/grades$/.test(request.url)
       );
       req.flush({ totals: [], perMinutes: [], letters: [] });
 
@@ -252,7 +252,7 @@ describe('PlayerGradesComponent', () => {
 
     it('marks the grades as failed when the request fails', () => {
       component.getGrades();
-      httpTestingController.expectOne('/api/Grades/GetGrades/7').flush('down', { status: 500, statusText: 'Server Error' });
+      httpTestingController.expectOne('/api/seasons/7/grades').flush('down', { status: 500, statusText: 'Server Error' });
 
       expect(component.letters()).toEqual([]);
       expect(component.gradesDone()).toBeTrue();
@@ -270,7 +270,7 @@ describe('PlayerGradesComponent', () => {
       component.getGrades();
 
       const req = httpTestingController.expectOne((request) => 
-        request.url.includes('/api/Grades/GetGrades/')
+        /^\/api\/seasons\/\d+\/grades$/.test(request.url)
       );
       req.flush(mockGrades);
 
@@ -458,7 +458,7 @@ describe('PlayerGradesComponent', () => {
       component.getGrades();
 
       const req = httpTestingController.expectOne((request) => 
-        request.url.includes('/api/Grades/GetGrades/')
+        /^\/api\/seasons\/\d+\/grades$/.test(request.url)
       );
       req.flush(mockGrades);
 
@@ -469,7 +469,7 @@ describe('PlayerGradesComponent', () => {
 
   it('renders the grades once they arrive, without a manual detectChanges', async () => {
     await fixture.whenStable();
-    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({
+    httpTestingController.expectOne('/api/seasons/7/grades').flush({
       perMinutes: [],
       letters: [{ xboxUserID: 1, gamertag: 'Grif', goals: 'S+', kdSpread: 'A', punches: 'B-', sprees: 'C', doubleKills: 'D+',
         tripleKills: 'E', multiKills: 'F-', xFactor: 'A+', kills: 'S', gradeAvgMath: 3, gradeAvg: 'B+' }],
@@ -504,7 +504,7 @@ describe('PlayerGradesComponent rendering', () => {
     component = fixture.componentInstance;
     fixture.componentRef.setInput('seasonID', 7);
     fixture.detectChanges();
-    http.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [letter] });
+    http.expectOne('/api/seasons/7/grades').flush({ totals: [], perMinutes: [], letters: [letter] });
     fixture.detectChanges();
   });
 

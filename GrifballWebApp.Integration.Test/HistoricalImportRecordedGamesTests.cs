@@ -446,7 +446,7 @@ public class HistoricalImportRecordedGamesTests
                 Is.EqualTo(new[] { ("Late League Season 8 (Halo 3)", (string?)"halo3", 2, 4, true) }));
             Assert.That(season.Players.Select(p => (p.Gamertag, p.Source, p.GamesPlayed, p.Wins)).OrderBy(p => p.Gamertag),
                 Is.EqualTo(new[] { ("Alpha One", "Matches", 2, 2), ("Alpha Two", "Matches", 2, 2), ("Bravo One", "Matches", 2, 0), ("Bravo Two", "Matches", 2, 0) }));
-            Assert.That(missing.Result, Is.TypeOf<Microsoft.AspNetCore.Mvc.NotFoundResult>());
+            missing.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound);
         }
     }
 

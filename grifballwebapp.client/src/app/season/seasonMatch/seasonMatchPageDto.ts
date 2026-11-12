@@ -91,7 +91,7 @@ export function parseSeasonMatchPage(raw: any): SeasonMatchPageDto | null {
   return { ...raw, scheduledTime: fromApiDate(raw.scheduledTime) };
 }
 
-/** A game entered by hand (POST /api/SeasonMatch/AddManualGame, EditManualGame): the side with the higher score won. */
+/** A game entered by hand (POST /api/season-matches/{seasonMatchID}/manual-games[/{recordedGameID}]): the side with the higher score won. */
 export interface ManualGameRequestDto {
   gameVersionID: number,
   map: string | null,

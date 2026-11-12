@@ -25,9 +25,9 @@ public class SetRegionRequest
 /// What a signed-in user changes about their own account from their profile: their region, and claims of past gamertags
 /// (a sysadmin decides those on the claims page).
 /// </summary>
-[Route("[controller]/[action]")]
 [ApiController]
 [Authorize]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
 public class MyProfileController : ControllerBase
 {
     private readonly IApplicationDbContext _context;
@@ -41,41 +41,54 @@ public class MyProfileController : ControllerBase
 
     /// <summary>The regions a player can be in.</summary>
     [AllowAnonymous]
-    [HttpGet(Name = "GetRegions")]
+    [HttpGet("regions", Name = "GetRegions")]
+    [ProducesResponseType<List<RegionDto>>(StatusCodes.Status200OK)]
     public Task<List<RegionDto>> Regions(CancellationToken ct)
         => _context.Regions.AsNoTracking().OrderBy(r => r.RegionID)
             .Select(r => new RegionDto { RegionID = r.RegionID, RegionName = r.RegionName }).ToListAsync(ct);
 
     /// <summary>Sets the signed-in user's region (the import never overwrites it).</summary>
-    [HttpPost(Name = "SetMyRegion")]
+    [HttpPost("me/region", Name = "SetMyRegion")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> SetRegion([FromBody] SetRegionRequest request, CancellationToken ct)
     {
         if (GetUserID() is not int userId)
-            return Unauthorized();
+            return this.UnauthorizedProblem(NotSignedIn);
         if (request.RegionID is not null && !await _context.Regions.AnyAsync(r => r.RegionID == request.RegionID, ct))
-            return BadRequest("There is no such region");
+            return this.BadRequestProblem("There is no such region");
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null)
-            return NotFound();
+            return this.NotFoundProblem("There is no such user");
         user.ChooseRegion(request.RegionID, RegionSource.User);
         await _context.SaveChangesAsync(ct);
         return NoContent();
     }
 
     /// <summary>The placeholder claiming a gamertag would merge, its seasons, and why it can't be claimed if it can't.</summary>
-    [HttpGet(Name = "PreviewGamertagClaim")]
+    [HttpGet("me/gamertag-claims/preview", Name = "PreviewGamertagClaim")]
+    [ProducesResponseType<ClaimPreviewDto>(StatusCodes.Status200OK)]
     public async Task<ActionResult<ClaimPreviewDto>> PreviewClaim([FromQuery] string gamertag, CancellationToken ct)
-        => GetUserID() is int userId ? await _claims.Preview(userId, gamertag, ct) : Unauthorized();
+        => GetUserID() is int userId ? await _claims.Preview(userId, gamertag, ct) : this.UnauthorizedProblem(NotSignedIn);
 
-    /// <summary>Claims a past gamertag's placeholder: a pending claim for a sysadmin to decide.</summary>
-    [HttpPost(Name = "ClaimGamertag")]
+    /// <summary>Claims a past gamertag's placeholder: a pending claim for a sysadmin to decide (201, at the user's claims).</summary>
+    [HttpPost("me/gamertag-claims", Name = "ClaimGamertag")]
+    [ProducesResponseType<GamertagClaimDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     public async Task<ActionResult<GamertagClaimDto>> ClaimGamertag([FromBody] SubmitGamertagClaimRequest request, CancellationToken ct)
-        => GetUserID() is int userId ? await _claims.Submit(userId, request, ct) : Unauthorized();
+        => GetUserID() is int userId
+            ? CreatedAtAction(nameof(GamertagClaims), null, await _claims.Submit(userId, request, ct))
+            : this.UnauthorizedProblem(NotSignedIn);
 
     /// <summary>The signed-in user's claims of past gamertags and their status.</summary>
-    [HttpGet(Name = "GetMyGamertagClaims")]
+    [HttpGet("me/gamertag-claims", Name = "GetMyGamertagClaims")]
+    [ProducesResponseType<List<GamertagClaimDto>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<List<GamertagClaimDto>>> GamertagClaims(CancellationToken ct)
-        => GetUserID() is int userId ? await _claims.ClaimsOf(userId, ct) : Unauthorized();
+        => GetUserID() is int userId ? await _claims.ClaimsOf(userId, ct) : this.UnauthorizedProblem(NotSignedIn);
+
+    private const string NotSignedIn = "You must be signed in";
 
     private int? GetUserID()
         => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;

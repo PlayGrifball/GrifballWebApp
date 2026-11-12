@@ -71,7 +71,7 @@ export class LinkedAccountsComponent implements OnInit {
 
   load(): void {
     const id = this.userID();
-    const url = id === undefined ? '/api/ExternalLogins/Mine' : '/api/ExternalLogins/UserLogins/' + id;
+    const url = id === undefined ? '/api/me/external-logins' : `/api/users/${id}/external-logins`;
     this.http.get<LinkedLogins>(url).subscribe({
       next: r => this.data.set({ ...r, providers: r.providers ?? [] }),
       error: (e: HttpErrorResponse) => this.message.set(errorText(e, 'Failed to load linked accounts')),
@@ -80,8 +80,8 @@ export class LinkedAccountsComponent implements OnInit {
 
   link(provider: ExternalProvider): void {
     this.busy.set(true);
-    this.http.post<{ token: string }>('/api/ExternalLogins/StartLink?provider=' + encodeURIComponent(provider.name), null).subscribe({
-      next: r => this.navigate('/api/ExternalLogins/Link?provider=' + encodeURIComponent(provider.name) + '&token=' + encodeURIComponent(r.token)),
+    this.http.post<{ token: string }>('/api/me/external-logins/link-token?provider=' + encodeURIComponent(provider.name), null).subscribe({
+      next: r => this.navigate('/api/external-logins/link?provider=' + encodeURIComponent(provider.name) + '&token=' + encodeURIComponent(r.token)),
       error: (e: HttpErrorResponse) => {
         this.busy.set(false);
         this.message.set(errorText(e, 'Failed to link ' + provider.displayName));
@@ -91,7 +91,7 @@ export class LinkedAccountsComponent implements OnInit {
 
   unlink(login: ExternalLogin): void {
     const id = this.userID();
-    const url = id === undefined ? '/api/ExternalLogins/Unlink' : '/api/ExternalLogins/RemoveUserLogin/' + id;
+    const url = id === undefined ? '/api/me/external-logins/remove' : `/api/users/${id}/external-logins/remove`;
     this.busy.set(true);
     this.http.post(url, { loginProvider: login.loginProvider, providerKey: login.providerKey }).subscribe({
       next: () => {
@@ -109,7 +109,7 @@ export class LinkedAccountsComponent implements OnInit {
   /** Back from the provider: add the login it returned to this account, then drop the query parameter. */
   private finishLink(): void {
     this.location.replaceState(this.location.path().split('?')[0]);
-    this.http.post<ExternalLogin>('/api/ExternalLogins/LinkCallback', null).subscribe({
+    this.http.post<ExternalLogin>('/api/me/external-logins', null).subscribe({
       next: r => {
         this.message.set('Linked ' + r.providerDisplayName);
         this.load();

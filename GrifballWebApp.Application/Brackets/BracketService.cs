@@ -2,6 +2,7 @@
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Application.Dtos;
+using GrifballWebApp.Application.EventOrganizer;
 using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Application.TeamStandings;
 using GrifballWebApp.Application.Queries;
@@ -36,6 +37,10 @@ public class BracketService : IBracketService
 
     public async Task CreateBracket(int participantsCount, int seasonID, bool doubleElimination, int bestOf, CancellationToken ct = default)
     {
+        // Before anything is written: the matches' foreign key would otherwise refuse it as an unexpected error
+        if (!await _grifballContext.Seasons.AnyAsync(s => s.SeasonID == seasonID, ct))
+            throw new SeasonRefusedException("There is no such season", StatusCodes.Status404NotFound);
+
         using var t = await _grifballContext.Database.BeginTransactionAsync(ct);
         var bracket = _grifballContext.SeasonMatches.Where(x => x.SeasonID == seasonID && x.BracketMatch != null);
         await _grifballContext.RecordedGames.DeleteManualForAsync(bracket, ct);

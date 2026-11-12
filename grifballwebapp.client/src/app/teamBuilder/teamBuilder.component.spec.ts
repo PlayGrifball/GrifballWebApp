@@ -1253,13 +1253,13 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
 
     // The first change detection loads season 7 through the real ApiClientService.
     fixture.detectChanges();
-    httpTesting.expectOne('/api/Teams/GetTeams/7').flush([
+    httpTesting.expectOne('/api/seasons/7/draft/teams').flush([
       { teamID: 1, teamName: 'Alpha', captain: captain(11, 1), players: [pooled(21)] },
       { teamID: 2, teamName: 'Bravo', captain: captain(12, 2), players: [] },
       { teamID: 3, teamName: 'Charlie', captain: captain(13, 3), players: [] }
     ]);
-    httpTesting.expectOne('/api/Teams/GetPlayerPool/7').flush([pooled(30)]);
-    httpTesting.expectOne('/api/Teams/areCaptainsLocked/7').flush(false);
+    httpTesting.expectOne('/api/seasons/7/draft/player-pool').flush([pooled(30)]);
+    httpTesting.expectOne('/api/seasons/7/draft/captains/locked').flush(false);
   });
 
   afterEach(() => {
@@ -1274,7 +1274,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
   it('posts a RemoveCaptainDto with only seasonID and personID', () => {
     dropTeamInPool(component.teams()[1]);
 
-    const req = httpTesting.expectOne('/api/Teams/RemoveCaptain/');
+    const req = httpTesting.expectOne('/api/seasons/7/draft/captains/remove');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ seasonID: 7, personID: 12 });
     expect(Object.keys(req.request.body).sort()).toEqual(['personID', 'seasonID']);
@@ -1286,7 +1286,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
   it('returns the captain and their players to the pool and re-sequences the remaining captains', () => {
     dropTeamInPool(component.teams()[0]);
 
-    const req = httpTesting.expectOne('/api/Teams/RemoveCaptain/');
+    const req = httpTesting.expectOne('/api/seasons/7/draft/captains/remove');
     expect(req.request.body).toEqual({ seasonID: 7, personID: 11 });
     req.flush({});
 

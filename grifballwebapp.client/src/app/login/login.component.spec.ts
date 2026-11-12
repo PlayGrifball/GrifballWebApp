@@ -85,7 +85,7 @@ describe('LoginComponent', () => {
 
       component.ngOnInit();
 
-      expect(leaveFor).toHaveBeenCalledOnceWith('/api/identity/externallogin?followUp=%2Fdashboard');
+      expect(leaveFor).toHaveBeenCalledOnceWith('/api/identity/external-login?followUp=%2Fdashboard');
       expect(mockAccountService.goToFollowUp).not.toHaveBeenCalled();
     });
 
@@ -102,7 +102,7 @@ describe('LoginComponent', () => {
 
         component.ngOnInit();
 
-        const url = '/api/identity/externallogin?followUp=' + encoded;
+        const url = '/api/identity/external-login?followUp=' + encoded;
         expect(leaveFor).toHaveBeenCalledOnceWith(url);
         expect(component.discordUrl()).toBe(url);
       });
@@ -118,7 +118,7 @@ describe('LoginComponent', () => {
 
         expect(leaveFor).not.toHaveBeenCalled();
         expect(mockAccountService.goToFollowUp).not.toHaveBeenCalled();
-        expect(component.discordUrl()).toBe('/api/identity/externallogin');
+        expect(component.discordUrl()).toBe('/api/identity/external-login');
       });
     }
 

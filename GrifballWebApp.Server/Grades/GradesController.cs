@@ -1,9 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Grades;
 
 namespace GrifballWebApp.Server.Grades;
 
-[Route("[controller]/[action]")]
 [ApiController]
 public class GradesController : ControllerBase
 {
@@ -14,7 +14,10 @@ public class GradesController : ControllerBase
         _gradesService = gradesService;
     }
 
-    [HttpGet("{seasonID:int}", Name = "GetGrades")]
+    /// <summary>A season's player grades.</summary>
+    [AllowAnonymous]
+    [HttpGet("seasons/{seasonID:int}/grades", Name = "GetGrades")]
+    [ProducesResponseType<GradesDto>(StatusCodes.Status200OK)]
     public Task<GradesDto> GetGrades([FromRoute] int seasonID, CancellationToken ct)
     {
         return _gradesService.GetGrades(seasonID, ct);

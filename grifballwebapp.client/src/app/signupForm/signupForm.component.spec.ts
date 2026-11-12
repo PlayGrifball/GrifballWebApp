@@ -15,7 +15,7 @@ describe('SignupFormComponent', () => {
   let httpMock: HttpTestingController;
   let snackBar: jasmine.SpyObj<MatSnackBar>;
 
-  // Exactly what GET /api/Signups/getTimeslots returns (GrifballWebApp.Server.Signups.TimeslotDto).
+  // Exactly what GET /api/seasons/{seasonID}/signups/mine/timeslots returns (GrifballWebApp.Server.Signups.TimeslotDto).
   const timeslots = () => [
     { optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
     { optionID: 42, dayOfWeek: 'Monday', time: '20:00:00', isChecked: true },
@@ -48,7 +48,7 @@ describe('SignupFormComponent', () => {
   }
 
   /** The season name and dates for the heading and timeline; most tests do not look at them. */
-  const seasonInfo = () => httpMock.match(r => r.url === '/api/Home/CurrentAndFutureEvents/' || r.url.startsWith('/api/Season/getSeasonName/'));
+  const seasonInfo = () => httpMock.match(r => r.url === '/api/events' || /^\/api\/seasons\/\d+\/name$/.test(r.url));
 
   afterEach(() => {
     seasonInfo();
@@ -60,20 +60,20 @@ describe('SignupFormComponent', () => {
     // First change detection runs ngOnInit and binds model.timeslots while the HTTP request is still pending.
     expect(() => fixture.detectChanges()).not.toThrow();
     expect(component.model().timeslots).toEqual([]);
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
-    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush(null);
+    httpMock.expectOne('/api/seasons/5/signups/mine/timeslots?offset=0').flush(timeslots());
   });
 
   it('renders when there is no existing signup and the timeslots request is still pending', () => {
     setup('5');
     fixture.detectChanges();
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush(null);
     // The model is reset for a new signup; timeslots have not arrived yet.
     expect(() => fixture.detectChanges()).not.toThrow();
     expect(component.model().seasonID).toBe(5);
     expect(component.model().timeslots).toEqual([]);
 
-    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
+    httpMock.expectOne('/api/seasons/5/signups/mine/timeslots?offset=0').flush(timeslots());
     fixture.detectChanges();
 
     const rows = fixture.nativeElement.querySelectorAll('app-availability-table tr.mat-mdc-row, app-availability-table tr[mat-row]');
@@ -84,7 +84,7 @@ describe('SignupFormComponent', () => {
   it('renders an existing signup', () => {
     setup('5');
     fixture.detectChanges();
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush({
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush({
       seasonID: 5, userID: 7, teamName: 'Team', willCaptain: true, requiresAssistanceDrafting: false, timeslots: timeslots(),
     });
     expect(() => fixture.detectChanges()).not.toThrow();
@@ -95,7 +95,7 @@ describe('SignupFormComponent', () => {
   it('does not throw if the API response omits timeslots', () => {
     setup('5');
     fixture.detectChanges();
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush({ seasonID: 5, userID: 7, willCaptain: false });
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush({ seasonID: 5, userID: 7, willCaptain: false });
     expect(() => fixture.detectChanges()).not.toThrow();
     expect(component.model().timeslots).toEqual([]);
   });
@@ -103,7 +103,7 @@ describe('SignupFormComponent', () => {
   it('does not throw and shows a snackbar when the signup request fails', () => {
     setup('5');
     fixture.detectChanges();
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush('boom', { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush('boom', { status: 500, statusText: 'Server Error' });
     expect(() => fixture.detectChanges()).not.toThrow();
     expect(snackBar.open).toHaveBeenCalledWith('Failed to get signup');
   });
@@ -111,12 +111,12 @@ describe('SignupFormComponent', () => {
   it("shows who is signing up, the season's name and its timeline", () => {
     setup('5');
     fixture.detectChanges();
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
-    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
-    httpMock.expectOne('/api/Season/getSeasonName/5').flush('Winter');
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush(null);
+    httpMock.expectOne('/api/seasons/5/signups/mine/timeslots?offset=0').flush(timeslots());
+    httpMock.expectOne('/api/seasons/5/name').flush('Winter');
     const now = Date.parse('2026-03-10T12:00:00Z');
     component.now.set(now);
-    httpMock.expectOne('/api/Home/CurrentAndFutureEvents/').flush([
+    httpMock.expectOne('/api/events').flush([
       { seasonID: 5, name: 'Winter', start: '2026-04-01T00:00:00Z', end: '2026-06-01T00:00:00Z', eventType: 'Season' },
       { seasonID: 9, name: 'Other', start: '2026-03-01T00:00:00Z', end: '2026-03-20T00:00:00Z', eventType: 'Signup' },
       { seasonID: 5, name: 'Winter', start: '2026-03-01T00:00:00Z', end: '2026-03-20T00:00:00Z', eventType: 'Signup' },
@@ -140,9 +140,9 @@ describe('SignupFormComponent', () => {
     setup('5');
     fixture.detectChanges();
     expect(component.loaded()).toBeFalse();
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush(null);
     expect(component.loaded()).toBeFalse();
-    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush('x', { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/seasons/5/signups/mine/timeslots?offset=0').flush('x', { status: 500, statusText: 'Server Error' });
     expect(component.loaded()).toBeTrue();
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.hud-page')!.classList).not.toContain('hud-waiting');
@@ -157,10 +157,10 @@ describe('SignupFormComponent', () => {
   it('still works when the season name and dates cannot be loaded', () => {
     setup('5');
     fixture.detectChanges();
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
-    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
-    httpMock.expectOne('/api/Season/getSeasonName/5').flush('x', { status: 500, statusText: 'Server Error' });
-    httpMock.expectOne('/api/Home/CurrentAndFutureEvents/').flush('x', { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush(null);
+    httpMock.expectOne('/api/seasons/5/signups/mine/timeslots?offset=0').flush(timeslots());
+    httpMock.expectOne('/api/seasons/5/name').flush('x', { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/events').flush('x', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     expect(component.seasonName()).toBeNull();
@@ -170,10 +170,10 @@ describe('SignupFormComponent', () => {
   it("resets the form to the new season's signup when the route moves to another season", () => {
     setup('5');
     fixture.detectChanges();
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush({
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush({
       seasonID: 5, userID: 7, teamName: 'Reds', willCaptain: true, requiresAssistanceDrafting: false, timeslots: timeslots(),
     });
-    httpMock.expectOne('/api/Season/getSeasonName/5').flush('Winter');
+    httpMock.expectOne('/api/seasons/5/name').flush('Winter');
     fixture.detectChanges();
     expect(component.model().teamName).toBe('Reds');
 
@@ -185,9 +185,9 @@ describe('SignupFormComponent', () => {
     expect(component.seasonName()).toBeNull();
     expect(component.loaded()).toBeFalse();
 
-    httpMock.expectOne('/api/Signups/getSignup/6?offset=0').flush(null);
-    httpMock.expectOne('/api/Signups/getTimeslots/6?offset=0').flush(timeslots());
-    httpMock.expectOne('/api/Season/getSeasonName/6').flush('Spring');
+    httpMock.expectOne('/api/seasons/6/signups/mine?offset=0').flush(null);
+    httpMock.expectOne('/api/seasons/6/signups/mine/timeslots?offset=0').flush(timeslots());
+    httpMock.expectOne('/api/seasons/6/name').flush('Spring');
     fixture.detectChanges();
 
     expect(component.model().seasonID).toBe(6);
@@ -200,15 +200,15 @@ describe('SignupFormComponent', () => {
   it("drops the previous season's signup and name when they arrive late", () => {
     setup('5');
     fixture.detectChanges();
-    const lateSignup = httpMock.expectOne('/api/Signups/getSignup/5?offset=0');
-    const lateName = httpMock.expectOne('/api/Season/getSeasonName/5');
+    const lateSignup = httpMock.expectOne('/api/seasons/5/signups/mine?offset=0');
+    const lateName = httpMock.expectOne('/api/seasons/5/name');
 
     fixture.componentRef.setInput('seasonID', '6');
     fixture.detectChanges();
-    httpMock.expectOne('/api/Signups/getSignup/6?offset=0').flush({
+    httpMock.expectOne('/api/seasons/6/signups/mine?offset=0').flush({
       seasonID: 6, userID: 7, teamName: 'Blues', willCaptain: false, requiresAssistanceDrafting: false, timeslots: timeslots(),
     });
-    httpMock.expectOne('/api/Season/getSeasonName/6').flush('Spring');
+    httpMock.expectOne('/api/seasons/6/name').flush('Spring');
     lateSignup.flush({ seasonID: 5, userID: 7, teamName: 'Reds', willCaptain: true, requiresAssistanceDrafting: false, timeslots: [] });
     lateName.flush('Winter');
 
@@ -219,17 +219,17 @@ describe('SignupFormComponent', () => {
   it("drops the previous season's timeslots when they arrive late", () => {
     setup('5');
     fixture.detectChanges();
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
-    const lateTimeslots = httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0');
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush(null);
+    const lateTimeslots = httpMock.expectOne('/api/seasons/5/signups/mine/timeslots?offset=0');
 
     fixture.componentRef.setInput('seasonID', '6');
     fixture.detectChanges();
-    httpMock.expectOne('/api/Signups/getSignup/6?offset=0').flush(null);
+    httpMock.expectOne('/api/seasons/6/signups/mine?offset=0').flush(null);
     lateTimeslots.flush(timeslots());
 
     expect(component.model().timeslots).toEqual([]);
     expect(component.loaded()).toBeFalse();
-    httpMock.expectOne('/api/Signups/getTimeslots/6?offset=0').flush([]);
+    httpMock.expectOne('/api/seasons/6/signups/mine/timeslots?offset=0').flush([]);
   });
 
   it('renders without a season ID and makes no request', () => {
@@ -241,8 +241,8 @@ describe('SignupFormComponent', () => {
   it('renders the timeslots once they arrive, without a manual detectChanges', async () => {
     setup('5');
     await fixture.whenStable();
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
-    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush(null);
+    httpMock.expectOne('/api/seasons/5/signups/mine/timeslots?offset=0').flush(timeslots());
     await fixture.whenStable();
 
     expect(fixture.nativeElement.querySelectorAll('app-availability-table tr.mat-mdc-row').length).toBe(2);
@@ -251,8 +251,8 @@ describe('SignupFormComponent', () => {
   it('submits the slots ticked in the availability table, in the API time format', async () => {
     setup('5');
     fixture.detectChanges();
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
-    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush(null);
+    httpMock.expectOne('/api/seasons/5/signups/mine/timeslots?offset=0').flush(timeslots());
     await fixture.whenStable();
 
     // Tuesday 19:00 is the only Tuesday slot; its checkbox is the first one in that row.
@@ -262,7 +262,7 @@ describe('SignupFormComponent', () => {
 
     (component as any).signupForm = () => ({ valid: true });
     component.onSubmit();
-    const body = httpMock.expectOne('/api/Signups/UpsertSignup/').request.body;
+    const body = httpMock.expectOne('/api/seasons/5/signups/mine').request.body;
     expect(body.timeslots).toEqual([
       { optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
       { optionID: 42, dayOfWeek: 'Monday', time: '20:00:00', isChecked: true },
@@ -273,8 +273,8 @@ describe('SignupFormComponent', () => {
   it('replaces the model on form edits, and ticking one slot ticks only that slot', async () => {
     setup('5');
     fixture.detectChanges();
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
-    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush(null);
+    httpMock.expectOne('/api/seasons/5/signups/mine/timeslots?offset=0').flush(timeslots());
     await fixture.whenStable();
     const loaded = component.model();
 
@@ -298,7 +298,7 @@ describe('SignupFormComponent', () => {
   it('caps the team name at 30 characters, and an old longer one shows an error and is not submitted', async () => {
     setup('5');
     fixture.detectChanges();
-    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush({
+    httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush({
       seasonID: 5, userID: 7, teamName: 'x'.repeat(31), willCaptain: true, requiresAssistanceDrafting: false, timeslots: timeslots(),
     });
     await fixture.whenStable();
@@ -313,7 +313,7 @@ describe('SignupFormComponent', () => {
     expect(input.closest('mat-form-field')!.textContent).toContain('Maximum length 30');
 
     component.onSubmit();
-    httpMock.expectNone('/api/Signups/UpsertSignup/');
+    httpMock.expectNone('/api/seasons/5/signups/mine');
 
     input.value = 'x'.repeat(30);
     input.dispatchEvent(new Event('input'));
@@ -333,7 +333,7 @@ describe('SignupFormComponent', () => {
     it('does not submit an invalid form', () => {
       stubForm(false);
       component.onSubmit();
-      expect(httpMock.match('/api/Signups/UpsertSignup/')).withContext('signups sent').toEqual([]);
+      expect(httpMock.match('/api/seasons/5/signups/mine')).withContext('signups sent').toEqual([]);
     });
 
     it('submits the signup and confirms it', () => {
@@ -341,7 +341,7 @@ describe('SignupFormComponent', () => {
       component.model.update(model => ({ ...model, seasonID: 5, teamName: 'Reds' }));
       component.onSubmit();
 
-      const req = httpMock.expectOne('/api/Signups/UpsertSignup/');
+      const req = httpMock.expectOne('/api/seasons/5/signups/mine');
       expect(req.request.body).toEqual(jasmine.objectContaining({ seasonID: 5, teamName: 'Reds' }));
       req.flush({});
       expect(snackBar.open).toHaveBeenCalledWith('Signup Submitted', 'OK');
@@ -349,10 +349,11 @@ describe('SignupFormComponent', () => {
 
     it('reports a failed submission', () => {
       stubForm(true);
+      component.model.update(model => ({ ...model, seasonID: 5 }));
       spyOn(console, 'log');
       component.onSubmit();
 
-      httpMock.expectOne('/api/Signups/UpsertSignup/').flush('Signups are closed', { status: 400, statusText: 'Bad Request' });
+      httpMock.expectOne('/api/seasons/5/signups/mine').flush({ status: 400, title: 'Request refused', detail: 'Signups are closed' }, { status: 400, statusText: 'Bad Request' });
       expect(snackBar.open).toHaveBeenCalledWith('Error Occurred: Signups are closed', 'OK');
     });
   });

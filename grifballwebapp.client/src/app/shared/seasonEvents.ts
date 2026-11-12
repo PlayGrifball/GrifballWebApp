@@ -1,11 +1,11 @@
-/** A season's signups, draft or regular season, as /api/Home/CurrentAndFutureEvents/ lists them. */
+/** A season's signups, draft or regular season, as /api/events lists them. */
 export interface SeasonEvent {
   seasonID: number,
   name: string,
   start: string,
   end: string,
   eventType: 'Signup' | 'Draft' | 'Season',
-  /** A past season backfilled from the historical archive: its source spreadsheet (/api/Season/GetSeasons). */
+  /** A past season backfilled from the historical archive: its source spreadsheet (/api/seasons). */
   historicalSourceUrl?: string | null,
 }
 

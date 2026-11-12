@@ -360,8 +360,8 @@ public class ExcelServiceTests
         await using var jobs = await InMemoryJobs.Create(TimeProvider.System, null);
 
         var idle = await controller.ExportAllStatus(jobs.OnDemand, CancellationToken.None);
-        var queued = await controller.ExportAll(Target, jobs.OnDemand, CancellationToken.None);
-        var again = await controller.ExportAll(Target, jobs.OnDemand, CancellationToken.None);
+        var queued = (await controller.ExportAll(Target, jobs.OnDemand, CancellationToken.None)).Accepted();
+        var again = (await controller.ExportAll(Target, jobs.OnDemand, CancellationToken.None)).Accepted();
 
         using (Assert.EnterMultipleScope())
         {
@@ -389,9 +389,9 @@ public class ExcelServiceTests
         var controller = new ExcelController(CreateService());
         var matchID = Guid.NewGuid();
 
-        var result = await controller.AppendMatch(Target, matchID);
+        var result = await controller.AppendMatch(matchID, Target);
 
-        Assert.That(result, Is.TypeOf<OkResult>());
+        Assert.That(result, Is.TypeOf<NoContentResult>());
         await _dataPull.Received(1).GetAndSaveMatch(matchID);
     }
 }

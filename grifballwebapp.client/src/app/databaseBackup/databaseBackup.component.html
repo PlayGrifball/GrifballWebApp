@@ -60,7 +60,7 @@
                cookie, and a GET needs no antiforgery token). A progress bar on the page would mean fetching it in the
                background (HttpClient with reportProgress), the whole file held in the page's memory until it's saved:
                for now, it's downloaded directly. -->
-          <a mat-stroked-button [href]="'api/Backup/Download?format=' + format()" download>Download</a>
+          <a mat-stroked-button [href]="'api/backups/' + format() + '/file'" download>Download</a>
         </div>
       } @else if (d.state === 'Failed') {
         <div class="hud-well db-progress" role="status">

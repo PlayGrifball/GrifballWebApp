@@ -384,7 +384,7 @@ const historicalStats = [
   historicalStat(4, 'Truthless', 43, 3), historicalStat(5, 'Legendary', 41, 4, true),
 ];
 
-/** A season in the season list (GET /api/Season/GetSeasons), played in the app unless changed. */
+/** A season in the season list (GET /api/seasons), played in the app unless changed. */
 const seasonListItem = (seasonID: number, seasonName: string, start: string, end: string, changes: Record<string, unknown> = {}) => ({
   ...seasonInfo(seasonID, { seasonName, start: start + 'T00:00:00Z', end: end + 'T00:00:00Z', year: Number(start.slice(0, 4)) }),
   teamCount: 6, playerCount: 30, champions: [], teamNames: teams.map(t => t[1]), ...changes,
@@ -506,9 +506,9 @@ const telemetryMetrics = {
     { key: 'jobs', title: 'Jobs failed', unit: 'runs', series: [] },
   ],
   routes: [
-    { route: 'GET /api/Season/getSeasonSummary/{seasonID}', requests: 4210, errors: 0, p95Ms: 42.5 },
-    { route: 'GET /api/SeasonMatch/GetSeasonMatchPage/{seasonMatchID}', requests: 1830, errors: 3, p95Ms: 210 },
-    { route: 'POST /api/Identity/Login', requests: 96, errors: 0, p95Ms: 1240 },
+    { route: 'GET /api/seasons/{seasonID}/summary', requests: 4210, errors: 0, p95Ms: 42.5 },
+    { route: 'GET /api/season-matches/{seasonMatchID}', requests: 1830, errors: 3, p95Ms: 210 },
+    { route: 'POST /api/identity/login', requests: 96, errors: 0, p95Ms: 1240 },
     { route: 'GET /hub/TeamsHub', requests: 12, errors: 0, p95Ms: null },
   ],
 };
@@ -519,7 +519,7 @@ const telemetryLogs = {
   truncated: false,
   entries: [
     logLine('2026-10-29T17:58:12.512Z', 'error', 'Pulling the match history of 2535400000000117 failed: the Halo API answered 503', 'GrifballWebApp.Server.Services.MatchPullService',
-      { RequestPath: '/api/SeasonMatch/PullMatches/31', StatusCode: '500', exception_type: 'System.Net.Http.HttpRequestException' }, TRACE_ID),
+      { RequestPath: '/api/season-matches/31/match-pull', StatusCode: '500', exception_type: 'System.Net.Http.HttpRequestException' }, TRACE_ID),
     logLine('2026-10-29T17:57:40.003Z', 'warn', 'The Discord bot was rate limited for 2.5 s', 'GrifballWebApp.Server.Discord.DiscordClient'),
     logLine('2026-10-29T17:55:00.120Z', 'info', 'Job recurring/historical-refresh succeeded in 42 ms', 'GrifballWebApp.Server.Jobs.JobRunner', { JobName: 'historical-refresh' }),
     logLine('2026-10-29T17:54:31.876Z', 'debug', 'Rendered /season/12 for a visitor', 'Microsoft.AspNetCore.Hosting.Diagnostics', { RequestPath: '/season/12', StatusCode: '200' }),
@@ -532,8 +532,8 @@ const span = (spanId: string, parentSpanId: string | null, name: string, kind: s
 const telemetryTrace = {
   traceId: TRACE_ID, start: '2026-10-29T17:58:11.300Z', durationMs: 1212.4,
   spans: [
-    span('00f067aa0ba902b7', null, 'POST /api/SeasonMatch/PullMatches/{seasonMatchID}', 'Server', 'Microsoft.AspNetCore', 0, 1212.4, 'Error',
-      { 'http.response.status_code': '500', 'url.path': '/api/SeasonMatch/PullMatches/31' }, { statusMessage: 'HttpRequestException',
+    span('00f067aa0ba902b7', null, 'POST /api/season-matches/{seasonMatchID}/match-pull', 'Server', 'Microsoft.AspNetCore', 0, 1212.4, 'Error',
+      { 'http.response.status_code': '500', 'url.path': '/api/season-matches/31/match-pull' }, { statusMessage: 'HttpRequestException',
         events: [{ name: 'exception', offsetMs: 1210.2, attributes: { 'exception.type': 'System.Net.Http.HttpRequestException', 'exception.message': 'Response status code does not indicate success: 503' } }] }),
     span('b7ad6b7169203331', '00f067aa0ba902b7', 'SELECT GrifballWebApp', 'Client', 'Microsoft.EntityFrameworkCore', 3.1, 8.4, 'Unset', { 'db.system': 'postgresql' }),
     span('c1f2a3b4c5d6e7f8', '00f067aa0ba902b7', 'GET halo-gateway', 'Client', 'System.Net.Http', 14.2, 1190.6, 'Error', { 'http.response.status_code': '503' }),
@@ -541,10 +541,10 @@ const telemetryTrace = {
   ],
 };
 const telemetryTraces = [
-  { traceId: TRACE_ID, rootName: 'POST /api/SeasonMatch/PullMatches/{seasonMatchID}', rootService: 'grifballwebapp', start: '2026-10-29T17:58:11.300Z', durationMs: 1212.4,
-    route: '/api/SeasonMatch/PullMatches/{seasonMatchID}', statusCode: 500 },
-  { traceId: '6e0c63257de34c92bf9efcd03927272e', rootName: 'GET /api/Season/getSeasonSummary/{seasonID}', rootService: 'grifballwebapp', start: '2026-10-29T17:57:02.118Z', durationMs: 18.9,
-    route: '/api/Season/getSeasonSummary/{seasonID}', statusCode: 200 },
+  { traceId: TRACE_ID, rootName: 'POST /api/season-matches/{seasonMatchID}/match-pull', rootService: 'grifballwebapp', start: '2026-10-29T17:58:11.300Z', durationMs: 1212.4,
+    route: '/api/season-matches/{seasonMatchID}/match-pull', statusCode: 500 },
+  { traceId: '6e0c63257de34c92bf9efcd03927272e', rootName: 'GET /api/seasons/{seasonID}/summary', rootService: 'grifballwebapp', start: '2026-10-29T17:57:02.118Z', durationMs: 18.9,
+    route: '/api/seasons/{seasonID}/summary', statusCode: 200 },
   { traceId: '0af7651916cd43dd8448eb211c80319c', rootName: 'recurring/historical-refresh', rootService: 'grifballwebapp-worker', start: '2026-10-29T17:55:00.078Z', durationMs: 42,
     route: null, statusCode: null },
 ];
@@ -575,21 +575,21 @@ function matchPage31(role: Role) {
 export function mockRoutes(role: Role): Record<string, MockBody> {
   return {
     // Who is signed in: a visitor gets 204 No Content
-    '/api/Identity/Me': role === 'anon' ? null : META[role],
-    '/api/Identity/Antiforgery': { token: `e2e-xsrf-${role}` },
+    '/api/identity/me': role === 'anon' ? null : META[role],
+    '/api/identity/antiforgery-token': { token: `e2e-xsrf-${role}` },
     '/api/CommitHash': { text: '9f3c2ab' },
     '/api/CommitDate': { text: '2026-10-28T21:14:00Z' },
-    '/api/Season/getCurrentSeasonID/': 12,
-    '/api/Home/CurrentAndFutureEvents/': [
+    '/api/seasons/current': 12,
+    '/api/events': [
       { seasonID: 13, name: 'Winter Campaign', start: '2026-10-20T00:00:00Z', end: signupsClose, eventType: 'Signup' },
       { seasonID: 13, name: 'Winter Campaign', start: '2026-11-14T19:00:00Z', end: '2026-11-14T23:00:00Z', eventType: 'Draft' },
       { seasonID: 12, name: 'Autumn Brawl', start: '2026-09-07T00:00:00Z', end: '2026-11-30T00:00:00Z', eventType: 'Season' },
       { seasonID: 13, name: 'Winter Campaign', start: '2026-11-20T00:00:00Z', end: '2027-02-15T00:00:00Z', eventType: 'Season' },
     ],
     // The home page's matchmaking queue panel (its live updates come over hub/QueueHub, which hubMock.mts answers)
-    '/api/Queue/Status': { count: 6, open: true, signedIn: role !== 'anon', hasGamertag: role !== 'anon', inQueue: false, inMatch: false },
+    '/api/queue': { count: 6, open: true, signedIn: role !== 'anon', hasGamertag: role !== 'anon', inQueue: false, inMatch: false },
     // The season list: the home page's past seasons and the seasons page (the backfilled season 5 among them)
-    '/api/Season/GetSeasons': {
+    '/api/seasons': {
       totalCount: 7,
       results: [
         seasonListItem(12, 'Autumn Brawl', '2026-09-07', '2026-11-30', { hasEnded: false }),
@@ -601,7 +601,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
           teamCount: 3, playerCount: 12, teamNames: historicalTeams.map(t => t[1]), champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
       ],
     },
-    '/api/Leaderboards/GetLeaderboards': {
+    '/api/leaderboards': {
       ringLeaders: [{ rank: 1, userID: 501, gamertag: 'Legendary', ringsCount: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1), title(9, 'Frostbite Cup', 'Open', 2)] },
         { rank: 2, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(12, 'Autumn Brawl', 'Open', 2)] }],
       dynasties: [{ rank: 1, teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1)] }],
@@ -611,7 +611,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       carrierStopLeaders: [leader(1, 501, 'Legendary', 45, 1.5)],
     },
     // "Titles from: Tournament": the titles of the tournaments only (the other boards count every game alike)
-    '/api/Leaderboards/GetLeaderboards?format=Tournament': {
+    '/api/leaderboards?format=Tournament': {
       ringLeaders: [{ rank: 1, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(8, 'Harvest Hammer', 'Open', 3)] },
         { rank: 1, userID: 12, gamertag: 'Banshee Bri', ringsCount: 1, titles: [title(8, 'Harvest Hammer', 'Open', 3)] }],
       dynasties: [{ rank: 1, teamName: 'Hammer Bros', latestTeamID: 3, latestSeasonID: 12, championshipsCount: 1, seasonsActive: 2, titles: [title(8, 'Harvest Hammer', 'Open', 3)] }],
@@ -620,7 +620,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       gamesPlayedLeaders: [leader(1, 501, 'Legendary', 30, null)],
       carrierStopLeaders: [leader(1, 501, 'Legendary', 45, 1.5)],
     },
-    '/api/Leaderboards/GetPlayerRank': {
+    '/api/leaderboards/player-rank': {
       userID: 501,
       gamertag: 'Legendary',
       matchedAlias: null,
@@ -633,24 +633,24 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       carrierStops: { rank: 1, totalRanked: 10, statValue: 45, secondaryText: '1.50 / G' },
     },
     // The leaderboards' player suggestions, whatever is typed: the two Old Timers, and two more of each kind
-    '/api/Leaderboards/SearchPlayers': [
+    '/api/leaderboards/players': [
       ...oldTimers,
       { userID: 501, name: 'Legendary', pastGamertag: null, matchedName: null, kind: 'Archive', years: '2011–2012' },
       { userID: 117, name: 'MasterChief117', pastGamertag: null, matchedName: null, kind: 'Xbox', years: null },
     ],
-    ...Object.fromEntries(Object.entries(seasonNames).map(([id, name]) => [`/api/Season/getSeasonName/${id}`, { text: name }])),
-    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/Season/getSeasonSummary/${id}`, summary(Number(id))])),
-    '/api/Season/getSeasonSummary/5': {
+    ...Object.fromEntries(Object.entries(seasonNames).map(([id, name]) => [`/api/seasons/${id}/name`, { text: name }])),
+    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/summary`, summary(Number(id))])),
+    '/api/seasons/5/summary': {
       ...historicalSeason, teamCount: 3, signupCount: 0,
       matchCount: 0, bracketMatchCount: 0, playerStatCount: historicalStats.length,
       champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [
         { userID: 501, gamertag: 'Legendary', isCaptain: true }, { userID: 502, gamertag: 'Old Timer', isCaptain: false }] }],
     },
     // The season's stats, and on the team page (?teamID=41) its team's: matched on the path alone, so the same rows
-    '/api/Season/GetSeasonPlayerStats/5': historicalStats,
+    '/api/seasons/5/player-stats': historicalStats,
     // Season 12 has no stored stats yet: its team pages show no stats table
-    '/api/Season/GetSeasonPlayerStats/12': [],
-    '/api/Season/GetSeasonTeams/5': [
+    '/api/seasons/12/player-stats': [],
+    '/api/seasons/5/teams': [
       {
         teamID: 41, teamName: 'Relentless', wins: 9, losses: 1, tbd: 0, recordFromSource: true, titles: ['Pro'],
         players: [
@@ -659,16 +659,16 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
         ],
       },
     ],
-    '/api/Season/GetSeasonTeams/12': teams.map(([teamID, name], i) => ({
+    '/api/seasons/12/teams': teams.map(([teamID, name], i) => ({
       teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1, tbd: 0, recordFromSource: false, titles: [],
       players: [
         { teamPlayerID: teamID * 10 + 1, userID: teamID * 100 + 1, gamertag: `${name} Captain`, isCaptain: true },
       ],
     })),
-    '/api/TeamStandings/GetTeamStandings/5': historicalTeams.map(([teamID, teamName, wins, losses]) => ({ teamID, teamName, wins, losses, recordFromSource: true })),
-    '/api/MatchPlanner/GetScheduledMatches/5': [],
-    '/api/MatchPlanner/GetUnscheduledMatches/5': [],
-    '/api/Team/Team/41': {
+    '/api/seasons/5/standings': historicalTeams.map(([teamID, teamName, wins, losses]) => ({ teamID, teamName, wins, losses, recordFromSource: true })),
+    '/api/seasons/5/matches/scheduled': [],
+    '/api/seasons/5/matches/unscheduled': [],
+    '/api/teams/41': {
       teamName: 'Relentless', season: historicalSeason, recordFromSource: true,
       wins: 9, losses: 1, tbd: 0, titles: ['Pro'],
       players: [
@@ -676,103 +676,104 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
         { teamPlayerID: 4102, userID: 502, gamertag: 'Old Timer', draftCaptainOrder: null, draftRound: null, isCaptain: false },
       ],
     },
-    '/api/Team/Matches/41': [],
-    '/api/TeamStandings/GetTeamStandings/12': teams.map(([teamID, name], i) => ({ teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1 })),
-    '/api/MatchPlanner/GetScheduledMatches/12': scheduled,
-    '/api/MatchPlanner/GetUnscheduledMatches/12': [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', complete: false }],
-    '/api/Brackets/GetViewerData': bracket,
+    '/api/teams/41/matches': [],
+    '/api/seasons/12/standings': teams.map(([teamID, name], i) => ({ teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1 })),
+    '/api/seasons/12/matches/scheduled': scheduled,
+    '/api/seasons/12/matches/unscheduled': [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', complete: false }],
+    // The season's playoff bracket, for any season
+    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/bracket/viewer-data`, bracket])),
     // A best of 3 at 1-1 (matchPage31); match 35, the same series once its games decided it, for its Match report and Undo
-    '/api/SeasonMatch/GetSeasonMatchPage/31': matchPage31(role),
-    '/api/SeasonMatch/GetSeasonMatchPage/35': { ...matchPage31(role), homeTeamScore: 2, homeTeamResult: 'Won', awayTeamResult: 'Loss', decidedBy: 'Games', canRequestReschedule: false },
-    '/api/SeasonMatch/GetPossibleMatches/35': [],
-    '/api/SeasonMatch/MatchPullStatus/35': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null },
-    '/api/Vod/ForSeasonMatch/35': [],
-    '/api/SeasonMatch/GetPossibleMatches/31': [{ matchID: '7c9e6679-7425-40de-944b-e07fc1f90ae7', homeTeam: possibleTeam(1, 5, 'Won', 0), awayTeam: possibleTeam(2, 3, 'Lost', 10) }],
-    '/api/SeasonMatch/MatchPullStatus/31': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-30T18:00:00Z', durationMs: 42000, result: 'Succeeded', error: null } },
-    '/api/MatchDetails/GetMatchDetails/0f8fad5b-d9cb-469f-a165-70867728950e': matchDetails(),
-    ...Object.fromEntries(teams.map(([id]) => [`/api/Team/Team/${id}`, roster(id)])),
-    '/api/Team/Matches/1': [
+    '/api/season-matches/31': matchPage31(role),
+    '/api/season-matches/35': { ...matchPage31(role), homeTeamScore: 2, homeTeamResult: 'Won', awayTeamResult: 'Loss', decidedBy: 'Games', canRequestReschedule: false },
+    '/api/season-matches/35/possible-matches': [],
+    '/api/season-matches/35/match-pull': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null },
+    '/api/season-matches/35/vods': [],
+    '/api/season-matches/31/possible-matches': [{ matchID: '7c9e6679-7425-40de-944b-e07fc1f90ae7', homeTeam: possibleTeam(1, 5, 'Won', 0), awayTeam: possibleTeam(2, 3, 'Lost', 10) }],
+    '/api/season-matches/31/match-pull': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-30T18:00:00Z', durationMs: 42000, result: 'Succeeded', error: null } },
+    '/api/matches/0f8fad5b-d9cb-469f-a165-70867728950e': matchDetails(),
+    ...Object.fromEntries(teams.map(([id]) => [`/api/teams/${id}`, roster(id)])),
+    '/api/teams/1/matches': [
       { seasonMatchID: 21, scheduledTime: '2026-10-21T23:00:00Z', bestOf: 3, score: 2, result: 'Won', otherTeamID: 3, otherTeamName: 'Hammer Bros', otherScore: 1, otherResult: 'Loss' },
       { seasonMatchID: 31, scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3, score: null, result: null, otherTeamID: 2, otherTeamName: 'Blue Bombers', otherScore: null, otherResult: null },
     ],
-    '/api/profile/getgamertag/117': { gamertag: 'MasterChief117' },
-    '/api/profile/getgamertag/999': { gamertag: 'CommanderGrif' },
-    '/api/profile/getprofilestats/117': profileStats(117, 'MasterChief117'),
-    '/api/profile/getprofilestats/999': profileStats(999, 'CommanderGrif'),
+    '/api/users/117/gamertag': { gamertag: 'MasterChief117' },
+    '/api/users/999/gamertag': { gamertag: 'CommanderGrif' },
+    '/api/users/117/stats': profileStats(117, 'MasterChief117'),
+    '/api/users/999/stats': profileStats(999, 'CommanderGrif'),
     // The profile's deployment history: each team the player was on
-    '/api/DeploymentHistory/GetDeploymentHistory/117': [
+    '/api/users/117/deployment-history': [
       { season: seasonInfo(12, { leagueName: 'Grifball League', leagueSlug: 'gl', division: 'Pro' }), teamID: 2, teamName: 'Blue Bombers', isCaptain: true, wins: 5, losses: 1, recordFromSource: false, finish: 'Champion', championshipTiers: ['Pro'] },
       { season: historicalSeason, teamID: 41, teamName: 'Relentless', isCaptain: false, wins: 4, losses: 4, recordFromSource: true, finish: 'Playoffs', championshipTiers: [] },
     ],
-    '/api/DeploymentHistory/GetDeploymentHistory/999': [],
-    '/api/profile/getcommendations/117': commendations(117),
-    '/api/profile/getcommendations/999': commendations(999),
-    '/api/ExternalLogins/Mine': { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] },
-    '/api/Signups/getSignup/13': null,
-    '/api/Signups/getTimeslots/13': timeslots,
-    '/api/Signups/getSignups/12': players.map((personName, i) => ({ seasonID: 12, userID: i, personName, timestamp: `2026-10-2${i}T18:0${i}:00Z`,
+    '/api/users/999/deployment-history': [],
+    '/api/users/117/commendations': commendations(117),
+    '/api/users/999/commendations': commendations(999),
+    '/api/me/external-logins': { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] },
+    '/api/seasons/13/signups/mine': null,
+    '/api/seasons/13/signups/mine/timeslots': timeslots,
+    '/api/seasons/12/signups': players.map((personName, i) => ({ seasonID: 12, userID: i, personName, timestamp: `2026-10-2${i}T18:0${i}:00Z`,
       teamName: i % 3 === 0 ? `${personName}'s Crew` : null, willCaptain: i % 3 === 0, requiresAssistanceDrafting: i === 3, timeslots: [] })),
-    '/api/Grades/GetGrades/12': { totals: [], perMinutes: [], letters: players.slice(0, 5).map((p, i) => grades(i, p)) },
-    '/api/EventOrganizer/GetSeasons': [12, 13, 11].map(season),
-    '/api/EventOrganizer/GetSeason/12': { ...season(12), copyFromSeasonID: null, copyAvailability: false, copySignups: false, copyTeams: false },
-    '/api/EventOrganizer/GetGameVersions': [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }],
-    '/api/EventOrganizer/GetLeagues': [{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'Late League' }],
-    // The times a season offers for signups (?seasonID=12): weeknights at 7 and 8
-    '/api/Availability/GetSeasonAvailability': ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time }))),
-    '/api/Admin/CheckStatus': { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' },
+    '/api/seasons/12/grades': { totals: [], perMinutes: [], letters: players.slice(0, 5).map((p, i) => grades(i, p)) },
+    '/api/seasons/settings': [12, 13, 11].map(season),
+    '/api/seasons/12/settings': { ...season(12), copyFromSeasonID: null, copyAvailability: false, copySignups: false, copyTeams: false },
+    '/api/game-versions': [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }],
+    '/api/leagues': [{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'Late League' }],
+    // The times each season offers for signups: weeknights at 7 and 8
+    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/availability`, ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time })))])),
+    '/api/halo/check': { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' },
     // The Infinite Client page in the default Gateway mode: the gateway's in-cluster address, plain HTTP as the chart's is
-    '/api/Admin/HaloStatus': { mode: 'Gateway', gatewayUrl: 'http://halo-gateway.halo-gateway.svc:8080/', gatewayAdminUrl: 'https://grunt.grifball.xyz/admin', apiKeyConfigured: true, reachable: true, accountStatus: 'Healthy', apiCode: 200, healthy: true, message: 'Halo gateway account Healthy; test call: Halo Infinite API answered 200' }, // NOSONAR(S5332): mock data, an in-cluster address
-    '/api/Excel/DefaultSheetInfo': [{ name: 'Autumn Brawl results', spreadsheetID: '1xGrifballAutumnBrawl2026', sheetName: 'Week 3' }],
-    '/api/UserManagement/GetUsers': { totalCount: users.length, results: users },
+    '/api/halo/status': { mode: 'Gateway', gatewayUrl: 'http://halo-gateway.halo-gateway.svc:8080/', gatewayAdminUrl: 'https://grunt.grifball.xyz/admin', apiKeyConfigured: true, reachable: true, accountStatus: 'Healthy', apiCode: 200, healthy: true, message: 'Halo gateway account Healthy; test call: Halo Infinite API answered 200' }, // NOSONAR(S5332): mock data, an in-cluster address
+    '/api/sheets/default': [{ name: 'Autumn Brawl results', spreadsheetID: '1xGrifballAutumnBrawl2026', sheetName: 'Week 3' }],
+    '/api/users': { totalCount: users.length, results: users },
     // A user's password reset link (POST, the user management page's RESET PASSWORD)
-    '/api/admin/generatepasswordresetlink': { resetLink: '/reset-password?token=e2e-reset-token', expiresAt: '2026-10-30T18:00:00Z' },
-    ...Object.fromEntries(users.map(user => ['/api/usermanagement/getuser/' + user.userID, userDetail(user)])),
+    '/api/password-reset-links': { resetLink: '/reset-password?token=e2e-reset-token', expiresAt: '2026-10-30T18:00:00Z' },
+    ...Object.fromEntries(users.map(user => [`/api/users/${user.userID}`, userDetail(user)])),
     // The accounts linked to a user, on their edit page
-    ...Object.fromEntries(users.map(user => ['/api/ExternalLogins/UserLogins/' + user.userID, { hasPassword: user.hasPassword,
+    ...Object.fromEntries(users.map(user => [`/api/users/${user.userID}/external-logins`, { hasPassword: user.hasPassword,
       logins: [{ loginProvider: 'Discord', providerKey: '8123456789012345' + user.userID, providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] }])),
-    '/api/Teams/GetTeams/13': draftTeams,
-    '/api/Teams/GetPlayerPool/13': draftPool,
-    '/api/Teams/areCaptainsLocked/13': true,
-    '/api/CommissionerDashboard/GetDashboardData': commissionerDashboard,
+    '/api/seasons/13/draft/teams': draftTeams,
+    '/api/seasons/13/draft/player-pool': draftPool,
+    '/api/seasons/13/draft/captains/locked': true,
+    '/api/commissioner-dashboard': commissionerDashboard,
     // The historical import page (/usermanagement/historicalimport): its sources, jobs, schedule, and a guarded import's job
-    '/api/HistoricalImport/Sources': historicalSources,
-    '/api/HistoricalImport/Jobs': historicalJobs,
-    '/api/HistoricalImport/Schedule': { paused: false, interval: '1.00:00:00', lastRunAt: '2026-10-29T06:00:00Z', nextRunAt: '2026-10-30T06:00:00Z', lastJobID: 40, lastRunNote: null },
-    '/api/HistoricalImport/Job/41': historicalJob,
-    // The Jobs page (/usermanagement/jobs) and a job's runs (?group=&name=; matched on the path alone)
-    '/api/Jobs/List': jobsOverview,
-    '/api/Jobs/History': jobHistory,
+    '/api/historical-sources': historicalSources,
+    '/api/historical-imports': historicalJobs,
+    '/api/historical-imports/schedule': { paused: false, interval: '1.00:00:00', lastRunAt: '2026-10-29T06:00:00Z', nextRunAt: '2026-10-30T06:00:00Z', lastJobID: 40, lastRunNote: null },
+    '/api/historical-imports/41': historicalJob,
+    // The Jobs page (/usermanagement/jobs) and each job's runs (?take= is not matched)
+    '/api/jobs': jobsOverview,
+    ...Object.fromEntries(jobsOverview.jobs.map(j => [`/api/jobs/${j.group}/${j.name}/runs`, jobHistory])),
     // VODs: the match page's, the seasons', the teams' and the profiles' (through their teams), and the review list
-    '/api/Vod/ForSeasonMatch/31': [matchVod],
-    '/api/Vod/ForSeason/12': [matchVod, castVod],
-    '/api/Vod/ForSeason/5': [archiveVod],
-    '/api/Vod/ForTeam/1': [matchVod],
-    '/api/Vod/ForTeam/41': [archiveVod],
-    '/api/Vod/ForPlayer/117': [matchVod, archiveVod],
-    '/api/Vod/ForPlayer/999': [],
-    '/api/Vod/Review': vodReview,
+    '/api/season-matches/31/vods': [matchVod],
+    '/api/seasons/12/vods': [matchVod, castVod],
+    '/api/seasons/5/vods': [archiveVod],
+    '/api/teams/1/vods': [matchVod],
+    '/api/teams/41/vods': [archiveVod],
+    '/api/users/117/vods': [matchVod, archiveVod],
+    '/api/users/999/vods': [],
+    '/api/vods/review': vodReview,
     // The gamertag claims page (/usermanagement/claims): four pending claims (?status=Pending, or no status), and its
     // Approved and Rejected tabs' decided ones
-    '/api/GamertagClaims/GetClaims': gamertagClaims,
-    '/api/GamertagClaims/GetClaims?status=Approved': [
+    '/api/gamertag-claims': gamertagClaims,
+    '/api/gamertag-claims?status=Approved': [
       { ...gamertagClaims[0], gamertagClaimID: 11, status: 'Approved', createdAt: '2026-10-20T15:20:00Z' },
       { ...gamertagClaims[2], gamertagClaimID: 13, status: 'Approved', createdAt: '2026-10-21T08:00:00Z' },
     ],
-    '/api/GamertagClaims/GetClaims?status=Rejected': [
+    '/api/gamertag-claims?status=Rejected': [
       { ...gamertagClaims[3], gamertagClaimID: 14, status: 'Rejected', rejectionReason: 'That was someone else: the 2009 roster lists Timer Old on Benchwarmers' },
     ],
     // Its "Find possible duplicates": an archive placeholder that looks like a user, and two placeholders alike
-    '/api/GamertagClaims/DuplicateSuggestions': [
+    '/api/duplicate-suggestions': [
       { sourceUserID: 503, sourceGamertag: 'Old School', targetUserID: 2, targetGamertag: 'OldSchool #1234', targetIsPlaceholder: false, match: 'Framing', distance: 0,
         sourceSeasons: [{ seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }], targetSeasons: [{ seasonID: 12, seasonName: 'Autumn Brawl', year: 2026 }] },
       { sourceUserID: 504, sourceGamertag: 'Timer Old', targetUserID: 502, targetGamertag: 'Old Timer', targetIsPlaceholder: true, match: 'Token', distance: 2,
         sourceSeasons: [{ seasonID: 4, seasonName: 'Spring League 2010', year: 2010 }], targetSeasons: [{ seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }] },
     ],
     // A profile's "Claim a past gamertag", whatever is typed (?gamertag= is not matched): the archive's player of that name
-    '/api/MyProfile/PreviewClaim': { gamertag: 'Old Timer', placeholderUserID: 502, placeholderName: 'Old Timer',
+    '/api/me/gamertag-claims/preview': { gamertag: 'Old Timer', placeholderUserID: 502, placeholderName: 'Old Timer',
       seasons: [{ seasonID: 4, seasonName: 'Spring League 2010', year: 2010 }, { seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }], refusal: null },
     // The schedule's recommended times (organizers, editing the schedule): the last run's, not applied yet, one with a conflict
-    '/api/Scheduler/Recommendation/12': {
+    '/api/seasons/12/schedule-recommendation': {
       run: { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-29T17:00:00Z', durationMs: 5400, result: 'Succeeded', error: null } },
       latest: {
         scheduleRecommendationID: 3, createdAt: '2026-10-29T17:00:05Z', requestedBy: 'Commander Grif', fitness: 0.92, generations: 400, appliedAt: null, appliedBy: null,
@@ -789,34 +790,34 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       },
     },
     // Linking a VOD from the review list (the historical import page): the seasons, and the Summer Smash's teams and matches
-    '/api/Vod/LinkSeasons': [12, 11, 5].map(seasonID => ({ seasonID, seasonName: seasonID === 5 ? 'Summer League 2010' : seasonNames[seasonID] })),
-    '/api/Vod/LinkOptions/11': {
+    '/api/vods/link-seasons': [12, 11, 5].map(seasonID => ({ seasonID, seasonName: seasonID === 5 ? 'Summer League 2010' : seasonNames[seasonID] })),
+    '/api/seasons/11/vod-link-options': {
       teams: teams.slice(0, 4).map(([teamID, teamName]) => ({ teamID: teamID + 20, teamName })),
       matches: [{ seasonMatchID: 201, label: 'Week 1: Red Rampage vs Blue Bombers', teamIDs: [21, 22] }, { seasonMatchID: 202, label: 'Week 1: Hammer Bros vs Sword Swallowers', teamIDs: [23, 24] }],
     },
-    '/api/UserMerges/List': { totalCount: userMerges.length, results: userMerges },
+    '/api/user-merges': { totalCount: userMerges.length, results: userMerges },
     // The signed-in admin's own profile (/profile/999): their claims of past gamertags
-    '/api/MyProfile/GamertagClaims': [{ ...gamertagClaims[3], claimantUserID: 999, userID: 999, claimantName: 'Commander Grif', status: 'Rejected', rejectionReason: 'That was someone else' }],
-    '/api/GamertagClaims/XuidLookupStatus': { placeholders: 12, due: 3, found: 7, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-29T09:00:00Z' },
+    '/api/me/gamertag-claims': [{ ...gamertagClaims[3], claimantUserID: 999, userID: 999, claimantName: 'Commander Grif', status: 'Rejected', rejectionReason: 'That was someone else' }],
+    '/api/xuid-lookups/status': { placeholders: 12, due: 3, found: 7, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-29T09:00:00Z' },
     // A franchise's seasons, from its team of this season (the team page's "Franchise history" link)
-    '/api/Team/History/1': teamHistory,
-    '/api/LateLeague/GetQueue': { gameCount: 96, players: lateLeaguePlayers(null) },
-    '/api/LateLeague/GetSeasons': lateLeagueSeasons,
-    '/api/LateLeague/GetSeason/3': { season: lateLeagueSeasons[0], players: lateLeaguePlayers(lateLeagueSeasons[0]) },
-    '/api/Search/QuickSearch': quickSearch,
-    // The database backup page (/databasebackup): a SQLite backup made (?format= is not matched), and the last export done
-    '/api/Backup/Info': { provider: 'PostgreSQL', latestMigration: '20261028211400_MatchmakingSeasons', formats: ['sqlite', 'postgres', 'sqlserver', 'dump'] },
-    '/api/Backup/DownloadStatus': { state: 'Succeeded', format: 'sqlite', started: '2026-10-29T17:40:00Z', finished: '2026-10-29T17:41:12Z',
+    '/api/teams/1/history': teamHistory,
+    '/api/late-league/queue': { gameCount: 96, players: lateLeaguePlayers(null) },
+    '/api/late-league/seasons': lateLeagueSeasons,
+    '/api/late-league/seasons/3': { season: lateLeagueSeasons[0], players: lateLeaguePlayers(lateLeagueSeasons[0]) },
+    '/api/search': quickSearch,
+    // The database backup page (/databasebackup): a SQLite backup made, and the last export done
+    '/api/backups/info': { provider: 'PostgreSQL', latestMigration: '20261028211400_MatchmakingSeasons', formats: ['sqlite', 'postgres', 'sqlserver', 'dump'] },
+    '/api/backups/sqlite/status': { state: 'Succeeded', format: 'sqlite', started: '2026-10-29T17:40:00Z', finished: '2026-10-29T17:41:12Z',
       fileName: 'GrifballWebApp-2026-10-29.sqlite', tables: 64, rows: 182340, message: null, size: 41_943_040, runningFormat: null, progress: null, progressMessage: null },
-    '/api/Backup/ExportStatus': { state: 'Succeeded', provider: 'SqlServer', started: '2026-10-28T09:00:00Z', finished: '2026-10-28T09:03:10Z', tables: 64, rows: 181902, message: null },
+    '/api/database-exports/status': { state: 'Succeeded', provider: 'SqlServer', started: '2026-10-28T09:00:00Z', finished: '2026-10-28T09:03:10Z', tables: 64, rows: 181902, message: null },
     // The Telemetry page (/usermanagement/telemetry): every backend set up
-    '/api/Telemetry/Status': { serviceName: 'grifballwebapp', logs: true, metrics: true, traces: true },
-    '/api/Telemetry/Metrics': telemetryMetrics,
-    '/api/Telemetry/Logs': telemetryLogs,
-    '/api/Telemetry/Traces': telemetryTraces,
-    '/api/Telemetry/Trace': telemetryTrace,
+    '/api/telemetry/status': { serviceName: 'grifballwebapp', logs: true, metrics: true, traces: true },
+    '/api/telemetry/metrics': telemetryMetrics,
+    '/api/telemetry/logs': telemetryLogs,
+    '/api/telemetry/traces': telemetryTraces,
+    [`/api/telemetry/traces/${TRACE_ID}`]: telemetryTrace,
     // The past gamertags page (/usermanagement/pastgamertags?xboxUserID=...): one manually-added row, one detected from a rename
-    '/api/GamertagClaims/PastGamertags': {
+    '/api/past-gamertags': {
       xboxUserID: 2535400000000117, currentGamertag: 'MasterChief117', userID: 117,
       pastGamertags: [
         { xboxGamertagHistoryID: 1, xboxUserID: 2535400000000117, gamertag: 'Legendary', firstSeen: '2010-01-01T00:00:00Z',

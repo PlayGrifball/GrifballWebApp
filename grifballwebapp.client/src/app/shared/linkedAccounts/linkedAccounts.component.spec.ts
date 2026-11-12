@@ -44,7 +44,7 @@ describe('LinkedAccountsComponent', () => {
   }
 
   function flushMine(body: LinkedLogins): void {
-    http.expectOne('/api/ExternalLogins/Mine').flush(body);
+    http.expectOne('/api/me/external-logins').flush(body);
     fixture.detectChanges();
   }
 
@@ -94,13 +94,13 @@ describe('LinkedAccountsComponent', () => {
     flushMine(mine());
 
     button('Link Discord')!.click();
-    const req = http.expectOne('/api/ExternalLogins/StartLink?provider=Discord');
+    const req = http.expectOne('/api/me/external-logins/link-token?provider=Discord');
     expect(req.request.method).toBe('POST');
     fixture.detectChanges();
     expect(button('Link Discord')!.disabled).toBeTrue();
     req.flush({ token: 'a+b/c' });
 
-    expect(navigate).toHaveBeenCalledWith('/api/ExternalLogins/Link?provider=Discord&token=a%2Bb%2Fc');
+    expect(navigate).toHaveBeenCalledWith('/api/external-logins/link?provider=Discord&token=a%2Bb%2Fc');
   });
 
   it('reports a link that cannot start', () => {
@@ -108,7 +108,7 @@ describe('LinkedAccountsComponent', () => {
     flushMine(mine());
 
     component.link(providers[0]);
-    http.expectOne('/api/ExternalLogins/StartLink?provider=Discord').flush("Unknown login provider 'Discord'", { status: 400, statusText: 'Bad Request' });
+    http.expectOne('/api/me/external-logins/link-token?provider=Discord').flush("Unknown login provider 'Discord'", { status: 400, statusText: 'Bad Request' });
     fixture.detectChanges();
 
     expect(status()).toBe("Unknown login provider 'Discord'");
@@ -121,7 +121,7 @@ describe('LinkedAccountsComponent', () => {
     flushMine(mine());
 
     button('Unlink')!.click();
-    const req = http.expectOne('/api/ExternalLogins/Unlink');
+    const req = http.expectOne('/api/me/external-logins/remove');
     expect(req.request.body).toEqual({ loginProvider: 'Discord', providerKey: '111' });
     req.flush(null);
     flushMine(mine({ logins: [] }));
@@ -135,7 +135,7 @@ describe('LinkedAccountsComponent', () => {
     flushMine(mine());
 
     component.unlink(discord);
-    http.expectOne('/api/ExternalLogins/Unlink').flush('This is your only way to sign in.', { status: 400, statusText: 'Bad Request' });
+    http.expectOne('/api/me/external-logins/remove').flush('This is your only way to sign in.', { status: 400, statusText: 'Bad Request' });
     fixture.detectChanges();
 
     expect(status()).toBe('This is your only way to sign in.');
@@ -144,7 +144,7 @@ describe('LinkedAccountsComponent', () => {
 
   it('falls back to a generic message without one from the server', () => {
     create();
-    http.expectOne('/api/ExternalLogins/Mine').flush(null, { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/me/external-logins').flush(null, { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     expect(status()).toBe('Failed to load linked accounts');
@@ -155,7 +155,7 @@ describe('LinkedAccountsComponent', () => {
     create();
 
     expect(location.replaceState).toHaveBeenCalledWith('/profile/21');
-    const req = http.expectOne('/api/ExternalLogins/LinkCallback');
+    const req = http.expectOne('/api/me/external-logins');
     expect(req.request.method).toBe('POST');
     req.flush(discord);
     flushMine(mine());
@@ -182,7 +182,7 @@ describe('LinkedAccountsComponent', () => {
     queryParams = { linkCallback: 'true' };
     create();
 
-    http.expectOne('/api/ExternalLogins/LinkCallback').flush(
+    http.expectOne('/api/me/external-logins').flush(
       'This Discord account is already linked to another Grifball account. Ask an admin to merge the two accounts.',
       { status: 409, statusText: 'Conflict' });
     flushMine(mine());
@@ -193,7 +193,7 @@ describe('LinkedAccountsComponent', () => {
   describe('for a sysadmin', () => {
     it("lists the user's logins with remove and no link buttons", () => {
       create(15);
-      http.expectOne('/api/ExternalLogins/UserLogins/15').flush({ hasPassword: false, logins: [discord, { ...discord, providerKey: '222' }] });
+      http.expectOne('/api/users/15/external-logins').flush({ hasPassword: false, logins: [discord, { ...discord, providerKey: '222' }] });
       fixture.detectChanges();
 
       expect(buttons().map(b => b.textContent!.trim())).toEqual(['Remove', 'Remove']);
@@ -203,17 +203,17 @@ describe('LinkedAccountsComponent', () => {
     it('ignores a link callback parameter', () => {
       queryParams = { linkCallback: 'true' };
       create(15);
-      http.expectOne('/api/ExternalLogins/UserLogins/15').flush({ hasPassword: true, logins: [] });
+      http.expectOne('/api/users/15/external-logins').flush({ hasPassword: true, logins: [] });
       expect(location.replaceState).not.toHaveBeenCalled();
     });
 
     it("removes one of the user's logins", () => {
       create(15);
-      http.expectOne('/api/ExternalLogins/UserLogins/15').flush({ hasPassword: true, logins: [discord] });
+      http.expectOne('/api/users/15/external-logins').flush({ hasPassword: true, logins: [discord] });
 
       component.unlink(discord);
-      http.expectOne('/api/ExternalLogins/RemoveUserLogin/15').flush(null);
-      http.expectOne('/api/ExternalLogins/UserLogins/15').flush({ hasPassword: true, logins: [] });
+      http.expectOne('/api/users/15/external-logins/remove').flush(null);
+      http.expectOne('/api/users/15/external-logins').flush({ hasPassword: true, logins: [] });
       fixture.detectChanges();
 
       expect(status()).toBe('Unlinked Discord');

@@ -62,7 +62,7 @@ public class EventOrganizerService
         if (dto.SeasonID is not 0)
         {
             season = await WithEverythingCopied(dto.SeasonID, ct)
-                ?? throw new Exception("Season does not exist");
+                ?? throw new SeasonRefusedException("There is no such season", StatusCodes.Status404NotFound);
         }
         else
         {

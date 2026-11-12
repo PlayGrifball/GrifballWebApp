@@ -11,6 +11,14 @@
     <UserSecretsId>56909a5d-8f87-4041-a5f7-be52249ab0aa</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerComposeProjectPath>..\docker-compose.dcproj</DockerComposeProjectPath>
+    <!-- The XML doc file (next to the assembly, in every build and the Docker publish): Swagger's IncludeXmlComments
+         reads it so actions' <summary>/<param>/<returns>/<remarks> reach the OpenAPI document. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- CS1591 (missing XML comment on a publicly visible member) would otherwise fire on every public type and
+         member this project has, not just controller actions (DTOs, Program, helpers); that's not worth chasing
+         everywhere, so it's a warning here, not an error - this project only, and it still isn't a SonarCloud
+         rule (the error severities for the rules SonarCloud does raise live in the root .editorconfig). -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using GrifballWebApp.Server.Controllers;
 using GrifballWebApp.Server.Dtos;
 using Microsoft.AspNetCore.Mvc;
@@ -68,12 +69,11 @@ public class AdminControllerTests
     {
         var controller = Controller(Gateway);
 
-        var result = await controller.SetCode("testcode");
+        var result = await controller.SetCode(new HaloAuthCodeRequest("testcode"));
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.TypeOf<ConflictObjectResult>());
-            Assert.That(((ConflictObjectResult)result).Value, Is.EqualTo(AdminController.GatewayModeMessage));
+            Assert.That(result.AssertProblem(StatusCodes.Status409Conflict).Detail, Is.EqualTo(AdminController.GatewayModeMessage));
         }
         await _accountAuthorization.DidNotReceiveWithAnyArgs().SetCodeAsync(default!);
     }
@@ -85,8 +85,7 @@ public class AdminControllerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.TypeOf<ConflictObjectResult>());
-            Assert.That(((ConflictObjectResult)result).Value, Does.Contain("Halo gateway"));
+            Assert.That(result.AssertProblem(StatusCodes.Status409Conflict).Detail, Does.Contain("Halo gateway"));
         }
     }
 
@@ -177,41 +176,35 @@ public class AdminControllerTests
     }
 
     [Test]
-    public async Task Get_ShouldThrowException_WhenGameIsNotGuid()
-    {
-        var ex = await Assert.ThrowsAsync<Exception>(async () => await _controller.Get("not-a-guid"));
-        Assert.That(ex.Message, Is.EqualTo("Not valid guid"));
-    }
-
-    [Test]
-    public async Task Get_ShouldCallDataPullService_WhenGuidIsValid()
+    public async Task PullMatch_ShouldCallDataPullService()
     {
         var guid = Guid.NewGuid();
-        await _controller.Get(guid.ToString());
+        var result = await _controller.PullMatch(guid);
+        Assert.That(result, Is.TypeOf<NoContentResult>());
         await _dataPullService.Received(1).GetAndSaveMatch(guid);
     }
 
     [Test]
     public async Task SetCode_ShouldReturnBadRequest_WhenCodeIsMissing()
     {
-        var result = await _controller.SetCode("");
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+        var result = await _controller.SetCode(new HaloAuthCodeRequest(""));
+        result.AssertProblem(StatusCodes.Status400BadRequest);
     }
 
     [Test]
     public async Task SetCode_ShouldCallSetCodeAsync_AndReturnOk()
     {
         var code = "testcode";
-        var result = await _controller.SetCode(code);
+        var result = await _controller.SetCode(new HaloAuthCodeRequest(code));
         await _accountAuthorization.Received(1).SetCodeAsync(code);
-        Assert.That(result, Is.TypeOf<OkResult>());
+        Assert.That(result, Is.TypeOf<NoContentResult>());
     }
 
     [Test]
     public void DeleteTokens_ShouldReturnOk()
     {
         var result = _controller.DeleteTokens();
-        Assert.That(result, Is.TypeOf<OkResult>());
+        Assert.That(result, Is.TypeOf<NoContentResult>());
     }
 
     [Test]
@@ -240,9 +233,7 @@ public class AdminControllerTests
         var request = new GeneratePasswordResetLinkRequestDto { Username = "" };
         var result = await _controller.GeneratePasswordResetLink(request, CancellationToken.None);
         
-        Assert.That(result.Result, Is.TypeOf<BadRequestObjectResult>());
-        var badRequest = (BadRequestObjectResult)result.Result;
-        Assert.That(badRequest.Value, Is.EqualTo("Username is required"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Username is required"));
     }
 
     [Test]
@@ -256,7 +247,7 @@ public class AdminControllerTests
 
         var result = await _controller.GeneratePasswordResetLink(request, CancellationToken.None);
 
-        Assert.That(result.Result, Is.TypeOf<UnauthorizedObjectResult>());
+        result.AssertProblem(StatusCodes.Status401Unauthorized);
         await _userManagementService.DidNotReceive().GeneratePasswordResetLink(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
@@ -281,9 +272,7 @@ public class AdminControllerTests
 
         var result = await _controller.GeneratePasswordResetLink(request, CancellationToken.None);
         
-        Assert.That(result.Result, Is.TypeOf<BadRequestObjectResult>());
-        var badRequest = (BadRequestObjectResult)result.Result;
-        Assert.That(badRequest.Value, Is.EqualTo("User not found"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("User not found"));
     }
 
     [Test]
@@ -325,9 +314,7 @@ public class AdminControllerTests
         
         var result = await _controller.CleanupExpiredPasswordResetLinks(CancellationToken.None);
         
-        Assert.That(result, Is.TypeOf<OkObjectResult>());
-        var okResult = (OkObjectResult)result;
-        Assert.That(okResult.Value, Is.EqualTo("Expired password reset links cleaned up"));
+        Assert.That(result, Is.TypeOf<NoContentResult>());
         await _userManagementService.Received(1).CleanupExpiredPasswordResetLinks(Arg.Any<CancellationToken>());
     }
 }

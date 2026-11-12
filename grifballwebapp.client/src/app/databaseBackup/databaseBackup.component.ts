@@ -6,10 +6,11 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { errorText } from '../shared/errorText';
 
 export type BackupFormat = 'sqlite' | 'postgres' | 'sqlserver' | 'bak' | 'dump';
 
-/** api/Backup/Info: the server the site's database is on, the build's last migration, and the formats it can download here. */
+/** api/backups/info: the server the site's database is on, the build's last migration, and the formats it can download here. */
 export interface BackupInfo {
   provider: string;
   latestMigration: string;
@@ -25,7 +26,7 @@ const formatLabels: Record<BackupFormat, string> = {
 };
 export type ExportTarget = 'Postgres' | 'SqlServer';
 
-/** api/Backup/ExportStatus: the last export to a server, this run of the backend's. */
+/** api/database-exports/status: the last export to a server, this run of the backend's. */
 export interface ExportStatus {
   state: 'None' | 'Running' | 'Succeeded' | 'Failed';
   provider?: string | null;
@@ -39,7 +40,7 @@ export interface ExportStatus {
   progressMessage?: string | null;
 }
 
-/** api/Backup/DownloadStatus?format=: that format's backup (one kept a format), being made, made (ready to download) or failed. */
+/** api/backups/{format}/status: that format's backup (one kept a format), being made, made (ready to download) or failed. */
 export interface DownloadStatus {
   state: 'None' | 'Running' | 'Succeeded' | 'Failed';
   format?: BackupFormat | null;
@@ -66,10 +67,10 @@ export const targetConnectionStrings: Record<ExportTarget, string> = {
 };
 
 /**
- * Sysadmin: downloads the whole database (api/Backup/StartDownload, followed until it's made, then api/Backup/Download) as a SQLite file, a script for PostgreSQL or SQL Server,
+ * Sysadmin: downloads the whole database (api/backups/{format}, followed until it's made, then api/backups/{format}/file) as a SQLite file, a script for PostgreSQL or SQL Server,
  * or a native backup (.bak, .dump: the site's own server's, or the scratch server's), with how to restore
  * each; or exports it straight into a new PostgreSQL or SQL Server
- * database (api/Backup/Export, followed until it's done).
+ * database (api/database-exports, followed until it's done).
  */
 @Component({
   selector: 'app-database-backup',
@@ -89,7 +90,7 @@ export class DatabaseBackupComponent {
   /** How often a running export's or backup's status is read again (ms). */
   static pollInterval = 2000;
 
-  readonly info = httpResource<BackupInfo>(() => 'api/Backup/Info');
+  readonly info = httpResource<BackupInfo>(() => 'api/backups/info');
   readonly format = signal<BackupFormat>('sqlite');
   readonly downloadStatus = signal<DownloadStatus | null>(null);
   /** Starting or making a backup. */
@@ -140,7 +141,7 @@ export class DatabaseBackupComponent {
 
   /** The last export's status; again shortly while it runs. */
   loadExportStatus() {
-    this.http.get<ExportStatus>('api/Backup/ExportStatus').subscribe({
+    this.http.get<ExportStatus>('api/database-exports/status').subscribe({
       next: status => this.followExport(status),
       error: r => console.log(r),
     });
@@ -155,7 +156,7 @@ export class DatabaseBackupComponent {
 
   startExport() {
     this.starting.set(true);
-    this.http.post<ExportStatus>('api/Backup/Export', { provider: this.exportTarget(), connectionString: this.connectionString() }).subscribe({
+    this.http.post<ExportStatus>('api/database-exports', { provider: this.exportTarget(), connectionString: this.connectionString() }).subscribe({
       next: status => {
         this.starting.set(false);
         // Not kept in the page once the server has it.
@@ -165,7 +166,7 @@ export class DatabaseBackupComponent {
       error: r => {
         console.log(r);
         this.starting.set(false);
-        const reason = typeof r.error === 'string' && r.error ? r.error : 'The export failed to start';
+        const reason = errorText(r, 'The export failed to start');
         this.snackbar.open(reason, 'Close');
       }
     });
@@ -173,7 +174,7 @@ export class DatabaseBackupComponent {
 
   /** The backup being made, or the last one; again shortly while one is made. */
   loadDownloadStatus() {
-    this.http.get<DownloadStatus>('api/Backup/DownloadStatus', { params: { format: this.format() } }).subscribe({
+    this.http.get<DownloadStatus>(`api/backups/${this.format()}/status`).subscribe({
       next: status => this.followDownload(status),
       error: r => {
         console.log(r);
@@ -214,19 +215,18 @@ export class DatabaseBackupComponent {
       this.fileName.set(status.fileName);
   }
 
-  /** Makes a backup in the chosen format on the server (api/Backup/StartDownload), followed until it's made; downloading it is a second step. */
+  /** Makes a backup in the chosen format on the server (api/backups/{format}), followed until it's made; downloading it is a second step. */
   makeBackup() {
     this.making.set(true);
     this.startedHere = this.format();
-    this.http.post<DownloadStatus>('api/Backup/StartDownload', null, { params: { format: this.format() } }).subscribe({
+    this.http.post<DownloadStatus>(`api/backups/${this.format()}`, null).subscribe({
       next: status => this.followDownload(status),
       error: (r: HttpErrorResponse) => {
         console.log(r);
         this.startedHere = null;
         this.making.set(false);
-        // 409 another is running, 422 the native backup can't be made here: the reason.
-        const reason = typeof r.error === 'string' ? r.error.trim() : '';
-        this.snackbar.open(reason && (r.status === 409 || r.status === 422) ? reason : 'The backup failed', 'Close');
+        // 409: another is running, or the native backup can't be made here: the reason.
+        this.snackbar.open(r.status === 409 ? errorText(r, 'The backup failed') : 'The backup failed', 'Close');
       }
     });
   }

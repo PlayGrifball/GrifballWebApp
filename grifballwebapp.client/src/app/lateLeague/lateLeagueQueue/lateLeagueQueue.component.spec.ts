@@ -23,7 +23,7 @@ describe('LateLeagueQueueComponent', () => {
   const el = () => fixture.nativeElement as HTMLElement;
   const text = () => el().textContent!.replace(/\s+/g, ' ');
   const button = () => el().querySelector<HTMLButtonElement>('button');
-  const statusRequest = () => http.expectOne('/api/Queue/Status');
+  const statusRequest = () => http.expectOne('/api/queue');
   /** Lets the connection's promise callbacks run. */
   const settled = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
   const handlerFor = (event: string) => connection.on.calls.all().find(c => c.args[0] === event)!.args[1] as (value: unknown) => void;
@@ -124,7 +124,7 @@ describe('LateLeagueQueueComponent', () => {
     button()!.click();
     fixture.detectChanges();
     expect(button()!.disabled).toBeTrue();
-    const join = http.expectOne('/api/Queue/Join');
+    const join = http.expectOne('/api/queue/join');
     expect(join.request.method).toBe('POST');
     join.flush({ ...player, count: 4, inQueue: true });
     fixture.detectChanges();
@@ -140,7 +140,7 @@ describe('LateLeagueQueueComponent', () => {
     show({ ...player, inQueue: true });
 
     button()!.click();
-    const leave = http.expectOne('/api/Queue/Leave');
+    const leave = http.expectOne('/api/queue/leave');
     expect(leave.request.method).toBe('POST');
     leave.flush({ ...player, count: 2 });
     fixture.detectChanges();
@@ -155,7 +155,7 @@ describe('LateLeagueQueueComponent', () => {
     show(player);
 
     button()!.click();
-    http.expectOne('/api/Queue/Join').flush('You are already in a Late League match!', { status: 409, statusText: 'Conflict' });
+    http.expectOne('/api/queue/join').flush('You are already in a Late League match!', { status: 409, statusText: 'Conflict' });
     statusRequest().flush({ ...player, inMatch: true });
     fixture.detectChanges();
 
@@ -168,7 +168,7 @@ describe('LateLeagueQueueComponent', () => {
     show(player);
 
     fixture.componentInstance.leave();
-    http.expectOne('/api/Queue/Leave').flush(null, { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/queue/leave').flush(null, { status: 500, statusText: 'Server Error' });
     statusRequest().flush(player);
     fixture.detectChanges();
 
@@ -220,14 +220,14 @@ describe('LateLeagueQueueComponent', () => {
     handlerFor('QueueCount')(5);
     fixture.detectChanges();
     expect(text()).toContain('5 players in the queue');
-    http.expectNone('/api/Queue/Status');
+    http.expectNone('/api/queue');
   });
 
   it('loads when the hub sends before the status is in, and shows the newer answer', () => {
     create();
     handlerFor('QueueCount')(7);
 
-    const [first, second] = http.match('/api/Queue/Status');
+    const [first, second] = http.match('/api/queue');
     second.flush({ ...anonymous, count: 7 });
     first.flush(anonymous);
     fixture.detectChanges();
@@ -252,7 +252,7 @@ describe('LateLeagueQueueComponent', () => {
     fixture.componentInstance.load();
     const stale = statusRequest();
     button()!.click();
-    http.expectOne('/api/Queue/Join').flush({ ...player, count: 4, inQueue: true });
+    http.expectOne('/api/queue/join').flush({ ...player, count: 4, inQueue: true });
     stale.flush(player);
     fixture.detectChanges();
 
@@ -265,8 +265,8 @@ describe('LateLeagueQueueComponent', () => {
 
     button()!.click();
     handlerFor('QueueCount')(5);
-    http.expectNone('/api/Queue/Status');
-    http.expectOne('/api/Queue/Join').flush({ ...player, count: 4, inQueue: true });
+    http.expectNone('/api/queue');
+    http.expectOne('/api/queue/join').flush({ ...player, count: 4, inQueue: true });
     statusRequest().flush({ ...player, count: 5, inQueue: true });
     fixture.detectChanges();
 

@@ -70,7 +70,7 @@ describe('SeedOrderingDialogComponent behaviour', () => {
   afterEach(() => http.verify());
 
   function loadStandings(): void {
-    http.expectOne('api/TeamStandings/GetTeamStandings/9').flush(standings.map(s => ({ ...s })));
+    http.expectOne('api/seasons/9/standings').flush(standings.map(s => ({ ...s })));
     fixture.detectChanges();
   }
 
@@ -99,7 +99,7 @@ describe('SeedOrderingDialogComponent behaviour', () => {
 
   it('reports a failure to load standings', () => {
     spyOn(console, 'log');
-    http.expectOne('api/TeamStandings/GetTeamStandings/9').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('api/seasons/9/standings').flush('x', { status: 500, statusText: 'Server Error' });
 
     expect(component.loading()).toBeFalse();
     expect(component.teams()).toEqual([]);
@@ -154,7 +154,7 @@ describe('SeedOrderingDialogComponent behaviour', () => {
     component.seedingOrder.subscribe(emitted);
 
     component.onSubmit();
-    const req = http.expectOne('api/Brackets/SetCustomSeeds/9');
+    const req = http.expectOne('api/seasons/9/bracket/seeds');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual([
       { teamID: 3, seed: 1 },
@@ -174,7 +174,7 @@ describe('SeedOrderingDialogComponent behaviour', () => {
     component.onSubmit();
 
     fixture.destroy(); // Esc / backdrop while the request is on its way
-    http.expectOne('api/Brackets/SetCustomSeeds/9').flush({});
+    http.expectOne('api/seasons/9/bracket/seeds').flush({});
 
     expect(emitted).toHaveBeenCalledTimes(1);
   });
@@ -185,7 +185,7 @@ describe('SeedOrderingDialogComponent behaviour', () => {
     const emitted = jasmine.createSpy('seedingOrder');
     component.seedingOrder.subscribe(emitted);
     component.onSubmit();
-    http.expectOne('api/Brackets/SetCustomSeeds/9').flush('x', { status: 400, statusText: 'Bad Request' });
+    http.expectOne('api/seasons/9/bracket/seeds').flush('x', { status: 400, statusText: 'Bad Request' });
 
     expect(snackBar.open).toHaveBeenCalledWith('Failed to set custom seeds', 'Close');
     expect(dialogRef.close).not.toHaveBeenCalled();
@@ -200,7 +200,7 @@ describe('SeedOrderingDialogComponent behaviour', () => {
 
   it('replaces the loading message with the teams once they arrive, without a manual detectChanges', async () => {
     fixture.autoDetectChanges();
-    http.expectOne('api/TeamStandings/GetTeamStandings/9').flush(standings.map(s => ({ ...s })));
+    http.expectOne('api/seasons/9/standings').flush(standings.map(s => ({ ...s })));
     await fixture.whenStable();
 
     const text = (fixture.nativeElement as HTMLElement).textContent!;

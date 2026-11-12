@@ -36,34 +36,34 @@ describe('earlyFetchInterceptor', () => {
   });
 
   it('sends requests as usual when nothing was fetched early', async () => {
-    const result = firstValueFrom(http.get('/api/Home/CurrentAndFutureEvents/'));
-    backend.expectOne('/api/Home/CurrentAndFutureEvents/').flush([1]);
+    const result = firstValueFrom(http.get('/api/events'));
+    backend.expectOne('/api/events').flush([1]);
     expect(await result).toEqual([1]);
   });
 
   it('answers the first request for a URL with the early response, without asking the server', async () => {
-    early({ '/api/Home/CurrentAndFutureEvents/': json([{ seasonID: 12 }]) });
+    early({ '/api/events': json([{ seasonID: 12 }]) });
 
-    expect(await firstValueFrom(http.get('/api/Home/CurrentAndFutureEvents/'))).toEqual([{ seasonID: 12 }]);
-    backend.expectNone('/api/Home/CurrentAndFutureEvents/');
+    expect(await firstValueFrom(http.get('/api/events'))).toEqual([{ seasonID: 12 }]);
+    backend.expectNone('/api/events');
   });
 
   it('uses each early response only once', async () => {
-    early({ '/api/Season/getCurrentSeasonID/': json(12) });
-    await firstValueFrom(http.get('/api/Season/getCurrentSeasonID/'));
+    early({ '/api/seasons/current': json(12) });
+    await firstValueFrom(http.get('/api/seasons/current'));
 
-    const again = firstValueFrom(http.get('/api/Season/getCurrentSeasonID/'));
-    backend.expectOne('/api/Season/getCurrentSeasonID/').flush(13);
+    const again = firstValueFrom(http.get('/api/seasons/current'));
+    backend.expectOne('/api/seasons/current').flush(13);
     expect(await again).toBe(13);
   });
 
   it('matches relative URLs and query parameters as the page sent them', async () => {
     early({
-      '/api/profile/getgamertag/117': json({ gamertag: 'MasterChief117' }),
+      '/api/users/117/gamertag': json({ gamertag: 'MasterChief117' }),
       '/api/Home/PastSeasons?pageSize=10&pageNumber=1': json({ totalCount: 0, results: [] }),
     });
 
-    expect(await firstValueFrom(http.get('api/profile/getgamertag/117'))).toEqual({ gamertag: 'MasterChief117' });
+    expect(await firstValueFrom(http.get('api/users/117/gamertag'))).toEqual({ gamertag: 'MasterChief117' });
     expect(await firstValueFrom(http.get('/api/Home/PastSeasons', { params: { pageSize: 10, pageNumber: 1 } })))
       .toEqual({ totalCount: 0, results: [] });
   });
@@ -79,22 +79,22 @@ describe('earlyFetchInterceptor', () => {
   it('gives text as text and an empty JSON body (204) as null, as HttpClient does', async () => {
     early({
       '/api/CommitHash': { status: 200, contentType: 'text/plain', body: '9f3c2ab' },
-      '/api/Season/getSeasonName/12': { status: 200, contentType: 'text/plain', body: 'Season 12' },
-      '/api/Signups/getSignup/13': { status: 204, contentType: null, body: '' },
+      '/api/seasons/12/name': { status: 200, contentType: 'text/plain', body: 'Season 12' },
+      '/api/seasons/13/signups/mine': { status: 204, contentType: null, body: '' },
     });
 
     expect(await firstValueFrom(http.get('/api/CommitHash', { responseType: 'text' }))).toBe('9f3c2ab');
-    expect(await firstValueFrom(http.get('/api/Season/getSeasonName/12', { responseType: 'text' }))).toBe('Season 12');
-    expect(await firstValueFrom(http.get('/api/Signups/getSignup/13'))).toBeNull();
+    expect(await firstValueFrom(http.get('/api/seasons/12/name', { responseType: 'text' }))).toBe('Season 12');
+    expect(await firstValueFrom(http.get('/api/seasons/13/signups/mine'))).toBeNull();
   });
 
   it('keeps the status and headers of the early response', async () => {
-    early({ '/api/Season/getCurrentSeasonID/': json(12) });
+    early({ '/api/seasons/current': json(12) });
 
-    const response = await firstValueFrom(http.get('/api/Season/getCurrentSeasonID/', { observe: 'response' }));
+    const response = await firstValueFrom(http.get('/api/seasons/current', { observe: 'response' }));
     expect(response.status).toBe(200);
     expect(response.headers.get('Content-Type')).toBe('application/json');
-    expect(response.url).toBe('/api/Season/getCurrentSeasonID/');
+    expect(response.url).toBe('/api/seasons/current');
   });
 
   for (const [what, response] of [
@@ -103,11 +103,11 @@ describe('earlyFetchInterceptor', () => {
     ['was not JSON', { status: 200, contentType: 'text/html', body: '<!doctype html>' }],
   ] as [string, EarlyResponse | null][]) {
     it(`asks the server again when the early fetch ${what}`, async () => {
-      early({ '/api/Home/CurrentAndFutureEvents/': response });
+      early({ '/api/events': response });
 
-      const result = firstValueFrom(http.get('/api/Home/CurrentAndFutureEvents/'));
+      const result = firstValueFrom(http.get('/api/events'));
       await new Promise(resolve => setTimeout(resolve));
-      backend.expectOne('/api/Home/CurrentAndFutureEvents/').flush([2]);
+      backend.expectOne('/api/events').flush([2]);
       expect(await result).toEqual([2]);
     });
   }
@@ -122,35 +122,35 @@ describe('earlyFetchInterceptor', () => {
   });
 
   it('does not use an early response that is too old', () => {
-    early({ '/api/Season/getCurrentSeasonID/': json(12) }, { at: Date.now() - EARLY_FETCH_MAX_AGE_MS - 1 });
+    early({ '/api/seasons/current': json(12) }, { at: Date.now() - EARLY_FETCH_MAX_AGE_MS - 1 });
 
     let seasonID: unknown;
-    http.get('/api/Season/getCurrentSeasonID/').subscribe(body => seasonID = body);
-    backend.expectOne('/api/Season/getCurrentSeasonID/').flush(13);
+    http.get('/api/seasons/current').subscribe(body => seasonID = body);
+    backend.expectOne('/api/seasons/current').flush(13);
     expect(seasonID).withContext('the backend\'s answer, not the early one').toBe(13);
   });
 
   it('uses the early answer of who is signed in (fetched with this browser\'s own cookie)', async () => {
-    early({ '/api/Identity/Me': json({ userID: 1 }) });
+    early({ '/api/identity/me': json({ userID: 1 }) });
 
-    expect(await firstValueFrom(http.get('/api/Identity/Me'))).toEqual({ userID: 1 });
+    expect(await firstValueFrom(http.get('/api/identity/me'))).toEqual({ userID: 1 });
   });
 
   it('does not use early responses once someone has signed in or out', () => {
-    early({ '/api/Identity/Me': { status: 204, contentType: null, body: '' } });
+    early({ '/api/identity/me': { status: 204, contentType: null, body: '' } });
     TestBed.inject(AuthSession).signedInOrOut();
 
     let me: unknown;
-    http.get('/api/Identity/Me').subscribe(body => me = body);
-    backend.expectOne('/api/Identity/Me').flush({ userID: 2 });
+    http.get('/api/identity/me').subscribe(body => me = body);
+    backend.expectOne('/api/identity/me').flush({ userID: 2 });
     expect(me).withContext('the backend\'s answer, not the early 204').toEqual({ userID: 2 });
   });
 
   it('never answers a request that is not a GET', () => {
-    early({ '/api/Season/getCurrentSeasonID/': json(12) });
+    early({ '/api/seasons/current': json(12) });
 
-    http.post('/api/Season/getCurrentSeasonID/', {}).subscribe();
-    backend.expectOne('/api/Season/getCurrentSeasonID/').flush(12);
-    expect(window.grifEarly!.responses['/api/Season/getCurrentSeasonID/']).toBeDefined();
+    http.post('/api/seasons/current', {}).subscribe();
+    backend.expectOne('/api/seasons/current').flush(12);
+    expect(window.grifEarly!.responses['/api/seasons/current']).toBeDefined();
   });
 });

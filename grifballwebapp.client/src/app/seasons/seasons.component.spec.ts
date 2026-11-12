@@ -26,7 +26,7 @@ describe('SeasonsComponent', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(SeasonsComponent);
     fixture.detectChanges();
-    http.expectOne(r => r.url === '/api/Season/GetSeasons' && r.params.get('pageSize') === '250' && !r.params.has('leagueID'))
+    http.expectOne(r => r.url === '/api/seasons' && r.params.get('pageSize') === '250' && !r.params.has('leagueID'))
       .flush({ totalCount: all.length, results: all });
     fixture.detectChanges();
   });
@@ -132,7 +132,7 @@ describe('SeasonsComponent', () => {
     http.expectOne(r => r.params.get('year') === '2010').flush({ totalCount: 1, results: [all[1]] });
     fixture.componentRef.setInput('year', '2010');
     fixture.detectChanges();
-    http.expectNone(r => r.url === '/api/Season/GetSeasons');
+    http.expectNone(r => r.url === '/api/seasons');
 
     fixture.componentRef.setInput('year', '2025');
     fixture.detectChanges();
@@ -170,7 +170,7 @@ describe('SeasonsComponent failing', () => {
     const page = () => (fixture.nativeElement as HTMLElement).querySelector('.hud-page')!;
     expect(page().classList).toContain('hud-waiting');
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('No seasons match.');
-    http.expectOne(r => r.url === '/api/Season/GetSeasons').flush({ totalCount: 0, results: [] });
+    http.expectOne(r => r.url === '/api/seasons').flush({ totalCount: 0, results: [] });
     fixture.detectChanges();
     expect(page().classList).not.toContain('hud-waiting');
   });
@@ -180,7 +180,7 @@ describe('SeasonsComponent failing', () => {
     const http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(SeasonsComponent);
     fixture.detectChanges();
-    http.expectOne(r => r.url === '/api/Season/GetSeasons').flush('', { status: 500, statusText: 'down' });
+    http.expectOne(r => r.url === '/api/seasons').flush('', { status: 500, statusText: 'down' });
     fixture.detectChanges();
     expect(fixture.componentInstance.loaded()).toBeTrue();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No seasons match.');

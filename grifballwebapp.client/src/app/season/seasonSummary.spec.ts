@@ -20,45 +20,45 @@ describe('SeasonSummaryService', () => {
     const names: string[] = [];
     service.get(4).subscribe(s => names.push(s.seasonName));
     service.get(4).subscribe(s => names.push(s.seasonName));
-    http.expectOne('/api/Season/getSeasonSummary/4').flush({ seasonName: 'Four' });
+    http.expectOne('/api/seasons/4/summary').flush({ seasonName: 'Four' });
     expect(names).toEqual(['Four', 'Four']);
   });
 
   it('asks again once a request is done, so the next page sees the season as it is now', () => {
     const names: string[] = [];
     service.get(4).subscribe(s => names.push(s.seasonName));
-    http.expectOne('/api/Season/getSeasonSummary/4').flush({ seasonName: 'Four' });
+    http.expectOne('/api/seasons/4/summary').flush({ seasonName: 'Four' });
     service.get(4).subscribe(s => names.push(s.seasonName));
-    http.expectOne('/api/Season/getSeasonSummary/4').flush({ seasonName: 'Four (renamed)' });
+    http.expectOne('/api/seasons/4/summary').flush({ seasonName: 'Four (renamed)' });
     expect(names).toEqual(['Four', 'Four (renamed)']);
   });
 
   it('asks again after a failure', () => {
     let failed = false;
     service.get(5).subscribe({ error: () => failed = true });
-    http.expectOne('/api/Season/getSeasonSummary/5').flush('', { status: 503, statusText: 'down' });
+    http.expectOne('/api/seasons/5/summary').flush('', { status: 503, statusText: 'down' });
     let name: string | undefined;
     service.get(5).subscribe(s => name = s.seasonName);
-    http.expectOne('/api/Season/getSeasonSummary/5').flush({ seasonName: 'Five' });
+    http.expectOne('/api/seasons/5/summary').flush({ seasonName: 'Five' });
     expect(failed).toBeTrue();
     expect(name).toBe('Five');
   });
 
   it('asks again when every page stopped listening before it arrived', () => {
     const first = service.get(6).subscribe();
-    const cancelled = http.expectOne('/api/Season/getSeasonSummary/6');
+    const cancelled = http.expectOne('/api/seasons/6/summary');
     first.unsubscribe();
     expect(cancelled.cancelled).toBeTrue();
     service.get(6).subscribe();
-    http.expectOne('/api/Season/getSeasonSummary/6').flush({ seasonName: 'Six' });
+    http.expectOne('/api/seasons/6/summary').flush({ seasonName: 'Six' });
   });
 
   it('keeps seasons apart', () => {
     const names: string[] = [];
     service.get(7).subscribe(s => names.push('7: ' + s.seasonName));
     service.get(8).subscribe(s => names.push('8: ' + s.seasonName));
-    http.expectOne('/api/Season/getSeasonSummary/7').flush({ seasonName: 'Seven' });
-    http.expectOne('/api/Season/getSeasonSummary/8').flush({ seasonName: 'Eight' });
+    http.expectOne('/api/seasons/7/summary').flush({ seasonName: 'Seven' });
+    http.expectOne('/api/seasons/8/summary').flush({ seasonName: 'Eight' });
     expect(names).toEqual(['7: Seven', '8: Eight']);
   });
 });

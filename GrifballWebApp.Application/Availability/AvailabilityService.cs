@@ -41,7 +41,7 @@ public class AvailabilityService
 
         var season = await _context.Seasons.Include(s => s.SeasonAvailability)
             .FirstOrDefaultAsync(s => s.SeasonID == a.SeasonID, ct)
-            ?? throw new Exception("Season does not exist");
+            ?? throw new SeasonRefusedException("There is no such season", StatusCodes.Status404NotFound);
 
         var existing = await _context.Availability
             .Where(x => mapped.Select(x => x.DayOfWeek).Contains(x.DayOfWeek))

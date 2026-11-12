@@ -34,7 +34,7 @@ export interface MetricLeaderDto {
   secondaryStat?: string | null;
 }
 
-/** The all-time leaderboards (GET /api/Leaderboards/GetLeaderboards). */
+/** The all-time leaderboards (GET /api/leaderboards). */
 export interface LeaderboardsDto {
   ringLeaders: RingLeaderDto[];
   dynasties: DynastyDto[];

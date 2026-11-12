@@ -29,7 +29,7 @@ export class ExcelComponent implements OnInit {
         sheetName: this.inputSheetName()
       }]);
     } else {
-      this.httpClient.get<SheetInfo[]>('/api/Excel/DefaultSheetInfo')
+      this.httpClient.get<SheetInfo[]>('/api/sheets/default')
       .subscribe({
         next: (v) => {
           this.sheetInfo.set(v);

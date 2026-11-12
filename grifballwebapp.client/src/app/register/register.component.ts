@@ -12,6 +12,8 @@ import { RegexMatchValidValidatorDirective } from '../validation/directives/rege
 import { MatchFieldsValidatorDirective } from '../validation/directives/matchFieldsValidator.directive';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '../account.service';
+import { HttpErrorResponse } from '@angular/common/http';
+import { errorText } from '../shared/errorText';
 
 @Component({
     selector: 'app-register',
@@ -55,9 +57,9 @@ export class RegisterComponent {
 
     this.apiClient.register(this.model).subscribe(
       {
-        error: (e) => {
+        error: (e: HttpErrorResponse) => {
           console.log(e);
-          this.snackBar.open(`Registration failed: ${e.error}`, "Close");
+          this.snackBar.open(`Registration failed: ${errorText(e, 'the server refused it')}`, "Close");
         },
         next: (e) => this.snackBar.open("Registration Success", "Close"),
         //complete: () => console.log('Logged in'),

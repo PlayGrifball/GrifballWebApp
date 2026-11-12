@@ -78,11 +78,12 @@ public class TeamsControllerTests
         await _context.AddSignup(season, c1, "One");
         await _context.AddSignup(season, c2, "Two");
 
-        var added1 = await _controller.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = c1.Id, OrderNumber = 1 }, "h1", CancellationToken.None);
-        var added2 = await _controller.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = c2.Id, OrderNumber = 2 }, "h1", CancellationToken.None);
+        // The route names the season: a body naming another is ignored
+        var added1 = (await _controller.AddCaptain(season.SeasonID, new CaptainPlacementDto { SeasonID = 999999, PersonID = c1.Id, OrderNumber = 1 }, "h1", CancellationToken.None)).Value!;
+        var added2 = (await _controller.AddCaptain(season.SeasonID, new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = c2.Id, OrderNumber = 2 }, "h1", CancellationToken.None)).Value!;
         // The sender is not sent the CaptainAdded broadcast, so the response carries the team's name.
         Assert.That((added1.TeamName, added2.TeamName), Is.EqualTo(("One", "Two")));
-        await _controller.ResortCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = c2.Id, OrderNumber = 1 }, "h2", CancellationToken.None);
+        await _controller.ResortCaptain(season.SeasonID, new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = c2.Id, OrderNumber = 1 }, "h2", CancellationToken.None);
 
         var teams = await _controller.GetTeams(season.SeasonID, CancellationToken.None);
         using (Assert.EnterMultipleScope())
@@ -91,7 +92,7 @@ public class TeamsControllerTests
             Assert.That(SinglePublished<Notification<CaptainPlacementDto>>().ConnectionId, Is.EqualTo("h2"));
         }
 
-        await _controller.RemoveCaptain(new RemoveCaptainDto { SeasonID = season.SeasonID, PersonID = c2.Id }, "h3", CancellationToken.None);
+        await _controller.RemoveCaptain(season.SeasonID, new RemoveCaptainDto { SeasonID = season.SeasonID, PersonID = c2.Id }, "h3", CancellationToken.None);
         using (Assert.EnterMultipleScope())
         {
             Assert.That(await _context.NewContextLike().Teams.Select(t => t.TeamName).ToListAsync(), Is.EqualTo(TeamOneLeft));
@@ -112,17 +113,17 @@ public class TeamsControllerTests
         var teamB = await _context.AddTeam(season, "B", capB, 2);
         SetUser(commish.Id.ToString());
 
-        var result = await _controller.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capA.Id, PersonID = p.Id }, "h", CancellationToken.None);
+        var result = await _controller.AddPlayerToTeam(season.SeasonID, new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capA.Id, PersonID = p.Id }, "h", CancellationToken.None);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.TypeOf<OkResult>());
+            Assert.That(result, Is.TypeOf<NoContentResult>());
             Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(tp => tp.TeamID == teamA.TeamID && tp.UserID == p.Id), Is.True);
         }
 
-        await _controller.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = capA.Id, NewCaptainID = capB.Id, PersonID = p.Id, RoundNumber = 1 }, "h", CancellationToken.None);
+        await _controller.MovePlayerToTeam(season.SeasonID, new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = capA.Id, NewCaptainID = capB.Id, PersonID = p.Id, RoundNumber = 1 }, "h", CancellationToken.None);
         Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(tp => tp.TeamID == teamB.TeamID && tp.UserID == p.Id), Is.True);
 
-        await _controller.RemovePlayerFromTeam(new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capB.Id, PersonID = p.Id }, "h", CancellationToken.None);
+        await _controller.RemovePlayerFromTeam(season.SeasonID, new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capB.Id, PersonID = p.Id }, "h", CancellationToken.None);
         Assert.That(await _context.NewContextLike().Set<TeamPlayer>().AnyAsync(tp => tp.UserID == p.Id), Is.False);
     }
 

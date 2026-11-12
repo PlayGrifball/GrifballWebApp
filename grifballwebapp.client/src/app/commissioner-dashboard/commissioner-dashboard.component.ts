@@ -89,7 +89,7 @@ export class CommissionerDashboardComponent implements OnInit {
   loadDashboardData(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.httpClient.get<CommissionerDashboardDto>('/api/CommissionerDashboard/GetDashboardData')
+    this.httpClient.get<CommissionerDashboardDto>('/api/commissioner-dashboard')
       .subscribe({
         next: (data) => {
           this.dashboardData.set(data);
@@ -136,7 +136,7 @@ export class CommissionerDashboardComponent implements OnInit {
   }
 
   createDiscordThread(reschedule: RescheduleDto): void {
-    this.httpClient.post(`/api/Reschedule/CreateDiscordThread/${reschedule.matchRescheduleID}`, null)
+    this.httpClient.post(`/api/reschedules/${reschedule.matchRescheduleID}/discord-thread`, null)
     .subscribe({
       next: (response: any) => {
         this.loadDashboardData(); // Refresh to show the thread ID

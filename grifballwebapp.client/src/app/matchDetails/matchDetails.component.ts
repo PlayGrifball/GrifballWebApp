@@ -52,7 +52,7 @@ export class MatchDetailsComponent {
   private load(matchID: string): Subscription {
     this.state.set('loading');
     this.details.set(null);
-    return this.http.get<unknown>('/api/MatchDetails/GetMatchDetails/' + encodeURIComponent(matchID))
+    return this.http.get<unknown>(`/api/matches/${encodeURIComponent(matchID)}`)
       .pipe(map(parseMatchDetails))
       .subscribe({
         next: details => {

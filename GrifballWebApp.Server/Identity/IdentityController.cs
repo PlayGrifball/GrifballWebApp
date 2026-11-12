@@ -15,7 +15,6 @@ using GrifballWebApp.Application.UserManagement;
 
 namespace GrifballWebApp.Server.Identity;
 
-[Route("[controller]/[action]")]
 [ApiController]
 public class IdentityController : ControllerBase
 {
@@ -43,16 +42,17 @@ public class IdentityController : ControllerBase
     /// empty 200. With <paramref name="useCookies"/> false the answer is a bearer token instead
     /// (<see cref="AccessTokenResponse"/>), for clients that are not browsers.
     /// </summary>
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
-    [HttpPost(Name = "Login")]
+    [HttpPost("identity/login", Name = "Login")]
     public async Task<IActionResult> Login([FromBody] LoginDto loginDto, CancellationToken ct, [FromQuery] bool useCookies = true)
     {
         if (string.IsNullOrEmpty(loginDto?.Username))
-            return BadRequest("Username is required");
+            return this.BadRequestProblem("Username is required");
 
         if (string.IsNullOrEmpty(loginDto?.Password))
-            return BadRequest("Password is required");
+            return this.BadRequestProblem("Password is required");
 
         _signInManager.AuthenticationScheme = useCookies ? IdentityConstants.ApplicationScheme : IdentityConstants.BearerScheme;
 
@@ -70,17 +70,19 @@ public class IdentityController : ControllerBase
         }
     }
 
-    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [HttpPost(Name = "Register")]
+    /// <summary>Creates a new account with a username and password, in the Player role.</summary>
+    [AllowAnonymous]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [HttpPost("identity/register", Name = "Register")]
     public async Task<IActionResult> Register([FromBody] RegisterDto registerDto, CancellationToken ct)
     {
         // Blank too: User.Register refuses a user name of spaces, which would otherwise be a 500
         if (string.IsNullOrWhiteSpace(registerDto?.Username))
-            return BadRequest("Username is required");
+            return this.BadRequestProblem("Username is required");
 
         if (string.IsNullOrEmpty(registerDto?.Password))
-            return BadRequest("Password is required");
+            return this.BadRequestProblem("Password is required");
 
         var user = GrifballWebApp.Domain.Players.User.Register(registerDto.Username);
         var result = await _userManager.CreateAsync(user, registerDto.Password);
@@ -94,17 +96,17 @@ public class IdentityController : ControllerBase
                 sb.Append(": ");
                 sb.AppendLine(error.Description);
             }
-            return BadRequest(sb.ToString());
+            return this.BadRequestProblem(sb.ToString());
         }
 
         result = await _userManager.AddToRoleAsync(user, "Player");
 
         if (!result.Succeeded)
         {
-            return BadRequest("Failed to add role");
+            return this.BadRequestProblem("Failed to add role");
         }
 
-        return Ok();
+        return NoContent();
     }
 
     /// <summary>
@@ -112,7 +114,9 @@ public class IdentityController : ControllerBase
     /// page calls <see cref="ExternalLoginCallback"/>. <paramref name="followUp"/>, the page to go on to, is kept
     /// only if it is a path on this site (<see cref="IsAppRelativePath"/>), escaped as one query value.
     /// </summary>
-    [HttpGet(Name = "ExternalLogin")]
+    [AllowAnonymous]
+    [HttpGet("identity/external-login", Name = "ExternalLogin")]
+    [ProducesResponseType(StatusCodes.Status302Found)]
     public IActionResult ExternalLogin([FromQuery] string? followUp)
     {
         var provider = "Discord";
@@ -140,15 +144,17 @@ public class IdentityController : ControllerBase
     /// A POST, as it creates the user and signs in: the browser comes back from Discord to the login page (a page
     /// of the app, not this action), which then calls this with the antiforgery token like any other change.
     /// </summary>
+    [AllowAnonymous]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
-    [HttpPost(Name = "ExternalLoginCallback")]
+    [HttpPost("identity/external-login/callback", Name = "ExternalLoginCallback")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     public async Task<IActionResult> ExternalLoginCallback([FromQuery] bool useCookies = true, CancellationToken ct = default)
     {
         var info = await _signInManager.GetExternalLoginInfoAsync();
 
         if (info == null)
         {
-            return BadRequest("Missing info");
+            return this.BadRequestProblem("Missing info");
         }
         
         _signInManager.AuthenticationScheme = useCookies ? IdentityConstants.ApplicationScheme : IdentityConstants.BearerScheme;
@@ -160,7 +166,7 @@ public class IdentityController : ControllerBase
             var added = await _userManager.AddLoginAsync(botLinked, info);
             if (!added.Succeeded)
             {
-                return BadRequest("Failed to add the Discord login to your existing account");
+                return this.BadRequestProblem("Failed to add the Discord login to your existing account");
             }
             existingUser = botLinked;
         }
@@ -178,7 +184,7 @@ public class IdentityController : ControllerBase
         }
         if (SignInRefusal(signInResult) is { } refusal)
         {
-            return BadRequest(refusal);
+            return this.BadRequestProblem(refusal);
         }
         return await RegisterExternalAsync(info, ct);
     }
@@ -198,7 +204,7 @@ public class IdentityController : ControllerBase
         var email = info.Principal.FindFirstValue(ClaimTypes.Email);
         if (!string.IsNullOrEmpty(email) && await _userManager.FindByEmailAsync(email) is not null)
         {
-            return BadRequest("Already a user");
+            return this.BadRequestProblem("Already a user");
         }
 
         var name = info.Principal.FindFirstValue(ClaimTypes.Name);
@@ -208,7 +214,7 @@ public class IdentityController : ControllerBase
         }
         if (await _userManager.FindByNameAsync(name) is not null)
         {
-            return BadRequest("Already a user");
+            return this.BadRequestProblem("Already a user");
         }
 
         var user = GrifballWebApp.Domain.Players.User.Register(name, email);
@@ -245,19 +251,19 @@ public class IdentityController : ControllerBase
                 errors.AppendFormat("{0}: {1}", error.Code, error.Description);
                 errors.AppendLine();
             }
-            return BadRequest($"Errors: {errors.ToString()}");
+            return this.BadRequestProblem($"Errors: {errors.ToString()}");
         }
 
         result = await _userManager.AddToRoleAsync(user, "Player");
         if (!result.Succeeded)
         {
-            return BadRequest("Failed to add role");
+            return this.BadRequestProblem("Failed to add role");
         }
 
         result = await _userManager.AddLoginAsync(user, info);
         if (!result.Succeeded)
         {
-            return BadRequest("Failed to add login");
+            return this.BadRequestProblem("Failed to add login");
         }
 
         var claims = info.Principal.Claims;
@@ -272,9 +278,10 @@ public class IdentityController : ControllerBase
     }
 
     /// <summary>A new bearer token for a refresh token (bearer clients only; browsers have the cookie).</summary>
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
-    [HttpPost(Name = "Refresh")]
+    [HttpPost("identity/refresh", Name = "Refresh")]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest refreshRequest)
     {
         var refreshTokenProtector = _optionsMonitor.Get(IdentityConstants.BearerScheme).RefreshTokenProtector;
@@ -292,9 +299,10 @@ public class IdentityController : ControllerBase
         return SignIn(newPrincipal, authenticationScheme: IdentityConstants.BearerScheme);
     }
 
+    /// <summary>Who is signed in: their display name, user ID and roles.</summary>
     [ProducesResponseType(typeof(MetaInfoResponse), StatusCodes.Status200OK)]
     [Authorize]
-    [HttpGet(Name = "MetaInfo")]
+    [HttpGet("identity/meta-info", Name = "MetaInfo")]
     public MetaInfoResponse MetaInfo()
     {
         
@@ -313,10 +321,11 @@ public class IdentityController : ControllerBase
     /// visitor's cookie): <see cref="MetaInfo"/>, or 204 No Content for a visitor. Unlike MetaInfo, a visitor is
     /// not an error, so the client asks on every first load without logging a failed request.
     /// </summary>
+    [AllowAnonymous]
     [ProducesResponseType(typeof(MetaInfoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-    [HttpGet(Name = "Me")]
+    [HttpGet("identity/me", Name = "Me")]
     public MetaInfoResponse? Me()
         => User.Identity?.IsAuthenticated is true ? MetaInfo() : null;
 
@@ -325,21 +334,24 @@ public class IdentityController : ControllerBase
     /// every change (<see cref="CookieAntiforgeryFilter"/>). Also sets the antiforgery cookie it pairs with. The
     /// token belongs to the user signed in when it was made, so the client asks again after signing in or out.
     /// </summary>
+    [AllowAnonymous]
     [ProducesResponseType(typeof(AntiforgeryTokenResponse), StatusCodes.Status200OK)]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-    [HttpGet(Name = "Antiforgery")]
+    [HttpGet("identity/antiforgery-token", Name = "Antiforgery")]
     public AntiforgeryTokenResponse Antiforgery([FromServices] IAntiforgery antiforgery)
         => new() { Token = antiforgery.GetAndStoreTokens(HttpContext).RequestToken! };
 
-    /// <summary>
-    /// Ends the browser's session: clears the session cookie (and any half-finished Discord sign-in). No
-    /// antiforgery token needed: signing someone out is all a forged request could do, and SameSite=Lax already
-    /// keeps the cookie off cross-site POSTs. Also changes the user's security stamp, so a copy of the cookie (and
-    /// the user's other sessions) stops working within <see cref="BrowserAuth.SecurityStampValidationInterval"/>.
-    /// </summary>
+    /// <summary>Signs the current browser session out.</summary>
+    /// <remarks>
+    /// Clears the session cookie (and any half-finished Discord sign-in). No antiforgery token needed: signing
+    /// someone out is all a forged request could do, and SameSite=Lax already keeps the cookie off cross-site POSTs.
+    /// Also changes the user's security stamp, so a copy of the cookie (and the user's other sessions) stops working
+    /// within <see cref="BrowserAuth.SecurityStampValidationInterval"/>.
+    /// </remarks>
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [IgnoreAntiforgeryToken] // NOSONAR S4502: exempt on purpose (see above); the Fetch Metadata and Origin checks still refuse it from another site
-    [HttpPost(Name = "Logout")]
+    [HttpPost("identity/logout", Name = "Logout")]
     public async Task<IActionResult> Logout()
     {
         if (User?.Identity?.IsAuthenticated is true && await _userManager.GetUserAsync(User) is { } user)
@@ -348,21 +360,23 @@ public class IdentityController : ControllerBase
         return NoContent();
     }
 
-    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+    /// <summary>Sets a new password using a one-time reset token.</summary>
+    [AllowAnonymous]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [HttpPost(Name = "ResetPassword")]
+    [HttpPost("identity/password-reset", Name = "ResetPassword")]
     public async Task<IActionResult> ResetPassword([FromBody] UsePasswordResetLinkRequestDto request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Token))
-            return BadRequest("Token is required");
+            return this.BadRequestProblem("Token is required");
 
         if (string.IsNullOrWhiteSpace(request.NewPassword))
-            return BadRequest("New password is required");
+            return this.BadRequestProblem("New password is required");
 
         var (success, message) = await _userManagementService.UsePasswordResetLink(request.Token, request.NewPassword, ct);
 
         if (!success)
-            return BadRequest(message);
+            return this.BadRequestProblem(message);
 
         return Ok(message);
     }

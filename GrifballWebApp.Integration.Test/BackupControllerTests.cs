@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Conversion;
 using GrifballWebApp.Server.DatabaseBackup;
@@ -214,9 +215,9 @@ public class BackupControllerTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((await StatusAsync(controller, "sqlite")).State, Is.EqualTo(ExportState.None));
-            Assert.That(await controller.Download("sqlite", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
-            Assert.That((await controller.DownloadStatus("mysql", CancellationToken.None)).Result, Is.TypeOf<BadRequestObjectResult>());
-            Assert.That(await controller.Download("mysql", CancellationToken.None), Is.TypeOf<BadRequestObjectResult>());
+            (await controller.Download("sqlite", CancellationToken.None)).AssertProblem(StatusCodes.Status404NotFound);
+            (await controller.DownloadStatus("mysql", CancellationToken.None)).Result.AssertProblem(StatusCodes.Status400BadRequest);
+            (await controller.Download("mysql", CancellationToken.None)).AssertProblem(StatusCodes.Status400BadRequest);
         }
     }
 
@@ -236,7 +237,7 @@ public class BackupControllerTests
         {
             Assert.That(File.Exists(path), Is.False);
             Assert.That((await StatusAsync(controller, "postgres")).State, Is.EqualTo(ExportState.None));
-            Assert.That(await controller.Download("postgres", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+            (await controller.Download("postgres", CancellationToken.None)).AssertProblem(StatusCodes.Status404NotFound);
         }
     }
 
@@ -286,7 +287,7 @@ public class BackupControllerTests
             Assert.That(status.State, Is.EqualTo(ExportState.Failed));
             Assert.That(status.Format, Is.EqualTo("sqlite"));
             Assert.That(status.Message, Is.Not.Empty);
-            Assert.That(await controller.Download("sqlite", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+            (await controller.Download("sqlite", CancellationToken.None)).AssertProblem(StatusCodes.Status404NotFound);
         }
         // Not left busy: the next one runs
         Assert.That(await controller.StartDownload("sqlite", CancellationToken.None), Is.TypeOf<AcceptedResult>());
@@ -310,8 +311,8 @@ public class BackupControllerTests
             // Another format's status says which is being made
             var status = await StatusAsync(controller, "postgres");
             Assert.That((status.State, status.RunningFormat), Is.EqualTo((ExportState.None, "sqlite")));
-            Assert.That(await controller.StartDownload("postgres", CancellationToken.None), Is.TypeOf<ConflictObjectResult>());
-            Assert.That(await controller.Export(new ExportRequestDto("Sqlite", NewSqliteTarget()), CancellationToken.None), Is.TypeOf<ConflictObjectResult>());
+            (await controller.StartDownload("postgres", CancellationToken.None)).AssertProblem(StatusCodes.Status409Conflict);
+            (await controller.Export(new ExportRequestDto("Sqlite", NewSqliteTarget()), CancellationToken.None)).AssertProblem(StatusCodes.Status409Conflict);
             Assert.That((await controller.ExportStatus(CancellationToken.None)).State, Is.EqualTo(ExportState.None));
         }
 
@@ -512,8 +513,8 @@ public class BackupControllerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-            Assert.That((string)((BadRequestObjectResult)result).Value!, Does.Contain(message));
+            result.AssertProblem(StatusCodes.Status400BadRequest);
+            Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail!, Does.Contain(message));
         }
     }
 
@@ -542,8 +543,8 @@ public class BackupControllerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await controller.StartDownload("mysql", CancellationToken.None), Is.TypeOf<BadRequestObjectResult>());
-            Assert.That(await controller.StartDownload("9", CancellationToken.None), Is.TypeOf<BadRequestObjectResult>());
+            (await controller.StartDownload("mysql", CancellationToken.None)).AssertProblem(StatusCodes.Status400BadRequest);
+            (await controller.StartDownload("9", CancellationToken.None)).AssertProblem(StatusCodes.Status400BadRequest);
         }
     }
 
@@ -579,8 +580,7 @@ public class BackupControllerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.TypeOf<UnprocessableEntityObjectResult>());
-            Assert.That((string)((UnprocessableEntityObjectResult)result).Value!, Does.Contain("backupScratch"));
+            Assert.That(result.AssertProblem(StatusCodes.Status409Conflict).Detail, Does.Contain("backupScratch"));
         }
     }
 
@@ -603,7 +603,7 @@ public class BackupControllerTests
         {
             Assert.That(status.State, Is.EqualTo(ExportState.Failed));
             Assert.That(status.Message, Does.Contain("instead"));
-            Assert.That(await controller.Download(native, CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+            (await controller.Download(native, CancellationToken.None)).AssertProblem(StatusCodes.Status404NotFound);
         }
     }
 
@@ -643,7 +643,7 @@ public class BackupControllerTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((status.State, status.Message), Is.EqualTo((ExportState.None, BackupController.Gone)));
-            Assert.That(await controller.Download("sqlite", CancellationToken.None), Is.TypeOf<NotFoundObjectResult>());
+            (await controller.Download("sqlite", CancellationToken.None)).AssertProblem(StatusCodes.Status404NotFound);
         }
     }
 

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Server.MatchPlanner;
-using Microsoft.Extensions.Logging;
-using NSubstitute;
+using Microsoft.AspNetCore.Http;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -13,7 +12,7 @@ namespace GrifballWebApp.Server.Test;
 public class MatchPlannerControllerUnitTests
 {
     // Refused before the service is asked
-    private readonly MatchPlannerController _controller = new(Substitute.For<ILogger<MatchPlannerController>>(), null!);
+    private readonly MatchPlannerController _controller = new(null!);
 
     [Test]
     public void Authorization_MutatingActionsRequireCommissioner()
@@ -29,23 +28,12 @@ public class MatchPlannerControllerUnitTests
         }
     }
 
-    [TestCase(0, 1, 1, "Please provide seasonID")]
-    [TestCase(1, 0, 1, "homeMatchesPerTeam should be at least 1")]
-    [TestCase(1, 1, 0, "bestOf should be at least 1")]
-    public async Task CreateSeasonMatches_InvalidInput_ReturnsBadRequest(int seasonId, int home, int bestOf, string message)
+    [TestCase(0, 1, "homeMatchesPerTeam should be at least 1")]
+    [TestCase(1, 0, "bestOf should be at least 1")]
+    public async Task CreateSeasonMatches_InvalidInput_IsABadRequestProblem(int home, int bestOf, string message)
     {
-        var result = await _controller.CreateSeasonMatches(seasonId, home, bestOf, CancellationToken.None);
+        var result = await _controller.CreateSeasonMatches(1, home, bestOf, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo(message));
-    }
-
-    [Test]
-    public async Task GetMatches_InvalidSeason_ReturnsBadRequest()
-    {
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(((BadRequestObjectResult)await _controller.GetScheduledMatches(0)).Value, Is.EqualTo("Please provide seasonID"));
-            Assert.That(((BadRequestObjectResult)await _controller.GetUnscheduledMatches(-1)).Value, Is.EqualTo("Please provide seasonID"));
-        }
+        result.AssertProblem(StatusCodes.Status400BadRequest, message);
     }
 }

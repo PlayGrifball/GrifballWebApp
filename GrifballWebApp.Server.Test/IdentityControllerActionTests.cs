@@ -65,8 +65,8 @@ public class IdentityControllerActionTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-            Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Username is required"));
+            result.AssertProblem(StatusCodes.Status400BadRequest);
+            Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Username is required"));
         }
     }
 
@@ -75,7 +75,7 @@ public class IdentityControllerActionTests
     {
         var result = await _controller.Login(new LoginDto { Username = "bob", Password = "" }, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Password is required"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Password is required"));
         await _signInManager.DidNotReceiveWithAnyArgs().PasswordSignInAsync(default(string)!, default!, default, default);
     }
 
@@ -136,7 +136,7 @@ public class IdentityControllerActionTests
     {
         var result = await _controller.Register(new RegisterDto { Username = username, Password = "pw" }, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Username is required"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Username is required"));
         await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!, default!);
     }
 
@@ -145,7 +145,7 @@ public class IdentityControllerActionTests
     {
         var result = await _controller.Register(new RegisterDto { Username = "bob", Password = null }, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Password is required"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Password is required"));
     }
 
     [Test]
@@ -157,7 +157,7 @@ public class IdentityControllerActionTests
 
         var result = await _controller.Register(new RegisterDto { Username = "bob", Password = "short" }, CancellationToken.None);
 
-        var value = (string)((BadRequestObjectResult)result).Value!;
+        var value = result.AssertProblem(StatusCodes.Status400BadRequest).Detail!;
         Assert.That(value, Is.EqualTo($"PasswordTooShort: Too short{Environment.NewLine}DuplicateUserName: Taken{Environment.NewLine}"));
     }
 
@@ -169,7 +169,7 @@ public class IdentityControllerActionTests
 
         var result = await _controller.Register(new RegisterDto { Username = "bob", Password = "Secret123!" }, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<OkResult>());
+        Assert.That(result, Is.TypeOf<NoContentResult>());
         await _userManager.Received(1).CreateAsync(Arg.Is<User>(u => u.UserName == "bob"), "Secret123!");
         await _userManager.Received(1).AddToRoleAsync(Arg.Is<User>(u => u.UserName == "bob"), "Player");
     }
@@ -182,7 +182,7 @@ public class IdentityControllerActionTests
 
         var result = await _controller.Register(new RegisterDto { Username = "bob", Password = "Secret123!" }, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Failed to add role"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Failed to add role"));
     }
 
     // ---------- ExternalLogin ----------
@@ -265,7 +265,7 @@ public class IdentityControllerActionTests
 
         var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Missing info"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Missing info"));
     }
 
     [TestCase(true, "Identity.Application")]
@@ -293,7 +293,7 @@ public class IdentityControllerActionTests
 
         var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Locked"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Locked"));
     }
 
     [Test]
@@ -304,7 +304,7 @@ public class IdentityControllerActionTests
 
         var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Requires 2FA"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Requires 2FA"));
     }
 
     [Test]
@@ -315,7 +315,7 @@ public class IdentityControllerActionTests
 
         var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Not allowed"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Not allowed"));
     }
 
     [Test]
@@ -327,7 +327,7 @@ public class IdentityControllerActionTests
 
         var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Already a user"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Already a user"));
         await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
     }
 
@@ -340,7 +340,7 @@ public class IdentityControllerActionTests
 
         var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Already a user"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Already a user"));
         await _userManager.DidNotReceiveWithAnyArgs().FindByEmailAsync(default!);
     }
 
@@ -363,7 +363,7 @@ public class IdentityControllerActionTests
 
         var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo($"Errors: InvalidUserName: Bad name{Environment.NewLine}"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo($"Errors: InvalidUserName: Bad name{Environment.NewLine}"));
         await _userManager.DidNotReceiveWithAnyArgs().AddLoginAsync(default!, default!);
     }
 
@@ -379,7 +379,7 @@ public class IdentityControllerActionTests
 
         var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Failed to add login"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Failed to add login"));
         await _signInManager.DidNotReceiveWithAnyArgs().SignInAsync(default!, default(bool), default);
     }
 
@@ -425,7 +425,7 @@ public class IdentityControllerActionTests
 
         var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Failed to add role"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Failed to add role"));
         await _userManager.DidNotReceiveWithAnyArgs().AddLoginAsync(default!, default!);
         await _signInManager.DidNotReceiveWithAnyArgs().SignInAsync(default!, default(bool), default);
     }
@@ -469,7 +469,7 @@ public class IdentityControllerActionTests
 
         var result = await _controller.ExternalLoginCallback(true, CancellationToken.None);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Failed to add the Discord login to your existing account"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Failed to add the Discord login to your existing account"));
         await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
         await _signInManager.DidNotReceiveWithAnyArgs().ExternalLoginSignInAsync(default!, default!, default, default);
     }

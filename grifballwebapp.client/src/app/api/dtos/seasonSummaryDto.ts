@@ -16,7 +16,7 @@ export interface SeasonChampionDto {
 }
 
 /**
- * A season's header (GET /api/Season/getSeasonSummary/{id}): what it is, its champions, and how much data of each kind
+ * A season's header (GET /api/seasons/{id}/summary): what it is, its champions, and how much data of each kind
  * it has, so each section can say what is missing instead of showing an empty table.
  */
 export interface SeasonSummaryDto extends SeasonInfoDto {
@@ -29,4 +29,4 @@ export interface SeasonSummaryDto extends SeasonInfoDto {
 }
 
 /** The URL of a season's summary (index.html fetches it early for the season page). */
-export const seasonSummaryUrl = (seasonID: number) => '/api/Season/getSeasonSummary/' + seasonID;
+export const seasonSummaryUrl = (seasonID: number) => `/api/seasons/${seasonID}/summary`;

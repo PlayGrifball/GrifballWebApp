@@ -8,6 +8,7 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatIconModule } from '@angular/material/icon';
 import { RescheduleDto } from '../commissioner-dashboard.component';
 import { HttpClient } from '@angular/common/http';
+import { errorText } from '../../shared/errorText';
 
 interface ProcessRescheduleRequest {
   approved: boolean;
@@ -59,17 +60,15 @@ export class ProcessRescheduleDialogComponent {
     this.processing.set(true);
     this.error.set(null);
 
-    this.httpClient.post(`/api/Reschedule/ProcessReschedule/${this.reschedule.matchRescheduleID}`, request)
+    this.httpClient.post(`/api/reschedules/${this.reschedule.matchRescheduleID}/decision`, request)
     .subscribe({
       next: () => {
         this.dialogRef.close(true); // Signal success
         this.processing.set(false);
       },
       error: (error) => {
-        // The server says why in plain text (e.g. "This match already has a result."); otherwise a general message
-        this.error.set(typeof error?.error === 'string' && error.error.trim()
-          ? error.error
-          : 'The request could not be processed. Try again.');
+        // The server says why (e.g. "This match already has a result."); otherwise a general message
+        this.error.set(errorText(error, 'The request could not be processed. Try again.'));
         this.processing.set(false);
       }
     });

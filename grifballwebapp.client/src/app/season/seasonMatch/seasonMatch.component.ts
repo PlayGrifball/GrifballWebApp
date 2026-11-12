@@ -17,6 +17,7 @@ import { MatTableModule } from '@angular/material/table';
 import { AccountService } from '../../account.service';
 import { map, Subscription, switchMap, takeWhile, timer } from 'rxjs';
 import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
+import { nullWhenNotFound } from '../../api/nullWhenNotFound';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
 import { errorText } from '../../shared/errorText';
@@ -29,6 +30,11 @@ import { GameSlot, ManualGamesComponent, slotChoices } from './manualGames/manua
 export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
 
 /** What confirming each action does. */
+/** Each action's path under its season match. */
+const ACTION_PATHS: Record<MatchAction, string> = {
+  HomeForfeit: 'forfeit/home', AwayForfeit: 'forfeit/away', DoubleForfeit: 'forfeit/double', UndoResult: 'result/undo',
+};
+
 export const actionPrompts: Record<MatchAction, string> = {
   HomeForfeit: 'The home team forfeits and the away team wins.',
   AwayForfeit: 'The away team forfeits and the home team wins.',
@@ -239,7 +245,7 @@ export class SeasonMatchComponent {
     roster.set({ teamID, players: teamID === null ? [] : null });
     if (teamID === null)
       return;
-    this.http.get<TeamDto | null>('/api/Team/Team/' + teamID)
+    this.http.get<TeamDto>(`/api/teams/${teamID}`).pipe(nullWhenNotFound())
       .subscribe({
         next: team => roster.set({ teamID, players: team?.players ?? [] }),
         error: () => roster.set({ teamID, players: [] }),
@@ -248,7 +254,7 @@ export class SeasonMatchComponent {
 
   /** Loads the match; the subscription ends once it is in (or failed). */
   getPageDto(): Subscription {
-    return this.http.get<unknown>('/api/SeasonMatch/GetSeasonMatchPage/' + this.seasonMatchID())
+    return this.http.get<unknown>(`/api/season-matches/${this.seasonMatchID()}`)
       .pipe(map(parseSeasonMatchPage))
       .subscribe({
         next: result => {
@@ -270,7 +276,7 @@ export class SeasonMatchComponent {
     this.possibleMatchesState.set('loading');
     if (!this.isBrowser)
       return;
-    this.http.get<PossibleMatchDto[]>('/api/SeasonMatch/GetPossibleMatches/' + this.seasonMatchID())
+    this.http.get<PossibleMatchDto[]>(`/api/season-matches/${this.seasonMatchID()}/possible-matches`)
       .subscribe({
         next: result => {
           this.possibleMatches.set(result ?? []);
@@ -290,7 +296,7 @@ export class SeasonMatchComponent {
     this.pullError.set(null);
     if (!this.isBrowser)
       return;
-    this.http.get<OnDemandJobStatusDto>('/api/SeasonMatch/MatchPullStatus/' + this.seasonMatchID())
+    this.http.get<OnDemandJobStatusDto>(`/api/season-matches/${this.seasonMatchID()}/match-pull`)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: status => this.showPull(status),
@@ -305,7 +311,7 @@ export class SeasonMatchComponent {
   pullMatches(backToSeasonStart = false): void {
     this.pullError.set(null);
     const query = backToSeasonStart ? '?backToSeasonStart=true' : '';
-    this.http.post<OnDemandJobStatusDto>('/api/SeasonMatch/PullMatches/' + this.seasonMatchID() + query, null)
+    this.http.post<OnDemandJobStatusDto>(`/api/season-matches/${this.seasonMatchID()}/match-pull${query}`, null)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: status => this.showPull(status),
@@ -320,7 +326,7 @@ export class SeasonMatchComponent {
     // Look again every few seconds until it's done, then read the games it found
     this.pullWatch?.unsubscribe();
     this.pullWatch = timer(PULL_POLL_MS, PULL_POLL_MS).pipe(
-      switchMap(() => this.http.get<OnDemandJobStatusDto>('/api/SeasonMatch/MatchPullStatus/' + this.seasonMatchID())),
+      switchMap(() => this.http.get<OnDemandJobStatusDto>(`/api/season-matches/${this.seasonMatchID()}/match-pull`)),
       takeWhile(next => next.state !== 'Idle', true),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({
@@ -344,7 +350,7 @@ export class SeasonMatchComponent {
       this.returnFocus = () => opener;
       return;
     }
-    this.send('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + matchID);
+    this.send(`/api/season-matches/${this.seasonMatchID()}/games/${matchID}/report`);
   }
 
   /** Reports the Waypoint game waiting to be placed, where the commissioner said it goes. */
@@ -353,7 +359,7 @@ export class SeasonMatchComponent {
     if (mode.kind !== 'placeReport')
       return;
     const replaces = typeof slot === 'number' ? '?replaces=' + slot : '';
-    this.send('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + mode.matchID + replaces);
+    this.send(`/api/season-matches/${this.seasonMatchID()}/games/${mode.matchID}/report${replaces}`);
   }
 
   /** Asks the commissioner to confirm an action before it is sent; a game waiting to be placed is dropped. */
@@ -380,7 +386,7 @@ export class SeasonMatchComponent {
     const action = this.confirming();
     if (action === null)
       return;
-    this.send('/api/SeasonMatch/' + action + '/' + this.seasonMatchID());
+    this.send(`/api/season-matches/${this.seasonMatchID()}/${ACTION_PATHS[action]}`);
   }
 
   /**

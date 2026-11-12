@@ -11,7 +11,7 @@ export const GAMERTAG_CLAIM_STATUSES: readonly GamertagClaimStatus[] = ['Pending
 
 /**
  * A claim that a historical player (a placeholder user from the archive) is a real user's Xbox account, or
- * (kind "XuidLookup") a note on who currently holds that gamertag on Xbox (GET /api/GamertagClaims/GetClaims).
+ * (kind "XuidLookup") a note on who currently holds that gamertag on Xbox (GET /api/gamertag-claims).
  */
 export interface GamertagClaimDto {
   gamertagClaimID: number;
@@ -46,7 +46,7 @@ export interface GamertagClaimDto {
   placeholderSeasons: SeasonRefDto[];
 }
 
-/** A gamertag an Xbox account went by (POST /api/GamertagClaims/AddGamertagHistory). */
+/** A gamertag an Xbox account went by (POST /api/past-gamertags). */
 export interface AddGamertagHistoryDto {
   xboxUserID: number;
   gamertag: string;
@@ -55,7 +55,7 @@ export interface AddGamertagHistoryDto {
   note: string | null;
 }
 
-/** How the background lookup of placeholders' current Xbox gamertags is going (GET /api/GamertagClaims/XuidLookupStatus, and the body of the 202 from POST LookUpXuids). */
+/** How the background lookup of placeholders' current Xbox gamertags is going (GET /api/xuid-lookups/status, and the body of the 202 from POST LookUpXuids). */
 export interface XuidLookupStatusDto {
   placeholders: number;
   due: number;
@@ -65,7 +65,7 @@ export interface XuidLookupStatusDto {
   lastLookedUpAt: string | null;
 }
 
-/** An Xbox account's current gamertag and the gamertags it is known to have gone by (GET /api/GamertagClaims/PastGamertags). */
+/** An Xbox account's current gamertag and the gamertags it is known to have gone by (GET /api/past-gamertags). */
 export interface PastGamertagsDto {
   xboxUserID: number;
   currentGamertag: string;
@@ -86,7 +86,7 @@ export interface PastGamertagDto {
   canRemove: boolean;
 }
 
-/** What claiming a past gamertag would merge (GET /api/MyProfile/PreviewClaim): its placeholder and seasons, or why it can't be claimed. */
+/** What claiming a past gamertag would merge (GET /api/me/gamertag-claims/preview): its placeholder and seasons, or why it can't be claimed. */
 export interface ClaimPreviewDto {
   gamertag: string;
   placeholderUserID: number | null;
@@ -97,7 +97,7 @@ export interface ClaimPreviewDto {
   refusal: string | null;
 }
 
-/** A user's claim of a past gamertag (POST /api/MyProfile/ClaimGamertag); the dates are optional ISO strings. */
+/** A user's claim of a past gamertag (POST /api/me/gamertag-claims); the dates are optional ISO strings. */
 export interface SubmitGamertagClaimDto {
   gamertag: string;
   firstSeen: string | null;
@@ -108,7 +108,7 @@ export interface SubmitGamertagClaimDto {
  * ("xX Name Xx"), or one placeholder's whole name as a word of the other placeholder's gamertag. */
 export type DuplicateMatch = 'Exact' | 'Edits' | 'Framing' | 'Token';
 
-/** A placeholder that may be the same player as another user (GET /api/GamertagClaims/DuplicateSuggestions). */
+/** A placeholder that may be the same player as another user (GET /api/duplicate-suggestions). */
 export interface DuplicateSuggestionDto {
   /** The placeholder, merged on "Merge". */
   sourceUserID: number;

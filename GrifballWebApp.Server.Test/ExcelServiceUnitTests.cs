@@ -28,7 +28,8 @@ public class ExcelServiceUnitTests
     [TestCase(nameof(ExcelController.AppendMatch))]
     public void Controller_Actions_RequireCommissionerOrSysadmin(string action)
     {
-        var attr = ControllerTestHelpers.ActionAuthorize(typeof(ExcelController), action);
+        // On the controller, so every action has it
+        var attr = ControllerTestHelpers.ActionAuthorize(typeof(ExcelController), action) ?? ControllerTestHelpers.ClassAuthorize(typeof(ExcelController));
         Assert.That(attr, Is.Not.Null);
         Assert.That(attr!.Roles, Is.EqualTo("Commissioner,Sysadmin"));
     }

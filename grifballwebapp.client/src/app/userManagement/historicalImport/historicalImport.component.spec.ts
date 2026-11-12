@@ -76,16 +76,16 @@ describe('HistoricalImportComponent', () => {
 
   async function load(sources = [source('2019-wl19-schedule-stats'), source('2018-fl18-schedule', { isDead: true, enabled: false, imported: false, title: 'FL18 Schedule DEAD', lastFetchedAt: null, lastFetchStatus: null, lastChangedAt: null, snapshotCount: 0, latestSnapshotSize: null })],
     jobs = [summary(7), summary(8, { kind: 'Import', status: 'Succeeded', needsReview: 1, finishedAt: null })], scheduled = schedule()): Promise<void> {
-    http.expectOne('/api/HistoricalImport/Sources').flush(sources);
-    http.expectOne('/api/HistoricalImport/Jobs').flush(jobs);
-    http.expectOne('/api/HistoricalImport/Schedule').flush(scheduled);
+    http.expectOne('/api/historical-sources').flush(sources);
+    http.expectOne('/api/historical-imports').flush(jobs);
+    http.expectOne('/api/historical-imports/schedule').flush(scheduled);
     await settle();
   }
 
   async function showJob(dto: HistoricalImportJobDto, jobButton = 'Show job ' + dto.jobID): Promise<void> {
     button(jobButton).click();
     fixture.detectChanges();
-    http.expectOne('/api/HistoricalImport/Job/' + dto.jobID).flush(dto);
+    http.expectOne(`/api/historical-imports/${dto.jobID}`).flush(dto);
     await settle();
   }
 
@@ -110,9 +110,9 @@ describe('HistoricalImportComponent', () => {
   });
 
   it('says when nothing could be loaded, or there are no jobs', async () => {
-    http.expectOne('/api/HistoricalImport/Sources').flush('no', { status: 500, statusText: 'Error' });
-    http.expectOne('/api/HistoricalImport/Jobs').flush([]);
-    http.expectOne('/api/HistoricalImport/Schedule').flush('no', { status: 500, statusText: 'Error' });
+    http.expectOne('/api/historical-sources').flush('no', { status: 500, statusText: 'Error' });
+    http.expectOne('/api/historical-imports').flush([]);
+    http.expectOne('/api/historical-imports/schedule').flush('no', { status: 500, statusText: 'Error' });
     await settle();
 
     expect(text(el())).toContain("The sources couldn't be loaded.");
@@ -121,9 +121,9 @@ describe('HistoricalImportComponent', () => {
   });
 
   it("says when the jobs couldn't be loaded, and shows a paused schedule that never ran", async () => {
-    http.expectOne('/api/HistoricalImport/Sources').flush([]);
-    http.expectOne('/api/HistoricalImport/Jobs').flush('no', { status: 500, statusText: 'Error' });
-    http.expectOne('/api/HistoricalImport/Schedule').flush(schedule({ paused: true, lastRunAt: null, lastJobID: null, lastRunNote: 'Waiting for a queued or running job to finish' }));
+    http.expectOne('/api/historical-sources').flush([]);
+    http.expectOne('/api/historical-imports').flush('no', { status: 500, statusText: 'Error' });
+    http.expectOne('/api/historical-imports/schedule').flush(schedule({ paused: true, lastRunAt: null, lastJobID: null, lastRunNote: 'Waiting for a queued or running job to finish' }));
     await settle();
 
     expect(text(el())).toContain("The jobs couldn't be loaded.");
@@ -132,11 +132,11 @@ describe('HistoricalImportComponent', () => {
     expect(button("Last run's job")).toBeUndefined();
 
     button('Resume schedule').click();
-    const resume = http.expectOne('/api/HistoricalImport/SetSchedulePaused');
+    const resume = http.expectOne('/api/historical-imports/schedule/paused');
     expect(resume.request.body).toEqual({ paused: false });
     resume.flush(schedule());
     fixture.detectChanges();
-    http.expectOne('/api/HistoricalImport/Schedule').flush(schedule());
+    http.expectOne('/api/historical-imports/schedule').flush(schedule());
     await settle();
     expect(button('Pause schedule')).toBeTruthy();
   });
@@ -145,10 +145,10 @@ describe('HistoricalImportComponent', () => {
     await load();
 
     button('Refresh sources').click();
-    http.expectOne('/api/HistoricalImport/Refresh').flush({ jobID: 9 }, { status: 202, statusText: 'Accepted' });
+    http.expectOne('/api/historical-sources/refresh').flush({ jobID: 9 }, { status: 202, statusText: 'Accepted' });
     fixture.detectChanges();
-    http.expectOne('/api/HistoricalImport/Jobs').flush([summary(9, { status: 'Queued', trigger: 'Manual' })]);
-    http.expectOne('/api/HistoricalImport/Job/9').flush(job(9, {
+    http.expectOne('/api/historical-imports').flush([summary(9, { status: 'Queued', trigger: 'Manual' })]);
+    http.expectOne('/api/historical-imports/9').flush(job(9, {
       kind: 'Refresh', report: report({ sourcesChanged: ['2019-wl19-schedule-stats'], sourcesFailed: ['late-league-website: answered 404'], sourcesUnchanged: 40, importJobID: 10 }),
     }));
     await settle();
@@ -161,7 +161,7 @@ describe('HistoricalImportComponent', () => {
 
     button('The import it queued', panel).click();
     fixture.detectChanges();
-    http.expectOne('/api/HistoricalImport/Job/10').flush(job(10, { kind: 'Import', trigger: 'Scheduled', guarded: true }));
+    http.expectOne('/api/historical-imports/10').flush(job(10, { kind: 'Import', trigger: 'Scheduled', guarded: true }));
     await settle();
     expect(text(el().querySelector('.hi-job'))).toContain('Job 10: Import (Scheduled, guarded)');
     expect(text(el().querySelector('.hi-job'))).toContain('2 updated');
@@ -171,17 +171,17 @@ describe('HistoricalImportComponent', () => {
     await load();
 
     button('Import').click();
-    http.expectOne('/api/HistoricalImport/Preview').flush({ jobID: 11 }, { status: 202, statusText: 'Accepted' });
+    http.expectOne('/api/historical-imports/preview').flush({ jobID: 11 }, { status: 202, statusText: 'Accepted' });
     fixture.detectChanges();
-    http.expectOne('/api/HistoricalImport/Jobs').flush([]);
+    http.expectOne('/api/historical-imports').flush([]);
     // Still running: looked at again after a while
     jasmine.clock().install();
     try {
-      http.expectOne('/api/HistoricalImport/Job/11').flush(job(11, { status: 'Running', stage: 'Importing Winter League 2019', seasonsDone: 1, finishedAt: null, report: null }));
+      http.expectOne('/api/historical-imports/11').flush(job(11, { status: 'Running', stage: 'Importing Winter League 2019', seasonsDone: 1, finishedAt: null, report: null }));
       await settle();
       expect(text(el().querySelector('.hi-job'))).toContain('Running · Importing Winter League 2019 · 1/2 seasons');
       jasmine.clock().tick(JOB_POLL_MS);
-      http.expectOne('/api/HistoricalImport/Job/11').flush(job(11, {
+      http.expectOne('/api/historical-imports/11').flush(job(11, {
         reviews: [{ reviewID: 3, seasonKey: '2019-wl19-schedule-stats/Team and Player Stats', seasonName: 'Winter League 2019', status: 'Preview',
           statsBefore: 5, statsRemoved: 3, teamsBefore: 2, teamsRemoved: 1, titlesBefore: 0, titlesRemoved: 0, approvalJobID: null, decidedAt: null }],
       }));
@@ -195,10 +195,10 @@ describe('HistoricalImportComponent', () => {
     expect(text(reviews.querySelector('tbody tr'))).toContain('Would remove');
 
     button('Apply this import').click();
-    http.expectOne('/api/HistoricalImport/ApplyPreview/11').flush({ jobID: 12 }, { status: 202, statusText: 'Accepted' });
+    http.expectOne('/api/historical-imports/11/apply').flush({ jobID: 12 }, { status: 202, statusText: 'Accepted' });
     fixture.detectChanges();
-    http.expectOne('/api/HistoricalImport/Jobs').flush([]);
-    http.expectOne('/api/HistoricalImport/Job/12').flush(job(12, { kind: 'Import' }));
+    http.expectOne('/api/historical-imports').flush([]);
+    http.expectOne('/api/historical-imports/12').flush(job(12, { kind: 'Import' }));
     await settle();
     expect(button('Apply this import')).toBeUndefined();
   });
@@ -221,18 +221,18 @@ describe('HistoricalImportComponent', () => {
     await showJob(job(8, { kind: 'Import', guarded: true, reviews: [stopped(1, 'A'), stopped(2, 'B'), { ...stopped(3, 'C'), status: 'Approved', approvalJobID: 20 }] }));
 
     button('Apply A').click();
-    http.expectOne('/api/HistoricalImport/ApproveReview/1').flush({ jobID: 21 }, { status: 202, statusText: 'Accepted' });
+    http.expectOne('/api/historical-reviews/1/approve').flush({ jobID: 21 }, { status: 202, statusText: 'Accepted' });
     fixture.detectChanges();
-    http.expectOne('/api/HistoricalImport/Jobs').flush([summary(7), summary(8, { kind: 'Import' })]);
-    http.expectOne('/api/HistoricalImport/Job/21').flush(job(21, { kind: 'Import' }));
+    http.expectOne('/api/historical-imports').flush([summary(7), summary(8, { kind: 'Import' })]);
+    http.expectOne('/api/historical-imports/21').flush(job(21, { kind: 'Import' }));
     await settle();
 
     await showJob(job(8, { kind: 'Import', guarded: true, reviews: [stopped(2, 'B')] }), 'Show job 8');
     button('Skip B').click();
-    http.expectOne('/api/HistoricalImport/SkipReview/2').flush(null, { status: 204, statusText: 'No Content' });
+    http.expectOne('/api/historical-reviews/2/skip').flush(null, { status: 204, statusText: 'No Content' });
     fixture.detectChanges();
-    http.expectOne('/api/HistoricalImport/Job/8').flush(job(8, { kind: 'Import', reviews: [{ ...stopped(2, 'B'), status: 'Skipped' }] }));
-    http.expectOne('/api/HistoricalImport/Jobs').flush([]);
+    http.expectOne('/api/historical-imports/8').flush(job(8, { kind: 'Import', reviews: [{ ...stopped(2, 'B'), status: 'Skipped' }] }));
+    http.expectOne('/api/historical-imports').flush([]);
     await settle();
     expect(text(region('Season removals'))).toContain('Skipped');
   });
@@ -244,7 +244,7 @@ describe('HistoricalImportComponent', () => {
     expect(text(region('Season removals'))).toContain('c/Stats');
     button('Its import').click();
     fixture.detectChanges();
-    http.expectOne('/api/HistoricalImport/Job/20').flush(job(20, { kind: 'Import' }));
+    http.expectOne('/api/historical-imports/20').flush(job(20, { kind: 'Import' }));
     await settle();
     expect(text(el().querySelector('.hi-job'))).toContain('Job 20');
   });
@@ -254,16 +254,16 @@ describe('HistoricalImportComponent', () => {
 
     button("Last run's job").click();
     fixture.detectChanges();
-    http.expectOne('/api/HistoricalImport/Job/7').flush(job(7, { kind: 'Refresh', trigger: 'Scheduled', report: report() }));
+    http.expectOne('/api/historical-imports/7').flush(job(7, { kind: 'Refresh', trigger: 'Scheduled', report: report() }));
     await settle();
     expect(text(el().querySelector('.hi-job'))).toContain('0 changed');
 
     button('Download WL19 Schedule & Stats').click();
-    const set = http.expectOne('/api/HistoricalImport/SetSourceEnabled/2019-wl19-schedule-stats');
+    const set = http.expectOne('/api/historical-sources/2019-wl19-schedule-stats/enabled');
     expect(set.request.body).toEqual({ enabled: false });
     set.flush(null, { status: 204, statusText: 'No Content' });
     fixture.detectChanges();
-    http.expectOne('/api/HistoricalImport/Sources').flush([source('2019-wl19-schedule-stats', { enabled: false })]);
+    http.expectOne('/api/historical-sources').flush([source('2019-wl19-schedule-stats', { enabled: false })]);
     await settle();
     expect(button('Download WL19 Schedule & Stats').getAttribute('aria-pressed')).toBe('false');
   });
@@ -272,9 +272,9 @@ describe('HistoricalImportComponent', () => {
     await load();
 
     button('Refresh sources').click();
-    http.expectOne('/api/HistoricalImport/Refresh').flush({ title: 'Not now' }, { status: 409, statusText: 'Conflict' });
+    http.expectOne('/api/historical-sources/refresh').flush({ title: 'Not now' }, { status: 409, statusText: 'Conflict' });
     button('Import').click();
-    http.expectOne('/api/HistoricalImport/Preview').flush('no', { status: 500, statusText: 'Error' });
+    http.expectOne('/api/historical-imports/preview').flush('no', { status: 500, statusText: 'Error' });
     await settle();
 
     expect(snackBar.open).toHaveBeenCalledWith('Not now', 'Close');
@@ -285,9 +285,9 @@ describe('HistoricalImportComponent', () => {
 
   it('formats sizes, intervals and removals', () => {
     // Flush the sources/jobs/schedule GETs the beforeEach's detectChanges() already triggered.
-    http.expectOne('/api/HistoricalImport/Sources').flush([]);
-    http.expectOne('/api/HistoricalImport/Jobs').flush([]);
-    http.expectOne('/api/HistoricalImport/Schedule').flush(schedule());
+    http.expectOne('/api/historical-sources').flush([]);
+    http.expectOne('/api/historical-imports').flush([]);
+    http.expectOne('/api/historical-imports/schedule').flush(schedule());
     expect([size(null), size(512), size(2048), size(3 * 1024 * 1024)]).toEqual(['-', '512 B', '2.0 KB', '3.0 MB']);
     expect([interval('1.00:00:00'), interval('2.06:30:00'), interval('06:00:00'), interval('00:00:00'), interval('weekly')]).toEqual(['1 day', '2 days 6 h 30 min', '6 h', '00:00:00', 'weekly']);
     expect(removalText({ statsRemoved: 1, statsBefore: 2, teamsRemoved: 0, teamsBefore: 1, titlesRemoved: 0, titlesBefore: 0 })).toBe('1 of 2 stat rows, 0 of 1 teams, 0 of 0 titles');

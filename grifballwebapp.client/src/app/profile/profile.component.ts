@@ -20,6 +20,7 @@ import { errorText } from '../shared/errorText';
 import { whileCurrent } from '../shared/whileCurrent';
 import type { SeasonInfoDto } from '../api/dtos/seasonInfoDto';
 import type { SeasonPlayerStatDto } from '../api/dtos/seasonPlayerStatDto';
+import { nullWhenNotFound } from '../api/nullWhenNotFound';
 
 export interface PlayerChampionshipDto {
   playerChampionshipID: number;
@@ -194,8 +195,8 @@ export class ProfileComponent {
 
   getGamertag(): void {
     const userID = this.userID();
-    this.http.get<ProfileDto | null>("api/profile/getgamertag/" + userID)
-      .pipe(whileCurrent(userID, this.userID))
+    this.http.get<ProfileDto>(`api/users/${userID}/gamertag`)
+      .pipe(nullWhenNotFound(), whileCurrent(userID, this.userID))
       .subscribe({
         next: r => {
           this.gamertag.set(r?.gamertag ?? null);
@@ -211,7 +212,7 @@ export class ProfileComponent {
   getProfileStats(): void {
     const userID = this.userID();
     this.statsLoading.set(true);
-    this.http.get<ProfileStatsDto>("api/profile/getprofilestats/" + userID)
+    this.http.get<ProfileStatsDto>(`api/users/${userID}/stats`)
       .pipe(whileCurrent(userID, this.userID))
       .subscribe({
         next: s => {
@@ -232,8 +233,7 @@ export class ProfileComponent {
   }
 
   setGamertag(): void {
-    const params = new HttpParams().set('gamertag', this.gamertag() ?? '');
-    this.http.post("api/profile/setgamertag/" + this.userID(), null, { params })
+    this.http.post(`api/users/${this.userID()}/gamertag`, { gamertag: this.gamertag() ?? '' })
       .subscribe({
         next: () => {
           this.settingGamertag.set(false);

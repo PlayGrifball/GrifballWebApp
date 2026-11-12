@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using GrifballWebApp.Server.Matchmaking;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -34,8 +35,8 @@ public class QueueControllerUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That((await _controller.Join(CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
-            Assert.That((await _controller.Leave(CancellationToken.None)).Result, Is.TypeOf<UnauthorizedResult>());
+            (await _controller.Join(CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
+            (await _controller.Leave(CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
         }
     }
 }

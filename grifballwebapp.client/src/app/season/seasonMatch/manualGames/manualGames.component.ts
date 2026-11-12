@@ -245,8 +245,8 @@ export class ManualGamesComponent {
     const editing = mode.target;
     const body = editing === 'new' ? toRequest(this.form) : { ...toRequest(this.form), replacesSeriesGameID: null };
     const url = editing === 'new'
-      ? `/api/SeasonMatch/AddManualGame/${this.seasonMatchID()}`
-      : `/api/SeasonMatch/EditManualGame/${this.seasonMatchID()}/${editing}`;
+      ? `/api/season-matches/${this.seasonMatchID()}/manual-games`
+      : `/api/season-matches/${this.seasonMatchID()}/manual-games/${editing}`;
     this.send(mode, url, body);
   }
 
@@ -263,7 +263,7 @@ export class ManualGamesComponent {
     const mode = this.mode();
     if (mode.kind !== 'confirmDelete')
       return;
-    this.send(mode, `/api/SeasonMatch/RemoveGame/${this.seasonMatchID()}/${mode.game.seriesGameID}`, null);
+    this.send(mode, `/api/season-matches/${this.seasonMatchID()}/games/${mode.game.seriesGameID}/remove`, null);
   }
 
   /** Sends what is shown: done, manual entry is idle and the page reloads; refused, it is shown again with why. */

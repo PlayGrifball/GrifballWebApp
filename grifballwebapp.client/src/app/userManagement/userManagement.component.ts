@@ -11,6 +11,7 @@ import { Column, Filter, TableComponent } from '../shared/table/table.component'
 import { SearchBoxComponent } from '../shared/searchBox/searchBox.component';
 import { AccountService } from '../account.service';
 import { GeneratePasswordResetLinkRequestDto } from '../api/dtos/passwordResetDtos';
+import { errorText } from '../shared/errorText';
 
 @Component({
     selector: 'app-user-management',
@@ -33,7 +34,7 @@ export class UserManagementComponent {
   private snackBar = inject(MatSnackBar);
 
   public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'actions'];
-  url = '/api/UserManagement/GetUsers';
+  url = '/api/users';
   // Rows of the user list are never null (PaginationResult<UserResponseDto> on the server).
   readonly parseUser = (row: unknown) => parseUser(row)!;
 
@@ -69,10 +70,7 @@ export class UserManagementComponent {
         });
       },
       error: (error) => {
-        let errorMessage = 'Failed to generate password reset link';
-        if (error.error && typeof error.error === 'string') {
-          errorMessage = error.error;
-        }
+        const errorMessage = errorText(error, 'Failed to generate password reset link');
         this.snackBar.open(errorMessage, 'Close', {
           duration: 5000
         });

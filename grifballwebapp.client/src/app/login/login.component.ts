@@ -41,7 +41,7 @@ export class LoginComponent implements OnInit {
   /** Discord's sign-in, through the API, coming back to the follow-up if it is a path on this site. */
   readonly discordUrl = computed(() => {
     const followUp = appRelativePath(this.followUp());
-    return followUp === null ? '/api/identity/externallogin' : '/api/identity/externallogin?followUp=' + encodeURIComponent(followUp);
+    return followUp === null ? '/api/identity/external-login' : '/api/identity/external-login?followUp=' + encodeURIComponent(followUp);
   });
 
   ngOnInit(): void {
