@@ -238,7 +238,7 @@ describe('TeamBuilderComponent', () => {
   describe('lockCaptainsButtonClicked', () => {
     it('should unlock captains when currently locked', () => {
       component.captainLocked.set(true);
-      mockDraft.unlockCaptains.and.returnValue(of({}));
+      mockDraft.unlockCaptains.and.returnValue(of(undefined));
 
       component.lockCaptainsButtonClicked();
 
@@ -248,7 +248,7 @@ describe('TeamBuilderComponent', () => {
 
     it('should lock captains when currently unlocked', () => {
       component.captainLocked.set(false);
-      mockDraft.lockCaptains.and.returnValue(of({}));
+      mockDraft.lockCaptains.and.returnValue(of(undefined));
 
       component.lockCaptainsButtonClicked();
 
@@ -485,7 +485,7 @@ describe('TeamBuilderComponent', () => {
       }));
 
       // A later pick is still on its way; the answer must not reload over it.
-      mockDraft.addPlayerToTeam.and.returnValue(new Subject<Object>());
+      mockDraft.addPlayerToTeam.and.returnValue(new Subject<void>());
       grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[0]);
       const loads = mockDraft.getTeams.calls.count();
@@ -573,7 +573,7 @@ describe('TeamBuilderComponent', () => {
       });
 
       it('waits for a save on its way, as other reloads do', () => {
-        const saved = new Subject<Object>();
+        const saved = new Subject<void>();
         mockDraft.addPlayerToTeam.and.returnValue(saved);
         grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
         component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
@@ -581,7 +581,7 @@ describe('TeamBuilderComponent', () => {
         const before = loads();
         connected();
         expect(loads()).toBe(before);
-        saved.next({});
+        saved.next();
         saved.complete();
         expect(loads()).toBe(before + 1);
       });
@@ -594,7 +594,7 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('lets a save finish after the page is gone, without touching it', () => {
-      const saved = new Subject<Object>();
+      const saved = new Subject<void>();
       mockDraft.addPlayerToTeam.and.returnValue(saved);
       grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
@@ -663,7 +663,7 @@ describe('TeamBuilderComponent', () => {
         // A null AddCaptain answer makes the name lookup throw inside the save's callback.
         mockDraft.addCaptain.and.returnValue(of(null as any));
         mockDraft.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { title: 'Request refused', detail: 'No' } })));
-        const pending = new Subject<Object>();
+        const pending = new Subject<void>();
         mockDraft.addPlayerToTeam.and.returnValue(pending);
         grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
         component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]); // stays in flight
@@ -673,7 +673,7 @@ describe('TeamBuilderComponent', () => {
         component.onDropInTeam(drop(component.teams()[0], 2)); // refused: wants a reload
         const loads = mockDraft.getTeams.calls.count();
 
-        pending.next({});
+        pending.next();
         pending.complete();
         await new Promise(resolve => setTimeout(resolve)); // RxJS reports the thrown error asynchronously
 
@@ -707,8 +707,8 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('reloads after a refusal only once the other saves from this page are done, and once', () => {
-      const refused = new Subject<Object>();
-      const pending = new Subject<Object>();
+      const refused = new Subject<void>();
+      const pending = new Subject<void>();
       mockDraft.resortCaptain.and.returnValue(refused);
       mockDraft.addPlayerToTeam.and.returnValue(pending);
       grab(component.teams()[0], GrabbedThing.Team);
@@ -721,7 +721,7 @@ describe('TeamBuilderComponent', () => {
       expect(mockSnackBar.open).toHaveBeenCalledWith('Draft change not saved: No', 'Close');
       expect(mockDraft.getTeams.calls.count()).toBe(loads); // the pick is still on its way
 
-      pending.next({});
+      pending.next();
       pending.complete();
       expect(mockDraft.getTeams.calls.count()).toBe(loads + 1);
     });
@@ -739,7 +739,7 @@ describe('TeamBuilderComponent', () => {
       component.load();
 
       // A pick is dropped and its save starts while the reload is still loading.
-      const pick = new Subject<Object>();
+      const pick = new Subject<void>();
       mockDraft.addPlayerToTeam.and.returnValue(pick);
       grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
@@ -756,14 +756,14 @@ describe('TeamBuilderComponent', () => {
         { teamID: 1, teamName: 'Alpha', captain: cap(101, 1), players: [player(1, 1), player(2, 2)] },
         { teamID: 2, teamName: 'Bravo', captain: cap(102, 2), players: [player(3, 1)] },
       ]));
-      pick.next({});
+      pick.next();
       pick.complete();
       expect(mockDraft.getTeams.calls.count()).toBe(loads + 1);
       expect(roster(102)).toEqual(['1:3']);
     });
 
     it('holds an out-of-sync reload until the page\'s saves are done', () => {
-      const pick = new Subject<Object>();
+      const pick = new Subject<void>();
       mockDraft.addPlayerToTeam.and.returnValue(pick);
       grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
@@ -774,7 +774,7 @@ describe('TeamBuilderComponent', () => {
       addPlayer({ seasonID: 5, captainID: 999, personID: 4 });
       expect(mockDraft.getTeams.calls.count()).toBe(loads);
 
-      pick.next({});
+      pick.next();
       pick.complete();
       expect(mockDraft.getTeams.calls.count()).toBe(loads + 1);
     });

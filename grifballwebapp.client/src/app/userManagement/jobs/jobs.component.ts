@@ -5,7 +5,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { Observable, repeat } from 'rxjs';
-import { ApiClientService } from '../../api/apiClient.service';
+import { JobsService } from '@api/services';
 import { JobDto } from '@api/models';
 import { JobKey, JobState } from '../../api/jobs';
 import { problemText } from '../../shared/errorText';
@@ -63,7 +63,7 @@ const STATE_LABELS: Readonly<Record<string, string>> = { Scheduled: 'Scheduled',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class JobsComponent {
-  private api = inject(ApiClientService);
+  private api = inject(JobsService);
   private snackBar = inject(MatSnackBar);
 
   readonly intervalText = intervalText;
@@ -86,7 +86,7 @@ export class JobsComponent {
   });
   readonly history = rxResource({
     params: () => this.selectedKey() ?? undefined,
-    stream: ({ params }) => this.api.getJobHistory(params).pipe(repeat({ delay: JOBS_POLL_MS })),
+    stream: ({ params }) => this.api.getJobHistory({ group: params.group, name: params.name, take: 50 }).pipe(repeat({ delay: JOBS_POLL_MS })),
   });
 
   constructor() {
@@ -137,24 +137,24 @@ export class JobsComponent {
   }
 
   run(job: JobDto): void {
-    this.act(this.api.runJob(job), `${job.displayName} will run in a few seconds.`, "Couldn't run the job.");
+    this.act(this.api.runJob({ group: job.group, name: job.name }), `${job.displayName} will run in a few seconds.`, "Couldn't run the job.");
   }
 
   setPaused(job: JobDto, paused: boolean): void {
-    this.act(this.api.setJobPaused(job, paused), paused ? `${job.displayName} is paused.` : `${job.displayName} is resumed.`, "Couldn't change the job.");
+    this.act(this.api.setJobPaused({ group: job.group, name: job.name, body: { paused } }), paused ? `${job.displayName} is paused.` : `${job.displayName} is resumed.`, "Couldn't change the job.");
   }
 
   saveInterval(job: JobDto): void {
     const seconds = this.intervalSeconds();
-    this.act(this.api.setJobInterval(job, seconds), `${job.displayName} runs every ${intervalText(seconds)}.`, "Couldn't change the schedule.");
+    this.act(this.api.setJobInterval({ group: job.group, name: job.name, body: { intervalSeconds: seconds } }), `${job.displayName} runs every ${intervalText(seconds)}.`, "Couldn't change the schedule.");
   }
 
   resetSchedule(job: JobDto): void {
-    this.act(this.api.resetJobSchedule(job), `${job.displayName} is back on its default schedule.`, "Couldn't reset the schedule.", () => this.editInterval(job.defaultIntervalSeconds ?? 60));
+    this.act(this.api.resetJobSchedule({ group: job.group, name: job.name }), `${job.displayName} is back on its default schedule.`, "Couldn't reset the schedule.", () => this.editInterval(job.defaultIntervalSeconds ?? 60));
   }
 
   interrupt(fireInstanceID: string): void {
-    this.act(this.api.interruptJob(fireInstanceID), 'Asked the run to stop.', "Couldn't stop the run.");
+    this.act(this.api.interruptJob({ fireInstanceID }), 'Asked the run to stop.', "Couldn't stop the run.");
   }
 
   private act(action: Observable<void>, done: string, failed: string, then?: () => void): void {
