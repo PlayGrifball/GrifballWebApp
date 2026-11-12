@@ -190,10 +190,11 @@ public class ApiConventionsTests
 [TestFixture]
 public class ApiLocationsTests
 {
-    private static DefaultHttpContext Answer(int status, string? location)
+    private static DefaultHttpContext Answer(int status, string? location, string host = "grifball.example")
     {
         var context = new DefaultHttpContext();
-        context.Request.Host = new HostString("grifball.example");
+        context.Request.Scheme = "https";
+        context.Request.Host = new HostString(host);
         context.Response.StatusCode = status;
         if (location is not null)
             context.Response.Headers.Location = location;
@@ -215,6 +216,29 @@ public class ApiLocationsTests
         ApiLocations.Prefix(context);
 
         Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(expected));
+    }
+
+    [TestCase("grifball.example:443", "https://grifball.example:443/seasons/12/settings", "https://grifball.example/api/seasons/12/settings")]
+    [TestCase("grifball.example", "https://grifball.example:443/seasons/12/settings", "https://grifball.example/api/seasons/12/settings")]
+    [TestCase("grifball.example:443", "https://grifball.example/seasons/12/settings", "https://grifball.example/api/seasons/12/settings")]
+    [TestCase("grifball.example:8443", "https://grifball.example/seasons/12/settings", "https://grifball.example/seasons/12/settings")]
+    public void Prefix_TreatsADefaultPortAsTheSameHost(string host, string location, string expected)
+    {
+        var context = Answer(StatusCodes.Status201Created, location, host);
+
+        ApiLocations.Prefix(context);
+
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Prefix_KeepsAnEscapedPathEscaped_AndTheQuery()
+    {
+        var context = Answer(StatusCodes.Status201Created, "https://grifball.example/sources/a%20b?x=1");
+
+        ApiLocations.Prefix(context);
+
+        Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("https://grifball.example/api/sources/a%20b?x=1"));
     }
 
     [Test]

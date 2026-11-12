@@ -34,14 +34,23 @@ public static class ApiLocations
 
         if (uri.IsAbsoluteUri)
         {
-            if (!string.Equals(uri.Authority, context.Request.Host.Value, StringComparison.OrdinalIgnoreCase) || UnderPrefix(uri.AbsolutePath))
+            if (!IsThisHost(uri, context.Request) || UnderPrefix(uri.AbsolutePath))
                 return;
-            response.Headers.Location = new UriBuilder(uri) { Path = PublicPrefix + uri.AbsolutePath }.Uri.ToString();
+            // The escaped forms throughout: a percent-encoded segment stays encoded
+            response.Headers.Location = uri.GetLeftPart(UriPartial.Authority) + PublicPrefix + uri.PathAndQuery + uri.Fragment;
         }
         else if (location[0] == '/' && !location.StartsWith("//", StringComparison.Ordinal) && !UnderPrefix(location))
         {
             response.Headers.Location = PublicPrefix + location;
         }
+    }
+
+    /// <summary>The same host and port as the request's, a default port written or not ("host:443" is "host" over https).</summary>
+    private static bool IsThisHost(Uri uri, HttpRequest request)
+    {
+        var host = request.Host;
+        var port = host.Port ?? (string.Equals(request.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ? 443 : 80);
+        return string.Equals(uri.Host, host.Host, StringComparison.OrdinalIgnoreCase) && uri.Port == port;
     }
 
     private static bool UnderPrefix(string path)
