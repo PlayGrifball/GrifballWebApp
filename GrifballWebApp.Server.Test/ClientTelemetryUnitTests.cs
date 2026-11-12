@@ -222,8 +222,11 @@ public class ClientTelemetryUnitTests
         // Answered with nothing sent yet: the batch waits in the queue
         var result = api.Report(Batch(), "Mozilla/5.0");
         var forwarding = api.Drain();
-        Assert.That(result, Is.InstanceOf<NoContentResult>());
-        Assert.That(forwarding.IsCompleted, Is.False, "the forward waits on the collector, not the request");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.InstanceOf<NoContentResult>());
+            Assert.That(forwarding.IsCompleted, Is.False, "the forward waits on the collector, not the request");
+        }
 
         collector.Release.SetResult();
         await forwarding;
@@ -261,8 +264,21 @@ public class ClientTelemetryUnitTests
             await Task.Delay(20);
         await stop.CancelAsync();
 
-        Assert.That(collector.Posted, Has.Count.EqualTo(2));
-        Assert.CatchAsync<OperationCanceledException>(() => forwarding);
+        var stopped = false;
+        try
+        {
+            await forwarding;
+        }
+        catch (OperationCanceledException)
+        {
+            stopped = true;
+        }
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(collector.Posted, Has.Count.EqualTo(2));
+            Assert.That(stopped, Is.True, "the pump ends when the host stops");
+        }
     }
 
     [Test]
