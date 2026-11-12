@@ -114,7 +114,7 @@ cat > "$work/bin/gh" <<'GH'
 cat "$GH_LIST"
 GH
 chmod +x "$work/bin/gh"
-areas() { # areas <event> <files...>: prints "backend=... frontend=..."
+areas() { # areas <event> <files...>: prints "backend=... frontend=... images=... migrations=..."
   local event=$1; shift
   : > "$work/areas"
   printf '%s\n' "$@" > "$work/files"
@@ -127,25 +127,28 @@ expect_areas() { # expect_areas <name> <expected> <event> <files...>
   local got; got=$(areas "$@")
   [[ "$got" = "$expected" ]] && ok "changed-areas.sh: $name" || bad "changed-areas.sh: $name gave '$got', not '$expected'"
 }
-expect_areas "backend only" "backend=true frontend=false images=false" pull_request GrifballWebApp.Server/Program.cs docs/x.md
-expect_areas "client only" "backend=false frontend=true images=false" pull_request grifballwebapp.client/src/main.ts
-expect_areas "docs only" "backend=false frontend=false images=false" pull_request docs/historical-import.md readme.md charts/grif/values.yaml
-expect_areas "the solution and the test workflow" "backend=true frontend=false images=false" pull_request GrifballWebApp.slnx .github/workflows/dotnet-tests.yml
-expect_areas "the script itself: everything" "backend=true frontend=true images=true" pull_request .github/scripts/changed-areas.sh
-expect_areas "a push: everything" "backend=true frontend=true images=true" push docs/x.md
-GH_FAILS=1 expect_areas "unreadable file list: everything" "backend=true frontend=true images=true" pull_request docs/x.md
+expect_areas "backend only" "backend=true frontend=false images=false migrations=false" pull_request GrifballWebApp.Server/Program.cs docs/x.md
+expect_areas "client only" "backend=false frontend=true images=false migrations=false" pull_request grifballwebapp.client/src/main.ts
+expect_areas "docs only" "backend=false frontend=false images=false migrations=false" pull_request docs/historical-import.md readme.md charts/grif/values.yaml
+expect_areas "the solution and the test workflow" "backend=true frontend=false images=false migrations=false" pull_request GrifballWebApp.slnx .github/workflows/dotnet-tests.yml
+expect_areas "the script itself: everything" "backend=true frontend=true images=true migrations=true" pull_request .github/scripts/changed-areas.sh
+expect_areas "a push: everything" "backend=true frontend=true images=true migrations=true" push docs/x.md
+GH_FAILS=1 expect_areas "unreadable file list: everything" "backend=true frontend=true images=true migrations=true" pull_request docs/x.md
 # What the images are built from: the arm64 check runs; app code alone doesn't change it
-expect_areas "a Dockerfile" "backend=true frontend=false images=true" pull_request GrifballWebApp.Server/Dockerfile
-expect_areas "the client's packages" "backend=false frontend=true images=true" pull_request grifballwebapp.client/package-lock.json
-expect_areas "a project file" "backend=true frontend=false images=true" pull_request GrifballWebApp.Server/GrifballWebApp.Server.csproj
-expect_areas "the image workflow" "backend=false frontend=false images=true" pull_request .github/workflows/docker-publish.yml
-expect_areas "the build's analyzers" "backend=true frontend=false images=true" pull_request Directory.Build.props
-expect_areas "the analyzers' rules" "backend=true frontend=false images=false" pull_request analyzers/sonar-main.globalconfig
-expect_areas "code, not packages" "backend=true frontend=true images=false" pull_request GrifballWebApp.Server/Program.cs grifballwebapp.client/src/app/app.ts
+expect_areas "a Dockerfile" "backend=true frontend=false images=true migrations=false" pull_request GrifballWebApp.Server/Dockerfile
+expect_areas "the client's packages" "backend=false frontend=true images=true migrations=false" pull_request grifballwebapp.client/package-lock.json
+expect_areas "a project file" "backend=true frontend=false images=true migrations=false" pull_request GrifballWebApp.Server/GrifballWebApp.Server.csproj
+expect_areas "the image workflow" "backend=false frontend=false images=true migrations=false" pull_request .github/workflows/docker-publish.yml
+expect_areas "the build's analyzers" "backend=true frontend=false images=true migrations=false" pull_request Directory.Build.props
+expect_areas "the analyzers' rules" "backend=true frontend=false images=false migrations=false" pull_request analyzers/sonar-main.globalconfig
+# The migrations: the image's build bundles them, so the PR builds its images (images stays false: no arm64 check)
+expect_areas "a migration" "backend=true frontend=false images=false migrations=true" pull_request GrifballWebApp.Migrations.Postgres/Migrations/20261112000000_X.cs
+expect_areas "the design-time context" "backend=true frontend=false images=false migrations=true" pull_request GrifballWebApp.Infrastructure/DesignTimeContext.cs
+expect_areas "code, not packages" "backend=true frontend=true images=false migrations=false" pull_request GrifballWebApp.Server/Program.cs grifballwebapp.client/src/app/app.ts
 # A PR as big as this one: past a pipe's buffer (a pipe into grep -q broke here and read as "no change")
 big="GrifballWebApp.Server/Program.cs grifballwebapp.client/src/main.ts $(seq -f 'docs/a-long-directory-name-to-pass-the-pipe-buffer/page-%g.md' 1 2500 | tr '\n' ' ')"
 # shellcheck disable=SC2086 # one word per file
-expect_areas "2500 files, the code first" "backend=true frontend=true images=false" pull_request $big
+expect_areas "2500 files, the code first" "backend=true frontend=true images=false migrations=false" pull_request $big
 
 # apk-archive.sh --check: the lock's tag, and whether its release is published with every package (gh stubbed: the
 # release list, then the release's assets). It only reads: the stub fails on anything else.

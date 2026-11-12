@@ -10,7 +10,8 @@
 # itself (HEAD, the default); for a preview, the master commit its build read. Needs a full clone (not shallow), Docker
 # with Buildx, and emulation for each platform this machine can't run (the script says how).
 # Env: PLATFORMS (default linux/amd64,linux/arm64); OCI_OUT, to also write the image there as an OCI layout tarball (from
-# the same builder, nothing rebuilt), for diff-oci.py. Writes digest= to $GITHUB_OUTPUT when it's set.
+# the same builder, nothing rebuilt), for diff-oci.py; COMPARE=false, to skip the comparison with the published image.
+# Writes digest= to $GITHUB_OUTPUT when it's set.
 set -euo pipefail
 
 image=${1:?usage: $0 <client|server> [master commit]}
@@ -55,7 +56,10 @@ digest=$(grep -o '"containerimage.digest": *"sha256:[0-9a-f]*"' "$metadata" | gr
 [[ -z "${GITHUB_OUTPUT:-}" ]] || echo "digest=$digest" >> "$GITHUB_OUTPUT"
 echo "Rebuilt $image ($platforms): $digest"
 
-published="ghcr.io/playgrifball/$package:sha-$(git rev-parse --short=7 HEAD)"
+[[ "${COMPARE:-true}" != false ]] || exit 0
+# Exactly 7 characters, as docker/metadata-action tags it: --short=7 lengthens an ambiguous prefix
+head=$(git rev-parse HEAD)
+published="ghcr.io/playgrifball/$package:sha-${head:0:7}"
 if remote=$(docker buildx imagetools inspect "$published" --format '{{json .Manifest.Digest}}' 2> /dev/null); then
   remote=${remote//\"/}
   echo "Published $published: $remote"

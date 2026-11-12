@@ -58,8 +58,6 @@ jobs:
     env:
       # Skipped step by step, as the test legs are, so they don't skip as a whole (and keep their check names)
       RUN: ${{ needs.changes.outputs.backend }}
-      # Every test project: the legs' lists below
-      TEST_PROJECTS: GrifballWebApp.Integration.Test GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test GrifballWebApp.Seeder.Test GrifballWebApp.Convert.Test GrifballWebApp.Analyzers.Test GrifballWebApp.Architecture.Test
 
     steps:
     - name: Checkout code
@@ -85,11 +83,13 @@ jobs:
       if: env.RUN == 'true'
       run: dotnet restore GrifballWebApp.slnx
       
+    # Every test project in the repo (<name>/<name>.csproj, <name> ending .Test), so a leg's list can't name one this
+    # didn't build
     - name: Build
       if: env.RUN == 'true'
       run: |
-        for project in $TEST_PROJECTS; do
-          dotnet build "$project/$project.csproj" --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
+        for csproj in *.Test/*.Test.csproj; do
+          dotnet build "$csproj" --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
         done
       
     - name: Pack the build
@@ -154,14 +154,15 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    # The packages the build restored (the build job saved them under this key), for the imports in its obj folders
+    # The packages the build restored, for the imports in its obj folders: that key exactly (the build job saved it, or
+    # found it saved), never an older cache that may lack them. A miss fails here rather than as missing tests later.
     - name: Restore the NuGet cache
       if: env.RUN == 'true'
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.nuget/packages
         key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
-        restore-keys: nuget-${{ runner.os }}-
+        fail-on-cache-miss: true
 
     - name: Download the build
       if: env.RUN == 'true'

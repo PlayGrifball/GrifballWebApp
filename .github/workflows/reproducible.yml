@@ -2,8 +2,9 @@ name: Reproducible images
 
 # Builds each image again from nothing - a new builder, no cache - and fails unless it's the same image, byte for byte:
 # what anyone can do from the commit (docs/reproducible-builds.md). Weekly on master, and by hand on any branch, rather
-# than on every push: a change that breaks it is rare, and master's newest images are what it checks. Against the image
-# published for the commit (sha-<7>: master's, or a preview's), else against a second build here.
+# than on every push: a change that breaks it is rare, and master's newest images are what it checks. On master, against
+# the image published for the commit (sha-<7>); elsewhere, against a second build here: a preview's image carries
+# master's migration list from when it was built, which a rebuild now can't know.
 on:
   workflow_dispatch:
   # Weekly, on master
@@ -61,11 +62,14 @@ jobs:
           echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
 
-      # Empty when none is (a branch without a preview, or a master build that didn't finish)
+      # Master's only. Empty when none is (a master build that didn't finish). Exactly 7 characters, as
+      # docker/metadata-action tags it: --short=7 lengthens an ambiguous prefix.
       - name: The image published for the commit
         id: published
+        if: github.ref == 'refs/heads/master'
         run: |
-          image="ghcr.io/playgrifball/$PACKAGE:sha-$(git rev-parse --short=7 HEAD)"
+          head=$(git rev-parse HEAD)
+          image="ghcr.io/playgrifball/$PACKAGE:sha-${head:0:7}"
           if digest=$(docker buildx imagetools inspect "$image" --format '{{json .Manifest.Digest}}' 2> /dev/null); then
             echo "digest=${digest//\"/}" >> "$GITHUB_OUTPUT"
             echo "Published $image: ${digest//\"/}"
@@ -74,12 +78,14 @@ jobs:
           fi
 
       # What anyone can run (docs/reproducible-builds.md): a new builder, no cache. On master, the server's master
-      # migration list is the commit's own; elsewhere, origin/master's, as a preview's build reads it.
+      # migration list is the commit's own; elsewhere, origin/master's, which the second build below reads too (the
+      # script's own comparison with a published preview is off: it would read the preview's master).
       - name: Rebuild from nothing
         id: clean
         env:
           IMAGE: ${{ matrix.image == 'frontend' && 'client' || 'server' }}
           MASTER: ${{ github.ref == 'refs/heads/master' && 'HEAD' || 'origin/master' }}
+          COMPARE: ${{ github.ref == 'refs/heads/master' }}
           OCI_OUT: ${{ runner.temp }}/clean.tar
         run: .github/scripts/rebuild-image.sh "$IMAGE" "$MASTER"
 

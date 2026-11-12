@@ -502,7 +502,8 @@ jobs:
 
   # What the PR changed (.github/scripts/changed-areas.sh), and so what this run builds. build: a pull request builds its
   # images only with the preview label (they're its preview's) or when it changes what they're built from (images=true:
-  # the Dockerfiles, the package and project files, this workflow); anything else is a check of app code the test
+  # the Dockerfiles, the package and project files, this workflow; migrations=true: the migrations, which only the
+  # backend image's build bundles, lists and hashes); anything else is a check of app code the test
   # workflows already run, and master builds both images on every push. Not a pull request (master, a manual run):
   # always. The arm64 check runs only for images=true; master builds and smoke-tests arm64 on every push, before the
   # release.
@@ -516,7 +517,7 @@ jobs:
       pull-requests: read
     outputs:
       images: ${{ steps.areas.outputs.images }}
-      build: ${{ github.event_name != 'pull_request' || steps.areas.outputs.images == 'true' || contains(github.event.pull_request.labels.*.name, 'preview') }}
+      build: ${{ github.event_name != 'pull_request' || steps.areas.outputs.images == 'true' || steps.areas.outputs.migrations == 'true' || contains(github.event.pull_request.labels.*.name, 'preview') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

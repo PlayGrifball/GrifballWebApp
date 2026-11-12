@@ -208,26 +208,30 @@ jobs:
         done > scores.md
         cat scores.md >> "$GITHUB_STEP_SUMMARY"
 
-    # A run started by hand knows its branch, not its PR: the open PR from that branch, if there is one
+    # A run started by hand knows its branch, not its PR: the open PR from that branch of this repository (a fork's PR
+    # may have a branch of the same name), if there is one
     - name: Comment on the PR
       if: github.ref != 'refs/heads/master'
       env:
         GH_TOKEN: ${{ github.token }}
         REPO: ${{ github.repository }}
+        OWNER: ${{ github.repository_owner }}
         BRANCH: ${{ github.ref_name }}
         SHA: ${{ github.sha }}
         RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       run: |
         set -euo pipefail
-        pr=$(gh pr list -R "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+        pr=$(gh pr list -R "$REPO" --head "$BRANCH" --state open --json number,headRepositoryOwner \
+          --jq 'map(select(.headRepositoryOwner.login == env.OWNER))[0].number // empty')
         [ -n "$pr" ] || { echo "No open PR from $BRANCH: no comment"; exit 0; }
+        # The sessions and tables a level under the comment's heading
         marker='<!-- lighthouse-scores -->'
         body="$marker
         ### Lighthouse
 
         As of $SHA ([the run]($RUN_URL)):
 
-        $(cat scores.md 2>/dev/null || true)"
+        $(sed -E 's/^(#{3,4}) /#\1 /' scores.md 2>/dev/null || true)"
         [ -s scores.md ] || body="$body
         _No scores: see the Lighthouse jobs._"
         existing=$(gh api "repos/$REPO/issues/$pr/comments" --paginate \
