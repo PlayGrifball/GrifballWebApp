@@ -10,6 +10,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class HelpCommandsTests
 {
+    private static readonly string[] SomeCommands = ["/help", "/matches", "/season standings", "/admin match report", "/reschedule decide"];
+
     private static HelpCommandsHandler Handler()
     {
         var service = new ApplicationCommandService<ApplicationCommandContext, AutocompleteInteractionContext>();
@@ -23,7 +25,7 @@ public class HelpCommandsTests
     {
         var paths = Handler().Commands().Select(x => x.Path).ToList();
 
-        Assert.That(paths, Is.SupersetOf(new[] { "/help", "/matches", "/season standings", "/admin match report", "/reschedule decide" }));
+        Assert.That(paths, Is.SupersetOf(SomeCommands));
     }
 
     [Test]

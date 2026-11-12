@@ -8,6 +8,7 @@ using GrifballWebApp.Application.Reschedule;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Signups;
 using GrifballWebApp.Application.Stats;
+using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Infrastructure;

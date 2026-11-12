@@ -28,6 +28,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class MatchAndBrowseCommandsTests
 {
+    private static readonly string[] RankBoards = ["Rings", "Goals", "Kills", "Games", "Carrier stops"];
+
     private GrifballContext _context = null!;
     private CommandLookups _lookups = null!;
     private MatchCommandsHandler _matches = null!;
@@ -141,7 +143,7 @@ public class MatchAndBrowseCommandsTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(embed.Url, Is.EqualTo($"https://grif.test/profile/{user.Id}"));
-            Assert.That(embed.Fields!.Select(f => f.Name), Is.EqualTo(new[] { "Rings", "Goals", "Kills", "Games", "Carrier stops" }));
+            Assert.That(embed.Fields!.Select(f => f.Name), Is.EqualTo(RankBoards));
         }
     }
 

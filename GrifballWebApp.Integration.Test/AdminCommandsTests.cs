@@ -62,7 +62,7 @@ public class AdminCommandsTests
         await _context.DropDatabaseAndDispose();
     }
 
-    private CommandContextRecorder As(User user) => new((ulong)user.DiscordUserID!.Value);
+    private static CommandContextRecorder As(User user) => new((ulong)user.DiscordUserID!.Value);
 
     private async Task<User> Sysadmin()
     {

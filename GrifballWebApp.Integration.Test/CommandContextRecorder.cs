@@ -53,7 +53,7 @@ public sealed class CommandContextRecorder
     public InteractionMessageProperties Message()
     {
         var callback = Callbacks.Single();
-        Assert.That(callback.Type, Is.EqualTo(NetCord.InteractionCallbackType.Message));
+        Assert.That(callback.Type, Is.EqualTo(InteractionCallbackType.Message));
         return ((InteractionCallbackProperties<InteractionMessageProperties>)callback).Data!;
     }
 
@@ -61,7 +61,7 @@ public sealed class CommandContextRecorder
     public bool DeferredPublicly()
     {
         var callback = Callbacks.Single();
-        Assert.That(callback.Type, Is.EqualTo(NetCord.InteractionCallbackType.DeferredMessage));
+        Assert.That(callback.Type, Is.EqualTo(InteractionCallbackType.DeferredMessage));
         var data = (callback as InteractionCallbackProperties<InteractionMessageProperties>)?.Data;
         return data?.Flags is null || !data.Flags.Value.HasFlag(NetCord.MessageFlags.Ephemeral);
     }
