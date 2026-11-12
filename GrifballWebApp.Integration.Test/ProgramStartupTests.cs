@@ -723,6 +723,35 @@ public class ProgramStartupTests
         }
     }
 
+    /// <summary>
+    /// The OpenAPI document equals the one the client is generated from (grifballwebapp.client/openapi.json), so a change
+    /// to the API changes the client in the same PR. Its "servers" are left out: they name the request's own host.
+    /// To update the file, run this test with GRIF_UPDATE_OPENAPI=1, or take openapi.json from the failed run's test
+    /// results, then regenerate the client (npm run generate:api).
+    /// </summary>
+    [Test]
+    public async Task OpenApiDocument_Should_EqualTheOneTheClientIsGeneratedFrom()
+    {
+        await using var factory = new StartupFactory(NormalModeSettings(), removeDiscordHostedServices: true);
+        using var client = factory.CreateClient();
+
+        var served = OpenApiSnapshot.Normalize(await client.GetStringAsync("/swagger/v1/swagger.json"));
+        var path = OpenApiSnapshot.CommittedPath();
+
+        if (Environment.GetEnvironmentVariable("GRIF_UPDATE_OPENAPI") == "1")
+            await File.WriteAllTextAsync(path, served);
+
+        var committed = File.Exists(path) ? (await File.ReadAllTextAsync(path)).ReplaceLineEndings("\n") : "";
+        if (committed != served)
+        {
+            var actual = Path.Combine(TestContext.CurrentContext.WorkDirectory, "openapi.json");
+            await File.WriteAllTextAsync(actual, served);
+            TestContext.AddTestAttachment(actual, "The document the server serves");
+        }
+        Assert.That(committed, Is.EqualTo(served),
+            "grifballwebapp.client/openapi.json is not the document the server serves: update it and regenerate the client (this test's summary)");
+    }
+
     [Test]
     public async Task WorkerRole_Should_RunTheBackgroundServices_WithoutTheGateway_AndAnswerOnlyHealth()
     {

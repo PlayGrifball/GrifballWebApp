@@ -161,7 +161,11 @@ public class Program
 
         builder.Services.AddSwaggerGen(option =>
         {
-            option.CustomSchemaIds(x => x.FullName);
+            // Names and shapes the client is generated from (grifballwebapp.client/openapi.json): short type names, the
+            // types' own nullability, and every property the API always writes required (OpenApiSchemas.cs)
+            option.CustomSchemaIds(OpenApiSchemaIds.For);
+            option.SupportNonNullableReferenceTypes();
+            option.SchemaFilter<EveryPropertyRequiredFilter>();
 
             // Controller actions' <summary>/<param>/<returns>/<remarks> (GenerateDocumentationFile, the .csproj),
             // into the OpenAPI document. The file sits next to this assembly in every environment, including the
@@ -398,8 +402,8 @@ public class Program
             // Anonymous and read-only: the matchmaking queue's size, for the home page
             app.MapHub<QueueHub>("QueueHub");
 
-            app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
-            app.MapGet("CommitDate", () => GitInfo.CommitDate);
+            app.MapGet("CommitHash", () => GitInfo.CommitShortHash).WithName("GetCommitHash").WithTags("Build");
+            app.MapGet("CommitDate", () => GitInfo.CommitDate).WithName("GetCommitDate").WithTags("Build");
         }
 
         // A worker hands an API pod the backup a job made here, for a token only the app's pods can make (BackupDownloads)
