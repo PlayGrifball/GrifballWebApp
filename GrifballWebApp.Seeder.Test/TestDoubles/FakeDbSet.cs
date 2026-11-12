@@ -2,6 +2,7 @@ using System.Collections;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace GrifballWebApp.Seeder.Test;
 
@@ -12,6 +13,9 @@ namespace GrifballWebApp.Seeder.Test;
 internal sealed class FakeDbSet<TEntity> : DbSet<TEntity>, IQueryable<TEntity> where TEntity : class
 {
     public List<TEntity> Items { get; } = [];
+
+    /// <summary>Never read: nothing in the seeder's unit tests needs the set's EF metadata.</summary>
+    public override IEntityType EntityType => throw new NotSupportedException($"{nameof(FakeDbSet<TEntity>)} has no EF model.");
 
     public override EntityEntry<TEntity> Add(TEntity entity)
     {
