@@ -17,7 +17,7 @@
     "e2e": "ng build && playwright test",
     "smoke": "playwright test -c smoke/playwright.config.ts",
     "serve:ssr:grifballwebapp.client": "node dist/grifballwebapp.client/server/server.mjs",
-    "lint": "eslint ."
+    "lint": "eslint . --max-warnings 0"
   },
   "private": true,
   "dependencies": {
