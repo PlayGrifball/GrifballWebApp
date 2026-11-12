@@ -193,7 +193,7 @@ describe('client errors', () => {
     });
 
     it('falls back to the page\'s trace for a call that brought none back', () => {
-      spyOn(performance, 'getEntriesByType').and.returnValue([{ serverTiming: [{ name: 'traceparent', description: TRACEPARENT }] }] as unknown as PerformanceEntryList);
+      spyOn(performance, 'getEntriesByType').and.returnValue([{ serverTiming: [{ name: 'traceparent', description: TRACEPARENT }] }] as never);
 
       reporter().reportCall('GET', new HttpErrorResponse({ status: 503, url: '/api/Teams' }));
 
