@@ -22,7 +22,8 @@ async function shotsIn(folder) {
 /** A screenshot with its caption: "5-phone-landscape-820x300.png" -> "Phone, landscape · 820×300". */
 async function figure(folder, file) {
   const [, kind, orientation, size] = file.match(/^\d+-([a-z]+)(?:-([a-z]+))?-(\d+x\d+)\.png$/);
-  const caption = `${kind[0].toUpperCase()}${kind.slice(1)}${orientation ? `, ${orientation}` : ''} · ${size.replace('x', '×')}`;
+  const turned = orientation ? `, ${orientation}` : '';
+  const caption = `${kind[0].toUpperCase()}${kind.slice(1)}${turned} · ${size.replace('x', '×')}`;
   const data = (await readFile(join(folder, file))).toString('base64');
   return { kind, html: `<figure><img src="data:image/png;base64,${data}"><figcaption>${caption}</figcaption></figure>` };
 }

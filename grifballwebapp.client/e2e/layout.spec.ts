@@ -170,6 +170,7 @@ const TOUCH_TARGETS = [
 
 /** Every problem with the layout at the current size. */
 function layoutProblems(page: Page, parts: string[], phone: boolean, touchTargets: string[]) {
+  // eslint-disable-next-line sonarjs/cognitive-complexity -- runs in the browser through page.evaluate, so it has to be one self-contained function
   return page.evaluate(({ parts, phone, touchTargets }) => {
     const problems: string[] = [];
     const width = innerWidth;
@@ -256,6 +257,20 @@ function layoutProblems(page: Page, parts: string[], phone: boolean, touchTarget
   }, { parts, phone, touchTargets });
 }
 
+/** Where the links are behind the menu, the menu opens with every link on screen. */
+async function menuProblems(page: Page): Promise<string[]> {
+  const menu = page.locator('.hud-header__menu');
+  if (!await menu.isVisible())
+    return [];
+  await menu.click();
+  const links = page.locator('mat-sidenav a');
+  await expect(links.first()).toBeInViewport();
+  const offScreen = await links.evaluateAll(as => as.filter(a => a.getBoundingClientRect().right > innerWidth).length);
+  await page.getByRole('button', { name: 'Close menu' }).click();
+  await expect(page.locator('mat-sidenav')).toBeHidden();
+  return offScreen > 0 ? [`${offScreen} menu links are off screen`] : [];
+}
+
 for (const { name, path, role, ready, parts, sheet } of PAGES) {
   test(`the ${name} page fits every screen size`, async ({ page }) => {
     test.setTimeout(90_000);
@@ -270,23 +285,14 @@ for (const { name, path, role, ready, parts, sheet } of PAGES) {
       // table rows fade in.
       await settled(page);
       // For review: CI puts these on the PR (e2e/contact-sheets.mjs)
-      await page.screenshot({ path: `screenshots/${sheet ? `${sheet}/${name}` : name}/${index + 1}-${device}-${width}x${height}.png` });
+      const folder = sheet ? `${sheet}/${name}` : name;
+      await page.screenshot({ path: `screenshots/${folder}/${index + 1}-${device}-${width}x${height}.png` });
 
       const phone = PHONES.includes(device);
       for (const p of await layoutProblems(page, [...HEADER, ...parts], phone, TOUCH_TARGETS))
         problems.push(`${width}x${height}: ${p}`);
 
-      // Where the links are behind the menu, the menu opens with every link on screen.
-      const menu = page.locator('.hud-header__menu');
-      if (await menu.isVisible()) {
-        await menu.click();
-        const links = page.locator('mat-sidenav a');
-        await expect(links.first()).toBeInViewport();
-        const offScreen = await links.evaluateAll(as => as.filter(a => a.getBoundingClientRect().right > innerWidth).length);
-        if (offScreen > 0) problems.push(`${width}x${height}: ${offScreen} menu links are off screen`);
-        await page.getByRole('button', { name: 'Close menu' }).click();
-        await expect(page.locator('mat-sidenav')).toBeHidden();
-      }
+      problems.push(...(await menuProblems(page)).map(p => `${width}x${height}: ${p}`));
 
       // Signed in, the chip opens the user's menu with its items whole on screen, big enough to tap.
       if (role !== 'anon') {
@@ -383,6 +389,7 @@ test('gamertag claims tables show every column, or a card per claim', async ({ p
     await open(page, '/usermanagement/claims');
     await page.getByRole('button', { name: 'Find possible duplicates' }).click();
     await expect(page.locator('.claims-duplicates tbody tr')).not.toHaveCount(0);
+    // eslint-disable-next-line sonarjs/cognitive-complexity -- runs in the browser through page.evaluate, so it has to be one self-contained function
     const found = await page.evaluate(() => {
       const out: string[] = [];
       for (const wrap of document.querySelectorAll('app-gamertag-claims .hud-table-wrap')) {

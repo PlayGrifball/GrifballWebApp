@@ -1,3 +1,4 @@
+/* eslint-disable sonarjs/no-clear-text-protocols -- the backend's in-cluster addresses (plain HTTP), which these tests check */
 import { apiUrl, DEFAULT_API_URL, withoutTrailingSlashes } from './apiUrl';
 
 describe('apiUrl', () => {

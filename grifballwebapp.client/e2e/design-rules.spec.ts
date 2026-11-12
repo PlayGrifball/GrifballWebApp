@@ -36,6 +36,7 @@ const TAP_TARGET_SIZES: readonly string[] = ['tablet-portrait', 'phone-portrait'
  * Runs inside the page (page.evaluate): it only sees its own arguments and globals, not this
  * file's module scope, so everything it needs is declared inside it.
  */
+// eslint-disable-next-line sonarjs/cognitive-complexity -- runs in the browser through page.evaluate, so it has to be one self-contained function
 function runDesignRules(checkTapTargets: boolean): string[] {
   const results: string[] = [];
   // Markup the app does not write, or that is deliberately clipped/overlapping as decoration (the

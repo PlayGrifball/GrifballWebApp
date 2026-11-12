@@ -1,3 +1,4 @@
+/* eslint-disable sonarjs/no-clear-text-protocols -- the backend's in-cluster addresses (plain HTTP), which these tests check */
 import { HttpBackend, HttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';

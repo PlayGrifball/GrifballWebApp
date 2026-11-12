@@ -56,7 +56,8 @@ async function scan(page: Page, where: string): Promise<string[]> {
     .filter(v => v.impact === 'serious' || v.impact === 'critical')
     .flatMap(v => v.nodes.map(node => {
       const why = (node.failureSummary ?? '').split('\n').slice(1).map(l => l.trim()).filter(Boolean)[0] ?? '';
-      return `${where}: ${v.id} (${v.impact}) ${v.help}: ${node.target.join(' ')}${why ? ` (${why})` : ''}`;
+      const because = why ? ` (${why})` : '';
+      return `${where}: ${v.id} (${v.impact}) ${v.help}: ${node.target.join(' ')}${because}`;
     }));
 }
 
