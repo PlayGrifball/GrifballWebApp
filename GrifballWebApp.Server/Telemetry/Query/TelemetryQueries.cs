@@ -120,7 +120,7 @@ public static partial class TelemetryQueries
     /// server's /api/* or /*); else the first; null without any.
     /// </summary>
     public static string? PreferredRoute(IReadOnlyList<string> routes) =>
-        routes.FirstOrDefault(r => !r.Contains('*', StringComparison.Ordinal)) ?? routes.FirstOrDefault();
+        routes.FirstOrDefault(r => !r.Contains('*', StringComparison.Ordinal)) ?? (routes.Count > 0 ? routes[0] : null);
 
     /// <summary>
     /// A trace's name in the list: its root span's, unless that is the app's server's wildcard (GET /api/*), which
