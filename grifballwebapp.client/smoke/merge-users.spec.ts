@@ -3,8 +3,10 @@ import { expect, test } from './fixtures';
 // Merge users with an ID that doesn't exist: the page says so, without an error, and won't merge.
 // Nothing is merged: the button must stay disabled.
 
-test('merge users: an unknown ID shows "User not found." and the merge stays disabled', async ({ adminPage: page, admin }) => {
+test('merge users: an unknown ID shows "User not found." and the merge stays disabled', async ({ adminPage: page, admin, consoleErrors }) => {
   const missing = 2_000_000_000; // Far above any real user ID.
+  // The lookup's 404: the browser logs the failed request.
+  consoleErrors.allow(new RegExp(`status of 404.*/api/users/${missing}`));
 
   await page.goto('/usermanagement/mergeuser');
   const from = page.locator('app-search-box').nth(0).locator('input');

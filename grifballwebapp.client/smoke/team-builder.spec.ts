@@ -115,7 +115,7 @@ test.describe('team builder', () => {
       // Its hub can't connect, on purpose.
       staleErrors.allow(/hub\/TeamsHub|WebSocket|negotiat|Failed to complete negotiation|Error: Failed to start/i);
       // The refused save: the browser logs the failed request.
-      staleErrors.allow(/status of (400|409|500).*Teams\/addPlayerToTeam/i);
+      staleErrors.allow(/status of (400|409|500).*\/draft\/picks/i);
       await stale.route('**/hub/**', route => route.abort());
       await stale.routeWebSocket(/\/hub\//, ws => ws.close());
       await openTeamBuilder(stale, league, { hub: false });
