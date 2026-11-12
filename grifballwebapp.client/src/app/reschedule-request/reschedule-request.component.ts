@@ -8,6 +8,7 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { HttpClient } from '@angular/common/http';
 import { Location } from '@angular/common';
+import { errorText } from '../shared/errorText';
 
 interface RescheduleRequest {
   seasonMatchID: number;
