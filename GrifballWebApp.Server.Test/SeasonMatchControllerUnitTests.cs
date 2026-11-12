@@ -59,7 +59,7 @@ public class SeasonMatchControllerUnitTests
     {
         var result = await _controller.ReportMatch(1, Guid.Empty, CancellationToken.None);
 
-        Assert.That((result as BadRequestObjectResult)?.Value, Is.EqualTo("Provide valid Guid"));
+        result.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest, "Provide valid Guid");
         await _dataPullService.DidNotReceiveWithAnyArgs().GetAndSaveMatch(default);
     }
 }

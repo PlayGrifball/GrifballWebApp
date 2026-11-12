@@ -109,7 +109,7 @@ public class ExternalLoginsControllerTests
     [Test]
     public async Task Mine_MissingUser_IsNotFound()
     {
-        Assert.That(await AsUser(_controller, "5").Mine(), Is.TypeOf<NotFoundObjectResult>());
+        (await AsUser(_controller, "5").Mine()).AssertProblem(StatusCodes.Status404NotFound);
     }
 
     [Test]
@@ -132,7 +132,7 @@ public class ExternalLoginsControllerTests
     {
         var result = await AsUser(_controller, "5").StartLink("Nope");
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Unknown login provider 'Nope'"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Unknown login provider 'Nope'"));
     }
 
     [Test]
@@ -163,7 +163,7 @@ public class ExternalLoginsControllerTests
     {
         var result = await _controller.WithAnonymousUser().Link("Discord", "not-a-token");
 
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+        result.AssertProblem(StatusCodes.Status400BadRequest);
         _signInManager.DidNotReceiveWithAnyArgs().ConfigureExternalAuthenticationProperties(default, default, default);
     }
 
@@ -172,7 +172,7 @@ public class ExternalLoginsControllerTests
     {
         var result = await _controller.WithAnonymousUser().Link("Discord", Token("5:Discord", TimeSpan.FromMinutes(-1)));
 
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+        result.AssertProblem(StatusCodes.Status400BadRequest);
     }
 
     [TestCase("5:Other", TestName = "Link_TokenForAnotherProvider_IsBadRequest")]
@@ -182,7 +182,7 @@ public class ExternalLoginsControllerTests
     {
         var result = await _controller.WithAnonymousUser().Link("Discord", Token(payload, TimeSpan.FromMinutes(5)));
 
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+        result.AssertProblem(StatusCodes.Status400BadRequest);
     }
 
     [Test]
@@ -192,7 +192,7 @@ public class ExternalLoginsControllerTests
 
         var result = await _controller.WithAnonymousUser().Link("Gone", token);
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Unknown login provider 'Gone'"));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Unknown login provider 'Gone'"));
     }
 
     [Test]
@@ -204,7 +204,7 @@ public class ExternalLoginsControllerTests
 
         var result = await AsUser(_controller, "6").LinkCallback();
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("The link request expired or was started by a different account. Try again."));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("The link request expired or was started by a different account. Try again."));
         await _service.DidNotReceiveWithAnyArgs().Link(default, default!);
     }
 
@@ -236,36 +236,36 @@ public class ExternalLoginsControllerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.TypeOf<ConflictObjectResult>());
-            Assert.That((string)((ConflictObjectResult)result).Value!, Does.Contain("already linked to another Grifball account").And.Contain("merge"));
+            result.AssertProblem(StatusCodes.Status409Conflict);
+            Assert.That(result.AssertProblem(StatusCodes.Status409Conflict).Detail!, Does.Contain("already linked to another Grifball account").And.Contain("merge"));
         }
     }
 
-    [TestCase(LinkLoginResult.UserNotFound, typeof(NotFoundObjectResult))]
-    [TestCase(LinkLoginResult.Failed, typeof(BadRequestObjectResult))]
-    public async Task LinkCallback_OtherOutcomes(LinkLoginResult outcome, Type expected)
+    [TestCase(LinkLoginResult.UserNotFound, 404)]
+    [TestCase(LinkLoginResult.Failed, 400)]
+    public async Task LinkCallback_OtherOutcomes(LinkLoginResult outcome, int expected)
     {
         var info = LoginInfo();
         _signInManager.GetExternalLoginInfoAsync("5").Returns(info);
         _service.Link(5, info).Returns(outcome);
 
-        Assert.That(await AsUser(_controller, "5").LinkCallback(), Is.TypeOf(expected));
+        Assert.That(ControllerTestHelpers.StatusOf(await AsUser(_controller, "5").LinkCallback()), Is.EqualTo(expected));
     }
 
     // ---------- Unlink / admin ----------
 
-    [TestCase(UnlinkLoginResult.Removed, typeof(OkResult))]
-    [TestCase(UnlinkLoginResult.LastSignInMethod, typeof(BadRequestObjectResult))]
-    [TestCase(UnlinkLoginResult.LoginNotFound, typeof(NotFoundObjectResult))]
-    [TestCase(UnlinkLoginResult.UserNotFound, typeof(NotFoundObjectResult))]
-    [TestCase(UnlinkLoginResult.Failed, typeof(BadRequestObjectResult))]
-    public async Task Unlink_MapsOutcome(UnlinkLoginResult outcome, Type expected)
+    [TestCase(UnlinkLoginResult.Removed, 204)]
+    [TestCase(UnlinkLoginResult.LastSignInMethod, 400)]
+    [TestCase(UnlinkLoginResult.LoginNotFound, 404)]
+    [TestCase(UnlinkLoginResult.UserNotFound, 404)]
+    [TestCase(UnlinkLoginResult.Failed, 400)]
+    public async Task Unlink_MapsOutcome(UnlinkLoginResult outcome, int expected)
     {
         _service.Unlink(5, "Discord", "111").Returns(outcome);
 
         var result = await AsUser(_controller, "5").Unlink(new ExternalLoginKeyDto { LoginProvider = "Discord", ProviderKey = "111" });
 
-        Assert.That(result, Is.TypeOf(expected));
+        Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(expected));
     }
 
     [Test]
@@ -275,7 +275,7 @@ public class ExternalLoginsControllerTests
 
         var result = await AsUser(_controller, "5").Unlink(new ExternalLoginKeyDto { LoginProvider = "Discord", ProviderKey = "111" });
 
-        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("This is your only way to sign in. Link another provider or set a password first."));
+        Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("This is your only way to sign in. Link another provider or set a password first."));
     }
 
     [Test]
@@ -288,7 +288,7 @@ public class ExternalLoginsControllerTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(((OkObjectResult)await _controller.UserLogins(7)).Value, Is.SameAs(dto));
-            Assert.That(await _controller.UserLogins(8), Is.TypeOf<NotFoundObjectResult>());
+            (await _controller.UserLogins(8)).AssertProblem(StatusCodes.Status404NotFound);
         }
     }
 
@@ -299,8 +299,8 @@ public class ExternalLoginsControllerTests
         _service.Unlink(8, "Discord", "222").Returns(UnlinkLoginResult.LastSignInMethod);
         AsUser(_controller, "1", "Sysadmin");
 
-        Assert.That(await _controller.RemoveUserLogin(7, new ExternalLoginKeyDto { LoginProvider = "Discord", ProviderKey = "111" }), Is.TypeOf<OkResult>());
+        Assert.That(await _controller.RemoveUserLogin(7, new ExternalLoginKeyDto { LoginProvider = "Discord", ProviderKey = "111" }), Is.TypeOf<NoContentResult>());
         var refused = await _controller.RemoveUserLogin(8, new ExternalLoginKeyDto { LoginProvider = "Discord", ProviderKey = "222" });
-        Assert.That((string)((BadRequestObjectResult)refused).Value!, Does.StartWith("This is the user's only way to sign in."));
+        Assert.That(refused.AssertProblem(StatusCodes.Status400BadRequest).Detail!, Does.StartWith("This is the user's only way to sign in."));
     }
 }

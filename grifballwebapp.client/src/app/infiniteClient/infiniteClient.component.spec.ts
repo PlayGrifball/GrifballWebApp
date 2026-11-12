@@ -54,8 +54,8 @@ describe('InfiniteClientComponent', () => {
     /** The server says Direct, then answers CheckStatus with status. */
     function init(status: string): void {
       fixture.detectChanges();
-      http.expectOne('api/Admin/HaloStatus').flush({ mode: 'Direct' });
-      const req = http.expectOne('api/Admin/CheckStatus');
+      http.expectOne('api/halo/status').flush({ mode: 'Direct' });
+      const req = http.expectOne('api/halo/check');
       expect(req.request.responseType).toBe('text');
       req.flush(status);
       fixture.detectChanges();
@@ -83,8 +83,8 @@ describe('InfiniteClientComponent', () => {
     it('shows a failure status when the check fails', () => {
       spyOn(console, 'log');
       fixture.detectChanges();
-      http.expectOne('api/Admin/HaloStatus').flush({ mode: 'Direct' });
-      http.expectOne('api/Admin/CheckStatus').flush('x', { status: 500, statusText: 'Server Error' });
+      http.expectOne('api/halo/status').flush({ mode: 'Direct' });
+      http.expectOne('api/halo/check').flush('x', { status: 500, statusText: 'Server Error' });
       fixture.detectChanges();
 
       expect(component.status()).toBe('Failed to check status');
@@ -120,15 +120,17 @@ describe('InfiniteClientComponent', () => {
       init('ok');
       component.code = 'xyz';
       component.setCode();
-      http.expectOne({ method: 'POST', url: 'api/Admin/SetCode?code=xyz' }).flush({});
+      http.expectOne({ method: 'POST', url: 'api/halo/auth-code' }).flush({});
       expect(snackBar.open).toHaveBeenCalledWith('Success', 'Close');
     });
 
-    it('URL-encodes a code with a space, &, and +', () => {
+    it('sends a code with a space, &, and + as it is, in the body (never the URL)', () => {
       init('ok');
       component.code = 'a b&c+d';
       component.setCode();
-      http.expectOne({ method: 'POST', url: 'api/Admin/SetCode?code=a%20b%26c%2Bd' }).flush({});
+      const req = http.expectOne({ method: 'POST', url: 'api/halo/auth-code' });
+      expect(req.request.body).toEqual({ code: 'a b&c+d' });
+      req.flush(null, { status: 204, statusText: 'No Content' });
       expect(snackBar.open).toHaveBeenCalledWith('Success', 'Close');
     });
 
@@ -137,19 +139,19 @@ describe('InfiniteClientComponent', () => {
       spyOn(console, 'log');
       component.code = 'xyz';
       component.setCode();
-      http.expectOne({ method: 'POST', url: 'api/Admin/SetCode?code=xyz' }).flush('x', { status: 400, statusText: 'Bad Request' });
+      http.expectOne({ method: 'POST', url: 'api/halo/auth-code' }).flush('x', { status: 400, statusText: 'Bad Request' });
       expect(snackBar.open).toHaveBeenCalledWith('Failed to set code', 'Close');
     });
 
     it('deletes tokens and reports the result', () => {
       init('ok');
       button('Delete Tokens')!.click();
-      http.expectOne({ method: 'POST', url: 'api/Admin/DeleteTokens' }).flush({});
+      http.expectOne({ method: 'POST', url: 'api/halo/tokens/delete' }).flush({});
       expect(snackBar.open).toHaveBeenCalledWith('Success', 'Close');
 
       spyOn(console, 'log');
       component.deleteTokens();
-      http.expectOne({ method: 'POST', url: 'api/Admin/DeleteTokens' }).flush('x', { status: 500, statusText: 'Server Error' });
+      http.expectOne({ method: 'POST', url: 'api/halo/tokens/delete' }).flush('x', { status: 500, statusText: 'Server Error' });
       expect(snackBar.open).toHaveBeenCalledWith('Failed to delete tokens', 'Close');
     });
 
@@ -161,8 +163,8 @@ describe('InfiniteClientComponent', () => {
 
     it('shows the status once it arrives, without a manual detectChanges', async () => {
       await fixture.whenStable();
-      http.expectOne('api/Admin/HaloStatus').flush({ mode: 'Direct' });
-      http.expectOne('api/Admin/CheckStatus').flush('Connected');
+      http.expectOne('api/halo/status').flush({ mode: 'Direct' });
+      http.expectOne('api/halo/check').flush('Connected');
       await fixture.whenStable();
 
       expect(el().textContent).toContain('Connected');
@@ -172,7 +174,7 @@ describe('InfiniteClientComponent', () => {
   describe('in Gateway mode', () => {
     function init(status: HaloStatus = gatewayStatus()): void {
       fixture.detectChanges();
-      http.expectOne('api/Admin/HaloStatus').flush(status);
+      http.expectOne('api/halo/status').flush(status);
       fixture.detectChanges();
     }
 
@@ -180,7 +182,7 @@ describe('InfiniteClientComponent', () => {
       init();
       expect(component.mode()).toBe('Gateway');
       expect(el().querySelector('.ic-mode')!.textContent).toContain('Halo gateway');
-      http.expectNone('api/Admin/CheckStatus');
+      http.expectNone('api/halo/check');
     });
 
     it('explains that the account is signed in at the gateway, with a link to its admin page', () => {
@@ -239,33 +241,33 @@ describe('InfiniteClientComponent', () => {
       button('Check again')!.click();
       fixture.detectChanges();
       expect(button('Checking')!.disabled).toBeTrue();
-      http.expectOne('api/Admin/HaloStatus').flush(gatewayStatus());
+      http.expectOne('api/halo/status').flush(gatewayStatus());
       fixture.detectChanges();
 
       expect(component.gateway()!.healthy).toBeTrue();
       expect(el().querySelector('.ic-gateway')!.textContent).toContain('Working');
-      http.expectNone('api/Admin/CheckStatus');
+      http.expectNone('api/halo/check');
     });
 
     it('reports a failed re-check and keeps the last status', () => {
       init();
       spyOn(console, 'log');
       component.loadStatus();
-      http.expectOne('api/Admin/HaloStatus').flush('x', { status: 500, statusText: 'Server Error' });
+      http.expectOne('api/halo/status').flush('x', { status: 500, statusText: 'Server Error' });
       fixture.detectChanges();
 
       expect(snackBar.open).toHaveBeenCalledWith('Failed to check the Halo gateway', 'Close');
       expect(component.mode()).toBe('Gateway');
       expect(component.gateway()!.healthy).toBeTrue();
-      http.expectNone('api/Admin/CheckStatus');
+      http.expectNone('api/halo/check');
     });
   });
 
   it('falls back to the direct page when the server cannot say its mode', () => {
     spyOn(console, 'log');
     fixture.detectChanges();
-    http.expectOne('api/Admin/HaloStatus').flush('x', { status: 404, statusText: 'Not Found' });
-    http.expectOne('api/Admin/CheckStatus').flush('Good');
+    http.expectOne('api/halo/status').flush('x', { status: 404, statusText: 'Not Found' });
+    http.expectOne('api/halo/check').flush('Good');
     fixture.detectChanges();
 
     expect(component.mode()).toBe('Direct');
@@ -276,7 +278,7 @@ describe('InfiniteClientComponent', () => {
   it('shows that it is checking before the server answers', () => {
     fixture.detectChanges();
     expect(el().querySelector('.ic-mode')!.textContent).toContain('Checking');
-    http.expectOne('api/Admin/HaloStatus').flush({ mode: 'Direct' });
-    http.expectOne('api/Admin/CheckStatus').flush('Good');
+    http.expectOne('api/halo/status').flush({ mode: 'Direct' });
+    http.expectOne('api/halo/check').flush('Good');
   });
 });

@@ -42,10 +42,9 @@ export class CreateRegularMatchesDialogComponent {
 
   onSubmit() {
     const params = new HttpParams()
-      .set('seasonID', this.seasonID)
       .set('homeMatchesPerTeam', this.homeMatchesPerTeam!)
       .set('bestOf', this.bestOf!);
-    this.http.post("api/MatchPlanner/CreateSeasonMatches", null, { params })
+    this.http.post(`api/seasons/${this.seasonID}/matches/generate`, null, { params })
       .subscribe({
         next: r => {
           this.regularMatchesCreated.next();

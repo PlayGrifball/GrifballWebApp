@@ -36,7 +36,7 @@ describe('MergesComponent', () => {
   const button = (root: Element, text: string) => Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find(b => b.textContent!.trim() === text)!;
 
   function listRequest(page: number): TestRequest {
-    const req = http.expectOne(r => r.url === '/api/UserMerges/List');
+    const req = http.expectOne(r => r.url === '/api/user-merges');
     expect(req.request.params.get('pageNumber')).toBe(String(page));
     expect(req.request.params.get('pageSize')).toBe('25');
     return req;
@@ -70,7 +70,7 @@ describe('MergesComponent', () => {
     button(rows()[0], 'Undo').click();
     fixture.detectChanges();
     expect(button(rows()[0], 'Undo').disabled).toBeTrue();
-    const undo = http.expectOne('/api/UserMerges/Undo/1');
+    const undo = http.expectOne('/api/user-merges/1/undo');
     expect(undo.request.body).toEqual({ note: null });
     undo.flush(null, { status: 204, statusText: 'No Content' });
     expect(snackBar.open).toHaveBeenCalledWith('Undid the merge of historical:Old Tag.', 'Close');
@@ -86,7 +86,7 @@ describe('MergesComponent', () => {
     listRequest(1).flush({ totalCount: 1, results: [merge(1, { sourceUserName: null })] });
     await settle();
     button(rows()[0], 'Undo').click();
-    http.expectOne('/api/UserMerges/Undo/1').flush({ title: 'Conflict', detail: 'Merge 4 since changed the same rows: undo it first.' }, { status: 409, statusText: 'Conflict' });
+    http.expectOne('/api/user-merges/1/undo').flush({ title: 'Conflict', detail: 'Merge 4 since changed the same rows: undo it first.' }, { status: 409, statusText: 'Conflict' });
     fixture.detectChanges();
     expect(rows()[0].querySelector('[role="alert"]')!.textContent).toContain('Merge 4 since changed the same rows');
     expect(snackBar.open).toHaveBeenCalledWith('Merge 4 since changed the same rows: undo it first.', 'Close');

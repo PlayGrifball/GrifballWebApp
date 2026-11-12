@@ -21,9 +21,9 @@ async function mockBackend(page: Page): Promise<Call[]> {
     calls.push({ method: request.method(), path, xsrf: headers['x-xsrf-token'], authorization: headers['authorization'] });
     const json = (body: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
-    if (path === '/api/Identity/Me')
+    if (path === '/api/identity/me')
       return signedIn ? json(META.player) : route.fulfill({ status: 204, body: '' });
-    if (path === '/api/Identity/Antiforgery')
+    if (path === '/api/identity/antiforgery-token')
       return json({ token: token() });
     if (request.method() !== 'GET' && headers['x-xsrf-token'] !== token())
       return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
@@ -31,7 +31,7 @@ async function mockBackend(page: Page): Promise<Call[]> {
       signedIn = true;
       return route.fulfill({ status: 200, body: '' });
     }
-    if (path === '/api/Identity/Logout') {
+    if (path === '/api/identity/logout') {
       signedIn = false;
       return route.fulfill({ status: 204, body: '' });
     }
@@ -79,12 +79,12 @@ test('signs in with a password and out again, with the antiforgery token and no 
   await page.getByRole('menuitem', { name: 'Log out' }).click();
   await expect(page.locator('.hud-user')).toHaveCount(0);
   // The token belongs to who it was made for: a new one after signing in
-  const logout = calls.find(c => c.path === '/api/Identity/Logout')!;
+  const logout = calls.find(c => c.path === '/api/identity/logout')!;
   expect(logout.method).toBe('POST');
   expect(logout.xsrf).toBe('xsrf-signed-in');
 
   expect(calls.filter(c => c.authorization)).toEqual([]);
-  expect(calls.filter(c => c.path === '/api/Identity/Refresh')).toEqual([]);
+  expect(calls.filter(c => c.path === '/api/identity/refresh')).toEqual([]);
 });
 
 test('the user chip opens a menu: Profile, and Log out, which goes home signed out', async ({ page }) => {
@@ -115,5 +115,5 @@ test('the user chip opens a menu: Profile, and Log out, which goes home signed o
   await page.getByRole('menuitem', { name: 'Log out' }).click();
   await expect(page.locator('.hud-user')).toHaveCount(0);
   await expect(page).toHaveURL(/\/$/);
-  expect(calls.find(c => c.path === '/api/Identity/Logout')?.xsrf).toBe('xsrf-signed-in');
+  expect(calls.find(c => c.path === '/api/identity/logout')?.xsrf).toBe('xsrf-signed-in');
 });

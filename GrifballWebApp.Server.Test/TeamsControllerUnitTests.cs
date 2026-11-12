@@ -24,17 +24,14 @@ public class TeamsControllerUnitTests
 
     [TestCase(null)]
     [TestCase("not-a-number")]
-    public async Task AddPlayerToTeam_Should_ReturnBadRequest_When_NoValidUserId(string? claim)
+    public async Task AddPlayerToTeam_Should_BeUnauthorized_When_NoValidUserId(string? claim)
     {
         _controller.WithUser(claim);
 
-        var result = await _controller.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 }, null, CancellationToken.None);
+        var result = await _controller.AddPlayerToTeam(1, new AddPlayerToTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 }, null, CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("You must be logged in to add a player to a team"));
-            Assert.That(_publisher.ReceivedCalls(), Is.Empty);
-        }
+        result.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status401Unauthorized, "You must be logged in to add a player to a team");
+        Assert.That(_publisher.ReceivedCalls(), Is.Empty);
     }
+
 }

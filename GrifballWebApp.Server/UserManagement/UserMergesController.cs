@@ -7,7 +7,8 @@ namespace GrifballWebApp.Server.UserManagement;
 
 /// <summary>The audit trail of user merges, and undoing one: sysadmin only, like merging.</summary>
 [Authorize(Roles = "Sysadmin")]
-[Route("[controller]/[action]")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
 [ApiController]
 public class UserMergesController : ControllerBase
 {
@@ -19,19 +20,26 @@ public class UserMergesController : ControllerBase
     }
 
     /// <summary>Merges, newest first.</summary>
-    [HttpGet(Name = "GetUserMerges")]
+    [HttpGet("user-merges", Name = "GetUserMerges")]
+    [ProducesResponseType<PaginationResult<UserMergeDto>>(StatusCodes.Status200OK)]
     public Task<PaginationResult<UserMergeDto>> List([FromQuery] PaginationFilter filter, CancellationToken ct)
         => _merges.List(filter, ct);
 
-    [HttpGet("{mergeId:int}", Name = "GetUserMerge")]
-    public async Task<ActionResult<UserMergeDetailDto>> Get([FromRoute] int mergeId, CancellationToken ct)
-        => await _merges.Get(mergeId, ct) is { } merge ? merge : NotFound();
+    /// <summary>A merge's detail: what it changed.</summary>
+    [HttpGet("user-merges/{mergeID:int}", Name = "GetUserMerge")]
+    [ProducesResponseType<UserMergeDetailDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    public async Task<ActionResult<UserMergeDetailDto>> Get([FromRoute] int mergeID, CancellationToken ct)
+        => await _merges.Get(mergeID, ct) is { } merge ? merge : this.NotFoundProblem("There is no such merge");
 
     /// <summary>Puts back what the merge changed. 409 with the reason when it can't be done.</summary>
-    [HttpPost("{mergeId:int}", Name = "UndoUserMerge")]
-    public async Task<IActionResult> Undo([FromRoute] int mergeId, [FromBody] UndoMergeRequest? request, CancellationToken ct)
+    [HttpPost("user-merges/{mergeID:int}/undo", Name = "UndoUserMerge")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
+    public async Task<IActionResult> Undo([FromRoute] int mergeID, [FromBody] UndoMergeRequest? request, CancellationToken ct)
     {
-        await _merges.Undo(mergeId, request?.Note, ct);
+        await _merges.Undo(mergeID, request?.Note, ct);
         return NoContent();
     }
 }

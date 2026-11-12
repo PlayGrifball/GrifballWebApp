@@ -53,24 +53,24 @@ test('a link from one season to another shows the other season', async ({ page }
 });
 
 test('Winner Next Match on a playoff match shows the next match', async ({ page }) => {
-  const base = JSON.parse(mockResponse('anon', '/api/SeasonMatch/GetSeasonMatchPage/31')!.body);
+  const base = JSON.parse(mockResponse('anon', '/api/season-matches/31')!.body);
   const bracketMatch = (homeTeamID: number, homeTeamName: string, awayTeamID: number, awayTeamName: string, bracketInfo: object) => ({
     ...base, isPlayoff: true, homeTeamID, homeTeamName, awayTeamID, awayTeamName, homeTeamScore: 0, awayTeamScore: 0,
     homeTeamResult: 'TBD', awayTeamResult: 'TBD', reportedGames: [], seriesTotals: null,
     bracketInfo: { homeTeamSeed: null, awayTeamSeed: null, homeTeamPreviousMatchID: null, awayTeamPreviousMatchID: null,
       winnerNextMatchID: null, loserNextMatchID: null, isGrandFinal: false, ...bracketInfo },
   });
-  const pullStatus = JSON.parse(mockResponse('anon', '/api/SeasonMatch/MatchPullStatus/31')!.body);
+  const pullStatus = JSON.parse(mockResponse('anon', '/api/season-matches/31/match-pull')!.body);
   await mockBackend(page, 'anon', {
     // A semi-final whose winner goes on to the final
-    '/api/SeasonMatch/GetSeasonMatchPage/105': bracketMatch(1, 'Red Rampage', 5, 'Gravity Wells', { homeTeamSeed: 1, awayTeamSeed: 5, winnerNextMatchID: 107 }),
-    '/api/SeasonMatch/GetSeasonMatchPage/107': bracketMatch(2, 'Blue Bombers', 6, 'Sticky Situation', { homeTeamPreviousMatchID: 105, awayTeamPreviousMatchID: 106 }),
-    '/api/SeasonMatch/GetPossibleMatches/105': [],
-    '/api/SeasonMatch/GetPossibleMatches/107': [],
-    '/api/SeasonMatch/MatchPullStatus/105': pullStatus,
-    '/api/SeasonMatch/MatchPullStatus/107': pullStatus,
-    '/api/Vod/ForSeasonMatch/105': [],
-    '/api/Vod/ForSeasonMatch/107': [],
+    '/api/season-matches/105': bracketMatch(1, 'Red Rampage', 5, 'Gravity Wells', { homeTeamSeed: 1, awayTeamSeed: 5, winnerNextMatchID: 107 }),
+    '/api/season-matches/107': bracketMatch(2, 'Blue Bombers', 6, 'Sticky Situation', { homeTeamPreviousMatchID: 105, awayTeamPreviousMatchID: 106 }),
+    '/api/season-matches/105/possible-matches': [],
+    '/api/season-matches/107/possible-matches': [],
+    '/api/season-matches/105/match-pull': pullStatus,
+    '/api/season-matches/107/match-pull': pullStatus,
+    '/api/season-matches/105/vods': [],
+    '/api/season-matches/107/vods': [],
   });
   await page.goto('/seasonmatch/105');
   const match = page.locator('app-season-match');

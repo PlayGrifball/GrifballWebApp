@@ -66,9 +66,9 @@ public class TeamPageControllerTests
     }
 
     [Test]
-    public async Task Team_Should_ReturnNull_When_NotFound()
+    public async Task Team_Should_BeNotFound_When_NotFound()
     {
-        Assert.That(await _controller.Team(12345, CancellationToken.None), Is.Null);
+        (await _controller.Team(12345, CancellationToken.None)).AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound, "There is no such team");
     }
 
     [Test]
@@ -76,7 +76,7 @@ public class TeamPageControllerTests
     {
         var (season, a, _, _, _, _, _) = await Seed();
 
-        var history = await _controller.History(a.TeamID, CancellationToken.None);
+        var history = (await _controller.History(a.TeamID, CancellationToken.None)).Value;
 
         Assert.That(history, Is.Not.Null);
         using (Assert.EnterMultipleScope())
@@ -84,7 +84,7 @@ public class TeamPageControllerTests
             Assert.That(history!.TeamName, Is.EqualTo("Alpha"));
             Assert.That(history.Seasons.Select(s => (s.TeamID, s.Season.SeasonID, s.Wins, s.Losses)), Is.EqualTo(new[] { (a.TeamID, season.SeasonID, 1, 2) }));
         }
-        Assert.That(await _controller.History(12345, CancellationToken.None), Is.Null);
+        (await _controller.History(12345, CancellationToken.None)).AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound, "There is no such team");
     }
 
     [Test]
@@ -92,7 +92,7 @@ public class TeamPageControllerTests
     {
         var (_, a, _, _, capA, p1, p2) = await Seed();
 
-        var dto = await _controller.Team(a.TeamID, CancellationToken.None);
+        var dto = (await _controller.Team(a.TeamID, CancellationToken.None)).Value!;
 
         Assert.That(dto, Is.Not.Null);
         using (Assert.EnterMultipleScope())
@@ -155,7 +155,7 @@ public class TeamPageControllerTests
         });
         _context.ChangeTracker.Clear();
 
-        var team = await _controller.Team(b.TeamID, CancellationToken.None);
+        var team = (await _controller.Team(b.TeamID, CancellationToken.None)).Value!;
         var bye = (await _controller.Matches(b.TeamID, CancellationToken.None))
             .Single(m => m.OtherResult == SeasonMatchResult.Bye);
 
@@ -190,7 +190,7 @@ public class TeamPageControllerTests
         await _context.SeedChampionsAsync(season.SeasonID, "Pro", team.TeamID, null, 1);
         _context.ChangeTracker.Clear();
 
-        var dto = (await _controller.Team(team.TeamID, CancellationToken.None))!;
+        var dto = (await _controller.Team(team.TeamID, CancellationToken.None)).Value!;
         var stats = await new GrifballWebApp.Application.Seasons.SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context)).GetSeasonPlayerStats(season.SeasonID, team.TeamID);
 
         using (Assert.EnterMultipleScope())
@@ -210,7 +210,7 @@ public class TeamPageControllerTests
     {
         var (_, a, _, _, _, _, _) = await Seed();
 
-        var dto = (await _controller.Team(a.TeamID, CancellationToken.None))!;
+        var dto = (await _controller.Team(a.TeamID, CancellationToken.None)).Value!;
 
         Assert.That((dto.RecordFromSource, dto.Season.IsHistorical, dto.Titles.Length, dto.Players[0].IsCaptain), Is.EqualTo((false, false, 0, true)));
     }
@@ -228,7 +228,7 @@ public class TeamPageControllerTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        var page = (await _controller.Team(a.TeamID, CancellationToken.None))!;
+        var page = (await _controller.Team(a.TeamID, CancellationToken.None)).Value!;
         var standing = (await new TeamStandingsService(_context).GetTeamStandings(season.SeasonID)).Single(s => s.TeamID == a.TeamID);
 
         using (Assert.EnterMultipleScope())

@@ -1,61 +1,67 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.MatchPlanner;
 
 namespace GrifballWebApp.Server.MatchPlanner;
 
-[Route("[controller]/[action]")]
+/// <summary>A season's regular matches: made from its teams, listed scheduled and unscheduled, and given their times.</summary>
 [ApiController]
 public class MatchPlannerController : ControllerBase
 {
     private readonly MatchPlannerService _matchPlannerService;
 
-    public MatchPlannerController(ILogger<MatchPlannerController> logger, MatchPlannerService matchPlannerService)
+    public MatchPlannerController(MatchPlannerService matchPlannerService)
     {
         _matchPlannerService = matchPlannerService;
     }
 
+    /// <summary>Makes the season's regular matches: each team plays the others this many times at home, best of this many.</summary>
     [Authorize(Roles = "Commissioner")]
-    [HttpPost(Name = "CreateSeasonMatches")]
-    public async Task<ActionResult> CreateSeasonMatches([FromQuery] int seasonID, [FromQuery] int homeMatchesPerTeam, [FromQuery] int bestOf, CancellationToken ct)
+    [HttpPost("seasons/{seasonID:int}/matches/generate", Name = "CreateSeasonMatches")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
+    public async Task<IActionResult> CreateSeasonMatches([FromRoute] int seasonID, [FromQuery] int homeMatchesPerTeam, [FromQuery] int bestOf, CancellationToken ct)
     {
-        if (seasonID <= 0)
-            return BadRequest("Please provide seasonID");
-
         if (homeMatchesPerTeam <= 0)
-            return BadRequest("homeMatchesPerTeam should be at least 1");
-
+            return this.BadRequestProblem("homeMatchesPerTeam should be at least 1");
         if (bestOf <= 0)
-            return BadRequest("bestOf should be at least 1");
+            return this.BadRequestProblem("bestOf should be at least 1");
 
         await _matchPlannerService.CreateSeasonMatches(seasonID: seasonID, homeMatchesPerTeam: homeMatchesPerTeam, bestOf: bestOf, ct);
-        return Ok();
+        return NoContent();
     }
 
-    [HttpGet("{seasonID:int}", Name = "GetUnscheduledMatches")]
-    public async Task<ActionResult> GetUnscheduledMatches([FromRoute] int seasonID)
+    /// <summary>A season's regular matches that have no time yet.</summary>
+    [AllowAnonymous]
+    [HttpGet("seasons/{seasonID:int}/matches/unscheduled", Name = "GetUnscheduledMatches")]
+    [ProducesResponseType<List<UnscheduledMatchDto>>(StatusCodes.Status200OK)]
+    public Task<List<UnscheduledMatchDto>> GetUnscheduledMatches([FromRoute] int seasonID, CancellationToken ct)
     {
-        if (seasonID <= 0)
-            return BadRequest("Please provide seasonID");
-
-        var result = await _matchPlannerService.GetUnscheduledMatches(seasonID);
-        return Ok(result);
+        return _matchPlannerService.GetUnscheduledMatches(seasonID, ct);
     }
 
-    [HttpGet("{seasonID:int}", Name = "GetScheduledMatches")]
-    public async Task<ActionResult> GetScheduledMatches([FromRoute] int seasonID)
+    /// <summary>A season's regular matches that have a time.</summary>
+    [AllowAnonymous]
+    [HttpGet("seasons/{seasonID:int}/matches/scheduled", Name = "GetScheduledMatches")]
+    [ProducesResponseType<List<ScheduledMatchDto>>(StatusCodes.Status200OK)]
+    public Task<List<ScheduledMatchDto>> GetScheduledMatches([FromRoute] int seasonID, CancellationToken ct)
     {
-        if (seasonID <= 0)
-            return BadRequest("Please provide seasonID");
-
-        var result = await _matchPlannerService.GetScheduledMatches(seasonID);
-        return Ok(result);
+        return _matchPlannerService.GetScheduledMatches(seasonID, ct);
     }
 
+    /// <summary>Sets a match's time (null: unscheduled again).</summary>
     [Authorize(Roles = "Commissioner")]
-    [HttpPost(Name = "UpdateMatchTime")]
-    public Task UpdateMatchTime([FromBody] UpdateMatchTimeDto dto)
+    [HttpPost("season-matches/{seasonMatchID:int}/time", Name = "UpdateMatchTime")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
+    public async Task<IActionResult> UpdateMatchTime([FromRoute] int seasonMatchID, [FromBody] UpdateMatchTimeDto dto, CancellationToken ct)
     {
-        return _matchPlannerService.UpdateMatchTime(dto);
+        dto.SeasonMatchID = seasonMatchID;
+        await _matchPlannerService.UpdateMatchTime(dto, ct);
+        return NoContent();
     }
 }

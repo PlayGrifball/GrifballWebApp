@@ -107,7 +107,7 @@ describe('QuickSearchComponent', () => {
     return event;
   };
   const answer = async (q: string, result: QuickSearchDto = hits) => {
-    http.expectOne(r => r.url === '/api/Search/QuickSearch' && r.params.get('q') === q).flush(result);
+    http.expectOne(r => r.url === '/api/search' && r.params.get('q') === q).flush(result);
     await settle();
   };
 
@@ -115,7 +115,7 @@ describe('QuickSearchComponent', () => {
     expect(status()).toContain('Type a gamertag');
     type(' s ');
     expect(status()).toContain('Type a gamertag');
-    http.expectNone('/api/Search/QuickSearch');
+    http.expectNone('/api/search');
     expect(input().getAttribute('aria-expanded')).toBe('false');
   });
 
@@ -284,12 +284,12 @@ describe('QuickSearchComponent', () => {
     input().value = 's';
     input().dispatchEvent(new Event('input'));
     key('Enter');
-    http.expectNone('/api/Search/QuickSearch');
+    http.expectNone('/api/search');
     expect(navigate).not.toHaveBeenCalled();
   });
 
   const fail = async () => {
-    http.expectOne(r => r.url === '/api/Search/QuickSearch').flush('boom', { status: 500, statusText: 'Server Error' });
+    http.expectOne(r => r.url === '/api/search').flush('boom', { status: 500, statusText: 'Server Error' });
     await settle();
   };
 

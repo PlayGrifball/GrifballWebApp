@@ -26,9 +26,9 @@ describe('authInterceptor', () => {
 
   for (const method of ['GET', 'HEAD', 'OPTIONS'] as const) {
     it(`sends a ${method} as it is: no token, no Authorization header`, () => {
-      http.request(method, '/api/Season/getCurrentSeasonID/').subscribe();
+      http.request(method, '/api/seasons/current').subscribe();
 
-      const req = backend.expectOne('/api/Season/getCurrentSeasonID/');
+      const req = backend.expectOne('/api/seasons/current');
       expect(req.request.headers.has(ANTIFORGERY_HEADER)).toBeFalse();
       expect(req.request.headers.has('Authorization')).toBeFalse();
       backend.expectNone(ANTIFORGERY_URL);
@@ -38,10 +38,10 @@ describe('authInterceptor', () => {
 
   for (const method of ['POST', 'PUT', 'PATCH', 'DELETE'] as const) {
     it(`adds the antiforgery token to a ${method} to the API`, async () => {
-      const result = firstValueFrom(http.request(method, '/api/Teams/AddCaptain', { body: {}, responseType: 'text' }));
+      const result = firstValueFrom(http.request(method, '/api/seasons/1/draft/captains', { body: {}, responseType: 'text' }));
 
       backend.expectOne(ANTIFORGERY_URL).flush({ token: 'xsrf-1' });
-      const req = backend.expectOne('/api/Teams/AddCaptain');
+      const req = backend.expectOne('/api/seasons/1/draft/captains');
       expect(req.request.headers.get(ANTIFORGERY_HEADER)).toBe('xsrf-1');
       expect(req.request.headers.has('Authorization')).toBeFalse();
       req.flush('ok');
@@ -50,10 +50,10 @@ describe('authInterceptor', () => {
   }
 
   it('adds it to relative api/ URLs too', () => {
-    http.post('api/Availability/UpdateSeasonAvailability', {}).subscribe();
+    http.post('api/seasons/12/availability', {}).subscribe();
 
     backend.expectOne(ANTIFORGERY_URL).flush({ token: 'xsrf-1' });
-    expect(backend.expectOne('api/Availability/UpdateSeasonAvailability').request.headers.get(ANTIFORGERY_HEADER)).toBe('xsrf-1');
+    expect(backend.expectOne('api/seasons/12/availability').request.headers.get(ANTIFORGERY_HEADER)).toBe('xsrf-1');
   });
 
   it('never sends the token anywhere but the API', () => {

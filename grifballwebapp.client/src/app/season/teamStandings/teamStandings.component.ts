@@ -45,7 +45,7 @@ export class TeamStandingsComponent {
     }
     this.loaded.set(false);
 
-    this.http.get<TeamStandingDto[]>("api/TeamStandings/GetTeamStandings/" + seasonID)
+    this.http.get<TeamStandingDto[]>(`api/seasons/${seasonID}/standings`)
       .pipe(whileCurrent(seasonID, this.seasonID))
       .subscribe(
         {

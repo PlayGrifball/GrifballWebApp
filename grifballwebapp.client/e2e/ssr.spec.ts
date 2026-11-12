@@ -9,16 +9,16 @@ import { META, SESSION_COOKIE, signIn } from './mockApi.mts';
 const SITE = `http://localhost:${process.env.E2E_PORT ?? 4300}`;
 
 const PAGES = [
-  { path: '/', content: '.home-hero h1', text: 'Winter Campaign', data: ['/api/Home/CurrentAndFutureEvents/', '/api/Season/GetSeasons'] },
-  { path: '/season/12', content: 'app-team-standings', text: 'Red Rampage', data: ['/api/Season/getSeasonSummary/12', '/api/TeamStandings/GetTeamStandings/12', '/api/MatchPlanner/GetScheduledMatches/12'] },
-  { path: '/season/12?tab=schedule', content: '.sched-match', text: 'Gravity Wells', data: ['/api/MatchPlanner/GetScheduledMatches/12', '/api/MatchPlanner/GetUnscheduledMatches/12'] },
-  { path: '/seasonmatch/31', content: '.lobby-player', text: 'Blue Bombers', data: ['/api/SeasonMatch/GetSeasonMatchPage/31'] },
-  { path: '/match/0f8fad5b-d9cb-469f-a165-70867728950e', content: '.md-player', text: 'Red Rampage', data: ['/api/MatchDetails/GetMatchDetails/0f8fad5b-d9cb-469f-a165-70867728950e'] },
-  { path: '/profile/117', content: '.profile-card', text: 'MasterChief117', data: ['/api/profile/getgamertag/117', '/api/profile/getprofilestats/117', '/api/profile/getcommendations/117', '/api/DeploymentHistory/GetDeploymentHistory/117'] },
-  { path: '/leaderboards', content: 'app-leaderboards table.board', text: 'Legendary', data: ['/api/Leaderboards/GetLeaderboards'] },
-  { path: '/history/team/1', content: '.history-season', text: 'Summer Smash', data: ['/api/Team/History/1'] },
-  { path: '/late-league', content: 'app-late-league table.board', text: 'Late League Season 3', data: ['/api/LateLeague/GetQueue', '/api/LateLeague/GetSeasons'] },
-  { path: '/late-league/3', content: 'app-late-league table.board', text: 'MasterChief117', data: ['/api/LateLeague/GetSeason/3'] },
+  { path: '/', content: '.home-hero h1', text: 'Winter Campaign', data: ['/api/events', '/api/seasons'] },
+  { path: '/season/12', content: 'app-team-standings', text: 'Red Rampage', data: ['/api/seasons/12/summary', '/api/seasons/12/standings', '/api/seasons/12/matches/scheduled'] },
+  { path: '/season/12?tab=schedule', content: '.sched-match', text: 'Gravity Wells', data: ['/api/seasons/12/matches/scheduled', '/api/seasons/12/matches/unscheduled'] },
+  { path: '/seasonmatch/31', content: '.lobby-player', text: 'Blue Bombers', data: ['/api/season-matches/31'] },
+  { path: '/match/0f8fad5b-d9cb-469f-a165-70867728950e', content: '.md-player', text: 'Red Rampage', data: ['/api/matches/0f8fad5b-d9cb-469f-a165-70867728950e'] },
+  { path: '/profile/117', content: '.profile-card', text: 'MasterChief117', data: ['/api/users/117/gamertag', '/api/users/117/stats', '/api/users/117/commendations', '/api/users/117/deployment-history'] },
+  { path: '/leaderboards', content: 'app-leaderboards table.board', text: 'Legendary', data: ['/api/leaderboards'] },
+  { path: '/history/team/1', content: '.history-season', text: 'Summer Smash', data: ['/api/teams/1/history'] },
+  { path: '/late-league', content: 'app-late-league table.board', text: 'Late League Season 3', data: ['/api/late-league/queue', '/api/late-league/seasons'] },
+  { path: '/late-league/3', content: 'app-late-league table.board', text: 'MasterChief117', data: ['/api/late-league/seasons/3'] },
 ] as const;
 
 /** Keeps the run hermetic, and lists the API calls the browser makes and what it logs as an error. */
@@ -133,8 +133,8 @@ test('a signed-in user\'s page is taken over without the header changing, asking
   await page.waitForLoadState('networkidle');
   expect(await page.evaluate(() => (window as unknown as { userHeader: { removed: number } }).userHeader.removed)).toBe(0);
   // Who is signed in came with the page, as did the page's data
-  expect(calls).not.toContain('/api/Identity/Me');
-  expect(calls).not.toContain('/api/SeasonMatch/GetSeasonMatchPage/31');
+  expect(calls).not.toContain('/api/identity/me');
+  expect(calls).not.toContain('/api/season-matches/31');
   expect(errors).toEqual([]);
 });
 
@@ -195,7 +195,7 @@ test('the theme page is rendered on the server, with the site\'s colours', async
 });
 
 test('the server passes /api on to the backend, without its prefix', async ({ request }) => {
-  const response = await request.get(SITE + '/api/Season/getCurrentSeasonID/');
+  const response = await request.get(SITE + '/api/seasons/current');
   expect(response.status()).toBe(200);
   expect(await response.json()).toBe(12);
 });

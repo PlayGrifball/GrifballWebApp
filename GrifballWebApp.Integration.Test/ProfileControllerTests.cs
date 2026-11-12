@@ -38,7 +38,7 @@ public class ProfileControllerTests
     }
 
     [Test]
-    public async Task GetGamertag_Should_ReturnNull_When_UserDoesNotExist()
+    public async Task GetGamertag_Should_BeNotFound_When_UserDoesNotExist()
     {
         // Arrange
         const int nonExistentUserId = 999;
@@ -47,7 +47,7 @@ public class ProfileControllerTests
         var result = await _controller.GetGamertag(nonExistentUserId, CancellationToken.None);
 
         // Assert
-        Assert.That(result, Is.Null);
+        result.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound, "There is no such user");
     }
 
     [Test]
@@ -65,7 +65,7 @@ public class ProfileControllerTests
         await _context.SaveChangesAsync();
 
         // Act
-        var result = await _controller.GetGamertag(user.Id, CancellationToken.None);
+        var result = (await _controller.GetGamertag(user.Id, CancellationToken.None)).Value;
 
         // Assert
         Assert.That(result, Is.Not.Null);
@@ -90,8 +90,8 @@ public class ProfileControllerTests
         await _context.SaveChangesAsync();
 
         // Act
-        var result1 = await _controller.GetGamertag(user1.Id, CancellationToken.None);
-        var result2 = await _controller.GetGamertag(user2.Id, CancellationToken.None);
+        var result1 = (await _controller.GetGamertag(user1.Id, CancellationToken.None)).Value;
+        var result2 = (await _controller.GetGamertag(user2.Id, CancellationToken.None)).Value;
 
         // Assert
         using (Assert.EnterMultipleScope())
@@ -105,7 +105,7 @@ public class ProfileControllerTests
     public async Task GetProfileStats_Should_ReturnNotFound_When_UserDoesNotExist()
     {
         var result = await _controller.GetProfileStats(999, CancellationToken.None);
-        Assert.That(result.Result, Is.InstanceOf<NotFoundResult>());
+        result.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound, "There is no such user");
     }
 
     [Test]

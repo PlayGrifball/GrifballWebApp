@@ -41,9 +41,9 @@ describe('LateLeagueComponent', () => {
 
   const lists = (queue: MatchmakingQueueDto | null, seasons: MatchmakingSeasonDto[] | null, fail = { queue: false, seasons: false }) => {
     const error = { status: 500, statusText: 'Server Error' };
-    const q = http.expectOne('/api/LateLeague/GetQueue');
+    const q = http.expectOne('/api/late-league/queue');
     if (fail.queue) q.flush('no', error); else q.flush(queue);
-    const s = http.expectOne('/api/LateLeague/GetSeasons');
+    const s = http.expectOne('/api/late-league/seasons');
     if (fail.seasons) s.flush('no', error); else s.flush(seasons);
     fixture.detectChanges();
   };
@@ -115,8 +115,8 @@ describe('LateLeagueComponent', () => {
 
     const other = TestBed.createComponent(LateLeagueComponent);
     other.detectChanges();
-    http.expectOne('/api/LateLeague/GetQueue').flush({ gameCount: 0, voteDecidedGameCount: 0, players: [] });
-    http.expectOne('/api/LateLeague/GetSeasons').flush('no', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/late-league/queue').flush({ gameCount: 0, voteDecidedGameCount: 0, players: [] });
+    http.expectOne('/api/late-league/seasons').flush('no', { status: 500, statusText: 'Server Error' });
     other.detectChanges();
     expect((other.nativeElement as HTMLElement).textContent).toContain('The past seasons couldn\'t be loaded.');
   });
@@ -124,7 +124,7 @@ describe('LateLeagueComponent', () => {
   it('shows a season\'s players, linked to their profiles, and where each line comes from', () => {
     fixture.componentRef.setInput('matchmakingSeasonID', '8');
     fixture.detectChanges();
-    http.expectOne('/api/LateLeague/GetSeason/8').flush({
+    http.expectOne('/api/late-league/seasons/8').flush({
       season: season(8),
       players: [player(1, 'Alpha One'), player(2, 'Bravo Two', { source: 'Recorded', winPercent: null, kdRatio: null, kdSpread: -3 })],
     });
@@ -144,14 +144,14 @@ describe('LateLeagueComponent', () => {
   it('says when a season has no players, or cannot be loaded', () => {
     fixture.componentRef.setInput('matchmakingSeasonID', '8');
     fixture.detectChanges();
-    http.expectOne('/api/LateLeague/GetSeason/8').flush({ season: season(8, { gameVersionName: null, historicalSourceUrl: null }), players: [] });
+    http.expectOne('/api/late-league/seasons/8').flush({ season: season(8, { gameVersionName: null, historicalSourceUrl: null }), players: [] });
     fixture.detectChanges();
     expect(el().textContent).toContain('No player stats were recorded for this season.');
     expect(el().querySelector('.facts a')).toBeNull();
 
     fixture.componentRef.setInput('matchmakingSeasonID', '9');
     fixture.detectChanges();
-    http.expectOne('/api/LateLeague/GetSeason/9').flush('gone', { status: 404, statusText: 'Not Found' });
+    http.expectOne('/api/late-league/seasons/9').flush('gone', { status: 404, statusText: 'Not Found' });
     fixture.detectChanges();
     expect(el().textContent).toContain('That Late League season couldn\'t be loaded.');
   });

@@ -1,3 +1,4 @@
+using StatusCodes = Microsoft.AspNetCore.Http.StatusCodes;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.Seasons;
@@ -37,9 +38,21 @@ public class SeasonAndAvailabilityControllerTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(await controller.GetCurrentSeasonID(CancellationToken.None), Is.EqualTo(current.SeasonID));
-            Assert.That(await controller.GetSeasonName(past.SeasonID, CancellationToken.None), Is.EqualTo("Past"));
-            Assert.That(await controller.GetSeasonName(123456, CancellationToken.None), Is.Null);
+            Assert.That((await controller.GetSeasonName(past.SeasonID, CancellationToken.None)).Value, Is.EqualTo("Past"));
+            (await controller.GetSeasonName(123456, CancellationToken.None)).AssertProblem(StatusCodes.Status404NotFound, "There is no such season");
+            Assert.That((await controller.GetSeasonTeams(current.SeasonID, CancellationToken.None)).Value, Is.Empty, "A season with no teams yet");
+            (await controller.GetSeasonTeams(123456, CancellationToken.None)).AssertProblem(StatusCodes.Status404NotFound, "There is no such season");
         }
+    }
+
+    [Test]
+    public async Task AvailabilityController_UpdateOfMissingSeason_IsNotFound()
+    {
+        var controller = new AvailabilityController(new AvailabilityService(_context));
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => controller.UpdateSeasonAvailability(987654, new SeasonAvailabilityDto(), CancellationToken.None));
+
+        Assert.That(ex!.Status, Is.EqualTo(StatusCodes.Status404NotFound));
     }
 
     [Test]
@@ -49,7 +62,7 @@ public class SeasonAndAvailabilityControllerTests
         var controller = new AvailabilityController(new AvailabilityService(_context));
         var slot = new AvailabilityTimeslotDto { DayOfWeek = DayOfWeek.Thursday, Time = new TimeOnly(7, 17) };
 
-        await controller.UpdateSeasonAvailability(new SeasonAvailabilityDto { SeasonID = season.SeasonID, Timeslots = [slot] }, CancellationToken.None);
+        await controller.UpdateSeasonAvailability(season.SeasonID, new SeasonAvailabilityDto { SeasonID = season.SeasonID, Timeslots = [slot] }, CancellationToken.None);
         var result = await controller.GetSeasonAvailability(season.SeasonID, CancellationToken.None);
 
         Assert.That(result, Has.Length.EqualTo(1));

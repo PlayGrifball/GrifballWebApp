@@ -43,8 +43,8 @@ describe('MergeUserComponent', () => {
     fixture.componentRef.setInput('fromInput', 1);
     fixture.componentRef.setInput('toInput', 2);
     fixture.detectChanges();
-    httpMock.expectOne('/api/usermanagement/getuser/1').flush(user(1));
-    httpMock.expectOne('/api/usermanagement/getuser/2').flush(user(2));
+    httpMock.expectOne('/api/users/1').flush(user(1));
+    httpMock.expectOne('/api/users/2').flush(user(2));
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -53,16 +53,15 @@ describe('MergeUserComponent', () => {
     expect(mergeButton().disabled).toBeFalse();
   });
 
-  it('shows "User not found." for an unknown ID (the API answers 204 with no body)', async () => {
+  it('shows "User not found." for an unknown ID (the API answers 404), not an error', async () => {
     fixture.componentRef.setInput('fromInput', 1);
     fixture.componentRef.setInput('toInput', 2);
     fixture.detectChanges();
-    httpMock.expectOne('/api/usermanagement/getuser/1').flush(null, { status: 204, statusText: 'No Content' });
-    httpMock.expectOne('/api/usermanagement/getuser/2').flush(user(2));
+    httpMock.expectOne('/api/users/1').flush({ status: 404, title: 'Not found', detail: 'There is no such user' }, { status: 404, statusText: 'Not Found' });
+    httpMock.expectOne('/api/users/2').flush(user(2));
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(component.mergeFrom.status()).not.toBe('error');
     expect(el().querySelectorAll('[role="alert"]').length).toBe(0);
     expect(el().textContent).toContain('User not found.');
     expect(el().textContent).toContain('user2');
@@ -73,8 +72,8 @@ describe('MergeUserComponent', () => {
     fixture.componentRef.setInput('fromInput', 1);
     fixture.componentRef.setInput('toInput', 2);
     fixture.detectChanges();
-    httpMock.expectOne('/api/usermanagement/getuser/1').flush('boom', { status: 500, statusText: 'Server Error' });
-    httpMock.expectOne('/api/usermanagement/getuser/2').flush(user(2));
+    httpMock.expectOne('/api/users/1').flush('boom', { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/users/2').flush(user(2));
     await fixture.whenStable();
 
     expect(component.mergeFrom.status()).toBe('error');
@@ -114,8 +113,8 @@ describe('MergeUserComponent merging', () => {
     fixture.componentRef.setInput('fromInput', 5);
     fixture.componentRef.setInput('toInput', 6);
     fixture.detectChanges();
-    httpMock.expectOne('/api/usermanagement/getuser/5').flush(user(5));
-    httpMock.expectOne('/api/usermanagement/getuser/6').flush(user(6));
+    httpMock.expectOne('/api/users/5').flush(user(5));
+    httpMock.expectOne('/api/users/6').flush(user(6));
     await fixture.whenStable();
     fixture.detectChanges();
   });
@@ -125,7 +124,7 @@ describe('MergeUserComponent merging', () => {
   it('will not merge a user into itself', async () => {
     component.mergeToId.set(5);
     fixture.detectChanges();
-    httpMock.expectOne('/api/usermanagement/getuser/5').flush(user(5));
+    httpMock.expectOne('/api/users/5').flush(user(5));
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -137,7 +136,7 @@ describe('MergeUserComponent merging', () => {
     component.deleteMergeFrom.set(false);
 
     mergeButton().click();
-    const req = httpMock.expectOne('/api/usermanagement/MergeUser/');
+    const req = httpMock.expectOne('/api/user-merges');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({
       mergeToId: 6,
@@ -158,7 +157,7 @@ describe('MergeUserComponent merging', () => {
 
   it('logs a failed merge', () => {
     component.submit();
-    httpMock.expectOne('/api/usermanagement/MergeUser/').flush('x', { status: 400, statusText: 'Bad Request' });
+    httpMock.expectOne('/api/user-merges').flush('x', { status: 400, statusText: 'Bad Request' });
     expect(console.log).not.toHaveBeenCalledWith('Merged user');
   });
 
@@ -169,7 +168,7 @@ describe('MergeUserComponent merging', () => {
     expect(mergeButton().disabled).toBeTrue();
     mergeButton().click();
 
-    const req = httpMock.expectOne('/api/usermanagement/MergeUser/');
+    const req = httpMock.expectOne('/api/user-merges');
     req.flush({});
     fixture.detectChanges();
 
@@ -180,14 +179,14 @@ describe('MergeUserComponent merging', () => {
   it('sends transferLogins off when toggled off', () => {
     component.transferLogins.set(false);
     component.submit();
-    const req = httpMock.expectOne('/api/usermanagement/MergeUser/');
+    const req = httpMock.expectOne('/api/user-merges');
     expect(req.request.body.mergeOptions.transferLogins).toBeFalse();
     req.flush({});
   });
 
   it("shows the server's message when the source is already gone", () => {
     component.submit();
-    httpMock.expectOne('/api/usermanagement/MergeUser/')
+    httpMock.expectOne('/api/user-merges')
       .flush('Did not find user 5. It may already have been merged or deleted.', { status: 404, statusText: 'Not Found' });
     fixture.detectChanges();
 
@@ -198,7 +197,7 @@ describe('MergeUserComponent merging', () => {
 
   it('falls back to a generic message without one from the server', () => {
     component.submit();
-    httpMock.expectOne('/api/usermanagement/MergeUser/').flush(null, { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/user-merges').flush(null, { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     expect(component.result()).toEqual({ ok: false, text: 'Merge failed' });
@@ -207,7 +206,7 @@ describe('MergeUserComponent merging', () => {
   it('reads the loaded users through parseUser (lockoutEnd as a DateTime)', async () => {
     component.mergeToId.set(7);
     fixture.detectChanges();
-    httpMock.expectOne('/api/usermanagement/getuser/7').flush({ ...user(7), lockoutEnd: '2026-03-04T05:06:00+00:00' });
+    httpMock.expectOne('/api/users/7').flush({ ...user(7), lockoutEnd: '2026-03-04T05:06:00+00:00' });
     await fixture.whenStable();
 
     expect(component.mergeToUser()?.lockoutEnd instanceof DateTime).toBeTrue();

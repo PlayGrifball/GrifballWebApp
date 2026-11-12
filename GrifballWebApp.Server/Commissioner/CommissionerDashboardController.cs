@@ -5,9 +5,10 @@ using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Server.Commissioner;
 
-[Route("[controller]/[action]")]
 [ApiController]
 [Authorize(Roles = "Commissioner,Sysadmin")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
 public class CommissionerDashboardController : ControllerBase
 {
     private readonly RescheduleService _rescheduleService;
@@ -17,8 +18,10 @@ public class CommissionerDashboardController : ControllerBase
         _rescheduleService = rescheduleService;
     }
 
-    [HttpGet(Name = "GetDashboardData")]
-    public async Task<IActionResult> GetDashboardData(CancellationToken ct)
+    /// <summary>The commissioner dashboard: pending reschedules, overdue matches, and their counts. Commissioners and sysadmins only.</summary>
+    [HttpGet("commissioner-dashboard", Name = "GetDashboardData")]
+    [ProducesResponseType<CommissionerDashboardDto>(StatusCodes.Status200OK)]
+    public async Task<CommissionerDashboardDto> GetDashboardData(CancellationToken ct)
     {
         var pendingReschedules = await _rescheduleService.GetPendingReschedulesAsync(ct);
         var overdueMatches = await _rescheduleService.GetOverdueMatchesAsync(ct);
@@ -35,13 +38,14 @@ public class CommissionerDashboardController : ControllerBase
             }
         };
 
-        return Ok(dashboardData);
+        return dashboardData;
     }
 
-    [HttpGet(Name = "GetOverdueMatches")]
-    public async Task<IActionResult> GetOverdueMatches(CancellationToken ct)
+    /// <summary>Matches overdue for rescheduling. Commissioners and sysadmins only.</summary>
+    [HttpGet("season-matches/overdue", Name = "GetOverdueMatches")]
+    [ProducesResponseType<List<OverdueMatchDto>>(StatusCodes.Status200OK)]
+    public Task<List<OverdueMatchDto>> GetOverdueMatches(CancellationToken ct)
     {
-        var overdueMatches = await _rescheduleService.GetOverdueMatchesAsync(ct);
-        return Ok(overdueMatches);
+        return _rescheduleService.GetOverdueMatchesAsync(ct);
     }
 }

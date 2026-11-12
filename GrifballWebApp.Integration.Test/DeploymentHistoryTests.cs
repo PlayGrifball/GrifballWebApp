@@ -42,7 +42,7 @@ public class DeploymentHistoryTests
     public async Task GetDeploymentHistory_NotFound_WhenTheUserDoesNotExist()
     {
         var result = await _controller.GetDeploymentHistory(999, CancellationToken.None);
-        Assert.That(result.Result, Is.InstanceOf<NotFoundResult>());
+        result.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound, "There is no such user");
     }
 
     [Test]

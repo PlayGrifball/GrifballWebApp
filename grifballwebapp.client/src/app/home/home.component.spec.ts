@@ -71,7 +71,7 @@ describe('HomeComponent', () => {
 
     component.ngOnInit();
 
-    const req = httpTestingController.expectOne('/api/Home/CurrentAndFutureEvents/');
+    const req = httpTestingController.expectOne('/api/events');
     expect(req.request.method).toBe('GET');
     req.flush(mockEvents);
 
@@ -91,7 +91,7 @@ describe('HomeComponent', () => {
         }
       });
 
-      const req = httpTestingController.expectOne('/api/Home/CurrentAndFutureEvents/');
+      const req = httpTestingController.expectOne('/api/events');
       expect(req.request.method).toBe('GET');
       req.flush(mockEvents);
     });
@@ -118,7 +118,7 @@ describe('HomeComponent', () => {
       });
 
       const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/Season/GetSeasons' &&
+        request.url === '/api/seasons' &&
         request.params.get('pageSize') === '10' &&
         request.params.get('pageNumber') === '1'
       );
@@ -139,7 +139,7 @@ describe('HomeComponent', () => {
       });
 
       const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/Season/GetSeasons' &&
+        request.url === '/api/seasons' &&
         request.params.get('sortDirection') === 'asc' &&
         request.params.get('sortColumn') === 'seasonName'
       );
@@ -163,7 +163,7 @@ describe('HomeComponent', () => {
       });
 
       const req = httpTestingController.expectOne((request) => {
-        return request.url === '/api/Season/GetSeasons' &&
+        return request.url === '/api/seasons' &&
                !request.params.has('sortDirection') &&
                !request.params.has('sortColumn');
       });
@@ -188,7 +188,7 @@ describe('HomeComponent', () => {
         }
       });
 
-      const req = httpTestingController.expectOne((request) => request.url === '/api/Season/GetSeasons');
+      const req = httpTestingController.expectOne((request) => request.url === '/api/seasons');
       req.flush(mockResult);
     });
 
@@ -207,7 +207,7 @@ describe('HomeComponent', () => {
         }
       });
 
-      const req = httpTestingController.expectOne((request) => request.url === '/api/Season/GetSeasons');
+      const req = httpTestingController.expectOne((request) => request.url === '/api/seasons');
       req.flush(mockResult);
     });
   });
@@ -229,7 +229,7 @@ describe('HomeComponent', () => {
       });
 
       const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/Season/GetSeasons' &&
+        request.url === '/api/seasons' &&
         request.params.get('pageSize') === '25'
       );
       req.flush(mockResult);
@@ -251,7 +251,7 @@ describe('HomeComponent', () => {
       });
 
       const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/Season/GetSeasons' &&
+        request.url === '/api/seasons' &&
         request.params.get('pageNumber') === '3'
       );
       req.flush(mockResult);
@@ -273,7 +273,7 @@ describe('HomeComponent', () => {
       });
 
       const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/Season/GetSeasons' &&
+        request.url === '/api/seasons' &&
         request.params.get('sortDirection') === 'desc' &&
         request.params.get('sortColumn') === 'seasonName'
       );
@@ -303,7 +303,7 @@ describe('HomeComponent paginator and sort wiring', () => {
     fixture = TestBed.createComponent(HomeComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-    http.expectOne('/api/Home/CurrentAndFutureEvents/').flush([]);
+    http.expectOne('/api/events').flush([]);
     await settle();
   });
 
@@ -317,7 +317,7 @@ describe('HomeComponent paginator and sort wiring', () => {
   }
 
   function pastSeasonsRequest() {
-    const reqs = http.match(r => r.url === '/api/Season/GetSeasons');
+    const reqs = http.match(r => r.url === '/api/seasons');
     expect(reqs.length).withContext('one past-seasons request').toBeGreaterThan(0);
     return reqs[reqs.length - 1];
   }
@@ -445,8 +445,8 @@ describe('Home page events', () => {
     const el = () => fixture.nativeElement as HTMLElement;
     const load = (events: Event[]) => {
       fixture.detectChanges();
-      http.expectOne('/api/Home/CurrentAndFutureEvents/').flush(events);
-      http.match(r => r.url === '/api/Season/GetSeasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
+      http.expectOne('/api/events').flush(events);
+      http.match(r => r.url === '/api/seasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
       fixture.detectChanges();
     };
 
@@ -489,8 +489,8 @@ describe('Home page events', () => {
       fixture.detectChanges();
       const page = () => el().querySelector('.hud-page')!;
       expect(page().classList).toContain('hud-waiting');
-      http.expectOne('/api/Home/CurrentAndFutureEvents/').flush('x', { status: 500, statusText: 'Server Error' });
-      http.match(r => r.url === '/api/Season/GetSeasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
+      http.expectOne('/api/events').flush('x', { status: 500, statusText: 'Server Error' });
+      http.match(r => r.url === '/api/seasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
       fixture.detectChanges();
       expect(page().classList).not.toContain('hud-waiting');
       expect(el().textContent).toContain('There are no current or upcoming events');

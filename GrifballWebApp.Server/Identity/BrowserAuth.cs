@@ -10,7 +10,7 @@ namespace GrifballWebApp.Server.Identity;
 /// <summary>
 /// How the API knows who is calling. Browsers sign in with an HttpOnly cookie (<see cref="CookieName"/>), which
 /// scripts on the page cannot read, so an XSS bug cannot steal a session. Other clients (the post-deploy smoke
-/// suite, scripts) can still ask <c>/Identity/Login?useCookies=false</c> for a bearer token and send it in the
+/// suite, scripts) can still ask <c>/identity/login?useCookies=false</c> for a bearer token and send it in the
 /// Authorization header. <see cref="Scheme"/> picks one per request: bearer when the request has that header,
 /// the cookie otherwise.
 /// </summary>
@@ -28,7 +28,7 @@ public static partial class BrowserAuth
     /// <summary>The antiforgery cookie, which pairs with the request token in <see cref="AntiforgeryHeader"/>.</summary>
     public const string AntiforgeryCookieName = "__Host-Grifball.Antiforgery";
 
-    /// <summary>The header the client sends the antiforgery request token in (from <c>GET /Identity/Antiforgery</c>).</summary>
+    /// <summary>The header the client sends the antiforgery request token in (from <c>GET /identity/antiforgery-token</c>).</summary>
     public const string AntiforgeryHeader = "X-XSRF-TOKEN";
 
     /// <summary>Set on the 400 for a missing or stale antiforgery token, so the client knows to fetch a new one and retry.</summary>

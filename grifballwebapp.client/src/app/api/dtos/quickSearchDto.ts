@@ -1,4 +1,4 @@
-/** The quick search's hits (Search/QuickSearch): a few players, teams and seasons, the best first. */
+/** The quick search's hits (GET /api/search): a few players, teams and seasons, the best first. */
 export interface QuickSearchDto {
   players: QuickSearchPlayerDto[];
   teams: QuickSearchTeamDto[];

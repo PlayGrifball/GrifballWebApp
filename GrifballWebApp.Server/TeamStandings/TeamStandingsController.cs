@@ -1,10 +1,10 @@
-﻿using GrifballWebApp.Application.TeamStandings;
+﻿using Microsoft.AspNetCore.Authorization;
+using GrifballWebApp.Application.TeamStandings;
 
 using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.TeamStandings;
 
-[Route("[controller]/[action]")]
 [ApiController]
 public class TeamStandingsController : ControllerBase
 {
@@ -15,7 +15,10 @@ public class TeamStandingsController : ControllerBase
         _teamStandingsService = teamStandingsService;
     }
 
-    [HttpGet("{seasonID:int}", Name = "GetTeamStandings")]
+    /// <summary>A season's team standings.</summary>
+    [AllowAnonymous]
+    [HttpGet("seasons/{seasonID:int}/standings", Name = "GetTeamStandings")]
+    [ProducesResponseType<TeamStandingDto[]>(StatusCodes.Status200OK)]
     public Task<TeamStandingDto[]> GetTeamStandings([FromRoute] int seasonID, CancellationToken ct)
     {
         return _teamStandingsService.GetTeamStandings(seasonID, ct);

@@ -51,7 +51,7 @@ export class ProfileCommendationsComponent {
 
   readonly commendations = rxResource({
     params: () => this.userID(),
-    stream: ({ params }) => this.http.get<ProfileCommendationsDto>('api/profile/getcommendations/' + params),
+    stream: ({ params }) => this.http.get<ProfileCommendationsDto>(`api/users/${params}/commendations`),
   });
 
   readonly data = computed<ProfileCommendationsDto | null>(() => this.commendations.hasValue() ? this.commendations.value() : null);

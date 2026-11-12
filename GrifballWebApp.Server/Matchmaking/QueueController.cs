@@ -29,7 +29,6 @@ public class QueueStatusDto
 /// Discord buttons' rules (<see cref="QueueMembership"/>). Matches are made by the worker's matchmaking tick, which
 /// also updates the queue's Discord message, within 10 seconds of a change made here.
 /// </summary>
-[Route("[controller]/[action]")]
 [ApiController]
 public class QueueController : ControllerBase
 {
@@ -45,33 +44,43 @@ public class QueueController : ControllerBase
         _open = !PreviewMode.DisablesDiscord(configuration);
     }
 
-    [HttpGet(Name = "GetQueueStatus")]
+    /// <summary>The matchmaking queue's size and whether it's open, plus the signed-in user's own membership in it.</summary>
+    [AllowAnonymous]
+    [HttpGet("queue", Name = "GetQueueStatus")]
+    [ProducesResponseType<QueueStatusDto>(StatusCodes.Status200OK)]
     public Task<QueueStatusDto> Status(CancellationToken ct) => StatusOf(JobUser.IdOf(User), ct);
 
+    /// <summary>Joins the signed-in user to the matchmaking queue.</summary>
     [Authorize]
-    [HttpPost(Name = "JoinQueue")]
+    [HttpPost("queue/join", Name = "JoinQueue")]
+    [ProducesResponseType<QueueStatusDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     public async Task<ActionResult<QueueStatusDto>> Join(CancellationToken ct)
     {
         if (JobUser.IdOf(User) is not int userId)
-            return Unauthorized();
+            return this.UnauthorizedProblem("You must be signed in to queue");
         if (!_open)
-            return Conflict(QueueMessages.LateLeagueOff);
+            return this.ConflictProblem(QueueMessages.LateLeagueOff);
         var (result, count) = await _membership.Join(userId, ct);
         if (result is not QueueJoinResult.Joined)
-            return Conflict(QueueMessages.For(result));
+            return this.ConflictProblem(QueueMessages.For(result));
         return Joined(count);
     }
 
     /// <summary>Allowed even where matchmaking is off: nobody should be stuck in the queue.</summary>
     [Authorize]
-    [HttpPost(Name = "LeaveQueue")]
+    [HttpPost("queue/leave", Name = "LeaveQueue")]
+    [ProducesResponseType<QueueStatusDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     public async Task<ActionResult<QueueStatusDto>> Leave(CancellationToken ct)
     {
         if (JobUser.IdOf(User) is not int userId)
-            return Unauthorized();
+            return this.UnauthorizedProblem("You must be signed in to queue");
         var (result, _) = await _membership.Leave(userId, ct);
         if (result is not QueueLeaveResult.Left)
-            return Conflict(QueueMessages.For(result));
+            return this.ConflictProblem(QueueMessages.For(result));
         // Read again, not assumed: leaving needs no gamertag, so the player may have none
         return await StatusOf(userId, ct);
     }

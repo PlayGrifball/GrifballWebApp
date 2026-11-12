@@ -57,7 +57,7 @@ public class CommissionerDashboardControllerTests
 
         var result = await _controller.GetDashboardData(CancellationToken.None);
 
-        var dto = (CommissionerDashboardDto)((OkObjectResult)result).Value!;
+        var dto = result;
         using (Assert.EnterMultipleScope())
         {
             Assert.That(dto.PendingReschedules, Has.Count.EqualTo(1));
@@ -74,7 +74,7 @@ public class CommissionerDashboardControllerTests
     [Test]
     public async Task GetDashboardData_Empty_ReturnsZeroes()
     {
-        var dto = (CommissionerDashboardDto)((OkObjectResult)await _controller.GetDashboardData(CancellationToken.None)).Value!;
+        var dto = await _controller.GetDashboardData(CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -89,7 +89,7 @@ public class CommissionerDashboardControllerTests
     {
         await SeedOverdueAndPending();
 
-        var list = (List<OverdueMatchDto>)((OkObjectResult)await _controller.GetOverdueMatches(CancellationToken.None)).Value!;
+        var list = await _controller.GetOverdueMatches(CancellationToken.None);
 
         Assert.That(list, Has.Count.EqualTo(2));
         using (Assert.EnterMultipleScope())

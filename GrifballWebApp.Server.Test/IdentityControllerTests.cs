@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.Identity;
 using GrifballWebApp.Domain.Players;
@@ -49,9 +50,9 @@ public class IdentityControllerTests
         
         var result = await _controller.ResetPassword(request, CancellationToken.None);
         
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-        var badRequest = (BadRequestObjectResult)result;
-        Assert.That(badRequest.Value, Is.EqualTo("Token is required"));
+        result.AssertProblem(StatusCodes.Status400BadRequest);
+        var badRequest = result.AssertProblem(StatusCodes.Status400BadRequest);
+        Assert.That(badRequest.Detail, Is.EqualTo("Token is required"));
     }
 
     [Test]
@@ -61,9 +62,9 @@ public class IdentityControllerTests
         
         var result = await _controller.ResetPassword(request, CancellationToken.None);
         
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-        var badRequest = (BadRequestObjectResult)result;
-        Assert.That(badRequest.Value, Is.EqualTo("Token is required"));
+        result.AssertProblem(StatusCodes.Status400BadRequest);
+        var badRequest = result.AssertProblem(StatusCodes.Status400BadRequest);
+        Assert.That(badRequest.Detail, Is.EqualTo("Token is required"));
     }
 
     [Test]
@@ -73,9 +74,9 @@ public class IdentityControllerTests
         
         var result = await _controller.ResetPassword(request, CancellationToken.None);
         
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-        var badRequest = (BadRequestObjectResult)result;
-        Assert.That(badRequest.Value, Is.EqualTo("New password is required"));
+        result.AssertProblem(StatusCodes.Status400BadRequest);
+        var badRequest = result.AssertProblem(StatusCodes.Status400BadRequest);
+        Assert.That(badRequest.Detail, Is.EqualTo("New password is required"));
     }
 
     [Test]
@@ -85,9 +86,9 @@ public class IdentityControllerTests
         
         var result = await _controller.ResetPassword(request, CancellationToken.None);
         
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-        var badRequest = (BadRequestObjectResult)result;
-        Assert.That(badRequest.Value, Is.EqualTo("New password is required"));
+        result.AssertProblem(StatusCodes.Status400BadRequest);
+        var badRequest = result.AssertProblem(StatusCodes.Status400BadRequest);
+        Assert.That(badRequest.Detail, Is.EqualTo("New password is required"));
     }
 
     [Test]
@@ -99,9 +100,9 @@ public class IdentityControllerTests
         
         var result = await _controller.ResetPassword(request, CancellationToken.None);
         
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-        var badRequest = (BadRequestObjectResult)result;
-        Assert.That(badRequest.Value, Is.EqualTo("Invalid or already used reset link"));
+        result.AssertProblem(StatusCodes.Status400BadRequest);
+        var badRequest = result.AssertProblem(StatusCodes.Status400BadRequest);
+        Assert.That(badRequest.Detail, Is.EqualTo("Invalid or already used reset link"));
     }
 
     [Test]

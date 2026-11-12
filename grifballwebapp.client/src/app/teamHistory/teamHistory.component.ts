@@ -4,6 +4,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterModule } from '@angular/router';
 import type { SeasonInfoDto } from '../api/dtos/seasonInfoDto';
 import type { PlayerDto } from '../season/team/team.component';
+import { nullWhenNotFound } from '../api/nullWhenNotFound';
 
 /**
  * A franchise's history: every season's team of one name in one league (a team is a row of one season), found from
@@ -25,7 +26,7 @@ export class TeamHistoryComponent {
   /** A new team cancels the request before it and clears what it showed. */
   readonly historyResource = rxResource({
     params: () => this.teamID(),
-    stream: ({ params: teamID }) => this.http.get<TeamHistoryDto | null>(`/api/Team/History/${teamID}`),
+    stream: ({ params: teamID }) => this.http.get<TeamHistoryDto>(`/api/teams/${teamID}/history`).pipe(nullWhenNotFound()),
   });
   readonly history = computed(() => this.historyResource.hasValue() ? this.historyResource.value() ?? null : null);
   readonly loaded = computed(() => !this.historyResource.isLoading());

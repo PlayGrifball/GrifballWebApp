@@ -2,7 +2,7 @@ import type { SeasonChampionDto } from './seasonSummaryDto';
 import type { SeasonInfoDto } from './seasonInfoDto';
 import type { SeasonFormat } from './seasonFormat';
 
-/** A season in the season list (GET /api/Season/GetSeasons). */
+/** A season in the season list (GET /api/seasons). */
 export interface SeasonListItemDto extends SeasonInfoDto {
   teamCount: number;
   playerCount: number;

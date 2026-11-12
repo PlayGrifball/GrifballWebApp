@@ -32,9 +32,9 @@ describe('ServerApiBackend', () => {
   it('sends the app\'s /api calls straight to the backend, without the prefix', async () => {
     const backend = create(page());
 
-    const events = await lastValueFrom(backend.handle(new HttpRequest('GET', 'https://grifball.xyz/api/Season/getSeasonName/12?x=1')));
+    const events = await lastValueFrom(backend.handle(new HttpRequest('GET', 'https://grifball.xyz/api/seasons/12/name?x=1')));
 
-    expect(sent()[0]).toBe('http://backend:5295/Season/getSeasonName/12?x=1');
+    expect(sent()[0]).toBe('http://backend:5295/seasons/12/name?x=1');
     expect(body(events)).toEqual({ ok: true });
   });
 
@@ -83,7 +83,7 @@ describe('ServerApiBackend', () => {
       fetch.and.returnValue(new Promise<Response>(() => { }));
       const backend = create(page());
       let error: unknown;
-      backend.handle(new HttpRequest('GET', 'https://grifball.xyz/api/SeasonMatch/GetPossibleMatches/1')).subscribe({ error: e => error = e });
+      backend.handle(new HttpRequest('GET', 'https://grifball.xyz/api/season-matches/1/possible-matches')).subscribe({ error: e => error = e });
 
       jasmine.clock().tick(SERVER_API_TIMEOUT_MS - 1);
       expect(error).toBeUndefined();
@@ -91,7 +91,7 @@ describe('ServerApiBackend', () => {
 
       expect(error).toEqual(jasmine.any(HttpErrorResponse));
       expect((error as HttpErrorResponse).status).toBe(504);
-      expect((error as HttpErrorResponse).url).toBe('http://backend:5295/SeasonMatch/GetPossibleMatches/1');
+      expect((error as HttpErrorResponse).url).toBe('http://backend:5295/season-matches/1/possible-matches');
     } finally {
       jasmine.clock().uninstall();
     }
@@ -112,7 +112,7 @@ describe('ServerApiBackend', () => {
       const error = spyOn(console, 'error');
       const backend = create(page({ cookie: 'a=b' }));
 
-      const failure = await lastValueFrom(backend.handle(new HttpRequest(method, 'https://grifball.xyz/api/ExternalLogins/LinkCallback', null))).catch(e => e);
+      const failure = await lastValueFrom(backend.handle(new HttpRequest(method, 'https://grifball.xyz/api/me/external-logins', null))).catch(e => e);
 
       expect(failure).toEqual(jasmine.any(HttpErrorResponse));
       expect((failure as HttpErrorResponse).status).toBe(405);

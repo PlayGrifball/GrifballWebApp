@@ -14,7 +14,7 @@ function claim(id: number, changes: Partial<GamertagClaimDto> = {}): GamertagCla
   };
 }
 
-const claimsUrl = '/api/MyProfile/GamertagClaims';
+const claimsUrl = '/api/me/gamertag-claims';
 
 describe('ProfileIdentityComponent', () => {
   let fixture: ComponentFixture<ProfileIdentityComponent>;
@@ -58,7 +58,7 @@ describe('ProfileIdentityComponent', () => {
     fixture.componentInstance.changed.subscribe(() => changed++);
     select.value = '2';
     select.dispatchEvent(new Event('change'));
-    const save = http.expectOne('/api/MyProfile/SetRegion');
+    const save = http.expectOne('/api/me/region');
     expect(save.request.body).toEqual({ regionID: 2 });
     save.flush(null, { status: 204, statusText: 'No Content' });
     expect(snackBar.open).toHaveBeenCalledWith('Region saved.', 'Close');
@@ -71,13 +71,13 @@ describe('ProfileIdentityComponent', () => {
     const select = el().querySelector<HTMLSelectElement>('#pi-region')!;
     select.value = '';
     select.dispatchEvent(new Event('change'));
-    const clear = http.expectOne('/api/MyProfile/SetRegion');
+    const clear = http.expectOne('/api/me/region');
     expect(clear.request.body).toEqual({ regionID: null });
     clear.flush(null, { status: 204, statusText: 'No Content' });
     expect(snackBar.open).toHaveBeenCalledWith('Region cleared.', 'Close');
     select.value = '1';
     select.dispatchEvent(new Event('change'));
-    http.expectOne('/api/MyProfile/SetRegion').flush('There is no such region', { status: 400, statusText: 'Bad Request' });
+    http.expectOne('/api/me/region').flush('There is no such region', { status: 400, statusText: 'Bad Request' });
     expect(snackBar.open).toHaveBeenCalledWith('There is no such region', 'Close');
   });
 
@@ -89,14 +89,14 @@ describe('ProfileIdentityComponent', () => {
     type('#pi-gamertag', ' Old  Me ');
     type('#pi-from', '2018-06-01');
     button('Find its records').click();
-    const preview = http.expectOne(r => r.url === '/api/MyProfile/PreviewClaim');
+    const preview = http.expectOne(r => r.url === '/api/me/gamertag-claims/preview');
     expect(preview.request.params.get('gamertag')).toBe('Old  Me');
     preview.flush({ gamertag: 'Old Me', placeholderUserID: 501, placeholderName: 'Old Me', seasons: [{ seasonID: 4, seasonName: 'Winter League 2019', year: 2019 }], refusal: null });
     fixture.detectChanges();
     expect(el().querySelector('[role="status"]')!.textContent).toContain('Old Me played Winter League 2019 (2019).');
     expect(button('Send claim').disabled).toBeFalse();
     button('Send claim').click();
-    const send = http.expectOne('/api/MyProfile/ClaimGamertag');
+    const send = http.expectOne('/api/me/gamertag-claims');
     expect(send.request.body).toEqual({ gamertag: 'Old  Me', firstSeen: '2018-06-01T00:00:00Z', lastSeen: null });
     send.flush(claim(9));
     expect(snackBar.open).toHaveBeenCalledWith('Your claim to Old Me is waiting for a sysadmin.', 'Close');
@@ -114,7 +114,7 @@ describe('ProfileIdentityComponent', () => {
     expect(el().querySelector('.pi-claim-reason')!.textContent).toContain('That was Bob');
     type('#pi-gamertag', 'Taken');
     button('Find its records').click();
-    http.expectOne(r => r.url === '/api/MyProfile/PreviewClaim')
+    http.expectOne(r => r.url === '/api/me/gamertag-claims/preview')
       .flush({ gamertag: 'Taken', placeholderUserID: null, placeholderName: null, seasons: [], refusal: "That gamertag belongs to another user's Xbox account." });
     fixture.detectChanges();
     expect(el().querySelector('.pi-refusal')!.textContent).toContain('belongs to another user');
@@ -132,14 +132,14 @@ describe('ProfileIdentityComponent', () => {
     fixture.componentInstance.previewClaim();
     type('#pi-gamertag', 'Old Me');
     button('Find its records').click();
-    http.expectOne(r => r.url === '/api/MyProfile/PreviewClaim').flush('', { status: 500, statusText: 'down' });
+    http.expectOne(r => r.url === '/api/me/gamertag-claims/preview').flush('', { status: 500, statusText: 'down' });
     expect(snackBar.open).toHaveBeenCalledWith("Couldn't look that gamertag up.", 'Close');
     button('Find its records').click();
-    http.expectOne(r => r.url === '/api/MyProfile/PreviewClaim').flush({ gamertag: 'Old Me', placeholderUserID: 501, placeholderName: null, seasons: [], refusal: null });
+    http.expectOne(r => r.url === '/api/me/gamertag-claims/preview').flush({ gamertag: 'Old Me', placeholderUserID: 501, placeholderName: null, seasons: [], refusal: null });
     fixture.detectChanges();
     expect(el().querySelector('[role="status"]')!.textContent).toContain('Old Me played no recorded seasons.');
     button('Send claim').click();
-    http.expectOne('/api/MyProfile/ClaimGamertag').flush({ title: 'Request refused', detail: 'You can make 5 claims a day; try again tomorrow' }, { status: 400, statusText: 'Bad Request' });
+    http.expectOne('/api/me/gamertag-claims').flush({ title: 'Request refused', detail: 'You can make 5 claims a day; try again tomorrow' }, { status: 400, statusText: 'Bad Request' });
     expect(snackBar.open).toHaveBeenCalledWith('You can make 5 claims a day; try again tomorrow', 'Close');
   });
 });

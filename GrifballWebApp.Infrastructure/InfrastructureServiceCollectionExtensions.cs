@@ -162,7 +162,12 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddTransient<IDatabaseLocks, ContextDatabaseLocks>();
         services.AddTransient<ExcelService>();
         services.AddDatabaseBackups(configuration);
-        services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
+        services.AddTransient<GetsertXboxUserService>();
+        // A preview's smoke players get made-up gamertags; everything else is looked up on Halo
+        if (PreviewMode.IsEnabled(configuration))
+            services.AddTransient<IGetsertXboxUserService, PreviewSmokeXboxUsers>();
+        else
+            services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
         services.AddSingleton<IBotChatClients, OllamaChatClients>();
         return services;
     }

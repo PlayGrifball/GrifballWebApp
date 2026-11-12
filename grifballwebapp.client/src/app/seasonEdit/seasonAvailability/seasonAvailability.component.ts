@@ -127,14 +127,14 @@ export class SeasonAvailabilityComponent implements OnInit {
   }
 
   updateSeasonAvailability() {
-    return this.http.post('api/Availability/UpdateSeasonAvailability', {
+    return this.http.post(`api/seasons/${this.seasonID()}/availability`, {
       seasonID: this.seasonID(),
       timeslots: this.options(),
     });
   }
 
   getSeasonAvailability() {
-    return this.http.get<AvailabilityOption[]>('api/Availability/GetSeasonAvailability?seasonID=' + this.seasonID());
+    return this.http.get<AvailabilityOption[]>(`api/seasons/${this.seasonID()}/availability`);
   }
 }
 

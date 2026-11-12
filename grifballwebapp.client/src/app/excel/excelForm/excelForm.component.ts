@@ -11,7 +11,7 @@ import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { RegexMatchValidValidatorDirective } from '../../validation/directives/regexMatchValidValidatorDirective.directive';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { SheetInfo } from '../excel.component';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 
 /** How often a queued or running export of every match is looked at again. */
 export const EXPORT_POLL_MS = 3000;
@@ -57,14 +57,13 @@ export class ExcelFormComponent implements OnInit {
   onSubmit(matchID: string): void {
     this.isSubmittingMatch.set(true);
 
-    let params = new HttpParams().set('matchID', matchID);
     let dto: SheetInfo = {
       name: this.inputName(),
       spreadsheetID: this.spreadsheetID,
       sheetName: this.sheetName,
     }
 
-    this.httpClient.post('/api/Excel/AppendMatch/', dto, { params })
+    this.httpClient.post(`/api/matches/${encodeURIComponent(matchID)}/append-to-sheet`, dto)
         .subscribe({
           next: result => console.log(result),
           error: result => console.log(result),
@@ -80,7 +79,7 @@ export class ExcelFormComponent implements OnInit {
   exportAll(): void {
     this.exportError.set(null);
     const dto: SheetInfo = { name: this.inputName(), spreadsheetID: this.spreadsheetID, sheetName: this.sheetName };
-    this.httpClient.post<OnDemandJobStatusDto>('/api/Excel/ExportAll/', dto)
+    this.httpClient.post<OnDemandJobStatusDto>('/api/sheets/export', dto)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: status => this.followExport(status),
@@ -93,7 +92,7 @@ export class ExcelFormComponent implements OnInit {
     if (status.state === 'Idle')
       return;
     timer(EXPORT_POLL_MS, EXPORT_POLL_MS).pipe(
-      switchMap(() => this.httpClient.get<OnDemandJobStatusDto>('/api/Excel/ExportAllStatus')),
+      switchMap(() => this.httpClient.get<OnDemandJobStatusDto>('/api/sheets/export')),
       takeWhile(next => next.state !== 'Idle', true),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({

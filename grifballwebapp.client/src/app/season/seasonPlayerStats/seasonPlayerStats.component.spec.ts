@@ -13,7 +13,7 @@ function stat(id: number, gamertag: string, changes: Partial<SeasonPlayerStatDto
   };
 }
 
-const url = (seasonID: number) => '/api/Season/GetSeasonPlayerStats/' + seasonID;
+const url = (seasonID: number) => `/api/seasons/${seasonID}/player-stats`;
 
 describe('SeasonPlayerStatsComponent', () => {
   let fixture: ComponentFixture<SeasonPlayerStatsComponent>;

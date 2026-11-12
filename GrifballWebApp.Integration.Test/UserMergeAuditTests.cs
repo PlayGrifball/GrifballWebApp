@@ -521,7 +521,7 @@ public class UserMergeAuditTests
         {
             Assert.That(list.TotalCount, Is.EqualTo(1));
             Assert.That(found.Value!.UserMergeID, Is.EqualTo(mergeId));
-            Assert.That(missing.Result, Is.TypeOf<NotFoundResult>());
+            missing.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound, "There is no such merge");
             Assert.That(undone, Is.TypeOf<NoContentResult>());
             Assert.That(await _context.NewContextLike().Users.AnyAsync(u => u.Id == _placeholder.Id), Is.True);
         }

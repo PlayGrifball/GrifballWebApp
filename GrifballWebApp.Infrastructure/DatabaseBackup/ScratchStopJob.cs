@@ -62,8 +62,10 @@ public sealed class ScratchScaleDown(Jobs.OnDemandJobs jobs, ILogger<ScratchScal
                 logger.LogInformation("Queued the scratch server's stop: it runs once no backup or export is using it");
                 return;
             }
-            catch (Exception e) when (!stoppingToken.IsCancellationRequested)
+            catch (Exception e)
             {
+                // A call that fails as the host stops (the store refusing, not only the token) ends it as a cancellation too
+                stoppingToken.ThrowIfCancellationRequested();
                 logger.LogWarning(e, "Couldn't queue the scratch server's stop at startup (the job store didn't answer): trying again in {Delay}", RetryDelay);
             }
             // The host stopping ends it here (or in the call above), as a cancellation

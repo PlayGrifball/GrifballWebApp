@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using GrifballWebApp.Server.Profile;
@@ -33,46 +34,42 @@ public class ProfileControllerSetGamertagUnitTests
         _controller.WithUser("42", "me", "Player");
         _setGamertag.SetGamertag(42, "NewGT", Arg.Any<CancellationToken>()).Returns((string?)null);
 
-        var result = await _controller.SetGamertag(42, "NewGT", CancellationToken.None);
+        var result = await _controller.SetGamertag(42, new SetGamertagRequest("NewGT"), CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<OkResult>());
+        Assert.That(result, Is.TypeOf<NoContentResult>());
         await _setGamertag.Received(1).SetGamertag(42, "NewGT", Arg.Any<CancellationToken>());
     }
 
     [Test]
-    public async Task SetGamertag_ServiceReturnsError_ReturnsBadRequestWithMessage()
+    public async Task SetGamertag_ServiceReturnsError_IsABadRequestProblem()
     {
         _controller.WithUser("42", "me", "Player");
         _setGamertag.SetGamertag(42, "NewGT", Arg.Any<CancellationToken>()).Returns("User does not exist");
 
-        var result = await _controller.SetGamertag(42, "NewGT", CancellationToken.None);
+        var result = await _controller.SetGamertag(42, new SetGamertagRequest("NewGT"), CancellationToken.None);
 
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-            Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("User does not exist"));
-        }
+        result.AssertProblem(StatusCodes.Status400BadRequest, "User does not exist");
     }
 
     [Test]
-    public async Task SetGamertag_OtherUser_ReturnsForbid()
+    public async Task SetGamertag_OtherUser_IsForbidden()
     {
         _controller.WithUser("42", "me", "Player");
 
-        var result = await _controller.SetGamertag(43, "NewGT", CancellationToken.None);
+        var result = await _controller.SetGamertag(43, new SetGamertagRequest("NewGT"), CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<ForbidResult>());
+        result.AssertProblem(StatusCodes.Status403Forbidden, "You can only set your own gamertag");
         _ = _setGamertag.DidNotReceiveWithAnyArgs().SetGamertag(default, default!, default);
     }
 
     [TestCase(null)]
     [TestCase("garbage")]
-    public async Task SetGamertag_NoOrInvalidId_ReturnsForbid(string? claim)
+    public async Task SetGamertag_NoOrInvalidId_IsForbidden(string? claim)
     {
         if (claim is null) _controller.WithAnonymousUser(); else _controller.WithUser(claim);
 
-        var result = await _controller.SetGamertag(1, "NewGT", CancellationToken.None);
+        var result = await _controller.SetGamertag(1, new SetGamertagRequest("NewGT"), CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<ForbidResult>());
+        result.AssertProblem(StatusCodes.Status403Forbidden, "You can only set your own gamertag");
     }
 }

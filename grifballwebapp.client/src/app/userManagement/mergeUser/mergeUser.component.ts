@@ -30,15 +30,20 @@ export class MergeUserComponent {
 
   // An undefined URL keeps the resource idle, so no request is made until an ID is chosen.
   mergeFromId = signal<number>(0);
-  mergeFrom = httpResource(() => this.mergeFromId() ? '/api/usermanagement/getuser/' + this.mergeFromId() : undefined, { parse: parseUser });
+  mergeFrom = httpResource(() => this.mergeFromId() ? `/api/users/${this.mergeFromId()}` : undefined, { parse: parseUser });
 
   mergeToId = signal<number>(0);
-  mergeTo = httpResource(() => this.mergeToId() ? '/api/usermanagement/getuser/' + this.mergeToId() : undefined, { parse: parseUser });
+  mergeTo = httpResource(() => this.mergeToId() ? `/api/users/${this.mergeToId()}` : undefined, { parse: parseUser });
 
   // value() throws while a resource is in the error state (Angular 20+), so
   // the template reads these instead and shows resource.error() separately.
   mergeFromUser = computed(() => this.mergeFrom.hasValue() ? this.mergeFrom.value() : undefined);
   mergeToUser = computed(() => this.mergeTo.hasValue() ? this.mergeTo.value() : undefined);
+
+  /** A lookup that failed: not a 404, which only says there is no such user (shown as "User not found."). */
+  failedToLoad(error: unknown): boolean {
+    return !!error && !(error instanceof HttpErrorResponse && error.status === 404);
+  }
 
   transferDiscord = signal(true);
   transferLogins = signal(true);
@@ -83,7 +88,7 @@ export class MergeUserComponent {
 
     this.submitting.set(true);
     this.result.set(null);
-    this.http.post('/api/usermanagement/MergeUser/', dto).subscribe({
+    this.http.post('/api/user-merges', dto).subscribe({
       next: () => {
         console.log('Merged user');
         this.submitting.set(false);

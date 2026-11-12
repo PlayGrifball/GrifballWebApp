@@ -65,7 +65,7 @@ describe('SeasonThisWeekComponent', () => {
   it('loads the scheduled matches and links each card to its match', () => {
     fixture.componentRef.setInput('seasonID', 4);
     fixture.detectChanges();
-    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([
+    http.expectOne('/api/seasons/4/matches/scheduled').flush([
       { seasonMatchID: 31, homeCaptain: 'Grif', awayCaptain: 'Simmons', homeTeam: 'Red Team (Grif)', awayTeam: 'Blue Team (Simmons)', complete: false, time: '2026-03-13T20:00:00Z' },
     ]);
     fixture.detectChanges();
@@ -79,7 +79,7 @@ describe('SeasonThisWeekComponent', () => {
   it('says so when nothing is scheduled, also when the request fails', () => {
     fixture.componentRef.setInput('seasonID', 4);
     fixture.detectChanges();
-    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/seasons/4/matches/scheduled').flush('x', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
     expect(text()).toContain('No matches scheduled yet.');
   });

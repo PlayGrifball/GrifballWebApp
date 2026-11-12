@@ -14,8 +14,8 @@ async function createBracket(page: Page, thenEscape: boolean): Promise<void> {
   await bracketLink(page, 'Create Bracket').click();
   await dialog(page).locator('input[name="participantsCount"]').fill('4');
   await dialog(page).locator('input[name="bestOf"]').fill('1');
-  const created = page.waitForResponse(isCall(/\/api\/Brackets\/CreateBracket/i));
-  const refreshed = page.waitForResponse(isCall(/\/api\/Brackets\/GetViewerData/i));
+  const created = page.waitForResponse(isCall(/\/api\/seasons\/\d+\/bracket\?/i));
+  const refreshed = page.waitForResponse(isCall(/\/api\/seasons\/\d+\/bracket\/viewer-data/i));
   await dialog(page).getByRole('button', { name: 'Create Bracket' }).click();
   if (thenEscape) await page.keyboard.press('Escape');
   await expect(dialog(page)).toHaveCount(0);
@@ -43,15 +43,15 @@ test.describe('season page dialogs', () => {
 
   test('Set Seeds: submit closes and refreshes; Esc right after a second submit still refreshes', async ({ adminPage: page, admin }) => {
     const viewer = page.locator('.brackets-viewer');
-    await admin.post(`Brackets/CreateBracket?seasonID=${league.seasonID}&participantsCount=4&doubleElimination=false&bestOf=1`);
+    await admin.post(`seasons/${league.seasonID}/bracket?participantsCount=4&doubleElimination=false&bestOf=1`);
     await page.goto(`/season/${league.seasonID}?tab=bracket`);
     await expect(viewer).toContainText('Seed 1');
 
     // Normal submit.
     await bracketLink(page, 'Set Seeds').click();
     await expect(dialog(page).locator('.seed-item:not(.dndPlaceholder)')).toHaveCount(4);
-    let seeded = page.waitForResponse(isCall(/\/api\/Brackets\/SetCustomSeeds/i));
-    let refreshed = page.waitForResponse(isCall(/\/api\/Brackets\/GetViewerData/i));
+    let seeded = page.waitForResponse(isCall(/\/api\/seasons\/\d+\/bracket\/seeds$/i));
+    let refreshed = page.waitForResponse(isCall(/\/api\/seasons\/\d+\/bracket\/viewer-data/i));
     await dialog(page).getByRole('button', { name: 'Set Seeds' }).click();
     expect((await seeded).ok()).toBe(true);
     await expect(dialog(page)).toHaveCount(0);
@@ -59,7 +59,7 @@ test.describe('season page dialogs', () => {
     await expect(viewer).toContainText(teamName(league, 0));
 
     // A seeded bracket can't be seeded again (the server refuses): start a fresh one first.
-    await admin.post(`Brackets/CreateBracket?seasonID=${league.seasonID}&participantsCount=4&doubleElimination=false&bestOf=1`);
+    await admin.post(`seasons/${league.seasonID}/bracket?participantsCount=4&doubleElimination=false&bestOf=1`);
     await page.reload();
     await expect(viewer).toContainText('Seed 1');
     await expect(viewer).not.toContainText(teamName(league, 0));
@@ -67,8 +67,8 @@ test.describe('season page dialogs', () => {
     // Submit, then Esc at once.
     await bracketLink(page, 'Set Seeds').click();
     await expect(dialog(page).locator('.seed-item:not(.dndPlaceholder)')).toHaveCount(4);
-    seeded = page.waitForResponse(isCall(/\/api\/Brackets\/SetCustomSeeds/i));
-    refreshed = page.waitForResponse(isCall(/\/api\/Brackets\/GetViewerData/i));
+    seeded = page.waitForResponse(isCall(/\/api\/seasons\/\d+\/bracket\/seeds$/i));
+    refreshed = page.waitForResponse(isCall(/\/api\/seasons\/\d+\/bracket\/viewer-data/i));
     await dialog(page).getByRole('button', { name: 'Set Seeds' }).click();
     await page.keyboard.press('Escape');
     await expect(dialog(page)).toHaveCount(0);
@@ -92,9 +92,9 @@ test.describe('season page dialogs', () => {
       await dialog(page).locator('input[name="bestOf"]').fill('1');
 
       let refreshes = 0;
-      const count = (r: { url(): string }) => { if (/\/api\/MatchPlanner\/GetUnscheduledMatches/i.test(r.url())) refreshes++; };
+      const count = (r: { url(): string }) => { if (/\/api\/seasons\/\d+\/matches\/unscheduled/i.test(r.url())) refreshes++; };
       page.on('response', count);
-      const created = page.waitForResponse(isCall(/\/api\/MatchPlanner\/CreateSeasonMatches/i));
+      const created = page.waitForResponse(isCall(/\/api\/seasons\/\d+\/matches\/generate/i));
       await dialog(page).getByRole('button', { name: 'Create Regular Matches' }).click();
       if (thenEscape) await page.keyboard.press('Escape');
       await expect(dialog(page)).toHaveCount(0);

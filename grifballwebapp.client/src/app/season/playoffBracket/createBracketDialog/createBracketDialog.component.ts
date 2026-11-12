@@ -45,11 +45,10 @@ export class CreateBracketDialogComponent {
 
   onSubmit() {
     const params = new HttpParams()
-      .set('seasonID', this.seasonID)
       .set('participantsCount', this.participantsCount!)
       .set('doubleElimination', this.doubleElimination)
       .set('bestOf', this.bestOf!);
-    this.http.post("api/Brackets/CreateBracket", null, { params })
+    this.http.post(`api/seasons/${this.seasonID}/bracket`, null, { params })
       .subscribe({
         next: r => {
           this.bracketCreated.next();

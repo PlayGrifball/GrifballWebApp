@@ -8,6 +8,7 @@ import { RouterModule } from '@angular/router';
 import { DateTime } from 'luxon';
 import { map, Observable } from 'rxjs';
 import { fromApiDate } from '../../shared/apiDates';
+import { nullWhenNotFound } from '../../api/nullWhenNotFound';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
@@ -73,11 +74,11 @@ export class TeamComponent {
   }
 
   getTeam(): Observable<TeamDto | null> {
-    return this.http.get<TeamDto | null>("/api/Team/Team/" + this.teamID());
+    return this.http.get<TeamDto>(`/api/teams/${this.teamID()}`).pipe(nullWhenNotFound());
   }
 
   getMatches(): Observable<MatchDto[]> {
-    return this.http.get<unknown[]>("/api/Team/Matches/" + this.teamID())
+    return this.http.get<unknown[]>(`/api/teams/${this.teamID()}/matches`)
       .pipe(map(matches => matches.map(parseTeamMatch)));
   } 
 }

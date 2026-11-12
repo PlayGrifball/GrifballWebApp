@@ -14,7 +14,7 @@ const sessionCookie = async (context: BrowserContext) =>
 
 /** What the app shows as this user's name (no display name: the user name). */
 async function shownName(admin: { get<T>(path: string): Promise<T> }, userID: number): Promise<string> {
-  const user = await admin.get<UserResponseDto>(`UserManagement/GetUser/${userID}`);
+  const user = await admin.get<UserResponseDto>(`users/${userID}`);
   return user.displayName || user.userName;
 }
 
@@ -25,8 +25,8 @@ test.describe('session', () => {
   test.beforeAll(async ({ baseUrl, admin }) => {
     // Two teams, one match between them
     league = await createLeague(baseUrl, admin, 'session', { players: 2, captains: 2 });
-    await admin.post(`MatchPlanner/CreateSeasonMatches?seasonID=${league.seasonID}&homeMatchesPerTeam=1&bestOf=1`);
-    const matches = await admin.get<{ seasonMatchID: number }[]>(`MatchPlanner/GetUnscheduledMatches/${league.seasonID}`);
+    await admin.post(`seasons/${league.seasonID}/matches/generate?homeMatchesPerTeam=1&bestOf=1`);
+    const matches = await admin.get<{ seasonMatchID: number }[]>(`seasons/${league.seasonID}/matches/unscheduled`);
     expect(matches.length).toBeGreaterThan(0);
     seasonMatchID = matches[0].seasonMatchID;
   });
@@ -39,16 +39,16 @@ test.describe('session', () => {
     expect(cookie, 'the session cookie').toBeDefined();
     expect(cookie!.httpOnly).toBe(true);
     expect(cookie!.secure).toBe(true);
-    expect((await page.request.get('/api/Identity/Me')).status()).toBe(200);
+    expect((await page.request.get('/api/identity/me')).status()).toBe(200);
 
     await page.goto('/login');
     await hydrated(page);
-    const loggedOut = page.waitForResponse(r => /\/api\/Identity\/Logout/i.test(r.url()));
+    const loggedOut = page.waitForResponse(r => /\/api\/identity\/logout/i.test(r.url()));
     await page.getByRole('button', { name: 'Logout' }).click();
     expect((await loggedOut).ok()).toBe(true);
 
     await expect.poll(() => sessionCookie(page.context())).toBeUndefined();
-    expect((await page.request.get('/api/Identity/Me')).status()).toBe(204);
+    expect((await page.request.get('/api/identity/me')).status()).toBe(204);
   });
 
   test('logging out from the user chip\'s menu ends the session and goes home', async ({ page, smoke, consoleErrors }) => {
@@ -60,7 +60,7 @@ test.describe('session', () => {
     await expect(chip).toHaveAttribute('aria-expanded', 'true');
     await expect(page.getByRole('menuitem', { name: 'Profile' })).toBeFocused();
 
-    const loggedOut = page.waitForResponse(r => /\/api\/Identity\/Logout/i.test(r.url()));
+    const loggedOut = page.waitForResponse(r => /\/api\/identity\/logout/i.test(r.url()));
     await page.getByRole('menuitem', { name: 'Log out' }).click();
     expect((await loggedOut).ok()).toBe(true);
 
@@ -68,7 +68,7 @@ test.describe('session', () => {
     await expect(page.locator('.hud-user')).toHaveCount(0);
     await expect(page.locator('header').getByRole('link', { name: 'Login icon' })).toBeVisible();
     await expect.poll(() => sessionCookie(page.context())).toBeUndefined();
-    expect((await page.request.get('/api/Identity/Me')).status()).toBe(204);
+    expect((await page.request.get('/api/identity/me')).status()).toBe(204);
   });
 
   test('a visitor gets the page with its content in the HTML', async ({ playwright, baseUrl }) => {
@@ -147,18 +147,18 @@ test.describe('session', () => {
     await hydrated(page);
     const displayName = `${user.userName} ok`;
     await page.locator('input[name="displayName"]').fill(displayName);
-    const sent = page.waitForRequest(r => /\/api\/UserManagement\/EditUser/i.test(r.url()) && r.method() === 'POST');
+    const sent = page.waitForRequest(r => /\/api\/users\/\d+$/i.test(r.url()) && r.method() === 'POST');
     await page.getByRole('button', { name: 'Update User' }).click();
     const request = await sent;
     expect((await request.allHeaders())['x-xsrf-token'], 'X-XSRF-TOKEN').toBeTruthy();
-    expect((await request.response())?.status()).toBe(200);
-    const saved = await admin.get<UserResponseDto>(`UserManagement/GetUser/${user.userID}`);
+    expect((await request.response())?.status()).toBe(204);
+    const saved = await admin.get<UserResponseDto>(`users/${user.userID}`);
     expect(saved.displayName).toBe(displayName);
 
     // The same change with the browser's cookies (session and antiforgery) but no token
-    const forged = await page.request.post('/api/UserManagement/EditUser', { data: { ...saved, displayName: `${user.userName} bad` } });
+    const forged = await page.request.post(`/api/users/${user.userID}`, { data: { ...saved, displayName: `${user.userName} bad` } });
     expect([400, 403]).toContain(forged.status());
-    const after = await admin.get<UserResponseDto>(`UserManagement/GetUser/${user.userID}`);
+    const after = await admin.get<UserResponseDto>(`users/${user.userID}`);
     expect(after.displayName).toBe(displayName);
   });
 

@@ -169,7 +169,7 @@ export class PlayerGradesComponent {
 
   getGrades(): void {
     const seasonID = this.seasonID();
-    this.http.get<GradesDto>('/api/Grades/GetGrades/' + seasonID)
+    this.http.get<GradesDto>(`/api/seasons/${seasonID}/grades`)
       .pipe(whileCurrent(seasonID, this.seasonID))
       .subscribe({
         next: result => {

@@ -66,7 +66,7 @@ describe('CreateUserComponent', () => {
     await type('userName', 'grif');
     el().querySelector('form')!.dispatchEvent(new Event('submit'));
 
-    const req = http.expectOne('/api/usermanagement/createuser');
+    const req = http.expectOne('/api/users');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ displayName: 'Grif', gamertag: 'SgtGrif', userName: 'grif' });
     req.flush({});
@@ -76,7 +76,7 @@ describe('CreateUserComponent', () => {
   it('reports a failure to create the user', () => {
     spyOn(console, 'log');
     component.onSubmit();
-    http.expectOne('/api/usermanagement/createuser').flush('dup', { status: 409, statusText: 'Conflict' });
+    http.expectOne('/api/users').flush('dup', { status: 409, statusText: 'Conflict' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed to create user');
   });
 });

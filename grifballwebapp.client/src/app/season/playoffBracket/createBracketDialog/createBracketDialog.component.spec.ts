@@ -66,7 +66,7 @@ describe('CreateBracketDialogComponent', () => {
     component.bestOf = 5;
 
     component.onSubmit();
-    const req = http.expectOne({ method: 'POST', url: 'api/Brackets/CreateBracket?seasonID=3&participantsCount=4&doubleElimination=false&bestOf=5' });
+    const req = http.expectOne({ method: 'POST', url: 'api/seasons/3/bracket?participantsCount=4&doubleElimination=false&bestOf=5' });
     expect(req.request.method).toBe('POST');
     req.flush({});
 
@@ -80,7 +80,7 @@ describe('CreateBracketDialogComponent', () => {
     component.onSubmit();
 
     fixture.destroy(); // Esc / backdrop / Cancel while the request is on its way
-    http.expectOne(r => r.url.startsWith('api/Brackets/CreateBracket')).flush({});
+    http.expectOne(r => /^api\/seasons\/\d+\/bracket\?/.test(r.urlWithParams)).flush({});
 
     expect(created).toHaveBeenCalledTimes(1);
   });
@@ -91,7 +91,7 @@ describe('CreateBracketDialogComponent', () => {
 
     component.onSubmit();
     component.onSubmit();
-    const [first, second] = http.match(r => r.url.startsWith('api/Brackets/CreateBracket'));
+    const [first, second] = http.match(r => /^api\/seasons\/\d+\/bracket\?/.test(r.urlWithParams));
     first.flush({});
     expect(created).toHaveBeenCalledTimes(1);
     expect(dialogRef.close).toHaveBeenCalledWith(true);
@@ -106,7 +106,7 @@ describe('CreateBracketDialogComponent', () => {
     component.bracketCreated.subscribe(created);
 
     component.onSubmit();
-    http.expectOne(r => r.url.startsWith('api/Brackets/CreateBracket')).flush('x', { status: 400, statusText: 'Bad Request' });
+    http.expectOne(r => /^api\/seasons\/\d+\/bracket\?/.test(r.urlWithParams)).flush('x', { status: 400, statusText: 'Bad Request' });
 
     expect(created).not.toHaveBeenCalled();
     expect(snackBar.open).toHaveBeenCalledWith('Failed to create bracket', 'Close');

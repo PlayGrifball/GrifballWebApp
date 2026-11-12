@@ -368,7 +368,7 @@ describe('UserManagementComponent user table', () => {
     // The page request is a pending task, so render without waiting for stability first.
     fixture.detectChanges();
     // GrifballWebApp.Server UserResponseDto as the API sends it: lockoutEnd is a DateTimeOffset.
-    http.expectOne(r => r.url.startsWith('/api/UserManagement/GetUsers')).flush({
+    http.expectOne(r => r.url.startsWith('/api/users')).flush({
       totalCount: 1,
       results: [{
         userID: 1, userName: 'grif', lockoutEnd: '2026-03-04T05:06:00+00:00', lockoutEnabled: true, isDummyUser: false,
@@ -392,7 +392,7 @@ describe('UserManagementComponent user table', () => {
 
   it('links to creating a user, merging users, the merges, the gamertag claims, past gamertags, the historical import, the jobs and the telemetry', () => {
     fixture.detectChanges();
-    http.expectOne(r => r.url.startsWith('/api/UserManagement/GetUsers')).flush({ totalCount: 0, results: [] });
+    http.expectOne(r => r.url.startsWith('/api/users')).flush({ totalCount: 0, results: [] });
     const links = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.hud-page-head .hud-actions a'))
       .map(a => [a.textContent!.trim(), a.getAttribute('href')]);
     expect(links).toEqual([

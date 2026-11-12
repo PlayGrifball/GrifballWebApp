@@ -9,6 +9,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { UsePasswordResetLinkRequestDto } from '../api/dtos/passwordResetDtos';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
 import { AccountService } from '../account.service';
+import { errorText } from '../shared/errorText';
 
 @Component({
   selector: 'app-password-reset',
@@ -73,12 +74,7 @@ export class PasswordResetComponent implements OnInit {
         this.router.navigate(['/login']);
       },
       error: (error) => {
-        let errorMessage = 'Failed to reset password';
-        if (error.error && typeof error.error === 'string') {
-          errorMessage = error.error;
-        } else if (error.status === 400) {
-          errorMessage = 'Invalid or expired reset link';
-        }
+        const errorMessage = errorText(error, error.status === 400 ? 'Invalid or expired reset link' : 'Failed to reset password');
         this.snackBar.open(errorMessage, 'Close');
         this.isLoading.set(false);
       }

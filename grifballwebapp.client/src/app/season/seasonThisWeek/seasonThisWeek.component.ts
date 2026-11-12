@@ -79,7 +79,7 @@ export class SeasonThisWeekComponent {
       const seasonID = this.seasonID();
       if (seasonID === 0)
         return;
-      this.http.get<unknown[]>('/api/MatchPlanner/GetScheduledMatches/' + seasonID)
+      this.http.get<unknown[]>(`/api/seasons/${seasonID}/matches/scheduled`)
         .pipe(map(matches => matches.map(parseScheduledMatch)))
         .subscribe({
           next: matches => this.matches.set(matches),

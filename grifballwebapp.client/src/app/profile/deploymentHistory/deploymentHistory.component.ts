@@ -25,7 +25,7 @@ export class DeploymentHistoryComponent {
 
   readonly historyResource = rxResource({
     params: () => this.userID(),
-    stream: ({ params }) => this.http.get<DeploymentHistoryDto[]>(`/api/DeploymentHistory/GetDeploymentHistory/${params}`),
+    stream: ({ params }) => this.http.get<DeploymentHistoryDto[]>(`/api/users/${params}/deployment-history`),
   });
   readonly history = computed<DeploymentHistoryDto[]>(() => {
     const lines = this.historyResource.hasValue() ? this.historyResource.value() ?? [] : [];

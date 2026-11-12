@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Jobs;
 using Microsoft.AspNetCore.Mvc;
@@ -379,11 +380,11 @@ public class JobsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await controller.SetInterval(new SetJobIntervalRequest(Key.Group, Key.Name, 1), CancellationToken.None), Is.InstanceOf<BadRequestObjectResult>());
-            Assert.That(await controller.SetInterval(new SetJobIntervalRequest(Key.Group, Key.Name, long.MaxValue), CancellationToken.None), Is.InstanceOf<BadRequestObjectResult>());
-            Assert.That(await controller.SetInterval(new SetJobIntervalRequest(Key.Group, Key.Name, 60), CancellationToken.None), Is.InstanceOf<NoContentResult>());
-            Assert.That(await controller.Run(new JobKeyRequest(Key.Group, "nope"), CancellationToken.None), Is.InstanceOf<NotFoundResult>());
-            Assert.That(await controller.Interrupt(new InterruptJobRequest("not-running"), CancellationToken.None), Is.InstanceOf<NotFoundResult>());
+            (await controller.SetInterval(Key.Group, Key.Name, new JobIntervalRequest(1), CancellationToken.None)).AssertProblem(StatusCodes.Status400BadRequest);
+            (await controller.SetInterval(Key.Group, Key.Name, new JobIntervalRequest(long.MaxValue), CancellationToken.None)).AssertProblem(StatusCodes.Status400BadRequest);
+            Assert.That(await controller.SetInterval(Key.Group, Key.Name, new JobIntervalRequest(60), CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That(await controller.Run(Key.Group, "nope", CancellationToken.None), Is.InstanceOf<NotFoundResult>());
+            Assert.That(await controller.Interrupt("not-running", CancellationToken.None), Is.InstanceOf<NotFoundResult>());
             Assert.That((await controller.History(Key.Group, Key.Name, take: 1000, CancellationToken.None)).Value, Is.Empty);
             var roles = typeof(JobsController).GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true)
                 .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Select(a => a.Roles);
@@ -413,7 +414,7 @@ public class JobsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await controller.Interrupt(new InterruptJobRequest(running.FireInstanceID), CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That(await controller.Interrupt(running.FireInstanceID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
             Assert.That(await Eventually(() => Task.FromResult(runs.Count == 2)), Is.True, "Its cancellation token stopped it");
         }
     }
@@ -457,15 +458,15 @@ public class JobsTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((await controller.List(CancellationToken.None)).Value!.Jobs.Single().Name, Is.EqualTo("counting"));
-            Assert.That(await controller.SetPaused(new SetJobPausedRequest(Key.Group, Key.Name, true), CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That(await controller.SetPaused(Key.Group, Key.Name, new JobPausedRequest(true), CancellationToken.None), Is.InstanceOf<NoContentResult>());
             Assert.That((await Service(on).Overview()).Jobs.Single().PausedBy, Is.EqualTo("sysadmin"));
-            Assert.That(await controller.ResetSchedule(new JobKeyRequest(Key.Group, Key.Name), CancellationToken.None), Is.InstanceOf<NoContentResult>());
-            Assert.That(await controller.SetPaused(new SetJobPausedRequest(Key.Group, "nope", false), CancellationToken.None), Is.InstanceOf<NotFoundResult>());
+            Assert.That(await controller.ResetSchedule(Key.Group, Key.Name, CancellationToken.None), Is.InstanceOf<NoContentResult>());
+            Assert.That(await controller.SetPaused(Key.Group, "nope", new JobPausedRequest(false), CancellationToken.None), Is.InstanceOf<NotFoundResult>());
         }
         await StopHost(on);
 
         var off = new JobsController(Service(await StartHost(Job(TimeSpan.FromHours(1), enabled: false))));
-        Assert.That(await off.Run(new JobKeyRequest(Key.Group, Key.Name), CancellationToken.None), Is.InstanceOf<ConflictResult>());
+        Assert.That(await off.Run(Key.Group, Key.Name, CancellationToken.None), Is.InstanceOf<ConflictResult>());
     }
 
     [Test]

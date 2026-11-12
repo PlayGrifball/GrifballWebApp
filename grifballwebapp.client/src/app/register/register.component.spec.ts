@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RegisterComponent } from './register.component';
 import { AccountService } from '../account.service';
@@ -112,12 +113,12 @@ describe('RegisterComponent', () => {
       stubForm({
         valid: true
       });
-      const error = { error: 'Username already exists' };
+      const error = new HttpErrorResponse({ status: 400, error: { title: 'Request refused', status: 400, detail: 'DuplicateUserName: Username already exists' } });
       mockAccountService.register.and.returnValue(throwError(() => error));
       
       component.onSubmit();
 
-      expect(mockSnackBar.open).toHaveBeenCalledWith('Registration failed: Username already exists', 'Close');
+      expect(mockSnackBar.open).toHaveBeenCalledWith('Registration failed: DuplicateUserName: Username already exists', 'Close');
     });
 
     it('should handle registration with full model', () => {

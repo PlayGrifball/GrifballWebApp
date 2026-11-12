@@ -32,69 +32,6 @@ public class SignupsServiceTests
     }
 
     [Test]
-    public async Task GetSignupDateInfo_Should_ReturnEmptyArray_When_NoSeasonsExist()
-    {
-        // Arrange
-        const int personId = 1;
-
-        // Act
-        var result = await _service.GetSignupDateInfo(personId, CancellationToken.None);
-
-        // Assert
-        Assert.That(result, Is.Empty);
-    }
-
-    [Test]
-    public async Task GetSignupDateInfo_Should_ReturnSeasonInfo_When_SeasonIsOpenForSignups()
-    {
-        // Arrange
-        const int personId = 1;
-        var now = DateTime.UtcNow;
-        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
-
-        _context.Seasons.Add(season);
-        await _context.SaveChangesAsync();
-
-        // Act
-        var result = await _service.GetSignupDateInfo(personId, CancellationToken.None);
-
-        // Assert
-        Assert.That(result, Has.Length.EqualTo(1));
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result[0].SeasonID, Is.EqualTo(season.SeasonID));
-            Assert.That(result[0].IsSignedUp, Is.False);
-            Assert.That(result[0].SignupsOpen, Is.EqualTo(season.SignupsOpen).Within(DatabasePrecision));
-            Assert.That(result[0].SignupsClose, Is.EqualTo(season.SignupsClose).Within(DatabasePrecision));
-        }
-    }
-
-    [Test]
-    public async Task GetSignupDateInfo_Should_ShowIsSignedUpTrue_When_UserIsSignedUp()
-    {
-        // Arrange
-        var now = DateTime.UtcNow;
-        var user = User.Seed(userName: "testuser", displayName: "Test User");
-        var season = Season.Seed(seasonName: "Test Season").WithDates(seasonStart: now.AddDays(10), seasonEnd: now.AddDays(40), signupsOpen: now.AddDays(-5), signupsClose: now.AddDays(5));
-
-        _context.Users.Add(user);
-        _context.Seasons.Add(season);
-        await _context.SaveChangesAsync();
-
-        var signup = SeasonSignup.Seed(season.SeasonID, user.Id, timestamp: now, teamName: "Test Team");
-
-        _context.SeasonSignups.Add(signup);
-        await _context.SaveChangesAsync();
-
-        // Act
-        var result = await _service.GetSignupDateInfo(user.Id, CancellationToken.None);
-
-        // Assert
-        Assert.That(result, Has.Length.EqualTo(1));
-        Assert.That(result[0].IsSignedUp, Is.True);
-    }
-
-    [Test]
     public async Task GetSignups_Should_ReturnEmptyList_When_NoSignupsExist()
     {
         // Arrange

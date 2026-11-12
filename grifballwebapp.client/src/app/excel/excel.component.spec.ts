@@ -63,7 +63,7 @@ describe('ExcelComponent', () => {
 
     component.ngOnInit();
 
-    const req = httpTestingController.expectOne('/api/Excel/DefaultSheetInfo');
+    const req = httpTestingController.expectOne('/api/sheets/default');
     expect(req.request.method).toBe('GET');
     req.flush(mockSheetInfo);
 
@@ -80,7 +80,7 @@ describe('ExcelComponent', () => {
     component.ngOnInit();
 
     // Should not make HTTP request
-    httpTestingController.expectNone('/api/Excel/DefaultSheetInfo');
+    httpTestingController.expectNone('/api/sheets/default');
     
     expect(component.sheetInfo().length).toBe(1);
   });
@@ -95,7 +95,7 @@ describe('ExcelComponent', () => {
     component.ngOnInit();
 
     const defaults = [{ name: 'Default Sheet', spreadsheetID: 'default-123', sheetName: 'Default' }];
-    httpTestingController.expectOne('/api/Excel/DefaultSheetInfo').flush(defaults);
+    httpTestingController.expectOne('/api/sheets/default').flush(defaults);
     expect(component.sheetInfo()).toEqual(defaults);
   });
 
@@ -109,7 +109,7 @@ describe('ExcelComponent', () => {
     component.ngOnInit();
 
     const defaults = [{ name: 'Default Sheet', spreadsheetID: 'default-123', sheetName: 'Default' }];
-    httpTestingController.expectOne('/api/Excel/DefaultSheetInfo').flush(defaults);
+    httpTestingController.expectOne('/api/sheets/default').flush(defaults);
     expect(component.sheetInfo()).toEqual(defaults);
   });
 
@@ -127,7 +127,7 @@ describe('ExcelComponent', () => {
 
     component.ngOnInit();
 
-    const req = httpTestingController.expectOne('/api/Excel/DefaultSheetInfo');
+    const req = httpTestingController.expectOne('/api/sheets/default');
     req.flush(mockSheetInfo);
 
     expect(component.sheetInfo().length).toBe(2);

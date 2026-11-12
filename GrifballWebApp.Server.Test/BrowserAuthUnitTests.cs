@@ -100,7 +100,7 @@ public class BrowserAuthUnitTests
     // Actions that change something: POSTs, so they need the antiforgery token and a link cannot call them.
     [TestCase(typeof(GrifballWebApp.Server.Controllers.AdminController), "SetCode")]
     [TestCase(typeof(GrifballWebApp.Server.Controllers.AdminController), "DeleteTokens")]
-    [TestCase(typeof(GrifballWebApp.Server.Controllers.AdminController), "Get")]
+    [TestCase(typeof(GrifballWebApp.Server.Controllers.AdminController), "PullMatch")]
     [TestCase(typeof(GrifballWebApp.Server.Controllers.SeedController), "Medals")]
     [TestCase(typeof(GrifballWebApp.Server.Teams.TeamsController), "LockCaptains")]
     [TestCase(typeof(GrifballWebApp.Server.Teams.TeamsController), "UnlockCaptains")]

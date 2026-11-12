@@ -81,8 +81,8 @@ describe('ScheduleListComponent behaviour', () => {
 
   function load(unsched: any[], sched: any[]): void {
     fixture.detectChanges();
-    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush(unsched);
-    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush(sched);
+    http.expectOne('/api/seasons/4/matches/unscheduled').flush(unsched);
+    http.expectOne('/api/seasons/4/matches/scheduled').flush(sched);
     fixture.detectChanges();
   }
 
@@ -138,10 +138,10 @@ describe('ScheduleListComponent behaviour', () => {
     fixture.detectChanges();
     const lists = () => (fixture.nativeElement as HTMLElement).querySelector('.sched-lists')!;
     expect(lists().classList).toContain('hud-waiting');
-    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/seasons/4/matches/unscheduled').flush('x', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
     expect(lists().classList).toContain('hud-waiting');
-    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/seasons/4/matches/scheduled').flush('x', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
     expect(lists().classList).not.toContain('hud-waiting');
   });
@@ -172,7 +172,7 @@ describe('ScheduleListComponent behaviour', () => {
     const toggle = Array.from(el.querySelectorAll('button')).find(b => b.textContent!.includes('Show Edit'))!;
     toggle.click();
     fixture.detectChanges();
-    http.expectOne('/api/Scheduler/Recommendation/4').flush(noRecommendation);
+    http.expectOne('/api/seasons/4/schedule-recommendation').flush(noRecommendation);
 
     expect(component.isEditing()).toBeTrue();
     expect(text()).toContain('Close Edit');
@@ -188,22 +188,22 @@ describe('ScheduleListComponent behaviour', () => {
     const time = DateTime.fromISO('2026-02-01T19:00:00Z');
     component.onSubmit(match, time);
 
-    const req = http.expectOne('/api/MatchPlanner/UpdateMatchTime/');
+    const req = http.expectOne('/api/season-matches/5/time');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ seasonMatchID: 5, time });
     req.flush({});
 
-    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
-    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
+    http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
+    http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
   });
 
   it('reloads both lists even when saving the time fails', () => {
     load([unscheduled(5)], []);
     component.onSubmit(unscheduled(5), DateTime.fromISO('2026-02-01T19:00:00Z'));
-    http.expectOne('/api/MatchPlanner/UpdateMatchTime/').flush('nope', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/season-matches/5/time').flush('nope', { status: 500, statusText: 'Server Error' });
 
-    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
-    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
+    http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
+    http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
     expect(component.unscheduledMatches()).toEqual([]);
   });
 
@@ -215,8 +215,8 @@ describe('ScheduleListComponent behaviour', () => {
 
     for (let i = 0; i < 2; i++) {
       created.next();
-      http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
-      http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
+      http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
+      http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
     }
     // Both reloads from the one dialog: it wasn't opened again
     expect(dialog.open).toHaveBeenCalledTimes(1);
@@ -231,15 +231,15 @@ describe('ScheduleListComponent behaviour', () => {
     expect(dialog.open).toHaveBeenCalledWith(CreateRegularMatchesDialogComponent, { data: 4 });
 
     created.emit();
-    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([unscheduled(1)]);
-    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
+    http.expectOne('/api/seasons/4/matches/unscheduled').flush([unscheduled(1)]);
+    http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
     expect(component.unscheduledMatches().length).toBe(1);
   });
 
   it('renders the matches once they arrive, without a manual detectChanges', async () => {
     await fixture.whenStable();
-    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([unscheduled(1)]);
-    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([scheduled(2, '2026-03-02T19:00:00Z')]);
+    http.expectOne('/api/seasons/4/matches/unscheduled').flush([unscheduled(1)]);
+    http.expectOne('/api/seasons/4/matches/scheduled').flush([scheduled(2, '2026-03-02T19:00:00Z')]);
     await fixture.whenStable();
 
     expect(text()).toContain('Home Team1 vs Away Team1');
@@ -263,7 +263,7 @@ describe('ScheduleListComponent behaviour', () => {
     isEventOrganizer.set(true);
     load([], [scheduled(1, '2026-01-07T19:00:00Z')]);
     component.toggleEdit();
-    http.expectOne('/api/Scheduler/Recommendation/4').flush(noRecommendation);
+    http.expectOne('/api/seasons/4/schedule-recommendation').flush(noRecommendation);
     fixture.detectChanges();
     await fixture.whenStable();
     const before = component.scheduledMatches()[0].games[0];
@@ -274,12 +274,12 @@ describe('ScheduleListComponent behaviour', () => {
     form.controls['time'].setValue(picked);
     (fixture.nativeElement as HTMLElement).querySelector('form')!.dispatchEvent(new Event('submit'));
 
-    const req = http.expectOne('/api/MatchPlanner/UpdateMatchTime/');
+    const req = http.expectOne('/api/season-matches/1/time');
     expect(req.request.body).toEqual({ seasonMatchID: 1, time: picked });
     expect(before.time).toBe(original);
     req.flush({});
-    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
-    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
+    http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
+    http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
   });
 
   it('shows each scheduled match day and time as the date pipe showed the API value', () => {
@@ -292,17 +292,17 @@ describe('ScheduleListComponent behaviour', () => {
     isEventOrganizer.set(true);
     load([unscheduled(5)], []);
     component.toggleEdit();
-    http.expectOne('/api/Scheduler/Recommendation/4').flush(noRecommendation);
+    http.expectOne('/api/seasons/4/schedule-recommendation').flush(noRecommendation);
     fixture.detectChanges();
     await fixture.whenStable();
 
     (fixture.nativeElement as HTMLElement).querySelector('form')!.dispatchEvent(new Event('submit'));
 
-    const req = http.expectOne('/api/MatchPlanner/UpdateMatchTime/');
+    const req = http.expectOne('/api/season-matches/5/time');
     expect(req.request.body).toEqual({ seasonMatchID: 5, time: null });
     req.flush({});
-    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
-    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
+    http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
+    http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
   });
   const recommendation = (changes: Partial<ScheduleRecommendationDto> = {}): ScheduleRecommendationDto => ({
     scheduleRecommendationID: 12, createdAt: '2026-11-01T18:00:00Z', requestedBy: 'Commissioner Grif', fitness: 0.5, generations: 2000,
@@ -320,7 +320,7 @@ describe('ScheduleListComponent behaviour', () => {
     isEventOrganizer.set(true);
     load([], []);
     component.toggleEdit();
-    http.expectOne('/api/Scheduler/Recommendation/4').flush(page);
+    http.expectOne('/api/seasons/4/schedule-recommendation').flush(page);
     fixture.detectChanges();
   }
 
@@ -346,13 +346,13 @@ describe('ScheduleListComponent behaviour', () => {
     button('Apply these times')!.click();
     fixture.detectChanges();
     expect(text()).toContain('Set 2 matches without a result to these times?');
-    http.expectNone('/api/Scheduler/Apply/12');
+    http.expectNone('/api/schedule-recommendations/12/apply');
 
     button('Confirm')!.click();
-    http.expectOne({ method: 'POST', url: '/api/Scheduler/Apply/12' }).flush({ matchesScheduled: 2 });
-    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
-    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
-    http.expectOne('/api/Scheduler/Recommendation/4').flush({ run: idleRun, latest: recommendation({ appliedAt: '2026-11-01T19:00:00Z', appliedBy: 'Commissioner Grif' }) });
+    http.expectOne({ method: 'POST', url: '/api/schedule-recommendations/12/apply' }).flush({ matchesScheduled: 2 });
+    http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
+    http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
+    http.expectOne('/api/seasons/4/schedule-recommendation').flush({ run: idleRun, latest: recommendation({ appliedAt: '2026-11-01T19:00:00Z', appliedBy: 'Commissioner Grif' }) });
     fixture.detectChanges();
     expect(text()).toContain('by Commissioner Grif');
     expect(button('Apply these times')).toBeUndefined();
@@ -365,7 +365,7 @@ describe('ScheduleListComponent behaviour', () => {
     button('Cancel')!.click();
     fixture.detectChanges();
     expect(component.confirmingApply()).toBeFalse();
-    http.expectNone('/api/Scheduler/Apply/12');
+    http.expectNone('/api/schedule-recommendations/12/apply');
   });
 
   it('runs a recommendation on the worker and follows it until it has one', () => {
@@ -374,26 +374,26 @@ describe('ScheduleListComponent behaviour', () => {
       openEditor(noRecommendation);
       expect(text()).not.toContain('matches with a conflict');
       button('Recommend times')!.click();
-      http.expectOne({ method: 'POST', url: '/api/Scheduler/Recommend/4' }).flush({ ...idleRun, state: 'Queued' });
-      http.expectOne('/api/Scheduler/Recommendation/4').flush({ run: { ...idleRun, state: 'Queued' }, latest: null });
+      http.expectOne({ method: 'POST', url: '/api/seasons/4/schedule-recommendation/run' }).flush({ ...idleRun, state: 'Queued' });
+      http.expectOne('/api/seasons/4/schedule-recommendation').flush({ run: { ...idleRun, state: 'Queued' }, latest: null });
       fixture.detectChanges();
       expect(text()).toContain('Waiting for the worker');
       expect(button('Recommend times')!.disabled).toBeTrue();
 
       jasmine.clock().tick(RECOMMEND_POLL_MS);
-      http.expectOne('/api/Scheduler/Recommendation/4').flush({ run: { ...idleRun, state: 'Running', progress: 40, progressMessage: 'Generation 800, best fitness 0.500' }, latest: null });
+      http.expectOne('/api/seasons/4/schedule-recommendation').flush({ run: { ...idleRun, state: 'Running', progress: 40, progressMessage: 'Generation 800, best fitness 0.500' }, latest: null });
       fixture.detectChanges();
       expect(text()).toContain('Working: Generation 800, best fitness 0.500');
       expect((fixture.nativeElement as HTMLElement).querySelector('progress')!.value).toBe(40);
 
       jasmine.clock().tick(RECOMMEND_POLL_MS);
-      http.expectOne('/api/Scheduler/Recommendation/4').flush({ run: idleRun, latest: recommendation() });
+      http.expectOne('/api/seasons/4/schedule-recommendation').flush({ run: idleRun, latest: recommendation() });
       fixture.detectChanges();
       expect(text()).toContain('1 of 3 matches with a conflict');
       expect(button('Recommend times')!.disabled).toBeFalse();
 
       jasmine.clock().tick(RECOMMEND_POLL_MS * 2);
-      http.expectNone('/api/Scheduler/Recommendation/4');
+      http.expectNone('/api/seasons/4/schedule-recommendation');
     } finally {
       jasmine.clock().uninstall();
     }
@@ -415,16 +415,16 @@ describe('ScheduleListComponent behaviour', () => {
         expect(component.confirmingApply()).toBeFalse();
         expect(component.loaded()).toBeFalse();
 
-        http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/5').flush([unscheduled(9)]);
-        http.expectOne('/api/MatchPlanner/GetScheduledMatches/5').flush([scheduled(1, '2026-01-07T19:00:00Z')]);
+        http.expectOne('/api/seasons/5/matches/unscheduled').flush([unscheduled(9)]);
+        http.expectOne('/api/seasons/5/matches/scheduled').flush([scheduled(1, '2026-01-07T19:00:00Z')]);
         fixture.detectChanges();
         expect(component.unscheduledMatches().map(m => m.seasonMatchID)).toEqual([9]);
         expect(component.scheduledMatches()[0].games.map(g => g.seasonMatchID)).toEqual([1]);
 
         // The previous season's run is no longer followed
         jasmine.clock().tick(RECOMMEND_POLL_MS * 2);
-        http.expectNone('/api/Scheduler/Recommendation/4');
-        http.expectNone('/api/Scheduler/Recommendation/5');
+        http.expectNone('/api/seasons/4/schedule-recommendation');
+        http.expectNone('/api/seasons/5/schedule-recommendation');
       } finally {
         jasmine.clock().uninstall();
       }
@@ -433,15 +433,15 @@ describe('ScheduleListComponent behaviour', () => {
     it("drops the previous season's lists and recommendation when they arrive late", () => {
       isEventOrganizer.set(true);
       fixture.detectChanges();
-      const lateUnscheduled = http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4');
-      const lateScheduled = http.expectOne('/api/MatchPlanner/GetScheduledMatches/4');
+      const lateUnscheduled = http.expectOne('/api/seasons/4/matches/unscheduled');
+      const lateScheduled = http.expectOne('/api/seasons/4/matches/scheduled');
       component.toggleEdit();
-      const lateRecommendation = http.expectOne('/api/Scheduler/Recommendation/4');
+      const lateRecommendation = http.expectOne('/api/seasons/4/schedule-recommendation');
 
       fixture.componentRef.setInput('seasonID', 5);
       fixture.detectChanges();
-      http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/5').flush([]);
-      http.expectOne('/api/MatchPlanner/GetScheduledMatches/5').flush([]);
+      http.expectOne('/api/seasons/5/matches/unscheduled').flush([]);
+      http.expectOne('/api/seasons/5/matches/scheduled').flush([]);
       lateUnscheduled.flush([unscheduled(9)]);
       lateScheduled.flush([scheduled(1, '2026-01-07T19:00:00Z')]);
       lateRecommendation.flush({ run: idleRun, latest: recommendation() });
@@ -455,16 +455,16 @@ describe('ScheduleListComponent behaviour', () => {
       isEventOrganizer.set(true);
       fixture.componentRef.setInput('seasonID', 5);
       fixture.detectChanges();
-      http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/5').flush([]);
-      http.expectOne('/api/MatchPlanner/GetScheduledMatches/5').flush([]);
+      http.expectOne('/api/seasons/5/matches/unscheduled').flush([]);
+      http.expectOne('/api/seasons/5/matches/scheduled').flush([]);
       dialog.open.and.returnValue({ componentInstance: { regularMatchesCreated: new EventEmitter<void>() } } as any);
 
       component.createRegularSeasonMatches();
       expect(dialog.open.calls.mostRecent().args[1]).toEqual(jasmine.objectContaining({ data: 5 }));
 
       component.recommend();
-      http.expectOne({ method: 'POST', url: '/api/Scheduler/Recommend/5' }).flush({ ...idleRun, state: 'Queued' });
-      http.expectOne('/api/Scheduler/Recommendation/5').flush(noRecommendation);
+      http.expectOne({ method: 'POST', url: '/api/seasons/5/schedule-recommendation/run' }).flush({ ...idleRun, state: 'Queued' });
+      http.expectOne('/api/seasons/5/schedule-recommendation').flush(noRecommendation);
     });
   });
 
@@ -472,7 +472,7 @@ describe('ScheduleListComponent behaviour', () => {
     openEditor({ run: { ...idleRun, lastRun: { firedAt: '2026-11-01T18:00:00Z', durationMs: 5, result: 'Failed', error: 'Season not found' } }, latest: null });
     expect(text()).toContain('The last run failed: Season not found');
     button('Recommend times')!.click();
-    http.expectOne({ method: 'POST', url: '/api/Scheduler/Recommend/4' }).flush('Forbidden', { status: 403, statusText: 'Forbidden' });
+    http.expectOne({ method: 'POST', url: '/api/seasons/4/schedule-recommendation/run' }).flush('Forbidden', { status: 403, statusText: 'Forbidden' });
     fixture.detectChanges();
     expect(component.recommendationError()).toBeTruthy();
   });
@@ -482,20 +482,20 @@ describe('ScheduleListComponent behaviour', () => {
       isEventOrganizer.set(true);
       load([], []);
       component.toggleEdit();
-      http.expectOne('/api/Scheduler/Recommendation/4').flush('no', { status: 500, statusText: 'Server Error' });
+      http.expectOne('/api/seasons/4/schedule-recommendation').flush('no', { status: 500, statusText: 'Server Error' });
       expect(component.recommendationError()).toBeTruthy();
 
       component.apply();
-      http.expectNone('/api/Scheduler/Apply/12');
+      http.expectNone('/api/schedule-recommendations/12/apply');
 
       component.loadRecommendation();
-      http.expectOne('/api/Scheduler/Recommendation/4').flush({ run: { ...idleRun, state: 'Running' }, latest: recommendation() });
+      http.expectOne('/api/seasons/4/schedule-recommendation').flush({ run: { ...idleRun, state: 'Running' }, latest: recommendation() });
       component.apply();
-      http.expectOne('/api/Scheduler/Apply/12').flush(null, { status: 409, statusText: 'Conflict' });
+      http.expectOne('/api/schedule-recommendations/12/apply').flush(null, { status: 409, statusText: 'Conflict' });
       expect(component.recommendationError()).toBeTruthy();
 
       jasmine.clock().tick(RECOMMEND_POLL_MS);
-      http.expectOne('/api/Scheduler/Recommendation/4').flush('down', { status: 502, statusText: 'Bad Gateway' });
+      http.expectOne('/api/seasons/4/schedule-recommendation').flush('down', { status: 502, statusText: 'Bad Gateway' });
       expect(component.recommendationError()).toContain("Couldn't tell whether the recommendation finished");
     } finally {
       jasmine.clock().uninstall();
