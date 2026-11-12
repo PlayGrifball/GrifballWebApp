@@ -261,6 +261,18 @@ public class BracketServiceCreateBracketTests
     }
 
     [Test]
+    public async Task CreateBracket_ForASeasonThatDoesNotExist_IsNotFound_AndWritesNothing()
+    {
+        var ex = await Assert.ThrowsAsync<GrifballWebApp.Application.EventOrganizer.SeasonRefusedException>(() => _service.CreateBracket(4, 987654, false, 1));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Status, Is.EqualTo(404));
+            Assert.That(await _context.SeasonMatches.CountAsync(), Is.Zero);
+        }
+    }
+
+    [Test]
     public async Task CreateBracket_SingleParticipant_SingleElimination_CreatesNothing()
     {
         var seasonID = await CreateSeason();

@@ -23,6 +23,7 @@ public class BracketsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> CreateBracket([FromRoute] int seasonID, [FromQuery] int participantsCount, [FromQuery] bool doubleElimination, [FromQuery] int bestOf, CancellationToken ct)
     {
         if (participantsCount <= 0)
