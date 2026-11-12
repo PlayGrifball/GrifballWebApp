@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 
-namespace GrifballWebApp.Integration.Test;
+namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>
 /// A table moved back to the default schema is moved there (<see cref="PostgresMigrationsSqlGenerator"/>): EF writes the

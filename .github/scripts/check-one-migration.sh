@@ -4,7 +4,8 @@
 # Fails if a change adds more than one migration to a migrations project
 # (GrifballWebApp.Migrations.SqlServer, .Postgres or .Sqlite): counted by new *.Designer.cs files. `ef migrations
 # remove` rebuilds the snapshot from the newest remaining migration's Designer, and only the newest one's is checked
-# against the snapshot (DatabaseProviderTests.NewestMigration_DesignerMatchesTheSnapshot). With two, the older one's
+# against the snapshot (DatabaseProviderMigrationsTestsBase.NewestMigration_DesignerMatchesTheSnapshot, one subclass
+# per provider in its own Migrations.*.Test). With two, the older one's
 # Designer can miss what master gained since: removing the newer one then drops master's changes from the snapshot.
 #
 # With a base ref (the workflow: origin/master), it diffs <base ref>...HEAD (from the merge base, so master's own new

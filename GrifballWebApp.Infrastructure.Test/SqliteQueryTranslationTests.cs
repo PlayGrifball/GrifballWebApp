@@ -6,12 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 #pragma warning disable EF1001 // SQL Server's temporal root, as EF builds it, which the SQLite translation takes
 
-namespace GrifballWebApp.Integration.Test;
+namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>
 /// SQLite's query postprocessing (SqliteQueryTranslationPostprocessorFactory): the APPLY that is a join made one,
 /// and text compared case-insensitively where SQLite would compare bytes. On a file of each test's own, made from
-/// the model; SQLite needs no server, so these run on every leg of the suite.
+/// the model; SQLite needs no server: these are unit tests, run once, in the Unit leg.
 /// </summary>
 [TestFixture]
 [Parallelizable(ParallelScope.All)]

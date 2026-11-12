@@ -1,15 +1,16 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Conversion;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Test;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace GrifballWebApp.Integration.Test;
+namespace GrifballWebApp.Migrations.Sqlite.Test;
 
 /// <summary>
-/// The conversion from one SQLite file into another: SQLite on both sides, so these run on every leg of the suite.
-/// The conversions to and from the other servers are DatabaseConversionTests', on the SQLite leg.
+/// The conversion from one SQLite file into another: SQLite on both sides, so these are unit tests, run once, in
+/// the Unit leg. The conversions to and from the other servers are DatabaseConversionTests', on the SQLite leg.
 /// </summary>
 [TestFixture]
 [Parallelizable(ParallelScope.All)]

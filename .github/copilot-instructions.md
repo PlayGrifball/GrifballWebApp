@@ -164,15 +164,17 @@ ng test
 - **Database Testing**: Testcontainers with SQL Server (Testcontainers.MsSql 4.6+)
 
 #### Where a Test Goes
-- **Integration test** (`GrifballWebApp.Integration.Test`): the test (a test method, or one case of it) touches a real database or an EF context
-  (`GrifballContext`, any provider, SQLite in memory included), a DI host (`WebApplication`'s builder,
-  `WebApplicationFactory`, `TestServer`), Testcontainers, Redis, a Quartz scheduler with a real store, the file system
-  or the network.
-- **Unit test** (everything else: plain code, test doubles only): in the test project of the layer whose type it
-  tests, `GrifballWebApp.Domain.Test`, `GrifballWebApp.Application.Test`, `GrifballWebApp.Infrastructure.Test`,
-  `GrifballWebApp.Server.Test`, `GrifballWebApp.Seeder.Test` or `GrifballWebApp.Convert.Test` (the host apps beside the
-  server). A unit test project never references the integration tests. A class with both kinds
-  is split by test.
+- **Integration test** (`GrifballWebApp.Integration.Test`): the test (a test method, or one case of it) actually
+  integrates with something real outside the process: a real database server (TestDatabase / Testcontainers: SQL
+  Server, Postgres, or the SQLite leg's real database files the integration suite creates per test), the hosted app
+  (`WebApplicationFactory`, `TestServer`), Discord transports, or the network.
+- **Unit test** (everything else: plain code, test doubles only; an in-memory or temp-file SQLite GrifballContext is
+  fine, approved 2026-11-12): in the test project of the layer whose type it tests, `GrifballWebApp.Domain.Test`,
+  `GrifballWebApp.Application.Test`, `GrifballWebApp.Infrastructure.Test`, `GrifballWebApp.Server.Test`,
+  `GrifballWebApp.Seeder.Test`, `GrifballWebApp.Convert.Test` (the host apps beside the server) or
+  `GrifballWebApp.Migrations.Postgres.Test`, `GrifballWebApp.Migrations.Sqlite.Test`,
+  `GrifballWebApp.Migrations.SqlServer.Test` (one per migrations project, each targeting 100% of lines). A unit test
+  project never references the integration tests. A class with both kinds is split by test.
 - **Architecture test** (`GrifballWebApp.Architecture.Test`): a rule about the code's shape, read from the compiled
   assemblies with Mono.Cecil: the layers depend inwards only (Domain <- Application <- Infrastructure <- Server), the
   Domain's bounded contexts cross only where `ContextCrossings.Allowed` lists it (a new crossing is added there, in
@@ -309,14 +311,17 @@ GrifballWebApp.Migrations.Postgres/   # EF Core migrations for PostgreSQL
 GrifballWebApp.Migrations.Sqlite/     # EF Core migrations for SQLite (single instance)
 
 DiscordInterfaces/              # Discord integration
-GrifballWebApp.Domain.Test/         # Unit tests of Domain types: no database, host, containers or files
+GrifballWebApp.Domain.Test/         # Unit tests of Domain types: no real database, host, containers or network
 GrifballWebApp.Application.Test/    # Unit tests of Application types (test doubles only)
-GrifballWebApp.Infrastructure.Test/ # Unit tests of Infrastructure types (no GrifballContext instance)
+GrifballWebApp.Infrastructure.Test/ # Unit tests of Infrastructure types (no real database server; in-memory/temp-file SQLite is fine)
 GrifballWebApp.Server.Test/         # Unit tests of Server types (controllers, hubs, telemetry; test doubles only)
 GrifballWebApp.Seeder.Test/         # Unit tests of the Seeder app's types
 GrifballWebApp.Convert.Test/        # Unit tests of the Convert app's types (the database conversion command)
+GrifballWebApp.Migrations.Postgres.Test/  # Unit tests of GrifballWebApp.Migrations.Postgres (design-time services, history differ); 100% of lines
+GrifballWebApp.Migrations.Sqlite.Test/    # Unit tests of GrifballWebApp.Migrations.Sqlite; 100% of lines
+GrifballWebApp.Migrations.SqlServer.Test/ # Unit tests of GrifballWebApp.Migrations.SqlServer; 100% of lines
 GrifballWebApp.Architecture.Test/   # Architecture rules: layering, bounded-context crossings, aggregates, project references
-GrifballWebApp.Integration.Test/    # Integration tests: database (Testcontainers per provider), DI host, Redis, files
+GrifballWebApp.Integration.Test/    # Integration tests: a real database server, the hosted app, Discord transports, or the network
 GrifballWebApp.Seeder/          # Database seeding
 ```
 

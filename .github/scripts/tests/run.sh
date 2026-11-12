@@ -145,6 +145,8 @@ expect_areas "the analyzers' rules" "backend=true frontend=false images=false mi
 # The migrations: the image's build bundles them, so the PR builds its images (images stays false: no arm64 check)
 expect_areas "a migration" "backend=true frontend=false images=false migrations=true" pull_request GrifballWebApp.Migrations.Postgres/Migrations/20261112000000_X.cs
 expect_areas "the design-time context" "backend=true frontend=false images=false migrations=true" pull_request GrifballWebApp.Infrastructure/DesignTimeContext.cs
+# The migrations projects' unit tests aren't the migrations themselves: backend alone, no image step
+expect_areas "a migrations unit test" "backend=true frontend=false images=false migrations=false" pull_request GrifballWebApp.Migrations.Postgres.Test/PostgresHistoryModelTests.cs
 expect_areas "code, not packages" "backend=true frontend=true images=false migrations=false" pull_request GrifballWebApp.Server/Program.cs grifballwebapp.client/src/app/app.ts
 # A PR as big as this one: past a pipe's buffer (a pipe into grep -q broke here and read as "no change")
 big="GrifballWebApp.Server/Program.cs grifballwebapp.client/src/main.ts $(seq -f 'docs/a-long-directory-name-to-pass-the-pipe-buffer/page-%g.md' 1 2500 | tr '\n' ' ')"
@@ -325,19 +327,37 @@ cat > "$cov/GrifballWebApp.Architecture.Test.cobertura.xml" <<'XML'
 <coverage><packages><package name="GrifballWebApp.Domain"><classes><class name="A" filename="A.cs"><lines>
 <line number="2" hits="1" branch="False" /></lines></class></classes></package></packages></coverage>
 XML
+# GrifballWebApp.Migrations.Postgres.Test: its own package, at 80% (below the migrations projects' 100% target, but
+# above the usual 70%) to show the two targets apart
+cat > "$cov/GrifballWebApp.Migrations.Postgres.Test.cobertura.xml" <<'XML'
+<coverage><packages>
+<package name="GrifballWebApp.Migrations.Postgres"><classes><class name="P" filename="P.cs"><lines>
+<line number="1" hits="1" branch="False" /><line number="2" hits="1" branch="False" /><line number="3" hits="1" branch="False" />
+<line number="4" hits="1" branch="False" /><line number="5" hits="0" branch="False" /></lines></class></classes></package>
+</packages></coverage>
+XML
 node "$scripts/layer-coverage.mjs" collect "$cov" "$cov/layers.json"
 node "$scripts/layer-coverage.mjs" render "$cov/layers.json" "" abc1234 > "$cov/table.md"
 if grep -qF '| Domain | 50.0% · 2/4 | 50.0% | ❌ 1 lines short |' "$cov/table.md" \
   && grep -qF '| Application | 50.0% · 1/2 | – | ❌ 1 lines short |' "$cov/table.md" \
   && ! grep -q Architecture "$cov/table.md"; then ok "layer-coverage: each layer from its own tests"
 else bad "layer-coverage table:"; sed 's/^/  | /' "$cov/table.md"; fi
+# A migrations project targets 100%, not the usual 70%: 80% (which would meet 70%) still shows ❌ against it
+if grep -qF '| Migrations.Postgres | 80.0% · 4/5 | – | ❌ 1 lines short |' "$cov/table.md"
+then ok "layer-coverage: a migrations project targets 100%, not 70%"
+else bad "layer-coverage: migrations target not 100%:"; sed 's/^/  | /' "$cov/table.md"; fi
+# A migrations project at 100% on master dropping to 80% fails, by its own target, same as any other layer at its target
+printf '{"GrifballWebApp.Migrations.Postgres":{"lines":5,"linesCovered":5,"branches":0,"branchesCovered":0}}\n' > "$cov/migrations-base.json"
+if node "$scripts/layer-coverage.mjs" render "$cov/layers.json" "$cov/migrations-base.json" > "$cov/table.md"; then bad "layer-coverage: a migrations project dropping below 100% passed"
+elif grep -qF '**Migrations.Postgres dropped below their target**' "$cov/table.md"; then ok "layer-coverage: a migrations project dropping below 100% fails"
+else bad "layer-coverage: the migrations drop isn't named:"; sed 's/^/  | /' "$cov/table.md"; fi
 printf '{"GrifballWebApp.Domain":{"lines":4,"linesCovered":1,"branches":2,"branchesCovered":1}}\n' > "$cov/base.json"
 if node "$scripts/layer-coverage.mjs" render "$cov/layers.json" "$cov/base.json" | grep -qF '| Domain | 50.0% (+25.0) · 2/4 | 50.0% (±0) |'
 then ok "layer-coverage: change from master"; else bad "layer-coverage: no change from master shown"; fi
 # A layer master had at the target that drops below it fails; one still below it doesn't
 printf '{"GrifballWebApp.Domain":{"lines":4,"linesCovered":3,"branches":2,"branchesCovered":1}}\n' > "$cov/base.json"
 if node "$scripts/layer-coverage.mjs" render "$cov/layers.json" "$cov/base.json" > "$cov/table.md"; then bad "layer-coverage: a drop below the target passed"
-elif grep -qF '**Domain dropped below 70%**' "$cov/table.md"; then ok "layer-coverage: a drop below the target fails"
+elif grep -qF '**Domain dropped below their target**' "$cov/table.md"; then ok "layer-coverage: a drop below the target fails"
 else bad "layer-coverage: the drop isn't named:"; sed 's/^/  | /' "$cov/table.md"; fi
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi

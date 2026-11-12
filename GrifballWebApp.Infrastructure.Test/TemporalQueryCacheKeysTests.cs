@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 
 #pragma warning disable EF1001 // EF's temporal roots, built as its query compiler would
 
-namespace GrifballWebApp.Integration.Test;
+namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>
 /// The temporal part of a compiled-query cache key (<see cref="TemporalQueryCacheKeys"/>): each temporal root's
