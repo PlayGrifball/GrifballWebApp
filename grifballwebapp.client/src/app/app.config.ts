@@ -1,11 +1,12 @@
 import { provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
-import { ApplicationConfig } from '@angular/core';
+import { ApplicationConfig, ErrorHandler, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 //import { PreloadAllModules, withDebugTracing, withPreloading } from '@angular/router';
 import { APP_ROUTES } from './app.routes';
 import { authInterceptor } from './auth.interceptor';
+import { ReportingErrorHandler, clientErrorsInterceptor } from './clientErrors';
 import { earlyFetchInterceptor } from './earlyFetch.interceptor';
 import { provideSnackBarDefaults } from './shared/snackBarDefaults';
 
@@ -14,7 +15,11 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideSnackBarDefaults(),
     provideAnimationsAsync(),
-    provideHttpClient(withXhr(), withInterceptors([earlyFetchInterceptor, authInterceptor])),
+    // Errors (and window's uncaught errors and rejections) still go to the console, and to the API
+    // (clientErrors.ts), as do failed API calls: outermost, so it sees what the app does
+    provideBrowserGlobalErrorListeners(),
+    { provide: ErrorHandler, useClass: ReportingErrorHandler },
+    provideHttpClient(withXhr(), withInterceptors([clientErrorsInterceptor, earlyFetchInterceptor, authInterceptor])),
     provideRouter(APP_ROUTES
       , withComponentInputBinding()
       //,withPreloading(PreloadAllModules)
