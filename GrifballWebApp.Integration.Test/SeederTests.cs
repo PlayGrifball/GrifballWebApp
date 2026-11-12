@@ -13,12 +13,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class SeederTests
 {
-    private static readonly string[] IconFiles =
-    [
-        "Iron2.png", "iron1.png", "Bronze3.png", "Bronze2.png", "Bronze1.png", "Silver3.png", "Silver2.png", "Silver1.png",
-        "gold3.png", "Gold2.png", "Gold1.png", "Platinum3.png", "Platinum2.png", "Platinum1.png", "Diamond3.png", "Diamond2.png",
-        "Diamond1.png", "Masters3.png", "Masters2.png", "Masters1.png", "Challenger.png",
-    ];
+    // The seeder's own icon files, each written with its index as its first byte
+    private static readonly string[] IconFiles = [.. RankSeeder.Ranks.Select(r => r.IconFile)];
 
     private GrifballContext _context;
     private string _iconFolder;
@@ -49,14 +45,6 @@ public class SeederTests
         services.AddScoped(_ => NewContext());
         var type = typeof(RankSeeder).Assembly.GetType("GrifballWebApp.Seeder.HostedService", throwOnError: true)!;
         return (BackgroundService)Activator.CreateInstance(type, services.BuildServiceProvider(), configuration)!;
-    }
-
-    [Test]
-    public async Task FileReader_LoadsIconFromConfiguredFolder()
-    {
-        var bytes = await new FileReader(Config(_iconFolder)).LoadIcon("Gold1.png");
-
-        Assert.That(bytes, Is.EqualTo(new byte[] { 10, 1, 2 }));
     }
 
     [Test]

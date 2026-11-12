@@ -26,9 +26,11 @@
     </None>
   </ItemGroup>
 
-  <!-- RankSeeder.BuildRanksAsync is internal: its unit tests check the list it builds -->
+  <!-- RankSeeder.Ranks and BuildRanksAsync are internal: the unit tests check the list, the integration tests write
+       its icon files -->
   <ItemGroup>
     <InternalsVisibleTo Include="GrifballWebApp.Seeder.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
   </ItemGroup>
 
 </Project>
