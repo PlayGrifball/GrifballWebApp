@@ -445,25 +445,30 @@ public class AdminCommandsTests
     }
 
     [Test]
-    public async Task ClaimsAndDecideClaim_Should_ListThePendingClaim_ThenRejectIt()
+    public async Task ClaimsAndDecideClaim_Should_ListThePendingClaims_ThenRejectOneAndApproveTheOther()
     {
         var sysadmin = await Sysadmin();
         var claimant = await _context.AddUser("claimant", gamertag: "NowGT", discordName: "claimant");
-        var placeholder = User.Seed(userName: "historical:Old GT", normalizedUserName: "HISTORICAL:OLD GT", displayName: "Old GT", isDummyUser: true);
-        _context.Users.Add(placeholder);
+        _context.Users.AddRange(
+            User.Seed(userName: "historical:Old GT", normalizedUserName: "HISTORICAL:OLD GT", displayName: "Old GT", isDummyUser: true),
+            User.Seed(userName: "historical:Other GT", normalizedUserName: "HISTORICAL:OTHER GT", displayName: "Other GT", isDummyUser: true));
         await _context.SaveChangesAsync();
-        var claim = await new UserGamertagClaimService(_context, new GamertagMatching(_context), TimeProvider.System, Microsoft.Extensions.Options.Options.Create(new UserClaimOptions()))
-            .Submit(claimant.Id, new SubmitGamertagClaimRequest { Gamertag = "Old GT" });
+        var claims = new UserGamertagClaimService(_context, new GamertagMatching(_context), TimeProvider.System, Microsoft.Extensions.Options.Options.Create(new UserClaimOptions()));
+        var claim = await claims.Submit(claimant.Id, new SubmitGamertagClaimRequest { Gamertag = "Old GT" });
+        var other = await claims.Submit(claimant.Id, new SubmitGamertagClaimRequest { Gamertag = "Other GT" });
         var list = As(sysadmin);
         var reject = As(sysadmin);
+        var approve = As(sysadmin);
 
         await _handler.Claims(list.Context);
         await _handler.DecideClaim(reject.Context, claim.GamertagClaimID, approve: false, reason: "Not them");
+        await _handler.DecideClaim(approve.Context, other.GamertagClaimID, approve: true, reason: null);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(list.Embed().Description, Does.Contain($"**#{claim.GamertagClaimID}** Old GT"));
+            Assert.That(list.Embed().Description, Does.Contain($"**#{claim.GamertagClaimID}** Old GT").And.Contain($"**#{other.GamertagClaimID}** Other GT"));
             Assert.That(reject.Content(), Is.EqualTo("Rejected."));
+            Assert.That(approve.Content(), Is.EqualTo("Approved."));
         }
     }
 
