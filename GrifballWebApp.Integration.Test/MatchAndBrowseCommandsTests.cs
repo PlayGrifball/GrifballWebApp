@@ -31,8 +31,6 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class MatchAndBrowseCommandsTests
 {
-    private static readonly long[] WaitingHome = [9_100_001];
-    private static readonly long[] WaitingAway = [9_100_002];
     private static readonly string[] RankBoards = ["Rings", "Goals", "Kills", "Games", "Carrier stops"];
 
     private GrifballContext _context = null!;
@@ -299,7 +297,8 @@ public class MatchAndBrowseCommandsTests
         var waiting = SeasonMatch.Seed(season.SeasonID, null, null);
         _context.SeasonMatches.Add(waiting);
         await _context.SaveChangesAsync();
-        var game = await SeasonMatchTestData.AddMatchAsync(_context, new DateTime(2026, 10, 30, 23, 0, 0, DateTimeKind.Utc), WaitingHome, Outcomes.Won, WaitingAway, Outcomes.Lost);
+        // Its players have Xbox accounts but no season match: an unreported game
+        var game = await GradesTestData.AddLinkedMatch(_context, null, 1, TimeSpan.FromMinutes(10), new GradesTestData.P(9_100_001, 3, 5, 2, 0));
         var info = new CommandContextRecorder();
 
         await _matches.Info(info.Context, waiting.SeasonMatchID.ToString());
