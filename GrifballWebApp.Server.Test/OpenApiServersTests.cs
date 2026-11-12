@@ -7,6 +7,14 @@ namespace GrifballWebApp.Server.Test;
 [TestFixture]
 public class OpenApiServersTests
 {
+    private static readonly string[] DevelopmentOrder =
+    [
+        "http://localhost/api",
+        "https://grifball.xyz/api",
+        "https://grif-staging.grifball.xyz/api",
+        "/",
+    ];
+
     private static OpenApiServerEntry Entry(string url, string description) => new() { Url = url, Description = description };
 
     [Test]
@@ -59,12 +67,6 @@ public class OpenApiServersTests
         var servers = OpenApiServers.Build("http://localhost/api",
             [Entry("https://grifball.xyz/api", "Production"), Entry("https://grif-staging.grifball.xyz/api", "Staging")], isDevelopment: true);
 
-        Assert.That(servers.Select(s => s.Url), Is.EqualTo(new[]
-        {
-            "http://localhost/api",
-            "https://grifball.xyz/api",
-            "https://grif-staging.grifball.xyz/api",
-            "/",
-        }));
+        Assert.That(servers.Select(s => s.Url), Is.EqualTo(DevelopmentOrder));
     }
 }
