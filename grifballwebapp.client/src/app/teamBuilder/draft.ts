@@ -46,7 +46,7 @@ export function addCaptain(draft: Draft, personID: number, teamName: string, cap
   const from = playerIndex(draft.pool, personID);
   if (from === -1)
     return null;
-  const team: TeamResponseDto = { teamID, teamName, captain: { name: captainName, personID, order }, players: [] };
+  const team: TeamResponseDto = { teamID, teamName, captain: { name: captainName, personID, order, region: null }, players: [] };
   return { teams: renumberCaptains(insertAt(draft.teams, order - 1, team)), pool: removeAt(draft.pool, from) };
 }
 
@@ -79,7 +79,7 @@ export function removeCaptain(draft: Draft, personID: number, poolIndex = 0): Dr
   if (from === -1)
     return null;
   const team = draft.teams[from];
-  const captain: TeamsPlayerDto = { name: team.captain.name, personID: team.captain.personID, pick: null, round: null };
+  const captain: TeamsPlayerDto = { name: team.captain.name, personID: team.captain.personID, pick: null, round: null, region: null };
   const returned = [...team.players.map(undrafted).reverse(), captain];
   return { teams: renumberCaptains(removeAt(draft.teams, from)), pool: insertAt(draft.pool, poolIndex, ...returned) };
 }

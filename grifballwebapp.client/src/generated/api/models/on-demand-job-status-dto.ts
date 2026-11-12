@@ -4,7 +4,7 @@
 import { OnDemandJobState } from '../models/on-demand-job-state';
 import { OnDemandRunDto } from '../models/on-demand-run-dto';
 export interface OnDemandJobStatusDto {
-  lastRun: OnDemandRunDto;
+  lastRun: OnDemandRunDto | null;
   progress: number | null;
   progressMessage: string | null;
   startedAt: string | null;

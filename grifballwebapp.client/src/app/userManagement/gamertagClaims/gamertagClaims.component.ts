@@ -17,13 +17,14 @@ export { problemText };
 
 type Decision = 'approve' | 'reject';
 
-const KIND_LABELS: Record<GamertagClaimKind, string> = {
+// Every GamertagClaimKind labelled; looked up by the API's kind (a string)
+const KIND_LABELS: Readonly<Record<string, string>> = {
   RosterMatch: 'Roster match',
   SetGamertag: 'Set gamertag',
   XuidLookup: 'Xbox lookup',
   UserClaim: 'User claim',
   DiscordMatch: 'Discord match',
-};
+} satisfies Record<GamertagClaimKind, string>;
 
 /** What the snack bar says for each decision. */
 const DECISIONS: Record<Decision, { done: string, failed: string }> = {

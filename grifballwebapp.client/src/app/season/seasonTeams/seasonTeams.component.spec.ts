@@ -38,7 +38,7 @@ describe('SeasonTeamsComponent', () => {
     hasEnded: false,
     gameVersionID: 1,
     gameVersionName: 'Halo Infinite',
-    format: 'LeagueSeason',
+    format: 'LeagueSeason', division: null, gameVersionSlug: null
   };
 
   const mockTeams: SeasonTeamDto[] = [
@@ -52,8 +52,8 @@ describe('SeasonTeamsComponent', () => {
       titles: ['Pro'],
       draftCaptainOrder: 1,
       players: [
-        { teamPlayerID: 1, userID: 10, gamertag: 'MasterChief', isCaptain: true, region: 'NA-East' },
-        { teamPlayerID: 2, userID: 20, gamertag: 'Cortana', isCaptain: false, draftRound: 1, region: 'NA-West' },
+        { teamPlayerID: 1, userID: 10, gamertag: 'MasterChief', isCaptain: true, region: 'NA-East', draftCaptainOrder: null, draftPick: null, draftRound: null },
+        { teamPlayerID: 2, userID: 20, gamertag: 'Cortana', isCaptain: false, draftRound: 1, region: 'NA-West', draftCaptainOrder: null, draftPick: null },
       ],
     },
     {
@@ -66,7 +66,7 @@ describe('SeasonTeamsComponent', () => {
       titles: [],
       draftCaptainOrder: 2,
       players: [
-        { teamPlayerID: 3, userID: 30, gamertag: 'Arbiter', isCaptain: true, region: 'EU' },
+        { teamPlayerID: 3, userID: 30, gamertag: 'Arbiter', isCaptain: true, region: 'EU', draftCaptainOrder: null, draftPick: null, draftRound: null },
       ],
     },
   ];
@@ -275,7 +275,7 @@ describe('SeasonTeamsComponent', () => {
   it('links every player to their profile, with ? for a player without a name', () => {
     api.getSeasonTeams.and.returnValue(of([{
       ...mockTeams[1],
-      players: [{ teamPlayerID: 9, userID: 90, gamertag: '', isCaptain: false }],
+      players: [{ teamPlayerID: 9, userID: 90, gamertag: '', isCaptain: false, draftCaptainOrder: null, draftPick: null, draftRound: null, region: null }],
     }]));
     component.loadData(7);
     fixture.detectChanges();

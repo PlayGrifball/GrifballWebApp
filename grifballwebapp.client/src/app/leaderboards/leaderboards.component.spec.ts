@@ -12,7 +12,7 @@ describe('LeaderboardsComponent', () => {
   let fixture: ComponentFixture<LeaderboardsComponent>;
   let http: HttpTestingController;
   const leader = (userID: number, gamertag: string, statValue: number, perGame: number | null = 1.5) =>
-    ({ rank: 1, userID, gamertag, statValue, gamesPlayed: 30, gamesDecidedByVote: 0, perGame, seasonsCount: 3 });
+    ({ rank: 1, userID, gamertag, statValue, gamesPlayed: 30, gamesDecidedByVote: 0, perGame, seasonsCount: 3, gameVersionName: null, secondaryStat: null });
   const boards: LeaderboardsDto = {
     ringLeaders: [{ rank: 1, userID: 1, gamertag: 'Legendary', ringsCount: 5, titles: [{ seasonID: 11, seasonName: 'Summer League 2011', tier: 'Pro', teamID: 40 }, { seasonID: 12, seasonName: 'Winter League 2012', tier: 'Pro', teamID: 41 }] }],
     dynasties: [{ rank: 1, teamName: 'Relentless', latestTeamID: 40, latestSeasonID: 10, championshipsCount: 4, seasonsActive: 6, titles: [{ seasonID: 11, seasonName: 'Summer League 2011', tier: 'Pro', teamID: 40 }] }],
@@ -150,7 +150,7 @@ describe('LeaderboardsComponent', () => {
     goals: { rank: 2, totalRanked: 300, statValue: 120, secondaryText: '4 / G in Halo 3' },
     kills: { rank: 10, totalRanked: 250, statValue: 350, secondaryText: '1.75 K/D' },
     gamesPlayed: { rank: 15, totalRanked: 250, statValue: 30, secondaryText: '3 Seasons' },
-    carrierStops: { rank: null, totalRanked: 200, statValue: 0 },
+    carrierStops: { rank: null, totalRanked: 200, statValue: 0, secondaryText: null },
     ...extra,
   });
   const search = () => fixture.debugElement.query(By.directive(PlayerSearchComponent)).componentInstance as PlayerSearchComponent;
@@ -164,7 +164,7 @@ describe('LeaderboardsComponent', () => {
 
   it('shows the standing of a player picked from the suggestions, by their user ID, and highlights their row', () => {
     showBoards();
-    search().pick({ userID: 1, name: 'Legendary', pastGamertag: null });
+    search().pick({ userID: 1, name: 'Legendary', pastGamertag: null, matchedName: null, kind: null, years: null });
     fixture.detectChanges();
     expect(message()).toBe('Searching all-time records...');
 
@@ -212,9 +212,9 @@ describe('LeaderboardsComponent', () => {
 
   it('cancels an older lookup, so a late answer never replaces the newer player', () => {
     showBoards();
-    search().pick({ userID: 1, name: 'Legendary', pastGamertag: null });
+    search().pick({ userID: 1, name: 'Legendary', pastGamertag: null, matchedName: null, kind: null, years: null });
     const older = ranked({ query: 'Legendary', userId: '1' });
-    search().pick({ userID: 2, name: 'Killer', pastGamertag: null });
+    search().pick({ userID: 2, name: 'Killer', pastGamertag: null, matchedName: null, kind: null, years: null });
     expect(older.cancelled).toBeTrue();
     ranked({ query: 'Killer', userId: '2' }).flush(standing(2, 'Killer'));
     fixture.detectChanges();
@@ -223,9 +223,9 @@ describe('LeaderboardsComponent', () => {
 
   it('clearing the search drops the standing and the lookup in flight', () => {
     showBoards();
-    search().pick({ userID: 1, name: 'Legendary', pastGamertag: null });
+    search().pick({ userID: 1, name: 'Legendary', pastGamertag: null, matchedName: null, kind: null, years: null });
     ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
-    search().pick({ userID: 2, name: 'Killer', pastGamertag: null });
+    search().pick({ userID: 2, name: 'Killer', pastGamertag: null, matchedName: null, kind: null, years: null });
     const pending = ranked({ query: 'Killer', userId: '2' });
     search().clear();
     fixture.detectChanges();
@@ -242,12 +242,12 @@ describe('LeaderboardsComponent', () => {
     http.expectOne(r => r.url === '/api/leaderboards' && r.params.get('format') === 'Tournament').flush(boards);
     http.expectNone('/api/leaderboards/player-rank');
 
-    search().pick({ userID: 1, name: 'Legendary', pastGamertag: null });
+    search().pick({ userID: 1, name: 'Legendary', pastGamertag: null, matchedName: null, kind: null, years: null });
     ranked({ query: 'Legendary', userId: '1', format: 'Tournament' }).flush(standing(1, 'Legendary'));
     select.value = '';
     select.dispatchEvent(new Event('change'));
     http.expectOne('/api/leaderboards').flush(boards);
-    ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary', { rings: { rank: 3, totalRanked: 90, statValue: 6 } }));
+    ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary', { rings: { rank: 3, totalRanked: 90, statValue: 6, secondaryText: null } }));
     fixture.detectChanges();
     expect(el().querySelector('app-player-spotlight .hud-grid button')!.textContent).toContain('#3');
   });
@@ -261,9 +261,9 @@ describe('LeaderboardsComponent', () => {
 
   it('looks up the player last asked for on a new format, not the one still shown', () => {
     showBoards();
-    search().pick({ userID: 1, name: 'Legendary', pastGamertag: null });
+    search().pick({ userID: 1, name: 'Legendary', pastGamertag: null, matchedName: null, kind: null, years: null });
     ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
-    search().pick({ userID: 2, name: 'Killer', pastGamertag: null });
+    search().pick({ userID: 2, name: 'Killer', pastGamertag: null, matchedName: null, kind: null, years: null });
     const pending = ranked({ query: 'Killer', userId: '2' });
 
     chooseFormat('Tournament');
@@ -288,7 +288,7 @@ describe('LeaderboardsComponent', () => {
 
   it('looks nobody up on a new format once the standing is closed', () => {
     showBoards();
-    search().pick({ userID: 1, name: 'Legendary', pastGamertag: null });
+    search().pick({ userID: 1, name: 'Legendary', pastGamertag: null, matchedName: null, kind: null, years: null });
     ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
     fixture.componentInstance.clearSpotlight();
     chooseFormat('Tournament');
@@ -299,7 +299,7 @@ describe('LeaderboardsComponent', () => {
     jasmine.clock().install();
     try {
       showBoards();
-      search().pick({ userID: 1, name: 'Legendary', pastGamertag: null });
+      search().pick({ userID: 1, name: 'Legendary', pastGamertag: null, matchedName: null, kind: null, years: null });
       ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
       fixture.detectChanges();
       const input = el().querySelector<HTMLInputElement>('#playerSearchInput')!;

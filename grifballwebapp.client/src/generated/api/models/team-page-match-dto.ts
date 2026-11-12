@@ -4,11 +4,11 @@
 import { SeasonMatchResult } from '../models/season-match-result';
 export interface TeamPageMatchDto {
   bestOf: number;
-  otherResult: SeasonMatchResult;
+  otherResult: SeasonMatchResult | null;
   otherScore: number | null;
   otherTeamID: number | null;
   otherTeamName: string | null;
-  result: SeasonMatchResult;
+  result: SeasonMatchResult | null;
   scheduledTime: string | null;
   score: number | null;
   seasonMatchID: number;

@@ -1,12 +1,14 @@
 import { Component, ChangeDetectionStrategy, computed, inject, model } from '@angular/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
-import type { SignupsTimeslotDto } from '@api/models';
+import type { DayOfWeek, SignupsTimeslotDto } from '@api/models';
 import { AvailabilityService } from '../../availability.service';
 import { FormsModule } from '@angular/forms';
 
 /** A grid cell: a copy of a timeslot (with its display time), a day-of-week header, or a filler. */
-export interface TimeslotCell extends SignupsTimeslotDto {
+export interface TimeslotCell extends Omit<SignupsTimeslotDto, 'dayOfWeek'> {
+  /** Empty on a filler cell, which stands for no timeslot. */
+  dayOfWeek: DayOfWeek | '';
   isDisabled: boolean;
   isHeader: boolean;
 }

@@ -13,11 +13,11 @@ export interface ProfileStatsDto {
   gamertag: string | null;
   isDummyUser: boolean;
   lateLeague: Array<MatchmakingPlayerStatDto>;
-  overallCareer: GameCareerSummaryDto;
+  overallCareer: GameCareerSummaryDto | null;
   pastGamertags: Array<string>;
   regionID: number | null;
   regionName: string | null;
   seasons: Array<PlayerSeasonStatDetailDto>;
-  serviceRecord: ServiceRecordDto;
+  serviceRecord: ServiceRecordDto | null;
   userID: number;
 }

@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AvailabilityTableComponent } from './availabilityTable.component';
 import { AvailabilityService } from '../../availability.service';
-import type { SignupsTimeslotDto } from '@api/models';
+import type { DayOfWeek, SignupsTimeslotDto } from '@api/models';
 
 describe('AvailabilityTableComponent', () => {
   let component: AvailabilityTableComponent;
@@ -137,7 +137,7 @@ describe('AvailabilityTableComponent', () => {
 
   describe('cost', () => {
     it('converts each distinct time once per build, however many days share it', () => {
-      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const days: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       const timeslots: SignupsTimeslotDto[] = days.flatMap((dayOfWeek, d) => ['19:00:00', '20:00:00', '21:00:00']
         .map((time, t) => ({ optionID: d * 10 + t + 1, dayOfWeek, time, isChecked: false })));
       mockAvailabilityService.parseTime.calls.reset();
@@ -317,7 +317,8 @@ describe('AvailabilityTableComponent', () => {
 
     it('should handle empty day of week correctly', () => {
       const timeslots: SignupsTimeslotDto[] = [
-        { optionID: 1, dayOfWeek: '', time: '19:00:00', isChecked: false }
+        // Not a day the API sends: the table copes with it all the same
+        { optionID: 1, dayOfWeek: '' as DayOfWeek, time: '19:00:00', isChecked: false }
       ];
 
       expect(() => fixture.componentRef.setInput('timeslots', timeslots)).not.toThrow();

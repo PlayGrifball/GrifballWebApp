@@ -430,7 +430,7 @@ describe('ProfileComponent', () => {
           carrierKills: 45,
           sprees: 12,
           multiKills: 8,
-          exterminations: 2
+          exterminations: 2, damageDealt: null, damageTaken: null, punches: null, roleNote: null, score: null, swordKills: null, tradeNote: null
         }
       ]
     };

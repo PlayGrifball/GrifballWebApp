@@ -139,7 +139,7 @@ export class LineChartComponent {
 }
 
 /** The value of the point closest to the time, if one is within a few steps of it. */
-function nearest(points: [number, number][], time: number): number | null {
+function nearest(points: number[][], time: number): number | null {
   if (!points.length)
     return null;
   let best = points[0];

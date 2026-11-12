@@ -6,6 +6,6 @@ export interface ParticpantResult {
   forfeit: boolean;
   id: number | null;
   position?: number | null;
-  result?: Result;
+  result?: Result | null;
   score?: number | null;
 }

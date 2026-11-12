@@ -68,7 +68,12 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/HaloAuthCodeRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/HaloAuthCodeRequest"
+                  }
+                ],
+                "description": "A Microsoft OAuth code for the site's Halo account (Direct mode)."
               }
             }
           }
@@ -156,7 +161,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GeneratePasswordResetLinkRequestDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/GeneratePasswordResetLinkRequestDto"
+                  }
+                ]
               }
             }
           }
@@ -254,7 +263,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SeasonAvailabilityDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SeasonAvailabilityDto"
+                  }
+                ]
               }
             }
           }
@@ -474,7 +487,12 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExportRequestDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ExportRequestDto"
+                  }
+                ],
+                "description": "Where to export the database: SqlServer, Postgres or Sqlite, and the new database's connection string."
               }
             }
           }
@@ -866,7 +884,12 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ClientTelemetryBatchDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ClientTelemetryBatchDto"
+                  }
+                ],
+                "description": "One batch from a browser: what it collected since its last. Every list and text is bounded."
               }
             }
           }
@@ -906,16 +929,6 @@
         "summary": "The commissioner dashboard: pending reschedules, overdue matches, and their counts. Commissioners and sysadmins only.",
         "operationId": "GetDashboardData",
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CommissionerDashboardDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -932,6 +945,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommissionerDashboardDto"
                 }
               }
             }
@@ -947,19 +970,6 @@
         "summary": "Matches overdue for rescheduling. Commissioners and sysadmins only.",
         "operationId": "GetOverdueMatches",
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/OverdueMatchDto"
-                  }
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -976,6 +986,19 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OverdueMatchDto"
+                  }
                 }
               }
             }
@@ -1036,19 +1059,6 @@
         "summary": "The seasons, for the organizers' settings page. Commissioners and sysadmins only.",
         "operationId": "GetSeasons",
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SeasonDto"
-                  }
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -1065,6 +1075,19 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SeasonDto"
+                  }
                 }
               }
             }
@@ -1081,19 +1104,32 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SeasonDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SeasonDto"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "401": {
+            "description": "Unauthorized",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "integer",
-                  "format": "int32"
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1109,28 +1145,19 @@
               }
             }
           },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1181,16 +1208,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SeasonDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -1207,6 +1224,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeasonDto"
                 }
               }
             }
@@ -1232,19 +1259,6 @@
         "summary": "The game versions a season can be set to. Commissioners and sysadmins only.",
         "operationId": "GetGameVersions",
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/GameVersionOptionDto"
-                  }
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -1261,6 +1275,19 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GameVersionOptionDto"
+                  }
                 }
               }
             }
@@ -1276,19 +1303,6 @@
         "summary": "The leagues a season can be set to. Commissioners and sysadmins only.",
         "operationId": "GetLeagues",
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/LeagueOptionDto"
-                  }
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -1305,6 +1319,19 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LeagueOptionDto"
+                  }
                 }
               }
             }
@@ -1320,9 +1347,6 @@
         "summary": "The default Excel sheet to export matches to. Commissioners and sysadmins only.",
         "operationId": "DefaultSheetInfo",
         "responses": {
-          "200": {
-            "description": "OK"
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -1342,6 +1366,9 @@
                 }
               }
             }
+          },
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -1357,22 +1384,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SheetInfo"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SheetInfo"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "202": {
-            "description": "Accepted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OnDemandJobStatusDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -1389,6 +1410,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnDemandJobStatusDto"
                 }
               }
             }
@@ -1402,16 +1433,6 @@
         "summary": "Where the export of every match is.",
         "operationId": "ExportAllStatus",
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OnDemandJobStatusDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -1428,6 +1449,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnDemandJobStatusDto"
                 }
               }
             }
@@ -1457,15 +1488,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SheetInfo"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SheetInfo"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -1485,6 +1517,9 @@
                 }
               }
             }
+          },
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -1570,8 +1605,8 @@
               }
             }
           },
-          "404": {
-            "description": "Not Found",
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1580,8 +1615,8 @@
               }
             }
           },
-          "409": {
-            "description": "Conflict",
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1684,7 +1719,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExternalLoginKeyDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ExternalLoginKeyDto"
+                  }
+                ]
               }
             }
           }
@@ -1780,7 +1819,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExternalLoginKeyDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ExternalLoginKeyDto"
+                  }
+                ]
               }
             }
           }
@@ -1831,19 +1874,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/DuplicateSuggestionDto"
-                  }
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -1860,6 +1890,19 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DuplicateSuggestionDto"
+                  }
                 }
               }
             }
@@ -1878,15 +1921,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DuplicatePairRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/DuplicatePairRequest"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -1906,6 +1950,9 @@
                 }
               }
             }
+          },
+          "204": {
+            "description": "No Content"
           },
           "409": {
             "description": "Conflict",
@@ -1931,15 +1978,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DuplicatePairRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/DuplicatePairRequest"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -1959,6 +2007,9 @@
                 }
               }
             }
+          },
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -1971,16 +2022,6 @@
         "summary": "Looks up the XUIDs of import placeholders again (those not found or failed), in the background: the\n            worker role runs them, throttled.",
         "operationId": "LookUpXuids",
         "responses": {
-          "202": {
-            "description": "Accepted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/XuidLookupStatusDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -1997,6 +2038,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/XuidLookupStatusDto"
                 }
               }
             }
@@ -2012,16 +2063,6 @@
         "summary": "The background XUID lookup's status.",
         "operationId": "GetXuidLookupStatus",
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/XuidLookupStatusDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -2038,6 +2079,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/XuidLookupStatusDto"
                 }
               }
             }
@@ -2071,16 +2122,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PastGamertagsDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -2097,6 +2138,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PastGamertagsDto"
                 }
               }
             }
@@ -2123,25 +2174,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AddGamertagHistoryRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AddGamertagHistoryRequest"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -2154,6 +2196,19 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2184,19 +2239,6 @@
           }
         ],
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -2209,6 +2251,19 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2232,24 +2287,16 @@
             "name": "status",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/GamertagClaimStatus"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/GamertagClaimStatus"
+                }
+              ],
+              "default": 1
             }
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/GamertagClaimDto"
-                  }
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -2266,6 +2313,19 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GamertagClaimDto"
+                  }
                 }
               }
             }
@@ -2292,19 +2352,6 @@
           }
         ],
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -2317,6 +2364,19 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2360,25 +2420,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RejectGamertagClaimRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RejectGamertagClaimRequest"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -2391,6 +2442,19 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2495,22 +2559,22 @@
           }
         },
         "responses": {
-          "202": {
-            "description": "Accepted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HistoricalImportQueued"
-                }
-              }
-            }
-          },
           "400": {
             "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalImportQueued"
                 }
               }
             }
@@ -2627,7 +2691,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SetEnabledRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SetEnabledRequest"
+                  }
+                ]
               }
             }
           }
@@ -2720,16 +2788,6 @@
           }
         ],
         "responses": {
-          "202": {
-            "description": "Accepted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HistoricalImportQueued"
-                }
-              }
-            }
-          },
           "204": {
             "description": "No Content"
           },
@@ -2749,6 +2807,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalImportQueued"
                 }
               }
             }
@@ -2775,16 +2843,6 @@
           }
         ],
         "responses": {
-          "202": {
-            "description": "Accepted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HistoricalImportQueued"
-                }
-              }
-            }
-          },
           "204": {
             "description": "No Content"
           },
@@ -2804,6 +2862,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalImportQueued"
                 }
               }
             }
@@ -2888,7 +2956,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SetPausedRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SetPausedRequest"
+                  }
+                ]
               }
             }
           }
@@ -2962,28 +3034,32 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LoginDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/LoginDto"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccessTokenResponse"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessTokenResponse"
                 }
               }
             }
@@ -3002,15 +3078,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RegisterDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RegisterDto"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
           "400": {
             "description": "Bad Request",
             "content": {
@@ -3020,6 +3097,9 @@
                 }
               }
             }
+          },
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -3099,28 +3179,32 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RefreshRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RefreshRequest"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccessTokenResponse"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessTokenResponse"
                 }
               }
             }
@@ -3220,15 +3304,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UsePasswordResetLinkRequestDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UsePasswordResetLinkRequestDto"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "OK"
-          },
           "400": {
             "description": "Bad Request",
             "content": {
@@ -3238,6 +3323,9 @@
                 }
               }
             }
+          },
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -3395,7 +3483,12 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobPausedRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/JobPausedRequest"
+                  }
+                ],
+                "description": "Whether a job's schedule is paused."
               }
             }
           }
@@ -3456,7 +3549,12 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobIntervalRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/JobIntervalRequest"
+                  }
+                ],
+                "description": "A job's new interval, in seconds."
               }
             }
           }
@@ -3464,16 +3562,6 @@
         "responses": {
           "204": {
             "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
           },
           "404": {
             "description": "Not Found",
@@ -3487,6 +3575,16 @@
           },
           "409": {
             "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3684,7 +3782,11 @@
             "in": "query",
             "description": "Count only the titles of seasons of this format; null: every format.",
             "schema": {
-              "$ref": "#/components/schemas/SeasonFormat"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/SeasonFormat"
+                }
+              ]
             }
           }
         ],
@@ -3729,7 +3831,11 @@
             "name": "format",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/SeasonFormat"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/SeasonFormat"
+                }
+              ]
             }
           }
         ],
@@ -3995,7 +4101,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateMatchTimeDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UpdateMatchTimeDto"
+                  }
+                ]
               }
             }
           }
@@ -4045,6 +4155,16 @@
         "summary": "The regions a player can be in.",
         "operationId": "GetRegions",
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -4054,16 +4174,6 @@
                   "items": {
                     "$ref": "#/components/schemas/RegionDto"
                   }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -4082,17 +4192,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SetRegionRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SetRegionRequest"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request",
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4101,8 +4212,11 @@
               }
             }
           },
-          "401": {
-            "description": "Unauthorized",
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4141,22 +4255,22 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ClaimPreviewDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimPreviewDto"
                 }
               }
             }
@@ -4175,12 +4289,26 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SubmitGamertagClaimRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SubmitGamertagClaimRequest"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "201": {
             "description": "Created",
             "content": {
@@ -4193,16 +4321,6 @@
           },
           "400": {
             "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4230,6 +4348,16 @@
         "summary": "The signed-in user's claims of past gamertags and their status.",
         "operationId": "GetMyGamertagClaims",
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -4239,16 +4367,6 @@
                   "items": {
                     "$ref": "#/components/schemas/GamertagClaimDto"
                   }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -4318,7 +4436,12 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SetGamertagRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SetGamertagRequest"
+                  }
+                ],
+                "description": "A gamertag to set on one's own profile."
               }
             }
           }
@@ -4568,12 +4691,26 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RescheduleRequestDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RescheduleRequestDto"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "201": {
             "description": "Created",
             "content": {
@@ -4586,16 +4723,6 @@
           },
           "400": {
             "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4659,17 +4786,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProcessRescheduleDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ProcessRescheduleDto"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request",
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4678,8 +4806,11 @@
               }
             }
           },
-          "401": {
-            "description": "Unauthorized",
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4729,6 +4860,16 @@
         "summary": "The reschedule requests still awaiting a decision.",
         "operationId": "GetPendingReschedules",
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -4738,16 +4879,6 @@
                   "items": {
                     "$ref": "#/components/schemas/RescheduleDto"
                   }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -4784,9 +4915,6 @@
           }
         ],
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -4796,6 +4924,9 @@
                 }
               }
             }
+          },
+          "204": {
+            "description": "No Content"
           },
           "403": {
             "description": "Forbidden",
@@ -4839,16 +4970,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScheduleRecommendationPageDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -4865,6 +4986,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleRecommendationPageDto"
                 }
               }
             }
@@ -4891,16 +5022,6 @@
           }
         ],
         "responses": {
-          "202": {
-            "description": "Accepted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OnDemandJobStatusDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -4917,6 +5038,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnDemandJobStatusDto"
                 }
               }
             }
@@ -4953,16 +5084,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApplyScheduleRecommendationResponse"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -4979,6 +5100,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplyScheduleRecommendationResponse"
                 }
               }
             }
@@ -5265,7 +5396,11 @@
             "name": "Format",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/SeasonFormat"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/SeasonFormat"
+                }
+              ]
             }
           },
           {
@@ -5296,7 +5431,11 @@
             "name": "SortDirection",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/SortDirection"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/SortDirection"
+                }
+              ]
             }
           },
           {
@@ -5677,7 +5816,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ManualGameRequestDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ManualGameRequestDto"
+                  }
+                ]
               }
             }
           }
@@ -5758,7 +5901,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ManualGameRequestDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ManualGameRequestDto"
+                  }
+                ]
               }
             }
           }
@@ -6184,7 +6331,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SignupRequestDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SignupRequestDto"
+                  }
+                ]
               }
             }
           }
@@ -6444,7 +6595,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CaptainPlacementDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CaptainPlacementDto"
+                  }
+                ]
               }
             }
           }
@@ -6522,7 +6677,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CaptainPlacementDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CaptainPlacementDto"
+                  }
+                ]
               }
             }
           }
@@ -6593,7 +6752,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RemoveCaptainDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RemoveCaptainDto"
+                  }
+                ]
               }
             }
           }
@@ -6664,7 +6827,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RemovePlayerFromTeamRequestDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RemovePlayerFromTeamRequestDto"
+                  }
+                ]
               }
             }
           }
@@ -6735,7 +6902,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MovePlayerToTeamRequestDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/MovePlayerToTeamRequestDto"
+                  }
+                ]
               }
             }
           }
@@ -6806,7 +6977,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AddPlayerToTeamRequestDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AddPlayerToTeamRequestDto"
+                  }
+                ]
               }
             }
           }
@@ -7374,7 +7549,11 @@
             "name": "SortDirection",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/SortDirection"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/SortDirection"
+                }
+              ]
             }
           },
           {
@@ -7393,16 +7572,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaginationResultOfUserResponseDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -7419,6 +7588,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginationResultOfUserResponseDto"
                 }
               }
             }
@@ -7435,25 +7614,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateUserRequestDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateUserRequestDto"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -7466,6 +7636,19 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7496,16 +7679,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserResponseDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -7522,6 +7695,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponseDto"
                 }
               }
             }
@@ -7559,25 +7742,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UserResponseDto"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UserResponseDto"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -7590,6 +7764,19 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7612,25 +7799,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MergeRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/MergeRequest"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -7643,6 +7821,19 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7700,7 +7891,11 @@
             "name": "SortDirection",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/SortDirection"
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/SortDirection"
+                }
+              ]
             }
           },
           {
@@ -7712,16 +7907,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaginationResultOfUserMergeDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -7738,6 +7923,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginationResultOfUserMergeDto"
                 }
               }
             }
@@ -7764,16 +7959,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserMergeDetailDto"
-                }
-              }
-            }
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -7790,6 +7975,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMergeDetailDto"
                 }
               }
             }
@@ -7829,15 +8024,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UndoMergeRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UndoMergeRequest"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "204": {
-            "description": "No Content"
-          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -7857,6 +8053,9 @@
                 }
               }
             }
+          },
+          "204": {
+            "description": "No Content"
           },
           "404": {
             "description": "Not Found",
@@ -8133,7 +8332,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LinkVodRequest"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/LinkVodRequest"
+                  }
+                ]
               }
             }
           }
@@ -8323,7 +8526,11 @@
         "type": "object",
         "properties": {
           "dayOfWeek": {
-            "$ref": "#/components/schemas/DayOfWeek"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DayOfWeek"
+              }
+            ]
           },
           "time": {
             "type": "string",
@@ -8350,7 +8557,11 @@
         "type": "object",
         "properties": {
           "state": {
-            "$ref": "#/components/schemas/ExportState"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExportState"
+              }
+            ]
           },
           "format": {
             "type": "string",
@@ -8420,7 +8631,11 @@
         "type": "object",
         "properties": {
           "state": {
-            "$ref": "#/components/schemas/ExportState"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExportState"
+              }
+            ]
           },
           "provider": {
             "type": "string",
@@ -8508,10 +8723,20 @@
             "nullable": true
           },
           "grandFinal": {
-            "$ref": "#/components/schemas/DtosMatchDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DtosMatchDto"
+              }
+            ],
+            "nullable": true
           },
           "grandFinalSuddenDeath": {
-            "$ref": "#/components/schemas/DtosMatchDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DtosMatchDto"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -8579,13 +8804,27 @@
         "type": "object",
         "properties": {
           "status": {
-            "$ref": "#/components/schemas/Status"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Status"
+              }
+            ]
           },
           "opponent1": {
-            "$ref": "#/components/schemas/ParticpantResult"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ParticpantResult"
+              }
+            ],
+            "nullable": true
           },
           "opponent2": {
-            "$ref": "#/components/schemas/ParticpantResult"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ParticpantResult"
+              }
+            ],
+            "nullable": true
           },
           "id": {
             "type": "integer",
@@ -8982,7 +9221,11 @@
             }
           },
           "summary": {
-            "$ref": "#/components/schemas/DashboardSummaryDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DashboardSummaryDto"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -9085,7 +9328,11 @@
         "type": "object",
         "properties": {
           "season": {
-            "$ref": "#/components/schemas/SeasonInfoDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonInfoDto"
+              }
+            ]
           },
           "teamID": {
             "type": "integer",
@@ -9109,7 +9356,11 @@
             "type": "boolean"
           },
           "finish": {
-            "$ref": "#/components/schemas/DeploymentFinish"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DeploymentFinish"
+              }
+            ]
           },
           "championshipTiers": {
             "type": "array",
@@ -9202,7 +9453,11 @@
             "type": "boolean"
           },
           "match": {
-            "$ref": "#/components/schemas/DuplicateMatch"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DuplicateMatch"
+              }
+            ]
           },
           "distance": {
             "type": "integer",
@@ -9293,7 +9548,11 @@
             "format": "date-time"
           },
           "eventType": {
-            "$ref": "#/components/schemas/EventType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventType"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -9803,7 +10062,11 @@
         "type": "object",
         "properties": {
           "mode": {
-            "$ref": "#/components/schemas/HaloInfiniteMode"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HaloInfiniteMode"
+              }
+            ]
           },
           "gatewayUrl": {
             "type": "string",
@@ -9888,7 +10151,12 @@
             "format": "int32"
           },
           "report": {
-            "$ref": "#/components/schemas/HistoricalImportReport"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HistoricalImportReport"
+              }
+            ],
+            "nullable": true
           },
           "error": {
             "type": "string",
@@ -10526,7 +10794,12 @@
             }
           },
           "status": {
-            "$ref": "#/components/schemas/JobStatusDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JobStatusDto"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11119,7 +11392,12 @@
             "format": "date-span"
           },
           "seasonMatch": {
-            "$ref": "#/components/schemas/MatchDetailsSeasonMatchDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MatchDetailsSeasonMatchDto"
+              }
+            ],
+            "nullable": true
           },
           "teams": {
             "type": "array",
@@ -11376,7 +11654,11 @@
             "format": "int32"
           },
           "outcome": {
-            "$ref": "#/components/schemas/Outcomes"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Outcomes"
+              }
+            ]
           },
           "players": {
             "type": "array",
@@ -11400,13 +11682,27 @@
         "type": "object",
         "properties": {
           "status": {
-            "$ref": "#/components/schemas/Status"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Status"
+              }
+            ]
           },
           "opponent1": {
-            "$ref": "#/components/schemas/ParticpantResult"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ParticpantResult"
+              }
+            ],
+            "nullable": true
           },
           "opponent2": {
-            "$ref": "#/components/schemas/ParticpantResult"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ParticpantResult"
+              }
+            ],
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -11570,7 +11866,11 @@
         "type": "object",
         "properties": {
           "season": {
-            "$ref": "#/components/schemas/MatchmakingSeasonDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MatchmakingSeasonDto"
+              }
+            ]
           },
           "players": {
             "type": "array",
@@ -11688,7 +11988,11 @@
             "type": "boolean"
           },
           "trigger": {
-            "$ref": "#/components/schemas/MergeTrigger"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MergeTrigger"
+              }
+            ]
           },
           "reason": {
             "type": "string",
@@ -11719,7 +12023,11 @@
             "format": "int32"
           },
           "mergeOptions": {
-            "$ref": "#/components/schemas/MergeOptions"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MergeOptions"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -12021,7 +12329,11 @@
         "type": "object",
         "properties": {
           "state": {
-            "$ref": "#/components/schemas/OnDemandJobState"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OnDemandJobState"
+              }
+            ]
           },
           "progress": {
             "type": "integer",
@@ -12038,7 +12350,12 @@
             "nullable": true
           },
           "lastRun": {
-            "$ref": "#/components/schemas/OnDemandRunDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OnDemandRunDto"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -12218,7 +12535,12 @@
             "nullable": true
           },
           "result": {
-            "$ref": "#/components/schemas/Result"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Result"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -12398,19 +12720,39 @@
             "type": "boolean"
           },
           "rings": {
-            "$ref": "#/components/schemas/MetricRankDetail"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MetricRankDetail"
+              }
+            ]
           },
           "goals": {
-            "$ref": "#/components/schemas/MetricRankDetail"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MetricRankDetail"
+              }
+            ]
           },
           "kills": {
-            "$ref": "#/components/schemas/MetricRankDetail"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MetricRankDetail"
+              }
+            ]
           },
           "gamesPlayed": {
-            "$ref": "#/components/schemas/MetricRankDetail"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MetricRankDetail"
+              }
+            ]
           },
           "carrierStops": {
-            "$ref": "#/components/schemas/MetricRankDetail"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MetricRankDetail"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -12435,7 +12777,11 @@
             "format": "int32"
           },
           "season": {
-            "$ref": "#/components/schemas/SeasonInfoDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonInfoDto"
+              }
+            ]
           },
           "gameVersionID": {
             "type": "integer",
@@ -12620,7 +12966,11 @@
             "nullable": true
           },
           "season": {
-            "$ref": "#/components/schemas/SeasonInfoDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonInfoDto"
+              }
+            ]
           },
           "gameVersionID": {
             "type": "integer",
@@ -12666,10 +13016,18 @@
             "format": "uuid"
           },
           "homeTeam": {
-            "$ref": "#/components/schemas/PossibleTeamDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PossibleTeamDto"
+              }
+            ]
           },
           "awayTeam": {
-            "$ref": "#/components/schemas/PossibleTeamDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PossibleTeamDto"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -12728,7 +13086,11 @@
             "format": "int32"
           },
           "outcome": {
-            "$ref": "#/components/schemas/Outcomes"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Outcomes"
+              }
+            ]
           },
           "players": {
             "type": "array",
@@ -12887,7 +13249,12 @@
             }
           },
           "overallCareer": {
-            "$ref": "#/components/schemas/GameCareerSummaryDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GameCareerSummaryDto"
+              }
+            ],
+            "nullable": true
           },
           "seasons": {
             "type": "array",
@@ -12902,7 +13269,12 @@
             }
           },
           "serviceRecord": {
-            "$ref": "#/components/schemas/ServiceRecordDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ServiceRecordDto"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -13000,7 +13372,12 @@
             "nullable": true
           },
           "kind": {
-            "$ref": "#/components/schemas/QuickSearchPlayerKind"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/QuickSearchPlayerKind"
+              }
+            ],
+            "nullable": true
           },
           "years": {
             "type": "string",
@@ -13322,7 +13699,11 @@
             "format": "date-time"
           },
           "status": {
-            "$ref": "#/components/schemas/RescheduleStatus"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RescheduleStatus"
+              }
+            ]
           },
           "discordThreadID": {
             "type": "integer",
@@ -13606,10 +13987,19 @@
         "type": "object",
         "properties": {
           "run": {
-            "$ref": "#/components/schemas/OnDemandJobStatusDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OnDemandJobStatusDto"
+              }
+            ]
           },
           "latest": {
-            "$ref": "#/components/schemas/ScheduleRecommendationDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScheduleRecommendationDto"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -13775,7 +14165,11 @@
             "nullable": true
           },
           "format": {
-            "$ref": "#/components/schemas/SeasonFormat"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonFormat"
+              }
+            ]
           },
           "copyFromSeasonID": {
             "type": "integer",
@@ -13872,7 +14266,11 @@
             "nullable": true
           },
           "format": {
-            "$ref": "#/components/schemas/SeasonFormat"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonFormat"
+              }
+            ]
           },
           "isHistorical": {
             "type": "boolean"
@@ -13959,7 +14357,11 @@
             "nullable": true
           },
           "format": {
-            "$ref": "#/components/schemas/SeasonFormat"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonFormat"
+              }
+            ]
           },
           "isHistorical": {
             "type": "boolean"
@@ -14100,7 +14502,11 @@
             "nullable": true
           },
           "homeTeamResult": {
-            "$ref": "#/components/schemas/SeasonMatchResultDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonMatchResultDto"
+              }
+            ]
           },
           "awayTeamName": {
             "type": "string",
@@ -14117,10 +14523,19 @@
             "nullable": true
           },
           "awayTeamResult": {
-            "$ref": "#/components/schemas/SeasonMatchResultDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonMatchResultDto"
+              }
+            ]
           },
           "decidedBy": {
-            "$ref": "#/components/schemas/SeasonMatchDecisionDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonMatchDecisionDto"
+              }
+            ],
+            "nullable": true
           },
           "canUndo": {
             "type": "boolean"
@@ -14141,13 +14556,23 @@
             }
           },
           "seriesTotals": {
-            "$ref": "#/components/schemas/SeasonMatchSeriesTotalsDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonMatchSeriesTotalsDto"
+              }
+            ],
+            "nullable": true
           },
           "isImported": {
             "type": "boolean"
           },
           "bracketInfo": {
-            "$ref": "#/components/schemas/BracketInfoDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BracketInfoDto"
+              }
+            ],
+            "nullable": true
           },
           "activeRescheduleRequestId": {
             "type": "integer",
@@ -14446,7 +14871,11 @@
             "nullable": true
           },
           "format": {
-            "$ref": "#/components/schemas/SeasonFormat"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonFormat"
+              }
+            ]
           },
           "isHistorical": {
             "type": "boolean"
@@ -14615,13 +15044,25 @@
             "nullable": true
           },
           "all": {
-            "$ref": "#/components/schemas/ServiceRecordTotalsDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ServiceRecordTotalsDto"
+              }
+            ]
           },
           "league": {
-            "$ref": "#/components/schemas/ServiceRecordTotalsDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ServiceRecordTotalsDto"
+              }
+            ]
           },
           "matchmaking": {
-            "$ref": "#/components/schemas/ServiceRecordTotalsDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ServiceRecordTotalsDto"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -14863,7 +15304,11 @@
             "format": "int32"
           },
           "dayOfWeek": {
-            "$ref": "#/components/schemas/DayOfWeek"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DayOfWeek"
+              }
+            ]
           },
           "time": {
             "type": "string",
@@ -14998,10 +15443,18 @@
             "type": "string"
           },
           "type": {
-            "$ref": "#/components/schemas/StageType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StageType"
+              }
+            ]
           },
           "settings": {
-            "$ref": "#/components/schemas/StageSettings"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StageSettings"
+              }
+            ]
           },
           "number": {
             "type": "integer",
@@ -15047,7 +15500,11 @@
             "format": "int32"
           },
           "roundRobinMode": {
-            "$ref": "#/components/schemas/RoundRobinMode"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RoundRobinMode"
+              }
+            ]
           },
           "manualOrdering": {
             "type": "array",
@@ -15066,7 +15523,11 @@
             "type": "boolean"
           },
           "grandFinal": {
-            "$ref": "#/components/schemas/GrandFinalType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GrandFinalType"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -15145,7 +15606,11 @@
             "type": "string"
           },
           "season": {
-            "$ref": "#/components/schemas/SeasonInfoDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonInfoDto"
+              }
+            ]
           },
           "recordFromSource": {
             "type": "boolean"
@@ -15246,7 +15711,11 @@
             "type": "string"
           },
           "season": {
-            "$ref": "#/components/schemas/SeasonInfoDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonInfoDto"
+              }
+            ]
           },
           "wins": {
             "type": "integer",
@@ -15307,7 +15776,12 @@
             "nullable": true
           },
           "result": {
-            "$ref": "#/components/schemas/SeasonMatchResult"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonMatchResult"
+              }
+            ],
+            "nullable": true
           },
           "otherTeamID": {
             "type": "integer",
@@ -15324,7 +15798,12 @@
             "nullable": true
           },
           "otherResult": {
-            "$ref": "#/components/schemas/SeasonMatchResult"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SeasonMatchResult"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -15389,7 +15868,11 @@
             "type": "string"
           },
           "captain": {
-            "$ref": "#/components/schemas/CaptainDto"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptainDto"
+              }
+            ]
           },
           "players": {
             "type": "array",

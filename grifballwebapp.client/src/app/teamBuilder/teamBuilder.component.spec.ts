@@ -118,11 +118,11 @@ describe('TeamBuilderComponent', () => {
 
   describe('when the route moves to another season', () => {
     const team = (teamID: number, name: string): TeamResponseDto =>
-      ({ teamID, teamName: name, captain: { name: 'Captain ' + name, personID: teamID, order: 1 }, players: [] });
+      ({ teamID, teamName: name, captain: { name: 'Captain ' + name, personID: teamID, order: 1, region: null }, players: [] });
 
     it("loads that season's draft in place of the one shown", () => {
       mockApiClient.getTeams.and.callFake((id: number) => of([team(id, 'Season ' + id)]));
-      mockApiClient.getPlayerPool.and.callFake((id: number) => of([{ name: 'Pool ' + id, personID: 100 + id, pick: null, round: null }]));
+      mockApiClient.getPlayerPool.and.callFake((id: number) => of([{ name: 'Pool ' + id, personID: 100 + id, pick: null, round: null, region: null }]));
       mockApiClient.areCaptainsLocked.and.callFake((id: number) => of(id === 5));
       fixture.detectChanges();
       expect(component.teams().map(t => t.teamName)).toEqual(['Season 5']);
@@ -204,7 +204,7 @@ describe('TeamBuilderComponent', () => {
   describe('load', () => {
     it('should load teams successfully', () => {
       const mockTeams: TeamResponseDto[] = [
-        { teamID: 0, teamName: 'Team 1', captain: { name: 'Captain 1', personID: 1, order: 1 }, players: [] }
+        { teamID: 0, teamName: 'Team 1', captain: { name: 'Captain 1', personID: 1, order: 1, region: null }, players: [] }
       ];
       mockApiClient.getTeams.and.returnValue(of(mockTeams));
 
@@ -215,7 +215,7 @@ describe('TeamBuilderComponent', () => {
 
     it('should load player pool successfully', () => {
       const mockPlayers: TeamsPlayerDto[] = [
-        { name: 'Player 1', personID: 2, pick: null, round: null }
+        { name: 'Player 1', personID: 2, pick: null, round: null, region: null }
       ];
       mockApiClient.getPlayerPool.and.returnValue(of(mockPlayers));
 
@@ -295,7 +295,7 @@ describe('TeamBuilderComponent', () => {
   describe('DisableDraggingPlayerToTeam', () => {
     it('should return false when user is event organizer', () => {
       mockAccountService.isEventOrganizer.and.returnValue(true);
-      const team: TeamResponseDto = { teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] };
+      const team: TeamResponseDto = { teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1, region: null }, players: [] };
 
       expect(component.DisableDraggingPlayerToTeam(team)).toBe(false);
     });
@@ -303,7 +303,7 @@ describe('TeamBuilderComponent', () => {
     it('should return true when no current captain on deck', () => {
       mockAccountService.isEventOrganizer.and.returnValue(false);
       component.teams.set([]);
-      const team: TeamResponseDto = { teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] };
+      const team: TeamResponseDto = { teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1, region: null }, players: [] };
 
       expect(component.DisableDraggingPlayerToTeam(team)).toBe(true);
     });
@@ -311,9 +311,9 @@ describe('TeamBuilderComponent', () => {
     it('should return false when it is current users turn and their team', () => {
       mockAccountService.isEventOrganizer.and.returnValue(false);
       mockAccountService.personID.and.returnValue(1);
-      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] }]);
-      component.playerPool.set([{ name: 'Player', personID: 2, pick: null, round: null }]);
-      const team: TeamResponseDto = { teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] };
+      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1, region: null }, players: [] }]);
+      component.playerPool.set([{ name: 'Player', personID: 2, pick: null, round: null, region: null }]);
+      const team: TeamResponseDto = { teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1, region: null }, players: [] };
 
       expect(component.DisableDraggingPlayerToTeam(team)).toBe(false);
     });
@@ -327,7 +327,7 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('should return null when player pool is empty', () => {
-      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] }]);
+      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1, region: null }, players: [] }]);
       component.playerPool.set([]);
 
       expect(component.onDeck()).toBeNull();
@@ -335,10 +335,10 @@ describe('TeamBuilderComponent', () => {
 
     it('should return captain with fewest players', () => {
       component.teams.set([
-        { teamID: 0, teamName: 'Team 1', captain: { name: 'Cap 1', personID: 1, order: 1 }, players: [{ name: 'P1', personID: 3, pick: 1, round: 1 }] },
-        { teamID: 0, teamName: 'Team 2', captain: { name: 'Cap 2', personID: 2, order: 2 }, players: [] }
+        { teamID: 0, teamName: 'Team 1', captain: { name: 'Cap 1', personID: 1, order: 1, region: null }, players: [{ name: 'P1', personID: 3, pick: 1, round: 1, region: null }] },
+        { teamID: 0, teamName: 'Team 2', captain: { name: 'Cap 2', personID: 2, order: 2, region: null }, players: [] }
       ]);
-      component.playerPool.set([{ name: 'Player', personID: 4, pick: null, round: null }]);
+      component.playerPool.set([{ name: 'Player', personID: 4, pick: null, round: null, region: null }]);
 
       const result = component.onDeck();
 
@@ -355,15 +355,15 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('should return empty pool message when player pool is empty', () => {
-      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] }]);
+      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1, region: null }, players: [] }]);
       component.playerPool.set([]);
 
       expect(component.statusText()).toBe('Player pool is empty');
     });
 
     it('should return captain on deck message', () => {
-      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Captain Name', personID: 1, order: 1 }, players: [] }]);
-      component.playerPool.set([{ name: 'Player', personID: 2, pick: null, round: null }]);
+      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Captain Name', personID: 1, order: 1, region: null }, players: [] }]);
+      component.playerPool.set([{ name: 'Player', personID: 2, pick: null, round: null, region: null }]);
 
       expect(component.statusText()).toBe('Captain Name is on deck');
     });
@@ -371,7 +371,7 @@ describe('TeamBuilderComponent', () => {
 
   describe('MapToPlayer', () => {
     it('should map available player correctly', () => {
-      const playerDto: TeamsPlayerDto = { name: 'Test Player', personID: 1, pick: 5, round: 2 };
+      const playerDto: TeamsPlayerDto = { name: 'Test Player', personID: 1, pick: 5, round: 2, region: null };
 
       const result = component.MapToPlayer(playerDto, GrabbedThing.AvailablePlayer);
 
@@ -390,7 +390,7 @@ describe('TeamBuilderComponent', () => {
 
   describe('MapToTeam', () => {
     it('should map available player to team', () => {
-      const player: TeamsPlayerDto = { name: 'Player', personID: 5, pick: null, round: null };
+      const player: TeamsPlayerDto = { name: 'Player', personID: 5, pick: null, round: null, region: null };
 
       const result = component.MapToTeam(player, GrabbedThing.AvailablePlayer);
 
@@ -404,8 +404,8 @@ describe('TeamBuilderComponent', () => {
       const team: TeamResponseDto = {
         teamID: 0,
         teamName: 'Existing Team',
-        captain: { name: 'Cap', personID: 2, order: 1 },
-        players: [{ name: 'P1', personID: 3, pick: 1, round: 1 }]
+        captain: { name: 'Cap', personID: 2, order: 1, region: null },
+        players: [{ name: 'P1', personID: 3, pick: 1, round: 1, region: null }]
       };
 
       const result = component.MapToTeam(team, GrabbedThing.Team);
@@ -422,7 +422,7 @@ describe('TeamBuilderComponent', () => {
 
   describe('onDragStart', () => {
     it('should set grabbed thing on drag start', () => {
-      const player: TeamsPlayerDto = { name: 'Player', personID: 1, pick: null, round: null };
+      const player: TeamsPlayerDto = { name: 'Player', personID: 1, pick: null, round: null, region: null };
       const event = new DragEvent('dragstart');
 
       component.onDragStart(player, event, GrabbedThing.AvailablePlayer);
@@ -434,8 +434,8 @@ describe('TeamBuilderComponent', () => {
 
   describe('createDraggedPlayer', () => {
     it('should create grabbed player object', () => {
-      const player: TeamsPlayerDto = { name: 'Player', personID: 1, pick: null, round: null };
-      const team: TeamResponseDto = { teamID: 0, teamName: 'Team', captain: { name: 'Cap', personID: 2, order: 1 }, players: [] };
+      const player: TeamsPlayerDto = { name: 'Player', personID: 1, pick: null, round: null, region: null };
+      const team: TeamResponseDto = { teamID: 0, teamName: 'Team', captain: { name: 'Cap', personID: 2, order: 1, region: null }, players: [] };
 
       const result = component.createDraggedPlayer(player, team);
 
@@ -448,8 +448,8 @@ describe('TeamBuilderComponent', () => {
     // The ids that drop handlers announce come from the drag data, which ngx-drag-drop
     // hands over as a JSON copy, so the specs use copies too.
     const copy = <T>(x: T): T => JSON.parse(JSON.stringify(x));
-    const cap = (id: number, order: number): CaptainDto => ({ name: 'Cap ' + id, personID: id, order });
-    const player = (id: number, round: number | null = null): TeamsPlayerDto => ({ name: 'Player ' + id, personID: id, pick: round, round });
+    const cap = (id: number, order: number): CaptainDto => ({ name: 'Cap ' + id, personID: id, order, region: null });
+    const player = (id: number, round: number | null = null): TeamsPlayerDto => ({ name: 'Player ' + id, personID: id, pick: round, round, region: null });
     const drop = (data: unknown, index?: number) => ({ data: copy(data), dropEffect: 'move', index } as DndDropEvent);
     const teamNames = () => component.teams().map(t => `${t.captain.order}:${t.captain.personID}`);
     const roster = (captainID: number) => component.teams().find(t => t.captain.personID === captainID)!.players.map(p => `${p.round}:${p.personID}`);
@@ -971,8 +971,8 @@ describe('TeamBuilderComponent', () => {
   describe('SignalR updates', () => {
     const SEASON = 5;
     const OTHER = 6;
-    const cap = (id: number, order: number): CaptainDto => ({ name: 'Cap ' + id, personID: id, order });
-    const player = (id: number, round: number | null = null): TeamsPlayerDto => ({ name: 'Player ' + id, personID: id, pick: round, round });
+    const cap = (id: number, order: number): CaptainDto => ({ name: 'Cap ' + id, personID: id, order, region: null });
+    const player = (id: number, round: number | null = null): TeamsPlayerDto => ({ name: 'Player ' + id, personID: id, pick: round, round, region: null });
 
     // The callback the component registered with the given SignalRService method.
     const handler = <T>(spy: jasmine.Spy) => spy.calls.mostRecent().args[0] as (dto: T) => void;
@@ -1143,8 +1143,8 @@ describe('TeamBuilderComponent', () => {
   });
 
   describe('template rendering (@for)', () => {
-    const cap = (n: number): CaptainDto => ({ name: 'Cap ' + n, personID: 100 + n, order: n });
-    const player = (id: number, round: number): TeamsPlayerDto => ({ name: 'Player ' + id, personID: id, pick: id, round: round });
+    const cap = (n: number): CaptainDto => ({ name: 'Cap ' + n, personID: 100 + n, order: n, region: null });
+    const player = (id: number, round: number): TeamsPlayerDto => ({ name: 'Player ' + id, personID: id, pick: id, round: round, region: null });
 
     function teamCards(): HTMLElement[] {
       return Array.from(fixture.nativeElement.querySelectorAll('mat-card.item:not(.dndPlaceholder)'));
@@ -1207,8 +1207,8 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
   let httpTesting: HttpTestingController;
   let mockSignalR: jasmine.SpyObj<SignalRService>;
 
-  const captain = (personID: number, order: number): CaptainDto => ({ name: 'Cap ' + personID, personID, order });
-  const pooled = (personID: number): TeamsPlayerDto => ({ name: 'Player ' + personID, personID, pick: null, round: null });
+  const captain = (personID: number, order: number): CaptainDto => ({ name: 'Cap ' + personID, personID, order, region: null });
+  const pooled = (personID: number): TeamsPlayerDto => ({ name: 'Player ' + personID, personID, pick: null, round: null, region: null });
 
   beforeEach(async () => {
     mockSignalR = jasmine.createSpyObj('SignalRService', [

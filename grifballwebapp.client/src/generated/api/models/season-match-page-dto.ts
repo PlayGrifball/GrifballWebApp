@@ -13,10 +13,10 @@ export interface SeasonMatchPageDto {
   awayTeamResult: SeasonMatchResultDto;
   awayTeamScore: number | null;
   bestOf: number;
-  bracketInfo: BracketInfoDto;
+  bracketInfo: BracketInfoDto | null;
   canRequestReschedule: boolean;
   canUndo: boolean;
-  decidedBy: SeasonMatchDecisionDto;
+  decidedBy: SeasonMatchDecisionDto | null;
   homeTeamID: number | null;
   homeTeamName: string | null;
   homeTeamResult: SeasonMatchResultDto;
@@ -27,5 +27,5 @@ export interface SeasonMatchPageDto {
   scheduledTime: string | null;
   seasonID: number;
   seasonName: string;
-  seriesTotals: SeasonMatchSeriesTotalsDto;
+  seriesTotals: SeasonMatchSeriesTotalsDto | null;
 }

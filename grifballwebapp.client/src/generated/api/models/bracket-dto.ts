@@ -4,8 +4,8 @@
 import { DtosMatchDto } from '../models/dtos-match-dto';
 import { RoundDto } from '../models/round-dto';
 export interface BracketDto {
-  grandFinal: DtosMatchDto;
-  grandFinalSuddenDeath: DtosMatchDto;
+  grandFinal: DtosMatchDto | null;
+  grandFinalSuddenDeath: DtosMatchDto | null;
   loserRounds: Array<RoundDto> | null;
   winnerRounds: Array<RoundDto> | null;
 }

@@ -9,8 +9,8 @@ import { QUICK_SEARCH_DEBOUNCE_MS, QuickSearchComponent, toGroups } from './quic
 
 const hits: QuickSearchDto = {
   players: [
-    { userID: 3, name: 'Sarge', pastGamertag: null },
-    { userID: 4, name: 'Simmons', pastGamertag: 'KissAss' },
+    { userID: 3, name: 'Sarge', pastGamertag: null, matchedName: null, kind: null, years: null },
+    { userID: 4, name: 'Simmons', pastGamertag: 'KissAss', matchedName: null, kind: null, years: null },
   ],
   teams: [{ teamID: 7, teamName: 'Red Team', seasonID: 2, seasonName: 'Season 2' }],
   seasons: [{ seasonID: 2, seasonName: 'Season 2', start: '2018-12-01T00:00:00Z', end: '2019-02-01T00:00:00Z', years: '2018–2019' }],
@@ -30,13 +30,13 @@ describe('QuickSearch helpers', () => {
     expect(toGroups({ players: [], teams: hits.teams, seasons: [] }).map(g => g.kind)).toEqual(['team']);
 
     // Found by their Discord or display name: that name shown beside the one the site uses
-    const zebra = toGroups({ players: [{ userID: 5, name: 'Zebra', pastGamertag: null, matchedName: 'griffo' }], teams: [], seasons: [] });
+    const zebra = toGroups({ players: [{ userID: 5, name: 'Zebra', pastGamertag: null, matchedName: 'griffo', kind: null, years: null }], teams: [], seasons: [] });
     expect(zebra[0].items[0].detail).toBe('aka griffo');
   });
 });
 
 describe('playerDetail', () => {
-  const p = (extra: Partial<QuickSearchPlayerDto>): QuickSearchPlayerDto => ({ userID: 1, name: 'Hellmasker1', pastGamertag: null, ...extra });
+  const p = (extra: Partial<QuickSearchPlayerDto>): QuickSearchPlayerDto => ({ userID: 1, name: 'Hellmasker1', pastGamertag: null, matchedName: null, kind: null, years: null, ...extra });
 
   it('tells two players of one name apart: the current gamertag, or the archive player with their years', () => {
     expect(playerDetail(p({ kind: 'Xbox' }))).toBe('Current gamertag');

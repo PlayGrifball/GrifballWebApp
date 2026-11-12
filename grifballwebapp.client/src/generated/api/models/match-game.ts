@@ -6,8 +6,8 @@ import { Status } from '../models/status';
 export interface MatchGame {
   id: string;
   number: number;
-  opponent1: ParticpantResult;
-  opponent2: ParticpantResult;
+  opponent1: ParticpantResult | null;
+  opponent2: ParticpantResult | null;
   parent_id: number;
   stage_id: number;
   status: Status;

@@ -10,7 +10,7 @@ function claim(id: number, changes: Partial<GamertagClaimDto> = {}): GamertagCla
   return {
     gamertagClaimID: id, kind: 'UserClaim', status: 'Pending', xboxUserID: null, xboxGamertag: null, userID: 21, claimantUserID: 21,
     gamertag: 'Old Me', placeholderUserID: 501, seasonID: null, seasonName: null, teamID: null, teamName: null,
-    createdAt: '2026-11-01T12:00:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: [], ...changes,
+    createdAt: '2026-11-01T12:00:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: [], claimantName: null, firstSeen: null, lastSeen: null, rejectionReason: null, ...changes,
   };
 }
 

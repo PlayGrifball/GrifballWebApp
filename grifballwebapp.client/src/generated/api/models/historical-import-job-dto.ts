@@ -10,7 +10,7 @@ export interface HistoricalImportJobDto {
   guarded: boolean;
   jobID: number;
   kind: string;
-  report: HistoricalImportReport;
+  report: HistoricalImportReport | null;
   reviews: Array<HistoricalSeasonReviewDto>;
   seasonsDone: number;
   seasonsTotal: number;

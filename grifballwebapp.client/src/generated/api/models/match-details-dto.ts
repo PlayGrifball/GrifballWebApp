@@ -9,7 +9,7 @@ export interface MatchDetailsDto {
   endTime: string | null;
   matchID: string;
   medals: Array<MatchDetailsMedalDto>;
-  seasonMatch: MatchDetailsSeasonMatchDto;
+  seasonMatch: MatchDetailsSeasonMatchDto | null;
   startTime: string | null;
   teams: Array<MatchDetailsTeamDto>;
 }

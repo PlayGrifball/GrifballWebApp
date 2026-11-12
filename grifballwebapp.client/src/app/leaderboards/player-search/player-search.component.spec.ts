@@ -11,9 +11,9 @@ describe('PlayerSearchComponent', () => {
   let submitted: string[];
   let cleared: number;
   const found: QuickSearchPlayerDto[] = [
-    { userID: 1, name: 'Legendary', pastGamertag: null, kind: 'Archive', years: '2009–2011' },
-    { userID: 2, name: 'Silva', pastGamertag: 'The Silvaa', kind: 'Xbox' },
-    { userID: 3, name: 'Wall', pastGamertag: null, kind: 'Xbox' },
+    { userID: 1, name: 'Legendary', pastGamertag: null, kind: 'Archive', years: '2009–2011', matchedName: null },
+    { userID: 2, name: 'Silva', pastGamertag: 'The Silvaa', kind: 'Xbox', matchedName: null, years: null },
+    { userID: 3, name: 'Wall', pastGamertag: null, kind: 'Xbox', matchedName: null, years: null },
   ];
 
   beforeEach(() => {
@@ -186,8 +186,8 @@ describe('PlayerSearchComponent', () => {
 
   it('on Enter with several players and none named so, opens the list to choose from instead of guessing', () => {
     const twins: QuickSearchPlayerDto[] = [
-      { userID: 7, name: 'Twin', pastGamertag: null, kind: 'Xbox' },
-      { userID: 8, name: 'Twin', pastGamertag: null, kind: 'Archive', years: '2010' },
+      { userID: 7, name: 'Twin', pastGamertag: null, kind: 'Xbox', matchedName: null, years: null },
+      { userID: 8, name: 'Twin', pastGamertag: null, kind: 'Archive', years: '2010', matchedName: null },
     ];
     showResults('Twin', twins);
     key('Escape');
@@ -209,7 +209,7 @@ describe('PlayerSearchComponent', () => {
   });
 
   it('points to one player only: the one named so (ignoring case), else the only one found', () => {
-    const p = (userID: number, name: string, extra: Partial<QuickSearchPlayerDto> = {}): QuickSearchPlayerDto => ({ userID, name, pastGamertag: null, ...extra });
+    const p = (userID: number, name: string, extra: Partial<QuickSearchPlayerDto> = {}): QuickSearchPlayerDto => ({ userID, name, pastGamertag: null, matchedName: null, kind: null, years: null, ...extra });
     expect(onlyMatch([p(1, 'Bob'), p(2, 'Bobby')], 'bob')?.userID).toBe(1);
     expect(onlyMatch([p(1, 'Robert', { matchedName: 'Bob' }), p(2, 'Bobby')], 'BOB')?.userID).toBe(1);
     expect(onlyMatch([p(1, 'Bobby')], 'Bob')?.userID).toBe(1);
@@ -227,7 +227,7 @@ describe('PlayerSearchComponent', () => {
     expect(sameIgnoringCase('Straße', 'STRAẞE')).toBeFalse();
     expect(sameIgnoringCase('Bob', 'Bobby')).toBeFalse();
     // So where the server would point to one player, so does the box: not both of them
-    const p = (userID: number, name: string): QuickSearchPlayerDto => ({ userID, name, pastGamertag: null });
+    const p = (userID: number, name: string): QuickSearchPlayerDto => ({ userID, name, pastGamertag: null, matchedName: null, kind: null, years: null });
     expect(onlyMatch([p(1, 'Strasse'), p(2, 'Straße')], 'straße')?.userID).toBe(2);
     expect(onlyMatch([p(1, 'Resume'), p(2, 'Résumé')], 'resume')?.userID).toBe(1);
   });

@@ -462,7 +462,7 @@ export class TeamBuilderComponent implements OnInit {
   MapToTeam(data: any, t: GrabbedThing): TeamResponseDto {
     if (t === GrabbedThing.AvailablePlayer) {
       const player = data as TeamsPlayerDto;
-      return { teamID: 0, teamName: player.name + "'s Team", captain: { name: player.name, personID: player.personID, order: null }, players: [] };
+      return { teamID: 0, teamName: player.name + "'s Team", captain: { name: player.name, personID: player.personID, order: null, region: null }, players: [] };
     } else if (t === GrabbedThing.Team) {
       return data as TeamResponseDto;
     } else {

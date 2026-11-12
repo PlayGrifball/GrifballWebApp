@@ -9,7 +9,7 @@ function stat(id: number, gamertag: string, changes: Partial<SeasonPlayerStatDto
   return {
     playerSeasonStatID: id, userID: id + 100, gamertag, teamID: 40, teamName: 'Relentless', stintIndex: 1, isPlayoffs: false,
     isCombined: false, source: 'Manual', gamesPlayed: 10, wins: 7, losses: 3, goals: 5, kills: 50, deaths: 25, assists: 4,
-    kdRatio: 2, kdSpread: 25, carrierKills: 6, sprees: 1, multiKills: 2, exterminations: 0, ...changes,
+    kdRatio: 2, kdSpread: 25, carrierKills: 6, sprees: 1, multiKills: 2, exterminations: 0, punches: null, roleNote: null, swordKills: null, tradeNote: null, winPercent: null, ...changes,
   };
 }
 

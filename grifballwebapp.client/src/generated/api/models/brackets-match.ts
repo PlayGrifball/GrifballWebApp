@@ -8,8 +8,8 @@ export interface BracketsMatch {
   group_id: number;
   id: number;
   number: number;
-  opponent1: ParticpantResult;
-  opponent2: ParticpantResult;
+  opponent1: ParticpantResult | null;
+  opponent2: ParticpantResult | null;
   round_id: number;
   stage_id: number;
   status: Status;

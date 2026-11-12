@@ -3,7 +3,7 @@
 
 import { QuickSearchPlayerKind } from '../models/quick-search-player-kind';
 export interface QuickSearchPlayerDto {
-  kind: QuickSearchPlayerKind;
+  kind: QuickSearchPlayerKind | null;
   matchedName: string | null;
   name: string;
   pastGamertag: string | null;

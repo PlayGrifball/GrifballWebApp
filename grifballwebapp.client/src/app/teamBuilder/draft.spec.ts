@@ -6,9 +6,9 @@ import {
 } from './draft';
 
 describe('team builder draft operations', () => {
-  const player = (id: number, round: number | null = null): TeamsPlayerDto => ({ name: 'P' + id, personID: id, pick: round, round });
+  const player = (id: number, round: number | null = null): TeamsPlayerDto => ({ name: 'P' + id, personID: id, pick: round, round, region: null });
   const team = (captainID: number, order: number, players: TeamsPlayerDto[] = []): TeamResponseDto =>
-    ({ teamID: captainID, teamName: 'T' + captainID, captain: { name: 'C' + captainID, personID: captainID, order }, players });
+    ({ teamID: captainID, teamName: 'T' + captainID, captain: { name: 'C' + captainID, personID: captainID, order, region: null }, players });
 
   let draft: Draft;
   let snapshot: Draft;
@@ -31,7 +31,7 @@ describe('team builder draft operations', () => {
   it('addCaptain inserts the new team at its order and takes the captain out of the pool', () => {
     const next = addCaptain(draft, 4, 'New', 'P4', 2)!;
     expect(order(next)).toEqual(['1:101', '2:4', '3:102', '4:103']);
-    expect(next.teams[1]).toEqual({ teamID: 0, teamName: 'New', captain: { name: 'P4', personID: 4, order: 2 }, players: [] });
+    expect(next.teams[1]).toEqual({ teamID: 0, teamName: 'New', captain: { name: 'P4', personID: 4, order: 2, region: null }, players: [] });
     expect(pool(next)).toEqual([3, 5]);
     expect(next.teams[0]).toBe(draft.teams[0]); // unchanged teams are shared
     expect(addCaptain(draft, 99, 'X', 'X', 1)).toBeNull();

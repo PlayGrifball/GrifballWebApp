@@ -19,5 +19,5 @@ export interface JobDto {
   recurring: boolean;
   running: Array<JobRunningDto>;
   state: string;
-  status: JobStatusDto;
+  status: JobStatusDto | null;
 }

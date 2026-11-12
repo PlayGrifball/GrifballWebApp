@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ApiClientService } from './apiClient.service';
 import { DateTime } from 'luxon';
+import type { SignupsTimeslotDto } from '@api/models';
 
 describe('ApiClientService', () => {
   let service: ApiClientService;
@@ -519,7 +520,7 @@ describe('ApiClientService', () => {
 
   describe('getTimeslots', () => {
     it('should fetch timeslots with offset', (done) => {
-      const mockTimeslots = [{ optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }];
+      const mockTimeslots: SignupsTimeslotDto[] = [{ optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }];
 
       service.getTimeslots(1, 300).subscribe({
         next: (data) => {
@@ -553,7 +554,7 @@ describe('ApiClientService', () => {
 
   describe('getTeams', () => {
     it('should fetch teams for a season', (done) => {
-      const mockTeams = [{ teamID: 1, teamName: 'Team A', captain: { name: 'Cap', personID: 3, order: 1 }, players: [] }];
+      const mockTeams = [{ teamID: 1, teamName: 'Team A', captain: { name: 'Cap', personID: 3, order: 1, region: null }, players: [] }];
 
       service.getTeams(1).subscribe({
         next: (data) => {
@@ -570,7 +571,7 @@ describe('ApiClientService', () => {
 
   describe('getPlayerPool', () => {
     it('should fetch player pool for a season', (done) => {
-      const mockPlayers = [{ personID: 1, name: 'Player1', round: null, pick: null }];
+      const mockPlayers = [{ personID: 1, name: 'Player1', round: null, pick: null, region: null }];
 
       service.getPlayerPool(1).subscribe({
         next: (data) => {

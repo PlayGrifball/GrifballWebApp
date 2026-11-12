@@ -5,6 +5,6 @@ export function seasonInfo(seasonID: number, changes: Partial<SeasonInfoDto> = {
   return {
     seasonID, seasonName: `Season ${seasonID}`, start: '2025-01-01T00:00:00Z', end: '2025-03-01T00:00:00Z', year: 2025, hasEnded: true,
     leagueID: 1, leagueName: 'AGLA', leagueSlug: 'agla', gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite',
-    division: null, isHistorical: false, historicalSourceUrl: null, ...changes,
+    division: null, isHistorical: false, historicalSourceUrl: null, format: null, ...changes,
   };
 }

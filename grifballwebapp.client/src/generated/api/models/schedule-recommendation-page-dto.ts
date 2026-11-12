@@ -4,6 +4,6 @@
 import { OnDemandJobStatusDto } from '../models/on-demand-job-status-dto';
 import { ScheduleRecommendationDto } from '../models/schedule-recommendation-dto';
 export interface ScheduleRecommendationPageDto {
-  latest: ScheduleRecommendationDto;
+  latest: ScheduleRecommendationDto | null;
   run: OnDemandJobStatusDto;
 }
