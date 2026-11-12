@@ -341,7 +341,7 @@ public class SeasonMatchServiceManualGamesTests
     }
 
     [Test]
-    public async Task RegeneratingTheSchedule_DeletesItsGamesEnteredByHand_SoTheyStopCounting()
+    public async Task RegeneratingTheSchedule_IsRefused_AndKeepsItsGamesEnteredByHand()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
         var home = await Players(seeded.Home);
@@ -350,14 +350,16 @@ public class SeasonMatchServiceManualGamesTests
             new ManualGamePlayerRequestDto { UserID = home[0], IsHomeTeam = true, Kills = 9 }));
         _context.ChangeTracker.Clear();
 
-        await new GrifballWebApp.Application.MatchPlanner.MatchPlannerService(_context).CreateSeasonMatches(seeded.Season.SeasonID, 1, 3);
+        // A played schedule is never made again: it would delete its results (review of #390)
+        Assert.ThrowsAsync<GrifballWebApp.Application.EventOrganizer.SeasonRefusedException>(() =>
+            new GrifballWebApp.Application.MatchPlanner.MatchPlannerService(_context).CreateSeasonMatches(seeded.Season.SeasonID, 1, 3));
 
+        _context.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await _context.RecordedGames.AnyAsync(), Is.False);
-            Assert.That(await _context.Set<RecordedGameTeam>().AnyAsync(), Is.False);
-            Assert.That(await _context.Set<RecordedGameParticipant>().AnyAsync(), Is.False);
-            Assert.That(await PlayerGameStatsQuery.Query(_context).AnyAsync(), Is.False);
+            Assert.That(await _context.RecordedGames.AnyAsync(), Is.True);
+            Assert.That(await _context.Set<RecordedGameParticipant>().AnyAsync(), Is.True);
+            Assert.That(await PlayerGameStatsQuery.Query(_context).AnyAsync(), Is.True);
         }
     }
 

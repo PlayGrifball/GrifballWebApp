@@ -2,6 +2,7 @@ using DiscordInterface.Generated;
 using DiscordInterfaces;
 using NetCord.Rest;
 using NSubstitute;
+using NSubstitute.Extensions;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -27,6 +28,9 @@ public sealed class CommandContextRecorder
             .Do(call =>
             {
                 var options = Substitute.For<IDiscordMessageOptions>();
+                // The options are fluent (x.WithContent(..).WithComponents(..)): each call returns them, so a chained
+                // call is recorded here too, not on an automatic substitute
+                options.ReturnsForAll<IDiscordMessageOptions>(options);
                 call.Arg<Action<IDiscordMessageOptions>>()(options);
                 Edits.Add(options);
             });

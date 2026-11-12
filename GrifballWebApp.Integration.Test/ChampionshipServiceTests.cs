@@ -219,17 +219,18 @@ public class SeasonMatchChampionshipTests
     }
 
     [Test]
-    public async Task MakingTheBracketAgain_TakesTheTitleBack()
+    public async Task MakingTheBracketAgain_IsRefused_AndKeepsTheTitle()
     {
         var seeded = await SeedFinal();
         await _service.HomeForfeit(seeded.SeasonMatch.SeasonMatchID);
         _context.ChangeTracker.Clear();
         Assert.That(await Titles(), Is.Not.Empty);
 
-        await _bracketService.CreateBracket(2, seeded.Season.SeasonID, false, 1);
+        // The final has been played: drawing the bracket again would delete it (review of #390)
+        Assert.ThrowsAsync<GrifballWebApp.Application.EventOrganizer.SeasonRefusedException>(() => _bracketService.CreateBracket(2, seeded.Season.SeasonID, false, 1));
 
         _context.ChangeTracker.Clear();
-        Assert.That(await Titles(), Is.Empty, "The new bracket has decided nobody");
+        Assert.That(await Titles(), Is.Not.Empty, "The title stays with the final's winner");
     }
 
     [Test]

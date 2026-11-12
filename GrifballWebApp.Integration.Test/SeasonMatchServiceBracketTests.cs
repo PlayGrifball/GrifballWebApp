@@ -178,7 +178,7 @@ public class SeasonMatchServiceBracketTests
     }
 
     [Test]
-    public async Task RegeneratingTheBracket_DeletesItsGamesEnteredByHand_SoTheyStopCounting()
+    public async Task RegeneratingTheBracket_IsRefused_AndKeepsItsGamesEnteredByHand()
     {
         var b = await SeedWinnerBracket();
         var homePlayer = await _context.Set<TeamPlayer>().Where(tp => tp.TeamID == b.Seeded.Home.TeamID).Select(tp => tp.UserID).FirstAsync();
@@ -188,13 +188,15 @@ public class SeasonMatchServiceBracketTests
         });
         _context.ChangeTracker.Clear();
 
-        await _bracketService.CreateBracket(2, b.Seeded.Season.SeasonID, false, 1);
+        // A played bracket is never drawn again: it would delete its results (review of #390)
+        Assert.ThrowsAsync<GrifballWebApp.Application.EventOrganizer.SeasonRefusedException>(() => _bracketService.CreateBracket(2, b.Seeded.Season.SeasonID, false, 1));
 
+        _context.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await _context.RecordedGames.AnyAsync(), Is.False);
-            Assert.That(await _context.Set<RecordedGameParticipant>().AnyAsync(), Is.False);
-            Assert.That(await GrifballWebApp.Application.Stats.PlayerGameStatsQuery.Query(_context).AnyAsync(), Is.False);
+            Assert.That(await _context.RecordedGames.AnyAsync(), Is.True);
+            Assert.That(await _context.Set<RecordedGameParticipant>().AnyAsync(), Is.True);
+            Assert.That(await GrifballWebApp.Application.Stats.PlayerGameStatsQuery.Query(_context).AnyAsync(), Is.True);
         }
     }
 
