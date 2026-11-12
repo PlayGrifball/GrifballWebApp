@@ -165,6 +165,8 @@ public class Program
             // types' own nullability, and every property the API always writes required (OpenApiSchemas.cs)
             option.CustomSchemaIds(OpenApiSchemaIds.For);
             option.SupportNonNullableReferenceTypes();
+            // A property that refers to another schema can be null too (allOf around the $ref: OpenAPI 3.0 has no other way)
+            option.UseAllOfToExtendReferenceSchemas();
             option.SchemaFilter<EveryPropertyRequiredFilter>();
             option.OperationFilter<JsonOnlyOperationFilter>();
 
