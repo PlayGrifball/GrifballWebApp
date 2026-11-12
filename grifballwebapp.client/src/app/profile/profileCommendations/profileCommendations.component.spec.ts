@@ -30,14 +30,14 @@ describe('ProfileCommendationsComponent', () => {
   const text = () => el().textContent!.replace(/\s+/g, ' ');
 
   async function respond(body: ProfileCommendationsDto): Promise<void> {
-    http.expectOne('api/users/21/commendations').flush(body);
+    http.expectOne('/api/users/21/commendations').flush(body);
     await fixture.whenStable();
     fixture.detectChanges();
   }
 
   it('says it is loading until the commendations come', () => {
     expect(text()).toContain('Loading commendations');
-    http.expectOne('api/users/21/commendations').flush({ userID: 21, totalMedals: 0, distinctMedals: 0, commendations: [] });
+    http.expectOne('/api/users/21/commendations').flush({ userID: 21, totalMedals: 0, distinctMedals: 0, commendations: [] });
   });
 
   it('lists the most earned medals, with their counts, tiers and progress', async () => {
@@ -88,7 +88,7 @@ describe('ProfileCommendationsComponent', () => {
   });
 
   it('says when the commendations fail to load', async () => {
-    http.expectOne('api/users/21/commendations').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/users/21/commendations').flush('x', { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -100,7 +100,7 @@ describe('ProfileCommendationsComponent', () => {
     fixture.componentRef.setInput('userID', 22);
     fixture.detectChanges();
 
-    http.expectOne('api/users/22/commendations').flush({ userID: 22, totalMedals: 1, distinctMedals: 1, commendations: [commendation(1, { count: 1, matches: 1, tier: 0, tierFloor: 0, nextTierAt: 10 })] });
+    http.expectOne('/api/users/22/commendations').flush({ userID: 22, totalMedals: 1, distinctMedals: 1, commendations: [commendation(1, { count: 1, matches: 1, tier: 0, tierFloor: 0, nextTierAt: 10 })] });
     await fixture.whenStable();
     fixture.detectChanges();
 

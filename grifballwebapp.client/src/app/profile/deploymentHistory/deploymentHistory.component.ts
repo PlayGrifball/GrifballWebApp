@@ -1,7 +1,7 @@
-import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { DeploymentHistoryService } from '@api/services';
 import { deploymentFinishLabel } from '../../api/deploymentFinish';
 import type { DeploymentHistoryDto } from '@api/models';
 
@@ -18,7 +18,7 @@ import type { DeploymentHistoryDto } from '@api/models';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DeploymentHistoryComponent {
-  private http = inject(HttpClient);
+  private api = inject(DeploymentHistoryService);
 
   readonly userID = input.required<number>();
   /** The profile's chosen game (its slug), or 'all'. A season played on more than one game has no single slug, so it stays. */
@@ -26,7 +26,7 @@ export class DeploymentHistoryComponent {
 
   readonly historyResource = rxResource({
     params: () => this.userID(),
-    stream: ({ params }) => this.http.get<DeploymentHistoryDto[]>(`/api/users/${params}/deployment-history`),
+    stream: ({ params }) => this.api.getDeploymentHistory({ userID: params }),
   });
   readonly history = computed<DeploymentHistoryDto[]>(() => {
     const lines = this.historyResource.hasValue() ? this.historyResource.value() ?? [] : [];

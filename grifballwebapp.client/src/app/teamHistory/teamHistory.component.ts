@@ -1,7 +1,8 @@
-import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterModule } from '@angular/router';
+import { Observable } from 'rxjs';
+import { TeamService } from '@api/services';
 import { SeasonInfoDto } from '@api/models';
 import type { PlayerDto } from '../season/team/team.component';
 import { nullWhenNotFound } from '../api/nullWhenNotFound';
@@ -18,7 +19,7 @@ import { nullWhenNotFound } from '../api/nullWhenNotFound';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TeamHistoryComponent {
-  private readonly http = inject(HttpClient);
+  private readonly api = inject(TeamService);
 
   /** One of the franchise's teams (any season's), as the route gives it: the server finds its name and league. */
   readonly teamID = input.required<number>();
@@ -26,7 +27,7 @@ export class TeamHistoryComponent {
   /** A new team cancels the request before it and clears what it showed. */
   readonly historyResource = rxResource({
     params: () => this.teamID(),
-    stream: ({ params: teamID }) => this.http.get<TeamHistoryDto>(`/api/teams/${teamID}/history`).pipe(nullWhenNotFound()),
+    stream: ({ params: teamID }) => (this.api.history({ teamID }) as Observable<TeamHistoryDto>).pipe(nullWhenNotFound()),
   });
   readonly history = computed(() => this.historyResource.hasValue() ? this.historyResource.value() ?? null : null);
   readonly loaded = computed(() => !this.historyResource.isLoading());

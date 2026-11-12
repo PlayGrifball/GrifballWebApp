@@ -1,32 +1,11 @@
 import { DecimalPipe } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { ProfileService } from '@api/services';
+import type { CommendationDto, ProfileCommendationsDto } from '@api/models';
 
-export interface CommendationDto {
-  medalID: number;
-  medalName: string;
-  description?: string | null;
-  difficultyName?: string | null;
-  typeName?: string | null;
-  /** Times earned. */
-  count: number;
-  /** Games it was earned in. */
-  matches: number;
-  /** Tiers reached; 0 before the first. */
-  tier: number;
-  /** The count of the tier reached; 0 before the first. */
-  tierFloor: number;
-  /** The count of the next tier; null once the last is reached. */
-  nextTierAt?: number | null;
-}
-
-export interface ProfileCommendationsDto {
-  userID: number;
-  totalMedals: number;
-  distinctMedals: number;
-  commendations: CommendationDto[];
-}
+// Re-exported for this page's own spec, which imports them from here (kept, to not churn an unrelated import).
+export type { CommendationDto, ProfileCommendationsDto };
 
 /** The way from the tier reached to the next, in percent; full once the last tier is reached. */
 export function tierProgress(c: CommendationDto): number {
@@ -45,13 +24,13 @@ export function tierProgress(c: CommendationDto): number {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProfileCommendationsComponent {
-  private http = inject(HttpClient);
+  private api = inject(ProfileService);
 
   readonly userID = input.required<number>();
 
   readonly commendations = rxResource({
     params: () => this.userID(),
-    stream: ({ params }) => this.http.get<ProfileCommendationsDto>(`api/users/${params}/commendations`),
+    stream: ({ params }) => this.api.getCommendations({ userID: params }),
   });
 
   readonly data = computed<ProfileCommendationsDto | null>(() => this.commendations.hasValue() ? this.commendations.value() : null);

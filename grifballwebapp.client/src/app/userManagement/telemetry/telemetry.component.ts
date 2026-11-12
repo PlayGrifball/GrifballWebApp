@@ -115,7 +115,7 @@ export class TelemetryComponent implements OnInit {
   readonly minDurationMs = signal<number | null>(null);
   readonly traces = rxResource({
     params: () => this.tab() === 'traces' && this.status.hasValue() && this.status.value().traces
-      ? { minutes: this.minutes(), errorsOnly: this.errorsOnly(), minDurationMs: this.minDurationMs() }
+      ? { minutes: this.minutes(), errorsOnly: this.errorsOnly(), minDurationMs: this.minDurationMs() ?? undefined }
       : undefined,
     stream: ({ params }) => this.api.getTelemetryTraces(params),
   });
