@@ -40,7 +40,9 @@ public class HistoricalImportController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [Authorize(Roles = "Sysadmin")]
     [RequestSizeLimit(64 * 1024 * 1024)]
-    [RequestFormLimits(MultipartBodyLengthLimit = 64 * 1024 * 1024)] // NOSONAR S5693: a sysadmin's archive (its JSON files run to tens of MB); authorization runs before the form is read
+#pragma warning disable S5693 // a sysadmin's archive (its JSON files run to tens of MB); authorization runs before the form is read
+    [RequestFormLimits(MultipartBodyLengthLimit = 64 * 1024 * 1024)]
+#pragma warning restore S5693
     [ProducesResponseType<HistoricalImportQueued>(StatusCodes.Status202Accepted)]
     public async Task<IActionResult> Import(IFormFile seasons, IFormFile? championships, IFormFile? waypointMatches, IFormFile? catalog, CancellationToken ct, IFormFile? players = null)
     {

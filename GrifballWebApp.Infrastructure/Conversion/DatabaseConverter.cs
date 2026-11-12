@@ -318,7 +318,9 @@ public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
         command.Transaction = transaction;
         command.CommandTimeout = 0;
         // Identifiers can't be parameters: these are the model's own table and column names, quoted by the dialect
-        command.CommandText = $"SELECT {string.Join(", ", table.Columns.Select(c => dialect.Quote(c.Name)))} FROM {dialect.Quote(table.Name)}"; // NOSONAR S2077: quoted identifiers from the model, no values
+#pragma warning disable S2077 // quoted identifiers from the model, no values
+        command.CommandText = $"SELECT {string.Join(", ", table.Columns.Select(c => dialect.Quote(c.Name)))} FROM {dialect.Quote(table.Name)}";
+#pragma warning restore S2077
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var rows = new List<object?[]>();
         while (await reader.ReadAsync(cancellationToken))

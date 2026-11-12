@@ -35,7 +35,9 @@ public sealed class SeasonScheduleChromosome : ChromosomeBase
         _start = start;
         _end = end;
         _options = options;
-        Random = random ?? new Random(); // NOSONAR S2245: picks candidate match times for the genetic algorithm, nothing secret
+#pragma warning disable S2245 // picks candidate match times for the genetic algorithm, nothing secret
+        Random = random ?? new Random();
+#pragma warning restore S2245
         CreateGenes();
     }
 
