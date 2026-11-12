@@ -39,12 +39,8 @@ public class HelpCommandsHandler
     }
 
     private static IEnumerable<(string, string)> SubCommands(string prefix, IReadOnlyDictionary<string, ISubSlashCommandInfo<ApplicationCommandContext>> subCommands)
-        => subCommands.Values.SelectMany(IEnumerable<(string, string)> (sub) => sub switch
-        {
-            SubSlashCommandGroupInfo<ApplicationCommandContext> group => SubCommands($"{prefix} {group.Name}", group.SubCommands),
-            SubSlashCommandInfo<ApplicationCommandContext> command => [($"{prefix} {command.Name}", command.Description)],
-            _ => Array.Empty<(string, string)>(),
-        });
+        => subCommands.Values.OfType<SubSlashCommandGroupInfo<ApplicationCommandContext>>().SelectMany(group => SubCommands($"{prefix} {group.Name}", group.SubCommands))
+            .Concat(subCommands.Values.OfType<SubSlashCommandInfo<ApplicationCommandContext>>().Select(command => ($"{prefix} {command.Name}", command.Description)));
 
     public async Task Help(IDiscordInteractionContext context, string? command)
     {

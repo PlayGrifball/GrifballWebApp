@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.Shared;
 using System.Net;
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Brackets;
@@ -228,5 +229,41 @@ public class TeamAndPlayerCommandsTests
 
         // /matches by the player's gamertag: it defers, as /matches does
         Assert.That(discord.DeferredPublicly(), Is.True);
+    }
+
+    [Test]
+    public async Task TeamMatchesAndVods_Should_ShowALossAndTheTeamsVods()
+    {
+        var other = await _context.AddTeamWithCaptain(_season, "WinnerGT", 9_000_003);
+        var match = SeasonMatch.Seed(_season.SeasonID, _team.TeamID, other.TeamID);
+        _context.SeasonMatches.Add(match);
+        _context.Set<Vod>().Add(Vod.Seed("teamvideo", "Alpha highlights", new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc), VodMatchStatus.Auto, _season.SeasonID, null, [_team.TeamID]));
+        await _context.SaveChangesAsync();
+        await new SeasonMatchService(_context, Substitute.For<IDataPullService>(),
+            new BracketService(_context, new TeamStandingsService(_context), new ChampionshipService(_context)), new ChampionshipService(_context)).HomeForfeit(match.SeasonMatchID);
+        var vods = new CommandContextRecorder();
+        var discord = new CommandContextRecorder();
+
+        await _teams.Matches(discord.Context, _team.TeamID.ToString());
+        await _teams.Vods(vods.Context, _team.TeamID.ToString());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(discord.Embed().Description, Does.Contain(" · Lost"));
+            Assert.That(vods.Embed().Description, Does.StartWith("[Alpha highlights](https://www.youtube.com/watch?v=teamvideo)"));
+        }
+    }
+
+    [Test]
+    public async Task PlayerStats_Should_ShowTheCareerByGame()
+    {
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.Seed(new StatSheetTotals { Gamertag = "PickGT", Kills = 7, GamesPlayed = 3, Wins = 2, Losses = 1, Goals = 5 },
+            _season.SeasonID, _player.Id, gameVersionID: 1, teamID: _team.TeamID, stintIndex: 0));
+        await _context.SaveChangesAsync();
+        var discord = new CommandContextRecorder();
+
+        await _players.Stats(discord.Context, "PickGT");
+
+        Assert.That(discord.Embed().Description, Does.Contain("2-1").And.Contain("7 kills"));
     }
 }

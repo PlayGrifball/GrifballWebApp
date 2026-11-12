@@ -370,4 +370,48 @@ public class AdminCommandsTests
             Assert.That(async () => await _handler.DecideClaim(As(sysadmin).Context, 999999, approve: false, reason: "No"), Throws.TypeOf<GamertagClaimException>());
         }
     }
+
+    [TestCase("report")]
+    [TestCase("forfeit")]
+    [TestCase("undo")]
+    [TestCase("pull")]
+    [TestCase("time")]
+    public async Task MatchActions_Should_SayThereIsNoSuchMatch_ToStaff(string action)
+    {
+        var discord = As(_commissioner);
+        Func<Task> run = action switch
+        {
+            "report" => () => _handler.ReportGame(discord.Context, "999999", Guid.NewGuid().ToString(), null),
+            "forfeit" => () => _handler.Forfeit(discord.Context, "999999", ForfeitSide.Home),
+            "undo" => () => _handler.UndoResult(discord.Context, "999999"),
+            "pull" => () => _handler.PullGames(discord.Context, "999999"),
+            _ => () => _handler.SetTime(discord.Context, "999999", "2030-01-01 20:00"),
+        };
+
+        await run();
+
+        Assert.That(discord.Content(), Is.EqualTo(MatchCommandsHandler.NoSuchMatch));
+    }
+
+    [TestCase("bracket")]
+    [TestCase("seed")]
+    [TestCase("lock")]
+    [TestCase("show")]
+    [TestCase("run")]
+    public async Task SeasonActions_Should_SayThereIsNoSuchSeason_ToStaff(string action)
+    {
+        var discord = As(_commissioner);
+        Func<Task> run = action switch
+        {
+            "bracket" => () => _handler.CreateBracket(discord.Context, "999999", 4, false, 3),
+            "seed" => () => _handler.SeedBracket(discord.Context, "999999"),
+            "lock" => () => _handler.LockCaptains(discord.Context, "999999", @lock: false),
+            "show" => () => _handler.ScheduleShow(discord.Context, "999999"),
+            _ => () => _handler.ScheduleRun(discord.Context, "999999"),
+        };
+
+        await run();
+
+        Assert.That(discord.Content(), Is.EqualTo(SeasonCommandsHandler.NoSuchSeason));
+    }
 }

@@ -112,12 +112,9 @@ public class PersonalCommandsHandler
             }
         }
 
-        await context.Reply(await _regions.Set(caller.UserID, regionID) switch
-        {
-            SetRegionResult.Set => regionID is null ? "Your region is cleared." : "Your region is set.",
-            SetRegionResult.NoSuchRegion => NoSuchRegion,
-            _ => "I found no account to set it on.",
-        });
+        // The region was checked above, and the caller's account exists: it is set
+        await _regions.Set(caller.UserID, regionID);
+        await context.Reply(regionID is null ? "Your region is cleared." : "Your region is set.");
     }
 
     /// <summary>Claims a past gamertag for a sysadmin to decide: refused as the site refuses it, when it can't be claimed.</summary>

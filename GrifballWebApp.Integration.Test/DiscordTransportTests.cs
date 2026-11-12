@@ -1,5 +1,6 @@
 using System.Text.Json;
 using GrifballWebApp.Server;
+using GrifballWebApp.Server.Commands;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -429,6 +430,9 @@ public class DiscordTransportTests
         var show = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin schedule show", 6101, ("season", season)));
         var jobs = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs list", 6101));
         var unknown = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs run", 6101, ("job", "nope/nothing")));
+        // Run (then pause) a job the list shows: its first line is `group/name` · state
+        var listed = System.Text.RegularExpressions.Regex.Match(jobs[^1].Data.GetProperty("embeds")[0].GetProperty("description").GetString()!, "`([^`]+)`").Groups[1].Value;
+        var ran = listed.Length > 0 ? await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs run", 6101, ("job", listed))) : null;
 
         using (Assert.EnterMultipleScope())
         {
@@ -437,6 +441,7 @@ public class DiscordTransportTests
             Assert.That(show[^1].Data.GetProperty("embeds")[0].GetProperty("title").GetString(), Does.StartWith("Schedule ("));
             Assert.That(jobs[^1].Data.GetProperty("embeds")[0].GetProperty("title").GetString(), Is.EqualTo("Jobs"));
             Assert.That(unknown[^1].Content, Is.EqualTo("There is no such job."));
+            Assert.That(ran is null || ran[^1].Content is AdminCommandsHandler.Done || ran[^1].Content!.StartsWith("The job can't"), Is.True, listed);
             Assert.That(new[] { pull, run, show, jobs, unknown }.Select(r => r[0].CallbackType), Has.All.EqualTo(DiscordRequest.DeferredChannelMessage));
         }
     }

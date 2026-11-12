@@ -1,3 +1,6 @@
+using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Championships;
@@ -216,6 +219,74 @@ public class MatchAndBrowseCommandsTests
         {
             Assert.That(embed.Fields!.Single(f => f.Name == "Teams").Value, Does.Contain("Findable Team"));
             Assert.That(embed.Fields!.Single(f => f.Name == "Seasons").Value, Does.Contain($"https://grif.test/season/{season.SeasonID}"));
+        }
+    }
+
+    [Test]
+    public async Task MatchGameAndInfo_Should_ShowAReportedGamesTeamsAndPlayers()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        var game = await SeasonMatchTestData.AddMatchAsync(_context, new DateTime(2026, 10, 30, 23, 0, 0, DateTimeKind.Utc),
+            SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        _context.Set<SeriesGame>().Add(new SeriesGame { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, GameNumber = 1, MatchID = game.MatchID });
+        await _context.SaveChangesAsync();
+        var info = new CommandContextRecorder();
+
+        await _matches.Game(_discord.Context, game.MatchID.ToString());
+        await _matches.Info(info.Context, seeded.SeasonMatch.SeasonMatchID.ToString());
+
+        var embed = _discord.Embed();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(embed.Url, Is.EqualTo($"https://grif.test/match/{game.MatchID}"));
+            Assert.That(embed.Fields!.Select(f => f.Name), Has.Some.EndsWith("(Won)").And.Some.EndsWith("(Lost)"));
+            Assert.That(embed.Fields!.Single(f => f.Name == "Duration").Value, Is.EqualTo("10:00"));
+            Assert.That(info.Embed().Fields!.Single(f => f.Name == "Games").Value, Does.StartWith("Game 1: ").And.Contain($"/match/{game.MatchID}"));
+        }
+    }
+
+    [Test]
+    public async Task LateLeague_Should_ShowASeasonsTopPlayers_ByNameIDOrLatest()
+    {
+        var player = await _context.AddUser("llplayer", gamertag: "LatePlayer");
+        var season = MatchmakingSeason.Seed("Late League Season 8 (Halo 3)", new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2020, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+        _context.MatchmakingSeasons.Add(season);
+        _context.Set<MatchmakingPlayerStat>().Add(MatchmakingPlayerStat.Seed(new StatSheetTotals { Gamertag = "LatePlayer", Kills = 4, GamesPlayed = 2, Wins = 2 },
+            gameVersionID: 1, matchmakingSeason: season, user: player));
+        await _context.SaveChangesAsync();
+        var list = new CommandContextRecorder();
+        var byName = new CommandContextRecorder();
+        var byID = new CommandContextRecorder();
+        var unknown = new CommandContextRecorder();
+
+        await _browse.LateLeagueSeasons(list.Context);
+        await _browse.LateLeagueSeason(_discord.Context, null);
+        await _browse.LateLeagueSeason(byName.Context, "season 8");
+        await _browse.LateLeagueSeason(byID.Context, season.MatchmakingSeasonID.ToString());
+        await _browse.LateLeagueSeason(unknown.Context, "nope");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(list.Embed().Description, Does.Contain($"https://grif.test/late-league/{season.MatchmakingSeasonID}"));
+            Assert.That(_discord.Embed().Description, Does.Contain($"1. [LatePlayer](https://grif.test/profile/{player.Id})"));
+            Assert.That(byName.Embed().Title, Is.EqualTo("Late League Season 8 (Halo 3)"));
+            Assert.That(byID.Embed().Title, Is.EqualTo("Late League Season 8 (Halo 3)"));
+            Assert.That(unknown.Content(), Is.EqualTo(BrowseCommandsHandler.NoSuchLateLeagueSeason));
+        }
+    }
+
+    [Test]
+    public async Task Choices_Should_ListEverything_When_NothingIsTyped()
+    {
+        await AddMatch();
+        await _context.AddUser("chooser", gamertag: "Chooser");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _lookups.SeasonChoices(null), Is.Not.Empty);
+            Assert.That(await _lookups.TeamChoices(null), Is.Not.Empty);
+            Assert.That(await _lookups.PlayerChoices(null), Is.Not.Empty);
+            Assert.That(await _lookups.SeasonMatchChoices(null), Is.Not.Empty);
         }
     }
 }

@@ -78,11 +78,8 @@ public class TeamCommandsHandler
         await context.Defer(ephemeral: false);
         if (await TeamFor(context, team) is not { } t)
             return;
-        if (await _history.GetAsync(t.TeamID) is not { } history)
-        {
-            await context.Reply(NoSuchTeam);
-            return;
-        }
+        // The team was found, so it has a history
+        var history = (await _history.GetAsync(t.TeamID))!;
         var lines = history.Seasons
             .Select(x => $"{x.Season.SeasonName.LinkMarkdown(_urls.Team(x.Season.SeasonID, x.TeamID))} · {x.Wins}-{x.Losses}"
                 + (x.Titles.Length > 0 ? $" · {string.Join(", ", x.Titles)}" : ""))
@@ -115,12 +112,7 @@ public class TeamCommandsHandler
         await context.Reply(CommandReplies.Embed($"{t.Team.TeamName} VODs", t.Url, VodLines(vods)));
     }
 
-    private static string Outcome(SeasonMatchResult result) => result switch
-    {
-        SeasonMatchResult.Won => "Won",
-        SeasonMatchResult.Loss => "Lost",
-        _ => result.ToString(),
-    };
+    private static string Outcome(SeasonMatchResult result) => result is SeasonMatchResult.Loss ? "Lost" : result.ToString();
 
     /// <summary>VODs, newest first, each a YouTube link.</summary>
     internal static string VodLines(IEnumerable<VodDto> vods)
