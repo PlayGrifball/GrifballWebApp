@@ -10,6 +10,7 @@
 #   changed-areas.sh: the workflows' backend/frontend/images flags for a PR's files (gh stubbed).
 #   sonar-pr-issues.sh: waits for SonarCloud's analysis, then fails a PR with issues or hotspots, one annotation each
 #     (curl stubbed per endpoint); and analyzers/*.globalconfig name the analyzer version Directory.Build.props uses.
+#   close-stuck-report.sh: a test report's check run left in progress is completed with the tests' outcome (gh stubbed).
 #   layer-coverage.mjs: each layer's numbers from its own test project's Cobertura report, and their change from master.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -339,6 +340,36 @@ printf '{"GrifballWebApp.Domain":{"lines":4,"linesCovered":3,"branches":2,"branc
 if node "$scripts/layer-coverage.mjs" render "$cov/layers.json" "$cov/base.json" > "$cov/table.md"; then bad "layer-coverage: a drop below the target passed"
 elif grep -qF '**Domain dropped below 70%**' "$cov/table.md"; then ok "layer-coverage: a drop below the target fails"
 else bad "layer-coverage: the drop isn't named:"; sed 's/^/  | /' "$cov/table.md"; fi
+
+# close-stuck-report.sh: a test report's check run left "in progress" (GitHub answered the reporter's update with 404)
+# is completed with the test step's own outcome; one already completed is left alone; if completing it fails, so does
+# the script (the job goes red instead of a check staying pending). gh stubbed: the check run list, then the PATCH.
+mkdir -p "$work/reportbin"
+cat > "$work/reportbin/gh" <<'GH'
+#!/usr/bin/env bash
+case "$*" in
+  *check-runs\?check_name=*) cat "$REPORT_RUNS" ;;
+  *-X\ PATCH*) echo "$*" >> "$REPORT_PATCHED"; [ -z "${REPORT_PATCH_FAILS:-}" ] ;;
+  *) echo "unexpected gh $*" >&2; exit 9 ;;
+esac
+GH
+chmod +x "$work/reportbin/gh"
+report() { # report <runs json> <outcome> [patch fails]: the script's exit code; PATCHes in $work/patched
+  printf '%s' "$1" > "$work/runs"; : > "$work/patched"
+  REPORT_RUNS="$work/runs" REPORT_PATCHED="$work/patched" REPORT_PATCH_FAILS="${3:-}" PATH="$work/reportbin:$PATH" \
+    REPO=o/r SHA=abc NAME='.NET Test Results (Unit)' OUTCOME="$2" "$scripts/close-stuck-report.sh" > "$work/out" 2>&1
+}
+stuck='{"check_runs":[{"id":7,"status":"completed","conclusion":"success"},{"id":9,"status":"in_progress","conclusion":null}]}'
+if report "$stuck" success && grep -q 'check-runs/9 ' "$work/patched" && grep -q 'conclusion=success' "$work/patched"
+then ok "close-stuck-report: a stuck report gets the tests' success"; else bad "close-stuck-report: success not set:"; cat "$work/out" "$work/patched"; fi
+if report "$stuck" failure && grep -q 'conclusion=failure' "$work/patched"
+then ok "close-stuck-report: and their failure"; else bad "close-stuck-report: failure not set:"; cat "$work/out" "$work/patched"; fi
+if report '{"check_runs":[{"id":9,"status":"completed","conclusion":"success"}]}' success && [ ! -s "$work/patched" ]
+then ok "close-stuck-report: a completed report is left alone"; else bad "close-stuck-report: touched a completed report"; fi
+if report '{"check_runs":[]}' success && [ ! -s "$work/patched" ]
+then ok "close-stuck-report: no report, nothing to do"; else bad "close-stuck-report: no report"; cat "$work/out"; fi
+if report "$stuck" success fails; then bad "close-stuck-report: a failed PATCH passed"
+else ok "close-stuck-report: a report it can't complete fails the job"; fi
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

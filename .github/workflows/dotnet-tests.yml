@@ -176,6 +176,7 @@ jobs:
       run: tar -I zstd -xf "$RUNNER_TEMP/build.tar.zst"
 
     - name: Test
+      id: test
       if: env.RUN == 'true'
       # Every project runs, a failing one included; the step fails after them if any did. One trx file per project, and
       # a copy of its coverage report under its own name (LayerCoverage/<project>.cobertura.xml), for each layer's numbers
@@ -234,6 +235,18 @@ jobs:
         reporter: dotnet-trx
         fail-on-error: true
         use-actions-summary: 'false'
+
+    # The report's check run can be left "in progress" when GitHub answers its update with 404 (above): completed here
+    # with the tests' own outcome, or this fails the job if it can't be (.github/scripts/close-stuck-report.sh)
+    - name: Close a stuck test report
+      if: always() && env.RUN == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        NAME: .NET Test Results (${{ matrix.database }})
+        OUTCOME: ${{ steps.test.outcome }}
+      run: "$GITHUB_WORKSPACE/.github/scripts/close-stuck-report.sh"
 
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1

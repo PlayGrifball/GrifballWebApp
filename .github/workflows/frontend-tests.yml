@@ -184,6 +184,7 @@ jobs:
       run: npm ci --ignore-scripts
       
     - name: Run tests with coverage
+      id: test
       if: env.RUN == 'true'
       run: npm run test:ci
       
@@ -213,6 +214,18 @@ jobs:
         reporter: java-junit
         fail-on-error: true
         use-actions-summary: 'false'
+
+    # The report's check run can be left "in progress" when GitHub answers its update with 404 (above): completed here
+    # with the tests' own outcome, or this fails the job if it can't be (.github/scripts/close-stuck-report.sh)
+    - name: Close a stuck test report
+      if: always() && env.RUN == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        NAME: Frontend Test Results
+        OUTCOME: ${{ steps.test.outcome }}
+      run: "$GITHUB_WORKSPACE/.github/scripts/close-stuck-report.sh"
         
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
