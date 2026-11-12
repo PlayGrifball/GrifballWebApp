@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { LineChartComponent } from './lineChart.component';
-import { MetricSeriesDto } from '@api/models';
+import type { MetricSeriesDto } from '@api/models';
 
 describe('LineChartComponent', () => {
   let fixture: ComponentFixture<LineChartComponent>;

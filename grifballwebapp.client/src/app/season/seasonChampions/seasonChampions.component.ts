@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { SeasonChampionDto } from '@api/models';
+import type { SeasonChampionDto } from '@api/models';
 
 /** The season's champions: each tier's winning team and the players who hold its title. */
 @Component({

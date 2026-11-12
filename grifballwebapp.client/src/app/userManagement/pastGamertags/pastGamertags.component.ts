@@ -4,8 +4,8 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, si
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
-import { GamertagClaimsService } from '@api/services';
-import { AddGamertagHistoryRequest, PastGamertagDto } from '@api/models';
+import { GamertagClaimsService } from '@api/services/gamertag-claims.service';
+import type { AddGamertagHistoryRequest, PastGamertagDto } from '@api/models';
 import { SearchBoxComponent } from '../../shared/searchBox/searchBox.component';
 import { problemText } from '../../shared/errorText';
 import { nullWhenNotFound } from '../../api/nullWhenNotFound';

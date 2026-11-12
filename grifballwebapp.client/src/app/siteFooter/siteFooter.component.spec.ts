@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
-import { BuildService } from '@api/services';
+import { BuildService } from '@api/services/build.service';
 import { SiteFooterComponent } from './siteFooter.component';
 
 describe('SiteFooterComponent', () => {

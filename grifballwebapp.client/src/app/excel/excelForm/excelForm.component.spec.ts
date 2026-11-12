@@ -3,7 +3,7 @@ import { ChangeDetectorRef } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { EXPORT_POLL_MS, ExcelFormComponent } from './excelForm.component';
-import { OnDemandJobStatusDto } from '@api/models';
+import type { OnDemandJobStatusDto } from '@api/models';
 
 describe('ExcelFormComponent', () => {
   let fixture: ComponentFixture<ExcelFormComponent>;

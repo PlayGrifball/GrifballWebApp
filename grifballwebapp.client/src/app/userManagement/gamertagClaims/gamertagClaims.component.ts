@@ -5,7 +5,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
-import { GamertagClaimsService } from '@api/services';
+import { GamertagClaimsService } from '@api/services/gamertag-claims.service';
 import { GAMERTAG_CLAIM_STATUS } from '@api/models/gamertag-claim-status-array';
 import type { DuplicateSuggestionDto, GamertagClaimDto, GamertagClaimStatus } from '@api/models';
 import type { GamertagClaimKind } from '../../api/gamertagClaims';

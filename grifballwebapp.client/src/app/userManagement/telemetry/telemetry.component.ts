@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal, type OnInit } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { TelemetryService } from '@api/services';
+import { TelemetryService } from '@api/services/telemetry.service';
 import { LOG_LEVELS, type LogLevel } from '../../api/telemetryQueries';
 import type { LogEntryDto, SpanDto, TraceDto } from '@api/models';
 import { problemText } from '../../shared/errorText';

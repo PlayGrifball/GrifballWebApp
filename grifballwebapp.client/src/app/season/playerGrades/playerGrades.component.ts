@@ -7,7 +7,7 @@ import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { DataNoticeComponent } from '../../shared/dataNotice/dataNotice.component';
 import { missing, SeasonSummaryService } from '../seasonSummary';
-import { SeasonSummaryDto } from '@api/models';
+import type { SeasonSummaryDto } from '@api/models';
 import { whileCurrent } from '../../shared/whileCurrent';
 
 @Component({

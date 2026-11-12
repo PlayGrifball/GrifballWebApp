@@ -6,7 +6,7 @@ import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { RouterModule } from '@angular/router';
 import { DateTime } from 'luxon';
 import { map, Observable } from 'rxjs';
-import { TeamService } from '@api/services';
+import { TeamService } from '@api/services/team.service';
 import { fromApiDate } from '../../shared/apiDates';
 import { nullWhenNotFound } from '../../api/nullWhenNotFound';
 
@@ -15,7 +15,7 @@ import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { BackfilledBannerComponent, DataNoticeComponent } from '../../shared/dataNotice/dataNotice.component';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
-import { SeasonInfoDto } from '@api/models';
+import type { SeasonInfoDto } from '@api/models';
 @Component({
     selector: 'app-team',
     imports: [

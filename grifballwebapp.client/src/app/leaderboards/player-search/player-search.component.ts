@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject, model, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, map, of, Subject, switchMap, timer } from 'rxjs';
-import { LeaderboardsService } from '@api/services';
-import { QuickSearchPlayerDto } from '@api/models';
+import { LeaderboardsService } from '@api/services/leaderboards.service';
+import type { QuickSearchPlayerDto } from '@api/models';
 import { playerDetail } from '../../quickSearch/playerDetail';
 import { QUICK_SEARCH_MIN_LENGTH } from '../../quickSearch/quickSearch.component';
 

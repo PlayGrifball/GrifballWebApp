@@ -1,4 +1,4 @@
-import { OnDemandJobStatusDto } from '@api/models';
+import type { OnDemandJobStatusDto } from '@api/models';
 
 /** The season's schedule recommendation (organizers): its run, a job on the worker, and the latest one it found. */
 export interface ScheduleRecommendationPageDto {

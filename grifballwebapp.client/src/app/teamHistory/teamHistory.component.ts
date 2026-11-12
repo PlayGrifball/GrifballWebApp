@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterModule } from '@angular/router';
 import { Observable } from 'rxjs';
-import { TeamService } from '@api/services';
-import { SeasonInfoDto } from '@api/models';
+import { TeamService } from '@api/services/team.service';
+import type { SeasonInfoDto } from '@api/models';
 import type { PlayerDto } from '../season/team/team.component';
 import { nullWhenNotFound } from '../api/nullWhenNotFound';
 

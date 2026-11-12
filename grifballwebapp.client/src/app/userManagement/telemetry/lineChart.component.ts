@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
-import { MetricSeriesDto } from '@api/models';
+import type { MetricSeriesDto } from '@api/models';
 
 const WIDTH = 600;
 const HEIGHT = 170;

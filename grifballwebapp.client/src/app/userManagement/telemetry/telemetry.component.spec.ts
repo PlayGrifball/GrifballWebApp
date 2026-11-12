@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting, type TestRequest } fro
 import { provideRouter } from '@angular/router';
 import { msText, TelemetryComponent, waterfall } from './telemetry.component';
 import { formatValue, niceMax } from './lineChart.component';
-import { LogEntryDto, MetricsDto, SpanDto, TelemetryStatusDto, TraceDto, TraceSummaryDto } from '@api/models';
+import type { LogEntryDto, MetricsDto, SpanDto, TelemetryStatusDto, TraceDto, TraceSummaryDto } from '@api/models';
 
 const allOn: TelemetryStatusDto = { serviceName: 'grif-prod', logs: true, metrics: true, traces: true };
 

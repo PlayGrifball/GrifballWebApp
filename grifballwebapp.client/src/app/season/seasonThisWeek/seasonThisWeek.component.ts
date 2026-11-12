@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, si
 import { RouterLink } from '@angular/router';
 import { DateTime } from 'luxon';
 import { map } from 'rxjs';
-import { MatchPlannerService } from '@api/services';
+import { MatchPlannerService } from '@api/services/match-planner.service';
 import { parseScheduledMatch, ScheduledMatchDto } from '../scheduleList/scheduledMatchDto';
 import { ToDatePipe } from '../../shared/toDate.pipe';
 

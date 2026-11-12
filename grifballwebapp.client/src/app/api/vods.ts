@@ -1,6 +1,6 @@
 import type { Observable } from 'rxjs';
 import type { VodDto } from '@api/models';
-import type { VodService } from '@api/services';
+import type { VodService } from '@api/services/vod.service';
 
 /** Which page's VODs: a season match, a season, a team or a player. */
 export type VodScope = 'seasonMatch' | 'season' | 'team' | 'player';

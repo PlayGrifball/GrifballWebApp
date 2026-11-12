@@ -5,8 +5,8 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { Observable, repeat } from 'rxjs';
-import { JobsService } from '@api/services';
-import { JobDto } from '@api/models';
+import { JobsService } from '@api/services/jobs.service';
+import type { JobDto } from '@api/models';
 import { JobKey, JobState } from '../../api/jobs';
 import { problemText } from '../../shared/errorText';
 

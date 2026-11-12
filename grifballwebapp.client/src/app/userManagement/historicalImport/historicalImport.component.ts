@@ -5,8 +5,8 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { EMPTY, expand, Observable, switchMap, timer } from 'rxjs';
-import { HistoricalImportService } from '@api/services';
-import { HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueued, HistoricalSeasonReviewDto, HistoricalSourceDto } from '@api/models';
+import { HistoricalImportService } from '@api/services/historical-import.service';
+import type { HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueued, HistoricalSeasonReviewDto, HistoricalSourceDto } from '@api/models';
 import { problemText } from '../../shared/errorText';
 import { VodReviewComponent } from './vodReview/vodReview.component';
 

@@ -5,7 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { CreateUserDto } from './createUserDto';
-import { UserManagementService } from '@api/services';
+import { UserManagementService } from '@api/services/user-management.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({

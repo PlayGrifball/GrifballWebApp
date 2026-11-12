@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { map, Subscription } from 'rxjs';
-import { MatchDetailsService } from '@api/services';
+import { MatchDetailsService } from '@api/services/match-details.service';
 import { ToDatePipe } from '../shared/toDate.pipe';
 import { formatSeconds, MatchDetailsDto, MatchDetailsTeamDto, parseMatchDetails } from './matchDetailsDto';
 

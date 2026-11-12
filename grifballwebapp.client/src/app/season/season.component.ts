@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { HomeService, SeasonService } from '@api/services';
+import { HomeService } from '@api/services/home.service';
+import { SeasonService } from '@api/services/season.service';
 import { ScheduleListComponent } from "./scheduleList/scheduleList.component";
 import { PlayoffBracketComponent } from './playoffBracket/playoffBracket.component';
 import { TeamStandingsComponent } from './teamStandings/teamStandings.component';
@@ -10,7 +11,7 @@ import { SeasonEvent, signupsOpen } from '../shared/seasonEvents';
 import { pageNow } from '../shared/pageNow';
 import { BackfilledBannerComponent, DataNoticeComponent } from '../shared/dataNotice/dataNotice.component';
 import { missing, SeasonSummaryService } from './seasonSummary';
-import { SeasonSummaryDto } from '@api/models';
+import type { SeasonSummaryDto } from '@api/models';
 import { seasonFormatLabel } from '../api/seasonFormats';
 import { SeasonChampionsComponent } from './seasonChampions/seasonChampions.component';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';

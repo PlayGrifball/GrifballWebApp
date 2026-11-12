@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { LeaderboardsComponent } from './leaderboards.component';
 import { By } from '@angular/platform-browser';
 import type { LeaderboardsDto } from '@api/models';
-import { PlayerAllTimeRankDto } from '@api/models';
+import type { PlayerAllTimeRankDto } from '@api/models';
 import { PlayerSearchComponent, SEARCH_DEBOUNCE_MS } from './player-search/player-search.component';
 
 describe('LeaderboardsComponent', () => {

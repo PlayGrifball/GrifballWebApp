@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { SeasonService } from '@api/services';
-import { SeasonPlayerStatDto } from '@api/models';
+import { SeasonService } from '@api/services/season.service';
+import type { SeasonPlayerStatDto } from '@api/models';
 
 export type StatPhase = 'all' | 'regular' | 'playoffs';
 /** The columns the leaderboard sorts by. */

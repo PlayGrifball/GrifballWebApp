@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { deploymentFinishLabel } from '../../api/deploymentFinish';
 import type { DeploymentHistoryDto } from '@api/models';
-import { SeasonInfoDto } from '@api/models';
+import type { SeasonInfoDto } from '@api/models';
 import { DeploymentHistoryComponent } from './deploymentHistory.component';
 
 const season = (overrides: Partial<SeasonInfoDto> = {}): SeasonInfoDto => ({

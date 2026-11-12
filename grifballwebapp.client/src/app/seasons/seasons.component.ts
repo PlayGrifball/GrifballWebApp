@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { SeasonService } from '@api/services';
-import { SeasonListItemDto } from '@api/models';
+import { SeasonService } from '@api/services/season.service';
+import type { SeasonListItemDto } from '@api/models';
 import { seasonFormatLabel, seasonFormats } from '../api/seasonFormats';
 import type { SeasonFormat } from '@api/models';
 import type { SeasonListFilter } from '../api/seasons';

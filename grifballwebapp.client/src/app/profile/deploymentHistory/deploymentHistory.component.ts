@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { DeploymentHistoryService } from '@api/services';
+import { DeploymentHistoryService } from '@api/services/deployment-history.service';
 import { deploymentFinishLabel } from '../../api/deploymentFinish';
 import type { DeploymentHistoryDto } from '@api/models';
 

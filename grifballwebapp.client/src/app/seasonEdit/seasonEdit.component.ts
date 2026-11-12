@@ -1,9 +1,9 @@
 import { Component, OnInit, ChangeDetectionStrategy, computed, effect, inject, input, numberAttribute, untracked, viewChild, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { EventOrganizerService } from '@api/services';
+import { EventOrganizerService } from '@api/services/event-organizer.service';
 import { SeasonSettingsApiService } from '../api/seasonSettingsApi.service';
 import { SeasonSettings } from '../api/seasonSettings';
-import { GameVersionOptionDto, LeagueOptionDto } from '@api/models';
+import type { GameVersionOptionDto, LeagueOptionDto } from '@api/models';
 import { seasonFormats } from '../api/seasonFormats';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';

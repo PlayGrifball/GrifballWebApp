@@ -1,6 +1,6 @@
 import { Component, ChangeDetectionStrategy, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
-import { TeamStandingsService } from '@api/services';
+import { TeamStandingsService } from '@api/services/team-standings.service';
 import { TeamStandingDto } from './teamStandingDto';
 import { MatTableModule } from '@angular/material/table';
 import { whileCurrent } from '../../shared/whileCurrent';

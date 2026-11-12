@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { catchError, map, of } from 'rxjs';
-import { BuildService } from '@api/services';
+import { BuildService } from '@api/services/build.service';
 
 /** The page footer: which build is running, linked to the source. */
 @Component({

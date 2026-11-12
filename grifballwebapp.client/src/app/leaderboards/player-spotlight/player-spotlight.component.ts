@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { MetricRankDetail, PlayerAllTimeRankDto } from '@api/models';
+import type { MetricRankDetail, PlayerAllTimeRankDto } from '@api/models';
 import type { Board } from '../board';
 
 type SpotlightBoard = Exclude<Board, 'dynasties'>;

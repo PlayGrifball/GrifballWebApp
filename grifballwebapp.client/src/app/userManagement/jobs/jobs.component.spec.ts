@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { durationText, intervalText, JOBS_POLL_MS, JobsComponent, splitInterval } from './jobs.component';
-import { JobDto, JobRunDto, JobsOverviewDto, JobStatusDto } from '@api/models';
+import type { JobDto, JobRunDto, JobsOverviewDto, JobStatusDto } from '@api/models';
 
 function status(changes: Partial<JobStatusDto> = {}): JobStatusDto {
   return {

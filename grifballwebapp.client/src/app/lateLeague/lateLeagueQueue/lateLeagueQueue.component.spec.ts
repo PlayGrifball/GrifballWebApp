@@ -5,7 +5,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { HttpTransportType, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { AuthSession } from '../../authSession.service';
-import { QueueStatusDto } from '@api/models';
+import type { QueueStatusDto } from '@api/models';
 import { QUEUE_HUB_URL, LateLeagueQueueComponent } from './lateLeagueQueue.component';
 
 describe('LateLeagueQueueComponent', () => {

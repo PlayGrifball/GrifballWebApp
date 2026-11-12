@@ -4,10 +4,10 @@ import { ChangeDetectionStrategy, Component, PLATFORM_ID, inject, input, signal 
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
-import { QueueService } from '@api/services';
+import { QueueService } from '@api/services/queue.service';
 import { AuthSession } from '../../authSession.service';
 import { hubLifecycle } from '../../api/hubLifecycle';
-import { QueueStatusDto } from '@api/models';
+import type { QueueStatusDto } from '@api/models';
 import { errorText } from '../../shared/errorText';
 
 /** The queue's hub (QueueHub): it sends the queue's size whenever it changes. */

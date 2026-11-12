@@ -13,7 +13,7 @@ import { DateTime } from 'luxon';
 import { AccountService } from '../../account.service';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { Subject } from 'rxjs';
-import { OnDemandJobStatusDto } from '@api/models';
+import type { OnDemandJobStatusDto } from '@api/models';
 import type { ScheduleRecommendationDto, ScheduleRecommendationPageDto } from './scheduleRecommendationDto';
 
 describe('ScheduleListComponent', () => {

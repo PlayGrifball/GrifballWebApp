@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, input, OnInit
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { switchMap, takeWhile, timer } from 'rxjs';
-import { OnDemandJobStatusDto } from '@api/models';
+import type { OnDemandJobStatusDto } from '@api/models';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';

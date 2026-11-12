@@ -1,7 +1,7 @@
 import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { ProfileService } from '@api/services';
+import { ProfileService } from '@api/services/profile.service';
 import type { CommendationDto, ProfileCommendationsDto } from '@api/models';
 
 // Re-exported for this page's own spec, which imports them from here (kept, to not churn an unrelated import).

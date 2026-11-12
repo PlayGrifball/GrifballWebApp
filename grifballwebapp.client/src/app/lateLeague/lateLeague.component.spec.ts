@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { Component, input } from '@angular/core';
 import { LateLeagueComponent } from './lateLeague.component';
 import { LateLeagueQueueComponent } from './lateLeagueQueue/lateLeagueQueue.component';
-import { MatchmakingPlayerStatDto, MatchmakingQueueDto, MatchmakingSeasonDto } from '@api/models';
+import type { MatchmakingPlayerStatDto, MatchmakingQueueDto, MatchmakingSeasonDto } from '@api/models';
 
 /** The queue has its own specs: here it is left out, with its requests and hub connection. */
 @Component({ selector: 'app-late-league-queue', template: '' })

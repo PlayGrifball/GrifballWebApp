@@ -4,7 +4,7 @@ import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter
 import { DateTime } from 'luxon';
 import { of, Subject, throwError } from 'rxjs';
 import { SeasonEditComponent } from './seasonEdit.component';
-import { EventOrganizerService } from '@api/services';
+import { EventOrganizerService } from '@api/services/event-organizer.service';
 import { SeasonSettingsApiService } from '../api/seasonSettingsApi.service';
 import { SeasonSettings } from '../api/seasonSettings';
 

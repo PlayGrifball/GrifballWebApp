@@ -2,9 +2,9 @@ import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of, Subscription } from 'rxjs';
-import { LateLeagueService } from '@api/services';
+import { LateLeagueService } from '@api/services/late-league.service';
 import { LateLeagueQueueComponent } from './lateLeagueQueue/lateLeagueQueue.component';
-import { MatchmakingPlayerStatDto, MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeasonDto } from '@api/models';
+import type { MatchmakingPlayerStatDto, MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeasonDto } from '@api/models';
 
 /**
  * Late League: the Discord queue's matchmaking, random skill-matched sides every game, so no teams, standings or

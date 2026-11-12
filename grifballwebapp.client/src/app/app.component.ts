@@ -6,7 +6,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { SideBarDto } from './sidebarDto';
 import { AccountService } from './account.service';
-import { SeasonService } from '@api/services';
+import { SeasonService } from '@api/services/season.service';
 import { ThemingService } from './theming.service';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';

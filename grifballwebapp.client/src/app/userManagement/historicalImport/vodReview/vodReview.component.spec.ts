@@ -2,8 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { of, Subject, throwError } from 'rxjs';
-import { VodService } from '@api/services';
-import { VodReviewDto } from '@api/models';
+import { VodService } from '@api/services/vod.service';
+import type { VodReviewDto } from '@api/models';
 import { suggestion, VodReviewComponent } from './vodReview.component';
 
 function review(id: number, changes: Partial<VodReviewDto> = {}): VodReviewDto {

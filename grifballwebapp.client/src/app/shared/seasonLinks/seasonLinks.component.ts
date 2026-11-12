@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { SeasonRefDto } from '@api/models';
+import type { SeasonRefDto } from '@api/models';
 
 /** Seasons as a comma-separated list, each linked to its page: "Winter League 2019 (2019), ...". */
 @Component({

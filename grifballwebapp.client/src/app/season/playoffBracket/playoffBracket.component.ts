@@ -12,7 +12,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AccountService } from '../../account.service';
 import { Locale } from 'brackets-viewer/dist/lang';
 import { loadBracketsViewer } from '../../shared/loadBracketsViewer';
-import { SeasonChampionDto } from '@api/models';
+import type { SeasonChampionDto } from '@api/models';
 import { whileCurrent } from '../../shared/whileCurrent';
 
 @Component({

@@ -3,11 +3,11 @@ import { ChangeDetectionStrategy, Component, computed, inject, LOCALE_ID, OnInit
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, EMPTY, map, of, Subject, switchMap, tap } from 'rxjs';
-import { LeaderboardsService } from '@api/services';
+import { LeaderboardsService } from '@api/services/leaderboards.service';
 import { nullWhenNotFound } from '../api/nullWhenNotFound';
-import { LeaderboardsDto, MetricLeaderDto } from '@api/models';
-import { PlayerAllTimeRankDto } from '@api/models';
-import { QuickSearchPlayerDto } from '@api/models';
+import type { LeaderboardsDto, MetricLeaderDto } from '@api/models';
+import type { PlayerAllTimeRankDto } from '@api/models';
+import type { QuickSearchPlayerDto } from '@api/models';
 import { seasonFormats } from '../api/seasonFormats';
 import type { SeasonFormat } from '@api/models';
 import type { Board } from './board';

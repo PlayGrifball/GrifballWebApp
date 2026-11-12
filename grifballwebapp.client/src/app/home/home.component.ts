@@ -10,7 +10,7 @@ import { combineLatest, Observable, of, switchMap, tap } from 'rxjs';
 import { PaginationResult } from '../shared/paginationResult';
 import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 import { pageNow } from '../shared/pageNow';
-import { SeasonListItemDto } from '@api/models';
+import type { SeasonListItemDto } from '@api/models';
 import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
 import { rowEnterAnimation } from '../shared/rowEnterAnimation';
 

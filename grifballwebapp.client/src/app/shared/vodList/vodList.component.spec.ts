@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
-import { VodService } from '@api/services';
+import { VodService } from '@api/services/vod.service';
 import { getVods, isVideoID, vodDuration } from '../../api/vods';
 import type { VodDto } from '@api/models';
 import { EMBED_ORIGIN, VodListComponent } from './vodList.component';

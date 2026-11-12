@@ -5,7 +5,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Event, eventLink, heroKicker, heroLede, HomeComponent, pickFeatured } from './home.component';
 import { seasonInfo } from '../api/seasonInfo.stub';
-import { SeasonChampionDto } from '@api/models';
+import type { SeasonChampionDto } from '@api/models';
 import { Component } from '@angular/core';
 import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
 import { noMaterialAnimations } from '../testing/noMaterialAnimations';

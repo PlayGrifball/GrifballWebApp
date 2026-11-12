@@ -8,7 +8,8 @@ import { signal } from '@angular/core';
 
 import { AppComponent, MENU_BUTTON_WIDTH, NAV_LINK_GAP } from './app.component';
 import { AccountService } from './account.service';
-import { SeasonService, BuildService } from '@api/services';
+import { SeasonService } from '@api/services/season.service';
+import { BuildService } from '@api/services/build.service';
 import { ThemingService } from './theming.service';
 import { noMaterialAnimations } from './testing/noMaterialAnimations';
 
