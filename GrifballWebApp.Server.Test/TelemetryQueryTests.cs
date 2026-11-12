@@ -113,6 +113,24 @@ public class TelemetryQueriesTests
     }
 
     [Test]
+    public void A_page_trace_keeps_its_own_name_whatever_its_render_called()
+    {
+        // A page's root (GET /*) is the page; Season/Get is only one of the calls its render made
+        Assert.That(TelemetryQueries.TraceName("GET /*", "Season/Get"), Is.EqualTo("GET /*"));
+    }
+
+    [Test]
+    public async Task Traces_search_asks_for_enough_spans_to_find_the_backends_route()
+    {
+        var backends = new FakeBackends(_ => Json("""{"traces":[]}"""));
+
+        await Service(backends).Traces(30, false, null, 500, default);
+
+        // One span a trace is only the root: the app server's /api/* when a browser's call started it
+        Assert.That(int.Parse(Query(backends.Asked.Single(), "spss"), System.Globalization.CultureInfo.InvariantCulture), Is.GreaterThanOrEqualTo(3));
+    }
+
+    [Test]
     public void Traces_adds_errors_and_duration()
     {
         using (Assert.EnterMultipleScope())

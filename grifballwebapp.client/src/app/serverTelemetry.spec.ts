@@ -1,5 +1,9 @@
+import { AggregationTemporality, DataPointType, MeterProvider, MetricReader } from '@opentelemetry/sdk-metrics';
 import {
   DEFAULT_METRIC_INTERVAL_MS,
+  RENDER_DURATION,
+  REQUEST_DURATION,
+  finishedStatus,
   DEFAULT_SERVICE_NAME,
   MAX_METRIC_INTERVAL_MS,
   MIN_METRIC_INTERVAL_MS,
@@ -177,5 +181,43 @@ describe('server telemetry', () => {
       expect(line.error.type).toBe('TypeError');
       expect(line.error.message).toBe('boom');
     });
+  });
+
+  describe('durations', () => {
+    /** Collects on demand, for a test. */
+    class TestReader extends MetricReader {
+      constructor() {
+        super({ aggregationTemporalitySelector: () => AggregationTemporality.CUMULATIVE });
+      }
+      protected override onShutdown(): Promise<void> { return Promise.resolve(); }
+      protected override onForceFlush(): Promise<void> { return Promise.resolve(); }
+    }
+
+    /** The upper bound of the bucket a value lands in, recorded on a histogram made with these options. */
+    async function bucketOf(options: typeof RENDER_DURATION, seconds: number): Promise<number> {
+      const reader = new TestReader();
+      const provider = new MeterProvider({ readers: [reader] });
+      provider.getMeter('test').createHistogram('d', options).record(seconds);
+      const { resourceMetrics } = await reader.collect();
+      const metric = resourceMetrics.scopeMetrics[0].metrics[0];
+      expect(metric.dataPointType).toBe(DataPointType.HISTOGRAM);
+      const { buckets } = metric.dataPoints[0].value as { buckets: { boundaries: number[]; counts: number[] } };
+      const index = buckets.counts.findIndex(c => c > 0);
+      await provider.shutdown();
+      return index < buckets.boundaries.length ? buckets.boundaries[index] : Infinity;
+    }
+
+    it('put a 0.2 s render in a bucket of at most a second, so its p95 means something', async () => {
+      expect(await bucketOf(RENDER_DURATION, 0.2)).toBeLessThanOrEqual(1);
+    });
+
+    it('put a 30 ms request in a bucket of at most 50 ms', async () => {
+      expect(await bucketOf(REQUEST_DURATION, 0.03)).toBeLessThanOrEqual(0.05);
+    });
+  });
+
+  it('records no status for a response the visitor cut short, and the status of one that finished', () => {
+    expect(finishedStatus(200, false)).toBeUndefined();
+    expect(finishedStatus(502, true)).toBe(502);
   });
 });

@@ -43,6 +43,13 @@ describe('client errors', () => {
       expect(pageTraceparent(undefined)).toBeUndefined();
     });
 
+    it('leaves out the page\'s once the app has moved to another page in the browser', () => {
+      const perf = { getEntriesByType: () => [{ name: 'https://grifball.xyz/season/1', serverTiming: [{ name: 'traceparent', description: TRACEPARENT }] }] } as unknown as Performance;
+
+      expect(pageTraceparent(perf, 'https://grifball.xyz/season/1#top')).toBe(TRACEPARENT);
+      expect(pageTraceparent(perf, 'https://grifball.xyz/teams')).toBeUndefined();
+    });
+
     it('reads a failed call\'s from traceresponse, else from its ProblemDetails', () => {
       const withHeader = new HttpErrorResponse({ status: 500, headers: new HttpHeaders({ traceresponse: CALL_TRACEPARENT }), error: { traceId: TRACEPARENT } });
       const withBody = new HttpErrorResponse({ status: 500, error: { traceId: TRACEPARENT } });
@@ -186,6 +193,40 @@ describe('client errors', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
 
+    it('stops once the API refuses a report (400), not only when reports are off (404)', async () => {
+      fetchSpy.and.callFake(() => Promise.resolve(new Response(null, { status: 400 })));
+      const r = reporter();
+      r.reportError(new Error('first'));
+      await fetchSpy.calls.mostRecent().returnValue;
+      await Promise.resolve();
+
+      r.reportError(new Error('second'));
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps sending after a 429: a limit is no refusal for good', async () => {
+      fetchSpy.and.callFake(() => Promise.resolve(new Response(null, { status: 429 })));
+      const r = reporter();
+      r.reportError(new Error('first'));
+      await fetchSpy.calls.mostRecent().returnValue;
+      await Promise.resolve();
+
+      r.reportError(new Error('second'));
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('reports a call with no answer again once the page comes back from the back/forward cache', () => {
+      const r = reporter();
+      dispatchEvent(new Event('pagehide'));
+      dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+
+      r.reportCall('GET', new HttpErrorResponse({ status: 0, url: '/api/Teams' }));
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('lets a report fail quietly', async () => {
       fetchSpy.and.callFake(() => Promise.reject(new TypeError('offline')));
       reporter().reportError(new Error('boom'));
@@ -219,6 +260,16 @@ describe('client errors', () => {
 
     expect(consoleError).toHaveBeenCalled();
     expect(report.reportError).toHaveBeenCalledOnceWith(error);
+  });
+
+  it('leaves an HTTP error to the interceptor, which reports it (redacted) once', () => {
+    const report = jasmine.createSpyObj<ClientErrorReporter>('reporter', ['reportError']);
+    TestBed.configureTestingModule({ providers: [ReportingErrorHandler, { provide: ClientErrorReporter, useValue: report }] });
+    spyOn(console, 'error');
+
+    TestBed.inject(ReportingErrorHandler).handleError(new HttpErrorResponse({ status: 500, url: 'https://grifball.xyz/api/x?token=abc' }));
+
+    expect(report.reportError).not.toHaveBeenCalled();
   });
 
   describe('the interceptor', () => {
