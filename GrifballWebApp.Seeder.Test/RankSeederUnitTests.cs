@@ -45,7 +45,7 @@ public class RankSeederUnitTests
             Assert.That(ranks[^1].Name, Is.EqualTo("Challenger"));
             Assert.That(ranks[^1].MmrThreshold, Is.EqualTo(3500));
             Assert.That(ranks.Select(r => r.MmrThreshold), Is.Ordered, "Each rank's threshold is higher than the last");
-            Assert.That(ranks.Select(r => r.Name).Distinct(), Has.Count.EqualTo(21), "Every rank has its own name");
+            Assert.That(ranks.Select(r => r.Name), Is.Unique, "Every rank has its own name");
         }
     }
 

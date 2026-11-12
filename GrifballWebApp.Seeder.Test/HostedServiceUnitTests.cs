@@ -42,7 +42,7 @@ public class HostedServiceUnitTests
             Assert.That(signups.Items, Has.Count.EqualTo(30), "Only the 6 captains and 24 players sign up; the sysadmin doesn't");
             Assert.That(signups.Items.Count(s => s.WillCaptain), Is.EqualTo(6));
             Assert.That(signups.Items.Where(s => s.WillCaptain).Select(s => s.TeamName), Has.All.EndWith("'s Team"));
-            Assert.That(signups.Items.Where(s => !s.WillCaptain), Has.All.Matches<SeasonSignup>(s => s.TeamName == null));
+            Assert.That(signups.Items.Where(s => !s.WillCaptain).All(s => s.TeamName is null), Is.True, "Players don't choose a team name");
         }
     }
 }
