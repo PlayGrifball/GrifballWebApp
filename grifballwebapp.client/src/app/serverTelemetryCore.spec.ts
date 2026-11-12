@@ -189,7 +189,7 @@ describe('server telemetry core', () => {
       telemetry.requests(req, response(), () => undefined);
       const written = jasmine.createSpy('write');
       const sentClientPage = jasmine.createSpy('sendClientPage');
-      pageHandler({ handle, write: written, sendClientPage, telemetry })(req, {}, () => undefined);
+      pageHandler({ handle, write: written, sendClientPage: sentClientPage, telemetry })(req, {}, () => undefined);
       const outcome = async () => {
         await new Promise(resolve => setTimeout(resolve));
         return spans.getFinishedSpans().find(s => s.name === 'render')?.attributes['grif.render.outcome'];
