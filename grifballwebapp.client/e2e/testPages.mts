@@ -1088,8 +1088,10 @@ export async function settled(page: Page, limits: { animationsMs?: number; still
 
 /** The animations still going, each with what it runs on (tag and classes), for settled()'s error. */
 function stillAnimating(page: Page): Promise<string[]> {
+  // The same test as the wait in settled() (each runs in the page, so neither can share the other's function): an
+  // endless one, such as a spinner, holds nothing up and is not named
   return page.evaluate(() => document.getAnimations()
-    .filter(animation => animation.pending || animation.playState === 'running')
+    .filter(animation => (animation.pending || animation.playState === 'running') && animation.effect?.getComputedTiming().iterations !== Infinity)
     .map(animation => {
       const name = (animation as CSSAnimation).animationName ?? (animation as CSSTransition).transitionProperty ?? (animation.id || 'animation');
       const target = (animation.effect as KeyframeEffect | null)?.target;
