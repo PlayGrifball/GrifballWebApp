@@ -10,6 +10,7 @@
 #   changed-areas.sh: the workflows' backend/frontend/images flags for a PR's files (gh stubbed).
 #   sonar-pr-issues.sh: waits for SonarCloud's analysis, then fails a PR with issues or hotspots, one annotation each
 #     (curl stubbed per endpoint); and analyzers/*.globalconfig name the analyzer version Directory.Build.props uses.
+#   layer-coverage.mjs: each layer's numbers from its own test project's Cobertura report, and their change from master.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 scripts=$(dirname "$here")
@@ -299,6 +300,45 @@ for f in "$root"/analyzers/sonar-main.globalconfig "$root"/analyzers/sonar-tests
   if grep -q '= warning$' "$f"; then bad "${f##*/} has rules as warnings: run bash .github/scripts/sonar-rules.sh"
   else ok "${f##*/} has its rules as errors"; fi
 done
+
+# layer-coverage.mjs: a layer counts its own package only, each line once (listed by its class and its method), and
+# a test project without its layer's package (the architecture tests) is left out
+cov=$work/coverage
+mkdir -p "$cov"
+cat > "$cov/GrifballWebApp.Domain.Test.cobertura.xml" <<'XML'
+<coverage><packages>
+<package name="GrifballWebApp.Domain"><classes><class name="A" filename="A.cs"><methods><method name="M"><lines>
+<line number="1" hits="1" branch="True" condition-coverage="50% (1/2)" /></lines></method></methods><lines>
+<line number="1" hits="1" branch="True" condition-coverage="50% (1/2)" /><line number="2" hits="0" branch="False" />
+<line number="3" hits="0" branch="False" /><line number="4" hits="2" branch="False" /></lines></class></classes></package>
+</packages></coverage>
+XML
+cat > "$cov/GrifballWebApp.Application.Test.cobertura.xml" <<'XML'
+<coverage><packages>
+<package name="GrifballWebApp.Domain"><classes><class name="A" filename="A.cs"><lines>
+<line number="2" hits="5" branch="False" /><line number="3" hits="5" branch="False" /></lines></class></classes></package>
+<package name="GrifballWebApp.Application"><classes><class name="B" filename="B.cs"><lines>
+<line number="1" hits="1" branch="False" /><line number="2" hits="0" branch="False" /></lines></class></classes></package>
+</packages></coverage>
+XML
+cat > "$cov/GrifballWebApp.Architecture.Test.cobertura.xml" <<'XML'
+<coverage><packages><package name="GrifballWebApp.Domain"><classes><class name="A" filename="A.cs"><lines>
+<line number="2" hits="1" branch="False" /></lines></class></classes></package></packages></coverage>
+XML
+node "$scripts/layer-coverage.mjs" collect "$cov" "$cov/layers.json"
+node "$scripts/layer-coverage.mjs" render "$cov/layers.json" "" abc1234 > "$cov/table.md"
+if grep -qF '| Domain | 50.0% · 2/4 | 50.0% | ❌ 1 lines short |' "$cov/table.md" \
+  && grep -qF '| Application | 50.0% · 1/2 | – | ❌ 1 lines short |' "$cov/table.md" \
+  && ! grep -q Architecture "$cov/table.md"; then ok "layer-coverage: each layer from its own tests"
+else bad "layer-coverage table:"; sed 's/^/  | /' "$cov/table.md"; fi
+printf '{"GrifballWebApp.Domain":{"lines":4,"linesCovered":1,"branches":2,"branchesCovered":1}}\n' > "$cov/base.json"
+if node "$scripts/layer-coverage.mjs" render "$cov/layers.json" "$cov/base.json" | grep -qF '| Domain | 50.0% (+25.0) · 2/4 | 50.0% (±0) |'
+then ok "layer-coverage: change from master"; else bad "layer-coverage: no change from master shown"; fi
+# A layer master had at the target that drops below it fails; one still below it doesn't
+printf '{"GrifballWebApp.Domain":{"lines":4,"linesCovered":3,"branches":2,"branchesCovered":1}}\n' > "$cov/base.json"
+if node "$scripts/layer-coverage.mjs" render "$cov/layers.json" "$cov/base.json" > "$cov/table.md"; then bad "layer-coverage: a drop below the target passed"
+elif grep -qF '**Domain dropped below 70%**' "$cov/table.md"; then ok "layer-coverage: a drop below the target fails"
+else bad "layer-coverage: the drop isn't named:"; sed 's/^/  | /' "$cov/table.md"; fi
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

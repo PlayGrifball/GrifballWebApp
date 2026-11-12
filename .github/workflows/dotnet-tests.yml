@@ -177,10 +177,13 @@ jobs:
 
     - name: Test
       if: env.RUN == 'true'
-      # Every project runs, a failing one included; the step fails after them if any did. One trx file per project.
+      # Every project runs, a failing one included; the step fails after them if any did. One trx file per project, and
+      # a copy of its coverage report under its own name (LayerCoverage/<project>.cobertura.xml), for each layer's numbers
       run: |
         status=0
+        mkdir -p LayerCoverage
         for project in $TEST_PROJECTS; do
+          touch "$RUNNER_TEMP/before-$project"
           dotnet test "$project/$project.csproj" \
           --no-build \
           --configuration Release \
@@ -189,8 +192,28 @@ jobs:
           --results-directory TestResults/ \
           --collect:"XPlat Code Coverage" \
           --settings coverlet.runsettings || status=1
+          report=$(find TestResults -name coverage.cobertura.xml -newer "$RUNNER_TEMP/before-$project" | head -n1)
+          if [ -n "$report" ]; then cp "$report" "LayerCoverage/$project.cobertura.xml"; fi
         done
         exit $status
+
+    # Each layer's coverage from its own unit test project alone (.github/scripts/layer-coverage.mjs): on the run's
+    # summary, and as an artifact for the PR's comment (the layer-coverage job) and for later PRs to compare against
+    - name: Coverage by layer
+      if: always() && env.RUN == 'true' && matrix.database == 'Unit'
+      run: |
+        node .github/scripts/layer-coverage.mjs collect LayerCoverage LayerCoverage/layers.json
+        node .github/scripts/layer-coverage.mjs render LayerCoverage/layers.json "" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload the coverage by layer
+      if: always() && env.RUN == 'true' && matrix.database == 'Unit'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: layer-coverage
+        path: LayerCoverage/layers.json
+        # Master's is what each PR compares against
+        retention-days: 90
+        if-no-files-found: error
       
     - name: Upload Test Results
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -229,3 +252,70 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: TestResults/*.trx
         fail_ci_if_error: true
+
+  # On a PR that changes the .NET code, one comment with each layer's unit test coverage (and its change from master's
+  # last run), which each run updates in place. Fails when a layer master had at the target (70% of lines) drops below it.
+  layer-coverage:
+    name: Coverage by layer
+    needs: [changes, test]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      # This run's artifact and master's
+      actions: read
+      # The comment
+      pull-requests: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        sparse-checkout: .github/scripts
+
+    - name: Download the coverage by layer
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: layer-coverage
+        path: current
+
+    # Master's numbers from its last run that has them; none (the artifact expired, or no run yet) leaves out the change
+    - name: Download master's coverage by layer
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        for run in $(gh run list -R "${{ github.repository }}" -w dotnet-tests.yml -b master -e push -s success -L 5 --json databaseId --jq '.[].databaseId'); do
+          if gh run download "$run" -R "${{ github.repository }}" -n layer-coverage -D base 2>/dev/null; then
+            echo "Comparing against master's run $run"
+            exit 0
+          fi
+        done
+        echo "No master run with the coverage by layer: no change shown"
+
+    - name: Comment on the PR
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+        SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        marker='<!-- layer-coverage -->'
+        # A layer that dropped below the target fails the job, after the comment says which
+        status=0
+        table=$(node .github/scripts/layer-coverage.mjs render current/layers.json base/layers.json "$SHA") || status=$?
+        body="$marker
+        $table"
+        echo "$table" >> "$GITHUB_STEP_SUMMARY"
+        # Only on PRs from this repo: a fork's PR gets a read-only token
+        if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+          exit $status
+        fi
+        existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
+          --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\")))][0].id // empty" | head -n1)
+        if [ -n "$existing" ]; then
+          gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$body" > /dev/null
+        else
+          gh pr comment "$PR" -R "${{ github.repository }}" --body "$body"
+        fi
+        exit $status
