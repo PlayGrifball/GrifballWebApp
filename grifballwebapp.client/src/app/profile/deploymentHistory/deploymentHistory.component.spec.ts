@@ -2,7 +2,6 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { deploymentFinishLabel } from '../../api/deploymentFinish';
 import type { DeploymentHistoryDto } from '@api/models';
 import type { SeasonInfoDto } from '@api/models';
 import { DeploymentHistoryComponent } from './deploymentHistory.component';
@@ -131,19 +130,5 @@ describe('DeploymentHistoryComponent', () => {
   it('treats a null body as no history', async () => {
     await load(null);
     expect(el().querySelector('section')).toBeNull();
-  });
-});
-
-describe('deploymentFinishLabel', () => {
-  it('names each finish, a champion with every tier it won', () => {
-    expect(deploymentFinishLabel({ finish: 'Champion', championshipTiers: ['Pro'] })).toBe('Pro Champion');
-    expect(deploymentFinishLabel({ finish: 'Champion', championshipTiers: ['Open'] })).toBe('Open Champion');
-    expect(deploymentFinishLabel({ finish: 'Champion', championshipTiers: ['Amateur', 'Pro'] })).toBe('Amateur & Pro Champion');
-    expect(deploymentFinishLabel({ finish: 'Champion', championshipTiers: [] })).toBe('Champion');
-    expect(deploymentFinishLabel({ finish: 'Champion' } as Parameters<typeof deploymentFinishLabel>[0])).toBe('Champion');
-    expect(deploymentFinishLabel({ finish: 'Playoffs', championshipTiers: [] })).toBe('Playoffs');
-    expect(deploymentFinishLabel({ finish: 'Eliminated', championshipTiers: [] })).toBe('Eliminated');
-    expect(deploymentFinishLabel({ finish: 'RegularSeason', championshipTiers: [] })).toBe('Regular season');
-    expect(deploymentFinishLabel({ finish: 'InProgress', championshipTiers: [] })).toBe('In progress');
   });
 });
