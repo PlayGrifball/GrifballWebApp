@@ -68,7 +68,8 @@ public class PersonalCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Signup_RepliesNoSuchSeason_WhenTheSeasonIsNotFound()
     {
-        await AddUser(discordUserId: 42, gamertag: "Grifter1");
+        // Signup needs the Player (or Sysadmin) role, as the site's own signup endpoint does
+        await AddUser(discordUserId: 42, gamertag: "Grifter1", roles: DiscordCaller.Roles.Player);
         var discord = new CommandContextRecorder(discordUserId: 42);
 
         await Handler().Signup(discord.Context, "nonsense", null, null, null);
