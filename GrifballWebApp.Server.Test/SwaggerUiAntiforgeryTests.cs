@@ -13,10 +13,12 @@ public class SwaggerUiAntiforgeryTests
     {
         var route = typeof(IdentityController).GetMethod(nameof(IdentityController.Antiforgery))!.GetCustomAttribute<HttpGetAttribute>()!.Template;
 
+        // A variable, not the constant: NUnit wants the actual value to be one
+        string interceptor = SwaggerUiAntiforgery.RequestInterceptor;
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(SwaggerUiAntiforgery.RequestInterceptor, Does.Contain($"'/{route}'"));
-            Assert.That(SwaggerUiAntiforgery.RequestInterceptor, Does.Contain($"request.headers['{BrowserAuth.AntiforgeryHeader}']"));
+            Assert.That(interceptor, Does.Contain($"'/{route}'"));
+            Assert.That(interceptor, Does.Contain($"request.headers['{BrowserAuth.AntiforgeryHeader}']"));
         }
     }
 }
