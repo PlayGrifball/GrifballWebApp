@@ -27,4 +27,9 @@
     </None>
   </ItemGroup>
 
+  <!-- HostedService is internal; its unit tests construct it and call SeedTestSeasonAsync directly. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="GrifballWebApp.Seeder.Test" />
+  </ItemGroup>
+
 </Project>

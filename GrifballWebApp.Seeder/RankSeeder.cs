@@ -19,6 +19,16 @@ public class RankSeeder
         if (await _context.Ranks.AnyAsync(ct))
             return;
 
+        var ranks = await BuildRanksAsync(ct);
+
+        _context.Ranks.AddRange(ranks);
+        await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Every rank the seeder writes, icons loaded through <see cref="_loader"/>: split out from
+    /// <see cref="SeedRanks"/> so the list it builds (names, thresholds, colors) is unit-testable without a database.</summary>
+    public async Task<List<Rank>> BuildRanksAsync(CancellationToken ct = default)
+    {
         var ranks = new List<Rank>()
         {
             Rank.Create("Iron 2", 99, "#4D5458", "iron", await _loader.LoadIcon("Iron2.png", ct)),
@@ -44,11 +54,8 @@ public class RankSeeder
             Rank.Create("Challenger", 3500, "#3BA55C", "challenger", await _loader.LoadIcon("Challenger.png", ct))
         };
 
-        _context.Ranks.AddRange(ranks);
-        await _context.SaveChangesAsync(ct);
+        return ranks;
     }
-
-    
 }
 
 public interface IIconLoader

@@ -46,6 +46,13 @@ internal class HostedService : BackgroundService
         await context.Database.EnsureDeletedAsync(ct);
         await context.Database.MigrateAsync(ct);
 
+        await SeedTestSeasonAsync(context, ct);
+    }
+
+    /// <summary>The test season, its captains and players Old() seeds: split out from the database lifecycle above
+    /// (EnsureDeleted/Migrate) so it's unit-testable against a substituted context (Add/SaveChanges only, no querying).</summary>
+    internal async Task SeedTestSeasonAsync(GrifballContext context, CancellationToken ct)
+    {
         //var p = NewPerson();
 
         var season = Season.Organized("Test Season 2024", League.DefaultLeagueID, gameVersionID: null);

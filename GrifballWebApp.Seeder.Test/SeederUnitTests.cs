@@ -18,6 +18,16 @@ public class SeederUnitTests
 
         Assert.That(ex!.Message, Is.EqualTo("Missing Folder in configuration cannot load icon"));
     }
+
+    [Test]
+    public async Task TestReader_LoadIcon_AlwaysReturnsTheSameDummyImage()
+    {
+        var first = await new TestReader().LoadIcon("Gold1.png");
+        var second = await new TestReader().LoadIcon("Iron2.png");
+
+        Assert.That(first, Is.EqualTo(second), "TestReader ignores the requested path: every icon is the same dummy image");
+        Assert.That(first, Has.Length.GreaterThan(0));
+    }
 }
 
 /// <summary>SeederTests' helpers, shared with its integration tests.</summary>
