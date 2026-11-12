@@ -1,8 +1,9 @@
 <Project>
   <!--
-    SonarCloud's C# rules (csharpsquid) in every build: `dotnet build` reports what SonarCloud would, as warnings, so an
-    issue shows up before the push. Warnings here: nothing sets TreatWarningsAsErrors; each rule the paydown PRs took to
-    zero is an error in the root .editorconfig instead, so it stays there. Renovate keeps the version current; run .github/scripts/sonar-rules.sh after it changes.
+    SonarCloud's C# rules (csharpsquid) in every build: `dotnet build` fails on what SonarCloud would raise, so an issue
+    stops the build before the push. Errors through the rule files (analyzers/sonar-*.globalconfig), not
+    TreatWarningsAsErrors, which would fail every build on a new NuGet advisory too. A finding reviewed as safe is
+    suppressed where it is, with #pragma warning disable and the reason (which SonarCloud honours as well). Renovate keeps the version current; run .github/scripts/sonar-rules.sh after it changes.
   -->
   <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
     <PackageReference Include="SonarAnalyzer.CSharp" Version="10.35.0.4138" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />

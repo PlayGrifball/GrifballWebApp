@@ -295,6 +295,9 @@ for f in "$root"/analyzers/sonar-main.globalconfig "$root"/analyzers/sonar-tests
   made_for=$(sed -n '1s/.*(SonarAnalyzer\.CSharp \([^)]*\)).*/\1/p' "$f")
   if [[ -n $analyzer && $made_for = "$analyzer" ]]; then ok "${f##*/} is for SonarAnalyzer.CSharp $analyzer"
   else bad "${f##*/} is for SonarAnalyzer.CSharp '$made_for', the build uses '$analyzer': run bash .github/scripts/sonar-rules.sh"; fi
+  # Each rule on is an error (the build fails on it), none a warning that only scrolls past
+  if grep -q '= warning$' "$f"; then bad "${f##*/} has rules as warnings: run bash .github/scripts/sonar-rules.sh"
+  else ok "${f##*/} has its rules as errors"; fi
 done
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
