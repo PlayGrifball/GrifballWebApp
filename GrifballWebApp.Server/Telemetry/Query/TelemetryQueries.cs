@@ -104,7 +104,16 @@ public static partial class TelemetryQueries
             $"histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{{{requests}}}[{r}]))) * 1000");
     }
 
-    /// <summary>The Traces tab's search: the service's traces, failed ones only, slower than a minimum. Selects each match's route and status code.</summary>
+    /// <summary>
+    /// The span attribute the app's server (and the browser) set on the spans of a request they handle: page, navigation,
+    /// api, hub, signin (grifballwebapp.client's REQUEST_KIND_ATTRIBUTE). The backend's own spans have none.
+    /// </summary>
+    public const string RequestKindAttribute = "grif.request.kind";
+
+    /// <summary>
+    /// The Traces tab's search: the service's traces, failed ones only, slower than a minimum. Selects each matched span's
+    /// route, status code, method and request kind, which <see cref="TraceRow"/> reads.
+    /// </summary>
     public static string Traces(string serviceName, bool errorsOnly, int? minDurationMs)
     {
         var query = new StringBuilder("{resource.service.name=").Append(Quote(serviceName));
@@ -112,27 +121,41 @@ public static partial class TelemetryQueries
             query.Append(" && status=error");
         if (minDurationMs is > 0)
             query.Append(" && duration>=").Append(minDurationMs.Value.ToString(CultureInfo.InvariantCulture)).Append("ms");
-        return query.Append("} | select(span.http.route, span.http.response.status_code)").ToString();
+        return query.Append("} | select(span.http.route, span.http.response.status_code, span.http.request.method, span.")
+            .Append(RequestKindAttribute).Append(')').ToString();
     }
 
     /// <summary>
-    /// A trace's route: the first that names one (the backend's, e.g. Season/Get) rather than a wildcard (the app's
-    /// server's /api/* or /*); else the first; null without any.
+    /// A trace's row in the list, from its matched spans' attributes (by what each span is, never by its name):
+    /// <list type="bullet">
+    /// <item>A page or a navigation (a span whose request kind says so): its root's name, and that span's route and status.
+    /// The backend calls its render made are only parts of it.</item>
+    /// <item>An API call passed on by the app's server (request kind api): its method and the backend's route, and the
+    /// backend's status - the frontend only knows /api/*.</item>
+    /// <item>Anything else (a job, a call straight to the API): its root's name, and the first route and status.</item>
+    /// </list>
     /// </summary>
-    public static string? PreferredRoute(IReadOnlyList<string> routes) =>
-        routes.FirstOrDefault(r => !r.Contains('*', StringComparison.Ordinal)) ?? (routes.Count > 0 ? routes[0] : null);
-
-    /// <summary>
-    /// A trace's name in the list: its root span's, unless that is the app's server's passing on of an API call
-    /// (GET /api/*), which every call shares; then its method and <paramref name="route"/>, when that names one. A
-    /// page's root (GET /*) keeps its name: the routes in it are the calls its render made.
-    /// </summary>
-    public static string TraceName(string rootName, string? route)
+    public static (string Name, string? Route, int? Status) TraceRow(string rootName, IReadOnlyList<IReadOnlyDictionary<string, string>> spans)
     {
-        if (!rootName.EndsWith(" /api/*", StringComparison.Ordinal) || route is null || route.Contains('*', StringComparison.Ordinal))
-            return rootName;
-        var space = rootName.IndexOf(' ', StringComparison.Ordinal);
-        return space > 0 ? $"{rootName[..space]} {route}" : route;
+        static string? Kind(IReadOnlyDictionary<string, string> span) => span.GetValueOrDefault(RequestKindAttribute);
+        static int? Status(IReadOnlyDictionary<string, string>? span) =>
+            int.TryParse(span?.GetValueOrDefault("http.response.status_code"), CultureInfo.InvariantCulture, out var status) ? status : null;
+
+        var page = spans.FirstOrDefault(s => Kind(s) is "page" or "navigation");
+        if (page is not null)
+            return (rootName, page.GetValueOrDefault("http.route"), Status(page));
+
+        var call = spans.FirstOrDefault(s => Kind(s) == "api");
+        var backend = spans.FirstOrDefault(s => Kind(s) is null && s.ContainsKey("http.route"));
+        if (call is not null && backend is not null)
+        {
+            var route = backend["http.route"];
+            var method = backend.GetValueOrDefault("http.request.method") ?? call.GetValueOrDefault("http.request.method");
+            return (method is null ? route : $"{method} {route}", route, Status(backend));
+        }
+
+        var routed = spans.FirstOrDefault(s => s.ContainsKey("http.route"));
+        return (rootName, routed?.GetValueOrDefault("http.route"), Status(routed ?? spans.FirstOrDefault(s => s.ContainsKey("http.response.status_code"))));
     }
 
     [GeneratedRegex(@"[\\.+*?()|\[\]{}^$]")]

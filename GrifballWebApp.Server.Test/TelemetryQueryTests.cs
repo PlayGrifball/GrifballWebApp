@@ -96,27 +96,63 @@ public class TelemetryQueriesTests
         }
     }
 
+    private static Dictionary<string, string> Span(params (string Key, string Value)[] attributes) => attributes.ToDictionary(a => a.Key, a => a.Value);
+
     [Test]
-    public void A_trace_takes_the_backends_route_over_the_app_servers_wildcard()
+    public void A_page_row_is_the_pages_own_whatever_its_render_called()
     {
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(TelemetryQueries.PreferredRoute(["/api/*", "Season/Get"]), Is.EqualTo("Season/Get"));
-            Assert.That(TelemetryQueries.PreferredRoute(["/*"]), Is.EqualTo("/*"));
-            Assert.That(TelemetryQueries.PreferredRoute([]), Is.Null);
-            Assert.That(TelemetryQueries.TraceName("GET /api/*", "Season/Get"), Is.EqualTo("GET Season/Get"));
-            Assert.That(TelemetryQueries.TraceName("GET /*", "/*"), Is.EqualTo("GET /*"));
-            Assert.That(TelemetryQueries.TraceName("GET /api/*", null), Is.EqualTo("GET /api/*"));
-            Assert.That(TelemetryQueries.TraceName("GET Home/Events", "Home/Events"), Is.EqualTo("GET Home/Events"));
-            Assert.That(TelemetryQueries.TraceName("POST /api/*", "Teams/AddCaptain"), Is.EqualTo("POST Teams/AddCaptain"));
-        }
+        var row = TelemetryQueries.TraceRow("GET /*", [
+            Span(("http.route", "Season/Get"), ("http.response.status_code", "200")),
+            Span(("grif.request.kind", "page"), ("http.route", "/*"), ("http.response.status_code", "500")),
+        ]);
+
+        Assert.That(row, Is.EqualTo(("GET /*", (string?)"/*", (int?)500)));
     }
 
     [Test]
-    public void A_page_trace_keeps_its_own_name_whatever_its_render_called()
+    public void A_browser_navigation_row_is_the_navigations_own()
     {
-        // A page's root (GET /*) is the page; Season/Get is only one of the calls its render made
-        Assert.That(TelemetryQueries.TraceName("GET /*", "Season/Get"), Is.EqualTo("GET /*"));
+        var row = TelemetryQueries.TraceRow("navigation season/:seasonID", [
+            Span(("grif.request.kind", "api"), ("http.route", "/api/*")),
+            Span(("http.route", "Season/Get"), ("http.response.status_code", "200")),
+            Span(("grif.request.kind", "navigation"), ("http.route", "season/:seasonID")),
+        ]);
+
+        Assert.That(row, Is.EqualTo(("navigation season/:seasonID", (string?)"season/:seasonID", (int?)null)));
+    }
+
+    [Test]
+    public void An_api_calls_row_takes_the_backends_method_route_and_status()
+    {
+        var row = TelemetryQueries.TraceRow("GET /api/*", [
+            Span(("grif.request.kind", "api"), ("http.route", "/api/*"), ("http.request.method", "GET"), ("http.response.status_code", "502")),
+            Span(("http.route", "Teams/GetTeams"), ("http.request.method", "GET"), ("http.response.status_code", "500")),
+        ]);
+
+        Assert.That(row, Is.EqualTo(("GET Teams/GetTeams", (string?)"Teams/GetTeams", (int?)500)));
+    }
+
+    [Test]
+    public void An_api_calls_row_without_the_backends_span_keeps_the_root()
+    {
+        var row = TelemetryQueries.TraceRow("GET /api/*", [
+            Span(("grif.request.kind", "api"), ("http.route", "/api/*"), ("http.response.status_code", "504")),
+        ]);
+
+        Assert.That(row, Is.EqualTo(("GET /api/*", (string?)"/api/*", (int?)504)));
+    }
+
+    [Test]
+    public void Any_other_row_takes_the_first_route_and_status()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TelemetryQueries.TraceRow("GET Home/Events", [Span(("http.route", "Home/Events"), ("http.response.status_code", "200"))]),
+                Is.EqualTo(("GET Home/Events", (string?)"Home/Events", (int?)200)));
+            Assert.That(TelemetryQueries.TraceRow("job", [Span(("http.response.status_code", "503"))]),
+                Is.EqualTo(("job", (string?)null, (int?)503)));
+            Assert.That(TelemetryQueries.TraceRow("PATCH", []), Is.EqualTo(("PATCH", (string?)null, (int?)null)));
+        }
     }
 
     [Test]
@@ -125,10 +161,10 @@ public class TelemetryQueriesTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(TelemetryQueries.Traces("grif-prod", false, null),
-                    Is.EqualTo("{resource.service.name=\"grif-prod\"} | select(span.http.route, span.http.response.status_code)"));
+                    Is.EqualTo("{resource.service.name=\"grif-prod\"} | select(span.http.route, span.http.response.status_code, span.http.request.method, span.grif.request.kind)"));
             Assert.That(TelemetryQueries.Traces("grif-prod", false, 0), Does.Not.Contain("duration"));
             Assert.That(TelemetryQueries.Traces("grif-prod", true, 250),
-                Is.EqualTo("{resource.service.name=\"grif-prod\" && status=error && duration>=250ms} | select(span.http.route, span.http.response.status_code)"));
+                Is.EqualTo("{resource.service.name=\"grif-prod\" && status=error && duration>=250ms} | select(span.http.route, span.http.response.status_code, span.http.request.method, span.grif.request.kind)"));
         }
     }
 }

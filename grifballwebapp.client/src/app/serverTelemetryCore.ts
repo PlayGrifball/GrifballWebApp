@@ -20,6 +20,7 @@ import {
   type LogLevel,
   RENDER_DURATION,
   REQUEST_DURATION,
+  REQUEST_KIND_ATTRIBUTE,
   finishedStatus,
   formatTraceparent,
   isLogged,
@@ -63,14 +64,20 @@ export interface ServerResponse {
 export interface ServerTelemetryCore {
   /** One log line: stdout, and Loki when exporting. The active span's ids go on it. */
   log(level: LogLevel, message: string, fields?: Record<string, unknown>): void;
+  /** A line at info that LOG_LEVEL never hides: what scripts wait for ("Serving"). */
+  announce(message: string): void;
   /** Express middleware, first: the request's span, its traceresponse and Server-Timing headers, its metrics and log line. */
   requests(req: ServerRequest, res: ServerResponse, next: () => void): void;
   /** The request's span's context (ROOT_CONTEXT for one not traced, or not seen by `requests`). */
   contextOf(req: object): Context;
   /** Sets traceparent on a request to the backend, from the incoming request's span. */
   inject(req: object, setHeader: (name: string, value: string) => void): void;
-  /** Runs a page's render in its own span, under the request's; `render` gets the span's traceparent for the API calls it makes. */
-  render<T>(req: ServerRequest, render: (traceparent: string) => Promise<T>, outcome: (result: T) => RenderOutcome): Promise<T>;
+  /**
+   * Runs a page's render in its own span, under the request's; `render` gets the span's traceparent for the API
+   * calls it makes. A request that isn't traced (a build file the static files missed) gets no span, no traceparent
+   * and isn't counted. The outcome is taken once `render` is done, so it should cover writing the page too.
+   */
+  render<T>(req: ServerRequest, render: (traceparent: string | undefined) => Promise<T>, outcome: (result: T) => RenderOutcome): Promise<T>;
 }
 
 export interface ServerTelemetryDeps {
@@ -98,8 +105,15 @@ export function createServerTelemetry(deps: ServerTelemetryDeps): ServerTelemetr
   const contexts = new WeakMap<object, Context>();
 
   function log(level: LogLevel, message: string, fields: Record<string, unknown> = {}): void {
-    if (!isLogged(level, deps.logLevel))
-      return;
+    if (isLogged(level, deps.logLevel))
+      write(level, message, fields);
+  }
+
+  function announce(message: string): void {
+    write('info', message, {});
+  }
+
+  function write(level: LogLevel, message: string, fields: Record<string, unknown>): void {
     const span = trace.getActiveSpan()?.spanContext();
     const now = new Date();
     deps.write(logLine(now, level, message, fields, span) + '\n');
@@ -126,6 +140,8 @@ export function createServerTelemetry(deps: ServerTelemetryDeps): ServerTelemetr
         attributes: {
           'http.request.method': req.method,
           'http.route': routeOf(kind),
+          // What this request is, for the Telemetry page's trace list (TelemetryQueries.TraceRow): page, api, hub, signin
+          [REQUEST_KIND_ATTRIBUTE]: kind,
           'url.path': req.path,
           'url.query': redactUrl(req.originalUrl).split('?')[1],
           'url.scheme': req.protocol,
@@ -187,7 +203,9 @@ export function createServerTelemetry(deps: ServerTelemetryDeps): ServerTelemetr
     });
   }
 
-  async function render<T>(req: ServerRequest, run: (traceparent: string) => Promise<T>, outcome: (result: T) => RenderOutcome): Promise<T> {
+  async function render<T>(req: ServerRequest, run: (traceparent: string | undefined) => Promise<T>, outcome: (result: T) => RenderOutcome): Promise<T> {
+    if (!contexts.has(req))
+      return run(undefined);
     const start = performance.now();
     const span = tracer.startSpan('render', { attributes: { 'url.path': redactUrl(req.url).split('?')[0] } }, contextOf(req));
     const { traceId, spanId, traceFlags } = span.spanContext();
@@ -210,7 +228,7 @@ export function createServerTelemetry(deps: ServerTelemetryDeps): ServerTelemetr
     }
   }
 
-  return { log, requests, contextOf, inject, render };
+  return { log, announce, requests, contextOf, inject, render };
 }
 
 /** A request header's first value. */

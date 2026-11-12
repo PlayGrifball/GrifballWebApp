@@ -142,8 +142,8 @@ public sealed class TelemetryQueryService
             ("start", from.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)),
             ("end", to.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)),
             ("limit", Math.Clamp(limit, 1, MaxTraces).ToString(CultureInfo.InvariantCulture)),
-            // A few spans a trace: the root alone is the app's server's /api/* when a browser's call started it
-            ("spss", "3"));
+            // Enough spans a trace to hold the app server's and the backend's request spans (TelemetryQueries.TraceRow)
+            ("spss", "20"));
 
         using var doc = await Get("Tempo", url, ct);
         if (!doc.RootElement.TryGetProperty("traces", out var traces))
@@ -152,25 +152,26 @@ public sealed class TelemetryQueryService
         return traces.EnumerateArray().Select(TraceSummary).OrderByDescending(t => t.Start).ToList();
     }
 
-    /// <summary>A trace as Tempo's search lists it, with its span set's attributes (the first value of each).</summary>
+    /// <summary>A trace as Tempo's search lists it: its name, route and status from its matched spans (TelemetryQueries.TraceRow).</summary>
     private static TraceSummaryDto TraceSummary(JsonElement t)
     {
-        var values = t.TryGetProperty("spanSet", out var set) && set.TryGetProperty("spans", out var spans)
-            ? spans.EnumerateArray().SelectMany(s => s.TryGetProperty("attributes", out var a) ? a.EnumerateArray() : Enumerable.Empty<JsonElement>())
-                .GroupBy(a => a.GetProperty("key").GetString()!).ToDictionary(g => g.Key, g => g.Select(a => AttributeValue(a.GetProperty("value"))).ToList())
-            : new Dictionary<string, List<string>>();
-        var attributes = values.ToDictionary(v => v.Key, v => v.Value[0]);
-        // The backend's route (Season/Get) over the app's server's (/api/*), which is the root of a browser's call
-        var route = TelemetryQueries.PreferredRoute(values.GetValueOrDefault("http.route") ?? []);
+        IReadOnlyList<IReadOnlyDictionary<string, string>> spans = t.TryGetProperty("spanSet", out var set) && set.TryGetProperty("spans", out var matched)
+            ? matched.EnumerateArray()
+                .Select(s => (IReadOnlyDictionary<string, string>)(s.TryGetProperty("attributes", out var a) ? a.EnumerateArray() : Enumerable.Empty<JsonElement>())
+                    .GroupBy(x => x.GetProperty("key").GetString()!)
+                    .ToDictionary(g => g.Key, g => AttributeValue(g.First().GetProperty("value"))))
+                .ToList()
+            : [];
         var rootName = t.TryGetProperty("rootTraceName", out var name) ? name.GetString() ?? "" : "";
+        var (traceName, route, status) = TelemetryQueries.TraceRow(rootName, spans);
         return new TraceSummaryDto(
             TelemetryQueries.NormalizeTraceId(t.GetProperty("traceID").GetString()) ?? t.GetProperty("traceID").GetString()!,
-            TelemetryQueries.TraceName(rootName, route),
+            traceName,
             t.TryGetProperty("rootServiceName", out var service) ? service.GetString() : null,
             FromUnixNanos(long.Parse(t.GetProperty("startTimeUnixNano").GetString()!, CultureInfo.InvariantCulture)),
             t.TryGetProperty("durationMs", out var duration) ? duration.GetDouble() : 0,
             route,
-            int.TryParse(attributes.GetValueOrDefault("http.response.status_code"), out var status) ? status : null);
+            status);
     }
 
     /// <summary>A trace's spans from this service; null when it has none (unknown trace, or another service's).</summary>

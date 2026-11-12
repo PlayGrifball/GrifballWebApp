@@ -2,7 +2,7 @@ import { loadScriptsAfterFirstPaint } from './afterFirstPaint';
 import { forLog } from './forLog';
 import { pageCacheHeaders } from './pageCache';
 import { redactUrl } from './redactUrl';
-import type { ServerRequest, ServerTelemetryCore } from './serverTelemetryCore';
+import type { RenderOutcome, ServerRequest, ServerTelemetryCore } from './serverTelemetryCore';
 
 /** What the page handler needs of the server (server.ts gives it Angular's engine and Express's response). */
 export interface PageHandlerDeps<Req extends ServerRequest, Res> {
@@ -27,14 +27,16 @@ export function pageHandler<Req extends ServerRequest & { headers: { traceparent
   deps: PageHandlerDeps<Req, Res>,
 ): (req: Req, res: Res, next: (err?: unknown) => void) => void {
   return (req, res, next) => {
+    // The render's span and outcome cover writing the page: a failure there is a failed render too
     deps.telemetry
-      .render(req, traceparent => {
-        req.headers.traceparent = traceparent;
-        return deps.handle(req);
-      }, response => response ? 'server' : 'browser')
-      .then(async response => {
-        if (!response)
-          return deps.sendClientPage(res, next);
+      .render(req, async (traceparent): Promise<RenderOutcome> => {
+        if (traceparent)
+          req.headers.traceparent = traceparent;
+        let response = await deps.handle(req);
+        if (!response) {
+          deps.sendClientPage(res, next);
+          return 'browser';
+        }
         if (response.headers.get('Content-Type')?.startsWith('text/html')) {
           const headers = new Headers(response.headers);
           headers.delete('Content-Length');
@@ -42,8 +44,9 @@ export function pageHandler<Req extends ServerRequest & { headers: { traceparent
         }
         for (const [name, value] of Object.entries(pageCacheHeaders(req.headers.cookie)))
           response.headers.set(name, value);
-        return deps.write(response, res);
-      })
+        await deps.write(response, res);
+        return 'server';
+      }, outcome => outcome)
       .catch(error => {
         deps.telemetry.log('error', 'Rendering failed, sending the page that renders in the browser', { path: forLog(redactUrl(req.originalUrl)), error });
         deps.sendClientPage(res, next);
@@ -51,7 +54,7 @@ export function pageHandler<Req extends ServerRequest & { headers: { traceparent
   };
 }
 
-/** The line lighthouserc.cjs, lighthouse-signed-in.mjs and e2e/serve.mjs wait for ("Serving"). */
-export function announceServing(telemetry: Pick<ServerTelemetryCore, 'log'>, port: number, backendUrl: string): void {
-  telemetry.log('info', `Serving on http://localhost:${port}, the API at ${backendUrl}`);
+/** The line lighthouserc.cjs, lighthouse-signed-in.mjs and e2e/serve.mjs wait for ("Serving"), whatever LOG_LEVEL says. */
+export function announceServing(telemetry: Pick<ServerTelemetryCore, 'announce'>, port: number, backendUrl: string): void {
+  telemetry.announce(`Serving on http://localhost:${port}, the API at ${backendUrl}`);
 }

@@ -127,6 +127,12 @@ export function requestKind(path: string): RequestKind {
 /** The extensions of what the build and src/assets serve. */
 export const FILE_EXTENSION = /\.(js|mjs|css|map|html|ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|otf|txt|xml|json|webmanifest)$/i;
 
+/**
+ * The span attribute that says what a request of the app's server is (a RequestKind): the backend's Telemetry page
+ * reads it (TelemetryQueries.TraceRow) to tell a page's trace from an API call's, rather than read span names.
+ */
+export const REQUEST_KIND_ATTRIBUTE = 'grif.request.kind';
+
 /** Kubernetes' probes: every few seconds on every pod, never traced or logged. */
 export function isProbe(userAgent: string | undefined): boolean {
   return userAgent?.startsWith('kube-probe/') ?? false;

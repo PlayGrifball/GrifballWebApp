@@ -67,15 +67,19 @@ export function reportedUrl(url: string | null | undefined, base: string): strin
 /** An error's message and stack, whatever was thrown. */
 export function describeError(error: unknown): { message: string; stack?: string } {
   if (error instanceof Error)
-    return { message: `${error.name}: ${error.message}`.slice(0, MAX_MESSAGE), stack: error.stack?.slice(0, MAX_STACK) };
+    return { message: `${error.name}: ${error.message.trim() || NO_MESSAGE}`.slice(0, MAX_MESSAGE), stack: error.stack?.slice(0, MAX_STACK) };
   let message: string;
   try {
     message = typeof error === 'string' ? error : JSON.stringify(error) ?? String(error);
   } catch {
     message = String(error);
   }
-  return { message: message.slice(0, MAX_MESSAGE) };
+  // The API takes no blank message, and would turn reports off for the page
+  return { message: (message.trim() || NO_MESSAGE).slice(0, MAX_MESSAGE) };
 }
+
+/** What a report says for an error thrown without a message (`throw ''`). */
+export const NO_MESSAGE = '(no message)';
 
 /** Whether a failed call is worth reporting: no answer at all, or a server error. 4xx is the app working. */
 export function isReportedFailure(error: HttpErrorResponse): boolean {
