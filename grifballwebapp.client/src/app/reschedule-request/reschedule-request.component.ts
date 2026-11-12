@@ -87,7 +87,8 @@ export class RescheduleRequestComponent {
       },
       error: (error) => {
         console.error('Failed to submit reschedule request:', error);
-        this.snackBar.open('Failed to submit reschedule request. Please try again.', 'Close', { duration: 5000 });
+        // The server's reason when it gave one (one already active, a match with a result, not on either team)
+        this.snackBar.open(errorText(error, 'Failed to submit reschedule request. Please try again.'), 'Close', { duration: 5000 });
         this.submitting.set(false);
       }
     });

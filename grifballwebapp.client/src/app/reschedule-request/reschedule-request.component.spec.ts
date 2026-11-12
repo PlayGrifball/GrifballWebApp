@@ -131,11 +131,23 @@ describe('RescheduleRequestComponent', () => {
     spyOn(console, 'error');
     component.reason = 'x';
     component.submitRescheduleRequest();
-    http.expectOne('/api/season-matches/31/reschedules').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/season-matches/31/reschedules').flush(null, { status: 500, statusText: 'Server Error' });
 
     expect(snackBar.open).toHaveBeenCalledWith('Failed to submit reschedule request. Please try again.', 'Close', { duration: 5000 });
     expect(location.back).not.toHaveBeenCalled();
     expect(component.submitting()).toBeFalse();
+  });
+
+  it("shows the server's reason for a refusal", () => {
+    spyOn(console, 'error');
+    component.reason = 'x';
+    component.submitRescheduleRequest();
+    http.expectOne('/api/season-matches/31/reschedules').flush(
+      { title: 'Conflict', status: 409, detail: 'There is already an active reschedule request for this match.' },
+      { status: 409, statusText: 'Conflict' });
+
+    expect(snackBar.open).toHaveBeenCalledWith('There is already an active reschedule request for this match.', 'Close', { duration: 5000 });
+    expect(location.back).not.toHaveBeenCalled();
   });
 
   it('goes back when cancel is clicked', () => {
