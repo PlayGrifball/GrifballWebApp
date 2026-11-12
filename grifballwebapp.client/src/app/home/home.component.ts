@@ -116,9 +116,7 @@ export class HomeComponent implements OnInit {
   }
 
   getCurrentAndFutureEvents(): Observable<Event[]> {
-    // The generated Event is this shape already (historicalSourceUrl is optional here, and not in its schema);
-    // cast since Observable<T> doesn't structurally widen T on its own.
-    return this.home.currentAndFutureEvents() as unknown as Observable<Event[]>;
+    return this.home.currentAndFutureEvents();
   }
 
   getPastSeasons(pageSize: number, pageNumber: number, sortDirection: SortDirection | undefined, sortColumn: string | undefined): Observable<PaginationResult<SeasonListItemDto>> {
