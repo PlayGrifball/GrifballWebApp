@@ -9,6 +9,8 @@
 //                     (grifball.xyz and its subdomains) and localhost. "*.example.com" allows the
 //                     subdomains. A request for any other host, or an address (ex. a probe on the
 //                     pod's), gets the page that renders in the browser instead.
+//   OTEL_*, LOG_LEVEL OpenTelemetry and the logs (app/serverTelemetry.ts): each request's span, log line
+//                     and metrics, its trace passed on to the backend.
 import {
   AngularNodeAppEngine,
   createNodeRequestHandler,
@@ -25,6 +27,10 @@ import { isAllowedHost, parseAllowedHosts } from './app/allowedHosts';
 import { apiUrl } from './app/apiUrl';
 import { forLog } from './app/forLog';
 import { pageCacheHeaders } from './app/pageCache';
+import { serverTelemetrySettings } from './app/serverTelemetry';
+import { startServerTelemetry } from './server/telemetry';
+
+const telemetry = startServerTelemetry(serverTelemetrySettings(process.env));
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 const backendUrl = apiUrl(process.env['API_URL']);
@@ -35,6 +41,9 @@ const angularApp = new AngularNodeAppEngine({ allowedHosts });
 
 // Not "X-Powered-By: Express"
 app.disable('x-powered-by');
+
+// First, so it sees every request: its span (which the backend continues), log line and metrics.
+app.use(telemetry.requests);
 
 // The backend, as nginx proxied it: /api/x and /hub/x to /x, /signin-discord as it is (the Discord
 // sign-in callback), with the same headers. The request's own headers go along (the backend reads
@@ -50,7 +59,11 @@ const toBackend = (prefix: string) => createProxyMiddleware<Request, Response>({
   ws: prefix === '/hub',
   proxyTimeout: 100_000,
   on: {
-    proxyReq: (proxyReq, req) => setForwardedHeaders(proxyReq, req),
+    proxyReq: (proxyReq, req) => {
+      setForwardedHeaders(proxyReq, req);
+      // The request's span is the backend's parent: one trace from here to the database
+      telemetry.inject(req, (name, value) => proxyReq.setHeader(name, value));
+    },
     proxyReqWs: (proxyReq, req) => setForwardedHeaders(proxyReq, req),
   },
 });
@@ -113,10 +126,14 @@ app.use((req, res, next) => {
 // app.routes.server.ts that render in the browser) the page that loads the app. Should rendering
 // fail, the browser renders the page instead. A page rendered with the visitor's session cookie
 // (which its API calls carried) is theirs alone: private and no-store (app/pageCache.ts). The page's
-// scripts load once it has painted (app/afterFirstPaint.ts).
+// scripts load once it has painted (app/afterFirstPaint.ts). Rendering is a span of its own, which the
+// API calls it makes carry as their traceparent (FORWARDED_HEADERS in app/serverApi.backend.ts).
 app.use((req, res, next) => {
-  angularApp
-    .handle(req)
+  telemetry
+    .render(req, traceparent => {
+      req.headers['traceparent'] = traceparent;
+      return angularApp.handle(req);
+    }, response => response ? 'server' : 'browser')
     .then(async response => {
       if (!response)
         return sendClientPage(res, next);
@@ -130,8 +147,7 @@ app.use((req, res, next) => {
       return writeResponseToNodeResponse(response, res);
     })
     .catch(error => {
-      // The URL as an argument, never in the format string: a % in it stays text
-      console.error('Rendering %s failed, sending the page that renders in the browser:', forLog(req.originalUrl), error);
+      telemetry.log('error', 'Rendering failed, sending the page that renders in the browser', { path: forLog(req.originalUrl), error });
       sendClientPage(res, next);
     });
 });
@@ -141,10 +157,16 @@ if (isMainModule(import.meta.url)) {
   const server = app.listen(port, error => {
     if (error)
       throw error;
-    console.log(`Serving on http://localhost:${port}, the API at ${backendUrl}`);
+    // lighthouserc.cjs and e2e/serve.mjs wait for "Serving"
+    telemetry.log('info', `Serving on http://localhost:${port}, the API at ${backendUrl}`);
   });
   // SignalR's WebSocket upgrade, for /hub
   server.on('upgrade', proxies[1].upgrade);
+  // Kubernetes is stopping the pod: what telemetry is queued goes out first
+  process.once('SIGTERM', () => {
+    server.close();
+    void telemetry.shutdown().finally(() => process.exit(0));
+  });
 }
 
 /** The request handler for the Angular CLI (ng serve, and the build's route extraction). */

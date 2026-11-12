@@ -18,8 +18,11 @@ export const SERVER_API_TIMEOUT_MS = 5000;
  */
 export const SERVER_SAFE_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD']);
 
-/** The page request's headers that go on to the API: the visitor's cookies and address. */
-export const FORWARDED_HEADERS = ['cookie', 'x-real-ip', 'x-forwarded-for'];
+/**
+ * The page request's headers that go on to the API: the visitor's cookies and address, and the render's
+ * traceparent (server.ts sets it), so the backend's spans join the page's trace.
+ */
+export const FORWARDED_HEADERS = ['cookie', 'x-real-ip', 'x-forwarded-for', 'traceparent'];
 
 /**
  * HttpClient's backend while rendering on the server. The app asks for /api/... on its own origin,
