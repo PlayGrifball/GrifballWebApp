@@ -158,7 +158,7 @@ public sealed class TelemetryQueryService
             ? withRequests.EnumerateArray()
                 .GroupBy(t => TraceId(t))
                 .ToDictionary(g => g.Key, g => MatchedSpans(g.First()))
-            : new Dictionary<string, IReadOnlyList<IReadOnlyDictionary<string, string>>>();
+            : new Dictionary<string, List<IReadOnlyDictionary<string, string>>>();
         return traces.EnumerateArray()
             .Select(t => TraceSummary(t, requestSpans.GetValueOrDefault(TraceId(t)) is { Count: > 0 } spans ? spans : MatchedSpans(t)))
             .OrderByDescending(t => t.Start)
@@ -169,7 +169,7 @@ public sealed class TelemetryQueryService
         TelemetryQueries.NormalizeTraceId(t.GetProperty("traceID").GetString()) ?? t.GetProperty("traceID").GetString()!;
 
     /// <summary>A searched trace's matched spans, each as its selected attributes.</summary>
-    private static IReadOnlyList<IReadOnlyDictionary<string, string>> MatchedSpans(JsonElement t) =>
+    private static List<IReadOnlyDictionary<string, string>> MatchedSpans(JsonElement t) =>
         t.TryGetProperty("spanSet", out var set) && set.TryGetProperty("spans", out var matched)
             ? matched.EnumerateArray()
                 .Select(s => (IReadOnlyDictionary<string, string>)(s.TryGetProperty("attributes", out var a) ? a.EnumerateArray() : Enumerable.Empty<JsonElement>())
