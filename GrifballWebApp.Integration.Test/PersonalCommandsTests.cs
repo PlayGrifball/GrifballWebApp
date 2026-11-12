@@ -303,4 +303,43 @@ public class PersonalCommandsTests
 
         Assert.That(_discord.Content(), Does.EndWith("You are in a Late League match."));
     }
+
+    private async Task AddPlaceholder(string gamertag, bool played)
+    {
+        var placeholder = User.Seed(userName: $"historical:{gamertag}", normalizedUserName: $"HISTORICAL:{gamertag.ToUpperInvariant()}", displayName: gamertag, isDummyUser: true);
+        _context.Users.Add(placeholder);
+        await _context.SaveChangesAsync();
+        if (!played)
+            return;
+        var season = Season.Seed(seasonName: "Winter League 2019", historicalSourceID: "wl19/Stats")
+            .WithDates(seasonStart: new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), seasonEnd: new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+        _context.Add(season);
+        await _context.SaveChangesAsync();
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(season.SeasonID, placeholder.Id, 1, new GrifballWebApp.Domain.Shared.StatSheetTotals { Gamertag = gamertag, Kills = 7 }));
+        await _context.SaveChangesAsync();
+    }
+
+    [Test]
+    public async Task Claim_Should_SubmitIt_AndClaims_Should_ListEachWithItsStatusAndReason()
+    {
+        await AddPlaceholder("Old Me", played: true);
+        await AddPlaceholder("Older Me", played: false);
+        var second = new CommandContextRecorder((ulong)_me.DiscordUserID!.Value);
+        var list = new CommandContextRecorder((ulong)_me.DiscordUserID!.Value);
+
+        await _handler.Claim(_discord.Context, "Old Me");
+        await _handler.Claim(second.Context, "Older Me");
+        var older = await _context.GamertagClaims.SingleAsync(x => x.Gamertag == "Older Me");
+        await new GrifballWebApp.Application.Historical.GamertagClaimService(_context, new GrifballWebApp.Application.Profile.UserMergeService(_context))
+            .Reject(older.GamertagClaimID, "Not you");
+        _context.ChangeTracker.Clear();
+        await _handler.Claims(list.Context);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_discord.Content(), Is.EqualTo("Your claim of Old Me is pending: a sysadmin decides it. It covers Winter League 2019."));
+            Assert.That(second.Content(), Is.EqualTo("Your claim of Older Me is pending: a sysadmin decides it."));
+            Assert.That(list.Embed().Description, Does.Contain("Old Me · Pending").And.Contain("Older Me · Rejected · Not you"));
+        }
+    }
 }

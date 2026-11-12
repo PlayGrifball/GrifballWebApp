@@ -443,4 +443,44 @@ public class AdminCommandsTests
 
         Assert.That(discord.Content(), Is.EqualTo("The captains are unlocked."));
     }
+
+    [Test]
+    public async Task ClaimsAndDecideClaim_Should_ListThePendingClaim_ThenRejectIt()
+    {
+        var sysadmin = await Sysadmin();
+        var claimant = await _context.AddUser("claimant", gamertag: "NowGT", discordName: "claimant");
+        var placeholder = User.Seed(userName: "historical:Old GT", normalizedUserName: "HISTORICAL:OLD GT", displayName: "Old GT", isDummyUser: true);
+        _context.Users.Add(placeholder);
+        await _context.SaveChangesAsync();
+        var claim = await new UserGamertagClaimService(_context, new GamertagMatching(_context), TimeProvider.System, Microsoft.Extensions.Options.Options.Create(new UserClaimOptions()))
+            .Submit(claimant.Id, new SubmitGamertagClaimRequest { Gamertag = "Old GT" });
+        var list = As(sysadmin);
+        var reject = As(sysadmin);
+
+        await _handler.Claims(list.Context);
+        await _handler.DecideClaim(reject.Context, claim.GamertagClaimID, approve: false, reason: "Not them");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(list.Embed().Description, Does.Contain($"**#{claim.GamertagClaimID}** Old GT"));
+            Assert.That(reject.Content(), Is.EqualTo("Rejected."));
+        }
+    }
+
+    [Test]
+    public async Task ReportGame_Should_RefuseAnEmptyGameID_AndPassAGameOnToTheService()
+    {
+        var match = await AddMatch();
+        var empty = As(_commissioner);
+
+        await _handler.ReportGame(empty.Context, match.SeasonMatchID.ToString(), Guid.Empty.ToString(), null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(empty.Content(), Is.EqualTo(MatchCommandsHandler.NoSuchGame));
+            // A game Halo doesn't have: the service's own error, after it tried to pull it
+            Assert.That(async () => await _handler.ReportGame(As(_commissioner).Context, match.SeasonMatchID.ToString(), Guid.NewGuid().ToString(), null), Throws.Exception);
+        }
+        await _dataPull.ReceivedWithAnyArgs(1).GetAndSaveMatch(default);
+    }
 }

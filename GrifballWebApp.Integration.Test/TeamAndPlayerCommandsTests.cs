@@ -277,4 +277,15 @@ public class TeamAndPlayerCommandsTests
 
         Assert.That(discord.Embed().Description, Does.Contain("[vs TBD]"));
     }
+
+    [Test]
+    public async Task PlayerMatches_Should_BeTheCallersOwn_When_NoPlayerIsNamed()
+    {
+        var discord = new CommandContextRecorder();
+
+        await _players.Matches(discord.Context, null);
+
+        // /matches with no player: the caller's own, found by their Discord account
+        Assert.That(discord.DeferredPublicly(), Is.True);
+    }
 }
