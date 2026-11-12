@@ -563,7 +563,7 @@ public class TelemetryControllerTests
             LokiUrl = configured ? "http://loki.test" : null,
             PrometheusUrl = configured ? "http://prometheus.test" : null,
             TempoUrl = configured ? "http://tempo.test" : null,
-        }), new FakeTimeProvider(DateTimeOffset.UtcNow)));
+        }), new FakeTimeProvider(DateTimeOffset.UtcNow)), Microsoft.Extensions.Logging.Abstractions.NullLogger<TelemetryController>.Instance);
 
     private sealed class Answering(Func<HttpRequestMessage, HttpResponseMessage> answer) : HttpMessageHandler
     {
@@ -609,7 +609,9 @@ public class TelemetryControllerTests
             Assert.That((await unconfigured.Logs()).Result, Is.TypeOf<ObjectResult>().With.Property("StatusCode").EqualTo(404));
             Assert.That((await unconfigured.Traces()).Result, Is.TypeOf<ObjectResult>().With.Property("StatusCode").EqualTo(404));
             Assert.That((await unconfigured.Trace("abc")).Result, Is.TypeOf<ObjectResult>().With.Property("StatusCode").EqualTo(404));
-            Assert.That((await failing.Traces()).AssertProblem(502).Detail, Is.EqualTo("Tempo answered 500: down"));
+            // The backend's own answer stays in the log
+            Assert.That((await failing.Traces()).AssertProblem(502).Detail, Is.EqualTo(TelemetryController.BackendFailedDetail));
+            Assert.That((await unconfigured.Traces()).AssertProblem(404).Detail, Does.Contain("Tempo is not configured"));
         }
     }
 

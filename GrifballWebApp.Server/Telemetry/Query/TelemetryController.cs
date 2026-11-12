@@ -14,11 +14,26 @@ public class TelemetryController : ControllerBase
     public const int MaxSearchLength = 200;
     private const string BadTraceId = "A trace id is up to 32 hex digits";
 
-    private readonly TelemetryQueryService _telemetry;
+    /// <summary>What a 502 says: the backend's own answer (its host, its error body) stays in the log.</summary>
+    public const string BackendFailedDetail = "The telemetry backend didn't answer as expected. The details are in the server's log.";
 
-    public TelemetryController(TelemetryQueryService telemetry)
+    private readonly TelemetryQueryService _telemetry;
+    private readonly ILogger<TelemetryController> _logger;
+
+    public TelemetryController(TelemetryQueryService telemetry, ILogger<TelemetryController> logger)
     {
         _telemetry = telemetry;
+        _logger = logger;
+    }
+
+    /// <summary>What the caller is told: a 4xx's reason (an unconfigured backend), never a 5xx's.</summary>
+    public static string DetailFor(TelemetryQueryException e) => e.Status < StatusCodes.Status500InternalServerError ? e.Message : BackendFailedDetail;
+
+    private ObjectResult Refused(TelemetryQueryException e)
+    {
+        if (e.Status >= StatusCodes.Status500InternalServerError)
+            _logger.LogWarning(e, "Telemetry query failed ({Status}): {Message}", e.Status, e.Message);
+        return this.Refusal(e.Status, DetailFor(e));
     }
 
     /// <summary>Which telemetry backends (Loki, Prometheus, Tempo) are configured.</summary>
@@ -39,7 +54,7 @@ public class TelemetryController : ControllerBase
         }
         catch (TelemetryQueryException e)
         {
-            return this.Refusal(e.Status, e.Message);
+            return Refused(e);
         }
     }
 
@@ -66,7 +81,7 @@ public class TelemetryController : ControllerBase
         }
         catch (TelemetryQueryException e)
         {
-            return this.Refusal(e.Status, e.Message);
+            return Refused(e);
         }
     }
 
@@ -84,7 +99,7 @@ public class TelemetryController : ControllerBase
         }
         catch (TelemetryQueryException e)
         {
-            return this.Refusal(e.Status, e.Message);
+            return Refused(e);
         }
     }
 
@@ -108,7 +123,7 @@ public class TelemetryController : ControllerBase
         }
         catch (TelemetryQueryException e)
         {
-            return this.Refusal(e.Status, e.Message);
+            return Refused(e);
         }
     }
 }
