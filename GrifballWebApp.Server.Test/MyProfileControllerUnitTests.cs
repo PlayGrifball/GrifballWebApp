@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Server.Profile;
 using Microsoft.AspNetCore.Http;

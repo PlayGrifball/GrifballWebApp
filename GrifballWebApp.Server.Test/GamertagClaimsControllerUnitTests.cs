@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Server.Historical;
 using Microsoft.AspNetCore.Http;
 using NSubstitute;
