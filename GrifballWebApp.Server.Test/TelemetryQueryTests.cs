@@ -82,6 +82,20 @@ public class TelemetryQueriesTests
     }
 
     [Test]
+    public void Frontend_panels_read_the_app_servers_metrics()
+    {
+        var panels = TelemetryQueries.Panels("grif-prod", TimeSpan.FromMinutes(2)).ToDictionary(p => p.Key);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(panels["render"].Query, Does.Contain("grif_frontend_render_duration_seconds_bucket{service_name=\"grif-prod\",outcome=\"server\"}[120s]"));
+            Assert.That(panels["renderFailures"].Query, Does.Contain("grif_frontend_render_duration_seconds_count{service_name=\"grif-prod\",outcome=\"failed\"}[120s]"));
+            Assert.That(panels["frontendMemory"].Query, Does.Contain("grif_frontend_memory_rss_bytes{service_name=\"grif-prod\"}"));
+            Assert.That(panels["frontendMemory"].SeriesLabel, Is.EqualTo("k8s_pod_name"));
+        }
+    }
+
+    [Test]
     public void Traces_adds_errors_and_duration()
     {
         using (Assert.EnterMultipleScope())
@@ -297,7 +311,7 @@ public class TelemetryQueryServiceTests
         }
 
         var ranged = backends.Asked.Where(u => u.AbsolutePath == "/api/v1/query_range").ToList();
-        Assert.That(ranged, Has.Count.EqualTo(7));
+        Assert.That(ranged, Has.Count.EqualTo(10));
         using (Assert.EnterMultipleScope())
         {
             Assert.That(ranged.Select(u => Query(u, "step")), Has.All.EqualTo("24s"));
@@ -365,7 +379,7 @@ public class TelemetryQueryServiceTests
         """;
     private static readonly string[] expected = new[] { "HTTP GET /Home/Events responded 200 in 2.9872 ms", "Job failed", "older" };
     private static readonly string[] expectedArray = new[] { "exception_type" };
-    private static readonly string[] expectedArray0 = new[] { "requests", "errors", "latency", "database", "exceptions", "memory", "cpu" };
+    private static readonly string[] expectedArray0 = new[] { "requests", "errors", "latency", "database", "exceptions", "memory", "cpu", "render", "renderFailures", "frontendMemory" };
     private static readonly double[] expectedArray1 = new[] { 1793700000500d, 0.25 };
     private static readonly string[] expectedArray2 = new[] { "grif-backend-1", "grif-worker-1" };
     private static readonly string[] expectedArray3 = new[] { "432816159241389fd3a112f2e194cb12", "0556214b423d5a640fb17a50481aa1fd" };
