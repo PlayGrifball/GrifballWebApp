@@ -2,11 +2,9 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { DateTime } from 'luxon';
+import { firstValueFrom } from 'rxjs';
 import { SeasonSettingsApiService } from './seasonSettingsApi.service';
 import { SeasonSettings } from './seasonSettings';
-
-/** A real event loop turn: long enough for the lazily-imported parser's promise chain to settle. */
-const tick = () => new Promise<void>(resolve => setTimeout(resolve));
 
 describe('SeasonSettingsApiService', () => {
   let service: SeasonSettingsApiService;
@@ -30,33 +28,30 @@ describe('SeasonSettingsApiService', () => {
   afterEach(() => http.verify());
 
   it('parses every season\'s dates into Luxon DateTimes', async () => {
-    let result: SeasonSettings[] | undefined;
-    service.getSeasons().subscribe(seasons => result = seasons);
+    // firstValueFrom awaits the parser's lazily-imported module however long that takes, rather than a fixed tick.
+    const resultPromise = firstValueFrom(service.getSeasons());
     http.expectOne('/api/seasons/settings').flush([dto(), dto({ seasonID: 5, seasonName: 'Season 5' })]);
-    await tick();
+    const result = await resultPromise;
 
     expect(result).toHaveSize(2);
-    expect(result![0].signupsOpen).toEqual(t);
-    expect(result![1].seasonName).toBe('Season 5');
+    expect(result[0].signupsOpen).toEqual(t);
+    expect(result[1].seasonName).toBe('Season 5');
   });
 
   it('gets one season, parsed', async () => {
-    let result: SeasonSettings | null | undefined;
-    service.getSeason(4).subscribe(season => result = season);
+    const resultPromise = firstValueFrom(service.getSeason(4));
     http.expectOne('/api/seasons/4/settings').flush(dto());
-    await tick();
+    const result = await resultPromise;
 
     expect(result?.seasonID).toBe(4);
     expect(result?.signupsOpen).toEqual(t);
   });
 
   it('is null for a season that does not exist (404)', async () => {
-    let result: SeasonSettings | null | undefined;
-    service.getSeason(99).subscribe(season => result = season);
+    const resultPromise = firstValueFrom(service.getSeason(99));
     http.expectOne('/api/seasons/99/settings').flush('', { status: 404, statusText: 'Not Found' });
-    await tick();
 
-    expect(result).toBeNull();
+    expect(await resultPromise).toBeNull();
   });
 
   it('passes any other error on', () => {
