@@ -1,5 +1,6 @@
 using GrifballWebApp.Infrastructure.Conversion;
 using GrifballWebApp.Server.DatabaseBackup;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
@@ -41,5 +42,40 @@ public class BackupControllerUnitTests
     public void Is_sysadmin_only()
     {
         Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(BackupController))?.Roles, Is.EqualTo("Sysadmin"));
+    }
+
+    // Refused before BackupRuns/BackupDownloads are ever asked
+    private static BackupController Controller() => new(null!, null!, null!, null!, new ConfigurationBuilder().Build(), NullLogger<BackupController>.Instance);
+
+    [Test]
+    public async Task StartDownload_RepliesBadRequest_ForAnUnknownFormat()
+    {
+        var result = await Controller().StartDownload("not-a-format", CancellationToken.None);
+
+        result.AssertProblem(StatusCodes.Status400BadRequest, "The format must be sqlite, postgres, sqlserver, bak or dump.");
+    }
+
+    [Test]
+    public async Task DownloadStatus_RepliesBadRequest_ForAnUnknownFormat()
+    {
+        var result = await Controller().DownloadStatus("not-a-format", CancellationToken.None);
+
+        result.Result.AssertProblem(StatusCodes.Status400BadRequest, "The format must be sqlite, postgres, sqlserver, bak or dump.");
+    }
+
+    [Test]
+    public async Task Download_RepliesBadRequest_ForAnUnknownFormat()
+    {
+        var result = await Controller().Download("not-a-format", CancellationToken.None);
+
+        result.AssertProblem(StatusCodes.Status400BadRequest, "The format must be sqlite, postgres, sqlserver, bak or dump.");
+    }
+
+    [Test]
+    public async Task Export_RepliesBadRequest_ForAnUnknownProvider()
+    {
+        var result = await Controller().Export(new ExportRequestDto("not-a-provider", "cs"), CancellationToken.None);
+
+        result.AssertProblem(StatusCodes.Status400BadRequest, "The provider must be SqlServer, Postgres or Sqlite.");
     }
 }

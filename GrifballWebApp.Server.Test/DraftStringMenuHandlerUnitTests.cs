@@ -24,7 +24,7 @@ public class DraftStringMenuHandlerUnitTests : SqliteGrifballContextFixture
 
         await handler.DraftPick(context, seasonId: 1, captainId: 1);
 
-        context.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(p =>
+        await context.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(p =>
             ((InteractionCallbackProperties<InteractionMessageProperties>)p).Data.Content == "You must set your gamertag first"));
     }
 }

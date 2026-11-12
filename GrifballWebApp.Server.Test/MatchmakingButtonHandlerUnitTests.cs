@@ -59,7 +59,7 @@ public class MatchmakingButtonHandlerUnitTests : SqliteGrifballContextFixture
 
         await Handler().SetGamertag(context);
 
-        context.Interaction.Received(1).SendResponseAsync(Arg.Any<InteractionCallbackProperties>());
+        await context.Interaction.Received(1).SendResponseAsync(Arg.Any<InteractionCallbackProperties>());
     }
 
     [Test]
