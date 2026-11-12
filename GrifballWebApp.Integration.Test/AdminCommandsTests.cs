@@ -24,6 +24,8 @@ using NetCord;
 using NSubstitute;
 using User = GrifballWebApp.Domain.Players.User;
 
+using GrifballWebApp.Server.Test;
+
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>

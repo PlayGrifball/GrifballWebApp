@@ -24,6 +24,8 @@ using NSubstitute;
 using Team = GrifballWebApp.Domain.League.Team;
 using User = GrifballWebApp.Domain.Players.User;
 
+using GrifballWebApp.Server.Test;
+
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>/team (<see cref="TeamCommandsHandler"/>) and /player (<see cref="PlayerCommandsHandler"/>), called with a substitute context.</summary>

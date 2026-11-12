@@ -23,6 +23,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 
+using GrifballWebApp.Server.Test;
+
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>/match (<see cref="MatchCommandsHandler"/>) and /leaderboard, /lateleague, /events and /search (<see cref="BrowseCommandsHandler"/>).</summary>

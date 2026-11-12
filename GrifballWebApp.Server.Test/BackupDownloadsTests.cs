@@ -7,7 +7,7 @@ using Microsoft.Extensions.Time.Testing;
 using GrifballWebApp.Infrastructure.DatabaseBackup;
 using GrifballWebApp.Server.DatabaseBackup;
 
-namespace GrifballWebApp.Integration.Test;
+namespace GrifballWebApp.Server.Test;
 
 /// <summary>
 /// Where a made backup is kept (BackupFiles, on the pod that runs the jobs) and how the page's download reaches it

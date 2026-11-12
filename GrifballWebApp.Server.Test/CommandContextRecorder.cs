@@ -4,7 +4,7 @@ using NetCord.Rest;
 using NSubstitute;
 using NSubstitute.Extensions;
 
-namespace GrifballWebApp.Integration.Test;
+namespace GrifballWebApp.Server.Test;
 
 /// <summary>
 /// A substitute slash command context for the command handlers' tests, from Discord user <paramref name="discordUserId"/>:

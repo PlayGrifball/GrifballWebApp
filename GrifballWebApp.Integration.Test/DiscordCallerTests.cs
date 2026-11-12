@@ -4,6 +4,8 @@ using GrifballWebApp.Server.Commands;
 using NetCord;
 using NetCord.Rest;
 
+using GrifballWebApp.Server.Test;
+
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>

@@ -3,7 +3,7 @@ using GrifballWebApp.Server.Commands;
 using Microsoft.Extensions.Configuration;
 using NetCord.Services.ApplicationCommands;
 
-namespace GrifballWebApp.Integration.Test;
+namespace GrifballWebApp.Server.Test;
 
 /// <summary>/help (<see cref="HelpCommandsHandler"/>), over the server's real modules as Program.cs registers them.</summary>
 [TestFixture]
