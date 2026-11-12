@@ -41,9 +41,11 @@ public sealed record YouTubeVideo
 public static partial class YouTubeFeeds
 {
     // XML namespace names, which are identifiers matched as written, never fetched: the feed's own are http
-    private static readonly XNamespace Atom = "http://www.w3.org/2005/Atom"; // NOSONAR S5332: a namespace name, not a URL that is requested
-    private static readonly XNamespace Yt = "http://www.youtube.com/xml/schemas/2015"; // NOSONAR S5332: a namespace name, not a URL that is requested
-    private static readonly XNamespace Media = "http://search.yahoo.com/mrss/"; // NOSONAR S5332: a namespace name, not a URL that is requested
+#pragma warning disable S5332 // a namespace name, not a URL that is requested
+    private static readonly XNamespace Atom = "http://www.w3.org/2005/Atom";
+    private static readonly XNamespace Yt = "http://www.youtube.com/xml/schemas/2015";
+    private static readonly XNamespace Media = "http://search.yahoo.com/mrss/";
+#pragma warning restore S5332
 
     public static string FeedUrl(string channelId) => $"https://www.youtube.com/feeds/videos.xml?channel_id={Uri.EscapeDataString(channelId)}";
 

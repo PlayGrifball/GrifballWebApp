@@ -350,7 +350,9 @@ public class IdentityController : ControllerBase
     /// </remarks>
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [IgnoreAntiforgeryToken] // NOSONAR S4502: exempt on purpose (see above); the Fetch Metadata and Origin checks still refuse it from another site
+#pragma warning disable S4502 // exempt on purpose (see above); the Fetch Metadata and Origin checks still refuse it from another site
+    [IgnoreAntiforgeryToken]
+#pragma warning restore S4502
     [HttpPost("identity/logout", Name = "Logout")]
     public async Task<IActionResult> Logout()
     {
