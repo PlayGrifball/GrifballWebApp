@@ -349,6 +349,8 @@ public class DiscordTransportTests
         new object[] { "lateleague seasons", Array.Empty<(string, string)>() },
         new object[] { "lateleague season", Array.Empty<(string, string)>() },
         new object[] { "events", Array.Empty<(string, string)>() },
+        new object[] { "help", Array.Empty<(string, string)>() },
+        new object[] { "help", new[] { ("command", "season") } },
         new object[] { "search", new[] { ("query", "Missing") } },
         new object[] { "queue status", Array.Empty<(string, string)>() },
         new object[] { "queue join", Array.Empty<(string, string)>() },

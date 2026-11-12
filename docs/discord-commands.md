@@ -1,0 +1,83 @@
+# Discord commands
+
+The bot's slash commands cover most of the site. They call the same Application services as the site's controllers, so the
+rules are the same in both places. `/help` lists the commands as registered, and `/help command:<name>` lists that
+command's subcommands. The handlers are in `GrifballWebApp.Server/Commands`.
+
+## Who may run what
+
+- **Anyone.** Every command for a page the site shows signed out (`[AllowAnonymous]`) works without an account or a
+  gamertag.
+- **Personal commands** run as the site account linked to the caller's Discord account. A caller with no account, or no
+  gamertag, gets the Set Gamertag button: the same flow as the queue's (`DiscordCaller`).
+- **Staff commands** need the role the site's endpoint names, held by that linked account. Some are the commissioner's
+  alone, as on the site. The bot makes no permission checks of its own. A Discord role grants nothing; only the site's
+  Identity roles count.
+- Replies about the caller, and every `/admin` reply, are ephemeral: only the caller sees them, so staff commands work in
+  any channel.
+- A refusal the site answers with a 4xx (`GlobalExceptionHandler.Expected`) gets the same message on Discord.
+
+Seasons, teams, players and season matches autocomplete. A name typed without picking a choice is looked up too.
+Discord has no date option, so times are typed in UTC, like `2026-11-20 20:00`.
+
+## Anyone
+
+| Command | What it shows |
+|---|---|
+| `/season list\|info\|standings\|schedule\|stats\|grades\|signups\|bracket\|draft` | A season's pages; with no season named, the current one |
+| `/team info\|roster\|history\|matches\|vods` | A team's page |
+| `/player profile\|stats\|commendations\|history\|vods\|matches` | A player's profile; with no player named, the caller's own (needs their gamertag) |
+| `/matches` | A gamertag's recent Halo matches (same as `/player matches`) |
+| `/match info` | A season match: when, result, games |
+| `/match game` | A Halo game by its match ID |
+| `/leaderboard top\|rank` | The all-time boards |
+| `/lateleague seasons\|season` | Late League seasons and their top players |
+| `/events` | Upcoming signups, drafts and seasons |
+| `/search` | Players, teams and seasons |
+| `/queue status` | The Late League queue's size, and the caller's place in it |
+| `/availability show` | A season's match times, in UTC |
+| `/help` | The commands |
+
+## Personal (an account with a gamertag)
+
+| Command | Same as on the site |
+|---|---|
+| `/setgamertag` | Set your gamertag (makes the account if there is none) |
+| `/queue join\|leave` | The queue page's Join and Leave (also the queue message's buttons) |
+| `/me region` | Profile: region |
+| `/me claim\|claims` | Profile: claim a past gamertag, your claims |
+| `/me logins` | A link to the profile page: linking a sign-in runs in a browser |
+| `/signup` | The signup form, minus the times you can play (kept, set on the form). Player or Sysadmin |
+| `/reschedule request` | The reschedule request form. The service decides who may (a player on either team, or a commissioner) |
+
+## Staff
+
+| Command | Role |
+|---|---|
+| `/admin dashboard\|overdue`, `/reschedule pending\|decide` | Commissioner or Sysadmin |
+| `/admin match report\|forfeit\|undo\|time` | Commissioner |
+| `/admin match pull` | Commissioner or Sysadmin |
+| `/admin season generate`, `/admin bracket create\|seed`, `/admin draft lock\|unlock` | Commissioner |
+| `/admin schedule show\|run\|apply` | Commissioner or Sysadmin |
+| `/admin halo pull`, `/admin medals`, `/admin jobs list\|run\|pause`, `/admin claims list\|approve\|reject` | Sysadmin |
+
+## Left on the site
+
+These stay on the site, and the matching commands link to them:
+
+- The draft board and custom seeds: a live board, which a command can't match. Draft picks also have the draft
+  channel's menu.
+- Season settings, editing availability, manual games, Excel, user management and merges, VOD review, the historical
+  import and telemetry: large forms or file uploads.
+- Sign-in, registration and password resets, the Halo sign-in code, and database backups: secrets don't belong in chat.
+
+## Adding a command
+
+1. Put the logic in an Application service the controller also calls. If a controller still holds the logic, move it
+   (as `TeamPageService.GetMatchesAsync`, `HomeEventsService` and `RegionService` were).
+2. Write a handler in `Commands/` that takes `IDiscordInteractionContext`. Call `DiscordCaller.Require` with the
+   endpoint's roles before deferring, then `Defer` and `Reply` (`CommandReplies`).
+3. Add a thin NetCord module that only wraps its context. Give it a `[SlashCommand]` group with `[SubSlashCommand]`
+   methods, or join an existing group.
+4. Register the handler in `Program.AddDiscordHandlers`, then add the command to `DiscordModuleRegistrationTests`,
+   `DiscordTransportTests.Commands` and this page.

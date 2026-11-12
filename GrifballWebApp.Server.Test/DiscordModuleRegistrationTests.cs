@@ -156,6 +156,8 @@ public class DiscordModuleRegistrationTests
             "/availability show \"A season's match times\" permissions: default, preconditions: 0"
                 + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
             "/events \"Upcoming signups, drafts and seasons\" permissions: default, preconditions: 0",
+            "/help \"The bot's commands\" permissions: default, preconditions: 0"
+                + " [command: String = null \"A command, like season or admin, for its parts\" autocomplete: none, preconditions: 0]",
             "/lateleague season \"A Late League season's top players\" permissions: default, preconditions: 0"
                 + " [season: String = null \"The season's name or ID (default: the latest)\" autocomplete: none, preconditions: 0]",
             "/lateleague seasons \"The Late League seasons\" permissions: default, preconditions: 0",
