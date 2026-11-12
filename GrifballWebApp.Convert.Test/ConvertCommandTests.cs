@@ -64,13 +64,16 @@ public class ConvertCommandTests
         var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), NullLoggerFactory.Instance,
             convert: (source, target, logger, ct) =>
             {
-                Assert.That((source.Provider, source.ConnectionString), Is.EqualTo((DatabaseProvider.SqlServer, "source")));
-                Assert.That((target.Provider, target.ConnectionString), Is.EqualTo((DatabaseProvider.Postgres, "target")));
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That((source.Provider, source.ConnectionString), Is.EqualTo((DatabaseProvider.SqlServer, "source")));
+                    Assert.That((target.Provider, target.ConnectionString), Is.EqualTo((DatabaseProvider.Postgres, "target")));
+                }
                 return Task.CompletedTask;
             },
             CancellationToken.None);
 
-        Assert.That(code, Is.EqualTo(0));
+        Assert.That(code, Is.Zero);
     }
 
     [Test]
