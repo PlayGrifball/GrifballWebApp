@@ -145,6 +145,8 @@ expect_areas "the analyzers' rules" "backend=true frontend=false images=false mi
 # The migrations: the image's build bundles them, so the PR builds its images (images stays false: no arm64 check)
 expect_areas "a migration" "backend=true frontend=false images=false migrations=true" pull_request GrifballWebApp.Migrations.Postgres/Migrations/20261112000000_X.cs
 expect_areas "the design-time context" "backend=true frontend=false images=false migrations=true" pull_request GrifballWebApp.Infrastructure/DesignTimeContext.cs
+# The migrations projects' unit tests aren't the migrations themselves: backend alone, no image step
+expect_areas "a migrations unit test" "backend=true frontend=false images=false migrations=false" pull_request GrifballWebApp.Migrations.Test/PostgresHistoryModelTests.cs
 expect_areas "code, not packages" "backend=true frontend=true images=false migrations=false" pull_request GrifballWebApp.Server/Program.cs grifballwebapp.client/src/app/app.ts
 # A PR as big as this one: past a pipe's buffer (a pipe into grep -q broke here and read as "no change")
 big="GrifballWebApp.Server/Program.cs grifballwebapp.client/src/main.ts $(seq -f 'docs/a-long-directory-name-to-pass-the-pipe-buffer/page-%g.md' 1 2500 | tr '\n' ' ')"
@@ -325,12 +327,26 @@ cat > "$cov/GrifballWebApp.Architecture.Test.cobertura.xml" <<'XML'
 <coverage><packages><package name="GrifballWebApp.Domain"><classes><class name="A" filename="A.cs"><lines>
 <line number="2" hits="1" branch="False" /></lines></class></classes></package></packages></coverage>
 XML
+# GrifballWebApp.Migrations.Test: three provider assemblies, summed as one "Migrations" layer
+cat > "$cov/GrifballWebApp.Migrations.Test.cobertura.xml" <<'XML'
+<coverage><packages>
+<package name="GrifballWebApp.Migrations.Postgres"><classes><class name="P" filename="P.cs"><lines>
+<line number="1" hits="1" branch="False" /><line number="2" hits="0" branch="False" /></lines></class></classes></package>
+<package name="GrifballWebApp.Migrations.Sqlite"><classes><class name="S" filename="S.cs"><lines>
+<line number="1" hits="1" branch="False" /></lines></class></classes></package>
+<package name="GrifballWebApp.Migrations.SqlServer"><classes><class name="Q" filename="Q.cs"><lines>
+<line number="1" hits="0" branch="False" /></lines></class></classes></package>
+</packages></coverage>
+XML
 node "$scripts/layer-coverage.mjs" collect "$cov" "$cov/layers.json"
 node "$scripts/layer-coverage.mjs" render "$cov/layers.json" "" abc1234 > "$cov/table.md"
 if grep -qF '| Domain | 50.0% · 2/4 | 50.0% | ❌ 1 lines short |' "$cov/table.md" \
   && grep -qF '| Application | 50.0% · 1/2 | – | ❌ 1 lines short |' "$cov/table.md" \
   && ! grep -q Architecture "$cov/table.md"; then ok "layer-coverage: each layer from its own tests"
 else bad "layer-coverage table:"; sed 's/^/  | /' "$cov/table.md"; fi
+if grep -qF '| Migrations | 50.0% · 2/4 | – | ❌ 1 lines short |' "$cov/table.md"
+then ok "layer-coverage: Migrations sums its three provider assemblies"
+else bad "layer-coverage: Migrations not summed:"; sed 's/^/  | /' "$cov/table.md"; fi
 printf '{"GrifballWebApp.Domain":{"lines":4,"linesCovered":1,"branches":2,"branchesCovered":1}}\n' > "$cov/base.json"
 if node "$scripts/layer-coverage.mjs" render "$cov/layers.json" "$cov/base.json" | grep -qF '| Domain | 50.0% (+25.0) · 2/4 | 50.0% (±0) |'
 then ok "layer-coverage: change from master"; else bad "layer-coverage: no change from master shown"; fi

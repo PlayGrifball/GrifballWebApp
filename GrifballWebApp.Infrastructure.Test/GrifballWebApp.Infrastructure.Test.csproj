@@ -14,8 +14,6 @@
   <ItemGroup>
     <!-- MIT: builds the xlsx fixtures the historical archive parsers read (HistoricalXlsx) -->
     <PackageReference Include="ClosedXML" Version="0.105.1" />
-    <!-- dotnet ef's own services, to test what it scaffolds with (PostgresHistoryModelTests). -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.11.0" />
     <PackageReference Include="coverlet.collector" Version="10.1.0">
       <PrivateAssets>all</PrivateAssets>
@@ -39,10 +37,6 @@
     <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
     <!-- The domain tests' helpers (a test season, a season match in a state) -->
     <ProjectReference Include="..\GrifballWebApp.Domain.Test\GrifballWebApp.Domain.Test.csproj" />
-    <!-- DesignTimeContextFactoryTests: each provider's design-time factory, offline -->
-    <ProjectReference Include="..\GrifballWebApp.Migrations.Postgres\GrifballWebApp.Migrations.Postgres.csproj" />
-    <ProjectReference Include="..\GrifballWebApp.Migrations.Sqlite\GrifballWebApp.Migrations.Sqlite.csproj" />
-    <ProjectReference Include="..\GrifballWebApp.Migrations.SqlServer\GrifballWebApp.Migrations.SqlServer.csproj" />
   </ItemGroup>
 
   <!-- Its helpers (HistoricalXlsx, HistoricalTestData, TestCertificates) serve the integration tests too -->

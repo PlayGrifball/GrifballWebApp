@@ -22,6 +22,10 @@ public class TestProjectTests
     private const string ConvertApp = "GrifballWebApp.Convert";
     private const string SeederTest = SeederApp + ".Test";
     private const string ConvertTest = ConvertApp + ".Test";
+    private const string MigrationsPostgres = "GrifballWebApp.Migrations.Postgres";
+    private const string MigrationsSqlite = "GrifballWebApp.Migrations.Sqlite";
+    private const string MigrationsSqlServer = "GrifballWebApp.Migrations.SqlServer";
+    private const string MigrationsTest = "GrifballWebApp.Migrations.Test";
     private const string Analyzers = "GrifballWebApp.Analyzers";
     private const string AnalyzersTest = Analyzers + ".Test";
     private const string IntegrationTest = "GrifballWebApp.Integration.Test";
@@ -41,6 +45,8 @@ public class TestProjectTests
         // The host apps beside the server, each with its own unit tests
         [SeederTest] = [SeederApp, Infrastructure, Application, Domain, DomainTest, ApplicationTest, InfrastructureTest],
         [ConvertTest] = [ConvertApp, Infrastructure, Application, Domain, DomainTest, ApplicationTest, InfrastructureTest],
+        // The three migrations projects' own unit tests, above Infrastructure like the host apps
+        [MigrationsTest] = [MigrationsPostgres, MigrationsSqlite, MigrationsSqlServer, Infrastructure, Application, Domain, DomainTest, ApplicationTest, InfrastructureTest],
         // The analyzers every project builds with (Directory.Build.props), tested on compilations of their own
         [AnalyzersTest] = [Analyzers],
         [IntegrationTest] = null,
@@ -69,6 +75,7 @@ public class TestProjectTests
     [TestCase(ServerTest)]
     [TestCase(SeederTest)]
     [TestCase(ConvertTest)]
+    [TestCase(MigrationsTest)]
     [TestCase(AnalyzersTest)]
     public void AUnitTestProject_ReferencesItsLayerAndTheLayersBelow(string project)
     {

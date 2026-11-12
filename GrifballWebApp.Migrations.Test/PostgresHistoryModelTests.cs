@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Design;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 
-namespace GrifballWebApp.Infrastructure.Test;
+namespace GrifballWebApp.Migrations.Test;
 
 /// <summary>
 /// Row history's model and scaffolding (PostgresHistory, HistoryMigrationsModelDiffer), with no

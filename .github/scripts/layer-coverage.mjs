@@ -5,7 +5,8 @@
 //
 //   collect <dir> <out.json>: every <dir>/<Project>.Test.cobertura.xml (one per unit test project, as dotnet-tests.yml
 //     copies them) to one JSON file: { "<Layer>": { lines, linesCovered, branches, branchesCovered } }. A project whose
-//     layer isn't in its report (the architecture tests) is left out.
+//     layer isn't in its report (the architecture tests) is left out. GrifballWebApp.Migrations.Test reports as
+//     "Migrations", its three provider assemblies (Postgres, Sqlite, SqlServer) summed as one layer.
 //   render <current.json> [<base.json>] [<sha>]: the Markdown table, against master's numbers when there are any. Exits 1
 //     when a layer master had at the target is now below it: once a layer reaches the target it stays there (a layer
 //     still below it only reports).
@@ -49,15 +50,16 @@ function record(lines, file, line) {
   });
 }
 
-// One package's numbers from a Cobertura report. A line can be listed more than once (by its class and by its method,
-// or by two classes in one file): it counts once.
-export function packageCoverage(xml, name) {
+// One or more packages' numbers from a Cobertura report, summed: a line can be listed more than once (by its class
+// and by its method, or by two classes in one file, or in two of the packages), it counts once.
+export function packageCoverage(xml, names) {
+  const wanted = new Set(Array.isArray(names) ? names : [names]);
   const lines = new Map();
   let inPackage = false;
   let file = '';
   for (const tag of tags(xml)) {
     if (tag.startsWith('package ') || tag === '/package') {
-      inPackage = tag !== '/package' && attributes(tag).name === name;
+      inPackage = tag !== '/package' && wanted.has(attributes(tag).name);
     } else if (inPackage && tag.startsWith('class ')) {
       file = attributes(tag).filename ?? '';
     } else if (inPackage && tag.startsWith('line ')) {
@@ -74,11 +76,18 @@ export function packageCoverage(xml, name) {
   };
 }
 
+// A layer's package(s) in its Cobertura report: its own name, except GrifballWebApp.Migrations.Test, built from the
+// three provider assemblies (GrifballWebApp.Migrations.Postgres, .Sqlite and .SqlServer) summed as one layer.
+const packagesOf = (layer) =>
+  layer === 'GrifballWebApp.Migrations'
+    ? ['GrifballWebApp.Migrations.Postgres', 'GrifballWebApp.Migrations.Sqlite', 'GrifballWebApp.Migrations.SqlServer']
+    : layer;
+
 export function collect(dir) {
   const layers = {};
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.Test.cobertura.xml')).sort()) {
     const layer = file.slice(0, -'.Test.cobertura.xml'.length);
-    const coverage = packageCoverage(readFileSync(join(dir, file), 'utf8'), layer);
+    const coverage = packageCoverage(readFileSync(join(dir, file), 'utf8'), packagesOf(layer));
     if (coverage) layers[layer] = coverage;
   }
   return layers;
