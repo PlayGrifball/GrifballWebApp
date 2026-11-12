@@ -61,11 +61,13 @@ or the network push a test into the integration project.
 - **`GrifballWebApp.Seeder.Test`** and **`GrifballWebApp.Convert.Test`**: the types of the two host apps beside the
   server, the seeder (GrifballWebApp.Seeder) and the conversion command (GrifballWebApp.Convert), each in its own project.
 - **`GrifballWebApp.Migrations.Postgres.Test`**, **`GrifballWebApp.Migrations.Sqlite.Test`** and
-  **`GrifballWebApp.Migrations.SqlServer.Test`**: each migrations project's own types (its design-time context
-  factory and services, the SQL generator) and the row-history scaffolding (HistoryMigrationsModelDiffer, the
-  design-time migration snapshot) only it exercises. One project per provider, not one for all three: a failing
-  migration is that provider's alone, so each targets 100% of lines (the coverage-by-layer comment, below), not the
-  usual 70%.
+  **`GrifballWebApp.Migrations.SqlServer.Test`**: each migrations project's own hand-written types (its design-time
+  context factory and services, the SQL generator, the row-history differ) only it exercises — not the generated
+  migrations or model snapshot (`Migrations/*.cs`), which `coverlet.runsettings` excludes from coverage and
+  `Migrations_MatchTheModel`/`NewestMigration_DesignerMatchesTheSnapshot` check instead, along with the integration
+  legs migrating a real database of each kind. One project per provider, not one for all three: a failing migration
+  is that provider's alone, so each targets 100% of its own hand-written lines (the coverage-by-layer comment,
+  below), not the usual 70%.
 - **`GrifballWebApp.Architecture.Test`**: the architecture's rules, read from the compiled assemblies with Mono.Cecil:
   the layers depend inwards only (Domain <- Application <- Infrastructure <- Server), a type of one of the Domain's
   bounded contexts names another context's only where `ContextCrossings.Allowed` lists it, and an aggregate's

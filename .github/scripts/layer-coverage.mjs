@@ -7,9 +7,14 @@
 //     copies them) to one JSON file: { "<Layer>": { lines, linesCovered, branches, branchesCovered } }. A project whose
 //     layer isn't in its report (the architecture tests) is left out.
 //   render <current.json> [<base.json>] [<sha>]: the Markdown table, against master's numbers when there are any. Each
-//     layer has its own target (targetFor): the three migrations projects at 100% of lines (one failing migration
-//     fails that provider alone), every other layer at LAYER_COVERAGE_TARGET. Exits 1 when a layer master had at its
-//     target is now below it: once a layer reaches its target it stays there (a layer still below it only reports).
+//     layer has its own target (targetFor): the three migrations projects at 100% of lines, every other layer at
+//     LAYER_COVERAGE_TARGET. The generated migrations and their snapshots (coverlet.runsettings excludes them) aren't
+//     measured here at all: the 100% target is for the hand-written code every migration goes through (each
+//     provider's design-time factory and services, its SQL generator, its history differ). The migrations
+//     themselves are checked other ways: Migrations_MatchTheModel, NewestMigration_DesignerMatchesTheSnapshot, and
+//     the integration legs, which migrate a real SQL Server, Postgres and SQLite database on every run. Exits 1
+//     when a layer master had at its target is now below it: once a layer reaches its target it stays there (a
+//     layer still below it only reports).
 //
 // Env: LAYER_COVERAGE_TARGET, the line coverage every layer but the migrations projects should reach (percent, default 70).
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
@@ -17,7 +22,7 @@ import { join } from 'node:path';
 
 const target = Number(process.env.LAYER_COVERAGE_TARGET ?? 70);
 
-// A migrations project is one failing migration away from a broken provider: it targets 100%, not the usual target.
+// A migrations project's own hand-written code (every migration goes through it): it targets 100%, not the usual target.
 const targetFor = (layer) => (layer.startsWith('GrifballWebApp.Migrations.') ? 100 : target);
 
 // The attributes of one tag's text (what's between < and >): split at the quotes, each name ends the text before its

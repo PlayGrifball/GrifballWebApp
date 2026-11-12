@@ -15,8 +15,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Test;
 
 /// <summary>
 /// Row history on SQLite (SqliteHistory, its triggers written into the migrations by
-/// SqliteHistoryMigrationsModelDiffer), on a migrated database. SQLite needs no server, so these run on every
-/// leg of the suite, each test on its own copy of a file migrated once.
+/// SqliteHistoryMigrationsModelDiffer), on a migrated database. SQLite needs no server: these are unit tests, run
+/// once, in the Unit leg, each test on its own copy of a file migrated once.
 /// </summary>
 [TestFixture]
 [Parallelizable(ParallelScope.All)]

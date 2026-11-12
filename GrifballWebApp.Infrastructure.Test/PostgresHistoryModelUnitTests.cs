@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations.Operations;
 
 namespace GrifballWebApp.Infrastructure.Test;
 
-/// <summary>PostgresHistoryModelTests's unit tests: no database, host, file or network. Its other tests stay in
-/// GrifballWebApp.Integration.Test.</summary>
+/// <summary>PostgresHistoryModelTests's unit tests: no database, host, file or network. Its other tests are
+/// GrifballWebApp.Migrations.Postgres.Test's (the ones that need GrifballWebApp.Migrations.Postgres loaded).</summary>
 [TestFixture]
 public class PostgresHistoryModelUnitTests
 {

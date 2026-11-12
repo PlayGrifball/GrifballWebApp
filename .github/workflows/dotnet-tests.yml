@@ -256,7 +256,8 @@ jobs:
         fail_ci_if_error: true
 
   # On a PR that changes the .NET code, one comment with each layer's unit test coverage (and its change from master's
-  # last run), which each run updates in place. Fails when a layer master had at the target (70% of lines) drops below it.
+  # last run), which each run updates in place. Fails when a layer master had at its target (70% of lines, 100% for
+  # the migrations projects) drops below it.
   layer-coverage:
     name: Coverage by layer
     needs: [changes, test]
