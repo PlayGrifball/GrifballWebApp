@@ -32,6 +32,7 @@ public class BracketsController : ControllerBase
         return CreatedAtAction(nameof(GetBracket), new { seasonID }, null);
     }
 
+    /// <summary>A season's bracket.</summary>
     [AllowAnonymous]
     [HttpGet("seasons/{seasonID:int}/bracket", Name = "GetBracket")]
     [ProducesResponseType<BracketDto>(StatusCodes.Status200OK)]

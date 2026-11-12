@@ -47,8 +47,8 @@ public class AdminController : ControllerBase
     }
 
 
+    /// <summary>Pulls a Halo Infinite match's stats and saves them (a bad match ID is no route: 404). Sysadmins only.</summary>
     [Authorize(Roles = "Sysadmin")]
-    /// <summary>Pulls a Halo Infinite match's stats and saves them (a bad match ID is no route: 404).</summary>
     [HttpPost("matches/{matchID:guid}/pull", Name = "MatchStats")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> PullMatch([FromRoute] Guid matchID)
@@ -71,9 +71,9 @@ public class AdminController : ControllerBase
         return HaloStatusDto.Gateway(_haloSettings, await _haloStatus.ProbeNowAsync(ct));
     }
 
-    /// <summary>Direct mode only: stores the code from Microsoft's sign-in redirect. 409 in Gateway mode.</summary>
+    /// <summary>Direct mode: signs the site's Halo account in with a Microsoft OAuth code, sent in the body (never the
+    /// URL, which logs and traces keep). 409 in Gateway mode. Sysadmins only.</summary>
     [Authorize(Roles = "Sysadmin")]
-    /// <summary>Direct mode: signs the site's Halo account in with a Microsoft OAuth code, sent in the body (never the URL, which logs and traces keep).</summary>
     [HttpPost("halo/auth-code", Name = "SetCode")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -184,6 +184,7 @@ public class AdminController : ControllerBase
         return "https://login.live.com/oauth20_authorize.srf" + "?" + queryString.ToString();
     }
 
+    /// <summary>Generates a one-time password reset link for a user. Sysadmins only.</summary>
     [Authorize(Roles = "Sysadmin")]
     [HttpPost("password-reset-links", Name = "GeneratePasswordResetLink")]
     [ProducesResponseType<GeneratePasswordResetLinkResponseDto>(StatusCodes.Status200OK)]
@@ -211,6 +212,7 @@ public class AdminController : ControllerBase
         });
     }
 
+    /// <summary>Deletes expired password reset links. Sysadmins only.</summary>
     [Authorize(Roles = "Sysadmin")]
     [HttpPost("password-reset-links/cleanup", Name = "CleanupExpiredPasswordResetLinks")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

@@ -15,6 +15,7 @@ public class AvailabilityController : ControllerBase
         _availabilityService = availabilityService;
     }
 
+    /// <summary>A season's offered timeslots.</summary>
     [AllowAnonymous]
     [HttpGet("seasons/{seasonID:int}/availability", Name = "GetSeasonAvailability")]
     [ProducesResponseType<TimeslotDto[]>(StatusCodes.Status200OK)]
@@ -23,6 +24,7 @@ public class AvailabilityController : ControllerBase
         return _availabilityService.GetSeasonAvailability(seasonID, ct);
     }
 
+    /// <summary>Replaces a season's offered timeslots. Commissioners only.</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("seasons/{seasonID:int}/availability", Name = "UpdateSeasonAvailability")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

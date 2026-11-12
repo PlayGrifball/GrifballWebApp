@@ -18,6 +18,7 @@ public class CommissionerDashboardController : ControllerBase
         _rescheduleService = rescheduleService;
     }
 
+    /// <summary>The commissioner dashboard: pending reschedules, overdue matches, and their counts. Commissioners and sysadmins only.</summary>
     [HttpGet("commissioner-dashboard", Name = "GetDashboardData")]
     [ProducesResponseType<CommissionerDashboardDto>(StatusCodes.Status200OK)]
     public async Task<CommissionerDashboardDto> GetDashboardData(CancellationToken ct)
@@ -40,6 +41,7 @@ public class CommissionerDashboardController : ControllerBase
         return dashboardData;
     }
 
+    /// <summary>Matches overdue for rescheduling. Commissioners and sysadmins only.</summary>
     [HttpGet("season-matches/overdue", Name = "GetOverdueMatches")]
     [ProducesResponseType<List<OverdueMatchDto>>(StatusCodes.Status200OK)]
     public Task<List<OverdueMatchDto>> GetOverdueMatches(CancellationToken ct)
