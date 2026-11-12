@@ -152,7 +152,7 @@ public class JsonOnlyOperationFilterTests
     public void Apply_LeavesAFormUploadAndAnOperationWithoutBodiesAlone()
     {
         var upload = new OpenApiOperation { RequestBody = new OpenApiRequestBody { Content = Content("multipart/form-data") } };
-        var bare = new OpenApiOperation();
+        var bare = new OpenApiOperation { Responses = null };
 
         new JsonOnlyOperationFilter().Apply(upload, null!);
         new JsonOnlyOperationFilter().Apply(bare, null!);

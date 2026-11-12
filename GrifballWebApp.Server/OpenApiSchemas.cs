@@ -27,8 +27,11 @@ public static class OpenApiSchemaIds
             return $"ArrayOf{For(type.GetElementType()!, ambiguous)}";
 
         var name = NameOf(type);
-        if (ambiguous.Contains(name) && type.Namespace is { } ns)
+        if (ambiguous.Contains(name))
+        {
+            var ns = $"{type.Namespace}"; // none: a type outside any namespace keeps its name
             name = ns[(ns.LastIndexOf('.') + 1)..] + name;
+        }
 
         return type.IsGenericType
             ? $"{name}Of{string.Join("And", type.GetGenericArguments().Select(a => For(a, ambiguous)))}"
