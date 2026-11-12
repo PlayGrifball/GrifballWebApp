@@ -53,4 +53,39 @@ public class TeamPageService
             Players = RosterPlayer.ToPlayers(team.Players),
         };
     }
+
+    /// <summary>A team's matches, soonest unplayed first, then played ones by scheduled time.</summary>
+    public Task<MatchDto[]> GetMatchesAsync(int teamID, CancellationToken ct = default)
+    {
+        return _context.SeasonMatches.Where(x => x.HomeTeamID == teamID)
+            .Select(x => new MatchDto()
+            {
+                SeasonMatchID = x.SeasonMatchID,
+                ScheduledTime = x.ScheduledTime,
+                BestOf = x.BestOf,
+                OtherTeamID = x.AwayTeamID,
+                OtherTeamName = x.AwayTeam!.TeamName,
+                Score = x.HomeTeamScore,
+                OtherScore = x.AwayTeamScore,
+                Result = x.HomeTeamResult,
+                OtherResult = x.AwayTeamResult,
+            })
+            .Concat(_context.SeasonMatches.Where(x => x.AwayTeamID == teamID)
+                .Select(x => new MatchDto()
+                {
+                    SeasonMatchID = x.SeasonMatchID,
+                    ScheduledTime = x.ScheduledTime,
+                    BestOf = x.BestOf,
+                    OtherTeamID = x.HomeTeamID,
+                    OtherTeamName = x.HomeTeam!.TeamName,
+                    Score = x.AwayTeamScore,
+                    OtherScore = x.HomeTeamScore,
+                    Result = x.AwayTeamResult,
+                    OtherResult = x.HomeTeamResult,
+                }))
+            // Order so that matches that still need to be played are first, in order of scheduled date.
+            .OrderBy(x => x.Result == null ? 0 : 1) // Note: use Result and not Score which will be null in case of forfeits/byes
+            .ThenBy(x => x.ScheduledTime)
+            .ToArrayAsync(ct);
+    }
 }

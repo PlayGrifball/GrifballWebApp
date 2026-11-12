@@ -1,20 +1,15 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using GrifballWebApp.Application.Database;
-using GrifballWebApp.Domain.League;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Application.TeamPage;
 
 namespace GrifballWebApp.Server.TeamPage;
 [ApiController]
 public class TeamController : ControllerBase
 {
-    private readonly IApplicationDbContext _context;
     private readonly TeamPageService _teams;
     private readonly TeamHistoryService _history;
-    public TeamController(IApplicationDbContext context, TeamPageService teams, TeamHistoryService history)
+    public TeamController(TeamPageService teams, TeamHistoryService history)
     {
-        _context = context;
         _teams = teams;
         _history = history;
     }
@@ -48,35 +43,6 @@ public class TeamController : ControllerBase
     [ProducesResponseType<MatchDto[]>(StatusCodes.Status200OK)]
     public Task<MatchDto[]> Matches([FromRoute] int teamID, CancellationToken ct)
     {
-        return _context.SeasonMatches.Where(x => x.HomeTeamID == teamID)
-            .Select(x => new MatchDto()
-            {
-                SeasonMatchID = x.SeasonMatchID,
-                ScheduledTime = x.ScheduledTime,
-                BestOf = x.BestOf,
-                OtherTeamID = x.AwayTeamID,
-                OtherTeamName = x.AwayTeam!.TeamName,
-                Score = x.HomeTeamScore,
-                OtherScore = x.AwayTeamScore,
-                Result = x.HomeTeamResult,
-                OtherResult = x.AwayTeamResult,
-            })
-            .Concat(_context.SeasonMatches.Where(x => x.AwayTeamID == teamID)
-                .Select(x => new MatchDto()
-                {
-                    SeasonMatchID = x.SeasonMatchID,
-                    ScheduledTime = x.ScheduledTime,
-                    BestOf = x.BestOf,
-                    OtherTeamID = x.HomeTeamID,
-                    OtherTeamName = x.HomeTeam!.TeamName,
-                    Score = x.AwayTeamScore,
-                    OtherScore = x.HomeTeamScore,
-                    Result = x.AwayTeamResult,
-                    OtherResult = x.HomeTeamResult,
-                }))
-            // Order so that matches that still need to be played are first, in order of scheduled date.
-            .OrderBy(x => x.Result == null ? 0 : 1) // Note: use Result and not Score which will be null in case of forfeits/byes
-            .ThenBy(x => x.ScheduledTime)
-            .ToArrayAsync(ct);
+        return _teams.GetMatchesAsync(teamID, ct);
     }
 }

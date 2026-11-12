@@ -1,5 +1,3 @@
-using DiscordInterface.Generated;
-using DiscordInterfaces;
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Dtos;
@@ -13,7 +11,6 @@ using GrifballWebApp.Domain.League;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Commands;
 using Microsoft.Extensions.Configuration;
-using NetCord;
 using NetCord.Rest;
 using NSubstitute;
 
@@ -29,9 +26,7 @@ public class SeasonCommandsTests
     private CommandLookups _lookups = null!;
     private IBracketService _brackets = null!;
     private SeasonCommandsHandler _handler = null!;
-    private IDiscordApplicationCommandContext _discordContext = null!;
-    private readonly List<InteractionCallbackProperties> _callbacks = [];
-    private readonly List<IDiscordMessageOptions> _modifications = [];
+    private readonly CommandContextRecorder _discord = new();
 
     [SetUp]
     public async Task SetUp()
@@ -43,39 +38,12 @@ public class SeasonCommandsTests
         _brackets = Substitute.For<IBracketService>();
         _handler = new SeasonCommandsHandler(_lookups, seasons, new TeamStandingsService(_context), new MatchPlannerService(_context),
             new GradesService(_context), new SignupsService(_context), _brackets, urls);
-
-        _discordContext = Substitute.For<IDiscordApplicationCommandContext>();
-        _discordContext.Interaction
-            .When(x => x.SendResponseAsync(Arg.Any<InteractionCallbackProperties>(), Arg.Any<bool>(), Arg.Any<RestRequestProperties?>(), Arg.Any<CancellationToken>()))
-            .Do(call => _callbacks.Add(call.Arg<InteractionCallbackProperties>()));
-        _discordContext.Interaction
-            .When(x => x.ModifyResponseAsync(Arg.Any<Action<IDiscordMessageOptions>>(), Arg.Any<RestRequestProperties?>(), Arg.Any<CancellationToken>()))
-            .Do(call =>
-            {
-                var options = Substitute.For<IDiscordMessageOptions>();
-                call.Arg<Action<IDiscordMessageOptions>>()(options);
-                _modifications.Add(options);
-            });
     }
 
     [TearDown]
     public async Task TearDown()
     {
         await _context.DropDatabaseAndDispose();
-    }
-
-    private object? OnlyModification(string method)
-        => _modifications.Single().ReceivedCalls().Single(c => c.GetMethodInfo().Name == method).GetArguments()[0];
-
-    private string? Content() => (string?)OnlyModification(nameof(IDiscordMessageOptions.WithContent));
-
-    private EmbedProperties Embed() => ((IEnumerable<EmbedProperties>)OnlyModification(nameof(IDiscordMessageOptions.WithEmbeds))!).Single();
-
-    /// <summary>Public lookups are deferred to the channel, not ephemerally.</summary>
-    private void AssertDeferredPublicly()
-    {
-        var callback = _callbacks.Single();
-        Assert.That(callback.Type, Is.EqualTo(InteractionCallbackType.DeferredMessage));
     }
 
     private async Task<Season> AddSeason(string name, int daysFromNow = 0)
@@ -104,10 +72,10 @@ public class SeasonCommandsTests
         var current = await AddSeason("Current");
         await AddTeams(current);
 
-        await _handler.Standings(_discordContext, null);
+        await _handler.Standings(_discord.Context, null);
 
-        AssertDeferredPublicly();
-        var embed = Embed();
+        Assert.That(_discord.DeferredPublicly(), Is.True);
+        var embed = _discord.Embed();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(embed.Title, Is.EqualTo("Current standings"));
@@ -123,9 +91,9 @@ public class SeasonCommandsTests
         await AddSeason("Season Twelve");
         var wanted = await AddSeason("Season Thirteen");
 
-        await _handler.Info(_discordContext, "thirteen");
+        await _handler.Info(_discord.Context, "thirteen");
 
-        var embed = Embed();
+        var embed = _discord.Embed();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(embed.Title, Is.EqualTo("Season Thirteen"));
@@ -139,9 +107,9 @@ public class SeasonCommandsTests
     {
         await AddSeason("Only");
 
-        await _handler.Info(_discordContext, "999999");
+        await _handler.Info(_discord.Context, "999999");
 
-        Assert.That(Content(), Is.EqualTo(SeasonCommandsHandler.NoSuchSeason));
+        Assert.That(_discord.Content(), Is.EqualTo(SeasonCommandsHandler.NoSuchSeason));
     }
 
     [Test]
@@ -149,9 +117,9 @@ public class SeasonCommandsTests
     {
         var season = await AddSeason("Listed");
 
-        await _handler.List(_discordContext);
+        await _handler.List(_discord.Context);
 
-        var embed = Embed();
+        var embed = _discord.Embed();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(embed.Url, Is.EqualTo("https://grif.test/seasons"));
@@ -169,9 +137,9 @@ public class SeasonCommandsTests
             SeasonMatch.Seed(season.SeasonID, beta.TeamID, alpha.TeamID));
         await _context.SaveChangesAsync();
 
-        await _handler.Schedule(_discordContext, season.SeasonID.ToString());
+        await _handler.Schedule(_discord.Context, season.SeasonID.ToString());
 
-        var description = Embed().Description;
+        var description = _discord.Embed().Description;
         using (Assert.EnterMultipleScope())
         {
             Assert.That(description, Does.Contain("Alpha vs Beta").And.Contain("https://grif.test/seasonmatch/"));
@@ -184,9 +152,9 @@ public class SeasonCommandsTests
     {
         var season = await AddSeason("Empty");
 
-        await _handler.Signups(_discordContext, season.SeasonID.ToString());
+        await _handler.Signups(_discord.Context, season.SeasonID.ToString());
 
-        var embed = Embed();
+        var embed = _discord.Embed();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(embed.Title, Is.EqualTo("Empty signups: 0"));
@@ -206,9 +174,9 @@ public class SeasonCommandsTests
             GrandFinalSuddenDeath = null!,
         });
 
-        await _handler.Bracket(_discordContext, season.SeasonID.ToString());
+        await _handler.Bracket(_discord.Context, season.SeasonID.ToString());
 
-        Assert.That(Embed().Description, Is.EqualTo("**Round 1**\nAlpha vs Beta\n**Grand final**\nAlpha vs Gamma"));
+        Assert.That(_discord.Embed().Description, Is.EqualTo("**Round 1**\nAlpha vs Beta\n**Grand final**\nAlpha vs Gamma"));
     }
 
     [Test]
@@ -217,13 +185,11 @@ public class SeasonCommandsTests
         var season = await AddSeason("Fresh");
         var id = season.SeasonID.ToString();
 
-        await _handler.Stats(_discordContext, id, SeasonStat.KD);
-        await _handler.Grades(_discordContext, id);
-        await _handler.Draft(_discordContext, id);
+        await _handler.Stats(_discord.Context, id, SeasonStat.KD);
+        await _handler.Grades(_discord.Context, id);
+        await _handler.Draft(_discord.Context, id);
 
-        var embeds = _modifications
-            .Select(m => ((IEnumerable<EmbedProperties>)m.ReceivedCalls().Single().GetArguments()[0]!).Single())
-            .ToList();
+        var embeds = Enumerable.Range(0, 3).Select(i => _discord.Embed(i)).ToList();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(embeds[0].Title, Is.EqualTo("Fresh: top KD"));

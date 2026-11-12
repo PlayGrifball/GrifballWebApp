@@ -251,6 +251,8 @@ public class Program
         services.AddTransient<DiscordCaller>();
         services.AddTransient<CommandLookups>();
         services.AddTransient<SeasonCommandsHandler>();
+        services.AddTransient<TeamCommandsHandler>();
+        services.AddTransient<PlayerCommandsHandler>();
         services.AddTransient<IExternalLoginService, ExternalLoginService>();
     }
 

@@ -103,6 +103,18 @@ public class DiscordModuleRegistrationTests
         {
             "/matches \"Get recent matches\" permissions: default, preconditions: 0"
                 + " [gamertag: String = null \"Gamertag to search matches for\" autocomplete: GamertagAutocomplete, preconditions: 0]",
+            "/player commendations \"A player's medals\" permissions: default, preconditions: 0"
+                + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
+            "/player history \"A player's seasons and teams\" permissions: default, preconditions: 0"
+                + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
+            "/player matches \"A player's recent Halo matches\" permissions: default, preconditions: 0"
+                + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
+            "/player profile \"A player's region, record and championships\" permissions: default, preconditions: 0"
+                + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
+            "/player stats \"A player's career stats by game\" permissions: default, preconditions: 0"
+                + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
+            "/player vods \"A player's VODs\" permissions: default, preconditions: 0"
+                + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
             "/season bracket \"A season's playoff bracket\" permissions: default, preconditions: 0"
                 + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
             "/season draft \"A link to a season's live draft board\" permissions: default, preconditions: 0"
@@ -123,6 +135,16 @@ public class DiscordModuleRegistrationTests
                 + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
             "/setgamertag \"Set your gamertag\" permissions: default, preconditions: 0"
                 + " [gamertag: String \"No description provided.\" autocomplete: none, preconditions: 0]",
+            "/team history \"A team's seasons across the league's history\" permissions: default, preconditions: 0"
+                + " [team: String \"The team\" autocomplete: TeamAutocomplete, preconditions: 0]",
+            "/team info \"A team's season, record, captain and titles\" permissions: default, preconditions: 0"
+                + " [team: String \"The team\" autocomplete: TeamAutocomplete, preconditions: 0]",
+            "/team matches \"A team's matches, unplayed first\" permissions: default, preconditions: 0"
+                + " [team: String \"The team\" autocomplete: TeamAutocomplete, preconditions: 0]",
+            "/team roster \"A team's players\" permissions: default, preconditions: 0"
+                + " [team: String \"The team\" autocomplete: TeamAutocomplete, preconditions: 0]",
+            "/team vods \"A team's VODs\" permissions: default, preconditions: 0"
+                + " [team: String \"The team\" autocomplete: TeamAutocomplete, preconditions: 0]",
         }));
     }
 }
