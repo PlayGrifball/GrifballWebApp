@@ -1,6 +1,7 @@
 // The app's server's telemetry (src/server.telemetry.ts), the parts that need no Node: its settings, the
 // requests it traces, and its log lines. Kept here, apart from the OpenTelemetry SDK, so they are tested
 // like the rest of the app.
+import type { MetricOptions } from '@opentelemetry/api';
 
 /** Log levels, lowest first, as Loki's detected_level names them. */
 export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
@@ -202,4 +203,21 @@ export function logLine(time: Date, level: LogLevel, message: string, fields: Re
 /** An Error as a log field: JSON.stringify would give {}. */
 export function errorFields(error: Error): { type: string; message: string; stack?: string } {
   return { type: error.name, message: error.message, stack: error.stack };
+}
+
+/** The server's request durations, in seconds (grif.frontend.request.duration). */
+export const REQUEST_DURATION: MetricOptions = {
+  unit: 's',
+  description: 'Requests the app\'s server answered: pages, the build\'s files, and those passed on to the backend',
+};
+
+/** The server's page renders, in seconds, by outcome (grif.frontend.render.duration). */
+export const RENDER_DURATION: MetricOptions = {
+  unit: 's',
+  description: 'Pages rendered on the server, by outcome (server, browser, failed)',
+};
+
+/** The status a finished request is recorded with. */
+export function finishedStatus(statusCode: number, _finished: boolean): number | undefined {
+  return statusCode;
 }

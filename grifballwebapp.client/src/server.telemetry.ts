@@ -31,7 +31,10 @@ import type { NextFunction, Request, Response } from 'express';
 import type { IncomingMessage } from 'node:http';
 import {
   type LogLevel,
+  RENDER_DURATION,
+  REQUEST_DURATION,
   type ServerTelemetrySettings,
+  finishedStatus,
   formatTraceparent,
   isLogged,
   isTraced,
@@ -102,14 +105,8 @@ export function startServerTelemetry(settings: ServerTelemetrySettings): ServerT
 
   // Named apart from the backend's http.server.request.duration, which shares this service.name: the
   // Telemetry page's request charts would otherwise count each API call twice.
-  const requestDuration = meter.createHistogram('grif.frontend.request.duration', {
-    unit: 's',
-    description: 'Requests the app\'s server answered: pages, the build\'s files, and those passed on to the backend',
-  });
-  const renderDuration = meter.createHistogram('grif.frontend.render.duration', {
-    unit: 's',
-    description: 'Pages rendered on the server, by outcome (server, browser, failed)',
-  });
+  const requestDuration = meter.createHistogram('grif.frontend.request.duration', REQUEST_DURATION);
+  const renderDuration = meter.createHistogram('grif.frontend.render.duration', RENDER_DURATION);
   meter.createObservableGauge('grif.frontend.memory.rss', { unit: 'By', description: 'The server\'s resident memory' })
     .addCallback(result => result.observe(process.memoryUsage.rss()));
 
@@ -164,9 +161,9 @@ export function startServerTelemetry(settings: ServerTelemetrySettings): ServerT
       if (done)
         return;
       done = true;
-      const status = res.statusCode;
       // A response cut short (the visitor left) has no status of its own
       const aborted = !res.writableFinished;
+      const status = finishedStatus(res.statusCode, !aborted);
       const seconds = (performance.now() - start) / 1000;
       requestDuration.record(seconds, {
         'http.request.method': req.method,
@@ -175,10 +172,11 @@ export function startServerTelemetry(settings: ServerTelemetrySettings): ServerT
       });
       if (!span)
         return;
-      span.setAttribute('http.response.status_code', status);
-      if (status >= 500)
+      if (status !== undefined)
+        span.setAttribute('http.response.status_code', status);
+      if ((status ?? 0) >= 500)
         span.setStatus({ code: SpanStatusCode.ERROR });
-      context.with(ctx, () => log(requestLogLevel(kind, status), aborted ? 'Request aborted' : 'Request finished', {
+      context.with(ctx, () => log(requestLogLevel(kind, status ?? 0), aborted ? 'Request aborted' : 'Request finished', {
         method: req.method,
         path: req.path,
         status,

@@ -28,6 +28,7 @@ import { isAllowedHost, parseAllowedHosts } from './app/allowedHosts';
 import { apiUrl } from './app/apiUrl';
 import { forLog } from './app/forLog';
 import { redactUrl } from './app/redactUrl';
+import { drainThenExit, shutdownDelay } from './app/shutdown';
 import { pageCacheHeaders } from './app/pageCache';
 import { serverTelemetrySettings } from './app/serverTelemetry';
 import { startServerTelemetry } from './server.telemetry';
@@ -167,13 +168,7 @@ if (isMainModule(import.meta.url)) {
   // Kubernetes is stopping the pod. It keeps serving for SHUTDOWN_DELAY_MS while the ingress stops sending it
   // requests (the endpoint's removal reaches it after the signal), then lets go of the port, sends the telemetry
   // that's queued and exits. As PID 1 without this, Node ignored the signal and served until it was killed.
-  process.once('SIGTERM', () => {
-    const delay = Number(process.env['SHUTDOWN_DELAY_MS'] ?? 10_000);
-    setTimeout(() => {
-      server.close();
-      void telemetry.shutdown().finally(() => process.exit(0));
-    }, Number.isFinite(delay) && delay > 0 ? delay : 0);
-  });
+  process.once('SIGTERM', () => drainThenExit(server, telemetry.shutdown, code => process.exit(code), shutdownDelay(process.env['SHUTDOWN_DELAY_MS'])));
 }
 
 /** The request handler for the Angular CLI (ng serve, and the build's route extraction). */

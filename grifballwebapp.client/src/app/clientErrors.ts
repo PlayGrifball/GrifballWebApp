@@ -39,7 +39,7 @@ export function validTraceparent(value: unknown): string | undefined {
 }
 
 /** The page's trace, from its Server-Timing header: undefined for a page the server did not trace. */
-export function pageTraceparent(perf: Pick<Performance, 'getEntriesByType'> | undefined = globalThis.performance): string | undefined {
+export function pageTraceparent(perf: Pick<Performance, 'getEntriesByType'> | undefined = globalThis.performance, _currentUrl?: string): string | undefined {
   const navigation = perf?.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
   return validTraceparent(navigation?.serverTiming?.find(t => t.name === 'traceparent')?.description);
 }
