@@ -15,7 +15,7 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class VodControllerUnitTests : SqliteGrifballContextFixture
 {
-    private VodController Controller() => new(new VodService(Db, null!, null!, null!));
+    private VodController Controller() => new(new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!));
 
     [TestCase(nameof(VodController.Review), true)]
     [TestCase(nameof(VodController.LinkSeasons), true)]
