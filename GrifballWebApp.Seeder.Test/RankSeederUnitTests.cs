@@ -29,6 +29,33 @@ public class RankSeederUnitTests
         return loader;
     }
 
+    // Every rank in order: its name, threshold, color, description and icon file (two files are lowercase, as the seeder
+    // has always asked for them)
+    private static readonly (string Name, int Threshold, string Color, string Description, string Icon)[] ExpectedRanks =
+    [
+        ("Iron 2", 99, "#4D5458", "iron", "Iron2.png"),
+        ("Iron 1", 199, "#4D5458", "iron", "iron1.png"),
+        ("Bronze 3", 299, "#CD7F32", "bronze", "Bronze3.png"),
+        ("Bronze 2", 424, "#CD7F32", "bronze", "Bronze2.png"),
+        ("Bronze 1", 549, "#CD7F32", "bronze", "Bronze1.png"),
+        ("Silver 3", 699, "#C0C0C0", "silver", "Silver3.png"),
+        ("Silver 2", 849, "#C0C0C0", "silver", "Silver2.png"),
+        ("Silver 1", 999, "#C0C0C0", "silver", "Silver1.png"),
+        ("Gold 3", 1149, "#FFD700", "gold", "gold3.png"),
+        ("Gold 2", 1299, "#FFD700", "gold", "Gold2.png"),
+        ("Gold 1", 1449, "#FFD700", "gold", "Gold1.png"),
+        ("Platinum 3", 1649, "#007f81", "platinum", "Platinum3.png"),
+        ("Platinum 2", 1849, "#007f81", "platinum", "Platinum2.png"),
+        ("Platinum 1", 2049, "#007f81", "platinum", "Platinum1.png"),
+        ("Diamond 3", 2274, "#445fa5", "diamond", "Diamond3.png"),
+        ("Diamond 2", 2499, "#445fa5", "diamond", "Diamond2.png"),
+        ("Diamond 1", 2749, "#445fa5", "diamond", "Diamond1.png"),
+        ("Masters 3", 2999, "#3BA55C", "masters", "Masters3.png"),
+        ("Masters 2", 3249, "#3BA55C", "masters", "Masters2.png"),
+        ("Masters 1", 3499, "#3BA55C", "masters", "Masters1.png"),
+        ("Challenger", 3500, "#3BA55C", "challenger", "Challenger.png"),
+    ];
+
     [Test]
     public async Task BuildRanksAsync_BuildsEveryRankWithItsOwnLoadedIcon()
     {
@@ -36,17 +63,10 @@ public class RankSeederUnitTests
 
         var ranks = await seeder.BuildRanksAsync();
 
-        Assert.That(ranks, Has.Count.EqualTo(21));
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(ranks[0].Name, Is.EqualTo("Iron 2"));
-            Assert.That(ranks[0].MmrThreshold, Is.EqualTo(99));
-            Assert.That(ranks[0].Icon, Is.EqualTo(System.Text.Encoding.UTF8.GetBytes("Iron2.png")), "Each rank's icon comes from the loader, keyed by its own file name");
-            Assert.That(ranks[^1].Name, Is.EqualTo("Challenger"));
-            Assert.That(ranks[^1].MmrThreshold, Is.EqualTo(3500));
-            Assert.That(ranks.Select(r => r.MmrThreshold), Is.Ordered, "Each rank's threshold is higher than the last");
-            Assert.That(ranks.Select(r => r.Name), Is.Unique, "Every rank has its own name");
-        }
+        Assert.That(
+            ranks.Select(r => (r.Name, r.MmrThreshold, r.Color, r.Description, System.Text.Encoding.UTF8.GetString(r.Icon))),
+            Is.EqualTo(ExpectedRanks),
+            "Each rank's icon is the one the loader gave for its own file name");
     }
 
     [Test]
@@ -56,10 +76,12 @@ public class RankSeederUnitTests
         var context = NewContext(rankSet);
         var seeder = new RankSeeder(context, Loader());
 
-        await seeder.SeedRanks();
+        using var cancellation = new CancellationTokenSource();
 
-        Assert.That(rankSet.Items, Has.Count.EqualTo(21));
-        await context.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await seeder.SeedRanks(cancellation.Token);
+
+        Assert.That(rankSet.Items.Select(r => r.Name), Is.EqualTo(ExpectedRanks.Select(r => r.Name)));
+        await context.Received(1).SaveChangesAsync(cancellation.Token);
     }
 
     [Test]

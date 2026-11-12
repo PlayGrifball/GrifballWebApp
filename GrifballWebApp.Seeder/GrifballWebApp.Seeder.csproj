@@ -9,7 +9,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Bogus" Version="35.6.5" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
   </ItemGroup>
 
@@ -27,7 +26,7 @@
     </None>
   </ItemGroup>
 
-  <!-- HostedService is internal; its unit tests construct it and call SeedTestSeasonAsync directly. -->
+  <!-- RankSeeder.BuildRanksAsync is internal: its unit tests check the list it builds -->
   <ItemGroup>
     <InternalsVisibleTo Include="GrifballWebApp.Seeder.Test" />
   </ItemGroup>

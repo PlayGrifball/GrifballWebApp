@@ -27,7 +27,7 @@ public class RankSeeder
 
     /// <summary>Every rank the seeder writes, icons loaded through <see cref="_loader"/>: split out from
     /// <see cref="SeedRanks"/> so the list it builds (names, thresholds, colors) is unit-testable without a database.</summary>
-    public async Task<List<Rank>> BuildRanksAsync(CancellationToken ct = default)
+    internal async Task<List<Rank>> BuildRanksAsync(CancellationToken ct = default)
     {
         var ranks = new List<Rank>()
         {

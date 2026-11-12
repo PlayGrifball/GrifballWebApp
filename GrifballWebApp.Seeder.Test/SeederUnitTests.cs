@@ -4,7 +4,7 @@ using static GrifballWebApp.Seeder.Test.SeederTestData;
 
 namespace GrifballWebApp.Seeder.Test;
 
-/// <summary>SeederTests's unit tests: no database, host, file or network. Its other tests stay in
+/// <summary>SeederTests's unit tests: no database, host or network (FileReader's test reads a file of its own). Its other tests stay in
 /// GrifballWebApp.Integration.Test.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -17,6 +17,23 @@ public class SeederUnitTests
         var ex = await Assert.ThrowsAsync<Exception>(() => new FileReader(Config(null)).LoadIcon("Gold1.png"));
 
         Assert.That(ex!.Message, Is.EqualTo("Missing Folder in configuration cannot load icon"));
+    }
+
+    // The reader's whole job is a file: one in a folder of the test's own
+    [Test]
+    public async Task FileReader_ReadsTheIconFromTheConfiguredFolder()
+    {
+        var folder = Directory.CreateTempSubdirectory("seeder-icons-");
+        try
+        {
+            await File.WriteAllBytesAsync(Path.Join(folder.FullName, "Gold1.png"), [7, 8, 9]);
+
+            Assert.That(await new FileReader(Config(folder.FullName)).LoadIcon("Gold1.png"), Is.EqualTo(new byte[] { 7, 8, 9 }));
+        }
+        finally
+        {
+            folder.Delete(recursive: true);
+        }
     }
 
     [Test]

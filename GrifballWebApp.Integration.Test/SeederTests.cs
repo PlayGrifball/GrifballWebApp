@@ -87,24 +87,4 @@ public class SeederTests
             Assert.That(ranks.Last().Icon, Is.EqualTo(new byte[] { 20, 1, 2 }));
         }
     }
-
-    [Test]
-    public async Task HostedService_OldSeed_RecreatesDatabaseWithTestSeason()
-    {
-        var service = CreateHostedService(Config(_iconFolder));
-        var old = service.GetType().GetMethod("Old", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-
-        await (Task)old.Invoke(service, [CancellationToken.None])!;
-
-        await using var fresh = NewContext();
-        var season = await fresh.Seasons.Include(x => x.SeasonSignups).SingleAsync();
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(season.SeasonName, Is.EqualTo("Test Season 2024"));
-            Assert.That(season.SeasonSignups, Has.Count.EqualTo(30));
-            Assert.That(season.SeasonSignups.Count(x => x.WillCaptain), Is.EqualTo(6));
-            Assert.That(season.SeasonSignups.Where(x => x.WillCaptain).Select(x => x.TeamName), Has.All.EndWith("'s Team"));
-        }
-        Assert.That(await fresh.Users.CountAsync(x => x.XboxUserID == 2535417961072277), Is.EqualTo(1));
-    }
 }
