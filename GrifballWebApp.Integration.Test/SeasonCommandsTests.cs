@@ -15,8 +15,6 @@ using Microsoft.Extensions.Configuration;
 using NetCord.Rest;
 using NSubstitute;
 
-using GrifballWebApp.Server.Test;
-
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>/season (<see cref="SeasonCommandsHandler"/>) and the lookups its options go through, called with a substitute context.</summary>
