@@ -26,6 +26,7 @@ public class RescheduleController : ControllerBase
     [ProducesResponseType<RescheduleRequestedDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ProblemJson)]
     public async Task<IActionResult> RequestReschedule([FromRoute] int seasonMatchID, [FromBody] RescheduleRequestDto dto, CancellationToken ct)
     {
@@ -39,7 +40,8 @@ public class RescheduleController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return this.BadRequestProblem(ex.Message);
+            // The only one the service throws: no such match
+            return this.NotFoundProblem(ex.Message);
         }
     }
 
@@ -81,10 +83,18 @@ public class RescheduleController : ControllerBase
     [Authorize(Roles = "Commissioner,Sysadmin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson)]
     public async Task<IActionResult> CreateDiscordThread([FromRoute] int rescheduleID, CancellationToken ct)
     {
-        await _rescheduleService.CreateDiscordThreadAsync(rescheduleID, ct);
-        return NoContent();
+        try
+        {
+            await _rescheduleService.CreateDiscordThreadAsync(rescheduleID, ct);
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return this.NotFoundProblem(ex.Message);
+        }
     }
 }
 

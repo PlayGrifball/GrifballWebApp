@@ -55,11 +55,18 @@ public class RescheduleControllerTests
     }
 
     [Test]
-    public async Task RequestReschedule_ReturnsBadRequest_When_MatchMissing()
+    public async Task RequestReschedule_ReturnsNotFound_When_MatchMissing()
     {
         SetUser(1);
         var result = await _controller.RequestReschedule(999, new RescheduleRequestDto { SeasonMatchID = 999, Reason = "r" }, CancellationToken.None);
-        result.AssertProblem(StatusCodes.Status400BadRequest, "Season match not found");
+        result.AssertProblem(StatusCodes.Status404NotFound, "Season match not found");
+    }
+
+    [Test]
+    public async Task CreateDiscordThread_ReturnsNotFound_When_Missing()
+    {
+        var result = await _controller.CreateDiscordThread(999, CancellationToken.None);
+        result.AssertProblem(StatusCodes.Status404NotFound, "Reschedule request not found");
     }
 
     [Test]
