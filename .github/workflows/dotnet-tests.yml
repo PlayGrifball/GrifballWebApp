@@ -46,13 +46,75 @@ jobs:
         PR: ${{ github.event.pull_request.number }}
       run: .github/scripts/changed-areas.sh
 
+  # Every test project built once, for the test legs below to run (each used to build its own: the same compile four
+  # times). The bin and obj folders go over as one tarball (tar keeps file modes, and zstd packs it better than the
+  # artifact's zip); the legs restore the same NuGet cache, which the obj folders' NuGet imports point into.
+  build:
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      # Skipped step by step, as the test legs are, so they don't skip as a whole (and keep their check names)
+      RUN: ${{ needs.changes.outputs.backend }}
+
+    steps:
+    - name: Checkout code
+      if: env.RUN == 'true'
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      
+    - name: Setup .NET
+      if: env.RUN == 'true'
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    # NuGet's packages, kept between runs: the same csproj files restore from the cache, not nuget.org.
+    - name: Cache NuGet packages
+      if: env.RUN == 'true'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+        restore-keys: nuget-${{ runner.os }}-
+
+    - name: Restore dependencies
+      if: env.RUN == 'true'
+      run: dotnet restore GrifballWebApp.slnx
+      
+    # Every test project in the repo (<name>/<name>.csproj, <name> ending .Test), so a leg's list can't name one this
+    # didn't build
+    - name: Build
+      if: env.RUN == 'true'
+      run: |
+        for csproj in *.Test/*.Test.csproj; do
+          dotnet build "$csproj" --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
+        done
+      
+    - name: Pack the build
+      if: env.RUN == 'true'
+      run: find . -type d \( -name bin -o -name obj \) -prune -not -path './grifballwebapp.client/*' -print0 | tar --null -T - -I 'zstd -T0 -3' -cf "$RUNNER_TEMP/build.tar.zst"
+
+    - name: Upload the build
+      if: env.RUN == 'true'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: dotnet-build
+        path: ${{ runner.temp }}/build.tar.zst
+        # Already compressed
+        compression-level: 0
+        retention-days: 1
+        if-no-files-found: error
+
   # The integration suite once per database the app supports (Database:Provider): each test gets its own
   # database on a Testcontainers server of that kind (GrifballWebApp.Integration.Test/TestDatabase.cs). The unit
   # tests, one project per layer (Domain, Application, Infrastructure, Server), one per host app beside the server
   # (Seeder, Convert), the analyzers' tests (Analyzers) and the architecture tests, touch no database: they run once, as the Unit leg.
+  # Each leg runs the build job's binaries: nothing builds here.
   test:
     name: test (${{ matrix.database }})
-    needs: changes
+    needs: [changes, build]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # dorny/test-reporter publishes the results as a check run (checks: write) and reads the run's artifacts (actions: read)
@@ -85,39 +147,43 @@ jobs:
     - name: Checkout code
       if: env.RUN == 'true'
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      
+
     - name: Setup .NET
       if: env.RUN == 'true'
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-        
-    # NuGet's packages, kept between runs: the same csproj files restore from the cache, not nuget.org.
-    - name: Cache NuGet packages
+
+    # The packages the build restored, for the imports in its obj folders: that key exactly (the build job saved it, or
+    # found it saved), never an older cache that may lack them. A miss fails here rather than as missing tests later.
+    - name: Restore the NuGet cache
       if: env.RUN == 'true'
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.nuget/packages
         key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
-        restore-keys: nuget-${{ runner.os }}-
+        fail-on-cache-miss: true
 
-    - name: Restore dependencies
+    - name: Download the build
       if: env.RUN == 'true'
-      run: dotnet restore GrifballWebApp.slnx
-      
-    - name: Build
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: dotnet-build
+        path: ${{ runner.temp }}
+
+    - name: Unpack the build
       if: env.RUN == 'true'
-      run: |
-        for project in $TEST_PROJECTS; do
-          dotnet build "$project/$project.csproj" --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
-        done
-      
+      run: tar -I zstd -xf "$RUNNER_TEMP/build.tar.zst"
+
     - name: Test
       if: env.RUN == 'true'
-      # Every project runs, a failing one included; the step fails after them if any did. One trx file per project.
+      # Every project runs, a failing one included; the step fails after them if any did. One trx file per project, and
+      # a copy of its coverage report under its own name (LayerCoverage/<project>.cobertura.xml), for each layer's numbers
       run: |
         status=0
+        mkdir -p LayerCoverage
         for project in $TEST_PROJECTS; do
+          touch "$RUNNER_TEMP/before-$project"
           dotnet test "$project/$project.csproj" \
           --no-build \
           --configuration Release \
@@ -126,8 +192,28 @@ jobs:
           --results-directory TestResults/ \
           --collect:"XPlat Code Coverage" \
           --settings coverlet.runsettings || status=1
+          report=$(find TestResults -name coverage.cobertura.xml -newer "$RUNNER_TEMP/before-$project" | head -n1)
+          if [ -n "$report" ]; then cp "$report" "LayerCoverage/$project.cobertura.xml"; fi
         done
         exit $status
+
+    # Each layer's coverage from its own unit test project alone (.github/scripts/layer-coverage.mjs): on the run's
+    # summary, and as an artifact for the PR's comment (the layer-coverage job) and for later PRs to compare against
+    - name: Coverage by layer
+      if: always() && env.RUN == 'true' && matrix.database == 'Unit'
+      run: |
+        node .github/scripts/layer-coverage.mjs collect LayerCoverage LayerCoverage/layers.json
+        node .github/scripts/layer-coverage.mjs render LayerCoverage/layers.json "" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload the coverage by layer
+      if: always() && env.RUN == 'true' && matrix.database == 'Unit'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: layer-coverage
+        path: LayerCoverage/layers.json
+        # Master's is what each PR compares against
+        retention-days: 90
+        if-no-files-found: error
       
     - name: Upload Test Results
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -166,3 +252,70 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: TestResults/*.trx
         fail_ci_if_error: true
+
+  # On a PR that changes the .NET code, one comment with each layer's unit test coverage (and its change from master's
+  # last run), which each run updates in place. Fails when a layer master had at the target (70% of lines) drops below it.
+  layer-coverage:
+    name: Coverage by layer
+    needs: [changes, test]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      # This run's artifact and master's
+      actions: read
+      # The comment
+      pull-requests: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        sparse-checkout: .github/scripts
+
+    - name: Download the coverage by layer
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: layer-coverage
+        path: current
+
+    # Master's numbers from its last run that has them; none (the artifact expired, or no run yet) leaves out the change
+    - name: Download master's coverage by layer
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        for run in $(gh run list -R "${{ github.repository }}" -w dotnet-tests.yml -b master -e push -s success -L 5 --json databaseId --jq '.[].databaseId'); do
+          if gh run download "$run" -R "${{ github.repository }}" -n layer-coverage -D base 2>/dev/null; then
+            echo "Comparing against master's run $run"
+            exit 0
+          fi
+        done
+        echo "No master run with the coverage by layer: no change shown"
+
+    - name: Comment on the PR
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+        SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        marker='<!-- layer-coverage -->'
+        # A layer that dropped below the target fails the job, after the comment says which
+        status=0
+        table=$(node .github/scripts/layer-coverage.mjs render current/layers.json base/layers.json "$SHA") || status=$?
+        body="$marker
+        $table"
+        echo "$table" >> "$GITHUB_STEP_SUMMARY"
+        # Only on PRs from this repo: a fork's PR gets a read-only token
+        if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+          exit $status
+        fi
+        existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
+          --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\")))][0].id // empty" | head -n1)
+        if [ -n "$existing" ]; then
+          gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$body" > /dev/null
+        else
+          gh pr comment "$PR" -R "${{ github.repository }}" --body "$body"
+        fi
+        exit $status

@@ -32,7 +32,9 @@ public sealed class HaloInfiniteSettings
     public const string AdminUrlKey = GatewaySection + ":AdminUrl";
 
     /// <summary>The gateway's Service in the cluster it runs in: plain HTTP, as it serves no TLS, on the cluster's own network.</summary>
-    public const string DefaultGatewayBaseUrl = "http://halo-gateway.halo-gateway.svc:8080/"; // NOSONAR S5332: an in-cluster Service, which serves only HTTP; HaloGateway:BaseUrl overrides it
+#pragma warning disable S5332 // an in-cluster Service, which serves only HTTP; HaloGateway:BaseUrl overrides it
+    public const string DefaultGatewayBaseUrl = "http://halo-gateway.halo-gateway.svc:8080/";
+#pragma warning restore S5332
 
     /// <summary>The gateway's admin page, where its Halo account is signed in.</summary>
     public const string DefaultGatewayAdminUrl = "https://grunt.grifball.xyz/admin";

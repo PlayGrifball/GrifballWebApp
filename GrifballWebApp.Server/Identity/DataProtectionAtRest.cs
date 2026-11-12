@@ -11,7 +11,7 @@ namespace GrifballWebApp.Server.Identity;
 /// the database (Auth.DataProtectionKeys), so every backup has them. With a certificate (DataProtection:Certificate,
 /// a PEM file, and DataProtection:CertificateKey, its PEM private key unless the certificate file has it), each new
 /// key is encrypted with it, and a backup alone can't sign anyone in. Keys made before, still in the clear, are
-/// deleted at startup (<see cref="DiscardUnencryptedKeysAsync"/>): an expired key still reads what it protected, so
+/// deleted at startup (<see cref="DiscardUnencryptedKeysAsync(GrifballContext, X509Certificate2, ILogger, CancellationToken)"/>): an expired key still reads what it protected, so
 /// one in a backup could forge a sign-in cookie for as long as the app kept it. Everyone signs in again once.
 /// The certificate has to stay: a new one can't read the keys the old one encrypted (everyone signs in again).
 /// </summary>

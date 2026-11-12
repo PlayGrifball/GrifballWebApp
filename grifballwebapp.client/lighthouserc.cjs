@@ -1,5 +1,5 @@
 // Lighthouse CI (https://github.com/GoogleChrome/lighthouse-ci), run by the lighthouse job in
-// .github/workflows/frontend-tests.yml, once per preset and session:
+// .github/workflows/lighthouse.yml (weekly, and by hand), once per preset and session:
 // LIGHTHOUSE_PRESET=mobile|desktop, LIGHTHOUSE_SESSION=signed-out|signed-in, and LIGHTHOUSE_SHARD for
 // the pages (see below).
 // (Not LHCI_*: lhci reads those environment variables as its own options.)

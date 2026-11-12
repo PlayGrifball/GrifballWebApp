@@ -1,0 +1,150 @@
+name: Reproducible images
+
+# Builds each image again from nothing - a new builder, no cache - and fails unless it's the same image, byte for byte:
+# what anyone can do from the commit (docs/reproducible-builds.md). Weekly on master, and by hand on any branch, rather
+# than on every push: a change that breaks it is rare, and master's newest images are what it checks. On master, against
+# the image published for the commit (sha-<7>); elsewhere, against a second build here: a preview's image carries
+# master's migration list from when it was built, which a rebuild now can't know.
+on:
+  workflow_dispatch:
+  # Weekly, on master
+  schedule:
+    - cron: '10 11 * * 0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # As docker-publish.yml publishes them: both architectures from master, amd64 only for a preview
+  PLATFORMS: ${{ github.ref == 'refs/heads/master' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+
+jobs:
+  reproducible:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [frontend, backend]
+    env:
+      CONTEXT: ${{ matrix.image == 'frontend' && 'grifballwebapp.client' || '.' }}
+      FILE: ${{ matrix.image == 'frontend' && 'grifballwebapp.client/Dockerfile' || 'GrifballWebApp.Server/Dockerfile' }}
+      PACKAGE: ${{ matrix.image == 'frontend' && 'grifballwebappclient' || 'grifballwebappserver' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up QEMU
+        if: github.ref == 'refs/heads/master'
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      # docker-publish.yml's pinned BuildKit (BUILDKIT there), as rebuild-image.sh reads it
+      - name: The BuildKit the images are built with
+        id: buildkit
+        run: |
+          echo "opts=$(sed -n -E 's/^  BUILDKIT: (.*)$/\1/p' .github/workflows/docker-publish.yml)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver-opts: ${{ steps.buildkit.outputs.opts }}
+
+      - name: The commit the image is built from
+        id: source
+        run: |
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
+
+      # Master's only. Empty when none is (a master build that didn't finish). Exactly 7 characters, as
+      # docker/metadata-action tags it: --short=7 lengthens an ambiguous prefix.
+      - name: The image published for the commit
+        id: published
+        if: github.ref == 'refs/heads/master'
+        run: |
+          head=$(git rev-parse HEAD)
+          image="ghcr.io/playgrifball/$PACKAGE:sha-${head:0:7}"
+          if digest=$(docker buildx imagetools inspect "$image" --format '{{json .Manifest.Digest}}' 2> /dev/null); then
+            echo "digest=${digest//\"/}" >> "$GITHUB_OUTPUT"
+            echo "Published $image: ${digest//\"/}"
+          else
+            echo "Nothing published as $image: comparing against a second build"
+          fi
+
+      # What anyone can run (docs/reproducible-builds.md): a new builder, no cache. On master, the server's master
+      # migration list is the commit's own; elsewhere, origin/master's, which the second build below reads too (the
+      # script's own comparison with a published preview is off: it would read the preview's master).
+      - name: Rebuild from nothing
+        id: clean
+        env:
+          IMAGE: ${{ matrix.image == 'frontend' && 'client' || 'server' }}
+          MASTER: ${{ github.ref == 'refs/heads/master' && 'HEAD' || 'origin/master' }}
+          COMPARE: ${{ github.ref == 'refs/heads/master' }}
+          OCI_OUT: ${{ runner.temp }}/clean.tar
+        run: .github/scripts/rebuild-image.sh "$IMAGE" "$MASTER"
+
+      - name: Build again
+        id: cached
+        if: steps.published.outputs.digest == ''
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ env.CONTEXT }}
+          file: ${{ env.FILE }}
+          platforms: ${{ env.PLATFORMS }}
+          provenance: false
+          build-args: |
+            SOURCE_DATE_EPOCH=${{ steps.source.outputs.epoch }}
+            SOURCE_REVISION=${{ steps.source.outputs.revision }}
+          outputs: type=image,push=false,rewrite-timestamp=true
+
+      - name: Compare
+        env:
+          CLEAN: ${{ steps.clean.outputs.digest }}
+          OTHER: ${{ steps.published.outputs.digest || steps.cached.outputs.digest }}
+          WHAT: ${{ steps.published.outputs.digest != '' && 'the image published' || 'a second build' }}
+        run: |
+          set -euo pipefail
+          test -n "$CLEAN" && test -n "$OTHER"
+          echo "From nothing: $CLEAN"
+          echo "$WHAT: $OTHER"
+          if [ "$CLEAN" != "$OTHER" ]; then
+            echo "::error::The ${{ matrix.image }} image isn't reproducible: built again from nothing it is $CLEAN, $WHAT is $OTHER"
+            exit 1
+          fi
+          echo "Reproducible: the ${{ matrix.image }} image built again from nothing is $WHAT, byte for byte."
+
+      # For pdb-inputs.cs (dotnet run of a single file) in the step below
+      - name: Set up .NET
+        if: failure() && steps.clean.outputs.digest != ''
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      # Not the same: which layers and files differ, between the build from nothing and another (built again here),
+      # to fix at the source.
+      - name: Where the builds differ
+        if: failure() && steps.clean.outputs.digest != ''
+        env:
+          EPOCH: ${{ steps.source.outputs.epoch }}
+          REVISION: ${{ steps.source.outputs.revision }}
+        run: |
+          set -euo pipefail
+          docker buildx build --platform "$PLATFORMS" --provenance=false \
+            --build-arg "SOURCE_DATE_EPOCH=$EPOCH" --build-arg "SOURCE_REVISION=$REVISION" \
+            --output "type=oci,dest=$RUNNER_TEMP/cached.tar,rewrite-timestamp=true" -f "$FILE" "$CONTEXT"
+          mkdir -p "$RUNNER_TEMP/pdb"
+          PDB_OUT="$RUNNER_TEMP/pdb" python3 .github/scripts/diff-oci.py "$RUNNER_TEMP/clean.tar" "$RUNNER_TEMP/cached.tar"
+          # An assembly that differs only in its hashes: which of its compilation's inputs differ
+          for a in "$RUNNER_TEMP"/pdb/*.a; do
+            [ -e "$a" ] || continue
+            echo "== compilation inputs that differ: $(basename "${a%.a}") (< from nothing, > the other build)"
+            dotnet run --file .github/scripts/pdb-inputs.cs -- "$a" > "$a.txt"
+            dotnet run --file .github/scripts/pdb-inputs.cs -- "${a%.a}.b" > "$a.b.txt"
+            diff "$a.txt" "$a.b.txt" || true
+          done

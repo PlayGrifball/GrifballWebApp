@@ -46,14 +46,17 @@ concurrency:
 # Images are signed and released only from master (a push to it, or a run started by hand on it):
 # github.ref is refs/heads/master for nothing else. They're pushed from master and for preview PRs
 # (PUBLISH, below); other pull requests, and runs started by hand on another branch, build without
-# logging in or pushing.
+# logging in or pushing. A pull request builds only when it has to (the changes job): with the preview label, or when
+# it changes what the images are built from.
 jobs:
   # The backend image installs its Alpine packages from the lock's own immutable release, apk-<lock hash>
   # (GrifballWebApp.Server/apk.lock, docs/reproducible-builds.md), published here before anything builds if it isn't
   # yet: Alpine's mirrors drop a version once a newer one is out. Fork PRs can't make releases; their lock is master's.
   # apk-check (every build, read only) finds the lock's release; apk-archive runs only when it isn't published yet.
+  # Skipped with the builds (changes.outputs.build), and build-backend with it.
   apk-check:
-    if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
+    needs: changes
+    if: ${{ needs.changes.outputs.build == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -111,8 +114,8 @@ jobs:
         run: .github/scripts/apk-archive.sh
 
   build-frontend:
-    # Other labels don't change the build, so don't rebuild for them.
-    if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
+    needs: changes
+    if: ${{ needs.changes.outputs.build == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       digest: ${{ steps.push.outputs.digest }}
@@ -298,13 +301,12 @@ jobs:
 
   build-backend:
     needs: [apk-check, apk-archive]
-    # Other labels don't change the build, so don't rebuild for them. apk-archive is skipped when the lock's release is
-    # published already, and on fork PRs.
-    if: ${{ !cancelled() && needs.apk-check.result == 'success' && needs.apk-archive.result != 'failure' && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
+    # Skipped with apk-check, when the run builds nothing (changes.outputs.build). apk-archive is skipped when the lock's
+    # release is published already, and on fork PRs.
+    if: ${{ !cancelled() && needs.apk-check.result == 'success' && needs.apk-archive.result != 'failure' }}
     runs-on: ubuntu-latest
     outputs:
       digest: ${{ steps.push.outputs.digest }}
-      master: ${{ steps.master.outputs.commit }}
     permissions:
       contents: read
       packages: write
@@ -384,17 +386,11 @@ jobs:
       # /app/master-migrations: a preview's migration Job resets its database only when what it has that the
       # image lacks is none of master's (charts/grifballwebapp). origin/master is in the full clone above.
       # On master, the commit being built is master: its own list, so the image depends on the commit alone
-      # (origin/master may have moved on since the push) and can be rebuilt from it. Elsewhere, the master commit
-      # read is an output, for the reproducible job to read the same one.
+      # (origin/master may have moved on since the push) and can be rebuilt from it (reproducible.yml).
       - name: Master's migration list
-        id: master
         env:
           REF: ${{ github.ref == 'refs/heads/master' && 'HEAD' || 'origin/master' }}
-        run: |
-          set -euo pipefail
-          master=$(git rev-parse "$REF")
-          echo "commit=$master" >> "$GITHUB_OUTPUT"
-          .github/scripts/master-migrations.sh .master-migrations "$master"
+        run: .github/scripts/master-migrations.sh .master-migrations "$(git rev-parse "$REF")"
 
       # Build backend without pushing first (the push re-uses this builder's layers) and allow preview-label.yml to complete
       - name: Build Docker image for backend
@@ -504,10 +500,16 @@ jobs:
           docker run --rm --platform linux/arm64 --entrypoint sh backend-arm64 -c \
             'set -e; uname -m; dotnet --list-runtimes; sqlcmd --version; /app/efbundle --help | head -n 3; test -f /usr/share/zoneinfo/America/New_York'
 
-  # What the PR changed (.github/scripts/changed-areas.sh): the arm64 check only runs when what the images are built from
-  # did (images=true). Master builds and smoke-tests arm64 on every push, before the release.
+  # What the PR changed (.github/scripts/changed-areas.sh), and so what this run builds. build: a pull request builds its
+  # images only with the preview label (they're its preview's) or when it changes what they're built from (images=true:
+  # the Dockerfiles, the package and project files, this workflow; migrations=true: the migrations, which only the
+  # backend image's build bundles, lists and hashes); anything else is a check of app code the test
+  # workflows already run, and master builds both images on every push. Not a pull request (master, a manual run):
+  # always. The arm64 check runs only for images=true; master builds and smoke-tests arm64 on every push, before the
+  # release.
   changes:
-    if: ${{ github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
+    # Other labels don't change the build, so don't rebuild for them (the jobs below need this one, so they skip too).
+    if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -515,6 +517,7 @@ jobs:
       pull-requests: read
     outputs:
       images: ${{ steps.areas.outputs.images }}
+      build: ${{ github.event_name != 'pull_request' || steps.areas.outputs.images == 'true' || steps.areas.outputs.migrations == 'true' || contains(github.event.pull_request.labels.*.name, 'preview') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -603,118 +606,6 @@ jobs:
           set -euo pipefail
           docker run --rm --platform linux/arm64 --entrypoint sh backend-arm64 -c \
             'set -e; uname -m; dotnet --list-runtimes; sqlcmd --version; /app/efbundle --help | head -n 3'
-
-  # Builds each image again from nothing - a new builder, no cache - and fails unless it's the same image, byte for
-  # byte: what anyone can do from the commit (docs/reproducible-builds.md). Against the image pushed (master, previews:
-  # built on another runner), else against a second build here.
-  reproducible:
-    needs: [build-frontend, build-backend]
-    if: ${{ !cancelled() && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        image: [frontend, backend]
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
-
-      - name: Set up QEMU
-        if: github.event_name != 'pull_request'
-        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-        with:
-          driver-opts: ${{ env.BUILDKIT }}
-
-      - name: The commit the image is built from
-        id: source
-        run: |
-          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
-
-      # What anyone can run (docs/reproducible-builds.md): a new builder, no cache. The server's master is the commit the
-      # build job read (origin/master may have moved since).
-      - name: Rebuild from nothing
-        id: clean
-        env:
-          PLATFORMS: ${{ env.PLATFORMS }}
-          IMAGE: ${{ matrix.image == 'frontend' && 'client' || 'server' }}
-          MASTER: ${{ needs.build-backend.outputs.master || 'HEAD' }}
-          OCI_OUT: ${{ runner.temp }}/clean.tar
-        run: .github/scripts/rebuild-image.sh "$IMAGE" "$MASTER"
-
-      # Nothing pushed (a PR without the preview label): the image the build job built, from its cache.
-      - name: Build again
-        id: cached
-        if: ${{ needs[format('build-{0}', matrix.image)].outputs.digest == '' }}
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: ${{ matrix.image == 'frontend' && 'grifballwebapp.client' || '.' }}
-          file: ${{ matrix.image == 'frontend' && 'grifballwebapp.client/Dockerfile' || 'GrifballWebApp.Server/Dockerfile' }}
-          platforms: ${{ env.PLATFORMS }}
-          provenance: false
-          build-args: |
-            SOURCE_DATE_EPOCH=${{ steps.source.outputs.epoch }}
-            SOURCE_REVISION=${{ steps.source.outputs.revision }}
-          outputs: type=image,push=false,rewrite-timestamp=true
-
-      - name: Compare
-        env:
-          CLEAN: ${{ steps.clean.outputs.digest }}
-          OTHER: ${{ needs[format('build-{0}', matrix.image)].outputs.digest != '' && needs[format('build-{0}', matrix.image)].outputs.digest || steps.cached.outputs.digest }}
-          WHAT: ${{ needs[format('build-{0}', matrix.image)].outputs.digest != '' && 'the image pushed' || 'a second build' }}
-        run: |
-          set -euo pipefail
-          test -n "$CLEAN" && test -n "$OTHER"
-          echo "From nothing: $CLEAN"
-          echo "$WHAT: $OTHER"
-          if [ "$CLEAN" != "$OTHER" ]; then
-            echo "::error::The ${{ matrix.image }} image isn't reproducible: built again from nothing it is $CLEAN, $WHAT is $OTHER"
-            exit 1
-          fi
-          echo "Reproducible: the ${{ matrix.image }} image built again from nothing is $WHAT, byte for byte."
-
-      # For pdb-inputs.cs (dotnet run of a single file) in the step below
-      - name: Set up .NET
-        if: failure() && steps.clean.outputs.digest != ''
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        with:
-          dotnet-version: '10.0.x'
-
-      # Not the same: which layers and files differ, between the build from nothing and the other (exported from the
-      # layers the step above left in this builder, or built again), to fix at the source.
-      - name: Where the builds differ
-        if: failure() && steps.clean.outputs.digest != ''
-        env:
-          CONTEXT: ${{ matrix.image == 'frontend' && 'grifballwebapp.client' || '.' }}
-          FILE: ${{ matrix.image == 'frontend' && 'grifballwebapp.client/Dockerfile' || 'GrifballWebApp.Server/Dockerfile' }}
-          SCOPE: ${{ matrix.image }}
-          EPOCH: ${{ steps.source.outputs.epoch }}
-          REVISION: ${{ steps.source.outputs.revision }}
-        run: |
-          set -euo pipefail
-          docker buildx build --platform "$PLATFORMS" --provenance=false \
-            --build-arg "SOURCE_DATE_EPOCH=$EPOCH" --build-arg "SOURCE_REVISION=$REVISION" \
-            --output "type=oci,dest=$RUNNER_TEMP/cached.tar,rewrite-timestamp=true" -f "$FILE" "$CONTEXT"
-          mkdir -p "$RUNNER_TEMP/pdb"
-          PDB_OUT="$RUNNER_TEMP/pdb" python3 .github/scripts/diff-oci.py "$RUNNER_TEMP/clean.tar" "$RUNNER_TEMP/cached.tar"
-          # An assembly that differs only in its hashes: which of its compilation's inputs differ
-          for a in "$RUNNER_TEMP"/pdb/*.a; do
-            [ -e "$a" ] || continue
-            echo "== compilation inputs that differ: $(basename "${a%.a}") (< from nothing, > the other build)"
-            dotnet run --file .github/scripts/pdb-inputs.cs -- "$a" > "$a.txt"
-            dotnet run --file .github/scripts/pdb-inputs.cs -- "${a%.a}.b" > "$a.b.txt"
-            diff "$a.txt" "$a.b.txt" || true
-          done
 
   # Moves :test to this run's images, all or nothing: it runs only after every build
   # above succeeded, so a failed build leaves it on the previous complete set. The homelab's

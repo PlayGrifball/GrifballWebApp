@@ -51,11 +51,11 @@ The same commit builds the same image, byte for byte, anywhere. Every input is p
   replaced a package that stamped the time of the build into its generated code.)
 - **BuildKit itself**: pinned in `docker-publish.yml` (`BUILDKIT`), because it does the layer compression.
 
-CI checks all of this on every PR and every master push. The `reproducible` job in `docker-publish.yml` rebuilds
-each image from nothing (new builder, no cache) and fails unless the digest matches the image pushed.
+CI checks all of this weekly, and on any branch by hand: `reproducible.yml` rebuilds master's newest images from
+nothing (new builder, no cache) and fails unless the digest matches the image published for the commit.
 
 To do it yourself, use a full clone (not shallow) and Docker with Buildx. `rebuild-image.sh` is the same script the
-`reproducible` job runs:
+`reproducible.yml` runs:
 
 ```sh
 git clone https://github.com/PlayGrifball/GrifballWebApp && cd GrifballWebApp
