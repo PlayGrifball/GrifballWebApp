@@ -30,6 +30,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
+    <!-- The domain test data (Season.Seed, Edited) the history tests build their rows from -->
+    <ProjectReference Include="..\GrifballWebApp.Domain.Test\GrifballWebApp.Domain.Test.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Migrations.Postgres\GrifballWebApp.Migrations.Postgres.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Migrations.Sqlite\GrifballWebApp.Migrations.Sqlite.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Migrations.SqlServer\GrifballWebApp.Migrations.SqlServer.csproj" />
