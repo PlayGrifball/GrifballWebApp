@@ -23,6 +23,19 @@ test.describe('settled()', () => {
     await expect(settled(page, { animationsMs: 300 })).rejects.toThrow('The page did not settle in 300 ms: still animating grow on circle.ring.hud');
   });
 
+  test('blames only what holds it up: an endless spinner going alongside is not named', async ({ page }) => {
+    await page.setContent(`<style>
+      @keyframes fade { from { opacity: 0; } }
+      @keyframes spin { to { transform: rotate(1turn); } }
+      .slow { animation: fade 60s; }
+      .spinner { animation: spin 1s infinite; }
+    </style><div class="spinner">spinner</div><div class="slow">box</div>`);
+    const error = await settled(page, { animationsMs: 300 }).catch((caught: Error) => caught);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain('fade on div.slow');
+    expect((error as Error).message).not.toContain('spin');
+  });
+
   test('gives any other error as it is: a page closed while it waits is not "did not settle"', async ({ page }) => {
     await page.setContent(`<style>
       @keyframes fade { from { opacity: 0; } }

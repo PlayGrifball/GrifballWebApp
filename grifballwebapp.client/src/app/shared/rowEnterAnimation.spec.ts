@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { rowEnterAnimation } from './rowEnterAnimation';
 
 describe('rowEnterAnimation', () => {
-  it('fades rows in at once in an app that is already stable (a client-side navigation)', () => {
+  it('fades rows in at once for a table made while the app is stable', () => {
     const name = TestBed.runInInjectionContext(() => rowEnterAnimation());
     expect(name()).toBe('row-enter');
   });
