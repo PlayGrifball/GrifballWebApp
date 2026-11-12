@@ -1,13 +1,12 @@
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure;
-using Microsoft.Extensions.Configuration;
 using NSubstitute;
 
 namespace GrifballWebApp.Seeder.Test;
 
-/// <summary>HostedService's unit tests: no database, host or file. HostedService is internal; constructed directly
-/// (InternalsVisibleTo). Its ExecuteAsync and the rest of Old() (EnsureDeleted/Migrate: EF's actual provider, not a
+/// <summary>HostedService's unit tests: no database, host or file. SeedTestSeasonAsync is internal; called directly
+/// (InternalsVisibleTo). ExecuteAsync and the rest of Old() (EnsureDeleted/Migrate: EF's actual provider, not a
 /// virtual member a test double can stand in for) stay in GrifballWebApp.Integration.Test, a real database.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -31,9 +30,8 @@ public class HostedServiceUnitTests
     public async Task SeedTestSeasonAsync_AddsTheSysAdminSixCaptainsAndTwentyFourPlayers()
     {
         var context = NewContext(out var seasons, out var users, out var signups);
-        var service = new HostedService(Substitute.For<IServiceProvider>(), new ConfigurationBuilder().Build());
 
-        await service.SeedTestSeasonAsync(context, CancellationToken.None);
+        await HostedService.SeedTestSeasonAsync(context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {

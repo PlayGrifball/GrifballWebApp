@@ -51,7 +51,7 @@ internal class HostedService : BackgroundService
 
     /// <summary>The test season, its captains and players Old() seeds: split out from the database lifecycle above
     /// (EnsureDeleted/Migrate) so it's unit-testable against a substituted context (Add/SaveChanges only, no querying).</summary>
-    internal async Task SeedTestSeasonAsync(GrifballContext context, CancellationToken ct)
+    internal static async Task SeedTestSeasonAsync(GrifballContext context, CancellationToken ct)
     {
         //var p = NewPerson();
 
