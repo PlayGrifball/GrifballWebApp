@@ -379,7 +379,7 @@
             "enabled": { "type": "boolean" },
             "endpoint": { "type": "string" },
             "logLevel": { "enum": ["", "debug", "info", "warn", "error"] },
-            "browserErrors": { "type": "boolean" }
+            "browser": { "type": "boolean" }
           }
         },
         "resources": { "$ref": "#/definitions/k8sObject" },

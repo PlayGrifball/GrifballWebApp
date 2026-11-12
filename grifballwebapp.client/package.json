@@ -62,7 +62,8 @@
     "ngx-drag-drop": "^22.1.0",
     "run-script-os": "*",
     "rxjs": "~7.8.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "web-vitals": "^6.2.3"
   },
   "devDependencies": {
     "@angular/build": "^22.2.2",

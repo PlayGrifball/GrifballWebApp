@@ -8,6 +8,7 @@ import { APP_ROUTES } from './app.routes';
 import { authInterceptor } from './auth.interceptor';
 import { ReportingErrorHandler, clientErrorsInterceptor } from './clientErrors';
 import { earlyFetchInterceptor } from './earlyFetch.interceptor';
+import { provideBrowserTelemetry, tracingInterceptor } from './telemetry/browserTracing';
 import { provideSnackBarDefaults } from './shared/snackBarDefaults';
 
 /** The app's providers, in the browser and (with app.config.server.ts on top) on the server. */
@@ -19,7 +20,11 @@ export const appConfig: ApplicationConfig = {
     // (clientErrors.ts), as do failed API calls: outermost, so it sees what the app does
     provideBrowserGlobalErrorListeners(),
     { provide: ErrorHandler, useClass: ReportingErrorHandler },
-    provideHttpClient(withXhr(), withInterceptors([clientErrorsInterceptor, earlyFetchInterceptor, authInterceptor])),
+    // tracingInterceptor last, nearest the network: a span (and traceparent) for each call that goes out, the
+    // antiforgery token's fetch included, none for an answer earlyFetchInterceptor already had
+    provideHttpClient(withXhr(), withInterceptors([clientErrorsInterceptor, earlyFetchInterceptor, authInterceptor, tracingInterceptor])),
+    // The browser's telemetry: a span for each navigation, and the Web Vitals (telemetry/browserTracing.ts)
+    provideBrowserTelemetry(),
     provideRouter(APP_ROUTES
       , withComponentInputBinding()
       //,withPreloading(PreloadAllModules)

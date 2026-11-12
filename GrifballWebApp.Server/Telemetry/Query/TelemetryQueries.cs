@@ -90,6 +90,10 @@ public static partial class TelemetryQueries
             new("render", "Page render on the server (p95)", "ms", $"histogram_quantile(0.95, sum by (le) (rate(grif_frontend_render_duration_seconds_bucket{{{s},outcome=\"server\"}}[{w}]))) * 1000"),
             new("renderFailures", "Pages left to the browser after failing", "/min", $"sum(rate(grif_frontend_render_duration_seconds_count{{{s},outcome=\"failed\"}}[{w}])) * 60"),
             new("frontendMemory", "Frontend memory (resident)", "MB", $"sum by (k8s_pod_name) (grif_frontend_memory_rss_bytes{{{s}}}) / 1048576", "k8s_pod_name"),
+            // The browser's Web Vitals (Browser/BrowserMetrics), at p75 as Google rates them
+            new("lcp", "Largest Contentful Paint (p75)", "ms", $"histogram_quantile(0.75, sum by (le) (rate(grif_browser_lcp_seconds_bucket{{{s}}}[{w}]))) * 1000"),
+            new("inp", "Interaction to Next Paint (p75)", "ms", $"histogram_quantile(0.75, sum by (le) (rate(grif_browser_inp_seconds_bucket{{{s}}}[{w}]))) * 1000"),
+            new("cls", "Cumulative Layout Shift (p75)", "score", $"histogram_quantile(0.75, sum by (le) (rate(grif_browser_cls_bucket{{{s}}}[{w}])))"),
         ];
     }
 

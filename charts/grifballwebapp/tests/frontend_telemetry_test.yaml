@@ -104,3 +104,16 @@ tests:
       backend.telemetry: { enabled: true, endpoint: "https://10.0.0.5" }
     asserts:
       - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 443 }] } }
+
+  - it: lets the backend reach the frontend's collector port when it passes the browser's telemetry on
+    template: templates/networkpolicy.yaml
+    documentIndex: 1
+    set:
+      frontend.telemetry: { browser: true, endpoint: "http://otel.opentelemetry:4318" }
+      networkPolicy.backend.telemetryTo: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: opentelemetry } } }]
+    asserts:
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 4318 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: opentelemetry } } }]

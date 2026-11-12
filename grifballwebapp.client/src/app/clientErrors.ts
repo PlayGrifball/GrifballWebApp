@@ -3,23 +3,23 @@ import { ErrorHandler, Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { catchError, throwError } from 'rxjs';
 import { redactUrl, redactUrlIn } from './redactUrl';
+import { BrowserTelemetry, parseTraceparent } from './telemetry/browserTelemetry';
 
 /**
- * The browser's error reports: unhandled errors and failed API calls, sent to the API (POST /api/client-errors,
- * GrifballWebApp.Server/Telemetry/ClientErrors.cs), which logs them with their page and trace id. Each carries
- * the trace it belongs to: a failed call's own (its traceresponse header, or the ProblemDetails' traceId), or
- * else the page's (the Server-Timing header the app's server sends, src/server.telemetry.ts).
+ * The browser's error reports: unhandled errors and failed API calls, as error log lines of the browser's telemetry
+ * (telemetry/browserTelemetry.ts), with their page and trace. Each is in the trace it belongs to: a failed call's own
+ * (its traceresponse header, or the ProblemDetails' traceId), or else the navigation under way, or else the page's
+ * (the Server-Timing header the app's server sends, src/server.telemetry.ts).
  *
- * Nothing is sent on the server, in automated browsers (tests, Lighthouse), or once the API answers 404 (reports
- * are off there). A page load sends at most MAX_REPORTS, and each error once.
+ * Nothing is reported where the telemetry sends nothing (the server, automated browsers, telemetry off). A page load
+ * reports at most MAX_REPORTS, and each error once.
  */
-export const CLIENT_ERRORS_URL = '/api/client-errors';
 export const MAX_REPORTS = 10;
 export const MAX_MESSAGE = 1000;
 export const MAX_STACK = 4000;
 export const MAX_PATH = 300;
 
-/** What the API takes (ClientErrorDto). */
+/** A report, before it becomes a log line. */
 export interface ClientErrorReport {
   kind: 'error' | 'http';
   message: string;
@@ -97,7 +97,7 @@ export function isCancelledByBrowser(leaving: boolean, doc: Pick<Document, 'visi
 @Injectable({ providedIn: 'root' })
 export class ClientErrorReporter {
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
-  private off = false;
+  private readonly telemetry = inject(BrowserTelemetry);
   private sent = 0;
   private readonly seen = new Set<string>();
   private leaving = false;
@@ -110,11 +110,11 @@ export class ClientErrorReporter {
     }
   }
 
-  /** An unhandled error, in the page's trace. */
+  /** An unhandled error, in the navigation's trace, or else the page's. */
   reportError(error: unknown): void {
     if (!this.canSend())
       return;
-    this.send({ kind: 'error', ...describeError(error), page: this.page(), traceparent: pageTraceparent() });
+    this.send({ kind: 'error', ...describeError(error), page: this.page(), traceparent: this.telemetry.active()?.traceparent ?? pageTraceparent() });
   }
 
   /** A failed API call, in its own trace (or the page's). The URL's sensitive query values are redacted, in its message too. */
@@ -132,12 +132,9 @@ export class ClientErrorReporter {
     });
   }
 
-  /**
-   * Checked before anything reads the browser's globals (location, document): on the server there are none.
-   * navigator.webdriver: a browser under automation (Playwright, Lighthouse).
-   */
+  /** Checked before anything reads the browser's globals (location, document): on the server there are none. */
   private canSend(): boolean {
-    return this.browser && !navigator.webdriver && !this.off && this.sent < MAX_REPORTS;
+    return this.browser && this.telemetry.enabled && this.sent < MAX_REPORTS;
   }
 
   private page(): string {
@@ -150,22 +147,17 @@ export class ClientErrorReporter {
       return;
     this.seen.add(key);
     this.sent++;
-    // fetch, not HttpClient: a report must never go through the interceptors that report failures. keepalive:
-    // it still goes when the error is the page going away.
-    fetch(CLIENT_ERRORS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(report),
-      keepalive: true,
-      credentials: 'same-origin',
-    }).then(response => {
-      // 404: reports are off here. Any other refusal (400: one the API won't take) would refuse the next too; a
-      // 429 is only a limit for now
-      if (response.status >= 400 && response.status < 500 && response.status !== 429)
-        this.off = true;
-    }).catch(() => {
-      // Reporting is best effort: a failed report is not reported
-    });
+    this.telemetry.log('error', report.message, {
+      'error.kind': report.kind,
+      page: report.page,
+      'exception.stacktrace': report.stack,
+      'http.request.method': report.method,
+      'url.path': report.url,
+      'http.response.status_code': report.status,
+    }, parseTraceparent(report.traceparent));
+    // An error as the page goes away: sent now, while it still can be
+    if (this.leaving)
+      this.telemetry.flush();
   }
 }
 

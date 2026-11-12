@@ -4,8 +4,8 @@ import { ErrorHandler, PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { appConfig } from './app.config';
 import { redactUrl } from './redactUrl';
+import { BrowserTelemetry } from './telemetry/browserTelemetry';
 import {
-  CLIENT_ERRORS_URL,
   ClientErrorReport,
   ClientErrorReporter,
   MAX_MESSAGE,
@@ -103,24 +103,37 @@ describe('client errors', () => {
   });
 
   describe('the reporter', () => {
-    let fetchSpy: jasmine.Spy;
-    let webdriver: jasmine.Spy;
-    const sent = () => fetchSpy.calls.all().map(c => JSON.parse((c.args[1] as RequestInit).body as string) as ClientErrorReport);
+    /** The telemetry the reports become log lines of: enabled unless a test says otherwise. */
+    let telemetry: { enabled: boolean; active: jasmine.Spy; log: jasmine.Spy; flush: jasmine.Spy };
+    /** Each log line as the report it was. */
+    const sent = (): ClientErrorReport[] => telemetry.log.calls.all().map(c => {
+      const [, message, attributes, trace] = c.args as [string, string, Record<string, unknown>, { traceId: string; spanId: string } | undefined];
+      return {
+        kind: attributes['error.kind'] as 'error' | 'http',
+        message,
+        page: attributes['page'] as string,
+        stack: attributes['exception.stacktrace'] as string | undefined,
+        method: attributes['http.request.method'] as string | undefined,
+        url: attributes['url.path'] as string | undefined,
+        status: attributes['http.response.status_code'] as number | undefined,
+        traceparent: trace ? `00-${trace.traceId}-${trace.spanId}-01` : undefined,
+      };
+    });
 
     beforeEach(() => {
-      fetchSpy = spyOn(window, 'fetch').and.callFake(() => Promise.resolve(new Response(null, { status: 204 })));
-      webdriver = spyOnProperty(Navigator.prototype, 'webdriver', 'get').and.returnValue(false);
+      telemetry = { enabled: true, active: jasmine.createSpy('active').and.returnValue(undefined), log: jasmine.createSpy('log'), flush: jasmine.createSpy('flush') };
     });
 
     const reporter = (platform = 'browser') => {
-      TestBed.configureTestingModule({ providers: [{ provide: PLATFORM_ID, useValue: platform }] });
+      TestBed.configureTestingModule({ providers: [{ provide: PLATFORM_ID, useValue: platform }, { provide: BrowserTelemetry, useValue: telemetry }] });
       return TestBed.inject(ClientErrorReporter);
     };
 
-    it('sends an error with its page and the page\'s trace', () => {
+    it('logs an error at error level with its page and stack', () => {
       reporter().reportError(new Error('boom'));
 
-      expect(fetchSpy).toHaveBeenCalledOnceWith(CLIENT_ERRORS_URL, jasmine.objectContaining({ method: 'POST', keepalive: true }));
+      expect(telemetry.log).toHaveBeenCalledTimes(1);
+      expect(telemetry.log.calls.mostRecent().args[0]).toBe('error');
       const report = sent()[0];
       expect(report.kind).toBe('error');
       expect(report.message).toBe('Error: boom');
@@ -128,7 +141,15 @@ describe('client errors', () => {
       expect(report.stack).toContain('boom');
     });
 
-    it('sends a failed call with its method, URL, status and trace, the URL\'s token redacted everywhere', () => {
+    it('logs an error in the navigation under way', () => {
+      telemetry.active.and.returnValue({ traceparent: CALL_TRACEPARENT });
+
+      reporter().reportError(new Error('boom'));
+
+      expect(sent()[0].traceparent).toBe(CALL_TRACEPARENT);
+    });
+
+    it('logs a failed call with its method, URL, status and trace, the URL\'s token redacted everywhere', () => {
       reporter().reportCall('GET', new HttpErrorResponse({
         status: 502, statusText: 'Bad Gateway', url: 'https://grifball.xyz/api/Teams?token=s3cret&season=4',
         headers: new HttpHeaders({ traceresponse: CALL_TRACEPARENT }),
@@ -139,7 +160,7 @@ describe('client errors', () => {
         kind: 'http', method: 'GET', url: '/api/Teams?token=REDACTED&season=4', status: 502, traceparent: CALL_TRACEPARENT,
       }));
       expect(report.message).toBe('Http failure response for /api/Teams?token=REDACTED&season=4: 502 Bad Gateway');
-      expect(JSON.stringify(report)).not.toContain('s3cret');
+      expect(JSON.stringify(telemetry.log.calls.all().map(c => c.args))).not.toContain('s3cret');
     });
 
     it('leaves out a call with no answer once the page is going away', () => {
@@ -148,17 +169,26 @@ describe('client errors', () => {
 
       r.reportCall('GET', new HttpErrorResponse({ status: 0, url: '/api/Teams' }));
 
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(telemetry.log).not.toHaveBeenCalled();
     });
 
-    it('leaves out a call with no answer while offline, and still sends a 5xx', () => {
+    it('sends an error at once as the page goes away, while it still can', () => {
+      const r = reporter();
+      dispatchEvent(new Event('pagehide'));
+
+      r.reportError(new Error('on unload'));
+
+      expect(telemetry.flush).toHaveBeenCalled();
+    });
+
+    it('leaves out a call with no answer while offline, and still logs a 5xx', () => {
       spyOnProperty(Navigator.prototype, 'onLine', 'get').and.returnValue(false);
       const r = reporter();
 
       r.reportCall('GET', new HttpErrorResponse({ status: 0, url: '/api/Teams' }));
       r.reportCall('GET', new HttpErrorResponse({ status: 503, url: '/api/Teams' }));
 
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(telemetry.log).toHaveBeenCalledTimes(1);
       expect(sent()[0].status).toBe(503);
     });
 
@@ -170,57 +200,21 @@ describe('client errors', () => {
       expect(sent()[0].traceparent).toBe(TRACEPARENT);
     });
 
-    it('sends each error once', () => {
+    it('logs each error once', () => {
       const r = reporter();
       r.reportError(new Error('same'));
       r.reportError(new Error('same'));
       r.reportError(new Error('other'));
 
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(telemetry.log).toHaveBeenCalledTimes(2);
     });
 
-    it(`sends at most ${MAX_REPORTS} a page load`, () => {
+    it(`logs at most ${MAX_REPORTS} a page load`, () => {
       const r = reporter();
       for (let i = 0; i < MAX_REPORTS + 5; i++)
         r.reportError(new Error(`error ${i}`));
 
-      expect(fetchSpy).toHaveBeenCalledTimes(MAX_REPORTS);
-    });
-
-    it('stops once the API says reports are off', async () => {
-      fetchSpy.and.callFake(() => Promise.resolve(new Response(null, { status: 404 })));
-      const r = reporter();
-      r.reportError(new Error('first'));
-      await fetchSpy.calls.mostRecent().returnValue;
-      await Promise.resolve();
-
-      r.reportError(new Error('second'));
-
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
-    });
-
-    it('stops once the API refuses a report (400), not only when reports are off (404)', async () => {
-      fetchSpy.and.callFake(() => Promise.resolve(new Response(null, { status: 400 })));
-      const r = reporter();
-      r.reportError(new Error('first'));
-      await fetchSpy.calls.mostRecent().returnValue;
-      await Promise.resolve();
-
-      r.reportError(new Error('second'));
-
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
-    });
-
-    it('keeps sending after a 429: a limit is no refusal for good', async () => {
-      fetchSpy.and.callFake(() => Promise.resolve(new Response(null, { status: 429 })));
-      const r = reporter();
-      r.reportError(new Error('first'));
-      await fetchSpy.calls.mostRecent().returnValue;
-      await Promise.resolve();
-
-      r.reportError(new Error('second'));
-
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(telemetry.log).toHaveBeenCalledTimes(MAX_REPORTS);
     });
 
     it('reports a call with no answer again once the page comes back from the back/forward cache', () => {
@@ -230,29 +224,22 @@ describe('client errors', () => {
 
       r.reportCall('GET', new HttpErrorResponse({ status: 0, url: '/api/Teams' }));
 
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(telemetry.log).toHaveBeenCalledTimes(1);
     });
 
-    it('lets a report fail quietly', async () => {
-      fetchSpy.and.callFake(() => Promise.reject(new TypeError('offline')));
-      reporter().reportError(new Error('boom'));
-
-      await expectAsync(fetchSpy.calls.mostRecent().returnValue).toBeRejected();
-    });
-
-    it('sends nothing on the server, and reads none of the browser\'s globals there', () => {
+    it('logs nothing on the server, and reads none of the browser\'s globals there', () => {
       const r = reporter('server');
       r.reportError(new Error('boom'));
       r.reportCall('GET', new HttpErrorResponse({ status: 504, url: 'http://backend/Teams' }));
 
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(telemetry.log).not.toHaveBeenCalled();
     });
 
-    it('sends nothing from an automated browser (tests, Lighthouse)', () => {
-      webdriver.and.returnValue(true);
+    it('logs nothing where the telemetry sends nothing (automated browsers, telemetry off)', () => {
+      telemetry.enabled = false;
       reporter().reportError(new Error('boom'));
 
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(telemetry.log).not.toHaveBeenCalled();
     });
   });
 

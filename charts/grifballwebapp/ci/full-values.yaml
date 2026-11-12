@@ -54,7 +54,7 @@ frontend:
     enabled: true
     endpoint: http://otel-collector.example:4318
     logLevel: info
-    browserErrors: true
+    browser: true
 ingressRoute:
   enabled: true
   host: grifball.example

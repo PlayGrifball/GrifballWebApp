@@ -380,14 +380,22 @@ tests:
           path: "spec.template.spec.containers[0].env"
           content: { name: DatabaseBackup__SqlServerDirectory, value: /var/opt/grif-download }
 
-  - it: turns the browser's error reports on with frontend.telemetry.browserErrors
+  - it: turns the browser's telemetry on with frontend.telemetry.browser, to the frontend's collector endpoint
     documentIndex: 1
     set:
-      frontend.telemetry.browserErrors: true
+      frontend.telemetry: { browser: true, endpoint: "http://otel:4318" }
     asserts:
-      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ClientErrors__Enabled, value: "true" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ClientTelemetry__Enabled, value: "true" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ClientTelemetry__OtlpEndpoint, value: "http://otel:4318" } }
 
-  - it: leaves the browser's error reports off by default
+  - it: leaves the browser's telemetry off by default
     documentIndex: 1
     asserts:
-      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: ClientErrors__Enabled, value: "true" } }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: ClientTelemetry__Enabled, value: "true" } }
+
+  - it: requires the frontend's collector endpoint for the browser's telemetry
+    set:
+      frontend.telemetry.browser: true
+    asserts:
+      - failedTemplate:
+          errorMessage: frontend.telemetry.endpoint is required when frontend.telemetry.browser is on

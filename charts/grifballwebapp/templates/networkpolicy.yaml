@@ -536,6 +536,19 @@ spec:
   {{- end }}
 {{- end }}
 {{- end }}
+{{- with .root.Values.frontend.telemetry }}
+{{- if and .browser .endpoint }}
+{{- $port := include "grif.urlPort" .endpoint }}
+# OpenTelemetry collector's OTLP/HTTP: the browser's telemetry, passed on (frontend.telemetry.browser).
+- ports:
+    - protocol: TCP
+      port: {{ $port | int }}
+  {{- with $np.backend.telemetryTo }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
 {{- $haloGateway := include "grif.haloGatewayUrl" .root }}
 {{- if and (eq (include "grif.haloMode" .root) "gateway") $haloGateway }}
 {{- $port := include "grif.urlPort" $haloGateway }}

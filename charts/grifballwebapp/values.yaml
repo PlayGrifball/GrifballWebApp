@@ -496,12 +496,14 @@ frontend:
     endpoint: ""
     # The lowest level logged: debug, info, warn or error. Empty: info.
     logLevel: ""
-    # The browser's errors and failed API calls, sent to the API (POST /api/client-errors) and logged there with
-    # their page and trace id. Signed-out visitors are limited per address (backend config ClientErrors:PermitsPerMinute).
+    # The browser's telemetry: a span for each navigation and API call (continued by the frontend's and the
+    # backend's), its log lines and errors, and its Web Vitals. Sent to the API (POST /api/client-telemetry), which
+    # passes the spans and logs on to endpoint above and records the vitals as its metrics. Signed-out visitors are
+    # limited per address (backend config ClientTelemetry:PermitsPerMinute, batches a minute).
     # The address is the visitor's only when the backend trusts X-Real-IP from the pods in front of it
     # (backend.config.ForwardedHeaders: KnownIPNetworks the pod network, ForwardedForHeaderName X-Real-IP, as homelab
     # sets them); with the defaults every visitor is the frontend pod, and they all share one limit.
-    browserErrors: false
+    browser: false
   # Node, rendering pages on the server: about 120-160 MiB resident under load.
   resources:
     requests:

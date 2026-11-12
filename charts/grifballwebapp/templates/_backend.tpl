@@ -177,10 +177,13 @@ spec:
           value: {{ printf "%s/tls.key" .mountPath | quote }}
         {{- end }}
         {{- end }}
-        {{- if ($root.Values.frontend.telemetry | default dict).browserErrors }}
-        # The browser's error reports (frontend.telemetry.browserErrors), logged by the API
-        - name: ClientErrors__Enabled
+        {{- $ft := $root.Values.frontend.telemetry | default dict }}
+        {{- if $ft.browser }}
+        # The browser's telemetry (frontend.telemetry.browser): the API passes its spans and logs on to the collector
+        - name: ClientTelemetry__Enabled
           value: "true"
+        - name: ClientTelemetry__OtlpEndpoint
+          value: {{ required "frontend.telemetry.endpoint is required when frontend.telemetry.browser is on" $ft.endpoint | quote }}
         {{- end }}
         {{- $sheets := $b.config.GoogleSheets | default dict }}
         {{- if and $b.googleCredentials.secretName (not (hasKey $sheets "Key")) }}
