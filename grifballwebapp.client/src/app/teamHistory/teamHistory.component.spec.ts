@@ -3,7 +3,8 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
-import { TeamHistoryComponent, TeamHistoryDto } from './teamHistory.component';
+import { TeamHistoryComponent } from './teamHistory.component';
+import type { TeamHistoryDto } from '@api/models';
 import { seasonInfo } from '../api/seasonInfo.stub';
 
 describe('TeamHistoryComponent', () => {
@@ -24,15 +25,15 @@ describe('TeamHistoryComponent', () => {
         teamID: 30, teamName: 'Trophy Hunters', season: seasonInfo(3, { seasonName: 'Season 3', year: 2024, division: 'Pro' }),
         wins: 5, losses: 2, titles: [],
         players: [
-          { teamPlayerID: 1, userID: 10, gamertag: 'Captain Grif', draftCaptainOrder: 1, draftRound: null, isCaptain: true },
-          { teamPlayerID: 2, userID: 11, gamertag: 'Simmons', draftCaptainOrder: null, draftRound: 1 },
-        ],
+          { teamPlayerID: 1, userID: 10, gamertag: 'Captain Grif', draftCaptainOrder: 1, draftRound: null, isCaptain: true, region: null },
+          { teamPlayerID: 2, userID: 11, gamertag: 'Simmons', draftCaptainOrder: null, draftRound: 1, isCaptain: false, region: null },
+        ], recordFromSource: false
       },
       {
         teamID: 20, teamName: 'trophy hunters', season: seasonInfo(2, { seasonName: 'Archive 2015', year: 2015, isHistorical: true, gameVersionName: null }),
         wins: 7, losses: 1, recordFromSource: true, titles: ['Pro'],
         players: [
-          { teamPlayerID: 3, userID: 12, gamertag: null, draftCaptainOrder: null, draftRound: null, isCaptain: true },
+          { teamPlayerID: 3, userID: 12, gamertag: null!, draftCaptainOrder: null, draftRound: null, isCaptain: true, region: null },
         ],
       },
     ],

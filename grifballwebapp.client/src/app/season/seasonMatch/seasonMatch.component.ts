@@ -23,7 +23,7 @@ import { TeamService } from '@api/services/team.service';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
 import { errorText } from '../../shared/errorText';
-import { PlayerDto } from '../team/team.component';
+import type { TeamPagePlayerDto } from '@api/models';
 import { provideDatePickers } from '../../shared/datePickers';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
 import { GameSlot, ManualGamesComponent, slotChoices } from './manualGames/manualGames.component';
@@ -459,7 +459,7 @@ export class SeasonMatchComponent {
 /** A side's players and the team they were loaded for; players is null while loading. */
 interface Roster {
   teamID: number | null,
-  players: PlayerDto[] | null,
+  players: TeamPagePlayerDto[] | null,
 }
 
 /** The roster of this team has arrived. */

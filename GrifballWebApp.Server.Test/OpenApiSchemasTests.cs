@@ -28,6 +28,9 @@ public sealed class Sample
 /// <summary>What Swashbuckle builds its filters with: the API's JSON options and its serializer contract.</summary>
 internal static class FilterServices
 {
+    /// <summary>The API's JSON options: ASP.NET's web defaults (camelCase).</summary>
+    public static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
+
     public static IServiceProvider For(JsonSerializerOptions json)
     {
         var services = new ServiceCollection();
@@ -136,7 +139,7 @@ public class OpenApiSchemasTests
             },
         };
 
-        new EveryPropertyRequiredFilter().Apply(schema, Context(typeof(Sample)));
+        ActivatorUtilities.CreateInstance<EveryPropertyRequiredFilter>(FilterServices.For(FilterServices.Web)).Apply(schema, Context(typeof(Sample)));
 
         Assert.That(schema.Required, Is.EqualTo(SampleRequired));
     }
@@ -146,7 +149,7 @@ public class OpenApiSchemasTests
     {
         var schema = new OpenApiSchema();
 
-        new EveryPropertyRequiredFilter().Apply(schema, Context(typeof(int)));
+        ActivatorUtilities.CreateInstance<EveryPropertyRequiredFilter>(FilterServices.For(FilterServices.Web)).Apply(schema, Context(typeof(int)));
 
         Assert.That(schema.Required, Is.Null);
     }
@@ -214,7 +217,7 @@ public class JsonOnlyOperationFilterTests
 
 /// <summary>Query parameters named camelCase, as the API's JSON names properties (OpenApiSchemas.cs).</summary>
 [TestFixture]
-public class CamelCaseQueryParametersFilterTests
+public class JsonNamedQueryParametersFilterTests
 {
     private static readonly string[] QueryNames = ["pageNumber", "q", "SeasonID"];
 
@@ -231,7 +234,7 @@ public class CamelCaseQueryParametersFilterTests
             ],
         };
 
-        new CamelCaseQueryParametersFilter().Apply(operation, null!);
+        ActivatorUtilities.CreateInstance<JsonNamedQueryParametersFilter>(FilterServices.For(FilterServices.Web)).Apply(operation, null!);
 
         Assert.That(operation.Parameters!.Select(p => p.Name), Is.EqualTo(QueryNames));
     }
@@ -241,7 +244,7 @@ public class CamelCaseQueryParametersFilterTests
     {
         // No naming policy: the JSON keeps .NET's names, so the query does too
         var operation = new OpenApiOperation { Parameters = [new OpenApiParameter { Name = "PageNumber", In = ParameterLocation.Query }] };
-        var filter = ActivatorUtilities.CreateInstance<CamelCaseQueryParametersFilter>(FilterServices.For(new JsonSerializerOptions()));
+        var filter = ActivatorUtilities.CreateInstance<JsonNamedQueryParametersFilter>(FilterServices.For(new JsonSerializerOptions()));
 
         filter.Apply(operation, null!);
 
@@ -253,7 +256,7 @@ public class CamelCaseQueryParametersFilterTests
     {
         var operation = new OpenApiOperation { Parameters = null };
 
-        new CamelCaseQueryParametersFilter().Apply(operation, null!);
+        ActivatorUtilities.CreateInstance<JsonNamedQueryParametersFilter>(FilterServices.For(FilterServices.Web)).Apply(operation, null!);
 
         Assert.That(operation.Parameters, Is.Null);
     }

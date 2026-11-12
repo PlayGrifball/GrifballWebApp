@@ -12,7 +12,7 @@ import { EventOrganizerService } from '@api/services/event-organizer.service';
 import { SeasonMatchService } from '@api/services/season-match.service';
 import type { GameVersionOptionDto } from '@api/models';
 import { errorText } from '../../../shared/errorText';
-import { PlayerDto } from '../../team/team.component';
+import type { TeamPagePlayerDto } from '@api/models';
 import { ManualGameRequestDto, ReportedGameDto, SeasonMatchGameParticipantDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
 
 /** Halo Infinite (seeded): what a game is entered as unless the commissioner picks another. */
@@ -122,8 +122,8 @@ export class ManualGamesComponent {
   readonly seasonMatchID = input.required<number>();
   /** The match, null while the page loads. */
   readonly match = input<SeasonMatchPageDto | null>(null);
-  readonly homeRoster = input<PlayerDto[]>([]);
-  readonly awayRoster = input<PlayerDto[]>([]);
+  readonly homeRoster = input<TeamPagePlayerDto[]>([]);
+  readonly awayRoster = input<TeamPagePlayerDto[]>([]);
   /** The user is a commissioner: may enter, edit and delete games. */
   readonly canEdit = input(false);
   /** The page is sending a report or an action of its own: nothing starts or is sent here meanwhile. */
@@ -306,7 +306,7 @@ export class ManualGamesComponent {
       ...(game?.homePlayers ?? []).filter(p => p.userID != null).map(p => [p.userID!, line(p, true)] as const),
       ...(game?.awayPlayers ?? []).filter(p => p.userID != null).map(p => [p.userID!, line(p, false)] as const),
     ]);
-    const roster = (players: PlayerDto[], isHomeTeam: boolean): PlayerLine[] => players.map(p => {
+    const roster = (players: TeamPagePlayerDto[], isHomeTeam: boolean): PlayerLine[] => players.map(p => {
       const entry = entered.get(p.userID);
       entered.delete(p.userID);
       return entry

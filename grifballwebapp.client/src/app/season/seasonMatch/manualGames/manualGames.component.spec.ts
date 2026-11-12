@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { DateTime } from 'luxon';
 import { gameSource, INFINITE_GAME_VERSION_ID, ManualGameForm, ManualGamesComponent, toLocalInput, toRequest } from './manualGames.component';
 import { ReportedGameDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
-import { PlayerDto } from '../../team/team.component';
+import type { TeamPagePlayerDto } from '@api/models';
 
 describe('ManualGamesComponent', () => {
   let fixture: ComponentFixture<ManualGamesComponent>;
@@ -38,7 +38,7 @@ describe('ManualGamesComponent', () => {
     ...overrides
   });
 
-  const roster = (userID: number, gamertag: string | null): PlayerDto =>
+  const roster = (userID: number, gamertag: string | null): TeamPagePlayerDto =>
     ({ teamPlayerID: userID * 10, userID, gamertag, draftCaptainOrder: null, draftRound: null });
 
   function create(match: SeasonMatchPageDto | null, canEdit: boolean): void {

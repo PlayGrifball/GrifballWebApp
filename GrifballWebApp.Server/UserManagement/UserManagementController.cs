@@ -76,12 +76,9 @@ public class UserManagementController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
     public async Task<IActionResult> MergeUser([FromBody] MergeRequest mergeRequest, CancellationToken ct)
     {
-        // The merge page's merges are manual, by the signed-in sysadmin, whatever the body says
-        mergeRequest.MergeOptions.Trigger = Domain.Players.MergeTrigger.Manual;
-        mergeRequest.MergeOptions.TriggeredByUserID = null;
         try
         {
-            await _userMergeService.Merge(mergeRequest.MergeToId, mergeRequest.MergeFromId, mergeRequest.MergeOptions, ct);
+            await _userMergeService.Merge(mergeRequest.MergeToId, mergeRequest.MergeFromId, mergeRequest.MergeOptions.ToOptions(), ct);
         }
         catch (UserNotFoundException e)
         {
@@ -110,5 +107,34 @@ public class MergeRequest
 {
     public required int MergeToId { get; set; }
     public required int MergeFromId { get; set; }
-    public required MergeOptions MergeOptions { get; set; }
+    public required MergeTransfers MergeOptions { get; set; }
+}
+
+/// <summary>
+/// What the merge page chooses to move (<see cref="MergeOptions"/>'s transfers). The rest is the server's: the merge is a
+/// manual one by the signed-in sysadmin, and season stats and championships always move.
+/// </summary>
+public class MergeTransfers
+{
+    public required bool TransferDiscord { get; set; }
+    public required bool TransferLogins { get; set; }
+    public required bool TransferXbox { get; set; }
+    public required bool TransferTeamPlayers { get; set; }
+    public required bool TransferExperiences { get; set; }
+    public required bool TransferSignups { get; set; }
+    public required bool DeleteMergeFrom { get; set; }
+
+    /// <summary>The options of a manual merge with these transfers (who did it: the signed-in user).</summary>
+    public MergeOptions ToOptions() => new()
+    {
+        TransferDiscord = TransferDiscord,
+        TransferLogins = TransferLogins,
+        TransferXbox = TransferXbox,
+        TransferTeamPlayers = TransferTeamPlayers,
+        TransferExperiences = TransferExperiences,
+        TransferSignups = TransferSignups,
+        DeleteMergeFrom = DeleteMergeFrom,
+        Trigger = Domain.Players.MergeTrigger.Manual,
+        TriggeredByUserID = null,
+    };
 }

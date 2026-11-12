@@ -64,15 +64,22 @@ public class SignupsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
-    public async Task<IActionResult> UpsertSignup([FromRoute] int seasonID, [FromBody] SignupRequestDto signupDto, CancellationToken ct)
+    public async Task<IActionResult> UpsertSignup([FromRoute] int seasonID, [FromBody] SignupBodyDto signup, CancellationToken ct)
     {
         var userID = GetUserID();
         if (userID == 0)
             return this.UnauthorizedProblem(NotSignedIn);
 
-        signupDto.SeasonID = seasonID;
-        // The signed-in player's own signup, whoever the body names
-        signupDto.UserID = userID;
+        // The signed-in player's own signup, for the season in the route
+        var signupDto = new SignupRequestDto
+        {
+            SeasonID = seasonID,
+            UserID = userID,
+            TeamName = signup.TeamName,
+            WillCaptain = signup.WillCaptain,
+            RequiresAssistanceDrafting = signup.RequiresAssistanceDrafting,
+            Timeslots = signup.Timeslots,
+        };
         // Closed signups, no gamertag or a team name too long: refused by GlobalExceptionHandler as 400 ProblemDetails
         await _signupsService.UpsertSignup(signupDto, ct);
         return NoContent();
@@ -85,4 +92,14 @@ public class SignupsController : ControllerBase
             return 0;
         return int.TryParse(userIDStr, out var userID) ? userID : 0;
     }
+}
+
+/// <summary>A player's signup as the signup form sends it: whose and for which season are the server's (the signed-in
+/// player, the route's season).</summary>
+public class SignupBodyDto
+{
+    public string? TeamName { get; set; }
+    public bool WillCaptain { get; set; }
+    public bool RequiresAssistanceDrafting { get; set; }
+    public TimeslotDto[] Timeslots { get; set; } = [];
 }

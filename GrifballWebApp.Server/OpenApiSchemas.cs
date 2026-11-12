@@ -1,7 +1,8 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Reflection;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace GrifballWebApp.Server;
@@ -38,10 +39,14 @@ public static class OpenApiSchemaIds
             : name;
     }
 
-    /// <summary>The names more than one of these assemblies' types share.</summary>
+    /// <summary>
+    /// The names more than one of these assemblies' public types share: only a public type can be a schema, so an internal
+    /// helper never renames a DTO. Two schemas whose names and namespaces' last segments both match make Swashbuckle
+    /// refuse the document, which the startup test (it fetches the document) fails on.
+    /// </summary>
     public static HashSet<string> AmbiguousNames(IEnumerable<Assembly> assemblies)
         => assemblies.SelectMany(a => a.GetTypes())
-            .Where(t => !t.Name.Contains('<') && !t.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false))
+            .Where(t => t.IsVisible && !t.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false))
             .GroupBy(NameOf)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)
@@ -80,26 +85,24 @@ public static class OpenApiSchemaIds
 /// Marks every property of an object schema required (Program.cs): the API writes each property, null or not
 /// (<see cref="ApiJson"/> ignores none), so the generated client's types need no optional properties. Nullability still
 /// comes from the types (SupportNonNullableReferenceTypes). A property left out when null
-/// (<c>[JsonIgnore(Condition = WhenWritingNull)]</c>) or default stays optional.
+/// (<c>[JsonIgnore(Condition = WhenWritingNull)]</c>) or default stays optional. Properties are named as the API's
+/// serializer names them (its data contract, the one Swashbuckle builds the schema from).
 /// </summary>
-public sealed class EveryPropertyRequiredFilter : ISchemaFilter
+public sealed class EveryPropertyRequiredFilter(ISerializerDataContractResolver contracts) : ISchemaFilter
 {
     public void Apply(IOpenApiSchema schema, SchemaFilterContext context)
     {
         if (schema is not OpenApiSchema { Properties.Count: > 0 } objectSchema)
             return;
 
-        var sometimesLeftOut = context.Type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.GetCustomAttribute<JsonIgnoreAttribute>() is { Condition: not JsonIgnoreCondition.Never })
-            .Select(JsonName)
+        var sometimesLeftOut = (contracts.GetDataContractForType(context.Type).ObjectProperties ?? [])
+            .Where(p => p.MemberInfo?.GetCustomAttribute<JsonIgnoreAttribute>() is { Condition: not JsonIgnoreCondition.Never })
+            .Select(p => p.Name)
             .ToHashSet(StringComparer.Ordinal);
 
         objectSchema.Required = new SortedSet<string>(
             objectSchema.Properties.Keys.Where(k => !sometimesLeftOut.Contains(k)), StringComparer.Ordinal);
     }
-
-    private static string JsonName(PropertyInfo property)
-        => property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? JsonNamingPolicy.CamelCase.ConvertName(property.Name);
 }
 
 /// <summary>
@@ -130,19 +133,21 @@ public sealed class JsonOnlyOperationFilter : IOperationFilter
 }
 
 /// <summary>
-/// Names query parameters as the API's JSON names its properties, camelCase (Program.cs): an action that binds its query
-/// to a class (a list's paging and filters) would otherwise list them by property name, PascalCase, and the generated
-/// client would send them so. Binding ignores case either way; the URLs stay the ones the client always sent (and
-/// index.html fetches early).
+/// Names query parameters as the API's JSON names its properties (its naming policy, camelCase) (Program.cs): an action
+/// that binds its query to a class (a list's paging and filters) would otherwise list them by property name, PascalCase,
+/// and the generated client would send them so. Binding ignores case either way; the URLs stay the ones the client always
+/// sent (and index.html fetches early).
 /// </summary>
-public sealed class CamelCaseQueryParametersFilter : IOperationFilter
+public sealed class JsonNamedQueryParametersFilter(IOptions<JsonOptions> json) : IOperationFilter
 {
     public void Apply(OpenApiOperation operation, OperationFilterContext context)
     {
+        if (json.Value.JsonSerializerOptions.PropertyNamingPolicy is not { } naming)
+            return;
         foreach (var parameter in operation.Parameters?.OfType<OpenApiParameter>() ?? [])
         {
             if (parameter.In == ParameterLocation.Query && parameter.Name is { Length: > 0 } name)
-                parameter.Name = JsonNamingPolicy.CamelCase.ConvertName(name);
+                parameter.Name = naming.ConvertName(name);
         }
     }
 }

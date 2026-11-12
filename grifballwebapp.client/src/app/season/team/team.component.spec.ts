@@ -6,7 +6,8 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
-import { MatchDto, TeamComponent, TeamDto } from './team.component';
+import { MatchDto, TeamComponent } from './team.component';
+import type { TeamDto } from '@api/models';
 import { seasonInfo } from '../../api/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
@@ -32,9 +33,9 @@ describe('TeamComponent', () => {
     losses: 1,
     tbd: 2,
     players: [
-      { teamPlayerID: 1, userID: 10, gamertag: 'Captain Grif', draftCaptainOrder: 1, draftRound: null },
-      { teamPlayerID: 2, userID: 11, gamertag: 'Simmons', draftCaptainOrder: null, draftRound: 2 },
-    ],
+      { teamPlayerID: 1, userID: 10, gamertag: 'Captain Grif', draftCaptainOrder: 1, draftRound: null, isCaptain: false, region: null },
+      { teamPlayerID: 2, userID: 11, gamertag: 'Simmons', draftCaptainOrder: null, draftRound: 2, isCaptain: false, region: null },
+    ], recordFromSource: false, titles: []
   };
 
   const match = (overrides: Partial<MatchDto>): MatchDto => ({
@@ -117,13 +118,13 @@ describe('TeamComponent', () => {
   });
 
   it('shows a player without a gamertag (no Xbox account linked) without breaking the page', () => {
-    load({ ...team, players: [{ teamPlayerID: 3, userID: 12, gamertag: null, draftCaptainOrder: null, draftRound: 1 }] }, []);
+    load({ ...team, players: [{ teamPlayerID: 3, userID: 12, gamertag: null!, draftCaptainOrder: null, draftRound: 1, isCaptain: false, region: null }] }, []);
     const roster = Array.from(el().querySelectorAll('.team-player')).map(p => Array.from(p.children).map(c => c.textContent!.trim()).join(' '));
     expect(roster).toEqual(['? Unknown Spartan R1']);
   });
 
   it("shows a player's region on the roster", () => {
-    load({ ...team, players: [{ teamPlayerID: 3, userID: 12, gamertag: 'Sarge', draftCaptainOrder: null, draftRound: 1, region: 'East North America' }] }, []);
+    load({ ...team, players: [{ teamPlayerID: 3, userID: 12, gamertag: 'Sarge', draftCaptainOrder: null, draftRound: 1, isCaptain: false, region: 'East North America' }] }, []);
     expect(el().querySelector('.team-player__region')!.textContent!.trim()).toBe('East North America');
   });
 
@@ -216,8 +217,8 @@ describe('TeamComponent', () => {
       teamName: 'Relentless', wins: 9, losses: 1, tbd: 0, season: seasonInfo(2, { isHistorical: true, historicalSourceUrl: url }),
       recordFromSource: true, titles: ['Pro'],
       players: [
-        { teamPlayerID: 5, userID: 30, gamertag: 'Captain R', draftCaptainOrder: null, draftRound: null, isCaptain: true },
-        { teamPlayerID: 6, userID: 31, gamertag: 'Runner', draftCaptainOrder: null, draftRound: null, isCaptain: false },
+        { teamPlayerID: 5, userID: 30, gamertag: 'Captain R', draftCaptainOrder: null, draftRound: null, isCaptain: true, region: null },
+        { teamPlayerID: 6, userID: 31, gamertag: 'Runner', draftCaptainOrder: null, draftRound: null, isCaptain: false, region: null },
       ],
     };
 

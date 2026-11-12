@@ -20,22 +20,22 @@ public class ExcelController : ControllerBase
 
     /// <summary>The default Excel sheet to export matches to. Commissioners and sysadmins only.</summary>
     [HttpGet("sheets/default", Name = "DefaultSheetInfo")]
-    [ProducesResponseType<SheetInfo[]>(StatusCodes.Status200OK)]
+    [ProducesResponseType<SheetDto[]>(StatusCodes.Status200OK)]
     public IActionResult DefaultSheetInfo()
     {
-        return Ok(_e.GetDefaultInfo());
+        return Ok(_e.GetDefaultInfo().Select(SheetDto.From).ToArray());
     }
 
     /// <summary>
-    /// Queues the export of every match in the copy sheet to <paramref name="sheetInfo"/> (<see cref="SheetExportJob"/>,
+    /// Queues the export of every match in the copy sheet to <paramref name="sheet"/> (<see cref="SheetExportJob"/>,
     /// on the worker); nothing more while one is queued or running. Returns where it is.
     /// </summary>
     [HttpPost("sheets/export", Name = "ExportAll")]
     [ProducesResponseType<OnDemandJobStatusDto>(StatusCodes.Status202Accepted)]
-    public async Task<ActionResult<OnDemandJobStatusDto>> ExportAll([FromBody] SheetInfo sheetInfo, [FromServices] OnDemandJobs jobs, CancellationToken ct)
+    public async Task<ActionResult<OnDemandJobStatusDto>> ExportAll([FromBody] SheetDto sheet, [FromServices] OnDemandJobs jobs, CancellationToken ct)
     {
-        // Runs as whoever queued it, never as someone the request names
-        sheetInfo.RequestedByUserID = JobUser.IdOf(User);
+        // Runs as whoever queued it
+        var sheetInfo = sheet.ToInfo(JobUser.IdOf(User));
         return Accepted(await jobs.Enqueue<SheetExportJob, SheetInfo>(SheetExportJob.RunName, sheetInfo, sheetInfo.SheetName, ct: ct));
     }
 
@@ -48,9 +48,10 @@ public class ExcelController : ControllerBase
     /// <summary>Appends one match to the given sheet. Commissioners and sysadmins only.</summary>
     [HttpPost("matches/{matchID:guid}/append-to-sheet", Name = "AppendMatch")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> AppendMatch([FromRoute] Guid matchID, [FromBody] SheetInfo sheetInfo)
+    public async Task<IActionResult> AppendMatch([FromRoute] Guid matchID, [FromBody] SheetDto sheet)
     {
-        await _e.AppendMatch(sheetInfo, matchID);
+        // Appended now, in this request: no one to run as later
+        await _e.AppendMatch(sheet.ToInfo(requestedByUserID: null), matchID);
         return NoContent();
     }
 }
