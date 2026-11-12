@@ -115,6 +115,25 @@ public static partial class TelemetryQueries
         return query.Append("} | select(span.http.route, span.http.response.status_code)").ToString();
     }
 
+    /// <summary>
+    /// A trace's route: the first that names one (the backend's, e.g. Season/Get) rather than a wildcard (the app's
+    /// server's /api/* or /*); else the first; null without any.
+    /// </summary>
+    public static string? PreferredRoute(IReadOnlyList<string> routes) =>
+        routes.FirstOrDefault(r => !r.Contains('*', StringComparison.Ordinal)) ?? routes.FirstOrDefault();
+
+    /// <summary>
+    /// A trace's name in the list: its root span's, unless that is the app's server's wildcard (GET /api/*), which
+    /// every call shares; then its method and <paramref name="route"/>, when that names one.
+    /// </summary>
+    public static string TraceName(string rootName, string? route)
+    {
+        if (!rootName.Contains('*', StringComparison.Ordinal) || route is null || route.Contains('*', StringComparison.Ordinal))
+            return rootName;
+        var space = rootName.IndexOf(' ', StringComparison.Ordinal);
+        return space > 0 ? $"{rootName[..space]} {route}" : route;
+    }
+
     [GeneratedRegex(@"[\\.+*?()|\[\]{}^$]")]
     private static partial Regex Re2Meta();
 

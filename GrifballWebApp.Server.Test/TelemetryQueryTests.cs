@@ -97,6 +97,22 @@ public class TelemetryQueriesTests
     }
 
     [Test]
+    public void A_trace_takes_the_backends_route_over_the_app_servers_wildcard()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TelemetryQueries.PreferredRoute(["/api/*", "Season/Get"]), Is.EqualTo("Season/Get"));
+            Assert.That(TelemetryQueries.PreferredRoute(["/*"]), Is.EqualTo("/*"));
+            Assert.That(TelemetryQueries.PreferredRoute([]), Is.Null);
+            Assert.That(TelemetryQueries.TraceName("GET /api/*", "Season/Get"), Is.EqualTo("GET Season/Get"));
+            Assert.That(TelemetryQueries.TraceName("GET /*", "/*"), Is.EqualTo("GET /*"));
+            Assert.That(TelemetryQueries.TraceName("GET /api/*", null), Is.EqualTo("GET /api/*"));
+            Assert.That(TelemetryQueries.TraceName("GET Home/Events", "Home/Events"), Is.EqualTo("GET Home/Events"));
+            Assert.That(TelemetryQueries.TraceName("*", "Home/Events"), Is.EqualTo("Home/Events"));
+        }
+    }
+
+    [Test]
     public void Traces_adds_errors_and_duration()
     {
         using (Assert.EnterMultipleScope())

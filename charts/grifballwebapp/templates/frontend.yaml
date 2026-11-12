@@ -73,23 +73,10 @@ spec:
           {{- if or $t.enabled $t.logLevel $f.extraEnv }}
           env:
             {{- if $t.enabled }}
-            {{- $bt := .Values.backend.telemetry }}
-            # OpenTelemetry (frontend.telemetry), named as the backend's so the Telemetry page sees both.
-            - name: OTEL_SERVICE_NAME
-              value: {{ $bt.serviceName | default .Release.Namespace | quote }}
+            # OpenTelemetry (frontend.telemetry), as the backend's service (grif.otelServiceEnv)
+            {{- include "grif.otelServiceEnv" . | nindent 12 }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: {{ required "frontend.telemetry.endpoint is required when telemetry is enabled" $t.endpoint | quote }}
-            {{- $attrs := list }}
-            {{- if $bt.environment }}{{ $attrs = append $attrs (printf "deployment.environment.name=%s" $bt.environment) }}{{ end }}
-            {{- range $k, $v := $bt.resourceAttributes }}{{ $attrs = append $attrs (printf "%s=%v" $k $v) }}{{ end }}
-            {{- if $attrs }}
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: {{ join "," $attrs | quote }}
-            {{- end }}
-            {{- if $bt.metricExportInterval }}
-            - name: OTEL_METRIC_EXPORT_INTERVAL
-              value: {{ $bt.metricExportInterval | quote }}
-            {{- end }}
             {{- end }}
             {{- if $t.logLevel }}
             - name: LOG_LEVEL

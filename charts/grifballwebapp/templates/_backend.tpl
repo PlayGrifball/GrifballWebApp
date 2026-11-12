@@ -189,23 +189,11 @@ spec:
         {{- end }}
         {{- with $b.telemetry }}
         {{- if .enabled }}
-        - name: OTEL_SERVICE_NAME
-          value: {{ .serviceName | default $root.Release.Namespace | quote }}
+        {{- include "grif.otelServiceEnv" $root | nindent 8 }}
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: {{ required "backend.telemetry.endpoint is required when telemetry is enabled" .endpoint | quote }}
         - name: OTEL_EXPORTER_OTLP_PROTOCOL
           value: {{ .protocol | quote }}
-        {{- $attrs := list }}
-        {{- if .environment }}{{ $attrs = append $attrs (printf "deployment.environment.name=%s" .environment) }}{{ end }}
-        {{- range $k, $v := .resourceAttributes }}{{ $attrs = append $attrs (printf "%s=%v" $k $v) }}{{ end }}
-        {{- if $attrs }}
-        - name: OTEL_RESOURCE_ATTRIBUTES
-          value: {{ join "," $attrs | quote }}
-        {{- end }}
-        {{- if .metricExportInterval }}
-        - name: OTEL_METRIC_EXPORT_INTERVAL
-          value: {{ .metricExportInterval | quote }}
-        {{- end }}
         {{- if .consoleExporter }}
         - name: OTLP_CONSOLE_EXPORTER_ENABLED
           value: "true"

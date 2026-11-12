@@ -88,3 +88,19 @@ tests:
     documentIndex: 0
     asserts:
       - lengthEqual: { path: spec.egress, count: 2 }
+
+  - it: reads the port only after a colon, not from digits in the host's name
+    template: templates/networkpolicy.yaml
+    documentIndex: 0
+    set:
+      frontend.telemetry: { enabled: true, endpoint: "http://otel2" }
+    asserts:
+      - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 80 }] } }
+
+  - it: does the same for the backend's collector
+    template: templates/networkpolicy.yaml
+    documentIndex: 1
+    set:
+      backend.telemetry: { enabled: true, endpoint: "https://10.0.0.5" }
+    asserts:
+      - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 443 }] } }

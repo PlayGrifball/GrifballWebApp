@@ -154,17 +154,21 @@ public sealed class TelemetryQueryService
     /// <summary>A trace as Tempo's search lists it, with its span set's attributes (the first value of each).</summary>
     private static TraceSummaryDto TraceSummary(JsonElement t)
     {
-        var attributes = t.TryGetProperty("spanSet", out var set) && set.TryGetProperty("spans", out var spans)
+        var values = t.TryGetProperty("spanSet", out var set) && set.TryGetProperty("spans", out var spans)
             ? spans.EnumerateArray().SelectMany(s => s.TryGetProperty("attributes", out var a) ? a.EnumerateArray() : Enumerable.Empty<JsonElement>())
-                .GroupBy(a => a.GetProperty("key").GetString()!).ToDictionary(g => g.Key, g => AttributeValue(g.First().GetProperty("value")))
-            : new Dictionary<string, string>();
+                .GroupBy(a => a.GetProperty("key").GetString()!).ToDictionary(g => g.Key, g => g.Select(a => AttributeValue(a.GetProperty("value"))).ToList())
+            : new Dictionary<string, List<string>>();
+        var attributes = values.ToDictionary(v => v.Key, v => v.Value[0]);
+        // The backend's route (Season/Get) over the app's server's (/api/*), which is the root of a browser's call
+        var route = TelemetryQueries.PreferredRoute(values.GetValueOrDefault("http.route") ?? []);
+        var rootName = t.TryGetProperty("rootTraceName", out var name) ? name.GetString() ?? "" : "";
         return new TraceSummaryDto(
             TelemetryQueries.NormalizeTraceId(t.GetProperty("traceID").GetString()) ?? t.GetProperty("traceID").GetString()!,
-            t.TryGetProperty("rootTraceName", out var name) ? name.GetString() ?? "" : "",
+            TelemetryQueries.TraceName(rootName, route),
             t.TryGetProperty("rootServiceName", out var service) ? service.GetString() : null,
             FromUnixNanos(long.Parse(t.GetProperty("startTimeUnixNano").GetString()!, CultureInfo.InvariantCulture)),
             t.TryGetProperty("durationMs", out var duration) ? duration.GetDouble() : 0,
-            attributes.GetValueOrDefault("http.route"),
+            route,
             int.TryParse(attributes.GetValueOrDefault("http.response.status_code"), out var status) ? status : null);
     }
 

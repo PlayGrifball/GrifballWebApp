@@ -87,7 +87,8 @@ public partial class ClientErrorsController : ControllerBase
         if (!_options.Enabled)
             return this.NotFoundProblem("Browser error reports are off here");
 
-        using var activity = ActivityContext.TryParse(report.Traceparent, null, out var parent)
+        // The browser's trace came from outside this process: a remote parent
+        using var activity = ActivityContext.TryParse(report.Traceparent, null, isRemote: true, out var parent)
             ? Source.StartActivity("browser " + report.Kind, ActivityKind.Internal, parent)
             : null;
         activity?.SetTag("url.path", report.Page);
@@ -116,12 +117,14 @@ public static class ClientErrorsExtensions
     /// <summary><see cref="ClientErrorsOptions"/> and its rate limit: signed out, a fixed window per client address.</summary>
     public static IServiceCollection AddClientErrors(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddOptions<ClientErrorsOptions>().Bind(configuration.GetSection(ClientErrorsOptions.Section)).ValidateDataAnnotations();
-        var permits = configuration.GetSection(ClientErrorsOptions.Section).Get<ClientErrorsOptions>()?.PermitsPerMinute ?? new ClientErrorsOptions().PermitsPerMinute;
+        // An invalid setting (PermitsPerMinute 0) stops the app at startup, not each report later
+        services.AddOptions<ClientErrorsOptions>().Bind(configuration.GetSection(ClientErrorsOptions.Section)).ValidateDataAnnotations().ValidateOnStart();
         services.AddRateLimiter(limiter =>
         {
             limiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            limiter.AddPolicy(ClientErrorsController.RateLimitPolicy, context => PartitionByClient(context, permits));
+            // The validated options, read per request (a singleton: no cost)
+            limiter.AddPolicy(ClientErrorsController.RateLimitPolicy, context => PartitionByClient(context,
+                context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ClientErrorsOptions>>().Value.PermitsPerMinute));
         });
         return services;
     }

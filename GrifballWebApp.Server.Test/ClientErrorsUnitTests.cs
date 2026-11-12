@@ -95,6 +95,7 @@ public class ClientErrorsUnitTests
             Assert.That(logged.TraceId?.ToHexString(), Is.EqualTo(TraceId));
             Assert.That(span.TraceId.ToHexString(), Is.EqualTo(TraceId));
             Assert.That(span.ParentSpanId.ToHexString(), Is.EqualTo("b7ad6b7169203331"));
+            Assert.That(span.HasRemoteParent, Is.True);
             Assert.That(span.DisplayName, Is.EqualTo("browser error"));
             Assert.That(span.Status, Is.EqualTo(ActivityStatusCode.Error));
             Assert.That(span.GetTagItem("url.path"), Is.EqualTo("/season/12"));
@@ -242,6 +243,17 @@ public class ClientErrorsUnitTests
             Assert.That(options.Enabled, Is.True);
             Assert.That(options.PermitsPerMinute, Is.EqualTo(5));
         }
+    }
+
+    [Test]
+    public void AddClientErrors_RefusesAnInvalidLimit()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ClientErrors:PermitsPerMinute"] = "0" })
+            .Build();
+        using var provider = new ServiceCollection().AddClientErrors(configuration).BuildServiceProvider();
+
+        Assert.Throws<OptionsValidationException>(() => _ = provider.GetRequiredService<IOptions<ClientErrorsOptions>>().Value);
     }
 
     [Test]

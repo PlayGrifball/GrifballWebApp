@@ -53,7 +53,7 @@ spec:
     {{- with .Values.frontend.telemetry }}
     {{- if and .enabled .endpoint }}
     {{- $u := urlParse .endpoint }}
-    {{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
+    {{- $port := trimPrefix ":" (regexFind ":[0-9]+$" $u.host) | default (ternary "443" "80" (eq $u.scheme "https")) }}
     # OpenTelemetry collector (frontend.telemetry).
     - ports:
         - protocol: TCP
@@ -527,7 +527,7 @@ spec:
 {{- with .root.Values.backend.telemetry }}
 {{- if and .enabled .endpoint }}
 {{- $u := urlParse .endpoint }}
-{{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
+{{- $port := trimPrefix ":" (regexFind ":[0-9]+$" $u.host) | default (ternary "443" "80" (eq $u.scheme "https")) }}
 # OpenTelemetry collector.
 - ports:
     - protocol: TCP
@@ -541,7 +541,7 @@ spec:
 {{- $haloGateway := include "grif.haloGatewayUrl" .root }}
 {{- if and (eq (include "grif.haloMode" .root) "gateway") $haloGateway }}
 {{- $u := urlParse $haloGateway }}
-{{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
+{{- $port := trimPrefix ":" (regexFind ":[0-9]+$" $u.host) | default (ternary "443" "80" (eq $u.scheme "https")) }}
 {{- if include "grif.haloGatewayInRelease" .root }}
 # The bundled Halo gateway (halo-gateway.enabled), in this namespace, on its pods' port.
 - to:
