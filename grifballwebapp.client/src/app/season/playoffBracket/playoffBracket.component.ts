@@ -2,7 +2,6 @@ import { Component, signal, ChangeDetectionStrategy, inject, DestroyRef, PLATFOR
 import { isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Config, MatchWithMetadata, ViewerData } from 'brackets-viewer';
-import { HttpClient } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -14,6 +13,7 @@ import { Locale } from 'brackets-viewer/dist/lang';
 import { loadBracketsViewer } from '../../shared/loadBracketsViewer';
 import type { SeasonChampionDto } from '@api/models';
 import { whileCurrent } from '../../shared/whileCurrent';
+import { BracketsService } from '@api/services/brackets.service';
 
 @Component({
     selector: 'app-playoff-bracket',
@@ -28,7 +28,7 @@ import { whileCurrent } from '../../shared/whileCurrent';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PlayoffBracketComponent {
-  private http = inject(HttpClient);
+  private brackets = inject(BracketsService);
   private router = inject(Router);
   private dialog = inject(MatDialog);
   private destroyRef = inject(DestroyRef);
@@ -75,11 +75,13 @@ export class PlayoffBracketComponent {
 
   getViewerData(): void {
     const seasonID = this.seasonID();
-    this.http.get<ViewerData>(`api/seasons/${seasonID}/bracket/viewer-data`)
+    this.brackets.getViewerData({ seasonID })
       .pipe(whileCurrent(seasonID, this.seasonID))
       .subscribe(
         {
-          next: r => this.render(r),
+          // The generated model's string enums (e.g. Status) are brackets-viewer's numeric ones at runtime: the server sends
+          // the same JSON either way, and the viewer only ever compares them to its own enum's values.
+          next: r => this.render(r as unknown as ViewerData),
           error: e => {
             // 404: the season does not exist, so there is no bracket to show.
             this.loaded.set(true);

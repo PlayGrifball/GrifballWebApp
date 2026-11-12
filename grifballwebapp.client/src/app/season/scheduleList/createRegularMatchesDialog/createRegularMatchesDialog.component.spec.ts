@@ -64,7 +64,7 @@ describe('CreateRegularMatchesDialogComponent', () => {
     component.bestOf = 3;
 
     (fixture.nativeElement as HTMLElement).querySelector('form')!.dispatchEvent(new Event('submit'));
-    http.expectOne({ method: 'POST', url: 'api/seasons/11/matches/generate?homeMatchesPerTeam=2&bestOf=3' }).flush({});
+    http.expectOne({ method: 'POST', url: '/api/seasons/11/matches/generate?homeMatchesPerTeam=2&bestOf=3' }).flush({});
 
     expect(created).toHaveBeenCalled();
   });
@@ -75,7 +75,7 @@ describe('CreateRegularMatchesDialogComponent', () => {
     component.onSubmit();
 
     fixture.destroy(); // Esc / backdrop while the request is on its way
-    http.expectOne(r => /^api\/seasons\/\d+\/matches\/generate\?/.test(r.urlWithParams)).flush({});
+    http.expectOne(r => /^\/api\/seasons\/\d+\/matches\/generate\?/.test(r.urlWithParams)).flush({});
 
     expect(created).toHaveBeenCalledTimes(1);
   });
@@ -86,7 +86,7 @@ describe('CreateRegularMatchesDialogComponent', () => {
 
     component.onSubmit();
     component.onSubmit();
-    const [first, second] = http.match(r => /^api\/seasons\/\d+\/matches\/generate\?/.test(r.urlWithParams));
+    const [first, second] = http.match(r => /^\/api\/seasons\/\d+\/matches\/generate\?/.test(r.urlWithParams));
     first.flush({});
     expect(created).toHaveBeenCalledTimes(1);
     expect(dialogRef.close).toHaveBeenCalledWith(true);
@@ -101,7 +101,7 @@ describe('CreateRegularMatchesDialogComponent', () => {
     component.regularMatchesCreated.subscribe(created);
 
     component.onSubmit();
-    http.expectOne(r => /^api\/seasons\/\d+\/matches\/generate\?/.test(r.urlWithParams)).flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne(r => /^\/api\/seasons\/\d+\/matches\/generate\?/.test(r.urlWithParams)).flush('x', { status: 500, statusText: 'Server Error' });
 
     expect(created).not.toHaveBeenCalled();
     expect(snackBar.open).toHaveBeenCalledWith('Failed to create regular matches', 'Close');

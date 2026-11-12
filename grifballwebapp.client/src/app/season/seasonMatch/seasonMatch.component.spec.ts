@@ -11,7 +11,7 @@ import { Component, input, output, PLATFORM_ID, signal } from '@angular/core';
 import { ManualGamesComponent } from './manualGames/manualGames.component';
 import { AccountService } from '../../account.service';
 import { BracketInfoDto, ReportedGameDto, SeasonMatchPageDto } from './seasonMatchPageDto';
-import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
+import type { PossibleMatchDto, PossiblePlayerDto } from '@api/models';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../../shared/vodList/vodList.stub';
 import type { OnDemandJobStatusDto } from '@api/models';

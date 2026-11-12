@@ -3,7 +3,7 @@ import { PlayerGradesComponent } from './playerGrades.component';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { GradesDto, LetterDto } from './gradesDto';
+import type { GradesDto, LetterDto } from '@api/models';
 import { DecimalPipe } from '@angular/common';
 import { Observable, of, Subject, throwError } from 'rxjs';
 import { SeasonSummaryService } from '../seasonSummary';

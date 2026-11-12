@@ -7,8 +7,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { BracketsService } from '@api/services/brackets.service';
 
 @Component({
     selector: 'app-create-bracket-dialog',
@@ -27,7 +27,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CreateBracketDialogComponent {
-  private http = inject(HttpClient);
+  private brackets = inject(BracketsService);
   data = inject(MAT_DIALOG_DATA);
   private snackBar = inject(MatSnackBar);
   private dialogRef = inject(MatDialogRef);
@@ -44,11 +44,12 @@ export class CreateBracketDialogComponent {
   readonly bracketCreated = new Subject<void>();
 
   onSubmit() {
-    const params = new HttpParams()
-      .set('participantsCount', this.participantsCount!)
-      .set('doubleElimination', this.doubleElimination)
-      .set('bestOf', this.bestOf!);
-    this.http.post(`api/seasons/${this.seasonID}/bracket`, null, { params })
+    this.brackets.createBracket({
+      seasonID: this.seasonID,
+      participantsCount: this.participantsCount!,
+      doubleElimination: this.doubleElimination,
+      bestOf: this.bestOf!,
+    })
       .subscribe({
         next: r => {
           this.bracketCreated.next();

@@ -3,8 +3,8 @@ import { Component, ChangeDetectionStrategy, computed, effect, inject, input, si
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { RouterModule } from '@angular/router';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { UnscheduledMatchDto } from './unscheduledMatchDto';
+import { HttpErrorResponse } from '@angular/common/http';
+import type { ScheduleRecommendationMatchDto, ScheduleRecommendationPageDto, UnscheduledMatchDto, UpdateMatchTimeDto as UpdateMatchTimeRequest } from '@api/models';
 import { MatDividerModule } from '@angular/material/divider';
 import { AccountService } from '../../account.service';
 import { ErrorMessageComponent } from "../../validation/errorMessage.component";
@@ -19,7 +19,6 @@ import { DateTime } from 'luxon';
 import { TimeDto } from './timeDto';
 import { groupBy, map, orderBy } from 'lodash-es';
 import { map as mapResponse, Subscription, switchMap, takeWhile, timer } from 'rxjs';
-import type { ScheduleRecommendationMatchDto, ScheduleRecommendationPageDto } from './scheduleRecommendationDto';
 import { errorText } from '../../shared/errorText';
 import { WeekDto, WeekGameDto } from './weekDto';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
@@ -28,6 +27,8 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ToDatePipe } from '../../shared/toDate.pipe';
 import { provideDatePickers } from '../../shared/datePickers';
 import { whileCurrent } from '../../shared/whileCurrent';
+import { MatchPlannerService } from '@api/services/match-planner.service';
+import { SchedulerService } from '@api/services/scheduler.service';
 
 /** How often a queued or running schedule recommendation is looked at again. */
 export const RECOMMEND_POLL_MS = 3000;
@@ -64,7 +65,8 @@ export function conflictText(match: ScheduleRecommendationMatchDto): string {
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ScheduleListComponent {
-  private http = inject(HttpClient);
+  private matchPlanner = inject(MatchPlannerService);
+  private scheduler = inject(SchedulerService);
   accountService = inject(AccountService);
   private dialog = inject(MatDialog);
   private destroyRef = inject(DestroyRef);
@@ -131,7 +133,7 @@ export class ScheduleListComponent {
 
   GetUnscheduledMatches(): void {
     const seasonID = this.seasonID();
-    this.http.get<UnscheduledMatchDto[]>(`/api/seasons/${seasonID}/matches/unscheduled`)
+    this.matchPlanner.getUnscheduledMatches({ seasonID })
     .pipe(whileCurrent(seasonID, this.seasonID))
     .subscribe({
       next: r => {
@@ -144,7 +146,7 @@ export class ScheduleListComponent {
 
   GetScheduledMatches(): void {
     const seasonID = this.seasonID();
-    this.http.get<unknown[]>(`/api/seasons/${seasonID}/matches/scheduled`)
+    this.matchPlanner.getScheduledMatches({ seasonID })
     .pipe(whileCurrent(seasonID, this.seasonID), mapResponse(matches => matches.map(parseScheduledMatch)))
     .subscribe({
       next: r => {
@@ -214,7 +216,7 @@ export class ScheduleListComponent {
   /** The latest recommendation and where its run is; one queued or running is watched until it's done. */
   loadRecommendation(): void {
     const seasonID = this.seasonID();
-    this.http.get<ScheduleRecommendationPageDto>(`/api/seasons/${seasonID}/schedule-recommendation`)
+    this.scheduler.getScheduleRecommendation({ seasonID })
       .pipe(whileCurrent(seasonID, this.seasonID), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: page => this.showRecommendation(page),
@@ -227,7 +229,7 @@ export class ScheduleListComponent {
     this.recommendationError.set(null);
     this.confirmingApply.set(false);
     const seasonID = this.seasonID();
-    this.http.post(`/api/seasons/${seasonID}/schedule-recommendation/run`, null)
+    this.scheduler.recommendSchedule({ seasonID })
       .pipe(whileCurrent(seasonID, this.seasonID), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.loadRecommendation(),
@@ -241,7 +243,7 @@ export class ScheduleListComponent {
     if (!latest)
       return;
     this.confirmingApply.set(false);
-    this.http.post(`/api/schedule-recommendations/${latest.scheduleRecommendationID}/apply`, null)
+    this.scheduler.applyScheduleRecommendation({ recommendationID: latest.scheduleRecommendationID })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
@@ -258,7 +260,7 @@ export class ScheduleListComponent {
       return;
     this.recommendationWatch?.unsubscribe();
     this.recommendationWatch = timer(RECOMMEND_POLL_MS, RECOMMEND_POLL_MS).pipe(
-      switchMap(() => this.http.get<ScheduleRecommendationPageDto>(`/api/seasons/${this.seasonID()}/schedule-recommendation`)),
+      switchMap(() => this.scheduler.getScheduleRecommendation({ seasonID: this.seasonID() })),
       takeWhile(next => next.run.state !== 'Idle', true),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({
@@ -271,7 +273,8 @@ export class ScheduleListComponent {
   onSubmit(match: UnscheduledMatchDto | WeekGameDto, time: DateTime | '' | null | undefined): void {
     // An empty picker gives '', which the server's DateTime? cannot bind: send null (no time).
     const dto: UpdateMatchTimeDto = { seasonMatchID: match.seasonMatchID, time: time || null };
-    this.http.post(`/api/season-matches/${dto.seasonMatchID}/time`, dto)
+    // dto's time is a Luxon DateTime (or null), which serializes to the API's ISO string (DateTime.toJSON).
+    this.matchPlanner.updateMatchTime({ seasonMatchID: dto.seasonMatchID, body: dto as unknown as UpdateMatchTimeRequest })
     .subscribe({
       next: r => this.GetMatches(),
       error: e => this.GetMatches()
