@@ -14,7 +14,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 namespace GrifballWebApp.Migrations.Test;
 
 /// <summary>
-/// GrifballWebApp.Infrastructure.Test's SqliteHistoryTests' tests that scaffold a migration
+/// SqliteHistoryTests' tests that scaffold a migration
 /// (SqliteHistoryMigrationsModelDiffer, its triggers, and dotnet ef's own design-time services): the migrations
 /// assembly (GrifballWebApp.Migrations.Sqlite) loaded, on a migrated SQLite temp file of the test's own.
 /// </summary>
