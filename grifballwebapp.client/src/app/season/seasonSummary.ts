@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { finalize, Observable, share } from 'rxjs';
 import { ApiClientService } from '../api/apiClient.service';
-import type { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
+import { SeasonSummaryDto } from '@api/models';
 
 /**
  * Season summaries. Nothing is kept between pages, so a page always shows the season as it is now (after a result is

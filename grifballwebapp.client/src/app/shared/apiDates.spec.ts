@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { DateTime } from 'luxon';
 import { fromApiDate, fromRequiredApiDate, toApiDate } from './apiDates';
 import { ToDatePipe } from './toDate.pipe';
-import { parseSeason } from '../api/dtos/seasonDto';
+import { parseSeason } from '../api/seasonSettings';
 import { parseUser } from '../userManagement/userResponseDto';
 import { parseScheduledMatch } from '../season/scheduleList/scheduledMatchDto';
 import { parseSeasonMatchPage } from '../season/seasonMatch/seasonMatchPageDto';

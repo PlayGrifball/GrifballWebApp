@@ -1,13 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
 import { ApiClientService } from '../api/apiClient.service';
-import { SignupResponseDto } from '../api/dtos/signupResponseDto';
+import type { SignupResponseDto } from '@api/models';
 import { RouterLink } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../season/seasonTabs/seasonTabs.component';
 import { DataNoticeComponent } from '../shared/dataNotice/dataNotice.component';
 import { missing, SeasonSummaryService } from '../season/seasonSummary';
-import type { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
+import { SeasonSummaryDto } from '@api/models';
 import { whileCurrent } from '../shared/whileCurrent';
 
 @Component({

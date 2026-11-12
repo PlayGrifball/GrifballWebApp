@@ -2,7 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { ApiClientService } from '../../api/apiClient.service';
-import { isVideoID, vodDuration, type VodDto } from '../../api/dtos/vodDto';
+import { isVideoID, vodDuration } from '../../api/vods';
+import type { VodDto } from '@api/models';
 import { EMBED_ORIGIN, VodListComponent } from './vodList.component';
 
 const vod = (overrides: Partial<VodDto> = {}): VodDto => ({

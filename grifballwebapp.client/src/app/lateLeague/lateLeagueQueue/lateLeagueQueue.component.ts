@@ -6,7 +6,7 @@ import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { AuthSession } from '../../authSession.service';
 import { hubLifecycle } from '../../api/hubLifecycle';
-import type { QueueStatusDto } from '../../api/dtos/queueStatusDto';
+import { QueueStatusDto } from '@api/models';
 import { errorText } from '../../shared/errorText';
 
 /** The queue's hub (QueueHub): it sends the queue's size whenever it changes. */

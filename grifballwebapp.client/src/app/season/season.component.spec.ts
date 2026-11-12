@@ -13,8 +13,8 @@ import { SeasonThisWeekComponent } from './seasonThisWeek/seasonThisWeek.compone
 import { input, output } from '@angular/core';
 import { SeasonEvent } from '../shared/seasonEvents';
 import { SeasonSummaryService } from './seasonSummary';
-import { SeasonChampionDto, SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
-import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
+import type { SeasonChampionDto, SeasonSummaryDto } from '@api/models';
+import { seasonInfo } from '../api/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../shared/vodList/vodList.stub';

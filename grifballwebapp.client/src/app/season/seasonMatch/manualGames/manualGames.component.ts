@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { DateTime } from 'luxon';
 import { ApiClientService } from '../../../api/apiClient.service';
-import { GameVersionDto } from '../../../api/dtos/optionDtos';
+import type { GameVersionOptionDto } from '@api/models';
 import { errorText } from '../../../shared/errorText';
 import { PlayerDto } from '../../team/team.component';
 import { ManualGameRequestDto, ReportedGameDto, SeasonMatchGameParticipantDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
@@ -132,7 +132,7 @@ export class ManualGamesComponent {
   /** A game was added, changed or deleted: the page reloads the match. */
   readonly changed = output<void>();
 
-  readonly gameVersions = signal<GameVersionDto[]>([]);
+  readonly gameVersions = signal<GameVersionOptionDto[]>([]);
 
   /** What manual entry is doing (see {@link ManualGamesMode}). Changed only by the methods below. */
   private readonly _mode = signal<ManualGamesMode>(IDLE);

@@ -14,7 +14,7 @@ import { BracketInfoDto, ReportedGameDto, SeasonMatchPageDto } from './seasonMat
 import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../../shared/vodList/vodList.stub';
-import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
+import { OnDemandJobStatusDto } from '@api/models';
 
 /** Manual entry is tested on its own (manualGames.component.spec.ts): here a stub, which asks for nothing. */
 @Component({ selector: 'app-manual-games', template: '' })

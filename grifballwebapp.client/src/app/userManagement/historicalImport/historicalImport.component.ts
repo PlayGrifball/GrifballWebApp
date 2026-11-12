@@ -6,9 +6,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { EMPTY, expand, Observable, switchMap, timer } from 'rxjs';
 import { ApiClientService } from '../../api/apiClient.service';
-import type {
-  HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueuedDto, HistoricalSeasonReviewDto, HistoricalSourceDto,
-} from '../../api/dtos/historicalImportDto';
+import { HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueued, HistoricalSeasonReviewDto, HistoricalSourceDto } from '@api/models';
 import { problemText } from '../../shared/errorText';
 import { VodReviewComponent } from './vodReview/vodReview.component';
 
@@ -132,7 +130,7 @@ export class HistoricalImportComponent {
   }
 
   /** Queues a job and shows it. */
-  private queue(action: Observable<HistoricalImportQueuedDto>, failed: string): void {
+  private queue(action: Observable<HistoricalImportQueued>, failed: string): void {
     this.run(action, failed, queued => {
       this.jobs.reload();
       this.show(queued.jobID);

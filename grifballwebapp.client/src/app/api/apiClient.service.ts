@@ -1,42 +1,42 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, Observable, switchMap } from 'rxjs';
-import type { SeasonDto } from './dtos/seasonDto';
-import { SignupResponseDto, TimeslotDto } from './dtos/signupResponseDto';
-import { SignupRequestDto } from './dtos/signupRequestDto';
-import { TeamResponseDto } from './dtos/teamResponseDto';
-import { PlayerDto } from './dtos/playerDto';
-import { CaptainAddedResponseDto, CaptainPlacementDto, RemoveCaptainDto } from './dtos/captainPlacementDto';
-import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamRequestDto';
-import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
-import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
+import { SeasonSettings } from './seasonSettings';
+import type { SignupResponseDto, SignupsTimeslotDto } from '@api/models';
+import type { SignupRequestDto } from '@api/models';
+import type { TeamResponseDto } from '@api/models';
+import type { TeamsPlayerDto } from '@api/models';
+import type { CaptainAddedResponseDto, CaptainPlacementDto, RemoveCaptainDto } from '@api/models';
+import type { RemovePlayerFromTeamRequestDto } from '@api/models';
+import type { MovePlayerToTeamRequestDto } from '@api/models';
+import type { AddPlayerToTeamRequestDto } from '@api/models';
 import { SeasonEvent } from '../shared/seasonEvents';
-import type { GameVersionDto, LeagueDto } from './dtos/optionDtos';
-import { seasonSummaryUrl, type SeasonSummaryDto } from './dtos/seasonSummaryDto';
-import type { SeasonTeamDto } from './dtos/seasonTeamDto';
-import type { SeasonPlayerStatDto } from './dtos/seasonPlayerStatDto';
-import type { SeasonListFilter, SeasonListItemDto } from './dtos/seasonListItemDto';
-import type { LeaderboardsDto } from './dtos/leaderboardsDto';
-import type { QuickSearchDto, QuickSearchPlayerDto } from './dtos/quickSearchDto';
-import type { MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeasonDto } from './dtos/lateLeagueDto';
-import type { PlayerAllTimeRankDto } from './dtos/playerAllTimeRankDto';
-import type { SeasonFormat } from './dtos/seasonFormat';
-import type { LogsDto, LogsQuery, MetricsDto, TelemetryStatusDto, TraceDto, TracesQuery, TraceSummaryDto } from './dtos/telemetryDto';
-import type {
-  AddGamertagHistoryDto, ClaimPreviewDto, DuplicateSuggestionDto, GamertagClaimDto, GamertagClaimStatus, PastGamertagsDto,
-  SubmitGamertagClaimDto, XuidLookupStatusDto,
-} from './dtos/gamertagClaimDto';
-import type { UserMergeDto } from './dtos/userMergeDto';
-import type {
-  HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueuedDto, HistoricalImportScheduleDto, HistoricalSourceDto,
-} from './dtos/historicalImportDto';
-import type { JobKeyDto, JobRunDto, JobsOverviewDto } from './dtos/jobsDto';
+import { GameVersionOptionDto, LeagueOptionDto } from '@api/models';
+import { seasonSummaryUrl } from './seasons';
+import type { SeasonSummaryDto } from '@api/models';
+import { SeasonTeamDto } from '@api/models';
+import { SeasonPlayerStatDto } from '@api/models';
+import { SeasonListFilter } from './seasons';
+import { SeasonListItemDto } from '@api/models';
+import { LeaderboardsDto } from '@api/models';
+import { QuickSearchDto, QuickSearchPlayerDto } from '@api/models';
+import { MatchmakingQueueDto, MatchmakingSeasonDetailDto, MatchmakingSeasonDto } from '@api/models';
+import { PlayerAllTimeRankDto } from '@api/models';
+import { SeasonFormat } from '@api/models';
+import { LogsDto, MetricsDto, TelemetryStatusDto, TraceDto, TraceSummaryDto } from '@api/models';
+import { LogsQuery, TracesQuery } from './telemetryQueries';
+import { AddGamertagHistoryRequest, ClaimPreviewDto, DuplicateSuggestionDto, GamertagClaimDto, GamertagClaimStatus, PastGamertagsDto, SubmitGamertagClaimRequest, XuidLookupStatusDto } from '@api/models';
+import { UserMergeDto } from '@api/models';
+import { HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueued, HistoricalImportScheduleDto, HistoricalSourceDto } from '@api/models';
+import { JobKey } from './jobs';
+import { JobRunDto, JobsOverviewDto } from '@api/models';
 import type { PaginationResult } from '../shared/paginationResult';
-import type { LinkVodRequest, VodDto, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto, VodScope } from './dtos/vodDto';
+import { LinkVodRequest, VodDto, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto } from '@api/models';
+import { VodScope } from './vods';
 import { nullWhenNotFound } from './nullWhenNotFound';
 
 /** A job's resource: its group and name, each a path segment. */
-const jobPath = (job: JobKeyDto) => `/api/jobs/${encodeURIComponent(job.group)}/${encodeURIComponent(job.name)}`;
+const jobPath = (job: JobKey) => `/api/jobs/${encodeURIComponent(job.group)}/${encodeURIComponent(job.name)}`;
 
 /** The resource whose VODs each page shows. */
 const VOD_OWNERS: Record<VodScope, string> = { seasonMatch: 'season-matches', season: 'seasons', team: 'teams', player: 'users' };
@@ -55,33 +55,33 @@ export class ApiClientService {
 
   // A season's dates are Luxon DateTimes, and Luxon is only loaded with the pages that need it
   // (season editing), not with the app: the parser is imported when a season arrives.
-  getSeasons(): Observable<SeasonDto[]> {
+  getSeasons(): Observable<SeasonSettings[]> {
     return this.http.get<unknown[]>('/api/seasons/settings')
-      // A list never holds nulls (List<SeasonDto> on the server).
+      // A list never holds nulls (List<SeasonSettings> on the server).
       .pipe(switchMap(async seasons => {
-        const { parseSeason } = await import('./dtos/seasonDto');
+        const { parseSeason } = await import('./seasonSettings');
         return seasons.map(season => parseSeason(season)!);
       }));
   }
 
   /** Null when there is no such season (404). */
-  getSeason(seasonID: number): Observable<SeasonDto | null> {
+  getSeason(seasonID: number): Observable<SeasonSettings | null> {
     return this.http.get<unknown>(`/api/seasons/${seasonID}/settings`)
-      .pipe(nullWhenNotFound(), switchMap(async season => (await import('./dtos/seasonDto')).parseSeason(season)));
+      .pipe(nullWhenNotFound(), switchMap(async season => (await import('./seasonSettings')).parseSeason(season)));
   }
 
-  upsertSeason(seasonDto: SeasonDto): Observable<number> {
+  upsertSeason(seasonDto: SeasonSettings): Observable<number> {
     return this.http.post<number>('/api/seasons/settings', seasonDto);
   }
 
   /** The games a season can be played in, for the season editor. */
-  getGameVersions(): Observable<GameVersionDto[]> {
-    return this.http.get<GameVersionDto[]>('/api/game-versions');
+  getGameVersions(): Observable<GameVersionOptionDto[]> {
+    return this.http.get<GameVersionOptionDto[]>('/api/game-versions');
   }
 
   /** The leagues a season can belong to, for the season editor. */
-  getLeagues(): Observable<LeagueDto[]> {
-    return this.http.get<LeagueDto[]>('/api/leagues');
+  getLeagues(): Observable<LeagueOptionDto[]> {
+    return this.http.get<LeagueOptionDto[]>('/api/leagues');
   }
 
   /** A season's header, champions and how much of each kind of data it has. */
@@ -199,7 +199,7 @@ export class ApiClientService {
   }
 
   /** Claims a past gamertag for the signed-in user; a refusal is a 400 with a ProblemDetails body. */
-  claimGamertag(dto: SubmitGamertagClaimDto): Observable<GamertagClaimDto> {
+  claimGamertag(dto: SubmitGamertagClaimRequest): Observable<GamertagClaimDto> {
     return this.http.post<GamertagClaimDto>('/api/me/gamertag-claims', dto);
   }
 
@@ -214,7 +214,7 @@ export class ApiClientService {
   }
 
   /** Records a gamertag an Xbox account went by. */
-  addGamertagHistory(dto: AddGamertagHistoryDto): Observable<void> {
+  addGamertagHistory(dto: AddGamertagHistoryRequest): Observable<void> {
     return this.http.post<void>('/api/past-gamertags', dto);
   }
 
@@ -239,23 +239,23 @@ export class ApiClientService {
   }
 
   /** Queues a download of every enabled source (no import). */
-  refreshHistoricalSources(): Observable<HistoricalImportQueuedDto> {
-    return this.http.post<HistoricalImportQueuedDto>('/api/historical-sources/refresh', null);
+  refreshHistoricalSources(): Observable<HistoricalImportQueued> {
+    return this.http.post<HistoricalImportQueued>('/api/historical-sources/refresh', null);
   }
 
   /** Queues a dry run of the import: its job lists what each season would lose. */
-  previewHistoricalImport(): Observable<HistoricalImportQueuedDto> {
-    return this.http.post<HistoricalImportQueuedDto>('/api/historical-imports/preview', null);
+  previewHistoricalImport(): Observable<HistoricalImportQueued> {
+    return this.http.post<HistoricalImportQueued>('/api/historical-imports/preview', null);
   }
 
   /** Queues the import of what a finished preview read. */
-  applyHistoricalImportPreview(jobID: number): Observable<HistoricalImportQueuedDto> {
-    return this.http.post<HistoricalImportQueuedDto>(`/api/historical-imports/${jobID}/apply`, null);
+  applyHistoricalImportPreview(jobID: number): Observable<HistoricalImportQueued> {
+    return this.http.post<HistoricalImportQueued>(`/api/historical-imports/${jobID}/apply`, null);
   }
 
   /** Imports a season the guardrail stopped. */
-  approveHistoricalSeasonReview(reviewID: number): Observable<HistoricalImportQueuedDto> {
-    return this.http.post<HistoricalImportQueuedDto>(`/api/historical-reviews/${reviewID}/approve`, null);
+  approveHistoricalSeasonReview(reviewID: number): Observable<HistoricalImportQueued> {
+    return this.http.post<HistoricalImportQueued>(`/api/historical-reviews/${reviewID}/approve`, null);
   }
 
   /** Leaves a season the guardrail stopped as it is. */
@@ -288,26 +288,26 @@ export class ApiClientService {
   }
 
   /** A job's latest runs, newest first. */
-  getJobHistory(job: JobKeyDto, take = 50): Observable<JobRunDto[]> {
+  getJobHistory(job: JobKey, take = 50): Observable<JobRunDto[]> {
     return this.http.get<JobRunDto[]>(`${jobPath(job)}/runs`, { params: new HttpParams().set('take', take) });
   }
 
   /** Runs a job now, on the worker. */
-  runJob(job: JobKeyDto): Observable<void> {
+  runJob(job: JobKey): Observable<void> {
     return this.http.post<void>(`${jobPath(job)}/run`, null);
   }
 
-  setJobPaused(job: JobKeyDto, paused: boolean): Observable<void> {
+  setJobPaused(job: JobKey, paused: boolean): Observable<void> {
     return this.http.post<void>(`${jobPath(job)}/paused`, { paused });
   }
 
   /** A recurring job runs every intervalSeconds from now on. */
-  setJobInterval(job: JobKeyDto, intervalSeconds: number): Observable<void> {
+  setJobInterval(job: JobKey, intervalSeconds: number): Observable<void> {
     return this.http.post<void>(`${jobPath(job)}/interval`, { intervalSeconds });
   }
 
   /** A recurring job back on its default schedule. */
-  resetJobSchedule(job: JobKeyDto): Observable<void> {
+  resetJobSchedule(job: JobKey): Observable<void> {
     return this.http.post<void>(`${jobPath(job)}/schedule/reset`, null);
   }
 
@@ -412,10 +412,10 @@ export class ApiClientService {
     return this.http.get<SignupResponseDto[]>(`/api/seasons/${seasonID}/signups`);
   }
 
-  getTimeslots(seasonID: number, offset: number): Observable<TimeslotDto[]> {
+  getTimeslots(seasonID: number, offset: number): Observable<SignupsTimeslotDto[]> {
     let path = `/api/seasons/${seasonID}/signups/mine/timeslots`;
     path += '?offset=' + offset;
-    return this.http.get<TimeslotDto[]>(path);
+    return this.http.get<SignupsTimeslotDto[]>(path);
   }
 
   /** The user's signup for the season, or null before they sign up. */
@@ -434,8 +434,8 @@ export class ApiClientService {
     return this.http.get<TeamResponseDto[]>(`/api/seasons/${seasonID}/draft/teams`);
   }
 
-  getPlayerPool(seasonID: number): Observable<PlayerDto[]> {
-    return this.http.get<PlayerDto[]>(`/api/seasons/${seasonID}/draft/player-pool`);
+  getPlayerPool(seasonID: number): Observable<TeamsPlayerDto[]> {
+    return this.http.get<TeamsPlayerDto[]>(`/api/seasons/${seasonID}/draft/player-pool`);
   }
 
   // The hub connection's id is null (or undefined/empty) until it has connected: send no header then.

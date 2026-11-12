@@ -7,7 +7,7 @@ import { GradesDto, LetterDto } from './gradesDto';
 import { DecimalPipe } from '@angular/common';
 import { Observable, of, Subject, throwError } from 'rxjs';
 import { SeasonSummaryService } from '../seasonSummary';
-import { SeasonSummaryDto } from '../../api/dtos/seasonSummaryDto';
+import type { SeasonSummaryDto } from '@api/models';
 
 describe('PlayerGradesComponent', () => {
   let component: PlayerGradesComponent;

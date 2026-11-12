@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatDialogRef } from '@angular/material/dialog';
 import { provideRouter, Router } from '@angular/router';
-import type { QuickSearchDto, QuickSearchPlayerDto } from '../api/dtos/quickSearchDto';
+import { QuickSearchDto, QuickSearchPlayerDto } from '@api/models';
 import { playerDetail } from './playerDetail';
 import { QUICK_SEARCH_DEBOUNCE_MS, QuickSearchComponent, toGroups } from './quickSearch.component';
 

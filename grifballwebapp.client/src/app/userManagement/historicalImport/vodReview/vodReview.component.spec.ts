@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { of, Subject, throwError } from 'rxjs';
 import { ApiClientService } from '../../../api/apiClient.service';
-import type { VodReviewDto } from '../../../api/dtos/vodDto';
+import { VodReviewDto } from '@api/models';
 import { suggestion, VodReviewComponent } from './vodReview.component';
 
 function review(id: number, changes: Partial<VodReviewDto> = {}): VodReviewDto {

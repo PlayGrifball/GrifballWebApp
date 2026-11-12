@@ -2,8 +2,9 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { deploymentFinishLabel, type DeploymentHistoryDto } from '../../api/dtos/deploymentHistoryDto';
-import type { SeasonInfoDto } from '../../api/dtos/seasonInfoDto';
+import { deploymentFinishLabel } from '../../api/deploymentFinish';
+import type { DeploymentHistoryDto } from '@api/models';
+import { SeasonInfoDto } from '@api/models';
 import { DeploymentHistoryComponent } from './deploymentHistory.component';
 
 const season = (overrides: Partial<SeasonInfoDto> = {}): SeasonInfoDto => ({

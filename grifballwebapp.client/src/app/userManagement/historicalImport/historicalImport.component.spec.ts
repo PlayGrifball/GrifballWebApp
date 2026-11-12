@@ -6,9 +6,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Component } from '@angular/core';
 import { VodReviewComponent } from './vodReview/vodReview.component';
 import { HistoricalImportComponent, interval, isActive, JOB_POLL_MS, removalText, size } from './historicalImport.component';
-import type {
-  HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportReportDto, HistoricalImportScheduleDto, HistoricalSourceDto,
-} from '../../api/dtos/historicalImportDto';
+import { HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportReport, HistoricalImportScheduleDto, HistoricalSourceDto } from '@api/models';
 
 /** The VOD review (tested on its own): here only where it sits, without its requests. */
 @Component({ selector: 'app-vod-review', template: '' })
@@ -22,7 +20,7 @@ function source(id: string, changes: Partial<HistoricalSourceDto> = {}): Histori
   };
 }
 
-function report(changes: Partial<HistoricalImportReportDto> = {}): HistoricalImportReportDto {
+function report(changes: Partial<HistoricalImportReport> = {}): HistoricalImportReport {
   return {
     seasonsCreated: 0, seasonsUpdated: 2, teamsCreated: 0, teamsRemoved: 1, statsRemoved: 3, championshipsRemoved: 0, statsInserted: 0, statsUpdated: 10,
     recordedGamesImported: 4, recordedGamesRemoved: 0, championshipsInserted: 0, championshipsUpdated: 0, dummyUsersCreated: 0, waypointMatchesPulled: 0,

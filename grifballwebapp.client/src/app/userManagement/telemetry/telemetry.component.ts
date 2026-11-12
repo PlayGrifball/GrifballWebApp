@@ -4,7 +4,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal, ty
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { ApiClientService } from '../../api/apiClient.service';
-import { LOG_LEVELS, type LogEntryDto, type LogLevel, type SpanDto, type TraceDto } from '../../api/dtos/telemetryDto';
+import { LOG_LEVELS, type LogLevel } from '../../api/telemetryQueries';
+import type { LogEntryDto, SpanDto, TraceDto } from '@api/models';
 import { problemText } from '../../shared/errorText';
 import { formatValue, LineChartComponent } from './lineChart.component';
 

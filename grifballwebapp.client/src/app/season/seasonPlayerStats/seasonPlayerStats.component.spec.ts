@@ -3,7 +3,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats.component';
-import { SeasonPlayerStatDto } from '../../api/dtos/seasonPlayerStatDto';
+import type { SeasonPlayerStatDto } from '@api/models';
 
 function stat(id: number, gamertag: string, changes: Partial<SeasonPlayerStatDto> = {}): SeasonPlayerStatDto {
   return {

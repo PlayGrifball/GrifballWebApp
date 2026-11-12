@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output, si
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiClientService } from '../../api/apiClient.service';
-import type { ClaimPreviewDto, GamertagClaimDto } from '../../api/dtos/gamertagClaimDto';
+import { ClaimPreviewDto, GamertagClaimDto } from '@api/models';
 import { problemText } from '../../shared/errorText';
 import { REGIONS } from '../../shared/regions';
 import { SeasonLinksComponent } from '../../shared/seasonLinks/seasonLinks.component';

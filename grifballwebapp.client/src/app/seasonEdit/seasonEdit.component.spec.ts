@@ -5,7 +5,7 @@ import { DateTime } from 'luxon';
 import { of, Subject, throwError } from 'rxjs';
 import { SeasonEditComponent } from './seasonEdit.component';
 import { ApiClientService } from '../api/apiClient.service';
-import { SeasonDto } from '../api/dtos/seasonDto';
+import { SeasonSettings } from '../api/seasonSettings';
 
 describe('SeasonEditComponent', () => {
   let fixture: ComponentFixture<SeasonEditComponent>;
@@ -13,7 +13,7 @@ describe('SeasonEditComponent', () => {
   let api: jasmine.SpyObj<ApiClientService>;
 
   const t = DateTime.fromISO('2026-05-01T19:00:00');
-  const season = (overrides: Partial<SeasonDto> = {}): SeasonDto => Object.assign(new SeasonDto(), {
+  const season = (overrides: Partial<SeasonSettings> = {}): SeasonSettings => Object.assign(new SeasonSettings(), {
     seasonID: 4, seasonName: 'Season 4', gameVersionID: 6, leagueID: 1,
     signupsOpen: t, signupsClose: t, draftStart: t, seasonStart: t, seasonEnd: t,
     ...overrides
@@ -130,7 +130,7 @@ describe('SeasonEditComponent', () => {
   });
 
   it('fills the form once the season arrives, without a manual detectChanges', async () => {
-    const loaded = new Subject<SeasonDto>();
+    const loaded = new Subject<SeasonSettings>();
     api.getSeason.and.returnValue(loaded);
     await fixture.whenStable();
     expect(el().textContent).not.toContain('Edit Availability');
@@ -233,7 +233,7 @@ describe('SeasonEditComponent', () => {
   });
 
   it('empties the form for a new season, and drops the previous season when it arrives late', async () => {
-    const late = new Subject<SeasonDto>();
+    const late = new Subject<SeasonSettings>();
     api.getSeason.and.returnValue(late);
     await render();
 

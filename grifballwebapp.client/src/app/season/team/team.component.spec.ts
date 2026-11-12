@@ -7,7 +7,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { MatchDto, TeamComponent, TeamDto } from './team.component';
-import { seasonInfo } from '../../api/dtos/seasonInfoDto.stub';
+import { seasonInfo } from '../../api/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../../shared/vodList/vodList.stub';

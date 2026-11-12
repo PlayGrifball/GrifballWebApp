@@ -1,8 +1,9 @@
 import { DateTime } from "luxon";
-import { fromApiDate, fromRequiredApiDate } from "../../shared/apiDates";
-import type { SeasonFormat } from "./seasonFormat";
+import { fromApiDate, fromRequiredApiDate } from "../shared/apiDates";
+import type { SeasonFormat } from "@api/models";
 
-export class SeasonDto {
+/** A season's settings as the editor holds them: the API's SeasonDto, its dates as Luxon DateTimes. */
+export class SeasonSettings {
   seasonID: number = 0;
   seasonName: string = "";
   /** When the season is announced (Discord events channel); null: not yet, as a new season is. */
@@ -28,7 +29,7 @@ export class SeasonDto {
 }
 
 /** A season as the API sends it (dates as ISO strings), with real DateTimes; null (no such season) stays null. */
-export function parseSeason(raw: any): SeasonDto | null {
+export function parseSeason(raw: any): SeasonSettings | null {
   if (raw == null)
     return null;
   return {

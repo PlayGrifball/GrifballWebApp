@@ -2,7 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { deploymentFinishLabel, type DeploymentHistoryDto } from '../../api/dtos/deploymentHistoryDto';
+import { deploymentFinishLabel } from '../../api/deploymentFinish';
+import type { DeploymentHistoryDto } from '@api/models';
 
 /**
  * A profile's deployment history: each season the player played, newest first, with their team, whether they

@@ -1,4 +1,4 @@
-import type { SeasonInfoDto } from './seasonInfoDto';
+import type { SeasonInfoDto } from '@api/models';
 
 /** A season's facts for specs: an AGLA Halo Infinite season of 2025 played in the app, unless changed. */
 export function seasonInfo(seasonID: number, changes: Partial<SeasonInfoDto> = {}): SeasonInfoDto {

@@ -1,12 +1,12 @@
 import { Component, ChangeDetectionStrategy, computed, inject, model } from '@angular/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
-import { TimeslotDto } from '../../api/dtos/signupResponseDto';
+import type { SignupsTimeslotDto } from '@api/models';
 import { AvailabilityService } from '../../availability.service';
 import { FormsModule } from '@angular/forms';
 
 /** A grid cell: a copy of a timeslot (with its display time), a day-of-week header, or a filler. */
-export interface TimeslotCell extends TimeslotDto {
+export interface TimeslotCell extends SignupsTimeslotDto {
   isDisabled: boolean;
   isHeader: boolean;
 }
@@ -36,13 +36,13 @@ export class AvailabilityTableComponent {
   // must be treated as "no timeslots yet" rather than throwing.
   // The grid is built from new cell objects; the timeslots themselves are never mutated.
   // Ticking a box emits a new list (timeslotsChange) with the changed slots replaced.
-  readonly timeslots = model.required<TimeslotDto[] | null | undefined>();
+  readonly timeslots = model.required<SignupsTimeslotDto[] | null | undefined>();
 
   private readonly table = computed(() => this.buildTable(this.timeslots()));
   readonly timeColumns = computed(() => this.table().timeColumns);
   readonly dtos = computed(() => this.table().dtos);
 
-  private buildTable(value: TimeslotDto[] | null | undefined): { timeColumns: string[], dtos: TimeslotCell[][] } {
+  private buildTable(value: SignupsTimeslotDto[] | null | undefined): { timeColumns: string[], dtos: TimeslotCell[][] } {
     const timeslots = value ?? [];
     const uniqueDaysOfWeek = [...new Set(timeslots.map(item => item.dayOfWeek))];
 

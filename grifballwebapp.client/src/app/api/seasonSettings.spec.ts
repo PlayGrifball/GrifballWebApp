@@ -1,9 +1,9 @@
-import { SeasonDto } from './seasonDto';
+import { SeasonSettings } from './seasonSettings';
 import { DateTime } from 'luxon';
 
-describe('SeasonDto', () => {
+describe('SeasonSettings', () => {
   it('should create an instance with default values', () => {
-    const dto = new SeasonDto();
+    const dto = new SeasonSettings();
     
     expect(dto).toBeTruthy();
     expect(dto.seasonID).toBe(0);
@@ -19,7 +19,7 @@ describe('SeasonDto', () => {
   });
 
   it('should allow setting all numeric and string properties', () => {
-    const dto = new SeasonDto();
+    const dto = new SeasonSettings();
     dto.seasonID = 42;
     dto.seasonName = 'Spring 2024';
     dto.signupsCount = 100;
@@ -32,7 +32,7 @@ describe('SeasonDto', () => {
   });
 
   it('should allow setting DateTime properties', () => {
-    const dto = new SeasonDto();
+    const dto = new SeasonSettings();
     const now = DateTime.now();
     
     dto.signupsOpen = now;
@@ -49,7 +49,7 @@ describe('SeasonDto', () => {
   });
 
   it('should allow setting copy flags', () => {
-    const dto = new SeasonDto();
+    const dto = new SeasonSettings();
     dto.copyAvailability = true;
     dto.copySignups = true;
     dto.copyTeams = true;

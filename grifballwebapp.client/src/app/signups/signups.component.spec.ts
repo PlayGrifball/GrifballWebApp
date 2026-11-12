@@ -3,9 +3,9 @@ import { provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { SignupsComponent } from './signups.component';
 import { ApiClientService } from '../api/apiClient.service';
-import { SignupResponseDto } from '../api/dtos/signupResponseDto';
+import type { SignupResponseDto } from '@api/models';
 import { SeasonSummaryService } from '../season/seasonSummary';
-import { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
+import type { SeasonSummaryDto } from '@api/models';
 
 describe('SignupsComponent', () => {
   let fixture: ComponentFixture<SignupsComponent>;
@@ -14,7 +14,10 @@ describe('SignupsComponent', () => {
   let summary: Partial<SeasonSummaryDto>;
 
   const signup = (personName: string, overrides: Partial<SignupResponseDto> = {}): SignupResponseDto =>
-    Object.assign(new SignupResponseDto(), { personName, timestamp: '2026-01-07T19:00:00Z', teamName: `${personName}'s team`, ...overrides });
+    ({
+      seasonID: 0, userID: 0, personName, timestamp: '2026-01-07T19:00:00Z', teamName: `${personName}'s team`, willCaptain: false,
+      requiresAssistanceDrafting: false, region: null, timeslots: [], ...overrides,
+    });
 
   beforeEach(async () => {
     summary = { isHistorical: false, hasEnded: false, signupCount: 0 };

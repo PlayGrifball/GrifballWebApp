@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterModule } from '@angular/router';
-import type { SeasonInfoDto } from '../api/dtos/seasonInfoDto';
+import { SeasonInfoDto } from '@api/models';
 import type { PlayerDto } from '../season/team/team.component';
 import { nullWhenNotFound } from '../api/nullWhenNotFound';
 

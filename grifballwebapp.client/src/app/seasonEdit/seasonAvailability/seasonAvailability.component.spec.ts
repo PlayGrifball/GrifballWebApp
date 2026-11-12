@@ -6,7 +6,7 @@ import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter
 import { DateTime } from 'luxon';
 import { provideRouter } from '@angular/router';
 import { SeasonAvailabilityComponent } from './seasonAvailability.component';
-import { AvailabilityOption } from '../../api/dtos/availabilityOption';
+import { AvailabilityOption } from './seasonAvailability.component';
 
 describe('SeasonAvailabilityComponent', () => {
   let fixture: ComponentFixture<SeasonAvailabilityComponent>;

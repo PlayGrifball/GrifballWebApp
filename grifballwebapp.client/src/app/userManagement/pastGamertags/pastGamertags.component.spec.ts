@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { PastGamertagsComponent } from './pastGamertags.component';
-import type { PastGamertagsDto } from '../../api/dtos/gamertagClaimDto';
+import { PastGamertagsDto } from '@api/models';
 
 const pastGamertagsUrl = '/api/past-gamertags';
 

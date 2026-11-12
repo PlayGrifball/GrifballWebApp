@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@a
 import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { GamertagClaimsComponent, problemText } from './gamertagClaims.component';
-import { GamertagClaimDto } from '../../api/dtos/gamertagClaimDto';
+import type { GamertagClaimDto } from '@api/models';
 
 function claim(id: number, changes: Partial<GamertagClaimDto> = {}): GamertagClaimDto {
   return {

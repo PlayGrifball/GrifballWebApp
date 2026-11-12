@@ -5,7 +5,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { ApiClientService } from '../../api/apiClient.service';
-import type { AddGamertagHistoryDto, PastGamertagDto } from '../../api/dtos/gamertagClaimDto';
+import { AddGamertagHistoryRequest, PastGamertagDto } from '@api/models';
 import { SearchBoxComponent } from '../../shared/searchBox/searchBox.component';
 import { problemText } from '../../shared/errorText';
 
@@ -103,7 +103,7 @@ export class PastGamertagsComponent {
       return;
     this.adding.set(true);
     this.addError.set(null);
-    const dto: AddGamertagHistoryDto = {
+    const dto: AddGamertagHistoryRequest = {
       xboxUserID: account.xboxUserID,
       gamertag,
       firstSeen: toDayStart(this.newFirstSeen()),

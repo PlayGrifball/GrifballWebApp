@@ -15,7 +15,7 @@ import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { BackfilledBannerComponent, DataNoticeComponent } from '../../shared/dataNotice/dataNotice.component';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
-import type { SeasonInfoDto } from '../../api/dtos/seasonInfoDto';
+import { SeasonInfoDto } from '@api/models';
 @Component({
     selector: 'app-team',
     imports: [

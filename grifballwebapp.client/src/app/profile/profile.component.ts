@@ -1,4 +1,4 @@
-import type { MatchmakingPlayerStatDto } from '../api/dtos/lateLeagueDto';
+import { MatchmakingPlayerStatDto } from '@api/models';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, ChangeDetectionStrategy, inject, signal, computed, effect, input, numberAttribute, untracked } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
@@ -18,8 +18,8 @@ import { VodListComponent } from '../shared/vodList/vodList.component';
 import { ProfileCommendationsComponent } from './profileCommendations/profileCommendations.component';
 import { errorText } from '../shared/errorText';
 import { whileCurrent } from '../shared/whileCurrent';
-import type { SeasonInfoDto } from '../api/dtos/seasonInfoDto';
-import type { SeasonPlayerStatDto } from '../api/dtos/seasonPlayerStatDto';
+import { SeasonInfoDto } from '@api/models';
+import { SeasonPlayerStatDto } from '@api/models';
 import { nullWhenNotFound } from '../api/nullWhenNotFound';
 
 export interface PlayerChampionshipDto {

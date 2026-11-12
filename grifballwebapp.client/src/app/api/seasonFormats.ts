@@ -1,6 +1,4 @@
-/** What kind of competition a season is (the server's SeasonFormat, sent by name). Late League is not a season but
- *  matchmaking. */
-export type SeasonFormat = 'LeagueSeason' | 'Tournament';
+import type { SeasonFormat } from '@api/models';
 
 /** The formats in the order the editor and filters offer them, with their labels. */
 export const seasonFormats: { value: SeasonFormat; label: string }[] = [

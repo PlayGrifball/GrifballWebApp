@@ -5,7 +5,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { ApiClientService } from '../../api/apiClient.service';
-import type { UserMergeDto } from '../../api/dtos/userMergeDto';
+import { UserMergeDto } from '@api/models';
 import { problemText } from '../../shared/errorText';
 
 const PAGE_SIZE = 25;

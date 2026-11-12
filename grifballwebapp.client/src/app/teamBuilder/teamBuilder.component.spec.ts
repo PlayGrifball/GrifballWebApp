@@ -1,4 +1,4 @@
-import { CaptainAddedResponseDto } from '../api/dtos/captainPlacementDto';
+import type { CaptainAddedResponseDto } from '@api/models';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TeamBuilderComponent } from './teamBuilder.component';
 import { provideRouter } from '@angular/router';
@@ -8,9 +8,9 @@ import { AccountService } from '../account.service';
 import { SignalRService } from '../api/signalR.service';
 import { config as rxjsConfig, of, Subject, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
-import { TeamResponseDto } from '../api/dtos/teamResponseDto';
-import { PlayerDto } from '../api/dtos/playerDto';
-import { CaptainDto } from '../api/dtos/captainDto';
+import type { TeamResponseDto } from '@api/models';
+import type { TeamsPlayerDto } from '@api/models';
+import type { CaptainDto } from '@api/models';
 import { GrabbedThing } from './personStatus';
 import { DndDropEvent } from 'ngx-drag-drop';
 import { provideHttpClient } from '@angular/common/http';
@@ -214,7 +214,7 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('should load player pool successfully', () => {
-      const mockPlayers: PlayerDto[] = [
+      const mockPlayers: TeamsPlayerDto[] = [
         { name: 'Player 1', personID: 2, pick: null, round: null }
       ];
       mockApiClient.getPlayerPool.and.returnValue(of(mockPlayers));
@@ -371,7 +371,7 @@ describe('TeamBuilderComponent', () => {
 
   describe('MapToPlayer', () => {
     it('should map available player correctly', () => {
-      const playerDto: PlayerDto = { name: 'Test Player', personID: 1, pick: 5, round: 2 };
+      const playerDto: TeamsPlayerDto = { name: 'Test Player', personID: 1, pick: 5, round: 2 };
 
       const result = component.MapToPlayer(playerDto, GrabbedThing.AvailablePlayer);
 
@@ -390,7 +390,7 @@ describe('TeamBuilderComponent', () => {
 
   describe('MapToTeam', () => {
     it('should map available player to team', () => {
-      const player: PlayerDto = { name: 'Player', personID: 5, pick: null, round: null };
+      const player: TeamsPlayerDto = { name: 'Player', personID: 5, pick: null, round: null };
 
       const result = component.MapToTeam(player, GrabbedThing.AvailablePlayer);
 
@@ -422,7 +422,7 @@ describe('TeamBuilderComponent', () => {
 
   describe('onDragStart', () => {
     it('should set grabbed thing on drag start', () => {
-      const player: PlayerDto = { name: 'Player', personID: 1, pick: null, round: null };
+      const player: TeamsPlayerDto = { name: 'Player', personID: 1, pick: null, round: null };
       const event = new DragEvent('dragstart');
 
       component.onDragStart(player, event, GrabbedThing.AvailablePlayer);
@@ -434,7 +434,7 @@ describe('TeamBuilderComponent', () => {
 
   describe('createDraggedPlayer', () => {
     it('should create grabbed player object', () => {
-      const player: PlayerDto = { name: 'Player', personID: 1, pick: null, round: null };
+      const player: TeamsPlayerDto = { name: 'Player', personID: 1, pick: null, round: null };
       const team: TeamResponseDto = { teamID: 0, teamName: 'Team', captain: { name: 'Cap', personID: 2, order: 1 }, players: [] };
 
       const result = component.createDraggedPlayer(player, team);
@@ -449,7 +449,7 @@ describe('TeamBuilderComponent', () => {
     // hands over as a JSON copy, so the specs use copies too.
     const copy = <T>(x: T): T => JSON.parse(JSON.stringify(x));
     const cap = (id: number, order: number): CaptainDto => ({ name: 'Cap ' + id, personID: id, order });
-    const player = (id: number, round: number | null = null): PlayerDto => ({ name: 'Player ' + id, personID: id, pick: round, round });
+    const player = (id: number, round: number | null = null): TeamsPlayerDto => ({ name: 'Player ' + id, personID: id, pick: round, round });
     const drop = (data: unknown, index?: number) => ({ data: copy(data), dropEffect: 'move', index } as DndDropEvent);
     const teamNames = () => component.teams().map(t => `${t.captain.order}:${t.captain.personID}`);
     const roster = (captainID: number) => component.teams().find(t => t.captain.personID === captainID)!.players.map(p => `${p.round}:${p.personID}`);
@@ -972,7 +972,7 @@ describe('TeamBuilderComponent', () => {
     const SEASON = 5;
     const OTHER = 6;
     const cap = (id: number, order: number): CaptainDto => ({ name: 'Cap ' + id, personID: id, order });
-    const player = (id: number, round: number | null = null): PlayerDto => ({ name: 'Player ' + id, personID: id, pick: round, round });
+    const player = (id: number, round: number | null = null): TeamsPlayerDto => ({ name: 'Player ' + id, personID: id, pick: round, round });
 
     // The callback the component registered with the given SignalRService method.
     const handler = <T>(spy: jasmine.Spy) => spy.calls.mostRecent().args[0] as (dto: T) => void;
@@ -1027,7 +1027,7 @@ describe('TeamBuilderComponent', () => {
 
       // Out of sync: the page reloads instead (the mock returns fresh lists).
       mockApiClient.getTeams.and.returnValue(new Subject<TeamResponseDto[]>());
-      mockApiClient.getPlayerPool.and.returnValue(new Subject<PlayerDto[]>());
+      mockApiClient.getPlayerPool.and.returnValue(new Subject<TeamsPlayerDto[]>());
       handler<any>(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 99, personID: 1, roundNumber: 1 });
       expect(component.teams()).toBe(teams);
       expect(component.playerPool()).toBe(playerPool);
@@ -1144,7 +1144,7 @@ describe('TeamBuilderComponent', () => {
 
   describe('template rendering (@for)', () => {
     const cap = (n: number): CaptainDto => ({ name: 'Cap ' + n, personID: 100 + n, order: n });
-    const player = (id: number, round: number): PlayerDto => ({ name: 'Player ' + id, personID: id, pick: id, round: round });
+    const player = (id: number, round: number): TeamsPlayerDto => ({ name: 'Player ' + id, personID: id, pick: id, round: round });
 
     function teamCards(): HTMLElement[] {
       return Array.from(fixture.nativeElement.querySelectorAll('mat-card.item:not(.dndPlaceholder)'));
@@ -1208,7 +1208,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
   let mockSignalR: jasmine.SpyObj<SignalRService>;
 
   const captain = (personID: number, order: number): CaptainDto => ({ name: 'Cap ' + personID, personID, order });
-  const pooled = (personID: number): PlayerDto => ({ name: 'Player ' + personID, personID, pick: null, round: null });
+  const pooled = (personID: number): TeamsPlayerDto => ({ name: 'Player ' + personID, personID, pick: null, round: null });
 
   beforeEach(async () => {
     mockSignalR = jasmine.createSpyObj('SignalRService', [

@@ -5,12 +5,17 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormField, MatInputModule } from '@angular/material/input';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { DateTime } from 'luxon';
-import { AvailabilityOption } from '../../api/dtos/availabilityOption';
 import { MatSelectModule } from '@angular/material/select';
 import { HttpClient } from '@angular/common/http';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { provideDatePickers } from '../../shared/datePickers';
 import { RouterLink } from '@angular/router';
+
+
+export class AvailabilityOption {
+  dayOfWeek: string = '';
+  time: string = '';
+}
 
 @Component({
     selector: 'app-season-availability',

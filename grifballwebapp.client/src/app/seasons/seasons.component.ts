@@ -2,8 +2,9 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, injec
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ApiClientService } from '../api/apiClient.service';
-import type { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
-import { seasonFormatLabel, seasonFormats, type SeasonFormat } from '../api/dtos/seasonFormat';
+import { SeasonListItemDto } from '@api/models';
+import { seasonFormatLabel, seasonFormats } from '../api/seasonFormats';
+import type { SeasonFormat } from '@api/models';
 
 interface Option { id: number; name: string; }
 

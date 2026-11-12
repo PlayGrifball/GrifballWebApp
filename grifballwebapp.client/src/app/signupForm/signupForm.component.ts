@@ -6,7 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
-import { SignupRequestDto } from '../api/dtos/signupRequestDto';
+import type { SignupRequestDto } from '@api/models';
 import { RouterLink } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -18,6 +18,11 @@ import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 import { whileCurrent } from '../shared/whileCurrent';
 import { errorText } from '../shared/errorText';
 
+
+/** A signup with nothing filled in, for the season. */
+export function emptySignup(seasonID: number): SignupRequestDto {
+  return { seasonID, userID: 0, teamName: null, willCaptain: false, requiresAssistanceDrafting: false, timeslots: [] };
+}
 @Component({
     selector: 'app-signup-form',
     imports: [
@@ -60,9 +65,9 @@ export class SignupFormComponent {
 
 
   readonly signupForm = viewChild.required<NgForm>('signupForm');
-  // Initialised with the class defaults (timeslots: []) because the template binds
+  // Initialised with an empty signup (timeslots: []) because the template binds
   // model.timeslots on the first render, before getSignup has responded.
-  readonly model = signal(new SignupRequestDto());
+  readonly model = signal(emptySignup(0));
   /** The signup and its timeslots are in (or failed to load): the form is shown then, in one go,
    * so the availability table does not push the rest of the page down as it arrives. */
   readonly loaded = signal(false);
@@ -76,7 +81,7 @@ export class SignupFormComponent {
 
   private load(seasonID: number): void {
     // Nothing of the previous season's signup stays in the form
-    this.model.set(new SignupRequestDto());
+    this.model.set(emptySignup(0));
     this.seasonName.set(null);
     this.loaded.set(false);
 
@@ -90,9 +95,7 @@ export class SignupFormComponent {
           {
             if (result === null)
             {
-              const model = new SignupRequestDto();
-              model.seasonID = seasonID;
-              this.model.set(model);
+              this.model.set(emptySignup(seasonID));
               this.api.getTimeslots(seasonID, this.availabilityService.getDif()).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({
                 next: (r) => {
                   this.model.update(model => ({ ...model, timeslots: r }));

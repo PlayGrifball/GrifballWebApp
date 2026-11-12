@@ -4,15 +4,15 @@ import { MatListModule } from '@angular/material/list';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
-import { TeamResponseDto } from '../api/dtos/teamResponseDto';
-import { PlayerDto } from '../api/dtos/playerDto';
+import type { TeamResponseDto } from '@api/models';
+import type { TeamsPlayerDto } from '@api/models';
 import { DndDropEvent, DndModule } from 'ngx-drag-drop';
 import { catchError, finalize, forkJoin, map, Observable, of, Subject, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { GrabbedPlayer, GrabbedThing, GrabbedThingTypes } from './personStatus';
-import { CaptainDto } from '../api/dtos/captainDto';
-import { CaptainPlacementDto, RemoveCaptainDto } from '../api/dtos/captainPlacementDto';
+import type { CaptainDto } from '@api/models';
+import type { CaptainPlacementDto, RemoveCaptainDto } from '@api/models';
 import { AccountService } from '../account.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -55,7 +55,7 @@ export class TeamBuilderComponent implements OnInit {
   protected readonly shownSeasonID = signal(0);
   readonly captainLocked = signal(true);
   readonly teams = signal<TeamResponseDto[]>([]);
-  readonly playerPool = signal<PlayerDto[]>([]);
+  readonly playerPool = signal<TeamsPlayerDto[]>([]);
 
   private grabbedThing: GrabbedThing = GrabbedThing.AvailablePlayer;
 
@@ -330,10 +330,8 @@ export class TeamBuilderComponent implements OnInit {
       if (!next)
         return;
       const added = next.teams.find(t => t.captain.personID === player.personID)!;
-      const dto = new CaptainPlacementDto();
-      dto.seasonID = this.shownSeasonID();
-      dto.personID = added.captain.personID;
-      dto.orderNumber = added.captain.order!; // Order must not be null
+      // Order must not be null
+      const dto: CaptainPlacementDto = { seasonID: this.shownSeasonID(), personID: added.captain.personID, orderNumber: added.captain.order! };
       // The server names the team (the signup's team name, or "<display name>'s Team") and
       // answers with that name; the broadcast to others skips this connection.
       this.save(this.api.addCaptain(dto, this.signalR.hubConnection.connectionId),
@@ -347,17 +345,15 @@ export class TeamBuilderComponent implements OnInit {
       if (!next)
         return;
       const moved = next.teams.find(t => t.captain.personID === team.captain.personID)!;
-      const dto = new CaptainPlacementDto();
-      dto.seasonID = this.shownSeasonID();
-      dto.personID = moved.captain.personID;
-      dto.orderNumber = moved.captain.order!; // Order must not be null
+      // Order must not be null
+      const dto: CaptainPlacementDto = { seasonID: this.shownSeasonID(), personID: moved.captain.personID, orderNumber: moved.captain.order! };
       // Announce to backend that team has been resorted
       this.save(this.api.resortCaptain(dto, this.signalR.hubConnection.connectionId));
       console.log('Resorted captains ' + moved.captain.name + ' now has pick order ' + moved.captain.order);
     }
   }
 
-  createDraggedPlayer(player: PlayerDto, team: TeamResponseDto): GrabbedPlayer {
+  createDraggedPlayer(player: TeamsPlayerDto, team: TeamResponseDto): GrabbedPlayer {
     return {
       team: team,
       player: player,
@@ -453,9 +449,9 @@ export class TeamBuilderComponent implements OnInit {
   }
 
   /** The pool player a drag carries (drag data is a copy made by ngx-drag-drop). */
-  MapToPlayer(data: any, t: GrabbedThing): PlayerDto {
+  MapToPlayer(data: any, t: GrabbedThing): TeamsPlayerDto {
     if (t === GrabbedThing.AvailablePlayer) {
-      return { ...(data as PlayerDto), round: null, pick: null };
+      return { ...(data as TeamsPlayerDto), round: null, pick: null };
     } else {
       console.log(data);
       throw new Error('Unable to map to player');
@@ -465,7 +461,7 @@ export class TeamBuilderComponent implements OnInit {
   /** The team a drag carries, or the new team a pool player would captain. */
   MapToTeam(data: any, t: GrabbedThing): TeamResponseDto {
     if (t === GrabbedThing.AvailablePlayer) {
-      const player = data as PlayerDto;
+      const player = data as TeamsPlayerDto;
       return { teamID: 0, teamName: player.name + "'s Team", captain: { name: player.name, personID: player.personID, order: null }, players: [] };
     } else if (t === GrabbedThing.Team) {
       return data as TeamResponseDto;
@@ -511,7 +507,7 @@ export class TeamBuilderComponent implements OnInit {
     }
   }
 
-  DisableDraggingPlayerFromPool(playerDto: PlayerDto): boolean {
+  DisableDraggingPlayerFromPool(playerDto: TeamsPlayerDto): boolean {
     return false; // Should only be true if has EventManager, OR has Player role & is captain & is their turn to pick
   }
 

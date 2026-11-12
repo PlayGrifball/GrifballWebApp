@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { TeamHistoryComponent, TeamHistoryDto } from './teamHistory.component';
-import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
+import { seasonInfo } from '../api/seasonInfo.stub';
 
 describe('TeamHistoryComponent', () => {
   let fixture: ComponentFixture<TeamHistoryComponent>;

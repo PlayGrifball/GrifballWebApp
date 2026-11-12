@@ -4,7 +4,8 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { ApiClientService } from '../../api/apiClient.service';
-import { isVideoID, vodDuration, type VodDto, type VodScope } from '../../api/dtos/vodDto';
+import { isVideoID, vodDuration, type VodScope } from '../../api/vods';
+import type { VodDto } from '@api/models';
 
 /** The privacy-enhanced player: no YouTube cookies until the video plays. */
 export const EMBED_ORIGIN = 'https://www.youtube-nocookie.com';

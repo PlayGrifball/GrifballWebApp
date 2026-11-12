@@ -5,7 +5,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ProfileComponent, ProfileStatsDto } from './profile.component';
-import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
+import { seasonInfo } from '../api/seasonInfo.stub';
 import { AccountService } from '../account.service';
 import { Component } from '@angular/core';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';

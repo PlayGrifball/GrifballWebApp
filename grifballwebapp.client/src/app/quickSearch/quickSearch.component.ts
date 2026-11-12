@@ -5,7 +5,7 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
-import type { QuickSearchDto } from '../api/dtos/quickSearchDto';
+import { QuickSearchDto } from '@api/models';
 import { playerDetail } from './playerDetail';
 
 /** How long typing pauses before the search runs. */

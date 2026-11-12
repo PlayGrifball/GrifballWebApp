@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { ApiClientService } from '../../api/apiClient.service';
-import type { SeasonPlayerStatDto } from '../../api/dtos/seasonPlayerStatDto';
+import { SeasonPlayerStatDto } from '@api/models';
 
 export type StatPhase = 'all' | 'regular' | 'playoffs';
 /** The columns the leaderboard sorts by. */

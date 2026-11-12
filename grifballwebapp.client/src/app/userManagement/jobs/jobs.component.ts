@@ -6,7 +6,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { Observable, repeat } from 'rxjs';
 import { ApiClientService } from '../../api/apiClient.service';
-import type { JobDto, JobKeyDto, JobState } from '../../api/dtos/jobsDto';
+import { JobDto } from '@api/models';
+import { JobKey, JobState } from '../../api/jobs';
 import { problemText } from '../../shared/errorText';
 
 /** How often the jobs (and the chosen job's runs) are read again. */
@@ -77,7 +78,7 @@ export class JobsComponent {
   readonly nodes = computed(() => this.overview.hasValue() ? this.overview.value().nodes : []);
 
   /** The job whose runs and schedule are shown. */
-  readonly selectedKey = signal<JobKeyDto | null>(null);
+  readonly selectedKey = signal<JobKey | null>(null);
   readonly selected = computed<JobDto | null>(() => {
     const key = this.selectedKey();
     return key ? this.jobs().find(j => j.group === key.group && j.name === key.name) ?? null : null;

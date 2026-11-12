@@ -16,7 +16,7 @@ import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
 import { MatTableModule } from '@angular/material/table';
 import { AccountService } from '../../account.service';
 import { map, Subscription, switchMap, takeWhile, timer } from 'rxjs';
-import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
+import { OnDemandJobStatusDto } from '@api/models';
 import { nullWhenNotFound } from '../../api/nullWhenNotFound';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';

@@ -10,7 +10,7 @@ import { ToDatePipe } from '../shared/toDate.pipe';
 import { Column, Filter, TableComponent } from '../shared/table/table.component';
 import { SearchBoxComponent } from '../shared/searchBox/searchBox.component';
 import { AccountService } from '../account.service';
-import { GeneratePasswordResetLinkRequestDto } from '../api/dtos/passwordResetDtos';
+import type { GeneratePasswordResetLinkRequestDto } from '@api/models';
 import { errorText } from '../shared/errorText';
 
 @Component({

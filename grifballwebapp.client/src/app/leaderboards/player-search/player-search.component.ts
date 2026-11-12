@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, model, output, signal } fro
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, map, of, Subject, switchMap, timer } from 'rxjs';
 import { ApiClientService } from '../../api/apiClient.service';
-import type { QuickSearchPlayerDto } from '../../api/dtos/quickSearchDto';
+import { QuickSearchPlayerDto } from '@api/models';
 import { playerDetail } from '../../quickSearch/playerDetail';
 import { QUICK_SEARCH_MIN_LENGTH } from '../../quickSearch/quickSearch.component';
 

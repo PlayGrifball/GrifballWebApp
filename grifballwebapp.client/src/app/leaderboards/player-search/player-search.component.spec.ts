@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { onlyMatch, PlayerSearchComponent, sameIgnoringCase, SEARCH_DEBOUNCE_MS } from './player-search.component';
-import type { QuickSearchPlayerDto } from '../../api/dtos/quickSearchDto';
+import { QuickSearchPlayerDto } from '@api/models';
 
 describe('PlayerSearchComponent', () => {
   let fixture: ComponentFixture<PlayerSearchComponent>;

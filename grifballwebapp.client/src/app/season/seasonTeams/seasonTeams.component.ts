@@ -9,8 +9,8 @@ import { AccountService } from '../../account.service';
 import { SeasonSummaryService } from '../seasonSummary';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { BackfilledBannerComponent } from '../../shared/dataNotice/dataNotice.component';
-import type { SeasonSummaryDto } from '../../api/dtos/seasonSummaryDto';
-import type { SeasonTeamDto } from '../../api/dtos/seasonTeamDto';
+import { SeasonSummaryDto } from '@api/models';
+import { SeasonTeamDto } from '@api/models';
 
 @Component({
   selector: 'app-season-teams',

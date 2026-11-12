@@ -4,9 +4,9 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, ReplaySubject, take } from 'rxjs';
 import { MetaInfoResponse } from './accessTokenResponse';
-import { LoginDto } from './api/dtos/loginDto';
-import { RegisterDto } from './api/dtos/registerDto';
-import { GeneratePasswordResetLinkRequestDto, GeneratePasswordResetLinkResponseDto, UsePasswordResetLinkRequestDto } from './api/dtos/passwordResetDtos';
+import type { LoginDto } from '@api/models';
+import type { RegisterDto } from '@api/models';
+import type { GeneratePasswordResetLinkRequestDto, GeneratePasswordResetLinkResponseDto, UsePasswordResetLinkRequestDto } from '@api/models';
 import { AuthSession } from './authSession.service';
 import { Notifier } from './shared/notifier.service';
 

@@ -6,8 +6,8 @@ import { AccountService } from '../../account.service';
 import { SeasonSummaryService } from '../seasonSummary';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 import { signal, WritableSignal } from '@angular/core';
-import type { SeasonSummaryDto } from '../../api/dtos/seasonSummaryDto';
-import type { SeasonTeamDto } from '../../api/dtos/seasonTeamDto';
+import { SeasonSummaryDto } from '@api/models';
+import { SeasonTeamDto } from '@api/models';
 
 describe('SeasonTeamsComponent', () => {
   let fixture: ComponentFixture<SeasonTeamsComponent>;

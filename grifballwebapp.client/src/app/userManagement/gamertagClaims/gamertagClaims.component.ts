@@ -6,9 +6,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { ApiClientService } from '../../api/apiClient.service';
-import {
-  GAMERTAG_CLAIM_STATUSES, type DuplicateSuggestionDto, type GamertagClaimDto, type GamertagClaimKind, type GamertagClaimStatus,
-} from '../../api/dtos/gamertagClaimDto';
+import { GAMERTAG_CLAIM_STATUS } from '@api/models/gamertag-claim-status-array';
+import type { DuplicateSuggestionDto, GamertagClaimDto, GamertagClaimStatus } from '@api/models';
+import type { GamertagClaimKind } from '../../api/gamertagClaims';
 import { problemText } from '../../shared/errorText';
 import { SeasonLinksComponent } from '../../shared/seasonLinks/seasonLinks.component';
 
@@ -46,7 +46,7 @@ export class GamertagClaimsComponent {
   private api = inject(ApiClientService);
   private snackBar = inject(MatSnackBar);
 
-  readonly statuses = GAMERTAG_CLAIM_STATUSES;
+  readonly statuses = GAMERTAG_CLAIM_STATUS;
   readonly kindLabels = KIND_LABELS;
   readonly status = signal<GamertagClaimStatus>('Pending');
 

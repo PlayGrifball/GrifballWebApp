@@ -1,13 +1,13 @@
-import { PlayerDto } from '../api/dtos/playerDto';
-import { TeamResponseDto } from '../api/dtos/teamResponseDto';
+import type { TeamsPlayerDto } from '@api/models';
+import type { TeamResponseDto } from '@api/models';
 import {
   addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTeam, movePoolPlayer, renameTeam,
   removeCaptain, removePlayerFromTeam, resortCaptain,
 } from './draft';
 
 describe('team builder draft operations', () => {
-  const player = (id: number, round: number | null = null): PlayerDto => ({ name: 'P' + id, personID: id, pick: round, round });
-  const team = (captainID: number, order: number, players: PlayerDto[] = []): TeamResponseDto =>
+  const player = (id: number, round: number | null = null): TeamsPlayerDto => ({ name: 'P' + id, personID: id, pick: round, round });
+  const team = (captainID: number, order: number, players: TeamsPlayerDto[] = []): TeamResponseDto =>
     ({ teamID: captainID, teamName: 'T' + captainID, captain: { name: 'C' + captainID, personID: captainID, order }, players });
 
   let draft: Draft;

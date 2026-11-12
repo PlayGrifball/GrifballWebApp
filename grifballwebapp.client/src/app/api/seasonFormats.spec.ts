@@ -1,6 +1,6 @@
-import { seasonFormatLabel, seasonFormats } from './seasonFormat';
+import { seasonFormatLabel, seasonFormats } from './seasonFormats';
 
-describe('seasonFormat', () => {
+describe('seasonFormats', () => {
   it('labels each format, a missing one as a league season', () => {
     expect(seasonFormats.map(f => seasonFormatLabel(f.value))).toEqual(['League season', 'Tournament']);
     expect(seasonFormatLabel(null)).toBe('League season');

@@ -6,7 +6,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Observable } from 'rxjs';
 import { ApiClientService } from '../../../api/apiClient.service';
-import type { LinkVodRequest, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto } from '../../../api/dtos/vodDto';
+import { LinkVodRequest, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto } from '@api/models';
 import { problemText } from '../../../shared/errorText';
 
 /** What the matcher suggested for a VOD, "Spring League 2024 · Alpha, Bravo · its match", or null for nothing. */

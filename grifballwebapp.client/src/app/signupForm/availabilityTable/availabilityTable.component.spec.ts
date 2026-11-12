@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AvailabilityTableComponent } from './availabilityTable.component';
 import { AvailabilityService } from '../../availability.service';
-import { TimeslotDto } from '../../api/dtos/signupResponseDto';
+import type { SignupsTimeslotDto } from '@api/models';
 
 describe('AvailabilityTableComponent', () => {
   let component: AvailabilityTableComponent;
@@ -49,7 +49,7 @@ describe('AvailabilityTableComponent', () => {
     });
 
     it('should create time columns from timeslots', () => {
-      const timeslots: TimeslotDto[] = [
+      const timeslots: SignupsTimeslotDto[] = [
         { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
         { optionID: 2, dayOfWeek: 'Monday', time: '20:00:00', isChecked: false }
       ];
@@ -61,7 +61,7 @@ describe('AvailabilityTableComponent', () => {
     });
 
     it('should create rows for each unique day of week', () => {
-      const timeslots: TimeslotDto[] = [
+      const timeslots: SignupsTimeslotDto[] = [
         { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
         { optionID: 2, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false }
       ];
@@ -72,7 +72,7 @@ describe('AvailabilityTableComponent', () => {
     });
 
     it('should create header for each day of week', () => {
-      const timeslots: TimeslotDto[] = [
+      const timeslots: SignupsTimeslotDto[] = [
         { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }
       ];
 
@@ -84,7 +84,7 @@ describe('AvailabilityTableComponent', () => {
     });
 
     it('should create disabled cells for missing timeslots', () => {
-      const timeslots: TimeslotDto[] = [
+      const timeslots: SignupsTimeslotDto[] = [
         { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
         { optionID: 2, dayOfWeek: 'Monday', time: '20:00:00', isChecked: false },
         { optionID: 3, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false }
@@ -99,7 +99,7 @@ describe('AvailabilityTableComponent', () => {
     });
 
     it('should set isDisabled to false for valid timeslots', () => {
-      const timeslots: TimeslotDto[] = [
+      const timeslots: SignupsTimeslotDto[] = [
         { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }
       ];
 
@@ -110,7 +110,7 @@ describe('AvailabilityTableComponent', () => {
     });
 
     it('should parse time for all timeslots', () => {
-      const timeslots: TimeslotDto[] = [
+      const timeslots: SignupsTimeslotDto[] = [
         { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }
       ];
 
@@ -121,7 +121,7 @@ describe('AvailabilityTableComponent', () => {
     });
 
     it('should handle multiple days with multiple times', () => {
-      const timeslots: TimeslotDto[] = [
+      const timeslots: SignupsTimeslotDto[] = [
         { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
         { optionID: 2, dayOfWeek: 'Monday', time: '20:00:00', isChecked: false },
         { optionID: 3, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false },
@@ -138,7 +138,7 @@ describe('AvailabilityTableComponent', () => {
   describe('cost', () => {
     it('converts each distinct time once per build, however many days share it', () => {
       const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-      const timeslots: TimeslotDto[] = days.flatMap((dayOfWeek, d) => ['19:00:00', '20:00:00', '21:00:00']
+      const timeslots: SignupsTimeslotDto[] = days.flatMap((dayOfWeek, d) => ['19:00:00', '20:00:00', '21:00:00']
         .map((time, t) => ({ optionID: d * 10 + t + 1, dayOfWeek, time, isChecked: false })));
       mockAvailabilityService.parseTime.calls.reset();
 
@@ -152,7 +152,7 @@ describe('AvailabilityTableComponent', () => {
 
   describe('purity', () => {
     it('builds the same table again from the same timeslot objects, without changing them', () => {
-      const timeslots: TimeslotDto[] = [
+      const timeslots: SignupsTimeslotDto[] = [
         { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: true },
         { optionID: 2, dayOfWeek: 'Tuesday', time: '20:00:00', isChecked: false },
       ];
@@ -171,7 +171,7 @@ describe('AvailabilityTableComponent', () => {
 
   describe('getCell', () => {
     beforeEach(() => {
-      const timeslots: TimeslotDto[] = [
+      const timeslots: SignupsTimeslotDto[] = [
         { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }
       ];
       fixture.componentRef.setInput('timeslots', timeslots);
@@ -208,7 +208,7 @@ describe('AvailabilityTableComponent', () => {
   const checkedIds = () => (component.timeslots() ?? []).filter(t => t.isChecked).map(t => t.optionID);
 
   describe('dayOfWeekClicked', () => {
-    let timeslots: TimeslotDto[];
+    let timeslots: SignupsTimeslotDto[];
     beforeEach(() => {
       timeslots = [
         { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
@@ -251,7 +251,7 @@ describe('AvailabilityTableComponent', () => {
 
   describe('timeClicked', () => {
     beforeEach(() => {
-      const timeslots: TimeslotDto[] = [
+      const timeslots: SignupsTimeslotDto[] = [
         { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
         { optionID: 2, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false },
         { optionID: 3, dayOfWeek: 'Tuesday', time: '20:00:00', isChecked: false }
@@ -290,7 +290,7 @@ describe('AvailabilityTableComponent', () => {
 
   describe('integration tests', () => {
     it('should handle complex schedule with multiple days and times', () => {
-      const timeslots: TimeslotDto[] = [
+      const timeslots: SignupsTimeslotDto[] = [
         { optionID: 1, dayOfWeek: 'Monday', time: '18:00:00', isChecked: false },
         { optionID: 2, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
         { optionID: 3, dayOfWeek: 'Monday', time: '20:00:00', isChecked: false },
@@ -306,7 +306,7 @@ describe('AvailabilityTableComponent', () => {
     });
 
     it('should maintain checked state after re-setting timeslots', () => {
-      const timeslots: TimeslotDto[] = [
+      const timeslots: SignupsTimeslotDto[] = [
         { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: true }
       ];
 
@@ -316,7 +316,7 @@ describe('AvailabilityTableComponent', () => {
     });
 
     it('should handle empty day of week correctly', () => {
-      const timeslots: TimeslotDto[] = [
+      const timeslots: SignupsTimeslotDto[] = [
         { optionID: 1, dayOfWeek: '', time: '19:00:00', isChecked: false }
       ];
 
@@ -394,13 +394,13 @@ describe('AvailabilityTableComponent', () => {
 
   describe('missing timeslots', () => {
     it('treats undefined timeslots as empty instead of throwing', () => {
-      expect(() => fixture.componentRef.setInput('timeslots', undefined as unknown as TimeslotDto[])).not.toThrow();
+      expect(() => fixture.componentRef.setInput('timeslots', undefined as unknown as SignupsTimeslotDto[])).not.toThrow();
       expect(component.timeColumns()).toEqual(['Day of Week']);
       expect(component.dtos()).toEqual([]);
     });
 
     it('treats null timeslots as empty instead of throwing', () => {
-      expect(() => fixture.componentRef.setInput('timeslots', null as unknown as TimeslotDto[])).not.toThrow();
+      expect(() => fixture.componentRef.setInput('timeslots', null as unknown as SignupsTimeslotDto[])).not.toThrow();
       expect(component.dtos()).toEqual([]);
     });
 

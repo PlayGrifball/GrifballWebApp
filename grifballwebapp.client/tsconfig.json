@@ -18,7 +18,11 @@
     "importHelpers": true,
     "target": "ES2022",
     "module": "ES2022",
-    "useDefineForClassFields": false
+    "useDefineForClassFields": false,
+    // The API client generated from openapi.json (ng-openapi-gen.json)
+    "paths": {
+      "@api/*": ["./src/generated/api/*"]
+    }
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
