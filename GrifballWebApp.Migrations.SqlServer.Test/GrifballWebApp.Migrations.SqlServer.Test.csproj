@@ -11,8 +11,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- dotnet ef's own services, to test what this provider scaffolds with -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" />
     <PackageReference Include="coverlet.collector" Version="10.1.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -29,6 +27,9 @@
   <ItemGroup>
     <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Migrations.SqlServer\GrifballWebApp.Migrations.SqlServer.csproj" />
+    <!-- DatabaseProviderMigrationsTestsBase, DesignTimeContextFactoryTestsBase and DatabaseProviderTestData's
+         connection strings, shared with the other migrations projects' Test -->
+    <ProjectReference Include="..\GrifballWebApp.Infrastructure.Test\GrifballWebApp.Infrastructure.Test.csproj" />
   </ItemGroup>
 
   <ItemGroup>
