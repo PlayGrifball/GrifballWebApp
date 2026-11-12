@@ -18,16 +18,19 @@ public class VodController : ControllerBase
         _vods = vods;
     }
 
+    /// <summary>The VODs linked to a season match.</summary>
     [AllowAnonymous]
     [HttpGet("season-matches/{seasonMatchID:int}/vods", Name = "GetSeasonMatchVods")]
     [ProducesResponseType<List<VodDto>>(StatusCodes.Status200OK)]
     public Task<List<VodDto>> ForSeasonMatch([FromRoute] int seasonMatchID, CancellationToken ct) => _vods.ForSeasonMatch(seasonMatchID, ct);
 
+    /// <summary>The VODs linked to a season.</summary>
     [AllowAnonymous]
     [HttpGet("seasons/{seasonID:int}/vods", Name = "GetSeasonVods")]
     [ProducesResponseType<List<VodDto>>(StatusCodes.Status200OK)]
     public Task<List<VodDto>> ForSeason([FromRoute] int seasonID, CancellationToken ct) => _vods.ForSeason(seasonID, ct);
 
+    /// <summary>The VODs linked to a team.</summary>
     [AllowAnonymous]
     [HttpGet("teams/{teamID:int}/vods", Name = "GetTeamVods")]
     [ProducesResponseType<List<VodDto>>(StatusCodes.Status200OK)]
@@ -45,11 +48,13 @@ public class VodController : ControllerBase
     [Authorize(Roles = "Sysadmin")]
     public Task<List<VodReviewDto>> Review(CancellationToken ct) => _vods.Review(ct);
 
+    /// <summary>The seasons with VODs still waiting to be linked. Sysadmins only.</summary>
     [HttpGet("vods/link-seasons", Name = "GetVodLinkSeasons")]
     [ProducesResponseType<List<VodLinkSeasonDto>>(StatusCodes.Status200OK)]
     [Authorize(Roles = "Sysadmin")]
     public Task<List<VodLinkSeasonDto>> LinkSeasons(CancellationToken ct) => _vods.LinkSeasons(ct);
 
+    /// <summary>What a season's unresolved VOD can be linked to (its matches, teams and players). Sysadmins only.</summary>
     [HttpGet("seasons/{seasonID:int}/vod-link-options", Name = "GetVodLinkOptions")]
     [ProducesResponseType<VodLinkOptionsDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -57,6 +62,7 @@ public class VodController : ControllerBase
     public async Task<ActionResult<VodLinkOptionsDto>> LinkOptions([FromRoute] int seasonID, CancellationToken ct)
         => await _vods.LinkOptions(seasonID, ct) is { } options ? options : this.NotFoundProblem("There is no such season");
 
+    /// <summary>Links a VOD to a match, season, team or player. Sysadmins only.</summary>
     [HttpPost("vods/{vodID:int}/link", Name = "LinkVod")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]

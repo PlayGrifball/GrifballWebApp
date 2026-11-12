@@ -65,6 +65,7 @@ public class GamertagClaimsController : ControllerBase
         return Accepted(await _lookups.StatusAsync(ct));
     }
 
+    /// <summary>The background XUID lookup's status.</summary>
     [HttpGet("xuid-lookups/status", Name = "GetXuidLookupStatus")]
     [ProducesResponseType<XuidLookupStatusDto>(StatusCodes.Status200OK)]
     public Task<XuidLookupStatusDto> XuidLookupStatus(CancellationToken ct) => _lookups.StatusAsync(ct);
@@ -79,6 +80,7 @@ public class GamertagClaimsController : ControllerBase
         return result is null ? this.NotFoundProblem("There is no such Xbox account") : result;
     }
 
+    /// <summary>Removes a past gamertag entry that was added in error.</summary>
     [HttpPost("past-gamertags/{historyID:int}/remove", Name = "RemoveGamertagHistory")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -105,6 +107,7 @@ public class GamertagClaimsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Rejects a gamertag claim, with an optional reason shown to the claimant.</summary>
     [HttpPost("gamertag-claims/{claimID:int}/reject", Name = "RejectGamertagClaim")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]

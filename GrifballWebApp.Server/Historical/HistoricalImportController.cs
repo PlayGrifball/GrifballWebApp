@@ -28,6 +28,7 @@ public class HistoricalImportController : ControllerBase
         _sources = sources;
     }
 
+    /// <summary>Uploads a compiled historical archive and queues importing it. Sysadmins only.</summary>
     /// <param name="seasons">compiled/unified-historical-seasons.json</param>
     /// <param name="championships">compiled/agla-champions.json (optional)</param>
     /// <param name="waypointMatches">compiled/waypoint-matches.json (optional): Halo Infinite seasons' match IDs or
@@ -64,6 +65,7 @@ public class HistoricalImportController : ControllerBase
         return AcceptedAtAction(nameof(Job), new { jobID = jobId }, new HistoricalImportQueued(jobId));
     }
 
+    /// <summary>A historical import job's progress and result. Sysadmins only.</summary>
     [HttpGet("historical-imports/{jobID:int}", Name = "GetHistoricalImportJob")]
     [ProducesResponseType<HistoricalImportJobDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -71,6 +73,7 @@ public class HistoricalImportController : ControllerBase
     public async Task<ActionResult<HistoricalImportJobDto>> Job([FromRoute] int jobID, CancellationToken ct)
         => await _jobs.Get(jobID, ct) is { } job ? job : NotFound();
 
+    /// <summary>The archive's sources, with their enabled/dead state. Sysadmins only.</summary>
     [HttpGet("historical-sources", Name = "GetHistoricalSources")]
     [ProducesResponseType<List<HistoricalSourceDto>>(StatusCodes.Status200OK)]
     [Authorize(Roles = "Sysadmin")]
@@ -134,12 +137,13 @@ public class HistoricalImportController : ControllerBase
     public async Task<IActionResult> SkipReview([FromRoute] int reviewID, CancellationToken ct)
         => Decided(await _jobs.Decide(reviewID, approve: false, CancellationToken.None));
 
-    /// <summary>The latest jobs, newest first.</summary>
+    /// <summary>The latest jobs, newest first. Sysadmins only.</summary>
     [HttpGet("historical-imports", Name = "GetHistoricalImportJobs")]
     [ProducesResponseType<List<HistoricalImportJobSummaryDto>>(StatusCodes.Status200OK)]
     [Authorize(Roles = "Sysadmin")]
     public async Task<ActionResult<List<HistoricalImportJobSummaryDto>>> Jobs(CancellationToken ct) => await _jobs.List(25, ct);
 
+    /// <summary>The historical refresh's schedule, paused or not. Sysadmins only.</summary>
     [HttpGet("historical-imports/schedule", Name = "GetHistoricalImportSchedule")]
     [ProducesResponseType<HistoricalImportScheduleDto>(StatusCodes.Status200OK)]
     [Authorize(Roles = "Sysadmin")]
