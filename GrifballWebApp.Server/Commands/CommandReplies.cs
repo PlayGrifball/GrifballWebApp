@@ -57,5 +57,5 @@ public static class CommandReplies
         return text.ToString().TrimEnd();
     }
 
-    internal static string More(int count) => $"…and {count} more on the site";
+    public static string More(int count) => $"…and {count} more on the site";
 }
