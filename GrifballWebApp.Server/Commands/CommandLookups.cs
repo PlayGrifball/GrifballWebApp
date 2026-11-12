@@ -123,6 +123,38 @@ public class CommandLookups
         return players.Select(x => new ApplicationCommandOptionChoiceProperties(ChoiceName(x.Gamertag), x.Id.ToString())).ToList();
     }
 
+    /// <summary>
+    /// The season match picked, or found by its teams' names (latest season first, then soonest). Null when there is no such match.
+    /// </summary>
+    public async Task<int?> SeasonMatch(string input, CancellationToken ct = default)
+    {
+        var matches = _context.SeasonMatches.AsNoTracking();
+        if (int.TryParse(input, out var id))
+            return await matches.Where(x => x.SeasonMatchID == id).Select(x => (int?)x.SeasonMatchID).FirstOrDefaultAsync(ct);
+
+        var name = input.Trim().ToLower();
+        return await matches
+            .Where(x => x.HomeTeam!.TeamName.ToLower().Contains(name) || x.AwayTeam!.TeamName.ToLower().Contains(name))
+            .OrderByDescending(x => x.SeasonID)
+            .ThenBy(x => x.ScheduledTime)
+            .Select(x => (int?)x.SeasonMatchID)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    /// <summary>Season matches with a team whose name has <paramref name="input"/>, latest season first; valued by ID.</summary>
+    public async Task<List<ApplicationCommandOptionChoiceProperties>> SeasonMatchChoices(string? input, CancellationToken ct = default)
+    {
+        var name = (input ?? "").Trim().ToLower();
+        var matches = await _context.SeasonMatches
+            .Where(x => x.HomeTeam!.TeamName.ToLower().Contains(name) || x.AwayTeam!.TeamName.ToLower().Contains(name))
+            .OrderByDescending(x => x.SeasonID)
+            .ThenBy(x => x.ScheduledTime)
+            .Take(MaxChoices)
+            .Select(x => new { x.SeasonMatchID, Home = x.HomeTeam!.TeamName, Away = x.AwayTeam!.TeamName, x.Season.SeasonName })
+            .ToListAsync(ct);
+        return matches.Select(x => new ApplicationCommandOptionChoiceProperties(ChoiceName($"{x.Home ?? "TBD"} vs {x.Away ?? "TBD"} ({x.SeasonName})"), x.SeasonMatchID.ToString())).ToList();
+    }
+
     /// <summary>A choice's label, cut to Discord's 100 characters.</summary>
     public static string ChoiceName(string name) => name.Length <= 100 ? name : name[..99] + "…";
 }
@@ -167,4 +199,18 @@ public class PlayerAutocomplete : IAutocompleteProvider<AutocompleteInteractionC
     public async ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(ApplicationCommandInteractionDataOption option,
         AutocompleteInteractionContext context)
         => await _lookups.PlayerChoices(option.Value);
+}
+
+/// <summary>The choices for a season match option: <see cref="CommandLookups.SeasonMatchChoices"/>.</summary>
+public class SeasonMatchAutocomplete : IAutocompleteProvider<AutocompleteInteractionContext>
+{
+    private readonly CommandLookups _lookups;
+    public SeasonMatchAutocomplete(CommandLookups lookups)
+    {
+        _lookups = lookups;
+    }
+
+    public async ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(ApplicationCommandInteractionDataOption option,
+        AutocompleteInteractionContext context)
+        => await _lookups.SeasonMatchChoices(option.Value);
 }

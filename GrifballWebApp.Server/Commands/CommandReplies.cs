@@ -10,8 +10,9 @@ namespace GrifballWebApp.Server.Commands;
 /// </summary>
 public static class CommandReplies
 {
-    /// <summary>Discord's limit on an embed's description; longer lists are cut with <see cref="More"/>.</summary>
+    /// <summary>Discord's limits on an embed's description and a field's value; longer lists are cut with <see cref="More"/>.</summary>
     internal const int DescriptionLimit = 4096;
+    internal const int FieldLimit = 1024;
 
     /// <summary>The colour of the bot's embeds: the queue embed's blue.</summary>
     public static readonly Color Blue = new(88, 101, 242);
@@ -34,8 +35,11 @@ public static class CommandReplies
         Color = Blue,
     };
 
+    /// <summary>Lines for an embed field's value, as many as fit, then how many more there are on the site.</summary>
+    public static string FieldLines(IReadOnlyCollection<string> lines, string empty) => Lines(lines, empty, FieldLimit);
+
     /// <summary>Lines for an embed's description, as many as fit, then how many more there are on the site.</summary>
-    public static string Lines(IReadOnlyCollection<string> lines, string empty)
+    public static string Lines(IReadOnlyCollection<string> lines, string empty, int limit = DescriptionLimit)
     {
         if (lines.Count == 0)
             return empty;
@@ -43,7 +47,7 @@ public static class CommandReplies
         var shown = 0;
         foreach (var line in lines)
         {
-            if (text.Length + line.Length + 1 > DescriptionLimit - 40)
+            if (text.Length + line.Length + 1 > limit - 40)
                 break;
             text.Append(line).Append('\n');
             shown++;

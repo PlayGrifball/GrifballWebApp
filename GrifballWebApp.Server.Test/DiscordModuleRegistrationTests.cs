@@ -101,6 +101,20 @@ public class DiscordModuleRegistrationTests
 
         Assert.That(commands, Is.EqualTo(new[]
         {
+            "/events \"Upcoming signups, drafts and seasons\" permissions: default, preconditions: 0",
+            "/lateleague season \"A Late League season's top players\" permissions: default, preconditions: 0"
+                + " [season: String = null \"The season's name or ID (default: the latest)\" autocomplete: none, preconditions: 0]",
+            "/lateleague seasons \"The Late League seasons\" permissions: default, preconditions: 0",
+            "/leaderboard rank \"A player's all-time ranks\" permissions: default, preconditions: 0"
+                + " [player: String \"The player\" autocomplete: PlayerAutocomplete, preconditions: 0]"
+                + " [format: LeaderboardFormat = All \"Count only one format (default: all)\" autocomplete: none, preconditions: 0]",
+            "/leaderboard top \"The top players on a board\" permissions: default, preconditions: 0"
+                + " [board: LeaderboardBoard = Rings \"The board\" autocomplete: none, preconditions: 0]"
+                + " [format: LeaderboardFormat = All \"Count only one format (default: all)\" autocomplete: none, preconditions: 0]",
+            "/match game \"A Halo game's teams and players\" permissions: default, preconditions: 0"
+                + " [match_id: String \"The game's Halo match ID\" autocomplete: none, preconditions: 0]",
+            "/match info \"A season match's time, result and games\" permissions: default, preconditions: 0"
+                + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]",
             "/matches \"Get recent matches\" permissions: default, preconditions: 0"
                 + " [gamertag: String = null \"Gamertag to search matches for\" autocomplete: GamertagAutocomplete, preconditions: 0]",
             "/player commendations \"A player's medals\" permissions: default, preconditions: 0"
@@ -115,6 +129,8 @@ public class DiscordModuleRegistrationTests
                 + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
             "/player vods \"A player's VODs\" permissions: default, preconditions: 0"
                 + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
+            "/search \"Search players, teams and seasons\" permissions: default, preconditions: 0"
+                + " [query: String \"A gamertag, team or season name\" autocomplete: none, preconditions: 0]",
             "/season bracket \"A season's playoff bracket\" permissions: default, preconditions: 0"
                 + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
             "/season draft \"A link to a season's live draft board\" permissions: default, preconditions: 0"

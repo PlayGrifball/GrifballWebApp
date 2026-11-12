@@ -253,6 +253,8 @@ public class Program
         services.AddTransient<SeasonCommandsHandler>();
         services.AddTransient<TeamCommandsHandler>();
         services.AddTransient<PlayerCommandsHandler>();
+        services.AddTransient<MatchCommandsHandler>();
+        services.AddTransient<BrowseCommandsHandler>();
         services.AddTransient<IExternalLoginService, ExternalLoginService>();
     }
 

@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.Home;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Domain.League;
@@ -21,7 +22,7 @@ public class HomeControllerTests
     public async Task Setup()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _controller = new HomeController(_context);
+        _controller = new HomeController(new GrifballWebApp.Application.Home.HomeEventsService(_context));
     }
 
     [TearDown]
