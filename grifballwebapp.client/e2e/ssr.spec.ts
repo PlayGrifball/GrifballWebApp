@@ -71,7 +71,7 @@ for (const { path, content, data } of PAGES) {
 
 const cookie = (role: 'player' | 'admin') => ({ Cookie: `theme=x; ${SESSION_COOKIE}=${role}` });
 /** The name in the header of a rendered page, or null for a visitor's. */
-const headerName = (html: string) => /class="hud-user__name"[^>]*>\s*([^<]*?)\s*</.exec(html)?.[1] ?? null;
+const headerName = (html: string) => /class="hud-user__name"[^>]*>([^<]*)</.exec(html)?.[1].trim() ?? null;
 
 test('a signed-in user\'s page is rendered as theirs, and is private and never cached', async ({ request }) => {
   const response = await request.get(SITE + '/seasonmatch/31', { headers: cookie('admin') });

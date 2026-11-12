@@ -88,7 +88,7 @@ export class DatabaseBackupComponent {
   private startedHere: BackupFormat | null = null;
 
   /** How often a running export's or backup's status is read again (ms). */
-  static pollInterval = 2000;
+  static readonly pollInterval = 2000;
 
   readonly info = httpResource<BackupInfo>(() => 'api/backups/info');
   readonly format = signal<BackupFormat>('sqlite');

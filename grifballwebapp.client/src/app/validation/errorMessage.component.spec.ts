@@ -55,7 +55,7 @@ describe('ErrorMessageComponent', () => {
     control.markAsTouched();
     fixture.detectChanges();
 
-    expect(messages().length).toBe(1);
+    expect(messages()).toHaveSize(1);
     expect(messages()).toEqual(['Required']);
   });
 
@@ -64,7 +64,7 @@ describe('ErrorMessageComponent', () => {
     control.markAsDirty();
     fixture.componentRef.setInput('control', control);
     fixture.detectChanges();
-    expect(messages().length).toBe(1);
+    expect(messages()).toHaveSize(1);
 
     control.setValue('fixed');
     fixture.detectChanges();

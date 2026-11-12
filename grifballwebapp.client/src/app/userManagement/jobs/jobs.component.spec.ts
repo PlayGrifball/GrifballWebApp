@@ -247,7 +247,7 @@ describe('JobsComponent', () => {
       http.expectOne('/api/jobs').flush(overview([job('historical-refresh')]));
       await Promise.resolve();
       fixture.detectChanges();
-      expect(rows().length).toBe(1);
+      expect(rows()).toHaveSize(1);
       expect(el().querySelector('[role=alert]')).toBeNull();
     } finally {
       jasmine.clock().uninstall();

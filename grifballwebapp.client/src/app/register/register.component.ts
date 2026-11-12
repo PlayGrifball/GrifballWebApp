@@ -4,7 +4,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { ApiClientService } from '../api/apiClient.service';
 import { RouterLink } from '@angular/router';
 import { RegisterFormModel } from './registerFormModel';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';

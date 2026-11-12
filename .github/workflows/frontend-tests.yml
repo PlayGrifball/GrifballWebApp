@@ -44,6 +44,52 @@ jobs:
         PR: ${{ github.event.pull_request.number }}
       run: .github/scripts/changed-areas.sh
 
+  # SonarCloud's JavaScript and TypeScript rules (eslint-plugin-sonarjs) over the client, as errors: what `npm run lint`
+  # shows locally (eslint.config.mjs). Fails the PR on any finding.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: changes
+    permissions:
+      contents: read
+    env:
+      # Skipped step by step, so the check keeps its name and passes
+      RUN: ${{ needs.changes.outputs.frontend }}
+
+    defaults:
+      run:
+        working-directory: ./grifballwebapp.client
+
+    steps:
+    - name: Nothing to lint
+      if: env.RUN != 'true'
+      # Nothing is checked out: the job's default directory, the client's, isn't there
+      working-directory: .
+      run: "echo 'The PR changes nothing in the client: lint is skipped'"
+
+    - name: Checkout code
+      if: env.RUN == 'true'
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup Node.js
+      if: env.RUN == 'true'
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: grifballwebapp.client/package-lock.json
+
+    # ESLint needs no package's install script
+    - name: Install dependencies
+      if: env.RUN == 'true'
+      run: npm ci --ignore-scripts
+
+    - name: Lint
+      if: env.RUN == 'true'
+      run: npm run lint
+
   # The production build, once: the end-to-end shards all test this one (each used to build its own)
   build:
     needs: changes

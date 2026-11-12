@@ -39,6 +39,7 @@ describe('InfiniteClientComponent', () => {
 
   const gatewayStatus = (overrides: Partial<HaloStatus> = {}): HaloStatus => ({
     mode: 'Gateway',
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the Halo gateway's in-cluster address: plain HTTP inside the cluster
     gatewayUrl: 'http://halo-gateway.halo-gateway.svc:8080/',
     gatewayAdminUrl: 'https://grunt.grifball.xyz/admin',
     apiKeyConfigured: true,
@@ -209,6 +210,7 @@ describe('InfiniteClientComponent', () => {
       init();
       const status = el().querySelector('.ic-gateway')!;
       expect(status.textContent).toContain('Working');
+      // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the Halo gateway's in-cluster address: plain HTTP inside the cluster
       expect(status.textContent).toContain('http://halo-gateway.halo-gateway.svc:8080/');
       expect(status.textContent).toContain('Healthy');
       expect(status.textContent).toContain('200');

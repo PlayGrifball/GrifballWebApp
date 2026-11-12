@@ -7,11 +7,14 @@ describe('apiUrl', () => {
 
   it('is API_URL, without its trailing slashes', () => {
     expect(apiUrl('https://api.example:8443')).toBe('https://api.example:8443');
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the backend's in-cluster address form (plain HTTP), which apiUrl takes
     expect(apiUrl('http://backend:5295///')).toBe('http://backend:5295');
   });
 
   it('takes off only the slashes a URL ends with', () => {
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the backend's in-cluster address form (plain HTTP), which apiUrl takes
     expect(withoutTrailingSlashes('http://a/b/')).toBe('http://a/b');
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the backend's in-cluster address form (plain HTTP), which apiUrl takes
     expect(withoutTrailingSlashes('http://a//b')).toBe('http://a//b');
     expect(withoutTrailingSlashes('///')).toBe('');
     expect(withoutTrailingSlashes('')).toBe('');

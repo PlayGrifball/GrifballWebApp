@@ -50,7 +50,7 @@ describe('ProfileCommendationsComponent', () => {
     });
 
     const cards = el().querySelectorAll<HTMLElement>('.commendation-card');
-    expect(cards.length).toBe(2);
+    expect(cards).toHaveSize(2);
     expect(text()).toContain('1,234 Halo Infinite medals earned, of 7 kinds.');
 
     expect(cards[0].querySelector('.commendation-name')!.textContent).toBe('Double Kill');

@@ -77,7 +77,7 @@ export class TeamBuilderComponent implements OnInit {
     const teams = this.teams();
     if (teams.length === 0 || this.playerPool().length === 0)
       return null;
-    return teams.reduce((fewest, team) => team.players.length < fewest.players.length ? team : fewest).captain;
+    return teams.reduce((fewest, team) => team.players.length < fewest.players.length ? team : fewest, teams[0]).captain;
   });
 
   readonly statusText = computed(() => {
@@ -488,9 +488,7 @@ export class TeamBuilderComponent implements OnInit {
 
   DisableDraggingPlayerFromTeam(): boolean {
     // Only event organizer can drag players from team 
-    if (this.accountService.isEventOrganizer())
-      return false;
-    return true;
+    return !this.accountService.isEventOrganizer();
   }
 
   DisableDraggingPlayerToTeam(teamDto: TeamResponseDto): boolean {

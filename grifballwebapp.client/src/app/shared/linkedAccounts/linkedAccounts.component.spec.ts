@@ -80,7 +80,7 @@ describe('LinkedAccountsComponent', () => {
     create();
     flushMine(mine({ hasPassword: false, logins: [discord, { ...discord, providerKey: '222' }] }));
 
-    expect(buttons().filter(b => b.textContent!.trim() === 'Unlink').length).toBe(2);
+    expect(buttons().filter(b => b.textContent!.trim() === 'Unlink')).toHaveSize(2);
   });
 
   it('says so when nothing is linked', () => {

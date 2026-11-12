@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ApiClientService } from './apiClient.service';
 import { DateTime } from 'luxon';
 
@@ -9,7 +10,7 @@ describe('ApiClientService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule]
+      providers: [provideHttpClient(), provideHttpClientTesting()],
     });
     service = TestBed.inject(ApiClientService);
     httpTestingController = TestBed.inject(HttpTestingController);
@@ -29,7 +30,7 @@ describe('ApiClientService', () => {
 
       service.getSeasons().subscribe({
         next: (data) => {
-          expect(data.length).toBe(1);
+          expect(data).toHaveSize(1);
           expect(data[0].seasonID).toBe(1);
           expect(data[0].seasonEnd instanceof DateTime).toBeTrue();
           expect(data[0].seasonEnd.toMillis()).toBe(Date.parse('2026-03-01T00:00:00Z'));

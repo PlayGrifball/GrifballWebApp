@@ -238,11 +238,11 @@ describe('QuickSearchComponent', () => {
 
     type('sarge');
     expect(status()).toBe('Searching…');
-    expect(options().length).toBe(4);
+    expect(options()).toHaveSize(4);
     expect(component.active()).toBe(1);
 
     await answer('sarge', { players: [hits.players[0]], teams: [], seasons: [] });
-    expect(options().length).toBe(1);
+    expect(options()).toHaveSize(1);
     expect(component.active()).toBe(0);
   });
 
@@ -307,7 +307,7 @@ describe('QuickSearchComponent', () => {
     expect(status()).toBe('Searching…');
     await answer('sarge');
     expect(el().querySelector('button.qs-retry')).toBeNull();
-    expect(options().length).toBe(4);
+    expect(options()).toHaveSize(4);
     expect(navigate).not.toHaveBeenCalled();
   });
 
@@ -344,7 +344,7 @@ describe('QuickSearchComponent', () => {
       jasmine.clock().uninstall();
     }
     await answer('sa');
-    expect(options().length).toBe(4);
+    expect(options()).toHaveSize(4);
     expect(navigate).not.toHaveBeenCalled();
     expect(dialogRef.close).not.toHaveBeenCalled();
   });

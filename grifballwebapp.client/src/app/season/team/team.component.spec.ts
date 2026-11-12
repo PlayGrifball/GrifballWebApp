@@ -141,7 +141,7 @@ describe('TeamComponent', () => {
     ]);
 
     const r = rows();
-    expect(r.length).toBe(4);
+    expect(r).toHaveSize(4);
     expect(r[0].slice(0, 3)).toEqual(['Blue Team', '2 - 1', 'Won']);
     expect(r[1].slice(1, 3)).toEqual(['TBD', 'TBD']);
     expect(r[2].slice(1, 3)).toEqual(['N/A', 'Won']);
@@ -248,7 +248,7 @@ describe('TeamComponent', () => {
     it('shows the matches it does have as usual', () => {
       load(historical, [match({})]);
       expect(el().querySelector('app-data-notice')).toBeNull();
-      expect(rows().length).toBe(1);
+      expect(rows()).toHaveSize(1);
     });
   });
 });

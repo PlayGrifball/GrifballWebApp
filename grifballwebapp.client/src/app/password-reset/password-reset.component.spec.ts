@@ -3,8 +3,8 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { PasswordResetComponent } from './password-reset.component';
 import { AccountService } from '../account.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { of, Subject, throwError } from 'rxjs';
+import { noMaterialAnimations } from '../testing/noMaterialAnimations';
 
 describe('PasswordResetComponent', () => {
   let component: PasswordResetComponent;
@@ -21,8 +21,9 @@ describe('PasswordResetComponent', () => {
     mockActivatedRoute = jasmine.createSpyObj('ActivatedRoute', [], { snapshot: {} });
 
     await TestBed.configureTestingModule({
-      imports: [PasswordResetComponent, NoopAnimationsModule],
+      imports: [PasswordResetComponent],
       providers: [
+        noMaterialAnimations,
         { provide: AccountService, useValue: mockAccountService },
         { provide: Router, useValue: mockRouter },
         { provide: MatSnackBar, useValue: mockSnackBar },

@@ -7,11 +7,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { UserManagementComponent } from './userManagement.component';
 import { AccountService } from '../account.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { of, throwError } from 'rxjs';
 import { UserResponseDto } from './userResponseDto';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
+import { noMaterialAnimations } from '../testing/noMaterialAnimations';
 
 describe('UserManagementComponent', () => {
   let component: UserManagementComponent;
@@ -39,8 +39,9 @@ describe('UserManagementComponent', () => {
     mockSnackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
 
     await TestBed.configureTestingModule({
-      imports: [UserManagementComponent, NoopAnimationsModule],
+      imports: [UserManagementComponent],
       providers: [
+        noMaterialAnimations,
         { provide: AccountService, useValue: mockAccountService },
         { provide: MatSnackBar, useValue: mockSnackBar },
         provideHttpClient(withXhr()),
@@ -357,8 +358,8 @@ describe('UserManagementComponent user table', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [UserManagementComponent, NoopAnimationsModule],
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]), { provide: AccountService, useValue: {} }]
+      imports: [UserManagementComponent],
+      providers: [noMaterialAnimations, provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]), { provide: AccountService, useValue: {} }]
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(UserManagementComponent);

@@ -129,7 +129,7 @@ describe('MatchDetailsComponent', () => {
     expect(rows[1].querySelector('a')).toBeNull();
     expect(rows[1].textContent).toContain('Ringer');
 
-    expect(el.querySelectorAll('.md-medal').length).toBe(2); // the match's, and Plasma Pete's
+    expect(el.querySelectorAll('.md-medal')).toHaveSize(2); // the match's, and Plasma Pete's
     expect(el.querySelector('.md-player')!.textContent).toContain('Plasma Pete');
     expect(el.querySelector('.md-player')!.textContent).toContain('×2');
   });
@@ -143,7 +143,7 @@ describe('MatchDetailsComponent', () => {
 
     const cells = Array.from(el.querySelectorAll('tbody tr')[0].querySelectorAll('td.hud-num')).map(td => td.textContent!.trim());
     expect(cells[0]).toBe('–');
-    expect(cells.filter(c => c === '–').length).toBe(2);
+    expect(cells.filter(c => c === '–')).toHaveSize(2);
   });
 
   it('says when no medals were earned and the game was not reported', async () => {

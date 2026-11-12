@@ -26,7 +26,7 @@ describe('loadBracketsViewer', () => {
     const second = loadBracketsViewer();
     expect(second).toBe(first);
     const script = document.head.querySelector<HTMLScriptElement>('script[src="brackets-viewer.js"]')!;
-    expect(document.head.querySelectorAll('link[href="brackets-viewer.css"]').length).toBe(1);
+    expect(document.head.querySelectorAll('link[href="brackets-viewer.css"]')).toHaveSize(1);
 
     script.onload!(new Event('load'));
     await expectAsync(first).toBeResolved();
@@ -40,7 +40,7 @@ describe('loadBracketsViewer', () => {
 
     const retry = loadBracketsViewer();
     expect(retry).not.toBe(failed);
-    expect(added().length).toBe(2);
+    expect(added()).toHaveSize(2);
     document.head.querySelector<HTMLScriptElement>('script[src="brackets-viewer.js"]')!.onload!(new Event('load'));
     await retry;
   });

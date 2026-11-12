@@ -1,11 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TableComponent, Column, Filter } from './table.component';
-import { signal } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Sort } from '@angular/material/sort';
 import { PageEvent } from '@angular/material/paginator';
+import { noMaterialAnimations } from '../../testing/noMaterialAnimations';
 
 describe('TableComponent', () => {
   let component: TableComponent<TestData>;
@@ -170,8 +169,8 @@ describe('TableComponent API responses', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [TableComponent, NoopAnimationsModule],
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
+      imports: [TableComponent],
+      providers: [noMaterialAnimations, provideHttpClient(withXhr()), provideHttpClientTesting()],
     });
     httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TableComponent<Row>);
@@ -193,7 +192,7 @@ describe('TableComponent API responses', () => {
     fixture.detectChanges();
 
     expect(component.current().totalCount).toBe(2);
-    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]').length).toBe(2);
+    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]')).toHaveSize(2);
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 
@@ -209,7 +208,7 @@ describe('TableComponent API responses', () => {
     const alert = fixture.nativeElement.querySelector('[role="alert"]') as HTMLElement;
     expect(alert).not.toBeNull();
     expect(alert.textContent).toContain('Failed to load data');
-    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]').length).toBe(0);
+    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]')).toHaveSize(0);
   });
 
   it('does not throw on a 403 error', async () => {
@@ -231,7 +230,7 @@ describe('TableComponent API responses', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
-    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]').length).toBe(1);
+    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]')).toHaveSize(1);
   });
 
   it('shows an empty state when there are no results', async () => {

@@ -418,10 +418,11 @@ export class ApiClientService {
     return this.http.get<TimeslotDto[]>(path);
   }
 
-  getSignup(seasonID: number, offset: number): Observable<SignupResponseDto> {
+  /** The user's signup for the season, or null before they sign up. */
+  getSignup(seasonID: number, offset: number): Observable<SignupResponseDto | null> {
     let path = `/api/seasons/${seasonID}/signups/mine`;
     path += '?offset=' + offset;
-    return this.http.get<SignupResponseDto>(path);
+    return this.http.get<SignupResponseDto | null>(path);
   }
 
   // The timeslots keep the API's time format: the availability table only formats copies for display.

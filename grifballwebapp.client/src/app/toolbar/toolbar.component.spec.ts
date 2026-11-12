@@ -2,13 +2,13 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { MatSidenav } from '@angular/material/sidenav';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ToolbarComponent } from './toolbar.component';
 import { ThemeComponent } from '../theme/theme.component';
 import { AccountService } from '../account.service';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Subject } from 'rxjs';
 import { QuickSearchComponent } from '../quickSearch/quickSearch.component';
+import { noMaterialAnimations } from '../testing/noMaterialAnimations';
 
 describe('ToolbarComponent', () => {
   let component: ToolbarComponent;
@@ -21,8 +21,9 @@ describe('ToolbarComponent', () => {
     mockSidenav = jasmine.createSpyObj('MatSidenav', ['toggle']);
 
     await TestBed.configureTestingModule({
-      imports: [ToolbarComponent, NoopAnimationsModule],
+      imports: [ToolbarComponent],
       providers: [
+        noMaterialAnimations,
         provideRouter([]),
         { provide: AccountService, useValue: account },
       ]
@@ -148,7 +149,7 @@ describe('ToolbarComponent', () => {
       const container = el().querySelector('.hud-user-menu')!;
       container.dispatchEvent(new FocusEvent('focusout', { relatedTarget: items()[1] }));
       fixture.detectChanges();
-      expect(items().length).toBe(2);
+      expect(items()).toHaveSize(2);
       container.dispatchEvent(new FocusEvent('focusout', { relatedTarget: null }));
       fixture.detectChanges();
       expect(items()).toEqual([]);

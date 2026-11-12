@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse, httpResource } from '@angular/common/http';
 import { errorText } from '../../shared/errorText';
 import { ChangeDetectionStrategy, Component, computed, effect, input, signal, inject } from '@angular/core';
-import { parseUser, UserResponseDto } from '../userResponseDto';
+import { parseUser } from '../userResponseDto';
 import { SearchBoxComponent } from '../../shared/searchBox/searchBox.component';
 import { UserDetailComponent } from './userDetail/userDetail.component';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';

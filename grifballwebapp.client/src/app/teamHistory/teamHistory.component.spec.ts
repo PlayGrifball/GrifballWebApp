@@ -90,7 +90,7 @@ describe('TeamHistoryComponent', () => {
     expect(el().querySelector('h1')!.textContent).toBe('Trophy Hunters');
     expect(el().querySelector('.hud-kicker')!.textContent).toBe('> Franchise history · AGLA');
     expect(totals).toEqual(['Seasons 2', 'All-time record 12 - 3', 'Championships 1', 'Players 3']);
-    expect(el().querySelectorAll('.history-total .hud-gold').length).toBe(1);
+    expect(el().querySelectorAll('.history-total .hud-gold')).toHaveSize(1);
   });
 
   it("doesn't gild a franchise without a title", async () => {
@@ -102,7 +102,7 @@ describe('TeamHistoryComponent', () => {
     await load(history);
     const [latest, oldest] = seasons();
 
-    expect(seasons().length).toBe(2);
+    expect(seasons()).toHaveSize(2);
     expect(latest.querySelector('.history-season__name')!.textContent).toBe('Season 3');
     expect(latest.textContent).toContain('2024');
     expect(latest.textContent).toContain('AGLA · Halo Infinite · Pro');
@@ -138,7 +138,7 @@ describe('TeamHistoryComponent', () => {
     await load(null);
     expect(component.history()).toBeNull();
     expect(el().querySelector('.hud-empty')!.textContent).toBe('No such team has played a season.');
-    expect(seasons().length).toBe(0);
+    expect(seasons()).toHaveSize(0);
   });
 
   it('says when the history could not be loaded', async () => {
@@ -159,13 +159,13 @@ describe('TeamHistoryComponent', () => {
     const next = request(41);
 
     expect(component.history()).toBeNull();
-    expect(seasons().length).toBe(0);
+    expect(seasons()).toHaveSize(0);
     expect(el().querySelector('h1')!.textContent).toBe('Team history');
 
     next.flush({ ...history, teamName: 'Texas Shock' });
     await settle();
     expect(el().querySelector('h1')!.textContent).toBe('Texas Shock');
-    expect(seasons().length).toBe(2);
+    expect(seasons()).toHaveSize(2);
   });
 
   it('cancels a request a newer team replaced, so its late answer never shows', async () => {
