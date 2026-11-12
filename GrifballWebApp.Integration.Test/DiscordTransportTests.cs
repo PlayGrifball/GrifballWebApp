@@ -6,6 +6,7 @@ using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
+using Team = GrifballWebApp.Domain.League.Team;
 using User = GrifballWebApp.Domain.Players.User;
 
 namespace GrifballWebApp.Integration.Test;
@@ -437,6 +438,41 @@ public class DiscordTransportTests
             Assert.That(jobs[^1].Data.GetProperty("embeds")[0].GetProperty("title").GetString(), Is.EqualTo("Jobs"));
             Assert.That(unknown[^1].Content, Is.EqualTo("There is no such job."));
             Assert.That(new[] { pull, run, show, jobs, unknown }.Select(r => r[0].CallbackType), Has.All.EqualTo(DiscordRequest.DeferredChannelMessage));
+        }
+    }
+
+    [TestCase("season standings", "season", "Transport")]
+    [TestCase("team info", "team", "Transport")]
+    [TestCase("player profile", "player", "Transport")]
+    [TestCase("admin match report", "match", "Transport")]
+    [TestCase("me region", "region", "north")]
+    public async Task Autocomplete_OnASubcommandOption_SuggestsChoices(string path, string option, string typed)
+    {
+        // Seeded once for the fixture's shared database: each case looks at the same season, teams, match and player
+        await _host.WithContextAsync(async context =>
+        {
+            if (await context.Seasons.AnyAsync(s => s.SeasonName == "Transport Autocomplete"))
+                return 0;
+            context.Users.Add(User.Seed(userName: "TransportPlayer", discordUser: DiscordUser.FromDiscord(6201, "TransportPlayer"),
+                xboxUser: XboxUser.FromXbox(6201, "TransportPlayer")));
+            var season = Season.Seed(seasonName: "Transport Autocomplete").WithDates(seasonStart: new DateTime(2025, 1, 1), seasonEnd: new DateTime(2025, 3, 1));
+            context.Seasons.Add(season);
+            await context.SaveChangesAsync();
+            var home = Team.Seed(seasonID: season.SeasonID, teamName: "Transport Home");
+            var away = Team.Seed(seasonID: season.SeasonID, teamName: "Transport Away");
+            context.Teams.AddRange(home, away);
+            await context.SaveChangesAsync();
+            context.SeasonMatches.Add(SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID));
+            await context.SaveChangesAsync();
+            return 1;
+        });
+
+        var requests = await _host.SendAsync(DiscordInteractionJson.SubCommandAutocomplete(path, option, typed, 6201));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.AutocompleteResult));
+            Assert.That(requests[0].Data.GetProperty("choices").GetArrayLength(), Is.Positive, path);
         }
     }
 }

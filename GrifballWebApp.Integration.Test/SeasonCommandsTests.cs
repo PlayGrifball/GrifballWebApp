@@ -240,4 +240,66 @@ public class SeasonCommandsTests
     {
         Assert.That(CommandLookups.ChoiceName(new string('x', 150)), Has.Length.EqualTo(100));
     }
+
+    [TestCase(SeasonStat.Kills)]
+    [TestCase(SeasonStat.Wins)]
+    [TestCase(SeasonStat.Goals)]
+    public async Task Stats_Should_RankByTheStatAsked(SeasonStat stat)
+    {
+        var season = await AddSeason("Ranked");
+
+        await _handler.Stats(_discord.Context, season.SeasonID.ToString(), stat);
+
+        Assert.That(_discord.Embed().Title, Is.EqualTo($"Ranked: top {stat}"));
+    }
+
+    [Test]
+    public async Task List_Should_SayHowManyMoreThereAre_PastTheFirstPage()
+    {
+        for (var i = 0; i < 17; i++)
+            await AddSeason($"Many {i}");
+
+        await _handler.List(_discord.Context);
+
+        Assert.That(_discord.Embed().Description, Does.EndWith(CommandReplies.More(2)));
+    }
+
+    [Test]
+    public void Lines_Should_CutALongListToFit_AndSayHowManyMore()
+    {
+        var lines = Enumerable.Range(0, 100).Select(i => new string((char)('a' + i % 26), 100)).ToList();
+
+        var text = CommandReplies.Lines(lines, "none");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(text, Has.Length.LessThanOrEqualTo(4096));
+            Assert.That(text, Does.Match(@"…and \d+ more on the site$"));
+        }
+    }
+
+    [TestCase("standings")]
+    [TestCase("schedule")]
+    [TestCase("stats")]
+    [TestCase("grades")]
+    [TestCase("signups")]
+    [TestCase("bracket")]
+    [TestCase("draft")]
+    public async Task SeasonCommands_Should_SayThereIsNoSuchSeason_When_TheIDIsUnknown(string command)
+    {
+        Func<Task> run = command switch
+        {
+            "standings" => () => _handler.Standings(_discord.Context, "999999"),
+            "schedule" => () => _handler.Schedule(_discord.Context, "999999"),
+            "stats" => () => _handler.Stats(_discord.Context, "999999", SeasonStat.Goals),
+            "grades" => () => _handler.Grades(_discord.Context, "999999"),
+            "signups" => () => _handler.Signups(_discord.Context, "999999"),
+            "bracket" => () => _handler.Bracket(_discord.Context, "999999"),
+            _ => () => _handler.Draft(_discord.Context, "999999"),
+        };
+
+        await run();
+
+        Assert.That(_discord.Content(), Is.EqualTo(SeasonCommandsHandler.NoSuchSeason));
+    }
 }

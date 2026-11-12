@@ -241,4 +241,54 @@ public class PersonalCommandsTests
         _context.UserRoles.Add(new GrifballWebApp.Domain.Players.UserRole { UserId = user.Id, RoleId = role.Id });
         await _context.SaveChangesAsync();
     }
+
+    [Test]
+    public async Task QueueStatus_Should_SayTheCallerIsNotInIt()
+    {
+        await _handler.QueueStatus(_discord.Context);
+
+        Assert.That(_discord.Content(), Is.EqualTo("0 players are in the Late League queue.\nYou are not in the queue."));
+    }
+
+    [Test]
+    public async Task Signup_Should_PassOnTheRefusals()
+    {
+        await GivePlayerRole(_me);
+        var now = DateTime.UtcNow;
+        var closed = Season.Seed(seasonName: "Closed").WithDates(signupsOpen: now.AddDays(-20), signupsClose: now.AddDays(-10), draftStart: now.AddDays(-9),
+            seasonStart: now.AddDays(-8), seasonEnd: now.AddDays(40));
+        var open = Season.Seed(seasonName: "Open Too").WithDates(signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(6),
+            seasonStart: now.AddDays(7), seasonEnd: now.AddDays(40));
+        _context.Seasons.AddRange(closed, open);
+        await _context.SaveChangesAsync();
+        var tooLong = new CommandContextRecorder((ulong)_me.DiscordUserID!.Value);
+        var unknown = new CommandContextRecorder((ulong)_me.DiscordUserID!.Value);
+
+        await _handler.Signup(_discord.Context, closed.SeasonID.ToString(), null, false, false);
+        await _handler.Signup(tooLong.Context, open.SeasonID.ToString(), new string('x', 500), true, false);
+        await _handler.Signup(unknown.Context, "999999", null, false, false);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_discord.Content(), Is.EqualTo("Signups for Closed are closed."));
+            Assert.That(tooLong.Content(), Is.EqualTo(new SignupTeamNameTooLongException().Message));
+            Assert.That(unknown.Content(), Is.EqualTo(SeasonCommandsHandler.NoSuchSeason));
+        }
+    }
+
+    [Test]
+    public async Task UnknownSeasonOrMatch_Should_BeSaidSo()
+    {
+        var availability = new CommandContextRecorder();
+        var reschedule = new CommandContextRecorder((ulong)_me.DiscordUserID!.Value);
+
+        await _handler.AvailabilityShow(availability.Context, "999999");
+        await _handler.RequestReschedule(reschedule.Context, "999999", "Busy", null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(availability.Content(), Is.EqualTo(SeasonCommandsHandler.NoSuchSeason));
+            Assert.That(reschedule.Content(), Is.EqualTo(MatchCommandsHandler.NoSuchMatch));
+        }
+    }
 }

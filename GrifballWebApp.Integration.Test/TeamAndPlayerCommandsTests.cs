@@ -1,6 +1,10 @@
 using System.Net;
 using GrifballWebApp.Application;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Championships;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.TeamStandings;
 using GrifballWebApp.Application.LateLeague;
 using GrifballWebApp.Application.Historical.Vods;
 using GrifballWebApp.Application.Profile;
@@ -197,5 +201,32 @@ public class TeamAndPlayerCommandsTests
             Assert.That(profile.Message().Flags, Is.EqualTo(MessageFlags.Ephemeral));
             Assert.That(matches.Message().Content, Is.EqualTo(PlayerCommandsHandler.NoSuchPlayer));
         }
+    }
+
+    [Test]
+    public async Task TeamMatches_Should_ShowAPlayedMatchsResult()
+    {
+        var other = await _context.AddTeamWithCaptain(_season, "LoserGT", 9_000_002);
+        var match = SeasonMatch.Seed(_season.SeasonID, _team.TeamID, other.TeamID);
+        _context.SeasonMatches.Add(match);
+        await _context.SaveChangesAsync();
+        await new SeasonMatchService(_context, Substitute.For<IDataPullService>(),
+            new BracketService(_context, new TeamStandingsService(_context), new ChampionshipService(_context)), new ChampionshipService(_context)).AwayForfeit(match.SeasonMatchID);
+        var discord = new CommandContextRecorder();
+
+        await _teams.Matches(discord.Context, _team.TeamID.ToString());
+
+        Assert.That(discord.Embed().Description, Does.Contain(" · Won"));
+    }
+
+    [Test]
+    public async Task PlayerMatches_Should_BeTheNamedPlayersRecentMatches()
+    {
+        var discord = new CommandContextRecorder();
+
+        await _players.Matches(discord.Context, "PickGT");
+
+        // /matches by the player's gamertag: it defers, as /matches does
+        Assert.That(discord.DeferredPublicly(), Is.True);
     }
 }

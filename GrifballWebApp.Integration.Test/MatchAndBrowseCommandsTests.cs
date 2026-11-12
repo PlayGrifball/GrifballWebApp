@@ -187,4 +187,35 @@ public class MatchAndBrowseCommandsTests
             Assert.That(embed.Fields!.Single(f => f.Name == "Teams").Value, Is.EqualTo("None"));
         }
     }
+
+    [TestCase(LeaderboardBoard.Rings, LeaderboardFormat.All)]
+    [TestCase(LeaderboardBoard.Kills, LeaderboardFormat.LeagueSeason)]
+    [TestCase(LeaderboardBoard.Games, LeaderboardFormat.All)]
+    [TestCase(LeaderboardBoard.CarrierStops, LeaderboardFormat.All)]
+    public async Task Leaderboard_Should_ShowEachBoard(LeaderboardBoard board, LeaderboardFormat format)
+    {
+        await _browse.Leaderboard(_discord.Context, board, format);
+
+        Assert.That(_discord.Embed().Title, Does.StartWith($"All-time {board}"));
+    }
+
+    [Test]
+    public async Task Search_Should_LinkMatchingTeamsAndSeasons()
+    {
+        var now = DateTime.UtcNow;
+        var season = Season.Seed(seasonName: "Findable Season").WithDates(seasonStart: now.AddDays(-30), seasonEnd: now.AddDays(-1), publicAt: now.AddDays(-60));
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        _context.Teams.Add(Team.Seed(seasonID: season.SeasonID, teamName: "Findable Team"));
+        await _context.SaveChangesAsync();
+
+        await _browse.Search(_discord.Context, "Findable");
+
+        var embed = _discord.Embed();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(embed.Fields!.Single(f => f.Name == "Teams").Value, Does.Contain("Findable Team"));
+            Assert.That(embed.Fields!.Single(f => f.Name == "Seasons").Value, Does.Contain($"https://grif.test/season/{season.SeasonID}"));
+        }
+    }
 }

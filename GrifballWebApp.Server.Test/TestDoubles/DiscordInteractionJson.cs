@@ -55,6 +55,19 @@ internal static class DiscordInteractionJson
     }
 
     /// <summary>
+    /// Autocomplete for string option <paramref name="option"/> of subcommand <paramref name="path"/> ("season standings",
+    /// "admin match report"), with <paramref name="typed"/> typed so far.
+    /// </summary>
+    public static JsonInteraction SubCommandAutocomplete(string path, string option, string typed, ulong userId)
+    {
+        var parts = path.Split(' ');
+        object node = new { name = parts[^1], type = 1, options = new[] { new { name = option, type = 3, value = typed, focused = true } } };
+        for (var i = parts.Length - 2; i >= 1; i--)
+            node = new { name = parts[i], type = 2, options = new[] { node } };
+        return Parse(Envelope(4, $$"""{"id":"9","name":"{{parts[0]}}","type":1,"options":{{JsonSerializer.Serialize(new[] { node })}}}""", userId, "u"));
+    }
+
+    /// <summary>
     /// Autocomplete for string option <paramref name="option"/> of slash command <paramref name="name"/> (command id 9),
     /// with <paramref name="typed"/> typed so far.
     /// </summary>

@@ -73,12 +73,12 @@ public class AdminCommandsTests
         return user;
     }
 
-    private async Task<SeasonMatch> AddMatch()
+    private async Task<SeasonMatch> AddMatch(DateTime? scheduled = null)
     {
         var season = await _context.AddSeason("Admin Season");
         var home = await _context.AddTeamWithCaptain(season, "AdminHome", 7_000_001);
         var away = await _context.AddTeamWithCaptain(season, "AdminAway", 7_000_002);
-        var match = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID);
+        var match = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, scheduledTime: scheduled);
         _context.SeasonMatches.Add(match);
         await _context.SaveChangesAsync();
         return match;
@@ -290,6 +290,84 @@ public class AdminCommandsTests
             Assert.That(badPull.Content(), Is.EqualTo(MatchCommandsHandler.NoSuchGame));
             Assert.That(claims.Embed().Description, Is.EqualTo("No claim is pending."));
             Assert.That(badJob.Content(), Does.StartWith("Name the job as group/name"));
+        }
+    }
+
+    [Test]
+    public async Task Overdue_Should_ListAMatchPastItsTime_ByItsCaptains()
+    {
+        var match = await AddMatch(DateTime.UtcNow.AddDays(-3));
+        var discord = As(_commissioner);
+
+        await _handler.Overdue(discord.Context);
+
+        Assert.That(discord.Embed().Description, Does.Contain($"https://grif.test/seasonmatch/{match.SeasonMatchID}").And.Contain("hours overdue"));
+    }
+
+    [Test]
+    public async Task PendingThenDecide_Should_ListTheRequest_ThenApproveIt()
+    {
+        var seeded = await RescheduleTestData.SeedAsync(_context, scheduled: DateTime.UtcNow.AddDays(3));
+        var request = await new RescheduleService(_context, new ContextOutbox(_context)).RequestRescheduleAsync(
+            new RescheduleRequestDto { SeasonMatchID = seeded.Match.SeasonMatchID, Reason = "Travel", NewScheduledTime = DateTime.UtcNow.AddDays(5) }, seeded.Requester.Id);
+        var pending = As(_commissioner);
+        var decide = As(_commissioner);
+
+        await _handler.PendingReschedules(pending.Context);
+        await _handler.DecideReschedule(decide.Context, request.MatchRescheduleID, approve: true, notes: "Fine");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(pending.Embed().Description, Does.StartWith($"**#{request.MatchRescheduleID}**").And.Contain("Travel"));
+            Assert.That(decide.Content(), Is.EqualTo("Approved."));
+        }
+    }
+
+    [TestCase(ForfeitSide.Home, "Forfeited (home).")]
+    [TestCase(ForfeitSide.Both, "Forfeited (both).")]
+    public async Task Forfeit_Should_ForfeitTheSideNamed(ForfeitSide side, string reply)
+    {
+        var match = await AddMatch();
+        var discord = As(_commissioner);
+
+        await _handler.Forfeit(discord.Context, match.SeasonMatchID.ToString(), side);
+
+        Assert.That(discord.Content(), Is.EqualTo(reply));
+    }
+
+    [Test]
+    public async Task SeasonSetup_Should_MakeTheMatchesAndTheBracket()
+    {
+        var season = await _context.AddSeason("Built");
+        await _context.AddTeamWithCaptain(season, "BuiltA", 7_100_001);
+        await _context.AddTeamWithCaptain(season, "BuiltB", 7_100_002);
+        var generate = As(_commissioner);
+        var bracket = As(_commissioner);
+        var seed = As(_commissioner);
+        var id = season.SeasonID.ToString();
+
+        await _handler.GenerateMatches(generate.Context, id, 1, 3);
+        await _handler.CreateBracket(bracket.Context, id, 2, false, 3);
+        await _handler.SeedBracket(seed.Context, id);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(generate.Content(), Does.StartWith("The matches are made."));
+            Assert.That(bracket.Content(), Does.StartWith("The bracket is made."));
+            Assert.That(seed.Content(), Is.EqualTo("The bracket is seeded by the standings."));
+            Assert.That(await _context.SeasonMatches.CountAsync(x => x.SeasonID == season.SeasonID), Is.GreaterThan(1));
+        }
+    }
+
+    [Test]
+    public async Task DecideClaim_Should_PassOnTheServicesRefusal_ForAClaimThatIsGone()
+    {
+        var sysadmin = await Sysadmin();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(async () => await _handler.DecideClaim(As(sysadmin).Context, 999999, approve: true, reason: null), Throws.TypeOf<GamertagClaimException>());
+            Assert.That(async () => await _handler.DecideClaim(As(sysadmin).Context, 999999, approve: false, reason: "No"), Throws.TypeOf<GamertagClaimException>());
         }
     }
 }

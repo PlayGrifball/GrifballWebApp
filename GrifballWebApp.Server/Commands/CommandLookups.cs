@@ -11,6 +11,7 @@ namespace GrifballWebApp.Server.Commands;
 /// The season, team and player a command names. The options autocomplete to IDs (<see cref="SeasonAutocomplete"/> and the
 /// rest), but Discord sends whatever was typed when no choice was picked, so a name is looked up too.
 /// String options, not integer ones: Discord lets only digits be typed into an integer option, so names couldn't be searched.
+/// Names match whatever their case: the database compares text case-insensitively (CaseInsensitiveTextTests).
 /// </summary>
 public class CommandLookups
 {
@@ -40,10 +41,10 @@ public class CommandLookups
         if (int.TryParse(input, out var id))
             return await _context.Seasons.Where(x => x.SeasonID == id).Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct);
 
-        var name = input.Trim().ToLower();
+        var name = input.Trim();
         return await _context.Seasons
-            .Where(x => x.SeasonName.ToLower().Contains(name))
-            .OrderByDescending(x => x.SeasonName.ToLower() == name)
+            .Where(x => x.SeasonName.Contains(name))
+            .OrderByDescending(x => x.SeasonName == name)
             .ThenByDescending(x => x.SeasonID)
             .Select(x => (int?)x.SeasonID)
             .FirstOrDefaultAsync(ct);
@@ -57,9 +58,9 @@ public class CommandLookups
             teams = teams.Where(x => x.TeamID == id);
         else
         {
-            var name = input.Trim().ToLower();
-            teams = teams.Where(x => x.TeamName.ToLower().Contains(name))
-                .OrderByDescending(x => x.TeamName.ToLower() == name)
+            var name = input.Trim();
+            teams = teams.Where(x => x.TeamName.Contains(name))
+                .OrderByDescending(x => x.TeamName == name)
                 .ThenByDescending(x => x.SeasonID);
         }
 
@@ -74,10 +75,10 @@ public class CommandLookups
         if (int.TryParse(input, out var id))
             return await users.Where(x => x.Id == id).Select(x => (int?)x.Id).FirstOrDefaultAsync(ct);
 
-        var gamertag = input.Trim().ToLower();
+        var gamertag = input.Trim();
         return await users
-            .Where(x => x.XboxUser!.Gamertag.ToLower().Contains(gamertag))
-            .OrderByDescending(x => x.XboxUser!.Gamertag.ToLower() == gamertag)
+            .Where(x => x.XboxUser!.Gamertag.Contains(gamertag))
+            .OrderByDescending(x => x.XboxUser!.Gamertag == gamertag)
             .ThenBy(x => x.XboxUser!.Gamertag)
             .Select(x => (int?)x.Id)
             .FirstOrDefaultAsync(ct);
@@ -86,9 +87,9 @@ public class CommandLookups
     /// <summary>Seasons whose name has <paramref name="input"/>, newest first: a season option's choices, valued by ID.</summary>
     public async Task<List<ApplicationCommandOptionChoiceProperties>> SeasonChoices(string? input, CancellationToken ct = default)
     {
-        var name = (input ?? "").Trim().ToLower();
+        var name = (input ?? "").Trim();
         var seasons = await _context.Seasons
-            .Where(x => x.SeasonName.ToLower().Contains(name))
+            .Where(x => x.SeasonName.Contains(name))
             .OrderByDescending(x => x.SeasonID)
             .Take(MaxChoices)
             .Select(x => new { x.SeasonID, x.SeasonName })
@@ -99,9 +100,9 @@ public class CommandLookups
     /// <summary>Teams whose name has <paramref name="input"/>, labelled with their season, newest season first; valued by ID.</summary>
     public async Task<List<ApplicationCommandOptionChoiceProperties>> TeamChoices(string? input, CancellationToken ct = default)
     {
-        var name = (input ?? "").Trim().ToLower();
+        var name = (input ?? "").Trim();
         var teams = await _context.Teams
-            .Where(x => x.TeamName.ToLower().Contains(name))
+            .Where(x => x.TeamName.Contains(name))
             .OrderByDescending(x => x.SeasonID)
             .ThenBy(x => x.TeamName)
             .Take(MaxChoices)
@@ -113,9 +114,9 @@ public class CommandLookups
     /// <summary>Players (users with a gamertag) whose gamertag has <paramref name="input"/>; valued by user ID.</summary>
     public async Task<List<ApplicationCommandOptionChoiceProperties>> PlayerChoices(string? input, CancellationToken ct = default)
     {
-        var gamertag = (input ?? "").Trim().ToLower();
+        var gamertag = (input ?? "").Trim();
         var players = await _context.Users
-            .Where(x => x.XboxUser != null && x.XboxUser.Gamertag.ToLower().Contains(gamertag))
+            .Where(x => x.XboxUser != null && x.XboxUser.Gamertag.Contains(gamertag))
             .OrderBy(x => x.XboxUser!.Gamertag)
             .Take(MaxChoices)
             .Select(x => new { x.Id, x.XboxUser!.Gamertag })
@@ -132,9 +133,9 @@ public class CommandLookups
         if (int.TryParse(input, out var id))
             return await matches.Where(x => x.SeasonMatchID == id).Select(x => (int?)x.SeasonMatchID).FirstOrDefaultAsync(ct);
 
-        var name = input.Trim().ToLower();
+        var name = input.Trim();
         return await matches
-            .Where(x => x.HomeTeam!.TeamName.ToLower().Contains(name) || x.AwayTeam!.TeamName.ToLower().Contains(name))
+            .Where(x => x.HomeTeam!.TeamName.Contains(name) || x.AwayTeam!.TeamName.Contains(name))
             .OrderByDescending(x => x.SeasonID)
             .ThenBy(x => x.ScheduledTime)
             .Select(x => (int?)x.SeasonMatchID)
@@ -144,9 +145,9 @@ public class CommandLookups
     /// <summary>Season matches with a team whose name has <paramref name="input"/>, latest season first; valued by ID.</summary>
     public async Task<List<ApplicationCommandOptionChoiceProperties>> SeasonMatchChoices(string? input, CancellationToken ct = default)
     {
-        var name = (input ?? "").Trim().ToLower();
+        var name = (input ?? "").Trim();
         var matches = await _context.SeasonMatches
-            .Where(x => x.HomeTeam!.TeamName.ToLower().Contains(name) || x.AwayTeam!.TeamName.ToLower().Contains(name))
+            .Where(x => x.HomeTeam!.TeamName.Contains(name) || x.AwayTeam!.TeamName.Contains(name))
             .OrderByDescending(x => x.SeasonID)
             .ThenBy(x => x.ScheduledTime)
             .Take(MaxChoices)
