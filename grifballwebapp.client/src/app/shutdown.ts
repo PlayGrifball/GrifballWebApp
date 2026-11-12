@@ -9,14 +9,25 @@ export function shutdownDelay(value: string | undefined): number {
   return Number.isFinite(delay) && delay > 0 ? delay : 0;
 }
 
+/** How long, once the port is closed, the requests still open get to finish (a SignalR WebSocket never does). */
+export const CLOSE_CAP_MS = 15_000;
+
 /**
  * On SIGTERM: keep serving for `delayMs` while the ingress stops sending requests (the endpoint's removal reaches
- * it after the signal), then let go of the port, send the telemetry that's queued, and exit.
+ * it after the signal), then let go of the port and wait for the requests still open to finish, at most
+ * CLOSE_CAP_MS; then send the telemetry that's queued, and exit. 10 s + 15 s stays inside Kubernetes' 30 s.
  */
 export function drainThenExit(server: ClosableServer, flush: () => Promise<unknown>, exit: (code: number) => void,
-  delayMs: number, schedule: (run: () => void, ms: number) => unknown = setTimeout): void {
-  schedule(() => {
-    server.close();
+  delayMs: number, schedule: (run: () => void, ms: number) => unknown = setTimeout, capMs = CLOSE_CAP_MS): void {
+  let done = false;
+  const finish = () => {
+    if (done)
+      return;
+    done = true;
     void flush().finally(() => exit(0));
+  };
+  schedule(() => {
+    server.close(() => finish());
+    schedule(finish, capMs);
   }, delayMs);
 }

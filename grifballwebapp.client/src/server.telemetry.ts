@@ -174,6 +174,8 @@ export function startServerTelemetry(settings: ServerTelemetrySettings): ServerT
         return;
       if (status !== undefined)
         span.setAttribute('http.response.status_code', status);
+      else
+        span.setAttribute('grif.aborted', true);
       if ((status ?? 0) >= 500)
         span.setStatus({ code: SpanStatusCode.ERROR });
       context.with(ctx, () => log(requestLogLevel(kind, status ?? 0), aborted ? 'Request aborted' : 'Request finished', {

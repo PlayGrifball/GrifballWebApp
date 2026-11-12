@@ -205,19 +205,27 @@ export function errorFields(error: Error): { type: string; message: string; stac
   return { type: error.name, message: error.message, stack: error.stack };
 }
 
+/**
+ * Histogram buckets in seconds, as the backend's http.server.request.duration has them. Without them the SDK's
+ * default buckets are milliseconds (0, 5, 10, ... 10000): every value in seconds would land in the first.
+ */
+export const SECONDS_BUCKETS = [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10];
+
 /** The server's request durations, in seconds (grif.frontend.request.duration). */
 export const REQUEST_DURATION: MetricOptions = {
   unit: 's',
+  advice: { explicitBucketBoundaries: SECONDS_BUCKETS },
   description: 'Requests the app\'s server answered: pages, the build\'s files, and those passed on to the backend',
 };
 
 /** The server's page renders, in seconds, by outcome (grif.frontend.render.duration). */
 export const RENDER_DURATION: MetricOptions = {
   unit: 's',
+  advice: { explicitBucketBoundaries: SECONDS_BUCKETS },
   description: 'Pages rendered on the server, by outcome (server, browser, failed)',
 };
 
-/** The status a finished request is recorded with. */
-export function finishedStatus(statusCode: number, _finished: boolean): number | undefined {
-  return statusCode;
+/** The status a request is recorded with: none for one the visitor cut short (its statusCode is still Node's default 200). */
+export function finishedStatus(statusCode: number, finished: boolean): number | undefined {
+  return finished ? statusCode : undefined;
 }

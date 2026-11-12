@@ -1,4 +1,4 @@
-import { ClosableServer, drainThenExit, shutdownDelay } from './shutdown';
+import { CLOSE_CAP_MS, ClosableServer, drainThenExit, shutdownDelay } from './shutdown';
 
 describe('shutdown', () => {
   it('waits SHUTDOWN_DELAY_MS, 10 s by default', () => {
@@ -10,7 +10,7 @@ describe('shutdown', () => {
   });
 
   describe('after SIGTERM', () => {
-    let scheduled: { run: () => void; ms: number } | undefined;
+    let scheduled: { run: () => void; ms: number }[];
     let closed: ((error?: Error) => void) | undefined;
     let closeCalls: number;
     const server: ClosableServer = { close: cb => { closeCalls++; closed = cb; return server; } };
@@ -19,22 +19,22 @@ describe('shutdown', () => {
     const settle = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
 
     beforeEach(() => {
-      scheduled = undefined;
+      scheduled = [];
       closed = undefined;
       closeCalls = 0;
       exit.calls.reset();
       flush.calls.reset();
-      drainThenExit(server, flush, exit, 10_000, (run, ms) => scheduled = { run, ms });
+      drainThenExit(server, flush, exit, 10_000, (run, ms) => scheduled.push({ run, ms }));
     });
 
     it('keeps serving until the delay is over', () => {
-      expect(scheduled?.ms).toBe(10_000);
+      expect(scheduled.map(t => t.ms)).toEqual([10_000]);
       expect(closeCalls).toBe(0);
       expect(exit).not.toHaveBeenCalled();
     });
 
     it('exits only once the requests still open have finished', async () => {
-      scheduled!.run();
+      scheduled[0].run();
       await settle();
 
       expect(closeCalls).toBe(1);
@@ -44,6 +44,19 @@ describe('shutdown', () => {
       await settle();
 
       expect(flush).toHaveBeenCalled();
+      expect(exit).toHaveBeenCalledOnceWith(0);
+    });
+
+    it(`exits after ${CLOSE_CAP_MS} ms when a request never finishes (an open WebSocket), and only once`, async () => {
+      scheduled[0].run();
+      expect(scheduled[1].ms).toBe(CLOSE_CAP_MS);
+
+      scheduled[1].run();
+      await settle();
+      closed?.();
+      await settle();
+
+      expect(flush).toHaveBeenCalledTimes(1);
       expect(exit).toHaveBeenCalledOnceWith(0);
     });
   });

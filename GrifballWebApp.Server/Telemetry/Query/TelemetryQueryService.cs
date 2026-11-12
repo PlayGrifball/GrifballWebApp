@@ -142,7 +142,8 @@ public sealed class TelemetryQueryService
             ("start", from.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)),
             ("end", to.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)),
             ("limit", Math.Clamp(limit, 1, MaxTraces).ToString(CultureInfo.InvariantCulture)),
-            ("spss", "1"));
+            // A few spans a trace: the root alone is the app's server's /api/* when a browser's call started it
+            ("spss", "3"));
 
         using var doc = await Get("Tempo", url, ct);
         if (!doc.RootElement.TryGetProperty("traces", out var traces))

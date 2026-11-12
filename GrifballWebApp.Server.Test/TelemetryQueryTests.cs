@@ -108,7 +108,7 @@ public class TelemetryQueriesTests
             Assert.That(TelemetryQueries.TraceName("GET /*", "/*"), Is.EqualTo("GET /*"));
             Assert.That(TelemetryQueries.TraceName("GET /api/*", null), Is.EqualTo("GET /api/*"));
             Assert.That(TelemetryQueries.TraceName("GET Home/Events", "Home/Events"), Is.EqualTo("GET Home/Events"));
-            Assert.That(TelemetryQueries.TraceName("*", "Home/Events"), Is.EqualTo("Home/Events"));
+            Assert.That(TelemetryQueries.TraceName("POST /api/*", "Teams/AddCaptain"), Is.EqualTo("POST Teams/AddCaptain"));
         }
     }
 

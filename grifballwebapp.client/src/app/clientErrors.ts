@@ -39,9 +39,18 @@ export function validTraceparent(value: unknown): string | undefined {
 }
 
 /** The page's trace, from its Server-Timing header: undefined for a page the server did not trace. */
-export function pageTraceparent(perf: Pick<Performance, 'getEntriesByType'> | undefined = globalThis.performance, _currentUrl?: string): string | undefined {
+export function pageTraceparent(perf: Pick<Performance, 'getEntriesByType'> | undefined = globalThis.performance,
+  currentUrl: string | undefined = globalThis.location?.href): string | undefined {
   const navigation = perf?.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+  // The server traced the page it sent; once the app has moved on in the browser, that trace is another page's
+  if (navigation?.name && currentUrl && withoutHash(navigation.name) !== withoutHash(currentUrl))
+    return undefined;
   return validTraceparent(navigation?.serverTiming?.find(t => t.name === 'traceparent')?.description);
+}
+
+function withoutHash(url: string): string {
+  const hash = url.indexOf('#');
+  return hash < 0 ? url : url.slice(0, hash);
 }
 
 /** A failed call's trace: its traceresponse header, else the traceId of the ProblemDetails it answered with. */
@@ -90,8 +99,11 @@ export class ClientErrorReporter {
   private leaving = false;
 
   constructor() {
-    if (this.browser)
+    if (this.browser) {
       addEventListener('pagehide', () => this.leaving = true);
+      // Back from the back/forward cache: the page is live again
+      addEventListener('pageshow', () => this.leaving = false);
+    }
   }
 
   /** An unhandled error, in the page's trace. */
@@ -143,7 +155,9 @@ export class ClientErrorReporter {
       keepalive: true,
       credentials: 'same-origin',
     }).then(response => {
-      if (response.status === 404)
+      // 404: reports are off here. Any other refusal (400: one the API won't take) would refuse the next too; a
+      // 429 is only a limit for now
+      if (response.status >= 400 && response.status < 500 && response.status !== 429)
         this.off = true;
     }).catch(() => {
       // Reporting is best effort: a failed report is not reported
@@ -158,7 +172,9 @@ export class ReportingErrorHandler extends ErrorHandler {
 
   override handleError(error: unknown): void {
     super.handleError(error);
-    this.reporter.reportError(error);
+    // A failed call is the interceptor's to report (redacted, and only no answer or a 5xx)
+    if (!(error instanceof HttpErrorResponse))
+      this.reporter.reportError(error);
   }
 }
 

@@ -123,12 +123,13 @@ public static partial class TelemetryQueries
         routes.FirstOrDefault(r => !r.Contains('*', StringComparison.Ordinal)) ?? (routes.Count > 0 ? routes[0] : null);
 
     /// <summary>
-    /// A trace's name in the list: its root span's, unless that is the app's server's wildcard (GET /api/*), which
-    /// every call shares; then its method and <paramref name="route"/>, when that names one.
+    /// A trace's name in the list: its root span's, unless that is the app's server's passing on of an API call
+    /// (GET /api/*), which every call shares; then its method and <paramref name="route"/>, when that names one. A
+    /// page's root (GET /*) keeps its name: the routes in it are the calls its render made.
     /// </summary>
     public static string TraceName(string rootName, string? route)
     {
-        if (!rootName.Contains('*', StringComparison.Ordinal) || route is null || route.Contains('*', StringComparison.Ordinal))
+        if (!rootName.EndsWith(" /api/*", StringComparison.Ordinal) || route is null || route.Contains('*', StringComparison.Ordinal))
             return rootName;
         var space = rootName.IndexOf(' ', StringComparison.Ordinal);
         return space > 0 ? $"{rootName[..space]} {route}" : route;

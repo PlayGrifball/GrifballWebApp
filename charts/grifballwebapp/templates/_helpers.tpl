@@ -459,3 +459,10 @@ Secret (secretName/secretKey), so both read the one Secret. Empty secretName: no
   value: {{ $bt.metricExportInterval | quote }}
 {{- end }}
 {{- end }}
+
+{{/* A URL's port: the one after its host's colon, else 443 for https and 80 otherwise. Only digits after a colon
+   count, so a host's own digits (http://otel2) are no port. Takes the URL. */}}
+{{- define "grif.urlPort" -}}
+{{- $u := urlParse . -}}
+{{- trimPrefix ":" (regexFind ":[0-9]+$" $u.host) | default (ternary "443" "80" (eq $u.scheme "https")) -}}
+{{- end }}
