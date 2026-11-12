@@ -27,6 +27,7 @@ public static class OpenApiServers
     /// </summary>
     /// <param name="requestUrl">The request's own scheme, host and the API's path prefix, e.g. "https://grifball.xyz/api".</param>
     /// <param name="configured">"OpenApi:Servers" from configuration.</param>
+    /// <param name="isDevelopment">Whether to add the backend itself ("/"), for Development.</param>
     public static List<OpenApiServer> Build(string requestUrl, IReadOnlyList<OpenApiServerEntry> configured, bool isDevelopment)
     {
         var servers = new List<OpenApiServer> { new() { Url = requestUrl, Description = "This environment" } };

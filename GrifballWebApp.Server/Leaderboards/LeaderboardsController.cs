@@ -19,6 +19,7 @@ public class LeaderboardsController : ControllerBase
 
     /// <summary>The all-time leaderboards.</summary>
     /// <param name="format">Count only the titles of seasons of this format; null: every format.</param>
+    /// <param name="ct">Cancelled when the caller goes away.</param>
     [AllowAnonymous]
     [HttpGet("leaderboards", Name = "GetLeaderboards")]
     [ProducesResponseType<LeaderboardsDto>(StatusCodes.Status200OK)]

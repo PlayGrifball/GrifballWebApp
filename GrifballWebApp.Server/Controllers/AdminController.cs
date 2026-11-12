@@ -29,8 +29,10 @@ public class AdminController : ControllerBase
     private readonly IOptionsMonitor<ClientConfiguration> _options;
     private readonly IUserManagementService _userManagementService;
 
-    /// <param name="haloInfiniteClient">Every Halo call: the gateway client, or in Direct mode the factory.</param>
-    /// <param name="accountAuthorization">Direct mode only (the app's own sign-in); not registered in Gateway mode.</param>
+    /// <remarks>
+    /// <paramref name="haloInfiniteClient"/> makes every Halo call: the gateway client, or in Direct mode the factory.
+    /// <paramref name="accountAuthorization"/> is Direct mode's only (the app's own sign-in); not registered in Gateway mode.
+    /// </remarks>
     public AdminController(ILogger<AdminController> logger, IHaloInfiniteClient haloInfiniteClient,
         HaloInfiniteSettings haloSettings, HaloInfiniteHealthCheck haloStatus, IDataPullService dataPullService,
         IOptionsMonitor<ClientConfiguration> optionsMonitor, IUserManagementService userManagementService,
