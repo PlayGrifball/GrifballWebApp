@@ -249,7 +249,7 @@ test('the user search box debounces typing and the table shows the filtered user
 
   // 'g' alone already narrows the table to one row, so wait for the request for the full
   // term before looking at the table.
-  const terms = () => searches().map(r => new URL(r.split(' ')[1], 'http://x').searchParams.get('search'));
+  const terms = () => searches().map(r => new URL(r.split(' ')[1], 'https://x').searchParams.get('search'));
   await expect.poll(terms).toContain('grif');
   await expect(page.locator('tr.mat-mdc-row')).toHaveCount(1);
   await expect(page.locator('tr.mat-mdc-row')).toContainText(['SgtGrif']);

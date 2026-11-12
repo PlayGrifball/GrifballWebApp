@@ -36,7 +36,7 @@ describe('LineChartComponent', () => {
     ]);
 
     const lines = Array.from(el().querySelectorAll('polyline'));
-    expect(lines.length).toBe(2);
+    expect(lines).toHaveSize(2);
     expect(lines[0].getAttribute('points')).toBe('48.0,78.0 592.0,43.0');
     expect(Array.from(el().querySelectorAll('text')).map(text).slice(0, 3)).toEqual(['200', '100', '0']);
     expect(Array.from(el().querySelectorAll('.lc-key')).map(text)).toEqual(['grif-backend-1: 150 MB', 'grif-worker-1: 120 MB']);

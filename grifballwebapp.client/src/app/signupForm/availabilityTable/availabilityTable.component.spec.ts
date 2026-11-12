@@ -68,7 +68,7 @@ describe('AvailabilityTableComponent', () => {
 
       fixture.componentRef.setInput('timeslots', timeslots);
 
-      expect(component.dtos().length).toBe(2);
+      expect(component.dtos()).toHaveSize(2);
     });
 
     it('should create header for each day of week', () => {
@@ -130,7 +130,7 @@ describe('AvailabilityTableComponent', () => {
 
       fixture.componentRef.setInput('timeslots', timeslots);
 
-      expect(component.dtos().length).toBe(2); // 2 days
+      expect(component.dtos()).toHaveSize(2); // 2 days
       expect(component.dtos()[0].length).toBeGreaterThan(1); // Multiple times per day
     });
   });
@@ -143,10 +143,10 @@ describe('AvailabilityTableComponent', () => {
       mockAvailabilityService.parseTime.calls.reset();
 
       fixture.componentRef.setInput('timeslots', timeslots);
-      expect(component.dtos().length).toBe(7);
+      expect(component.dtos()).toHaveSize(7);
 
       expect(mockAvailabilityService.parseTime).toHaveBeenCalledTimes(3);
-      expect(component.dtos().flat().filter(c => !c.isHeader && !c.isDisabled).length).toBe(21);
+      expect(component.dtos().flat().filter(c => !c.isHeader && !c.isDisabled)).toHaveSize(21);
     });
   });
 
@@ -243,7 +243,7 @@ describe('AvailabilityTableComponent', () => {
 
       component.dayOfWeekClicked('Day of Week', component.dtos()[0]);
 
-      expect(emitted.length).toBe(1);
+      expect(emitted).toHaveSize(1);
       expect(timeslots.every(t => !t.isChecked)).toBeTrue();
       expect(component.timeslots()![2]).toBe(timeslots[2]); // untouched slots are kept as they are
     });
@@ -301,7 +301,7 @@ describe('AvailabilityTableComponent', () => {
 
       fixture.componentRef.setInput('timeslots', timeslots);
 
-      expect(component.dtos().length).toBe(3); // 3 unique days
+      expect(component.dtos()).toHaveSize(3); // 3 unique days
       expect(component.timeColumns().length).toBeGreaterThan(1);
     });
 
@@ -340,11 +340,11 @@ describe('AvailabilityTableComponent', () => {
 
     it('renders the day of week as a header cell and a checkbox for every time slot', () => {
       const [monday, tuesday] = rows();
-      expect(rows().length).toBe(2);
+      expect(rows()).toHaveSize(2);
       expect(monday.querySelector('td button')?.textContent?.trim()).toBe('Monday');
       expect(tuesday.querySelector('td button')?.textContent?.trim()).toBe('Tuesday');
-      expect(monday.querySelectorAll('mat-checkbox').length).toBe(2);
-      expect(tuesday.querySelectorAll('mat-checkbox').length).toBe(2);
+      expect(monday.querySelectorAll('mat-checkbox')).toHaveSize(2);
+      expect(tuesday.querySelectorAll('mat-checkbox')).toHaveSize(2);
     });
 
     it('makes the day and time headers buttons that tick a whole row or column, and labels each checkbox', () => {
@@ -353,7 +353,7 @@ describe('AvailabilityTableComponent', () => {
       const dayClicked = spyOn(component, 'dayOfWeekClicked');
       const headerButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('th button'));
       // Every time column has one; the day-of-week column does not.
-      expect(headerButtons.length).toBe(component.timeColumns().length - 1);
+      expect(headerButtons).toHaveSize(component.timeColumns().length - 1);
       headerButtons[0].click();
       expect(timeClicked).toHaveBeenCalledWith(component.timeColumns()[1]);
       expect(headerButtons[0].getAttribute('aria-label')).toBe(`Toggle ${component.timeColumns()[1]} on every day`);

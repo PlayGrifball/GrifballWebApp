@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { META } from './mockApi.mts';
-import { mockBackend, SITE } from './testPages.mts';
+import { mockBackend, settled, SITE } from './testPages.mts';
 
 // #307: signing in (on the login page, not with a page load) swaps the header's Login button for the wider user
 // chip and adds the organizer and admin links. The bar must be laid out again: every link in it whole and clear of
@@ -75,7 +75,7 @@ test('the toolbar lays out its links again on signing in, at every screen size',
     await expect(page).toHaveURL(/\/$/);
     // The admin links are in, in the menu at least
     await expect(page.locator('mat-sidenav a', { hasText: 'Database Backup' })).toHaveCount(1);
-    await page.waitForTimeout(500);
+    await settled(page);
     await page.screenshot({ path: `screenshots/toolbar-signed-in/${index + 1}-${device}-${width}x${height}.png` });
 
     for (const p of await headerProblems(page))

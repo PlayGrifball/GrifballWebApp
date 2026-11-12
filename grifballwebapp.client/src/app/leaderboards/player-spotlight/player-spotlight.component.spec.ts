@@ -59,7 +59,7 @@ describe('PlayerSpotlightComponent', () => {
 
   it('leaves out the alias, past gamertags and archive mark when there are none', () => {
     render({ ...player, matchedAlias: null, pastGamertags: [], isDummyUser: false });
-    expect(el().querySelectorAll('.spotlight__head .hud-label').length).toBe(0);
+    expect(el().querySelectorAll('.spotlight__head .hud-label')).toHaveSize(0);
     expect(el().querySelector('p')).toBeNull();
   });
 

@@ -69,7 +69,7 @@ describe('VodReviewComponent', () => {
     await create([review(1), review(2, { seasonID: null, seasonName: null, teams: [], matchNote: null, publishedAtIsApproximate: false })]);
 
     const items = el().querySelectorAll('.vr-item');
-    expect(items.length).toBe(2);
+    expect(items).toHaveSize(2);
     expect(items[0].querySelector<HTMLAnchorElement>('.vr-title')!.href).toBe('https://www.youtube.com/watch?v=Hb2JmxJhQd8');
     expect(items[0].textContent).toContain('(about)');
     expect(items[0].textContent).toContain('Suggested: Summer League 2026 · Low IQ');
@@ -169,7 +169,7 @@ describe('VodReviewComponent', () => {
 
     expect(snackBar.open).toHaveBeenCalled();
     expect(button('Dismiss VOD 1').disabled).toBeFalse();
-    expect(el().querySelectorAll('.vr-item').length).toBe(1);
+    expect(el().querySelectorAll('.vr-item')).toHaveSize(1);
   });
 
   it('describes a suggestion', () => {

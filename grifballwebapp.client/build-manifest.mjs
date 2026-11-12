@@ -17,7 +17,7 @@ import { parse } from 'parse5';
 const manifestName = 'build-manifest.json';
 
 const sha256 = data => createHash('sha256').update(data).digest('hex');
-const byPath = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+const byPath = (a, b) => Number(a > b) - Number(a < b);
 
 function hashTree(root, skip) {
   const out = {};

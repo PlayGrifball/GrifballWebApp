@@ -1,4 +1,3 @@
-import { animate, style, transition, trigger } from '@angular/animations';
 import { DatePipe } from '@angular/common';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, computed, OnInit, signal, viewChild, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
@@ -13,6 +12,7 @@ import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 import { pageNow } from '../shared/pageNow';
 import type { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
 import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
+import { rowEnterAnimation } from '../shared/rowEnterAnimation';
 
 @Component({
     selector: 'app-home',
@@ -29,20 +29,11 @@ import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeag
         MatTableModule,
         LateLeagueQueueComponent,
     ],
-    animations: [
-        trigger('rowsAnimation', [
-            transition(':enter', [
-                style({ opacity: .1 }),
-                animate('350ms', style({ opacity: 1 }))
-            ]),
-            transition(':leave', [
-                style({ display: 'none' })
-            ])
-        ])
-    ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class HomeComponent implements OnInit {
+  /** The rows' fade-in, once hydration is past (rowEnterAnimation) */
+  readonly rowEnter = rowEnterAnimation();
   private http = inject(HttpClient);
 
 

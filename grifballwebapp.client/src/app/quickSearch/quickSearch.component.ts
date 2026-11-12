@@ -110,9 +110,12 @@ export class QuickSearchComponent {
   readonly failed = computed(() => this.results.status() === 'error');
   /** The hits by group. While the next term's hits load, the last ones stay, so the list does not jump as you type. */
   readonly groups = linkedSignal<QuickSearchGroup[] | null, QuickSearchGroup[]>({
-    source: () => this.tooShort() || this.failed() ? []
-      : this.results.hasValue() ? toGroups(this.results.value())
-      : this.loading() ? null : [],
+    source: () => {
+      if (this.tooShort() || this.failed())
+        return [];
+      // With a term long enough and no error, the search has its hits or is loading them: null keeps the last shown
+      return this.results.hasValue() ? toGroups(this.results.value()) : null;
+    },
     computation: (next, previous) => next ?? previous?.value ?? [],
   });
   /** Every hit, in list order: what the arrow keys move through. */

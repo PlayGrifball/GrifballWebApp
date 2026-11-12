@@ -145,6 +145,7 @@ async function get(url) {
 
 function attestedCommit(manifestPath) {
   // The GitHub CLI wherever the user installed it (their PATH): this runs on their machine, as them
+  // eslint-disable-next-line sonarjs/no-os-command-from-path -- the developer's own tool, found on their PATH: this runs on their machine, as them
   const out = execFileSync('gh', [ // NOSONAR(S4036): the user's own gh, found as their shell finds it
     'attestation', 'verify', manifestPath, '--repo', REPO,
     '--signer-workflow', WORKFLOW, '--source-ref', 'refs/heads/master', '--format', 'json'], { encoding: 'utf8' });
@@ -190,7 +191,8 @@ async function main() {
     const html = (await get(options.site + path)).toString('utf8');
     const found = checkPage(html, manifest, options.site);
     problems.push(...found.map(problem => `${path}: ${problem}`));
-    console.log(`Page ${path}: ${found.length === 0 ? 'only the build\'s scripts' : `${found.length} problems`}`);
+    const summary = found.length === 0 ? 'only the build\'s scripts' : `${found.length} problems`;
+    console.log(`Page ${path}: ${summary}`);
   }
 
   if (problems.length > 0) {

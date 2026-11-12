@@ -5,7 +5,7 @@ import { MtxColorpickerModule } from '@ng-matero/extensions/colorpicker';
 import { MatFormFieldModule, MatLabel } from '@angular/material/form-field';
 import { ThemingService } from '../../theming.service';
 import { MatInput } from '@angular/material/input';
-import { FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 @Component({
     selector: 'app-palette',

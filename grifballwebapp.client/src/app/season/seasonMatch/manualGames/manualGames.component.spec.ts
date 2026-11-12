@@ -1,9 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideAnimations } from '@angular/platform-browser/animations';
 import { DateTime } from 'luxon';
-import { INFINITE_GAME_VERSION_ID, ManualGameForm, ManualGamesComponent, toLocalInput, toRequest } from './manualGames.component';
+import { gameSource, INFINITE_GAME_VERSION_ID, ManualGameForm, ManualGamesComponent, toLocalInput, toRequest } from './manualGames.component';
 import { ReportedGameDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
 import { PlayerDto } from '../../team/team.component';
 
@@ -70,7 +69,7 @@ describe('ManualGamesComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ManualGamesComponent],
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideAnimations()],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
     }).compileComponents();
     httpMock = TestBed.inject(HttpTestingController);
   });
@@ -412,6 +411,14 @@ describe('ManualGamesComponent', () => {
 });
 
 describe('manual game helpers', () => {
+  it('says where a game came from: Waypoint (a match ID) first, else by hand, else recorded', () => {
+    const from = (matchID: string | null, isManual: boolean) => gameSource({ matchID, isManual } as ReportedGameDto);
+    expect(from('a1b2', false)).toBe('from Waypoint');
+    expect(from('a1b2', true)).toBe('from Waypoint');
+    expect(from(null, true)).toBe('entered by hand');
+    expect(from(null, false)).toBe('recorded');
+  });
+
   const form = (overrides: Partial<ManualGameForm> = {}): ManualGameForm => ({
     gameVersionID: 1, map: '', gametype: ' Grifball ', playedAt: '', homeTeamScore: 5, awayTeamScore: 3, players: [], slot: null, ...overrides,
   });

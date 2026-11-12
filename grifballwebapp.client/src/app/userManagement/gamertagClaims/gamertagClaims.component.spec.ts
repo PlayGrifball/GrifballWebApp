@@ -62,7 +62,7 @@ describe('GamertagClaimsComponent', () => {
   it('lists the pending claims, linking the user, placeholder, season and team', async () => {
     await loadPending();
     expect(Array.from(el().querySelectorAll('th')).every(th => th.getAttribute('scope') === 'col')).toBeTrue();
-    expect(rows().length).toBe(2);
+    expect(rows()).toHaveSize(2);
     const [first, second] = rows();
     expect(cells(first).slice(0, 6)).toEqual(['Legendary', 'Legendary117XUID 2535400000000001Gamertag history', 'User 501', 'Summer League 2010', 'Relentless', 'Roster match']);
     expect(Array.from(first.querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/profile/117', '/usermanagement/pastgamertags?xboxUserID=2535400000000001', '/profile/501', '/season/5', '/season/5/team/41']);
@@ -86,7 +86,7 @@ describe('GamertagClaimsComponent', () => {
       'claims-col-gamertag', 'claims-col-xbox', 'claims-col-placeholder', 'claims-col-season', 'claims-col-team', 'claims-col-kind', 'claims-col-created', 'claims-col-decision',
     ]);
     // Every season is listed, in the gamertag's own cell
-    expect(rows()[0].querySelectorAll('td')[0].querySelectorAll('app-season-links a').length).toBe(12);
+    expect(rows()[0].querySelectorAll('td')[0].querySelectorAll('app-season-links a')).toHaveSize(12);
     // The gamertag heads its card; every other field is labelled with its column's header
     expect(labels(rows()[0])).toEqual([null, ...headers().slice(1)]);
 
@@ -162,7 +162,7 @@ describe('GamertagClaimsComponent', () => {
     await settle();
     expect(statusButton('Approved').getAttribute('aria-pressed')).toBe('true');
     expect(statusButton('Pending').getAttribute('aria-pressed')).toBe('false');
-    expect(rows().length).toBe(1);
+    expect(rows()).toHaveSize(1);
     expect(el().querySelector('tbody button')).toBeNull();
     expect(Array.from(el().querySelectorAll('th')).map(th => th.textContent!.trim())).not.toContain('Decision');
 
@@ -187,7 +187,7 @@ describe('GamertagClaimsComponent', () => {
     fixture.detectChanges();
     claimsRequest('Pending').flush([claim(2)]);
     await settle();
-    expect(rows().length).toBe(1);
+    expect(rows()).toHaveSize(1);
     expect(button(rows()[0], 'Approve').disabled).toBeFalse();
   });
 
@@ -219,7 +219,7 @@ describe('GamertagClaimsComponent', () => {
       .flush({ title: 'The placeholder already has an Xbox account.', status: 400 }, { status: 400, statusText: 'Bad Request' });
     fixture.detectChanges();
     expect(snackBar.open).toHaveBeenCalledWith('The placeholder already has an Xbox account.', 'Close');
-    expect(rows().length).toBe(2);
+    expect(rows()).toHaveSize(2);
     expect(button(rows()[0], 'Reject').disabled).toBeFalse();
   });
 
@@ -333,7 +333,7 @@ describe('GamertagClaimsComponent: user claims and possible duplicates', () => {
   it('finds possible duplicates on demand, and merges one', async () => {
     await findDuplicates([pair, { ...pair, sourceUserID: 502, sourceGamertag: 'Grunt Padree', targetUserID: 118, targetGamertag: 'Grunt Padre', targetIsPlaceholder: true, match: 'Edits', distance: 1, sourceSeasons: [] }]);
     const rows = Array.from(el().querySelectorAll('.claims-duplicates tbody tr'));
-    expect(rows.length).toBe(2);
+    expect(rows).toHaveSize(2);
     expect(rows[0].textContent).toContain('Signed up · same gamertag');
     expect(rows[0].textContent).toContain('Winter League 2019 (2019)');
     expect(rows[1].textContent).toContain('Placeholder · 1 letter apart');

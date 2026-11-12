@@ -30,7 +30,7 @@ describe('SeasonManagerComponent', () => {
     fixture.detectChanges();
 
     const rows = Array.from(el().querySelectorAll('tr.mat-mdc-row'));
-    expect(rows.length).toBe(2);
+    expect(rows).toHaveSize(2);
     const cells = Array.from(rows[1].querySelectorAll('td')).map(td => td.textContent!.trim());
     expect(cells[0]).toBe('Season 2');
     expect(cells[1]).toMatch(/^Jan 2, 2026, 3:04\sAM$/);
@@ -53,7 +53,7 @@ describe('SeasonManagerComponent', () => {
     fixture.detectChanges();
 
     expect(err).toHaveBeenCalledWith('boom');
-    expect(el().querySelectorAll('tr.mat-mdc-row').length).toBe(0);
+    expect(el().querySelectorAll('tr.mat-mdc-row')).toHaveSize(0);
     expect(el().querySelector('[role="alert"]')!.textContent).toContain('Could not load the seasons');
   });
 
@@ -85,6 +85,6 @@ describe('SeasonManagerComponent', () => {
     seasons.next([season(1, 'Season 1')]);
     await fixture.whenStable();
 
-    expect(el().querySelectorAll('tr.mat-mdc-row').length).toBe(1);
+    expect(el().querySelectorAll('tr.mat-mdc-row')).toHaveSize(1);
   });
 });

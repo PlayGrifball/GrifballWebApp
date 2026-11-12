@@ -24,7 +24,7 @@
         </ng-container>
     }
     <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
-    <tr mat-row [@rowsAnimation]="true" *matRowDef="let row; columns: displayedColumns();"></tr>
+    <tr mat-row [animate.enter]="rowEnter()" *matRowDef="let row; columns: displayedColumns();"></tr>
 </table>
 @if (x.error()) {
 <div class="table-message table-error" role="alert">

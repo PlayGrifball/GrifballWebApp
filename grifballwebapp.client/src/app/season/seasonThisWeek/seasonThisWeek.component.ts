@@ -27,8 +27,15 @@ export function pickThisWeek(matches: ScheduledMatchDto[], now: DateTime): WeekM
     picked = byTime.slice(-3);
   return picked.map(match => ({
     match,
-    status: match.complete ? 'final' : match.time > now ? 'upcoming' : 'awaiting',
+    status: weekStatus(match, now),
   }));
+}
+
+/** A match's state on its card: played, still to come, or past its time with no result yet. */
+function weekStatus(match: ScheduledMatchDto, now: DateTime): WeekMatchStatus {
+  if (match.complete)
+    return 'final';
+  return match.time > now ? 'upcoming' : 'awaiting';
 }
 
 /** A few cards for the season overview: what is being played this week. */

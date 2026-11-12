@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { type Role } from './mockApi.mts';
-import { closeOverlay, mockBackend, open, OVERLAYS, SITE, slug } from './testPages.mts';
+import { closeOverlay, mockBackend, open, OVERLAYS, settled, SITE, slug } from './testPages.mts';
 
 // Every key page at every screen size: no sideways scrolling, its main parts on screen and not on
 // top of one another, the navigation reachable, and big enough touch targets on phones. Pages
@@ -170,6 +170,7 @@ const TOUCH_TARGETS = [
 
 /** Every problem with the layout at the current size. */
 function layoutProblems(page: Page, parts: string[], phone: boolean, touchTargets: string[]) {
+  // eslint-disable-next-line sonarjs/cognitive-complexity -- runs in the browser through page.evaluate, so it has to be one self-contained function
   return page.evaluate(({ parts, phone, touchTargets }) => {
     const problems: string[] = [];
     const width = innerWidth;
@@ -256,6 +257,20 @@ function layoutProblems(page: Page, parts: string[], phone: boolean, touchTarget
   }, { parts, phone, touchTargets });
 }
 
+/** Where the links are behind the menu, the menu opens with every link on screen. */
+async function menuProblems(page: Page): Promise<string[]> {
+  const menu = page.locator('.hud-header__menu');
+  if (!await menu.isVisible())
+    return [];
+  await menu.click();
+  const links = page.locator('mat-sidenav a');
+  await expect(links.first()).toBeInViewport();
+  const offScreen = await links.evaluateAll(as => as.filter(a => a.getBoundingClientRect().right > innerWidth).length);
+  await page.getByRole('button', { name: 'Close menu' }).click();
+  await expect(page.locator('mat-sidenav')).toBeHidden();
+  return offScreen > 0 ? [`${offScreen} menu links are off screen`] : [];
+}
+
 for (const { name, path, role, ready, parts, sheet } of PAGES) {
   test(`the ${name} page fits every screen size`, async ({ page }) => {
     test.setTimeout(90_000);
@@ -268,26 +283,16 @@ for (const { name, path, role, ready, parts, sheet } of PAGES) {
         await expect(page.locator(selector).first()).toBeVisible();
       // The web fonts change the layout (and the toolbar is measured again once they are in);
       // table rows fade in.
-      await page.evaluate(() => document.fonts.ready);
-      await page.waitForTimeout(500);
+      await settled(page);
       // For review: CI puts these on the PR (e2e/contact-sheets.mjs)
-      await page.screenshot({ path: `screenshots/${sheet ? `${sheet}/${name}` : name}/${index + 1}-${device}-${width}x${height}.png` });
+      const folder = sheet ? `${sheet}/${name}` : name;
+      await page.screenshot({ path: `screenshots/${folder}/${index + 1}-${device}-${width}x${height}.png` });
 
       const phone = PHONES.includes(device);
       for (const p of await layoutProblems(page, [...HEADER, ...parts], phone, TOUCH_TARGETS))
         problems.push(`${width}x${height}: ${p}`);
 
-      // Where the links are behind the menu, the menu opens with every link on screen.
-      const menu = page.locator('.hud-header__menu');
-      if (await menu.isVisible()) {
-        await menu.click();
-        const links = page.locator('mat-sidenav a');
-        await expect(links.first()).toBeInViewport();
-        const offScreen = await links.evaluateAll(as => as.filter(a => a.getBoundingClientRect().right > innerWidth).length);
-        if (offScreen > 0) problems.push(`${width}x${height}: ${offScreen} menu links are off screen`);
-        await page.getByRole('button', { name: 'Close menu' }).click();
-        await expect(page.locator('mat-sidenav')).toBeHidden();
-      }
+      problems.push(...(await menuProblems(page)).map(p => `${width}x${height}: ${p}`));
 
       // Signed in, the chip opens the user's menu with its items whole on screen, big enough to tap.
       if (role !== 'anon') {
@@ -328,8 +333,7 @@ test('the theme dialog fits every screen size and closes', async ({ page }) => {
     const dialog = page.getByRole('dialog');
     await expect(dialog.locator('app-palette').first()).toBeVisible();
     await expect(dialog.locator('app-tile').first()).toContainText('#');
-    await page.evaluate(() => document.fonts.ready);
-    await page.waitForTimeout(300);
+    await settled(page);
     await page.screenshot({ path: `screenshots/theme-dialog/${index + 1}-${device}-${width}x${height}.png` });
 
     const found = await page.evaluate(() => {
@@ -385,6 +389,7 @@ test('gamertag claims tables show every column, or a card per claim', async ({ p
     await open(page, '/usermanagement/claims');
     await page.getByRole('button', { name: 'Find possible duplicates' }).click();
     await expect(page.locator('.claims-duplicates tbody tr')).not.toHaveCount(0);
+    // eslint-disable-next-line sonarjs/cognitive-complexity -- runs in the browser through page.evaluate, so it has to be one self-contained function
     const found = await page.evaluate(() => {
       const out: string[] = [];
       for (const wrap of document.querySelectorAll('app-gamertag-claims .hud-table-wrap')) {
@@ -446,7 +451,7 @@ for (const overlay of OVERLAYS) {
       if (overlay.parts)
         await page.evaluate(() => { scrollTo(0, 0); document.querySelector('.mat-drawer-content')?.scrollTo(0, 0); });
       // Its animation done
-      await page.waitForTimeout(300);
+      await settled(page);
       const found = overlay.parts
         ? await layoutProblems(page, [...HEADER, ...overlay.parts], PHONES.includes(device), TOUCH_TARGETS)
         : await opened.evaluate(el => {

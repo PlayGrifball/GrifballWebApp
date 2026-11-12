@@ -103,6 +103,7 @@ test.describe('season page dialogs', () => {
       await expect(matches).toHaveCount(12);
       // The refresh after creating happens once, not again when the dialog closes.
       await expect.poll(() => refreshes).toBe(1);
+      // eslint-disable-next-line sonarjs/no-fixed-wait-in-tests -- proving a refresh does NOT come: no event to wait on
       await page.waitForTimeout(1_000);
       expect(refreshes, thenEscape ? 'refreshes after submit + Esc' : 'refreshes after submit').toBe(1);
       page.off('response', count);

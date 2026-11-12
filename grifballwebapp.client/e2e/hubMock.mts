@@ -46,6 +46,7 @@ export function handleHubUpgrade(req: IncomingMessage, socket: Socket): void {
     return;
   }
   // SHA-1 because the WebSocket handshake (RFC 6455) is defined with it: no secret, no other choice
+  // eslint-disable-next-line sonarjs/hashing -- SHA-1 is the WebSocket handshake's own hash (RFC 6455), no secret
   const accept = createHash('sha1').update(key + WEBSOCKET_GUID).digest('base64'); // NOSONAR(S4790): the protocol's own hash
   socket.write([
     'HTTP/1.1 101 Switching Protocols',

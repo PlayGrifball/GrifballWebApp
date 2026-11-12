@@ -50,7 +50,7 @@ describe('SeasonAvailabilityComponent', () => {
     expect(component.options().map(o => o.dayOfWeek)).toEqual(['Monday', 'Tuesday']);
     const deleteButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
       .filter(b => b.textContent!.trim() === 'Delete');
-    expect(deleteButtons.length).toBe(2);
+    expect(deleteButtons).toHaveSize(2);
   });
 
   it('reports a failure to load availability', () => {
@@ -95,7 +95,7 @@ describe('SeasonAvailabilityComponent', () => {
     init([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
 
     component.add();
-    expect(component.options().length).toBe(3);
+    expect(component.options()).toHaveSize(3);
     expect(component.options()[0]).toEqual(new AvailabilityOption());
 
     component.delete(1);
@@ -128,7 +128,7 @@ describe('SeasonAvailabilityComponent', () => {
 
     const deleteButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
       .filter(b => b.textContent!.trim() === 'Delete');
-    expect(deleteButtons.length).toBe(2);
+    expect(deleteButtons).toHaveSize(2);
   });
 
   it('replaces an option when its day is changed, leaving the loaded objects alone', () => {

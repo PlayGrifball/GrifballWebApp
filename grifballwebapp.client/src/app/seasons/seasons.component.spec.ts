@@ -85,7 +85,7 @@ describe('SeasonsComponent', () => {
     format.dispatchEvent(new Event('change'));
     http.expectOne(r => !r.params.has('format')).flush({ totalCount: all.length, results: all });
     fixture.detectChanges();
-    expect(names().length).toBe(3);
+    expect(names()).toHaveSize(3);
   });
 
   it('searches by season name or champion team', () => {
@@ -122,7 +122,7 @@ describe('SeasonsComponent', () => {
     year.dispatchEvent(new Event('change'));
     http.expectOne(r => !r.params.has('year')).flush({ totalCount: all.length, results: all });
     fixture.detectChanges();
-    expect(names().length).toBe(3);
+    expect(names()).toHaveSize(3);
   });
 
   it('loads a year chosen here once, and again when a link opens another year', () => {
@@ -205,7 +205,7 @@ describe('SeasonsComponent opened from a league or game label', () => {
     const el = fixture.nativeElement as HTMLElement;
     const [league, , format] = Array.from(el.querySelectorAll('select'));
     expect(Array.from(el.querySelectorAll('.season-card__name')).map(a => a.textContent!.trim())).toEqual(['Respawn Fall Series']);
-    expect(league.options.length).toBe(3);
+    expect(league.options).toHaveSize(3);
     expect(league.value).toBe('2');
     expect(format.value).toBe('Tournament');
     http.verify();

@@ -31,7 +31,7 @@ describe('PaletteComponent', () => {
   it('renders a base tile plus one tile per shade from 100 down to 0', () => {
     const fixture = create('secondary');
     expect(fixture.componentInstance.range()).toEqual([100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0]);
-    expect((fixture.nativeElement as HTMLElement).querySelectorAll('app-tile').length).toBe(12);
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('app-tile')).toHaveSize(12);
   });
 
   const signals: [palette, keyof ThemingService][] = [

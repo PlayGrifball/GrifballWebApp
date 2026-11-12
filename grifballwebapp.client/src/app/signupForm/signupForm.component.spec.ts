@@ -2,12 +2,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { SignupFormComponent } from './signupForm.component';
 import { AvailabilityService } from '../availability.service';
 import { AccountService } from '../account.service';
 import { signal } from '@angular/core';
+import { noMaterialAnimations } from '../testing/noMaterialAnimations';
 
 describe('SignupFormComponent', () => {
   let fixture: ComponentFixture<SignupFormComponent>;
@@ -30,8 +30,9 @@ describe('SignupFormComponent', () => {
     availability.parseTime.and.callFake((t: string) => t);
 
     TestBed.configureTestingModule({
-      imports: [SignupFormComponent, NoopAnimationsModule],
+      imports: [SignupFormComponent],
       providers: [
+        noMaterialAnimations,
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),
@@ -77,8 +78,8 @@ describe('SignupFormComponent', () => {
     fixture.detectChanges();
 
     const rows = fixture.nativeElement.querySelectorAll('app-availability-table tr.mat-mdc-row, app-availability-table tr[mat-row]');
-    expect(component.model().timeslots.length).toBe(3);
-    expect(rows.length).toBe(2); // Monday and Tuesday
+    expect(component.model().timeslots).toHaveSize(3);
+    expect(rows).toHaveSize(2); // Monday and Tuesday
   });
 
   it('renders an existing signup', () => {
@@ -89,7 +90,7 @@ describe('SignupFormComponent', () => {
     });
     expect(() => fixture.detectChanges()).not.toThrow();
     expect(component.model().teamName).toBe('Team');
-    expect(component.model().timeslots.length).toBe(3);
+    expect(component.model().timeslots).toHaveSize(3);
   });
 
   it('does not throw if the API response omits timeslots', () => {
@@ -129,7 +130,7 @@ describe('SignupFormComponent', () => {
     expect(el.querySelector('.enlist-who__name')!.textContent).toBe('Grif');
     expect(component.timeline().map(e => [e.eventType, e.active])).toEqual([['Signup', true], ['Draft', false], ['Season', false]]);
     const steps = Array.from(el.querySelectorAll('.enlist-step')).map(s => s.textContent!.replace(/\s+/g, ' ').trim());
-    expect(steps.length).toBe(3);
+    expect(steps).toHaveSize(3);
     expect(steps[0]).toMatch(/^Now · until .* Signups$/);
     expect(steps[2]).toContain('→');
     expect(el.querySelector('.enlist-step--now')).not.toBeNull();
@@ -192,7 +193,7 @@ describe('SignupFormComponent', () => {
 
     expect(component.model().seasonID).toBe(6);
     expect(component.model().willCaptain).toBeFalsy();
-    expect(component.model().timeslots.length).toBe(3);
+    expect(component.model().timeslots).toHaveSize(3);
     expect(component.seasonName()).toBe('Spring');
     expect(component.loaded()).toBeTrue();
   });
@@ -245,7 +246,7 @@ describe('SignupFormComponent', () => {
     httpMock.expectOne('/api/seasons/5/signups/mine/timeslots?offset=0').flush(timeslots());
     await fixture.whenStable();
 
-    expect(fixture.nativeElement.querySelectorAll('app-availability-table tr.mat-mdc-row').length).toBe(2);
+    expect(fixture.nativeElement.querySelectorAll('app-availability-table tr.mat-mdc-row')).toHaveSize(2);
   });
 
   it('submits the slots ticked in the availability table, in the API time format', async () => {

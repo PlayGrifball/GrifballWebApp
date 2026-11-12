@@ -197,7 +197,7 @@ describe('AccountService', () => {
     it('goes home after a Discord sign-in without a follow-up page', () => {
       const service = signedInAs(null);
 
-      service.loginExternal(undefined);
+      service.loginExternal();
       http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
       http.expectOne('/api/identity/external-login/callback').flush('');
       http.expectOne(ME_URL).flush(player);

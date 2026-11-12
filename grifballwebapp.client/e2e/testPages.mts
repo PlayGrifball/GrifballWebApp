@@ -1035,3 +1035,70 @@ export async function closeOverlay(page: Page, overlay: Overlay, opened: Locator
   await page.keyboard.press('Escape');
   await expect(opened).toHaveCount(0);
 }
+
+/**
+ * Waits until the page is still, what a fixed wait used to guess at:
+ *  - the web fonts in;
+ *  - every animation and transition finished (endless ones, such as a spinner, aside), two frames in so one that starts
+ *    on the next frame is counted; past ANIMATIONS_MS it fails, naming the ones still going;
+ *  - the header laid out the same for STILL_FRAMES frames running: it measures its links again a few frames after the
+ *    fonts or a sign-in (ResizeObserver, then a frame, then change detection), which is no animation, and on a slow
+ *    runner later still. Past LAYOUT_FRAMES frames it fails: a header that keeps moving is a problem of its own.
+ */
+export async function settled(page: Page, limits: { animationsMs?: number; stillFrames?: number; layoutFrames?: number } = {}): Promise<void> {
+  // The limits are for settled.spec.ts; every other test takes these
+  const { animationsMs: ANIMATIONS_MS = 10_000, stillFrames: STILL_FRAMES = 10, layoutFrames: LAYOUT_FRAMES = 120 } = limits;
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
+  try {
+    await page.waitForFunction(() => document.getAnimations().every(animation =>
+      !(animation.pending || animation.playState === 'running') || animation.effect?.getComputedTiming().iterations === Infinity),
+      undefined, { timeout: ANIMATIONS_MS });
+  } catch (error) {
+    // Anything but the timeout (the page navigated away, say) is that error, as it is
+    if (!(error instanceof Error) || error.name !== 'TimeoutError')
+      throw error;
+    const going = await stillAnimating(page).catch(() => ['(the page could not be asked)']);
+    // Done right at the timeout: settled after all
+    if (going.length > 0)
+      throw new Error(`The page did not settle in ${ANIMATIONS_MS} ms: still animating ${going.join(', ')}`, { cause: error });
+  }
+  const still = await page.evaluate(([stillFrames, frames]) => new Promise<boolean>(done => {
+    const layout = () => [innerWidth, ...Array.from(document.querySelectorAll('header.hud-header, header.hud-header *'), el => {
+      const box = el.getBoundingClientRect();
+      return `${box.x},${box.y},${box.width},${box.height}`;
+    })].join(';');
+    let last = layout(), same = 0, left = frames;
+    const check = () => {
+      const now = layout();
+      same = now === last ? same + 1 : 0;
+      last = now;
+      if (same >= stillFrames)
+        done(true);
+      else if (--left <= 0)
+        done(false);
+      else
+        requestAnimationFrame(check);
+    };
+    requestAnimationFrame(check);
+  }), [STILL_FRAMES, LAYOUT_FRAMES]);
+  if (!still)
+    throw new Error(`The header was still moving after ${LAYOUT_FRAMES} frames`);
+}
+
+/** The animations still going, each with what it runs on (tag and classes), for settled()'s error. */
+function stillAnimating(page: Page): Promise<string[]> {
+  // The same test as the wait in settled() (each runs in the page, so neither can share the other's function): an
+  // endless one, such as a spinner, holds nothing up and is not named
+  return page.evaluate(() => document.getAnimations()
+    .filter(animation => (animation.pending || animation.playState === 'running') && animation.effect?.getComputedTiming().iterations !== Infinity)
+    .map(animation => {
+      const name = (animation as CSSAnimation).animationName ?? (animation as CSSTransition).transitionProperty ?? (animation.id || 'animation');
+      const target = (animation.effect as KeyframeEffect | null)?.target;
+      if (!target)
+        return name;
+      // getAttribute: an SVG element's className is an object, not its classes
+      const classes = (target.getAttribute('class') ?? '').trim().split(/\s+/).filter(Boolean).map(c => '.' + c).join('');
+      return `${name} on ${target.tagName.toLowerCase()}${classes}`;
+    }));
+}

@@ -21,7 +21,7 @@ export function formatValue(value: number): string {
 
 /** The axis' top: the largest value rounded up to 1, 2, 2.5 or 5 times a power of ten (1 when there are none). */
 export function niceMax(max: number): number {
-  if (!(max > 0))
+  if (Number.isNaN(max) || max <= 0)
     return 1;
   const power = Math.pow(10, Math.floor(Math.log10(max)));
   const step = [1, 2, 2.5, 5, 10].find(s => s * power >= max)!;
