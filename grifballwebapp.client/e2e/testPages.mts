@@ -1037,12 +1037,49 @@ export async function closeOverlay(page: Page, overlay: Overlay, opened: Locator
 }
 
 /**
- * Waits until the page is still: the web fonts in, and every animation and transition finished (endless ones, such
- * as a spinner, aside). Two frames first, so one that starts on the next frame is counted. What a fixed wait guessed.
+ * Waits until the page is still, what a fixed wait used to guess at:
+ *  - the web fonts in;
+ *  - every animation and transition finished (endless ones, such as a spinner, aside), two frames in so one that starts
+ *    on the next frame is counted; past ANIMATIONS_MS it fails, naming the ones still going;
+ *  - the header laid out the same in three frames running: it measures its links again a few frames after the fonts
+ *    or a sign-in (ResizeObserver, then a frame, then change detection), which is no animation. Given up after
+ *    LAYOUT_FRAMES frames: a header that keeps moving is the layout test's to report.
  */
 export async function settled(page: Page): Promise<void> {
+  const ANIMATIONS_MS = 10_000;
+  const LAYOUT_FRAMES = 60;
   await page.evaluate(() => document.fonts.ready);
   await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
-  await page.waitForFunction(() => document.getAnimations().every(animation =>
-    !(animation.pending || animation.playState === 'running') || animation.effect?.getComputedTiming().iterations === Infinity));
+  try {
+    await page.waitForFunction(() => document.getAnimations().every(animation =>
+      !(animation.pending || animation.playState === 'running') || animation.effect?.getComputedTiming().iterations === Infinity),
+      undefined, { timeout: ANIMATIONS_MS });
+  } catch (error) {
+    const going = await page.evaluate(() => document.getAnimations()
+      .filter(animation => animation.pending || animation.playState === 'running')
+      .map(animation => {
+        const name = (animation as CSSAnimation).animationName ?? (animation as CSSTransition).transitionProperty ?? (animation.id || 'animation');
+        const target = (animation.effect as KeyframeEffect | null)?.target;
+        if (!target)
+          return name;
+        const classes = String(target.className).trim().split(/\s+/).filter(Boolean).map(c => '.' + c).join('');
+        return `${name} on ${target.tagName.toLowerCase()}${classes}`;
+      }));
+    throw new Error(`The page did not settle in ${ANIMATIONS_MS} ms: still animating ${going.join(', ') || 'nothing (any more)'}`, { cause: error });
+  }
+  await page.evaluate(frames => new Promise<void>(done => {
+    const layout = () => [innerWidth, ...Array.from(document.querySelectorAll('header.hud-header, header.hud-header *'), el => {
+      const box = el.getBoundingClientRect();
+      return `${box.x},${box.y},${box.width},${box.height}`;
+    })].join(';');
+    let last = layout(), same = 0, left = frames;
+    const check = () => {
+      const now = layout();
+      same = now === last ? same + 1 : 0;
+      last = now;
+      if (same >= 3 || --left <= 0) done();
+      else requestAnimationFrame(check);
+    };
+    requestAnimationFrame(check);
+  }), LAYOUT_FRAMES);
 }

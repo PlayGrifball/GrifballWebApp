@@ -18,12 +18,6 @@ export interface WeekMatch {
  * The matches to show under "This week": those in the current week; between weeks, the next
  * three to be played; once the season is over, the last three played.
  */
-function weekStatus(match: ScheduledMatchDto, now: DateTime): WeekMatchStatus {
-  if (match.complete)
-    return 'final';
-  return match.time > now ? 'upcoming' : 'awaiting';
-}
-
 export function pickThisWeek(matches: ScheduledMatchDto[], now: DateTime): WeekMatch[] {
   const byTime = [...matches].sort((a, b) => a.time.toMillis() - b.time.toMillis());
   let picked = byTime.filter(m => m.time.localWeekYear === now.localWeekYear && m.time.localWeekNumber === now.localWeekNumber);
@@ -35,6 +29,13 @@ export function pickThisWeek(matches: ScheduledMatchDto[], now: DateTime): WeekM
     match,
     status: weekStatus(match, now),
   }));
+}
+
+/** A match's state on its card: played, still to come, or past its time with no result yet. */
+function weekStatus(match: ScheduledMatchDto, now: DateTime): WeekMatchStatus {
+  if (match.complete)
+    return 'final';
+  return match.time > now ? 'upcoming' : 'awaiting';
 }
 
 /** A few cards for the season overview: what is being played this week. */

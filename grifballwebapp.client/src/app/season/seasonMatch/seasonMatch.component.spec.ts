@@ -1134,20 +1134,14 @@ describe('SeasonMatchComponent with manual entry', () => {
   let component: SeasonMatchComponent;
   let httpMock: HttpTestingController;
 
-  const page = (overrides: Partial<SeasonMatchPageDto> = {}): SeasonMatchPageDto => ({
-    seasonID: 3, seasonName: 'Season 3', isPlayoff: false,
-    homeTeamName: 'Home', homeTeamID: 10, homeTeamScore: null, homeTeamResult: 'TBD',
-    awayTeamName: 'Away', awayTeamID: 20, awayTeamScore: null, awayTeamResult: 'TBD',
-    scheduledTime: null, bestOf: 1, reportedGames: [], bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: false,
-    isImported: false, decidedBy: null, canUndo: false,
-    ...overrides
-  });
   const game: ReportedGameDto = {
     seriesGameID: 51, matchNumber: 1, matchID: null, recordedGameID: 41, homeScore: 5, awayScore: 2, homePlayers: [], awayPlayers: [],
     isManual: true, gameVersionID: 1, gameVersionName: 'Halo 3', map: 'Foundry', gametype: null, playedAt: null,
   };
+  /** The page as these tests want it: a best of one, not imported. */
+  const manualPage = (overrides: Partial<SeasonMatchPageDto> = {}) => page({ bestOf: 1, isImported: false, ...overrides });
   /** Won by its one game, entered by hand. */
-  const decidedByIt = () => page({ ...wonByGames, homeTeamScore: 1, awayTeamScore: 0, reportedGames: [game] });
+  const decidedByIt = () => manualPage({ ...wonByGames, homeTeamScore: 1, awayTeamScore: 0, reportedGames: [game] });
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -1169,10 +1163,7 @@ describe('SeasonMatchComponent with manual entry', () => {
   afterEach(() => httpMock.verify());
 
   function load(dto: SeasonMatchPageDto): void {
-    httpMock.expectOne('/api/season-matches/7').flush(dto);
-    httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
-    httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
-    fixture.detectChanges();
+    loadPage(httpMock, fixture, dto);
     httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
     fixture.detectChanges();
     httpMock.expectOne('/api/game-versions').flush([{ gameVersionID: 1, name: 'Halo 3' }]);
@@ -1198,7 +1189,7 @@ describe('SeasonMatchComponent with manual entry', () => {
     expect(text()).not.toContain('This match goes back to undecided');
     press('Confirm');
     httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/games/51/remove' }).flush(null);
-    httpMock.expectOne('/api/season-matches/7').flush(page());
+    httpMock.expectOne('/api/season-matches/7').flush(manualPage());
     fixture.detectChanges();
 
     expect(component.mode()).toEqual({ kind: 'idle' });
@@ -1209,7 +1200,7 @@ describe('SeasonMatchComponent with manual entry', () => {
   });
 
   it('a forfeit Confirm open while a game entered by hand decides the series: the Confirm is gone, and the match completed', () => {
-    load(page());
+    load(manualPage());
     press('Home Team Forfeit');
     expect(text()).toContain('The home team forfeits and the away team wins.');
 
@@ -1229,7 +1220,7 @@ describe('SeasonMatchComponent with manual entry', () => {
   });
 
   it('a game in the form, then a forfeit asked for: the form is closed', () => {
-    load(page());
+    load(manualPage());
     press('Enter a game by hand');
     expect(manual().editing()).toBe('new');
 
