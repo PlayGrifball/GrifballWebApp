@@ -92,7 +92,7 @@ describe('browser telemetry', () => {
       expect(t.active()).toBeUndefined();
     });
 
-    it('logs in the active span\\'s trace, or the one it is given', () => {
+    it('logs in the active span\'s trace, or the one it is given', () => {
       const t = telemetry();
       const navigation = t.startSpan('navigation', { parent: null });
       t.setActive(navigation);

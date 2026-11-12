@@ -116,8 +116,11 @@ public class ClientTelemetryUnitTests
 
         var result = await Controller(collector).Report(Batch(), "Mozilla/5.0", default);
 
-        Assert.That(result, Is.InstanceOf<NoContentResult>());
-        Assert.That(collector.Posted.Select(p => p.Url.AbsoluteUri), Is.EqualTo(TracesThenLogs));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.InstanceOf<NoContentResult>());
+            Assert.That(collector.Posted.Select(p => p.Url.AbsoluteUri), Is.EqualTo(TracesThenLogs));
+        }
 
         var traces = collector.Posted[0].Body["resourceSpans"]![0]!;
         var resource = traces["resource"]!["attributes"];
@@ -190,10 +193,14 @@ public class ClientTelemetryUnitTests
     }
 
     [Test]
-    public void Forward_ACollectorThatIsAwayOrRefuses_FailsNothing()
+    public async Task Forward_ACollectorThatIsAwayOrRefuses_FailsNothing()
     {
-        Assert.DoesNotThrowAsync(() => Forwarder(new Unreachable()).Forward(Batch(), "", default));
-        Assert.DoesNotThrowAsync(() => Forwarder(new Collector(HttpStatusCode.ServiceUnavailable)).Forward(Batch(), "", default));
+        // Each would throw, failing the test, if a failure got out
+        await Forwarder(new Unreachable()).Forward(Batch(), "", default);
+        var refusing = new Collector(HttpStatusCode.ServiceUnavailable);
+        await Forwarder(refusing).Forward(Batch(), "", default);
+
+        Assert.That(refusing.Posted, Has.Count.EqualTo(2));
     }
 
     [Test]
@@ -208,7 +215,7 @@ public class ClientTelemetryUnitTests
         {
             Assert.That(clean, Has.Count.EqualTo(ClientAttributes.MaxAttributes));
             Assert.That(clean.Select(a => a.Key), Does.Not.Contain("service.name").And.Not.Contain("Bad Key").And.Not.Contain("nested").And.Not.Contain("list").And.Not.Contain("none"));
-            Assert.That(((string)clean.Single(a => a.Key == "long.text").Value).Length, Is.EqualTo(ClientAttributes.MaxValueLength));
+            Assert.That((string)clean.Single(a => a.Key == "long.text").Value, Has.Length.EqualTo(ClientAttributes.MaxValueLength));
             Assert.That(clean.Single(a => a.Key == "ratio").Value, Is.EqualTo(0.5));
             Assert.That(clean.Single(a => a.Key == "a.n3").Value, Is.EqualTo(3L));
         }
@@ -236,7 +243,7 @@ public class ClientTelemetryUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(span["kind"]!.GetValue<int>(), Is.EqualTo(1));
-            Assert.That(span["status"]!["code"]!.GetValue<int>(), Is.EqualTo(0));
+            Assert.That(span["status"]!["code"]!.GetValue<int>(), Is.Zero);
             Assert.That(span["parentSpanId"], Is.Null);
             Assert.That(span["endTimeUnixNano"]!.GetValue<string>(), Is.EqualTo(span["startTimeUnixNano"]!.GetValue<string>()), "an end before the start is the start");
             Assert.That(log["severityNumber"]!.GetValue<int>(), Is.EqualTo(13));
