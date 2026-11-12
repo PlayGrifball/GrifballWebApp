@@ -212,13 +212,11 @@ public class EntityConfigurationUnitTests
         {
             Assert.That((entity.GetSchema(), entity.GetTableName()), Is.EqualTo(("Auth", "Roles")));
             Assert.That(entity.IsTemporal(), Is.True);
+            // Name/NormalizedName aren't in the model here: Identity's base configuration adds them (IdentityDbContext,
+            // not RoleConfiguration), so a plain ModelBuilder running only RoleConfiguration never sees them. The seeded
+            // rows' Ids (Sysadmin, Commissioner, Player) are RoleConfiguration's own.
             var seeded = entity.GetSeedData().ToList();
-            Assert.That(seeded, Has.Count.EqualTo(3), "Sysadmin, Commissioner and Player");
-            var values = seeded.SelectMany(r => r.Values).ToList();
-            Assert.That(values, Has.Member("Sysadmin"));
-            Assert.That(values, Has.Member("SYSADMIN"));
-            Assert.That(values, Has.Member("Commissioner"));
-            Assert.That(values, Has.Member("Player"));
+            Assert.That(seeded.Select(r => r["Id"]), Is.EqualTo(new List<int> { 1, 2, 3 }));
         }
     }
 
