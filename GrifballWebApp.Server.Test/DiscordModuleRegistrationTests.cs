@@ -101,6 +101,8 @@ public class DiscordModuleRegistrationTests
 
         Assert.That(commands, Is.EqualTo(new[]
         {
+            "/availability show \"A season's match times\" permissions: default, preconditions: 0"
+                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
             "/events \"Upcoming signups, drafts and seasons\" permissions: default, preconditions: 0",
             "/lateleague season \"A Late League season's top players\" permissions: default, preconditions: 0"
                 + " [season: String = null \"The season's name or ID (default: the latest)\" autocomplete: none, preconditions: 0]",
@@ -117,6 +119,12 @@ public class DiscordModuleRegistrationTests
                 + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]",
             "/matches \"Get recent matches\" permissions: default, preconditions: 0"
                 + " [gamertag: String = null \"Gamertag to search matches for\" autocomplete: GamertagAutocomplete, preconditions: 0]",
+            "/me claim \"Claim a gamertag you played under before\" permissions: default, preconditions: 0"
+                + " [gamertag: String \"The past gamertag\" autocomplete: none, preconditions: 0]",
+            "/me claims \"Your gamertag claims\" permissions: default, preconditions: 0",
+            "/me logins \"Link or unlink your sign-ins\" permissions: default, preconditions: 0",
+            "/me region \"Set your region\" permissions: default, preconditions: 0"
+                + " [region: String \"Your region, or none to clear it\" autocomplete: RegionAutocomplete, preconditions: 0]",
             "/player commendations \"A player's medals\" permissions: default, preconditions: 0"
                 + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
             "/player history \"A player's seasons and teams\" permissions: default, preconditions: 0"
@@ -129,6 +137,13 @@ public class DiscordModuleRegistrationTests
                 + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
             "/player vods \"A player's VODs\" permissions: default, preconditions: 0"
                 + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
+            "/queue join \"Join the queue\" permissions: default, preconditions: 0",
+            "/queue leave \"Leave the queue\" permissions: default, preconditions: 0",
+            "/queue status \"How many are in the queue, and whether you are\" permissions: default, preconditions: 0",
+            "/reschedule request \"Ask to move one of your matches\" permissions: default, preconditions: 0"
+                + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]"
+                + " [reason: String \"Why it needs to move\" autocomplete: none, preconditions: 0]"
+                + " [new_time: String = null \"The new time in UTC, like 2026-11-20 20:00\" autocomplete: none, preconditions: 0]",
             "/search \"Search players, teams and seasons\" permissions: default, preconditions: 0"
                 + " [query: String \"A gamertag, team or season name\" autocomplete: none, preconditions: 0]",
             "/season bracket \"A season's playoff bracket\" permissions: default, preconditions: 0"
@@ -151,6 +166,11 @@ public class DiscordModuleRegistrationTests
                 + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
             "/setgamertag \"Set your gamertag\" permissions: default, preconditions: 0"
                 + " [gamertag: String \"No description provided.\" autocomplete: none, preconditions: 0]",
+            "/signup \"Sign up for a season, or change your signup\" permissions: default, preconditions: 0"
+                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]"
+                + " [team_name: String = null \"The team name you'd use as captain\" autocomplete: none, preconditions: 0]"
+                + " [will_captain: Boolean = False \"You'd captain a team\" autocomplete: none, preconditions: 0]"
+                + " [draft_help: Boolean = False \"You'd like help drafting\" autocomplete: none, preconditions: 0]",
             "/team history \"A team's seasons across the league's history\" permissions: default, preconditions: 0"
                 + " [team: String \"The team\" autocomplete: TeamAutocomplete, preconditions: 0]",
             "/team info \"A team's season, record, captain and titles\" permissions: default, preconditions: 0"

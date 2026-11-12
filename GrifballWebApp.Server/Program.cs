@@ -255,6 +255,7 @@ public class Program
         services.AddTransient<PlayerCommandsHandler>();
         services.AddTransient<MatchCommandsHandler>();
         services.AddTransient<BrowseCommandsHandler>();
+        services.AddTransient<PersonalCommandsHandler>();
         services.AddTransient<IExternalLoginService, ExternalLoginService>();
     }
 

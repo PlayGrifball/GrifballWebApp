@@ -1,25 +1,10 @@
-using GrifballWebApp.Application.Database;
-using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Application.Profile;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using GrifballWebApp.Application.Historical;
 
 namespace GrifballWebApp.Server.Profile;
-
-public class RegionDto
-{
-    public int RegionID { get; set; }
-    public required string RegionName { get; set; }
-}
-
-public class SetRegionRequest
-{
-    /// <summary>Null clears it.</summary>
-    public int? RegionID { get; set; }
-}
 
 /// <summary>
 /// What a signed-in user changes about their own account from their profile: their region, and claims of past gamertags
@@ -30,12 +15,12 @@ public class SetRegionRequest
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
 public class MyProfileController : ControllerBase
 {
-    private readonly IApplicationDbContext _context;
+    private readonly RegionService _regions;
     private readonly UserGamertagClaimService _claims;
 
-    public MyProfileController(IApplicationDbContext context, UserGamertagClaimService claims)
+    public MyProfileController(RegionService regions, UserGamertagClaimService claims)
     {
-        _context = context;
+        _regions = regions;
         _claims = claims;
     }
 
@@ -44,8 +29,7 @@ public class MyProfileController : ControllerBase
     [HttpGet("regions", Name = "GetRegions")]
     [ProducesResponseType<List<RegionDto>>(StatusCodes.Status200OK)]
     public Task<List<RegionDto>> Regions(CancellationToken ct)
-        => _context.Regions.AsNoTracking().OrderBy(r => r.RegionID)
-            .Select(r => new RegionDto { RegionID = r.RegionID, RegionName = r.RegionName }).ToListAsync(ct);
+        => _regions.List(ct);
 
     /// <summary>Sets the signed-in user's region (the import never overwrites it).</summary>
     [HttpPost("me/region", Name = "SetMyRegion")]
@@ -56,14 +40,12 @@ public class MyProfileController : ControllerBase
     {
         if (GetUserID() is not int userId)
             return this.UnauthorizedProblem(NotSignedIn);
-        if (request.RegionID is not null && !await _context.Regions.AnyAsync(r => r.RegionID == request.RegionID, ct))
-            return this.BadRequestProblem("There is no such region");
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
-        if (user is null)
-            return this.NotFoundProblem("There is no such user");
-        user.ChooseRegion(request.RegionID, RegionSource.User);
-        await _context.SaveChangesAsync(ct);
-        return NoContent();
+        return await _regions.Set(userId, request.RegionID, ct) switch
+        {
+            SetRegionResult.NoSuchRegion => this.BadRequestProblem("There is no such region"),
+            SetRegionResult.NoSuchUser => this.NotFoundProblem("There is no such user"),
+            _ => NoContent(),
+        };
     }
 
     /// <summary>The placeholder claiming a gamertag would merge, its seasons, and why it can't be claimed if it can't.</summary>
