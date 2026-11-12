@@ -24,7 +24,7 @@ export const FUTURE = {
 
 export interface Player extends Credentials {
   userID: number;
-  /** What the app shows for them (no gamertag, Discord or display name: the user name). */
+  /** What the app shows for them: their gamertag, which is their user name. */
   name: string;
 }
 
@@ -105,8 +105,10 @@ async function createPlayer(baseURL: string, admin: Api, username: string, seaso
   captainOf: string | null): Promise<Player> {
   const { credentials, user, api } = await newUser(baseURL, admin, username);
   try {
+    // Signing up takes a gamertag: the user name, which a preview makes up (PreviewSmokeXboxUsers) rather than look up
     await admin.post(`users/${user.userID}`, {
       ...user,
+      gamertag: username,
       roles: user.roles.map(r => ({ ...r, hasRole: r.hasRole || r.roleName === 'Player' })),
     });
     await api.relogin(); // Roles are in the token.
@@ -125,6 +127,16 @@ async function createPlayer(baseURL: string, admin: Api, username: string, seaso
 }
 
 /** A registered user with a permanent lockout (LockoutEnd = DateTimeOffset.MaxValue). */
+/**
+ * Gives a smoke user who has no gamertag their user name as one, as a sysadmin edit: signing up for a season takes a
+ * gamertag. A preview makes up any gamertag starting "smoke-" (PreviewSmokeXboxUsers), and the smoke users' names do.
+ */
+export async function ensureGamertag(admin: Api, userID: number): Promise<void> {
+  const user = await admin.get<UserResponseDto>(`users/${userID}`);
+  if (!user['gamertag'])
+    await admin.post(`users/${userID}`, { ...user, gamertag: user.userName });
+}
+
 export async function createLockedOutUser(baseURL: string, admin: Api): Promise<UserResponseDto> {
   const { user, api } = await newUser(baseURL, admin, `smoke-${smokeTag()}-lock`);
   await api.dispose();

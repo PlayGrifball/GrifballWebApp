@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import type { TimeslotDto } from './api';
 import { expect, test } from './fixtures';
-import { createLeague, type League } from './league';
+import { createLeague, ensureGamertag, type League } from './league';
 
 // The signup form (/season/:id/signupForm): ticking single slots, the day and time headers (which
 // toggle: tick all when none is ticked, else untick all), submitting, and what the server keeps.
@@ -34,6 +34,7 @@ test.describe('signup form', () => {
 
   test.beforeAll(async ({ baseUrl, admin }) => {
     league = await createLeague(baseUrl, admin, 'signup');
+    await ensureGamertag(admin, admin.userID); // The smoke user signs up through the form
   });
   test.afterAll(async () => league?.close());
 
