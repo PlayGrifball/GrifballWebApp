@@ -980,6 +980,66 @@ describe('TeamBuilderComponent', () => {
       expect(mockDraft.getTeams.calls.count()).toBe(loads + 1);
       expect(mockDraft.addPlayerToTeam).not.toHaveBeenCalled();
     });
+
+    // Each starts over from the describe's fresh Alpha/Bravo teams and pool (its beforeEach), so
+    // one drop's result never affects the next: the hub just has not connected for any of them.
+    describe('while the hub has not connected yet (no SignalR connection id)', () => {
+      beforeEach(() => (mockSignalR.hubConnection as any).connectionId = null);
+
+      it('adding a captain', () => {
+        grab(component.playerPool()[1], GrabbedThing.AvailablePlayer);
+        component.onDropInTeam(drop(component.playerPool()[1], 1));
+        expect(mockDraft.addCaptain).toHaveBeenCalledWith(jasmine.objectContaining({ signalRConnectionID: undefined }));
+      });
+
+      it('resorting a team', () => {
+        grab(component.teams()[0], GrabbedThing.Team);
+        component.onDropInTeam(drop(component.teams()[0], 2));
+        expect(mockDraft.resortCaptain).toHaveBeenCalledWith(jasmine.objectContaining({ signalRConnectionID: undefined }));
+      });
+
+      it('returning a pick to the pool', () => {
+        const alpha = component.teams()[0];
+        const grabbed = component.createDraggedPlayer(alpha.players[0], alpha);
+        grab(grabbed, GrabbedThing.Player);
+        component.onDropInPool(drop(grabbed, 0));
+        expect(mockDraft.removePlayerFromTeam).toHaveBeenCalledWith(jasmine.objectContaining({ signalRConnectionID: undefined }));
+      });
+
+      it('disbanding a team', () => {
+        grab(component.teams()[0], GrabbedThing.Team);
+        component.onDropInPool(drop(component.teams()[0], 0));
+        expect(mockDraft.removeCaptain).toHaveBeenCalledWith(jasmine.objectContaining({ signalRConnectionID: undefined }));
+      });
+
+      it('moving a pick to another team', () => {
+        const alpha = component.teams()[0];
+        const grabbed = component.createDraggedPlayer(alpha.players[0], alpha);
+        grab(grabbed, GrabbedThing.Player);
+        component.onDropPickInTeam(drop(grabbed), component.teams()[1]);
+        expect(mockDraft.movePlayerToTeam).toHaveBeenCalledWith(jasmine.objectContaining({ signalRConnectionID: undefined }));
+      });
+
+      it('drafting a pool player onto a team', () => {
+        grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+        component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
+        expect(mockDraft.addPlayerToTeam).toHaveBeenCalledWith(jasmine.objectContaining({ signalRConnectionID: undefined }));
+      });
+
+      it('unlocking captains', () => {
+        mockDraft.unlockCaptains.and.returnValue(of(undefined));
+        component.captainLocked.set(true);
+        component.lockCaptainsButtonClicked();
+        expect(mockDraft.unlockCaptains).toHaveBeenCalledWith(jasmine.objectContaining({ signalRConnectionID: undefined }));
+      });
+
+      it('locking captains', () => {
+        mockDraft.lockCaptains.and.returnValue(of(undefined));
+        component.captainLocked.set(false);
+        component.lockCaptainsButtonClicked();
+        expect(mockDraft.lockCaptains).toHaveBeenCalledWith(jasmine.objectContaining({ signalRConnectionID: undefined }));
+      });
+    });
   });
 
   describe('SignalR updates', () => {
