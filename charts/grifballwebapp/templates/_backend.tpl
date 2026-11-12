@@ -177,6 +177,11 @@ spec:
           value: {{ printf "%s/tls.key" .mountPath | quote }}
         {{- end }}
         {{- end }}
+        {{- if ($root.Values.frontend.telemetry | default dict).browserErrors }}
+        # The browser's error reports (frontend.telemetry.browserErrors), logged by the API
+        - name: ClientErrors__Enabled
+          value: "true"
+        {{- end }}
         {{- $sheets := $b.config.GoogleSheets | default dict }}
         {{- if and $b.googleCredentials.secretName (not (hasKey $sheets "Key")) }}
         - name: GoogleSheets__Key

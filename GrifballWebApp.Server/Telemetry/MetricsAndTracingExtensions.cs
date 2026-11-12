@@ -62,6 +62,8 @@ public static class MetricsAndTracingExtensions
                     .AddEntityFrameworkCoreInstrumentation()
                     // A trace per job run (JobTracing), without the scheduler loop's own store calls
                     .AddSource(QuartzInstrumentation.ActivitySourceName)
+                    // The browser's error reports, each in the trace it names
+                    .AddSource(ClientErrorsController.ActivitySourceName)
                     .SetSampler(new SchedulerLoopSampler());
 
                 if (telemetry.SignalEndpoint("traces") is { } endpoint)

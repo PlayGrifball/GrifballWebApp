@@ -378,7 +378,8 @@
           "properties": {
             "enabled": { "type": "boolean" },
             "endpoint": { "type": "string" },
-            "logLevel": { "enum": ["", "debug", "info", "warn", "error"] }
+            "logLevel": { "enum": ["", "debug", "info", "warn", "error"] },
+            "browserErrors": { "type": "boolean" }
           }
         },
         "resources": { "$ref": "#/definitions/k8sObject" },

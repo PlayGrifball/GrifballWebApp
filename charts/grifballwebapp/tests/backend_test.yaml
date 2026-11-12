@@ -379,3 +379,15 @@ tests:
       - notContains:
           path: "spec.template.spec.containers[0].env"
           content: { name: DatabaseBackup__SqlServerDirectory, value: /var/opt/grif-download }
+
+  - it: turns the browser's error reports on with frontend.telemetry.browserErrors
+    documentIndex: 1
+    set:
+      frontend.telemetry.browserErrors: true
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ClientErrors__Enabled, value: "true" } }
+
+  - it: leaves the browser's error reports off by default
+    documentIndex: 1
+    asserts:
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: ClientErrors__Enabled, value: "true" } }
