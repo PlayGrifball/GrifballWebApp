@@ -770,8 +770,8 @@ main > :not(router-outlet):not(:has(> .hud-page)) {
 // on white is 2.9:1; this grey is 5.3:1.
 .cdk-overlay-container .color-input-field span { color: #6b6b6b; }
 
-// A table row fades in as it arrives (a new page, a new sort): [animate.enter]="rowEnter()" on the row (the home
-// page, the shared table; shared/rowEnterAnimation.ts). A row leaving goes at once. None for whoever asks for less motion.
+// A table row fades in as it is made (a new page of rows): [animate.enter]="rowEnter()" on the row (the home page,
+// the shared table; shared/rowEnterAnimation.ts). A row leaving goes at once. None for whoever asks for less motion.
 .row-enter {
   animation: row-enter 350ms;
 }

@@ -1043,7 +1043,7 @@ export async function closeOverlay(page: Page, overlay: Overlay, opened: Locator
  *    on the next frame is counted; past ANIMATIONS_MS it fails, naming the ones still going;
  *  - the header laid out the same for STILL_FRAMES frames running: it measures its links again a few frames after the
  *    fonts or a sign-in (ResizeObserver, then a frame, then change detection), which is no animation, and on a slow
- *    runner later still. Given up after LAYOUT_FRAMES frames: a header that keeps moving is the layout test's to report.
+ *    runner later still. Past LAYOUT_FRAMES frames it fails: a header that keeps moving is a problem of its own.
  */
 export async function settled(page: Page): Promise<void> {
   const ANIMATIONS_MS = 10_000;
@@ -1056,20 +1056,15 @@ export async function settled(page: Page): Promise<void> {
       !(animation.pending || animation.playState === 'running') || animation.effect?.getComputedTiming().iterations === Infinity),
       undefined, { timeout: ANIMATIONS_MS });
   } catch (error) {
-    const going = await page.evaluate(() => document.getAnimations()
-      .filter(animation => animation.pending || animation.playState === 'running')
-      .map(animation => {
-        const name = (animation as CSSAnimation).animationName ?? (animation as CSSTransition).transitionProperty ?? (animation.id || 'animation');
-        const target = (animation.effect as KeyframeEffect | null)?.target;
-        if (!target)
-          return name;
-        // getAttribute: an SVG element's className is an object, not its classes
-        const classes = (target.getAttribute('class') ?? '').trim().split(/\s+/).filter(Boolean).map(c => '.' + c).join('');
-        return `${name} on ${target.tagName.toLowerCase()}${classes}`;
-      }));
-    throw new Error(`The page did not settle in ${ANIMATIONS_MS} ms: still animating ${going.join(', ') || 'nothing (any more)'}`, { cause: error });
+    // Anything but the timeout (the page navigated away, say) is that error, as it is
+    if (!(error instanceof Error) || error.name !== 'TimeoutError')
+      throw error;
+    const going = await stillAnimating(page).catch(() => ['(the page could not be asked)']);
+    // Done right at the timeout: settled after all
+    if (going.length > 0)
+      throw new Error(`The page did not settle in ${ANIMATIONS_MS} ms: still animating ${going.join(', ')}`, { cause: error });
   }
-  await page.evaluate(([still, frames]) => new Promise<void>(done => {
+  const still = await page.evaluate(([stillFrames, frames]) => new Promise<boolean>(done => {
     const layout = () => [innerWidth, ...Array.from(document.querySelectorAll('header.hud-header, header.hud-header *'), el => {
       const box = el.getBoundingClientRect();
       return `${box.x},${box.y},${box.width},${box.height}`;
@@ -1079,9 +1074,30 @@ export async function settled(page: Page): Promise<void> {
       const now = layout();
       same = now === last ? same + 1 : 0;
       last = now;
-      if (same >= still || --left <= 0) done();
-      else requestAnimationFrame(check);
+      if (same >= stillFrames)
+        done(true);
+      else if (--left <= 0)
+        done(false);
+      else
+        requestAnimationFrame(check);
     };
     requestAnimationFrame(check);
   }), [STILL_FRAMES, LAYOUT_FRAMES]);
+  if (!still)
+    throw new Error(`The header was still moving after ${LAYOUT_FRAMES} frames`);
+}
+
+/** The animations still going, each with what it runs on (tag and classes), for settled()'s error. */
+function stillAnimating(page: Page): Promise<string[]> {
+  return page.evaluate(() => document.getAnimations()
+    .filter(animation => animation.pending || animation.playState === 'running')
+    .map(animation => {
+      const name = (animation as CSSAnimation).animationName ?? (animation as CSSTransition).transitionProperty ?? (animation.id || 'animation');
+      const target = (animation.effect as KeyframeEffect | null)?.target;
+      if (!target)
+        return name;
+      // getAttribute: an SVG element's className is an object, not its classes
+      const classes = (target.getAttribute('class') ?? '').trim().split(/\s+/).filter(Boolean).map(c => '.' + c).join('');
+      return `${name} on ${target.tagName.toLowerCase()}${classes}`;
+    }));
 }
