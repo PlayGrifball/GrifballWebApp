@@ -15,6 +15,7 @@ public class TeamStandingsController : ControllerBase
         _teamStandingsService = teamStandingsService;
     }
 
+    /// <summary>A season's team standings.</summary>
     [AllowAnonymous]
     [HttpGet("seasons/{seasonID:int}/standings", Name = "GetTeamStandings")]
     [ProducesResponseType<TeamStandingDto[]>(StatusCodes.Status200OK)]

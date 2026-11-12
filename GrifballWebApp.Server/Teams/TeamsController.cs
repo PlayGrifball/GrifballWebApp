@@ -19,6 +19,7 @@ public class TeamsController : ControllerBase
         _teamService = teamService;
     }
 
+    /// <summary>A season's draft teams, with their captains and picks.</summary>
     [AllowAnonymous]
     [HttpGet("seasons/{seasonID:int}/draft/teams", Name = "GetTeams")]
     [ProducesResponseType<List<TeamResponseDto>>(StatusCodes.Status200OK)]
@@ -27,6 +28,7 @@ public class TeamsController : ControllerBase
         return _teamService.GetTeams(seasonID, ct);
     }
 
+    /// <summary>A season's remaining player pool for the draft.</summary>
     [AllowAnonymous]
     [HttpGet("seasons/{seasonID:int}/draft/player-pool", Name = "GetPlayerPool")]
     [ProducesResponseType<List<PlayerDto>>(StatusCodes.Status200OK)]
@@ -63,6 +65,7 @@ public class TeamsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Removes a captain and disbands their team, returning its players to the pool.</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("seasons/{seasonID:int}/draft/captains/remove", Name = "RemoveCaptain")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -76,6 +79,7 @@ public class TeamsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Removes a player from their team, back into the draft's player pool.</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("seasons/{seasonID:int}/draft/players/remove", Name = "RemovePlayerFromTeam")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -89,6 +93,7 @@ public class TeamsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Moves a player from one team to another, a commissioner's override outside the normal picks.</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("seasons/{seasonID:int}/draft/players/move", Name = "MovePlayerToTeam")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -120,6 +125,7 @@ public class TeamsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Locks the draft order so captains can no longer be resorted or removed.</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("seasons/{seasonID:int}/draft/captains/lock", Name = "LockCaptains")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -131,6 +137,7 @@ public class TeamsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Unlocks the draft order, allowing captains to be resorted or removed again.</summary>
     [Authorize(Roles = "Commissioner")]
     [HttpPost("seasons/{seasonID:int}/draft/captains/unlock", Name = "UnlockCaptains")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -142,6 +149,7 @@ public class TeamsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Whether the season's draft order is currently locked.</summary>
     [AllowAnonymous]
     [HttpGet("seasons/{seasonID:int}/draft/captains/locked", Name = "AreCaptainsLocked")]
     [ProducesResponseType<bool>(StatusCodes.Status200OK)]

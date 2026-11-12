@@ -42,6 +42,7 @@ public class TeamController : ControllerBase
     public async Task<ActionResult<TeamHistoryDto>> History([FromRoute] int teamID, CancellationToken ct)
         => await _history.GetAsync(teamID, ct) is { } history ? history : this.NotFoundProblem("There is no such team");
 
+    /// <summary>A team's matches, soonest unplayed first, then played ones by scheduled time.</summary>
     [AllowAnonymous]
     [HttpGet("teams/{teamID:int}/matches", Name = "Matches")]
     [ProducesResponseType<MatchDto[]>(StatusCodes.Status200OK)]
