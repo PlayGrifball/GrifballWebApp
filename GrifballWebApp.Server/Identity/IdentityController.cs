@@ -70,6 +70,7 @@ public class IdentityController : ControllerBase
         }
     }
 
+    /// <summary>Creates a new account with a username and password, in the Player role.</summary>
     [AllowAnonymous]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -298,6 +299,7 @@ public class IdentityController : ControllerBase
         return SignIn(newPrincipal, authenticationScheme: IdentityConstants.BearerScheme);
     }
 
+    /// <summary>Who is signed in: their display name, user ID and roles.</summary>
     [ProducesResponseType(typeof(MetaInfoResponse), StatusCodes.Status200OK)]
     [Authorize]
     [HttpGet("identity/meta-info", Name = "MetaInfo")]
@@ -345,6 +347,7 @@ public class IdentityController : ControllerBase
     /// keeps the cookie off cross-site POSTs. Also changes the user's security stamp, so a copy of the cookie (and
     /// the user's other sessions) stops working within <see cref="BrowserAuth.SecurityStampValidationInterval"/>.
     /// </summary>
+    /// <summary>Signs the current browser session out.</summary>
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [IgnoreAntiforgeryToken] // NOSONAR S4502: exempt on purpose (see above); the Fetch Metadata and Origin checks still refuse it from another site
@@ -357,6 +360,7 @@ public class IdentityController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Sets a new password using a one-time reset token.</summary>
     [AllowAnonymous]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType(StatusCodes.Status200OK)]

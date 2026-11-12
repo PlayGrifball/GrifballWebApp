@@ -18,6 +18,7 @@ public class HomeController : ControllerBase
         _context = context;
     }
 
+    /// <summary>Current and upcoming signups, drafts and seasons, for the home page's calendar.</summary>
     [AllowAnonymous]
     [HttpGet("events", Name = "CurrentAndFutureEvents")]
     [ProducesResponseType<Event[]>(StatusCodes.Status200OK)]

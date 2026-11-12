@@ -24,6 +24,7 @@ public class JobsController : ControllerBase
         _jobs = jobs;
     }
 
+    /// <summary>Every background job: its schedule, whether it's paused, and whether it's running now. Sysadmins only.</summary>
     [HttpGet("jobs", Name = "GetJobs")]
     [ProducesResponseType<JobsOverviewDto>(StatusCodes.Status200OK)]
     public async Task<ActionResult<JobsOverviewDto>> List(CancellationToken ct) => await _jobs.Overview(ct);
@@ -34,6 +35,7 @@ public class JobsController : ControllerBase
     public async Task<ActionResult<List<JobRunDto>>> History([FromRoute] string group, [FromRoute] string name, [FromQuery] int take = 50, CancellationToken ct = default)
         => await _jobs.History(new JobKey(name, group), Math.Clamp(take, 1, MaxHistory), ct);
 
+    /// <summary>Runs a job now, outside its schedule. Sysadmins only.</summary>
     [HttpPost("jobs/{group}/{name}/run", Name = "RunJob")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -41,6 +43,7 @@ public class JobsController : ControllerBase
     public async Task<IActionResult> Run([FromRoute] string group, [FromRoute] string name, CancellationToken ct)
         => Changed(await _jobs.RunNow(new JobKey(name, group), JobUser.IdOf(User), ct));
 
+    /// <summary>Pauses or resumes a job's schedule. Sysadmins only.</summary>
     [HttpPost("jobs/{group}/{name}/paused", Name = "SetJobPaused")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -48,6 +51,7 @@ public class JobsController : ControllerBase
     public async Task<IActionResult> SetPaused([FromRoute] string group, [FromRoute] string name, [FromBody] JobPausedRequest request, CancellationToken ct)
         => Changed(await _jobs.SetPaused(new JobKey(name, group), request.Paused, User?.Identity?.Name, ct));
 
+    /// <summary>Changes how often a job's schedule fires. Sysadmins only.</summary>
     [HttpPost("jobs/{group}/{name}/interval", Name = "SetJobInterval")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -60,6 +64,7 @@ public class JobsController : ControllerBase
         return Changed(await _jobs.SetInterval(new JobKey(name, group), TimeSpan.FromSeconds(request.IntervalSeconds), ct));
     }
 
+    /// <summary>Resets a job's schedule to its default interval. Sysadmins only.</summary>
     [HttpPost("jobs/{group}/{name}/schedule/reset", Name = "ResetJobSchedule")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
