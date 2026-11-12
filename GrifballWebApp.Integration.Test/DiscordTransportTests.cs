@@ -413,7 +413,7 @@ public class DiscordTransportTests
         {
             foreach (var role in await context.Roles.Where(r => r.Name == "Commissioner" || r.Name == "Sysadmin").ToListAsync())
                 context.UserRoles.Add(new UserRole { UserId = staff.Id, RoleId = role.Id });
-            var season = Season.Seed(seasonName: "Transport Jobs");
+            var season = Season.Seed(seasonName: "Transport Jobs").WithDates(seasonStart: new DateTime(2025, 1, 1), seasonEnd: new DateTime(2025, 3, 1));
             context.Seasons.Add(season);
             await context.SaveChangesAsync();
             var seasonMatch = SeasonMatch.Seed(season.SeasonID, null, null);
