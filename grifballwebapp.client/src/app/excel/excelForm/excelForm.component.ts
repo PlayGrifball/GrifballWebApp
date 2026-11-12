@@ -11,7 +11,8 @@ import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { RegexMatchValidValidatorDirective } from '../../validation/directives/regexMatchValidValidatorDirective.directive';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { SheetInfo } from '../excel.component';
-import { HttpClient } from '@angular/common/http';
+import { ExcelService } from '@api/services/excel.service';
+import type { SheetInfo as SheetInfoApiDto } from '@api/models';
 
 /** How often a queued or running export of every match is looked at again. */
 export const EXPORT_POLL_MS = 3000;
@@ -33,7 +34,7 @@ export const EXPORT_POLL_MS = 3000;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExcelFormComponent implements OnInit {
-  private httpClient = inject(HttpClient);
+  private excel = inject(ExcelService);
   private destroyRef = inject(DestroyRef);
 
 
@@ -63,7 +64,9 @@ export class ExcelFormComponent implements OnInit {
       sheetName: this.sheetName,
     }
 
-    this.httpClient.post(`/api/matches/${encodeURIComponent(matchID)}/append-to-sheet`, dto)
+    // SheetInfo's generated model also has requestedByUserID (the server fills that in itself); the cast
+    // keeps the request body exactly as it was.
+    this.excel.appendMatch({ matchID, body: dto as unknown as SheetInfoApiDto })
         .subscribe({
           next: result => console.log(result),
           error: result => console.log(result),
@@ -79,7 +82,7 @@ export class ExcelFormComponent implements OnInit {
   exportAll(): void {
     this.exportError.set(null);
     const dto: SheetInfo = { name: this.inputName(), spreadsheetID: this.spreadsheetID, sheetName: this.sheetName };
-    this.httpClient.post<OnDemandJobStatusDto>('/api/sheets/export', dto)
+    this.excel.exportAll({ body: dto as unknown as SheetInfoApiDto })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: status => this.followExport(status),
@@ -92,7 +95,7 @@ export class ExcelFormComponent implements OnInit {
     if (status.state === 'Idle')
       return;
     timer(EXPORT_POLL_MS, EXPORT_POLL_MS).pipe(
-      switchMap(() => this.httpClient.get<OnDemandJobStatusDto>('/api/sheets/export')),
+      switchMap(() => this.excel.exportAllStatus()),
       takeWhile(next => next.state !== 'Idle', true),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({

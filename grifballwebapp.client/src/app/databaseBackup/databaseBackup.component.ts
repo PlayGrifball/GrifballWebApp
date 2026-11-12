@@ -1,5 +1,6 @@
-import { HttpClient, HttpErrorResponse, httpResource } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -7,15 +8,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { errorText } from '../shared/errorText';
+import { BackupService } from '@api/services/backup.service';
+import type { BackupInfoDto } from '@api/models';
 
 export type BackupFormat = 'sqlite' | 'postgres' | 'sqlserver' | 'bak' | 'dump';
-
-/** api/backups/info: the server the site's database is on, the build's last migration, and the formats it can download here. */
-export interface BackupInfo {
-  provider: string;
-  latestMigration: string;
-  formats: BackupFormat[];
-}
 
 const formatLabels: Record<BackupFormat, string> = {
   sqlite: 'SQLite database (.sqlite)',
@@ -80,7 +76,7 @@ export const targetConnectionStrings: Record<ExportTarget, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DatabaseBackupComponent {
-  private http = inject(HttpClient);
+  private backup = inject(BackupService);
   private snackbar = inject(MatSnackBar);
   private pollTimer: ReturnType<typeof setTimeout> | undefined;
   private downloadTimer: ReturnType<typeof setTimeout> | undefined;
@@ -90,7 +86,7 @@ export class DatabaseBackupComponent {
   /** How often a running export's or backup's status is read again (ms). */
   static readonly pollInterval = 2000;
 
-  readonly info = httpResource<BackupInfo>(() => 'api/backups/info');
+  readonly info = rxResource<BackupInfoDto, void>({ stream: () => this.backup.backupInfo() });
   readonly format = signal<BackupFormat>('sqlite');
   readonly downloadStatus = signal<DownloadStatus | null>(null);
   /** Starting or making a backup. */
@@ -100,7 +96,8 @@ export class DatabaseBackupComponent {
 
   /** The formats the server can make here; the three it always can until it says. */
   readonly formats = computed(() => {
-    const formats: BackupFormat[] = this.info.hasValue() ? this.info.value().formats : ['sqlite', 'postgres', 'sqlserver'];
+    // The server only ever lists BackupFormat's own values.
+    const formats: BackupFormat[] = this.info.hasValue() ? this.info.value().formats as BackupFormat[] : ['sqlite', 'postgres', 'sqlserver'];
     return formats.map(value => ({ value, label: formatLabels[value] }));
   });
 
@@ -141,7 +138,7 @@ export class DatabaseBackupComponent {
 
   /** The last export's status; again shortly while it runs. */
   loadExportStatus() {
-    this.http.get<ExportStatus>('api/database-exports/status').subscribe({
+    this.backup.backupExportStatus().subscribe({
       next: status => this.followExport(status),
       error: r => console.log(r),
     });
@@ -156,7 +153,7 @@ export class DatabaseBackupComponent {
 
   startExport() {
     this.starting.set(true);
-    this.http.post<ExportStatus>('api/database-exports', { provider: this.exportTarget(), connectionString: this.connectionString() }).subscribe({
+    this.backup.backupExport({ body: { provider: this.exportTarget(), connectionString: this.connectionString() } }).subscribe({
       next: status => {
         this.starting.set(false);
         // Not kept in the page once the server has it.
@@ -174,8 +171,9 @@ export class DatabaseBackupComponent {
 
   /** The backup being made, or the last one; again shortly while one is made. */
   loadDownloadStatus() {
-    this.http.get<DownloadStatus>(`api/backups/${this.format()}/status`).subscribe({
-      next: status => this.followDownload(status),
+    this.backup.backupDownloadStatus({ format: this.format() }).subscribe({
+      // The generated model's format/runningFormat are string, not BackupFormat: the server only ever sends one of its values.
+      next: status => this.followDownload(status as unknown as DownloadStatus),
       error: r => {
         console.log(r);
         if (this.startedHere) {
@@ -219,8 +217,8 @@ export class DatabaseBackupComponent {
   makeBackup() {
     this.making.set(true);
     this.startedHere = this.format();
-    this.http.post<DownloadStatus>(`api/backups/${this.format()}`, null).subscribe({
-      next: status => this.followDownload(status),
+    this.backup.backupStartDownload({ format: this.format() }).subscribe({
+      next: status => this.followDownload(status as unknown as DownloadStatus),
       error: (r: HttpErrorResponse) => {
         console.log(r);
         this.startedHere = null;

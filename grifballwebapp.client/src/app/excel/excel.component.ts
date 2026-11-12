@@ -29,6 +29,8 @@ export class ExcelComponent implements OnInit {
         sheetName: this.inputSheetName()
       }]);
     } else {
+      // Stays on HttpClient: the server's Excel/DefaultSheetInfo has no declared response type, so the generated
+      // ExcelService.defaultSheetInfo() treats it as a bodyless 'text' call; the server really answers with JSON.
       this.httpClient.get<SheetInfo[]>('/api/sheets/default')
       .subscribe({
         next: (v) => {
