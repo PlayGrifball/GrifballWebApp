@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
-import { ApiClientService } from '../api/apiClient.service';
+import { SeasonService, SignupsService } from '@api/services';
 import type { SignupResponseDto } from '@api/models';
 import { RouterLink } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
@@ -24,7 +24,8 @@ import { whileCurrent } from '../shared/whileCurrent';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SignupsComponent {
-  private api = inject(ApiClientService);
+  private seasons = inject(SeasonService);
+  private signups = inject(SignupsService);
   private summaries = inject(SeasonSummaryService);
 
   readonly signUps = signal<SignupResponseDto[]>([]);
@@ -46,7 +47,7 @@ export class SignupsComponent {
         this.summary.set(null);
         this.shownSeasonID.set(routeSeasonID);
         if (routeSeasonID === 0) {
-          this.api.getCurrentSeasonID()
+          this.seasons.getCurrentSeasonId()
             .pipe(whileCurrent(routeSeasonID, this.seasonID))
             .subscribe({
               next: (result) => {
@@ -65,7 +66,7 @@ export class SignupsComponent {
   getSignups(): void {
     const seasonID = this.shownSeasonID();
     this.summaries.get(seasonID).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({ next: s => this.summary.set(s), error: () => {} });
-    this.api.getSignups(seasonID).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({
+    this.signups.getSignups({ seasonID }).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({
       next: (result) => this.signUps.set(result),
       error: (error) => console.error(error),
     });

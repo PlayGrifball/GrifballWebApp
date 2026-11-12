@@ -1,14 +1,15 @@
 import { Component, ChangeDetectionStrategy, computed, effect, inject, input, numberAttribute, untracked, viewChild, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
-import type { SignupRequestDto } from '@api/models';
+import type { SignupRequestDto, SignupResponseDto } from '@api/models';
+import { Observable } from 'rxjs';
 import { RouterLink } from '@angular/router';
-import { ApiClientService } from '../api/apiClient.service';
+import { HomeService, SeasonService, SignupsService } from '@api/services';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {MatCheckboxModule} from '@angular/material/checkbox';
 import { AvailabilityTableComponent } from './availabilityTable/availabilityTable.component';
@@ -41,10 +42,11 @@ export function emptySignup(seasonID: number): SignupRequestDto {
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SignupFormComponent {
-  private api = inject(ApiClientService);
+  private signups = inject(SignupsService);
+  private seasons = inject(SeasonService);
+  private home = inject(HomeService);
   private snackBar = inject(MatSnackBar);
   private availabilityService = inject(AvailabilityService);
-  private http = inject(HttpClient);
   accountService = inject(AccountService);
 
   readonly eventTitles = eventTitles;
@@ -88,7 +90,8 @@ export class SignupFormComponent {
     // Fetch from backend
     if (seasonID > 0) {
       this.loadSeasonInfo(seasonID);
-      this.api.getSignup(seasonID, this.availabilityService.getDif())
+      // null before the user signs up (not a 404: the season takes signups, this user has none yet).
+      (this.signups.getSignup({ seasonID, offset: this.availabilityService.getDif() }) as Observable<SignupResponseDto | null>)
         .pipe(whileCurrent(seasonID, this.seasonID))
         .subscribe({
           next: (result) =>
@@ -96,7 +99,7 @@ export class SignupFormComponent {
             if (result === null)
             {
               this.model.set(emptySignup(seasonID));
-              this.api.getTimeslots(seasonID, this.availabilityService.getDif()).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({
+              this.signups.getTimeslots({ seasonID, offset: this.availabilityService.getDif() }).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({
                 next: (r) => {
                   this.model.update(model => ({ ...model, timeslots: r }));
                   this.loaded.set(true);
@@ -126,8 +129,8 @@ export class SignupFormComponent {
 
   /** The season's name and dates, for the heading and the timeline. Neither is needed to sign up. */
   private loadSeasonInfo(seasonID: number): void {
-    this.api.getSeasonName(seasonID).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({ next: name => this.seasonName.set(name), error: () => {} });
-    this.http.get<SeasonEvent[]>('/api/events').subscribe({ next: events => this.events.set(events), error: () => {} });
+    this.seasons.getSeasonName({ seasonID }).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({ next: name => this.seasonName.set(name), error: () => {} });
+    this.home.currentAndFutureEvents().subscribe({ next: events => this.events.set(events), error: () => {} });
   }
 
   /** Every edit (form fields and the availability table) replaces the model rather than mutating it. */
@@ -140,7 +143,8 @@ export class SignupFormComponent {
       return;
     }
 
-    this.api.upsertSignup(this.model()).subscribe({
+    const dto = this.model();
+    this.signups.upsertSignup({ seasonID: dto.seasonID, body: dto }).subscribe({
       next: (result) => this.snackBar.open('Signup Submitted', 'OK'),
       error: (result: HttpErrorResponse) =>
       {

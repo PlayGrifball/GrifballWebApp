@@ -5,29 +5,16 @@ import { DateTime } from 'luxon';
 import { of, Subject, throwError } from 'rxjs';
 import { SeasonEditComponent } from './seasonEdit.component';
 import { EventOrganizerService } from '@api/services';
-import type { SeasonDto } from '@api/models';
+import { SeasonSettingsApiService } from '../api/seasonSettingsApi.service';
 import { SeasonSettings } from '../api/seasonSettings';
 
 describe('SeasonEditComponent', () => {
   let fixture: ComponentFixture<SeasonEditComponent>;
   let component: SeasonEditComponent;
-  let api: jasmine.SpyObj<EventOrganizerService>;
+  let eventOrganizer: jasmine.SpyObj<EventOrganizerService>;
+  let api: jasmine.SpyObj<SeasonSettingsApiService>;
 
   const t = DateTime.fromISO('2026-05-01T19:00:00');
-
-  /** As the API sends it: a season's dates as ISO strings, which the component parses into Luxon DateTimes. */
-  const seasonDto = (overrides: Partial<Omit<SeasonDto, 'publicAt'>> & { publicAt?: DateTime | null } = {}): SeasonDto => {
-    const { publicAt, ...rest } = overrides;
-    return {
-      seasonID: 4, seasonName: 'Season 4', gameVersionID: 6, leagueID: 1, division: null, format: 'LeagueSeason',
-      copyFromSeasonID: null, copyAvailability: false, copySignups: false, copyTeams: false, signupsCount: 0,
-      signupsOpen: t.toISO()!, signupsClose: t.toISO()!, draftStart: t.toISO()!, seasonStart: t.toISO()!, seasonEnd: t.toISO()!,
-      publicAt: publicAt ? publicAt.toISO() : null,
-      ...rest,
-    } as SeasonDto;
-  };
-
-  /** A parsed season, as the form holds it, for setting the model directly. */
   const season = (overrides: Partial<SeasonSettings> = {}): SeasonSettings => Object.assign(new SeasonSettings(), {
     seasonID: 4, seasonName: 'Season 4', gameVersionID: 6, leagueID: 1,
     signupsOpen: t, signupsClose: t, draftStart: t, seasonStart: t, seasonEnd: t,
@@ -35,18 +22,20 @@ describe('SeasonEditComponent', () => {
   });
 
   beforeEach(async () => {
-    api = jasmine.createSpyObj<EventOrganizerService>('EventOrganizerService', ['getSeason', 'getSeasons', 'upsertSeason', 'getGameVersions', 'getLeagues']);
-    api.getGameVersions.and.returnValue(of([{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]));
-    api.getLeagues.and.returnValue(of([{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'GWL' }]));
-    api.getSeason.and.returnValue(of(seasonDto()));
-    api.getSeasons.and.returnValue(of([seasonDto({ seasonID: 3, seasonName: 'Season 3' }), seasonDto()]));
+    eventOrganizer = jasmine.createSpyObj<EventOrganizerService>('EventOrganizerService', ['getGameVersions', 'getLeagues']);
+    api = jasmine.createSpyObj<SeasonSettingsApiService>('SeasonSettingsApiService', ['getSeason', 'getSeasons', 'upsertSeason']);
+    eventOrganizer.getGameVersions.and.returnValue(of([{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]));
+    eventOrganizer.getLeagues.and.returnValue(of([{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'GWL' }]));
+    api.getSeason.and.returnValue(of(season()));
+    api.getSeasons.and.returnValue(of([season({ seasonID: 3, seasonName: 'Season 3' }), season()]));
 
     await TestBed.configureTestingModule({
       imports: [SeasonEditComponent],
       providers: [
         provideRouter([]),
         provideLuxonDatetimeAdapter(),
-        { provide: EventOrganizerService, useValue: api },
+        { provide: EventOrganizerService, useValue: eventOrganizer },
+        { provide: SeasonSettingsApiService, useValue: api },
       ]
     }).compileComponents();
 
@@ -95,7 +84,7 @@ describe('SeasonEditComponent', () => {
   it('loads an existing season and offers to save and edit availability', async () => {
     await render();
 
-    expect(api.getSeason).toHaveBeenCalledWith({ seasonID: 4 });
+    expect(api.getSeason).toHaveBeenCalledWith(4);
     expect(component.model().seasonName).toBe('Season 4');
     expect(saveButton().textContent).toContain('Save Season');
     expect(saveButton().disabled).toBeFalse();
@@ -121,7 +110,7 @@ describe('SeasonEditComponent', () => {
 
   it('saves a valid season and keeps the returned id', async () => {
     fixture.componentRef.setInput('seasonID', '0');
-    api.getSeason.and.returnValue(of(seasonDto()));
+    api.getSeason.and.returnValue(of(season()));
     await render();
     component.model.set(season({ seasonID: 0 }));
     await render();
@@ -130,7 +119,7 @@ describe('SeasonEditComponent', () => {
 
     component.onSubmit();
 
-    expect(api.upsertSeason).toHaveBeenCalledWith({ body: submitted as unknown as SeasonDto });
+    expect(api.upsertSeason).toHaveBeenCalledWith(submitted);
     expect(component.model().seasonID).toBe(12);
   });
 
@@ -145,12 +134,12 @@ describe('SeasonEditComponent', () => {
   });
 
   it('fills the form once the season arrives, without a manual detectChanges', async () => {
-    const loaded = new Subject<SeasonDto>();
+    const loaded = new Subject<SeasonSettings>();
     api.getSeason.and.returnValue(loaded);
     await fixture.whenStable();
     expect(el().textContent).not.toContain('Edit Availability');
 
-    loaded.next(seasonDto({ seasonName: 'Arrived Later' }));
+    loaded.next(season({ seasonName: 'Arrived Later' }));
     await fixture.whenStable();
 
     expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')?.value).toBe('Arrived Later');
@@ -223,25 +212,24 @@ describe('SeasonEditComponent', () => {
 
   it('shows and saves when a season is public from', async () => {
     const publicAt = DateTime.fromISO('2026-04-01T12:00:00');
-    api.getSeason.and.returnValue(of(seasonDto({ publicAt })));
+    api.getSeason.and.returnValue(of(season({ publicAt })));
     api.upsertSeason.and.returnValue(of(4));
     await render();
 
     component.onSubmit();
 
-    const body = (api.upsertSeason.calls.mostRecent().args[0] as unknown as { body: SeasonSettings }).body;
-    expect(body.publicAt?.toMillis()).toBe(publicAt.toMillis());
+    expect(api.upsertSeason).toHaveBeenCalledWith(jasmine.objectContaining({ publicAt }));
   });
 
   it('resets the form to the new season when the route moves to another season', async () => {
-    api.getSeason.and.callFake((params: { seasonID: number }) => of(seasonDto({ seasonID: params.seasonID, seasonName: `Season ${params.seasonID}` })));
+    api.getSeason.and.callFake((id: number) => of(season({ seasonID: id, seasonName: `Season ${id}` })));
     await render();
     component.patch({ seasonName: 'Unsaved edit' });
 
     fixture.componentRef.setInput('seasonID', '7');
     await render();
 
-    expect(api.getSeason).toHaveBeenCalledWith({ seasonID: 7 });
+    expect(api.getSeason).toHaveBeenCalledWith(7);
     expect(component.model().seasonID).toBe(7);
     expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')!.value).toBe('Season 7');
     const availability = Array.from(el().querySelectorAll('a')).find(a => a.textContent!.includes('Edit Availability'))!;
@@ -249,13 +237,13 @@ describe('SeasonEditComponent', () => {
   });
 
   it('empties the form for a new season, and drops the previous season when it arrives late', async () => {
-    const late = new Subject<SeasonDto>();
+    const late = new Subject<SeasonSettings>();
     api.getSeason.and.returnValue(late);
     await render();
 
     fixture.componentRef.setInput('seasonID', '0');
     await render();
-    late.next(seasonDto());
+    late.next(season());
     await render();
 
     expect(component.model().seasonID).toBeUndefined();
@@ -264,7 +252,7 @@ describe('SeasonEditComponent', () => {
   });
 
   it('keeps the empty form for a season that does not exist', async () => {
-    api.getSeason.and.returnValue(of(null as unknown as SeasonDto));
+    api.getSeason.and.returnValue(of(null));
     await render();
     expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')!.value).toBe('');
   });
@@ -303,7 +291,7 @@ describe('SeasonEditComponent', () => {
       await fixture.whenStable();
 
       component.onSubmit();
-      expect(api.upsertSeason).toHaveBeenCalledWith({ body: jasmine.objectContaining({ gameVersionID: 6, leagueID: 2 }) });
+      expect(api.upsertSeason).toHaveBeenCalledWith(jasmine.objectContaining({ gameVersionID: 6, leagueID: 2 }));
     });
 
     it('offers the formats, and saves the one picked', async () => {
@@ -314,7 +302,7 @@ describe('SeasonEditComponent', () => {
       await fixture.whenStable();
 
       component.onSubmit();
-      expect(api.upsertSeason).toHaveBeenCalledWith({ body: jasmine.objectContaining({ format: 'Tournament' }) });
+      expect(api.upsertSeason).toHaveBeenCalledWith(jasmine.objectContaining({ format: 'Tournament' }));
     });
 
     it('saves a division, at most 50 characters, and none when cleared', async () => {
@@ -339,8 +327,8 @@ describe('SeasonEditComponent', () => {
 
     it('still works when the games and leagues fail to load', async () => {
       const err = spyOn(console, 'error');
-      api.getGameVersions.and.returnValue(throwError(() => 'no games'));
-      api.getLeagues.and.returnValue(throwError(() => 'no leagues'));
+      eventOrganizer.getGameVersions.and.returnValue(throwError(() => 'no games'));
+      eventOrganizer.getLeagues.and.returnValue(throwError(() => 'no leagues'));
       await render();
       expect(err).toHaveBeenCalledWith('no games');
       expect(err).toHaveBeenCalledWith('no leagues');
@@ -351,11 +339,11 @@ describe('SeasonEditComponent', () => {
 
   it("copies from a season by its ID, saying which league a name that several seasons share is in", async () => {
     api.getSeasons.and.returnValue(of([
-      seasonDto({ seasonID: 3, seasonName: 'Season 3', leagueID: 1 }),
-      seasonDto({ seasonID: 7, seasonName: 'Season 3', leagueID: 2 }),
-      seasonDto({ seasonID: 8, seasonName: 'Season 3', leagueID: 9 }),
-      seasonDto({ seasonID: 5, seasonName: 'Summer', leagueID: 2 }),
-      seasonDto(),
+      season({ seasonID: 3, seasonName: 'Season 3', leagueID: 1 }),
+      season({ seasonID: 7, seasonName: 'Season 3', leagueID: 2 }),
+      season({ seasonID: 8, seasonName: 'Season 3', leagueID: 9 }),
+      season({ seasonID: 5, seasonName: 'Summer', leagueID: 2 }),
+      season(),
     ]));
     api.upsertSeason.and.returnValue(of(4));
     await render();
@@ -365,6 +353,6 @@ describe('SeasonEditComponent', () => {
     expect(component.model().copyFromSeasonID).toBe(7);
 
     component.onSubmit();
-    expect(api.upsertSeason).toHaveBeenCalledWith({ body: jasmine.objectContaining({ copyFromSeasonID: 7 }) });
+    expect(api.upsertSeason).toHaveBeenCalledWith(jasmine.objectContaining({ copyFromSeasonID: 7 }));
   });
 });
