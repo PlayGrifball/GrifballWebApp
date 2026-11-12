@@ -48,6 +48,8 @@ jobs:
       (github.event.action == 'reopened' || github.event.action == 'closed' || github.event.label.name == 'preview' ||
        startsWith(github.event.label.name, 'preview-slot-'))
     runs-on: ubuntu-latest
+    # A hung job fails after this rather than GitHub's 6 hours (seconds usually)
+    timeout-minutes: 10
     permissions:
       # Read open PRs' labels, add and remove labels, comment. Labels and comments on PRs go through the issues API.
       pull-requests: write
@@ -182,6 +184,8 @@ jobs:
       ((github.event.action == 'labeled' && github.event.label.name == 'preview') ||
        (github.event.action == 'reopened' && contains(github.event.pull_request.labels.*.name, 'preview')))
     runs-on: ubuntu-latest
+    # A hung job fails after this rather than GitHub's 6 hours (seconds usually)
+    timeout-minutes: 10
     permissions:
       pull-requests: write
       issues: write

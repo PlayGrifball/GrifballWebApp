@@ -184,6 +184,7 @@ jobs:
       run: npm ci --ignore-scripts
       
     - name: Run tests with coverage
+      id: test
       if: env.RUN == 'true'
       run: npm run test:ci
       
@@ -202,6 +203,7 @@ jobs:
         path: grifballwebapp.client/coverage/
         
     - name: Publish Test Results
+      id: report
       uses: dorny/test-reporter@d1b5dff021aa968b288b02285a8bf47471c5928a # v3.2.0
       if: always() && env.RUN == 'true'
       # The report only: the test step above already fails the job on a failing test. GitHub sometimes answers the
@@ -213,6 +215,19 @@ jobs:
         reporter: java-junit
         fail-on-error: true
         use-actions-summary: 'false'
+
+    # Only when the report step failed (its continue-on-error keeps the job going) or was cancelled: its check run can be left "in
+    # progress" when GitHub answers its update with 404. Completed here with the tests' own outcome, or this fails the
+    # job if it can't be (.github/scripts/close-stuck-report.sh)
+    - name: Close a stuck test report
+      if: always() && env.RUN == 'true' && (steps.report.outcome == 'failure' || steps.report.outcome == 'cancelled')
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        NAME: Frontend Test Results
+        OUTCOME: ${{ steps.test.outcome }}
+      run: "$GITHUB_WORKSPACE/.github/scripts/close-stuck-report.sh"
         
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
