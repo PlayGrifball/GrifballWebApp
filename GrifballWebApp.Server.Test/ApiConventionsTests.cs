@@ -108,6 +108,19 @@ public class ApiConventionsTests
     }
 
     [Test]
+    public void EveryAction_DeclaresWhatItsOkAnswersWith()
+    {
+        // A 200 says what its body is (a DTO, text, a file), so the client generated from the document reads it: without
+        // a type the generated method expects no body and throws the answer away
+        var untyped = Actions()
+            .Where(a => a.GetCustomAttributes<ProducesResponseTypeAttribute>().Any(p => p.StatusCode == StatusCodes.Status200OK && p.Type == typeof(void)))
+            .Select(Name)
+            .ToList();
+
+        Assert.That(untyped, Is.Empty);
+    }
+
+    [Test]
     public void EveryAction_ReadsWithGet_AndChangesWithPost_AtItsOwnRoute()
     {
         // The owner's rules (#270): GET to read and POST for every change, no PUT/PATCH/DELETE; each action names its
