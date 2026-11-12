@@ -16,41 +16,52 @@ import { join } from 'node:path';
 
 const target = Number(process.env.LAYER_COVERAGE_TARGET ?? 70);
 
-// The attributes of one tag's text (what's between < and >)
+// The attributes of one tag's text (what's between < and >): split at the quotes, each name ends the text before its
+// value (no regular expression, so nothing to backtrack over)
 function attributes(tag) {
   const result = {};
-  for (const match of tag.matchAll(/([\w-]+)="([^"]*)"/g)) {
-    result[match[1]] = match[2];
+  const parts = tag.split('"');
+  for (let i = 1; i < parts.length; i += 2) {
+    const name = parts[i - 1].trim().split(/\s/).pop().replace(/=$/, '');
+    result[name] = parts[i];
   }
   return result;
 }
 
+// Every tag's text in a document, in order
+function* tags(xml) {
+  for (let start = xml.indexOf('<'); start !== -1; start = xml.indexOf('<', start + 1)) {
+    const end = xml.indexOf('>', start);
+    if (end === -1) return;
+    yield xml.slice(start + 1, end);
+  }
+}
+
+// One <line> into the lines seen so far: covered when any listing hit it, with its most covered branches
+function record(lines, file, line) {
+  const key = `${file}:${line.number}`;
+  const branches = /\((\d+)\/(\d+)\)/.exec(line['condition-coverage'] ?? '');
+  const seen = lines.get(key) ?? { hit: false, branches: 0, branchesCovered: 0 };
+  lines.set(key, {
+    hit: seen.hit || Number(line.hits) > 0,
+    branches: Math.max(seen.branches, branches ? Number(branches[2]) : 0),
+    branchesCovered: Math.max(seen.branchesCovered, branches ? Number(branches[1]) : 0),
+  });
+}
+
 // One package's numbers from a Cobertura report. A line can be listed more than once (by its class and by its method,
-// or by two classes in one file): it counts once, as covered when any listing hit it, with its most covered branches.
+// or by two classes in one file): it counts once.
 export function packageCoverage(xml, name) {
   const lines = new Map();
   let inPackage = false;
   let file = '';
-  for (let start = xml.indexOf('<'); start !== -1; start = xml.indexOf('<', start + 1)) {
-    const end = xml.indexOf('>', start);
-    if (end === -1) break;
-    const tag = xml.slice(start + 1, end);
-    if (tag.startsWith('package ')) {
-      inPackage = attributes(tag).name === name;
-    } else if (tag === '/package') {
-      inPackage = false;
+  for (const tag of tags(xml)) {
+    if (tag.startsWith('package ') || tag === '/package') {
+      inPackage = tag !== '/package' && attributes(tag).name === name;
     } else if (inPackage && tag.startsWith('class ')) {
       file = attributes(tag).filename ?? '';
     } else if (inPackage && tag.startsWith('line ')) {
-      const line = attributes(tag);
-      const key = `${file}:${line.number}`;
-      const branches = /\((\d+)\/(\d+)\)/.exec(line['condition-coverage'] ?? '');
-      const seen = lines.get(key) ?? { hit: false, branches: 0, branchesCovered: 0 };
-      lines.set(key, {
-        hit: seen.hit || Number(line.hits) > 0,
-        branches: Math.max(seen.branches, branches ? Number(branches[2]) : 0),
-        branchesCovered: Math.max(seen.branchesCovered, branches ? Number(branches[1]) : 0),
-      });
+      record(lines, file, attributes(tag));
     }
   }
   if (lines.size === 0) return null;
@@ -83,6 +94,23 @@ function delta(now, before) {
   return ` (${change > 0 ? '+' : ''}${change.toFixed(1)})`;
 }
 
+const shortName = (layer) => layer.replace(/^GrifballWebApp\./, '');
+
+// One layer's row, and whether it's at the target now and was on master
+function row(layer, c, was) {
+  const lines = percent(c.linesCovered, c.lines);
+  const branches = percent(c.branchesCovered, c.branches);
+  const linesWas = was ? percent(was.linesCovered, was.lines) : null;
+  const branchesWas = was ? percent(was.branchesCovered, was.branches) : null;
+  const met = lines !== null && lines >= target;
+  const wasMet = linesWas !== null && linesWas >= target;
+  const short = `${wasMet ? '⛔ was at target on master,' : '❌'} ${Math.ceil((target / 100) * c.lines - c.linesCovered)} lines short`;
+  const text =
+    `| ${shortName(layer)} | ${show(lines)}${delta(lines, linesWas)} · ${c.linesCovered}/${c.lines} | ` +
+    `${show(branches)}${delta(branches, branchesWas)} | ${met ? '✅' : short} |`;
+  return { text, met, wasMet };
+}
+
 export function render(current, base, sha) {
   const out = [
     '### Unit test coverage by layer',
@@ -96,19 +124,10 @@ export function render(current, base, sha) {
   let below = 0;
   const dropped = [];
   for (const [layer, c] of Object.entries(current).sort(([a], [b]) => a.localeCompare(b))) {
-    const lines = percent(c.linesCovered, c.lines);
-    const branches = percent(c.branchesCovered, c.branches);
-    const was = base?.[layer];
-    const linesWas = was ? percent(was.linesCovered, was.lines) : null;
-    const branchesWas = was ? percent(was.branchesCovered, was.branches) : null;
-    const met = lines !== null && lines >= target;
+    const { text, met, wasMet } = row(layer, c, base?.[layer]);
+    out.push(text);
     if (!met) below++;
-    const wasMet = linesWas !== null && linesWas >= target;
-    if (wasMet && !met) dropped.push(layer.replace(/^GrifballWebApp\./, ''));
-    out.push(
-      `| ${layer.replace(/^GrifballWebApp\./, '')} | ${show(lines)}${delta(lines, linesWas)} · ${c.linesCovered}/${c.lines} | ` +
-        `${show(branches)}${delta(branches, branchesWas)} | ${met ? '✅' : `${wasMet ? '⛔ was at target on master,' : '❌'} ${Math.ceil((target / 100) * c.lines - c.linesCovered)} lines short`} |`,
-    );
+    if (wasMet && !met) dropped.push(shortName(layer));
   }
   out.push('', below === 0 ? `Every layer is at ${target}% or more.` : `${below} layer(s) below ${target}%.`);
   if (dropped.length) {
