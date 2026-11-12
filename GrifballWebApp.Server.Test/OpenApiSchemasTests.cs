@@ -1,6 +1,9 @@
 using GrifballWebApp.Application.Dtos;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace GrifballWebApp.Server.Test;
@@ -31,6 +34,16 @@ public class OpenApiSchemasTests
 {
     private static readonly HashSet<string> NoneAmbiguous = [];
     private static readonly string[] SampleRequired = ["id", "name", "renamed"];
+    private static readonly string[] PascalRequired = ["Id", "Name", "renamed"];
+
+    /// <summary>What Swashbuckle's filters are built with: the API's JSON options and its serializer contract.</summary>
+    internal static IServiceProvider Services(JsonSerializerOptions json)
+    {
+        var services = new ServiceCollection();
+        services.Configure<JsonOptions>(o => o.JsonSerializerOptions.PropertyNamingPolicy = json.PropertyNamingPolicy);
+        services.AddSingleton<ISerializerDataContractResolver>(new JsonSerializerDataContractResolver(json));
+        return services.BuildServiceProvider();
+    }
 
     [Test]
     public void For_NamesATypeByItsOwnName()
@@ -73,6 +86,36 @@ public class OpenApiSchemasTests
             Assert.That(OpenApiSchemaIds.AppAssemblies().Select(a => a.GetName().Name),
                 Does.Contain("GrifballWebApp.Server").And.Contain("GrifballWebApp.Application"));
         }
+    }
+
+    [Test]
+    public void AmbiguousNames_CountOnlyTypesTheApiCouldSend()
+    {
+        // A non-public type is never a schema: an internal helper of the same name must not rename the public DTO's schema
+        var ambiguous = OpenApiSchemaIds.AmbiguousNames([typeof(OpenApiSchemasTests).Assembly]);
+
+        Assert.That(ambiguous, Does.Not.Contain("HiddenTwin"));
+    }
+
+    [Test]
+    public void EveryPropertyRequired_NamesPropertiesAsTheSerializerDoes()
+    {
+        // The API's own naming (here none: PascalCase), not camelCase assumed: Score is left out when null, so stays optional
+        var schema = new OpenApiSchema
+        {
+            Properties = new Dictionary<string, IOpenApiSchema>
+            {
+                ["Id"] = new OpenApiSchema(),
+                ["Name"] = new OpenApiSchema(),
+                ["renamed"] = new OpenApiSchema(),
+                ["Score"] = new OpenApiSchema(),
+            },
+        };
+        var filter = ActivatorUtilities.CreateInstance<EveryPropertyRequiredFilter>(Services(new JsonSerializerOptions()));
+
+        filter.Apply(schema, Context(typeof(Sample)));
+
+        Assert.That(schema.Required, Is.EqualTo(PascalRequired));
     }
 
     [Test]
@@ -187,6 +230,18 @@ public class CamelCaseQueryParametersFilterTests
         new CamelCaseQueryParametersFilter().Apply(operation, null!);
 
         Assert.That(operation.Parameters!.Select(p => p.Name), Is.EqualTo(QueryNames));
+    }
+
+    [Test]
+    public void Apply_NamesQueryParametersAsTheApisJsonDoes()
+    {
+        // No naming policy: the JSON keeps .NET's names, so the query does too
+        var operation = new OpenApiOperation { Parameters = [new OpenApiParameter { Name = "PageNumber", In = ParameterLocation.Query }] };
+        var filter = ActivatorUtilities.CreateInstance<CamelCaseQueryParametersFilter>(OpenApiSchemasTests.Services(new JsonSerializerOptions()));
+
+        filter.Apply(operation, null!);
+
+        Assert.That(operation.Parameters![0].Name, Is.EqualTo("PageNumber"));
     }
 
     [Test]

@@ -1357,6 +1357,16 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
     req.flush({});
   });
 
+  for (const connectionId of ['', null, undefined])
+    it(`sends no connection header while the hub has no connection id (${JSON.stringify(connectionId) ?? 'undefined'})`, () => {
+      (mockSignalR.hubConnection as any).connectionId = connectionId;
+      dropTeamInPool(component.teams()[1]);
+
+      const req = httpTesting.expectOne('/api/seasons/7/draft/captains/remove');
+      expect(req.request.headers.has('SignalRConnectionID')).toBeFalse();
+      req.flush({});
+    });
+
   it('returns the captain and their players to the pool and re-sequences the remaining captains', () => {
     dropTeamInPool(component.teams()[0]);
 

@@ -31,6 +31,13 @@ describe('SiteFooterComponent', () => {
     expect(footer.commitDate()).toEqual(date);
   });
 
+  it('shows no build date when the API has none (an empty answer)', () => {
+    api.getCommitHash.and.returnValue(of('test-commit-hash'));
+    api.getCommitDate.and.returnValue(of(''));
+
+    expect(create().componentInstance.commitDate()).toBeNull();
+  });
+
   it('has no build info until the API answers', () => {
     api.getCommitHash.and.returnValue(new Subject<string>());
     api.getCommitDate.and.returnValue(new Subject<string>());

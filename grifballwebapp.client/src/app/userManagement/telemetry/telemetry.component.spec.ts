@@ -185,6 +185,15 @@ describe('TelemetryComponent', () => {
     searched.flush({ entries: [line()], truncated: false });
     await settle();
 
+    // Only spaces: no search at all, not a search for spaces
+    search.value = '   ';
+    search.dispatchEvent(new Event('input'));
+    search.form!.dispatchEvent(new Event('submit'));
+    const blank = await request('/api/telemetry/logs');
+    expect(blank.request.params.has('search')).toBeFalse();
+    blank.flush({ entries: [line()], truncated: false });
+    await settle();
+
     el().querySelector<HTMLButtonElement>('.tm-log-line')!.click();
     await settle();
     expect(text(el().querySelector('.tm-props'))).toContain('RequestPath/Home/Events');
