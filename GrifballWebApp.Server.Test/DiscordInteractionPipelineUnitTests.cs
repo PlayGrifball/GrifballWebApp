@@ -65,6 +65,21 @@ public class DiscordInteractionPipelineUnitTests : DiscordInteractionPipelineFix
     }
 
     [Test]
+    public async Task Result_Refusal_RespondsWithItsMessage_AsTheSiteDoes()
+    {
+        var exception = new GrifballWebApp.Application.Reschedule.RescheduleAlreadyActiveException();
+
+        await new ApplicationCommandPipeline<ApplicationCommandContext>().HandleResultAsync(new ExecutionExceptionResult(exception), SlashCommand("reschedule"), null, _logger, _ambientOnly);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_logger.Entries.Where(e => e.Level >= LogLevel.Warning), Is.Empty);
+            Assert.That(SentMessage().Content, Is.EqualTo(exception.Message));
+            Assert.That(SentMessage().Flags, Is.EqualTo(MessageFlags.Ephemeral));
+        }
+    }
+
+    [Test]
     public async Task Result_SlashCommandException_AlreadyResponded_SendsFollowup()
     {
         _responseError = new RestException(HttpStatusCode.BadRequest, "Bad Request", new RestError(40060, "Interaction has already been acknowledged.", null));

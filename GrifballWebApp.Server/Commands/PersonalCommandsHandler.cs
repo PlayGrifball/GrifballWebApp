@@ -244,8 +244,7 @@ public class PersonalCommandsHandler
         DateTime? when = null;
         if (!string.IsNullOrWhiteSpace(newTime))
         {
-            if (!DateTime.TryParse(newTime, System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var parsed))
+            if (!CommandLookups.TryParseUtc(newTime, out var parsed))
             {
                 await context.Reply("I couldn't read that time. Use UTC like 2026-11-20 20:00, or pick it on " + "the request form".LinkMarkdown(_urls.RescheduleRequest(seasonMatchID)) + ".");
                 return;

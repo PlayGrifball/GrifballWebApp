@@ -101,17 +101,20 @@ public class AvailabilityCommands : ApplicationCommandModule<ApplicationCommandC
 }
 
 /// <summary>
-/// NetCord entry point for /reschedule: wraps the context and hands off to <see cref="PersonalCommandsHandler"/>.
+/// NetCord entry point for /reschedule: wraps the context and hands off to <see cref="PersonalCommandsHandler"/> (request)
+/// and <see cref="AdminCommandsHandler"/> (the staff's pending and decide).
 /// Keep logic out of here, it is only tested end to end (DiscordTransportTests).
 /// </summary>
 [SlashCommand("reschedule", "Reschedule requests for season matches")]
 public class RescheduleCommands : ApplicationCommandModule<ApplicationCommandContext>
 {
     private readonly PersonalCommandsHandler _handler;
+    private readonly AdminCommandsHandler _admin;
 
-    public RescheduleCommands(PersonalCommandsHandler handler)
+    public RescheduleCommands(PersonalCommandsHandler handler, AdminCommandsHandler admin)
     {
         _handler = handler;
+        _admin = admin;
     }
 
     [SubSlashCommand("request", "Ask to move one of your matches")]
@@ -120,6 +123,16 @@ public class RescheduleCommands : ApplicationCommandModule<ApplicationCommandCon
         [SlashCommandParameter(Description = "Why it needs to move")] string reason,
         [SlashCommandParameter(Name = "new_time", Description = "The new time in UTC, like 2026-11-20 20:00")] string? newTime = null)
         => _handler.RequestReschedule(Context.ToDiscordContext(), match, reason, newTime);
+
+    [SubSlashCommand("pending", "Requests waiting for a decision (staff)")]
+    public Task Pending() => _admin.PendingReschedules(Context.ToDiscordContext());
+
+    [SubSlashCommand("decide", "Approve or reject a request (staff)")]
+    public Task Decide(
+        [SlashCommandParameter(Description = "The request's number, from /reschedule pending")] int request,
+        [SlashCommandParameter(Description = "Approve it (false rejects it)")] bool approve,
+        [SlashCommandParameter(Description = "Notes for the players")] string? notes = null)
+        => _admin.DecideReschedule(Context.ToDiscordContext(), request, approve, notes);
 }
 
 /// <summary>The choices for a region option: the regions a player can be in.</summary>

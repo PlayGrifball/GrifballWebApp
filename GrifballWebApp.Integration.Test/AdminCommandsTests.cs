@@ -1,0 +1,295 @@
+using GrifballWebApp.Application;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Championships;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.MatchPlanner;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.Reschedule;
+using GrifballWebApp.Application.Scheduler;
+using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.Seasons;
+using GrifballWebApp.Application.Stats;
+using GrifballWebApp.Application.Teams;
+using GrifballWebApp.Application.TeamStandings;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Infrastructure.Teams;
+using GrifballWebApp.Server.Commands;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using NetCord;
+using NSubstitute;
+using User = GrifballWebApp.Domain.Players.User;
+
+namespace GrifballWebApp.Integration.Test;
+
+/// <summary>
+/// /admin and /reschedule pending|decide (<see cref="AdminCommandsHandler"/>): each held to its endpoint's role, every reply
+/// ephemeral. The job-backed commands (pull, schedule run, jobs) run through the real scheduler in <see cref="DiscordTransportTests"/>.
+/// </summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class AdminCommandsTests
+{
+    private GrifballContext _context = null!;
+    private IDataPullService _dataPull = null!;
+    private AdminCommandsHandler _handler = null!;
+    private User _commissioner = null!;
+
+    [SetUp]
+    public async Task SetUp()
+    {
+        _context = await TestDatabase.NewGrifballContext();
+        var urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
+        var seasons = new SeasonService(_context, new SeasonStatsService(_context));
+        _dataPull = Substitute.For<IDataPullService>();
+        var brackets = new BracketService(_context, new TeamStandingsService(_context), new ChampionshipService(_context));
+        var teams = new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
+        _handler = new AdminCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons), new RescheduleService(_context, new ContextOutbox(_context)),
+            new SeasonMatchService(_context, _dataPull, brackets, new ChampionshipService(_context)), new MatchPlannerService(_context), brackets, teams, seasons,
+            new ScheduleRecommendations(_context, TimeProvider.System), onDemand: null!, jobs: null!, new GamertagClaimService(_context, new UserMergeService(_context)),
+            _dataPull, urls);
+        _commissioner = await _context.AddUser("commish", gamertag: "CommishGT", discordName: "commish", commissioner: true);
+    }
+
+    [TearDown]
+    public async Task TearDown()
+    {
+        await _context.DropDatabaseAndDispose();
+    }
+
+    private CommandContextRecorder As(User user) => new((ulong)user.DiscordUserID!.Value);
+
+    private async Task<User> Sysadmin()
+    {
+        var user = await _context.AddUser("sysadmin", gamertag: "SysGT", discordName: "sysadmin");
+        var role = await _context.Roles.SingleAsync(x => x.Name == "Sysadmin");
+        _context.UserRoles.Add(new GrifballWebApp.Domain.Players.UserRole { UserId = user.Id, RoleId = role.Id });
+        await _context.SaveChangesAsync();
+        return user;
+    }
+
+    private async Task<SeasonMatch> AddMatch()
+    {
+        var season = await _context.AddSeason("Admin Season");
+        var home = await _context.AddTeamWithCaptain(season, "AdminHome", 7_000_001);
+        var away = await _context.AddTeamWithCaptain(season, "AdminAway", 7_000_002);
+        var match = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID);
+        _context.SeasonMatches.Add(match);
+        await _context.SaveChangesAsync();
+        return match;
+    }
+
+    [Test]
+    public async Task Dashboard_Should_RefuseAPlayer_Privately()
+    {
+        var player = await _context.AddUser("player", gamertag: "PlayerGT", discordName: "player");
+        var discord = As(player);
+
+        await _handler.Dashboard(discord.Context);
+
+        var message = discord.Message();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(message.Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.Staff)));
+            Assert.That(message.Flags, Is.EqualTo(MessageFlags.Ephemeral));
+        }
+    }
+
+    [Test]
+    public async Task StaffLists_Should_ReplyEphemerally_ToACommissioner()
+    {
+        var dashboard = As(_commissioner);
+        var overdue = As(_commissioner);
+        var pending = As(_commissioner);
+
+        await _handler.Dashboard(dashboard.Context);
+        await _handler.Overdue(overdue.Context);
+        await _handler.PendingReschedules(pending.Context);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dashboard.DeferredPublicly(), Is.False);
+            Assert.That(dashboard.Embed().Description, Is.EqualTo("0 pending reschedules · 0 overdue matches · 0 over 3 days"));
+            Assert.That(overdue.Embed().Description, Is.EqualTo("No match is overdue."));
+            Assert.That(pending.Embed().Description, Is.EqualTo("No reschedule is pending."));
+        }
+    }
+
+    [Test]
+    public async Task DecideReschedule_Should_SaySo_When_ThereIsNoSuchRequest()
+    {
+        var discord = As(_commissioner);
+
+        await _handler.DecideReschedule(discord.Context, 424242, approve: true, notes: null);
+
+        Assert.That(discord.Content(), Is.EqualTo("Reschedule request not found"));
+    }
+
+    [Test]
+    public async Task MatchActions_Should_BeTheCommissionersAlone()
+    {
+        var sysadmin = As(await Sysadmin());
+
+        await _handler.Forfeit(sysadmin.Context, "1", ForfeitSide.Home);
+
+        Assert.That(sysadmin.Message().Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.CommissionerOnly)));
+    }
+
+    [Test]
+    public async Task ForfeitThenUndo_Should_ChangeTheMatchsResult()
+    {
+        var match = await AddMatch();
+        var forfeit = As(_commissioner);
+        var undo = As(_commissioner);
+
+        await _handler.Forfeit(forfeit.Context, match.SeasonMatchID.ToString(), ForfeitSide.Away);
+        var forfeited = await _context.SeasonMatches.AsNoTracking().SingleAsync(x => x.SeasonMatchID == match.SeasonMatchID);
+        await _handler.UndoResult(undo.Context, match.SeasonMatchID.ToString());
+        var undone = await _context.SeasonMatches.AsNoTracking().SingleAsync(x => x.SeasonMatchID == match.SeasonMatchID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(forfeit.Content(), Is.EqualTo("Forfeited (away)."));
+            Assert.That(forfeited.AwayTeamResult, Is.EqualTo(SeasonMatchResult.Forfeit));
+            Assert.That(undo.Content(), Is.EqualTo("The result is undone."));
+            Assert.That(undone.AwayTeamResult, Is.Null);
+        }
+    }
+
+    [Test]
+    public async Task UndoResult_Should_PassOnTheRefusal_When_ThereIsNoResult()
+    {
+        var match = await AddMatch();
+        var discord = As(_commissioner);
+
+        await _handler.UndoResult(discord.Context, match.SeasonMatchID.ToString());
+
+        Assert.That(discord.Content(), Is.EqualTo("This match has no result to undo"));
+    }
+
+    [Test]
+    public async Task MatchActions_Should_SayThereIsNoSuchMatchOrGame()
+    {
+        var match = await AddMatch();
+        var noMatch = As(_commissioner);
+        var badGame = As(_commissioner);
+
+        await _handler.ReportGame(noMatch.Context, "999999", Guid.NewGuid().ToString(), null);
+        await _handler.ReportGame(badGame.Context, match.SeasonMatchID.ToString(), "nope", null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(noMatch.Content(), Is.EqualTo(MatchCommandsHandler.NoSuchMatch));
+            Assert.That(badGame.Content(), Is.EqualTo(MatchCommandsHandler.NoSuchGame));
+        }
+    }
+
+    [Test]
+    public async Task SetTime_Should_ScheduleTheMatch_InUtc()
+    {
+        var match = await AddMatch();
+        var unreadable = As(_commissioner);
+        var discord = As(_commissioner);
+
+        await _handler.SetTime(unreadable.Context, match.SeasonMatchID.ToString(), "soon");
+        await _handler.SetTime(discord.Context, match.SeasonMatchID.ToString(), "2030-05-06 21:30");
+
+        var scheduled = await _context.SeasonMatches.AsNoTracking().Where(x => x.SeasonMatchID == match.SeasonMatchID).Select(x => x.ScheduledTime).SingleAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(unreadable.Content(), Does.StartWith("I couldn't read that time."));
+            Assert.That(discord.Content(), Does.StartWith("The match is set for <t:"));
+            Assert.That(scheduled, Is.EqualTo(new DateTime(2030, 5, 6, 21, 30, 0, DateTimeKind.Utc)));
+        }
+    }
+
+    [Test]
+    public async Task SeasonSetup_Should_RefuseBadNumbers_AndLockCaptains()
+    {
+        var season = await _context.AddSeason("Setup");
+        var generate = As(_commissioner);
+        var bracket = As(_commissioner);
+        var @lock = As(_commissioner);
+
+        await _handler.GenerateMatches(generate.Context, season.SeasonID.ToString(), 0, 3);
+        await _handler.CreateBracket(bracket.Context, season.SeasonID.ToString(), 0, false, 3);
+        await _handler.LockCaptains(@lock.Context, season.SeasonID.ToString(), @lock: true);
+
+        var locked = await _context.Seasons.AsNoTracking().Where(x => x.SeasonID == season.SeasonID).Select(x => x.CaptainsLocked).SingleAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(generate.Content(), Is.EqualTo("Home matches per team and best of must be at least 1."));
+            Assert.That(bracket.Content(), Is.EqualTo("A bracket needs participants."));
+            Assert.That(@lock.Content(), Is.EqualTo("The captains are locked."));
+            Assert.That(locked, Is.True);
+        }
+    }
+
+    [Test]
+    public async Task GenerateMatches_Should_SayThereIsNoSuchSeason_When_ItIsUnknown()
+    {
+        var discord = As(_commissioner);
+
+        await _handler.GenerateMatches(discord.Context, "999999", 1, 3);
+
+        Assert.That(discord.Content(), Is.EqualTo(SeasonCommandsHandler.NoSuchSeason));
+    }
+
+    [Test]
+    public async Task ScheduleApply_Should_SaySo_When_ThereIsNoSuchRecommendation()
+    {
+        var discord = As(_commissioner);
+
+        await _handler.ScheduleApply(discord.Context, 999999);
+
+        Assert.That(discord.Content(), Is.EqualTo("That recommendation doesn't exist or was applied already."));
+    }
+
+    [Test]
+    public async Task SysadminCommands_Should_RefuseACommissioner()
+    {
+        var discord = As(_commissioner);
+
+        await _handler.RefreshMedals(discord.Context);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(discord.Message().Content, Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.SysadminOnly)));
+            await _dataPull.DidNotReceive().DownloadMedals();
+        }
+    }
+
+    [Test]
+    public async Task SysadminCommands_Should_RunForASysadmin()
+    {
+        var sysadmin = await Sysadmin();
+        var medals = As(sysadmin);
+        var pull = As(sysadmin);
+        var badPull = As(sysadmin);
+        var claims = As(sysadmin);
+        var badJob = As(sysadmin);
+        var game = Guid.NewGuid();
+
+        await _handler.RefreshMedals(medals.Context);
+        await _handler.HaloPull(pull.Context, game.ToString());
+        await _handler.HaloPull(badPull.Context, "not-a-guid");
+        await _handler.Claims(claims.Context);
+        await _handler.Job(badJob.Context, "no-slash", pause: null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(medals.Content(), Is.EqualTo("The medals are refreshed."));
+            await _dataPull.Received(1).DownloadMedals();
+            Assert.That(pull.Content(), Does.Contain($"https://grif.test/match/{game}"));
+            await _dataPull.Received(1).GetAndSaveMatch(game);
+            Assert.That(badPull.Content(), Is.EqualTo(MatchCommandsHandler.NoSuchGame));
+            Assert.That(claims.Embed().Description, Is.EqualTo("No claim is pending."));
+            Assert.That(badJob.Content(), Does.StartWith("Name the job as group/name"));
+        }
+    }
+}

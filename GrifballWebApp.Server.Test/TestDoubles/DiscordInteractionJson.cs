@@ -39,6 +39,22 @@ internal static class DiscordInteractionJson
         Parse(Envelope(2, $$"""{"id":"9","name":"{{name}}","type":1,"options":{{StringOptions(options, focused: null)}}}""", userId, username));
 
     /// <summary>
+    /// Slash command <paramref name="path"/>: a command, or one with its subcommand and any group between ("season standings",
+    /// "admin match forfeit"), with <paramref name="options"/> on the subcommand. Each is sent as a string option: NetCord
+    /// reads a number or a boolean from its text.
+    /// </summary>
+    public static JsonInteraction SubCommand(string path, ulong userId, params (string Name, string Value)[] options)
+    {
+        var parts = path.Split(' ');
+        if (parts.Length == 1)
+            return SlashCommand(path, userId, "u", options);
+        object node = new { name = parts[^1], type = 1, options = options.Select(o => new { name = o.Name, type = 3, value = o.Value }) };
+        for (var i = parts.Length - 2; i >= 1; i--)
+            node = new { name = parts[i], type = 2, options = new[] { node } };
+        return Parse(Envelope(2, $$"""{"id":"9","name":"{{parts[0]}}","type":1,"options":{{JsonSerializer.Serialize(new[] { node })}}}""", userId, "u"));
+    }
+
+    /// <summary>
     /// Autocomplete for string option <paramref name="option"/> of slash command <paramref name="name"/> (command id 9),
     /// with <paramref name="typed"/> typed so far.
     /// </summary>

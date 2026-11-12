@@ -315,4 +315,126 @@ public class DiscordTransportTests
             Assert.That(requests[0].Body.ToString(), Does.Not.Contain("Season does not exist"));
         }
     }
+
+    /// <summary>
+    /// Every slash command of #271 with its required options, as Discord sends it: subcommands and their groups nested in the
+    /// command. From a Discord user with no account, so the staff and personal ones stop at the Set Gamertag reply.
+    /// </summary>
+    private static readonly object[] Commands =
+    [
+        new object[] { "season list", Array.Empty<(string, string)>() },
+        new object[] { "season standings", new[] { ("season", "Missing") } },
+        new object[] { "season info", Array.Empty<(string, string)>() },
+        new object[] { "season schedule", Array.Empty<(string, string)>() },
+        new object[] { "season stats", Array.Empty<(string, string)>() },
+        new object[] { "season grades", Array.Empty<(string, string)>() },
+        new object[] { "season signups", Array.Empty<(string, string)>() },
+        new object[] { "season bracket", Array.Empty<(string, string)>() },
+        new object[] { "season draft", Array.Empty<(string, string)>() },
+        new object[] { "team info", new[] { ("team", "Missing") } },
+        new object[] { "team roster", new[] { ("team", "Missing") } },
+        new object[] { "team history", new[] { ("team", "Missing") } },
+        new object[] { "team matches", new[] { ("team", "Missing") } },
+        new object[] { "team vods", new[] { ("team", "Missing") } },
+        new object[] { "player profile", new[] { ("player", "Missing") } },
+        new object[] { "player stats", Array.Empty<(string, string)>() },
+        new object[] { "player commendations", Array.Empty<(string, string)>() },
+        new object[] { "player history", Array.Empty<(string, string)>() },
+        new object[] { "player vods", Array.Empty<(string, string)>() },
+        new object[] { "player matches", new[] { ("player", "Missing") } },
+        new object[] { "match info", new[] { ("match", "Missing") } },
+        new object[] { "match game", new[] { ("match_id", "not-a-guid") } },
+        new object[] { "leaderboard top", Array.Empty<(string, string)>() },
+        new object[] { "leaderboard rank", new[] { ("player", "Missing") } },
+        new object[] { "lateleague seasons", Array.Empty<(string, string)>() },
+        new object[] { "lateleague season", Array.Empty<(string, string)>() },
+        new object[] { "events", Array.Empty<(string, string)>() },
+        new object[] { "search", new[] { ("query", "Missing") } },
+        new object[] { "queue status", Array.Empty<(string, string)>() },
+        new object[] { "queue join", Array.Empty<(string, string)>() },
+        new object[] { "queue leave", Array.Empty<(string, string)>() },
+        new object[] { "me region", new[] { ("region", "none") } },
+        new object[] { "me claim", new[] { ("gamertag", "Missing") } },
+        new object[] { "me claims", Array.Empty<(string, string)>() },
+        new object[] { "me logins", Array.Empty<(string, string)>() },
+        new object[] { "signup", Array.Empty<(string, string)>() },
+        new object[] { "availability show", Array.Empty<(string, string)>() },
+        new object[] { "reschedule request", new[] { ("match", "Missing"), ("reason", "Busy") } },
+        new object[] { "reschedule pending", Array.Empty<(string, string)>() },
+        new object[] { "reschedule decide", new[] { ("request", "1"), ("approve", "true") } },
+        new object[] { "admin dashboard", Array.Empty<(string, string)>() },
+        new object[] { "admin overdue", Array.Empty<(string, string)>() },
+        new object[] { "admin medals", Array.Empty<(string, string)>() },
+        new object[] { "admin match report", new[] { ("match", "Missing"), ("match_id", "not-a-guid") } },
+        new object[] { "admin match forfeit", new[] { ("match", "Missing"), ("side", "0") } },
+        new object[] { "admin match undo", new[] { ("match", "Missing") } },
+        new object[] { "admin match pull", new[] { ("match", "Missing") } },
+        new object[] { "admin match time", new[] { ("match", "Missing"), ("time", "2030-01-01 20:00") } },
+        new object[] { "admin season generate", new[] { ("home_matches", "1"), ("best_of", "3") } },
+        new object[] { "admin bracket create", new[] { ("participants", "4"), ("best_of", "3") } },
+        new object[] { "admin bracket seed", Array.Empty<(string, string)>() },
+        new object[] { "admin draft lock", Array.Empty<(string, string)>() },
+        new object[] { "admin draft unlock", Array.Empty<(string, string)>() },
+        new object[] { "admin schedule show", Array.Empty<(string, string)>() },
+        new object[] { "admin schedule run", Array.Empty<(string, string)>() },
+        new object[] { "admin schedule apply", new[] { ("recommendation", "1") } },
+        new object[] { "admin halo pull", new[] { ("match_id", "not-a-guid") } },
+        new object[] { "admin jobs list", Array.Empty<(string, string)>() },
+        new object[] { "admin jobs run", new[] { ("job", "a/b") } },
+        new object[] { "admin jobs pause", new[] { ("job", "a/b") } },
+        new object[] { "admin claims list", Array.Empty<(string, string)>() },
+        new object[] { "admin claims approve", new[] { ("claim", "1") } },
+        new object[] { "admin claims reject", new[] { ("claim", "1") } },
+    ];
+
+    [TestCaseSource(nameof(Commands))]
+    public async Task SlashCommand_ReachesItsHandler(string path, (string Name, string Value)[] options)
+    {
+        var requests = await _host.SendAsync(DiscordInteractionJson.SubCommand(path, 6001, options));
+
+        // Reached the handler: it deferred, or answered privately itself; NetCord's own failures (an unknown subcommand, an
+        // option it can't read) answer in the channel, and an exception gets the generic error
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(requests, Is.Not.Empty);
+            Assert.That(requests[0].CallbackType == DiscordRequest.DeferredChannelMessage || requests[0].Flags.HasFlag(MessageFlags.Ephemeral),
+                $"{path}: {requests[0].Body}");
+            Assert.That(requests.Select(r => r.Content), Has.None.EqualTo(DiscordInteractionPipeline.GenericErrorMessage), path);
+        }
+    }
+
+    [Test]
+    public async Task AdminJobCommands_RunThroughTheScheduler_ForStaff()
+    {
+        var staff = await LinkedUser(6101, "JobStaff");
+        var match = await _host.WithContextAsync(async context =>
+        {
+            foreach (var role in await context.Roles.Where(r => r.Name == "Commissioner" || r.Name == "Sysadmin").ToListAsync())
+                context.UserRoles.Add(new UserRole { UserId = staff.Id, RoleId = role.Id });
+            var season = Season.Seed(seasonName: "Transport Jobs");
+            context.Seasons.Add(season);
+            await context.SaveChangesAsync();
+            var seasonMatch = SeasonMatch.Seed(season.SeasonID, null, null);
+            context.SeasonMatches.Add(seasonMatch);
+            await context.SaveChangesAsync();
+            return seasonMatch;
+        });
+        var season = match.SeasonID.ToString();
+
+        var pull = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin match pull", 6101, ("match", match.SeasonMatchID.ToString())));
+        var run = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin schedule run", 6101, ("season", season)));
+        var show = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin schedule show", 6101, ("season", season)));
+        var jobs = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs list", 6101));
+        var unknown = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs run", 6101, ("job", "nope/nothing")));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(pull[^1].Content, Does.StartWith("The pull is "));
+            Assert.That(run[^1].Content, Does.StartWith("The recommendation is "));
+            Assert.That(show[^1].Data.GetProperty("embeds")[0].GetProperty("title").GetString(), Does.StartWith("Schedule ("));
+            Assert.That(jobs[^1].Data.GetProperty("embeds")[0].GetProperty("title").GetString(), Is.EqualTo("Jobs"));
+            Assert.That(unknown[^1].Content, Is.EqualTo("There is no such job."));
+            Assert.That(new[] { pull, run, show, jobs, unknown }.Select(r => r[0].CallbackType), Has.All.EqualTo(DiscordRequest.DeferredChannelMessage));
+        }
+    }
 }

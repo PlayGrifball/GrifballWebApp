@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NetCord;
 using NSubstitute;
+using Team = GrifballWebApp.Domain.League.Team;
 using User = GrifballWebApp.Domain.Players.User;
 
 namespace GrifballWebApp.Integration.Test;

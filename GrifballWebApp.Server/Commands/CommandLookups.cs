@@ -155,6 +155,11 @@ public class CommandLookups
         return matches.Select(x => new ApplicationCommandOptionChoiceProperties(ChoiceName($"{x.Home ?? "TBD"} vs {x.Away ?? "TBD"} ({x.SeasonName})"), x.SeasonMatchID.ToString())).ToList();
     }
 
+    /// <summary>A time typed in UTC (2026-11-20 20:00, or any invariant date and time): Discord has no date option.</summary>
+    public static bool TryParseUtc(string input, out DateTime utc)
+        => DateTime.TryParse(input, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out utc);
+
     /// <summary>A choice's label, cut to Discord's 100 characters.</summary>
     public static string ChoiceName(string name) => name.Length <= 100 ? name : name[..99] + "…";
 }

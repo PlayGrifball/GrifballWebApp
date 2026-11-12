@@ -107,7 +107,8 @@ public static partial class DiscordInteractionPipeline
 
     /// <summary>
     /// Replaces NetCord's default result handler: exceptions are logged and the user gets a generic message
-    /// instead of the raw exception message. Other failures (unknown command, bad arguments) reply with NetCord's message as before.
+    /// instead of the raw exception message, except a refusal the site answers with a 4xx (<see cref="GlobalExceptionHandler.Expected"/>),
+    /// which gets its message. Other failures (unknown command, bad arguments) reply with NetCord's message as before.
     /// </summary>
     public static async ValueTask HandleResultAsync(IExecutionResult result, Interaction interaction, string name, ILogger logger)
     {
@@ -115,7 +116,13 @@ public static partial class DiscordInteractionPipeline
             return;
 
         InteractionMessageProperties message;
-        if (failResult is IExceptionResult exceptionResult)
+        if (failResult is IExceptionResult { Exception: var refused } && GlobalExceptionHandler.Expected(refused) is { } refusal)
+        {
+            // A refusal the app means to make (the site's 4xx): its message is written for the user
+            LogFailed(logger, name, refused.Message);
+            message = new() { Content = refusal.Detail, Flags = MessageFlags.Ephemeral };
+        }
+        else if (failResult is IExceptionResult exceptionResult)
         {
             logger.LogError(exceptionResult.Exception, "Discord interaction {InteractionName} failed for Discord user {DiscordUserId}", name, interaction.User.Id);
             message = new() { Content = GenericErrorMessage, Flags = MessageFlags.Ephemeral };
