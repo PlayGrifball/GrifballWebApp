@@ -8,7 +8,6 @@ using GrifballWebApp.Application.MatchPlanner;
 using GrifballWebApp.Application.Reschedule;
 using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Application.SeasonMatchPage;
-using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Infrastructure.Jobs;
@@ -42,7 +41,6 @@ public class AdminCommandsHandler
     private readonly MatchPlannerService _matchPlanner;
     private readonly IBracketService _brackets;
     private readonly TeamService _teams;
-    private readonly SeasonService _seasons;
     private readonly ScheduleRecommendations _recommendations;
     private readonly OnDemandJobs _onDemand;
     private readonly JobsService _jobs;
@@ -51,7 +49,7 @@ public class AdminCommandsHandler
     private readonly UrlService _urls;
 
     public AdminCommandsHandler(DiscordCaller caller, CommandLookups lookups, RescheduleService reschedules, SeasonMatchService seasonMatches,
-        MatchPlannerService matchPlanner, IBracketService brackets, TeamService teams, SeasonService seasons, ScheduleRecommendations recommendations,
+        MatchPlannerService matchPlanner, IBracketService brackets, TeamService teams, ScheduleRecommendations recommendations,
         OnDemandJobs onDemand, JobsService jobs, GamertagClaimService claims, IDataPullService dataPull, UrlService urls)
     {
         _caller = caller;
@@ -61,7 +59,6 @@ public class AdminCommandsHandler
         _matchPlanner = matchPlanner;
         _brackets = brackets;
         _teams = teams;
-        _seasons = seasons;
         _recommendations = recommendations;
         _onDemand = onDemand;
         _jobs = jobs;

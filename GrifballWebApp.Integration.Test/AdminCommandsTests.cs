@@ -50,7 +50,7 @@ public class AdminCommandsTests
         var brackets = new BracketService(_context, new TeamStandingsService(_context), new ChampionshipService(_context));
         var teams = new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
         _handler = new AdminCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons), new RescheduleService(_context, new ContextOutbox(_context)),
-            new SeasonMatchService(_context, _dataPull, brackets, new ChampionshipService(_context)), new MatchPlannerService(_context), brackets, teams, seasons,
+            new SeasonMatchService(_context, _dataPull, brackets, new ChampionshipService(_context)), new MatchPlannerService(_context), brackets, teams,
             new ScheduleRecommendations(_context, TimeProvider.System), onDemand: null!, jobs: null!, new GamertagClaimService(_context, new UserMergeService(_context)),
             _dataPull, urls);
         _commissioner = await _context.AddUser("commish", gamertag: "CommishGT", discordName: "commish", commissioner: true);
