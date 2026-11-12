@@ -367,7 +367,7 @@ public class Program
         // Discord a redirect_uri other than the https one the sign-in started with (invalid_grant).
         app.UseAuthentication();
         app.UseAuthorization();
-        // Per-endpoint limits ([EnableRateLimiting]): the browser's error reports
+        // Per-endpoint limits ([EnableRateLimiting]): the browser's telemetry batches
         app.UseRateLimiter();
 
         app.MapAppHealthChecks();

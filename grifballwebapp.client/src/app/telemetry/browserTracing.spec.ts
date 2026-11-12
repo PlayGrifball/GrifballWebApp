@@ -1,8 +1,9 @@
-import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpClient, HttpRequest, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { Component, PLATFORM_ID } from '@angular/core';
+import { Component, PLATFORM_ID, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRouteSnapshot, Router, provideRouter } from '@angular/router';
+import { throwError } from 'rxjs';
 import { BrowserTelemetry, SpanData, TELEMETRY_URL, TelemetryBatch } from './browserTelemetry';
 import { isApiCall, provideBrowserTelemetry, routeTemplate, tracingInterceptor } from './browserTracing';
 
@@ -92,6 +93,15 @@ describe('browser tracing', () => {
       expect(sentSpans()[0]).toEqual(jasmine.objectContaining({ status: 'unset', attributes: jasmine.objectContaining({ 'grif.cancelled': true }) }));
     });
 
+    it('marks a call that failed without an HTTP error an error', () => {
+      const failing = TestBed.runInInjectionContext(() =>
+        tracingInterceptor(new HttpRequest('GET', '/api/a'), () => throwError(() => new Error('broken'))));
+      failing.subscribe({ error: () => undefined });
+      telemetry.flush();
+
+      expect(sentSpans()[0].status).toBe('error');
+    });
+
     it('leaves other hosts\' calls alone', () => {
       http.get('https://other.example/api/x').subscribe();
       const request = backend.expectOne('https://other.example/api/x');
@@ -115,6 +125,8 @@ describe('browser tracing', () => {
             { path: 'season/:seasonID', component: Blank },
             { path: 'refused', component: Blank, canActivate: [() => false] },
             { path: 'broken', component: Blank, canActivate: [() => { throw new Error('guard failed'); }] },
+            // A guard that ends the navigation's span itself: its NavigationEnd finds none
+            { path: 'ended', component: Blank, canActivate: [() => { inject(BrowserTelemetry).active()?.end(); return true; }] },
           ]),
           provideBrowserTelemetry(),
         ],
@@ -135,6 +147,17 @@ describe('browser tracing', () => {
       expect(first.attributes).toEqual(jasmine.objectContaining({ 'grif.request.kind': 'navigation', 'http.route': '/season/:seasonID', 'url.path': '/season/12?token=REDACTED' }));
       expect(second.traceId).not.toBe(first.traceId);
       expect(second.parentSpanId).toBeUndefined();
+    });
+
+    it('start a trace of its own for the first when the page has none, and leave a span already ended as it is', async () => {
+      (performance.getEntriesByType as jasmine.Spy).and.returnValue([]);
+
+      await router.navigateByUrl('/ended');
+      telemetry.flush();
+
+      const [ended] = sentSpans();
+      expect(ended.parentSpanId).toBeUndefined();
+      expect(ended.name).toBe('navigation');
     });
 
     it('end a navigation a guard refused as cancelled, and one that failed as an error', async () => {

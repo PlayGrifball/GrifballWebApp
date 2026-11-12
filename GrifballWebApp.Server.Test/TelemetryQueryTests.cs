@@ -133,6 +133,22 @@ public class TelemetryQueriesTests
     }
 
     [Test]
+    public void An_api_calls_row_takes_the_calls_method_when_the_backends_span_has_none_and_the_route_alone_without_either()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TelemetryQueries.TraceRow("GET", [
+                Span(("grif.request.kind", "api"), ("http.request.method", "DELETE")),
+                Span(("http.route", "Teams/Remove")),
+            ]).Name, Is.EqualTo("DELETE Teams/Remove"));
+            Assert.That(TelemetryQueries.TraceRow("GET", [
+                Span(("grif.request.kind", "api")),
+                Span(("http.route", "Teams/Remove")),
+            ]).Name, Is.EqualTo("Teams/Remove"));
+        }
+    }
+
+    [Test]
     public void An_api_calls_row_without_the_backends_span_keeps_the_root()
     {
         var row = TelemetryQueries.TraceRow("GET /api/*", [

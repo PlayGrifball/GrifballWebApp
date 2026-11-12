@@ -9,6 +9,15 @@ describe('shutdown', () => {
     expect(shutdownDelay('soon')).toBe(0);
   });
 
+  it('waits on a real timer by default', async () => {
+    const exit = jasmine.createSpy('exit');
+    drainThenExit({ close: cb => { cb?.(); return undefined; } }, () => Promise.resolve(), exit, 0);
+
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    expect(exit).toHaveBeenCalledOnceWith(0);
+  });
+
   describe('after SIGTERM', () => {
     let scheduled: { run: () => void; ms: number }[];
     let closed: ((error?: Error) => void) | undefined;

@@ -21,7 +21,7 @@ public sealed class ClientTelemetryResource(TelemetryOptions telemetry)
     {
         var attributes = telemetry.ResourceAttributes
             .Where(a => a.Key != "service.instance.id" && a.Key != "service.version")
-            .ToDictionary(a => a.Key, a => Convert.ToString(a.Value, CultureInfo.InvariantCulture) ?? "");
+            .ToDictionary(a => a.Key, a => FormattableString.Invariant($"{a.Value}"));
         attributes["service.component"] = Component;
         return attributes;
     }
@@ -194,8 +194,16 @@ public static class OtlpJson
         _ => new JsonObject { ["stringValue"] = Convert.ToString(value, CultureInfo.InvariantCulture) },
     };
 
-    /// <summary>Epoch milliseconds (with a fraction) as OTLP's nanoseconds, a string.</summary>
-    public static string Nanos(double epochMs) => ((long)Math.Round(epochMs * 1_000_000)).ToString(CultureInfo.InvariantCulture);
+    /// <summary>
+    /// Epoch milliseconds (with a fraction) as OTLP's nanoseconds, a string. In integers: the product as a double
+    /// (about 1.8e18, past 2^53) would be off by tens of nanoseconds.
+    /// </summary>
+    public static string Nanos(double epochMs)
+    {
+        var whole = Math.Floor(epochMs);
+        var nanos = (long)whole * 1_000_000 + (long)Math.Round((epochMs - whole) * 1_000_000);
+        return nanos.ToString(CultureInfo.InvariantCulture);
+    }
 }
 
 /// <summary>Sends a browser's spans and logs on to the collector (ClientTelemetry:OtlpEndpoint), OTLP/JSON over HTTP.</summary>

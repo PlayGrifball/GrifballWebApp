@@ -81,7 +81,7 @@ public class ClientTelemetryUnitTests
             {
                 TraceId = TraceId, SpanId = "b7ad6b7169203331", ParentSpanId = "a7ad6b7169203331", Name = "GET", Kind = "client",
                 Start = 1_793_684_837_000.5, End = 1_793_684_837_042.25, Status = "error",
-                Attributes = Attributes("""{"http.request.method":"GET","url.path":"/api/Identity/Reset?token=s3cret&page=2","http.response.status_code":502,"grif.cancelled":false}"""),
+                Attributes = Attributes("""{"http.request.method":"GET","url.path":"/api/Identity/Reset?token=s3cret&page=2","http.response.status_code":502,"grif.cancelled":false,"grif.aborted":true,"grif.ratio":0.25}"""),
             },
         ],
         Logs =
@@ -142,6 +142,8 @@ public class ClientTelemetryUnitTests
             Assert.That(Attribute(span["attributes"], "url.path")["stringValue"]!.GetValue<string>(), Is.EqualTo("/api/Identity/Reset?token=REDACTED&page=2"));
             Assert.That(Attribute(span["attributes"], "http.response.status_code")["intValue"]!.GetValue<string>(), Is.EqualTo("502"));
             Assert.That(Attribute(span["attributes"], "grif.cancelled")["boolValue"]!.GetValue<bool>(), Is.False);
+            Assert.That(Attribute(span["attributes"], "grif.aborted")["boolValue"]!.GetValue<bool>(), Is.True);
+            Assert.That(Attribute(span["attributes"], "grif.ratio")["doubleValue"]!.GetValue<double>(), Is.EqualTo(0.25));
 
             Assert.That(log["severityNumber"]!.GetValue<int>(), Is.EqualTo(17));
             Assert.That(log["severityText"]!.GetValue<string>(), Is.EqualTo("ERROR"));
@@ -179,6 +181,17 @@ public class ClientTelemetryUnitTests
         await Forwarder(collector, Options(endpoint: null)).Forward(Batch(), "", default);
 
         Assert.That(collector.Posted, Is.Empty);
+    }
+
+    [Test]
+    public async Task Report_WithoutAUserAgent_SendsNone()
+    {
+        var collector = new Collector();
+
+        await Controller(collector).Report(new ClientTelemetryBatchDto { Logs = Batch().Logs }, null, default);
+
+        var resource = collector.Posted.Single().Body["resourceLogs"]![0]!["resource"]!["attributes"];
+        Assert.That(resource!.AsArray().Select(a => a!["key"]!.GetValue<string>()), Does.Not.Contain("user_agent.original"));
     }
 
     [Test]
