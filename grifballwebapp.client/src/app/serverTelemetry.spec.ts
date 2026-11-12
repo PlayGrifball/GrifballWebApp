@@ -155,6 +155,10 @@ describe('server telemetry', () => {
         + '"trace_id":"0af7651916cd43dd8448eb211c80319c","span_id":"b7ad6b7169203331"}');
     });
 
+    it('need no fields or trace', () => {
+      expect(logLine(time, 'info', 'Serving')).toBe('{"time":"2026-11-12T10:00:00.000Z","level":"info","msg":"Serving"}');
+    });
+
     it('never let a field replace the time, level, message or trace', () => {
       const line = JSON.parse(logLine(time, 'warn', 'm', { level: 'debug', msg: 'x', time: 'y', trace_id: 'z', span_id: 'w' }));
 

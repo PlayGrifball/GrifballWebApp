@@ -115,6 +115,15 @@ describe('client errors', () => {
       }));
     });
 
+    it('falls back to the page\'s trace for a call that brought none back', () => {
+      spyOn(performance, 'getEntriesByType').and.returnValue([{ serverTiming: [{ name: 'traceparent', description: TRACEPARENT }] }] as unknown as PerformanceEntryList);
+
+      reporter().reportCall('GET', new HttpErrorResponse({ status: 0, url: '/api/Teams' }));
+
+      expect(sent()[0].traceparent).toBe(TRACEPARENT);
+      expect(sent()[0].status).toBe(0);
+    });
+
     it('sends each error once', () => {
       const r = reporter();
       r.reportError(new Error('same'));

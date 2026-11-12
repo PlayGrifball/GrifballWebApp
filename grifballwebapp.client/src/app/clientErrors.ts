@@ -94,7 +94,7 @@ export class ClientErrorReporter {
   reportCall(method: string, error: HttpErrorResponse): void {
     this.send({
       kind: 'http',
-      message: (error.message || error.statusText || 'Request failed').slice(0, MAX_MESSAGE),
+      message: error.message.slice(0, MAX_MESSAGE),
       page: this.page(),
       traceparent: callTraceparent(error) ?? pageTraceparent(),
       method,

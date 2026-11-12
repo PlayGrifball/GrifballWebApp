@@ -1,4 +1,5 @@
 using GrifballWebApp.Server.Telemetry;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -168,6 +169,62 @@ public class ClientErrorsUnitTests
 
         for (var i = 0; i < 50; i++)
             Assert.That(limiter.AttemptAcquire().IsAcquired, Is.True);
+    }
+
+    [Test]
+    public void PartitionByClient_NoIdentity_IsLimited()
+    {
+        var context = new DefaultHttpContext { User = new ClaimsPrincipal() };
+
+        var partition = ClientErrorsExtensions.PartitionByClient(context, permitsPerMinute: 1);
+        using var limiter = partition.Factory(partition.PartitionKey);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(partition.PartitionKey, Is.Empty);
+            Assert.That(limiter.AttemptAcquire().IsAcquired, Is.True);
+            Assert.That(limiter.AttemptAcquire().IsAcquired, Is.False);
+        }
+    }
+
+    [Test]
+    public async Task UseRateLimiter_RefusesASignedOutClientOverTheLimit_AndNeverASignedInUser()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ClientErrors:PermitsPerMinute"] = "2" })
+            .Build();
+        await using var provider = new ServiceCollection().AddLogging().AddClientErrors(configuration).BuildServiceProvider();
+        var app = new ApplicationBuilder(provider);
+        app.UseRateLimiter();
+        app.Run(context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status204NoContent;
+            return Task.CompletedTask;
+        });
+        var pipeline = app.Build();
+        var endpoint = new Endpoint(_ => Task.CompletedTask,
+            new EndpointMetadataCollection(new Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute(ClientErrorsController.RateLimitPolicy)), "ReportClientError");
+
+        async Task<int> Send(ClaimsPrincipal? user)
+        {
+            var context = new DefaultHttpContext { RequestServices = provider };
+            if (user is not null)
+                context.User = user;
+            context.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.7");
+            context.SetEndpoint(endpoint);
+            await pipeline(context);
+            return context.Response.StatusCode;
+        }
+
+        var signedIn = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "1")], "Identity.Application"));
+        var signedOut = new[] { await Send(null), await Send(null), await Send(null) };
+        var signedInAfter = await Send(signedIn);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(signedOut, Is.EqualTo(new[] { 204, 204, 429 }));
+            Assert.That(signedInAfter, Is.EqualTo(204));
+        }
     }
 
     [Test]
