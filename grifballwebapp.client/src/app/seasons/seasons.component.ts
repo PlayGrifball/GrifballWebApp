@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { ApiClientService } from '../api/apiClient.service';
+import { SeasonService } from '@api/services';
 import { SeasonListItemDto } from '@api/models';
 import { seasonFormatLabel, seasonFormats } from '../api/seasonFormats';
 import type { SeasonFormat } from '@api/models';
+import type { SeasonListFilter } from '../api/seasons';
 
 interface Option { id: number; name: string; }
 
@@ -20,7 +21,7 @@ export const SEASONS_PAGE_SIZE = 250;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SeasonsComponent {
-  private api = inject(ApiClientService);
+  private api = inject(SeasonService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   /** The filters a link opens the list with (?league=, ?game=, ?format=, ?year=), e.g. a season's league or game label. */
@@ -81,7 +82,7 @@ export class SeasonsComponent {
         const unfiltered = league === null && game === null && format === null && year === null;
         // The choices are every league's, game's and year's: from the first list when it is unfiltered
         if (first && !unfiltered)
-          this.api.getSeasonList({ leagueID: null, gameVersionID: null, format: null, year: null }, SEASONS_PAGE_SIZE).subscribe(page => this.setOptions(page.results));
+          this.api.getSeasonList(SeasonsComponent.listParams({ leagueID: null, gameVersionID: null, format: null, year: null })).subscribe(page => this.setOptions(page.results));
         this.load(first && unfiltered);
       });
     });
@@ -132,7 +133,8 @@ export class SeasonsComponent {
     // Only the latest filters' list is shown: an older answer arriving late is dropped
     this.request?.unsubscribe();
     this.loaded.set(false);
-    this.request = this.api.getSeasonList({ leagueID: this.selectedLeague(), gameVersionID: this.selectedGame(), format: this.selectedFormat(), year: this.selectedYear() }, SEASONS_PAGE_SIZE).subscribe({
+    const filter: SeasonListFilter = { leagueID: this.selectedLeague(), gameVersionID: this.selectedGame(), format: this.selectedFormat(), year: this.selectedYear() };
+    this.request = this.api.getSeasonList(SeasonsComponent.listParams(filter)).subscribe({
       next: page => {
         this.seasons.set(page.results);
         if (options)
@@ -141,6 +143,11 @@ export class SeasonsComponent {
       },
       error: () => this.loaded.set(true),
     });
+  }
+
+  /** The filter as the generated GetSeasonList operation takes it. */
+  private static listParams(filter: SeasonListFilter) {
+    return { LeagueID: filter.leagueID ?? undefined, GameVersionID: filter.gameVersionID ?? undefined, Format: filter.format ?? undefined, Year: filter.year ?? undefined, PageSize: SEASONS_PAGE_SIZE };
   }
 }
 

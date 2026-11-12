@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { finalize, Observable, share } from 'rxjs';
-import { ApiClientService } from '../api/apiClient.service';
+import { SeasonService } from '@api/services';
 import { SeasonSummaryDto } from '@api/models';
 
 /**
@@ -9,13 +9,13 @@ import { SeasonSummaryDto } from '@api/models';
  */
 @Injectable({ providedIn: 'root' })
 export class SeasonSummaryService {
-  private api = inject(ApiClientService);
+  private api = inject(SeasonService);
   private readonly inFlight = new Map<number, Observable<SeasonSummaryDto>>();
 
   get(seasonID: number): Observable<SeasonSummaryDto> {
     let summary = this.inFlight.get(seasonID);
     if (!summary) {
-      summary = this.api.getSeasonSummary(seasonID).pipe(
+      summary = this.api.getSeasonSummary({ seasonID }).pipe(
         // Done (or failed, or nobody is listening any more): the next page asks again
         finalize(() => this.inFlight.delete(seasonID)),
         // Shared while on its way only: nothing is replayed once it is done

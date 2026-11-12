@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { ApiClientService } from '../api/apiClient.service';
+import { HomeService, SeasonService } from '@api/services';
 import { ScheduleListComponent } from "./scheduleList/scheduleList.component";
 import { PlayoffBracketComponent } from './playoffBracket/playoffBracket.component';
 import { TeamStandingsComponent } from './teamStandings/teamStandings.component';
@@ -40,7 +40,8 @@ export type SeasonView = 'overview' | 'schedule' | 'bracket';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonComponent implements OnInit {
-  private api = inject(ApiClientService);
+  private seasons = inject(SeasonService);
+  private home = inject(HomeService);
   private summaries = inject(SeasonSummaryService);
 
   /** The ?tab= query parameter. */
@@ -93,7 +94,7 @@ export class SeasonComponent implements OnInit {
         this.nameLoaded.set(false);
 
         if (routeSeasonID === 0) {
-          this.api.getCurrentSeasonID()
+          this.seasons.getCurrentSeasonId()
             .pipe(whileCurrent(routeSeasonID, this.seasonID))
             .subscribe({
               next: (result) => {
@@ -110,7 +111,7 @@ export class SeasonComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.api.getCurrentAndFutureEvents().subscribe({
+    this.home.currentAndFutureEvents().subscribe({
       next: events => {
         this.events.set(events ?? []);
         this.eventsLoaded.set(true);

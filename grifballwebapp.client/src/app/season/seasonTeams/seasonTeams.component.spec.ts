@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SeasonTeamsComponent } from './seasonTeams.component';
 import { ActivatedRoute, convertToParamMap, ParamMap, provideRouter } from '@angular/router';
-import { ApiClientService } from '../../api/apiClient.service';
+import { SeasonService } from '@api/services';
 import { AccountService } from '../../account.service';
 import { SeasonSummaryService } from '../seasonSummary';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
@@ -12,7 +12,7 @@ import { SeasonTeamDto } from '@api/models';
 describe('SeasonTeamsComponent', () => {
   let fixture: ComponentFixture<SeasonTeamsComponent>;
   let component: SeasonTeamsComponent;
-  let api: jasmine.SpyObj<ApiClientService>;
+  let api: jasmine.SpyObj<SeasonService>;
   let summaries: jasmine.SpyObj<SeasonSummaryService>;
   let isEventOrganizer: WritableSignal<boolean>;
   let personID: WritableSignal<number | null>;
@@ -76,7 +76,7 @@ describe('SeasonTeamsComponent', () => {
     personID = signal<number | null>(null);
     params = new BehaviorSubject(convertToParamMap({ seasonID: '7' }));
 
-    api = jasmine.createSpyObj<ApiClientService>('ApiClientService', ['getSeasonTeams']);
+    api = jasmine.createSpyObj<SeasonService>('SeasonService', ['getSeasonTeams']);
     summaries = jasmine.createSpyObj<SeasonSummaryService>('SeasonSummaryService', ['get']);
 
     api.getSeasonTeams.and.returnValue(of(mockTeams));
@@ -92,7 +92,7 @@ describe('SeasonTeamsComponent', () => {
             paramMap: params,
           },
         },
-        { provide: ApiClientService, useValue: api },
+        { provide: SeasonService, useValue: api },
         { provide: SeasonSummaryService, useValue: summaries },
         {
           provide: AccountService,
@@ -201,7 +201,7 @@ describe('SeasonTeamsComponent', () => {
     const season5Teams = new Subject<SeasonTeamDto[]>();
     const season5Summary = new Subject<SeasonSummaryDto>();
     const season12Teams = new Subject<SeasonTeamDto[]>();
-    api.getSeasonTeams.and.callFake(id => id === 5 ? season5Teams : season12Teams);
+    api.getSeasonTeams.and.callFake(p => p.seasonID === 5 ? season5Teams : season12Teams);
     summaries.get.and.callFake(id => id === 5 ? season5Summary : throwError(() => ({ status: 500 })));
 
     params.next(convertToParamMap({ seasonID: '5' }));

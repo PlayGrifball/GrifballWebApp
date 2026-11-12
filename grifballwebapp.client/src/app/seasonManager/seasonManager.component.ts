@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { MatTableModule } from '@angular/material/table';
-import { ApiClientService } from '../api/apiClient.service';
+import { switchMap } from 'rxjs';
+import { EventOrganizerService } from '@api/services';
 import { SeasonSettings } from '../api/seasonSettings';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -21,7 +22,7 @@ import { ToDatePipe } from '../shared/toDate.pipe';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonManagerComponent implements OnInit {
-  private http = inject(ApiClientService);
+  private api = inject(EventOrganizerService);
 
   /** The seasons; undefined while they load. */
   readonly seasons = signal<SeasonSettings[] | undefined>(undefined);
@@ -34,7 +35,12 @@ export class SeasonManagerComponent implements OnInit {
   }
 
   getSeasons(): void {
-    this.http.getSeasons().subscribe({
+    // A list never holds nulls (List<SeasonDto> on the server); Luxon is only loaded with the
+    // pages that need it (season editing), not with the app: the parser is imported when the seasons arrive.
+    this.api.getSeasons().pipe(switchMap(async seasons => {
+      const { parseSeason } = await import('../api/seasonSettings');
+      return seasons.map(season => parseSeason(season)!);
+    })).subscribe({
       next: (result) => this.seasons.set(result),
       error: (error) => {
         console.error(error);

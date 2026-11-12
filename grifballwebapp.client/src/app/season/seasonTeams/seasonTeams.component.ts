@@ -4,7 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { catchError, EMPTY, merge, Subject, switchMap, tap } from 'rxjs';
-import { ApiClientService } from '../../api/apiClient.service';
+import { SeasonService } from '@api/services';
 import { AccountService } from '../../account.service';
 import { SeasonSummaryService } from '../seasonSummary';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
@@ -26,7 +26,7 @@ import { SeasonTeamDto } from '@api/models';
 })
 export class SeasonTeamsComponent {
   private route = inject(ActivatedRoute);
-  private api = inject(ApiClientService);
+  private api = inject(SeasonService);
   private summaries = inject(SeasonSummaryService);
   readonly accountService = inject(AccountService);
 
@@ -83,7 +83,7 @@ export class SeasonTeamsComponent {
           tap(s => this.summary.set(s)),
           catchError(() => EMPTY),
         ),
-        this.api.getSeasonTeams(seasonID).pipe(
+        this.api.getSeasonTeams({ seasonID }).pipe(
           tap(teams => {
             this.teams.set(teams);
             this.loading.set(false);

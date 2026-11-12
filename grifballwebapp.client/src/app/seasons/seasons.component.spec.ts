@@ -26,7 +26,7 @@ describe('SeasonsComponent', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(SeasonsComponent);
     fixture.detectChanges();
-    http.expectOne(r => r.url === '/api/seasons' && r.params.get('pageSize') === '250' && !r.params.has('leagueID'))
+    http.expectOne(r => r.url === '/api/seasons' && r.params.get('PageSize') === '250' && !r.params.has('LeagueID'))
       .flush({ totalCount: all.length, results: all });
     fixture.detectChanges();
   });
@@ -54,10 +54,10 @@ describe('SeasonsComponent', () => {
     const [league, game] = Array.from(el().querySelectorAll('select'));
     league.value = '2';
     league.dispatchEvent(new Event('change'));
-    http.expectOne(r => r.params.get('leagueID') === '2' && !r.params.has('gameVersionID')).flush({ totalCount: 1, results: [all[2]] });
+    http.expectOne(r => r.params.get('LeagueID') === '2' && !r.params.has('GameVersionID')).flush({ totalCount: 1, results: [all[2]] });
     game.value = '6';
     game.dispatchEvent(new Event('change'));
-    http.expectOne(r => r.params.get('leagueID') === '2' && r.params.get('gameVersionID') === '6').flush({ totalCount: 0, results: [] });
+    http.expectOne(r => r.params.get('LeagueID') === '2' && r.params.get('GameVersionID') === '6').flush({ totalCount: 0, results: [] });
     fixture.detectChanges();
     expect(names()).toEqual([]);
     expect(el().textContent).toContain('No seasons match.');
@@ -65,7 +65,7 @@ describe('SeasonsComponent', () => {
 
     league.value = '';
     league.dispatchEvent(new Event('change'));
-    http.expectOne(r => !r.params.has('leagueID') && r.params.get('gameVersionID') === '6').flush({ totalCount: 1, results: [all[0]] });
+    http.expectOne(r => !r.params.has('LeagueID') && r.params.get('GameVersionID') === '6').flush({ totalCount: 1, results: [all[0]] });
     fixture.detectChanges();
     expect(names()).toEqual(['Autumn Brawl']);
   });
@@ -80,10 +80,10 @@ describe('SeasonsComponent', () => {
     expect(Array.from(format.options).map(o => o.textContent!.trim())).toEqual(['All formats', 'League season', 'Tournament']);
     format.value = 'Tournament';
     format.dispatchEvent(new Event('change'));
-    http.expectOne(r => r.params.get('format') === 'Tournament').flush({ totalCount: 0, results: [] });
+    http.expectOne(r => r.params.get('Format') === 'Tournament').flush({ totalCount: 0, results: [] });
     format.value = '';
     format.dispatchEvent(new Event('change'));
-    http.expectOne(r => !r.params.has('format')).flush({ totalCount: all.length, results: all });
+    http.expectOne(r => !r.params.has('Format')).flush({ totalCount: all.length, results: all });
     fixture.detectChanges();
     expect(names()).toHaveSize(3);
   });
@@ -113,14 +113,14 @@ describe('SeasonsComponent', () => {
     expect(Array.from(year.options).map(o => o.textContent!.trim())).toEqual(['All years', '2025', '2010']);
     year.value = '2010';
     year.dispatchEvent(new Event('change'));
-    http.expectOne(r => r.params.get('year') === '2010' && !r.params.has('leagueID')).flush({ totalCount: 1, results: [all[1]] });
+    http.expectOne(r => r.params.get('Year') === '2010' && !r.params.has('LeagueID')).flush({ totalCount: 1, results: [all[1]] });
     fixture.detectChanges();
     expect(names()).toEqual(['Summer League 2010']);
     expect(fixture.componentInstance.selectedYear()).toBe(2010);
 
     year.value = '';
     year.dispatchEvent(new Event('change'));
-    http.expectOne(r => !r.params.has('year')).flush({ totalCount: all.length, results: all });
+    http.expectOne(r => !r.params.has('Year')).flush({ totalCount: all.length, results: all });
     fixture.detectChanges();
     expect(names()).toHaveSize(3);
   });
@@ -129,14 +129,14 @@ describe('SeasonsComponent', () => {
     const year = el().querySelectorAll('select')[3];
     year.value = '2010';
     year.dispatchEvent(new Event('change'));
-    http.expectOne(r => r.params.get('year') === '2010').flush({ totalCount: 1, results: [all[1]] });
+    http.expectOne(r => r.params.get('Year') === '2010').flush({ totalCount: 1, results: [all[1]] });
     fixture.componentRef.setInput('year', '2010');
     fixture.detectChanges();
     http.expectNone(r => r.url === '/api/seasons');
 
     fixture.componentRef.setInput('year', '2025');
     fixture.detectChanges();
-    http.expectOne(r => r.params.get('year') === '2025').flush({ totalCount: 2, results: [all[0], all[2]] });
+    http.expectOne(r => r.params.get('Year') === '2025').flush({ totalCount: 2, results: [all[0], all[2]] });
     fixture.detectChanges();
     expect(names()).toEqual(['Autumn Brawl', 'Respawn Fall Series']);
   });
@@ -145,11 +145,11 @@ describe('SeasonsComponent', () => {
     const [league, game] = Array.from(el().querySelectorAll('select'));
     league.value = '2';
     league.dispatchEvent(new Event('change'));
-    const older = http.expectOne(r => r.params.get('leagueID') === '2' && !r.params.has('gameVersionID'));
+    const older = http.expectOne(r => r.params.get('LeagueID') === '2' && !r.params.has('GameVersionID'));
     game.value = '1';
     game.dispatchEvent(new Event('change'));
     expect(older.cancelled).toBeTrue();
-    http.expectOne(r => r.params.get('leagueID') === '2' && r.params.get('gameVersionID') === '1').flush({ totalCount: 1, results: [all[1]] });
+    http.expectOne(r => r.params.get('LeagueID') === '2' && r.params.get('GameVersionID') === '1').flush({ totalCount: 1, results: [all[1]] });
     fixture.detectChanges();
     expect(names()).toEqual(['Summer League 2010']);
   });
@@ -196,9 +196,9 @@ describe('SeasonsComponent opened from a league or game label', () => {
     fixture.componentRef.setInput('format', 'Tournament');
     fixture.detectChanges();
 
-    http.expectOne(r => !r.params.has('leagueID') && !r.params.has('format'))
+    http.expectOne(r => !r.params.has('LeagueID') && !r.params.has('Format'))
       .flush({ totalCount: 2, results: [season(12), season(7, { leagueID: 2, leagueName: 'GWL' })] });
-    http.expectOne(r => r.params.get('leagueID') === '2' && r.params.get('format') === 'Tournament')
+    http.expectOne(r => r.params.get('LeagueID') === '2' && r.params.get('Format') === 'Tournament')
       .flush({ totalCount: 1, results: [season(7, { seasonName: 'Respawn Fall Series', leagueID: 2, leagueName: 'GWL' })] });
     fixture.detectChanges();
 
@@ -218,9 +218,9 @@ describe('SeasonsComponent opened from a league or game label', () => {
     fixture.componentRef.setInput('year', '2010');
     fixture.detectChanges();
 
-    http.expectOne(r => !r.params.has('year'))
+    http.expectOne(r => !r.params.has('Year'))
       .flush({ totalCount: 2, results: [season(12), season(5, { seasonName: 'Summer League 2010', year: 2010 })] });
-    http.expectOne(r => r.params.get('year') === '2010')
+    http.expectOne(r => r.params.get('Year') === '2010')
       .flush({ totalCount: 1, results: [season(5, { seasonName: 'Summer League 2010', year: 2010 })] });
     fixture.detectChanges();
 

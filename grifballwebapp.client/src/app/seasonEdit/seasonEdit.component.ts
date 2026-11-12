@@ -1,7 +1,10 @@
 import { Component, OnInit, ChangeDetectionStrategy, computed, effect, inject, input, numberAttribute, untracked, viewChild, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { ApiClientService } from '../api/apiClient.service';
+import { switchMap } from 'rxjs';
+import { EventOrganizerService } from '@api/services';
+import type { SeasonDto } from '@api/models';
 import { SeasonSettings } from '../api/seasonSettings';
+import { nullWhenNotFound } from '../api/nullWhenNotFound';
 import { GameVersionOptionDto, LeagueOptionDto } from '@api/models';
 import { seasonFormats } from '../api/seasonFormats';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -37,7 +40,7 @@ const newSeason = (): SeasonSettings => ({ leagueID: 1, gameVersionID: null, div
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonEditComponent implements OnInit {
-  private api = inject(ApiClientService);
+  private api = inject(EventOrganizerService);
 
   readonly seasonForm = viewChild.required<NgForm>('seasonForm');
 
@@ -100,7 +103,12 @@ export class SeasonEditComponent implements OnInit {
     });
 
     // Without the list, "Copy from" only offers to copy nothing; the form still works.
-    this.api.getSeasons().subscribe({
+    // A list never holds nulls (List<SeasonDto> on the server). Luxon is only loaded with the
+    // pages that need it (season editing), not with the app: the parser is imported when the seasons arrive.
+    this.api.getSeasons().pipe(switchMap(async seasons => {
+      const { parseSeason } = await import('../api/seasonSettings');
+      return seasons.map(season => parseSeason(season)!);
+    })).subscribe({
       next: (seasons) => this.seasons.set(seasons),
       error: (error) => console.error(error),
     });
@@ -110,8 +118,8 @@ export class SeasonEditComponent implements OnInit {
   private load(seasonID: number): void {
     this.model.set(newSeason());
     if (seasonID > 0) {
-      this.api.getSeason(seasonID)
-        .pipe(whileCurrent(seasonID, this.seasonID))
+      this.api.getSeason({ seasonID })
+        .pipe(nullWhenNotFound(), whileCurrent(seasonID, this.seasonID), switchMap(async season => season && (await import('../api/seasonSettings')).parseSeason(season)))
         .subscribe({
           // No such season: keep the empty form.
           next: (result) => { if (result) this.model.set(result); },
@@ -124,7 +132,8 @@ export class SeasonEditComponent implements OnInit {
       return;
     }
 
-    this.api.upsertSeason(this.model()).subscribe({
+    // SeasonSettings' dates are Luxon DateTimes, which serialize to the API's ISO strings (DateTime.toJSON).
+    this.api.upsertSeason({ body: this.model() as unknown as SeasonDto }).subscribe({
       next: (result) => this.model.update(model => ({ ...model, seasonID: result })),
       error: (result) => console.log(result),
       });
