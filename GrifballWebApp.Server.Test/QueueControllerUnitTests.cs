@@ -75,4 +75,16 @@ public class QueueControllerUnitTests
             Assert.That(status.HasGamertag, Is.True);
         }
     }
+
+    [Test]
+    public async Task Join_RepliesConflict_WhenMatchmakingIsOff()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Preview:Enabled"] = "true" }).Build();
+        // Refused before the membership is asked: preview mode without a Discord token turns the matchmaking tick off
+        var controller = new QueueController(null!, Substitute.For<IQueueRepository>(), config).WithUser("5");
+
+        var result = await controller.Join(CancellationToken.None);
+
+        result.AssertProblem(StatusCodes.Status409Conflict, QueueMessages.LateLeagueOff);
+    }
 }

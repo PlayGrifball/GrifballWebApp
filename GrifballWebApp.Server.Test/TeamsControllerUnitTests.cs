@@ -35,3 +35,52 @@ public class TeamsControllerUnitTests
     }
 
 }
+
+/// <summary>TeamsControllerTests' unit tests on a real GrifballContext (temp-file SQLite, #402), where TeamService needs
+/// nothing more than IPublisher/IDraftChannel substituted.</summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class TeamsControllerDatabaseUnitTests : SqliteGrifballContextFixture
+{
+    private TeamsController Controller() => new(new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), null!));
+
+    [Test]
+    public async Task GetTeams_ReturnsNone_ForASeasonWithNoTeams()
+    {
+        var result = await Controller().GetTeams(1, CancellationToken.None);
+
+        Assert.That(result, Is.Empty);
+    }
+
+    [Test]
+    public async Task GetPlayerPool_ReturnsNone_ForASeasonWithNoSignups()
+    {
+        var result = await Controller().GetPlayerPool(1, CancellationToken.None);
+
+        Assert.That(result, Is.Empty);
+    }
+
+    [Test]
+    public async Task LockCaptains_ThenAreCaptainsLocked_ReflectsIt()
+    {
+        var season = await AddSeason("Winter");
+        var controller = Controller();
+
+        await controller.LockCaptains(season.SeasonID, null, CancellationToken.None);
+
+        Assert.That(await controller.AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.True);
+    }
+
+    [Test]
+    public async Task UnlockCaptains_ThenAreCaptainsLocked_ReflectsIt()
+    {
+        var season = await AddSeason("Winter");
+        var controller = Controller();
+        await controller.LockCaptains(season.SeasonID, null, CancellationToken.None);
+
+        await controller.UnlockCaptains(season.SeasonID, null, CancellationToken.None);
+
+        Assert.That(await controller.AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.False);
+    }
+}
