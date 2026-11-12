@@ -677,6 +677,17 @@ public class ProgramStartupTests
         await AssertOk(client, "/health/live");
         using var hub = await client.PostAsync("/TeamsHub/negotiate?negotiateVersion=1", null);
         Assert.That(hub.StatusCode, Is.EqualTo(HttpStatusCode.OK), "The hub is mapped");
+
+        // Swagger outside Development, its "Try it out" calling the API under /api
+        await AssertOk(client, "/swagger/index.html");
+        using var openApi = await client.GetAsync("/swagger/v1/swagger.json");
+        Assert.That(openApi.StatusCode, Is.EqualTo(HttpStatusCode.OK), "The OpenAPI document is served");
+        using var document = System.Text.Json.JsonDocument.Parse(await openApi.Content.ReadAsStringAsync());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(document.RootElement.GetProperty("servers")[0].GetProperty("url").GetString(), Is.EqualTo("/api"));
+            Assert.That(document.RootElement.GetProperty("paths").TryGetProperty("/seasons", out _), Is.True, "The controllers' routes");
+        }
     }
 
     [Test]
@@ -711,7 +722,7 @@ public class ProgramStartupTests
         Assert.That(checks, Does.Not.Contain("discord"));
 
         await AssertOk(client, "/health/live");
-        foreach (var path in new[] { "/CommitHash", "/seasons" })
+        foreach (var path in new[] { "/CommitHash", "/seasons", "/swagger/v1/swagger.json" })
         {
             using var response = await client.GetAsync(path);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), $"GET {path}: no public API on the worker");

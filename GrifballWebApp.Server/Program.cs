@@ -326,11 +326,17 @@ public class Program
         // An error answered without a body (an empty 401/403/404/405, the auth middleware's too) gets a ProblemDetails one
         app.UseStatusCodePages();
 
-        // Configure the HTTP request pipeline.
-        if (app.Environment.IsDevelopment())
+        // The API's description in every environment, wherever the API is served: callers reach it at /api/swagger.
+        // The page asks for its document relative to itself, so it works under the prefix, and "Try it out" calls the
+        // API through /api (or the backend itself, with no proxy in front, in development).
+        if (role.ServesApi)
         {
-            app.UseSwagger();
-            app.UseSwaggerUI();
+            app.UseSwagger(options => options.PreSerializeFilters.Add((document, _) => document.Servers =
+            [
+                new OpenApiServer { Url = ApiLocations.PublicPrefix, Description = "The API, as the site serves it" },
+                new OpenApiServer { Url = "/", Description = "The backend itself, with no proxy in front (development)" },
+            ]));
+            app.UseSwaggerUI(options => options.SwaggerEndpoint("v1/swagger.json", "GrifballWebApp"));
         }
 
         //app.UseHttpsRedirection();
