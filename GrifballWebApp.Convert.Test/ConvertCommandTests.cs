@@ -4,6 +4,8 @@ using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Infrastructure.Conversion;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -46,5 +48,45 @@ public class ConvertCommandTests
         }).Build();
 
         Assert.That(await ConvertCommand.RunAsync(configuration, NullLoggerFactory.Instance), Is.EqualTo(2));
+    }
+
+    private static IConfiguration ValidSourceAndTarget() => new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["Source:Provider"] = "SqlServer",
+        ["Source:ConnectionString"] = "source",
+        ["Target:Provider"] = "Postgres",
+        ["Target:ConnectionString"] = "target",
+    }).Build();
+
+    [Test]
+    public async Task Command_WhenTheConversionSucceeds_ReturnsZero()
+    {
+        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), NullLoggerFactory.Instance, CancellationToken.None,
+            convert: (source, target, logger, ct) =>
+            {
+                Assert.That((source.Provider, source.ConnectionString), Is.EqualTo((DatabaseProvider.SqlServer, "source")));
+                Assert.That((target.Provider, target.ConnectionString), Is.EqualTo((DatabaseProvider.Postgres, "target")));
+                return Task.CompletedTask;
+            });
+
+        Assert.That(code, Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task Command_WhenTheConversionRefuses_ReturnsOne()
+    {
+        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), NullLoggerFactory.Instance, CancellationToken.None,
+            convert: (_, _, _, _) => throw new ConversionException("The target database already has tables."));
+
+        Assert.That(code, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Command_WhenTheConversionThrows_ReturnsOne()
+    {
+        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), NullLoggerFactory.Instance, CancellationToken.None,
+            convert: (_, _, _, _) => throw new InvalidOperationException("boom"));
+
+        Assert.That(code, Is.EqualTo(1));
     }
 }

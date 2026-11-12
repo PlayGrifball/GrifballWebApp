@@ -35,8 +35,18 @@ public static partial class ConvertCommand
         return await RunAsync(configuration, loggerFactory, cancellation.Token);
     }
 
-    public static async Task<int> RunAsync(IConfiguration configuration, ILoggerFactory loggerFactory, CancellationToken cancellationToken = default)
+    public static Task<int> RunAsync(IConfiguration configuration, ILoggerFactory loggerFactory, CancellationToken cancellationToken = default)
+        => RunAsync(configuration, loggerFactory, cancellationToken, convert: null);
+
+    /// <summary>
+    /// <paramref name="convert"/> is the real conversion (a new DatabaseConverter) unless given: a database-free unit
+    /// test gives its own, since DatabaseConverter is sealed (no interface a test double could stand in for) and always
+    /// needs a real database to run.
+    /// </summary>
+    internal static async Task<int> RunAsync(IConfiguration configuration, ILoggerFactory loggerFactory, CancellationToken cancellationToken,
+        Func<DatabaseEndpoint, DatabaseEndpoint, ILogger<DatabaseConverter>, CancellationToken, Task>? convert)
     {
+        convert ??= static (source, target, logger, ct) => new DatabaseConverter(logger).ConvertAsync(source, target, ct);
         var logger = loggerFactory.CreateLogger(typeof(ConvertCommand));
         DatabaseEndpoint source, target;
         try
@@ -53,7 +63,7 @@ public static partial class ConvertCommand
         LogConverting(logger, source.Provider, target.Provider);
         try
         {
-            await new DatabaseConverter(loggerFactory.CreateLogger<DatabaseConverter>()).ConvertAsync(source, target, cancellationToken);
+            await convert(source, target, loggerFactory.CreateLogger<DatabaseConverter>(), cancellationToken);
             return 0;
         }
         catch (ConversionException e)
