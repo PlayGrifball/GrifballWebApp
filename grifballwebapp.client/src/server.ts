@@ -23,13 +23,10 @@ import express, { type Request, type Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import type { ClientRequest, IncomingMessage } from 'node:http';
 import { join } from 'node:path';
-import { loadScriptsAfterFirstPaint } from './app/afterFirstPaint';
 import { isAllowedHost, parseAllowedHosts } from './app/allowedHosts';
 import { apiUrl } from './app/apiUrl';
-import { forLog } from './app/forLog';
-import { redactUrl } from './app/redactUrl';
+import { announceServing, pageHandler } from './app/pageHandler';
 import { drainThenExit, shutdownDelay } from './app/shutdown';
-import { pageCacheHeaders } from './app/pageCache';
 import { serverTelemetrySettings } from './app/serverTelemetry';
 import { startServerTelemetry } from './server.telemetry';
 
@@ -125,43 +122,20 @@ app.use((req, res, next) => {
   sendClientPage(res, next);
 });
 
-// Every other request: the page, rendered on the server or (for the pages in
-// app.routes.server.ts that render in the browser) the page that loads the app. Should rendering
-// fail, the browser renders the page instead. A page rendered with the visitor's session cookie
-// (which its API calls carried) is theirs alone: private and no-store (app/pageCache.ts). The page's
-// scripts load once it has painted (app/afterFirstPaint.ts). Rendering is a span of its own, which the
-// API calls it makes carry as their traceparent (FORWARDED_HEADERS in app/serverApi.backend.ts).
-app.use((req, res, next) => {
-  telemetry
-    .render(req, traceparent => {
-      req.headers['traceparent'] = traceparent;
-      return angularApp.handle(req);
-    }, response => response ? 'server' : 'browser')
-    .then(async response => {
-      if (!response)
-        return sendClientPage(res, next);
-      if (response.headers.get('Content-Type')?.startsWith('text/html')) {
-        const headers = new Headers(response.headers);
-        headers.delete('Content-Length');
-        response = new Response(loadScriptsAfterFirstPaint(await response.text()), { status: response.status, statusText: response.statusText, headers });
-      }
-      for (const [name, value] of Object.entries(pageCacheHeaders(req.headers.cookie)))
-        response.headers.set(name, value);
-      return writeResponseToNodeResponse(response, res);
-    })
-    .catch(error => {
-      telemetry.log('error', 'Rendering failed, sending the page that renders in the browser', { path: forLog(redactUrl(req.originalUrl)), error });
-      sendClientPage(res, next);
-    });
-});
+// Every other request: the page (app/pageHandler.ts)
+app.use(pageHandler({
+  handle: (req: Request) => angularApp.handle(req),
+  write: writeResponseToNodeResponse,
+  sendClientPage,
+  telemetry,
+}));
 
 if (isMainModule(import.meta.url)) {
   const port = Number(process.env['PORT'] ?? 80);
   const server = app.listen(port, error => {
     if (error)
       throw error;
-    // lighthouserc.cjs and e2e/serve.mjs wait for "Serving"
-    telemetry.log('info', `Serving on http://localhost:${port}, the API at ${backendUrl}`);
+    announceServing(telemetry, port, backendUrl);
   });
   // SignalR's WebSocket upgrade, for /hub
   server.on('upgrade', proxies[1].upgrade);
