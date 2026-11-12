@@ -1,10 +1,11 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
+using GrifballWebApp.Domain.Test;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
-namespace GrifballWebApp.Infrastructure.Test;
+namespace GrifballWebApp.Migrations.Test;
 
 /// <summary>
 /// Row history on SQLite (SqliteHistory), on a migrated database, for what needs no migrations assembly: writing and

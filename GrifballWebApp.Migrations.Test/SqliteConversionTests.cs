@@ -1,11 +1,12 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Conversion;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Test;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace GrifballWebApp.Infrastructure.Test;
+namespace GrifballWebApp.Migrations.Test;
 
 /// <summary>
 /// The conversion from one SQLite file into another: SQLite on both sides, so these run on every leg of the suite.
