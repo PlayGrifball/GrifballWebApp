@@ -24,6 +24,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using NetCord.Hosting.Gateway;
 using NetCord.Hosting.Rest;
@@ -148,6 +149,10 @@ public class Program
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
+
+        // "OpenApi:Servers" (appsettings.json): every other environment's URL, offered in the document alongside the
+        // one it was requested from (OpenApiServers.Build, MapEndpoints).
+        builder.Services.Configure<OpenApiServersOptions>(builder.Configuration.GetSection("OpenApi"));
 
         builder.Services.AddSwaggerGen(option =>
         {
@@ -337,11 +342,12 @@ public class Program
         // API through /api (or the backend itself, with no proxy in front, in development).
         if (role.ServesApi)
         {
-            app.UseSwagger(options => options.PreSerializeFilters.Add((document, _) => document.Servers =
-            [
-                new OpenApiServer { Url = ApiLocations.PublicPrefix, Description = "The API, as the site serves it" },
-                new OpenApiServer { Url = "/", Description = "The backend itself, with no proxy in front (development)" },
-            ]));
+            app.UseSwagger(options => options.PreSerializeFilters.Add((document, httpRequest) =>
+            {
+                var requestUrl = $"{httpRequest.Scheme}://{httpRequest.Host}{ApiLocations.PublicPrefix}";
+                var configured = httpRequest.HttpContext.RequestServices.GetRequiredService<IOptions<OpenApiServersOptions>>().Value.Servers;
+                document.Servers = OpenApiServers.Build(requestUrl, configured, app.Environment.IsDevelopment());
+            }));
             app.UseSwaggerUI(options => options.SwaggerEndpoint("v1/swagger.json", "GrifballWebApp"));
         }
 

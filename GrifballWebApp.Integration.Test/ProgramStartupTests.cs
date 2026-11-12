@@ -685,7 +685,10 @@ public class ProgramStartupTests
         using var document = System.Text.Json.JsonDocument.Parse(await openApi.Content.ReadAsStringAsync());
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(document.RootElement.GetProperty("servers")[0].GetProperty("url").GetString(), Is.EqualTo("/api"));
+            // servers[0] is the request's own URL (the test client's base address), then OpenApi:Servers (appsettings.json).
+            var servers = document.RootElement.GetProperty("servers").EnumerateArray().Select(s => s.GetProperty("url").GetString()).ToList();
+            Assert.That(servers[0], Is.EqualTo("http://localhost/api"));
+            Assert.That(servers, Does.Contain("https://grifball.xyz/api").And.Contain("https://grif-staging.grifball.xyz/api"));
             Assert.That(document.RootElement.GetProperty("paths").TryGetProperty("/seasons", out _), Is.True, "The controllers' routes");
             // The actions' XML doc <summary> (GenerateDocumentationFile, IncludeXmlComments) flows into the document.
             var seasonsGet = document.RootElement.GetProperty("paths").GetProperty("/seasons").GetProperty("get");
