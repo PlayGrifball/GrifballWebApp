@@ -4,7 +4,7 @@
 # Rebuilds an image from the checked-out commit from nothing, as docker-publish.yml builds it, and prints its digest:
 # a new builder on the BuildKit CI pins (BUILDKIT in docker-publish.yml), no cache, the commit's time as
 # SOURCE_DATE_EPOCH. The same commit gives the same digest (docs/reproducible-builds.md); with a published image for the
-# commit (sha-<7>), it's compared. The reproducible job in docker-publish.yml runs this too.
+# commit (sha-<7>), it's compared. reproducible.yml runs this too (weekly).
 #
 # The server image carries master's migration list (master-migrations.sh): for a commit on master, master is the commit
 # itself (HEAD, the default); for a preview, the master commit its build read. Needs a full clone (not shallow), Docker
