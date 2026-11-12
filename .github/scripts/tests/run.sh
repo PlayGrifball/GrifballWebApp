@@ -344,17 +344,22 @@ else bad "layer-coverage: the drop isn't named:"; sed 's/^/  | /' "$cov/table.md
 # close-stuck-report.sh: a test report's check run left "in progress" (GitHub answered the reporter's update with 404)
 # is completed with the test step's own outcome; one already completed is left alone; if completing it fails, so does
 # the script (the job goes red instead of a check staying pending). gh stubbed: the list call must ask for every run of
-# the report's name (filter=all) and answers what its --jq would (REPORT_STUCK: the stuck run's id, or nothing); the
-# PATCH is recorded, and refused REPORT_PATCH_FAILS times first ("all": every time).
+# the report's name (filter=all), and its own --jq runs (through jq) over REPORT_RUNS, the check runs GitHub would
+# list (REPORT_EMPTY_FIRST: answered [] that many times first, as GitHub's reads lag); the PATCH is recorded, and
+# refused REPORT_PATCH_FAILS times first ("all": every time).
 mkdir -p "$work/reportbin"
 cat > "$work/reportbin/gh" <<'GH'
 #!/usr/bin/env bash
 case "$*" in
   *"-X GET repos/o/r/commits/abc/check-runs "*)
-    [[ "$*" == *"check_name=.NET Test Results (Unit)"* && "$*" == *"filter=all"* && "$*" == *"--jq"* ]] \
-      || { echo "bad list call: $*" >&2; exit 9; }
-    [[ -n "${REPORT_LIST_FAILS:-}" && ! -e "$REPORT_PATCHED.listed" ]] && { touch "$REPORT_PATCHED.listed"; exit 1; }
-    echo "${REPORT_STUCK:-}" ;;
+    [[ "$*" == *"check_name=.NET Test Results (Unit)"* && "$*" == *"filter=all"* ]] || { echo "bad list call: $*" >&2; exit 9; }
+    expr=""; while [[ $# -gt 0 ]]; do [[ "$1" == --jq ]] && expr=$2; shift; done
+    [[ -n "$expr" ]] || { echo "no --jq" >&2; exit 9; }
+    echo x >> "$REPORT_PATCHED.listed"
+    runs=$REPORT_RUNS
+    [[ "$(wc -l < "$REPORT_PATCHED.listed")" -le "${REPORT_EMPTY_FIRST:-0}" ]] && runs='{"check_runs":[]}'
+    [[ -n "${REPORT_LIST_FAILS:-}" && "$(wc -l < "$REPORT_PATCHED.listed")" = 1 ]] && exit 1
+    jq -r "$expr" <<< "$runs" ;;
   *"-X PATCH"*) echo "$*" >> "$REPORT_PATCHED"
     [[ "${REPORT_PATCH_FAILS:-0}" = all ]] && exit 1
     [[ "$(wc -l < "$REPORT_PATCHED")" -gt "${REPORT_PATCH_FAILS:-0}" ]] ;;
@@ -362,28 +367,34 @@ case "$*" in
 esac
 GH
 chmod +x "$work/reportbin/gh"
-report() { # report <stuck id or ""> <outcome> [patch fails] [list fails]: the script's exit code; PATCHes in $work/patched
+report() { # report <runs json> <outcome> [patch fails] [list fails] [empty first]: exit code; PATCHes in $work/patched
   : > "$work/patched"; rm -f "$work/patched.listed"
-  REPORT_STUCK="$1" REPORT_PATCHED="$work/patched" REPORT_PATCH_FAILS="${3:-}" REPORT_LIST_FAILS="${4:-}" \
-    PATH="$work/reportbin:$PATH" REPORT_RETRY_SECONDS=0 REPO=o/r SHA=abc NAME='.NET Test Results (Unit)' OUTCOME="$2" \
-    "$scripts/close-stuck-report.sh" > "$work/out" 2>&1
+  REPORT_RUNS="$1" REPORT_PATCHED="$work/patched" REPORT_PATCH_FAILS="${3:-}" REPORT_LIST_FAILS="${4:-}" \
+    REPORT_EMPTY_FIRST="${5:-0}" PATH="$work/reportbin:$PATH" REPORT_RETRY_SECONDS=0 REPO=o/r SHA=abc \
+    NAME='.NET Test Results (Unit)' OUTCOME="$2" "$scripts/close-stuck-report.sh" > "$work/out" 2>&1
 }
-if report 9 success && grep -q 'check-runs/9 ' "$work/patched" && grep -q 'conclusion=success' "$work/patched"
-then ok "close-stuck-report: a stuck report gets the tests' success"; else bad "close-stuck-report: success not set:"; cat "$work/out" "$work/patched"; fi
-if report 9 failure && grep -q 'conclusion=failure' "$work/patched"
+# A rerun's report stuck behind an earlier attempt's completed one, and an older stuck one: the newest in progress
+stuck='{"check_runs":[{"id":5,"status":"in_progress"},{"id":7,"status":"completed"},{"id":9,"status":"in_progress"}]}'
+done='{"check_runs":[{"id":7,"status":"completed"},{"id":9,"status":"completed"}]}'
+if report "$stuck" success && grep -q 'check-runs/9 ' "$work/patched" && grep -q 'conclusion=success' "$work/patched"
+then ok "close-stuck-report: the newest stuck report gets the tests' success"; else bad "close-stuck-report: success not set:"; cat "$work/out" "$work/patched"; fi
+if report "$stuck" failure && grep -q 'conclusion=failure' "$work/patched"
 then ok "close-stuck-report: and their failure"; else bad "close-stuck-report: failure not set:"; cat "$work/out" "$work/patched"; fi
 # Concurrency cancels a PR's older run: its tests didn't pass
-if report 9 cancelled && grep -q 'conclusion=failure' "$work/patched"
+if report "$stuck" cancelled && grep -q 'conclusion=failure' "$work/patched"
 then ok "close-stuck-report: a cancelled test step is a failure"; else bad "close-stuck-report: cancelled not a failure:"; cat "$work/out" "$work/patched"; fi
-if report "" success && [[ ! -s "$work/patched" ]] && grep -q 'nothing stuck' "$work/out"
-then ok "close-stuck-report: nothing in progress, nothing done"; else bad "close-stuck-report: nothing stuck:"; cat "$work/out"; fi
+if report "$done" success && [[ ! -s "$work/patched" ]] && grep -q 'nothing stuck' "$work/out"
+then ok "close-stuck-report: completed reports are left alone"; else bad "close-stuck-report: touched completed ones:"; cat "$work/out" "$work/patched"; fi
+# GitHub's reads lag the run the reporter just created: an empty list right after its 404 is read again
+if report "$stuck" success "" "" 2 && grep -q 'check-runs/9 ' "$work/patched"
+then ok "close-stuck-report: an empty list is read again"; else bad "close-stuck-report: gave up on an empty list:"; cat "$work/out"; fi
 # GitHub 404s an update in the seconds after the run is created (#401: created at :24.0, updates refused at :24.9 and
 # :25.7): retried, and so is a failed list call
-if report 9 success 2 && [[ "$(wc -l < "$work/patched")" = 3 ]]
+if report "$stuck" success 2 && [[ "$(wc -l < "$work/patched")" = 3 ]]
 then ok "close-stuck-report: a 404 right after creation is retried"; else bad "close-stuck-report: no retry:"; cat "$work/out" "$work/patched"; fi
-if report 9 success "" yes && grep -q 'conclusion=success' "$work/patched"
+if report "$stuck" success "" yes && grep -q 'conclusion=success' "$work/patched"
 then ok "close-stuck-report: a failed list call is retried"; else bad "close-stuck-report: list not retried:"; cat "$work/out"; fi
-if report 9 success all; then bad "close-stuck-report: a failed PATCH passed"
+if report "$stuck" success all; then bad "close-stuck-report: a failed PATCH passed"
 else ok "close-stuck-report: a report it can't complete fails the job"; fi
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi

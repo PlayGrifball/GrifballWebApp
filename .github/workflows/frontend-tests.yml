@@ -216,11 +216,11 @@ jobs:
         fail-on-error: true
         use-actions-summary: 'false'
 
-    # Only when the report step failed (its continue-on-error keeps the job going): its check run can be left "in
+    # Only when the report step failed (its continue-on-error keeps the job going) or was cancelled: its check run can be left "in
     # progress" when GitHub answers its update with 404. Completed here with the tests' own outcome, or this fails the
     # job if it can't be (.github/scripts/close-stuck-report.sh)
     - name: Close a stuck test report
-      if: always() && env.RUN == 'true' && steps.report.outcome == 'failure'
+      if: always() && env.RUN == 'true' && (steps.report.outcome == 'failure' || steps.report.outcome == 'cancelled')
       env:
         GH_TOKEN: ${{ github.token }}
         REPO: ${{ github.repository }}

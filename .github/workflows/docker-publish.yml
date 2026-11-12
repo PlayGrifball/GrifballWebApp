@@ -307,7 +307,7 @@ jobs:
     # release is published already, and on fork PRs.
     if: ${{ !cancelled() && needs.apk-check.result == 'success' && needs.apk-archive.result != 'failure' }}
     runs-on: ubuntu-latest
-    # A hung job fails after this rather than GitHub's 6 hours (16 minutes usually, longer for both platforms on master)
+    # A hung job fails after this rather than GitHub's 6 hours (13 to 17 minutes usually, on PRs and master alike)
     timeout-minutes: 60
     outputs:
       digest: ${{ steps.push.outputs.digest }}

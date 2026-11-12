@@ -2,7 +2,7 @@
 # Completes a test report's check run that dorny/test-reporter left "in progress": GitHub sometimes answers the
 # reporter's own update with 404 in the seconds after it created the run, the step's continue-on-error carries the job
 # on, and nothing else ever completes the run, so the PR waits on a check that will never finish. Run only when the
-# report step failed: a run of that name still in progress gets the test step's own outcome (success, or failure for
+# report step failed or was cancelled: a run of that name still in progress gets the test step's own outcome (success, or failure for
 # anything else: failed, cancelled, skipped); one already completed, or none at all, is left alone. If completing it
 # fails too, so does this, and the job: a red check can be rerun, a pending one only sits there.
 #
@@ -21,13 +21,20 @@ retry() {
 }
 
 # Every run of that name on the commit (filter=all: the default, latest, can return an earlier attempt's completed run
-# and hide a rerun's stuck one); the newest still in progress, if any
-find_stuck() {
-  gh api -X GET "repos/$REPO/commits/$SHA/check-runs" -f check_name="$NAME" -f filter=all -f per_page=100 \
-    --jq '[.check_runs[] | select(.status != "completed")] | max_by(.id) | .id // empty'
-}
-id=$(retry find_stuck) || { echo "::error::$NAME: its check runs couldn't be read: rerun this job"; exit 1; }
+# and hide a rerun's stuck one); the newest still in progress, if any. Read again when it fails, and when it finds
+# nothing: this runs because the report step failed, so a run is expected, and GitHub's reads lag behind the run it
+# just created (the same lag that refused the reporter's update).
+id="" listed=""
+for attempt in 1 2 3 4 5 6; do
+  if id=$(gh api -X GET "repos/$REPO/commits/$SHA/check-runs" -f check_name="$NAME" -f filter=all -f per_page=100 \
+    --jq '[.check_runs[] | select(.status != "completed")] | max_by(.id) | .id // empty'); then
+    listed=yes
+    [[ -n "$id" ]] && break
+  fi
+  [[ "$attempt" = 6 ]] || sleep "${REPORT_RETRY_SECONDS:-$((attempt * 4))}"
+done
 if [[ -z "$id" ]]; then
+  [[ -n "$listed" ]] || { echo "::error::$NAME: its check runs couldn't be read: rerun this job"; exit 1; }
   echo "$NAME: nothing stuck"
   exit 0
 fi
