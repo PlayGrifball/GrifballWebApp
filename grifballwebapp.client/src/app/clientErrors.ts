@@ -4,7 +4,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { catchError, throwError } from 'rxjs';
 
 /**
- * The browser's error reports: unhandled errors and failed API calls, sent to the API (POST /api/ClientErrors,
+ * The browser's error reports: unhandled errors and failed API calls, sent to the API (POST /api/client-errors,
  * GrifballWebApp.Server/Telemetry/ClientErrors.cs), which logs them with their page and trace id. Each carries
  * the trace it belongs to: a failed call's own (its traceresponse header, or the ProblemDetails' traceId), or
  * else the page's (the Server-Timing header the app's server sends, src/server.telemetry.ts).
@@ -12,7 +12,7 @@ import { catchError, throwError } from 'rxjs';
  * Nothing is sent on the server, in automated browsers (tests, Lighthouse), or once the API answers 404 (reports
  * are off there). A page load sends at most MAX_REPORTS, and each error once.
  */
-export const CLIENT_ERRORS_URL = '/api/ClientErrors';
+export const CLIENT_ERRORS_URL = '/api/client-errors';
 export const MAX_REPORTS = 10;
 export const MAX_MESSAGE = 1000;
 export const MAX_STACK = 4000;

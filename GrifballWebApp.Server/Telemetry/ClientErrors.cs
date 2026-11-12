@@ -55,7 +55,6 @@ public sealed record ClientErrorDto
     public int? Status { get; init; }
 }
 
-[Route("[controller]")]
 [ApiController]
 [AllowAnonymous]
 public partial class ClientErrorsController : ControllerBase
@@ -77,13 +76,16 @@ public partial class ClientErrorsController : ControllerBase
     /// Logs a report. With a traceparent, it is logged in a span of that trace (so its log line carries the trace id,
     /// and Tempo shows it in the trace); without one, in this request's.
     /// </summary>
-    [HttpPost(Name = "ReportClientError")]
+    [HttpPost("client-errors", Name = "ReportClientError")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     [EnableRateLimiting(RateLimitPolicy)]
     [IgnoreAntiforgeryToken] // NOSONAR S4502: anonymous and only logged; the Fetch Metadata and Origin checks still refuse it from another site
     public IActionResult Report([FromBody] ClientErrorDto report)
     {
         if (!_options.Enabled)
-            return NotFound();
+            return this.NotFoundProblem("Browser error reports are off here");
 
         using var activity = ActivityContext.TryParse(report.Traceparent, null, out var parent)
             ? Source.StartActivity("browser " + report.Kind, ActivityKind.Internal, parent)

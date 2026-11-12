@@ -496,7 +496,7 @@ frontend:
     endpoint: ""
     # The lowest level logged: debug, info, warn or error. Empty: info.
     logLevel: ""
-    # The browser's errors and failed API calls, sent to the API (POST /api/ClientErrors) and logged there with
+    # The browser's errors and failed API calls, sent to the API (POST /api/client-errors) and logged there with
     # their page and trace id. Signed-out visitors are limited per address (backend config ClientErrors:PermitsPerMinute).
     browserErrors: false
   # Node, rendering pages on the server: about 120-160 MiB resident under load.

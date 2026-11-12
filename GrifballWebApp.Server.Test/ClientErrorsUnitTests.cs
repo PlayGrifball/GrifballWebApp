@@ -71,9 +71,9 @@ public class ClientErrorsUnitTests
     {
         var result = Controller(enabled: false).Report(ScriptError());
 
+        result.AssertProblem(StatusCodes.Status404NotFound, "Browser error reports are off here");
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.InstanceOf<NotFoundResult>());
             Assert.That(_sink.Events, Is.Empty);
             Assert.That(_activities, Is.Empty);
         }
