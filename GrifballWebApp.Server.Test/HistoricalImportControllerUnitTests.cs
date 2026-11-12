@@ -16,9 +16,12 @@ namespace GrifballWebApp.Server.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class HistoricalImportControllerUnitTests
+public class HistoricalImportControllerUnitTests : SqliteGrifballContextFixture
 {
     private static readonly string[] SysadminOnly = ["Sysadmin"];
+
+    // Refused before HistoricalSourceService (the archive's own HTTP fetcher) is ever asked
+    private HistoricalImportController Controller() => new(new HistoricalImportJobs(Db, new HistoricalImportSignal()), null!);
 
     [TestCase(nameof(HistoricalImportController.Import))]
     [TestCase(nameof(HistoricalImportController.Job))]
@@ -56,5 +59,37 @@ public class HistoricalImportControllerUnitTests
         signal.Notify();
         Assert.That(await signal.WaitAsync(TimeSpan.Zero, CancellationToken.None), Is.True);
         Assert.That(await signal.WaitAsync(TimeSpan.Zero, CancellationToken.None), Is.False);
+    }
+
+    [Test]
+    public async Task Jobs_ReturnsNone_WhenThereAreNoImportJobs()
+    {
+        var result = await Controller().Jobs(CancellationToken.None);
+
+        Assert.That(result.Value, Is.Empty);
+    }
+
+    [Test]
+    public async Task Job_RepliesNotFound_ForANonExistentJob()
+    {
+        var result = await Controller().Job(999, CancellationToken.None);
+
+        Assert.That(result.Result, Is.InstanceOf<NotFoundResult>());
+    }
+
+    [Test]
+    public async Task Refresh_QueuesAJob()
+    {
+        var result = await Controller().Refresh(CancellationToken.None);
+
+        Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status202Accepted));
+    }
+
+    [Test]
+    public async Task Preview_QueuesAJob()
+    {
+        var result = await Controller().Preview(CancellationToken.None);
+
+        Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status202Accepted));
     }
 }
