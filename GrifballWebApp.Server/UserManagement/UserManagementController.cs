@@ -22,6 +22,7 @@ public class UserManagementController : ControllerBase
         _userMergeService = userMergeService;
     }
 
+    /// <summary>Users, filtered, sorted and paged. Sysadmins only.</summary>
     [HttpGet("users", Name = "GetUsers")]
     [ProducesResponseType<PaginationResult<UserResponseDto>>(StatusCodes.Status200OK)]
     public Task<PaginationResult<UserResponseDto>> GetUsers([FromQuery] PaginationFilter filter, [FromQuery] string? search, CancellationToken ct)
@@ -30,6 +31,7 @@ public class UserManagementController : ControllerBase
         return _userManagementService.GetUsers(filter, search, ct);
     }
 
+    /// <summary>A user's account details. Sysadmins only.</summary>
     [HttpGet("users/{userID:int}", Name = "GetUser")]
     [ProducesResponseType<UserResponseDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -51,6 +53,7 @@ public class UserManagementController : ControllerBase
             return this.BadRequestProblem(result);
     }
 
+    /// <summary>Edits a user's account details. Sysadmins only.</summary>
     [HttpPost("users/{userID:int}", Name = "EditUser")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -65,6 +68,7 @@ public class UserManagementController : ControllerBase
             return this.BadRequestProblem(result);
     }
 
+    /// <summary>Merges one user into another, moving the source user's data onto the target and deleting it. Sysadmins only.</summary>
     [HttpPost("user-merges", Name = "MergeUser")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]

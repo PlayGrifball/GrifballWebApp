@@ -21,6 +21,7 @@ public class TelemetryController : ControllerBase
         _telemetry = telemetry;
     }
 
+    /// <summary>Which telemetry backends (Loki, Prometheus, Tempo) are configured.</summary>
     [HttpGet("telemetry/status", Name = "GetTelemetryStatus")]
     [ProducesResponseType<TelemetryStatusDto>(StatusCodes.Status200OK)]
     public TelemetryStatusDto Status() => _telemetry.Status();
