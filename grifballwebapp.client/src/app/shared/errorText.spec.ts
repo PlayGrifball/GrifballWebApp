@@ -23,6 +23,7 @@ describe('errorText', () => {
     expect(errorText(response({}), 'fallback')).toBe('fallback');
     expect(errorText(response(''), 'fallback')).toBe('fallback');
     expect(errorText(response(null), 'fallback')).toBe('fallback');
+    expect(errorText(response(42), 'fallback')).toBe('fallback');
   });
 
   it('problemText reads the same', () => {

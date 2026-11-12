@@ -40,6 +40,8 @@ public class SeasonAndAvailabilityControllerTests
             Assert.That(await controller.GetCurrentSeasonID(CancellationToken.None), Is.EqualTo(current.SeasonID));
             Assert.That((await controller.GetSeasonName(past.SeasonID, CancellationToken.None)).Value, Is.EqualTo("Past"));
             (await controller.GetSeasonName(123456, CancellationToken.None)).AssertProblem(StatusCodes.Status404NotFound, "There is no such season");
+            Assert.That((await controller.GetSeasonTeams(current.SeasonID, CancellationToken.None)).Value, Is.Empty, "A season with no teams yet");
+            (await controller.GetSeasonTeams(123456, CancellationToken.None)).AssertProblem(StatusCodes.Status404NotFound, "There is no such season");
         }
     }
 

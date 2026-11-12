@@ -14,6 +14,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class PreviewSmokeXboxUsersTests
 {
+    private static readonly string[] KnownOnly = ["Known"];
+
     private GrifballContext _context;
     private IHaloInfiniteClientFactory _halo;
     private PreviewSmokeXboxUsers _service;
@@ -45,6 +47,22 @@ public class PreviewSmokeXboxUsersTests
             Assert.That(again!.XboxUserID, Is.EqualTo(made.XboxUserID), "Found again, not made twice");
             Assert.That(await _context.XboxUsers.CountAsync(), Is.EqualTo(1));
             Assert.That(_halo.ReceivedCalls(), Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task Xuids_go_to_the_lookup_as_in_any_environment()
+    {
+        _context.XboxUsers.Add(GrifballWebApp.Domain.Players.XboxUser.FromXbox(42, "Known"));
+        await _context.SaveChangesAsync();
+
+        var one = await _service.GetsertXboxUserByXuid(42);
+        var many = await _service.GetsertXboxUsersByXuid([42]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(one.Gamertag, Is.EqualTo("Known"));
+            Assert.That(many.Select(x => x.Gamertag), Is.EqualTo(KnownOnly));
         }
     }
 
