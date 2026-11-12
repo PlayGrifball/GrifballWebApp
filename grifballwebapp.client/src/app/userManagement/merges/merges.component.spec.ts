@@ -37,8 +37,8 @@ describe('MergesComponent', () => {
 
   function listRequest(page: number): TestRequest {
     const req = http.expectOne(r => r.url === '/api/user-merges');
-    expect(req.request.params.get('pageNumber')).toBe(String(page));
-    expect(req.request.params.get('pageSize')).toBe('25');
+    expect(req.request.params.get('PageNumber')).toBe(String(page));
+    expect(req.request.params.get('PageSize')).toBe('25');
     return req;
   }
 

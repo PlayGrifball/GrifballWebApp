@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
-import { ApiClientService } from '../../api/apiClient.service';
+import { UserMergesService } from '@api/services';
 import { UserMergeDto } from '@api/models';
 import { problemText } from '../../shared/errorText';
 
@@ -35,13 +35,13 @@ const TRIGGER_LABELS: Record<string, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MergesComponent {
-  private api = inject(ApiClientService);
+  private api = inject(UserMergesService);
   private snackBar = inject(MatSnackBar);
 
   readonly page = signal(1);
   readonly merges = rxResource({
     params: () => this.page(),
-    stream: ({ params }) => this.api.getUserMerges(params, PAGE_SIZE),
+    stream: ({ params }) => this.api.getUserMerges({ PageNumber: params, PageSize: PAGE_SIZE }),
   });
 
   readonly rows = computed<UserMergeDto[]>(() => this.merges.hasValue() ? this.merges.value().results : []);
@@ -69,7 +69,7 @@ export class MergesComponent {
 
   undo(merge: UserMergeDto): void {
     this.undoing.set(merge.userMergeID);
-    this.api.undoUserMerge(merge.userMergeID, null).subscribe({
+    this.api.undoUserMerge({ mergeID: merge.userMergeID, body: { note: null } }).subscribe({
       next: () => {
         this.undoing.set(null);
         this.refusals.update(refusals => ({ ...refusals, [merge.userMergeID]: '' }));
