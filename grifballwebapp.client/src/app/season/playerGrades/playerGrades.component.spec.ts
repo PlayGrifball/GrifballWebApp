@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PlayerGradesComponent } from './playerGrades.component';
 import { provideRouter } from '@angular/router';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { GradesDto, LetterDto } from './gradesDto';
 import { DecimalPipe } from '@angular/common';
 import { Observable, of, Subject, throwError } from 'rxjs';
@@ -18,8 +19,10 @@ describe('PlayerGradesComponent', () => {
     summary = of({ isHistorical: false, hasEnded: false, matchCount: 0, bracketMatchCount: 0 });
 
     await TestBed.configureTestingModule({
-      imports: [PlayerGradesComponent, HttpClientTestingModule],
+      imports: [PlayerGradesComponent],
       providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
         provideRouter([]),
         { provide: SeasonSummaryService, useValue: { get: () => summary } },
         DecimalPipe
@@ -495,8 +498,8 @@ describe('PlayerGradesComponent rendering', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [PlayerGradesComponent, HttpClientTestingModule],
-      providers: [provideRouter([]), { provide: SeasonSummaryService, useValue: { get: () => of({ isHistorical: false, hasEnded: false, matchCount: 1, bracketMatchCount: 0 }) } }]
+      imports: [PlayerGradesComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), { provide: SeasonSummaryService, useValue: { get: () => of({ isHistorical: false, hasEnded: false, matchCount: 1, bracketMatchCount: 0 }) } }]
     }).compileComponents();
 
     http = TestBed.inject(HttpTestingController);

@@ -1,7 +1,6 @@
 import { provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { ApplicationConfig } from '@angular/core';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 //import { PreloadAllModules, withDebugTracing, withPreloading } from '@angular/router';
 import { APP_ROUTES } from './app.routes';
@@ -13,7 +12,6 @@ import { provideSnackBarDefaults } from './shared/snackBarDefaults';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideSnackBarDefaults(),
-    provideAnimationsAsync(),
     provideHttpClient(withXhr(), withInterceptors([earlyFetchInterceptor, authInterceptor])),
     provideRouter(APP_ROUTES
       , withComponentInputBinding()

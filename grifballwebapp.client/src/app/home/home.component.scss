@@ -61,3 +61,14 @@
     font-weight: 700;
   }
 }
+
+// A row fades in as it arrives (a new page, a new sort: animate.enter in the template); one leaving goes at once
+.row-enter {
+  animation: row-enter 350ms;
+}
+
+@keyframes row-enter {
+  from {
+    opacity: .1;
+  }
+}

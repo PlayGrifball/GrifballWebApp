@@ -3,7 +3,6 @@ import { MediaMatcher } from '@angular/cdk/layout';
 import { of, Subject } from 'rxjs';
 import { ToolbarComponent } from './toolbar/toolbar.component';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
 
@@ -11,6 +10,7 @@ import { AppComponent, MENU_BUTTON_WIDTH, NAV_LINK_GAP } from './app.component';
 import { AccountService } from './account.service';
 import { ApiClientService } from './api/apiClient.service';
 import { ThemingService } from './theming.service';
+import { noMaterialAnimations } from './testing/noMaterialAnimations';
 
 describe('AppComponent', () => {
   let component: AppComponent;
@@ -52,9 +52,9 @@ describe('AppComponent', () => {
     await TestBed.configureTestingModule({
       imports: [
         AppComponent,
-        NoopAnimationsModule
       ],
       providers: [
+        noMaterialAnimations,
         provideRouter([]),
         { provide: AccountService, useValue: mockAccountService },
         { provide: ApiClientService, useValue: mockApiClientService },
@@ -203,8 +203,9 @@ describe('AppComponent behaviour', () => {
     }) as any);
 
     await TestBed.configureTestingModule({
-      imports: [AppComponent, NoopAnimationsModule],
+      imports: [AppComponent],
       providers: [
+        noMaterialAnimations,
         provideRouter([]),
         { provide: AccountService, useValue: account },
         { provide: ApiClientService, useValue: api },
@@ -581,8 +582,9 @@ describe('AppComponent rendered on the server', () => {
     const addListener = spyOn(window, 'addEventListener').and.callThrough();
     const removeListener = spyOn(window, 'removeEventListener').and.callThrough();
     TestBed.configureTestingModule({
-      imports: [AppComponent, NoopAnimationsModule],
+      imports: [AppComponent],
       providers: [
+        noMaterialAnimations,
         provideRouter([]),
         { provide: PLATFORM_ID, useValue: 'server' },
         { provide: AccountService, useValue: { isLoggedIn: signal(false), isEventOrganizer: signal(false), isSysAdmin: signal(false), isPlayer: signal(false), personID: signal(null), displayName: signal(null) } },

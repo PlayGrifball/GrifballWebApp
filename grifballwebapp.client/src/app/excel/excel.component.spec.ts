@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ExcelComponent } from './excel.component';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { noMaterialAnimations } from '../testing/noMaterialAnimations';
 
 describe('ExcelComponent', () => {
   let component: ExcelComponent;
@@ -10,7 +11,8 @@ describe('ExcelComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ExcelComponent, HttpClientTestingModule, NoopAnimationsModule]
+      providers: [provideHttpClient(), provideHttpClientTesting(), noMaterialAnimations],
+      imports: [ExcelComponent]
     }).compileComponents();
 
     httpTestingController = TestBed.inject(HttpTestingController);

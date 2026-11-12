@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideAnimations } from '@angular/platform-browser/animations';
 import { DateTime } from 'luxon';
 import { INFINITE_GAME_VERSION_ID, ManualGameForm, ManualGamesComponent, toLocalInput, toRequest } from './manualGames.component';
 import { ReportedGameDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
@@ -70,7 +69,7 @@ describe('ManualGamesComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ManualGamesComponent],
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideAnimations()],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
     }).compileComponents();
     httpMock = TestBed.inject(HttpTestingController);
   });

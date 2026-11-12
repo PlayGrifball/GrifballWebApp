@@ -2,9 +2,9 @@ import { DateTime } from 'luxon';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MergeUserComponent } from './mergeUser.component';
 import { UserResponseDto } from '../userResponseDto';
+import { noMaterialAnimations } from '../../testing/noMaterialAnimations';
 
 // A user with nothing set beyond its ID and the names made from it
 const user = (id: number): UserResponseDto => ({
@@ -23,8 +23,8 @@ describe('MergeUserComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [MergeUserComponent, NoopAnimationsModule],
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
+      imports: [MergeUserComponent],
+      providers: [noMaterialAnimations, provideHttpClient(withXhr()), provideHttpClientTesting()],
     });
     httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(MergeUserComponent);
@@ -98,8 +98,8 @@ describe('MergeUserComponent merging', () => {
   beforeEach(async () => {
     spyOn(console, 'log');
     TestBed.configureTestingModule({
-      imports: [MergeUserComponent, NoopAnimationsModule],
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
+      imports: [MergeUserComponent],
+      providers: [noMaterialAnimations, provideHttpClient(withXhr()), provideHttpClientTesting()],
     });
     httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(MergeUserComponent);

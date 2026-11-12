@@ -1,4 +1,3 @@
-import { animate, style, transition, trigger } from '@angular/animations';
 import { DatePipe } from '@angular/common';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, computed, OnInit, signal, viewChild, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
@@ -28,17 +27,6 @@ import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeag
         MatRow,
         MatTableModule,
         LateLeagueQueueComponent,
-    ],
-    animations: [
-        trigger('rowsAnimation', [
-            transition(':enter', [
-                style({ opacity: .1 }),
-                animate('350ms', style({ opacity: 1 }))
-            ]),
-            transition(':leave', [
-                style({ display: 'none' })
-            ])
-        ])
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })

@@ -2,9 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, ActivatedRoute } from '@angular/router';
 import { LoginComponent } from './login.component';
 import { AccountService } from '../account.service';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { PLATFORM_ID } from '@angular/core';
 import { of } from 'rxjs';
+import { noMaterialAnimations } from '../testing/noMaterialAnimations';
 
 describe('LoginComponent', () => {
   let component: LoginComponent;
@@ -20,8 +20,9 @@ describe('LoginComponent', () => {
     mockActivatedRoute = jasmine.createSpyObj('ActivatedRoute', [], { snapshot: {} });
 
     await TestBed.configureTestingModule({
-      imports: [LoginComponent, NoopAnimationsModule],
+      imports: [LoginComponent],
       providers: [
+        noMaterialAnimations,
         { provide: AccountService, useValue: mockAccountService },
         { provide: Router, useValue: mockRouter },
         { provide: ActivatedRoute, useValue: mockActivatedRoute }
@@ -185,8 +186,9 @@ describe('LoginComponent', () => {
     it('only draws the form: no sign-in and no trip to Discord', () => {
       TestBed.resetTestingModule();
       TestBed.configureTestingModule({
-        imports: [LoginComponent, NoopAnimationsModule],
+        imports: [LoginComponent],
         providers: [
+          noMaterialAnimations,
           { provide: AccountService, useValue: mockAccountService },
           { provide: Router, useValue: mockRouter },
           { provide: ActivatedRoute, useValue: mockActivatedRoute },

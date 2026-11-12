@@ -13,7 +13,6 @@ import { DateTime } from 'luxon';
 import { AccountService } from '../../account.service';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { Subject } from 'rxjs';
-import { provideAnimations } from '@angular/platform-browser/animations';
 import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
 import type { ScheduleRecommendationDto, ScheduleRecommendationPageDto } from './scheduleRecommendationDto';
 
@@ -27,7 +26,6 @@ describe('ScheduleListComponent', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
-        provideAnimations(),
       ]
     }).compileComponents();
 

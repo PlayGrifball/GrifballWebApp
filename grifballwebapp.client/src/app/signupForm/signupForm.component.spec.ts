@@ -2,12 +2,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { SignupFormComponent } from './signupForm.component';
 import { AvailabilityService } from '../availability.service';
 import { AccountService } from '../account.service';
 import { signal } from '@angular/core';
+import { noMaterialAnimations } from '../testing/noMaterialAnimations';
 
 describe('SignupFormComponent', () => {
   let fixture: ComponentFixture<SignupFormComponent>;
@@ -30,8 +30,9 @@ describe('SignupFormComponent', () => {
     availability.parseTime.and.callFake((t: string) => t);
 
     TestBed.configureTestingModule({
-      imports: [SignupFormComponent, NoopAnimationsModule],
+      imports: [SignupFormComponent],
       providers: [
+        noMaterialAnimations,
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),

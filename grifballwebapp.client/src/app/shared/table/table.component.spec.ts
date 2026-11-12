@@ -2,9 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TableComponent, Column, Filter } from './table.component';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Sort } from '@angular/material/sort';
 import { PageEvent } from '@angular/material/paginator';
+import { noMaterialAnimations } from '../../testing/noMaterialAnimations';
 
 describe('TableComponent', () => {
   let component: TableComponent<TestData>;
@@ -169,8 +169,8 @@ describe('TableComponent API responses', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [TableComponent, NoopAnimationsModule],
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
+      imports: [TableComponent],
+      providers: [noMaterialAnimations, provideHttpClient(withXhr()), provideHttpClientTesting()],
     });
     httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TableComponent<Row>);

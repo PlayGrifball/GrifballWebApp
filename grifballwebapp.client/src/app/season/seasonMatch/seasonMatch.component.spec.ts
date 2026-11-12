@@ -4,7 +4,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PULL_POLL_MS, SeasonMatchComponent } from './seasonMatch.component';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { provideAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
@@ -94,7 +93,6 @@ describe('SeasonMatchComponent', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
-        provideAnimations(),
         {
           provide: ActivatedRoute,
           useValue: {
@@ -1158,7 +1156,6 @@ describe('SeasonMatchComponent with manual entry', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),
-        provideAnimations(),
         { provide: AccountService, useValue: { isEventOrganizer: signal(true), isPlayer: signal(false) } }
       ]
     }).overrideComponent(SeasonMatchComponent, { remove: { imports: [VodListComponent] }, add: { imports: [StubVodListComponent] } }).compileComponents();

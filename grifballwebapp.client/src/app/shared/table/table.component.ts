@@ -3,7 +3,6 @@ import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { getPaginationResource } from '../getPaginationResource';
-import { animate, style, transition, trigger } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -18,17 +17,6 @@ import { MatButtonModule } from '@angular/material/button';
     RouterModule,
     MatButtonModule,
   ],
-  animations: [
-      trigger('rowsAnimation', [
-          transition(':enter', [
-              style({ opacity: .1 }),
-              animate('350ms', style({ opacity: 1 }))
-          ]),
-          transition(':leave', [
-              style({ display: 'none' })
-          ])
-      ])
-    ],
   templateUrl: './table.component.html',
   styleUrl: './table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

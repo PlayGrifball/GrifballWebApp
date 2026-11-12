@@ -10,7 +10,6 @@ import { AccountService } from '../../account.service';
 import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
 import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDialog.component';
 import { Subject } from 'rxjs';
-import { provideAnimations } from '@angular/platform-browser/animations';
 
 describe('PlayoffBracketComponent', () => {
   let component: PlayoffBracketComponent;
@@ -22,7 +21,6 @@ describe('PlayoffBracketComponent', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
-        provideAnimations(),
       ]
     }).compileComponents();
 
@@ -42,7 +40,7 @@ describe('PlayoffBracketComponent behaviour', () => {
   let dialog: jasmine.SpyObj<MatDialog>;
   let snackBar: jasmine.SpyObj<MatSnackBar>;
   let router: Router;
-  let viewer: { addLocale: jasmine.Spy; render: jasmine.Spy; onMatchClicked?: (m: any) => void };
+  let viewer: { addLocale: jasmine.Spy; render: jasmine.Spy };
   let originalViewer: unknown;
   let isEventOrganizer: WritableSignal<boolean>;
 
@@ -167,7 +165,8 @@ describe('PlayoffBracketComponent behaviour', () => {
     const navigate = spyOn(router, 'navigate');
     await component.render(viewerData([{ id: 1 }]));
 
-    viewer.onMatchClicked!({ id: 77 });
+    // The click handler goes in render's config (onMatchClick)
+    viewer.render.calls.mostRecent().args[1].onMatchClick({ id: 77 });
     expect(navigate).toHaveBeenCalledWith(['/seasonmatch/77']);
   });
 
