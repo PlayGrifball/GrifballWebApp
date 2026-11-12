@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
-import { ApiClientService } from '../../api/apiClient.service';
-import { isVideoID, vodDuration } from '../../api/vods';
+import { VodService } from '@api/services';
+import { getVods, isVideoID, vodDuration } from '../../api/vods';
 import type { VodDto } from '@api/models';
 import { EMBED_ORIGIN, VodListComponent } from './vodList.component';
 
@@ -21,11 +21,12 @@ const vod = (overrides: Partial<VodDto> = {}): VodDto => ({
 
 describe('VodListComponent', () => {
   let fixture: ComponentFixture<VodListComponent>;
-  let api: jasmine.SpyObj<ApiClientService>;
+  let api: jasmine.SpyObj<VodService>;
   const el = () => fixture.nativeElement as HTMLElement;
 
   async function create(scope: string, id: number, vods: VodDto[]): Promise<void> {
-    api.getVods.and.returnValue(of(vods));
+    for (const method of [api.getSeasonMatchVods, api.getSeasonVods, api.getTeamVods, api.getPlayerVods])
+      method.and.returnValue(of(vods));
     fixture = TestBed.createComponent(VodListComponent);
     fixture.componentRef.setInput('scope', scope);
     fixture.componentRef.setInput('id', id);
@@ -39,22 +40,22 @@ describe('VodListComponent', () => {
   }
 
   beforeEach(() => {
-    api = jasmine.createSpyObj('ApiClientService', ['getVods']);
+    api = jasmine.createSpyObj<VodService>('VodService', ['getSeasonMatchVods', 'getSeasonVods', 'getTeamVods', 'getPlayerVods']);
     TestBed.configureTestingModule({
       imports: [VodListComponent],
-      providers: [provideRouter([]), { provide: ApiClientService, useValue: api }],
+      providers: [provideRouter([]), { provide: VodService, useValue: api }],
     });
   });
 
   it("asks for its page's VODs and shows nothing when there are none", async () => {
     await create('team', 31, []);
 
-    expect(api.getVods).toHaveBeenCalledWith('team', 31);
+    expect(api.getTeamVods).toHaveBeenCalledWith({ teamID: 31 });
     expect(el().querySelector('section')).toBeNull();
   });
 
   it('shows nothing when they could not be loaded', async () => {
-    api.getVods.and.returnValue(throwError(() => new Error('down')));
+    api.getSeasonVods.and.returnValue(throwError(() => new Error('down')));
     fixture = TestBed.createComponent(VodListComponent);
     fixture.componentRef.setInput('scope', 'season');
     fixture.componentRef.setInput('id', 5);
@@ -118,6 +119,38 @@ describe('VodListComponent', () => {
     await settle();
     expect(el().querySelector('iframe')).toBeNull();
     expect(fixture.componentInstance.embedUrl()).toBeNull();
+  });
+});
+
+describe('getVods', () => {
+  let api: jasmine.SpyObj<VodService>;
+
+  beforeEach(() => {
+    api = jasmine.createSpyObj<VodService>('VodService', ['getSeasonMatchVods', 'getSeasonVods', 'getTeamVods', 'getPlayerVods']);
+  });
+
+  it("asks for a season match's VODs", () => {
+    api.getSeasonMatchVods.and.returnValue(of([]));
+    getVods(api, 'seasonMatch', 9);
+    expect(api.getSeasonMatchVods).toHaveBeenCalledWith({ seasonMatchID: 9 });
+  });
+
+  it("asks for a season's VODs", () => {
+    api.getSeasonVods.and.returnValue(of([]));
+    getVods(api, 'season', 5);
+    expect(api.getSeasonVods).toHaveBeenCalledWith({ seasonID: 5 });
+  });
+
+  it("asks for a team's VODs", () => {
+    api.getTeamVods.and.returnValue(of([]));
+    getVods(api, 'team', 31);
+    expect(api.getTeamVods).toHaveBeenCalledWith({ teamID: 31 });
+  });
+
+  it("asks for a player's VODs", () => {
+    api.getPlayerVods.and.returnValue(of([]));
+    getVods(api, 'player', 10);
+    expect(api.getPlayerVods).toHaveBeenCalledWith({ userID: 10 });
   });
 });
 
