@@ -16,14 +16,16 @@ describe('SeasonEditComponent', () => {
   const t = DateTime.fromISO('2026-05-01T19:00:00');
 
   /** As the API sends it: a season's dates as ISO strings, which the component parses into Luxon DateTimes. */
-  const seasonDto = (overrides: Partial<Omit<SeasonDto, 'publicAt'>> & { publicAt?: DateTime | null } = {}): SeasonDto => ({
-    seasonID: 4, seasonName: 'Season 4', gameVersionID: 6, leagueID: 1, division: null, format: 'LeagueSeason',
-    copyFromSeasonID: null, copyAvailability: false, copySignups: false, copyTeams: false, signupsCount: 0,
-    signupsOpen: t.toISO()!, signupsClose: t.toISO()!, draftStart: t.toISO()!, seasonStart: t.toISO()!, seasonEnd: t.toISO()!,
-    publicAt: null,
-    ...overrides,
-    publicAt: overrides.publicAt ? overrides.publicAt.toISO() : null,
-  } as SeasonDto);
+  const seasonDto = (overrides: Partial<Omit<SeasonDto, 'publicAt'>> & { publicAt?: DateTime | null } = {}): SeasonDto => {
+    const { publicAt, ...rest } = overrides;
+    return {
+      seasonID: 4, seasonName: 'Season 4', gameVersionID: 6, leagueID: 1, division: null, format: 'LeagueSeason',
+      copyFromSeasonID: null, copyAvailability: false, copySignups: false, copyTeams: false, signupsCount: 0,
+      signupsOpen: t.toISO()!, signupsClose: t.toISO()!, draftStart: t.toISO()!, seasonStart: t.toISO()!, seasonEnd: t.toISO()!,
+      publicAt: publicAt ? publicAt.toISO() : null,
+      ...rest,
+    } as SeasonDto;
+  };
 
   /** A parsed season, as the form holds it, for setting the model directly. */
   const season = (overrides: Partial<SeasonSettings> = {}): SeasonSettings => Object.assign(new SeasonSettings(), {
@@ -227,7 +229,7 @@ describe('SeasonEditComponent', () => {
 
     component.onSubmit();
 
-    const body = (api.upsertSeason.calls.mostRecent().args[0] as { body: SeasonSettings }).body;
+    const body = (api.upsertSeason.calls.mostRecent().args[0] as unknown as { body: SeasonSettings }).body;
     expect(body.publicAt?.toMillis()).toBe(publicAt.toMillis());
   });
 
