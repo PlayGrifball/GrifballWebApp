@@ -77,6 +77,12 @@ describe('client errors', () => {
     expect(isCancelledByBrowser(false, visible, { onLine: false } as Navigator)).toBeTrue();
   });
 
+  it('never describes an error with an empty message, which the API refuses', () => {
+    expect(describeError('').message.trim()).not.toBe('');
+    expect(describeError('   ').message.trim()).not.toBe('');
+    expect(describeError(new Error('')).message.trim()).not.toBe('');
+  });
+
   it('describes whatever was thrown', () => {
     const error = new TypeError('x is undefined');
     expect(describeError(error)).toEqual({ message: 'TypeError: x is undefined', stack: error.stack });

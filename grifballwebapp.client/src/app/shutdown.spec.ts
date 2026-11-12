@@ -47,6 +47,22 @@ describe('shutdown', () => {
       expect(exit).toHaveBeenCalledOnceWith(0);
     });
 
+    it('exits even when sending the telemetry hangs, inside Kubernetes\' 30 s', async () => {
+      flush.and.callFake(() => new Promise(() => undefined));
+      scheduled[0].run();
+      scheduled[1].run();
+      await settle();
+
+      expect(flush).toHaveBeenCalled();
+      expect(scheduled[2]).withContext('a cap on the flush').toBeDefined();
+      expect(scheduled[0].ms + scheduled[1].ms + scheduled[2].ms).toBeLessThanOrEqual(28_000);
+
+      scheduled[2].run();
+      await settle();
+
+      expect(exit).toHaveBeenCalledOnceWith(0);
+    });
+
     it(`exits after ${CLOSE_CAP_MS} ms when a request never finishes (an open WebSocket), and only once`, async () => {
       scheduled[0].run();
       expect(scheduled[1].ms).toBe(CLOSE_CAP_MS);

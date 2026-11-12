@@ -385,6 +385,73 @@ public class TelemetryQueryServiceTests
         Assert.That(int.Parse(Query(backends.Asked.Single(), "spss"), System.Globalization.CultureInfo.InvariantCulture), Is.GreaterThanOrEqualTo(3));
     }
 
+    // A page's trace and a browser call's, as the app's server (grif.request.kind) and the backend make them; the
+    // backend's spans come first, as Tempo may list them
+    private const string FrontendTraces = """
+        {"traces":[
+          {"traceID":"11111111111111111111111111111111","rootServiceName":"grif-prod","rootTraceName":"GET /*","startTimeUnixNano":"1793684837982413700","durationMs":40,
+           "spanSet":{"spans":[
+             {"spanID":"b000000000000001","attributes":[
+               {"key":"http.route","value":{"stringValue":"Season/Get"}},
+               {"key":"http.request.method","value":{"stringValue":"GET"}},
+               {"key":"http.response.status_code","value":{"intValue":"200"}}]},
+             {"spanID":"f000000000000001","attributes":[
+               {"key":"grif.request.kind","value":{"stringValue":"page"}},
+               {"key":"http.route","value":{"stringValue":"/*"}},
+               {"key":"http.request.method","value":{"stringValue":"GET"}},
+               {"key":"http.response.status_code","value":{"intValue":"500"}}]}],"matched":2}},
+          {"traceID":"22222222222222222222222222222222","rootServiceName":"grif-prod","rootTraceName":"POST /api/*","startTimeUnixNano":"1793684837000000000","durationMs":12,
+           "spanSet":{"spans":[
+             {"spanID":"f000000000000002","attributes":[
+               {"key":"grif.request.kind","value":{"stringValue":"api"}},
+               {"key":"http.route","value":{"stringValue":"/api/*"}},
+               {"key":"http.request.method","value":{"stringValue":"POST"}},
+               {"key":"http.response.status_code","value":{"intValue":"502"}}]},
+             {"spanID":"b000000000000002","attributes":[
+               {"key":"http.route","value":{"stringValue":"files/{*path}"}},
+               {"key":"http.request.method","value":{"stringValue":"POST"}},
+               {"key":"http.response.status_code","value":{"intValue":"500"}}]}],"matched":2}}
+        ]}
+        """;
+
+    [Test]
+    public async Task A_page_trace_shows_the_pages_own_route_and_status_not_a_call_its_render_made()
+    {
+        var traces = await Service(new FakeBackends(_ => Json(FrontendTraces))).Traces(30, false, null, 500, default);
+
+        var page = traces.Single(t => t.TraceId == "11111111111111111111111111111111");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(page.RootName, Is.EqualTo("GET /*"));
+            Assert.That(page.Route, Is.EqualTo("/*"));
+            Assert.That(page.StatusCode, Is.EqualTo(500));
+        }
+    }
+
+    [Test]
+    public async Task A_browser_calls_trace_shows_the_backends_route_and_status_whatever_the_route_holds()
+    {
+        var traces = await Service(new FakeBackends(_ => Json(FrontendTraces))).Traces(30, false, null, 500, default);
+
+        var call = traces.Single(t => t.TraceId == "22222222222222222222222222222222");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(call.RootName, Is.EqualTo("POST files/{*path}"));
+            Assert.That(call.Route, Is.EqualTo("files/{*path}"));
+            Assert.That(call.StatusCode, Is.EqualTo(500));
+        }
+    }
+
+    [Test]
+    public async Task Traces_search_selects_which_part_of_the_app_each_span_is_from()
+    {
+        var backends = new FakeBackends(_ => Json("""{"traces":[]}"""));
+
+        await Service(backends).Traces(30, false, null, 500, default);
+
+        Assert.That(Query(backends.Asked.Single(), "q"), Does.Contain("span.grif.request.kind").And.Contain("span.http.request.method"));
+    }
+
     [Test]
     public async Task Traces_search_with_no_traces_is_empty()
     {
