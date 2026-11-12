@@ -170,11 +170,12 @@ public class Program
             option.SchemaFilter<EveryPropertyRequiredFilter>();
             option.OperationFilter<JsonOnlyOperationFilter>();
 
-            // Controller actions' <summary>/<param>/<returns>/<remarks> (GenerateDocumentationFile, the .csproj),
-            // into the OpenAPI document. The file sits next to this assembly in every environment, including the
-            // Docker publish (GenerateDocumentationFile copies it there by default).
-            var xmlFile = Path.Combine(AppContext.BaseDirectory, $"{typeof(Program).Assembly.GetName().Name}.xml");
-            option.IncludeXmlComments(xmlFile);
+            // Controller actions' <summary>/<param>/<returns>/<remarks>, and the DTOs' and enums' <summary> (the
+            // Application's and Domain's), into the OpenAPI document (GenerateDocumentationFile, each .csproj). Each
+            // file sits next to this assembly in every environment, the Docker publish included: a project reference
+            // copies its XML doc file with it.
+            foreach (var assembly in new[] { typeof(Program).Assembly, typeof(GrifballWebApp.Application.Dtos.PaginationResult<>).Assembly, typeof(GrifballWebApp.Domain.League.Season).Assembly })
+                option.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{assembly.GetName().Name}.xml"));
 
             option.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
             {

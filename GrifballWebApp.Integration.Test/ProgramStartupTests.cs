@@ -720,6 +720,9 @@ public class ProgramStartupTests
             // The actions' XML doc <summary> (GenerateDocumentationFile, IncludeXmlComments) flows into the document.
             var seasonsGet = document.RootElement.GetProperty("paths").GetProperty("/seasons").GetProperty("get");
             Assert.That(seasonsGet.TryGetProperty("summary", out var summary) && !string.IsNullOrWhiteSpace(summary.GetString()), Is.True, "GET /seasons has a summary");
+            // A DTO's <summary> (the Application's XML doc file) too, for the client generated from the document
+            var name = document.RootElement.GetProperty("components").GetProperty("schemas").GetProperty("QuickSearchPlayerDto").GetProperty("properties").GetProperty("name");
+            Assert.That(name.TryGetProperty("description", out var description) && !string.IsNullOrWhiteSpace(description.GetString()), Is.True, "QuickSearchPlayerDto.name has a description");
         }
     }
 
