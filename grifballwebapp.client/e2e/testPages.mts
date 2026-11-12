@@ -1045,10 +1045,9 @@ export async function closeOverlay(page: Page, overlay: Overlay, opened: Locator
  *    fonts or a sign-in (ResizeObserver, then a frame, then change detection), which is no animation, and on a slow
  *    runner later still. Past LAYOUT_FRAMES frames it fails: a header that keeps moving is a problem of its own.
  */
-export async function settled(page: Page): Promise<void> {
-  const ANIMATIONS_MS = 10_000;
-  const STILL_FRAMES = 10;
-  const LAYOUT_FRAMES = 120;
+export async function settled(page: Page, limits: { animationsMs?: number; stillFrames?: number; layoutFrames?: number } = {}): Promise<void> {
+  // The limits are for settled.spec.ts; every other test takes these
+  const { animationsMs: ANIMATIONS_MS = 10_000, stillFrames: STILL_FRAMES = 10, layoutFrames: LAYOUT_FRAMES = 120 } = limits;
   await page.evaluate(() => document.fonts.ready);
   await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
   try {

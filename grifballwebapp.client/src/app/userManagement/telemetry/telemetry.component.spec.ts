@@ -54,6 +54,8 @@ describe('telemetry page helpers', () => {
 
   it('rounds the axis up to a round number', () => {
     expect([0, -1, 0.7, 3, 7, 12, 240, 1000].map(niceMax)).toEqual([1, 1, 1, 5, 10, 20, 250, 1000]);
+    // No number at all: the axis still gets a top
+    expect(niceMax(Number.NaN)).toBe(1);
   });
 });
 
