@@ -19,37 +19,48 @@ public class RankSeeder
         if (await _context.Ranks.AnyAsync(ct))
             return;
 
-        var ranks = new List<Rank>()
-        {
-            Rank.Create("Iron 2", 99, "#4D5458", "iron", await _loader.LoadIcon("Iron2.png", ct)),
-            Rank.Create("Iron 1", 199, "#4D5458", "iron", await _loader.LoadIcon("iron1.png", ct)),
-            Rank.Create("Bronze 3", 299, "#CD7F32", "bronze", await _loader.LoadIcon("Bronze3.png", ct)),
-            Rank.Create("Bronze 2", 424, "#CD7F32", "bronze", await _loader.LoadIcon("Bronze2.png", ct)),
-            Rank.Create("Bronze 1", 549, "#CD7F32", "bronze", await _loader.LoadIcon("Bronze1.png", ct)),
-            Rank.Create("Silver 3", 699, "#C0C0C0", "silver", await _loader.LoadIcon("Silver3.png", ct)),
-            Rank.Create("Silver 2", 849, "#C0C0C0", "silver", await _loader.LoadIcon("Silver2.png", ct)),
-            Rank.Create("Silver 1", 999, "#C0C0C0", "silver", await _loader.LoadIcon("Silver1.png", ct)),
-            Rank.Create("Gold 3", 1149, "#FFD700", "gold", await _loader.LoadIcon("gold3.png", ct)),
-            Rank.Create("Gold 2", 1299, "#FFD700", "gold", await _loader.LoadIcon("Gold2.png", ct)),
-            Rank.Create("Gold 1", 1449, "#FFD700", "gold", await _loader.LoadIcon("Gold1.png", ct)),
-            Rank.Create("Platinum 3", 1649, "#007f81", "platinum", await _loader.LoadIcon("Platinum3.png", ct)),
-            Rank.Create("Platinum 2", 1849, "#007f81", "platinum", await _loader.LoadIcon("Platinum2.png", ct)),
-            Rank.Create("Platinum 1", 2049, "#007f81", "platinum", await _loader.LoadIcon("Platinum1.png", ct)),
-            Rank.Create("Diamond 3", 2274, "#445fa5", "diamond", await _loader.LoadIcon("Diamond3.png", ct)),
-            Rank.Create("Diamond 2", 2499, "#445fa5", "diamond", await _loader.LoadIcon("Diamond2.png", ct)),
-            Rank.Create("Diamond 1", 2749, "#445fa5", "diamond", await _loader.LoadIcon("Diamond1.png", ct)),
-            Rank.Create("Masters 3", 2999, "#3BA55C", "masters", await _loader.LoadIcon("Masters3.png", ct)),
-            Rank.Create("Masters 2", 3249, "#3BA55C", "masters", await _loader.LoadIcon("Masters2.png", ct)),
-            Rank.Create("Masters 1", 3499, "#3BA55C", "masters", await _loader.LoadIcon("Masters1.png", ct)),
-            Rank.Create("Challenger", 3500, "#3BA55C", "challenger", await _loader.LoadIcon("Challenger.png", ct))
-        };
+        var ranks = await BuildRanksAsync(ct);
 
         _context.Ranks.AddRange(ranks);
         await _context.SaveChangesAsync(ct);
     }
 
-    
+    /// <summary>Every rank the seeder writes, lowest first, with the icon file each loads. iron1.png and gold3.png are
+    /// lowercase, unlike the rest: on Linux the icon folder's files have to match that case exactly.</summary>
+    internal static readonly IReadOnlyList<RankDefinition> Ranks =
+    [
+        new("Iron 2", 99, "#4D5458", "iron", "Iron2.png"),
+        new("Iron 1", 199, "#4D5458", "iron", "iron1.png"),
+        new("Bronze 3", 299, "#CD7F32", "bronze", "Bronze3.png"),
+        new("Bronze 2", 424, "#CD7F32", "bronze", "Bronze2.png"),
+        new("Bronze 1", 549, "#CD7F32", "bronze", "Bronze1.png"),
+        new("Silver 3", 699, "#C0C0C0", "silver", "Silver3.png"),
+        new("Silver 2", 849, "#C0C0C0", "silver", "Silver2.png"),
+        new("Silver 1", 999, "#C0C0C0", "silver", "Silver1.png"),
+        new("Gold 3", 1149, "#FFD700", "gold", "gold3.png"),
+        new("Gold 2", 1299, "#FFD700", "gold", "Gold2.png"),
+        new("Gold 1", 1449, "#FFD700", "gold", "Gold1.png"),
+        new("Platinum 3", 1649, "#007f81", "platinum", "Platinum3.png"),
+        new("Platinum 2", 1849, "#007f81", "platinum", "Platinum2.png"),
+        new("Platinum 1", 2049, "#007f81", "platinum", "Platinum1.png"),
+        new("Diamond 3", 2274, "#445fa5", "diamond", "Diamond3.png"),
+        new("Diamond 2", 2499, "#445fa5", "diamond", "Diamond2.png"),
+        new("Diamond 1", 2749, "#445fa5", "diamond", "Diamond1.png"),
+        new("Masters 3", 2999, "#3BA55C", "masters", "Masters3.png"),
+        new("Masters 2", 3249, "#3BA55C", "masters", "Masters2.png"),
+        new("Masters 1", 3499, "#3BA55C", "masters", "Masters1.png"),
+        new("Challenger", 3500, "#3BA55C", "challenger", "Challenger.png"),
+    ];
+
+    /// <summary>The ranks, with their icons loaded through <see cref="_loader"/> all at once</summary>
+    internal async Task<List<Rank>> BuildRanksAsync(CancellationToken ct = default)
+    {
+        var icons = await Task.WhenAll(Ranks.Select(rank => _loader.LoadIcon(rank.IconFile, ct)));
+        return [.. Ranks.Select((rank, i) => Rank.Create(rank.Name, rank.MmrThreshold, rank.Color, rank.Description, icons[i]))];
+    }
 }
+
+internal sealed record RankDefinition(string Name, int MmrThreshold, string Color, string Description, string IconFile);
 
 public interface IIconLoader
 {
