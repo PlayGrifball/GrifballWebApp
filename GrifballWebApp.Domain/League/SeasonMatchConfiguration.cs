@@ -32,6 +32,13 @@ public partial class SeasonMatchConfiguration : IEntityTypeConfiguration<SeasonM
         $"(HomeTeamResult IS NULL OR HomeTeamResult <> {Bye} OR HomeTeamID IS NULL)"
         + $" AND (AwayTeamResult IS NULL OR AwayTeamResult <> {Bye} OR AwayTeamID IS NULL)";
 
+    /// <summary>At least 1 side is null; if both are not, they must not be the same team.</summary>
+    public static readonly string MustBeDifferentTeams = @"
+(HomeTeamID IS NULL) OR
+(AwayTeamID IS NULL) OR
+(HomeTeamID != AwayTeamID)
+".Replace(Environment.NewLine, " ").Trim(); // Do not put new lines in SQL constraints, it will cause PendingModelChangesWarning
+
     public void Configure(EntityTypeBuilder<SeasonMatch> entity)
     {
         entity.ToTable("SeasonMatches", "Event", tb =>
@@ -39,11 +46,7 @@ public partial class SeasonMatchConfiguration : IEntityTypeConfiguration<SeasonM
             tb.IsTemporal();
 
             // Make sure that at least 1 team is null. If both are not null then they must not be the same
-            tb.HasCheckConstraint("CK_Event_SeasonMatches_MustBeDifferentTeams", @"
-(HomeTeamID IS NULL) OR
-(AwayTeamID IS NULL) OR
-(HomeTeamID != AwayTeamID)
-".Replace(Environment.NewLine, " ").Trim()); // Do not put new lines in SQL constraints, it will cause PendingModelChangesWarning
+            tb.HasCheckConstraint("CK_Event_SeasonMatches_MustBeDifferentTeams", MustBeDifferentTeams);
 
             // Each side's result pairs with the other's only in the legal ways, and a BYE side has no team
             tb.HasCheckConstraint("CK_Event_SeasonMatches_LegalResults", LegalResults);
