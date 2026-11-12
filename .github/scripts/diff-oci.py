@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""diff-oci.py <a.tar> <b.tar>: where two builds of an image differ, when the reproducible job finds they do.
+"""diff-oci.py <a.tar> <b.tar>: where two builds of an image differ, when reproducible.yml finds they do.
 
 Both are OCI layouts (docker buildx build --output type=oci). Prints the configs' differences, then for each layer
 that differs, every file whose content, mode, owner, size or time differs, so the cause can be fixed at its source.
