@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GrifballWebApp.Convert.Test;
@@ -61,38 +62,126 @@ public class ConvertCommandTests
     [Test]
     public async Task Command_WhenTheConversionSucceeds_ReturnsZero()
     {
+        using var cancellation = new CancellationTokenSource();
+        (DatabaseEndpoint Source, DatabaseEndpoint Target, CancellationToken Token)? call = null;
+
         var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), NullLoggerFactory.Instance,
-            convert: (source, target, logger, ct) =>
+            (source, target, ct) =>
             {
-                using (Assert.EnterMultipleScope())
-                {
-                    Assert.That((source.Provider, source.ConnectionString), Is.EqualTo((DatabaseProvider.SqlServer, "source")));
-                    Assert.That((target.Provider, target.ConnectionString), Is.EqualTo((DatabaseProvider.Postgres, "target")));
-                }
+                call = (source, target, ct);
                 return Task.CompletedTask;
             },
+            cancellation.Token);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(code, Is.Zero);
+            Assert.That(call, Is.Not.Null, "the conversion ran");
+            Assert.That((call?.Source.Provider, call?.Source.ConnectionString), Is.EqualTo((DatabaseProvider.SqlServer, "source")));
+            Assert.That((call?.Target.Provider, call?.Target.ConnectionString), Is.EqualTo((DatabaseProvider.Postgres, "target")));
+            Assert.That(call?.Token, Is.EqualTo(cancellation.Token), "the caller's token is passed on");
+        }
+    }
+
+    // A refusal is the operator's to fix, not a crash: its message alone, no stack trace
+    [Test]
+    public async Task Command_WhenTheConversionRefuses_LogsTheReasonAndReturnsOne()
+    {
+        using var logs = new RecordingLoggerProvider();
+        using var loggerFactory = LoggerFactory.Create(logging => logging.AddProvider(logs));
+
+        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), loggerFactory,
+            (_, _, _) => Task.FromException(new ConversionException("The target database already has tables.")),
             CancellationToken.None);
 
-        Assert.That(code, Is.Zero);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(code, Is.EqualTo(1));
+            var error = logs.Entries.Single(e => e.Level == LogLevel.Error);
+            Assert.That(error.Message, Is.EqualTo("The target database already has tables."));
+            Assert.That(error.Exception, Is.Null);
+        }
     }
 
     [Test]
-    public async Task Command_WhenTheConversionRefuses_ReturnsOne()
+    public async Task Command_WhenTheConversionThrows_LogsTheExceptionAndReturnsOne()
+    {
+        using var logs = new RecordingLoggerProvider();
+        using var loggerFactory = LoggerFactory.Create(logging => logging.AddProvider(logs));
+        var failure = new InvalidOperationException("boom");
+
+        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), loggerFactory,
+            (_, _, _) => Task.FromException(failure),
+            CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(code, Is.EqualTo(1));
+            var error = logs.Entries.Single(e => e.Level == LogLevel.Error);
+            Assert.That(error.Message, Is.EqualTo("The conversion failed"));
+            Assert.That(error.Exception, Is.SameAs(failure));
+        }
+    }
+
+    // Ctrl+C (MainAsync cancels the token) stops the conversion: a warning and 130, not a failure with a stack trace
+    [Test]
+    public async Task Command_WhenStopped_LogsAWarningAndReturns130()
+    {
+        using var logs = new RecordingLoggerProvider();
+        using var loggerFactory = LoggerFactory.Create(logging => logging.AddProvider(logs));
+        using var cancellation = new CancellationTokenSource();
+
+        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), loggerFactory,
+            async (_, _, ct) =>
+            {
+                await cancellation.CancelAsync();
+                ct.ThrowIfCancellationRequested();
+            },
+            cancellation.Token);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(code, Is.EqualTo(130));
+            Assert.That(logs.Entries.Select(e => (e.Level, e.Message)), Does.Contain((LogLevel.Warning, "The conversion was stopped")));
+            Assert.That(logs.Entries.Where(e => e.Level == LogLevel.Error), Is.Empty);
+        }
+    }
+
+    // A cancellation the caller didn't ask for (a timeout inside the conversion) is a failure like any other
+    [Test]
+    public async Task Command_WhenTheConversionCancelsItself_ReturnsOne()
     {
         var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), NullLoggerFactory.Instance,
-            convert: (_, _, _, _) => throw new ConversionException("The target database already has tables."),
+            (_, _, _) => Task.FromException(new TaskCanceledException("timed out")),
             CancellationToken.None);
 
         Assert.That(code, Is.EqualTo(1));
     }
 
-    [Test]
-    public async Task Command_WhenTheConversionThrows_ReturnsOne()
-    {
-        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), NullLoggerFactory.Instance,
-            convert: (_, _, _, _) => throw new InvalidOperationException("boom"),
-            CancellationToken.None);
+    private sealed record LogEntry(LogLevel Level, string Message, Exception? Exception);
 
-        Assert.That(code, Is.EqualTo(1));
+    /// <summary>Every entry logged through it, in order</summary>
+    private sealed class RecordingLoggerProvider : ILoggerProvider
+    {
+        private readonly System.Collections.Concurrent.ConcurrentQueue<LogEntry> _entries = new();
+
+        public IReadOnlyList<LogEntry> Entries => [.. _entries];
+
+        public ILogger CreateLogger(string categoryName) => new Logger(_entries);
+
+        public void Dispose()
+        {
+            // Nothing to release
+        }
+
+        private sealed class Logger(System.Collections.Concurrent.ConcurrentQueue<LogEntry> entries) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+                => entries.Enqueue(new LogEntry(logLevel, formatter(state, exception), exception));
+        }
     }
 }

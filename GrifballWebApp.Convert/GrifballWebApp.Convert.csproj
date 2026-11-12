@@ -19,7 +19,7 @@
     <ProjectReference Include="..\GrifballWebApp.Migrations.SqlServer\GrifballWebApp.Migrations.SqlServer.csproj" />
   </ItemGroup>
 
-  <!-- RunAsync's convert seam (DatabaseConverter is sealed; a unit test gives its own) is internal. -->
+  <!-- The unit tests give RunAsync their own conversion (DatabaseConverter is sealed and needs real databases) -->
   <ItemGroup>
     <InternalsVisibleTo Include="GrifballWebApp.Convert.Test" />
   </ItemGroup>

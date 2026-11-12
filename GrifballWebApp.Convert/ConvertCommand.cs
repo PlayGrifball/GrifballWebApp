@@ -13,7 +13,8 @@ namespace GrifballWebApp.Convert;
 ///   the app's own, Database:Provider and ConnectionStrings:GrifballWebApp, as the migration bundles
 ///   take them.
 /// Exit code 0 once the copy is committed and checked, 1 if it refused or failed (the target is then
-/// dropped if the conversion created it, or emptied again if it was there), 2 for missing or wrong settings.
+/// dropped if the conversion created it, or emptied again if it was there), 2 for missing or wrong settings, 130 when
+/// stopped (Ctrl+C).
 /// </summary>
 public static partial class ConvertCommand
 {
@@ -36,17 +37,17 @@ public static partial class ConvertCommand
     }
 
     public static Task<int> RunAsync(IConfiguration configuration, ILoggerFactory loggerFactory, CancellationToken cancellationToken = default)
-        => RunAsync(configuration, loggerFactory, convert: null, cancellationToken);
+        => RunAsync(configuration, loggerFactory,
+            (source, target, ct) => new DatabaseConverter(loggerFactory.CreateLogger<DatabaseConverter>()).ConvertAsync(source, target, ct),
+            cancellationToken);
 
     /// <summary>
-    /// <paramref name="convert"/> is the real conversion (a new DatabaseConverter) unless given: a database-free unit
-    /// test gives its own, since DatabaseConverter is sealed (no interface a test double could stand in for) and always
-    /// needs a real database to run.
+    /// <paramref name="convert"/> runs the conversion: the public overload's is a DatabaseConverter, which is sealed and
+    /// needs real databases, so the unit tests give their own (the integration tests run the real one).
     /// </summary>
     internal static async Task<int> RunAsync(IConfiguration configuration, ILoggerFactory loggerFactory,
-        Func<DatabaseEndpoint, DatabaseEndpoint, ILogger<DatabaseConverter>, CancellationToken, Task>? convert, CancellationToken cancellationToken)
+        Func<DatabaseEndpoint, DatabaseEndpoint, CancellationToken, Task> convert, CancellationToken cancellationToken)
     {
-        convert ??= static (source, target, logger, ct) => new DatabaseConverter(logger).ConvertAsync(source, target, ct);
         var logger = loggerFactory.CreateLogger(typeof(ConvertCommand));
         DatabaseEndpoint source, target;
         try
@@ -63,8 +64,13 @@ public static partial class ConvertCommand
         LogConverting(logger, source.Provider, target.Provider);
         try
         {
-            await convert(source, target, loggerFactory.CreateLogger<DatabaseConverter>(), cancellationToken);
+            await convert(source, target, cancellationToken);
             return 0;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            LogStopped(logger);
+            return 130;
         }
         catch (ConversionException e)
         {
@@ -95,4 +101,7 @@ public static partial class ConvertCommand
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Converting a {Source} database into a new {Target} one")]
     private static partial void LogConverting(ILogger logger, DatabaseProvider source, DatabaseProvider target);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The conversion was stopped")]
+    private static partial void LogStopped(ILogger logger);
 }
