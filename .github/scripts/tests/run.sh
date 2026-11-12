@@ -334,6 +334,11 @@ else bad "layer-coverage table:"; sed 's/^/  | /' "$cov/table.md"; fi
 printf '{"GrifballWebApp.Domain":{"lines":4,"linesCovered":1,"branches":2,"branchesCovered":1}}\n' > "$cov/base.json"
 if node "$scripts/layer-coverage.mjs" render "$cov/layers.json" "$cov/base.json" | grep -qF '| Domain | 50.0% (+25.0) · 2/4 | 50.0% (±0) |'
 then ok "layer-coverage: change from master"; else bad "layer-coverage: no change from master shown"; fi
+# A layer master had at the target that drops below it fails; one still below it doesn't
+printf '{"GrifballWebApp.Domain":{"lines":4,"linesCovered":3,"branches":2,"branchesCovered":1}}\n' > "$cov/base.json"
+if node "$scripts/layer-coverage.mjs" render "$cov/layers.json" "$cov/base.json" > "$cov/table.md"; then bad "layer-coverage: a drop below the target passed"
+elif grep -qF '**Domain dropped below 70%**' "$cov/table.md"; then ok "layer-coverage: a drop below the target fails"
+else bad "layer-coverage: the drop isn't named:"; sed 's/^/  | /' "$cov/table.md"; fi
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

@@ -6,7 +6,9 @@
 //   collect <dir> <out.json>: every <dir>/<Project>.Test.cobertura.xml (one per unit test project, as dotnet-tests.yml
 //     copies them) to one JSON file: { "<Layer>": { lines, linesCovered, branches, branchesCovered } }. A project whose
 //     layer isn't in its report (the architecture tests) is left out.
-//   render <current.json> [<base.json>] [<sha>]: the Markdown table, against master's numbers when there are any.
+//   render <current.json> [<base.json>] [<sha>]: the Markdown table, against master's numbers when there are any. Exits 1
+//     when a layer master had at the target is now below it: once a layer reaches the target it stays there (a layer
+//     still below it only reports).
 //
 // Env: LAYER_COVERAGE_TARGET, the line coverage every layer should reach (percent, default 70).
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
@@ -92,6 +94,7 @@ export function render(current, base, sha) {
     '|---|---|---|---|',
   ];
   let below = 0;
+  const dropped = [];
   for (const [layer, c] of Object.entries(current).sort(([a], [b]) => a.localeCompare(b))) {
     const lines = percent(c.linesCovered, c.lines);
     const branches = percent(c.branchesCovered, c.branches);
@@ -100,13 +103,18 @@ export function render(current, base, sha) {
     const branchesWas = was ? percent(was.branchesCovered, was.branches) : null;
     const met = lines !== null && lines >= target;
     if (!met) below++;
+    const wasMet = linesWas !== null && linesWas >= target;
+    if (wasMet && !met) dropped.push(layer.replace(/^GrifballWebApp\./, ''));
     out.push(
       `| ${layer.replace(/^GrifballWebApp\./, '')} | ${show(lines)}${delta(lines, linesWas)} · ${c.linesCovered}/${c.lines} | ` +
-        `${show(branches)}${delta(branches, branchesWas)} | ${met ? '✅' : `❌ ${Math.ceil((target / 100) * c.lines - c.linesCovered)} lines short`} |`,
+        `${show(branches)}${delta(branches, branchesWas)} | ${met ? '✅' : `${wasMet ? '⛔ was at target on master,' : '❌'} ${Math.ceil((target / 100) * c.lines - c.linesCovered)} lines short`} |`,
     );
   }
   out.push('', below === 0 ? `Every layer is at ${target}% or more.` : `${below} layer(s) below ${target}%.`);
-  return out.join('\n');
+  if (dropped.length) {
+    out.push('', `**${dropped.join(', ')} dropped below ${target}%**: a layer at the target on master has to stay there.`);
+  }
+  return { markdown: out.join('\n'), dropped };
 }
 
 const [mode, ...args] = process.argv.slice(2);
@@ -114,7 +122,9 @@ if (mode === 'collect') {
   writeFileSync(args[1], `${JSON.stringify(collect(args[0]), null, 2)}\n`);
 } else if (mode === 'render') {
   const base = args[1] && existsSync(args[1]) ? JSON.parse(readFileSync(args[1], 'utf8')) : null;
-  console.log(render(JSON.parse(readFileSync(args[0], 'utf8')), base, args[2]));
+  const { markdown, dropped } = render(JSON.parse(readFileSync(args[0], 'utf8')), base, args[2]);
+  console.log(markdown);
+  if (dropped.length) process.exitCode = 1;
 } else if (mode !== undefined) {
   console.error('Usage: layer-coverage.mjs collect <dir> <out.json> | render <current.json> [<base.json>] [<sha>]');
   process.exit(2);

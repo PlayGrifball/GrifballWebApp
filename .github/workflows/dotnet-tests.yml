@@ -254,9 +254,9 @@ jobs:
         fail_ci_if_error: true
 
   # On a PR that changes the .NET code, one comment with each layer's unit test coverage (and its change from master's
-  # last run), which each run updates in place
+  # last run), which each run updates in place. Fails when a layer master had at the target (70% of lines) drops below it.
   layer-coverage:
-    name: Coverage by layer comment
+    name: Coverage by layer
     needs: [changes, test]
     if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
@@ -301,12 +301,15 @@ jobs:
         SHA: ${{ github.event.pull_request.head.sha }}
       run: |
         marker='<!-- layer-coverage -->'
+        # A layer that dropped below the target fails the job, after the comment says which
+        status=0
+        table=$(node .github/scripts/layer-coverage.mjs render current/layers.json base/layers.json "$SHA") || status=$?
         body="$marker
-        $(node .github/scripts/layer-coverage.mjs render current/layers.json base/layers.json "$SHA")"
+        $table"
+        echo "$table" >> "$GITHUB_STEP_SUMMARY"
         # Only on PRs from this repo: a fork's PR gets a read-only token
         if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
-          echo "$body" >> "$GITHUB_STEP_SUMMARY"
-          exit 0
+          exit $status
         fi
         existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
           --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\")))][0].id // empty" | head -n1)
@@ -315,3 +318,4 @@ jobs:
         else
           gh pr comment "$PR" -R "${{ github.repository }}" --body "$body"
         fi
+        exit $status
