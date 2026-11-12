@@ -28,7 +28,7 @@ import { apiUrl } from './app/apiUrl';
 import { forLog } from './app/forLog';
 import { pageCacheHeaders } from './app/pageCache';
 import { serverTelemetrySettings } from './app/serverTelemetry';
-import { startServerTelemetry } from './server/telemetry';
+import { startServerTelemetry } from './server.telemetry';
 
 const telemetry = startServerTelemetry(serverTelemetrySettings(process.env));
 

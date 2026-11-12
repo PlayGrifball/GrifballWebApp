@@ -1,4 +1,4 @@
-// The app's server's telemetry (src/server/telemetry.ts), the parts that need no Node: its settings, the
+// The app's server's telemetry (src/server.telemetry.ts), the parts that need no Node: its settings, the
 // requests it traces, and its log lines. Kept here, apart from the OpenTelemetry SDK, so they are tested
 // like the rest of the app.
 

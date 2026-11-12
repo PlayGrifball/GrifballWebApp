@@ -41,7 +41,7 @@ import {
   routeOf,
   serverTimingHeader,
   spanName,
-} from '../app/serverTelemetry';
+} from './app/serverTelemetry';
 
 const SCOPE = 'grifballwebapp.client';
 
