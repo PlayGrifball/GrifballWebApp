@@ -132,11 +132,16 @@ export function requestKind(path: string): RequestKind {
     return 'signin';
   // One of the build's kinds of file (main-<hash>.js, media/x.woff2, favicon.ico), not just any dot: a
   // page's path can have one (a name in it)
-  return FILE_EXTENSION.test(path) ? 'file' : 'page';
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  const dot = name.lastIndexOf('.');
+  return dot > 0 && FILE_EXTENSIONS.has(name.slice(dot + 1).toLowerCase()) ? 'file' : 'page';
 }
 
 /** The extensions of what the build and src/assets serve. */
-export const FILE_EXTENSION = /\.(js|mjs|css|map|html|ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|otf|txt|xml|json|webmanifest)$/i;
+export const FILE_EXTENSIONS: ReadonlySet<string> = new Set([
+  'js', 'mjs', 'css', 'map', 'html', 'ico', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'avif', 'woff', 'woff2', 'ttf', 'otf',
+  'txt', 'xml', 'json', 'webmanifest',
+]);
 
 /**
  * The span attribute that says what a request of the app's server is (a RequestKind): the backend's Telemetry page

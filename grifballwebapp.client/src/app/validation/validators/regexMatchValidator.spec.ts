@@ -4,7 +4,7 @@ import { regexMatchInvalidValidator, regexMatchValidValidator } from './regexMat
 describe('regexMatchValidators', () => {
   describe('regexMatchInvalidValidator', () => {
     it('should return error when regex matches (value is invalid)', () => {
-      const regex = /[0-9]/;
+      const regex = /\d/;
       const control = new FormControl('123');
       const validator = regexMatchInvalidValidator(regex, 'Must not contain numbers');
       
@@ -14,7 +14,7 @@ describe('regexMatchValidators', () => {
     });
 
     it('should return null when regex does not match (value is valid)', () => {
-      const regex = /[0-9]/;
+      const regex = /\d/;
       const control = new FormControl('abc');
       const validator = regexMatchInvalidValidator(regex, 'Must not contain numbers');
       
@@ -24,7 +24,7 @@ describe('regexMatchValidators', () => {
     });
 
     it('should handle empty string', () => {
-      const regex = /[0-9]/;
+      const regex = /\d/;
       const control = new FormControl('');
       const validator = regexMatchInvalidValidator(regex, 'Must not contain numbers');
       
@@ -56,7 +56,7 @@ describe('regexMatchValidators', () => {
     });
 
     it('should handle complex password regex', () => {
-      const regex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{12,}$/;
+      const regex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?\d)(?=.*?[#?!@$%^&*-]).{12,}$/;
       const strongPassword = 'StrongPass123!@#';
       const weakPassword = 'weak';
       

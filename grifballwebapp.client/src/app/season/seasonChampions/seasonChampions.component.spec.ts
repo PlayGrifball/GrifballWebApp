@@ -29,7 +29,7 @@ describe('SeasonChampionsComponent', () => {
 
   it('marks the captain', () => {
     const captains = el().querySelectorAll('.champion__captain');
-    expect(captains.length).toBe(1);
+    expect(captains).toHaveSize(1);
     expect(captains[0].parentElement!.textContent).toContain('Captain R');
   });
 });

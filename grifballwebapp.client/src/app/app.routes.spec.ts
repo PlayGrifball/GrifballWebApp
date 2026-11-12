@@ -264,7 +264,8 @@ describe('APP_ROUTES lazy loading', () => {
   };
 
   it('covers every route in the table above', () => {
-    expect(APP_ROUTES.map(r => r.path!).sort()).toEqual(Object.keys(expected).sort());
+    const byName = (a: string, b: string) => a.localeCompare(b);
+    expect(APP_ROUTES.map(r => r.path!).sort(byName)).toEqual(Object.keys(expected).sort(byName));
   });
 
   for (const [path, component] of Object.entries(expected)) {

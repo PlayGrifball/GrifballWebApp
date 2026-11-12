@@ -1,5 +1,4 @@
 import { CaptainAddedResponseDto } from '../api/dtos/captainPlacementDto';
-import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TeamBuilderComponent } from './teamBuilder.component';
 import { provideRouter } from '@angular/router';
@@ -413,7 +412,7 @@ describe('TeamBuilderComponent', () => {
 
       expect(result.teamName).toBe('Existing Team');
       expect(result.captain.personID).toBe(2);
-      expect(result.players.length).toBe(1);
+      expect(result.players).toHaveSize(1);
     });
 
     it('should throw error for invalid type', () => {
@@ -885,7 +884,7 @@ describe('TeamBuilderComponent', () => {
       component.onDropInTeam({ data: {}, dropEffect: 'none' } as DndDropEvent);
       component.onDropInPool({ data: {}, dropEffect: 'link' } as DndDropEvent);
       component.onDropPickInTeam({ data: {}, dropEffect: 'none' } as DndDropEvent, component.teams()[0]);
-      component.onDropPickInTeam(drop({}), undefined);
+      component.onDropPickInTeam(drop({}));
       expect({ teams: component.teams(), pool: component.playerPool() }).toEqual(before);
     });
 
@@ -1166,7 +1165,7 @@ describe('TeamBuilderComponent', () => {
 
     it('renders one card per team, in order', () => {
       const cards = teamCards();
-      expect(cards.length).toBe(2);
+      expect(cards).toHaveSize(2);
       expect(cards[0].querySelector('mat-card-title')?.textContent).toContain('1 - Alpha');
       expect(cards[0].querySelector('mat-card-subtitle')?.textContent).toContain('Captain: Cap 1');
       expect(cards[1].querySelector('mat-card-title')?.textContent).toContain('2 - Bravo');
@@ -1176,7 +1175,7 @@ describe('TeamBuilderComponent', () => {
       const [alpha, bravo] = teamCards();
       const alphaPlayers = Array.from(alpha.querySelectorAll('.players-area > div')).map(d => d.textContent?.trim());
       expect(alphaPlayers).toEqual(['1 Player 1', '2 Player 2']);
-      expect(bravo.querySelectorAll('.players-area > div').length).toBe(0);
+      expect(bravo.querySelectorAll('.players-area > div')).toHaveSize(0);
     });
 
     it('renders one pool item per available player', () => {
@@ -1277,7 +1276,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
     const req = httpTesting.expectOne('/api/seasons/7/draft/captains/remove');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ seasonID: 7, personID: 12 });
-    expect(Object.keys(req.request.body).sort()).toEqual(['personID', 'seasonID']);
+    expect(Object.keys(req.request.body).sort((a, b) => a.localeCompare(b))).toEqual(['personID', 'seasonID']);
     expect('orderNumber' in req.request.body).toBe(false);
     expect(req.request.headers.get('SignalRConnectionID')).toBe('conn-42');
     req.flush({});
@@ -1291,7 +1290,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
     req.flush({});
 
     expect(component.teams().map(t => [t.captain.personID, t.captain.order])).toEqual([[12, 1], [13, 2]]);
-    expect(component.playerPool().map(p => p.personID).sort()).toEqual([11, 21, 30]);
+    expect(component.playerPool().map(p => p.personID).sort((a, b) => a - b)).toEqual([11, 21, 30]);
   });
 });
 

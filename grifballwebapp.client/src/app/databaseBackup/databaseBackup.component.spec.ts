@@ -277,7 +277,7 @@ describe('DatabaseBackupComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(el().textContent).toContain("Couldn't read the database's details");
-    expect(component.formats().length).toBe(3);
+    expect(component.formats()).toHaveSize(3);
   });
 
   it('says a size as people read it', () => {

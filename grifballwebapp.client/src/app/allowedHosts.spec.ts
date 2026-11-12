@@ -26,6 +26,7 @@ describe('allowed hosts', () => {
     expect(isAllowedHost('Grif-Preview1.Grifball.xyz', allowed)).toBeTrue();
     expect(isAllowedHost('localhost:4200', allowed)).toBeTrue();
     expect(isAllowedHost('evil.example', allowed)).toBeFalse();
+    // eslint-disable-next-line sonarjs/no-hardcoded-ip -- a private address the allow-list has to refuse
     expect(isAllowedHost('10.0.0.5', allowed)).toBeFalse();
     expect(isAllowedHost('[::1]:80', allowed)).toBeFalse();
     expect(isAllowedHost(undefined, allowed)).toBeFalse();

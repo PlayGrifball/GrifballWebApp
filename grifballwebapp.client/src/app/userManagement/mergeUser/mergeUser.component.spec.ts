@@ -2,28 +2,29 @@ import { DateTime } from 'luxon';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MergeUserComponent } from './mergeUser.component';
 import { UserResponseDto } from '../userResponseDto';
+import { noMaterialAnimations } from '../../testing/noMaterialAnimations';
+
+// A user with nothing set beyond its ID and the names made from it
+const user = (id: number): UserResponseDto => ({
+  userID: id, userName: 'user' + id, lockoutEnd: null, lockoutEnabled: false, isDummyUser: false,
+  accessFailedCount: 0, region: null, displayName: 'User ' + id, gamertag: null, discord: null,
+  externalAuthCount: 0, hasPassword: true, roles: [],
+});
 
 describe('MergeUserComponent', () => {
   let fixture: ComponentFixture<MergeUserComponent>;
   let component: MergeUserComponent;
   let httpMock: HttpTestingController;
 
-  const user = (id: number): UserResponseDto => ({
-    userID: id, userName: 'user' + id, lockoutEnd: null, lockoutEnabled: false, isDummyUser: false,
-    accessFailedCount: 0, region: null, displayName: 'User ' + id, gamertag: null, discord: null,
-    externalAuthCount: 0, hasPassword: true, roles: [],
-  });
-
   const el = () => fixture.nativeElement as HTMLElement;
   const mergeButton = () => el().querySelector('button[mat-flat-button]') as HTMLButtonElement;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [MergeUserComponent, NoopAnimationsModule],
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
+      imports: [MergeUserComponent],
+      providers: [noMaterialAnimations, provideHttpClient(withXhr()), provideHttpClientTesting()],
     });
     httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(MergeUserComponent);
@@ -62,7 +63,7 @@ describe('MergeUserComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(el().querySelectorAll('[role="alert"]').length).toBe(0);
+    expect(el().querySelectorAll('[role="alert"]')).toHaveSize(0);
     expect(el().textContent).toContain('User not found.');
     expect(el().textContent).toContain('user2');
     expect(mergeButton().disabled).toBeTrue();
@@ -80,7 +81,7 @@ describe('MergeUserComponent', () => {
     expect(() => fixture.detectChanges()).not.toThrow();
 
     const alerts = el().querySelectorAll('[role="alert"]');
-    expect(alerts.length).toBe(1);
+    expect(alerts).toHaveSize(1);
     expect(alerts[0].textContent).toContain('Failed to load user');
     expect(el().textContent).toContain('user2');
     expect(mergeButton().disabled).toBeTrue();
@@ -92,19 +93,13 @@ describe('MergeUserComponent merging', () => {
   let component: MergeUserComponent;
   let httpMock: HttpTestingController;
 
-  const user = (id: number): UserResponseDto => ({
-    userID: id, userName: 'user' + id, lockoutEnd: null, lockoutEnabled: false, isDummyUser: false,
-    accessFailedCount: 0, region: null, displayName: 'User ' + id, gamertag: null, discord: null,
-    externalAuthCount: 0, hasPassword: true, roles: [],
-  });
-
   const mergeButton = () => (fixture.nativeElement as HTMLElement).querySelector('button[mat-flat-button]') as HTMLButtonElement;
 
   beforeEach(async () => {
     spyOn(console, 'log');
     TestBed.configureTestingModule({
-      imports: [MergeUserComponent, NoopAnimationsModule],
-      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
+      imports: [MergeUserComponent],
+      providers: [noMaterialAnimations, provideHttpClient(withXhr()), provideHttpClientTesting()],
     });
     httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(MergeUserComponent);

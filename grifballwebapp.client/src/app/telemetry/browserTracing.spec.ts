@@ -30,7 +30,7 @@ describe('browser tracing', () => {
     expect(isApiCall('https://other.example/api/Teams', base)).toBeFalse();
     expect(isApiCall('/assets/x.json', base)).toBeFalse();
     expect(isApiCall(TELEMETRY_URL, base)).toBeFalse();
-    expect(isApiCall('http://[bad', base)).toBeFalse();
+    expect(isApiCall('https://[bad', base)).toBeFalse();
   });
 
   it('names a route as the app\'s routes do', () => {

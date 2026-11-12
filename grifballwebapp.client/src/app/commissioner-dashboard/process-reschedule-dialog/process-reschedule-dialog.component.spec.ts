@@ -59,7 +59,7 @@ describe('ProcessRescheduleDialogComponent', () => {
   });
 
   it('formats dates in the local format', () => {
-    expect(component.formatDateTime(undefined)).toBe('Not scheduled');
+    expect(component.formatDateTime()).toBe('Not scheduled');
     expect(component.formatDateTime('')).toBe('Not scheduled');
     expect(component.formatDateTime('2026-02-20T12:00:00Z')).toBe(new Date('2026-02-20T12:00:00Z').toLocaleString());
   });

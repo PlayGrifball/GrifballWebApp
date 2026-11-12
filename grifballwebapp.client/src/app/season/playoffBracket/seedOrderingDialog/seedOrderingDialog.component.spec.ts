@@ -4,7 +4,6 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { provideAnimations } from '@angular/platform-browser/animations';
 
 describe('SeedOrderingDialogComponent', () => {
   let component: SeedOrderingDialogComponent;
@@ -18,7 +17,6 @@ describe('SeedOrderingDialogComponent', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
-        provideAnimations(),
         { provide: MatDialogRef, useValue: mockDialogRef },
         { provide: MAT_DIALOG_DATA, useValue: { seasonID: 'test-season-id' } }
       ]

@@ -124,11 +124,10 @@ export class PlayoffBracketComponent {
     } as Locale);
 
     let config: Config = {
-      clear: true
-    };
-
-    window.bracketsViewer.onMatchClicked = (match: MatchWithMetadata) => {
-      this.router.navigate(['/seasonmatch/' + match.id]);
+      clear: true,
+      onMatchClick: (match: MatchWithMetadata) => {
+        this.router.navigate(['/seasonmatch/' + match.id]);
+      },
     };
 
     await window.bracketsViewer.render(viewerData, config);

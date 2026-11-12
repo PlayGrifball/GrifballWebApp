@@ -5,6 +5,7 @@
 export type Role = 'anon' | 'player' | 'admin';
 
 /** A JSON body, or { text } for the endpoints that answer text/plain. null answers 204. */
+// eslint-disable-next-line sonarjs/redundant-type-aliases -- names what a mock answers with, for whoever reads the handlers
 export type MockBody = unknown;
 
 /** The fixed "now" the data is written around (a Thursday in week 3 of the Autumn Brawl season). */
@@ -724,6 +725,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/availability`, ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time })))])),
     '/api/halo/check': { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' },
     // The Infinite Client page in the default Gateway mode: the gateway's in-cluster address, plain HTTP as the chart's is
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the Halo gateway's in-cluster address: plain HTTP inside the cluster
     '/api/halo/status': { mode: 'Gateway', gatewayUrl: 'http://halo-gateway.halo-gateway.svc:8080/', gatewayAdminUrl: 'https://grunt.grifball.xyz/admin', apiKeyConfigured: true, reachable: true, accountStatus: 'Healthy', apiCode: 200, healthy: true, message: 'Halo gateway account Healthy; test call: Halo Infinite API answered 200' }, // NOSONAR(S5332): mock data, an in-cluster address
     '/api/sheets/default': [{ name: 'Autumn Brawl results', spreadsheetID: '1xGrifballAutumnBrawl2026', sheetName: 'Week 3' }],
     '/api/users': { totalCount: users.length, results: users },

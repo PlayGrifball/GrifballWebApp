@@ -103,10 +103,10 @@ describe('VodListComponent', () => {
     await settle();
 
     const frames = el().querySelectorAll('iframe');
-    expect(frames.length).toBe(1);
+    expect(frames).toHaveSize(1);
     expect(frames[0].src).toBe(`${EMBED_ORIGIN}/embed/NnBy9EZai9Q?autoplay=1&rel=0`);
     expect(frames[0].title).toBe('Blitz League II');
-    expect(el().querySelectorAll('.vod-card__play').length).toBe(1);
+    expect(el().querySelectorAll('.vod-card__play')).toHaveSize(1);
   });
 
   it('never embeds what is not a video ID, only links it', async () => {

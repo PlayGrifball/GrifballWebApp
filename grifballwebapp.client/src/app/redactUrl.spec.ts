@@ -20,7 +20,7 @@ describe('redactUrl', () => {
   it('gives nothing for no URL or one it cannot read', () => {
     expect(redactUrl(null)).toBe('');
     expect(redactUrl(undefined)).toBe('');
-    expect(redactUrl('http://[bad')).toBe('');
+    expect(redactUrl('https://[bad')).toBe('');
   });
 
   it('tells sensitive names apart', () => {

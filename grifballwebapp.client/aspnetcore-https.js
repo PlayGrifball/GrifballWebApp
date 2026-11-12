@@ -21,6 +21,7 @@ const keyFilePath = path.join(baseFolder, `${certificateName}.key`);
 
 if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
   // The .NET SDK wherever the developer installed it (their PATH): this runs on their machine, as them
+  // eslint-disable-next-line sonarjs/no-os-command-from-path -- the developer's own tool, found on their PATH: this runs on their machine, as them
   spawn('dotnet', [ // NOSONAR(S4036): the developer's own dotnet, found as their shell finds it
     'dev-certs',
     'https',

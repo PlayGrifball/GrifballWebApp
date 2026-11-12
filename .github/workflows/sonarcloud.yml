@@ -200,34 +200,3 @@ jobs:
       env:
         PR: ${{ github.event.pull_request.number }}
       run: .github/scripts/sonar-pr-issues.sh
-
-  # SonarCloud's JavaScript and TypeScript rules (eslint-plugin-sonarjs) over the client, as warnings: what
-  # `npm run lint` shows locally. The analysis above is what fails a PR.
-  client-lint:
-    name: Client lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-    defaults:
-      run:
-        working-directory: ./grifballwebapp.client
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
-
-    - name: Setup Node.js
-      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-      with:
-        node-version: '24.x'
-        cache: 'npm'
-        cache-dependency-path: grifballwebapp.client/package-lock.json
-
-    # ESLint needs no package's install script
-    - name: Install dependencies
-      run: npm ci --ignore-scripts
-
-    - name: Lint
-      run: npm run lint

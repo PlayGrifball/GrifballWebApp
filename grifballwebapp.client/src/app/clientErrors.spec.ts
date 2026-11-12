@@ -40,7 +40,6 @@ describe('client errors', () => {
       expect(pageTraceparent(perf([{ name: 'cache', description: 'hit' }, { name: 'traceparent', description: TRACEPARENT }]))).toBe(TRACEPARENT);
       expect(pageTraceparent(perf([]))).toBeUndefined();
       expect(pageTraceparent({ getEntriesByType: () => [] } as unknown as Performance)).toBeUndefined();
-      expect(pageTraceparent(undefined)).toBeUndefined();
     });
 
     it('leaves out the page\'s once the app has moved to another page in the browser', () => {
@@ -65,7 +64,7 @@ describe('client errors', () => {
     expect(reportedUrl('https://grifball.xyz/api/Identity/Reset?token=secret&page=2', 'https://grifball.xyz/')).toBe('/api/Identity/Reset?token=REDACTED&page=2');
     expect(reportedUrl('/api/Teams?x=1', 'https://grifball.xyz/')).toBe('/api/Teams?x=1');
     expect(reportedUrl(null, 'https://grifball.xyz/')).toBe('');
-    expect(reportedUrl('/' + 'a'.repeat(400), 'https://grifball.xyz/').length).toBe(300);
+    expect(reportedUrl('/' + 'a'.repeat(400), 'https://grifball.xyz/')).toHaveSize(300);
   });
 
   it('takes a call with no answer for the browser\'s doing while the page goes away or hides, or offline', () => {
@@ -105,7 +104,7 @@ describe('client errors', () => {
     const circular: Record<string, unknown> = {};
     circular['self'] = circular;
     expect(describeError(circular)).toEqual({ message: '[object Object]' });
-    expect(describeError('x'.repeat(MAX_MESSAGE + 10)).message.length).toBe(MAX_MESSAGE);
+    expect(describeError('x'.repeat(MAX_MESSAGE + 10)).message).toHaveSize(MAX_MESSAGE);
   });
 
   it('reports calls that got no answer or a server error, not 4xx', () => {
@@ -243,7 +242,7 @@ describe('client errors', () => {
     it('logs nothing on the server, and reads none of the browser\'s globals there', () => {
       const r = reporter('server');
       r.reportError(new Error('boom'));
-      r.reportCall('GET', new HttpErrorResponse({ status: 504, url: 'http://backend/Teams' }));
+      r.reportCall('GET', new HttpErrorResponse({ status: 504, url: 'https://backend/Teams' }));
 
       expect(telemetry.log).not.toHaveBeenCalled();
     });

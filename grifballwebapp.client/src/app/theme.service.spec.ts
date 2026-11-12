@@ -48,7 +48,6 @@ describe('ThemeService', () => {
   describe('applyTheme', () => {
     it('should add theme class to body', () => {
       const bodyElement = document.body;
-      const initialClasses = Array.from(bodyElement.classList);
       
       service.applyTheme('light-theme');
       
@@ -69,7 +68,6 @@ describe('ThemeService', () => {
     });
 
     it('should not try to remove empty string as class', () => {
-      const bodyElement = document.body;
       service.previousTheme.set('');
       
       // Should not throw error

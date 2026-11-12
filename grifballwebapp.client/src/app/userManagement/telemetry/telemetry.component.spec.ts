@@ -43,7 +43,7 @@ describe('telemetry page helpers', () => {
 
     expect(rows.map(r => [r.span.spanId, r.depth])).toEqual([['root', 0], ['early', 1], ['query', 2], ['late', 1], ['orphan', 0]]);
     expect(rows.find(r => r.span.spanId === 'late')).toEqual(jasmine.objectContaining({ left: 60, width: 40 }));
-    expect(rows.find(r => r.span.spanId === 'query')!.width).toBe(0.3);
+    expect(rows.find(r => r.span.spanId === 'query')!.width).toBeCloseTo(0.3, 10);
     expect(waterfall(trace([span('instant', { durationMs: 0 })], 0))[0]).toEqual(jasmine.objectContaining({ left: 0, width: 0.3 }));
   });
 
@@ -54,6 +54,8 @@ describe('telemetry page helpers', () => {
 
   it('rounds the axis up to a round number', () => {
     expect([0, -1, 0.7, 3, 7, 12, 240, 1000].map(niceMax)).toEqual([1, 1, 1, 5, 10, 20, 250, 1000]);
+    // No number at all: the axis still gets a top
+    expect(niceMax(Number.NaN)).toBe(1);
   });
 });
 
@@ -114,7 +116,7 @@ describe('TelemetryComponent', () => {
     await open();
 
     expect(Array.from(el().querySelectorAll('.tm-chart-title')).map(text)).toEqual(['Requests req/s', 'Server errors (5xx) req/s']);
-    expect(el().querySelectorAll('app-line-chart polyline').length).toBe(1);
+    expect(el().querySelectorAll('app-line-chart polyline')).toHaveSize(1);
     expect(text(el().querySelector('app-line-chart .lc-legend'))).toBe('Requests: 1.5 req/s');
     expect(text(el().querySelector('.tm-chart .tm-none'))).toBe('No data in this range.');
     const cells = Array.from(el().querySelectorAll('[aria-label="Busiest routes"] tbody tr')).map(r => Array.from(r.querySelectorAll('td')).map(text));

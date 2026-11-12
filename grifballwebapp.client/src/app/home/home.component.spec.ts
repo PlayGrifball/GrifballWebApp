@@ -1,13 +1,14 @@
 import { ComponentFixture, ComponentFixtureAutoDetect } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Event, eventLink, heroKicker, heroLede, HomeComponent, pickFeatured } from './home.component';
 import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
 import type { SeasonChampionDto } from '../api/dtos/seasonSummaryDto';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Component } from '@angular/core';
 import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
+import { noMaterialAnimations } from '../testing/noMaterialAnimations';
 
 /** The queue panel has its own specs: here it is left out, with its requests and hub connection. */
 @Component({ selector: 'app-late-league-queue', template: '' })
@@ -24,10 +25,10 @@ describe('HomeComponent', () => {
   beforeEach(async () => {
     withoutLateLeagueQueue();
     await TestBed.configureTestingModule({
-      imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule],
+      imports: [HomeComponent],
       // These specs drive the component's methods by hand. Zoneless fixtures render on their own,
       // which would run ngOnInit and fire the real requests, so turn that off here.
-      providers: [provideRouter([]), { provide: ComponentFixtureAutoDetect, useValue: false }]
+      providers: [provideHttpClient(), provideHttpClientTesting(), noMaterialAnimations, provideRouter([]), { provide: ComponentFixtureAutoDetect, useValue: false }]
     }).compileComponents();
 
     const fixture = TestBed.createComponent(HomeComponent);
@@ -295,8 +296,8 @@ describe('HomeComponent paginator and sort wiring', () => {
   beforeEach(async () => {
     withoutLateLeagueQueue();
     await TestBed.configureTestingModule({
-      imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule],
-      providers: [provideRouter([])]
+      imports: [HomeComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting(), noMaterialAnimations, provideRouter([])]
     }).compileComponents();
 
     http = TestBed.inject(HttpTestingController);
@@ -370,7 +371,7 @@ describe('HomeComponent paginator and sort wiring', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('th.mat-column-champion')!.textContent!.trim()).toBe('Champion');
     const cells = Array.from(el.querySelectorAll<HTMLElement>('td.mat-column-champion'));
-    expect(cells.length).toBe(3);
+    expect(cells).toHaveSize(3);
 
     const link = cells[0].querySelector('a')!;
     expect(link.textContent).toBe('Relentless');
@@ -434,8 +435,8 @@ describe('Home page events', () => {
     beforeEach(async () => {
       withoutLateLeagueQueue();
       await TestBed.configureTestingModule({
-        imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule],
-        providers: [provideRouter([])],
+        imports: [HomeComponent],
+        providers: [provideHttpClient(), provideHttpClientTesting(), noMaterialAnimations, provideRouter([])],
       }).compileComponents();
       fixture = TestBed.createComponent(HomeComponent);
       fixture.componentInstance.now.set(now);

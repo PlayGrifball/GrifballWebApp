@@ -76,7 +76,7 @@ describe('DeploymentHistoryComponent', () => {
     alert.querySelector<HTMLButtonElement>('button')!.click();
     await load([line()]);
     expect(el().querySelector('[role="alert"]')).toBeNull();
-    expect(el().querySelectorAll('li.deployment').length).toBe(1);
+    expect(el().querySelectorAll('li.deployment')).toHaveSize(1);
   });
 
   it('lists only the chosen game\'s deployments, keeping a season of more than one game', async () => {
@@ -107,7 +107,7 @@ describe('DeploymentHistoryComponent', () => {
     expect(section.getAttribute('aria-labelledby')).toBe('deployment-heading');
     expect(section.querySelector('h2')!.textContent).toContain('Deployment History');
     const rows = Array.from(section.querySelectorAll<HTMLElement>('li.deployment'));
-    expect(rows.length).toBe(2);
+    expect(rows).toHaveSize(2);
 
     const [current, title] = rows;
     const links = (row: HTMLElement) => Array.from(row.querySelectorAll('a')).map(a => [a.textContent!.trim(), a.getAttribute('href')]);

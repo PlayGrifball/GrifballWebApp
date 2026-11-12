@@ -13,7 +13,6 @@ import { DateTime } from 'luxon';
 import { AccountService } from '../../account.service';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { Subject } from 'rxjs';
-import { provideAnimations } from '@angular/platform-browser/animations';
 import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
 import type { ScheduleRecommendationDto, ScheduleRecommendationPageDto } from './scheduleRecommendationDto';
 
@@ -27,7 +26,6 @@ describe('ScheduleListComponent', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
-        provideAnimations(),
       ]
     }).compileComponents();
 
@@ -105,7 +103,7 @@ describe('ScheduleListComponent behaviour', () => {
       scheduled(3, '2026-01-14T19:00:00Z'),
     ]);
 
-    expect(component.scheduledMatches().length).toBe(2);
+    expect(component.scheduledMatches()).toHaveSize(2);
     expect(component.scheduledMatches()[0].weekNumber).toBe(1);
     expect(component.scheduledMatches()[0].games.map(g => g.seasonMatchID)).toEqual([1, 2]);
     expect(component.scheduledMatches()[1].weekNumber).toBe(2);
@@ -129,7 +127,7 @@ describe('ScheduleListComponent behaviour', () => {
       scheduled(2, '2026-12-28T19:00:00Z'), // middle week, last week of 2026
     ]);
 
-    expect(component.scheduledMatches().length).toBe(3);
+    expect(component.scheduledMatches()).toHaveSize(3);
     expect(component.scheduledMatches().map(w => w.games.map(g => g.seasonMatchID))).toEqual([[1], [2], [3]]);
     expect(component.scheduledMatches().map(w => w.weekNumber)).toEqual([1, 2, 3]);
   });
@@ -167,7 +165,7 @@ describe('ScheduleListComponent behaviour', () => {
     isEventOrganizer.set(true);
     load([unscheduled(9)], [scheduled(1, '2026-01-07T19:00:00Z')]);
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelectorAll('form').length).toBe(0);
+    expect(el.querySelectorAll('form')).toHaveSize(0);
 
     const toggle = Array.from(el.querySelectorAll('button')).find(b => b.textContent!.includes('Show Edit'))!;
     toggle.click();
@@ -176,7 +174,7 @@ describe('ScheduleListComponent behaviour', () => {
 
     expect(component.isEditing()).toBeTrue();
     expect(text()).toContain('Close Edit');
-    expect(el.querySelectorAll('form').length).toBe(2);
+    expect(el.querySelectorAll('form')).toHaveSize(2);
 
     component.toggleEdit();
     expect(component.isEditing()).toBeFalse();
@@ -233,7 +231,7 @@ describe('ScheduleListComponent behaviour', () => {
     created.emit();
     http.expectOne('/api/seasons/4/matches/unscheduled').flush([unscheduled(1)]);
     http.expectOne('/api/seasons/4/matches/scheduled').flush([]);
-    expect(component.unscheduledMatches().length).toBe(1);
+    expect(component.unscheduledMatches()).toHaveSize(1);
   });
 
   it('renders the matches once they arrive, without a manual detectChanges', async () => {

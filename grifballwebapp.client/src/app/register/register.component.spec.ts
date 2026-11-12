@@ -3,10 +3,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RegisterComponent } from './register.component';
 import { AccountService } from '../account.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { of, throwError } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { noMaterialAnimations } from '../testing/noMaterialAnimations';
 
 describe('RegisterComponent', () => {
   let component: RegisterComponent;
@@ -21,8 +21,9 @@ describe('RegisterComponent', () => {
     mockActivatedRoute = jasmine.createSpyObj('ActivatedRoute', [], { snapshot: {} });
 
     await TestBed.configureTestingModule({
-      imports: [RegisterComponent, NoopAnimationsModule, FormsModule],
+      imports: [RegisterComponent, FormsModule],
       providers: [
+        noMaterialAnimations,
         { provide: AccountService, useValue: mockAccountService },
         { provide: MatSnackBar, useValue: mockSnackBar },
         { provide: ActivatedRoute, useValue: mockActivatedRoute }

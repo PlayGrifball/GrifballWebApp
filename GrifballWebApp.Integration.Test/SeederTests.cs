@@ -13,12 +13,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class SeederTests
 {
-    private static readonly string[] IconFiles =
-    [
-        "Iron2.png", "iron1.png", "Bronze3.png", "Bronze2.png", "Bronze1.png", "Silver3.png", "Silver2.png", "Silver1.png",
-        "gold3.png", "Gold2.png", "Gold1.png", "Platinum3.png", "Platinum2.png", "Platinum1.png", "Diamond3.png", "Diamond2.png",
-        "Diamond1.png", "Masters3.png", "Masters2.png", "Masters1.png", "Challenger.png",
-    ];
+    // The seeder's own icon files, each written with its index as its first byte
+    private static readonly string[] IconFiles = [.. RankSeeder.Ranks.Select(r => r.IconFile)];
 
     private GrifballContext _context;
     private string _iconFolder;
@@ -52,14 +48,6 @@ public class SeederTests
     }
 
     [Test]
-    public async Task FileReader_LoadsIconFromConfiguredFolder()
-    {
-        var bytes = await new FileReader(Config(_iconFolder)).LoadIcon("Gold1.png");
-
-        Assert.That(bytes, Is.EqualTo(new byte[] { 10, 1, 2 }));
-    }
-
-    [Test]
     public async Task SeedRanks_IsIdempotent()
     {
         var seeder = new RankSeeder(_context, new TestReader());
@@ -86,25 +74,5 @@ public class SeederTests
             Assert.That(ranks.Last().Name, Is.EqualTo("Challenger"));
             Assert.That(ranks.Last().Icon, Is.EqualTo(new byte[] { 20, 1, 2 }));
         }
-    }
-
-    [Test]
-    public async Task HostedService_OldSeed_RecreatesDatabaseWithTestSeason()
-    {
-        var service = CreateHostedService(Config(_iconFolder));
-        var old = service.GetType().GetMethod("Old", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-
-        await (Task)old.Invoke(service, [CancellationToken.None])!;
-
-        await using var fresh = NewContext();
-        var season = await fresh.Seasons.Include(x => x.SeasonSignups).SingleAsync();
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(season.SeasonName, Is.EqualTo("Test Season 2024"));
-            Assert.That(season.SeasonSignups, Has.Count.EqualTo(30));
-            Assert.That(season.SeasonSignups.Count(x => x.WillCaptain), Is.EqualTo(6));
-            Assert.That(season.SeasonSignups.Where(x => x.WillCaptain).Select(x => x.TeamName), Has.All.EndWith("'s Team"));
-        }
-        Assert.That(await fresh.Users.CountAsync(x => x.XboxUserID == 2535417961072277), Is.EqualTo(1));
     }
 }

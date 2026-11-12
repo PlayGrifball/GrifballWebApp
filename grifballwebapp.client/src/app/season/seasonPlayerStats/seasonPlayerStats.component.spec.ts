@@ -146,7 +146,7 @@ describe('SeasonPlayerStatsComponent', () => {
       expect(players()).toEqual(['Legendary', 'Runner']);
       expect(headers()).not.toContain('Team');
       const runner = el().querySelectorAll('tbody tr')[1];
-      expect(runner.querySelectorAll('a').length).toBe(1);
+      expect(runner.querySelectorAll('a')).toHaveSize(1);
       expect(runner.textContent).toContain('From Blue');
       expect(fixture.componentInstance.hasRows()).toBeTrue();
     });

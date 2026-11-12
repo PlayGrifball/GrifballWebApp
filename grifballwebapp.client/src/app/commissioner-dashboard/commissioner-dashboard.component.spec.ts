@@ -1,12 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { of, Subject } from 'rxjs';
 
-import { CommissionerDashboardComponent, CommissionerDashboardDto, RescheduleDto, OverdueMatchDto } from './commissioner-dashboard.component';
+import { CommissionerDashboardComponent, CommissionerDashboardDto, RescheduleDto } from './commissioner-dashboard.component';
+import { noMaterialAnimations } from '../testing/noMaterialAnimations';
 
 describe('CommissionerDashboardComponent', () => {
   let component: CommissionerDashboardComponent;
@@ -30,10 +30,11 @@ describe('CommissionerDashboardComponent', () => {
     await TestBed.configureTestingModule({
       imports: [
         CommissionerDashboardComponent,
-        HttpClientTestingModule,
-        NoopAnimationsModule
       ],
       providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        noMaterialAnimations,
         { provide: MatDialog, useValue: mockDialog },
         provideRouter([]),
       ]
@@ -133,7 +134,7 @@ describe('CommissionerDashboardComponent', () => {
   });
 
   it('should handle undefined datetime', () => {
-    const result = component.formatDateTime(undefined);
+    const result = component.formatDateTime();
     expect(result).toBe('Not scheduled');
   });
 

@@ -89,9 +89,9 @@ describe('server telemetry core', () => {
   it('prints the line the scripts wait for ("Serving") whatever LOG_LEVEL says', () => {
     const { telemetry, lines } = setUp('error');
 
-    announceServing(telemetry, 80, 'http://backend');
+    announceServing(telemetry, 80, 'https://backend');
 
-    expect(lines.join('')).toContain('Serving on http://localhost:80, the API at http://backend');
+    expect(lines.join('')).toContain('Serving on http://localhost:80, the API at https://backend');
   });
 
   it('counts a page that fails after rendering (writing it) as failed, not rendered', async () => {
@@ -121,7 +121,7 @@ describe('server telemetry core', () => {
     telemetry.log('info', 'hidden');
     telemetry.log('error', 'shown', { path: '/x', error: new TypeError('boom'), detail: { a: 1 }, none: null });
 
-    expect(lines.length).toBe(1);
+    expect(lines).toHaveSize(1);
     expect(JSON.parse(lines[0]).msg).toBe('shown');
     expect(emit).toHaveBeenCalledOnceWith(jasmine.objectContaining({ body: 'shown', severityText: 'ERROR' }));
   });

@@ -42,7 +42,7 @@ describe('server telemetry', () => {
 
     it('reads the OpenTelemetry variables', () => {
       const settings = serverTelemetrySettings({
-        OTEL_EXPORTER_OTLP_ENDPOINT: 'http://collector:4318/',
+        OTEL_EXPORTER_OTLP_ENDPOINT: 'https://collector:4318/',
         OTEL_SERVICE_NAME: ' grif-test ',
         OTEL_RESOURCE_ATTRIBUTES: 'deployment.environment.name=test,team=a%20b',
         OTEL_METRIC_EXPORT_INTERVAL: '10000',
@@ -51,7 +51,7 @@ describe('server telemetry', () => {
       });
 
       expect(settings).toEqual({
-        endpoint: 'http://collector:4318',
+        endpoint: 'https://collector:4318',
         serviceName: 'grif-test',
         resource: {
           'deployment.environment.name': 'test',
@@ -90,6 +90,7 @@ describe('server telemetry', () => {
 
     it('takes only an http(s) collector', () => {
       expect(otlpEndpoint('https://collector.example:4318//')).toBe('https://collector.example:4318');
+      // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the scheme the collector check refuses
       expect(otlpEndpoint('ftp://collector')).toBeNull();
       expect(otlpEndpoint('collector:4318')).toBeNull();
       expect(otlpEndpoint('not a url')).toBeNull();

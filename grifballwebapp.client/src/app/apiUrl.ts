@@ -3,6 +3,7 @@
  * cluster, where it serves plain HTTP. Never a public address: TLS ends at the ingress, in front of
  * the app's server.
  */
+// eslint-disable-next-line sonarjs/no-clear-text-protocols -- the backend's in-cluster address: plain HTTP behind the ingress's TLS
 export const DEFAULT_API_URL = 'http://grifballwebapp-server:5295'; // NOSONAR(S5332): the backend's in-cluster address, plain HTTP behind the ingress's TLS
 
 /**

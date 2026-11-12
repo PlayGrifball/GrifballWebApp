@@ -126,7 +126,7 @@ describe('SignupsComponent', () => {
     fixture.detectChanges();
 
     const r = rows();
-    expect(r.length).toBe(2);
+    expect(r).toHaveSize(2);
     expect(r[0][0]).toBe('Grif');
     expect(r[0][2]).toBe("Grif's team");
     expect(r[0].slice(3)).toEqual(['true', 'false']);

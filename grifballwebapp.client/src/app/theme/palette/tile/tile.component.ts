@@ -29,7 +29,7 @@ export class TileComponent {
   });
 
   hex: Signal<string | undefined> = computed(() => {
-    const x = this.themingService.shadeApplied();
+    this.themingService.shadeApplied(); // read so the colour updates when the shade does
     const i = this.i();
     if (i == null)
       return this.document.documentElement.style.getPropertyValue(`--${this.paletteName()}`);

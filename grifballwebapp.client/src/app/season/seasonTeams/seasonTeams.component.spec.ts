@@ -110,7 +110,7 @@ describe('SeasonTeamsComponent', () => {
   });
 
   it('loads and renders the teams and their rosters', () => {
-    expect(component.teams().length).toBe(2);
+    expect(component.teams()).toHaveSize(2);
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Orange Crush');
     expect(text).toContain('Blue Bombers');
@@ -124,19 +124,19 @@ describe('SeasonTeamsComponent', () => {
     component.searchFilter.set('Cortana');
     fixture.detectChanges();
 
-    expect(component.filteredTeams().length).toBe(1);
+    expect(component.filteredTeams()).toHaveSize(1);
     expect(component.filteredTeams()[0].teamName).toBe('Orange Crush');
 
     component.searchFilter.set('Blue');
     fixture.detectChanges();
 
-    expect(component.filteredTeams().length).toBe(1);
+    expect(component.filteredTeams()).toHaveSize(1);
     expect(component.filteredTeams()[0].teamName).toBe('Blue Bombers');
 
     component.clearSearch();
     fixture.detectChanges();
 
-    expect(component.filteredTeams().length).toBe(2);
+    expect(component.filteredTeams()).toHaveSize(2);
   });
 
   it('displays empty state when search matches nothing', () => {
@@ -230,7 +230,7 @@ describe('SeasonTeamsComponent', () => {
     expect(component.isHistorical()).toBeFalse();
     expect(component.canAccessDraft()).toBeFalse();
     // The rosters still show without it
-    expect(component.teams().length).toBe(2);
+    expect(component.teams()).toHaveSize(2);
     expect(fixture.nativeElement.querySelector('.draft-board-link')).toBeNull();
   });
 

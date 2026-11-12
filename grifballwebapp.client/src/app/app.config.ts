@@ -1,21 +1,21 @@
 import { provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { ApplicationConfig, ErrorHandler, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 //import { PreloadAllModules, withDebugTracing, withPreloading } from '@angular/router';
 import { APP_ROUTES } from './app.routes';
 import { authInterceptor } from './auth.interceptor';
 import { ReportingErrorHandler, clientErrorsInterceptor } from './clientErrors';
 import { earlyFetchInterceptor } from './earlyFetch.interceptor';
-import { provideBrowserTelemetry, tracingInterceptor } from './telemetry/browserTracing';
+import { provideRowEnterAnimation } from './shared/rowEnterAnimation';
 import { provideSnackBarDefaults } from './shared/snackBarDefaults';
+import { provideBrowserTelemetry, tracingInterceptor } from './telemetry/browserTracing';
 
 /** The app's providers, in the browser and (with app.config.server.ts on top) on the server. */
 export const appConfig: ApplicationConfig = {
   providers: [
     provideSnackBarDefaults(),
-    provideAnimationsAsync(),
+    provideRowEnterAnimation(),
     // Errors (and window's uncaught errors and rejections) still go to the console, and to the API
     // (clientErrors.ts), as do failed API calls: outermost, so it sees what the app does
     provideBrowserGlobalErrorListeners(),

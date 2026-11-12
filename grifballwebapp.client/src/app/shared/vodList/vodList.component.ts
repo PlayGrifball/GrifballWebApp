@@ -43,6 +43,7 @@ export class VodListComponent {
     const vod = this.playing();
     // Only a video ID goes in the URL trusted as a frame source
     return vod && isVideoID(vod.youTubeVideoID)
+      // eslint-disable-next-line sonarjs/no-angular-bypass-sanitization -- a fixed origin and path, and an ID isVideoID checked
       ? this.sanitizer.bypassSecurityTrustResourceUrl(`${EMBED_ORIGIN}/embed/${vod.youTubeVideoID}?autoplay=1&rel=0`) // NOSONAR(S6268): a fixed origin and path, and an ID isVideoID checked
       : null;
   });

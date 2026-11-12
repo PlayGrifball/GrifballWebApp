@@ -3,7 +3,6 @@ import { TestBed } from '@angular/core/testing';
 import {
   BrowserTelemetry,
   MAX_BATCH,
-  MAX_KEEPALIVE_BYTES,
   MAX_QUEUE,
   TELEMETRY_URL,
   TelemetryBatch,
@@ -117,7 +116,7 @@ describe('browser telemetry', () => {
 
       expect(fetchSpy).toHaveBeenCalledOnceWith(TELEMETRY_URL, jasmine.objectContaining({ method: 'POST', keepalive: true, credentials: 'same-origin' }));
       const [sent] = batches()[0].spans;
-      expect(batches()[0].spans.length).toBe(1);
+      expect(batches()[0].spans).toHaveSize(1);
       expect(sent).toEqual(jasmine.objectContaining({
         traceId: TRACE.traceId, parentSpanId: TRACE.spanId, name: 'navigation /season/:seasonID', kind: 'internal', status: 'error',
         attributes: { a: 1, 'http.route': '/season/:seasonID' },
@@ -196,7 +195,7 @@ describe('browser telemetry', () => {
         t.flush();
 
       const values = batches().flatMap(b => b.vitals.map(v => v.value));
-      expect(values.length).toBe(MAX_QUEUE);
+      expect(values).toHaveSize(MAX_QUEUE);
       expect(values[0]).toBe(10);
     });
 
