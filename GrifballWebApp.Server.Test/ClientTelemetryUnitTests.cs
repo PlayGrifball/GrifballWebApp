@@ -36,6 +36,30 @@ public class ClientTelemetryUnitTests
         }
     }
 
+    /// <summary>A collector that answers only once released.</summary>
+    private sealed class Slow : HttpMessageHandler
+    {
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            await Release.Task.WaitAsync(cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }
+    }
+
+    private sealed class Warnings : Microsoft.Extensions.Logging.ILogger<ClientTelemetryForwarder>
+    {
+        public int Count { get; private set; }
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == Microsoft.Extensions.Logging.LogLevel.Warning)
+                Count++;
+        }
+    }
+
     private sealed class Unreachable : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
@@ -170,6 +194,62 @@ public class ClientTelemetryUnitTests
         await Controller(new Collector(), metrics: metrics).Report(Batch(), "Mozilla/5.0", default);
 
         Assert.That(measured, Is.EqualTo(LcpThenCls));
+    }
+
+    [Test]
+    public async Task Report_AnswersBeforeTheCollectorDoes()
+    {
+        var collector = new Slow();
+        try
+        {
+            var report = Controller(collector).Report(Batch(), "Mozilla/5.0", default);
+
+            var finished = await Task.WhenAny(report, Task.Delay(TimeSpan.FromSeconds(2))) == report;
+
+            Assert.That(finished, Is.True, "the browser waited on the collector");
+        }
+        finally
+        {
+            collector.Release.TrySetResult();
+        }
+    }
+
+    [Test]
+    public async Task Forward_ACollectorThatIsAway_IsLoggedOnceAMinute_NotEachBatch()
+    {
+        var warnings = new Warnings();
+        var forwarder = new ClientTelemetryForwarder(new HttpClient(new Unreachable()), new ClientTelemetryResource(Telemetry), Options(), warnings);
+
+        for (var i = 0; i < 10; i++)
+            await forwarder.Forward(Batch(), "", default);
+
+        Assert.That(warnings.Count, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Report_RedactsSensitiveQueryValuesInALogsMessageAndAttributes()
+    {
+        var collector = new Collector();
+        var batch = new ClientTelemetryBatchDto
+        {
+            Logs =
+            [
+                new ClientLogDto
+                {
+                    Time = 1_793_684_837_100, Level = "error", Message = "failed /reset-password?token=abc123&page=2",
+                    Attributes = Attributes("""{"exception.stacktrace":"at https://grifball.xyz/main.js?sig=s3cr3t:1:2"}"""),
+                },
+            ],
+        };
+
+        await Controller(collector).Report(batch, null, default);
+
+        var sent = collector.Posted.Single().Body.ToJsonString();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sent, Does.Not.Contain("abc123").And.Not.Contain("s3cr3t"));
+            Assert.That(sent, Does.Contain("page=2"));
+        }
     }
 
     [Test]

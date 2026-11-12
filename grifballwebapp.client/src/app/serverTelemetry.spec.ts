@@ -27,6 +27,19 @@ import {
 
 describe('server telemetry', () => {
   describe('settings', () => {
+    it('turns browser telemetry on with BROWSER_TELEMETRY', () => {
+      const on = serverTelemetrySettings({ BROWSER_TELEMETRY: 'true' }) as unknown as { browserTelemetry?: boolean };
+      const off = serverTelemetrySettings({}) as unknown as { browserTelemetry?: boolean };
+
+      expect(on.browserTelemetry).toBeTrue();
+      expect(off.browserTelemetry).toBeFalsy();
+    });
+
+    it('names the environment as the backend does when OTEL_RESOURCE_ATTRIBUTES has none: NODE_ENV, as ASP.NET\'s', () => {
+      expect(serverTelemetrySettings({ NODE_ENV: 'Production' }).resource['deployment.environment.name']).toBe('production');
+      expect(serverTelemetrySettings({ NODE_ENV: 'production', OTEL_RESOURCE_ATTRIBUTES: 'deployment.environment.name=test' }).resource['deployment.environment.name']).toBe('test');
+    });
+
     it('reads the OpenTelemetry variables', () => {
       const settings = serverTelemetrySettings({
         OTEL_EXPORTER_OTLP_ENDPOINT: 'http://collector:4318/',

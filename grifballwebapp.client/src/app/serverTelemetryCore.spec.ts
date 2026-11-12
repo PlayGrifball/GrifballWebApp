@@ -15,7 +15,7 @@ class TestReader extends MetricReader {
   protected override onForceFlush(): Promise<void> { return Promise.resolve(); }
 }
 
-function setUp(logLevel: LogLevel = 'info', emit?: jasmine.Spy) {
+function setUp(logLevel: LogLevel = 'info', emit?: jasmine.Spy, extra: Record<string, unknown> = {}) {
   const spans = new InMemorySpanExporter();
   const tracerProvider = new TracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter: spans })] });
   const reader = new TestReader();
@@ -28,7 +28,8 @@ function setUp(logLevel: LogLevel = 'info', emit?: jasmine.Spy) {
     rss: () => 1,
     logLevel,
     logger: emit ? ({ emit } as never) : undefined,
-  });
+    ...extra,
+  } as Parameters<typeof createServerTelemetry>[0]);
   /** How many renders the render-duration histogram has counted. */
   const renders = async () => {
     const { resourceMetrics } = await reader.collect();
@@ -213,5 +214,24 @@ describe('server telemetry core', () => {
       expect(sentClientPage).not.toHaveBeenCalled();
       expect(req.headers.traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
     });
+  });
+
+  it('traces none of the browser\'s telemetry batches (every few seconds a tab), as the backend doesn\'t', () => {
+    const { telemetry, spans } = setUp();
+    const res = response(204);
+    telemetry.requests({ ...request('/api/client-telemetry'), method: 'POST' }, res, () => undefined);
+    res.finish();
+
+    expect(spans.getFinishedSpans()).toEqual([]);
+  });
+
+  it('tells the page browser telemetry is on in its Server-Timing, only when it is', () => {
+    const on = response();
+    const off = response();
+    setUp('info', undefined, { browserTelemetry: true }).telemetry.requests(request('/season/1'), on, () => undefined);
+    setUp().telemetry.requests(request('/season/1'), off, () => undefined);
+
+    expect(on.headers['Server-Timing']).toContain('browser-telemetry');
+    expect(off.headers['Server-Timing']).not.toContain('browser-telemetry');
   });
 });

@@ -505,6 +505,33 @@ public class TelemetryQueryServiceTests
     }
 
     [Test]
+    public async Task Traces_take_their_rows_from_a_second_search_of_request_spans_only()
+    {
+        // A busy trace's matched spans may be all database calls: the request spans come from their own search
+        var backends = new FakeBackends(request => Json(Query(request.RequestUri!, "q").Contains("!= nil", StringComparison.Ordinal)
+            ? """
+              {"traces":[{"traceID":"33333333333333333333333333333333","rootServiceName":"grif-prod","rootTraceName":"GET","startTimeUnixNano":"1793684837000000000","durationMs":30,
+                "spanSet":{"spans":[
+                  {"spanID":"f000000000000003","attributes":[{"key":"grif.request.kind","value":{"stringValue":"api"}},{"key":"http.request.method","value":{"stringValue":"GET"}}]},
+                  {"spanID":"b000000000000003","attributes":[{"key":"http.route","value":{"stringValue":"Teams/GetTeams"}},{"key":"http.response.status_code","value":{"intValue":"200"}}]}]}}]}
+              """
+            : """
+              {"traces":[{"traceID":"33333333333333333333333333333333","rootServiceName":"grif-prod","rootTraceName":"GET","startTimeUnixNano":"1793684837000000000","durationMs":30,
+                "spanSet":{"spans":[{"spanID":"e000000000000003","attributes":[{"key":"db.system","value":{"stringValue":"mssql"}}]}]}}]}
+              """));
+
+        var traces = await Service(backends).Traces(30, false, null, 500, default);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(backends.Asked, Has.Count.EqualTo(2));
+            Assert.That(backends.Asked.Select(u => u.AbsolutePath), Has.All.EqualTo("/api/search"));
+            Assert.That(traces.Single().RootName, Is.EqualTo("GET Teams/GetTeams"));
+            Assert.That(traces.Single().Route, Is.EqualTo("Teams/GetTeams"));
+        }
+    }
+
+    [Test]
     public async Task Traces_search_with_no_traces_is_empty()
     {
         Assert.That(await Service(new FakeBackends(_ => Json("{}"))).Traces(60, false, null, 10, default), Is.Empty);

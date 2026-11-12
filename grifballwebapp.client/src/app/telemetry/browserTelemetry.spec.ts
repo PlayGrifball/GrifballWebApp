@@ -52,6 +52,53 @@ describe('browser telemetry', () => {
       return TestBed.inject(BrowserTelemetry);
     };
 
+    it('records nothing unless the page says browser telemetry is on (its Server-Timing)', () => {
+      const entries = spyOn(performance, 'getEntriesByType').and.returnValue([{ serverTiming: [] }] as never);
+      expect(telemetry().enabled).withContext('no mark').toBeFalse();
+
+      TestBed.resetTestingModule();
+      entries.and.returnValue([{ serverTiming: [{ name: 'browser-telemetry', description: '' }] }] as never);
+      expect(telemetry().enabled).withContext('marked on').toBeTrue();
+    });
+
+    it('measures a batch\'s size for keepalive in bytes, not characters', () => {
+      const t = telemetry();
+      t.log('info', 'é'.repeat(31_000));
+
+      t.flush();
+
+      expect((fetchSpy.calls.mostRecent().args[1] as RequestInit).keepalive).toBeFalse();
+    });
+
+    for (const status of [400, 413])
+      it(`drops only the batch the API refused (${status}), and keeps sending`, async () => {
+        fetchSpy.and.callFake(() => Promise.resolve(new Response(null, { status })));
+        const t = telemetry();
+        t.log('info', 'first');
+        t.flush();
+        await settle();
+
+        t.log('info', 'second');
+        t.flush();
+
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+        expect(t.enabled).toBeTrue();
+      });
+
+    it('keeps a batch inside the API\'s limits: a span\'s name, a log\'s message, a vital\'s value', () => {
+      const t = telemetry();
+      t.startSpan('n'.repeat(300), { parent: null }).end();
+      t.log('info', 'm'.repeat(5_000));
+      t.vital('LCP', 900_000);
+
+      t.flush();
+
+      const [batch] = batches();
+      expect(batch.spans[0].name.length).toBeLessThanOrEqual(200);
+      expect(batch.logs[0].message.length).toBeLessThanOrEqual(4_000);
+      expect(batch.vitals).toEqual([]);
+    });
+
     it('sends a finished span, with its parent, kind, status and set attributes', () => {
       const t = telemetry();
       const span = t.startSpan('navigation', { parent: TRACE, attributes: { a: 1, gone: undefined } });

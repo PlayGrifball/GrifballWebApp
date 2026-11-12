@@ -77,6 +77,19 @@ describe('client errors', () => {
     expect(isCancelledByBrowser(false, visible, { onLine: false } as Navigator)).toBeTrue();
   });
 
+  it('redacts sensitive query values in an error\'s message and stack', () => {
+    const error = new Error('failed to load https://grifball.xyz/reset-password?token=abc123&email=a%40b.c&page=2');
+    error.stack = 'Error: x\n    at https://grifball.xyz/main.js?sig=s3cr3t:1:2';
+
+    const described = describeError(error);
+
+    expect(described.message).not.toContain('abc123');
+    expect(described.message).not.toContain('a%40b.c');
+    expect(described.message).toContain('page=2');
+    expect(described.stack).not.toContain('s3cr3t');
+    expect(describeError('see /x?code=zzz').message).not.toContain('zzz');
+  });
+
   it('never describes an error with an empty message, which the API refuses', () => {
     expect(describeError('').message.trim()).not.toBe('');
     expect(describeError('   ').message.trim()).not.toBe('');

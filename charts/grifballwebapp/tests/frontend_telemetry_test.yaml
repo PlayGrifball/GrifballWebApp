@@ -117,3 +117,11 @@ tests:
           content:
             ports: [{ protocol: TCP, port: 4318 }]
             to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: opentelemetry } } }]
+
+  - it: tells the app's server browser telemetry is on, so the page lets the browser trace
+    template: templates/frontend.yaml
+    documentIndex: 0
+    set:
+      frontend.telemetry: { enabled: true, endpoint: "http://otel:4318", browser: true }
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: BROWSER_TELEMETRY, value: "true" } }
