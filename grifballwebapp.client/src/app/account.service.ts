@@ -9,6 +9,8 @@ import type { RegisterDto } from '@api/models';
 import type { GeneratePasswordResetLinkRequestDto, GeneratePasswordResetLinkResponseDto, UsePasswordResetLinkRequestDto } from '@api/models';
 import { AuthSession } from './authSession.service';
 import { Notifier } from './shared/notifier.service';
+import { IdentityService } from '@api/services/identity.service';
+import { AdminService } from '@api/services/admin.service';
 
 /** Who is signed in (IdentityController.Me): the user, or 204 No Content (null) for a visitor. */
 export const ME_URL = '/api/identity/me';
@@ -31,7 +33,11 @@ export const LEGACY_STORAGE_KEYS = ['access_token', 'metaInfo'] as const;
   providedIn: 'root',
 })
 export class AccountService {
+  // Kept on HttpClient: login, loginExternal (responseType must stay 'text'; see below) and refreshUser
+  // ({ transferCache: false }, which the generated client can't express).
   private readonly http = inject(HttpClient);
+  private readonly identity = inject(IdentityService);
+  private readonly admin = inject(AdminService);
   private readonly notifier = inject(Notifier);
   private readonly router = inject(Router);
   private readonly session = inject(AuthSession);
@@ -82,11 +88,14 @@ export class AccountService {
   }
 
   register(registerDto: RegisterDto) {
-    return this.http.post('/api/identity/register', registerDto);
+    return this.identity.register({ body: registerDto });
   }
 
   /** Signs in with a password, then goes on to `followUp` (a path on this site), or home. */
   login(loginDto: LoginDto, followUp?: string): void {
+    // Stays on HttpClient: the generated identity.login() reads the body as JSON (it can return a bearer
+    // token), but this app only ever uses the session cookie and never reads the body, so the response is
+    // read as text, same as always, rather than risk a parse error on whatever it actually sends.
     this.http.post('/api/identity/login', loginDto, { responseType: 'text' }).subscribe({
       error: () => this.notifier.open("Login failed", "Close"),
       next: () => this.onSignedIn(followUp),
@@ -98,6 +107,7 @@ export class AccountService {
    * goes on to `followUp` (a path on this site), or home.
    */
   loginExternal(followUp?: string): void {
+    // Stays on HttpClient: same reason as login() above (the generated client reads the body as JSON).
     this.http.post('/api/identity/external-login/callback', null, { responseType: 'text' }).subscribe({
       error: () => this.notifier.open("Login failed", "Close"),
       next: () => this.onSignedIn(followUp),
@@ -120,7 +130,7 @@ export class AccountService {
   }
 
   logout(): void {
-    this.http.post('/api/identity/logout', null).subscribe({
+    this.identity.logout().subscribe({
       error: () => this.notifier.open("Logout failed", "Close"),
       next: () => {
         this.session.signedInOrOut();
@@ -137,14 +147,17 @@ export class AccountService {
   }
 
   generatePasswordResetLink(request: GeneratePasswordResetLinkRequestDto): Observable<GeneratePasswordResetLinkResponseDto> {
-    return this.http.post<GeneratePasswordResetLinkResponseDto>('/api/password-reset-links', request);
+    return this.admin.generatePasswordResetLink({ body: request });
   }
 
   resetPassword(request: UsePasswordResetLinkRequestDto): Observable<string> {
+    // Stays on HttpClient: the OpenAPI schema declares this a bodyless response, so the generated
+    // identity.resetPassword() throws the text away; the real response's message is what this returns.
     return this.http.post('/api/identity/password-reset', request, { responseType: 'text' });
   }
 
   cleanupExpiredPasswordResetLinks(): Observable<string> {
+    // Stays on HttpClient: same reason as resetPassword() above.
     return this.http.post('/api/password-reset-links/cleanup', {}, { responseType: 'text' });
   }
 }
