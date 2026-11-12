@@ -431,7 +431,8 @@ public class DiscordTransportTests
         var jobs = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs list", 6101));
         var unknown = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs run", 6101, ("job", "nope/nothing")));
         // Run (then pause) a job the list shows: its first line is `group/name` · state
-        var listed = System.Text.RegularExpressions.Regex.Match(jobs[^1].Data.GetProperty("embeds")[0].GetProperty("description").GetString()!, "`([^`]+)`").Groups[1].Value;
+        var listing = jobs[^1].Data.GetProperty("embeds")[0].GetProperty("description").GetString()!;
+        var listed = listing.StartsWith('`') ? listing[1..listing.IndexOf('`', 1)] : "";
         var ran = listed.Length > 0 ? await _host.SendAsync(DiscordInteractionJson.SubCommand("admin jobs run", 6101, ("job", listed))) : null;
 
         using (Assert.EnterMultipleScope())
