@@ -19,9 +19,11 @@
     <ProjectReference Include="..\GrifballWebApp.Migrations.SqlServer\GrifballWebApp.Migrations.SqlServer.csproj" />
   </ItemGroup>
 
-  <!-- The unit tests give RunAsync their own conversion (DatabaseConverter is sealed and needs real databases) -->
+  <!-- The unit tests give RunAsync their own conversion (DatabaseConverter is sealed and needs real databases); the
+       integration tests give it a real one they stop partway -->
   <ItemGroup>
     <InternalsVisibleTo Include="GrifballWebApp.Convert.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
   </ItemGroup>
 
 </Project>

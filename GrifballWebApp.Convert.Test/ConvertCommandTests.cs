@@ -14,7 +14,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
+
+using System.Runtime.InteropServices;
 
 namespace GrifballWebApp.Convert.Test;
 
@@ -87,7 +90,7 @@ public class ConvertCommandTests
     [Test]
     public async Task Command_WhenTheConversionRefuses_LogsTheReasonAndReturnsOne()
     {
-        using var logs = new RecordingLoggerProvider();
+        using var logs = new FakeLoggerProvider();
         using var loggerFactory = LoggerFactory.Create(logging => logging.AddProvider(logs));
 
         var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), loggerFactory,
@@ -97,7 +100,7 @@ public class ConvertCommandTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(code, Is.EqualTo(1));
-            var error = logs.Entries.Single(e => e.Level == LogLevel.Error);
+            var error = logs.Collector.GetSnapshot().Single(e => e.Level == LogLevel.Error);
             Assert.That(error.Message, Is.EqualTo("The target database already has tables."));
             Assert.That(error.Exception, Is.Null);
         }
@@ -106,7 +109,7 @@ public class ConvertCommandTests
     [Test]
     public async Task Command_WhenTheConversionThrows_LogsTheExceptionAndReturnsOne()
     {
-        using var logs = new RecordingLoggerProvider();
+        using var logs = new FakeLoggerProvider();
         using var loggerFactory = LoggerFactory.Create(logging => logging.AddProvider(logs));
         var failure = new InvalidOperationException("boom");
 
@@ -117,7 +120,7 @@ public class ConvertCommandTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(code, Is.EqualTo(1));
-            var error = logs.Entries.Single(e => e.Level == LogLevel.Error);
+            var error = logs.Collector.GetSnapshot().Single(e => e.Level == LogLevel.Error);
             Assert.That(error.Message, Is.EqualTo("The conversion failed"));
             Assert.That(error.Exception, Is.SameAs(failure));
         }
@@ -127,7 +130,7 @@ public class ConvertCommandTests
     [Test]
     public async Task Command_WhenStopped_LogsAWarningAndReturns130()
     {
-        using var logs = new RecordingLoggerProvider();
+        using var logs = new FakeLoggerProvider();
         using var loggerFactory = LoggerFactory.Create(logging => logging.AddProvider(logs));
         using var cancellation = new CancellationTokenSource();
 
@@ -142,8 +145,50 @@ public class ConvertCommandTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(code, Is.EqualTo(130));
-            Assert.That(logs.Entries.Select(e => (e.Level, e.Message)), Does.Contain((LogLevel.Warning, "The conversion was stopped")));
-            Assert.That(logs.Entries.Where(e => e.Level == LogLevel.Error), Is.Empty);
+            Assert.That(logs.Collector.GetSnapshot().Select(e => (e.Level, e.Message)), Does.Contain((LogLevel.Warning, "The conversion was stopped")));
+            Assert.That(logs.Collector.GetSnapshot().Where(e => e.Level == LogLevel.Error), Is.Empty);
+        }
+    }
+
+    // SqlClient reports a cancelled command as a SqlException: once the caller has stopped the conversion, whatever it
+    // throws is the stop
+    [Test]
+    public async Task Command_WhenStopped_ReturnsAs130WhateverTheStopThrew()
+    {
+        using var logs = new FakeLoggerProvider();
+        using var loggerFactory = LoggerFactory.Create(logging => logging.AddProvider(logs));
+        using var cancellation = new CancellationTokenSource();
+
+        var code = await ConvertCommand.RunAsync(ValidSourceAndTarget(), loggerFactory,
+            async (_, _, _) =>
+            {
+                await cancellation.CancelAsync();
+                throw new InvalidOperationException("Operation cancelled by user.");
+            },
+            cancellation.Token);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(code, Is.EqualTo(130));
+            Assert.That(logs.Collector.GetSnapshot().Where(e => e.Level == LogLevel.Error), Is.Empty);
+        }
+    }
+
+    [Test]
+    public void OnStopSignal_TheFirstStopsTheConversion_ASecondEndsTheProcess()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var first = new PosixSignalContext(PosixSignal.SIGTERM);
+        var second = new PosixSignalContext(PosixSignal.SIGINT);
+
+        ConvertCommand.OnStopSignal(first, cancellation);
+        ConvertCommand.OnStopSignal(second, cancellation);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(cancellation.IsCancellationRequested, Is.True);
+            Assert.That(first.Cancel, Is.True, "the first is handled: the process carries on to clean up");
+            Assert.That(second.Cancel, Is.False, "the second takes its default: the process ends");
         }
     }
 
@@ -156,32 +201,5 @@ public class ConvertCommandTests
             CancellationToken.None);
 
         Assert.That(code, Is.EqualTo(1));
-    }
-
-    private sealed record LogEntry(LogLevel Level, string Message, Exception? Exception);
-
-    /// <summary>Every entry logged through it, in order</summary>
-    private sealed class RecordingLoggerProvider : ILoggerProvider
-    {
-        private readonly System.Collections.Concurrent.ConcurrentQueue<LogEntry> _entries = new();
-
-        public IReadOnlyList<LogEntry> Entries => [.. _entries];
-
-        public ILogger CreateLogger(string categoryName) => new Logger(_entries);
-
-        public void Dispose()
-        {
-            // Nothing to release
-        }
-
-        private sealed class Logger(System.Collections.Concurrent.ConcurrentQueue<LogEntry> entries) : ILogger
-        {
-            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-            public bool IsEnabled(LogLevel logLevel) => true;
-
-            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-                => entries.Enqueue(new LogEntry(logLevel, formatter(state, exception), exception));
-        }
     }
 }

@@ -2,6 +2,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Conversion;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Runtime.InteropServices;
 
 namespace GrifballWebApp.Convert;
 
@@ -14,7 +15,8 @@ namespace GrifballWebApp.Convert;
 ///   take them.
 /// Exit code 0 once the copy is committed and checked, 1 if it refused or failed (the target is then
 /// dropped if the conversion created it, or emptied again if it was there), 2 for missing or wrong settings, 130 when
-/// stopped (Ctrl+C).
+/// stopped (Ctrl+C, or SIGTERM as Kubernetes stops the pod: the target is cleaned up the same way). A second signal
+/// ends the process at once.
 /// </summary>
 public static partial class ConvertCommand
 {
@@ -31,9 +33,22 @@ public static partial class ConvertCommand
             .AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning));
 
         using var cancellation = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
+        // Declared after the token source, so they're removed before it's disposed: a late signal finds no handler
+        using var interrupt = PosixSignalRegistration.Create(PosixSignal.SIGINT, context => OnStopSignal(context, cancellation));
+        using var quit = PosixSignalRegistration.Create(PosixSignal.SIGQUIT, context => OnStopSignal(context, cancellation));
+        using var terminate = PosixSignalRegistration.Create(PosixSignal.SIGTERM, context => OnStopSignal(context, cancellation));
 
         return await RunAsync(configuration, loggerFactory, cancellation.Token);
+    }
+
+    /// <summary>The first stop signal cancels the conversion, which cleans up its target and exits 130; another, while
+    /// that cleanup runs (or hangs), is left to its default: the process ends.</summary>
+    internal static void OnStopSignal(PosixSignalContext context, CancellationTokenSource cancellation)
+    {
+        if (cancellation.IsCancellationRequested)
+            return;
+        context.Cancel = true;
+        cancellation.Cancel();
     }
 
     public static Task<int> RunAsync(IConfiguration configuration, ILoggerFactory loggerFactory, CancellationToken cancellationToken = default)
@@ -67,7 +82,9 @@ public static partial class ConvertCommand
             await convert(source, target, cancellationToken);
             return 0;
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        // Whatever the stop surfaced as: SqlClient reports a cancelled command as a SqlException, not an
+        // OperationCanceledException
+        catch (Exception) when (cancellationToken.IsCancellationRequested)
         {
             LogStopped(logger);
             return 130;
