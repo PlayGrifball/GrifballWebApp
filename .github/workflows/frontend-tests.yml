@@ -46,22 +46,34 @@ jobs:
 
   # The production build, once: the end-to-end shards all test this one (each used to build its own)
   build:
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
+    env:
+      # Skipped step by step, as the end-to-end shards are, so they don't skip as a whole (and keep their check names)
+      RUN: ${{ needs.changes.outputs.frontend }}
 
     defaults:
       run:
         working-directory: ./grifballwebapp.client
 
     steps:
+    - name: Nothing to build
+      if: env.RUN != 'true'
+      # Nothing is checked out: the job's default directory, the client's, isn't there
+      working-directory: .
+      run: "echo 'The PR changes nothing in the client: the build is skipped'"
+
     - name: Checkout code
+      if: env.RUN == 'true'
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
 
     - name: Setup Node.js
+      if: env.RUN == 'true'
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
         node-version: ${{ env.NODE_VERSION }}
@@ -69,13 +81,16 @@ jobs:
         cache-dependency-path: grifballwebapp.client/package-lock.json
 
     - name: Install dependencies
+      if: env.RUN == 'true'
       run: npm ci --ignore-scripts
 
     # build-manifest.json beside the built files, as the image has it (Dockerfile): e2e/build-manifest.spec.ts
     - name: Build
+      if: env.RUN == 'true'
       run: npm run build && node build-manifest.mjs
 
     - name: Upload the build
+      if: env.RUN == 'true'
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: client-build
