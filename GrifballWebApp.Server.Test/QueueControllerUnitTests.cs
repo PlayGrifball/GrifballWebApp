@@ -3,6 +3,7 @@ using GrifballWebApp.Server.Matchmaking;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using GrifballWebApp.Application.Matchmaking;
+using NSubstitute;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -37,6 +38,41 @@ public class QueueControllerUnitTests
         {
             (await _controller.Join(CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
             (await _controller.Leave(CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
+        }
+    }
+
+    [Test]
+    public async Task Status_ForAnAnonymousUser_ReturnsTheQueuesSizeAndNotSignedIn()
+    {
+        var queue = Substitute.For<IQueueRepository>();
+        queue.Count(Arg.Any<CancellationToken>()).Returns(3);
+        var controller = new QueueController(null!, queue, new ConfigurationBuilder().Build()).WithAnonymousUser();
+
+        var status = await controller.Status(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(status.Count, Is.EqualTo(3));
+            Assert.That(status.SignedIn, Is.False);
+            Assert.That(status.InQueue, Is.False);
+        }
+    }
+
+    [Test]
+    public async Task Status_ForASignedInPlayer_ReturnsTheirMembership()
+    {
+        var queue = Substitute.For<IQueueRepository>();
+        queue.PlayerState(5, Arg.Any<CancellationToken>()).Returns(new QueuePlayerState(5, true, InQueue: true, InMatch: false, QueueCount: 7));
+        var controller = new QueueController(null!, queue, new ConfigurationBuilder().Build()).WithUser("5");
+
+        var status = await controller.Status(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(status.Count, Is.EqualTo(7));
+            Assert.That(status.SignedIn, Is.True);
+            Assert.That(status.InQueue, Is.True);
+            Assert.That(status.HasGamertag, Is.True);
         }
     }
 }

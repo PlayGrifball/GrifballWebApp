@@ -2,6 +2,7 @@ using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Server.Preview;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace GrifballWebApp.Server.Test;
@@ -64,7 +65,11 @@ public class PreviewSmokeUsersUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.Zero);
-            Assert.That(logger.Entries, Has.Count.EqualTo(PreviewSmokeUsers.UserNames.Count));
+            // An error logged for each user that couldn't be created, plus the "ready" summary EnsureAsync always logs
+            Assert.That(logger.Entries.Where(e => e.Level == LogLevel.Error).Select(e => e.Message),
+                Is.EquivalentTo(PreviewSmokeUsers.UserNames.Select(name => $"Preview smoke-test user {name} is not ready")));
+            Assert.That(logger.Entries.Single(e => e.Level == LogLevel.Information).Message,
+                Is.EqualTo("Preview smoke-test users ready (0 created or updated)"));
         }
     }
 
