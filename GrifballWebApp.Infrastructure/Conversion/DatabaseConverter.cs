@@ -67,14 +67,20 @@ public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
         }
         catch (Exception e) when (created)
         {
-            logger.LogError("The conversion failed ({Message}); dropping the target database it created", e.Message);
+            if (cancellationToken.IsCancellationRequested)
+                logger.LogWarning("The conversion was stopped; dropping the target database it created");
+            else
+                logger.LogError("The conversion failed ({Message}); dropping the target database it created", e.Message);
             ClearPools(target);
             await targetContext.Database.EnsureDeletedAsync(CancellationToken.None);
             throw;
         }
         catch (Exception e)
         {
-            logger.LogError("The conversion failed ({Message}); the target database was there before it: undoing its migrations", e.Message);
+            if (cancellationToken.IsCancellationRequested)
+                logger.LogWarning("The conversion was stopped; the target database was there before it: undoing its migrations");
+            else
+                logger.LogError("The conversion failed ({Message}); the target database was there before it: undoing its migrations", e.Message);
             await UndoMigrationsAsync(targetContext);
             throw;
         }

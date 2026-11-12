@@ -413,7 +413,15 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
     - |
       set -eu
       {{- include "grif.onlyNewDatabase" "convert" | nindent 6 }}
-      dotnet /app/convert/GrifballWebApp.Convert.dll
+      # In the background, with SIGTERM passed on: sh (the container's PID 1) doesn't forward it, and the converter cleans
+      # up its target when stopped. The wait returns at the signal, so it's repeated until the converter has finished.
+      dotnet /app/convert/GrifballWebApp.Convert.dll & convert=$!
+      trap 'kill -TERM "$convert" 2>/dev/null || true' TERM
+      status=0
+      wait "$convert" || status=$?
+      while kill -0 "$convert" 2>/dev/null; do status=0; wait "$convert" || status=$?; done
+      trap - TERM
+      [ "$status" = 0 ] || exit "$status"
       {{- with include "grif.migrationQueryFunctions" . }}
       {{- . | nindent 6 }}
       {{- end }}

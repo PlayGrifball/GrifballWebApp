@@ -2,6 +2,7 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Conversion;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Runtime.InteropServices;
 
 namespace GrifballWebApp.Convert;
 
@@ -13,7 +14,9 @@ namespace GrifballWebApp.Convert;
 ///   the app's own, Database:Provider and ConnectionStrings:GrifballWebApp, as the migration bundles
 ///   take them.
 /// Exit code 0 once the copy is committed and checked, 1 if it refused or failed (the target is then
-/// dropped if the conversion created it, or emptied again if it was there), 2 for missing or wrong settings.
+/// dropped if the conversion created it, or emptied again if it was there), 2 for missing or wrong settings, 130 when
+/// stopped (Ctrl+C, or SIGTERM as Kubernetes stops the pod: the target is cleaned up the same way). A second signal
+/// ends the process at once.
 /// </summary>
 public static partial class ConvertCommand
 {
@@ -30,12 +33,35 @@ public static partial class ConvertCommand
             .AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning));
 
         using var cancellation = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
+        // Declared after the token source, so they're removed before it's disposed: a late signal finds no handler
+        using var interrupt = PosixSignalRegistration.Create(PosixSignal.SIGINT, context => OnStopSignal(context, cancellation));
+        using var quit = PosixSignalRegistration.Create(PosixSignal.SIGQUIT, context => OnStopSignal(context, cancellation));
+        using var terminate = PosixSignalRegistration.Create(PosixSignal.SIGTERM, context => OnStopSignal(context, cancellation));
 
         return await RunAsync(configuration, loggerFactory, cancellation.Token);
     }
 
-    public static async Task<int> RunAsync(IConfiguration configuration, ILoggerFactory loggerFactory, CancellationToken cancellationToken = default)
+    /// <summary>The first stop signal cancels the conversion, which cleans up its target and exits 130; another, while
+    /// that cleanup runs (or hangs), is left to its default: the process ends.</summary>
+    internal static void OnStopSignal(PosixSignalContext context, CancellationTokenSource cancellation)
+    {
+        if (cancellation.IsCancellationRequested)
+            return;
+        context.Cancel = true;
+        cancellation.Cancel();
+    }
+
+    public static Task<int> RunAsync(IConfiguration configuration, ILoggerFactory loggerFactory, CancellationToken cancellationToken = default)
+        => RunAsync(configuration, loggerFactory,
+            (source, target, ct) => new DatabaseConverter(loggerFactory.CreateLogger<DatabaseConverter>()).ConvertAsync(source, target, ct),
+            cancellationToken);
+
+    /// <summary>
+    /// <paramref name="convert"/> runs the conversion: the public overload's is a DatabaseConverter, which is sealed and
+    /// needs real databases, so the unit tests give their own (the integration tests run the real one).
+    /// </summary>
+    internal static async Task<int> RunAsync(IConfiguration configuration, ILoggerFactory loggerFactory,
+        Func<DatabaseEndpoint, DatabaseEndpoint, CancellationToken, Task> convert, CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger(typeof(ConvertCommand));
         DatabaseEndpoint source, target;
@@ -53,8 +79,15 @@ public static partial class ConvertCommand
         LogConverting(logger, source.Provider, target.Provider);
         try
         {
-            await new DatabaseConverter(loggerFactory.CreateLogger<DatabaseConverter>()).ConvertAsync(source, target, cancellationToken);
+            await convert(source, target, cancellationToken);
             return 0;
+        }
+        // Whatever the stop surfaced as: SqlClient reports a cancelled command as a SqlException, not an
+        // OperationCanceledException
+        catch (Exception) when (cancellationToken.IsCancellationRequested)
+        {
+            LogStopped(logger);
+            return 130;
         }
         catch (ConversionException e)
         {
@@ -85,4 +118,7 @@ public static partial class ConvertCommand
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Converting a {Source} database into a new {Target} one")]
     private static partial void LogConverting(ILogger logger, DatabaseProvider source, DatabaseProvider target);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The conversion was stopped")]
+    private static partial void LogStopped(ILogger logger);
 }

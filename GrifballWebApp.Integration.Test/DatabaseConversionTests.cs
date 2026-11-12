@@ -322,13 +322,16 @@ public class DatabaseConversionTests
     }
 
     /// <summary>Cancels the conversion as it logs that it copied its first table.</summary>
-    private sealed class CancelAfterFirstTable(CancellationTokenSource cancellation) : ILogger<DatabaseConverter>
+    private sealed class CancelAfterFirstTable(CancellationTokenSource cancellation, System.Collections.Concurrent.ConcurrentQueue<string>? errors = null) : ILogger<DatabaseConverter>
     {
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            if (formatter(state, exception).StartsWith("Copied"))
+            var message = formatter(state, exception);
+            if (logLevel >= LogLevel.Error)
+                errors?.Enqueue(message);
+            if (message.StartsWith("Copied"))
                 cancellation.Cancel();
         }
     }
@@ -415,6 +418,48 @@ public class DatabaseConversionTests
         {
             Assert.That(exit, Is.Zero);
             Assert.That(await Fingerprints(target), Is.EquivalentTo(await Fingerprints(source)));
+        }
+    }
+
+    // Stopped partway (Ctrl+C, or SIGTERM as Kubernetes stops the pod): 130, the target it created dropped, and no error
+    // logged by the command or the converter, on every server (SqlClient's cancelled command is a SqlException)
+    [Test]
+    public async Task Command_WhenStoppedMidCopy_Returns130AndDropsTheTarget()
+    {
+        var source = Database(TestDatabase.Provider);
+        await Fill(source);
+        var target = Database(TestDatabase.Other);
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Source:Provider"] = source.Provider.ToString(),
+            ["Source:ConnectionString"] = source.ConnectionString,
+            ["Target:Provider"] = target.Provider.ToString(),
+            ["Target:ConnectionString"] = target.ConnectionString,
+        }).Build();
+        using var cancellation = new CancellationTokenSource();
+        var errors = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        using var loggerFactory = LoggerFactory.Create(logging => logging.AddProvider(new StopAfterFirstTable(cancellation, errors)));
+
+        var exit = await ConvertCommand.RunAsync(configuration, loggerFactory,
+            (from, to, ct) => new DatabaseConverter(loggerFactory.CreateLogger<DatabaseConverter>()).ConvertAsync(from, to, ct),
+            cancellation.Token);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(exit, Is.EqualTo(130));
+            Assert.That(await ExistsAsync(target), Is.False);
+            Assert.That(errors, Is.Empty);
+        }
+    }
+
+    /// <summary>Stops the conversion once its first table is copied, and keeps every error logged.</summary>
+    private sealed class StopAfterFirstTable(CancellationTokenSource cancellation, System.Collections.Concurrent.ConcurrentQueue<string> errors) : ILoggerProvider
+    {
+        public ILogger CreateLogger(string categoryName) => new CancelAfterFirstTable(cancellation, errors);
+
+        public void Dispose()
+        {
+            // Nothing to release
         }
     }
 
