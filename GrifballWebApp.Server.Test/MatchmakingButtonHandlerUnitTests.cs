@@ -28,8 +28,8 @@ public class MatchmakingButtonHandlerUnitTests : SqliteGrifballContextFixture
         return context;
     }
 
-    private static void AssertSent(IDiscordButtonInteractionContext context, string expected)
-        => context.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(p =>
+    private static async Task AssertSent(IDiscordButtonInteractionContext context, string expected)
+        => await context.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(p =>
             ((InteractionCallbackProperties<InteractionMessageProperties>)p).Data.Content == expected));
 
     [Test]
@@ -39,7 +39,7 @@ public class MatchmakingButtonHandlerUnitTests : SqliteGrifballContextFixture
 
         await Handler().JoinQueue(context);
 
-        AssertSent(context, "You must set your gamertag first");
+        await AssertSent(context, "You must set your gamertag first");
     }
 
     [Test]
@@ -49,7 +49,7 @@ public class MatchmakingButtonHandlerUnitTests : SqliteGrifballContextFixture
 
         await Handler().LeaveQueue(context);
 
-        AssertSent(context, "You are not in the Late League queue.");
+        await AssertSent(context, "You are not in the Late League queue.");
     }
 
     [Test]
@@ -69,7 +69,7 @@ public class MatchmakingButtonHandlerUnitTests : SqliteGrifballContextFixture
 
         await Handler().VoteForWinner(context, matchId: 1, winner: "Home");
 
-        AssertSent(context, "You must set your gamertag first");
+        await AssertSent(context, "You must set your gamertag first");
     }
 
     [Test]
@@ -80,7 +80,7 @@ public class MatchmakingButtonHandlerUnitTests : SqliteGrifballContextFixture
 
         await Handler().VoteForWinner(context, matchId: 1, winner: "NotAValue");
 
-        AssertSent(context, "I could not parse the value NotAValue. Contact developer, expected values are Home,Away,Cancel");
+        await AssertSent(context, "I could not parse the value NotAValue. Contact developer, expected values are Home,Away,Cancel");
     }
 
     [Test]
@@ -91,6 +91,6 @@ public class MatchmakingButtonHandlerUnitTests : SqliteGrifballContextFixture
 
         await Handler().VoteForWinner(context, matchId: 999, winner: "Home");
 
-        AssertSent(context, "Match does not exist or it is no longer active");
+        await AssertSent(context, "Match does not exist or it is no longer active");
     }
 }

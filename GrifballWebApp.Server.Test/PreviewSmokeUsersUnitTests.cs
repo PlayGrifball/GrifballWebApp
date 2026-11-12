@@ -63,7 +63,7 @@ public class PreviewSmokeUsersUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.EqualTo(0));
+            Assert.That(result, Is.Zero);
             Assert.That(logger.Entries, Has.Count.EqualTo(PreviewSmokeUsers.UserNames.Count));
         }
     }

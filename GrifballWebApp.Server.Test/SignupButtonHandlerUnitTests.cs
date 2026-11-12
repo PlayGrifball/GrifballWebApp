@@ -30,8 +30,8 @@ public class SignupButtonHandlerUnitTests : SqliteGrifballContextFixture
         return context;
     }
 
-    private static void AssertSent(IDiscordButtonInteractionContext context, string expected)
-        => context.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(p =>
+    private static async Task AssertSent(IDiscordButtonInteractionContext context, string expected)
+        => await context.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(p =>
             ((InteractionCallbackProperties<InteractionMessageProperties>)p).Data.Content == expected));
 
     [Test]
@@ -41,7 +41,7 @@ public class SignupButtonHandlerUnitTests : SqliteGrifballContextFixture
 
         await Handler().Signup(context, 1);
 
-        AssertSent(context, "You must set your gamertag first");
+        await AssertSent(context, "You must set your gamertag first");
     }
 
     [Test]
@@ -55,6 +55,6 @@ public class SignupButtonHandlerUnitTests : SqliteGrifballContextFixture
 
         await Handler().Signup(context, season.SeasonID);
 
-        AssertSent(context, $"You are already signed up for this season. Remember you can do more things like set your availability [here](https://grif.test/login?followUp=/season/{season.SeasonID}/signupForm)");
+        await AssertSent(context, $"You are already signed up for this season. Remember you can do more things like set your availability [here](https://grif.test/login?followUp=/season/{season.SeasonID}/signupForm)");
     }
 }

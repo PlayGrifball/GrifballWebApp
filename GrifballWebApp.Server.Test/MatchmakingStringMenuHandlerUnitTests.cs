@@ -24,8 +24,8 @@ public class MatchmakingStringMenuHandlerUnitTests : SqliteGrifballContextFixtur
         return context;
     }
 
-    private static void AssertSent(IDiscordStringMenuInteractionContext context, string expected)
-        => context.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(p =>
+    private static async Task AssertSent(IDiscordStringMenuInteractionContext context, string expected)
+        => await context.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(p =>
             ((InteractionCallbackProperties<InteractionMessageProperties>)p).Data.Content == expected));
 
     [Test]
@@ -35,7 +35,7 @@ public class MatchmakingStringMenuHandlerUnitTests : SqliteGrifballContextFixtur
 
         await Handler().VoteToKick(context, matchId: 1);
 
-        AssertSent(context, "You must set your gamertag first");
+        await AssertSent(context, "You must set your gamertag first");
     }
 
     [Test]
@@ -46,6 +46,6 @@ public class MatchmakingStringMenuHandlerUnitTests : SqliteGrifballContextFixtur
 
         await Handler().VoteToKick(context, matchId: 999);
 
-        AssertSent(context, "This match does not exist");
+        await AssertSent(context, "This match does not exist");
     }
 }
