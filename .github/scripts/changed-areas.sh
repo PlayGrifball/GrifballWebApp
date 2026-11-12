@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Which parts of the repo a run has to test, for the workflows to skip what a PR can't affect: backend=true when the
 # .NET code (or its build or test setup) changed, frontend=true when the Angular client did (its unit tests, its
-# end-to-end tests against the mock API, Lighthouse), images=true when what the Docker images are built from did (the
+# end-to-end tests against the mock API), images=true when what the Docker images are built from did (the
 # Dockerfiles, the package and project files, the build's workflow): the arm64 check. Anything that isn't a pull
 # request (a push to master, a manual run) tests everything, and so does a PR whose file list can't be read.
 #
