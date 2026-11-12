@@ -38,7 +38,7 @@ public class BrowseCommandsHandlerUnitTests : SqliteGrifballContextFixture
 
         await Handler().Search(discord.Context, "winter");
 
-        var fields = discord.Embed().Fields!;
+        var fields = discord.Embed().Fields!.ToList();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(fields[0].Value, Is.EqualTo("None"));

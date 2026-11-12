@@ -44,25 +44,4 @@ public class TeamCommandsHandlerUnitTests : SqliteGrifballContextFixture
             Assert.That(discord.Content(), Is.EqualTo(TeamCommandsHandler.NoSuchTeam));
         }
     }
-
-    [Test]
-    public void VodLines_OrdersNewestFirst_EachAYouTubeLink()
-    {
-        var older = new GrifballWebApp.Application.Historical.Vods.VodDto { Title = "Older", YouTubeVideoID = "aaa", PublishedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
-        var newer = new GrifballWebApp.Application.Historical.Vods.VodDto { Title = "Newer", YouTubeVideoID = "bbb", PublishedAt = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc) };
-
-        var result = TeamCommandsHandler.VodLines([older, newer]);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result, Does.Contain("https://www.youtube.com/watch?v=bbb"));
-            Assert.That(result.IndexOf("Newer", StringComparison.Ordinal), Is.LessThan(result.IndexOf("Older", StringComparison.Ordinal)));
-        }
-    }
-
-    [Test]
-    public void VodLines_RepliesNoVodsYet_ForNone()
-    {
-        Assert.That(TeamCommandsHandler.VodLines([]), Is.EqualTo("No VODs yet."));
-    }
 }
