@@ -31,6 +31,8 @@ namespace GrifballWebApp.Integration.Test;
 [Parallelizable(ParallelScope.All)]
 public class MatchAndBrowseCommandsTests
 {
+    private static readonly long[] WaitingHome = [9_100_001];
+    private static readonly long[] WaitingAway = [9_100_002];
     private static readonly string[] RankBoards = ["Rings", "Goals", "Kills", "Games", "Carrier stops"];
 
     private GrifballContext _context = null!;
@@ -287,6 +289,27 @@ public class MatchAndBrowseCommandsTests
             Assert.That(await _lookups.TeamChoices(null), Is.Not.Empty);
             Assert.That(await _lookups.PlayerChoices(null), Is.Not.Empty);
             Assert.That(await _lookups.SeasonMatchChoices(null), Is.Not.Empty);
+        }
+    }
+
+    [Test]
+    public async Task MatchInfoAndGame_Should_ShowAMatchWithoutTeams_AndAnUnreportedGame()
+    {
+        var season = await _context.AddSeason("Waiting");
+        var waiting = SeasonMatch.Seed(season.SeasonID, null, null);
+        _context.SeasonMatches.Add(waiting);
+        await _context.SaveChangesAsync();
+        var game = await SeasonMatchTestData.AddMatchAsync(_context, new DateTime(2026, 10, 30, 23, 0, 0, DateTimeKind.Utc), WaitingHome, Outcomes.Won, WaitingAway, Outcomes.Lost);
+        var info = new CommandContextRecorder();
+
+        await _matches.Info(info.Context, waiting.SeasonMatchID.ToString());
+        await _matches.Game(_discord.Context, game.MatchID.ToString());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(info.Embed().Title, Is.EqualTo("TBD vs TBD"));
+            Assert.That(_discord.Embed().Title, Is.EqualTo("Halo Infinite match"));
+            Assert.That(_discord.Embed().Fields!.Select(f => f.Name), Has.Some.StartsWith("Team 0: "));
         }
     }
 }

@@ -65,7 +65,8 @@ public class PlayerCommandsHandler
         return (await _profiles.GetAsync(userID))!;
     }
 
-    private static string Name(ProfileStatsDto profile) => profile.Gamertag ?? profile.DisplayName ?? $"Player {profile.UserID}";
+    /// <summary>The player's gamertag: every player found here has one (<see cref="CommandLookups.Player"/>, <see cref="DiscordCaller"/>).</summary>
+    private static string Name(ProfileStatsDto profile) => profile.Gamertag!;
 
     public async Task Profile(IDiscordInteractionContext context, string? player)
     {
@@ -116,7 +117,7 @@ public class PlayerCommandsHandler
     {
         if (await PlayerFor(context, player) is not { } p)
             return;
-        var history = await _history.GetAsync(p.UserID) ?? [];
+        var history = (await _history.GetAsync(p.UserID))!;
         var lines = history
             .Select(x => $"{x.Season.SeasonName} · {x.TeamName.LinkMarkdown(_urls.Team(x.Season.SeasonID, x.TeamID))}{(x.IsCaptain ? " (captain)" : "")}"
                 + $" · {x.Wins}-{x.Losses} · {x.Finish}" + (x.ChampionshipTiers.Count > 0 ? $" · {string.Join(", ", x.ChampionshipTiers)} champion" : ""))
@@ -143,7 +144,7 @@ public class PlayerCommandsHandler
                 await context.EphemeralResponse(NoSuchPlayer);
                 return;
             }
-            gamertag = (await _profiles.GetAsync(userID))?.Gamertag;
+            gamertag = (await _profiles.GetAsync(userID))!.Gamertag;
         }
         await _recentMatches.RecentMatches(context, gamertag);
     }

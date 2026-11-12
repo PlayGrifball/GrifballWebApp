@@ -3,7 +3,6 @@ using GrifballWebApp.Application;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.Historical.Vods;
 using GrifballWebApp.Application.TeamPage;
-using GrifballWebApp.Domain.League;
 using NetCord.Rest;
 
 namespace GrifballWebApp.Server.Commands;
@@ -98,7 +97,7 @@ public class TeamCommandsHandler
         var lines = matches
             .Select(x => $"{(x.ScheduledTime is { } time ? time.DiscordTimeEmbed() : "Unscheduled")} · "
                 + $"vs {x.OtherTeamName ?? "TBD"}".LinkMarkdown(_urls.SeasonMatch(x.SeasonMatchID))
-                + (x.Result is { } result ? $" · {Outcome(result)} {x.Score}-{x.OtherScore}" : ""))
+                + (x.Result is { } result ? $" · {result} {x.Score}-{x.OtherScore}" : ""))
             .ToList();
         await context.Reply(CommandReplies.Embed($"{t.Team.TeamName} matches", t.Url, CommandReplies.Lines(lines, "No matches yet.")));
     }
@@ -111,8 +110,6 @@ public class TeamCommandsHandler
         var vods = await _vods.ForTeam(t.TeamID);
         await context.Reply(CommandReplies.Embed($"{t.Team.TeamName} VODs", t.Url, VodLines(vods)));
     }
-
-    private static string Outcome(SeasonMatchResult result) => result is SeasonMatchResult.Loss ? "Lost" : result.ToString();
 
     /// <summary>VODs, newest first, each a YouTube link.</summary>
     internal static string VodLines(IEnumerable<VodDto> vods)

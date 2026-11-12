@@ -414,4 +414,23 @@ public class AdminCommandsTests
 
         Assert.That(discord.Content(), Is.EqualTo(SeasonCommandsHandler.NoSuchSeason));
     }
+
+    [Test]
+    public async Task DecideReschedule_Should_RejectARequest()
+    {
+        var seeded = await RescheduleTestData.SeedAsync(_context, scheduled: DateTime.UtcNow.AddDays(3));
+        var request = await new RescheduleService(_context, new ContextOutbox(_context)).RequestRescheduleAsync(
+            new RescheduleRequestDto { SeasonMatchID = seeded.Match.SeasonMatchID, Reason = "Travel" }, seeded.Requester.Id);
+        var pending = As(_commissioner);
+        var decide = As(_commissioner);
+
+        await _handler.PendingReschedules(pending.Context);
+        await _handler.DecideReschedule(decide.Context, request.MatchRescheduleID, approve: false, notes: null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(pending.Embed().Description, Does.Contain("no time given"));
+            Assert.That(decide.Content(), Is.EqualTo("Rejected."));
+        }
+    }
 }

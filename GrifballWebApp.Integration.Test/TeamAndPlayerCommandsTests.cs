@@ -232,7 +232,7 @@ public class TeamAndPlayerCommandsTests
     }
 
     [Test]
-    public async Task TeamMatchesAndVods_Should_ShowALossAndTheTeamsVods()
+    public async Task TeamMatchesAndVods_Should_ShowAForfeitAndTheTeamsVods()
     {
         var other = await _context.AddTeamWithCaptain(_season, "WinnerGT", 9_000_003);
         var match = SeasonMatch.Seed(_season.SeasonID, _team.TeamID, other.TeamID);
@@ -249,7 +249,7 @@ public class TeamAndPlayerCommandsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(discord.Embed().Description, Does.Contain(" · Lost"));
+            Assert.That(discord.Embed().Description, Does.Contain(" · Forfeit"));
             Assert.That(vods.Embed().Description, Does.StartWith("[Alpha highlights](https://www.youtube.com/watch?v=teamvideo)"));
         }
     }
@@ -258,12 +258,24 @@ public class TeamAndPlayerCommandsTests
     public async Task PlayerStats_Should_ShowTheCareerByGame()
     {
         _context.PlayerSeasonStats.Add(PlayerSeasonStat.Seed(new StatSheetTotals { Gamertag = "PickGT", Kills = 7, GamesPlayed = 3, Wins = 2, Losses = 1, Goals = 5 },
-            _season.SeasonID, _player.Id, gameVersionID: 1, teamID: _team.TeamID, stintIndex: 0));
+            _season.SeasonID, _player.Id, gameVersionID: 1, teamID: _team.TeamID, stintIndex: 1));
         await _context.SaveChangesAsync();
         var discord = new CommandContextRecorder();
 
         await _players.Stats(discord.Context, "PickGT");
 
         Assert.That(discord.Embed().Description, Does.Contain("2-1").And.Contain("7 kills"));
+    }
+
+    [Test]
+    public async Task TeamMatches_Should_ShowAnOpponentStillToBeDecided()
+    {
+        _context.SeasonMatches.Add(SeasonMatch.Seed(_season.SeasonID, _team.TeamID, null));
+        await _context.SaveChangesAsync();
+        var discord = new CommandContextRecorder();
+
+        await _teams.Matches(discord.Context, _team.TeamID.ToString());
+
+        Assert.That(discord.Embed().Description, Does.Contain("[vs TBD]"));
     }
 }

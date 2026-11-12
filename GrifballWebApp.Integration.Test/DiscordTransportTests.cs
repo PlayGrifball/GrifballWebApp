@@ -370,6 +370,7 @@ public class DiscordTransportTests
         new object[] { "admin overdue", Array.Empty<(string, string)>() },
         new object[] { "admin medals", Array.Empty<(string, string)>() },
         new object[] { "admin match report", new[] { ("match", "Missing"), ("match_id", "not-a-guid") } },
+        new object[] { "admin match report", new[] { ("match", "Missing"), ("match_id", "not-a-guid"), ("replaces", "2") } },
         new object[] { "admin match forfeit", new[] { ("match", "Missing"), ("side", "0") } },
         new object[] { "admin match undo", new[] { ("match", "Missing") } },
         new object[] { "admin match pull", new[] { ("match", "Missing") } },

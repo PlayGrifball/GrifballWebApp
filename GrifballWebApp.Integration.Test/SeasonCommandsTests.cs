@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Dtos;
@@ -301,5 +302,34 @@ public class SeasonCommandsTests
         await run();
 
         Assert.That(_discord.Content(), Is.EqualTo(SeasonCommandsHandler.NoSuchSeason));
+    }
+
+    [Test]
+    public async Task SeasonCommands_Should_ShowTheSeasonsStatsChampionsAndGrades()
+    {
+        var season = await AddSeason("Played");
+        var (alpha, _) = await AddTeams(season);
+        var player = await _context.AddUser("statted", gamertag: "Statted");
+        _context.PlayerSeasonStats.Add(PlayerSeasonStat.Seed(new StatSheetTotals { Gamertag = "Statted", Goals = 9, Kills = 4, GamesPlayed = 2 },
+            season.SeasonID, player.Id, gameVersionID: 1, teamID: alpha.TeamID, stintIndex: 1));
+        _context.Set<PlayerChampionship>().Add(PlayerChampionship.Seed(season.SeasonID, alpha.TeamID, player.Id, tier: "Gold", gamertagUsed: "Statted", isCaptain: true));
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, null, null);
+        _context.SeasonMatches.Add(seasonMatch);
+        await _context.SaveChangesAsync();
+        await GradesTestData.AddLinkedMatch(_context, seasonMatch.SeasonMatchID, 1, TimeSpan.FromMinutes(10), new GradesTestData.P(8_800_001, 3, 5, 2, 0));
+        var id = season.SeasonID.ToString();
+        var info = new CommandContextRecorder();
+        var grades = new CommandContextRecorder();
+
+        await _handler.Stats(_discord.Context, id, SeasonStat.Goals);
+        await _handler.Info(info.Context, id);
+        await _handler.Grades(grades.Context, id);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_discord.Embed().Description, Does.StartWith($"1. [Statted](https://grif.test/profile/{player.Id}) · 9"));
+            Assert.That(info.Embed().Fields!.Single(f => f.Name == "Gold champion").Value, Does.StartWith("Alpha: "));
+            Assert.That(grades.Embed().Description, Does.StartWith("1. "));
+        }
     }
 }
