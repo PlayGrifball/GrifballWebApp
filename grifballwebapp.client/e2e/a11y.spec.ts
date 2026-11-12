@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { closeOverlay, mockBackend, open, OVERLAYS, ROUTES } from './testPages.mts';
+import { closeOverlay, mockBackend, open, OVERLAYS, ROUTES, settled } from './testPages.mts';
 
 // Accessibility, checked by axe-core (https://github.com/dequelabs/axe-core) against WCAG 2.x A and
 // AA (and 2.2 AA): every page at a phone and a desktop size, as a visitor and signed in as a
@@ -43,7 +43,7 @@ const THIRD_PARTY: { within: string, rules: string[] }[] = [
 /** The page's serious and critical violations as it is now, one line per element. */
 async function scan(page: Page, where: string): Promise<string[]> {
   // Animations done: an overlay fading in is measured at its final colours
-  await page.waitForTimeout(300);
+  await settled(page);
   let axe = new AxeBuilder({ page }).withTags(TAGS);
   for (const { within } of THIRD_PARTY)
     axe = axe.exclude(within);

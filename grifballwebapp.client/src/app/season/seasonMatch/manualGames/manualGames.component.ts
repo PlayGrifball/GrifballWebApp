@@ -65,7 +65,9 @@ function decidedOtherwise(match: SeasonMatchPageDto): boolean {
 
 /** Where a game of the series came from, as the choices and the unreport confirmation say it. */
 export function gameSource(game: ReportedGameDto): string {
-  return game.matchID ? 'from Waypoint' : game.isManual ? 'entered by hand' : 'recorded';
+  if (game.matchID)
+    return 'from Waypoint';
+  return game.isManual ? 'entered by hand' : 'recorded';
 }
 
 /** What the form holds; playedAt is the datetime-local input's value (local time), '' for none. */

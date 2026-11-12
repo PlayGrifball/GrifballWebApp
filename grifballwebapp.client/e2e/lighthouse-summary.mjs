@@ -27,7 +27,10 @@ const score = (lhr, id) => {
   const value = lhr.categories[id]?.score;
   if (value == null) return '–';
   const points = Math.round(value * 100);
-  return `${points >= 90 ? '🟢' : points >= 50 ? '🟠' : '🔴'} ${points}`;
+  let mark = '🔴';
+  if (points >= 90) mark = '🟢';
+  else if (points >= 50) mark = '🟠';
+  return `${mark} ${points}`;
 };
 for (const lhr of reports) {
   const performance = lhr.categories.performance?.score;
@@ -39,7 +42,8 @@ const rows = reports.map(lhr => {
   const page = url.pathname + url.search;
   const link = links[lhr.requestedUrl];
   const note = page === notFoundPage ? ' *' : '';
-  return `| ${link ? `[${page}](${link})` : page}${note} | ${categories.map(([id]) => score(lhr, id)).join(' | ')} |`;
+  const cell = link ? `[${page}](${link})` : page;
+  return `| ${cell}${note} | ${categories.map(([id]) => score(lhr, id)).join(' | ')} |`;
 });
 const hasNotFoundPage = reports.some(lhr => new URL(lhr.requestedUrl).pathname === notFoundPage);
 console.log([

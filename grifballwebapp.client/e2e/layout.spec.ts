@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { type Role } from './mockApi.mts';
-import { closeOverlay, mockBackend, open, OVERLAYS, SITE, slug } from './testPages.mts';
+import { closeOverlay, mockBackend, open, OVERLAYS, settled, SITE, slug } from './testPages.mts';
 
 // Every key page at every screen size: no sideways scrolling, its main parts on screen and not on
 // top of one another, the navigation reachable, and big enough touch targets on phones. Pages
@@ -268,8 +268,7 @@ for (const { name, path, role, ready, parts, sheet } of PAGES) {
         await expect(page.locator(selector).first()).toBeVisible();
       // The web fonts change the layout (and the toolbar is measured again once they are in);
       // table rows fade in.
-      await page.evaluate(() => document.fonts.ready);
-      await page.waitForTimeout(500);
+      await settled(page);
       // For review: CI puts these on the PR (e2e/contact-sheets.mjs)
       await page.screenshot({ path: `screenshots/${sheet ? `${sheet}/${name}` : name}/${index + 1}-${device}-${width}x${height}.png` });
 
@@ -328,8 +327,7 @@ test('the theme dialog fits every screen size and closes', async ({ page }) => {
     const dialog = page.getByRole('dialog');
     await expect(dialog.locator('app-palette').first()).toBeVisible();
     await expect(dialog.locator('app-tile').first()).toContainText('#');
-    await page.evaluate(() => document.fonts.ready);
-    await page.waitForTimeout(300);
+    await settled(page);
     await page.screenshot({ path: `screenshots/theme-dialog/${index + 1}-${device}-${width}x${height}.png` });
 
     const found = await page.evaluate(() => {
@@ -446,7 +444,7 @@ for (const overlay of OVERLAYS) {
       if (overlay.parts)
         await page.evaluate(() => { scrollTo(0, 0); document.querySelector('.mat-drawer-content')?.scrollTo(0, 0); });
       // Its animation done
-      await page.waitForTimeout(300);
+      await settled(page);
       const found = overlay.parts
         ? await layoutProblems(page, [...HEADER, ...overlay.parts], PHONES.includes(device), TOUCH_TARGETS)
         : await opened.evaluate(el => {

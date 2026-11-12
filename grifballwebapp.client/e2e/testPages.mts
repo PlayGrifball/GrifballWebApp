@@ -1035,3 +1035,14 @@ export async function closeOverlay(page: Page, overlay: Overlay, opened: Locator
   await page.keyboard.press('Escape');
   await expect(opened).toHaveCount(0);
 }
+
+/**
+ * Waits until the page is still: the web fonts in, and every animation and transition finished (endless ones, such
+ * as a spinner, aside). Two frames first, so one that starts on the next frame is counted. What a fixed wait guessed.
+ */
+export async function settled(page: Page): Promise<void> {
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
+  await page.waitForFunction(() => document.getAnimations().every(animation =>
+    !(animation.pending || animation.playState === 'running') || animation.effect?.getComputedTiming().iterations === Infinity));
+}

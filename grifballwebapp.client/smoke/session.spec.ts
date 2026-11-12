@@ -32,8 +32,7 @@ test.describe('session', () => {
   });
   test.afterAll(async () => league?.close());
 
-  test('signing in sets an HttpOnly, Secure session cookie; logging out clears it', async ({ page, smoke, consoleErrors }) => {
-    void consoleErrors;
+  test('signing in sets an HttpOnly, Secure session cookie; logging out clears it', async ({ page, smoke, consoleErrors: _watching }) => {
     await login(page, smoke[0]);
     const cookie = await sessionCookie(page.context());
     expect(cookie, 'the session cookie').toBeDefined();
@@ -51,8 +50,7 @@ test.describe('session', () => {
     expect((await page.request.get('/api/identity/me')).status()).toBe(204);
   });
 
-  test('logging out from the user chip\'s menu ends the session and goes home', async ({ page, smoke, consoleErrors }) => {
-    void consoleErrors;
+  test('logging out from the user chip\'s menu ends the session and goes home', async ({ page, smoke, consoleErrors: _watching }) => {
     await login(page, smoke[0]);
     await page.goto(`/season/${league.seasonID}`);
     const chip = page.locator('button.hud-user');
@@ -86,8 +84,7 @@ test.describe('session', () => {
     }
   });
 
-  test('a signed-in user gets their own page, rendered with their name and kept private', async ({ page, smoke, admin, playwright, baseUrl, consoleErrors }) => {
-    void consoleErrors;
+  test('a signed-in user gets their own page, rendered with their name and kept private', async ({ page, smoke, admin, playwright, baseUrl, consoleErrors: _watching }) => {
     await login(page, smoke[0]);
     const cookie = await sessionCookie(page.context());
     const name = await shownName(admin, admin.userID);
@@ -105,8 +102,7 @@ test.describe('session', () => {
     }
   });
 
-  test('two users side by side each see only their own name, also after a reload', async ({ page, smoke, browser, baseUrl, admin, consoleErrors }) => {
-    void consoleErrors;
+  test('two users side by side each see only their own name, also after a reload', async ({ page, smoke, browser, baseUrl, admin, consoleErrors: _watching }) => {
     const second = await Api.login(baseUrl, smoke[1]);
     const names = [await shownName(admin, admin.userID), await shownName(admin, second.userID)];
     await second.dispose();
@@ -162,8 +158,7 @@ test.describe('session', () => {
     expect(after.displayName).toBe(displayName);
   });
 
-  test('the theme dialog applies a colour, "Reset to Spartan HUD" puts the default back, and Close closes it', async ({ page, consoleErrors }) => {
-    void consoleErrors;
+  test('the theme dialog applies a colour, "Reset to Spartan HUD" puts the default back, and Close closes it', async ({ page, consoleErrors: _watching }) => {
     const variable = (name: string) => page.evaluate(n => getComputedStyle(document.documentElement).getPropertyValue(n).trim().toLowerCase(), name);
     // On a phone, where the dialog takes the whole screen
     await page.setViewportSize({ width: 360, height: 640 });
@@ -192,8 +187,7 @@ test.describe('session', () => {
     await expect(opener).toBeFocused();
   });
 
-  test('a visitor sees the possible matches on a match page', async ({ page, playwright, baseUrl, consoleErrors }) => {
-    void consoleErrors;
+  test('a visitor sees the possible matches on a match page', async ({ page, playwright, baseUrl, consoleErrors: _watching }) => {
     // In the page the server sends, under way (the server never looks: it is slow)
     const http = await playwright.request.newContext({ baseURL: baseUrl });
     try {

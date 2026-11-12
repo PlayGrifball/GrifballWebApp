@@ -18,6 +18,12 @@ export interface WeekMatch {
  * The matches to show under "This week": those in the current week; between weeks, the next
  * three to be played; once the season is over, the last three played.
  */
+function weekStatus(match: ScheduledMatchDto, now: DateTime): WeekMatchStatus {
+  if (match.complete)
+    return 'final';
+  return match.time > now ? 'upcoming' : 'awaiting';
+}
+
 export function pickThisWeek(matches: ScheduledMatchDto[], now: DateTime): WeekMatch[] {
   const byTime = [...matches].sort((a, b) => a.time.toMillis() - b.time.toMillis());
   let picked = byTime.filter(m => m.time.localWeekYear === now.localWeekYear && m.time.localWeekNumber === now.localWeekNumber);
@@ -27,7 +33,7 @@ export function pickThisWeek(matches: ScheduledMatchDto[], now: DateTime): WeekM
     picked = byTime.slice(-3);
   return picked.map(match => ({
     match,
-    status: match.complete ? 'final' : match.time > now ? 'upcoming' : 'awaiting',
+    status: weekStatus(match, now),
   }));
 }
 

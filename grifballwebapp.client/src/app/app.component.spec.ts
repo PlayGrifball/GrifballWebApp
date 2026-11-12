@@ -185,16 +185,22 @@ describe('AppComponent behaviour', () => {
     // listener cannot leak out of this test.
     resizeHandler = undefined;
     const realAdd = window.addEventListener.bind(window);
-    spyOn(window, "addEventListener").and.callFake(((type: string, fn: any, opts?: any) =>
-      type === "resize" ? (resizeHandler = fn) : realAdd(type, fn, opts)) as any);
+    spyOn(window, "addEventListener").and.callFake(((type: string, fn: any, opts?: any) => {
+      if (type !== "resize")
+        return realAdd(type, fn, opts);
+      resizeHandler = fn;
+    }) as any);
 
     // The layout code measures DOM elements; stub the two lookups so widths are deterministic.
     const realQuery = document.querySelector.bind(document);
     spyOn(document, 'querySelector').and.callFake(((sel: string) =>
       sel === '.toolbar-links' ? { clientWidth: toolbarWidth } : realQuery(sel)) as any);
     const realById = document.getElementById.bind(document);
-    spyOn(document, 'getElementById').and.callFake(((id: string) =>
-      id === 'hidden' ? (hiddenMissing ? null : { innerText: '', offsetWidth: linkWidth }) : realById(id)) as any);
+    spyOn(document, 'getElementById').and.callFake(((id: string) => {
+      if (id !== 'hidden')
+        return realById(id);
+      return hiddenMissing ? null : { innerText: '', offsetWidth: linkWidth };
+    }) as any);
 
     await TestBed.configureTestingModule({
       imports: [AppComponent, NoopAnimationsModule],

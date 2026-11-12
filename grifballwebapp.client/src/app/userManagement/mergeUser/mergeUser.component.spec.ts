@@ -6,16 +6,17 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MergeUserComponent } from './mergeUser.component';
 import { UserResponseDto } from '../userResponseDto';
 
+// A user with nothing set beyond its ID and the names made from it
+const user = (id: number): UserResponseDto => ({
+  userID: id, userName: 'user' + id, lockoutEnd: null, lockoutEnabled: false, isDummyUser: false,
+  accessFailedCount: 0, region: null, displayName: 'User ' + id, gamertag: null, discord: null,
+  externalAuthCount: 0, hasPassword: true, roles: [],
+});
+
 describe('MergeUserComponent', () => {
   let fixture: ComponentFixture<MergeUserComponent>;
   let component: MergeUserComponent;
   let httpMock: HttpTestingController;
-
-  const user = (id: number): UserResponseDto => ({
-    userID: id, userName: 'user' + id, lockoutEnd: null, lockoutEnabled: false, isDummyUser: false,
-    accessFailedCount: 0, region: null, displayName: 'User ' + id, gamertag: null, discord: null,
-    externalAuthCount: 0, hasPassword: true, roles: [],
-  });
 
   const el = () => fixture.nativeElement as HTMLElement;
   const mergeButton = () => el().querySelector('button[mat-flat-button]') as HTMLButtonElement;
@@ -91,12 +92,6 @@ describe('MergeUserComponent merging', () => {
   let fixture: ComponentFixture<MergeUserComponent>;
   let component: MergeUserComponent;
   let httpMock: HttpTestingController;
-
-  const user = (id: number): UserResponseDto => ({
-    userID: id, userName: 'user' + id, lockoutEnd: null, lockoutEnabled: false, isDummyUser: false,
-    accessFailedCount: 0, region: null, displayName: 'User ' + id, gamertag: null, discord: null,
-    externalAuthCount: 0, hasPassword: true, roles: [],
-  });
 
   const mergeButton = () => (fixture.nativeElement as HTMLElement).querySelector('button[mat-flat-button]') as HTMLButtonElement;
 

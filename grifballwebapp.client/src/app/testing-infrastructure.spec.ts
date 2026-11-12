@@ -4,13 +4,6 @@ import { signal } from '@angular/core';
 // Simple integration test to verify basic testing infrastructure
 describe('Testing Infrastructure', () => {
   
-  it('should be able to run basic Jasmine tests', () => {
-    expect(true).toBeTruthy();
-    expect(false).toBeFalsy();
-    expect(2 + 2).toBe(4);
-    expect('hello').toContain('ell');
-  });
-
   it('should be able to test Angular signals', () => {
     const testSignal = signal('initial value');
     expect(testSignal()).toBe('initial value');
@@ -33,8 +26,9 @@ describe('Testing Infrastructure', () => {
   });
 
   it('should support async testing patterns', (done) => {
+    const start = Date.now();
     setTimeout(() => {
-      expect(true).toBeTruthy();
+      expect(Date.now() - start).toBeGreaterThanOrEqual(5);
       done();
     }, 10);
   });

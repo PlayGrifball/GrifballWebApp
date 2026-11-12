@@ -32,7 +32,9 @@ export function sameIgnoringCase(a: string, b: string): boolean {
 export function onlyMatch(found: QuickSearchPlayerDto[], text: string): QuickSearchPlayerDto | null {
   const is = (name: string | null | undefined) => !!name && sameIgnoringCase(name, text);
   const exact = found.filter(p => is(p.name) || is(p.matchedName) || is(p.pastGamertag));
-  return exact.length === 1 ? exact[0] : exact.length === 0 && found.length === 1 ? found[0] : null;
+  if (exact.length === 1)
+    return exact[0];
+  return exact.length === 0 && found.length === 1 ? found[0] : null;
 }
 
 /**
@@ -102,7 +104,11 @@ export class PlayerSearchComponent {
         if (!count) return;
         event.preventDefault();
         this.open.set(true);
-        this.active.update(i => event.key === 'ArrowDown' ? (i + 1) % count : (i <= 0 ? count - 1 : i - 1));
+        this.active.update(i => {
+          if (event.key === 'ArrowDown')
+            return (i + 1) % count;
+          return i <= 0 ? count - 1 : i - 1;
+        });
         return;
       case 'Enter': {
         event.preventDefault();

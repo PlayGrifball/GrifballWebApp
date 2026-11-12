@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { closeOverlay, mockBackend, open, OVERLAYS, ROUTES } from './testPages.mts';
+import { closeOverlay, mockBackend, open, OVERLAYS, ROUTES, settled } from './testPages.mts';
 
 // Measures the rendered UI against a handful of plain rules that axe (a11y.spec.ts) does not check,
 // at all six screen sizes (e2e/layout.spec.ts's sizes), on every page and every open dialog, menu
@@ -25,10 +25,6 @@ const SIZES = [
   ['phone-landscape', 820, 300],
   ['phone-portrait', 360, 640],
 ] as const;
-
-// An overlay fades/scales in; measured mid-animation it is the wrong size (as a11y.spec.ts notes
-// for the same reason).
-const SETTLE_MS = 300;
 
 // WCAG 2.5.8's target-size check only makes sense at the narrow sizes: at a desktop width nothing
 // in this app is actually cramped, and running it everywhere would mostly flag buttons that have
@@ -219,7 +215,7 @@ for (const { role, label, paths } of ROUTES) {
         for (const [device, width, height] of SIZES) {
           await page.setViewportSize({ width, height });
           await open(page, path);
-          await page.waitForTimeout(SETTLE_MS);
+          await settled(page);
           const found = await page.evaluate(runDesignRules, TAP_TARGET_SIZES.includes(device));
           problems.push(...found.map(p => `${device} ${path}: ${p}`));
         }
@@ -240,7 +236,7 @@ test.describe('open', () => {
         const opened = await overlay.setup(page);
         if (!opened)
           continue;
-        await page.waitForTimeout(SETTLE_MS);
+        await settled(page);
         const found = await page.evaluate(runDesignRules, TAP_TARGET_SIZES.includes(device));
         problems.push(...found.map(p => `${device} ${overlay.name}: ${p}`));
         await closeOverlay(page, overlay, opened);

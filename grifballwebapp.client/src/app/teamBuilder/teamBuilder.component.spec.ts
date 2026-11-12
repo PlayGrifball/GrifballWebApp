@@ -1276,7 +1276,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
     const req = httpTesting.expectOne('/api/seasons/7/draft/captains/remove');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ seasonID: 7, personID: 12 });
-    expect(Object.keys(req.request.body).sort()).toEqual(['personID', 'seasonID']);
+    expect(Object.keys(req.request.body).sort((a, b) => a.localeCompare(b))).toEqual(['personID', 'seasonID']);
     expect('orderNumber' in req.request.body).toBe(false);
     expect(req.request.headers.get('SignalRConnectionID')).toBe('conn-42');
     req.flush({});
@@ -1290,7 +1290,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
     req.flush({});
 
     expect(component.teams().map(t => [t.captain.personID, t.captain.order])).toEqual([[12, 1], [13, 2]]);
-    expect(component.playerPool().map(p => p.personID).sort()).toEqual([11, 21, 30]);
+    expect(component.playerPool().map(p => p.personID).sort((a, b) => a - b)).toEqual([11, 21, 30]);
   });
 });
 

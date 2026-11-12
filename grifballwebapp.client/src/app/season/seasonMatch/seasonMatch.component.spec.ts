@@ -52,6 +52,38 @@ const homeBye: Partial<SeasonMatchPageDto> = { homeTeamName: null, homeTeamID: n
 /** No pull queued or running, and none in the history kept. */
 const idlePull: OnDemandJobStatusDto = { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null };
 
+// A match page with every field set as most tests want it, and their own changes on top
+const page = (overrides: Partial<SeasonMatchPageDto> = {}): SeasonMatchPageDto => ({
+  seasonID: 3,
+  seasonName: 'Season 3',
+  isPlayoff: false,
+  homeTeamName: 'Home',
+  homeTeamID: 10,
+  homeTeamScore: null,
+  homeTeamResult: 'TBD',
+  awayTeamName: 'Away',
+  awayTeamID: 20,
+  awayTeamScore: null,
+  awayTeamResult: 'TBD',
+  scheduledTime: null,
+  bestOf: 3,
+  reportedGames: [],
+  bracketInfo: null,
+  activeRescheduleRequestId: null,
+  canRequestReschedule: false,
+  decidedBy: null,
+  canUndo: false,
+  ...overrides
+});
+
+// The page's three requests on open answered with the match, then the change detection that renders it
+function loadPage(httpMock: HttpTestingController, fixture: ComponentFixture<SeasonMatchComponent>, dto: SeasonMatchPageDto): void {
+  httpMock.expectOne('/api/season-matches/7').flush(dto);
+  httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
+  httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
+  fixture.detectChanges();
+}
+
 describe('SeasonMatchComponent', () => {
   let component: SeasonMatchComponent;
   let fixture: ComponentFixture<SeasonMatchComponent>;
@@ -90,29 +122,6 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
   let fixture: ComponentFixture<SeasonMatchComponent>;
   let httpMock: HttpTestingController;
 
-  const page = (overrides: Partial<SeasonMatchPageDto> = {}): SeasonMatchPageDto => ({
-    seasonID: 3,
-    seasonName: 'Season 3',
-    isPlayoff: false,
-    homeTeamName: 'Home',
-    homeTeamID: 10,
-    homeTeamScore: null,
-    homeTeamResult: 'TBD',
-    awayTeamName: 'Away',
-    awayTeamID: 20,
-    awayTeamScore: null,
-    awayTeamResult: 'TBD',
-    scheduledTime: null,
-    bestOf: 3,
-    reportedGames: [],
-    bracketInfo: null,
-    activeRescheduleRequestId: null,
-    canRequestReschedule: false,
-    decidedBy: null,
-    canUndo: false,
-    ...overrides
-  });
-
   const bracket = (overrides: Partial<BracketInfoDto> = {}): BracketInfoDto => ({
     homeTeamSeed: 1,
     awayTeamSeed: 4,
@@ -144,12 +153,7 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     fixture.detectChanges();
   });
 
-  function load(dto: SeasonMatchPageDto): void {
-    httpMock.expectOne('/api/season-matches/7').flush(dto);
-    httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
-    httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
-    fixture.detectChanges();
-  }
+  const load = (dto: SeasonMatchPageDto): void => loadPage(httpMock, fixture, dto);
 
   function text(): string {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
@@ -261,15 +265,6 @@ describe('SeasonMatchComponent reporting', () => {
   let httpMock: HttpTestingController;
   let isEventOrganizer: ReturnType<typeof signal<boolean>>;
   let isPlayer: ReturnType<typeof signal<boolean>>;
-
-  const page = (overrides: Partial<SeasonMatchPageDto> = {}): SeasonMatchPageDto => ({
-    seasonID: 3, seasonName: 'Season 3', isPlayoff: false,
-    homeTeamName: 'Home', homeTeamID: 10, homeTeamScore: null, homeTeamResult: 'TBD',
-    awayTeamName: 'Away', awayTeamID: 20, awayTeamScore: null, awayTeamResult: 'TBD',
-    scheduledTime: null, bestOf: 3, reportedGames: [], bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: false,
-    decidedBy: null, canUndo: false,
-    ...overrides
-  });
 
   const bracket = (overrides: Partial<BracketInfoDto> = {}): BracketInfoDto => ({
     homeTeamSeed: 1, awayTeamSeed: 4, homeTeamPreviousMatchID: null, awayTeamPreviousMatchID: null,
@@ -1252,14 +1247,6 @@ describe('SeasonMatchComponent lobby', () => {
   let fixture: ComponentFixture<SeasonMatchComponent>;
   let httpMock: HttpTestingController;
 
-  const page = (overrides: Partial<SeasonMatchPageDto> = {}): SeasonMatchPageDto => ({
-    seasonID: 3, seasonName: 'Season 3', isPlayoff: false,
-    homeTeamName: 'Home', homeTeamID: 10, homeTeamScore: null, homeTeamResult: 'TBD',
-    awayTeamName: 'Away', awayTeamID: 20, awayTeamScore: null, awayTeamResult: 'TBD',
-    scheduledTime: null, bestOf: 3, reportedGames: [], bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: false,
-    decidedBy: null, canUndo: false,
-    ...overrides
-  });
   const team = (name: string, captain: string, player: string) => ({
     teamName: name, wins: 0, losses: 0, tbd: 0,
     players: [
@@ -1286,12 +1273,7 @@ describe('SeasonMatchComponent lobby', () => {
 
   afterEach(() => httpMock.verify());
 
-  function load(dto: SeasonMatchPageDto): void {
-    httpMock.expectOne('/api/season-matches/7').flush(dto);
-    httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
-    httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
-    fixture.detectChanges();
-  }
+  const load = (dto: SeasonMatchPageDto): void => loadPage(httpMock, fixture, dto);
   const el = () => fixture.nativeElement as HTMLElement;
   const roster = (side: 'home' | 'away') => Array.from(el().querySelectorAll(`.lobby-team--${side} .lobby-player`))
     .map(p => Array.from(p.children).map(c => c.textContent!.trim()).join(' '));
