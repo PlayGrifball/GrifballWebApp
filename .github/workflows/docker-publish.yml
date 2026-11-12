@@ -117,6 +117,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.build == 'true' }}
     runs-on: ubuntu-latest
+    # A hung job fails after this rather than GitHub's 6 hours (2 minutes usually)
+    timeout-minutes: 20
     outputs:
       digest: ${{ steps.push.outputs.digest }}
     permissions:
@@ -305,6 +307,8 @@ jobs:
     # release is published already, and on fork PRs.
     if: ${{ !cancelled() && needs.apk-check.result == 'success' && needs.apk-archive.result != 'failure' }}
     runs-on: ubuntu-latest
+    # A hung job fails after this rather than GitHub's 6 hours (16 minutes usually, longer for both platforms on master)
+    timeout-minutes: 60
     outputs:
       digest: ${{ steps.push.outputs.digest }}
     permissions:
@@ -537,6 +541,8 @@ jobs:
     # Other labels don't change the build, so don't rebuild for them.
     if: ${{ github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
     runs-on: ubuntu-latest
+    # A hung job fails after this rather than GitHub's 6 hours (8 minutes usually)
+    timeout-minutes: 30
     env:
       # Skipped step by step, so the check keeps its name and passes
       RUN: ${{ needs.changes.outputs.images }}
@@ -620,6 +626,8 @@ jobs:
     needs: [build-frontend, build-backend]
     if: ${{ !failure() && !cancelled() && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
+    # A hung job fails after this rather than GitHub's 6 hours (under a minute usually)
+    timeout-minutes: 15
     permissions:
       contents: read  # compare commits
       packages: write

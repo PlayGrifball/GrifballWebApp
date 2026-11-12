@@ -24,6 +24,8 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.action == 'closed' || github.event.label.name == 'preview')
     runs-on: ubuntu-latest
+    # A hung job fails after this rather than GitHub's 6 hours (seconds usually)
+    timeout-minutes: 15
     permissions:
       packages: write  # list and delete package versions
       pull-requests: read  # the PR's commits

@@ -28,6 +28,8 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # A hung job fails after this rather than GitHub's 6 hours (under a minute usually)
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -157,6 +159,8 @@ jobs:
     needs: [apk-check, apk-archive]
     if: ${{ !cancelled() && needs.apk-check.result == 'success' && needs.apk-archive.result != 'failure' }}
     runs-on: ubuntu-latest
+    # A hung job fails after this rather than GitHub's 6 hours (8 minutes usually)
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -279,6 +283,8 @@ jobs:
     # The status check is explicit, as for e2e: apk-archive skipped (its release published) would skip this too.
     if: ${{ !cancelled() && needs.test.result == 'success' && needs.e2e.result == 'success' && github.event_name != 'pull_request' && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
+    # A hung job fails after this rather than GitHub's 6 hours (under a minute usually)
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: write
