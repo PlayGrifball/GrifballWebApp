@@ -10,9 +10,8 @@ import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { RegexMatchValidValidatorDirective } from '../../validation/directives/regexMatchValidValidatorDirective.directive';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { SheetInfo } from '../excel.component';
 import { ExcelService } from '@api/services/excel.service';
-import type { SheetInfo as SheetInfoApiDto } from '@api/models';
+import type { SheetInfo } from '@api/models';
 
 /** How often a queued or running export of every match is looked at again. */
 export const EXPORT_POLL_MS = 3000;
@@ -62,11 +61,11 @@ export class ExcelFormComponent implements OnInit {
       name: this.inputName(),
       spreadsheetID: this.spreadsheetID,
       sheetName: this.sheetName,
+      // The server's own: an export runs as whoever queued it
+      requestedByUserID: null,
     }
 
-    // SheetInfo's generated model also has requestedByUserID (the server fills that in itself); the cast
-    // keeps the request body exactly as it was.
-    this.excel.appendMatch({ matchID, body: dto as unknown as SheetInfoApiDto })
+    this.excel.appendMatch({ matchID, body: dto })
         .subscribe({
           next: result => console.log(result),
           error: result => console.log(result),
@@ -81,8 +80,8 @@ export class ExcelFormComponent implements OnInit {
   /** Queues the export of every match in the copy sheet to this sheet (replacing its rows), then follows it until it's done. */
   exportAll(): void {
     this.exportError.set(null);
-    const dto: SheetInfo = { name: this.inputName(), spreadsheetID: this.spreadsheetID, sheetName: this.sheetName };
-    this.excel.exportAll({ body: dto as unknown as SheetInfoApiDto })
+    const dto: SheetInfo = { name: this.inputName(), spreadsheetID: this.spreadsheetID, sheetName: this.sheetName, requestedByUserID: null };
+    this.excel.exportAll({ body: dto })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: status => this.followExport(status),

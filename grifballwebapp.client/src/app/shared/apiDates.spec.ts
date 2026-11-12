@@ -4,9 +4,16 @@ import { fromApiDate, fromRequiredApiDate, toApiDate } from './apiDates';
 import { ToDatePipe } from './toDate.pipe';
 import { parseSeason } from '../api/seasonSettings';
 import { parseUser } from '../userManagement/userResponseDto';
+import type { UserResponseDto } from '@api/models';
 import { parseScheduledMatch } from '../season/scheduleList/scheduledMatchDto';
 import { parseSeasonMatchPage } from '../season/seasonMatch/seasonMatchPageDto';
 import { parseTeamMatch } from '../season/team/team.component';
+
+/** A user as GET /api/users/{id} sends it, with these fields. */
+const apiUser = (changes: Partial<UserResponseDto>): UserResponseDto => ({
+  userID: 1, userName: 'u', lockoutEnd: null, lockoutEnabled: false, isDummyUser: false, accessFailedCount: 0, region: null, regionID: null,
+  displayName: null, gamertag: null, discord: null, externalAuthCount: 0, hasPassword: true, roles: [], ...changes,
+});
 
 // What the server's DateTimeJsonConverter writes: UTC with a Z. DateTimeOffset keeps its offset.
 const UTC = '2026-01-02T03:04:00Z';
@@ -62,9 +69,9 @@ describe('API dates', () => {
   });
 
   it('parseUser converts lockoutEnd, and keeps null', () => {
-    expect(parseUser({ userID: 1, lockoutEnd: OFFSET })!.lockoutEnd!.toMillis()).toBe(Date.parse(UTC));
-    expect(parseUser({ userID: 1, lockoutEnd: null })!.lockoutEnd).toBeNull();
-    expect(parseUser({ userID: 1, userName: 'grif', lockoutEnd: null })!.userName).toBe('grif');
+    expect(parseUser(apiUser({ lockoutEnd: OFFSET }))!.lockoutEnd!.toMillis()).toBe(Date.parse(UTC));
+    expect(parseUser(apiUser({ lockoutEnd: null }))!.lockoutEnd).toBeNull();
+    expect(parseUser(apiUser({ userName: 'grif', lockoutEnd: null }))!.userName).toBe('grif');
   });
 
   it('parseScheduledMatch and parseSeasonMatchPage convert their times', () => {

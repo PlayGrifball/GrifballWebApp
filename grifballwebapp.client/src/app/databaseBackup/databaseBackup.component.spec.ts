@@ -29,16 +29,21 @@ describe('DatabaseBackupComponent', () => {
   const el = () => fixture.nativeElement as HTMLElement;
   const button = () => el().querySelector('button') as HTMLButtonElement;
 
-  const none: ExportStatus = { state: 'None', tables: 0, rows: 0 };
-  const flushExportStatus = (status: ExportStatus = none) => http.expectOne('/api/database-exports/status').flush(status);
-  const noDownload: DownloadStatus = { state: 'None', tables: 0, rows: 0 };
-  const flushDownloadStatus = (status: DownloadStatus = noDownload) => http.expectOne(r => /^\/api\/backups\/\w+\/status$/.test(r.url)).flush(status);
-  const running = (format: BackupFormat): DownloadStatus => ({ state: 'Running', format, tables: 0, rows: 0 });
-  const made = (format: BackupFormat, fileName: string): DownloadStatus => ({ state: 'Succeeded', format, fileName, tables: 40, rows: 12345, size: 1_300_000 });
+  // What the server sends when there's nothing to say; each status below is these with some fields set
+  const none: ExportStatus = { state: 'None', provider: null, started: null, finished: null, tables: 0, rows: 0, message: null, progress: null, progressMessage: null };
+  const flushExportStatus = (status: Partial<ExportStatus> = {}) => http.expectOne('/api/database-exports/status').flush({ ...none, ...status });
+  const noDownload: DownloadStatus = {
+    state: 'None', format: null, started: null, finished: null, fileName: null, tables: 0, rows: 0, message: null, size: null, runningFormat: null,
+    progress: null, progressMessage: null,
+  };
+  const flushDownloadStatus = (status: Partial<DownloadStatus> = {}) =>
+    http.expectOne(r => /^\/api\/backups\/\w+\/status$/.test(r.url)).flush({ ...noDownload, ...status });
+  const running = (format: BackupFormat): Partial<DownloadStatus> => ({ state: 'Running', format, tables: 0, rows: 0 });
+  const made = (format: BackupFormat, fileName: string): Partial<DownloadStatus> => ({ state: 'Succeeded', format, fileName, tables: 40, rows: 12345, size: 1_300_000 });
   const downloadLink = () => el().querySelector('.db-ready a') as HTMLAnchorElement;
 
   /** Renders the page with api/backups/info answered (the formats it can download), and the last export's and backup's status. */
-  async function init(exportStatus: ExportStatus = none, formats: BackupFormat[] = ['sqlite', 'postgres', 'sqlserver', 'bak', 'dump'], downloadStatus: DownloadStatus = noDownload) {
+  async function init(exportStatus: Partial<ExportStatus> = {}, formats: BackupFormat[] = ['sqlite', 'postgres', 'sqlserver', 'bak', 'dump'], downloadStatus: Partial<DownloadStatus> = {}) {
     flushExportStatus(exportStatus);
     flushDownloadStatus(downloadStatus);
     fixture.detectChanges();

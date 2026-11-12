@@ -15,7 +15,6 @@ import { provideDatePickers } from '../../shared/datePickers';
 import { REGIONS } from '../../shared/regions';
 import { whileCurrent } from '../../shared/whileCurrent';
 import { UserManagementService } from '@api/services/user-management.service';
-import type { UserResponseDto as UserResponseApiDto } from '@api/models';
 
 @Component({
     selector: 'app-edit-user',
@@ -102,7 +101,7 @@ export class EditUserComponent {
     const unchanged = user.lockoutEnd === loaded
       || (user.lockoutEnd !== null && loaded !== null && user.lockoutEnd.toMillis() === loaded.toMillis());
     const lockoutEnd = unchanged ? this.loadedLockoutEnd.raw : toApiDate(user.lockoutEnd);
-    this.userManagement.editUser({ userID: this.userID(), body: { ...user, lockoutEnd } as unknown as UserResponseApiDto }).subscribe({
+    this.userManagement.editUser({ userID: this.userID(), body: { ...user, lockoutEnd } }).subscribe({
       next: (result) => console.log('Updated user'),
       error: (result) => console.log(result),
     });

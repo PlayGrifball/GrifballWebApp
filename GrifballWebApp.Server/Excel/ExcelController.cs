@@ -21,7 +21,7 @@ public class ExcelController : ControllerBase
     /// <summary>The default Excel sheet to export matches to. Commissioners and sysadmins only.</summary>
     [HttpGet("sheets/default", Name = "DefaultSheetInfo")]
     [ProducesResponseType<SheetInfo[]>(StatusCodes.Status200OK)]
-    public ActionResult<SheetInfo[]> DefaultSheetInfo()
+    public IActionResult DefaultSheetInfo()
     {
         return Ok(_e.GetDefaultInfo());
     }

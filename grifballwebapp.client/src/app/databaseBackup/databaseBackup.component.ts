@@ -9,7 +9,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { errorText } from '../shared/errorText';
 import { BackupService } from '@api/services/backup.service';
-import type { BackupInfoDto } from '@api/models';
+import type { BackupDownloadStatus, BackupExportStatus, BackupInfoDto } from '@api/models';
 
 export type BackupFormat = 'sqlite' | 'postgres' | 'sqlserver' | 'bak' | 'dump';
 
@@ -23,38 +23,10 @@ const formatLabels: Record<BackupFormat, string> = {
 export type ExportTarget = 'Postgres' | 'SqlServer';
 
 /** api/database-exports/status: the last export to a server, this run of the backend's. */
-export interface ExportStatus {
-  state: 'None' | 'Running' | 'Succeeded' | 'Failed';
-  provider?: string | null;
-  started?: string | null;
-  finished?: string | null;
-  tables: number;
-  rows: number;
-  message?: string | null;
-  /** While it runs: how far it got (0 to 100) and what it's on. */
-  progress?: number | null;
-  progressMessage?: string | null;
-}
+export type ExportStatus = BackupExportStatus;
 
 /** api/backups/{format}/status: that format's backup (one kept a format), being made, made (ready to download) or failed. */
-export interface DownloadStatus {
-  state: 'None' | 'Running' | 'Succeeded' | 'Failed';
-  format?: BackupFormat | null;
-  started?: string | null;
-  finished?: string | null;
-  fileName?: string | null;
-  /** What it holds, when counted (a script or SQLite file); null for a server's own backup (.bak, .dump), taken whole. */
-  tables?: number | null;
-  rows?: number | null;
-  message?: string | null;
-  /** Made: its size in bytes. */
-  size?: number | null;
-  /** The format being made now, whichever is shown (one backup or export at a time). */
-  runningFormat?: BackupFormat | null;
-  /** While it's made: how far it got (0 to 100) and what it's on. */
-  progress?: number | null;
-  progressMessage?: string | null;
-}
+export type DownloadStatus = BackupDownloadStatus;
 
 /** What each server's connection string looks like, for the export's field. */
 export const targetConnectionStrings: Record<ExportTarget, string> = {
@@ -172,8 +144,7 @@ export class DatabaseBackupComponent {
   /** The backup being made, or the last one; again shortly while one is made. */
   loadDownloadStatus() {
     this.backup.backupDownloadStatus({ format: this.format() }).subscribe({
-      // The generated model's format/runningFormat are string, not BackupFormat: the server only ever sends one of its values.
-      next: status => this.followDownload(status as unknown as DownloadStatus),
+      next: status => this.followDownload(status),
       error: r => {
         console.log(r);
         if (this.startedHere) {
@@ -218,7 +189,7 @@ export class DatabaseBackupComponent {
     this.making.set(true);
     this.startedHere = this.format();
     this.backup.backupStartDownload({ format: this.format() }).subscribe({
-      next: status => this.followDownload(status as unknown as DownloadStatus),
+      next: status => this.followDownload(status),
       error: (r: HttpErrorResponse) => {
         console.log(r);
         this.startedHere = null;

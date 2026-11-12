@@ -6,6 +6,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { parseUser, UserResponseDto } from './userResponseDto';
+import type { UserResponseDto as ApiUserResponseDto } from '@api/models';
 import { ToDatePipe } from '../shared/toDate.pipe';
 import { Column, Filter, TableComponent } from '../shared/table/table.component';
 import { PaginationParams } from '../shared/getPaginationResource';
@@ -46,7 +47,8 @@ export class UserManagementComponent {
     search: params.filters?.find(f => f.column === 'search')?.value?.toString(),
   });
   // Rows of the user list are never null (PaginationResult<UserResponseDto> on the server).
-  readonly parseUser = (row: unknown) => parseUser(row)!;
+  // A row of the users page (GET /api/users)
+  readonly parseUser = (row: unknown) => parseUser(row as ApiUserResponseDto)!;
 
   filter = signal<string>('');
   filters = computed<Filter[]>(() => {

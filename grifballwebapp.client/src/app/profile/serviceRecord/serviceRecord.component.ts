@@ -1,6 +1,6 @@
 import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
-import type { ServiceRecordDto } from '@api/models';
+import type { ServiceRecordDto, ServiceRecordTotalsDto } from '@api/models';
 
 export type ServiceRecordScope = 'all' | 'league' | 'matchmaking';
 
