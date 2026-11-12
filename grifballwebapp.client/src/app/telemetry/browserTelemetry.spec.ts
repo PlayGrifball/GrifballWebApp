@@ -66,7 +66,9 @@ describe('browser telemetry', () => {
 
     it('measures a batch\'s size for keepalive in bytes, not characters', () => {
       const t = telemetry();
-      t.log('info', 'é'.repeat(31_000));
+      // 16 x 3500 characters: under 60000 of them, but twice that in UTF-8 bytes
+      for (let i = 0; i < 16; i++)
+        t.log('info', 'é'.repeat(3_500));
 
       t.flush();
 
@@ -200,7 +202,9 @@ describe('browser telemetry', () => {
 
     it('sends a batch too big for keepalive without it', () => {
       const t = telemetry();
-      t.log('info', 'x'.repeat(MAX_KEEPALIVE_BYTES));
+      // Each message within the API's limit, the batch past keepalive's
+      for (let i = 0; i < 20; i++)
+        t.log('info', 'x'.repeat(4_000));
 
       t.flush();
 
