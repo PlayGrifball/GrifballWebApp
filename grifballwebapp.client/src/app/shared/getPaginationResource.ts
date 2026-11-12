@@ -14,8 +14,10 @@ export interface PaginationParams {
 }
 
 export function getPaginationResource<T>(
-    // Takes this page's request and returns the generated service call for it.
-    request: (params: PaginationParams) => Observable<PaginationResult<T>>,
+    // Takes this page's request and returns the generated service call for it. Its rows are the raw,
+    // pre-parseRow shape (e.g. a generated model with dates as strings), hence any: parseRow below is
+    // what actually turns them into T, same as the raw JSON httpResource once parsed itself.
+    request: (params: PaginationParams) => Observable<PaginationResult<any>>,
     paginationFilter: PaginationFilter,
     additionalFilters?: () => Filter[] | undefined,
     // Turns each row from its JSON form (e.g. dates as strings) into a T; rows are used as

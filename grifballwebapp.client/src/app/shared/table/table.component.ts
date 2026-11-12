@@ -34,8 +34,8 @@ export class TableComponent<T> {
   parseRow = input<(row: any) => T>();
   
   displayedColumns = input.required<string[]>();
-  /** This page's generated-service call for one page of rows. */
-  request = input.required<(params: PaginationParams) => Observable<PaginationResult<T>>>();
+  /** This page's generated-service call for one page of rows (raw, pre-parseRow: see getPaginationResource). */
+  request = input.required<(params: PaginationParams) => Observable<PaginationResult<any>>>();
   columns = input.required<Column<T>[]>();
   pageSize = signal(10);
   pageNumber = signal(1);
