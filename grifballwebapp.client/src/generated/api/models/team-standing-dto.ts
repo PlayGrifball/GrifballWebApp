@@ -3,6 +3,10 @@
 
 export interface TeamStandingDto {
   losses: number;
+
+  /**
+   * The record is the source spreadsheet's: the season's matches are not in the app.
+   */
   recordFromSource: boolean;
   teamID: number;
   teamName: string;

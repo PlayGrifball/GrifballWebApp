@@ -8,6 +8,10 @@ export interface ScheduleRecommendationDto {
   createdAt: string;
   fitness: number;
   generations: number;
+
+  /**
+   * In order of the proposed time.
+   */
   matches: Array<ScheduleRecommendationMatchDto>;
   requestedBy: string | null;
   scheduleRecommendationID: number;

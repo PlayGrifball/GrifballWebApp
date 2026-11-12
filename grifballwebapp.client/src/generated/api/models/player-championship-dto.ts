@@ -3,12 +3,23 @@
 
 import { SeasonInfoDto } from '../models/season-info-dto';
 export interface PlayerChampionshipDto {
+
+  /**
+   * The game the title was won on, which can differ from the season's; null when the record names none.
+   */
   gameVersionID: number | null;
   gameVersionName: string | null;
   gameVersionSlug: string | null;
   gamertagUsed: string;
   isCaptain: boolean;
   playerChampionshipID: number;
+
+  /**
+   * What a season is, the same on every page that shows one, imported from the historical archive or played in the app
+   * alike. A DTO that is a season (GrifballWebApp.Application.Seasons.SeasonSummaryDto, GrifballWebApp.Application.Seasons.SeasonListItemDto) derives from it and is
+   * projected by M:GrifballWebApp.Application.Seasons.SeasonInfoDto.Select``1(System.DateTime,System.Linq.Expressions.Expression{System.Func{GrifballWebApp.Domain.League.Season,``0}}); one about a season (a stat line, a title, a team) has it as its Season, loaded
+   * by M:GrifballWebApp.Application.Seasons.SeasonInfoDto.LoadAsync(GrifballWebApp.Application.Database.IApplicationDbContext,System.Collections.Generic.IEnumerable{System.Int32},System.DateTime,System.Threading.CancellationToken). Either way the fields are projected here only.
+   */
   season: SeasonInfoDto;
   teamID: number;
   teamName: string;

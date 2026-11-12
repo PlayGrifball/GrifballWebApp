@@ -13,6 +13,10 @@ export interface StageSettings {
   matchesChildCount: number;
   roundRobinMode: RoundRobinMode;
   seedOrdering: Array<SeedOrdering>;
+
+  /**
+   * The number of participants. Also includes Byes
+   */
   size: number;
   skipFirstRound: boolean;
 }

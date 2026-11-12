@@ -4,6 +4,10 @@
 import { DynastyDto } from '../models/dynasty-dto';
 import { MetricLeaderDto } from '../models/metric-leader-dto';
 import { RingLeaderDto } from '../models/ring-leader-dto';
+
+/**
+ * The all-time leaderboards: titles, and career totals over every season's stats.
+ */
 export interface LeaderboardsDto {
   carrierStopLeaders: Array<MetricLeaderDto>;
   dynasties: Array<DynastyDto>;

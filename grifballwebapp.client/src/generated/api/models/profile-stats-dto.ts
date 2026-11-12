@@ -12,12 +12,24 @@ export interface ProfileStatsDto {
   displayName: string | null;
   gamertag: string | null;
   isDummyUser: boolean;
+
+  /**
+   * Late League (matchmaking): a line per matchmaking season, and one for the queue's games outside any.
+   */
   lateLeague: Array<MatchmakingPlayerStatDto>;
   overallCareer: GameCareerSummaryDto | null;
+
+  /**
+   * Gamertags the user's Xbox account had before (its renames), latest first.
+   */
   pastGamertags: Array<string>;
   regionID: number | null;
   regionName: string | null;
   seasons: Array<PlayerSeasonStatDetailDto>;
+
+  /**
+   * The stat strip at the top of the profile: MMR, K/D and bomb scores.
+   */
   serviceRecord: ServiceRecordDto | null;
   userID: number;
 }

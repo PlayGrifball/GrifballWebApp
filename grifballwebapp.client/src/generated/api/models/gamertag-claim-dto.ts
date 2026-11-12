@@ -4,15 +4,32 @@
 import { SeasonRefDto } from '../models/season-ref-dto';
 export interface GamertagClaimDto {
   claimantName: string | null;
+
+  /**
+   * A user's or Discord claim: the user it is about.
+   */
   claimantUserID: number | null;
   createdAt: string;
+
+  /**
+   * An XUID lookup: the account's gamertag now, and when it was looked up.
+   */
   currentGamertag: string | null;
+
+  /**
+   * A user's claim: when they say they had the gamertag.
+   */
   firstSeen: string | null;
   gamertag: string;
   gamertagClaimID: number;
   kind: string;
   lastSeen: string | null;
   lookedUpAt: string | null;
+
+  /**
+   * The seasons the placeholder played (its stats and titles), "Name (year)", oldest first: who used the
+   *             gamertag then, to weigh against who holds it now.
+   */
   placeholderSeasons: Array<SeasonRefDto>;
   placeholderUserID: number | null;
   rejectionReason: string | null;
@@ -21,7 +38,19 @@ export interface GamertagClaimDto {
   status: string;
   teamID: number | null;
   teamName: string | null;
+
+  /**
+   * The user the placeholder is merged into on approval: the claimant, or the Xbox account's user.
+   */
   userID: number | null;
+
+  /**
+   * The Xbox account's gamertag now.
+   */
   xboxGamertag: string | null;
+
+  /**
+   * Null for a user's or Discord claim whose user has no Xbox account linked.
+   */
   xboxUserID: number | null;
 }

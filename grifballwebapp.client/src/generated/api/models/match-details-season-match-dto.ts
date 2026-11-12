@@ -3,6 +3,10 @@
 
 export interface MatchDetailsSeasonMatchDto {
   bestOf: number;
+
+  /**
+   * The game's number in the series.
+   */
   gameNumber: number;
   seasonID: number;
   seasonMatchID: number;

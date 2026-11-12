@@ -12,6 +12,11 @@ export interface MatchDetailsPlayerDto {
   damageTaken: number;
   deaths: number;
   gamertag: string;
+
+  /**
+   * Grifball goals as GrifballWebApp.Application.Stats.GrifballGoals reads them (a custom mode's decoded, #217);
+   *             null when they can't be read yet.
+   */
   goals: number | null;
   joinedInProgress: boolean;
   kda: number;
@@ -21,6 +26,10 @@ export interface MatchDetailsPlayerDto {
   medals: Array<MatchDetailsMedalDto>;
   meleeKills: number;
   objectivesCompleted: number;
+
+  /**
+   * Halo's points; null when the mode packs its own counts into it (#217), as the season stats leave it.
+   */
   personalScore: number | null;
   powerWeaponKills: number;
   rank: number;
@@ -29,5 +38,9 @@ export interface MatchDetailsPlayerDto {
   spawns: number;
   suicides: number;
   timePlayed: string;
+
+  /**
+   * The site's user for the Xbox account, when there is one (their profile).
+   */
   userID: number | null;
 }

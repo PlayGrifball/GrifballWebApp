@@ -6,10 +6,25 @@ import { TeamPagePlayerDto } from '../models/team-page-player-dto';
 export interface TeamDto {
   losses: number;
   players: Array<TeamPagePlayerDto>;
+
+  /**
+   * Wins and Losses are the source spreadsheet's (the season's matches are not in the app).
+   */
   recordFromSource: boolean;
+
+  /**
+   * What a season is, the same on every page that shows one, imported from the historical archive or played in the app
+   * alike. A DTO that is a season (GrifballWebApp.Application.Seasons.SeasonSummaryDto, GrifballWebApp.Application.Seasons.SeasonListItemDto) derives from it and is
+   * projected by M:GrifballWebApp.Application.Seasons.SeasonInfoDto.Select``1(System.DateTime,System.Linq.Expressions.Expression{System.Func{GrifballWebApp.Domain.League.Season,``0}}); one about a season (a stat line, a title, a team) has it as its Season, loaded
+   * by M:GrifballWebApp.Application.Seasons.SeasonInfoDto.LoadAsync(GrifballWebApp.Application.Database.IApplicationDbContext,System.Collections.Generic.IEnumerable{System.Int32},System.DateTime,System.Threading.CancellationToken). Either way the fields are projected here only.
+   */
   season: SeasonInfoDto;
   tbd: number;
   teamName: string;
+
+  /**
+   * The tiers whose title the team won.
+   */
   titles: Array<string>;
   wins: number;
 }

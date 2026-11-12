@@ -7,7 +7,15 @@ export interface MatchDetailsTeamDto {
   outcome: Outcomes;
   players: Array<MatchDetailsPlayerDto>;
   score: number;
+
+  /**
+   * The season match's team most of these players are on, when the game was reported for one.
+   */
   seasonTeamID: number | null;
   seasonTeamName: string | null;
+
+  /**
+   * Infinite's team ID: 0 or 1.
+   */
   teamID: number;
 }

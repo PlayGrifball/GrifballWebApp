@@ -5,6 +5,10 @@ export interface TeamsPlayerDto {
   name: string;
   personID: number;
   pick: number | null;
+
+  /**
+   * Where the player plays from, for building teams.
+   */
   region: string | null;
   round: number | null;
 }

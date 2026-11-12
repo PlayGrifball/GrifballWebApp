@@ -5,11 +5,19 @@ export interface HistoricalSeasonReviewDto {
   approvalJobID: number | null;
   decidedAt: string | null;
   reviewID: number;
+
+  /**
+   * The season, once the import made it; null before.
+   */
   seasonID: number | null;
   seasonKey: string;
   seasonName: string | null;
   statsBefore: number;
   statsRemoved: number;
+
+  /**
+   * Preview, NeedsReview, Approved or Skipped.
+   */
   status: string;
   teamsBefore: number;
   teamsRemoved: number;

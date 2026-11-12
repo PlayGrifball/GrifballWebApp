@@ -13,6 +13,10 @@ export interface UserResponseDto {
   lockoutEnabled: boolean;
   lockoutEnd: string | null;
   region: string | null;
+
+  /**
+   * The region's ID; a sysadmin's change to it is never overwritten by the import (RegionSource Sysadmin).
+   */
   regionID: number | null;
   roles: Array<RoleDto>;
   userID: number;

@@ -3,6 +3,10 @@
 
 import { VodLinkMatchDto } from '../models/vod-link-match-dto';
 import { VodTeamDto } from '../models/vod-team-dto';
+
+/**
+ * A season's teams and matches, to link a VOD to.
+ */
 export interface VodLinkOptionsDto {
   matches: Array<VodLinkMatchDto>;
   teams: Array<VodTeamDto>;

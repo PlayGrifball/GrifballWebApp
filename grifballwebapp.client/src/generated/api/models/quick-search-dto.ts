@@ -4,6 +4,10 @@
 import { QuickSearchPlayerDto } from '../models/quick-search-player-dto';
 import { QuickSearchSeasonDto } from '../models/quick-search-season-dto';
 import { QuickSearchTeamDto } from '../models/quick-search-team-dto';
+
+/**
+ * The quick search's hits (the Ctrl+K navigator), a few of each kind, the best first.
+ */
 export interface QuickSearchDto {
   players: Array<QuickSearchPlayerDto>;
   seasons: Array<QuickSearchSeasonDto>;

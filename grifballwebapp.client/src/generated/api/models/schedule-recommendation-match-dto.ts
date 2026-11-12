@@ -4,7 +4,15 @@
 export interface ScheduleRecommendationMatchDto {
   awayTeam: string;
   awayTeamAvailable: boolean;
+
+  /**
+   * The time it has now; null while unscheduled.
+   */
   currentTime: string | null;
+
+  /**
+   * A result is in: applying leaves its time alone.
+   */
   decided: boolean;
   homeTeam: string;
   homeTeamAvailable: boolean;

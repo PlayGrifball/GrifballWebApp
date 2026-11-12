@@ -9,13 +9,25 @@ export interface HistoricalImportJobDto {
   finishedAt: string | null;
   guarded: boolean;
   jobID: number;
+
+  /**
+   * Import, Refresh or Preview.
+   */
   kind: string;
   report: HistoricalImportReport | null;
+
+  /**
+   * Its seasons' removals that wait for (or got) a decision, and a preview's.
+   */
   reviews: Array<HistoricalSeasonReviewDto>;
   seasonsDone: number;
   seasonsTotal: number;
   stage: string | null;
   startedAt: string | null;
   status: string;
+
+  /**
+   * Manual or Scheduled.
+   */
   trigger: string;
 }

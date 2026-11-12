@@ -5,16 +5,32 @@ import { SeasonMatchGameParticipantDto } from '../models/season-match-game-parti
 export interface ReportedGameDto {
   awayPlayers: Array<SeasonMatchGameParticipantDto>;
   awayScore: number | null;
+
+  /**
+   * A recorded game's details (null for a Waypoint game): what it shows and what its edit starts from.
+   */
   gameVersionID: number | null;
   gameVersionName: string | null;
   gametype: string | null;
   homePlayers: Array<SeasonMatchGameParticipantDto>;
   homeScore: number | null;
+
+  /**
+   * A recorded game a commissioner entered by hand: they can edit and delete it from the box score.
+   */
   isManual: boolean;
   map: string | null;
   matchID: string | null;
   matchNumber: number;
+
+  /**
+   * When a recorded game was played, if it was recorded.
+   */
   playedAt: string | null;
   recordedGameID: number | null;
+
+  /**
+   * The game in the series: what unreporting it, or replacing it, names.
+   */
   seriesGameID: number;
 }

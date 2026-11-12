@@ -4,6 +4,10 @@
 import { SignupsTimeslotDto } from '../models/signups-timeslot-dto';
 export interface SignupResponseDto {
   personName: string | null;
+
+  /**
+   * Where the player plays from.
+   */
   region: string | null;
   requiresAssistanceDrafting: boolean;
   seasonID: number;

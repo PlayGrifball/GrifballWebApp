@@ -5,5 +5,9 @@ export interface OnDemandRunDto {
   durationMs: number;
   error: string | null;
   firedAt: string;
+
+  /**
+   * Succeeded, Failed, Cancelled or Skipped.
+   */
   result: string;
 }

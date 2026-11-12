@@ -14,13 +14,33 @@ export interface SeasonMatchPageDto {
   awayTeamScore: number | null;
   bestOf: number;
   bracketInfo: BracketInfoDto | null;
+
+  /**
+   * Whether the user asking may request a reschedule of this match now (see RescheduleRules); false for a visitor.
+   */
   canRequestReschedule: boolean;
+
+  /**
+   * Whether Undo Result would be taken: it has anything to take back (SeasonMatch.CanUndoResult), a result other
+   *             than a BYE's or the games of an undecided series, and in a bracket what the result sent on can be taken back too
+   *             (BracketService.UndoAdvancementRefusalAsync: no later match it fed has a result or games of its own).
+   */
   canUndo: boolean;
+
+  /**
+   * What decided the match (its games, a forfeit, a BYE); null while undecided. The model's own answer
+   *             (SeasonMatch.DecidedBy), so the page need not work it out from the two results.
+   */
   decidedBy: SeasonMatchDecisionDto | null;
   homeTeamID: number | null;
   homeTeamName: string | null;
   homeTeamResult: SeasonMatchResultDto;
   homeTeamScore: number | null;
+
+  /**
+   * The season was imported from the historical archive: its games are not entered by hand (the next
+   *             import would remove them).
+   */
   isImported: boolean;
   isPlayoff: boolean;
   reportedGames: Array<ReportedGameDto>;

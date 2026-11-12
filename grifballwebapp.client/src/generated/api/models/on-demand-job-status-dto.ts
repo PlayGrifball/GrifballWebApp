@@ -3,8 +3,20 @@
 
 import { OnDemandJobState } from '../models/on-demand-job-state';
 import { OnDemandRunDto } from '../models/on-demand-run-dto';
+
+/**
+ * Where a page's run of an on-demand job is.
+ */
 export interface OnDemandJobStatusDto {
+
+  /**
+   * The last run that finished (within the history kept, a week).
+   */
   lastRun: OnDemandRunDto | null;
+
+  /**
+   * While running: how far it got (0 to 100) and what it is doing, as the job reports it.
+   */
   progress: number | null;
   progressMessage: string | null;
   startedAt: string | null;

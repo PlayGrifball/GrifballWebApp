@@ -5,7 +5,15 @@ export interface TeamPagePlayerDto {
   draftCaptainOrder: number | null;
   draftRound: number | null;
   gamertag: string;
+
+  /**
+   * The team's captain: its drafted captain, or the one its title names.
+   */
   isCaptain: boolean;
+
+  /**
+   * Where the player plays from.
+   */
   region: string | null;
   teamPlayerID: number;
   userID: number;

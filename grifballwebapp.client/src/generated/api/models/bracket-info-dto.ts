@@ -6,6 +6,10 @@ export interface BracketInfoDto {
   awayTeamSeed: number | null;
   homeTeamPreviousMatchID: number | null;
   homeTeamSeed: number | null;
+
+  /**
+   * The grand final or its sudden death: these cannot be forfeited.
+   */
   isGrandFinal: boolean;
   loserNextMatchID: number | null;
   winnerNextMatchID: number | null;

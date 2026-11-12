@@ -6,6 +6,11 @@ export interface UnscheduledMatchDto {
   awayTeam: string;
   complete: boolean;
   homeCaptain: string;
+
+  /**
+   * The home team as the schedule shows it: its name, then its captain in parentheses (when it has one and the
+   *             name doesn't already say it).
+   */
   homeTeam: string;
   seasonMatchID: number;
 }

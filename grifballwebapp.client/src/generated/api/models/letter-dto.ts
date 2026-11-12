@@ -5,6 +5,10 @@ export interface LetterDto {
   doubleKills: string;
   gamertag: string;
   goals: string;
+
+  /**
+   * Set once every grade is in: the letter of GrifballWebApp.Application.Grades.LetterDto.GradeAvgMath among them all.
+   */
   gradeAvg: string;
   gradeAvgMath: number;
   kdSpread: string;
@@ -13,6 +17,10 @@ export interface LetterDto {
   punches: string;
   sprees: string;
   tripleKills: string;
+
+  /**
+   * The account's user, for the link to their profile; null for an account nobody has.
+   */
   userID: number | null;
   xFactor: string;
   xboxUserID: number;

@@ -5388,6 +5388,7 @@
           {
             "name": "Ended",
             "in": "query",
+            "description": "True: only seasons that have ended; false: only the current ones; null: both.",
             "schema": {
               "type": "boolean"
             }
@@ -5395,6 +5396,7 @@
           {
             "name": "Format",
             "in": "query",
+            "description": "Only seasons of this format; null: every format.",
             "schema": {
               "allOf": [
                 {
@@ -5406,6 +5408,7 @@
           {
             "name": "Year",
             "in": "query",
+            "description": "Only seasons that started in this year; null: every year.",
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -5820,7 +5823,8 @@
                   {
                     "$ref": "#/components/schemas/ManualGameRequestDto"
                   }
-                ]
+                ],
+                "description": "A game of a season match's series entered by hand by a commissioner (M:GrifballWebApp.Application.SeasonMatchPage.SeasonMatchService.AddManualGame(System.Int32,GrifballWebApp.Application.SeasonMatchPage.ManualGameRequestDto,System.Threading.CancellationToken)):\nwhen the stat bot or Halo Infinite's stats have no record of it, or the game is not Halo Infinite at all (MCC, a newer\nHalo). The winner is the side with the higher score."
               }
             }
           }
@@ -5905,7 +5909,8 @@
                   {
                     "$ref": "#/components/schemas/ManualGameRequestDto"
                   }
-                ]
+                ],
+                "description": "A game of a season match's series entered by hand by a commissioner (M:GrifballWebApp.Application.SeasonMatchPage.SeasonMatchService.AddManualGame(System.Int32,GrifballWebApp.Application.SeasonMatchPage.ManualGameRequestDto,System.Threading.CancellationToken)):\nwhen the stat bot or Halo Infinite's stats have no record of it, or the game is not Halo Infinite at all (MCC, a newer\nHalo). The winner is the side with the higher score."
               }
             }
           }
@@ -8336,7 +8341,8 @@
                   {
                     "$ref": "#/components/schemas/LinkVodRequest"
                   }
-                ]
+                ],
+                "description": "What a VOD is of: a season match (its season and teams follow from it), or a season and its teams."
               }
             }
           }
@@ -8464,6 +8470,7 @@
           "note": {
             "maxLength": 200,
             "type": "string",
+            "description": "Why, e.g. \"known as this in Winter League 2019\".",
             "nullable": true
           }
         },
@@ -8784,7 +8791,8 @@
             "nullable": true
           },
           "isGrandFinal": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "The grand final or its sudden death: these cannot be forfeited."
           }
         },
         "additionalProperties": false
@@ -8816,6 +8824,7 @@
                 "$ref": "#/components/schemas/ParticpantResult"
               }
             ],
+            "description": "Only contains information about match status and results.",
             "nullable": true
           },
           "opponent2": {
@@ -8824,30 +8833,37 @@
                 "$ref": "#/components/schemas/ParticpantResult"
               }
             ],
+            "description": "Only contains information about match status and results.",
             "nullable": true
           },
           "id": {
             "type": "integer",
+            "description": "ID of the match: SeasonMatchID",
             "format": "int32"
           },
           "stage_id": {
             "type": "integer",
+            "description": "ID of the parent stage: 1",
             "format": "int32"
           },
           "group_id": {
             "type": "integer",
+            "description": "ID of the parent group: ???",
             "format": "int32"
           },
           "round_id": {
             "type": "integer",
+            "description": "ID of the parent round.",
             "format": "int32"
           },
           "number": {
             "type": "integer",
+            "description": "The number of the match in its round.",
             "format": "int32"
           },
           "child_count": {
             "type": "integer",
+            "description": "The count of match games this match has. Can be `0` if it's a simple match, or a positive number for \"Best Of\" matches.",
             "format": "int32"
           }
         },
@@ -8868,7 +8884,8 @@
             "format": "int32"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "The answer to AddCaptain: the name the server gave the new team."
       },
       "CaptainDto": {
         "required": [
@@ -8893,6 +8910,7 @@
           },
           "region": {
             "type": "string",
+            "description": "Where the captain plays from.",
             "nullable": true
           }
         },
@@ -8957,6 +8975,7 @@
           },
           "placeholderUserID": {
             "type": "integer",
+            "description": "Null when no placeholder has the gamertag: nothing to claim.",
             "format": "int32",
             "nullable": true
           },
@@ -8968,14 +8987,17 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SeasonRefDto"
-            }
+            },
+            "description": "\"Name (year)\", oldest first."
           },
           "refusal": {
             "type": "string",
+            "description": "Why it can't be claimed; null when it can.",
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A placeholder a gamertag claim would merge, and the seasons it played, before the claim is made."
       },
       "ClientLogDto": {
         "required": [
@@ -9178,23 +9200,28 @@
           },
           "count": {
             "type": "integer",
+            "description": "Times earned.",
             "format": "int32"
           },
           "matches": {
             "type": "integer",
+            "description": "Games it was earned in.",
             "format": "int32"
           },
           "tier": {
             "type": "integer",
+            "description": "Tiers reached (0 to GrifballWebApp.Application.Profile.ProfileCommendationsService.TierThresholds's length).",
             "format": "int32"
           },
           "nextTierAt": {
             "type": "integer",
+            "description": "The count of the next tier; null once the last is reached.",
             "format": "int32",
             "nullable": true
           },
           "tierFloor": {
             "type": "integer",
+            "description": "The count of the tier reached; 0 before the first.",
             "format": "int32"
           }
         },
@@ -9311,7 +9338,8 @@
           "RegularSeason",
           "InProgress"
         ],
-        "type": "string"
+        "type": "string",
+        "description": "How far a team went in its season, best first."
       },
       "DeploymentHistoryDto": {
         "required": [
@@ -9332,7 +9360,8 @@
               {
                 "$ref": "#/components/schemas/SeasonInfoDto"
               }
-            ]
+            ],
+            "description": "What a season is, the same on every page that shows one, imported from the historical archive or played in the app\nalike. A DTO that is a season (GrifballWebApp.Application.Seasons.SeasonSummaryDto, GrifballWebApp.Application.Seasons.SeasonListItemDto) derives from it and is\nprojected by M:GrifballWebApp.Application.Seasons.SeasonInfoDto.Select``1(System.DateTime,System.Linq.Expressions.Expression{System.Func{GrifballWebApp.Domain.League.Season,``0}}); one about a season (a stat line, a title, a team) has it as its Season, loaded\nby M:GrifballWebApp.Application.Seasons.SeasonInfoDto.LoadAsync(GrifballWebApp.Application.Database.IApplicationDbContext,System.Collections.Generic.IEnumerable{System.Int32},System.DateTime,System.Threading.CancellationToken). Either way the fields are projected here only."
           },
           "teamID": {
             "type": "integer",
@@ -9342,10 +9371,12 @@
             "type": "string"
           },
           "isCaptain": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "The player captained the team."
           },
           "wins": {
             "type": "integer",
+            "description": "The team's record, as the standings and team page count it (TeamRecord).",
             "format": "int32"
           },
           "losses": {
@@ -9353,23 +9384,27 @@
             "format": "int32"
           },
           "recordFromSource": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "The record is the source spreadsheet's: the season's matches are not in the app."
           },
           "finish": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/DeploymentFinish"
               }
-            ]
+            ],
+            "description": "How far a team went in its season, best first."
           },
           "championshipTiers": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "The tiers of the titles the team won (Pro, Open, ...), A to Z; empty unless GrifballWebApp.Application.Profile.DeploymentHistoryDto.Finish is Champion."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "One team a player was on in a season (a deployment), newest season first on the profile."
       },
       "DtosMatchDto": {
         "required": [
@@ -9401,7 +9436,8 @@
           "Framing",
           "Token"
         ],
-        "type": "string"
+        "type": "string",
+        "description": "Why a pair was suggested, strongest first: the list is sorted by it."
       },
       "DuplicatePairRequest": {
         "required": [
@@ -9437,6 +9473,7 @@
         "properties": {
           "sourceUserID": {
             "type": "integer",
+            "description": "The placeholder, merged on \"Merge\".",
             "format": "int32"
           },
           "sourceGamertag": {
@@ -9444,6 +9481,7 @@
           },
           "targetUserID": {
             "type": "integer",
+            "description": "The user it would be merged into: a signed-up user, or another placeholder.",
             "format": "int32"
           },
           "targetGamertag": {
@@ -9457,10 +9495,12 @@
               {
                 "$ref": "#/components/schemas/DuplicateMatch"
               }
-            ]
+            ],
+            "description": "Why a pair was suggested, strongest first: the list is sorted by it."
           },
           "distance": {
             "type": "integer",
+            "description": "Edits between the two gamertags compared loosely (case, spaces, punctuation and a \"#1234\" suffix aside).\n            Only GrifballWebApp.Application.Historical.DuplicateMatch.Edits is suggested for it; a framing or word match can be many edits apart.",
             "format": "int32"
           },
           "sourceSeasons": {
@@ -9476,7 +9516,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A placeholder that may be the same player as another user: merge it, or dismiss the pair."
       },
       "DynastyDto": {
         "required": [
@@ -9520,7 +9561,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A team name's titles across seasons (a team is one season's; the teams that carried a name from season to season\nare counted together), with its latest title-winning team to link to."
       },
       "Event": {
         "required": [
@@ -9700,6 +9742,7 @@
           },
           "gamesDecidedByVote": {
             "type": "integer",
+            "description": "Of GrifballWebApp.Application.Profile.GameCareerSummaryDto.GamesPlayed, the Late League games decided by their players' vote: a win or a loss with no box\n            score, so left out of every stat per game.",
             "format": "int32"
           },
           "wins": {
@@ -9717,6 +9760,7 @@
           },
           "goals": {
             "type": "integer",
+            "description": "Null on the all-games row: goals, carrier stops and medals mean something different in each game, so they\n            are only totalled per game.",
             "format": "int64",
             "nullable": true
           },
@@ -9869,20 +9913,24 @@
           },
           "xboxUserID": {
             "type": "integer",
+            "description": "Null for a user's or Discord claim whose user has no Xbox account linked.",
             "format": "int64",
             "nullable": true
           },
           "xboxGamertag": {
             "type": "string",
+            "description": "The Xbox account's gamertag now.",
             "nullable": true
           },
           "userID": {
             "type": "integer",
+            "description": "The user the placeholder is merged into on approval: the claimant, or the Xbox account's user.",
             "format": "int32",
             "nullable": true
           },
           "claimantUserID": {
             "type": "integer",
+            "description": "A user's or Discord claim: the user it is about.",
             "format": "int32",
             "nullable": true
           },
@@ -9892,6 +9940,7 @@
           },
           "firstSeen": {
             "type": "string",
+            "description": "A user's claim: when they say they had the gamertag.",
             "format": "date-time",
             "nullable": true
           },
@@ -9932,6 +9981,7 @@
           },
           "currentGamertag": {
             "type": "string",
+            "description": "An XUID lookup: the account's gamertag now, and when it was looked up.",
             "nullable": true
           },
           "lookedUpAt": {
@@ -9943,7 +9993,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SeasonRefDto"
-            }
+            },
+            "description": "The seasons the placeholder played (its stats and titles), \"Name (year)\", oldest first: who used the\n            gamertag then, to weigh against who holds it now."
           },
           "createdAt": {
             "type": "string",
@@ -10127,10 +10178,12 @@
             "format": "int32"
           },
           "kind": {
-            "type": "string"
+            "type": "string",
+            "description": "Import, Refresh or Preview."
           },
           "trigger": {
-            "type": "string"
+            "type": "string",
+            "description": "Manual or Scheduled."
           },
           "guarded": {
             "type": "boolean"
@@ -10180,7 +10233,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/HistoricalSeasonReviewDto"
-            }
+            },
+            "description": "Its seasons' removals that wait for (or got) a decision, and a preview's."
           }
         },
         "additionalProperties": false
@@ -10229,7 +10283,8 @@
             "format": "int32"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A job in the list: what it is and how it went, without its report."
       },
       "HistoricalImportQueued": {
         "required": [
@@ -10295,10 +10350,12 @@
           },
           "seasonsRetired": {
             "type": "integer",
+            "description": "Titles-only seasons the champions record made whose titles are another season's now, removed.",
             "format": "int32"
           },
           "matchmakingSeasonsCreated": {
             "type": "integer",
+            "description": "Matchmaking seasons (Late League) created and updated.",
             "format": "int32"
           },
           "matchmakingSeasonsUpdated": {
@@ -10311,6 +10368,7 @@
           },
           "teamsRemoved": {
             "type": "integer",
+            "description": "Rows of earlier imports this one didn't bring back, removed: teams (renamed or gone), stored totals, titles.",
             "format": "int32"
           },
           "statsRemoved": {
@@ -10331,6 +10389,7 @@
           },
           "seasonMatchesCreated": {
             "type": "integer",
+            "description": "Season matches made from Waypoint games, and the games linked to them.",
             "format": "int32"
           },
           "gamesLinked": {
@@ -10343,6 +10402,7 @@
           },
           "recordedGamesImported": {
             "type": "integer",
+            "description": "Recorded (non-Waypoint) games added or updated; skipped as a Waypoint game's duplicate (by match ID, or the\n            same two teams within GrifballWebApp.Application.Historical.HistoricalImportOptions.RecordedGameWaypointWindow, details in the warnings); and\n            removed (no longer in the archive, or now a duplicate).",
             "format": "int32"
           },
           "recordedGamesSkippedAsWaypoint": {
@@ -10355,6 +10415,7 @@
           },
           "manualReplacedByWaypoint": {
             "type": "integer",
+            "description": "Manual rows not imported, or removed, because the player has Waypoint stats for that phase of the season.",
             "format": "int32"
           },
           "championshipsInserted": {
@@ -10375,10 +10436,12 @@
           },
           "suggestionsCreated": {
             "type": "integer",
+            "description": "Roster matches suggested for a sysadmin to decide (GamertagClaims).",
             "format": "int32"
           },
           "discordLinked": {
             "type": "integer",
+            "description": "Players lists: Discord IDs linked to placeholders, placeholders merged into the user with that Discord ID,\n            Discord matches left for a sysadmin (GamertagClaims), and regions filled in.",
             "format": "int32"
           },
           "discordMerged": {
@@ -10397,37 +10460,43 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Waypoint matches that are not in the database (could not be pulled, or not found), by season and phase:\n            that phase kept its Manual stats."
           },
           "skipped": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Why something was left out, one line each."
           },
           "warnings": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "What was imported but deserves a look, e.g. a sheet row of a Waypoint season no account matched."
           },
           "errors": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Seasons whose transaction failed and was rolled back."
           },
           "seasonRemovals": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/HistoricalSeasonRemoval"
-            }
+            },
+            "description": "Seasons this run removes (or would remove, a dry run) rows from, and those the guardrail stopped."
           },
           "sourcesChanged": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "A refresh of the sources: those whose content changed, those that failed (and why), how many were unchanged,\n            and the import it queued."
           },
           "sourcesFailed": {
             "type": "array",
@@ -10472,6 +10541,7 @@
           },
           "nextRunAt": {
             "type": "string",
+            "description": "When the scheduled refresh next fires; null while paused.",
             "format": "date-time",
             "nullable": true
           },
@@ -10482,6 +10552,7 @@
           },
           "lastRunNote": {
             "type": "string",
+            "description": "Why the last due run queued nothing (a run in progress).",
             "nullable": true
           }
         },
@@ -10535,7 +10606,8 @@
             "format": "int32"
           },
           "stopped": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Rolled back by the guardrail: left as it was until a sysadmin approves it."
           },
           "removesAnything": {
             "type": "boolean",
@@ -10546,7 +10618,8 @@
             "readOnly": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "What importing a season removes of what it had: stat rows, teams, titles (championship rows)."
       },
       "HistoricalSeasonReviewDto": {
         "required": [
@@ -10579,11 +10652,13 @@
           },
           "seasonID": {
             "type": "integer",
+            "description": "The season, once the import made it; null before.",
             "format": "int32",
             "nullable": true
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "Preview, NeedsReview, Approved or Skipped."
           },
           "statsBefore": {
             "type": "integer",
@@ -11037,7 +11112,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "The all-time leaderboards: titles, and career totals over every season's stats."
       },
       "LeagueOptionDto": {
         "required": [
@@ -11081,6 +11157,7 @@
           },
           "userID": {
             "type": "integer",
+            "description": "The account's user, for the link to their profile; null for an account nobody has.",
             "format": "int32",
             "nullable": true
           },
@@ -11119,7 +11196,8 @@
             "format": "double"
           },
           "gradeAvg": {
-            "type": "string"
+            "type": "string",
+            "description": "Set once every grade is in: the letter of GrifballWebApp.Application.Grades.LetterDto.GradeAvgMath among them all."
           }
         },
         "additionalProperties": false
@@ -11150,7 +11228,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "What a VOD is of: a season match (its season and teams follow from it), or a season and its teams."
       },
       "LinkedLoginsDto": {
         "required": [
@@ -11282,7 +11361,8 @@
             "format": "int32"
           },
           "isHomeTeam": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Played for the home team (true) or the away team (false)."
           },
           "kills": {
             "type": "integer",
@@ -11298,6 +11378,7 @@
           },
           "goals": {
             "type": "integer",
+            "description": "Grifball goals (bomb scores): counted in the stats and the box score like an imported game's.",
             "format": "int32",
             "nullable": true
           },
@@ -11307,7 +11388,8 @@
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "One player's line of a GrifballWebApp.Application.SeasonMatchPage.ManualGameRequestDto."
       },
       "ManualGameRequestDto": {
         "required": [
@@ -11324,6 +11406,7 @@
         "properties": {
           "gameVersionID": {
             "type": "integer",
+            "description": "The game it was played in (Other.GameVersions).",
             "format": "int32"
           },
           "map": {
@@ -11336,6 +11419,7 @@
           },
           "playedAt": {
             "type": "string",
+            "description": "When it was played, which places a new game among the series' games; optional (without it, the game\n            goes after the others and keeps its place).",
             "format": "date-time",
             "nullable": true
           },
@@ -11349,6 +11433,7 @@
           },
           "replacesSeriesGameID": {
             "type": "integer",
+            "description": "The game of the series this one replaces, as the commissioner picked it (one reported before that this\n            corrects); null for a new game. The site never guesses it.",
             "format": "int32",
             "nullable": true
           },
@@ -11356,10 +11441,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ManualGamePlayerRequestDto"
-            }
+            },
+            "description": "Each player's line, optional: a game can be entered with its score alone."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A game of a season match's series entered by hand by a commissioner (M:GrifballWebApp.Application.SeasonMatchPage.SeasonMatchService.AddManualGame(System.Int32,GrifballWebApp.Application.SeasonMatchPage.ManualGameRequestDto,System.Threading.CancellationToken)):\nwhen the stat bot or Halo Infinite's stats have no record of it, or the game is not Halo Infinite at all (MCC, a newer\nHalo). The winner is the side with the higher score."
       },
       "MatchDetailsDto": {
         "required": [
@@ -11397,22 +11484,26 @@
                 "$ref": "#/components/schemas/MatchDetailsSeasonMatchDto"
               }
             ],
+            "description": "The season match this game was reported as a game of; null for a game not reported (yet).",
             "nullable": true
           },
           "teams": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MatchDetailsTeamDto"
-            }
+            },
+            "description": "Infinite's teams, in team ID order."
           },
           "medals": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MatchDetailsMedalDto"
-            }
+            },
+            "description": "Every medal earned in the match, all players together, most earned first."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "One Halo Infinite match (its Waypoint match ID) with every stat pulled for it: each team's score and outcome, each\nplayer's line and the medals they earned. The season match it was reported for, when it was."
       },
       "MatchDetailsMedalDto": {
         "required": [
@@ -11482,6 +11573,7 @@
         "properties": {
           "userID": {
             "type": "integer",
+            "description": "The site's user for the Xbox account, when there is one (their profile).",
             "format": "int32",
             "nullable": true
           },
@@ -11490,11 +11582,13 @@
           },
           "goals": {
             "type": "integer",
+            "description": "Grifball goals as GrifballWebApp.Application.Stats.GrifballGoals reads them (a custom mode's decoded, #217);\n            null when they can't be read yet.",
             "format": "int32",
             "nullable": true
           },
           "personalScore": {
             "type": "integer",
+            "description": "Halo's points; null when the mode packs its own counts into it (#217), as the season stats leave it.",
             "format": "int32",
             "nullable": true
           },
@@ -11616,6 +11710,7 @@
           },
           "gameNumber": {
             "type": "integer",
+            "description": "The game's number in the series.",
             "format": "int32"
           },
           "bestOf": {
@@ -11638,10 +11733,12 @@
         "properties": {
           "teamID": {
             "type": "integer",
+            "description": "Infinite's team ID: 0 or 1.",
             "format": "int32"
           },
           "seasonTeamID": {
             "type": "integer",
+            "description": "The season match's team most of these players are on, when the game was reported for one.",
             "format": "int32",
             "nullable": true
           },
@@ -11694,6 +11791,7 @@
                 "$ref": "#/components/schemas/ParticpantResult"
               }
             ],
+            "description": "Only contains information about match status and results.",
             "nullable": true
           },
           "opponent2": {
@@ -11702,25 +11800,31 @@
                 "$ref": "#/components/schemas/ParticpantResult"
               }
             ],
+            "description": "Only contains information about match status and results.",
             "nullable": true
           },
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "ID of the match game: MatchID"
           },
           "stage_id": {
             "type": "integer",
+            "description": "ID of the parent stage: 1",
             "format": "int32"
           },
           "parent_id": {
             "type": "integer",
+            "description": "ID of the parent match: SeasonMatchID",
             "format": "int32"
           },
           "number": {
             "type": "integer",
+            "description": "The number of the match game in its parent match: 1, 2, 3...",
             "format": "int32"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "brackets-model's MatchGame extends MatchResults (status, opponent1, opponent2), like Match."
       },
       "MatchmakingPlayerStatDto": {
         "required": [
@@ -11777,7 +11881,8 @@
             "nullable": true
           },
           "source": {
-            "type": "string"
+            "type": "string",
+            "description": "Matches (totalled from its games) or Recorded (totals stored, e.g. a historical sheet's)."
           },
           "gamesPlayed": {
             "type": "integer",
@@ -11785,6 +11890,7 @@
           },
           "gamesDecidedByVote": {
             "type": "integer",
+            "description": "Of GrifballWebApp.Application.LateLeague.MatchmakingPlayerStatDto.GamesPlayed, the games decided by their players' vote: in the record, with no box score.",
             "format": "int32"
           },
           "wins": {
@@ -11831,7 +11937,8 @@
             "format": "int32"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A player's line of a matchmaking season, for its page and a profile."
       },
       "MatchmakingQueueDto": {
         "required": [
@@ -11843,10 +11950,12 @@
         "properties": {
           "gameCount": {
             "type": "integer",
+            "description": "Its games played to a result: reported, or decided by its players' vote.",
             "format": "int32"
           },
           "voteDecidedGameCount": {
             "type": "integer",
+            "description": "Of GrifballWebApp.Application.LateLeague.MatchmakingQueueDto.GameCount, those decided by vote: a result with no box score.",
             "format": "int32"
           },
           "players": {
@@ -11856,7 +11965,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "The Discord queue: Late League as it is played now, its games and each player's totals."
       },
       "MatchmakingSeasonDetailDto": {
         "required": [
@@ -11870,7 +11980,8 @@
               {
                 "$ref": "#/components/schemas/MatchmakingSeasonDto"
               }
-            ]
+            ],
+            "description": "A matchmaking season (a Late League season of the archive): its name, game and when its games were played."
           },
           "players": {
             "type": "array",
@@ -11934,14 +12045,16 @@
             "format": "int32"
           },
           "isHistorical": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Imported from the historical archive: GrifballWebApp.Application.LateLeague.MatchmakingSeasonDto.HistoricalSourceUrl is its source spreadsheet."
           },
           "historicalSourceUrl": {
             "type": "string",
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A matchmaking season (a Late League season of the archive): its name, game and when its games were played."
       },
       "MergeOptions": {
         "required": [
@@ -11961,10 +12074,12 @@
         "type": "object",
         "properties": {
           "transferDiscord": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Moves the bot's Discord link (DiscordUserID) to the target. When the source has none, the target has none\n            and GrifballWebApp.Application.Profile.MergeOptions.TransferLogins is on, the link is taken from the source's Discord login if that Discord user is known."
           },
           "transferLogins": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Moves every external login (any provider, e.g. \"Sign in with Discord\") to the target, so it then signs in as the target.\n            With this off and GrifballWebApp.Application.Profile.MergeOptions.DeleteMergeFrom on, the source's logins are deleted with it."
           },
           "transferXbox": {
             "type": "boolean"
@@ -11992,14 +12107,17 @@
               {
                 "$ref": "#/components/schemas/MergeTrigger"
               }
-            ]
+            ],
+            "description": "What caused the merge, for its audit record (GrifballWebApp.Domain.Players.UserMerge)."
           },
           "reason": {
             "type": "string",
+            "description": "Why, e.g. \"claim 12\", for the audit record.",
             "nullable": true
           },
           "triggeredByUserID": {
             "type": "integer",
+            "description": "Who caused it; the signed-in user when null.",
             "format": "int32",
             "nullable": true
           }
@@ -12071,7 +12189,8 @@
           "Import",
           "DuplicateSuggestion"
         ],
-        "type": "string"
+        "type": "string",
+        "description": "What caused a merge."
       },
       "MetaInfoResponse": {
         "required": [
@@ -12130,6 +12249,7 @@
           },
           "gameVersionName": {
             "type": "string",
+            "description": "The game the total is of (goals and carrier stops are counted per game); null for a career total across games.",
             "nullable": true
           },
           "statValue": {
@@ -12142,6 +12262,7 @@
           },
           "gamesDecidedByVote": {
             "type": "integer",
+            "description": "Of GrifballWebApp.Application.Leaderboards.MetricLeaderDto.GamesPlayed, the Late League games decided by their players' vote: a win or a loss with no box\n            score, so left out of GrifballWebApp.Application.Leaderboards.MetricLeaderDto.PerGame.",
             "format": "int32"
           },
           "perGame": {
@@ -12198,11 +12319,13 @@
         "properties": {
           "rank": {
             "type": "integer",
+            "description": "Null when the player has none of the stat, so isn't on the board.",
             "format": "int32",
             "nullable": true
           },
           "totalRanked": {
             "type": "integer",
+            "description": "How many are on the board: those with any of the stat.",
             "format": "int32"
           },
           "statValue": {
@@ -12214,7 +12337,8 @@
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A player's rank and totals on one metric leaderboard."
       },
       "MetricSeriesDto": {
         "required": [
@@ -12337,6 +12461,7 @@
           },
           "progress": {
             "type": "integer",
+            "description": "While running: how far it got (0 to 100) and what it is doing, as the job reports it.",
             "format": "int32",
             "nullable": true
           },
@@ -12355,10 +12480,12 @@
                 "$ref": "#/components/schemas/OnDemandRunDto"
               }
             ],
+            "description": "The last run that finished (within the history kept, a week).",
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Where a page's run of an on-demand job is."
       },
       "OnDemandRunDto": {
         "required": [
@@ -12378,7 +12505,8 @@
             "format": "double"
           },
           "result": {
-            "type": "string"
+            "type": "string",
+            "description": "Succeeded, Failed, Cancelled or Skipped."
           },
           "error": {
             "type": "string",
@@ -12497,14 +12625,17 @@
         "properties": {
           "id": {
             "type": "integer",
+            "description": "ID of the participant: TeamID",
             "format": "int32"
           },
           "tournament_id": {
             "type": "integer",
+            "description": "ID of the tournament this participant belongs to: SeasonID",
             "format": "int32"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Name of the participant: Team Name"
           }
         },
         "additionalProperties": false
@@ -12531,6 +12662,7 @@
           },
           "score": {
             "type": "integer",
+            "description": "The current score of the participant.",
             "format": "int32",
             "nullable": true
           },
@@ -12540,10 +12672,12 @@
                 "$ref": "#/components/schemas/Result"
               }
             ],
+            "description": "Tells what is the result of a duel for this participant.",
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Only contains information about match status and results."
       },
       "PastGamertagDto": {
         "required": [
@@ -12587,10 +12721,12 @@
             "nullable": true
           },
           "canRemove": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Only a gamertag a sysadmin added can be removed: the others are facts the app saw."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A past gamertag of an Xbox account, as the sysadmin page lists it."
       },
       "PastGamertagsDto": {
         "required": [
@@ -12620,7 +12756,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "An Xbox account and its past gamertags."
       },
       "PerMinuteDto": {
         "required": [
@@ -12724,38 +12861,44 @@
               {
                 "$ref": "#/components/schemas/MetricRankDetail"
               }
-            ]
+            ],
+            "description": "A player's rank and totals on one metric leaderboard."
           },
           "goals": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MetricRankDetail"
               }
-            ]
+            ],
+            "description": "A player's rank and totals on one metric leaderboard."
           },
           "kills": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MetricRankDetail"
               }
-            ]
+            ],
+            "description": "A player's rank and totals on one metric leaderboard."
           },
           "gamesPlayed": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MetricRankDetail"
               }
-            ]
+            ],
+            "description": "A player's rank and totals on one metric leaderboard."
           },
           "carrierStops": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MetricRankDetail"
               }
-            ]
+            ],
+            "description": "A player's rank and totals on one metric leaderboard."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Universal all-time ranking summary for a specific player across every tracked metric."
       },
       "PlayerChampionshipDto": {
         "required": [
@@ -12781,10 +12924,12 @@
               {
                 "$ref": "#/components/schemas/SeasonInfoDto"
               }
-            ]
+            ],
+            "description": "What a season is, the same on every page that shows one, imported from the historical archive or played in the app\nalike. A DTO that is a season (GrifballWebApp.Application.Seasons.SeasonSummaryDto, GrifballWebApp.Application.Seasons.SeasonListItemDto) derives from it and is\nprojected by M:GrifballWebApp.Application.Seasons.SeasonInfoDto.Select``1(System.DateTime,System.Linq.Expressions.Expression{System.Func{GrifballWebApp.Domain.League.Season,``0}}); one about a season (a stat line, a title, a team) has it as its Season, loaded\nby M:GrifballWebApp.Application.Seasons.SeasonInfoDto.LoadAsync(GrifballWebApp.Application.Database.IApplicationDbContext,System.Collections.Generic.IEnumerable{System.Int32},System.DateTime,System.Threading.CancellationToken). Either way the fields are projected here only."
           },
           "gameVersionID": {
             "type": "integer",
+            "description": "The game the title was won on, which can differ from the season's; null when the record names none.",
             "format": "int32",
             "nullable": true
           },
@@ -12856,6 +13001,7 @@
         "properties": {
           "playerSeasonStatID": {
             "type": "integer",
+            "description": "The stored row, for stored season totals; null for stats from the season's games.",
             "format": "int32",
             "nullable": true
           },
@@ -12894,7 +13040,8 @@
             "type": "boolean"
           },
           "source": {
-            "type": "string"
+            "type": "string",
+            "description": "Matches (totalled from the season's games) or Recorded (season totals stored, e.g. a historical sheet's)."
           },
           "gamesPlayed": {
             "type": "integer",
@@ -12957,6 +13104,7 @@
           },
           "punches": {
             "type": "integer",
+            "description": "Ball punches and sword kills: null when none of the games records them (an Infinite mode decoded from its\n            score does, #217).",
             "format": "int32",
             "nullable": true
           },
@@ -12970,10 +13118,12 @@
               {
                 "$ref": "#/components/schemas/SeasonInfoDto"
               }
-            ]
+            ],
+            "description": "What a season is, the same on every page that shows one, imported from the historical archive or played in the app\nalike. A DTO that is a season (GrifballWebApp.Application.Seasons.SeasonSummaryDto, GrifballWebApp.Application.Seasons.SeasonListItemDto) derives from it and is\nprojected by M:GrifballWebApp.Application.Seasons.SeasonInfoDto.Select``1(System.DateTime,System.Linq.Expressions.Expression{System.Func{GrifballWebApp.Domain.League.Season,``0}}); one about a season (a stat line, a title, a team) has it as its Season, loaded\nby M:GrifballWebApp.Application.Seasons.SeasonInfoDto.LoadAsync(GrifballWebApp.Application.Database.IApplicationDbContext,System.Collections.Generic.IEnumerable{System.Int32},System.DateTime,System.Threading.CancellationToken). Either way the fields are projected here only."
           },
           "gameVersionID": {
             "type": "integer",
+            "description": "The line's game, which can differ from the season's.",
             "format": "int32",
             "nullable": true
           },
@@ -13001,7 +13151,8 @@
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A profile's season line: the season stats row every page shows (GrifballWebApp.Application.Seasons.SeasonPlayerStatDto),\n            with the season it is of."
       },
       "PossibleMatchDto": {
         "required": [
@@ -13160,20 +13311,24 @@
           },
           "totalMedals": {
             "type": "integer",
+            "description": "Every medal the player has earned, of any kind.",
             "format": "int32"
           },
           "distinctMedals": {
             "type": "integer",
+            "description": "How many kinds of medal the player has earned.",
             "format": "int32"
           },
           "commendations": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CommendationDto"
-            }
+            },
+            "description": "The player's most earned medals, most first."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A player's commendations: the Halo Infinite medals they have earned most, with a tier for each."
       },
       "ProfileDto": {
         "required": [
@@ -13234,7 +13389,8 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Gamertags the user's Xbox account had before (its renames), latest first."
           },
           "championships": {
             "type": "array",
@@ -13266,7 +13422,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MatchmakingPlayerStatDto"
-            }
+            },
+            "description": "Late League (matchmaking): a line per matchmaking season, and one for the queue's games outside any."
           },
           "serviceRecord": {
             "allOf": [
@@ -13274,6 +13431,7 @@
                 "$ref": "#/components/schemas/ServiceRecordDto"
               }
             ],
+            "description": "The stat strip at the top of the profile: MMR, K/D and bomb scores.",
             "nullable": true
           }
         },
@@ -13343,7 +13501,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "The quick search's hits (the Ctrl+K navigator), a few of each kind, the best first."
       },
       "QuickSearchPlayerDto": {
         "required": [
@@ -13361,14 +13520,17 @@
             "format": "int32"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "The name the site shows them by: their gamertag, else their Discord name or display name."
           },
           "pastGamertag": {
             "type": "string",
+            "description": "The past gamertag the search matched, when it was one of those and not their current name; else null.",
             "nullable": true
           },
           "matchedName": {
             "type": "string",
+            "description": "The Discord or display name the search matched, when that is not the name shown (and no past gamertag\n            was matched); else null.",
             "nullable": true
           },
           "kind": {
@@ -13377,21 +13539,25 @@
                 "$ref": "#/components/schemas/QuickSearchPlayerKind"
               }
             ],
+            "description": "Where the name comes from, so two players of one name can be told apart (a gamertag's holder today may\n            not be who used it in the archive): GrifballWebApp.Application.Search.QuickSearchPlayerKind.Xbox when it is the gamertag their Xbox\n            account holds now, GrifballWebApp.Application.Search.QuickSearchPlayerKind.Archive for a player of the imported archive no Xbox account\n            is linked to; null otherwise (a signed-up player known by a Discord or display name).",
             "nullable": true
           },
           "years": {
             "type": "string",
+            "description": "An archive player's seasons' years (\"2009\" or \"2009–2011\"); null for others, or one with no season.",
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A player, linking to their profile."
       },
       "QuickSearchPlayerKind": {
         "enum": [
           "Xbox",
           "Archive"
         ],
-        "type": "string"
+        "type": "string",
+        "description": "Where a player's shown name comes from (sent as its name, like every enum: ApiJson)."
       },
       "QuickSearchSeasonDto": {
         "required": [
@@ -13419,10 +13585,12 @@
             "format": "date-time"
           },
           "years": {
-            "type": "string"
+            "type": "string",
+            "description": "The years it ran in: \"2019\", or \"2018–2019\" across years (M:GrifballWebApp.Application.Search.QuickSearchService.YearSpan(System.Int32,System.Int32))."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A season, linking to its page."
       },
       "QuickSearchTeamDto": {
         "required": [
@@ -13448,7 +13616,8 @@
             "type": "string"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A team of one season, linking to that season's roster."
       },
       "RefreshRequest": {
         "required": [
@@ -13574,6 +13743,7 @@
         "properties": {
           "seriesGameID": {
             "type": "integer",
+            "description": "The game in the series: what unreporting it, or replacing it, names.",
             "format": "int32"
           },
           "matchID": {
@@ -13613,10 +13783,12 @@
             }
           },
           "isManual": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "A recorded game a commissioner entered by hand: they can edit and delete it from the box score."
           },
           "gameVersionID": {
             "type": "integer",
+            "description": "A recorded game's details (null for a Waypoint game): what it shows and what its edit starts from.",
             "format": "int32",
             "nullable": true
           },
@@ -13634,6 +13806,7 @@
           },
           "playedAt": {
             "type": "string",
+            "description": "When a recorded game was played, if it was recorded.",
             "format": "date-time",
             "nullable": true
           }
@@ -13691,6 +13864,7 @@
           },
           "requestedByUserID": {
             "type": "integer",
+            "description": "Who asked, for the link to their profile.",
             "format": "int32",
             "nullable": true
           },
@@ -13712,10 +13886,12 @@
           },
           "whyNotApprovable": {
             "type": "string",
+            "description": "Why the request can only be rejected now (the match has a result since, or lost a team), or null when it can still be\napproved: the dashboard then offers only Reject, and says why.",
             "nullable": true
           },
           "canApprove": {
             "type": "boolean",
+            "description": "Whether an approval can still move the match (GrifballWebApp.Application.Reschedule.RescheduleDto.WhyNotApprovable is null).",
             "readOnly": true
           }
         },
@@ -13806,7 +13982,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A player's championships."
       },
       "RoleDto": {
         "required": [
@@ -13926,7 +14103,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ScheduleRecommendationMatchDto"
-            }
+            },
+            "description": "In order of the proposed time."
           }
         },
         "additionalProperties": false
@@ -13961,6 +14139,7 @@
           },
           "currentTime": {
             "type": "string",
+            "description": "The time it has now; null while unscheduled.",
             "format": "date-time",
             "nullable": true
           },
@@ -13974,7 +14153,8 @@
             "type": "boolean"
           },
           "decided": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "A result is in: applying leaves its time alone."
           }
         },
         "additionalProperties": false
@@ -13991,7 +14171,8 @@
               {
                 "$ref": "#/components/schemas/OnDemandJobStatusDto"
               }
-            ]
+            ],
+            "description": "Where a page's run of an on-demand job is."
           },
           "latest": {
             "allOf": [
@@ -13999,10 +14180,12 @@
                 "$ref": "#/components/schemas/ScheduleRecommendationDto"
               }
             ],
+            "description": "The latest recommendation; null before the first.",
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "The season's schedule page: its recommendation and its run (`ScheduleRecommendationJob`)."
       },
       "ScheduledMatchDto": {
         "required": [
@@ -14027,7 +14210,8 @@
             "type": "string"
           },
           "homeTeam": {
-            "type": "string"
+            "type": "string",
+            "description": "The home team as the schedule shows it: its name, then its captain in parentheses (when it has one and the\n            name doesn't already say it)."
           },
           "awayTeam": {
             "type": "string"
@@ -14088,7 +14272,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A tier's champions: the team and the players who hold the title."
       },
       "SeasonDto": {
         "required": [
@@ -14123,6 +14308,7 @@
           },
           "publicAt": {
             "type": "string",
+            "description": "When the season is announced (Discord events channel); null keeps it unannounced.",
             "format": "date-time",
             "nullable": true
           },
@@ -14152,16 +14338,19 @@
           },
           "gameVersionID": {
             "type": "integer",
+            "description": "The game the season is played on; a new season must have one.",
             "format": "int32",
             "nullable": true
           },
           "leagueID": {
             "type": "integer",
+            "description": "The league the season is in (AGLA unless set otherwise).",
             "format": "int32"
           },
           "division": {
             "maxLength": 50,
             "type": "string",
+            "description": "The season's division, e.g. Pro: the tier its champions win. None: one open tier.",
             "nullable": true
           },
           "format": {
@@ -14169,10 +14358,12 @@
               {
                 "$ref": "#/components/schemas/SeasonFormat"
               }
-            ]
+            ],
+            "description": "League season or tournament (a bracket only)."
           },
           "copyFromSeasonID": {
             "type": "integer",
+            "description": "The season to copy availability, signups or teams from (by ID: names are only unique per league).",
             "format": "int32",
             "nullable": true
           },
@@ -14193,7 +14384,8 @@
           "LeagueSeason",
           "Tournament"
         ],
-        "type": "string"
+        "type": "string",
+        "description": "What kind of competition a season is: which sections its page has. Late League is not a season at all but\n            matchmaking (GrifballWebApp.Domain.LateLeague.MatchmakingSeason)."
       },
       "SeasonInfoDto": {
         "required": [
@@ -14236,7 +14428,8 @@
             "format": "int32"
           },
           "hasEnded": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "The season is over: a section with nothing to show says it wasn't recorded."
           },
           "leagueID": {
             "type": "integer",
@@ -14250,6 +14443,7 @@
           },
           "gameVersionID": {
             "type": "integer",
+            "description": "The season's game; null for one played on more than one (a stat line or title has its own).",
             "format": "int32",
             "nullable": true
           },
@@ -14270,17 +14464,20 @@
               {
                 "$ref": "#/components/schemas/SeasonFormat"
               }
-            ]
+            ],
+            "description": "Which sections the season's page has: a tournament has no schedule or standings."
           },
           "isHistorical": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Imported from the historical archive: GrifballWebApp.Application.Seasons.SeasonInfoDto.HistoricalSourceUrl is its source spreadsheet."
           },
           "historicalSourceUrl": {
             "type": "string",
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "What a season is, the same on every page that shows one, imported from the historical archive or played in the app\nalike. A DTO that is a season (GrifballWebApp.Application.Seasons.SeasonSummaryDto, GrifballWebApp.Application.Seasons.SeasonListItemDto) derives from it and is\nprojected by M:GrifballWebApp.Application.Seasons.SeasonInfoDto.Select``1(System.DateTime,System.Linq.Expressions.Expression{System.Func{GrifballWebApp.Domain.League.Season,``0}}); one about a season (a stat line, a title, a team) has it as its Season, loaded\nby M:GrifballWebApp.Application.Seasons.SeasonInfoDto.LoadAsync(GrifballWebApp.Application.Database.IApplicationDbContext,System.Collections.Generic.IEnumerable{System.Int32},System.DateTime,System.Threading.CancellationToken). Either way the fields are projected here only."
       },
       "SeasonListItemDto": {
         "required": [
@@ -14327,7 +14524,8 @@
             "format": "int32"
           },
           "hasEnded": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "The season is over: a section with nothing to show says it wasn't recorded."
           },
           "leagueID": {
             "type": "integer",
@@ -14341,6 +14539,7 @@
           },
           "gameVersionID": {
             "type": "integer",
+            "description": "The season's game; null for one played on more than one (a stat line or title has its own).",
             "format": "int32",
             "nullable": true
           },
@@ -14361,10 +14560,12 @@
               {
                 "$ref": "#/components/schemas/SeasonFormat"
               }
-            ]
+            ],
+            "description": "Which sections the season's page has: a tournament has no schedule or standings."
           },
           "isHistorical": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Imported from the historical archive: GrifballWebApp.Application.Seasons.SeasonInfoDto.HistoricalSourceUrl is its source spreadsheet."
           },
           "historicalSourceUrl": {
             "type": "string",
@@ -14388,10 +14589,12 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "The names of the teams that played the season, alphabetical: the list's search matches them."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A season in the season list: every season that has started, imported or played in the app alike."
       },
       "SeasonMatchDecisionDto": {
         "enum": [
@@ -14399,7 +14602,8 @@
           "Forfeit",
           "Bye"
         ],
-        "type": "string"
+        "type": "string",
+        "description": "What decided a season match (SeasonMatch.DecidedBy)."
       },
       "SeasonMatchGameParticipantDto": {
         "required": [
@@ -14440,11 +14644,13 @@
           },
           "score": {
             "type": "integer",
+            "description": "Halo's points; null where the game doesn't record them, or its mode packs its stats into them (#217).",
             "format": "int32",
             "nullable": true
           },
           "kdRatio": {
             "type": "number",
+            "description": "Kills per death as M:GrifballWebApp.Application.Stats.StatMath.KdRatio(System.Int32,System.Int32) counts it everywhere: null without a death.",
             "format": "double",
             "nullable": true
           }
@@ -14535,10 +14741,12 @@
                 "$ref": "#/components/schemas/SeasonMatchDecisionDto"
               }
             ],
+            "description": "What decided the match (its games, a forfeit, a BYE); null while undecided. The model's own answer\n            (SeasonMatch.DecidedBy), so the page need not work it out from the two results.",
             "nullable": true
           },
           "canUndo": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether Undo Result would be taken: it has anything to take back (SeasonMatch.CanUndoResult), a result other\n            than a BYE's or the games of an undecided series, and in a bracket what the result sent on can be taken back too\n            (BracketService.UndoAdvancementRefusalAsync: no later match it fed has a result or games of its own)."
           },
           "scheduledTime": {
             "type": "string",
@@ -14564,7 +14772,8 @@
             "nullable": true
           },
           "isImported": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "The season was imported from the historical archive: its games are not entered by hand (the next\n            import would remove them)."
           },
           "bracketInfo": {
             "allOf": [
@@ -14580,7 +14789,8 @@
             "nullable": true
           },
           "canRequestReschedule": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the user asking may request a reschedule of this match now (see RescheduleRules); false for a visitor."
           }
         },
         "additionalProperties": false
@@ -14592,7 +14802,8 @@
           "Forfeit",
           "Bye"
         ],
-        "type": "string"
+        "type": "string",
+        "description": "A side's result in a GrifballWebApp.Domain.League.SeasonMatch, paired with the other side's only in the legal ways."
       },
       "SeasonMatchResultDto": {
         "enum": [
@@ -14660,6 +14871,7 @@
         "properties": {
           "playerSeasonStatID": {
             "type": "integer",
+            "description": "The stored row, for stored season totals; null for stats from the season's games.",
             "format": "int32",
             "nullable": true
           },
@@ -14698,7 +14910,8 @@
             "type": "boolean"
           },
           "source": {
-            "type": "string"
+            "type": "string",
+            "description": "Matches (totalled from the season's games) or Recorded (season totals stored, e.g. a historical sheet's)."
           },
           "gamesPlayed": {
             "type": "integer",
@@ -14761,6 +14974,7 @@
           },
           "punches": {
             "type": "integer",
+            "description": "Ball punches and sword kills: null when none of the games records them (an Infinite mode decoded from its\n            score does, #217).",
             "format": "int32",
             "nullable": true
           },
@@ -14770,7 +14984,8 @@
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A player's totals for one stint of the season (regular season or playoffs), with their team."
       },
       "SeasonRefDto": {
         "required": [
@@ -14792,7 +15007,8 @@
             "format": "int32"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A season named in a list (the seasons a user played), with what its link needs."
       },
       "SeasonSummaryDto": {
         "required": [
@@ -14841,7 +15057,8 @@
             "format": "int32"
           },
           "hasEnded": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "The season is over: a section with nothing to show says it wasn't recorded."
           },
           "leagueID": {
             "type": "integer",
@@ -14855,6 +15072,7 @@
           },
           "gameVersionID": {
             "type": "integer",
+            "description": "The season's game; null for one played on more than one (a stat line or title has its own).",
             "format": "int32",
             "nullable": true
           },
@@ -14875,10 +15093,12 @@
               {
                 "$ref": "#/components/schemas/SeasonFormat"
               }
-            ]
+            ],
+            "description": "Which sections the season's page has: a tournament has no schedule or standings."
           },
           "isHistorical": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Imported from the historical archive: GrifballWebApp.Application.Seasons.SeasonInfoDto.HistoricalSourceUrl is its source spreadsheet."
           },
           "historicalSourceUrl": {
             "type": "string",
@@ -14894,6 +15114,7 @@
           },
           "matchCount": {
             "type": "integer",
+            "description": "Regular season matches (not in the bracket).",
             "format": "int32"
           },
           "bracketMatchCount": {
@@ -14911,7 +15132,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A season's page header: what it is, its champions, and how much of each kind of data it has, so the page can say\nwhat is missing (a season backfilled from the historical archive has teams and stats but no signups or schedule;\none with Waypoint matches has those too)."
       },
       "SeasonTeamDto": {
         "required": [
@@ -15040,6 +15262,7 @@
         "properties": {
           "mmr": {
             "type": "integer",
+            "description": "The player's Late League rating; null for a player who has never played matchmaking (everyone starts at\n            the same default, which says nothing about them).",
             "format": "int32",
             "nullable": true
           },
@@ -15048,7 +15271,8 @@
               {
                 "$ref": "#/components/schemas/ServiceRecordTotalsDto"
               }
-            ]
+            ],
+            "description": "League seasons and matchmaking together: the strip's default."
           },
           "league": {
             "allOf": [
@@ -15065,7 +15289,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "The stat strip at the top of a profile (its service record): MMR, and career games, wins, K/D and bomb scores over\nleague seasons, over matchmaking (Late League), and over both."
       },
       "ServiceRecordTotalsDto": {
         "required": [
@@ -15113,10 +15338,12 @@
           },
           "bombScores": {
             "type": "integer",
+            "description": "Bomb scores (goals), every game's alike: a bomb score is one in any Halo.",
             "format": "int64"
           },
           "uncountedBombScoreGames": {
             "type": "integer",
+            "description": "Halo Infinite games whose goals can't be read (a custom mode's packed Score not decoded yet, see #217),\n            left out of GrifballWebApp.Application.Profile.ServiceRecordTotalsDto.BombScores.",
             "format": "int32"
           }
         },
@@ -15167,6 +15394,7 @@
         "properties": {
           "regionID": {
             "type": "integer",
+            "description": "Null clears it.",
             "format": "int32",
             "nullable": true
           }
@@ -15279,6 +15507,7 @@
           },
           "region": {
             "type": "string",
+            "description": "Where the player plays from.",
             "nullable": true
           },
           "timeslots": {
@@ -15480,6 +15709,7 @@
         "properties": {
           "size": {
             "type": "integer",
+            "description": "The number of participants. Also includes Byes",
             "format": "int32"
           },
           "seedOrdering": {
@@ -15610,16 +15840,19 @@
               {
                 "$ref": "#/components/schemas/SeasonInfoDto"
               }
-            ]
+            ],
+            "description": "What a season is, the same on every page that shows one, imported from the historical archive or played in the app\nalike. A DTO that is a season (GrifballWebApp.Application.Seasons.SeasonSummaryDto, GrifballWebApp.Application.Seasons.SeasonListItemDto) derives from it and is\nprojected by M:GrifballWebApp.Application.Seasons.SeasonInfoDto.Select``1(System.DateTime,System.Linq.Expressions.Expression{System.Func{GrifballWebApp.Domain.League.Season,``0}}); one about a season (a stat line, a title, a team) has it as its Season, loaded\nby M:GrifballWebApp.Application.Seasons.SeasonInfoDto.LoadAsync(GrifballWebApp.Application.Database.IApplicationDbContext,System.Collections.Generic.IEnumerable{System.Int32},System.DateTime,System.Threading.CancellationToken). Either way the fields are projected here only."
           },
           "recordFromSource": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Wins and Losses are the source spreadsheet's (the season's matches are not in the app)."
           },
           "titles": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "The tiers whose title the team won."
           },
           "wins": {
             "type": "integer",
@@ -15656,13 +15889,16 @@
         "type": "object",
         "properties": {
           "teamName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of its latest season's team."
           },
           "leagueName": {
-            "type": "string"
+            "type": "string",
+            "description": "The league it played in."
           },
           "appearances": {
             "type": "integer",
+            "description": "The seasons it played.",
             "format": "int32"
           },
           "wins": {
@@ -15675,20 +15911,24 @@
           },
           "championships": {
             "type": "integer",
+            "description": "The titles it won, across seasons and tiers.",
             "format": "int32"
           },
           "players": {
             "type": "integer",
+            "description": "The players who played for it, each once.",
             "format": "int32"
           },
           "seasons": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/TeamHistorySeasonDto"
-            }
+            },
+            "description": "Newest first."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A franchise: every season's team of one name in one league, and its totals."
       },
       "TeamHistorySeasonDto": {
         "required": [
@@ -15708,14 +15948,16 @@
             "format": "int32"
           },
           "teamName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name as that season spelled it."
           },
           "season": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/SeasonInfoDto"
               }
-            ]
+            ],
+            "description": "What a season is, the same on every page that shows one, imported from the historical archive or played in the app\nalike. A DTO that is a season (GrifballWebApp.Application.Seasons.SeasonSummaryDto, GrifballWebApp.Application.Seasons.SeasonListItemDto) derives from it and is\nprojected by M:GrifballWebApp.Application.Seasons.SeasonInfoDto.Select``1(System.DateTime,System.Linq.Expressions.Expression{System.Func{GrifballWebApp.Domain.League.Season,``0}}); one about a season (a stat line, a title, a team) has it as its Season, loaded\nby M:GrifballWebApp.Application.Seasons.SeasonInfoDto.LoadAsync(GrifballWebApp.Application.Database.IApplicationDbContext,System.Collections.Generic.IEnumerable{System.Int32},System.DateTime,System.Threading.CancellationToken). Either way the fields are projected here only."
           },
           "wins": {
             "type": "integer",
@@ -15738,10 +15980,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/TeamPagePlayerDto"
-            }
+            },
+            "description": "Captain first, then by draft round."
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "One season of a franchise: that season's team."
       },
       "TeamPageMatchDto": {
         "required": [
@@ -15842,10 +16086,12 @@
             "nullable": true
           },
           "isCaptain": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "The team's captain: its drafted captain, or the one its title names."
           },
           "region": {
             "type": "string",
+            "description": "Where the player plays from.",
             "nullable": true
           }
         },
@@ -15909,7 +16155,8 @@
             "format": "int32"
           },
           "recordFromSource": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "The record is the source spreadsheet's: the season's matches are not in the app."
           }
         },
         "additionalProperties": false
@@ -15943,6 +16190,7 @@
           },
           "region": {
             "type": "string",
+            "description": "Where the player plays from, for building teams.",
             "nullable": true
           }
         },
@@ -15997,7 +16245,8 @@
             "format": "int32"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A title: the season, its tier and the team that won it, each linked on the page."
       },
       "TotalDto": {
         "required": [
@@ -16174,7 +16423,8 @@
             "type": "string"
           },
           "homeTeam": {
-            "type": "string"
+            "type": "string",
+            "description": "The home team as the schedule shows it: its name, then its captain in parentheses (when it has one and the\n            name doesn't already say it)."
           },
           "awayTeam": {
             "type": "string"
@@ -16318,7 +16568,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A merge and what it changed, table by table."
       },
       "UserMergeDto": {
         "required": [
@@ -16457,6 +16708,7 @@
           },
           "regionID": {
             "type": "integer",
+            "description": "The region's ID; a sysadmin's change to it is never overwritten by the import (RegionSource Sysadmin).",
             "format": "int32",
             "nullable": true
           },
@@ -16578,7 +16830,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A VOD on a season, team, match or player page."
       },
       "VodLinkMatchDto": {
         "required": [
@@ -16593,7 +16846,8 @@
             "format": "int32"
           },
           "label": {
-            "type": "string"
+            "type": "string",
+            "description": "\"Home vs Away · Oct 3, 2026\"."
           },
           "teamIDs": {
             "type": "array",
@@ -16625,7 +16879,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A season's teams and matches, to link a VOD to."
       },
       "VodLinkSeasonDto": {
         "required": [
@@ -16716,7 +16971,8 @@
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A VOD waiting for a sysadmin, with the matcher's suggestion."
       },
       "VodTeamDto": {
         "required": [

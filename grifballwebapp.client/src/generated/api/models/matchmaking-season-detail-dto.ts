@@ -5,5 +5,9 @@ import { MatchmakingPlayerStatDto } from '../models/matchmaking-player-stat-dto'
 import { MatchmakingSeasonDto } from '../models/matchmaking-season-dto';
 export interface MatchmakingSeasonDetailDto {
   players: Array<MatchmakingPlayerStatDto>;
+
+  /**
+   * A matchmaking season (a Late League season of the archive): its name, game and when its games were played.
+   */
   season: MatchmakingSeasonDto;
 }

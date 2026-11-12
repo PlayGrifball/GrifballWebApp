@@ -14,8 +14,20 @@ import { SortDirection } from '../../models/sort-direction';
 export interface GetSeasonList$Params {
   LeagueID?: number;
   GameVersionID?: number;
+
+/**
+ * True: only seasons that have ended; false: only the current ones; null: both.
+ */
   Ended?: boolean;
+
+/**
+ * Only seasons of this format; null: every format.
+ */
   Format?: SeasonFormat;
+
+/**
+ * Only seasons that started in this year; null: every year.
+ */
   Year?: number;
   PageNumber?: number;
   PageSize?: number;

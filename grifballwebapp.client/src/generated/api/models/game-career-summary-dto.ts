@@ -13,8 +13,18 @@ export interface GameCareerSummaryDto {
   gameVersionID: number | null;
   gameVersionName: string | null;
   gameVersionSlug: string | null;
+
+  /**
+   * Of GrifballWebApp.Application.Profile.GameCareerSummaryDto.GamesPlayed, the Late League games decided by their players' vote: a win or a loss with no box
+   *             score, so left out of every stat per game.
+   */
   gamesDecidedByVote: number;
   gamesPlayed: number;
+
+  /**
+   * Null on the all-games row: goals, carrier stops and medals mean something different in each game, so they
+   *             are only totalled per game.
+   */
   goals: number | null;
   goalsPerGame: number | null;
   hammerKills: number | null;

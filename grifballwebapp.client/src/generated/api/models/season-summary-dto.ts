@@ -3,21 +3,47 @@
 
 import { SeasonChampionDto } from '../models/season-champion-dto';
 import { SeasonFormat } from '../models/season-format';
+
+/**
+ * A season's page header: what it is, its champions, and how much of each kind of data it has, so the page can say
+ * what is missing (a season backfilled from the historical archive has teams and stats but no signups or schedule;
+ * one with Waypoint matches has those too).
+ */
 export interface SeasonSummaryDto {
   bracketMatchCount: number;
   champions: Array<SeasonChampionDto>;
   division: string | null;
   end: string;
+
+  /**
+   * Which sections the season's page has: a tournament has no schedule or standings.
+   */
   format: SeasonFormat;
+
+  /**
+   * The season's game; null for one played on more than one (a stat line or title has its own).
+   */
   gameVersionID: number | null;
   gameVersionName: string | null;
   gameVersionSlug: string | null;
+
+  /**
+   * The season is over: a section with nothing to show says it wasn't recorded.
+   */
   hasEnded: boolean;
   historicalSourceUrl: string | null;
+
+  /**
+   * Imported from the historical archive: GrifballWebApp.Application.Seasons.SeasonInfoDto.HistoricalSourceUrl is its source spreadsheet.
+   */
   isHistorical: boolean;
   leagueID: number;
   leagueName: string;
   leagueSlug: string;
+
+  /**
+   * Regular season matches (not in the bracket).
+   */
   matchCount: number;
   playerStatCount: number;
   seasonID: number;

@@ -5,5 +5,9 @@ export interface CaptainDto {
   name: string;
   order: number | null;
   personID: number;
+
+  /**
+   * Where the captain plays from.
+   */
   region: string | null;
 }

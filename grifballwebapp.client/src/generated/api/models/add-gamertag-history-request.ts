@@ -5,6 +5,10 @@ export interface AddGamertagHistoryRequest {
   firstSeen: string | null;
   gamertag: string;
   lastSeen: string | null;
+
+  /**
+   * Why, e.g. "known as this in Winter League 2019".
+   */
   note: string | null;
   xboxUserID: number;
 }

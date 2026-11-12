@@ -4,13 +4,45 @@
 import { ParticpantResult } from '../models/particpant-result';
 import { Status } from '../models/status';
 export interface BracketsMatch {
+
+  /**
+   * The count of match games this match has. Can be `0` if it's a simple match, or a positive number for "Best Of" matches.
+   */
   child_count: number;
+
+  /**
+   * ID of the parent group: ???
+   */
   group_id: number;
+
+  /**
+   * ID of the match: SeasonMatchID
+   */
   id: number;
+
+  /**
+   * The number of the match in its round.
+   */
   number: number;
+
+  /**
+   * Only contains information about match status and results.
+   */
   opponent1: ParticpantResult | null;
+
+  /**
+   * Only contains information about match status and results.
+   */
   opponent2: ParticpantResult | null;
+
+  /**
+   * ID of the parent round.
+   */
   round_id: number;
+
+  /**
+   * ID of the parent stage: 1
+   */
   stage_id: number;
   status: Status;
 }

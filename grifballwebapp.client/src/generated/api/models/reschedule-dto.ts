@@ -4,6 +4,10 @@
 import { RescheduleStatus } from '../models/reschedule-status';
 export interface RescheduleDto {
   awayCaptain: string;
+
+  /**
+   * Whether an approval can still move the match (GrifballWebApp.Application.Reschedule.RescheduleDto.WhyNotApprovable is null).
+   */
   canApprove: boolean;
   discordThreadID: number | null;
   homeCaptain: string;
@@ -13,8 +17,17 @@ export interface RescheduleDto {
   reason: string;
   requestedAt: string;
   requestedByGamertag: string;
+
+  /**
+   * Who asked, for the link to their profile.
+   */
   requestedByUserID: number | null;
   seasonMatchID: number;
   status: RescheduleStatus;
+
+  /**
+   * Why the request can only be rejected now (the match has a result since, or lost a team), or null when it can still be
+   * approved: the dashboard then offers only Reject, and says why.
+   */
   whyNotApprovable: string | null;
 }

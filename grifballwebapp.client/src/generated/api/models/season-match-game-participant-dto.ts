@@ -6,8 +6,16 @@ export interface SeasonMatchGameParticipantDto {
   bombScores: number;
   deaths: number;
   gamertag: string;
+
+  /**
+   * Kills per death as M:GrifballWebApp.Application.Stats.StatMath.KdRatio(System.Int32,System.Int32) counts it everywhere: null without a death.
+   */
   kdRatio: number | null;
   kills: number;
+
+  /**
+   * Halo's points; null where the game doesn't record them, or its mode packs its stats into them (#217).
+   */
   score: number | null;
   userID: number | null;
 }

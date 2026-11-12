@@ -3,16 +3,36 @@
 
 import { SeasonChampionDto } from '../models/season-champion-dto';
 import { SeasonFormat } from '../models/season-format';
+
+/**
+ * A season in the season list: every season that has started, imported or played in the app alike.
+ */
 export interface SeasonListItemDto {
   champions: Array<SeasonChampionDto>;
   division: string | null;
   end: string;
+
+  /**
+   * Which sections the season's page has: a tournament has no schedule or standings.
+   */
   format: SeasonFormat;
+
+  /**
+   * The season's game; null for one played on more than one (a stat line or title has its own).
+   */
   gameVersionID: number | null;
   gameVersionName: string | null;
   gameVersionSlug: string | null;
+
+  /**
+   * The season is over: a section with nothing to show says it wasn't recorded.
+   */
   hasEnded: boolean;
   historicalSourceUrl: string | null;
+
+  /**
+   * Imported from the historical archive: GrifballWebApp.Application.Seasons.SeasonInfoDto.HistoricalSourceUrl is its source spreadsheet.
+   */
   isHistorical: boolean;
   leagueID: number;
   leagueName: string;
@@ -22,6 +42,10 @@ export interface SeasonListItemDto {
   seasonName: string;
   start: string;
   teamCount: number;
+
+  /**
+   * The names of the teams that played the season, alphabetical: the list's search matches them.
+   */
   teamNames: Array<string>;
   year: number;
 }

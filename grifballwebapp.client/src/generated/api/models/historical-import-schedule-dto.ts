@@ -5,7 +5,15 @@ export interface HistoricalImportScheduleDto {
   interval: string;
   lastJobID: number | null;
   lastRunAt: string | null;
+
+  /**
+   * Why the last due run queued nothing (a run in progress).
+   */
   lastRunNote: string | null;
+
+  /**
+   * When the scheduled refresh next fires; null while paused.
+   */
   nextRunAt: string | null;
   paused: boolean;
 }

@@ -7,36 +7,97 @@ export interface HistoricalImportReport {
   championshipsRemoved: number;
   championshipsUpdated: number;
   discordClaimsCreated: number;
+
+  /**
+   * Players lists: Discord IDs linked to placeholders, placeholders merged into the user with that Discord ID,
+   *             Discord matches left for a sysadmin (GamertagClaims), and regions filled in.
+   */
   discordLinked: number;
   discordMerged: number;
   dummyUsersCreated: number;
+
+  /**
+   * Seasons whose transaction failed and was rolled back.
+   */
   errors: Array<string>;
   gamesLinked: number;
   importJobID: number | null;
+
+  /**
+   * Manual rows not imported, or removed, because the player has Waypoint stats for that phase of the season.
+   */
   manualReplacedByWaypoint: number;
+
+  /**
+   * Matchmaking seasons (Late League) created and updated.
+   */
   matchmakingSeasonsCreated: number;
   matchmakingSeasonsUpdated: number;
+
+  /**
+   * Waypoint matches that are not in the database (could not be pulled, or not found), by season and phase:
+   *             that phase kept its Manual stats.
+   */
   missingMatches: Array<string>;
+
+  /**
+   * Recorded (non-Waypoint) games added or updated; skipped as a Waypoint game's duplicate (by match ID, or the
+   *             same two teams within GrifballWebApp.Application.Historical.HistoricalImportOptions.RecordedGameWaypointWindow, details in the warnings); and
+   *             removed (no longer in the archive, or now a duplicate).
+   */
   recordedGamesImported: number;
   recordedGamesRemoved: number;
   recordedGamesSkippedAsWaypoint: number;
   regionsSet: number;
+
+  /**
+   * Season matches made from Waypoint games, and the games linked to them.
+   */
   seasonMatchesCreated: number;
   seasonMatchesRemoved: number;
+
+  /**
+   * Seasons this run removes (or would remove, a dry run) rows from, and those the guardrail stopped.
+   */
   seasonRemovals: Array<HistoricalSeasonRemoval>;
   seasonsCreated: number;
+
+  /**
+   * Titles-only seasons the champions record made whose titles are another season's now, removed.
+   */
   seasonsRetired: number;
   seasonsUpdated: number;
+
+  /**
+   * Why something was left out, one line each.
+   */
   skipped: Array<string>;
+
+  /**
+   * A refresh of the sources: those whose content changed, those that failed (and why), how many were unchanged,
+   *             and the import it queued.
+   */
   sourcesChanged: Array<string>;
   sourcesFailed: Array<string>;
   sourcesUnchanged: number;
   statsInserted: number;
   statsRemoved: number;
   statsUpdated: number;
+
+  /**
+   * Roster matches suggested for a sysadmin to decide (GamertagClaims).
+   */
   suggestionsCreated: number;
   teamsCreated: number;
+
+  /**
+   * Rows of earlier imports this one didn't bring back, removed: teams (renamed or gone), stored totals, titles.
+   */
   teamsRemoved: number;
+
+  /**
+   * What was imported but deserves a look, e.g. a sheet row of a Waypoint season no account matched.
+   */
   warnings: Array<string>;
   waypointMatchesPulled: number;
 }

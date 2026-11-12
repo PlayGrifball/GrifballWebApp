@@ -4,14 +4,38 @@
 import { SeasonFormat } from '../models/season-format';
 export interface SeasonDto {
   copyAvailability: boolean;
+
+  /**
+   * The season to copy availability, signups or teams from (by ID: names are only unique per league).
+   */
   copyFromSeasonID: number | null;
   copySignups: boolean;
   copyTeams: boolean;
+
+  /**
+   * The season's division, e.g. Pro: the tier its champions win. None: one open tier.
+   */
   division: string | null;
   draftStart: string;
+
+  /**
+   * League season or tournament (a bracket only).
+   */
   format: SeasonFormat;
+
+  /**
+   * The game the season is played on; a new season must have one.
+   */
   gameVersionID: number | null;
+
+  /**
+   * The league the season is in (AGLA unless set otherwise).
+   */
   leagueID: number;
+
+  /**
+   * When the season is announced (Discord events channel); null keeps it unannounced.
+   */
   publicAt: string | null;
   seasonEnd: string;
   seasonID: number;
