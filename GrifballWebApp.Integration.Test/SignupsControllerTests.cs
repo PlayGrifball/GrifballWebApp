@@ -80,7 +80,7 @@ public class SignupsControllerTests
         var season = await SignupTestData.OpenSeason(_context);
         _controller.WithUser(user.Id.ToString(), "player", "Player");
 
-        var result = await _controller.UpsertSignup(season.SeasonID, new SignupBodyDto { TeamName = "Mine" }, CancellationToken.None);
+        var result = await _controller.UpsertSignup(season.SeasonID, new SignupBodyDto { TeamName = "Mine", WillCaptain = false, RequiresAssistanceDrafting = false }, CancellationToken.None);
 
         Assert.That(result, Is.TypeOf<NoContentResult>());
         var signup = await _context.SeasonSignups.SingleAsync();
@@ -100,7 +100,7 @@ public class SignupsControllerTests
         _controller.WithUser(user.Id.ToString());
 
         // GlobalExceptionHandler answers it as a 400 ProblemDetails
-        Assert.That(() => _controller.UpsertSignup(season.SeasonID, new SignupBodyDto(), CancellationToken.None),
+        Assert.That(() => _controller.UpsertSignup(season.SeasonID, new SignupBodyDto { WillCaptain = false, RequiresAssistanceDrafting = false }, CancellationToken.None),
             Throws.InstanceOf<SignupsClosedException>());
     }
 
@@ -113,7 +113,7 @@ public class SignupsControllerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(() => _controller.UpsertSignup(season.SeasonID, new SignupBodyDto { WillCaptain = true, TeamName = new string('x', Team.TeamNameMaxLength + 1) }, CancellationToken.None),
+            Assert.That(() => _controller.UpsertSignup(season.SeasonID, new SignupBodyDto { WillCaptain = true, TeamName = new string('x', Team.TeamNameMaxLength + 1), RequiresAssistanceDrafting = false }, CancellationToken.None),
                 Throws.InstanceOf<SignupTeamNameTooLongException>().With.Message.EqualTo("Team name must be 30 characters or fewer"));
             Assert.That(await _context.SeasonSignups.AnyAsync(), Is.False);
         }
@@ -127,7 +127,7 @@ public class SignupsControllerTests
         _controller.WithUser(user.Id.ToString());
         var name = new string('x', Team.TeamNameMaxLength);
 
-        var result = await _controller.UpsertSignup(season.SeasonID, new SignupBodyDto { WillCaptain = true, TeamName = name }, CancellationToken.None);
+        var result = await _controller.UpsertSignup(season.SeasonID, new SignupBodyDto { WillCaptain = true, TeamName = name, RequiresAssistanceDrafting = false }, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -144,7 +144,7 @@ public class SignupsControllerTests
         _controller.WithUser(user.Id.ToString());
         var name = new string('x', Team.TeamNameMaxLength);
 
-        var result = await _controller.UpsertSignup(season.SeasonID, new SignupBodyDto { WillCaptain = true, TeamName = "  " + name + " " }, CancellationToken.None);
+        var result = await _controller.UpsertSignup(season.SeasonID, new SignupBodyDto { WillCaptain = true, TeamName = "  " + name + " ", RequiresAssistanceDrafting = false }, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -160,7 +160,7 @@ public class SignupsControllerTests
         var season = await SignupTestData.OpenSeason(_context);
         _controller.WithUser(user.Id.ToString());
 
-        var result = await _controller.UpsertSignup(season.SeasonID, new SignupBodyDto { WillCaptain = false, TeamName = new string('x', 40) }, CancellationToken.None);
+        var result = await _controller.UpsertSignup(season.SeasonID, new SignupBodyDto { WillCaptain = false, TeamName = new string('x', 40), RequiresAssistanceDrafting = false }, CancellationToken.None);
 
         Assert.That(result, Is.TypeOf<NoContentResult>());
     }
@@ -172,7 +172,7 @@ public class SignupsControllerTests
         var season = await SignupTestData.OpenSeason(_context, open: true);
         _controller.WithUser(user.Id.ToString());
 
-        Assert.That(() => _controller.UpsertSignup(season.SeasonID, new SignupBodyDto(), CancellationToken.None),
+        Assert.That(() => _controller.UpsertSignup(season.SeasonID, new SignupBodyDto { WillCaptain = false, RequiresAssistanceDrafting = false }, CancellationToken.None),
             Throws.InstanceOf<SignupNeedsGamertagException>().With.Message.EqualTo(SignupNeedsGamertagException.Reason));
     }
 }

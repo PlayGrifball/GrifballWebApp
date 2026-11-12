@@ -99,7 +99,7 @@ public class SignupsController : ControllerBase
 public class SignupBodyDto
 {
     public string? TeamName { get; set; }
-    public bool WillCaptain { get; set; }
-    public bool RequiresAssistanceDrafting { get; set; }
+    public required bool WillCaptain { get; set; }
+    public required bool RequiresAssistanceDrafting { get; set; }
     public TimeslotDto[] Timeslots { get; set; } = [];
 }
