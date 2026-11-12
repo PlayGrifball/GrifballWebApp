@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Application.Database;
+using GrifballWebApp.Application.EventOrganizer;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
