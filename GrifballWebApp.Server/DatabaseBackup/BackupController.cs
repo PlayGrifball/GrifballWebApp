@@ -26,6 +26,7 @@ public sealed record ExportRequestDto(string Provider, string ConnectionString);
 public partial class BackupController(DatabaseBackupService backups, BackupRuns runs, BackupDownloads downloads, IApplicationDbContext context, IConfiguration configuration,
     ILogger<BackupController> logger) : ControllerBase
 {
+    /// <summary>The database's provider, its latest migration, and the backup formats available for it. Sysadmins only.</summary>
     [HttpGet("backups/info", Name = "BackupInfo")]
     [ProducesResponseType<BackupInfoDto>(StatusCodes.Status200OK)]
     public BackupInfoDto Info()
@@ -138,6 +139,7 @@ public partial class BackupController(DatabaseBackupService backups, BackupRuns 
         return Accepted(status);
     }
 
+    /// <summary>The currently queued or last database export's status. Sysadmins only.</summary>
     [HttpGet("database-exports/status", Name = "BackupExportStatus")]
     [ProducesResponseType<BackupExportStatus>(StatusCodes.Status200OK)]
     public Task<BackupExportStatus> ExportStatus(CancellationToken ct) => runs.ExportStatusAsync(ct);

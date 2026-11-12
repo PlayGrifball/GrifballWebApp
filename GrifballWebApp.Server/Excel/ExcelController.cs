@@ -18,6 +18,7 @@ public class ExcelController : ControllerBase
         _e = e;
     }
 
+    /// <summary>The default Excel sheet to export matches to. Commissioners and sysadmins only.</summary>
     [HttpGet("sheets/default", Name = "DefaultSheetInfo")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult DefaultSheetInfo()
@@ -44,6 +45,7 @@ public class ExcelController : ControllerBase
     public Task<OnDemandJobStatusDto> ExportAllStatus([FromServices] OnDemandJobs jobs, CancellationToken ct)
         => jobs.Status<SheetExportJob>(SheetExportJob.RunName, ct);
 
+    /// <summary>Appends one match to the given sheet. Commissioners and sysadmins only.</summary>
     [HttpPost("matches/{matchID:guid}/append-to-sheet", Name = "AppendMatch")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> AppendMatch([FromRoute] Guid matchID, [FromBody] SheetInfo sheetInfo)

@@ -14,6 +14,7 @@ public class GradesController : ControllerBase
         _gradesService = gradesService;
     }
 
+    /// <summary>A season's player grades.</summary>
     [AllowAnonymous]
     [HttpGet("seasons/{seasonID:int}/grades", Name = "GetGrades")]
     [ProducesResponseType<GradesDto>(StatusCodes.Status200OK)]

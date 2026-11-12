@@ -18,6 +18,7 @@ public class EventOrganizerController : ControllerBase
         _eventOrganizerService = eventOrganizerService;
     }
 
+    /// <summary>The seasons, for the organizers' settings page. Commissioners and sysadmins only.</summary>
     [HttpGet("seasons/settings", Name = "GetSeasons")]
     [ProducesResponseType<List<SeasonDto>>(StatusCodes.Status200OK)]
     public Task<List<SeasonDto>> GetSeasons(CancellationToken ct)
@@ -25,6 +26,7 @@ public class EventOrganizerController : ControllerBase
         return _eventOrganizerService.GetSeasons(ct);
     }
 
+    /// <summary>A season's settings, for the organizers' settings page. Commissioners and sysadmins only.</summary>
     [HttpGet("seasons/{seasonID:int}/settings", Name = "GetSeason")]
     [ProducesResponseType<SeasonDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
@@ -33,10 +35,12 @@ public class EventOrganizerController : ControllerBase
         return await _eventOrganizerService.GetSeason(seasonID, ct) is { } season ? season : this.NotFoundProblem("There is no such season");
     }
 
+    /// <summary>The game versions a season can be set to. Commissioners and sysadmins only.</summary>
     [HttpGet("game-versions", Name = "GetGameVersions")]
     [ProducesResponseType<List<GameVersionOptionDto>>(StatusCodes.Status200OK)]
     public Task<List<GameVersionOptionDto>> GetGameVersions(CancellationToken ct) => _eventOrganizerService.GetGameVersions(ct);
 
+    /// <summary>The leagues a season can be set to. Commissioners and sysadmins only.</summary>
     [HttpGet("leagues", Name = "GetLeagues")]
     [ProducesResponseType<List<LeagueOptionDto>>(StatusCodes.Status200OK)]
     public Task<List<LeagueOptionDto>> GetLeagues(CancellationToken ct) => _eventOrganizerService.GetLeagues(ct);
