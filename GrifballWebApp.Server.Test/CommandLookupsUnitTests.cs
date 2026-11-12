@@ -136,8 +136,11 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
 
         var result = await Lookups().SeasonFor(discord.Context, "Winter");
 
-        Assert.That(result, Is.EqualTo(season.SeasonID));
-        Assert.That(discord.Edits, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.EqualTo(season.SeasonID));
+            Assert.That(discord.Edits, Is.Empty);
+        }
     }
 
     [Test]
@@ -147,8 +150,11 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
 
         var result = await Lookups().SeasonFor(discord.Context, "nonsense");
 
-        Assert.That(result, Is.Null);
-        Assert.That(discord.Content(), Is.EqualTo(CommandLookups.NoSuchSeason));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.Null);
+            Assert.That(discord.Content(), Is.EqualTo(CommandLookups.NoSuchSeason));
+        }
     }
 
     [Test]
@@ -260,8 +266,11 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
 
         var result = await Lookups().SeasonMatchFor(discord.Context, "nonsense");
 
-        Assert.That(result, Is.Null);
-        Assert.That(discord.Content(), Is.EqualTo(CommandLookups.NoSuchMatch));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.Null);
+            Assert.That(discord.Content(), Is.EqualTo(CommandLookups.NoSuchMatch));
+        }
     }
 
     [Test]
@@ -273,7 +282,7 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
 
         var choices = await Lookups().SeasonChoices("Winter");
 
-        Assert.That(choices.Select(x => x.Value), Is.EqualTo(new[] { CommandLookups.ChoiceValue(newer.SeasonID), CommandLookups.ChoiceValue(older.SeasonID) }));
+        Assert.That(choices.Select(x => x.StringValue), Is.EqualTo(new[] { CommandLookups.ChoiceValue(newer.SeasonID), CommandLookups.ChoiceValue(older.SeasonID) }));
     }
 
     [Test]
@@ -294,8 +303,11 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
 
         var choices = await Lookups().PlayerChoices("Grif");
 
-        Assert.That(choices.Single().Name, Is.EqualTo("Grifter1"));
-        Assert.That(choices.Single().Value, Is.EqualTo(CommandLookups.ChoiceValue(user.Id)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(choices.Single().Name, Is.EqualTo("Grifter1"));
+            Assert.That(choices.Single().StringValue, Is.EqualTo(CommandLookups.ChoiceValue(user.Id)));
+        }
     }
 
     [Test]
@@ -308,8 +320,11 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
 
         var choices = await Lookups().SeasonMatchChoices("Home");
 
-        Assert.That(choices.Single().Name, Is.EqualTo("Home Team vs Away Team (Winter 2026)"));
-        Assert.That(choices.Single().Value, Is.EqualTo(CommandLookups.ChoiceValue(match.SeasonMatchID)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(choices.Single().Name, Is.EqualTo("Home Team vs Away Team (Winter 2026)"));
+            Assert.That(choices.Single().StringValue, Is.EqualTo(CommandLookups.ChoiceValue(match.SeasonMatchID)));
+        }
     }
 
     [TestCase("2026-11-20 20:00", true)]
@@ -326,8 +341,11 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
 
         var result = CommandLookups.ChoiceName(long_);
 
-        Assert.That(result, Is.EqualTo(new string('a', 99) + "…"));
-        Assert.That(result, Has.Length.EqualTo(100));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.EqualTo(new string('a', 99) + "…"));
+            Assert.That(result, Has.Length.EqualTo(100));
+        }
     }
 
     [Test]

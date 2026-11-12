@@ -50,8 +50,11 @@ public class DiscordCallerUnitTests : SqliteGrifballContextFixture
 
         var result = await Caller().Require(discord.Context, DiscordCaller.Roles.Anyone);
 
-        Assert.That(result, Is.Null);
-        Assert.That(discord.Content(), Is.EqualTo(DiscordCaller.NoGamertag));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.Null);
+            Assert.That(discord.Content(), Is.EqualTo(DiscordCaller.NoGamertag));
+        }
     }
 
     [Test]
@@ -62,8 +65,11 @@ public class DiscordCallerUnitTests : SqliteGrifballContextFixture
 
         var result = await Caller().Require(discord.Context, DiscordCaller.Roles.CommissionerOnly);
 
-        Assert.That(result, Is.Null);
-        Assert.That(discord.Content(), Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.CommissionerOnly)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.Null);
+            Assert.That(discord.Content(), Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.CommissionerOnly)));
+        }
     }
 
     [Test]
@@ -74,8 +80,11 @@ public class DiscordCallerUnitTests : SqliteGrifballContextFixture
 
         var result = await Caller().Require(discord.Context, DiscordCaller.Roles.Staff);
 
-        Assert.That(result?.UserID, Is.EqualTo(user.Id));
-        Assert.That(discord.Edits, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result?.UserID, Is.EqualTo(user.Id));
+            Assert.That(discord.Edits, Is.Empty);
+        }
     }
 
     [Test]
