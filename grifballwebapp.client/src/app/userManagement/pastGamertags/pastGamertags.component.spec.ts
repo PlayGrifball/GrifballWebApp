@@ -77,7 +77,7 @@ describe('PastGamertagsComponent', () => {
     await settle();
 
     expect(el().textContent).toContain('Legendary117');
-    expect(rows().length).toBe(2);
+    expect(rows()).toHaveSize(2);
     const [manual, detected] = rows();
     expect(cells(manual)[0]).toBe('Legendary');
     expect(cells(manual)[3]).toBe('Manual');
@@ -110,7 +110,7 @@ describe('PastGamertagsComponent', () => {
     http.expectOne(r => r.url === pastGamertagsUrl).flush(account({ pastGamertags: [account().pastGamertags[1]] }));
     await settle();
 
-    expect(rows().length).toBe(1);
+    expect(rows()).toHaveSize(1);
   });
 
   it("says why a row couldn't be removed", async () => {

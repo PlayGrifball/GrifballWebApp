@@ -111,7 +111,7 @@ describe('LateLeagueComponent', () => {
     fixture.detectChanges();
     lists(null, [season(8)], { queue: true, seasons: false });
     expect(section('late-league-queue').textContent).toContain('The current Late League stats couldn\'t be loaded.');
-    expect(sectionRows('late-league-seasons').length).toBe(1);
+    expect(sectionRows('late-league-seasons')).toHaveSize(1);
 
     const other = TestBed.createComponent(LateLeagueComponent);
     other.detectChanges();

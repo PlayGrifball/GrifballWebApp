@@ -1,5 +1,5 @@
 import type { MatchmakingPlayerStatDto } from '../api/dtos/lateLeagueDto';
-import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, ChangeDetectionStrategy, inject, signal, computed, effect, input, numberAttribute, untracked } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';

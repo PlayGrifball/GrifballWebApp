@@ -62,7 +62,7 @@ describe('MergeUserComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(el().querySelectorAll('[role="alert"]').length).toBe(0);
+    expect(el().querySelectorAll('[role="alert"]')).toHaveSize(0);
     expect(el().textContent).toContain('User not found.');
     expect(el().textContent).toContain('user2');
     expect(mergeButton().disabled).toBeTrue();
@@ -80,7 +80,7 @@ describe('MergeUserComponent', () => {
     expect(() => fixture.detectChanges()).not.toThrow();
 
     const alerts = el().querySelectorAll('[role="alert"]');
-    expect(alerts.length).toBe(1);
+    expect(alerts).toHaveSize(1);
     expect(alerts[0].textContent).toContain('Failed to load user');
     expect(el().textContent).toContain('user2');
     expect(mergeButton().disabled).toBeTrue();

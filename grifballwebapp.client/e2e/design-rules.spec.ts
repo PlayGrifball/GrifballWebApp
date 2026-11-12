@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { closeOverlay, mockBackend, open, OVERLAYS, ROUTES } from './testPages.mts';
 
 // Measures the rendered UI against a handful of plain rules that axe (a11y.spec.ts) does not check,

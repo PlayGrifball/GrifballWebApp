@@ -1,4 +1,4 @@
-import type { BrowserContext, Page } from '@playwright/test';
+import type { BrowserContext } from '@playwright/test';
 import { Api, type UserResponseDto } from './api';
 import { expect, headerName, hydrated, login, secondBrowser, test, withoutScripts } from './fixtures';
 import { createLeague, newUser, smokeTag, type League } from './league';

@@ -3,7 +3,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { LoginComponent } from './login.component';
 import { AccountService } from '../account.service';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { ComponentRef, PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID } from '@angular/core';
 import { of } from 'rxjs';
 
 describe('LoginComponent', () => {

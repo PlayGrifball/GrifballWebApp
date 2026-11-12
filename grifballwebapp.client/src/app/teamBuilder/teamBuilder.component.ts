@@ -488,9 +488,7 @@ export class TeamBuilderComponent implements OnInit {
 
   DisableDraggingPlayerFromTeam(): boolean {
     // Only event organizer can drag players from team 
-    if (this.accountService.isEventOrganizer())
-      return false;
-    return true;
+    return !this.accountService.isEventOrganizer();
   }
 
   DisableDraggingPlayerToTeam(teamDto: TeamResponseDto): boolean {

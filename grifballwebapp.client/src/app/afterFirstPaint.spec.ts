@@ -11,7 +11,7 @@ describe('loadScriptsAfterFirstPaint', () => {
     const out = loadScriptsAfterFirstPaint(html);
     expect(out).not.toContain('modulepreload');
     expect(out).not.toContain('<script src=');
-    expect(out.match(/<script type="module">/g)!.length).toBe(1);
+    expect(out.match(/<script type="module">/g)!).toHaveSize(1);
     const loader = out.slice(out.indexOf('<script type="module">'));
     expect(loader.indexOf('"polyfills-P.js"')).toBeLessThan(loader.indexOf('"main-M.js"'));
     expect(loader).toContain('requestAnimationFrame(() => setTimeout(start))');
@@ -25,7 +25,7 @@ describe('loadScriptsAfterFirstPaint', () => {
 
   it('imports each script once, however many times the loader is started', async () => {
     const html = page('', '<script src="main-M.js" type="module"></script>');
-    const loader = loadScriptsAfterFirstPaint(html).match(/<script type="module">(.*)<\/script>/)![1];
+    const loader = /<script type="module">(.*)<\/script>/.exec(loadScriptsAfterFirstPaint(html))![1];
     const imported: string[] = [];
     const run = new Function('requestAnimationFrame', 'setTimeout', 'document', 'URL', 'importer',
       loader.replaceAll('import(', 'importer('));

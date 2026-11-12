@@ -44,7 +44,7 @@ describe('ExcelComponent', () => {
     component.ngOnInit();
 
     const sheetInfo = component.sheetInfo();
-    expect(sheetInfo.length).toBe(1);
+    expect(sheetInfo).toHaveSize(1);
     expect(sheetInfo[0].spreadsheetID).toBe('test-spreadsheet-123');
     expect(sheetInfo[0].sheetName).toBe('Sheet1');
     expect(sheetInfo[0].name).toBe('');
@@ -82,7 +82,7 @@ describe('ExcelComponent', () => {
     // Should not make HTTP request
     httpTestingController.expectNone('/api/sheets/default');
     
-    expect(component.sheetInfo().length).toBe(1);
+    expect(component.sheetInfo()).toHaveSize(1);
   });
 
   it('should fetch default info when only spreadsheetId is provided', () => {
@@ -130,7 +130,7 @@ describe('ExcelComponent', () => {
     const req = httpTestingController.expectOne('/api/sheets/default');
     req.flush(mockSheetInfo);
 
-    expect(component.sheetInfo().length).toBe(2);
+    expect(component.sheetInfo()).toHaveSize(2);
     expect(component.sheetInfo()[0].name).toBe('Sheet 1');
     expect(component.sheetInfo()[1].name).toBe('Sheet 2');
   });

@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TableComponent, Column, Filter } from './table.component';
-import { signal } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -193,7 +192,7 @@ describe('TableComponent API responses', () => {
     fixture.detectChanges();
 
     expect(component.current().totalCount).toBe(2);
-    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]').length).toBe(2);
+    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]')).toHaveSize(2);
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 
@@ -209,7 +208,7 @@ describe('TableComponent API responses', () => {
     const alert = fixture.nativeElement.querySelector('[role="alert"]') as HTMLElement;
     expect(alert).not.toBeNull();
     expect(alert.textContent).toContain('Failed to load data');
-    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]').length).toBe(0);
+    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]')).toHaveSize(0);
   });
 
   it('does not throw on a 403 error', async () => {
@@ -231,7 +230,7 @@ describe('TableComponent API responses', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
-    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]').length).toBe(1);
+    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]')).toHaveSize(1);
   });
 
   it('shows an empty state when there are no results', async () => {

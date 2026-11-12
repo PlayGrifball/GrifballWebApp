@@ -1347,7 +1347,7 @@ describe('SeasonMatchComponent lobby', () => {
     fixture.detectChanges();
 
     httpMock.expectNone(r => /^\/api\/teams\/\w+$/.test(r.url));
-    expect(roster('home').length).toBe(2);
+    expect(roster('home')).toHaveSize(2);
     expect(roster('away')).toEqual([]);
   });
 
@@ -1392,7 +1392,7 @@ describe('SeasonMatchComponent lobby', () => {
       ]
     }));
     fixture.detectChanges();
-    expect(comp.availableTabs().length).toBe(1);
+    expect(comp.availableTabs()).toHaveSize(1);
     expect(comp.availableTabs()[0].label).toBe('Game 1');
     expect(comp.activeScoreboard()?.title).toBe('Game 1');
   });

@@ -108,7 +108,7 @@ describe('PlayerGradesComponent', () => {
     expect(row.textContent).toContain('No grades yet');
     expect(row.getAttribute('colspan')).toBe('12');
     // Material marks the no-data row as a row too: no grade rows besides it
-    expect(page().querySelectorAll('tr.mat-mdc-row:not(.grades-empty)').length).toBe(0);
+    expect(page().querySelectorAll('tr.mat-mdc-row:not(.grades-empty)')).toHaveSize(0);
   });
 
   it('says the grades could not be loaded, inside the table, when they fail', () => {
@@ -274,7 +274,7 @@ describe('PlayerGradesComponent', () => {
       );
       req.flush(mockGrades);
 
-      expect(component.letters().length).toBe(3);
+      expect(component.letters()).toHaveSize(3);
       expect(component.letters()[1].gamertag).toBe('Player2');
     });
   });
@@ -389,7 +389,7 @@ describe('PlayerGradesComponent', () => {
     });
 
     it('should have letterColumns with correct structure', () => {
-      expect(component.letterColumns.length).toBe(12);
+      expect(component.letterColumns).toHaveSize(12);
       expect(component.letterColumns[0].columnDef).toBe('gamertag');
       expect(component.letterColumns[0].header).toBe('Gamertag');
     });
@@ -462,7 +462,7 @@ describe('PlayerGradesComponent', () => {
       );
       req.flush(mockGrades);
 
-      expect(component.letters().length).toBe(1);
+      expect(component.letters()).toHaveSize(1);
       expect(component.letters()[0].gamertag).toBe('Player1');
     });
   });
@@ -524,7 +524,7 @@ describe('PlayerGradesComponent rendering', () => {
 
   it('colours each grade cell by its letter and leaves the gamertag plain', () => {
     const toHex = (c: HTMLElement) => {
-      const m = c.style.background.match(/rgb\((\d+), (\d+), (\d+)\)/);
+      const m = /rgb\((\d+), (\d+), (\d+)\)/.exec(c.style.background);
       return m ? '#' + m.slice(1).map(n => Number(n).toString(16).padStart(2, '0')).join('').toUpperCase() : '';
     };
     expect(cells().map(toHex)).toEqual([

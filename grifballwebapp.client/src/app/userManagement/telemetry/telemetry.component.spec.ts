@@ -114,7 +114,7 @@ describe('TelemetryComponent', () => {
     await open();
 
     expect(Array.from(el().querySelectorAll('.tm-chart-title')).map(text)).toEqual(['Requests req/s', 'Server errors (5xx) req/s']);
-    expect(el().querySelectorAll('app-line-chart polyline').length).toBe(1);
+    expect(el().querySelectorAll('app-line-chart polyline')).toHaveSize(1);
     expect(text(el().querySelector('app-line-chart .lc-legend'))).toBe('Requests: 1.5 req/s');
     expect(text(el().querySelector('.tm-chart .tm-none'))).toBe('No data in this range.');
     const cells = Array.from(el().querySelectorAll('[aria-label="Busiest routes"] tbody tr')).map(r => Array.from(r.querySelectorAll('td')).map(text));

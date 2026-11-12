@@ -179,11 +179,11 @@ describe('ThemingService', () => {
     links().forEach(l => l.remove());
 
     service.setFont('Rajdhani');
-    expect(links().length).toBe(0);
+    expect(links()).toHaveSize(0);
 
     service.setFont('Roboto');
     service.setFont('Roboto');
-    expect(links().length).toBe(1);
+    expect(links()).toHaveSize(1);
     expect((links()[0] as HTMLLinkElement).rel).toBe('stylesheet');
     links().forEach(l => l.remove());
   });

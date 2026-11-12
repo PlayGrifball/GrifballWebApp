@@ -275,7 +275,7 @@ describe('AppComponent behaviour', () => {
 
     // 250px toolbar, 100px links: two fit (100, 204 with the gap), the third would need 308.
     expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Seasons']);
-    expect(component.overflowNavLinks().length).toBe(shown() - 2);
+    expect(component.overflowNavLinks()).toHaveSize(shown() - 2);
   });
 
   it('renders the visible links in the toolbar and all permitted links in the sidenav', () => {
@@ -290,7 +290,7 @@ describe('AppComponent behaviour', () => {
     fixture.detectChanges();
 
     expect(component.visibleNavLinks()).toEqual([]);
-    expect(component.overflowNavLinks().length).toBe(shown());
+    expect(component.overflowNavLinks()).toHaveSize(shown());
   });
 
   it('recomputes the layout when the window is resized', () => {
@@ -299,7 +299,7 @@ describe('AppComponent behaviour', () => {
     expect(resizeHandler).toBeDefined();
     resize();
 
-    expect(component.visibleNavLinks().length).toBe(shown());
+    expect(component.visibleNavLinks()).toHaveSize(shown());
     expect(component.overflowNavLinks()).toEqual([]);
   });
 
@@ -309,7 +309,7 @@ describe('AppComponent behaviour', () => {
     fixture.detectChanges();
 
     expect(err).toHaveBeenCalledWith('Hidden link element not found!');
-    expect(component.visibleNavLinks().length).toBe(shown());
+    expect(component.visibleNavLinks()).toHaveSize(shown());
   });
 
   it('renders a Current Season link that arrives after the first render without a manual detectChanges', async () => {
@@ -344,13 +344,13 @@ describe('AppComponent behaviour', () => {
 
   it('moves the links to the overflow when a resize switches to the mobile layout', () => {
     fixture.detectChanges();
-    expect(component.visibleNavLinks().length).toBe(2);
+    expect(component.visibleNavLinks()).toHaveSize(2);
 
     mobile = true;
     resize();
 
     expect(component.visibleNavLinks()).toEqual([]);
-    expect(component.overflowNavLinks().length).toBe(shown());
+    expect(component.overflowNavLinks()).toHaveSize(shown());
   });
 
   it('lays out the links from measured widths without touching the DOM while computing', () => {
@@ -371,11 +371,11 @@ describe('AppComponent behaviour', () => {
     resizeHandler!();
     resizeHandler!();
     resizeHandler!();
-    expect(frames.length).toBe(queued + 1);
-    expect(component.visibleNavLinks().length).toBe(2); // not measured yet
+    expect(frames).toHaveSize(queued + 1);
+    expect(component.visibleNavLinks()).toHaveSize(2); // not measured yet
 
     frames.splice(0).forEach(frame => frame(0));
-    expect(component.visibleNavLinks().length).toBe(shown());
+    expect(component.visibleNavLinks()).toHaveSize(shown());
   });
 
   it('re-measures when the mobile breakpoint is crossed, and stops listening once destroyed', () => {
@@ -469,11 +469,11 @@ describe('AppComponent behaviour', () => {
 
   it('measures again once the web fonts have loaded', async () => {
     fixture.detectChanges();
-    expect(component.visibleNavLinks().length).toBe(2);
+    expect(component.visibleNavLinks()).toHaveSize(2);
     toolbarWidth = 10000;
     await document.fonts.ready;
     await Promise.resolve();
-    expect(component.visibleNavLinks().length).toBe(shown());
+    expect(component.visibleNavLinks()).toHaveSize(shown());
   });
 
   it('does not measure after being destroyed, even when the fonts load later', async () => {
@@ -482,7 +482,7 @@ describe('AppComponent behaviour', () => {
     toolbarWidth = 10000;
     await document.fonts.ready;
     await Promise.resolve();
-    expect(component.visibleNavLinks().length).toBe(2);
+    expect(component.visibleNavLinks()).toHaveSize(2);
   });
 
   // #307: signing in swaps the Login button for the wider user chip without a window resize, so links
@@ -492,7 +492,7 @@ describe('AppComponent behaviour', () => {
     toolbarWidth = 10000;
     fixture.autoDetectChanges();
     await fixture.whenStable();
-    expect(component.visibleNavLinks().length).toBe(shown());
+    expect(component.visibleNavLinks()).toHaveSize(shown());
 
     // The user chip leaves 150px: room for Home beside the menu button, which now shows.
     toolbarWidth = 150;
@@ -518,23 +518,23 @@ describe('AppComponent behaviour', () => {
     toolbarWidth = 10000;
     account.isLoggedIn.set(false);
     await fixture.whenStable();
-    expect(component.visibleNavLinks().length).toBe(shown());
+    expect(component.visibleNavLinks()).toHaveSize(shown());
     expect(component.showMenu()).toBeFalse();
   });
 
   it('watches the bar for size changes that come without a window resize, once a frame', () => {
     fixture.detectChanges();
     expect(resizeObserved).toEqual([(fixture.nativeElement as HTMLElement).querySelector('.toolbar-links')!]);
-    expect(component.visibleNavLinks().length).toBe(2);
+    expect(component.visibleNavLinks()).toHaveSize(2);
 
     // The user's name, a font or a scrollbar changes the bar's width.
     toolbarWidth = 10000;
     const queued = frames.length;
     resizeObserverCallback!([], {} as ResizeObserver);
     resizeObserverCallback!([], {} as ResizeObserver);
-    expect(frames.length).toBe(queued + 1);
+    expect(frames).toHaveSize(queued + 1);
     frames.splice(0).forEach(frame => frame(0));
-    expect(component.visibleNavLinks().length).toBe(shown());
+    expect(component.visibleNavLinks()).toHaveSize(shown());
   });
 
   it('stops watching the bar once destroyed', () => {
@@ -549,14 +549,14 @@ describe('AppComponent behaviour', () => {
     expect(resizeObserved).toEqual([]);
     toolbarWidth = 10000;
     resize();
-    expect(component.visibleNavLinks().length).toBe(shown());
+    expect(component.visibleNavLinks()).toHaveSize(shown());
     expect(() => fixture.destroy()).not.toThrow();
   });
 
   it('still lays out the links where the browser has no font loading API', () => {
     spyOnProperty(document, 'fonts', 'get').and.returnValue(undefined as unknown as FontFaceSet);
     expect(() => fixture.detectChanges()).not.toThrow();
-    expect(component.visibleNavLinks().length).toBe(2);
+    expect(component.visibleNavLinks()).toHaveSize(2);
   });
 });
 

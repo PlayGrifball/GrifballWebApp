@@ -46,7 +46,7 @@ describe('SignupRequestDto', () => {
     
     dto.timeslots = [timeslot1, timeslot2];
     
-    expect(dto.timeslots.length).toBe(2);
+    expect(dto.timeslots).toHaveSize(2);
     expect(dto.timeslots[0]).toEqual(timeslot1);
     expect(dto.timeslots[1]).toEqual(timeslot2);
   });

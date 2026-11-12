@@ -255,7 +255,7 @@ describe('ProfileComponent', () => {
     component.setGamertag();
 
     http.expectOne(r => r.method === 'POST' && r.url === 'api/users/21/gamertag' && r.body?.gamertag === 'NewTag').flush({});
-    expect(http.match('api/users/21/stats').length).toBe(1);
+    expect(http.match('api/users/21/stats')).toHaveSize(1);
   });
 
   it('sends a gamertag with a space, &, and + as it is, in the body', () => {

@@ -50,7 +50,7 @@ describe('ThemeComponent', () => {
     expect(theming.font()).toBe('Rajdhani');
     expect(fixture.componentInstance.font.value).toBe('Rajdhani');
     expect((fixture.nativeElement as HTMLElement).querySelector('app-palette')).not.toBe(before);
-    expect((fixture.nativeElement as HTMLElement).querySelectorAll('app-palette').length).toBe(6);
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('app-palette')).toHaveSize(6);
   });
 });
 

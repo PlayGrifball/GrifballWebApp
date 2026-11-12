@@ -148,7 +148,7 @@ describe('ToolbarComponent', () => {
       const container = el().querySelector('.hud-user-menu')!;
       container.dispatchEvent(new FocusEvent('focusout', { relatedTarget: items()[1] }));
       fixture.detectChanges();
-      expect(items().length).toBe(2);
+      expect(items()).toHaveSize(2);
       container.dispatchEvent(new FocusEvent('focusout', { relatedTarget: null }));
       fixture.detectChanges();
       expect(items()).toEqual([]);

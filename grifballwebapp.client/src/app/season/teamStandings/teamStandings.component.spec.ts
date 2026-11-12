@@ -49,7 +49,7 @@ describe('TeamStandingsComponent', () => {
     expect(rows()).toEqual([['1', 'Alpha', '4', '1'], ['2', 'Bravo', '2', '3']]);
     // The leader is marked out.
     const leaders = (fixture.nativeElement as HTMLElement).querySelectorAll('tr.standings__leader');
-    expect(leaders.length).toBe(1);
+    expect(leaders).toHaveSize(1);
     expect(leaders[0].textContent).toContain('Alpha');
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('No standings yet.');
   });

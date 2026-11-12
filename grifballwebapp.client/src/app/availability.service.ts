@@ -1,8 +1,5 @@
-import { DataSource } from '@angular/cdk/table';
-import { Injectable, Input } from '@angular/core';
-import { MatTableDataSource } from '@angular/material/table';
+import { Injectable } from '@angular/core';
 import { DateTime } from 'luxon';
-import { TimeslotDto } from './api/dtos/signupResponseDto';
 
 @Injectable({
   providedIn: 'root'

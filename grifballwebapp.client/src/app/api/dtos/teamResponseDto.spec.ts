@@ -42,7 +42,7 @@ describe('TeamResponseDto', () => {
     
     dto.players = [player1, player2];
     
-    expect(dto.players.length).toBe(2);
+    expect(dto.players).toHaveSize(2);
     expect(dto.players[0].personID).toBe(111);
     expect(dto.players[1].personID).toBe(222);
   });

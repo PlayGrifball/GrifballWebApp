@@ -90,11 +90,11 @@ describe('SeasonEditComponent', () => {
 
   it('only shows the copy options when copying from another season', async () => {
     await render();
-    expect(el().querySelectorAll('mat-checkbox').length).toBe(0);
+    expect(el().querySelectorAll('mat-checkbox')).toHaveSize(0);
 
     component.model.update(model => ({ ...model, copyFromSeasonID: 3 }));
     await render();
-    expect(el().querySelectorAll('mat-checkbox').length).toBe(3);
+    expect(el().querySelectorAll('mat-checkbox')).toHaveSize(3);
   });
 
   it('does not save an invalid form', async () => {
@@ -170,7 +170,7 @@ describe('SeasonEditComponent', () => {
     expect(component.model().seasonName).toBe('Renamed');
     expect(loaded.seasonName).toBe('Season 4');
     expect(component.model().copyFromSeasonID).toBe(3);
-    expect(el().querySelectorAll('mat-checkbox').length).toBe(3);
+    expect(el().querySelectorAll('mat-checkbox')).toHaveSize(3);
   });
 
   it('offers the other seasons to copy from, by name, and copying nothing', async () => {
@@ -181,7 +181,7 @@ describe('SeasonEditComponent', () => {
     (document.querySelectorAll('mat-option')[0] as HTMLElement).click();
     await fixture.whenStable();
     expect(component.model().copyFromSeasonID).toBeNull();
-    expect(el().querySelectorAll('mat-checkbox').length).toBe(0);
+    expect(el().querySelectorAll('mat-checkbox')).toHaveSize(0);
   });
 
   it('still works when the season list fails to load', async () => {

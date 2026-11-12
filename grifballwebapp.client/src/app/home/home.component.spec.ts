@@ -370,7 +370,7 @@ describe('HomeComponent paginator and sort wiring', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('th.mat-column-champion')!.textContent!.trim()).toBe('Champion');
     const cells = Array.from(el.querySelectorAll<HTMLElement>('td.mat-column-champion'));
-    expect(cells.length).toBe(3);
+    expect(cells).toHaveSize(3);
 
     const link = cells[0].querySelector('a')!;
     expect(link.textContent).toBe('Relentless');

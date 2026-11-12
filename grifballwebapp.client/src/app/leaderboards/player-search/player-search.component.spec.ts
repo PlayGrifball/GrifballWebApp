@@ -93,7 +93,7 @@ describe('PlayerSearchComponent', () => {
     jasmine.clock().tick(SEARCH_DEBOUNCE_MS);
     searched('abc').flush([found[0]]);
     fixture.detectChanges();
-    expect(options().length).toBe(1);
+    expect(options()).toHaveSize(1);
   });
 
   it('keeps the list closed when nothing is found, or the search fails', () => {
