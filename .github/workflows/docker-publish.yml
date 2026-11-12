@@ -46,14 +46,17 @@ concurrency:
 # Images are signed and released only from master (a push to it, or a run started by hand on it):
 # github.ref is refs/heads/master for nothing else. They're pushed from master and for preview PRs
 # (PUBLISH, below); other pull requests, and runs started by hand on another branch, build without
-# logging in or pushing.
+# logging in or pushing. A pull request builds only when it has to (the changes job): with the preview label, or when
+# it changes what the images are built from.
 jobs:
   # The backend image installs its Alpine packages from the lock's own immutable release, apk-<lock hash>
   # (GrifballWebApp.Server/apk.lock, docs/reproducible-builds.md), published here before anything builds if it isn't
   # yet: Alpine's mirrors drop a version once a newer one is out. Fork PRs can't make releases; their lock is master's.
   # apk-check (every build, read only) finds the lock's release; apk-archive runs only when it isn't published yet.
+  # Skipped with the builds (changes.outputs.build), and build-backend with it.
   apk-check:
-    if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
+    needs: changes
+    if: ${{ needs.changes.outputs.build == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -111,8 +114,8 @@ jobs:
         run: .github/scripts/apk-archive.sh
 
   build-frontend:
-    # Other labels don't change the build, so don't rebuild for them.
-    if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
+    needs: changes
+    if: ${{ needs.changes.outputs.build == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       digest: ${{ steps.push.outputs.digest }}
@@ -298,9 +301,9 @@ jobs:
 
   build-backend:
     needs: [apk-check, apk-archive]
-    # Other labels don't change the build, so don't rebuild for them. apk-archive is skipped when the lock's release is
-    # published already, and on fork PRs.
-    if: ${{ !cancelled() && needs.apk-check.result == 'success' && needs.apk-archive.result != 'failure' && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
+    # Skipped with apk-check, when the run builds nothing (changes.outputs.build). apk-archive is skipped when the lock's
+    # release is published already, and on fork PRs.
+    if: ${{ !cancelled() && needs.apk-check.result == 'success' && needs.apk-archive.result != 'failure' }}
     runs-on: ubuntu-latest
     outputs:
       digest: ${{ steps.push.outputs.digest }}
@@ -504,10 +507,15 @@ jobs:
           docker run --rm --platform linux/arm64 --entrypoint sh backend-arm64 -c \
             'set -e; uname -m; dotnet --list-runtimes; sqlcmd --version; /app/efbundle --help | head -n 3; test -f /usr/share/zoneinfo/America/New_York'
 
-  # What the PR changed (.github/scripts/changed-areas.sh): the arm64 check only runs when what the images are built from
-  # did (images=true). Master builds and smoke-tests arm64 on every push, before the release.
+  # What the PR changed (.github/scripts/changed-areas.sh), and so what this run builds. build: a pull request builds its
+  # images only with the preview label (they're its preview's) or when it changes what they're built from (images=true:
+  # the Dockerfiles, the package and project files, this workflow); anything else is a check of app code the test
+  # workflows already run, and master builds both images on every push. Not a pull request (master, a manual run):
+  # always. The arm64 check runs only for images=true; master builds and smoke-tests arm64 on every push, before the
+  # release.
   changes:
-    if: ${{ github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
+    # Other labels don't change the build, so don't rebuild for them (the jobs below need this one, so they skip too).
+    if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -515,6 +523,7 @@ jobs:
       pull-requests: read
     outputs:
       images: ${{ steps.areas.outputs.images }}
+      build: ${{ github.event_name != 'pull_request' || steps.areas.outputs.images == 'true' || contains(github.event.pull_request.labels.*.name, 'preview') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -608,8 +617,8 @@ jobs:
   # byte: what anyone can do from the commit (docs/reproducible-builds.md). Against the image pushed (master, previews:
   # built on another runner), else against a second build here.
   reproducible:
-    needs: [build-frontend, build-backend]
-    if: ${{ !cancelled() && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
+    needs: [changes, build-frontend, build-backend]
+    if: ${{ !cancelled() && needs.changes.outputs.build == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
