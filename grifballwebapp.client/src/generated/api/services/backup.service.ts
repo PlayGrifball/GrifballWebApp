@@ -156,7 +156,7 @@ export class BackupService extends BaseService {
    *
    * This method doesn't expect any request body.
    */
-  backupDownload$Response(params: BackupDownload$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
+  backupDownload$Response(params: BackupDownload$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
     const obs = backupDownload(this.http, this.rootUrl, params, context);
     return obs;
   }
@@ -171,10 +171,10 @@ export class BackupService extends BaseService {
    *
    * This method doesn't expect any request body.
    */
-  backupDownload(params: BackupDownload$Params, context?: HttpContext): Observable<void> {
+  backupDownload(params: BackupDownload$Params, context?: HttpContext): Observable<Blob> {
     const resp = this.backupDownload$Response(params, context);
     return resp.pipe(
-      map((r: StrictHttpResponse<void>): void => r.body)
+      map((r: StrictHttpResponse<Blob>): Blob => r.body)
     );
   }
 

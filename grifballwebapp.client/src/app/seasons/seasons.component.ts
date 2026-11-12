@@ -147,7 +147,7 @@ export class SeasonsComponent {
 
   /** The filter as the generated GetSeasonList operation takes it. */
   private static listParams(filter: SeasonListFilter) {
-    return { LeagueID: filter.leagueID ?? undefined, GameVersionID: filter.gameVersionID ?? undefined, Format: filter.format ?? undefined, Year: filter.year ?? undefined, PageSize: SEASONS_PAGE_SIZE };
+    return { leagueID: filter.leagueID ?? undefined, gameVersionID: filter.gameVersionID ?? undefined, format: filter.format ?? undefined, year: filter.year ?? undefined, pageSize: SEASONS_PAGE_SIZE };
   }
 }
 

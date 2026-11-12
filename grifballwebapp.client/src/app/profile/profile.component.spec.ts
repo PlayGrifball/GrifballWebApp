@@ -374,7 +374,7 @@ describe('ProfileComponent', () => {
         sprees: null,
         multiKills: null,
         exterminations: null,
-        betrayals: null
+        betrayals: null, ballKills: null, damageDealt: null, damageTaken: null, gameVersionID: null, hammerKills: null, punches: null, score: null, swordKills: null
       },
       careerByGame: [
         {
@@ -399,7 +399,7 @@ describe('ProfileComponent', () => {
           sprees: 12,
           multiKills: 8,
           exterminations: 2,
-          betrayals: 0
+          betrayals: 0, ballKills: null, damageDealt: null, damageTaken: null, hammerKills: null, punches: null, score: null, swordKills: null
         }
       ],
       lateLeague: [],

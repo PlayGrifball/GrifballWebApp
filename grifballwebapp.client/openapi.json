@@ -451,7 +451,15 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request",
@@ -1368,7 +1376,17 @@
             }
           },
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SheetInfo"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -3325,7 +3343,14 @@
             }
           },
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -5370,7 +5395,7 @@
         "operationId": "GetSeasonList",
         "parameters": [
           {
-            "name": "LeagueID",
+            "name": "leagueID",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -5378,7 +5403,7 @@
             }
           },
           {
-            "name": "GameVersionID",
+            "name": "gameVersionID",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -5386,7 +5411,7 @@
             }
           },
           {
-            "name": "Ended",
+            "name": "ended",
             "in": "query",
             "description": "True: only seasons that have ended; false: only the current ones; null: both.",
             "schema": {
@@ -5394,7 +5419,7 @@
             }
           },
           {
-            "name": "Format",
+            "name": "format",
             "in": "query",
             "description": "Only seasons of this format; null: every format.",
             "schema": {
@@ -5406,7 +5431,7 @@
             }
           },
           {
-            "name": "Year",
+            "name": "year",
             "in": "query",
             "description": "Only seasons that started in this year; null: every year.",
             "schema": {
@@ -5415,7 +5440,7 @@
             }
           },
           {
-            "name": "PageNumber",
+            "name": "pageNumber",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -5423,7 +5448,7 @@
             }
           },
           {
-            "name": "PageSize",
+            "name": "pageSize",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -5431,7 +5456,7 @@
             }
           },
           {
-            "name": "SortDirection",
+            "name": "sortDirection",
             "in": "query",
             "schema": {
               "allOf": [
@@ -5442,7 +5467,7 @@
             }
           },
           {
-            "name": "SortColumn",
+            "name": "sortColumn",
             "in": "query",
             "schema": {
               "type": "string"
@@ -7535,7 +7560,7 @@
         "operationId": "GetUsers",
         "parameters": [
           {
-            "name": "PageNumber",
+            "name": "pageNumber",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -7543,7 +7568,7 @@
             }
           },
           {
-            "name": "PageSize",
+            "name": "pageSize",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -7551,7 +7576,7 @@
             }
           },
           {
-            "name": "SortDirection",
+            "name": "sortDirection",
             "in": "query",
             "schema": {
               "allOf": [
@@ -7562,7 +7587,7 @@
             }
           },
           {
-            "name": "SortColumn",
+            "name": "sortColumn",
             "in": "query",
             "schema": {
               "type": "string"
@@ -7877,7 +7902,7 @@
         "operationId": "GetUserMerges",
         "parameters": [
           {
-            "name": "PageNumber",
+            "name": "pageNumber",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -7885,7 +7910,7 @@
             }
           },
           {
-            "name": "PageSize",
+            "name": "pageSize",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -7893,7 +7918,7 @@
             }
           },
           {
-            "name": "SortDirection",
+            "name": "sortDirection",
             "in": "query",
             "schema": {
               "allOf": [
@@ -7904,7 +7929,7 @@
             }
           },
           {
-            "name": "SortColumn",
+            "name": "sortColumn",
             "in": "query",
             "schema": {
               "type": "string"

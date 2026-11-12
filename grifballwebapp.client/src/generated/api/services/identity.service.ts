@@ -398,7 +398,7 @@ export class IdentityService extends BaseService {
    *
    * This method sends `application/json` and handles request body of type `application/json`.
    */
-  resetPassword$Response(params?: ResetPassword$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
+  resetPassword$Response(params?: ResetPassword$Params, context?: HttpContext): Observable<StrictHttpResponse<string>> {
     const obs = resetPassword(this.http, this.rootUrl, params, context);
     return obs;
   }
@@ -413,10 +413,10 @@ export class IdentityService extends BaseService {
    *
    * This method sends `application/json` and handles request body of type `application/json`.
    */
-  resetPassword(params?: ResetPassword$Params, context?: HttpContext): Observable<void> {
+  resetPassword(params?: ResetPassword$Params, context?: HttpContext): Observable<string> {
     const resp = this.resetPassword$Response(params, context);
     return resp.pipe(
-      map((r: StrictHttpResponse<void>): void => r.body)
+      map((r: StrictHttpResponse<string>): string => r.body)
     );
   }
 

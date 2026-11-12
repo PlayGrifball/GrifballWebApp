@@ -11,20 +11,20 @@ import { PaginationResultOfUserResponseDto } from '../../models/pagination-resul
 import { SortDirection } from '../../models/sort-direction';
 
 export interface GetUsers$Params {
-  PageNumber?: number;
-  PageSize?: number;
-  SortDirection?: SortDirection;
-  SortColumn?: string;
+  pageNumber?: number;
+  pageSize?: number;
+  sortDirection?: SortDirection;
+  sortColumn?: string;
   search?: string;
 }
 
 export function getUsers(http: HttpClient, rootUrl: string, params?: GetUsers$Params, context?: HttpContext): Observable<StrictHttpResponse<PaginationResultOfUserResponseDto>> {
   const rb = new RequestBuilder(rootUrl, getUsers.PATH, 'get');
   if (params) {
-    rb.query('PageNumber', params.PageNumber, {});
-    rb.query('PageSize', params.PageSize, {});
-    rb.query('SortDirection', params.SortDirection, {});
-    rb.query('SortColumn', params.SortColumn, {});
+    rb.query('pageNumber', params.pageNumber, {});
+    rb.query('pageSize', params.pageSize, {});
+    rb.query('sortDirection', params.sortDirection, {});
+    rb.query('sortColumn', params.sortColumn, {});
     rb.query('search', params.search, {});
   }
 

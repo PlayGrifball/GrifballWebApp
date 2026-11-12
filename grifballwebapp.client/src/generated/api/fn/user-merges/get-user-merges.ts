@@ -11,19 +11,19 @@ import { PaginationResultOfUserMergeDto } from '../../models/pagination-result-o
 import { SortDirection } from '../../models/sort-direction';
 
 export interface GetUserMerges$Params {
-  PageNumber?: number;
-  PageSize?: number;
-  SortDirection?: SortDirection;
-  SortColumn?: string;
+  pageNumber?: number;
+  pageSize?: number;
+  sortDirection?: SortDirection;
+  sortColumn?: string;
 }
 
 export function getUserMerges(http: HttpClient, rootUrl: string, params?: GetUserMerges$Params, context?: HttpContext): Observable<StrictHttpResponse<PaginationResultOfUserMergeDto>> {
   const rb = new RequestBuilder(rootUrl, getUserMerges.PATH, 'get');
   if (params) {
-    rb.query('PageNumber', params.PageNumber, {});
-    rb.query('PageSize', params.PageSize, {});
-    rb.query('SortDirection', params.SortDirection, {});
-    rb.query('SortColumn', params.SortColumn, {});
+    rb.query('pageNumber', params.pageNumber, {});
+    rb.query('pageSize', params.pageSize, {});
+    rb.query('sortDirection', params.sortDirection, {});
+    rb.query('sortColumn', params.sortColumn, {});
   }
 
   return http.request(

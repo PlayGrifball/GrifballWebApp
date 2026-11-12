@@ -9,7 +9,8 @@ import { combineLatest, Observable, of, switchMap, tap } from 'rxjs';
 import { PaginationResult } from '../shared/paginationResult';
 import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 import { pageNow } from '../shared/pageNow';
-import type { SeasonListItemDto, SortDirection as ApiSortDirection } from '@api/models';
+import type { SeasonListItemDto } from '@api/models';
+import { apiSortDirection } from '../shared/apiSort';
 import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
 import { rowEnterAnimation } from '../shared/rowEnterAnimation';
 import { HomeService } from '@api/services/home.service';
@@ -124,12 +125,11 @@ export class HomeComponent implements OnInit {
     // The season list's seasons that have ended (index.html fetches the first page early, with these parameters in this order)
     const sorted = !!(sortColumn && sortDirection);
     return this.seasonService.getSeasonList({
-      Ended: true,
-      PageNumber: pageNumber,
-      PageSize: pageSize,
-      // Material's Sort gives 'asc'/'desc' (lowercase); the server's enum binds case-insensitively, as it always has.
-      SortDirection: sorted ? sortDirection as unknown as ApiSortDirection : undefined,
-      SortColumn: sorted ? sortColumn : undefined,
+      ended: true,
+      pageNumber,
+      pageSize,
+      sortDirection: sorted ? apiSortDirection(sortDirection) : undefined,
+      sortColumn: sorted ? sortColumn : undefined,
     })
     .pipe(
       tap((result) => {

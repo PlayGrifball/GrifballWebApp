@@ -12,7 +12,8 @@ import { Column, Filter, TableComponent } from '../shared/table/table.component'
 import { PaginationParams } from '../shared/getPaginationResource';
 import { SearchBoxComponent } from '../shared/searchBox/searchBox.component';
 import { AccountService } from '../account.service';
-import type { GeneratePasswordResetLinkRequestDto, SortDirection } from '@api/models';
+import type { GeneratePasswordResetLinkRequestDto } from '@api/models';
+import { apiSortDirection } from '../shared/apiSort';
 import { errorText } from '../shared/errorText';
 import { UserManagementService } from '@api/services/user-management.service';
 
@@ -39,11 +40,10 @@ export class UserManagementComponent {
 
   public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'actions'];
   readonly request = (params: PaginationParams) => this.userManagement.getUsers({
-    PageNumber: params.pageNumber,
-    PageSize: params.pageSize,
-    // Material's Sort gives 'asc'/'desc' (lowercase); the server's enum binds case-insensitively, as it always has.
-    SortDirection: params.sortDirection as SortDirection | undefined,
-    SortColumn: params.sortColumn,
+    pageNumber: params.pageNumber,
+    pageSize: params.pageSize,
+    sortDirection: apiSortDirection(params.sortDirection),
+    sortColumn: params.sortColumn,
     search: params.filters?.find(f => f.column === 'search')?.value?.toString(),
   });
   // Rows of the user list are never null (PaginationResult<UserResponseDto> on the server).

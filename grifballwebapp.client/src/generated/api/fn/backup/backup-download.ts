@@ -12,18 +12,18 @@ export interface BackupDownload$Params {
   format: string;
 }
 
-export function backupDownload(http: HttpClient, rootUrl: string, params: BackupDownload$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
+export function backupDownload(http: HttpClient, rootUrl: string, params: BackupDownload$Params, context?: HttpContext): Observable<StrictHttpResponse<Blob>> {
   const rb = new RequestBuilder(rootUrl, backupDownload.PATH, 'get');
   if (params) {
     rb.path('format', params.format, {});
   }
 
   return http.request(
-    rb.build({ responseType: 'text', accept: '*/*', context })
+    rb.build({ responseType: 'blob', accept: 'application/octet-stream', context })
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
-      return (r as HttpResponse<any>).clone({ body: undefined }) as StrictHttpResponse<void>;
+      return r as StrictHttpResponse<Blob>;
     })
   );
 }

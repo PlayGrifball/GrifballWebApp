@@ -41,7 +41,7 @@ export class MergesComponent {
   readonly page = signal(1);
   readonly merges = rxResource({
     params: () => this.page(),
-    stream: ({ params }) => this.api.getUserMerges({ PageNumber: params, PageSize: PAGE_SIZE }),
+    stream: ({ params }) => this.api.getUserMerges({ pageNumber: params, pageSize: PAGE_SIZE }),
   });
 
   readonly rows = computed<UserMergeDto[]>(() => this.merges.hasValue() ? this.merges.value().results : []);

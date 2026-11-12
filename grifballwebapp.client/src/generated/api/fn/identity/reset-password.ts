@@ -13,18 +13,18 @@ export interface ResetPassword$Params {
       body?: UsePasswordResetLinkRequestDto
 }
 
-export function resetPassword(http: HttpClient, rootUrl: string, params?: ResetPassword$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
+export function resetPassword(http: HttpClient, rootUrl: string, params?: ResetPassword$Params, context?: HttpContext): Observable<StrictHttpResponse<string>> {
   const rb = new RequestBuilder(rootUrl, resetPassword.PATH, 'post');
   if (params) {
     rb.body(params.body, 'application/json');
   }
 
   return http.request(
-    rb.build({ responseType: 'text', accept: '*/*', context })
+    rb.build({ responseType: 'text', accept: 'text/plain', context })
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
-      return (r as HttpResponse<any>).clone({ body: undefined }) as StrictHttpResponse<void>;
+      return r as StrictHttpResponse<string>;
     })
   );
 }

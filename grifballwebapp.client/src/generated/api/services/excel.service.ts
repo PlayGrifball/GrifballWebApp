@@ -19,6 +19,7 @@ import { ExportAll$Params } from '../fn/excel/export-all';
 import { exportAllStatus } from '../fn/excel/export-all-status';
 import { ExportAllStatus$Params } from '../fn/excel/export-all-status';
 import { OnDemandJobStatusDto } from '../models/on-demand-job-status-dto';
+import { SheetInfo } from '../models/sheet-info';
 
 @Injectable({ providedIn: 'root' })
 export class ExcelService extends BaseService {
@@ -39,7 +40,7 @@ export class ExcelService extends BaseService {
    *
    * This method doesn't expect any request body.
    */
-  defaultSheetInfo$Response(params?: DefaultSheetInfo$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
+  defaultSheetInfo$Response(params?: DefaultSheetInfo$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<SheetInfo>>> {
     const obs = defaultSheetInfo(this.http, this.rootUrl, params, context);
     return obs;
   }
@@ -54,10 +55,10 @@ export class ExcelService extends BaseService {
    *
    * This method doesn't expect any request body.
    */
-  defaultSheetInfo(params?: DefaultSheetInfo$Params, context?: HttpContext): Observable<void> {
+  defaultSheetInfo(params?: DefaultSheetInfo$Params, context?: HttpContext): Observable<Array<SheetInfo>> {
     const resp = this.defaultSheetInfo$Response(params, context);
     return resp.pipe(
-      map((r: StrictHttpResponse<void>): void => r.body)
+      map((r: StrictHttpResponse<Array<SheetInfo>>): Array<SheetInfo> => r.body)
     );
   }
 

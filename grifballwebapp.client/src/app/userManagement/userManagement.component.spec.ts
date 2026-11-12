@@ -79,7 +79,7 @@ describe('UserManagementComponent', () => {
         displayName: 'OAuth User',
         gamertag: 'OAuthGT',
         discord: 'discord#1234',
-        roles: []
+        roles: [], regionID: null
       };
 
       const mockResponse = {
@@ -110,7 +110,7 @@ describe('UserManagementComponent', () => {
         displayName: 'Internal User',
         gamertag: 'InternalGT',
         discord: null,
-        roles: []
+        roles: [], regionID: null
       };
 
       const mockResponse = {
@@ -141,7 +141,7 @@ describe('UserManagementComponent', () => {
         displayName: 'Test User',
         gamertag: 'TestGT',
         discord: null,
-        roles: []
+        roles: [], regionID: null
       };
 
       const mockResponse = {
@@ -176,7 +176,7 @@ describe('UserManagementComponent', () => {
         displayName: 'Test User',
         gamertag: 'TestGT',
         discord: null,
-        roles: []
+        roles: [], regionID: null
       };
 
       const mockResponse = {
@@ -212,7 +212,7 @@ describe('UserManagementComponent', () => {
         displayName: 'Test User',
         gamertag: 'TestGT',
         discord: null,
-        roles: []
+        roles: [], regionID: null
       };
 
       const mockResponse = {
@@ -248,7 +248,7 @@ describe('UserManagementComponent', () => {
         displayName: 'Test User',
         gamertag: 'TestGT',
         discord: null,
-        roles: []
+        roles: [], regionID: null
       };
 
       mockAccountService.generatePasswordResetLink.and.returnValue(
@@ -278,7 +278,7 @@ describe('UserManagementComponent', () => {
         displayName: 'Test User',
         gamertag: 'TestGT',
         discord: null,
-        roles: []
+        roles: [], regionID: null
       };
 
       mockAccountService.generatePasswordResetLink.and.returnValue(
@@ -308,7 +308,7 @@ describe('UserManagementComponent', () => {
         displayName: 'Multi Auth',
         gamertag: 'MultiGT',
         discord: 'discord#9999',
-        roles: []
+        roles: [], regionID: null
       };
 
       const mockResponse = {

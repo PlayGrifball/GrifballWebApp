@@ -12,41 +12,41 @@ import { SeasonFormat } from '../../models/season-format';
 import { SortDirection } from '../../models/sort-direction';
 
 export interface GetSeasonList$Params {
-  LeagueID?: number;
-  GameVersionID?: number;
+  leagueID?: number;
+  gameVersionID?: number;
 
 /**
  * True: only seasons that have ended; false: only the current ones; null: both.
  */
-  Ended?: boolean;
+  ended?: boolean;
 
 /**
  * Only seasons of this format; null: every format.
  */
-  Format?: SeasonFormat;
+  format?: SeasonFormat;
 
 /**
  * Only seasons that started in this year; null: every year.
  */
-  Year?: number;
-  PageNumber?: number;
-  PageSize?: number;
-  SortDirection?: SortDirection;
-  SortColumn?: string;
+  year?: number;
+  pageNumber?: number;
+  pageSize?: number;
+  sortDirection?: SortDirection;
+  sortColumn?: string;
 }
 
 export function getSeasonList(http: HttpClient, rootUrl: string, params?: GetSeasonList$Params, context?: HttpContext): Observable<StrictHttpResponse<PaginationResultOfSeasonListItemDto>> {
   const rb = new RequestBuilder(rootUrl, getSeasonList.PATH, 'get');
   if (params) {
-    rb.query('LeagueID', params.LeagueID, {});
-    rb.query('GameVersionID', params.GameVersionID, {});
-    rb.query('Ended', params.Ended, {});
-    rb.query('Format', params.Format, {});
-    rb.query('Year', params.Year, {});
-    rb.query('PageNumber', params.PageNumber, {});
-    rb.query('PageSize', params.PageSize, {});
-    rb.query('SortDirection', params.SortDirection, {});
-    rb.query('SortColumn', params.SortColumn, {});
+    rb.query('leagueID', params.leagueID, {});
+    rb.query('gameVersionID', params.gameVersionID, {});
+    rb.query('ended', params.ended, {});
+    rb.query('format', params.format, {});
+    rb.query('year', params.year, {});
+    rb.query('pageNumber', params.pageNumber, {});
+    rb.query('pageSize', params.pageSize, {});
+    rb.query('sortDirection', params.sortDirection, {});
+    rb.query('sortColumn', params.sortColumn, {});
   }
 
   return http.request(

@@ -25,7 +25,7 @@ describe('EditUserComponent', () => {
     discord: null,
     externalAuthCount: 1,
     hasPassword: true,
-    roles: [{ roleName: 'Sysadmin', hasRole: false }, { roleName: 'Commissioner', hasRole: true }],
+    roles: [{ roleName: 'Sysadmin', hasRole: false }, { roleName: 'Commissioner', hasRole: true }], regionID: null
   };
 
   beforeEach(async () => {

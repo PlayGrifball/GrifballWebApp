@@ -1,6 +1,7 @@
-import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, input, OnInit, signal, inject } from '@angular/core';
 import { ExcelFormComponent } from './excelForm/excelForm.component';
+import { ExcelService } from '@api/services/excel.service';
+import type { SheetInfo } from '@api/models';
 
 @Component({
   selector: 'app-excel',
@@ -12,7 +13,7 @@ import { ExcelFormComponent } from './excelForm/excelForm.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExcelComponent implements OnInit {
-  private httpClient = inject(HttpClient);
+  private excel = inject(ExcelService);
 
 
   inputSpreadsheetId = input<string>('');
@@ -26,12 +27,11 @@ export class ExcelComponent implements OnInit {
       this.sheetInfo.set([{
         name: '',
         spreadsheetID: this.inputSpreadsheetId(),
-        sheetName: this.inputSheetName()
+        sheetName: this.inputSheetName(),
+        requestedByUserID: null,
       }]);
     } else {
-      // Stays on HttpClient: the server's Excel/DefaultSheetInfo has no declared response type, so the generated
-      // ExcelService.defaultSheetInfo() treats it as a bodyless 'text' call; the server really answers with JSON.
-      this.httpClient.get<SheetInfo[]>('/api/sheets/default')
+      this.excel.defaultSheetInfo()
       .subscribe({
         next: (v) => {
           this.sheetInfo.set(v);
@@ -40,11 +40,4 @@ export class ExcelComponent implements OnInit {
     }
   }
 
-}
-
-export interface SheetInfo
-{
-  name: string,
-  spreadsheetID: string,
-  sheetName: string,
 }
