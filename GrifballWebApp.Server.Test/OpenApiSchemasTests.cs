@@ -107,3 +107,60 @@ public class OpenApiSchemasTests
     private static SchemaFilterContext Context(Type type)
         => new(type, null!, new SchemaRepository(), null!, null!);
 }
+
+/// <summary>
+/// Requests and responses described as application/json only, where it is one of their media types (OpenApiSchemas.cs):
+/// the client sends and reads JSON, and one media type gives the generated client one method per operation.
+/// </summary>
+[TestFixture]
+public class JsonOnlyOperationFilterTests
+{
+    private static readonly string[] Json = ["application/json"];
+    private static readonly string[] Problem = ["application/problem+json"];
+    private static readonly string[] Plain = ["text/plain"];
+    private static readonly string[] Form = ["multipart/form-data"];
+
+    private static Dictionary<string, OpenApiMediaType> Content(params string[] types)
+        => types.ToDictionary(t => t, _ => new OpenApiMediaType());
+
+    [Test]
+    public void Apply_KeepsOnlyApplicationJson_WhereItIsOffered()
+    {
+        var operation = new OpenApiOperation
+        {
+            RequestBody = new OpenApiRequestBody { Content = Content("application/json", "text/json", "application/*+json") },
+            Responses = new OpenApiResponses
+            {
+                ["200"] = new OpenApiResponse { Content = Content("text/plain", "application/json", "text/json") },
+                ["400"] = new OpenApiResponse { Content = Content("application/problem+json") },
+                ["201"] = new OpenApiResponse { Content = Content("text/plain") },
+            },
+        };
+
+        new JsonOnlyOperationFilter().Apply(operation, null!);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(operation.RequestBody!.Content!.Keys, Is.EqualTo(Json));
+            Assert.That(operation.Responses["200"].Content!.Keys, Is.EqualTo(Json));
+            Assert.That(operation.Responses["400"].Content!.Keys, Is.EqualTo(Problem), "Problem details stay");
+            Assert.That(operation.Responses["201"].Content!.Keys, Is.EqualTo(Plain), "Text alone stays");
+        }
+    }
+
+    [Test]
+    public void Apply_LeavesAFormUploadAndAnOperationWithoutBodiesAlone()
+    {
+        var upload = new OpenApiOperation { RequestBody = new OpenApiRequestBody { Content = Content("multipart/form-data") } };
+        var bare = new OpenApiOperation();
+
+        new JsonOnlyOperationFilter().Apply(upload, null!);
+        new JsonOnlyOperationFilter().Apply(bare, null!);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(upload.RequestBody!.Content!.Keys, Is.EqualTo(Form));
+            Assert.That(bare.RequestBody, Is.Null);
+        }
+    }
+}

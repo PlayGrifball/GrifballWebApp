@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -6,16 +7,17 @@ namespace GrifballWebApp.Integration.Test;
 /// <summary>The committed OpenAPI document the client is generated from, and the served one in the same form.</summary>
 public static class OpenApiSnapshot
 {
-    private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
+    // Only what JSON itself needs escaped (not ', + or `), so the file reads as text and as JavaScript writes it
+    private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     /// <summary>
-    /// The served document without its "servers" (the request's own host first), indented with two spaces, with a
-    /// final newline.
+    /// The served document with one server, the API's path on whichever host serves the page (its "servers" name the
+    /// request's own host first): the generated client's root URL. Indented with two spaces, with a final newline.
     /// </summary>
     public static string Normalize(string document)
     {
         var root = JsonNode.Parse(document)!.AsObject();
-        root.Remove("servers");
+        root["servers"] = new JsonArray(new JsonObject { ["url"] = "/api", ["description"] = "The page's own host" });
         return root.ToJsonString(Indented).ReplaceLineEndings("\n") + "\n";
     }
 

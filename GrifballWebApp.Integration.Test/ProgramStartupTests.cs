@@ -725,7 +725,7 @@ public class ProgramStartupTests
 
     /// <summary>
     /// The OpenAPI document equals the one the client is generated from (grifballwebapp.client/openapi.json), so a change
-    /// to the API changes the client in the same PR. Its "servers" are left out: they name the request's own host.
+    /// to the API changes the client in the same PR. Its "servers" become the relative "/api" (OpenApiSnapshot.Normalize).
     /// To update the file, run this test with GRIF_UPDATE_OPENAPI=1, or take openapi.json from the failed run's test
     /// results, then regenerate the client (npm run generate:api).
     /// </summary>

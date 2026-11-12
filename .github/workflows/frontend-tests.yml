@@ -90,6 +90,15 @@ jobs:
       if: env.RUN == 'true'
       run: npm run lint
 
+    # The client's API calls and models are generated from openapi.json (ng-openapi-gen.json), which the server's tests
+    # hold equal to the document it serves: a file in src/generated that differs from what the generator makes fails here
+    - name: Generated API client is up to date
+      if: env.RUN == 'true'
+      run: |
+        npm run generate:api
+        git add -N src/generated
+        git diff --exit-code --stat -- src/generated || { echo '::error::src/generated differs from openapi.json: run npm run generate:api and commit the result'; exit 1; }
+
   # The production build, once: the end-to-end shards all test this one (each used to build its own)
   build:
     needs: changes

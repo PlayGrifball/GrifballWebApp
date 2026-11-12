@@ -166,6 +166,7 @@ public class Program
             option.CustomSchemaIds(OpenApiSchemaIds.For);
             option.SupportNonNullableReferenceTypes();
             option.SchemaFilter<EveryPropertyRequiredFilter>();
+            option.OperationFilter<JsonOnlyOperationFilter>();
 
             // Controller actions' <summary>/<param>/<returns>/<remarks> (GenerateDocumentationFile, the .csproj),
             // into the OpenAPI document. The file sits next to this assembly in every environment, including the

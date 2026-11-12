@@ -98,3 +98,28 @@ public sealed class EveryPropertyRequiredFilter : ISchemaFilter
     private static string JsonName(PropertyInfo property)
         => property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? JsonNamingPolicy.CamelCase.ConvertName(property.Name);
 }
+
+/// <summary>
+/// Describes requests and responses as application/json only, where it is one of their media types (Program.cs). ASP.NET
+/// also accepts text/json and application/*+json and offers text/plain and text/json, which the client never uses; one
+/// media type gives the generated client one method per operation. A form upload, problem details and text alone stay.
+/// </summary>
+public sealed class JsonOnlyOperationFilter : IOperationFilter
+{
+    private const string Json = "application/json";
+
+    public void Apply(OpenApiOperation operation, OperationFilterContext context)
+    {
+        KeepJsonOnly(operation.RequestBody?.Content);
+        foreach (var response in operation.Responses?.Values ?? [])
+            KeepJsonOnly(response.Content);
+    }
+
+    private static void KeepJsonOnly<T>(IDictionary<string, T>? content)
+    {
+        if (content is null || !content.ContainsKey(Json))
+            return;
+        foreach (var type in content.Keys.Where(k => k != Json).ToList())
+            content.Remove(type);
+    }
+}
