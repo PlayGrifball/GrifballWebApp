@@ -31,6 +31,9 @@
   <ItemGroup>
     <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Migrations.Postgres\GrifballWebApp.Migrations.Postgres.csproj" />
+    <!-- DatabaseProviderMigrationsTestsBase, DesignTimeContextFactoryTestsBase and DatabaseProviderTestData's
+         connection strings, shared with the other migrations projects' Test -->
+    <ProjectReference Include="..\GrifballWebApp.Infrastructure.Test\GrifballWebApp.Infrastructure.Test.csproj" />
   </ItemGroup>
 
   <ItemGroup>

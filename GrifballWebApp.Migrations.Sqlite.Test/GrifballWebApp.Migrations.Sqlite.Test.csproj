@@ -33,6 +33,9 @@
     <ProjectReference Include="..\GrifballWebApp.Migrations.Sqlite\GrifballWebApp.Migrations.Sqlite.csproj" />
     <!-- The domain test data (Season.Seed, Edited) the history tests build their rows from -->
     <ProjectReference Include="..\GrifballWebApp.Domain.Test\GrifballWebApp.Domain.Test.csproj" />
+    <!-- DatabaseProviderMigrationsTestsBase, DesignTimeContextFactoryTestsBase and DatabaseProviderTestData's
+         connection strings, shared with the other migrations projects' Test -->
+    <ProjectReference Include="..\GrifballWebApp.Infrastructure.Test\GrifballWebApp.Infrastructure.Test.csproj" />
   </ItemGroup>
 
   <ItemGroup>

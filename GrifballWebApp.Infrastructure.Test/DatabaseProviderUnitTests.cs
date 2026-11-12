@@ -13,9 +13,6 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 public class DatabaseProviderUnitTests
 {
-    private const string PostgresConnectionString = "Host=example;Database=Grif;Username=postgres;Password=secret-pg;";
-    private const string SqliteConnectionString = "Data Source=grif.db";
-
     private static GrifballContext Context(DatabaseProvider provider)
     {
         var connectionString = provider switch
@@ -49,8 +46,8 @@ public class DatabaseProviderUnitTests
         Assert.That(ex!.Message, Does.Contain(value).And.Contain("SqlServer, Postgres, Sqlite"));
     }
 
-    // UseGrifballDatabase_UsesTheProviderAndItsMigrations: each migrations project's own Test (it needs that
-    // provider's migrations assembly loaded) has it, as DatabaseProviderMigrationsTests.
+    // UseGrifballDatabase_UsesTheProviderAndItsMigrations: DatabaseProviderMigrationsTestsBase (below), one
+    // subclass per provider in that provider's own Migrations.*.Test (it needs the migrations assembly loaded).
 
     [Test]
     public void UseGrifballDatabase_FromConfiguration_UsesTheConfiguredProvider()
@@ -88,8 +85,7 @@ public class DatabaseProviderUnitTests
             new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase((DatabaseProvider)7, SqlServerConnectionString));
     }
 
-    // Migrations_MatchTheModel, NewestMigration_DesignerMatchesTheSnapshot: each migrations project's own Test (they
-    // need that provider's migrations assembly loaded) has them, as DatabaseProviderMigrationsTests.
+    // Migrations_MatchTheModel, NewestMigration_DesignerMatchesTheSnapshot: DatabaseProviderMigrationsTestsBase too.
 
     [Test]
     public void Postgres_StoresDateTimeAsTimestamptz()
@@ -191,12 +187,13 @@ public class DatabaseProviderUnitTests
     }
 }
 
-// DesignTimeContextFactoryTests: each migrations project's own Test (it needs that provider's migrations assembly).
-
-/// <summary>DatabaseProviderTests' helpers, shared with its integration tests.</summary>
+/// <summary>DatabaseProviderUnitTests' helpers, shared with DatabaseProviderMigrationsTestsBase and
+/// DesignTimeContextFactoryTestsBase (below), and each provider's subclass of them in its own Migrations.*.Test.</summary>
 internal static class DatabaseProviderTestData
 {
     internal const string SqlServerConnectionString = "Server=example;Database=Grif;User Id=sa;Password=secret-sql;";
+    internal const string PostgresConnectionString = "Host=example;Database=Grif;Username=postgres;Password=secret-pg;";
+    internal const string SqliteConnectionString = "Data Source=grif.db";
 
     internal static IConfiguration Config(string? provider, string? connectionString = SqlServerConnectionString)
     {
