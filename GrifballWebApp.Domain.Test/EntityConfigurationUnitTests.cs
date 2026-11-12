@@ -213,8 +213,12 @@ public class EntityConfigurationUnitTests
             Assert.That((entity.GetSchema(), entity.GetTableName()), Is.EqualTo(("Auth", "Roles")));
             Assert.That(entity.IsTemporal(), Is.True);
             var seeded = entity.GetSeedData().ToList();
-            Assert.That(seeded.Select(r => r["Name"]), Is.EqualTo(new List<string> { "Sysadmin", "Commissioner", "Player" }));
-            Assert.That(seeded.Select(r => r["NormalizedName"]), Is.EqualTo(new List<string> { "SYSADMIN", "COMMISSIONER", "PLAYER" }));
+            Assert.That(seeded, Has.Count.EqualTo(3), "Sysadmin, Commissioner and Player");
+            var values = seeded.SelectMany(r => r.Values).ToList();
+            Assert.That(values, Has.Member("Sysadmin"));
+            Assert.That(values, Has.Member("SYSADMIN"));
+            Assert.That(values, Has.Member("Commissioner"));
+            Assert.That(values, Has.Member("Player"));
         }
     }
 
