@@ -8,6 +8,7 @@ using GrifballWebApp.Infrastructure.DatabaseBackup;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Preview;
 using GrifballWebApp.Infrastructure.Redis;
+using GrifballWebApp.Server.Commands;
 using GrifballWebApp.Server.DatabaseBackup;
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Identity;
@@ -247,6 +248,9 @@ public class Program
         services.AddTransient<SignupButtonHandler>();
         services.AddTransient<DraftStringMenuHandler>();
         services.AddTransient<DiscordCommandsHandler>();
+        services.AddTransient<DiscordCaller>();
+        services.AddTransient<CommandLookups>();
+        services.AddTransient<SeasonCommandsHandler>();
         services.AddTransient<IExternalLoginService, ExternalLoginService>();
     }
 

@@ -65,6 +65,22 @@ public class DiscordModuleRegistrationTests
         Assert.That(ComponentInteractions<ModalInteractionContext>(), Is.EqualTo(Modals));
     }
 
+    private static string Describe(string name, string description, IEnumerable<SlashCommandParameter<ApplicationCommandContext>> parameters, string extra)
+        => $"{name} \"{description}\" {extra}"
+            + string.Concat(parameters.Select(p =>
+                $" [{p.Name}: {p.Type.Name}{(p.IsOptional ? $" = {p.DefaultValue ?? "null"}" : "")} \"{p.Description}\""
+                + $" autocomplete: {p.AutocompleteProviderType?.Name ?? "none"}, preconditions: {p.Preconditions.Count}]"));
+
+    /// <summary>A group's subcommands, nested groups' too, each as one line with the group's permissions (Discord sets them per top-level command).</summary>
+    private static IEnumerable<string> SubCommands(string prefix, string permissions, IReadOnlyDictionary<string, ISubSlashCommandInfo<ApplicationCommandContext>> subCommands)
+        => subCommands.Values.SelectMany(IEnumerable<string> (sub) => sub switch
+        {
+            SubSlashCommandInfo<ApplicationCommandContext> command => [Describe($"{prefix} {command.Name}", command.Description, command.Parameters,
+                $"{permissions}, preconditions: {command.Preconditions.Count}")],
+            SubSlashCommandGroupInfo<ApplicationCommandContext> group => SubCommands($"{prefix} {group.Name}", permissions, group.SubCommands),
+            _ => [$"{prefix} {sub.Name}"],
+        });
+
     [Test]
     public void SlashCommands_Should_KeepTheirNamesAndOptions()
     {
@@ -72,12 +88,14 @@ public class DiscordModuleRegistrationTests
         service.AddModules(ServerAssembly);
 
         var commands = service.GetCommands()
-            .Select(c => c is SlashCommandInfo<ApplicationCommandContext> slash
-                ? $"/{slash.Name} \"{slash.Description}\" permissions: {slash.DefaultGuildPermissions?.ToString() ?? "default"}, preconditions: {slash.Preconditions.Count}"
-                    + string.Concat(slash.Parameters.Select(p =>
-                        $" [{p.Name}: {p.Type.Name}{(p.IsOptional ? $" = {p.DefaultValue ?? "null"}" : "")} \"{p.Description}\""
-                        + $" autocomplete: {p.AutocompleteProviderType?.Name ?? "none"}, preconditions: {p.Preconditions.Count}]"))
-                : $"{c.Type} {c.Name}")
+            .SelectMany(IEnumerable<string> (c) => c switch
+            {
+                SlashCommandInfo<ApplicationCommandContext> slash => [Describe($"/{slash.Name}", slash.Description, slash.Parameters,
+                    $"permissions: {slash.DefaultGuildPermissions?.ToString() ?? "default"}, preconditions: {slash.Preconditions.Count}")],
+                SlashCommandGroupInfo<ApplicationCommandContext> group => SubCommands($"/{group.Name}",
+                    $"permissions: {group.DefaultGuildPermissions?.ToString() ?? "default"}", group.SubCommands),
+                _ => [$"{c.Type} {c.Name}"],
+            })
             .Order(StringComparer.Ordinal)
             .ToList();
 
@@ -85,6 +103,24 @@ public class DiscordModuleRegistrationTests
         {
             "/matches \"Get recent matches\" permissions: default, preconditions: 0"
                 + " [gamertag: String = null \"Gamertag to search matches for\" autocomplete: GamertagAutocomplete, preconditions: 0]",
+            "/season bracket \"A season's playoff bracket\" permissions: default, preconditions: 0"
+                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+            "/season draft \"A link to a season's live draft board\" permissions: default, preconditions: 0"
+                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+            "/season grades \"A season's player grades\" permissions: default, preconditions: 0"
+                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+            "/season info \"A season's league, dates, teams and champions\" permissions: default, preconditions: 0"
+                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+            "/season list \"The latest seasons\" permissions: default, preconditions: 0",
+            "/season schedule \"A season's upcoming matches\" permissions: default, preconditions: 0"
+                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+            "/season signups \"Who signed up for a season\" permissions: default, preconditions: 0"
+                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+            "/season standings \"A season's team standings\" permissions: default, preconditions: 0"
+                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+            "/season stats \"A season's top players\" permissions: default, preconditions: 0"
+                + " [stat: SeasonStat = Goals \"Rank players by\" autocomplete: none, preconditions: 0]"
+                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
             "/setgamertag \"Set your gamertag\" permissions: default, preconditions: 0"
                 + " [gamertag: String \"No description provided.\" autocomplete: none, preconditions: 0]",
         }));
