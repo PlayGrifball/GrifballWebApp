@@ -67,6 +67,8 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<DeploymentHistoryService>();
         services.AddTransient<ProfileCommendationsService>();
         services.AddTransient<SeasonService>();
+        services.AddTransient<Home.HomeEventsService>();
+        services.AddTransient<RegionService>();
         services.AddTransient<QuickSearchService>();
         services.AddTransient<TeamService>();
         services.AddTransient<IUserManagementService, UserManagementService>();

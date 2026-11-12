@@ -63,6 +63,12 @@ public class DiscordCommandsHandler
     public async Task RecentMatches(IDiscordApplicationCommandContext discordContext, string? gamertag)
     {
         await discordContext.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage());
+        await RecentMatchesDeferred(discordContext, gamertag);
+    }
+
+    /// <summary><see cref="RecentMatches"/> once the reply is deferred (/player matches defers before looking the player up).</summary>
+    public async Task RecentMatchesDeferred(IDiscordApplicationCommandContext discordContext, string? gamertag)
+    {
 
         if (await XboxUserFor(discordContext, gamertag) is not { } xboxUser)
             return;

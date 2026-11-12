@@ -8,6 +8,7 @@ using GrifballWebApp.Infrastructure.DatabaseBackup;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Preview;
 using GrifballWebApp.Infrastructure.Redis;
+using GrifballWebApp.Server.Commands;
 using GrifballWebApp.Server.DatabaseBackup;
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Identity;
@@ -225,6 +226,8 @@ public class Program
             .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>(options => DiscordInteractionPipeline.Use(options))
             .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>(options => DiscordInteractionPipeline.Use(options))
             .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>(options => DiscordInteractionPipeline.Use(options));
+            // /help reads the commands from the gateway's command service: only this role has it
+            builder.Services.AddTransient<HelpCommandsHandler>();
         }
         else if (!discordOff)
         {
@@ -247,6 +250,15 @@ public class Program
         services.AddTransient<SignupButtonHandler>();
         services.AddTransient<DraftStringMenuHandler>();
         services.AddTransient<DiscordCommandsHandler>();
+        services.AddTransient<DiscordCaller>();
+        services.AddTransient<CommandLookups>();
+        services.AddTransient<SeasonCommandsHandler>();
+        services.AddTransient<TeamCommandsHandler>();
+        services.AddTransient<PlayerCommandsHandler>();
+        services.AddTransient<MatchCommandsHandler>();
+        services.AddTransient<BrowseCommandsHandler>();
+        services.AddTransient<PersonalCommandsHandler>();
+        services.AddTransient<AdminCommandsHandler>();
         services.AddTransient<IExternalLoginService, ExternalLoginService>();
     }
 

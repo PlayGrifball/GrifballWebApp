@@ -40,7 +40,7 @@ public class RegionTests
 
     private MyProfileController Controller(int userId)
     {
-        var controller = new MyProfileController(_context, new UserGamertagClaimService(_context, new GamertagMatching(_context), TimeProvider.System, Options.Create(new UserClaimOptions())));
+        var controller = new MyProfileController(new GrifballWebApp.Application.Profile.RegionService(_context), new UserGamertagClaimService(_context, new GamertagMatching(_context), TimeProvider.System, Options.Create(new UserClaimOptions())));
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())], "test")) },

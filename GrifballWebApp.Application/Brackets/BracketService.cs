@@ -35,6 +35,9 @@ public class BracketService : IBracketService
         _championshipService = championshipService;
     }
 
+    /// <summary>What drawing a season's bracket again is told while one of its matches has been played.</summary>
+    public const string PlayedBracket = "This season's bracket has been played: drawing it again would delete its results. Undo them first.";
+
     public async Task CreateBracket(int participantsCount, int seasonID, bool doubleElimination, int bestOf, CancellationToken ct = default)
     {
         // Before anything is written: the matches' foreign key would otherwise refuse it as an unexpected error
@@ -43,13 +46,11 @@ public class BracketService : IBracketService
 
         using var t = await _grifballContext.Database.BeginTransactionAsync(ct);
         var bracket = _grifballContext.SeasonMatches.Where(x => x.SeasonID == seasonID && x.BracketMatch != null);
+        // The bracket is drawn again from scratch: never over matches already played (a BYE isn't), whose results would go
+        if (await bracket.AnyAsync(SeasonMatch.Played, ct))
+            throw new SeasonRefusedException(PlayedBracket, StatusCodes.Status409Conflict);
         await _grifballContext.RecordedGames.DeleteManualForAsync(bracket, ct);
-        var deletedCount = await bracket.ExecuteDeleteAsync(ct);
-
-        if (deletedCount > 0)
-        {
-            // TODO add guard against user deleting bracket unless they approve
-        }
+        await bracket.ExecuteDeleteAsync(ct);
 
         await _grifballContext.SaveChangesAsync(ct);
 

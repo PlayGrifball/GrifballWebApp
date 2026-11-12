@@ -74,6 +74,7 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
         RescheduleForbiddenException => Refusal(StatusCodes.Status403Forbidden, ApiProblems.Title(StatusCodes.Status403Forbidden), exception.Message),
         RescheduleAlreadyActiveException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
         RescheduleAlreadyProcessedException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
+        GrifballWebApp.Application.SeasonMatchPage.SeasonMatchActionNotAllowedException => Refusal(StatusCodes.Status400BadRequest, "Request refused", exception.Message),
         _ => null,
     };
 

@@ -159,6 +159,15 @@ public class SeasonMatch : AuditableEntity
     /// for a loaded match).</summary>
     public static readonly Expression<Func<SeasonMatch, bool>> Undecided = m => m.HomeTeamResult == null && m.AwayTeamResult == null;
 
+    /// <summary>
+    /// A match that has been played: it has games, or a result its games or a forfeit gave. A BYE's result is the bracket's
+    /// own, so it doesn't count. Making a season's matches or bracket again refuses while one has been (MatchPlannerService,
+    /// BracketService): it would delete the results.
+    /// </summary>
+    public static readonly Expression<Func<SeasonMatch, bool>> Played = m => m.SeriesGames.Any()
+        || (m.HomeTeamResult != null && m.HomeTeamResult != SeasonMatchResult.Bye)
+        || (m.AwayTeamResult != null && m.AwayTeamResult != SeasonMatchResult.Bye);
+
     /// <summary>Whether it has a result: decided by its games, a forfeit, or a BYE (a BYE slot is the bracket's to decide,
     /// never its games'). <see cref="Undecided"/> for queries.</summary>
     public bool IsDecided => HomeTeamResult is not null || AwayTeamResult is not null;
