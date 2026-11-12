@@ -164,3 +164,38 @@ public class JsonOnlyOperationFilterTests
         }
     }
 }
+
+/// <summary>Query parameters named camelCase, as the API's JSON names properties (OpenApiSchemas.cs).</summary>
+[TestFixture]
+public class CamelCaseQueryParametersFilterTests
+{
+    private static readonly string[] QueryNames = ["pageNumber", "q", "SeasonID"];
+
+    [Test]
+    public void Apply_NamesQueryParametersCamelCase_AndLeavesTheRouteAlone()
+    {
+        var operation = new OpenApiOperation
+        {
+            Parameters =
+            [
+                new OpenApiParameter { Name = "PageNumber", In = ParameterLocation.Query },
+                new OpenApiParameter { Name = "q", In = ParameterLocation.Query },
+                new OpenApiParameter { Name = "SeasonID", In = ParameterLocation.Path },
+            ],
+        };
+
+        new CamelCaseQueryParametersFilter().Apply(operation, null!);
+
+        Assert.That(operation.Parameters!.Select(p => p.Name), Is.EqualTo(QueryNames));
+    }
+
+    [Test]
+    public void Apply_LeavesAnOperationWithoutParametersAlone()
+    {
+        var operation = new OpenApiOperation { Parameters = null };
+
+        new CamelCaseQueryParametersFilter().Apply(operation, null!);
+
+        Assert.That(operation.Parameters, Is.Null);
+    }
+}

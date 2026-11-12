@@ -128,3 +128,21 @@ public sealed class JsonOnlyOperationFilter : IOperationFilter
             content.Remove(type);
     }
 }
+
+/// <summary>
+/// Names query parameters as the API's JSON names its properties, camelCase (Program.cs): an action that binds its query
+/// to a class (a list's paging and filters) would otherwise list them by property name, PascalCase, and the generated
+/// client would send them so. Binding ignores case either way; the URLs stay the ones the client always sent (and
+/// index.html fetches early).
+/// </summary>
+public sealed class CamelCaseQueryParametersFilter : IOperationFilter
+{
+    public void Apply(OpenApiOperation operation, OperationFilterContext context)
+    {
+        foreach (var parameter in operation.Parameters?.OfType<OpenApiParameter>() ?? [])
+        {
+            if (parameter.In == ParameterLocation.Query && parameter.Name is { Length: > 0 } name)
+                parameter.Name = JsonNamingPolicy.CamelCase.ConvertName(name);
+        }
+    }
+}
