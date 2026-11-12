@@ -47,16 +47,13 @@ describe('matchFieldsValidator', () => {
   });
 
   it('should return error when field name cannot be found', () => {
-    const field1 = new FormControl('value');
     const field2 = new FormControl('value');
-    const field3 = new FormControl('other');
-    const group = new FormGroup({ field1, field2 });
-    expect(group.contains('field3')).toBeFalse(); // field3 is not in the group
-    
+    const field3 = new FormControl('other'); // in no group
+
     const validator = matchFieldsValidator(field3, field2);
     const result = validator(field2);
 
-    // Since field3 is not in the parent group, getName returns null
+    // field3 has no group, so getName returns null
     // and the validator returns an error with null as the name
     expect(result).toEqual({ matchOtherValidator: { otherControlName: null } });
   });

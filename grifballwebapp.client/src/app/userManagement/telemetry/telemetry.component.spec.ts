@@ -43,7 +43,7 @@ describe('telemetry page helpers', () => {
 
     expect(rows.map(r => [r.span.spanId, r.depth])).toEqual([['root', 0], ['early', 1], ['query', 2], ['late', 1], ['orphan', 0]]);
     expect(rows.find(r => r.span.spanId === 'late')).toEqual(jasmine.objectContaining({ left: 60, width: 40 }));
-    expect(rows.find(r => r.span.spanId === 'query')!.width).toBeCloseTo(0.3);
+    expect(rows.find(r => r.span.spanId === 'query')!.width).toBeCloseTo(0.3, 10);
     expect(waterfall(trace([span('instant', { durationMs: 0 })], 0))[0]).toEqual(jasmine.objectContaining({ left: 0, width: 0.3 }));
   });
 

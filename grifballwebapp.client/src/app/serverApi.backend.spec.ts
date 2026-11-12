@@ -1,4 +1,3 @@
-/* eslint-disable sonarjs/no-clear-text-protocols -- the backend's in-cluster address (plain HTTP), which these tests check */
 import { HttpErrorResponse, HttpRequest, HttpResponse } from '@angular/common/http';
 import { REQUEST } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -12,6 +11,7 @@ describe('ServerApiBackend', () => {
     TestBed.configureTestingModule({
       providers: [
         ServerApiBackend,
+        // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the backend's in-cluster address (plain HTTP), as the server calls it
         { provide: API_ORIGIN, useValue: 'http://backend:5295' },
         { provide: REQUEST, useValue: page },
       ],
@@ -35,6 +35,7 @@ describe('ServerApiBackend', () => {
 
     const events = await lastValueFrom(backend.handle(new HttpRequest('GET', 'https://grifball.xyz/api/seasons/12/name?x=1')));
 
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the backend's in-cluster address (plain HTTP), as the server calls it
     expect(sent()[0]).toBe('http://backend:5295/seasons/12/name?x=1');
     expect(body(events)).toEqual({ ok: true });
   });
@@ -91,6 +92,7 @@ describe('ServerApiBackend', () => {
 
       expect(error).toEqual(jasmine.any(HttpErrorResponse));
       expect((error as HttpErrorResponse).status).toBe(504);
+      // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the backend's in-cluster address (plain HTTP), as the server calls it
       expect((error as HttpErrorResponse).url).toBe('http://backend:5295/season-matches/1/possible-matches');
     } finally {
       jasmine.clock().uninstall();
@@ -132,6 +134,7 @@ describe('ServerApiBackend', () => {
   it('sends a HEAD', async () => {
     const backend = create(page());
     await lastValueFrom(backend.handle(new HttpRequest('HEAD', 'https://grifball.xyz/api/CommitHash')));
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the backend's in-cluster address (plain HTTP), as the server calls it
     expect(sent()[0]).toBe('http://backend:5295/CommitHash');
   });
 });

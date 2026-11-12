@@ -26,10 +26,12 @@ describe('Testing Infrastructure', () => {
   });
 
   it('should support async testing patterns', (done) => {
-    const start = Date.now();
+    const order: string[] = [];
     setTimeout(() => {
-      expect(Date.now() - start).toBeGreaterThanOrEqual(5);
+      order.push('timer');
+      expect(order).toEqual(['sync', 'timer']);
       done();
     }, 10);
+    order.push('sync');
   });
 });

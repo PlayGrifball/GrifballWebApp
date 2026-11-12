@@ -6,6 +6,7 @@ import { getPaginationResource } from '../getPaginationResource';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { rowEnterAnimation } from '../rowEnterAnimation';
 
 @Component({
   selector: 'app-table',
@@ -22,6 +23,8 @@ import { MatButtonModule } from '@angular/material/button';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TableComponent<T> {
+  /** The rows' fade-in, once hydration is past (rowEnterAnimation) */
+  readonly rowEnter = rowEnterAnimation();
   readonly rowTemplates = contentChildren(TemplateRef);
 
   filters = input<Filter[]>();

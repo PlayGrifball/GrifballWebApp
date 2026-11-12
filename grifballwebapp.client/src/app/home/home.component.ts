@@ -12,6 +12,7 @@ import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 import { pageNow } from '../shared/pageNow';
 import type { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
 import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
+import { rowEnterAnimation } from '../shared/rowEnterAnimation';
 
 @Component({
     selector: 'app-home',
@@ -31,6 +32,8 @@ import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeag
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class HomeComponent implements OnInit {
+  /** The rows' fade-in, once hydration is past (rowEnterAnimation) */
+  readonly rowEnter = rowEnterAnimation();
   private http = inject(HttpClient);
 
 

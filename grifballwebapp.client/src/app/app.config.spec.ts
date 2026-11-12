@@ -1,4 +1,3 @@
-/* eslint-disable sonarjs/no-clear-text-protocols -- the backend's in-cluster addresses (plain HTTP), which these tests check */
 import { HttpBackend, HttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -37,12 +36,15 @@ describe('the server config', () => {
   });
 
   it('reaches the backend at API_URL, without a trailing slash', () => {
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the backend's in-cluster address (plain HTTP), as API_URL gives it
     env.process = { env: { API_URL: 'http://api.internal:8080/' } };
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the backend's in-cluster address (plain HTTP), as API_URL gives it
     expect(find(API_ORIGIN)!.useFactory!()).toBe('http://api.internal:8080');
   });
 
   it('reaches the backend at its Service by default, as the proxy does', () => {
     env.process = { env: {} };
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the backend's in-cluster address (plain HTTP), as API_URL gives it
     expect(find(API_ORIGIN)!.useFactory!()).toBe('http://grifballwebapp-server:5295');
   });
 });
