@@ -57,6 +57,7 @@ export function startServerTelemetry(settings: ServerTelemetrySettings): ServerT
     write: line => process.stdout.write(line),
     rss: () => process.memoryUsage.rss(),
     logLevel: settings.logLevel,
+    browserTelemetry: settings.browserTelemetry,
   });
 
   async function shutdown(): Promise<void> {

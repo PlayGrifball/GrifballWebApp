@@ -137,35 +137,54 @@ public sealed class TelemetryQueryService
     {
         var tempo = _options.Tempo ?? throw new TelemetryBackendMissingException("Tempo");
         var (from, to) = Range(minutes);
-        var url = Url(tempo, "api/search",
-            ("q", TelemetryQueries.Traces(_options.ServiceName, errorsOnly, minDurationMs)),
+        Uri Search(bool requestSpansOnly) => Url(tempo, "api/search",
+            ("q", TelemetryQueries.Traces(_options.ServiceName, errorsOnly, minDurationMs, requestSpansOnly)),
             ("start", from.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)),
             ("end", to.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)),
             ("limit", Math.Clamp(limit, 1, MaxTraces).ToString(CultureInfo.InvariantCulture)),
-            // Enough spans a trace to hold the app server's and the backend's request spans (TelemetryQueries.TraceRow)
+            // Enough of a trace's request spans for its row: the browser's, the app server's and the backend's
             ("spss", "20"));
 
-        using var doc = await Get("Tempo", url, ct);
+        // The traces (jobs included), and their request spans in a search of their own (TelemetryQueries.TraceRow)
+        var tracesSearch = Get("Tempo", Search(false), ct);
+        var requestsSearch = Get("Tempo", Search(true), ct);
+        await Task.WhenAll(tracesSearch, requestsSearch);
+        using var doc = await tracesSearch;
+        using var requestsDoc = await requestsSearch;
         if (!doc.RootElement.TryGetProperty("traces", out var traces))
             return [];
 
-        return traces.EnumerateArray().Select(TraceSummary).OrderByDescending(t => t.Start).ToList();
+        var requestSpans = requestsDoc.RootElement.TryGetProperty("traces", out var withRequests)
+            ? withRequests.EnumerateArray()
+                .GroupBy(t => TraceId(t))
+                .ToDictionary(g => g.Key, g => MatchedSpans(g.First()))
+            : new Dictionary<string, IReadOnlyList<IReadOnlyDictionary<string, string>>>();
+        return traces.EnumerateArray()
+            .Select(t => TraceSummary(t, requestSpans.GetValueOrDefault(TraceId(t)) is { Count: > 0 } spans ? spans : MatchedSpans(t)))
+            .OrderByDescending(t => t.Start)
+            .ToList();
     }
 
-    /// <summary>A trace as Tempo's search lists it: its name, route and status from its matched spans (TelemetryQueries.TraceRow).</summary>
-    private static TraceSummaryDto TraceSummary(JsonElement t)
-    {
-        IReadOnlyList<IReadOnlyDictionary<string, string>> spans = t.TryGetProperty("spanSet", out var set) && set.TryGetProperty("spans", out var matched)
+    private static string TraceId(JsonElement t) =>
+        TelemetryQueries.NormalizeTraceId(t.GetProperty("traceID").GetString()) ?? t.GetProperty("traceID").GetString()!;
+
+    /// <summary>A searched trace's matched spans, each as its selected attributes.</summary>
+    private static IReadOnlyList<IReadOnlyDictionary<string, string>> MatchedSpans(JsonElement t) =>
+        t.TryGetProperty("spanSet", out var set) && set.TryGetProperty("spans", out var matched)
             ? matched.EnumerateArray()
                 .Select(s => (IReadOnlyDictionary<string, string>)(s.TryGetProperty("attributes", out var a) ? a.EnumerateArray() : Enumerable.Empty<JsonElement>())
                     .GroupBy(x => x.GetProperty("key").GetString()!)
                     .ToDictionary(g => g.Key, g => AttributeValue(g.First().GetProperty("value"))))
                 .ToList()
             : [];
+
+    /// <summary>A trace as Tempo's search lists it: its name, route and status from its request spans (TelemetryQueries.TraceRow).</summary>
+    private static TraceSummaryDto TraceSummary(JsonElement t, IReadOnlyList<IReadOnlyDictionary<string, string>> spans)
+    {
         var rootName = t.TryGetProperty("rootTraceName", out var name) ? name.GetString() ?? "" : "";
         var (traceName, route, status) = TelemetryQueries.TraceRow(rootName, spans);
         return new TraceSummaryDto(
-            TelemetryQueries.NormalizeTraceId(t.GetProperty("traceID").GetString()) ?? t.GetProperty("traceID").GetString()!,
+            TraceId(t),
             traceName,
             t.TryGetProperty("rootServiceName", out var service) ? service.GetString() : null,
             FromUnixNanos(long.Parse(t.GetProperty("startTimeUnixNano").GetString()!, CultureInfo.InvariantCulture)),

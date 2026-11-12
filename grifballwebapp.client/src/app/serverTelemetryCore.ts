@@ -18,6 +18,7 @@ import {
 import { redactUrl } from './redactUrl';
 import {
   type LogLevel,
+  CLIENT_TELEMETRY_PATH,
   RENDER_DURATION,
   REQUEST_DURATION,
   REQUEST_KIND_ATTRIBUTE,
@@ -90,6 +91,8 @@ export interface ServerTelemetryDeps {
   /** The process's resident memory, in bytes. */
   rss: () => number;
   logLevel: LogLevel;
+  /** Whether pages tell the browser to record its telemetry (Server-Timing). */
+  browserTelemetry?: boolean;
 }
 
 export function createServerTelemetry(deps: ServerTelemetryDeps): ServerTelemetryCore {
@@ -132,7 +135,7 @@ export function createServerTelemetry(deps: ServerTelemetryDeps): ServerTelemetr
     const userAgent = header(req, 'user-agent');
     let span: Span | undefined;
     let ctx = ROOT_CONTEXT;
-    if (isTraced(kind, userAgent)) {
+    if (isTraced(kind, userAgent) && req.path !== CLIENT_TELEMETRY_PATH) {
       // A trace the request came with (the browser's, or a caller's) is continued, as the backend does
       const parent = propagation.extract(ROOT_CONTEXT, req.headers);
       span = tracer.startSpan(spanName(req.method, kind), {
@@ -154,7 +157,7 @@ export function createServerTelemetry(deps: ServerTelemetryDeps): ServerTelemetr
       const traceparent = formatTraceparent(traceId, spanId, (traceFlags & 1) === 1);
       // The backend's own replaces this on what it answers (the same trace, its span)
       res.setHeader('traceresponse', traceparent);
-      res.setHeader('Server-Timing', serverTimingHeader(traceparent));
+      res.setHeader('Server-Timing', serverTimingHeader(traceparent, deps.browserTelemetry));
     }
 
     let done = false;

@@ -124,19 +124,19 @@ public class ClientTelemetryController : ControllerBase
     public const string Route = "client-telemetry";
 
     private readonly ClientTelemetryOptions _options;
-    private readonly ClientTelemetryForwarder _forwarder;
+    private readonly ClientTelemetryQueue _queue;
     private readonly BrowserMetrics _metrics;
 
-    public ClientTelemetryController(IOptions<ClientTelemetryOptions> options, ClientTelemetryForwarder forwarder, BrowserMetrics metrics)
+    public ClientTelemetryController(IOptions<ClientTelemetryOptions> options, ClientTelemetryQueue queue, BrowserMetrics metrics)
     {
         _options = options.Value;
-        _forwarder = forwarder;
+        _queue = queue;
         _metrics = metrics;
     }
 
     /// <summary>
-    /// Takes a batch of the browser's telemetry: its Web Vitals become this app's metrics, its spans and log lines go on to
-    /// the collector. A 404 when browser telemetry is off.
+    /// Takes a batch of the browser's telemetry: its Web Vitals become this app's metrics, its spans and log lines are
+    /// queued for the collector (ClientTelemetryPump), so the browser never waits on it. A 404 when browser telemetry is off.
     /// </summary>
     [HttpPost(Route, Name = "ReportClientTelemetry")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -147,14 +147,14 @@ public class ClientTelemetryController : ControllerBase
 #pragma warning disable S4502 // anonymous and only recorded; the Fetch Metadata and Origin checks still refuse it from another site
     [IgnoreAntiforgeryToken]
 #pragma warning restore S4502
-    public async Task<IActionResult> Report([FromBody] ClientTelemetryBatchDto batch, [FromHeader(Name = "User-Agent")] string? userAgent, CancellationToken ct)
+    public IActionResult Report([FromBody] ClientTelemetryBatchDto batch, [FromHeader(Name = "User-Agent")] string? userAgent)
     {
         if (!_options.Enabled)
             return this.NotFoundProblem("Browser telemetry is off here");
 
         foreach (var vital in batch.Vitals)
             _metrics.Record(vital);
-        await _forwarder.Forward(batch, userAgent ?? "", ct);
+        _queue.Enqueue(batch, userAgent ?? "");
         return NoContent();
     }
 }
@@ -173,7 +173,10 @@ public static class ClientTelemetryExtensions
             .ValidateOnStart();
         services.AddSingleton(new ClientTelemetryResource(telemetry));
         services.AddSingleton<BrowserMetrics>();
+        services.AddSingleton<ForwardFailures>();
+        services.AddSingleton<ClientTelemetryQueue>();
         services.AddHttpClient<ClientTelemetryForwarder>(client => client.Timeout = TimeSpan.FromSeconds(5));
+        services.AddHostedService<ClientTelemetryPump>();
         services.AddRateLimiter(limiter =>
         {
             limiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

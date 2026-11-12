@@ -19,6 +19,8 @@ describe('browser tracing', () => {
   beforeEach(() => {
     fetchSpy = spyOn(window, 'fetch').and.callFake(() => Promise.resolve(new Response(null, { status: 204 })));
     spyOnProperty(Navigator.prototype, 'webdriver', 'get').and.returnValue(false);
+    // The page the app's server sent, with browser telemetry on
+    spyOn(performance, 'getEntriesByType').and.returnValue([{ serverTiming: [{ name: 'browser-telemetry', description: '' }] }] as never);
   });
 
   it('traces calls to this app\'s API only', () => {
@@ -115,8 +117,8 @@ describe('browser tracing', () => {
     let telemetry: BrowserTelemetry;
 
     beforeEach(() => {
-      spyOn(performance, 'getEntriesByType').and.callFake(((type: string) => type === 'navigation'
-        ? [{ serverTiming: [{ name: 'traceparent', description: PAGE_TRACEPARENT }] }]
+      (performance.getEntriesByType as jasmine.Spy).and.callFake(((type: string) => type === 'navigation'
+        ? [{ serverTiming: [{ name: 'traceparent', description: PAGE_TRACEPARENT }, { name: 'browser-telemetry', description: '' }] }]
         : []) as unknown as Performance['getEntriesByType']);
       TestBed.configureTestingModule({
         providers: [

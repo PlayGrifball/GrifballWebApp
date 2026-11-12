@@ -48,7 +48,11 @@ public class ClientTelemetryUnitTests
         }
     }
 
-    private sealed class Warnings : Microsoft.Extensions.Logging.ILogger<ClientTelemetryForwarder>
+    private sealed class Warnings : Warnings<ClientTelemetryForwarder>
+    {
+    }
+
+    private class Warnings<T> : Microsoft.Extensions.Logging.ILogger<T>
     {
         public int Count { get; private set; }
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
@@ -86,13 +90,22 @@ public class ClientTelemetryUnitTests
     private static ClientTelemetryForwarder Forwarder(HttpMessageHandler handler, IOptions<ClientTelemetryOptions>? options = null) =>
         new(new HttpClient(handler), new ClientTelemetryResource(Telemetry), options ?? Options(), NullLogger<ClientTelemetryForwarder>.Instance);
 
-    private static ClientTelemetryController Controller(HttpMessageHandler handler, bool enabled = true, BrowserMetrics? metrics = null)
+    /// <summary>The API, its queue, and the forwarder its pump would use: Drain forwards what the API queued.</summary>
+    private sealed record Api(ClientTelemetryController Controller, ClientTelemetryQueue Queue, ClientTelemetryForwarder Forwarder)
+    {
+        public IActionResult Report(ClientTelemetryBatchDto batch, string? userAgent) => Controller.Report(batch, userAgent);
+        public Task Drain() => Queue.ForwardQueuedAsync(Forwarder);
+    }
+
+    private static Api Controller(HttpMessageHandler handler, bool enabled = true, BrowserMetrics? metrics = null)
     {
         var options = Options(enabled);
-        return new ClientTelemetryController(options, Forwarder(handler, options), metrics ?? new BrowserMetrics())
+        var queue = new ClientTelemetryQueue(NullLogger<ClientTelemetryQueue>.Instance, new ForwardFailures());
+        var controller = new ClientTelemetryController(options, queue, metrics ?? new BrowserMetrics())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
         };
+        return new Api(controller, queue, Forwarder(handler, options));
     }
 
     private static Dictionary<string, JsonElement> Attributes(string json) => JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
@@ -127,7 +140,9 @@ public class ClientTelemetryUnitTests
     {
         var collector = new Collector();
 
-        var result = await Controller(collector, enabled: false).Report(Batch(), "Mozilla/5.0", default);
+        var api = Controller(collector, enabled: false);
+        var result = api.Report(Batch(), "Mozilla/5.0");
+        await api.Drain();
 
         result.AssertProblem(StatusCodes.Status404NotFound, "Browser telemetry is off here");
         Assert.That(collector.Posted, Is.Empty);
@@ -138,7 +153,9 @@ public class ClientTelemetryUnitTests
     {
         var collector = new Collector();
 
-        var result = await Controller(collector).Report(Batch(), "Mozilla/5.0", default);
+        var api = Controller(collector);
+        var result = api.Report(Batch(), "Mozilla/5.0");
+        await api.Drain();
 
         using (Assert.EnterMultipleScope())
         {
@@ -191,26 +208,80 @@ public class ClientTelemetryUnitTests
         listener.Start();
         using var metrics = new BrowserMetrics();
 
-        await Controller(new Collector(), metrics: metrics).Report(Batch(), "Mozilla/5.0", default);
+        Controller(new Collector(), metrics: metrics).Report(Batch(), "Mozilla/5.0");
 
         Assert.That(measured, Is.EqualTo(LcpThenCls));
     }
 
     [Test]
-    public async Task Report_AnswersBeforeTheCollectorDoes()
+    public async Task Report_AnswersBeforeTheCollectorDoes_AndThePumpForwardsLater()
     {
         var collector = new Slow();
-        try
+        var api = Controller(collector);
+
+        // Answered with nothing sent yet: the batch waits in the queue
+        var result = api.Report(Batch(), "Mozilla/5.0");
+        var forwarding = api.Drain();
+        Assert.That(result, Is.InstanceOf<NoContentResult>());
+        Assert.That(forwarding.IsCompleted, Is.False, "the forward waits on the collector, not the request");
+
+        collector.Release.SetResult();
+        await forwarding;
+    }
+
+    [Test]
+    public async Task Queue_DropsWhatComesPastItsCapacity_AndWarnsOnce()
+    {
+        var warnings = new Warnings<ClientTelemetryQueue>();
+        var queue = new ClientTelemetryQueue(warnings, new ForwardFailures());
+        var collector = new Collector();
+
+        for (var i = 0; i < ClientTelemetryQueue.Capacity + 5; i++)
+            queue.Enqueue(Batch(), "");
+        queue.Enqueue(new ClientTelemetryBatchDto { Vitals = [new ClientVitalDto { Name = "LCP", Value = 1 }] }, "");
+        await queue.ForwardQueuedAsync(Forwarder(collector));
+
+        using (Assert.EnterMultipleScope())
         {
-            var report = Controller(collector).Report(Batch(), "Mozilla/5.0", default);
-
-            var finished = await Task.WhenAny(report, Task.Delay(TimeSpan.FromSeconds(2))) == report;
-
-            Assert.That(finished, Is.True, "the browser waited on the collector");
+            Assert.That(collector.Posted, Has.Count.EqualTo(ClientTelemetryQueue.Capacity * 2), "traces and logs for each batch kept");
+            Assert.That(warnings.Count, Is.EqualTo(1));
         }
-        finally
+    }
+
+    [Test]
+    public async Task Pump_ForwardsWhatIsQueued_UntilTheHostStops()
+    {
+        var collector = new Collector();
+        var queue = new ClientTelemetryQueue(NullLogger<ClientTelemetryQueue>.Instance, new ForwardFailures());
+        using var stop = new CancellationTokenSource();
+        var forwarding = queue.ForwardAsync(() => Forwarder(collector), stop.Token);
+
+        queue.Enqueue(Batch(), "");
+        for (var i = 0; i < 100 && collector.Posted.Count < 2; i++)
+            await Task.Delay(20);
+        await stop.CancelAsync();
+
+        Assert.That(collector.Posted, Has.Count.EqualTo(2));
+        Assert.CatchAsync<OperationCanceledException>(() => forwarding);
+    }
+
+    [Test]
+    public void ForwardFailures_WarnOnceAMinute_CountingTheRest()
+    {
+        var time = new Microsoft.Extensions.Time.Testing.FakeTimeProvider();
+        var failures = new ForwardFailures(time);
+
+        var first = failures.ShouldLog(out var before);
+        var second = failures.ShouldLog(out _);
+        var third = failures.ShouldLog(out _);
+        time.Advance(ForwardFailures.Interval);
+        var later = failures.ShouldLog(out var suppressed);
+
+        using (Assert.EnterMultipleScope())
         {
-            collector.Release.TrySetResult();
+            Assert.That((first, second, third, later), Is.EqualTo((true, false, false, true)));
+            Assert.That(before, Is.Zero);
+            Assert.That(suppressed, Is.EqualTo(2));
         }
     }
 
@@ -242,7 +313,9 @@ public class ClientTelemetryUnitTests
             ],
         };
 
-        await Controller(collector).Report(batch, null, default);
+        var api = Controller(collector);
+        api.Report(batch, null);
+        await api.Drain();
 
         var sent = collector.Posted.Single().Body.ToJsonString();
         using (Assert.EnterMultipleScope())
@@ -268,7 +341,9 @@ public class ClientTelemetryUnitTests
     {
         var collector = new Collector();
 
-        await Controller(collector).Report(new ClientTelemetryBatchDto { Logs = Batch().Logs }, null, default);
+        var api = Controller(collector);
+        api.Report(new ClientTelemetryBatchDto { Logs = Batch().Logs }, null);
+        await api.Drain();
 
         var resource = collector.Posted.Single().Body["resourceLogs"]![0]!["resource"]!["attributes"];
         Assert.That(resource!.AsArray().Select(a => a!["key"]!.GetValue<string>()), Does.Not.Contain("user_agent.original"));

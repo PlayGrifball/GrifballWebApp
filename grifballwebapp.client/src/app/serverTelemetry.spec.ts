@@ -62,6 +62,7 @@ describe('server telemetry', () => {
         },
         metricIntervalMs: 10_000,
         logLevel: 'debug',
+        browserTelemetry: false,
       });
     });
 

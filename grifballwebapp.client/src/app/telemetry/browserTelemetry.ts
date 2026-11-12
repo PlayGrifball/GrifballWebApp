@@ -1,6 +1,8 @@
 import { isPlatformBrowser } from '@angular/common';
 import { DestroyRef, Injectable, PLATFORM_ID, inject } from '@angular/core';
 
+import { BROWSER_TELEMETRY_MARK, CLIENT_TELEMETRY_PATH } from '../serverTelemetry';
+
 export { REQUEST_KIND_ATTRIBUTE } from '../serverTelemetry';
 
 // The browser's telemetry: its spans (a navigation, a call to the API), its log lines and its Web Vitals, sent in
@@ -8,14 +10,18 @@ export { REQUEST_KIND_ATTRIBUTE } from '../serverTelemetry';
 // the collector as this app's. No OpenTelemetry SDK: the few things it needs are here. Nothing is sent on the server,
 // from an automated browser (tests, Lighthouse), or once the API refuses a batch (404: telemetry is off there).
 
-export const TELEMETRY_URL = '/api/client-telemetry';
+export const TELEMETRY_URL = CLIENT_TELEMETRY_PATH;
 export const FLUSH_INTERVAL_MS = 5_000;
 /** What one batch carries of each (the API's limits). */
 export const MAX_BATCH = 100;
 /** What waits to be sent, at most, of each: the oldest go first. */
 export const MAX_QUEUE = 500;
-/** fetch's keepalive (which outlives the page) takes at most 64 KiB in flight. */
+/** fetch's keepalive (which outlives the page) takes at most 64 KiB in flight, in bytes. */
 export const MAX_KEEPALIVE_BYTES = 60_000;
+/** The API's limits (ClientTelemetryDtos): a batch past them is refused whole. */
+export const MAX_SPAN_NAME = 200;
+export const MAX_LOG_MESSAGE = 4_000;
+export const MAX_VITAL = 600_000;
 
 export type SpanKind = 'internal' | 'client';
 export type SpanStatus = 'unset' | 'ok' | 'error';
@@ -83,6 +89,15 @@ export function formatTraceparent(context: TraceContext): string {
   return `00-${context.traceId}-${context.spanId}-01`;
 }
 
+/**
+ * Whether the page says browser telemetry is on: the app's server marks its Server-Timing (BROWSER_TELEMETRY) when the
+ * API takes it. Without the mark nothing is recorded, so no call carries a traceparent whose span never arrives.
+ */
+export function browserTelemetryOn(perf: Pick<Performance, 'getEntriesByType'> | undefined = globalThis.performance): boolean {
+  const navigation = perf?.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+  return navigation?.serverTiming?.some(t => t.name === BROWSER_TELEMETRY_MARK) ?? false;
+}
+
 /** The time now in epoch milliseconds, to the microsecond where the browser allows. */
 export function epochMs(): number {
   return performance.timeOrigin + performance.now();
@@ -143,7 +158,7 @@ export class BrowserSpan implements TraceContext {
       traceId: this.traceId,
       spanId: this.spanId,
       parentSpanId: this.parentSpanId,
-      name: this.name,
+      name: this.name.slice(0, MAX_SPAN_NAME),
       kind: this.kind,
       start: this.start,
       end: epochMs(),
@@ -163,6 +178,8 @@ export interface SpanOptions {
 @Injectable({ providedIn: 'root' })
 export class BrowserTelemetry {
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
+  /** Read once: the page that started the app says whether the API takes the browser's telemetry. */
+  private readonly markedOn = this.browser && browserTelemetryOn();
   private readonly queue: TelemetryBatch = { spans: [], logs: [], vitals: [] };
   private activeSpan?: BrowserSpan;
   private off = false;
@@ -186,9 +203,12 @@ export class BrowserTelemetry {
     });
   }
 
-  /** Whether anything is recorded: in a browser, not under automation (navigator.webdriver), and not refused by the API. */
+  /**
+   * Whether anything is recorded: in a browser whose page says browser telemetry is on, not under automation
+   * (navigator.webdriver), and not turned off by the API since (404).
+   */
   get enabled(): boolean {
-    return this.browser && !navigator.webdriver && !this.off;
+    return this.markedOn && !navigator.webdriver && !this.off;
   }
 
   startSpan(name: string, options: SpanOptions = {}): BrowserSpan {
@@ -215,15 +235,16 @@ export class BrowserTelemetry {
     this.push(this.queue.logs, {
       time: epochMs(),
       level,
-      message,
+      message: (message || '(empty)').slice(0, MAX_LOG_MESSAGE),
       traceId: trace?.traceId,
       spanId: trace?.spanId,
       attributes: defined(attributes),
     });
   }
 
+  /** A Web Vital; one outside the API's range (a tab left open for days) is dropped rather than refuse its batch. */
   vital(name: VitalData['name'], value: number): void {
-    if (this.enabled)
+    if (this.enabled && Number.isFinite(value) && value >= 0 && value <= MAX_VITAL)
       this.push(this.queue.vitals, { name, value });
   }
 
@@ -245,11 +266,11 @@ export class BrowserTelemetry {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
-      keepalive: body.length <= MAX_KEEPALIVE_BYTES,
+      keepalive: new TextEncoder().encode(body).length <= MAX_KEEPALIVE_BYTES,
       credentials: 'same-origin',
     }).then(response => {
-      // 404: telemetry is off here. Any other refusal (400) would refuse the next batch too; a 429 is only a limit
-      if (response.status >= 400 && response.status < 500 && response.status !== 429)
+      // 404: telemetry is off here. Any other refusal (a 400 or 413 for one batch, a 429) drops that batch only
+      if (response.status === 404)
         this.off = true;
     }).catch(() => {
       // Telemetry is best effort: a batch that doesn't go is dropped

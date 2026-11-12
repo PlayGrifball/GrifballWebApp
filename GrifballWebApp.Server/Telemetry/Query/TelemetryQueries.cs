@@ -116,11 +116,15 @@ public static partial class TelemetryQueries
 
     /// <summary>
     /// The Traces tab's search: the service's traces, failed ones only, slower than a minimum. Selects each matched span's
-    /// route, status code, method and request kind, which <see cref="TraceRow"/> reads.
+    /// route, status code, method and request kind, which <see cref="TraceRow"/> reads. <paramref name="requestSpansOnly"/>:
+    /// only the spans of a request (a route or a request kind), the rows' second search - a busy trace's first matched
+    /// spans may be all database calls.
     /// </summary>
-    public static string Traces(string serviceName, bool errorsOnly, int? minDurationMs)
+    public static string Traces(string serviceName, bool errorsOnly, int? minDurationMs, bool requestSpansOnly = false)
     {
         var query = new StringBuilder("{resource.service.name=").Append(Quote(serviceName));
+        if (requestSpansOnly)
+            query.Append(" && (span.http.route != nil || span.").Append(RequestKindAttribute).Append(" != nil)");
         if (errorsOnly)
             query.Append(" && status=error");
         if (minDurationMs is > 0)

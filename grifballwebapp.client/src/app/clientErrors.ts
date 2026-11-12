@@ -2,7 +2,7 @@ import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { ErrorHandler, Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { catchError, throwError } from 'rxjs';
-import { redactUrl, redactUrlIn } from './redactUrl';
+import { redactUrl, redactUrlIn, redactUrlsIn } from './redactUrl';
 import { BrowserTelemetry, parseTraceparent } from './telemetry/browserTelemetry';
 
 /**
@@ -64,10 +64,12 @@ export function reportedUrl(url: string | null | undefined, base: string): strin
   return redactUrl(url, base).slice(0, MAX_PATH);
 }
 
-/** An error's message and stack, whatever was thrown. */
+/** An error's message and stack, whatever was thrown, sensitive query values in them redacted (a URL in a message, a script's). */
 export function describeError(error: unknown): { message: string; stack?: string } {
-  if (error instanceof Error)
-    return { message: `${error.name}: ${error.message.trim() || NO_MESSAGE}`.slice(0, MAX_MESSAGE), stack: error.stack?.slice(0, MAX_STACK) };
+  if (error instanceof Error) {
+    const stack = error.stack === undefined ? undefined : redactUrlsIn(error.stack).slice(0, MAX_STACK);
+    return { message: redactUrlsIn(`${error.name}: ${error.message.trim() || NO_MESSAGE}`).slice(0, MAX_MESSAGE), stack };
+  }
   let message: string;
   try {
     message = typeof error === 'string' ? error : JSON.stringify(error) ?? String(error);
@@ -75,7 +77,7 @@ export function describeError(error: unknown): { message: string; stack?: string
     message = String(error);
   }
   // The API takes no blank message, and would turn reports off for the page
-  return { message: (message.trim() || NO_MESSAGE).slice(0, MAX_MESSAGE) };
+  return { message: redactUrlsIn(message.trim() || NO_MESSAGE).slice(0, MAX_MESSAGE) };
 }
 
 /** What a report says for an error thrown without a message (`throw ''`). */

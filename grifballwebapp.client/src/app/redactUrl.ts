@@ -35,3 +35,25 @@ export function redactUrl(url: string | null | undefined, base = 'http://localho
 export function redactUrlIn(text: string, url: string | null | undefined, base?: string): string {
   return url ? text.replaceAll(url, redactUrl(url, base)) : text;
 }
+
+/** A query string in text: what follows a "?" up to a space, quote, bracket or "#". */
+const QUERY_IN_TEXT = /\?([^\s#'"<>()]+)/g;
+
+/**
+ * `text` (an error's message, a stack) with the sensitive values of every query string in it REDACTED, whatever the
+ * URL around it: "see /reset?token=abc&page=2" -> "see /reset?token=REDACTED&page=2".
+ */
+export function redactUrlsIn(text: string): string {
+  return text.replace(QUERY_IN_TEXT, (_, query: string) => '?' + query.split('&').map(pair => {
+    const equals = pair.indexOf('=');
+    if (equals < 0)
+      return pair;
+    let name = pair.slice(0, equals);
+    try {
+      name = decodeURIComponent(name);
+    } catch {
+      // Not URL-encoded after all: matched as it is
+    }
+    return isSensitiveParam(name) ? `${pair.slice(0, equals)}=${REDACTED}` : pair;
+  }).join('&'));
+}

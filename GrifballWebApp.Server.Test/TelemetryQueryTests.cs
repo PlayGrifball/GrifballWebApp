@@ -411,7 +411,7 @@ public class TelemetryQueryServiceTests
 
         var traces = await Service(backends).Traces(30, true, 100, 500, default);
 
-        var asked = backends.Asked.Single();
+        var asked = backends.Asked.Single(u => !Query(u, "q").Contains("!= nil", StringComparison.Ordinal));
         using (Assert.EnterMultipleScope())
         {
             Assert.That(asked.AbsolutePath, Is.EqualTo("/api/search"));
@@ -434,7 +434,7 @@ public class TelemetryQueryServiceTests
         await Service(backends).Traces(30, false, null, 500, default);
 
         // One span a trace is only the root: the app server's /api/* when a browser's call started it
-        Assert.That(int.Parse(Query(backends.Asked.Single(), "spss"), System.Globalization.CultureInfo.InvariantCulture), Is.GreaterThanOrEqualTo(3));
+        Assert.That(int.Parse(Query(backends.Asked.Single(u => !Query(u, "q").Contains("!= nil", StringComparison.Ordinal)), "spss"), System.Globalization.CultureInfo.InvariantCulture), Is.GreaterThanOrEqualTo(3));
     }
 
     // A page's trace and a browser call's, as the app's server (grif.request.kind) and the backend make them; the
@@ -501,7 +501,7 @@ public class TelemetryQueryServiceTests
 
         await Service(backends).Traces(30, false, null, 500, default);
 
-        Assert.That(Query(backends.Asked.Single(), "q"), Does.Contain("span.grif.request.kind").And.Contain("span.http.request.method"));
+        Assert.That(Query(backends.Asked.Single(u => !Query(u, "q").Contains("!= nil", StringComparison.Ordinal)), "q"), Does.Contain("span.grif.request.kind").And.Contain("span.http.request.method"));
     }
 
     [Test]

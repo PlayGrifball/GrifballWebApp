@@ -28,6 +28,8 @@ export interface ServerTelemetrySettings {
   resource: Record<string, string>;
   metricIntervalMs: number;
   logLevel: LogLevel;
+  /** BROWSER_TELEMETRY: the API takes the browser's telemetry, so pages tell the browser to record it (Server-Timing). */
+  browserTelemetry: boolean;
 }
 
 export const DEFAULT_SERVICE_NAME = 'grifballwebapp-client';
@@ -38,6 +40,9 @@ export const DEFAULT_METRIC_INTERVAL_MS = 30_000;
 export const MIN_METRIC_INTERVAL_MS = 5_000;
 export const MAX_METRIC_INTERVAL_MS = 300_000;
 
+/** The environment's resource attribute (the backend's TelemetryOptions.EnvironmentAttribute). */
+export const ENVIRONMENT_ATTRIBUTE = 'deployment.environment.name';
+
 export function serverTelemetrySettings(env: Record<string, string | undefined>): ServerTelemetrySettings {
   const resource = parseResourceAttributes(env['OTEL_RESOURCE_ATTRIBUTES']);
   const serviceName = env['OTEL_SERVICE_NAME']?.trim() || DEFAULT_SERVICE_NAME;
@@ -46,12 +51,18 @@ export function serverTelemetrySettings(env: Record<string, string | undefined>)
   const instance = env['HOSTNAME']?.trim();
   if (instance)
     resource['service.instance.id'] = instance;
+  // As the backend: the attribute, its deprecated name, else the runtime's environment (NODE_ENV, as ASP.NET's)
+  const environment = resource[ENVIRONMENT_ATTRIBUTE] || resource['deployment.environment'] || env['NODE_ENV']?.trim().toLowerCase();
+  delete resource['deployment.environment'];
+  if (environment)
+    resource[ENVIRONMENT_ATTRIBUTE] = environment;
   return {
     endpoint: otlpEndpoint(env['OTEL_EXPORTER_OTLP_ENDPOINT']),
     serviceName,
     resource,
     metricIntervalMs: metricInterval(env['OTEL_METRIC_EXPORT_INTERVAL']),
     logLevel: logLevel(env['LOG_LEVEL']),
+    browserTelemetry: env['BROWSER_TELEMETRY']?.trim().toLowerCase() === 'true',
   };
 }
 
@@ -179,9 +190,18 @@ export function formatTraceparent(traceId: string, spanId: string, sampled: bool
  * but they can read this one (performance.getEntriesByType('navigation')[0].serverTiming), and the browser's
  * error reports (app/clientErrors.ts) send it back.
  */
-export function serverTimingHeader(traceparent: string): string {
-  return `traceparent;desc="${traceparent}"`;
+export function serverTimingHeader(traceparent: string, browserTelemetry = false): string {
+  return `traceparent;desc="${traceparent}"` + (browserTelemetry ? `, ${BROWSER_TELEMETRY_MARK}` : '');
 }
+
+/**
+ * The Server-Timing entry that tells the page browser telemetry is on (the API takes it): without it the browser
+ * records nothing, and sends no traceparent whose span would never arrive (telemetry/browserTelemetry.ts).
+ */
+export const BROWSER_TELEMETRY_MARK = 'browser-telemetry';
+
+/** The browser's telemetry batches: every few seconds a tab, never traced (the backend leaves them out too). */
+export const CLIENT_TELEMETRY_PATH = '/api/client-telemetry';
 
 /** The trace ids a log line carries, as the backend's do (trace_id, span_id). */
 export interface LogTrace {

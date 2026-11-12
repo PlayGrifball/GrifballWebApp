@@ -48,7 +48,7 @@ public static partial class ClientAttributes
                 continue;
             object? kept = value.ValueKind switch
             {
-                JsonValueKind.String => Text(key, value.GetString()!),
+                JsonValueKind.String => Text(value.GetString()!),
                 JsonValueKind.Number when value.TryGetInt64(out var whole) => whole,
                 JsonValueKind.Number => value.GetDouble(),
                 JsonValueKind.True => true,
@@ -61,11 +61,9 @@ public static partial class ClientAttributes
         return clean;
     }
 
-    private static string Text(string key, string value)
-    {
-        var text = value.Length > MaxValueLength ? value[..MaxValueLength] : value;
-        return key.StartsWith("url.", StringComparison.Ordinal) ? QueryRedaction.Redact(text) : text;
-    }
+    /// <summary>A text attribute, bounded, with any query string in it redacted (a URL, a stack's script URLs).</summary>
+    private static string Text(string value) =>
+        QueryRedaction.RedactUrlsIn(value.Length > MaxValueLength ? value[..MaxValueLength] : value);
 
     [GeneratedRegex("^[a-z][a-z0-9_.]{0,63}$")]
     private static partial Regex Key();
@@ -95,8 +93,19 @@ public static partial class QueryRedaction
         return url[..(question + 1)] + string.Join('&', pairs) + (fragment < 0 ? "" : url[fragment..]);
     }
 
+    /// <summary>
+    /// <paramref name="text"/> (a log's message, a stack) with every query string in it redacted, whatever the URL around
+    /// it: "see /reset?token=abc&amp;page=2" -> "see /reset?token=REDACTED&amp;page=2".
+    /// </summary>
+    public static string RedactUrlsIn(string text) =>
+        QueryInText().Replace(text, match => Redact(match.Value));
+
     [GeneratedRegex("token|code|secret|passw|pwd|key|auth|session|sig|credential|cookie|email|user|state|nonce|otp|ticket|hash|jwt", RegexOptions.IgnoreCase)]
     private static partial Regex Sensitive();
+
+    /// <summary>A query string in text: a "?" and what follows up to a space, quote, bracket or "#".</summary>
+    [GeneratedRegex("""\?[^\s#'"<>()]+""")]
+    private static partial Regex QueryInText();
 }
 
 /// <summary>OTLP/JSON (what a collector's /v1/traces and /v1/logs take) for a browser's batch.</summary>
@@ -166,7 +175,7 @@ public static class OtlpJson
             ["timeUnixNano"] = Nanos(log.Time),
             ["severityNumber"] = number,
             ["severityText"] = text,
-            ["body"] = new JsonObject { ["stringValue"] = log.Message },
+            ["body"] = new JsonObject { ["stringValue"] = QueryRedaction.RedactUrlsIn(log.Message) },
             ["attributes"] = Attributes(ClientAttributes.Clean(log.Attributes)),
         };
         if (log.TraceId is not null && log.SpanId is not null)
@@ -208,8 +217,12 @@ public static class OtlpJson
 
 /// <summary>Sends a browser's spans and logs on to the collector (ClientTelemetry:OtlpEndpoint), OTLP/JSON over HTTP.</summary>
 public partial class ClientTelemetryForwarder(HttpClient http, ClientTelemetryResource resource,
-    Microsoft.Extensions.Options.IOptions<ClientTelemetryOptions> options, ILogger<ClientTelemetryForwarder> logger)
+    Microsoft.Extensions.Options.IOptions<ClientTelemetryOptions> options, ILogger<ClientTelemetryForwarder> logger,
+    ForwardFailures? failures = null)
 {
+    // One for every forwarder (a singleton in DI): a typed client is made per use
+    private readonly ForwardFailures _failures = failures ?? new ForwardFailures();
+
     public async Task Forward(ClientTelemetryBatchDto batch, string userAgent, CancellationToken ct)
     {
         var endpoint = options.Value.OtlpUri;
@@ -235,21 +248,55 @@ public partial class ClientTelemetryForwarder(HttpClient http, ClientTelemetryRe
         {
             using var content = new StringContent(body.ToJsonString(), System.Text.Encoding.UTF8, "application/json");
             using var response = await http.PostAsync(url, content, ct);
-            if (!response.IsSuccessStatusCode)
-                LogRefused(logger, signal, (int)response.StatusCode);
+            if (!response.IsSuccessStatusCode && _failures.ShouldLog(out var since))
+                LogRefused(logger, signal, (int)response.StatusCode, since);
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
         {
-            // Telemetry is best effort: the browser's batch is dropped, the request still succeeds
-            LogFailed(logger, e, signal);
+            // Telemetry is best effort: the browser's batch is dropped
+            if (_failures.ShouldLog(out var since))
+                LogFailed(logger, e, signal, since);
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The collector refused the browser's {Signal} ({Status})")]
-    private static partial void LogRefused(ILogger logger, string signal, int status);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The collector refused the browser's {Signal} ({Status}); {Suppressed} more failures since the last warning")]
+    private static partial void LogRefused(ILogger logger, string signal, int status, int suppressed);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Sending the browser's {Signal} to the collector failed")]
-    private static partial void LogFailed(ILogger logger, Exception e, string signal);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Sending the browser's {Signal} to the collector failed; {Suppressed} more failures since the last warning")]
+    private static partial void LogFailed(ILogger logger, Exception e, string signal, int suppressed);
+}
+
+/// <summary>
+/// The forwarder's failures, warned of at most once a minute: in a collector outage every visitor's batch fails, and a
+/// warning each would flood the log. The next warning counts the ones left out.
+/// </summary>
+public sealed class ForwardFailures(TimeProvider? time = null)
+{
+    public static readonly TimeSpan Interval = TimeSpan.FromMinutes(1);
+
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
+    private readonly Lock _lock = new();
+    private DateTimeOffset? _lastWarned;
+    private int _suppressed;
+
+    /// <summary>Whether this failure is warned of; <paramref name="suppressed"/>: how many weren't since the last.</summary>
+    public bool ShouldLog(out int suppressed)
+    {
+        lock (_lock)
+        {
+            var now = _time.GetUtcNow();
+            if (_lastWarned is { } last && now - last < Interval)
+            {
+                _suppressed++;
+                suppressed = 0;
+                return false;
+            }
+            _lastWarned = now;
+            suppressed = _suppressed;
+            _suppressed = 0;
+            return true;
+        }
+    }
 }
 
 /// <summary>

@@ -39,12 +39,15 @@ describe('browser telemetry', () => {
   describe('the service', () => {
     let fetchSpy: jasmine.Spy;
     let webdriver: jasmine.Spy;
+    let entries: jasmine.Spy;
     const batches = () => fetchSpy.calls.all().map(c => JSON.parse((c.args[1] as RequestInit).body as string) as TelemetryBatch);
     const settle = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
 
     beforeEach(() => {
       fetchSpy = spyOn(window, 'fetch').and.callFake(() => Promise.resolve(new Response(null, { status: 204 })));
       webdriver = spyOnProperty(Navigator.prototype, 'webdriver', 'get').and.returnValue(false);
+      // The page the app's server sent, with browser telemetry on
+      entries = spyOn(performance, 'getEntriesByType').and.returnValue([{ serverTiming: [{ name: 'browser-telemetry', description: '' }] }] as never);
     });
 
     const telemetry = (platform = 'browser') => {
@@ -53,7 +56,7 @@ describe('browser telemetry', () => {
     };
 
     it('records nothing unless the page says browser telemetry is on (its Server-Timing)', () => {
-      const entries = spyOn(performance, 'getEntriesByType').and.returnValue([{ serverTiming: [] }] as never);
+      entries.and.returnValue([{ serverTiming: [] }] as never);
       expect(telemetry().enabled).withContext('no mark').toBeFalse();
 
       TestBed.resetTestingModule();
@@ -215,8 +218,8 @@ describe('browser telemetry', () => {
       expect(batches().map(b => b.logs[0].message)).toEqual(['before hiding', 'before leaving']);
     });
 
-    for (const status of [404, 400])
-      it(`stops once the API refuses a batch (${status}), and drops what waits`, async () => {
+    for (const status of [404])
+      it(`stops once the API says telemetry is off (${status}), and drops what waits`, async () => {
         fetchSpy.and.callFake(() => Promise.resolve(new Response(null, { status })));
         const t = telemetry();
         t.log('info', 'first');
