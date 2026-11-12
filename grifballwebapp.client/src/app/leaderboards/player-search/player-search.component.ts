@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, model, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, map, of, Subject, switchMap, timer } from 'rxjs';
-import { ApiClientService } from '../../api/apiClient.service';
+import { LeaderboardsService } from '@api/services';
 import { QuickSearchPlayerDto } from '@api/models';
 import { playerDetail } from '../../quickSearch/playerDetail';
 import { QUICK_SEARCH_MIN_LENGTH } from '../../quickSearch/quickSearch.component';
@@ -48,7 +48,7 @@ export function onlyMatch(found: QuickSearchPlayerDto[], text: string): QuickSea
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlayerSearchComponent {
-  private api = inject(ApiClientService);
+  private leaderboards = inject(LeaderboardsService);
 
   /** The text in the box. */
   readonly query = model('');
@@ -78,7 +78,7 @@ export class PlayerSearchComponent {
   constructor() {
     this.texts.pipe(
       switchMap(text => text.length < QUICK_SEARCH_MIN_LENGTH ? of({ text, results: null }) : timer(SEARCH_DEBOUNCE_MS).pipe(
-        switchMap(() => this.api.searchPlayers(text)),
+        switchMap(() => this.leaderboards.searchPlayers({ query: text })),
         catchError(() => of([])),
         map(results => ({ text, results })),
       )),

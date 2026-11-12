@@ -3,7 +3,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, LOCALE_ID, OnInit
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, EMPTY, map, of, Subject, switchMap, tap } from 'rxjs';
-import { ApiClientService } from '../api/apiClient.service';
+import { LeaderboardsService } from '@api/services';
+import { nullWhenNotFound } from '../api/nullWhenNotFound';
 import { LeaderboardsDto, MetricLeaderDto } from '@api/models';
 import { PlayerAllTimeRankDto } from '@api/models';
 import { QuickSearchPlayerDto } from '@api/models';
@@ -36,7 +37,7 @@ interface Lookup { query: string, userId: number | null }
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LeaderboardsComponent implements OnInit {
-  private api = inject(ApiClientService);
+  private leaderboards = inject(LeaderboardsService);
   private locale = inject(LOCALE_ID);
 
   readonly boards = signal<LeaderboardsDto | null>(null);
@@ -94,7 +95,9 @@ export class LeaderboardsComponent implements OnInit {
         this.spotlightLoading.set(lookup != null);
         if (!lookup) this.spotlight.set(null);
       }),
-      switchMap(lookup => !lookup ? EMPTY : this.api.getPlayerRank(lookup.query, lookup.userId, this.format()).pipe(
+      switchMap(lookup => !lookup ? EMPTY : this.leaderboards.getPlayerRank({ query: lookup.query || undefined, userID: lookup.userId ?? undefined, format: this.format() ?? undefined })
+        .pipe(
+        nullWhenNotFound(), // 404: no player matches
         map(rank => ({ lookup, rank, failed: false })),
         catchError(() => of({ lookup, rank: null, failed: true })),
       )),
@@ -140,7 +143,7 @@ export class LeaderboardsComponent implements OnInit {
   }
 
   private load(): void {
-    this.api.getLeaderboards(this.format()).subscribe({
+    this.leaderboards.getLeaderboards({ format: this.format() ?? undefined }).subscribe({
       next: boards => {
         this.boards.set(boards);
         this.loaded.set(true);

@@ -4,7 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
-import { ApiClientService } from '../api/apiClient.service';
+import { SearchService } from '@api/services';
 import { QuickSearchDto } from '@api/models';
 import { playerDetail } from './playerDetail';
 
@@ -71,7 +71,7 @@ export function toGroups(result: QuickSearchDto): QuickSearchGroup[] {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class QuickSearchComponent {
-  private api = inject(ApiClientService);
+  private search = inject(SearchService);
   private router = inject(Router);
   /** Null when it is not in a dialog (in a test): then nothing is closed on a jump. */
   readonly dialogRef = inject<MatDialogRef<QuickSearchComponent>>(MatDialogRef, { optional: true });
@@ -103,7 +103,7 @@ export class QuickSearchComponent {
 
   readonly results = rxResource({
     params: () => this.tooShort() ? undefined : this.term(),
-    stream: ({ params }) => this.api.quickSearch(params!),
+    stream: ({ params }) => this.search.quickSearch({ q: params! }),
   });
 
   readonly loading = computed(() => this.results.isLoading());
