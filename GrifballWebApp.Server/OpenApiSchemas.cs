@@ -111,7 +111,9 @@ public sealed class JsonOnlyOperationFilter : IOperationFilter
     public void Apply(OpenApiOperation operation, OperationFilterContext context)
     {
         KeepJsonOnly(operation.RequestBody?.Content);
-        foreach (var response in operation.Responses?.Values ?? [])
+        if (operation.Responses is not { } responses)
+            return;
+        foreach (var response in responses.Values)
             KeepJsonOnly(response.Content);
     }
 
