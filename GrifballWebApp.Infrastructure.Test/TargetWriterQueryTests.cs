@@ -2,7 +2,7 @@ using System.Data.Common;
 using GrifballWebApp.Infrastructure.Conversion;
 using Microsoft.Data.Sqlite;
 
-namespace GrifballWebApp.Integration.Test;
+namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>The conversion's target writers read their target's catalog through QueryAsync: a NULL comes back as null.</summary>
 [TestFixture]

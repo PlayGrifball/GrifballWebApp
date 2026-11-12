@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using GrifballWebApp.Infrastructure.DatabaseBackup;
 
-namespace GrifballWebApp.Integration.Test;
+namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>KubernetesScratchScaler in a pod: it reads the API server's CA, its namespace and its token from files.</summary>
 [TestFixture]

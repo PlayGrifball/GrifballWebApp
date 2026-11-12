@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- GrifballWebApp.Infrastructure's types on their own, with test doubles: no database (no GrifballContext instance),
-       no host, no containers, no files. Anything that needs those is GrifballWebApp.Integration.Test's. -->
+  <!-- GrifballWebApp.Infrastructure's types on their own, with test doubles: no real database server, no host, no
+       containers, no network. A GrifballContext on in-memory or a temp-file SQLite is fine (approved 2026-11-12);
+       a real server (Testcontainers, TestDatabase) is GrifballWebApp.Integration.Test's. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
@@ -36,6 +37,10 @@
     <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
     <!-- The domain tests' helpers (a test season, a season match in a state) -->
     <ProjectReference Include="..\GrifballWebApp.Domain.Test\GrifballWebApp.Domain.Test.csproj" />
+    <!-- DesignTimeContextFactoryTests: each provider's design-time factory, offline -->
+    <ProjectReference Include="..\GrifballWebApp.Migrations.Postgres\GrifballWebApp.Migrations.Postgres.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Migrations.Sqlite\GrifballWebApp.Migrations.Sqlite.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Migrations.SqlServer\GrifballWebApp.Migrations.SqlServer.csproj" />
   </ItemGroup>
 
   <!-- Its helpers (HistoricalXlsx, HistoricalTestData, TestCertificates) serve the integration tests too -->

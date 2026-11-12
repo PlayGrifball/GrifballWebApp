@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using static GrifballWebApp.Infrastructure.Test.DatabaseConversionPartsTests;
 using static GrifballWebApp.Infrastructure.Test.DatabaseConversionPartsTestData;
 
-namespace GrifballWebApp.Integration.Test;
+namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>The conversion's parts that need an EF model or a SQLite connection (in memory): reading values, the order of
 /// tables, the plan.</summary>
