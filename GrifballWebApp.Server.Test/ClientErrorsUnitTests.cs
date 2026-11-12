@@ -22,6 +22,7 @@ public class ClientErrorsUnitTests
 {
     private const string TraceId = "0af7651916cd43dd8448eb211c80319c";
     private const string Traceparent = $"00-{TraceId}-b7ad6b7169203331-01";
+    private static readonly int[] TwoThenRefused = [204, 204, 429];
 
     private RequestTelemetryUnitTests.CollectingSink _sink = null!;
     private Serilog.Core.Logger _serilog = null!;
@@ -222,7 +223,7 @@ public class ClientErrorsUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(signedOut, Is.EqualTo(new[] { 204, 204, 429 }));
+            Assert.That(signedOut, Is.EqualTo(TwoThenRefused));
             Assert.That(signedInAfter, Is.EqualTo(204));
         }
     }
