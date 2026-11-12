@@ -9,48 +9,12 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ProcessRescheduleDialogComponent } from './process-reschedule-dialog/process-reschedule-dialog.component';
-import { HttpClient } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { CommissionerDashboardService } from '@api/services/commissioner-dashboard.service';
+import { RescheduleService } from '@api/services/reschedule.service';
+import type { CommissionerDashboardDto, RescheduleDto } from '@api/models';
 
-export interface CommissionerDashboardDto {
-  pendingReschedules: RescheduleDto[];
-  overdueMatches: OverdueMatchDto[];
-  summary: DashboardSummaryDto;
-}
-
-export interface RescheduleDto {
-  matchRescheduleID: number;
-  seasonMatchID: number;
-  homeCaptain: string;
-  awayCaptain: string;
-  originalScheduledTime?: string;
-  newScheduledTime?: string;
-  reason: string;
-  requestedByGamertag: string;
-  /** Who asked, for the link to their profile. */
-  requestedByUserID?: number | null;
-  requestedAt: string;
-  status: 'Pending' | 'Approved' | 'Rejected'; // RescheduleStatus enum, sent as its name
-  discordThreadID?: string | number | null; // ulong snowflake; only checked for presence
-  /** Whether an approval can still move the match; when not, only Reject is offered. */
-  canApprove: boolean;
-  /** Why it can only be rejected (the match has a result since, or lost a team); null when it can be approved. */
-  whyNotApprovable?: string | null;
-}
-
-export interface OverdueMatchDto {
-  seasonMatchID: number;
-  homeCaptain: string;
-  awayCaptain: string;
-  scheduledTime: string;
-  hoursOverdue: number;
-}
-
-export interface DashboardSummaryDto {
-  pendingRescheduleCount: number;
-  overdueMatchCount: number;
-  criticalOverdueCount: number;
-}
+export type { CommissionerDashboardDto, RescheduleDto };
 
 @Component({
   selector: 'app-commissioner-dashboard',
@@ -71,7 +35,8 @@ export interface DashboardSummaryDto {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CommissionerDashboardComponent implements OnInit {
-  private httpClient = inject(HttpClient);
+  private commissionerDashboard = inject(CommissionerDashboardService);
+  private rescheduleService = inject(RescheduleService);
   private dialog = inject(MatDialog);
   private destroyRef = inject(DestroyRef);
 
@@ -89,7 +54,7 @@ export class CommissionerDashboardComponent implements OnInit {
   loadDashboardData(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.httpClient.get<CommissionerDashboardDto>('/api/commissioner-dashboard')
+    this.commissionerDashboard.getDashboardData()
       .subscribe({
         next: (data) => {
           this.dashboardData.set(data);
@@ -103,7 +68,7 @@ export class CommissionerDashboardComponent implements OnInit {
       });
   }
 
-  formatDateTime(dateStr?: string): string {
+  formatDateTime(dateStr?: string | null): string {
     if (!dateStr) return 'Not scheduled';
     return new Date(dateStr).toLocaleString();
   }
@@ -136,7 +101,7 @@ export class CommissionerDashboardComponent implements OnInit {
   }
 
   createDiscordThread(reschedule: RescheduleDto): void {
-    this.httpClient.post(`/api/reschedules/${reschedule.matchRescheduleID}/discord-thread`, null)
+    this.rescheduleService.createDiscordThread({ rescheduleID: reschedule.matchRescheduleID })
     .subscribe({
       next: (response: any) => {
         this.loadDashboardData(); // Refresh to show the thread ID

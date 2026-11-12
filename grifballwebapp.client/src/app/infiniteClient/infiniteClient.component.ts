@@ -1,4 +1,3 @@
-import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,21 +6,13 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
 import { ActivatedRoute } from '@angular/router';
+import { AdminService } from '@api/services/admin.service';
+import type { HaloInfiniteMode, HaloStatusDto } from '@api/models';
 
-export type HaloMode = 'Gateway' | 'Direct';
+export type HaloMode = HaloInfiniteMode;
 
 /** api/halo/status: the active mode and, in Gateway mode, the gateway's status. */
-export interface HaloStatus {
-  mode: HaloMode;
-  gatewayUrl?: string | null;
-  gatewayAdminUrl?: string | null;
-  apiKeyConfigured?: boolean;
-  reachable?: boolean | null;
-  accountStatus?: string | null;
-  apiCode?: number | null;
-  healthy?: boolean;
-  message?: string | null;
-}
+export type HaloStatus = HaloStatusDto;
 
 @Component({
     selector: 'app-infinite-client',
@@ -38,7 +29,7 @@ export interface HaloStatus {
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class InfiniteClientComponent implements OnInit {
-  private http = inject(HttpClient);
+  private admin = inject(AdminService);
   private snackbar = inject(MatSnackBar);
   private route = inject(ActivatedRoute);
 
@@ -68,7 +59,7 @@ export class InfiniteClientComponent implements OnInit {
    */
   loadStatus() {
     this.checking.set(true);
-    this.http.get<HaloStatus>('api/halo/status').subscribe({
+    this.admin.haloStatus().subscribe({
       next: r => {
         this.checking.set(false);
         this.mode.set(r.mode);
@@ -97,7 +88,7 @@ export class InfiniteClientComponent implements OnInit {
 
   setCode() {
     // In the body: a code in the URL would be kept by the access logs and traces
-    this.http.post('api/halo/auth-code', { code: this.code }).subscribe({
+    this.admin.setCode({ body: { code: this.code } }).subscribe({
       next: r => this.snackbar.open('Success', "Close"),
       error: r => {
         console.log(r);
@@ -107,7 +98,7 @@ export class InfiniteClientComponent implements OnInit {
   }
 
   checkStatus() {
-    this.http.get<string>('api/halo/check', this.text).subscribe({
+    this.admin.checkStatus().subscribe({
       next: r => this.status.set(r),
       error: r => {
         console.log(r);
@@ -118,7 +109,7 @@ export class InfiniteClientComponent implements OnInit {
   }
 
   deleteTokens() {
-    this.http.post('api/halo/tokens/delete', null).subscribe({
+    this.admin.deleteTokens().subscribe({
       next: r => this.snackbar.open('Success', "Close"),
       error: r => {
         console.log(r);
@@ -126,8 +117,4 @@ export class InfiniteClientComponent implements OnInit {
       }
     })
   }
-
-  private readonly text : Object = {
-    responseType: 'text'
-  };
 }

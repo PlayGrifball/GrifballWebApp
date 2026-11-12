@@ -84,10 +84,13 @@ describe('CommissionerDashboardComponent', () => {
           originalScheduledTime: '2024-01-15T20:00:00Z',
           newScheduledTime: '2024-01-16T21:00:00Z',
           requestedByGamertag: 'Player1',
+          requestedByUserID: null,
           reason: 'Schedule conflict',
           requestedAt: '2024-01-14T10:00:00Z',
           status: 'Pending',
-          canApprove: true
+          discordThreadID: null,
+          canApprove: true,
+          whyNotApprovable: null,
         }
       ],
       overdueMatches: [
@@ -161,10 +164,13 @@ describe('CommissionerDashboardComponent', () => {
       originalScheduledTime: '2024-01-15T20:00:00Z',
       newScheduledTime: '2024-01-16T21:00:00Z',
       requestedByGamertag: 'Player1',
+      requestedByUserID: null,
       reason: 'Schedule conflict',
       requestedAt: '2024-01-14T10:00:00Z',
       status: 'Pending',
-      canApprove: true
+      discordThreadID: null,
+      canApprove: true,
+      whyNotApprovable: null,
     };
 
     // Spy on the dialog's open method directly
@@ -184,10 +190,13 @@ describe('CommissionerDashboardComponent', () => {
       originalScheduledTime: '2024-01-15T20:00:00Z',
       newScheduledTime: '2024-01-16T21:00:00Z',
       requestedByGamertag: 'Player1',
+      requestedByUserID: null,
       reason: 'Schedule conflict',
       requestedAt: '2024-01-14T10:00:00Z',
       status: 'Pending',
-      canApprove: true
+      discordThreadID: null,
+      canApprove: true,
+      whyNotApprovable: null,
     };
 
     component.createDiscordThread(mockReschedule);
@@ -279,8 +288,8 @@ describe('CommissionerDashboardComponent', () => {
   });
 
   it('offers only Reject, and says why, for a request whose match can no longer move', async () => {
-    const base = { seasonMatchID: 40, homeCaptain: 'A', awayCaptain: 'B', reason: 'r', requestedByGamertag: 'p',
-      requestedAt: '2024-01-01T00:00:00Z', status: 'Pending' as const };
+    const base = { seasonMatchID: 40, homeCaptain: 'A', awayCaptain: 'B', reason: 'r', requestedByGamertag: 'p', requestedByUserID: null,
+      requestedAt: '2024-01-01T00:00:00Z', status: 'Pending' as const, originalScheduledTime: null, newScheduledTime: null, discordThreadID: null };
     const decided: RescheduleDto = { ...base, matchRescheduleID: 7, canApprove: false, whyNotApprovable: 'This match already has a result.' };
     const open: RescheduleDto = { ...base, matchRescheduleID: 8, canApprove: true, whyNotApprovable: null };
     await fixture.whenStable();

@@ -6,8 +6,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatIconModule } from '@angular/material/icon';
-import { RescheduleDto } from '../commissioner-dashboard.component';
-import { HttpClient } from '@angular/common/http';
+import type { ProcessRescheduleDto, RescheduleDto } from '@api/models';
+import { RescheduleService } from '@api/services/reschedule.service';
 import { errorText } from '../../shared/errorText';
 
 interface ProcessRescheduleRequest {
@@ -34,7 +34,7 @@ interface ProcessRescheduleRequest {
 export class ProcessRescheduleDialogComponent {
   dialogRef = inject<MatDialogRef<ProcessRescheduleDialogComponent>>(MatDialogRef);
   reschedule = inject<RescheduleDto>(MAT_DIALOG_DATA);
-  private httpClient = inject(HttpClient);
+  private rescheduleService = inject(RescheduleService);
 
   /** False when the match can no longer move: only a rejection is offered, chosen already. */
   readonly canApprove = this.reschedule.canApprove !== false;
@@ -44,7 +44,7 @@ export class ProcessRescheduleDialogComponent {
   /** Why the server refused the decision; shown in the dialog, which stays open to try again. */
   readonly error = signal<string | null>(null);
 
-  formatDateTime(dateStr?: string): string {
+  formatDateTime(dateStr?: string | null): string {
     if (!dateStr) return 'Not scheduled';
     return new Date(dateStr).toLocaleString();
   }
@@ -60,7 +60,9 @@ export class ProcessRescheduleDialogComponent {
     this.processing.set(true);
     this.error.set(null);
 
-    this.httpClient.post(`/api/reschedules/${this.reschedule.matchRescheduleID}/decision`, request)
+    // ProcessRescheduleRequest's commissionerNotes is undefined (never null) when empty, like the old body: a
+    // field JSON.stringify drops, same as the explicit null the generated model's type calls for.
+    this.rescheduleService.processReschedule({ rescheduleID: this.reschedule.matchRescheduleID, body: request as unknown as ProcessRescheduleDto })
     .subscribe({
       next: () => {
         this.dialogRef.close(true); // Signal success
