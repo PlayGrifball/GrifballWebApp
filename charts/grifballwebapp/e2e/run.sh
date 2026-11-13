@@ -334,7 +334,7 @@ EOF
   # cookie is Secure, so it is sent by hand over the plain HTTP entrypoint.
   sticky_round() {
     kubectl -n "$ns" exec client -- sh -c '
-      base=http://traefik.kube-system/hub/QueueHub # NOSONAR: in the cluster, to Traefik's plain HTTP entrypoint (the test has no certificate)
+      base=http://traefik.kube-system/hub/QueueHub # NOSONAR: in the cluster, to the plain HTTP entrypoint of Traefik (the test has no certificate)
       headers=$(curl -s -D - -o /tmp/negotiate -X POST -H "Host: grifball.example" "$base/negotiate?negotiateVersion=1")
       cookie=$(printf "%s" "$headers" | sed -n "s/^[Ss]et-[Cc]ookie: \(grif-hub=[^;]*\).*/\1/p" | tr -d "\r")
       token=$(sed -n "s/.*\"connectionToken\":\"\([^\"]*\)\".*/\1/p" /tmp/negotiate)
