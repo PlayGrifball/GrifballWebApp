@@ -29,6 +29,7 @@ dotnet test GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.cspr
 The code coverage is configured in `coverlet.runsettings` with the following exclusions:
 - Database migrations, generated, for both databases (file pattern `**/GrifballWebApp.Migrations.*/Migrations/*.cs`)
 - The generated NetCord wrappers and their generator (`**/DiscordInterfaces/*.cs`, `**/DiscordInterfaceSourceGen/*.cs`)
+- Code a source generator writes at build time, which the generators mark `[GeneratedCode]` (`ExcludeByAttribute`): the matchers behind `[GeneratedRegex]` and the methods behind `[LoggerMessage]`. The pattern or log message is ours and is tested through the code that calls it; the generated matcher's backtracking branches are .NET's
 - The test projects' assemblies (`[GrifballWebApp.*.Test]*`), which load each other for their shared helpers (the integration tests every unit test project, the unit tests the domain tests)
 
 The thin NetCord modules (`DiscordCommands`, the `*Interactions` classes) are not excluded: `DiscordTransportTests` runs every one of their entry points through NetCord with only the HTTP transport faked.

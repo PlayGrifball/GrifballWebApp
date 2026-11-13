@@ -6,6 +6,9 @@
           <ExcludeByFile>
             <File>**/DiscordInterfaces/*.cs,**/DiscordInterfaceSourceGen/*.cs,**/GrifballWebApp.Migrations.*/Migrations/*.cs</File>
           </ExcludeByFile>
+          <!-- Code a source generator writes at build time ([GeneratedRegex] matchers, [LoggerMessage] methods), which
+               the generators mark [GeneratedCode]. Our part, the pattern or the message, is tested through its callers -->
+          <ExcludeByAttribute>GeneratedCodeAttribute</ExcludeByAttribute>
           <!-- The test projects load each other (for their helpers: the integration tests every unit test project, the
                unit tests the domain tests): test code, not covered code -->
           <Exclude>[GrifballWebApp.*.Test]*</Exclude>
