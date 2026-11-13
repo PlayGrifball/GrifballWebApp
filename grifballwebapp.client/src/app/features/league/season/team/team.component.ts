@@ -20,9 +20,8 @@ import { describePage, PageDescription } from '../../shared/pageMeta';
 
 /** The team as search results and link previews show it: its name and season, record, titles and roster. */
 export function describeTeam(team: TeamDto): PageDescription {
-  let record = `${team.wins}–${team.losses}`;
-  if (team.titles.length)
-    record = `${record}, ${team.titles.join(', ')}`;
+  // The tiers it won, named as titles ("Gold champions", not a bare "Gold")
+  const record = [`${team.wins}–${team.losses}`, ...team.titles.map(tier => `${tier} champions`)].join(', ');
   const season = `${team.season.leagueName} ${team.season.seasonName}`;
   const parts = [`${team.teamName} in ${season}: ${record}.`];
   if (team.players.length)
@@ -78,19 +77,27 @@ export class TeamComponent {
       const team = this.team();
       return team ? describeTeam(team) : null;
     });
-    effect(() => {
+    // Another team: nothing of the previous one stays (its name would title this page), and its requests are cancelled
+    // so a late answer can't land on this one
+    effect(onCleanup => {
       this.teamID();
       this.seasonID();
-      this.getTeam().subscribe({
+      this.team.set(null);
+      this.matchesLoaded.set(false);
+      const team = this.getTeam().subscribe({
         next: (v) => this.team.set(v),
       });
-  
-      this.getMatches().subscribe({
+
+      const matches = this.getMatches().subscribe({
         next: (v) => {
           this.matches.data = v;
           this.matchCount.set(v.length);
           this.matchesLoaded.set(true);
         },
+      });
+      onCleanup(() => {
+        team.unsubscribe();
+        matches.unsubscribe();
       });
     })
   }

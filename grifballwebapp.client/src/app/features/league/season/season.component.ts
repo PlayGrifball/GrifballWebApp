@@ -13,11 +13,11 @@ import { BackfilledBannerComponent, DataNoticeComponent } from '@shared/dataNoti
 import { missing, SeasonSummaryService } from './seasonSummary';
 import type { SeasonSummaryDto } from '@api/models';
 import { seasonFormatLabel } from '@shared/seasonFormats';
+import { fromRequiredApiDate } from '@shared/apiDates';
 import { SeasonChampionsComponent } from './seasonChampions/seasonChampions.component';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { whileCurrent } from '@shared/whileCurrent';
-import { DateTime } from 'luxon';
 import { describePage, pageDate, PageDescription, plural } from '@shared/pageMeta';
 
 /** The sections shown on the season page itself (the other tabs are their own pages). */
@@ -26,13 +26,12 @@ export type SeasonView = 'overview' | 'schedule' | 'bracket';
 /** The season as search results and link previews show it: its name, league, dates, size and champions. */
 export function describeSeason(season: SeasonSummaryDto): PageDescription {
   const title = season.division ? `${season.seasonName} – ${season.division}` : season.seasonName;
-  const start = pageDate(DateTime.fromISO(season.start));
-  const end = pageDate(DateTime.fromISO(season.end));
-  const champions = season.champions.map(c => c.teamName).join(' and ');
+  const start = pageDate(fromRequiredApiDate(season.start));
+  const end = pageDate(fromRequiredApiDate(season.end));
   const facts = [
     season.signupCount ? plural(season.signupCount, 'player') : null,
     season.matchCount ? plural(season.matchCount, 'match', 'matches') : null,
-    season.hasEnded && champions ? `won by ${champions}` : null,
+    season.hasEnded ? describeChampions(season.champions) : null,
   ].filter(f => f);
   let summary = `${season.leagueName} Grifball season`;
   if (start && end)
@@ -42,7 +41,18 @@ export function describeSeason(season: SeasonSummaryDto): PageDescription {
   return {
     title,
     description: `${summary}. Standings, schedule, brackets and stats.`,
+    // /season/0 is the current season: its canonical address is the season's own
+    path: `/season/${season.seasonID}`,
   };
+}
+
+/** The season's champions: the one team, or each tier's with its tier (not "A and B", which reads as a shared title). */
+function describeChampions(champions: SeasonSummaryDto['champions']): string | null {
+  if (champions.length === 0)
+    return null;
+  if (champions.length === 1)
+    return `won by ${champions[0].teamName}`;
+  return champions.map(c => `${c.tier} champions ${c.teamName}`).join(', ');
 }
 
 @Component({

@@ -6,16 +6,25 @@ import { DateTime } from 'luxon';
 
 export const SITE_NAME = 'Play Grifball';
 export const DEFAULT_DESCRIPTION = 'Halo Infinite Grifball seasons, teams, schedules, brackets and match stats.';
+/**
+ * The public site: every page's canonical address and og:url, whichever host served it (www, test, a preview), so
+ * search engines list the public page and link previews point to it.
+ */
+export const PUBLIC_ORIGIN = 'https://grifball.xyz';
+/** The league's time zone (ScheduleService.LeagueTimeZoneId on the server): the day a match or season is on. */
+export const LEAGUE_TIME_ZONE = 'America/New_York';
 
 /** What a page says about itself in search results and link previews. */
 export interface PageDescription {
   title: string;
   description?: string;
+  /** The page's canonical path when it isn't the one it was reached by (/season/0 is the current season's). */
+  path?: string;
 }
 
-/** The tab's title: the page's, then the site's (the site's alone on the home page). */
+/** The tab's title: the page's, then the site's; the site's alone for a page without one (the home page). */
 export function fullTitle(title: string | undefined): string {
-  return title && title !== 'Home' ? `${title} · ${SITE_NAME}` : SITE_NAME;
+  return title ? `${title} · ${SITE_NAME}` : SITE_NAME;
 }
 
 /** A count in a description: "1 season", "3 seasons". */
@@ -24,11 +33,12 @@ export function plural(count: number, one: string, many = one + 's'): string {
 }
 
 /**
- * A date in a description: the same on the server and in every visitor's browser (UTC, English), so the page's tags
- * don't change when the browser takes it over.
+ * A date in a description: the league's day (US Eastern, so an evening match isn't on the next day as in UTC), in
+ * English. The same on the server and in every visitor's browser, so the page's tags don't change when the browser
+ * takes it over.
  */
 export function pageDate(date: DateTime | null): string | undefined {
-  return date?.isValid ? date.toUTC().setLocale('en-US').toFormat('LLL d, yyyy') : undefined;
+  return date?.isValid ? date.setZone(LEAGUE_TIME_ZONE).setLocale('en-US').toFormat('LLL d, yyyy') : undefined;
 }
 
 /** The page's own address, as search engines should list it: no query or fragment. */
@@ -49,21 +59,24 @@ export class PageMeta {
   private readonly meta = inject(Meta);
   private readonly document = inject(DOCUMENT);
 
-  private route: PageDescription = { title: SITE_NAME };
+  private routeTitle: string | undefined;
   private url = '/';
   private page: { owner: object, description: PageDescription } | null = null;
 
-  /** The route's title and address, on each navigation. */
+  /** The route's title (none: the site's alone) and address, on each navigation. */
   setRoute(title: string | undefined, routerUrl: string): void {
-    this.route = { title: title ?? SITE_NAME };
+    this.routeTitle = title;
     this.url = routerUrl;
     this.apply();
   }
 
-  /** A page's own description (null while it has none), until it clears it. */
+  /** A page's own description (null while it has none), until it clears it. The same description again changes nothing. */
   setPage(owner: object, description: PageDescription | null): void {
-    if (description)
+    if (description) {
+      if (this.page?.owner === owner && sameDescription(this.page.description, description))
+        return;
       this.page = { owner, description };
+    }
     else if (this.page?.owner === owner)
       this.page = null;
     else
@@ -72,10 +85,10 @@ export class PageMeta {
   }
 
   private apply(): void {
-    const page = this.page?.description ?? this.route;
-    const title = fullTitle(page.title);
-    const description = page.description ?? DEFAULT_DESCRIPTION;
-    const url = canonicalUrl(this.document.location.origin, this.url);
+    const page = this.page?.description;
+    const title = fullTitle(page ? page.title : this.routeTitle);
+    const description = page?.description ?? DEFAULT_DESCRIPTION;
+    const url = canonicalUrl(PUBLIC_ORIGIN, page?.path ?? this.url);
     this.title.setTitle(title);
     this.meta.updateTag({ name: 'description', content: description });
     this.meta.updateTag({ property: 'og:title', content: title });
@@ -95,6 +108,10 @@ export class PageMeta {
     }
     return link;
   }
+}
+
+function sameDescription(a: PageDescription, b: PageDescription): boolean {
+  return a.title === b.title && a.description === b.description && a.path === b.path;
 }
 
 /** The route's title and address for PageMeta on every navigation, in place of Angular's (title only). */

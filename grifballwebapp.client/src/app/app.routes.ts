@@ -6,7 +6,7 @@ export const APP_ROUTES: Routes = [
   {
     path: '',
     loadComponent: () => import('./features/home/home.component').then(c => c.HomeComponent),
-    title: 'Home',
+    // No title: the home page is titled after the site alone (shared/pageMeta.ts)
   },
   {
     path: 'theme',

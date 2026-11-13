@@ -63,8 +63,11 @@ export const PULL_POLL_MS = 3000;
 export function describeSeasonMatch(match: SeasonMatchPageDto): PageDescription {
   const home = match.homeTeamName ?? 'TBD';
   const away = match.awayTeamName ?? 'TBD';
-  const scored = match.homeTeamScore != null && match.awayTeamScore != null;
-  const title = scored && match.decidedBy ? `${home} ${match.homeTeamScore}–${match.awayTeamScore} ${away}` : `${home} vs ${away}`;
+  let title = `${home} vs ${away}`;
+  if (match.decidedBy === 'Games' && match.homeTeamScore != null && match.awayTeamScore != null)
+    title = `${home} ${match.homeTeamScore}–${match.awayTeamScore} ${away}`;
+  else if (match.decidedBy === 'Bye')
+    title = `${byeTeam(match, home, away)} (bye)`;
   let season = match.seasonName;
   if (match.isPlayoff)
     season = `${season} playoffs`;
@@ -74,20 +77,42 @@ export function describeSeasonMatch(match: SeasonMatchPageDto): PageDescription 
   };
 }
 
-/** Who beat whom (with the series score when there is one), or when the match is scheduled. */
+/** The team a BYE advanced: the one that won it, or the only one there is. */
+function byeTeam(match: SeasonMatchPageDto, home: string, away: string): string {
+  if (match.homeTeamResult === 'Won')
+    return home;
+  if (match.awayTeamResult === 'Won')
+    return away;
+  return match.homeTeamName ? home : away;
+}
+
+/**
+ * What decided the match, as the server says (decidedBy), never worked out from the two results: who won its games
+ * (with the series score), who forfeited to whom, both forfeiting, a BYE; or, undecided, when it is scheduled.
+ */
 function seasonMatchResult(match: SeasonMatchPageDto, home: string, away: string): string {
   const homeWon = match.homeTeamResult === 'Won';
-  if (!homeWon && match.awayTeamResult !== 'Won') {
-    const date = pageDate(match.scheduledTime);
-    return date ? `${home} vs ${away}, scheduled for ${date}` : `${home} vs ${away}`;
-  }
   const winner = homeWon ? home : away;
   const loser = homeWon ? away : home;
-  if (match.homeTeamScore == null || match.awayTeamScore == null)
-    return `${winner} beat ${loser}`;
-  const winnerScore = homeWon ? match.homeTeamScore : match.awayTeamScore;
-  const loserScore = homeWon ? match.awayTeamScore : match.homeTeamScore;
-  return `${winner} beat ${loser} ${winnerScore}–${loserScore}`;
+  switch (match.decidedBy) {
+    case 'Games': {
+      if (match.homeTeamScore == null || match.awayTeamScore == null)
+        return `${winner} beat ${loser}`;
+      const winnerScore = homeWon ? match.homeTeamScore : match.awayTeamScore;
+      const loserScore = homeWon ? match.awayTeamScore : match.homeTeamScore;
+      return `${winner} beat ${loser} ${winnerScore}–${loserScore}`;
+    }
+    case 'Forfeit':
+      if (!homeWon && match.awayTeamResult !== 'Won')
+        return `both ${home} and ${away} forfeited`;
+      return `${loser} forfeited to ${winner}`;
+    case 'Bye':
+      return `${byeTeam(match, home, away)} advanced with a bye`;
+    default: {
+      const date = pageDate(match.scheduledTime);
+      return date ? `${home} vs ${away}, scheduled for ${date}` : `${home} vs ${away}`;
+    }
+  }
 }
 
 @Component({
@@ -267,11 +292,15 @@ export class SeasonMatchComponent {
       const match = this.seasonMatch();
       return match ? describeSeasonMatch(match) : null;
     });
-    effect(() => {
+    // Another match: nothing of the previous one stays (its teams would title this page), and its request is cancelled
+    // so a late answer can't land on this one
+    effect(onCleanup => {
       this.seasonMatchID();
-      this.getPageDto();
+      this.seasonMatch.set(null);
+      const page = this.getPageDto();
       this.getPossibleMatches();
       this.getPullStatus();
+      onCleanup(() => page.unsubscribe());
     })
     effect(() => this.loadRoster(this.homeTeamID(), this.homeLoaded));
     effect(() => this.loadRoster(this.awayTeamID(), this.awayLoaded));

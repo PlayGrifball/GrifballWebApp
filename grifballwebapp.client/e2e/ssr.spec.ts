@@ -60,7 +60,8 @@ for (const { path, title } of PAGES) {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
     await page.goto(SITE + path);
-    const address = SITE + new URL(SITE + path).pathname;
+    // The public site's address, whichever host served it
+    const address = 'https://grifball.xyz' + new URL(SITE + path).pathname;
 
     await expect(page).toHaveTitle(title);
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', address);

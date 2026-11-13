@@ -28,7 +28,8 @@ export function describeProfile(profile: ProfileStatsDto): PageDescription | nul
   if (!name)
     return null;
   const facts = [
-    profile.seasons.length ? plural(profile.seasons.length, 'season') : null,
+    // Seasons played (the career's count), not stat lines: a season has one per regular season, playoffs, stint and team
+    profile.overallCareer?.seasonsCount ? plural(profile.overallCareer.seasonsCount, 'season') : null,
     profile.championships.length ? plural(profile.championships.length, 'championship') : null,
   ].filter(f => f);
   let career = `${name}'s Grifball career`;
