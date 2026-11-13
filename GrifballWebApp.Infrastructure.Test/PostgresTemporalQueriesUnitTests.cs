@@ -325,6 +325,54 @@ public class PostgresTemporalQueriesUnitTests
         }
     }
 
+    // Set operations. Sides that are projections are two queries in one: each side reads its own time, as SQL Server
+    // does, and nothing needs refusing. Sides that are the entities themselves are one root as far as EF goes
+    // (AreQueryRootsCompatible): as of the same time they share its parameter; at different times, or one side not
+    // temporal, they are refused, as on SQL Server.
+    [Test]
+    public void ASetOperation_OfProjections_ReadsEachSideAtItsOwnTime()
+    {
+        using var context = Postgres();
+
+        var sql = context.Seasons.TemporalAsOf(A).Select(s => s.SeasonID).Concat(context.Seasons.TemporalAsOf(B).Select(s => s.SeasonID)).ToQueryString();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sql, Does.Contain("UNION ALL"));
+            Assert.That(sql, Does.Contain("2026-10-01").And.Contain("2026-10-02"), "each side its own time");
+        }
+    }
+
+    [Test]
+    public void ASetOperation_OfEntitiesAsOfTheSameTime_SharesItsParameter()
+    {
+        using var context = Postgres();
+
+        var sql = context.Seasons.TemporalAsOf(A).Concat(context.Seasons.TemporalAsOf(A)).ToQueryString();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sql, Does.Contain("UNION ALL"));
+            Assert.That(sql.Split('\n').Count(l => l.StartsWith("-- ")), Is.EqualTo(1), "one parameter for both sides' time");
+        }
+    }
+
+    [Test]
+    public void ASetOperation_OfEntitiesAsOfDifferentTimes_IsRefused()
+    {
+        using var context = Postgres();
+
+        Assert.That(() => context.Seasons.TemporalAsOf(A).Concat(context.Seasons.TemporalAsOf(B)).ToQueryString(), Throws.InvalidOperationException);
+    }
+
+    [Test]
+    public void ASetOperation_OfEntitiesOneSideTemporal_IsRefused()
+    {
+        using var context = Postgres();
+
+        Assert.That(() => context.Seasons.TemporalAsOf(A).Concat(context.Seasons).ToQueryString(), Throws.InvalidOperationException);
+    }
+
     [Test]
     public void ASetOperation_OfTwoPlainSides_IsAsEver()
     {
