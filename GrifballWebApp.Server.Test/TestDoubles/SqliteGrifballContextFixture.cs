@@ -1,8 +1,9 @@
+using GrifballWebApp.Application;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -23,16 +24,30 @@ public abstract class SqliteGrifballContextFixture
     public async Task SetUpDb()
     {
         _path = Path.Combine(Path.GetTempPath(), $"grif-server-test-{Guid.NewGuid():N}.db");
+        // Pooling=False: with ~350 tests in parallel, a pooled connection's close would otherwise go back to a shared
+        // pool another test's teardown might clear (SqliteConnection.ClearAllPools empties every pool in the process),
+        // forcing it to reopen. Each test's own file is never reused, so nothing is gained by pooling it anyway.
         Db = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path}").Options);
-        await Db.Database.EnsureCreatedAsync();
+            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
+        try
+        {
+            await Db.Database.EnsureCreatedAsync();
+        }
+        catch
+        {
+            // NUnit skips [TearDown] when [SetUp] throws: clean up here so a failure doesn't leave the context open
+            // and the temp file behind.
+            await Db.DisposeAsync();
+            if (File.Exists(_path))
+                File.Delete(_path);
+            throw;
+        }
     }
 
     [TearDown]
     public async Task TearDownDb()
     {
         await Db.DisposeAsync();
-        SqliteConnection.ClearAllPools();
         if (File.Exists(_path))
             File.Delete(_path);
     }
@@ -92,4 +107,8 @@ public abstract class SqliteGrifballContextFixture
         await Db.SaveChangesAsync();
         return match;
     }
+
+    /// <summary>A UrlService whose links resolve against a fixed base URL, for assertions that check a link's shape.</summary>
+    protected static UrlService Urls() =>
+        new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
 }
