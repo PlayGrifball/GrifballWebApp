@@ -233,7 +233,13 @@
               "properties": {
                 "lokiUrl": { "type": "string" },
                 "prometheusUrl": { "type": "string" },
-                "tempoUrl": { "type": "string" },
+                "tempoUrl": { "type": "string" }
+              }
+            },
+            "trace": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
                 "edgeServices": { "type": "string" },
                 "downstreamServices": { "type": "string" }
               }

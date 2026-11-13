@@ -42,12 +42,15 @@ public sealed class TelemetryQueryService
 
     private readonly HttpClient _http;
     private readonly TelemetryQueryOptions _options;
+    /// <summary>The services a trace shows besides this one (TelemetryQueryOptions.RelatedServiceNames), read once.</summary>
+    private readonly IReadOnlySet<string> _related;
     private readonly TimeProvider _time;
 
     public TelemetryQueryService(HttpClient http, IOptions<TelemetryQueryOptions> options, TimeProvider time)
     {
         _http = http;
         _options = options.Value;
+        _related = _options.RelatedServiceNames;
         _time = time;
     }
 
@@ -211,7 +214,7 @@ public sealed class TelemetryQueryService
         if (!doc.RootElement.TryGetProperty("trace", out var trace) || !trace.TryGetProperty("resourceSpans", out var resourceSpans))
             return null;
 
-        var related = _options.RelatedServiceNames;
+        var related = _related;
         var spans = resourceSpans.EnumerateArray().SelectMany(r => ShownSpans(r, related)).ToList();
         if (!spans.Exists(s => s.Service == _options.ServiceName))
             return null;
