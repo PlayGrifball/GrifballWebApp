@@ -17,19 +17,33 @@ public class ExcelService
     private readonly SheetsService _sheetsService;
     private readonly IConfiguration _configuration;
     public ExcelService(GrifballContext context, IDataPullService dataPullService, IConfiguration configuration)
+        : this(context, dataPullService, configuration, CreateSheetsService(configuration))
     {
-        _context = context;
-        _dataPullService = dataPullService;
-        _configuration = configuration;
+    }
 
+    private static SheetsService CreateSheetsService(IConfiguration configuration)
+    {
         // A service account's key file: read as that type only, not whatever credential the file says it is
         var credential = CredentialFactory.FromFile<ServiceAccountCredential>(configuration.GetValue<string>("GoogleSheets:Key") ?? throw new Exception("Missing GoogleSheets:Key"))
             .ToGoogleCredential()
             .CreateScoped(SheetsService.Scope.Spreadsheets);
-        _sheetsService = new SheetsService(new Google.Apis.Services.BaseClientService.Initializer()
+        return new SheetsService(new Google.Apis.Services.BaseClientService.Initializer()
         {
             HttpClientInitializer = credential
         });
+    }
+
+    /// <summary>
+    /// Test seam: a ready-made <paramref name="sheetsService"/> (one on a fake HTTP handler), so tests need neither a
+    /// service-account key file nor the network. Internal, so dependency injection keeps using the public constructor, which
+    /// comes through here too.
+    /// </summary>
+    internal ExcelService(GrifballContext context, IDataPullService dataPullService, IConfiguration configuration, SheetsService sheetsService)
+    {
+        _context = context;
+        _dataPullService = dataPullService;
+        _configuration = configuration;
+        _sheetsService = sheetsService;
     }
 
     private static string GetExcelRange(IList<IList<object>> data, int startRow)
@@ -72,13 +86,15 @@ public class ExcelService
         string pattern = @"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
         foreach (var str in rows)
         {
-            MatchCollection matches = Regex.Matches(str, pattern, RegexOptions.None, TimeSpan.FromSeconds(1));
+            MatchCollection matches = Regex.Matches(str, pattern, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
             foreach (System.Text.RegularExpressions.Match match in matches)
             {
                 guids.Add(Guid.Parse(match.Value));
             }
         }
 
+        // Once each, in the order first seen: a game can be in the sheet twice (a Waypoint URL and its ID pasted in upper case)
+        guids = guids.Distinct().ToList();
         foreach (var guid in guids)
         {
             await _dataPullService.GetAndSaveMatch(guid);

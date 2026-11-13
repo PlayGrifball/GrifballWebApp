@@ -54,8 +54,12 @@ or the network push a test into the integration project.
 
 - **`GrifballWebApp.Domain.Test`**: the domain's own rules, on GrifballWebApp.Domain's types alone.
 - **`GrifballWebApp.Application.Test`**: the use cases (GrifballWebApp.Application) with test doubles.
-- **`GrifballWebApp.Infrastructure.Test`**: GrifballWebApp.Infrastructure's types without a database (parsers, the
-  Halo Infinite client's pacing, jobs' wiring, the model as reflection sees it).
+- **`GrifballWebApp.Infrastructure.Test`**: GrifballWebApp.Infrastructure's types without a database server: parsers, the
+  Halo Infinite client's pacing, jobs' wiring and the model as reflection sees it, and the services, outbox handlers and
+  queries that need a `GrifballContext`, run on a temp-file SQLite database of the test's own. A new fixture of that kind
+  derives from `TestDoubles/SqliteContextFixture` (a fresh file per test, cleaned up even when SetUp fails; overridable
+  `CreateContext` for a context built through dependency injection). Its test doubles (the Google Sheets fakes, the fake
+  pg_dump, `HaloInfiniteHealthCheckTestData`) serve Server.Test and the integration tests too.
 - **`GrifballWebApp.Server.Test`**: GrifballWebApp.Server's types (controllers, hubs, telemetry, Discord replies)
   with test doubles.
 - **`GrifballWebApp.Seeder.Test`** and **`GrifballWebApp.Convert.Test`**: the types of the two host apps beside the
