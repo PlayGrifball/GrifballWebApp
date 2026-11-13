@@ -1,9 +1,9 @@
 import { isPlatformBrowser } from '@angular/common';
 import { DestroyRef, Injectable, PLATFORM_ID, inject } from '@angular/core';
 
-import { BROWSER_TELEMETRY_MARK, CLIENT_TELEMETRY_PATH } from '../server/serverTelemetry';
+import { BROWSER_TELEMETRY_MARK, CLIENT_TELEMETRY_PATH } from './telemetryShared';
 
-export { REQUEST_KIND_ATTRIBUTE } from '../server/serverTelemetry';
+export { REQUEST_KIND_ATTRIBUTE } from './telemetryShared';
 
 // The browser's telemetry: its spans (a navigation, a call to the API), its log lines and its Web Vitals, sent in
 // batches to the API (POST /api/client-telemetry, GrifballWebApp.Server/Telemetry/Browser), which passes them on to

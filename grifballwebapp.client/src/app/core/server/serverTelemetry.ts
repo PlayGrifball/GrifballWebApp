@@ -3,6 +3,10 @@
 // like the rest of the app.
 import type { MetricOptions } from '@opentelemetry/api';
 import { BACKEND_PREFIXES, backendPath, SIGNALR_PAGE, type BackendPrefix } from '../http/backendPaths';
+import { BROWSER_TELEMETRY_MARK } from '../telemetry/telemetryShared';
+
+// Shared with the browser's telemetry (core/telemetry/telemetryShared.ts)
+export { BROWSER_TELEMETRY_MARK, CLIENT_TELEMETRY_PATH, REQUEST_KIND_ATTRIBUTE } from '../telemetry/telemetryShared';
 
 /** Log levels, lowest first, as Loki's detected_level names them. */
 export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
@@ -147,12 +151,6 @@ export const FILE_EXTENSIONS: ReadonlySet<string> = new Set([
   'txt', 'xml', 'json', 'webmanifest',
 ]);
 
-/**
- * The span attribute that says what a request of the app's server is (a RequestKind): the backend's Telemetry page
- * reads it (TelemetryQueries.TraceRow) to tell a page's trace from an API call's, rather than read span names.
- */
-export const REQUEST_KIND_ATTRIBUTE = 'grif.request.kind';
-
 /** Kubernetes' probes: every few seconds on every pod, never traced or logged. */
 export function isProbe(userAgent: string | undefined): boolean {
   return userAgent?.startsWith('kube-probe/') ?? false;
@@ -203,15 +201,6 @@ export function formatTraceparent(traceId: string, spanId: string, sampled: bool
 export function serverTimingHeader(traceparent: string, browserTelemetry = false): string {
   return `traceparent;desc="${traceparent}"` + (browserTelemetry ? `, ${BROWSER_TELEMETRY_MARK}` : '');
 }
-
-/**
- * The Server-Timing entry that tells the page browser telemetry is on (the API takes it): without it the browser
- * records nothing, and sends no traceparent whose span would never arrive (core/telemetry/browserTelemetry.ts).
- */
-export const BROWSER_TELEMETRY_MARK = 'browser-telemetry';
-
-/** The browser's telemetry batches: every few seconds a tab, never traced (the backend leaves them out too). */
-export const CLIENT_TELEMETRY_PATH = '/api/client-telemetry';
 
 /** The trace ids a log line carries, as the backend's do (trace_id, span_id). */
 export interface LogTrace {
