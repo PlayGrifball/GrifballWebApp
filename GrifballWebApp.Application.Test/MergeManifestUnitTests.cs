@@ -149,7 +149,7 @@ internal sealed class MergeManifestUnitTests : ApplicationDbContextTests
         // Something else re-tied the target to a different Xbox account before the undo runs
         var target = await Context.Users.FindAsync(to.Id);
         target!.UntieXbox();
-        target.TieToXbox(other.XboxUserID!.Value);
+        target.TieToXbox(other.XboxUserID);
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 
