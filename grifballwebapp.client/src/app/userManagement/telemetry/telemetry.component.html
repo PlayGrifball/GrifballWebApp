@@ -193,7 +193,7 @@
                     <li>
                       <button type="button" class="tm-span" [class.tm-span--error]="row.span.status === 'Error'" [attr.aria-expanded]="openSpan()?.spanId === row.span.spanId"
                               (click)="toggleSpan(row.span)">
-                        <span class="tm-span-name" [style.padding-left.px]="row.depth * 14" [title]="row.span.service + ': ' + row.span.name + ' ' + row.span.kind">@if (row.span.service !== appService()) {<span class="tm-span-service">{{row.span.service}}</span> }{{row.span.name}} <span class="hud-muted">{{row.span.kind}}</span></span>
+                        <span class="tm-span-name" [style.padding-left.px]="row.depth * 14" [title]="row.span.service + ': ' + row.span.name + ' ' + row.span.kind">@if (row.span.service !== appService()) {<span class="tm-span-service">{{row.span.service}}</span>{{' '}}}{{row.span.name}} <span class="hud-muted">{{row.span.kind}}</span></span>
                         <span class="tm-span-track">
                           <span class="tm-span-bar" [style.left.%]="row.left" [style.width.%]="row.width"></span>
                         </span>
