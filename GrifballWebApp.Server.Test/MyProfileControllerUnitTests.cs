@@ -2,6 +2,7 @@ using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Server.Profile;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -43,7 +44,12 @@ public class MyProfileControllerUnitTests : SqliteGrifballContextFixture
 
         var result = await controller.SetRegion(new SetRegionRequest { RegionID = 6 }, CancellationToken.None);
 
-        Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status204NoContent));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status204NoContent));
+            var regionID = await Db.Users.Where(u => u.Id == user.Id).Select(u => u.RegionID).SingleAsync();
+            Assert.That(regionID, Is.EqualTo(6));
+        }
     }
 
     [Test]

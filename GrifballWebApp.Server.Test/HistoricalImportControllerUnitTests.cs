@@ -2,26 +2,16 @@ using GrifballWebApp.Server.Historical;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
-using NSubstitute;
-using System.Text;
 using GrifballWebApp.Application.Historical;
 
 namespace GrifballWebApp.Server.Test;
 
-/// <summary>HistoricalImportControllerTests's unit tests: no database, host, file or network. Its other tests stay in
-/// GrifballWebApp.Integration.Test.</summary>
+/// <summary>HistoricalImportControllerTests's reflection and signal unit tests: no database, host, file or network.</summary>
 [TestFixture]
-[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class HistoricalImportControllerUnitTests : SqliteGrifballContextFixture
+public class HistoricalImportControllerAttributeTests
 {
     private static readonly string[] SysadminOnly = ["Sysadmin"];
-
-    // Refused before HistoricalSourceService (the archive's own HTTP fetcher) is ever asked
-    private HistoricalImportController Controller() => new(new HistoricalImportJobs(Db, new HistoricalImportSignal()), null!);
 
     [TestCase(nameof(HistoricalImportController.Import))]
     [TestCase(nameof(HistoricalImportController.Job))]
@@ -60,6 +50,17 @@ public class HistoricalImportControllerUnitTests : SqliteGrifballContextFixture
         Assert.That(await signal.WaitAsync(TimeSpan.Zero, CancellationToken.None), Is.True);
         Assert.That(await signal.WaitAsync(TimeSpan.Zero, CancellationToken.None), Is.False);
     }
+}
+
+/// <summary>HistoricalImportControllerTests's unit tests: a real GrifballContext (temp-file SQLite, #402) for
+/// HistoricalImportJobs, which needs nothing else. Its other tests stay in GrifballWebApp.Integration.Test.</summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class HistoricalImportControllerUnitTests : SqliteGrifballContextFixture
+{
+    // Refused before HistoricalSourceService (the archive's own HTTP fetcher) is ever asked
+    private HistoricalImportController Controller() => new(new HistoricalImportJobs(Db, new HistoricalImportSignal()), null!);
 
     [Test]
     public async Task Jobs_ReturnsNone_WhenThereAreNoImportJobs()
@@ -82,7 +83,13 @@ public class HistoricalImportControllerUnitTests : SqliteGrifballContextFixture
     {
         var result = await Controller().Refresh(CancellationToken.None);
 
-        Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status202Accepted));
+        var jobID = ((HistoricalImportQueued)((AcceptedAtActionResult)result).Value!).JobID;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status202Accepted));
+            var kind = await Db.HistoricalImportJobs.Where(j => j.HistoricalImportJobID == jobID).Select(j => j.Kind).SingleAsync();
+            Assert.That(kind, Is.EqualTo(GrifballWebApp.Domain.Archive.HistoricalImportJobKind.Refresh));
+        }
     }
 
     [Test]
@@ -90,7 +97,13 @@ public class HistoricalImportControllerUnitTests : SqliteGrifballContextFixture
     {
         var result = await Controller().Preview(CancellationToken.None);
 
-        Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status202Accepted));
+        var jobID = ((HistoricalImportQueued)((AcceptedAtActionResult)result).Value!).JobID;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status202Accepted));
+            var kind = await Db.HistoricalImportJobs.Where(j => j.HistoricalImportJobID == jobID).Select(j => j.Kind).SingleAsync();
+            Assert.That(kind, Is.EqualTo(GrifballWebApp.Domain.Archive.HistoricalImportJobKind.Preview));
+        }
     }
 
     [Test]

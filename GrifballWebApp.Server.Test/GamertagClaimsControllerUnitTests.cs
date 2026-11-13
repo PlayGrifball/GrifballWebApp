@@ -1,9 +1,11 @@
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Infrastructure.Historical;
 using GrifballWebApp.Server.Historical;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 
@@ -62,12 +64,18 @@ public class GamertagClaimsControllerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task AddGamertagHistory_AddsIt_ForAKnownXboxAccount()
     {
-        var user = await AddUser(123, "Someone");
+        await AddUser(123, "Someone");
         var request = new AddGamertagHistoryRequest { XboxUserID = 123, Gamertag = "Someone Else" };
 
         var result = await Controller().AddGamertagHistory(request, CancellationToken.None);
 
-        Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status204NoContent));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status204NoContent));
+            var saved = await Db.XboxUsers.PastGamertags().Where(h => h.XboxUserID == 123).ToListAsync();
+            Assert.That(saved, Has.Count.EqualTo(1));
+            Assert.That(saved[0].Gamertag, Is.EqualTo("Someone Else"));
+        }
     }
 
     [Test]

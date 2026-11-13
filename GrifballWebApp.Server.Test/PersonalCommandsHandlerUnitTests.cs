@@ -4,7 +4,7 @@ using GrifballWebApp.Application.Matchmaking;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Server.Commands;
-using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 namespace GrifballWebApp.Server.Test;
@@ -20,16 +20,15 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class PersonalCommandsHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private static UrlService Urls() => new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-
     private IQueueRepository _queue = null!;
 
-    private PersonalCommandsHandler Handler(SeasonService? seasons = null, AvailabilityService? availability = null, RegionService? regions = null)
+    private PersonalCommandsHandler Handler()
     {
         _queue = Substitute.For<IQueueRepository>();
-        return new PersonalCommandsHandler(new DiscordCaller(Db), new CommandLookups(Db, seasons ?? new SeasonService(Db, null!)),
-            null!, _queue, null!, regions ?? new RegionService(Db), null!, null!, seasons ?? new SeasonService(Db, null!),
-            availability ?? new AvailabilityService(Db), null!, Urls());
+        var seasons = new SeasonService(Db, null!);
+        return new PersonalCommandsHandler(new DiscordCaller(Db), new CommandLookups(Db, seasons),
+            null!, _queue, null!, new RegionService(Db), null!, null!, seasons,
+            new AvailabilityService(Db), null!, Urls());
     }
 
     private async Task AssertRefusesUnknownCaller(Func<PersonalCommandsHandler, CommandContextRecorder, Task> call)
@@ -102,23 +101,29 @@ public class PersonalCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task SetRegion_SetsTheCallersRegion_ByName()
     {
-        await AddUser(discordUserId: 42, gamertag: "Grifter1");
+        var user = await AddUser(discordUserId: 42, gamertag: "Grifter1");
         var discord = new CommandContextRecorder(discordUserId: 42);
 
         await Handler().SetRegion(discord.Context, "Australia");
 
         Assert.That(discord.Content(), Is.EqualTo("Your region is set."));
+        var regionID = await Db.Users.Where(u => u.Id == user.Id).Select(u => u.RegionID).SingleAsync();
+        Assert.That(regionID, Is.EqualTo(6)); // Region.Seed("Australia", regionID: 6)
     }
 
     [Test]
     public async Task SetRegion_ClearsTheCallersRegion_ForNone()
     {
-        await AddUser(discordUserId: 42, gamertag: "Grifter1");
+        var user = await AddUser(discordUserId: 42, gamertag: "Grifter1");
+        // Starts from a region actually set, so "cleared" is a real change, not a no-op that happens to match.
+        await new RegionService(Db).Set(user.Id, regionId: 6);
         var discord = new CommandContextRecorder(discordUserId: 42);
 
         await Handler().SetRegion(discord.Context, "none");
 
         Assert.That(discord.Content(), Is.EqualTo("Your region is cleared."));
+        var regionID = await Db.Users.Where(u => u.Id == user.Id).Select(u => u.RegionID).SingleAsync();
+        Assert.That(regionID, Is.Null);
     }
 
     [Test]
