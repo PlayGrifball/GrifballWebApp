@@ -16,7 +16,7 @@ using GrifballWebApp.Application.HaloInfinite;
 namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>Records Google Sheets API requests and returns canned JSON.</summary>
-internal sealed class FakeSheetsHandler : HttpMessageHandler
+internal sealed class InfrastructureSheetsHandler : HttpMessageHandler
 {
     public List<(HttpMethod Method, string Url, string Body)> Requests { get; } = new();
     public Func<HttpRequestMessage, string> Respond { get; set; } = _ => "{}";
@@ -32,10 +32,10 @@ internal sealed class FakeSheetsHandler : HttpMessageHandler
     }
 }
 
-internal sealed class FakeSheetsHttpClientFactory : Google.Apis.Http.HttpClientFactory
+internal sealed class InfrastructureSheetsHttpClientFactory : Google.Apis.Http.HttpClientFactory
 {
     private readonly HttpMessageHandler _handler;
-    public FakeSheetsHttpClientFactory(HttpMessageHandler handler) => _handler = handler;
+    public InfrastructureSheetsHttpClientFactory(HttpMessageHandler handler) => _handler = handler;
     protected override HttpMessageHandler CreateHandler(Google.Apis.Http.CreateHttpClientArgs args) => _handler;
 }
 
@@ -49,7 +49,7 @@ internal sealed class FakeSheetsHttpClientFactory : Google.Apis.Http.HttpClientF
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class ExcelServiceUnitTests
+public class ExcelServiceExportUnitTests
 {
     private const string CopySpreadsheet = "copy-spreadsheet";
     private const string TargetSpreadsheet = "target-spreadsheet";
@@ -58,7 +58,7 @@ public class ExcelServiceUnitTests
     private string _path = null!;
     private GrifballContext _context = null!;
     private IDataPullService _dataPull = null!;
-    private FakeSheetsHandler _handler = null!;
+    private InfrastructureSheetsHandler _handler = null!;
     private string _keyFile = null!;
     private string _lColumnJson = """{"values":[]}""";
     private string _copySheetJson = """{"values":[]}""";
@@ -77,7 +77,7 @@ public class ExcelServiceUnitTests
             .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
         await _context.Database.EnsureCreatedAsync();
         _dataPull = Substitute.For<IDataPullService>();
-        _handler = new FakeSheetsHandler
+        _handler = new InfrastructureSheetsHandler
         {
             Respond = req =>
             {
@@ -137,7 +137,7 @@ public class ExcelServiceUnitTests
         var service = new ExcelService(_context, _dataPull, config ?? Config());
         var sheets = new SheetsService(new Google.Apis.Services.BaseClientService.Initializer
         {
-            HttpClientFactory = new FakeSheetsHttpClientFactory(_handler),
+            HttpClientFactory = new InfrastructureSheetsHttpClientFactory(_handler),
             ApplicationName = "tests",
             GZipEnabled = false,
         });

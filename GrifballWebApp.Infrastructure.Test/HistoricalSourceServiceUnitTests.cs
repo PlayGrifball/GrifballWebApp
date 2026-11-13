@@ -11,7 +11,7 @@ using Microsoft.Extensions.Time.Testing;
 namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>Answers each request from the test (never the network) and records what was asked.</summary>
-internal sealed class FakeSourcesHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
+internal sealed class HistoricalSourcesFakeHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
 {
     public List<string> Requests { get; } = [];
 
@@ -50,7 +50,7 @@ public class HistoricalSourceServiceUnitTests
     private string _path = null!;
     private FakeTimeProvider _time = null!;
     private Func<HttpRequestMessage, HttpResponseMessage> _respond = null!;
-    private FakeSourcesHandler _handler = null!;
+    private HistoricalSourcesFakeHandler _handler = null!;
     private HistoricalSourceService _service = null!;
 
     [SetUp]
@@ -61,8 +61,8 @@ public class HistoricalSourceServiceUnitTests
             .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
         await _context.Database.EnsureCreatedAsync();
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
-        _respond = _ => FakeSourcesHandler.Status(HttpStatusCode.NotFound);
-        _handler = new FakeSourcesHandler(request => _respond(request));
+        _respond = _ => HistoricalSourcesFakeHandler.Status(HttpStatusCode.NotFound);
+        _handler = new HistoricalSourcesFakeHandler(request => _respond(request));
         _service = new HistoricalSourceService(_context, new HistoricalSourceFetcher(new HttpClient(_handler)), _time, NullLogger<HistoricalSourceService>.Instance);
     }
 
@@ -123,8 +123,8 @@ public class HistoricalSourceServiceUnitTests
         await OnlyEnabled("2019-wl19-schedule-stats", "late-league-website");
         var page = "<html>Late League</html>";
         _respond = request => request.RequestUri!.Host == "docs.google.com"
-            ? FakeSourcesHandler.Ok(Xlsx, HistoricalSourceFetcher.XlsxContentType)
-            : FakeSourcesHandler.Ok(Encoding.UTF8.GetBytes(page), "text/html");
+            ? HistoricalSourcesFakeHandler.Ok(Xlsx, HistoricalSourceFetcher.XlsxContentType)
+            : HistoricalSourcesFakeHandler.Ok(Encoding.UTF8.GetBytes(page), "text/html");
 
         var first = await _service.Refresh();
         _time.Advance(TimeSpan.FromDays(1));
@@ -159,13 +159,13 @@ public class HistoricalSourceServiceUnitTests
     public async Task AFailedDownload_KeepsTheLastSnapshot_ForTheImport()
     {
         await OnlyEnabled("2019-wl19-schedule-stats");
-        _respond = _ => FakeSourcesHandler.Ok(Xlsx, HistoricalSourceFetcher.XlsxContentType);
+        _respond = _ => HistoricalSourcesFakeHandler.Ok(Xlsx, HistoricalSourceFetcher.XlsxContentType);
         var first = await _service.Refresh();
 
         // Gone private: Google answers with its sign-in page
         _respond = request =>
         {
-            var response = FakeSourcesHandler.Ok(Encoding.UTF8.GetBytes("<html>sign in</html>"), "text/html");
+            var response = HistoricalSourcesFakeHandler.Ok(Encoding.UTF8.GetBytes("<html>sign in</html>"), "text/html");
             response.RequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://accounts.google.com/signin");
             return response;
         };
@@ -196,11 +196,11 @@ public class HistoricalSourceServiceUnitTests
         await OnlyEnabled("2026-sl26-major-schedule");
         var csv = "Week 1,https://www.halowaypoint.com/x\n";
         _respond = request => request.RequestUri!.AbsolutePath.EndsWith("/export")
-            ? FakeSourcesHandler.Status(HttpStatusCode.Unauthorized)
-            : FakeSourcesHandler.Ok(Encoding.UTF8.GetBytes(csv), "text/csv");
+            ? HistoricalSourcesFakeHandler.Status(HttpStatusCode.Unauthorized)
+            : HistoricalSourcesFakeHandler.Ok(Encoding.UTF8.GetBytes(csv), "text/csv");
 
         var ok = await _service.Refresh();
-        _respond = _ => FakeSourcesHandler.Status(HttpStatusCode.Unauthorized);
+        _respond = _ => HistoricalSourcesFakeHandler.Status(HttpStatusCode.Unauthorized);
         var refused = await _service.Refresh();
 
         var snapshot = await _context.Set<HistoricalSourceSnapshot>().AsNoTracking().SingleAsync();
@@ -218,7 +218,7 @@ public class HistoricalSourceServiceUnitTests
     {
         await OnlyEnabled("2018-fl18-schedule", "youtube-grifball-channel");
         await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "2018-fl18-schedule").ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, true));
-        _respond = _ => FakeSourcesHandler.Ok(Encoding.UTF8.GetBytes("<html>channel</html>"), "text/html");
+        _respond = _ => HistoricalSourcesFakeHandler.Ok(Encoding.UTF8.GetBytes("<html>channel</html>"), "text/html");
 
         var result = await _service.Refresh();
 
@@ -239,7 +239,7 @@ public class HistoricalSourceServiceUnitTests
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsDead, true).SetProperty(x => x.Enabled, false));
         await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "2019-wl19-schedule-stats")
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsDead, true).SetProperty(x => x.LastFetchedAt, (DateTime?)_time.GetUtcNow().UtcDateTime.AddDays(-30)));
-        _respond = _ => FakeSourcesHandler.Ok(Encoding.UTF8.GetBytes("<html>Late League</html>"), "text/html");
+        _respond = _ => HistoricalSourcesFakeHandler.Ok(Encoding.UTF8.GetBytes("<html>Late League</html>"), "text/html");
 
         var result = await _service.Refresh();
 
@@ -273,7 +273,7 @@ public class HistoricalSourceServiceUnitTests
     public async Task EachKind_IsDownloadedFromItsUrl()
     {
         var fetcher = new HistoricalSourceFetcher(new HttpClient(_handler));
-        _respond = request => request.RequestUri!.Host == "empty.example" ? FakeSourcesHandler.Ok([], "text/html") : FakeSourcesHandler.Ok(Encoding.UTF8.GetBytes("a,b"), "");
+        _respond = request => request.RequestUri!.Host == "empty.example" ? HistoricalSourcesFakeHandler.Ok([], "text/html") : HistoricalSourcesFakeHandler.Ok(Encoding.UTF8.GetBytes("a,b"), "");
 
         var wayback = await fetcher.Fetch(HistoricalTestData.Source(url: "https://playgrifball.com/", kind: HistoricalSourceKind.Wayback, waybackTimestamp: "20250329022355"), CancellationToken.None);
         var csv = await fetcher.Fetch(HistoricalTestData.Source(url: "x", kind: HistoricalSourceKind.GoogleSheetCsv, sheetKey: "key"), CancellationToken.None);
