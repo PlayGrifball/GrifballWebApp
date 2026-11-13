@@ -20,6 +20,13 @@ internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
         _service = new QuickSearchService(Context, _time);
     }
 
+    // The queries below match the seeded text's own case. Case-insensitive Contains (NOCASE on SQLite) needs a
+    // service only Infrastructure's DbContextOptionsBuilder replaces (ReplaceService<IMethodCallTranslatorProvider,
+    // SqliteMethodCallTranslatorProviderWithContains>, in DatabaseProviderExtensions.UseGrifballDatabase).
+    // FakeApplicationDbContext doesn't have it (plain UseSqlite(), so this layer's tests stay out of
+    // Infrastructure), so a search here is case-sensitive, as EF Core's default SQLite translation (instr()) is.
+    // Case-insensitivity itself is GrifballWebApp.Integration.Test/CaseInsensitiveTextTests' to cover.
+
     [Test]
     public async Task SearchAsync_TooShort_ReturnsEmpty()
     {
@@ -50,7 +57,7 @@ internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
         Context.Users.Add(user);
         await Context.SaveChangesAsync();
 
-        var result = await _service.SearchPlayersAsync("chief", CancellationToken.None);
+        var result = await _service.SearchPlayersAsync("Chief", CancellationToken.None);
 
         Assert.That(result, Has.Length.EqualTo(1));
         using (Assert.EnterMultipleScope())
@@ -68,7 +75,7 @@ internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
         Context.Users.Add(user);
         await Context.SaveChangesAsync();
 
-        var result = await _service.SearchPlayersAsync("arbiter", CancellationToken.None);
+        var result = await _service.SearchPlayersAsync("Arbiter", CancellationToken.None);
 
         Assert.That(result, Has.Length.EqualTo(1));
         Assert.That(result[0].Kind, Is.EqualTo(QuickSearchPlayerKind.Archive));
@@ -95,7 +102,7 @@ internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
         Context.Teams.Add(team);
         await Context.SaveChangesAsync();
 
-        var result = await _service.SearchAsync("reclaim", CancellationToken.None);
+        var result = await _service.SearchAsync("Reclaim", CancellationToken.None);
 
         Assert.That(result.Teams, Has.Length.EqualTo(1));
         using (Assert.EnterMultipleScope())
@@ -112,7 +119,7 @@ internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
         Context.Seasons.Add(season);
         await Context.SaveChangesAsync();
 
-        var result = await _service.SearchAsync("winter", CancellationToken.None);
+        var result = await _service.SearchAsync("Winter", CancellationToken.None);
 
         Assert.That(result.Seasons, Has.Length.EqualTo(1));
         Assert.That(result.Seasons[0].SeasonName, Is.EqualTo("Winter Cup"));

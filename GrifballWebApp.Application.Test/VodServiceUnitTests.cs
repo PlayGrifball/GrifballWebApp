@@ -100,8 +100,9 @@ internal sealed class VodServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task Review_ListsNeedsReviewVods()
     {
+        Context.Seasons.Add(Season.Seed(seasonName: "S1", seasonID: 1));
         Context.Vods.Add(Vod.Seed("v1", "Needs review", new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc), VodMatchStatus.NeedsReview));
-        Context.Vods.Add(Vod.Seed("v2", "Linked already", new DateTime(2025, 1, 3, 0, 0, 0, DateTimeKind.Utc), VodMatchStatus.Auto));
+        Context.Vods.Add(Linked("v2", 1)); // Auto needs a season (CK_Event_Vods_LinkedHasSeason)
         await Context.SaveChangesAsync();
 
         var result = await _service.Review(CancellationToken.None);

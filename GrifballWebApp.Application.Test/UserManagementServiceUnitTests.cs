@@ -1,9 +1,7 @@
-using GrifballWebApp.Application.Dtos;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Application.UserManagement;
 using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
@@ -26,62 +24,19 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
         _service = new UserManagementService(Context, _userManager, _xboxService);
     }
 
-    // RegionConfiguration and RoleConfiguration seed these through HasData; EnsureCreated() applies them, so
-    // a test reuses the existing rows rather than inserting its own (which would violate their unique indexes).
+    // RegionConfiguration seeds these through HasData; EnsureCreated() applies them, so a test reuses the existing
+    // row rather than inserting its own (which would violate the unique key).
     private const int WestNorthAmericaRegionID = 1;
-    private const int PlayerRoleID = 3;
 
-    [Test]
-    public async Task GetUsers_ProjectsRegionGamertagDiscordAndRoles()
-    {
-        var xbox = XboxUser.FromXbox(111, "GamerOne");
-        var discord = DiscordUser.FromDiscord(222, "DiscordOne");
-        Context.XboxUsers.Add(xbox);
-        Context.DiscordUsers.Add(discord);
-        var user = User.Seed(userName: "alice", displayName: "Alice", xboxUser: xbox, discordUser: discord, regionID: WestNorthAmericaRegionID, id: 1);
-        Context.Users.Add(user);
-        await Context.SaveChangesAsync();
-        Context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = PlayerRoleID });
-        await Context.SaveChangesAsync();
-
-        var result = await _service.GetUsers(new PaginationFilter(1, 10), string.Empty, CancellationToken.None);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.TotalCount, Is.EqualTo(1));
-            Assert.That(result.Results, Has.Length.EqualTo(1));
-        }
-        var dto = result.Results[0];
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(dto.UserID, Is.EqualTo(user.Id));
-            Assert.That(dto.Region, Is.EqualTo("West North America"));
-            Assert.That(dto.Gamertag, Is.EqualTo("GamerOne"));
-            Assert.That(dto.Discord, Is.EqualTo("DiscordOne"));
-            Assert.That(dto.Roles.Single(r => r.RoleName == "Player").HasRole, Is.True);
-        }
-    }
-
-    [Test]
-    public async Task GetUsers_FiltersBySearch()
-    {
-        var user1 = User.Seed(userName: "alice", displayName: "Alice", id: 1);
-        var user2 = User.Seed(userName: "bob", displayName: "Bob", id: 2);
-        Context.Users.AddRange(user1, user2);
-        await Context.SaveChangesAsync();
-
-        var result = await _service.GetUsers(new PaginationFilter(1, 10), "bob", CancellationToken.None);
-
-        Assert.That(result.Results.Select(r => r.UserID), Is.EqualTo(ExpectedBobOnly));
-    }
-
-    private static readonly int[] ExpectedBobOnly = [2];
-
-    // GetUser (singular) isn't covered here: its Roles projection, read through FirstOrDefaultAsync, hits an EF
-    // Core/SQLite split-query limitation this fake context's model doesn't dodge ("Translating this query requires
-    // the SQL APPLY operation, which is not supported on SQLite") - GetUsers' own list query above doesn't hit it.
-    // GrifballWebApp.Integration.Test's UserManagementServiceTests and UserManagementServiceBranchTests cover
-    // GetUser against the real providers (Postgres, SQL Server, and SQLite through the real GrifballContext).
+    // GetUsers and GetUser aren't covered here. Both project Roles as a collection correlated to the outer user
+    // through an unrelated DbSet (_context.Roles, not a navigation): on SQL Server and Postgres this is a plain
+    // correlated subquery, but SQLite has no APPLY/LATERAL, so EF Core needs a service only Infrastructure's
+    // DbContextOptionsBuilder wires up (DatabaseProviderExtensions.UseGrifballDatabase replaces
+    // IQueryTranslationPostprocessorFactory with SqliteQueryTranslationPostprocessorFactory for exactly this).
+    // FakeApplicationDbContext, built on plain UseSqlite() so this layer's tests stay out of Infrastructure, doesn't
+    // have it, so both methods throw "Translating this query requires the SQL APPLY operation, which is not
+    // supported on SQLite" here. GrifballWebApp.Integration.Test's UserManagementServiceTests and
+    // UserManagementServiceBranchTests already cover both against the real providers, SQLite included.
 
     [Test]
     public async Task CreateUser_UserNameTaken_ReturnsMessage()

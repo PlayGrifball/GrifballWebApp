@@ -35,6 +35,7 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
         Context.Users.Add(User.Seed(userName: "homecap", displayName: "HomeCap", id: HomeCaptainUserID));
         Context.Users.Add(User.Seed(userName: "awaycap", displayName: "AwayCap", id: AwayCaptainUserID));
         Context.Users.Add(User.Seed(userName: "requester", displayName: "Requester", id: RequesterUserID));
+        Context.Users.Add(User.Seed(userName: "commissioner", displayName: "Commissioner", id: CommissionerUserID));
         var home = Team.Seed(teamName: "Home", seasonID: SeasonID, teamID: HomeTeamID);
         var away = Team.Seed(teamName: "Away", seasonID: SeasonID, teamID: AwayTeamID);
         Context.Teams.AddRange(home, away);
@@ -78,7 +79,8 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
     public async Task RequestRescheduleAsync_NoBothTeams_ThrowsNotAllowed()
     {
         Context.Seasons.Add(Season.Seed(seasonName: "S1", seasonID: SeasonID));
-        var match = SeasonMatch.InBracket(SeasonID, Domain.League.MatchBracketInfo.Seed(1), bestOf: 3);
+        var match = SeasonMatch.InBracket(SeasonID,
+            Domain.League.MatchBracketInfo.Seed(roundNumber: 1, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2), bestOf: 3);
         Context.SeasonMatches.Add(match);
         await Context.SaveChangesAsync();
         var dto = new RescheduleRequestDto { SeasonMatchID = match.SeasonMatchID, Reason = "conflict" };
