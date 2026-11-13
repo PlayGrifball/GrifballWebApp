@@ -129,4 +129,40 @@ public class GamertagClaimsControllerUnitTests : SqliteGrifballContextFixture
     {
         await Assert.ThrowsAsync<UserNotFoundException>(() => Controller().MergeDuplicate(new DuplicatePairRequest { SourceUserID = 999, TargetUserID = 1 }, CancellationToken.None));
     }
+
+    [Test]
+    public async Task RemoveGamertagHistory_RemovesOneAddedByHand()
+    {
+        await AddUser(123, "Someone");
+        var controller = Controller();
+        await controller.AddGamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 123, Gamertag = "Someone Else" }, CancellationToken.None);
+        var historyID = await Db.XboxUsers.PastGamertags().Where(h => h.XboxUserID == 123).Select(h => h.XboxGamertagHistoryID).SingleAsync();
+
+        var result = await controller.RemoveGamertagHistory(historyID, CancellationToken.None);
+
+        Db.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status204NoContent));
+            Assert.That(await Db.XboxUsers.PastGamertags().AnyAsync(h => h.XboxUserID == 123), Is.False);
+        }
+    }
+
+    [Test]
+    public async Task ApproveClaim_ApprovesIt()
+    {
+        var claimant = await AddDiscordOnlyUser(2, "Claimant");
+        var claim = GamertagClaim.ClaimedByUser(claimantUserID: claimant.Id, gamertag: "Grifter1", normalizedGamertag: "GRIFTER1");
+        Db.Set<GamertagClaim>().Add(claim);
+        await Db.SaveChangesAsync();
+
+        var result = await Controller().ApproveClaim(claim.GamertagClaimID, CancellationToken.None);
+
+        Db.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status204NoContent));
+            Assert.That((await Db.Set<GamertagClaim>().SingleAsync()).Status, Is.EqualTo(GamertagClaimStatus.Approved));
+        }
+    }
 }

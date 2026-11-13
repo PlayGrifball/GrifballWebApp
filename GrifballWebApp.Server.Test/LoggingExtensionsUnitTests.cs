@@ -92,6 +92,23 @@ public class LoggingExtensionsUnitTests
         Assert.That(sink.Events[0].Properties["ClientIp"].ToString(), Is.EqualTo("\"203.0.113.7\""));
     }
 
+    [Test]
+    public void AddSerilogLogging_TheAppsLoggersWriteThroughTheConfiguredSerilog()
+    {
+        var key = Guid.NewGuid().ToString("N");
+        var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateEmptyBuilder(new());
+        builder.Configuration.AddInMemoryCollection(ConfiguredSinkSettings(key));
+
+        builder.AddSerilogLogging(LoggingExtensionsTestData.Telemetry(builder.Configuration));
+        // The builder's services alone: no host is built or started
+        using (var services = builder.Services.BuildServiceProvider())
+        {
+            services.GetRequiredService<ILoggerFactory>().CreateLogger("GrifballWebApp.Server.Thing").LogInformation("Through the host");
+        }
+
+        Assert.That(ConfiguredSinkExtensions.Sink(key).Events.Select(e => e.MessageTemplate.Text), Does.Contain("Through the host"));
+    }
+
     [TestCase("Development")]
     [TestCase("Production")]
     public void ConfigureLogging_EachBranchBuildsAWorkingLogger(string environment) =>

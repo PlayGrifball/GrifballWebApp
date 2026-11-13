@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -74,5 +75,99 @@ public class DiscordSetGamertagUnitTests : SqliteGrifballContextFixture
         // Not just that something returned null (a substitute does that on its own): that SetGamertag was actually
         // called, for the user just created.
         await setGamertag.Received(1).SetGamertag(created.Id, "NewGamertag", Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task SetGamertag_LinksTheAccountSignedInOnTheSiteWithThisDiscord_AndSaysWhyTheGamertagWasRefused()
+    {
+        var siteAccount = User.Register("SiteUser");
+        Db.Users.Add(siteAccount);
+        await Db.SaveChangesAsync();
+        var users = Users();
+        users.FindByLoginAsync("Discord", "555555").Returns(siteAccount);
+        var setGamertag = Substitute.For<ISetGamertagService>();
+        setGamertag.SetGamertag(siteAccount.Id, "Taken", Arg.Any<CancellationToken>()).Returns("That gamertag is someone else's");
+        var discord = new CommandContextRecorder(discordUserId: 555555);
+        discord.Context.Interaction.User.Username.Returns("NewPlayer");
+
+        await new DiscordSetGamertag(Db, users, setGamertag).SetGamertag(discord.Context, "Taken");
+
+        Db.ChangeTracker.Clear();
+        var linked = await Db.Users.SingleAsync(u => u.Id == siteAccount.Id);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(discord.Content(), Is.EqualTo("That gamertag is someone else's"));
+            Assert.That(linked.DiscordUserID, Is.EqualTo(555555));
+        }
+        await users.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+    }
+
+    [Test]
+    public async Task SetGamertag_WhenTheAccountCantBeMade_SaysSo_AndSetsNothing()
+    {
+        var users = Users();
+        users.CreateAsync(Arg.Any<User>()).Returns(IdentityResult.Failed(new IdentityError { Description = "Bad name" }));
+        var setGamertag = Substitute.For<ISetGamertagService>();
+        var discord = new CommandContextRecorder(discordUserId: 555555);
+        discord.Context.Interaction.User.Username.Returns("NewPlayer");
+
+        await new DiscordSetGamertag(Db, users, setGamertag).SetGamertag(discord.Context, "NewGamertag");
+
+        Assert.That(discord.Content(), Is.EqualTo("Failed to create user account"));
+        await setGamertag.DidNotReceiveWithAnyArgs().SetGamertag(default, default!);
+    }
+
+    /// <summary>Discord user 555555 linked to an archive placeholder, and signed in on the site as SiteUser.</summary>
+    private async Task<(User Placeholder, User SiteAccount, UserManager<User> Users)> PlaceholderAndSiteAccount()
+    {
+        var placeholder = User.ImportPlaceholder("historical:OldTag", "OldTag", null);
+        placeholder.LinkDiscord(DiscordUser.FromDiscord(555555, "NewPlayer"));
+        var siteAccount = User.Register("SiteUser");
+        Db.Users.AddRange(placeholder, siteAccount);
+        await Db.SaveChangesAsync();
+        var users = Users();
+        users.FindByLoginAsync("Discord", "555555").Returns(siteAccount);
+        return (placeholder, siteAccount, users);
+    }
+
+    [Test]
+    public async Task SetGamertag_ForADiscordUserOnAPlaceholder_MergesItIntoTheirSiteAccount()
+    {
+        var (placeholder, siteAccount, users) = await PlaceholderAndSiteAccount();
+        // The merge moves the placeholder's Discord link to the site account, as UserMergeService does
+        var merges = Substitute.For<IUserMergeService>();
+        merges.Merge(siteAccount.Id, placeholder.Id, Arg.Any<MergeOptions?>(), Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            placeholder.UnlinkDiscord();
+            await Db.SaveChangesAsync();
+            siteAccount.LinkDiscord(555555);
+            await Db.SaveChangesAsync();
+        });
+        // Null is "set": a substitute's own default for a string is "", which the handler would reply as a refusal
+        var setGamertag = Substitute.For<ISetGamertagService>();
+        setGamertag.SetGamertag(Arg.Any<int>(), "NewGamertag", Arg.Any<CancellationToken>()).Returns((string?)null);
+        var discord = new CommandContextRecorder(discordUserId: 555555);
+
+        await new DiscordSetGamertag(Db, users, setGamertag, merges).SetGamertag(discord.Context, "NewGamertag");
+
+        Assert.That(discord.Content(), Is.EqualTo("Gamertag has been set"));
+        // To whoever holds the Discord link once merged: the site account
+        await setGamertag.Received(1).SetGamertag(siteAccount.Id, "NewGamertag", Arg.Any<CancellationToken>());
+        await merges.Received(1).Merge(siteAccount.Id, placeholder.Id, Arg.Is<MergeOptions?>(o => o != null && o.Trigger == MergeTrigger.DiscordMatch), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task SetGamertag_WhenThePlaceholderCantBeMerged_SaysWhy_AndSetsNothing()
+    {
+        var (_, _, users) = await PlaceholderAndSiteAccount();
+        var merges = Substitute.For<IUserMergeService>();
+        merges.Merge(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<MergeOptions?>(), Arg.Any<CancellationToken>()).ThrowsAsync(new MergeConflictException("Both played in Winter."));
+        var setGamertag = Substitute.For<ISetGamertagService>();
+        var discord = new CommandContextRecorder(discordUserId: 555555);
+
+        await new DiscordSetGamertag(Db, users, setGamertag, merges).SetGamertag(discord.Context, "NewGamertag");
+
+        Assert.That(discord.Content(), Is.EqualTo("Your account was made, but your past records could not be joined to it: Both played in Winter. Contact a commissioner."));
+        await setGamertag.DidNotReceiveWithAnyArgs().SetGamertag(default, default!);
     }
 }

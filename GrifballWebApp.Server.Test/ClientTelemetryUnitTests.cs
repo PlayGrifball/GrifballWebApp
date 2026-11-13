@@ -282,6 +282,27 @@ public class ClientTelemetryUnitTests
     }
 
     [Test]
+    public async Task ClientTelemetryPump_ForwardsWhatIsQueued_WithAForwarderFromItsServices_UntilStopped()
+    {
+        var collector = new Collector();
+        var queue = new ClientTelemetryQueue(NullLogger<ClientTelemetryQueue>.Instance, new ForwardFailures());
+        using var services = new ServiceCollection().AddTransient(_ => Forwarder(collector)).BuildServiceProvider();
+        using var pump = new ClientTelemetryPump(queue, services);
+
+        await pump.StartAsync(CancellationToken.None);
+        queue.Enqueue(Batch(), "");
+        for (var i = 0; i < 100 && collector.Posted.Count < 2; i++)
+            await Task.Delay(20);
+        await pump.StopAsync(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(collector.Posted.Select(p => p.Url.AbsoluteUri), Is.EqualTo(TracesThenLogs));
+            Assert.That(pump.ExecuteTask!.IsCompleted, Is.True, "Stopped with the host");
+        }
+    }
+
+    [Test]
     public void ForwardFailures_WarnOnceAMinute_CountingTheRest()
     {
         var time = new Microsoft.Extensions.Time.Testing.FakeTimeProvider();
@@ -413,6 +434,57 @@ public class ClientTelemetryUnitTests
     public void QueryRedaction_RedactsSensitiveValues(string url, string expected)
     {
         Assert.That(QueryRedaction.Redact(url), Is.EqualTo(expected));
+    }
+
+    [TestCase("token")]
+    [TestCase("code")]
+    [TestCase("secret")]
+    [TestCase("password")]
+    [TestCase("pwd")]
+    [TestCase("apiKey")]
+    [TestCase("auth")]
+    [TestCase("sessionId")]
+    [TestCase("sig")]
+    [TestCase("credentials")]
+    [TestCase("cookie")]
+    [TestCase("EMAIL")]
+    [TestCase("username")]
+    [TestCase("state")]
+    [TestCase("nonce")]
+    [TestCase("otp")]
+    [TestCase("ticket")]
+    [TestCase("hash")]
+    [TestCase("jwt")]
+    public void QueryRedaction_RedactsEachSensitiveName_InAnyCase_InsideALongerName(string name)
+    {
+        Assert.That(QueryRedaction.RedactUrlsIn($"failed at /x?{name}=v1&page=2 then"), Is.EqualTo($"failed at /x?{name}=REDACTED&page=2 then"));
+    }
+
+    [Test]
+    public async Task Forward_ACollectorThatRefuses_IsWarnedAboutWithItsStatus()
+    {
+        var logger = new RecordingLogger<ClientTelemetryForwarder>();
+        var forwarder = new ClientTelemetryForwarder(new HttpClient(new Collector(HttpStatusCode.ServiceUnavailable)), new ClientTelemetryResource(Telemetry), Options(), logger);
+
+        await forwarder.Forward(Batch(), "", default);
+
+        Assert.That(logger.Entries[0].Message, Is.EqualTo("The collector refused the browser's traces (503); 0 more failures since the last warning"));
+    }
+
+    [Test]
+    public async Task Forward_ACollectorThatIsAway_IsWarnedAboutWithTheError()
+    {
+        var logger = new RecordingLogger<ClientTelemetryForwarder>();
+        var forwarder = new ClientTelemetryForwarder(new HttpClient(new Unreachable()), new ClientTelemetryResource(Telemetry), Options(), logger);
+
+        await forwarder.Forward(Batch(), "", default);
+
+        var entry = logger.Entries[0];
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(entry.Message, Is.EqualTo("Sending the browser's traces to the collector failed; 0 more failures since the last warning"));
+            Assert.That(entry.Exception, Is.TypeOf<HttpRequestException>());
+        }
     }
 
     [Test]

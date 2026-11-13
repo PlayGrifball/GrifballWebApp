@@ -2,7 +2,12 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using GrifballWebApp.Server.Identity;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using static GrifballWebApp.Server.Test.DataProtectionAtRestTestData;
@@ -24,6 +29,56 @@ public class DataProtectionAtRestUnitTests
             Assert.That(DataProtectionAtRest.Certificate(Configuration((DataProtectionAtRest.CertificateKey, " "))), Is.Null);
         }
     }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void Certificate_IsReadFromItsPemFiles_WithItsPrivateKey(bool keyInItsOwnFile)
+    {
+        using var made = TestCertificate.SelfSigned();
+        var certificatePath = Path.Combine(Path.GetTempPath(), $"grif-dp-cert-{Guid.NewGuid():N}.pem");
+        var keyPath = Path.Combine(Path.GetTempPath(), $"grif-dp-key-{Guid.NewGuid():N}.pem");
+        var keyPem = made.GetRSAPrivateKey()!.ExportPkcs8PrivateKeyPem();
+        File.WriteAllText(certificatePath, made.ExportCertificatePem() + (keyInItsOwnFile ? "" : "\n" + keyPem));
+        if (keyInItsOwnFile)
+            File.WriteAllText(keyPath, keyPem);
+        try
+        {
+            using var read = DataProtectionAtRest.Certificate(Configuration(
+                (DataProtectionAtRest.CertificateKey, certificatePath),
+                (DataProtectionAtRest.CertificatePrivateKeyKey, keyInItsOwnFile ? keyPath : null)));
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(read!.Thumbprint, Is.EqualTo(made.Thumbprint));
+                Assert.That(read.HasPrivateKey, Is.True);
+            }
+        }
+        finally
+        {
+            File.Delete(certificatePath);
+            File.Delete(keyPath);
+        }
+    }
+
+    [Test]
+    public void ProtectKeysWith_ACertificate_EncryptsNewKeysWithIt_AndNoneLeavesThemAsTheyWere()
+    {
+        using var certificate = TestCertificate.SelfSigned();
+        var withCertificate = new ServiceCollection();
+        withCertificate.AddDataProtection().ProtectKeysWith(certificate);
+        var without = new ServiceCollection();
+        without.AddDataProtection().ProtectKeysWith(null);
+        using var withCertificateProvider = withCertificate.BuildServiceProvider();
+        using var withoutProvider = without.BuildServiceProvider();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(KeyManagement(withCertificateProvider).XmlEncryptor, Is.TypeOf<CertificateXmlEncryptor>());
+            Assert.That(KeyManagement(withoutProvider).XmlEncryptor, Is.Null);
+        }
+    }
+
+    private static KeyManagementOptions KeyManagement(IServiceProvider services) => services.GetRequiredService<IOptions<KeyManagementOptions>>().Value;
 
     [TestCase(null)]
     [TestCase("")]

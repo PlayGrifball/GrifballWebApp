@@ -71,6 +71,17 @@ public class OpenApiSchemasTests
     }
 
     [Test]
+    public void For_AmongTheAppsOwnTypes_QualifiesOnlyANameTwoOfThemShare()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(OpenApiSchemaIds.For(typeof(GrifballWebApp.Application.Dtos.MatchDto)), Is.EqualTo("DtosMatchDto"));
+            Assert.That(OpenApiSchemaIds.For(typeof(GrifballWebApp.Application.TeamPage.MatchDto)), Is.EqualTo("TeamPageMatchDto"));
+            Assert.That(OpenApiSchemaIds.For(typeof(GrifballWebApp.Application.TeamPage.TeamPageService)), Is.EqualTo("TeamPageService"));
+        }
+    }
+
+    [Test]
     public void For_NamesAGenericTypeByItsArguments()
     {
         using (Assert.EnterMultipleScope())

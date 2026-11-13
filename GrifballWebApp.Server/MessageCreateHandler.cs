@@ -17,9 +17,12 @@ using GrifballWebApp.Application.Discord;
 namespace GrifballWebApp.Server;
 
 public class MessageCreateHandler(IDiscordRestClient discordClient, IConfiguration configuration, IServiceScopeFactory scopeFactory, IAmbientCurrentUser ambientCurrentUser, ILogger<MessageCreateHandler> logger,
-    IBotChatClients chatClients) : IMessageCreateGatewayHandler
+    IBotChatClients chatClients, TimeProvider? time = null) : IMessageCreateGatewayHandler
 {
     private ulong BotId { get; } = ulong.Parse(configuration["Discord:ClientId"] ?? "0");
+
+    /// <summary>The clock the streamed reply is paced by (the system's, unless a test gives one).</summary>
+    private TimeProvider Time { get; } = time ?? TimeProvider.System;
 
     public async ValueTask HandleAsync(Message arg)
     {
@@ -89,11 +92,13 @@ You currently support standard Discord slash commands.
 In future updates, users should be able to interact with the bot using natural language commands directly (without the slash).
 ";
 
-        var channel = Channel.CreateUnbounded<string>();
+        // Each chunk with when it arrived: the reply is paced by the stream, not by when the background task gets to it
+        var channel = Channel.CreateUnbounded<(string Text, long ArrivedAt)>();
         var responseBuilder = new StringBuilder();
 
         // Background task for incremental updates
-        var updateTask = Task.Run(() => StreamReplyAsync(channel.Reader, responseBuilder, message, context, UserId, BotID));
+        var started = Time.GetTimestamp();
+        var updateTask = Task.Run(() => StreamReplyAsync(channel.Reader, responseBuilder, message, context, UserId, BotID, Time, started));
 
         try
         {
@@ -109,7 +114,7 @@ In future updates, users should be able to interact with the bot using natural l
                 ],
             }))
             {
-                await channel.Writer.WriteAsync(item.Text);
+                await channel.Writer.WriteAsync((item.Text, Time.GetTimestamp()));
             }
         }
         finally
@@ -168,22 +173,21 @@ In future updates, users should be able to interact with the bot using natural l
     }
 
     /// <summary>
-    /// Shows the reply as it streams in (<paramref name="chunks"/>): every 25 characters at most once a second, each full
+    /// Shows the reply as it streams in (<paramref name="chunks"/>, each with when it arrived): every 25 characters at most once a second, each full
     /// 2000 characters as a message of its own (saved). Returns the message still being written, if any.
     /// </summary>
-    private static async Task<NetCord.Rest.RestMessage?> StreamReplyAsync(ChannelReader<string> chunks, StringBuilder responseBuilder, Message message,
-        GrifballContext context, long UserId, long BotID)
+    private static async Task<NetCord.Rest.RestMessage?> StreamReplyAsync(ChannelReader<(string Text, long ArrivedAt)> chunks, StringBuilder responseBuilder, Message message,
+        GrifballContext context, long UserId, long BotID, TimeProvider time, long started)
     {
         NetCord.Rest.RestMessage? restMessage = null;
         var timeThreshold = TimeSpan.FromSeconds(1);
         const int charThreshold = 25;
         int lastLength = 0;
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var lastUpdate = stopwatch.Elapsed;
-        await foreach (var chunk in chunks.ReadAllAsync())
+        var lastUpdate = started;
+        await foreach (var (chunk, arrivedAt) in chunks.ReadAllAsync())
         {
             responseBuilder.Append(chunk);
-            bool timeElapsed = stopwatch.Elapsed - lastUpdate > timeThreshold;
+            bool timeElapsed = time.GetElapsedTime(lastUpdate, arrivedAt) > timeThreshold;
             bool charsAdded = responseBuilder.Length - lastLength >= charThreshold;
             if (charsAdded && timeElapsed) // Only update if enough time has passed or enough characters have been added
             {
@@ -202,7 +206,7 @@ In future updates, users should be able to interact with the bot using natural l
                 {
                     restMessage = await SendOrModify(message, restMessage, currentResponse);
                 }
-                lastUpdate = stopwatch.Elapsed;
+                lastUpdate = arrivedAt;
                 lastLength = currentResponse.Length;
             }
         }
