@@ -135,9 +135,12 @@ public class DiscordSetGamertagUnitTests : SqliteGrifballContextFixture
     {
         var (placeholder, siteAccount, users) = await PlaceholderAndSiteAccount();
         var merges = Substitute.For<IUserMergeService>();
+        // Null is "set": a substitute's own default for a string is "", which the handler would reply as a refusal
+        var setGamertag = Substitute.For<ISetGamertagService>();
+        setGamertag.SetGamertag(siteAccount.Id, "NewGamertag", Arg.Any<CancellationToken>()).Returns((string?)null);
         var discord = new CommandContextRecorder(discordUserId: 555555);
 
-        await new DiscordSetGamertag(Db, users, Substitute.For<ISetGamertagService>(), merges).SetGamertag(discord.Context, "NewGamertag");
+        await new DiscordSetGamertag(Db, users, setGamertag, merges).SetGamertag(discord.Context, "NewGamertag");
 
         Assert.That(discord.Content(), Is.EqualTo("Gamertag has been set"));
         await merges.Received(1).Merge(siteAccount.Id, placeholder.Id, Arg.Is<MergeOptions?>(o => o != null && o.Trigger == MergeTrigger.DiscordMatch), Arg.Any<CancellationToken>());

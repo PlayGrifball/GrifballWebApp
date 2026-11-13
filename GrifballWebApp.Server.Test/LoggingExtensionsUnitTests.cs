@@ -93,16 +93,17 @@ public class LoggingExtensionsUnitTests
     }
 
     [Test]
-    public void AddSerilogLogging_TheHostsLoggersWriteThroughTheConfiguredSerilog()
+    public void AddSerilogLogging_TheAppsLoggersWriteThroughTheConfiguredSerilog()
     {
         var key = Guid.NewGuid().ToString("N");
         var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateEmptyBuilder(new());
         builder.Configuration.AddInMemoryCollection(ConfiguredSinkSettings(key));
 
         builder.AddSerilogLogging(LoggingExtensionsTestData.Telemetry(builder.Configuration));
-        using (var app = builder.Build())
+        // The builder's services alone: no host is built or started
+        using (var services = builder.Services.BuildServiceProvider())
         {
-            app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("GrifballWebApp.Server.Thing").LogInformation("Through the host");
+            services.GetRequiredService<ILoggerFactory>().CreateLogger("GrifballWebApp.Server.Thing").LogInformation("Through the host");
         }
 
         Assert.That(ConfiguredSinkExtensions.Sink(key).Events.Select(e => e.MessageTemplate.Text), Does.Contain("Through the host"));

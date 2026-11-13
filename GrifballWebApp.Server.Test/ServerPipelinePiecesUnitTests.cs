@@ -12,7 +12,7 @@ namespace GrifballWebApp.Server.Test;
 
 /// <summary>
 /// Pieces Program.cs wires in, each on its own: the API's Location prefix as the response starts, the telemetry
-/// query's options and HTTP client, and the health endpoints' paths. An empty WebApplication where routing is needed.
+/// query's options and HTTP client, and the health endpoints' paths mapped onto services. No host.
 /// </summary>
 [TestFixture]
 [Parallelizable(ParallelScope.All)]
@@ -83,25 +83,36 @@ public class ServerPipelinePiecesUnitTests
         }
     }
 
+    /// <summary>Endpoints mapped onto services, as an app's routing collects them, without a host.</summary>
+    private sealed class Endpoints(IServiceProvider services) : IEndpointRouteBuilder
+    {
+        public IServiceProvider ServiceProvider { get; } = services;
+        public ICollection<EndpointDataSource> DataSources { get; } = [];
+        public IApplicationBuilder CreateApplicationBuilder() => new ApplicationBuilder(ServiceProvider);
+    }
+
     [TestCase(null, "/health", "/health/live", "/health/ready")]
     [TestCase("probes", "/probes", "/probes/alive", "/probes/serving")]
     public void MapAppHealthChecks_MapsTheConfiguredPaths(string? health, string expectedHealth, string expectedLive, string expectedReady)
     {
-        var builder = WebApplication.CreateEmptyBuilder(new());
-        if (health is not null)
-            builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["HealthChecks:Path"] = health,
-                ["HealthChecks:LivePath"] = "probes/alive",
-                ["HealthChecks:ReadyPath"] = "/probes/serving/",
-            });
-        builder.Services.AddRouting();
-        builder.Services.AddHealthChecks();
-        using var app = builder.Build();
+        var values = health is null ? new Dictionary<string, string?>() : new Dictionary<string, string?>
+        {
+            ["HealthChecks:Path"] = health,
+            ["HealthChecks:LivePath"] = "probes/alive",
+            ["HealthChecks:ReadyPath"] = "/probes/serving/",
+        };
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
+        using var services = new ServiceCollection()
+            .AddSingleton<IConfiguration>(configuration)
+            .AddLogging()
+            .AddRouting()
+            .AddHealthChecks().Services
+            .BuildServiceProvider();
+        var endpoints = new Endpoints(services);
 
-        app.MapAppHealthChecks();
+        endpoints.MapAppHealthChecks();
 
-        var paths = ((IEndpointRouteBuilder)app).DataSources.SelectMany(d => d.Endpoints).OfType<RouteEndpoint>().Select(e => "/" + e.RoutePattern.RawText!.TrimStart('/'));
+        var paths = endpoints.DataSources.SelectMany(d => d.Endpoints).OfType<RouteEndpoint>().Select(e => "/" + e.RoutePattern.RawText!.TrimStart('/'));
         Assert.That(paths, Is.EquivalentTo(new[] { expectedHealth, expectedLive, expectedReady }));
     }
 }
