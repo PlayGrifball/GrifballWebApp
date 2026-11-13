@@ -204,4 +204,13 @@ public class DatabaseBackupServiceBuildUnitTests
             && c.GetArguments()[2]?.ToString() == "Exporting the database to a new Sqlite database"), Is.EqualTo(1));
         }
     }
+
+    [Test]
+    public void MakeAsync_WithNoConnectionString_SaysWhichSettingIsMissing()
+    {
+        var service = new DatabaseBackupService(Configuration(("Database:Provider", "Sqlite")), NullLoggerFactory.Instance, new FakeTimeProvider(Now));
+
+        Assert.That(async () => await service.MakeAsync(BackupFormat.Sqlite, CancellationToken.None),
+            Throws.InvalidOperationException.With.Message.EqualTo("ConnectionStrings:GrifballWebApp is not set"));
+    }
 }

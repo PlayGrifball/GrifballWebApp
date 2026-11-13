@@ -294,6 +294,35 @@ public class ServerSqlUnitTests
         }
     }
 
+    [Test]
+    public async Task For_EachServersOwnConnection_IsItsWriter_MadeWithoutSendingAnything()
+    {
+        await _connection.OpenAsync();
+        await using var transaction = await _connection.BeginTransactionAsync();
+        await using var sqlServer = new SqlConnection("Server=db;Database=grif");
+        await using var postgres = new NpgsqlConnection("Host=db;Database=grif");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TargetWriter.For(DatabaseProvider.SqlServer, sqlServer, transaction, new FakeLogger<ServerSqlUnitTests>()), Is.TypeOf<SqlServerTargetWriter>());
+            Assert.That(TargetWriter.For(DatabaseProvider.Postgres, postgres, transaction, new FakeLogger<ServerSqlUnitTests>()), Is.TypeOf<PostgresTargetWriter>());
+            Assert.That((sqlServer.State, postgres.State), Is.EqualTo((ConnectionState.Closed, ConnectionState.Closed)), "never opened");
+        }
+    }
+
+    [Test]
+    public async Task For_AnUnknownProvider_IsRefused()
+    {
+        await _connection.OpenAsync();
+        await using var transaction = await _connection.BeginTransactionAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(() => TargetWriter.For((DatabaseProvider)99, _connection, transaction, new FakeLogger<ServerSqlUnitTests>()), Throws.InstanceOf<ArgumentOutOfRangeException>());
+            Assert.That(_connection.Sent, Is.Empty);
+        }
+    }
+
     // ---- NativeBackups.SqlServerAsync ----
 
     private string _directory = null!;
