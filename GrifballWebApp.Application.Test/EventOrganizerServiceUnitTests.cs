@@ -109,7 +109,11 @@ internal sealed class EventOrganizerServiceUnitTests : ApplicationDbContextTests
         dto.DraftStart = dto.SeasonStart.AddDays(1);
 
         var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(dto));
-        Assert.That(ex!.Message, Is.EqualTo("The draft can't start after the season does."));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("The draft can't start after the season does."));
+            Assert.That(await Context.Seasons.AnyAsync(s => s.SeasonName == dto.SeasonName), Is.False);
+        }
     }
 
     [Test]

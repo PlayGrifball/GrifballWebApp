@@ -3,6 +3,7 @@ using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -14,23 +15,28 @@ namespace GrifballWebApp.Application.Test;
 
 /// <summary>
 /// A season whose import fails (the database refuses a save) against the fake context: that season alone is rolled back
-/// and reported as failed, and the run goes on to the next. The saves of a season or a matchmaking season whose name
-/// starts with "Broken" are refused, and so is removing the titles-only season "Winter League 2021".
+/// and reported as failed, and the run goes on to the next. The save refused is a late one, so there is something to
+/// roll back: the stat row of "Lost Player" once its season (named "Broken ...") is written already. So is removing the
+/// titles-only season "Winter League 2021". A test whose refusal never comes fails: nothing is reported then.
 /// </summary>
 [TestFixture]
 internal sealed class HistoricalImportFailureUnitTests : ApplicationDbContextTests
 {
-    private const string Refusal = "The database refused it";
+    private const string Refusal = RefusingSaves.DefaultMessage;
+    private const string LostPlayer = "Lost Player";
     private static readonly string[] OnlyWinter = ["Winter League 2019"];
     private static readonly string[] OnlySeason8 = ["Late League Season 8 (Halo 3)"];
 
-    private readonly RefusingSaves _saves = new(context => context.ChangeTracker.Entries()
-        .Any(e => e.State == EntityState.Added && e.Entity switch
-        {
-            Season s => s.SeasonName.StartsWith("Broken", StringComparison.Ordinal),
-            MatchmakingSeason m => m.Name.StartsWith("Broken", StringComparison.Ordinal),
-            _ => false,
-        }) || context.ChangeTracker.Entries<Season>().Any(e => e.State == EntityState.Deleted && e.Entity.SeasonName == "Winter League 2021"));
+    private readonly RefusingSaves _saves = new(context => LostPlayersStatAfterItsSeason(context)
+        || context.ChangeTracker.Entries<Season>().Any(e => e.State == EntityState.Deleted && e.Entity.SeasonName == "Winter League 2021"));
+
+    /// <summary>A save adding Lost Player's stat row, its "Broken ..." season (or matchmaking season) saved already.</summary>
+    private static bool LostPlayersStatAfterItsSeason(DbContext context)
+    {
+        var seasonWritten = context.ChangeTracker.Entries<Season>().Any(e => e.State == EntityState.Unchanged && e.Entity.SeasonName.StartsWith("Broken", StringComparison.Ordinal))
+            || context.ChangeTracker.Entries<MatchmakingSeason>().Any(e => e.State == EntityState.Unchanged && e.Entity.Name.StartsWith("Broken", StringComparison.Ordinal));
+        return seasonWritten && context.ChangeTracker.Entries<PlayerStatTotals>().Any(e => e.State == EntityState.Added && e.Entity.Gamertag == LostPlayer);
+    }
 
     private HistoricalImportService _service = null!;
 
@@ -47,7 +53,7 @@ internal sealed class HistoricalImportFailureUnitTests : ApplicationDbContextTes
     public async Task Import_ASeasonThatFails_IsRolledBackAndReported_AndTheOthersAreImported()
     {
         var report = await _service.Import(Input(
-            Entry("Broken League 2018", "halo3", "AGLA", false, Player("Lost Player", kills: 3)),
+            Entry("Broken League 2018", "halo3", "AGLA", false, Player(LostPlayer, kills: 3, team: "Lost Team")),
             Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10))));
 
         Context.ChangeTracker.Clear();
@@ -57,7 +63,10 @@ internal sealed class HistoricalImportFailureUnitTests : ApplicationDbContextTes
             Assert.That(report.Errors[0], Does.EndWith($": {Refusal}"));
             Assert.That(report.SeasonsCreated, Is.EqualTo(1));
             Assert.That(await Context.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(OnlyWinter));
-            Assert.That(await Context.PlayerSeasonStats.CountAsync(), Is.EqualTo(1), "nothing of the failed season stays");
+            // Written in its transaction before the refused save, and rolled back with it
+            Assert.That(await Context.Teams.AnyAsync(t => t.TeamName == "Lost Team"), Is.False, "its team");
+            Assert.That(await Context.Users.AnyAsync(u => u.DisplayName == LostPlayer), Is.False, "its placeholder");
+            Assert.That(await Context.PlayerSeasonStats.CountAsync(), Is.EqualTo(1), "only the other season's stat row");
         }
     }
 
@@ -66,7 +75,7 @@ internal sealed class HistoricalImportFailureUnitTests : ApplicationDbContextTes
     {
         var report = await _service.Import(Input(
             Entry("Late League Season 8 (Halo 3)", "halo3", "Late League", false, Player("Shadow S16", kills: 4)),
-            Entry("Broken Late League Season 9", "halo3", "Late League", false, Player("Lost Player", kills: 3))));
+            Entry("Broken Late League Season 9", "halo3", "Late League", false, Player(LostPlayer, kills: 3))));
 
         Context.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())
@@ -74,7 +83,9 @@ internal sealed class HistoricalImportFailureUnitTests : ApplicationDbContextTes
             Assert.That(report.Errors, Has.Count.EqualTo(1));
             Assert.That(report.Errors[0], Does.EndWith($": {Refusal}"));
             Assert.That(report.MatchmakingSeasonsCreated, Is.EqualTo(1));
-            Assert.That(await Context.MatchmakingSeasons.Select(s => s.Name).ToListAsync(), Is.EqualTo(OnlySeason8));
+            Assert.That(await Context.MatchmakingSeasons.Select(s => s.Name).ToListAsync(), Is.EqualTo(OnlySeason8), "the failed one was written, then rolled back");
+            Assert.That(await Context.Users.AnyAsync(u => u.DisplayName == LostPlayer), Is.False, "its placeholder");
+            Assert.That(await Context.MatchmakingPlayerStats.CountAsync(), Is.EqualTo(1), "only the other season's stat row");
         }
     }
 
@@ -111,15 +122,5 @@ internal sealed class HistoricalImportFailureUnitTests : ApplicationDbContextTes
             Assert.That(await Context.Seasons.AnyAsync(s => s.SeasonID == titlesOnly.SeasonID), Is.True, "rolled back: it stays");
             Assert.That(await Context.Teams.CountAsync(t => t.SeasonID == titlesOnly.SeasonID), Is.EqualTo(2), "with its teams");
         }
-    }
-
-    /// <summary>Refuses each save <paramref name="refuses"/> says to, as the database would refuse a row.</summary>
-    private sealed class RefusingSaves(Func<DbContext, bool> refuses) : SaveChangesInterceptor
-    {
-        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result,
-            CancellationToken cancellationToken = default)
-            => eventData.Context is { } context && refuses(context)
-                ? throw new DbUpdateException(Refusal)
-                : base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 }

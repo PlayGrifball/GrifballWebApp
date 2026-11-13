@@ -7,6 +7,7 @@ using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
 
 namespace GrifballWebApp.Application.Test;
@@ -97,12 +98,12 @@ internal sealed class VodServiceSyncUnitTests : ApplicationDbContextTests
     public async Task Sync_LogsWhatTheRefreshFoundAndDid()
     {
         await ChannelWithVideos();
-        var logger = new CapturingLogger<VodService>();
+        var logger = new FakeLogger<VodService>();
 
         await Service(logger: logger).Sync(_ => Task.CompletedTask);
 
         // Found: the VOD, the clip, the chat and the Short; added: the VOD and the chat, both left for review
-        Assert.That(logger.Entries, Has.Member((LogLevel.Information,
+        Assert.That(logger.Collector.GetSnapshot().Select(r => (r.Level, r.Message)), Has.Member((LogLevel.Information,
             "VODs refreshed: 4 found, 2 added, 0 updated, 0 linked, 2 need review, 0 failed")));
     }
 

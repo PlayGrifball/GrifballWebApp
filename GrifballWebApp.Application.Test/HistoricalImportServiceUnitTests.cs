@@ -10,6 +10,7 @@ using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using static GrifballWebApp.Application.Test.HistoricalImportUnitTestData;
@@ -245,7 +246,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     [Test]
     public async Task Import_LogsEachSkipAndWhatItDid()
     {
-        var logger = new CapturingLogger<HistoricalImportService>();
+        var logger = new FakeLogger<HistoricalImportService>();
         var service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
             logger, new GamertagMatching(Context), TimeProvider.System);
 
@@ -253,24 +254,22 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
             Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10)),
             Entry("Bad League Season", "halo3", "Nonexistent League", false, Player("P1"))));
 
+        var records = logger.Collector.GetSnapshot();
+        // One season, its one stat row and one placeholder (Shadow S16 has no account); the unknown league's skipped
+        var summary = records.Single(r => r.Message.StartsWith("Historical import: ", StringComparison.Ordinal));
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(report.SeasonsCreated, Is.EqualTo(1));
             Assert.That(report.Skipped, Has.Count.EqualTo(1));
-            Assert.That(logger.Messages, Has.Member($"Historical import skipped: {report.Skipped[0]}"));
-            Assert.That(logger.Entries, Has.Member((LogLevel.Information,
-                $"Historical import: 1 seasons created, 0 updated, {report.StatsInserted} stats added, 0 updated, {report.DummyUsersCreated} placeholder users, 1 skipped, 0 failed")));
-            Assert.That(report.StatsInserted, Is.EqualTo(1));
-        }
-        // The summary's counts are fields of their own, for a log query to read
-        var summary = logger.Fields.Single(f => f.TryGetValue("{OriginalFormat}", out var format) && ((string)format!).StartsWith("Historical import: ", StringComparison.Ordinal));
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(summary["SeasonsCreated"], Is.EqualTo(1));
-            Assert.That(summary["SeasonsUpdated"], Is.Zero);
-            Assert.That(summary["StatsInserted"], Is.EqualTo(1));
-            Assert.That(summary["Skipped"], Is.EqualTo(1));
-            Assert.That(summary["Errors"], Is.Zero);
+            Assert.That(report.Skipped[0], Does.Contain("Nonexistent League"));
+            Assert.That(records.Select(r => r.Message), Has.Member($"Historical import skipped: {report.Skipped[0]}"));
+            Assert.That((summary.Level, summary.Message), Is.EqualTo((LogLevel.Information,
+                "Historical import: 1 seasons created, 0 updated, 1 stats added, 0 updated, 1 placeholder users, 1 skipped, 0 failed")));
+            // The counts are fields of their own, for a log query to read
+            Assert.That(summary.GetStructuredStateValue("SeasonsCreated"), Is.EqualTo("1"));
+            Assert.That(summary.GetStructuredStateValue("StatsInserted"), Is.EqualTo("1"));
+            Assert.That(summary.GetStructuredStateValue("DummyUsersCreated"), Is.EqualTo("1"));
+            Assert.That(summary.GetStructuredStateValue("Skipped"), Is.EqualTo("1"));
+            Assert.That(summary.GetStructuredStateValue("Errors"), Is.EqualTo("0"));
         }
     }
 

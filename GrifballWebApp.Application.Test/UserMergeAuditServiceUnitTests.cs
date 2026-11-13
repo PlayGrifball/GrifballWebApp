@@ -15,7 +15,7 @@ namespace GrifballWebApp.Application.Test;
 /// <summary>
 /// Every merge writes an audit record (UserMerges) with a manifest of what it changed, and a sysadmin can undo it: the
 /// rows come back exactly as they were, unless something changed them since. Two sysadmins racing the undo are two
-/// fake contexts on one connection, the other's undo saved as this one opens its transaction (BeforeTransaction).
+/// fake contexts on one connection, the other's undo saved as this one opens its transaction (BeforeFirstTransaction).
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -312,19 +312,16 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
         await _merges.Merge(_real.Id, _placeholder.Id);
         var mergeId = (await Context.UserMerges.SingleAsync()).UserMergeID;
         var afterMerge = await Snapshot();
-        var options = new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(Context.Database.GetDbConnection()).Options;
         var theirs = new DateTime(2026, 11, 1, 11, 0, 0, DateTimeKind.Utc);
 
         // As this undo opens its transaction (after it read the merge as standing), another sysadmin's undo is saved
-        await using (var racing = new FakeApplicationDbContext(options)
+        var otherUndo = new BeforeFirstTransaction(async ct =>
         {
-            BeforeTransaction = async ct =>
-            {
-                await using var other = new FakeApplicationDbContext(options);
-                _ = (await other.UserMerges.SingleAsync(m => m.UserMergeID == mergeId, ct)).Undo(theirs, null, "theirs");
-                await other.SaveChangesAsync(ct);
-            },
-        })
+            await using var other = Context.NewContextLike();
+            _ = (await other.UserMerges.SingleAsync(m => m.UserMergeID == mergeId, ct)).Undo(theirs, null, "theirs");
+            await other.SaveChangesAsync(ct);
+        });
+        await using (var racing = Context.NewContextLike(otherUndo))
         {
             var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => new UserMergeAuditService(racing, _time).Undo(mergeId, "mine"));
             Assert.That(ex!.Message, Is.EqualTo($"Merge {mergeId} was undone already"));

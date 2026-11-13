@@ -126,16 +126,14 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
     public async Task RequestRescheduleAsync_AnotherRequestSavedMeanwhile_ThrowsAlreadyActive_AndKeepsTheirs()
     {
         var match = await SeedUndecidedMatch();
-        var connection = Context.Database.GetDbConnection();
-        var plain = new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).Options;
         // The away captain's request is saved after this one passed its check, as this one saves (the unique pending index)
         var theirs = new BeforeFirstSave(async ct =>
         {
-            await using var other = new FakeApplicationDbContext(plain);
+            await using var other = Context.NewContextLike();
             other.MatchReschedules.Add(MatchReschedule.Request(match.SeasonMatchID, null, null, "theirs", AwayCaptainUserID, DateTime.UtcNow));
             await other.SaveChangesAsync(ct);
         });
-        await using var racing = new FakeApplicationDbContext(new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).AddInterceptors(theirs).Options);
+        await using var racing = Context.NewContextLike(theirs);
         var dto = new RescheduleRequestDto { SeasonMatchID = match.SeasonMatchID, Reason = "mine" };
 
         await Assert.ThatAsync(() => new RescheduleService(racing, _outbox).RequestRescheduleAsync(dto, RequesterUserID),
@@ -150,9 +148,7 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
     public async Task RequestRescheduleAsync_SaveRefusedForAnotherReason_Throws_AndSavesNothing()
     {
         var match = await SeedUndecidedMatch();
-        var refused = new BeforeFirstSave(_ => Task.FromException(new DbUpdateException("refused")));
-        await using var failing = new FakeApplicationDbContext(new DbContextOptionsBuilder<FakeApplicationDbContext>()
-            .UseSqlite(Context.Database.GetDbConnection()).AddInterceptors(refused).Options);
+        await using var failing = Context.NewContextLike(new RefusingSaves(_ => true, "refused"));
         var dto = new RescheduleRequestDto { SeasonMatchID = match.SeasonMatchID, Reason = "mine" };
 
         // No pending request is saved: not the other captain's race, so the failure is the caller's

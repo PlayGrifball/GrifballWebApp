@@ -62,9 +62,13 @@ internal sealed class FakeApplicationDbContext :
         return new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).AddInterceptors(interceptors).Options;
     }
 
-    /// <summary>Runs as <see cref="StartTransactionAsync"/> opens the outermost transaction, before it does: a test's way to
-    /// stage what another writer does between a service's own checks and its transaction (a race).</summary>
-    public Func<CancellationToken, Task>? BeforeTransaction { get; init; }
+    /// <summary>
+    /// Another context on this one's database (its connection, which it doesn't own: disposing it leaves the database be),
+    /// running <paramref name="interceptors"/>: the other request of a race, or the service's own context with a hook in it
+    /// (<see cref="BeforeFirstSave"/>, <see cref="BeforeFirstTransaction"/>, <see cref="RefusingSaves"/>).
+    /// </summary>
+    public FakeApplicationDbContext NewContextLike(params IInterceptor[] interceptors)
+        => new(new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(Database.GetDbConnection()).AddInterceptors(interceptors).Options);
 
     public override void Dispose()
     {
@@ -271,11 +275,7 @@ internal sealed class FakeApplicationDbContext :
         transactionLayer++;
 
         if (transactionLayer == 1 && transaction is null)
-        {
-            if (BeforeTransaction is not null)
-                await BeforeTransaction(cancellationToken);
             transaction = await Database.BeginTransactionAsync(cancellationToken);
-        }
     }
 
     public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)

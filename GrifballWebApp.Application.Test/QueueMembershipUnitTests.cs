@@ -309,16 +309,14 @@ internal sealed class QueueMembershipUnitTests : ApplicationDbContextTests
     public async Task AddPlayerToQueue_QueuedByAnotherRequestMeanwhile_False_AndKeepsThatSpot()
     {
         await Seed();
-        var connection = Context.Database.GetDbConnection();
-        var plain = new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).Options;
         // The site's join is saved after the Discord button's checked the queue, as the button's saves
         var site = new BeforeFirstSave(async ct =>
         {
-            await using var other = new FakeApplicationDbContext(plain);
+            await using var other = Context.NewContextLike();
             other.QueuedPlayer.Add(QueuedPlayer.Seed(GamerID, Joined));
             await other.SaveChangesAsync(ct);
         });
-        await using var racing = new FakeApplicationDbContext(new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).AddInterceptors(site).Options);
+        await using var racing = Context.NewContextLike(site);
 
         var added = await new QueueRepository(racing).AddPlayerToQueue(QueuedPlayer.Seed(GamerID, Joined.AddMinutes(1)));
 
@@ -327,6 +325,9 @@ internal sealed class QueueMembershipUnitTests : ApplicationDbContextTests
         {
             Assert.That(added, Is.False, "they are in the queue: the other request put them there");
             Assert.That(spot.JoinedAt, Is.EqualTo(Joined), "the other request's spot stays");
+            Assert.That(racing.ChangeTracker.Entries<QueuedPlayer>().Any(e => e.State == EntityState.Added), Is.False, "the failed insert is let go");
+            // So the context's next save doesn't try the duplicate again
+            await Assert.ThatAsync(() => racing.SaveChangesAsync(), Throws.Nothing);
         }
     }
 

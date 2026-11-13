@@ -4,6 +4,7 @@ using GrifballWebApp.Application.UserManagement;
 using GrifballWebApp.Domain.Players;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using NSubstitute;
 
 namespace GrifballWebApp.Application.Test;
@@ -257,8 +258,15 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
         Assert.That(reread.UsedAt, Is.Not.Null);
     }
 
+    /// <summary>
+    /// Another request uses the link between this one's read and its save: UsedAt is the link's concurrency token, so this
+    /// one's save matches no row, it is refused, and its transaction rolls back with the password change in it. On one
+    /// SQLite in-memory connection the other request can't commit on its own while this one's transaction is open (a
+    /// connection has one transaction), so its context joins that transaction, and its UsedAt is rolled back too here; in
+    /// production it was committed and stays. What this checks is this request's side: refused, its password change undone.
+    /// </summary>
     [Test]
-    public async Task UsePasswordResetLink_UsedByAnotherRequestMeanwhile_IsRefusedAndNothingIsSaved()
+    public async Task UsePasswordResetLink_UsedByAnotherRequestMeanwhile_IsRefused_AndItsPasswordChangeRollsBack()
     {
         var user = User.Seed(userName: "alice", id: 1);
         Context.Users.Add(user);
@@ -266,24 +274,29 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
         Context.PasswordResetLinks.Add(link);
         await Context.SaveChangesAsync();
         var linkId = link.Id;
-        // Another request uses the link between this one's read and its save (UsedAt is the link's concurrency token)
+        var otherRequestRan = false;
         _userManager.AddPasswordAsync(Arg.Any<User>(), "NewPassword1!").Returns(async _ =>
         {
-            await Context.PasswordResetLinks.Where(l => l.Id == linkId)
-                .ExecuteUpdateAsync(s => s.SetProperty(l => l.UsedAt, DateTime.UtcNow));
+            // The password change, written in this request's transaction as Identity's store (the same context) writes it
+            await Context.Users.Where(u => u.Id == 1).ExecuteUpdateAsync(u => u.SetProperty(x => x.PasswordHash, "new-hash"));
+            // The other request's use of the link, from a context of its own
+            await using var other = Context.NewContextLike();
+            await other.Database.UseTransactionAsync(Context.Database.CurrentTransaction!.GetDbTransaction());
+            await other.PasswordResetLinks.Where(l => l.Id == linkId).ExecuteUpdateAsync(l => l.SetProperty(x => x.UsedAt, DateTime.UtcNow));
+            otherRequestRan = true;
             return IdentityResult.Success;
         });
 
         var (success, message) = await _service.UsePasswordResetLink(token, "NewPassword1!", CancellationToken.None);
 
         Context.ChangeTracker.Clear();
-        var reread = await Context.PasswordResetLinks.SingleAsync();
+        var passwordHash = await Context.Users.Where(u => u.Id == 1).Select(u => u.PasswordHash).SingleAsync();
         using (Assert.EnterMultipleScope())
         {
+            Assert.That(otherRequestRan, Is.True);
             Assert.That(success, Is.False);
             Assert.That(message, Is.EqualTo("Invalid or already used reset link"));
-            Assert.That(Context.Database.CurrentTransaction, Is.Null, "its transaction is gone, not committed");
-            Assert.That(reread.UsedAt, Is.Null, "the transaction rolled back: nothing it did inside it is saved");
+            Assert.That(passwordHash, Is.Null, "the password change was rolled back with the transaction");
         }
     }
 

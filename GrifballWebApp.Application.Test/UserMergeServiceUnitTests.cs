@@ -531,19 +531,15 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
     {
         var (to, from) = await TwoUsers();
         Context.ChangeTracker.Clear();
-        var connection = Context.Database.GetDbConnection();
-        var options = new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).Options;
         // The merge's context: as it opens its transaction (after the merge checked neither user is in a live match), the
         // queue, a context of its own, starts a match of both
-        await using (var racing = new FakeApplicationDbContext(options)
+        var queueStartsAMatch = new BeforeFirstTransaction(async ct =>
         {
-            BeforeTransaction = async ct =>
-            {
-                await using var queue = new FakeApplicationDbContext(options);
-                queue.MatchedMatches.Add(MatchedMatch.Start([to.Id], [from.Id]));
-                await queue.SaveChangesAsync(ct);
-            },
-        })
+            await using var queue = Context.NewContextLike();
+            queue.MatchedMatches.Add(MatchedMatch.Start([to.Id], [from.Id]));
+            await queue.SaveChangesAsync(ct);
+        });
+        await using (var racing = Context.NewContextLike(queueStartsAMatch))
         {
             // The caller's own change, left unsaved: the merge saves it inside its transaction, so only a rollback keeps it out
             (await racing.Users.SingleAsync(x => x.Id == to.Id)).Rename("Saved by the failed merge");
