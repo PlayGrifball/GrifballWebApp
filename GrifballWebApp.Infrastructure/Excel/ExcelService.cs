@@ -84,7 +84,7 @@ public class ExcelService
         string pattern = @"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
         foreach (var str in rows)
         {
-            MatchCollection matches = Regex.Matches(str, pattern, RegexOptions.None, TimeSpan.FromSeconds(1));
+            MatchCollection matches = Regex.Matches(str, pattern, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
             foreach (System.Text.RegularExpressions.Match match in matches)
             {
                 guids.Add(Guid.Parse(match.Value));
