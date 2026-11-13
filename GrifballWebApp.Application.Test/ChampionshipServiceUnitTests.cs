@@ -58,11 +58,24 @@ internal sealed class ChampionshipServiceUnitTests
     }
 
     [Test]
-    public void ChampionOf_GrandFinal_AwayWinsButNoSuddenDeathYet_ReturnsNull()
+    public void ChampionOf_GrandFinal_AwayWinsWithNoSuddenDeathSlotAtAll_AwayWinsOutright()
     {
+        // No sudden death slot exists in this bracket at all (never just not decided yet): the away win stands.
         var grandFinal = DecidedMatch(10, 20, homeWins: 0, awayWins: 2, Bracket.GrandFinal);
 
         var champion = ChampionshipService.ChampionOf([grandFinal]);
+
+        Assert.That(champion, Is.EqualTo(20));
+    }
+
+    [Test]
+    public void ChampionOf_GrandFinal_AwayWinsAndSuddenDeathUndecided_ReturnsNull()
+    {
+        var grandFinal = DecidedMatch(10, 20, homeWins: 0, awayWins: 2, Bracket.GrandFinal);
+        var suddenDeath = SeasonMatch.Seed(seasonID: 1, homeTeamID: 10, awayTeamID: 20, bestOf: 3,
+            bracketMatch: MatchBracketInfo.Seed(roundNumber: 1, bracket: Bracket.GrandFinalSuddenDeath, homeTeamSeedNumber: 1, awayTeamSeedNumber: 2));
+
+        var champion = ChampionshipService.ChampionOf([grandFinal, suddenDeath]);
 
         Assert.That(champion, Is.Null);
     }
