@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Testing;
 using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Outbox;
 using GrifballWebApp.Domain.Shared;
@@ -143,13 +144,13 @@ public class OutboxDispatcherTests : SqliteContextFixture
         var recent = new OutboxMessage { Kind = Kind, Payload = "{}", Status = OutboxStatus.Sent, CreatedAt = Now.UtcDateTime, NextAttemptAt = Now.UtcDateTime, SentAt = Now.UtcDateTime };
         Context.Outbox.AddRange(old, recent);
         await Context.SaveChangesAsync();
-        var log = new LogRecorder<OutboxProcessor>();
+        var log = new FakeLogger<OutboxProcessor>();
         using var dispatcher = Dispatcher(_provider.GetRequiredService<IServiceScopeFactory>(), log);
 
         await dispatcher.StartAsync(CancellationToken.None);
         // The first pass cleans up before it waits for the next: done once its log line is there
         using (var limit = new CancellationTokenSource(Limit))
-            while (log.Entries.Count == 0)
+            while (log.Collector.Count == 0)
                 await Task.Delay(10, limit.Token);
         await dispatcher.StopAsync(CancellationToken.None);
 

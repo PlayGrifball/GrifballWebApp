@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Testing;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
@@ -32,7 +33,7 @@ public class DataPullServiceSaveTests : SqliteContextFixture
     private IHaloInfiniteClient _halo = null!;
     private IGetsertXboxUserService _getsert = null!;
     private DataPullService _service = null!;
-    private readonly LogRecorder<DataPullService> _log = new();
+    private readonly FakeLogger<DataPullService> _log = new();
 
     [SetUp]
     public void SetUp()

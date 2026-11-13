@@ -35,7 +35,8 @@ public class ScriptDialectWritingUnitTests
 
     private static readonly TablePlan[] TwoTables = [Plan(Parent, Column("Id", "int")), Plan(Child, Column("Id", "int"))];
 
-    private string Written() => _output.ToString();
+    // The production SQL is raw string literals too: whatever line endings the checkout gave them, compared as \n
+    private string Written() => _output.ToString().ReplaceLineEndings("\n");
 
     [Test]
     public void For_EachServer_ItsOwnScript()
@@ -95,7 +96,7 @@ public class ScriptDialectWritingUnitTests
             GO
             IF @@TRANCOUNT = 0 SET NOEXEC ON;
 
-            """));
+            """.ReplaceLineEndings("\n")));
     }
 
     [Test]
@@ -124,7 +125,7 @@ public class ScriptDialectWritingUnitTests
             GO
             IF @@TRANCOUNT = 0 SET NOEXEC ON;
 
-            """));
+            """.ReplaceLineEndings("\n")));
     }
 
     [Test]
@@ -172,7 +173,7 @@ public class ScriptDialectWritingUnitTests
 
             UPDATE "public"."Teams" SET "CaptainID" = 5 WHERE "TeamID" = 1;
 
-            """));
+            """.ReplaceLineEndings("\n")));
     }
 
     [Test]

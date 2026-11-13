@@ -2,15 +2,17 @@ using Quartz;
 using Quartz.Extensibility;
 using GrifballWebApp.Infrastructure.Jobs;
 using NSubstitute;
+using Microsoft.Extensions.Time.Testing;
 using GrifballWebApp.Application.Jobs;
 using static GrifballWebApp.Infrastructure.Test.JobsUnitTests;
 
 namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>
-/// OnDemandJobs.Status, against a substituted ISchedulerFactory/IScheduler/IExecutionHistoryStore: no database, host
-/// or Quartz-managed scheduler. GrifballWebApp.Integration.Test keeps the same scenarios against a real scheduler and
-/// store (and Enqueue, which needs Quartz's own ScheduleJob extension on a real store), for its own layer's coverage.
+/// OnDemandJobs.Status and Enqueue, against a substituted ISchedulerFactory/IScheduler/IExecutionHistoryStore: no
+/// database, host or Quartz-managed scheduler. Enqueue goes through Quartz's own ScheduleJob extension, which stores the
+/// job and its one-off trigger on the substitute (its clock a fake). GrifballWebApp.Integration.Test keeps the same
+/// scenarios against a real scheduler and store.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -22,12 +24,16 @@ public class OnDemandJobsUnitTests
     private readonly IExecutionHistoryStore _history = Substitute.For<IExecutionHistoryStore>();
     private const string SchedulerName = "test-scheduler";
     private static readonly TriggerKey Key = OnDemandJobs.TriggerKeyOf<CountingJob>("page-1");
+    private static readonly TriggerKey EnqueueKey = OnDemandJobs.TriggerKeyOf<OnDemandCountingJob>("page-1");
+    private static readonly DateTimeOffset EnqueueNow = new(2026, 11, 13, 10, 0, 0, TimeSpan.Zero);
 
     [SetUp]
     public void SetUp()
     {
         _schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(_scheduler);
         _scheduler.SchedulerName.Returns(SchedulerName);
+        // The one-off triggers Enqueue stores are built on the scheduler's clock
+        _scheduler.TimeProvider.Returns(new FakeTimeProvider(EnqueueNow));
         _scheduler.QueryFireInstances(Arg.Any<FireInstanceQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<FireInstance>([], false));
         _history.QueryExecutions(Arg.Any<ExecutionHistoryQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<ExecutionHistoryEntry>([], false));
     }
@@ -113,5 +119,34 @@ public class OnDemandJobsUnitTests
         var status = await Jobs().Status<CountingJob>("page-1");
 
         Assert.That(status.LastRun!.Error, Is.Null);
+    }
+
+    [Test]
+    public async Task Enqueue_NothingQueued_StoresAOneOffTrigger_ForTheJob_WithItsInput()
+    {
+        // Idle before the trigger is stored, queued once it is
+        _scheduler.GetTriggerState(EnqueueKey, Arg.Any<CancellationToken>()).Returns(TriggerState.None, TriggerState.Normal);
+
+        var status = await Jobs().Enqueue<OnDemandCountingJob, CountBy>("page-1", new CountBy(3), "Count to three", "counting-group");
+
+        Assert.That(status.State, Is.EqualTo(OnDemandJobState.Queued));
+        await _scheduler.Received(1).ScheduleTrigger(
+            Arg.Is<ITrigger>(t => t.Key.Equals(EnqueueKey) && t.Description == "Count to three" && t.ExecutionGroup == "counting-group"
+                && t.StartTimeUtc == EnqueueNow && new CountBy(3).Equals(t.JobDataMap[SchedulerConstants.JobInput])
+                && t.JobKey.Equals(OnDemandJobs.JobKeyOf(typeof(OnDemandCountingJob)))),
+            TriggerConflict.Keep, Arg.Any<CancellationToken>());
+        await _scheduler.Received(1).AddJob(Arg.Is<IJobDetail>(j => j.Key.Equals(OnDemandJobs.JobKeyOf(typeof(OnDemandCountingJob))) && j.Durable),
+            Arg.Any<AddJobOptions>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Enqueue_OneAlreadyQueued_AddsNothing_AndSaysItsQueued()
+    {
+        _scheduler.GetTriggerState(EnqueueKey, Arg.Any<CancellationToken>()).Returns(TriggerState.Normal);
+
+        var status = await Jobs().Enqueue<OnDemandCountingJob, CountBy>("page-1", new CountBy(3));
+
+        Assert.That(status.State, Is.EqualTo(OnDemandJobState.Queued));
+        await _scheduler.DidNotReceiveWithAnyArgs().ScheduleTrigger(default!, default, default);
     }
 }

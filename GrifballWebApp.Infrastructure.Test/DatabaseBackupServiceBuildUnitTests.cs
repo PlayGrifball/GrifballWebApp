@@ -124,7 +124,8 @@ public class DatabaseBackupServiceBuildUnitTests
     public async Task MakeAsync_OnAScratchServerThatNeverLetsItIn_StopsTheScratchServerAgain()
     {
         var scaler = Substitute.For<IScratchScaler>();
-        var loggers = new LogRecorderFactory();
+        using var logged = new Microsoft.Extensions.Logging.Testing.FakeLoggerProvider();
+        using var loggers = new Microsoft.Extensions.Logging.LoggerFactory([logged]);
         var service = new DatabaseBackupService(
             Configuration(("Database:Provider", "Sqlite"), ("ConnectionStrings:GrifballWebApp", MissingSource),
                 ("DatabaseBackup:Scratch:Provider", "Postgres"),
@@ -139,7 +140,7 @@ public class DatabaseBackupServiceBuildUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(progress.Reports.Select(r => r.Message), Is.EqualTo(ScratchStartReport));
-            Assert.That(loggers.Logger.At(Microsoft.Extensions.Logging.LogLevel.Information), Is.EqualTo(ScratchStartReport), "and in the log");
+            Assert.That(logged.Collector.At(Microsoft.Extensions.Logging.LogLevel.Information), Is.EqualTo(ScratchStartReport), "and in the log");
         }
     }
 
@@ -160,10 +161,20 @@ public class DatabaseBackupServiceBuildUnitTests
             NullLoggerFactory.Instance, new FakeTimeProvider(Now));
         var first = service.MakeAsync(BackupFormat.Dump, CancellationToken.None);
 
-        var secondBackup = await service.MakeAsync(BackupFormat.Dump, CancellationToken.None);
-        var export = await service.ExportAsync(DatabaseProvider.Sqlite, $"Data Source={Path.Combine(_directory, "copy.db")}", CancellationToken.None);
-        await File.WriteAllTextAsync(release, "");
-        var made = await first;
+        BuiltBackup? secondBackup;
+        IReadOnlyList<ConvertedTable>? export;
+        BuiltBackup? made;
+        try
+        {
+            secondBackup = await service.MakeAsync(BackupFormat.Dump, CancellationToken.None);
+            export = await service.ExportAsync(DatabaseProvider.Sqlite, $"Data Source={Path.Combine(_directory, "copy.db")}", CancellationToken.None);
+        }
+        finally
+        {
+            // Whatever happened above, the fake pg_dump is let go and the first backup finished before TearDown
+            await File.WriteAllTextAsync(release, "");
+            made = await first;
+        }
 
         using (Assert.EnterMultipleScope())
         {

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Testing;
 using GrifballWebApp.Infrastructure.Conversion;
 using GrifballWebApp.Infrastructure.DatabaseBackup;
 using Microsoft.AspNetCore.DataProtection;
@@ -57,7 +58,7 @@ public class DatabaseBackupJobsUnitTests
         Configuration(("Database:Provider", "Sqlite"), ("ConnectionStrings:GrifballWebApp", $"Data Source={Path.Combine(_directory, "missing.db")}")),
         NullLoggerFactory.Instance, new FakeTimeProvider(Now));
 
-    private readonly LogRecorder<DatabaseBackupJob> _backupLog = new();
+    private readonly FakeLogger<DatabaseBackupJob> _backupLog = new();
 
     private DatabaseBackupJob BackupJob(DatabaseBackupService service, IConfiguration? configuration = null)
         => new(service, _files, configuration ?? Configuration(), _backupLog);

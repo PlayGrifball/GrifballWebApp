@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Testing;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Domain.Archive;
@@ -25,7 +26,7 @@ public class HistoricalRefreshJobTests : SqliteContextFixture
     private readonly FakeTimeProvider _time = new(Now);
     private readonly IScheduler _scheduler = Substitute.For<IScheduler>();
     private HistoricalImportJobs _jobs = null!;
-    private readonly LogRecorder<HistoricalRefreshJob> _log = new();
+    private readonly FakeLogger<HistoricalRefreshJob> _log = new();
 
     [SetUp]
     public void SetUp() => _jobs = new HistoricalImportJobs((IApplicationDbContext)Context, new HistoricalImportSignal(), _time);
@@ -100,7 +101,8 @@ public class HistoricalRefreshJobTests : SqliteContextFixture
     [Test]
     public async Task Execute_AJobRunning_TriesAgainInFiveMinutes_ReplacingAnEarlierRetry()
     {
-        await QueueManualRefresh();
+        var running = await QueueManualRefresh();
+        Assert.That(await HistoricalImportJob.ClaimAsync(Context.HistoricalImportJobs, running, Now.UtcDateTime.AddMinutes(-1)), Is.EqualTo(Now.UtcDateTime.AddMinutes(-1)), "claimed: the job is running");
         var context = Substitute.For<IJobExecutionContext>();
         context.Scheduler.Returns(_scheduler);
 
@@ -108,7 +110,7 @@ public class HistoricalRefreshJobTests : SqliteContextFixture
 
         await _scheduler.Received(1).ScheduleTrigger(
             Arg.Is<ITrigger>(t => t.Key.Equals(HistoricalRefreshJob.RetryTriggerKey) && t.JobKey.Equals(HistoricalRefreshJob.Key)
-                && t.StartTimeUtc == Now + HistoricalRefreshJob.RetryAfter && t.Description == HistoricalRefreshJob.WaitingNote),
+                && t.StartTimeUtc == Now.AddMinutes(5) && t.Description == HistoricalRefreshJob.WaitingNote),
             TriggerConflict.Replace, Arg.Any<CancellationToken>());
     }
 

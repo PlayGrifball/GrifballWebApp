@@ -41,6 +41,9 @@ public class QueueService
     private readonly IDataPullService _dataPullService;
     private readonly IOutbox _outbox;
     private readonly IQueueNotifier _notifier;
+    private readonly TimeProvider _time;
+
+    /// <param name="time">The clock a match goes stale by (two hours undecided); the system's unless given.</param>
     public QueueService(ILogger<QueueService> logger,
         IOptions<DiscordOptions> discordOptions,
         IQueueRepository queueRepository,
@@ -48,8 +51,10 @@ public class QueueService
         GrifballContext context,
         IDataPullService dataPullService,
         IOutbox outbox,
-        IQueueNotifier notifier)
+        IQueueNotifier notifier,
+        TimeProvider? time = null)
     {
+        _time = time ?? TimeProvider.System;
         _logger = logger;
         _discordOptions = discordOptions;
         _queueChannel = discordOptions.Value.QueueChannel;
@@ -253,7 +258,7 @@ public class QueueService
             var winnerId = voteResult == WinnerVote.Home ? 0 : 1;
             await HandleWinnersAndLosers(_discordOptions, _context, match, null, winners, losers, winnerId, ct);
         }
-        else if (voteResult is WinnerVote.Cancel || DateTime.UtcNow - match.StartedAt > TimeSpan.FromHours(2))
+        else if (voteResult is WinnerVote.Cancel || _time.GetUtcNow().UtcDateTime - match.StartedAt > TimeSpan.FromHours(2))
         {
             // Cancel the match: its post and thread close are queued with it.
             match.Cancel();

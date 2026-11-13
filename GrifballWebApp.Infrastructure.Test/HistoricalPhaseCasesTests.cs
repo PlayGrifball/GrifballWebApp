@@ -58,11 +58,11 @@ public class HistoricalPhaseCasesTests
         Assert.That(games.SelectMany(g => g.Teams).Select(t => t.Score), Is.EqualTo(title.Contains(" - ") ? new[] { winner, loser } : []));
     }
 
-    private static bool CarnagePhase(string marker)
+    private static bool CarnagePhase(string marker, string before = "Week 1")
     {
         var workbook = SheetWorkbook.Read(Workbook(("History", [
             CarnageHeader,
-            Row(null, "Week 1"),
+            Row(null, before),
             Row("A", 1, 1, 1, 0, 1, 5, 0, 1, "Mon Jul 11 18:02:15 2022"), Row("B", 0, 1, 0, 1, 0, 4, 0, 2, "Mon Jul 11 18:02:15 2022"),
             Row(marker, 0, 0, 0, 0, 0, 0),
             Row("A", 1, 1, 1, 0, 1, 5, 0, 1, "Tue Jul 12 18:02:15 2022"), Row("B", 0, 1, 0, 1, 0, 4, 0, 2, "Tue Jul 12 18:02:15 2022")])))!;
@@ -83,9 +83,10 @@ public class HistoricalPhaseCasesTests
     public void CarnageMarker_SetsThePhaseOfTheGamesAfterIt(string marker, bool playoffs)
         => Assert.That(CarnagePhase(marker), Is.EqualTo(playoffs));
 
-    [Test]
-    public void CarnageMarker_ThatMarksNoPhase_KeepsThePhaseBeforeIt()
-        => Assert.That(CarnagePhase("Notes"), Is.False);
+    [TestCase("Week 1", false)]
+    [TestCase("Playoffs", true)]
+    public void CarnageMarker_ThatMarksNoPhase_KeepsThePhaseBeforeIt(string before, bool playoffs)
+        => Assert.That(CarnagePhase("Notes", before), Is.EqualTo(playoffs));
 
     [Test]
     public void DraftSheet_LabelsInTheirSpellings_GiveEachPlayerTheirTeam()

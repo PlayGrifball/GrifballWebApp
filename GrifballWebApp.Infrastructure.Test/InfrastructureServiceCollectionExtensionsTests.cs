@@ -195,19 +195,21 @@ public class InfrastructureServiceCollectionExtensionsTests
         }
     }
 
-    [Test]
-    public void AddInfrastructure_AScratchServerStartedOnDemand_IsStoppedAtStartup()
+    [TestCase("grif-backup-scratch", true, Description = "a scratch server started on demand: stopped at startup")]
+    [TestCase(null, false, Description = "none: no scaler, nothing to stop")]
+    [TestCase("", false)]
+    public void AddInfrastructure_TheScratchServersScaler_OnlyWithItsDeployment(string? deployment, bool registered)
     {
         var settings = ValidInfrastructureSettings(preview: false);
-        settings["DatabaseBackup:Scratch:Deployment"] = "grif-backup-scratch";
+        settings["DatabaseBackup:Scratch:Deployment"] = deployment;
         var services = new ServiceCollection();
 
         services.AddInfrastructure(Config(settings), discordOff: true);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(services.Any(d => d.ServiceType == typeof(GrifballWebApp.Infrastructure.DatabaseBackup.IScratchScaler)), Is.True);
-            Assert.That(services.Any(d => d.ImplementationType == typeof(GrifballWebApp.Infrastructure.DatabaseBackup.ScratchScaleDown)), Is.True);
+            Assert.That(services.Any(d => d.ServiceType == typeof(GrifballWebApp.Infrastructure.DatabaseBackup.IScratchScaler)), Is.EqualTo(registered));
+            Assert.That(services.Any(d => d.ImplementationType == typeof(GrifballWebApp.Infrastructure.DatabaseBackup.ScratchScaleDown)), Is.EqualTo(registered));
         }
     }
 }

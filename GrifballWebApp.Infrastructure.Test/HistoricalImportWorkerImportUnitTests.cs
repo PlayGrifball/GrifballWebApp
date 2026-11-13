@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Testing;
 using System.Text.Json;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Historical;
@@ -31,8 +32,8 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
     private ServiceProvider _provider = null!;
     private HistoricalImportWorker _worker = null!;
     private IHistoricalImportService _import = null!;
-    private readonly LogRecorder<HistoricalImportWorker> _workerLog = new();
-    private readonly LogRecorder<HistoricalImportRunner> _runnerLog = new();
+    private readonly FakeLogger<HistoricalImportWorker> _workerLog = new();
+    private readonly FakeLogger<HistoricalImportRunner> _runnerLog = new();
 
     [SetUp]
     public void Setup()

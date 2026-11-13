@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Testing;
 using GrifballWebApp.Infrastructure.Jobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -25,7 +26,7 @@ public class RecurringJobSeederTests
     private readonly ISchedulerFactory _schedulers = Substitute.For<ISchedulerFactory>();
     private readonly IScheduler _scheduler = Substitute.For<IScheduler>();
     private ServiceProvider _services = null!;
-    private readonly LogRecorder<RecurringJobSeeder> _log = new();
+    private readonly FakeLogger<RecurringJobSeeder> _log = new();
 
     [SetUp]
     public void SetUp()

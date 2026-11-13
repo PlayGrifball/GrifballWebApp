@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Testing;
 using System.Diagnostics;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Infrastructure.Historical;
@@ -133,7 +134,7 @@ public class WiringPartsTests : SqliteContextFixture
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 
-        var log = new LogRecorder<XboxPlaceholderJob>();
+        var log = new FakeLogger<XboxPlaceholderJob>();
 
         await new XboxPlaceholderJob(new GamertagMatching(Context), log).Execute(Substitute.For<IJobExecutionContext>());
 

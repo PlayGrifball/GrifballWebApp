@@ -353,8 +353,9 @@ public class PostgresTemporalQueriesUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(sql, Does.Contain("UNION ALL"));
-            var parameters = sql.Split('\n').Where(l => l.StartsWith("-- ")).ToList();
+            var (parameters, body) = Split(sql);
             Assert.That(parameters, Is.Not.Empty.And.All.Contains("2026-10-01"), $"both sides read as of the one time: {sql}");
+            Assert.That(body, Does.Not.Contain("2026-10-01"), "the time is a parameter, never inlined");
         }
     }
 
@@ -394,11 +395,21 @@ public class PostgresTemporalQueriesUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(between, Does.Contain("2026-10-01").And.Contain("2026-10-02"));
-            Assert.That(containedIn, Does.Contain("2026-10-01").And.Contain("2026-10-02"));
-            Assert.That(between.Split('\n').Where(l => !l.StartsWith("-- ")), Is.Not.EqualTo(containedIn.Split('\n').Where(l => !l.StartsWith("-- "))),
-                "each its own condition on the periods");
+            foreach (var (name, sql) in new[] { ("between", between), ("contained in", containedIn) })
+            {
+                var (parameters, body) = Split(sql);
+                Assert.That(string.Join("\n", parameters), Does.Contain("2026-10-01").And.Contain("2026-10-02"), $"{name}: both times are parameters: {sql}");
+                Assert.That(body, Does.Not.Contain("2026-10-01").And.Not.Contain("2026-10-02"), $"{name}: never inlined");
+            }
+            Assert.That(Split(between).Body, Is.Not.EqualTo(Split(containedIn).Body), "each its own condition on the periods");
         }
+    }
+
+    /// <summary>ToQueryString's parameter lines ("-- @p=..."), and the SQL without them.</summary>
+    private static (List<string> Parameters, string Body) Split(string sql)
+    {
+        var lines = sql.Split('\n');
+        return ([.. lines.Where(l => l.StartsWith("-- ", StringComparison.Ordinal))], string.Join("\n", lines.Where(l => !l.StartsWith("-- ", StringComparison.Ordinal))));
     }
 
     private sealed class SomeOtherTemporalQueryRoot(IEntityType entityType) : TemporalQueryRootExpression(entityType)

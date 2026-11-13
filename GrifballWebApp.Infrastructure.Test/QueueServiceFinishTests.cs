@@ -11,6 +11,7 @@ using GrifballWebApp.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NetCord.Rest;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -33,8 +34,7 @@ public class QueueServiceFinishTests : SqliteContextFixture
     private const ulong QueueChannel = 111UL;
     private const ulong ThreadId = 999UL;
     private const ulong VoteMessageId = 4242UL;
-    // In the future: never more than the two hours old that QueueService (on the real clock) cancels a match at
-    private static readonly DateTime StartedAt = new(2099, 1, 1, 20, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime StartedAt = new(2026, 11, 13, 20, 0, 0, DateTimeKind.Utc);
     private static readonly string[] TalliedSides = ["Home (1)", "Away (1)"];
     private static readonly string[] EndedSteps = [MatchOutbox.EndedPost, MatchOutbox.ThreadClose];
     private static readonly string[] CanceledSteps = [MatchOutbox.CanceledPost, MatchOutbox.ThreadClose];
@@ -58,8 +58,11 @@ public class QueueServiceFinishTests : SqliteContextFixture
         _dataPull = Substitute.For<IDataPullService>();
     }
 
+    /// <summary>The clock QueueService goes by: an hour into the matches, well short of the two hours that make one stale.</summary>
+    private readonly FakeTimeProvider _time = new(new DateTimeOffset(StartedAt.AddHours(1)));
+
     private QueueService Service() => new(NullLogger<QueueService>.Instance, Options.Create(new DiscordOptions { QueueChannel = QueueChannel, MatchPlayers = 2 }),
-        new QueueRepository(Context), _discord, Context, _dataPull, new ContextOutbox(Context), Substitute.For<IQueueNotifier>());
+        new QueueRepository(Context), _discord, Context, _dataPull, new ContextOutbox(Context), Substitute.For<IQueueNotifier>(), _time);
 
     private async Task<User> SeedUser()
     {
@@ -315,6 +318,41 @@ public class QueueServiceFinishTests : SqliteContextFixture
         {
             Assert.That(await Context.MatchedMatches.CountAsync(), Is.EqualTo(1));
             Assert.That(await Context.QueuedPlayer.AnyAsync(), Is.False);
+        }
+    }
+
+    [Test]
+    public async Task Go_AMatchUndecidedForOverTwoHours_IsCanceled_LeavingMmrAlone()
+    {
+        var home = await SeedUser();
+        var away = await SeedUser();
+        var match = await SeedMatch(home, away);
+        _time.SetUtcNow(new DateTimeOffset(StartedAt.AddHours(2).AddMinutes(1)));
+
+        await Service().Go(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await Context.MatchedMatches.AsNoTracking().SingleAsync(m => m.Id == match.Id)).Status, Is.EqualTo(MatchedMatchStatus.Canceled));
+            Assert.That((await Queued(match.Id)).Select(x => x.Kind), Is.EqualTo(CanceledSteps));
+            Assert.That((await Reload(home)).MMR, Is.EqualTo(User.StartingMMR));
+        }
+    }
+
+    [Test]
+    public async Task Go_AMatchUndecidedForUnderTwoHours_StaysActive()
+    {
+        var home = await SeedUser();
+        var away = await SeedUser();
+        var match = await SeedMatch(home, away);
+        _time.SetUtcNow(new DateTimeOffset(StartedAt.AddHours(2).AddMinutes(-1)));
+
+        await Service().Go(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await Context.MatchedMatches.AsNoTracking().SingleAsync(m => m.Id == match.Id)).Status, Is.EqualTo(MatchedMatchStatus.Active));
+            Assert.That(await Queued(match.Id), Is.Empty);
         }
     }
 }

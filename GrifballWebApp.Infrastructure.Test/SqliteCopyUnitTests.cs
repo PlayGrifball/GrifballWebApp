@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Testing;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Infrastructure.Conversion;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +19,7 @@ namespace GrifballWebApp.Infrastructure.Test;
 [Parallelizable(ParallelScope.All)]
 public class SqliteCopyUnitTests : SqliteContextFixture
 {
-    private readonly LogRecorder<DatabaseConverter> _log = new();
+    private readonly FakeLogger<DatabaseConverter> _log = new();
     private readonly DatabaseConverter _converter;
 
     public SqliteCopyUnitTests() => _converter = new DatabaseConverter(_log);

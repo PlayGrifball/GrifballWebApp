@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Testing;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Infrastructure.Historical;
@@ -27,8 +28,8 @@ public class XuidLookupWorkerTests : SqliteContextFixture
     private readonly IHaloInfiniteClient _halo = Substitute.For<IHaloInfiniteClient>();
     private readonly List<TimeSpan> _waits = [];
     private ServiceProvider _provider = null!;
-    private readonly LogRecorder<XuidLookupWorker> _log = new();
-    private static readonly string[] BatchLines = ["XUID lookups: 2 found", "XUID lookups: 1 found"];
+    private readonly FakeLogger<XuidLookupWorker> _log = new();
+    private static readonly string[] BatchLines = ["XUID lookups: 2 found, 0 not found, 0 failed, 2 claims", "XUID lookups: 1 found, 0 not found, 0 failed, 1 claims"];
 
     private XuidLookupWorker Worker(int batchSize, int lookupsPerMinute = 6000)
     {
@@ -83,7 +84,7 @@ public class XuidLookupWorkerTests : SqliteContextFixture
             Assert.That(lookups, Has.Count.EqualTo(3).And.All.EqualTo(XuidLookupStatus.Found));
             // Two batches (2, then 1): one wait between the first batch's two lookups
             Assert.That(_waits, Is.EqualTo(new[] { TimeSpan.FromMinutes(1) / 6000 }));
-            Assert.That(_log.At(Microsoft.Extensions.Logging.LogLevel.Information).Select(m => m[..m.IndexOf(", 0 not found", StringComparison.Ordinal)]),
+            Assert.That(_log.At(Microsoft.Extensions.Logging.LogLevel.Information),
                 Is.EqualTo(BatchLines), "a line a batch");
         }
         await _halo.Received(3).UserByGamertag(Arg.Any<string>());
