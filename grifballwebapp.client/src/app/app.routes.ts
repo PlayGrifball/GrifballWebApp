@@ -15,22 +15,22 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'season/:seasonID',
-    loadComponent: () => import('./season/season.component').then(m => m.SeasonComponent),
+    loadComponent: () => import('./features/league/season/season.component').then(m => m.SeasonComponent),
     title: 'Season'
   },
   {
     path: 'season/:seasonID/signups',
-    loadComponent: () => import('./signups/signups.component').then(m => m.SignupsComponent),
+    loadComponent: () => import('./features/league/signups/signups.component').then(m => m.SignupsComponent),
     title: 'Signups'
   },
   {
     path: 'season/:seasonID/signupForm',
-    loadComponent: () => import('./signupForm/signupForm.component').then(m => m.SignupFormComponent),
+    loadComponent: () => import('./features/league/signupForm/signupForm.component').then(m => m.SignupFormComponent),
     title: 'Signup Form'
   },
   {
     path: 'season/:seasonID/teams',
-    loadComponent: () => import('./season/seasonTeams/seasonTeams.component').then(m => m.SeasonTeamsComponent),
+    loadComponent: () => import('./features/league/season/seasonTeams/seasonTeams.component').then(m => m.SeasonTeamsComponent),
     title: 'Teams'
   },
   {
@@ -40,12 +40,12 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'season/:seasonID/team/:teamID',
-    loadComponent: () => import('./season/team/team.component').then(m => m.TeamComponent),
+    loadComponent: () => import('./features/league/season/team/team.component').then(m => m.TeamComponent),
     title: 'Team'
   },
   {
     path: 'season/:seasonID/playergrades',
-    loadComponent: () => import('./season/playerGrades/playerGrades.component').then(m => m.PlayerGradesComponent),
+    loadComponent: () => import('./features/league/season/playerGrades/playerGrades.component').then(m => m.PlayerGradesComponent),
     title: 'Player Grades'
   },
   {
@@ -75,19 +75,19 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'seasonManager',
-    loadComponent: () => import('./seasonManager/seasonManager.component').then(m => m.SeasonManagerComponent),
+    loadComponent: () => import('./features/league/seasonManager/seasonManager.component').then(m => m.SeasonManagerComponent),
     title: 'Season Manager',
     canActivate: [isEventOrganizerGuard]
   },
   {
     path: 'seasonEdit/:seasonID',
-    loadComponent: () => import('./seasonEdit/seasonEdit.component').then(m => m.SeasonEditComponent),
+    loadComponent: () => import('./features/league/seasonEdit/seasonEdit.component').then(m => m.SeasonEditComponent),
     title: 'Season Edit',
     canActivate: [isEventOrganizerGuard]
   },
   {
     path: 'seasonAvailability/:seasonID',
-    loadComponent: () => import('./seasonEdit/seasonAvailability/seasonAvailability.component').then(m => m.SeasonAvailabilityComponent),
+    loadComponent: () => import('./features/league/seasonEdit/seasonAvailability/seasonAvailability.component').then(m => m.SeasonAvailabilityComponent),
     title: 'Season Availability',
     canActivate: [isEventOrganizerGuard]
   },
@@ -183,12 +183,12 @@ export const APP_ROUTES: Routes = [
   {
     // A team's franchise across seasons: every season's team of its name in its league
     path: 'history/team/:teamID',
-    loadComponent: () => import('./teamHistory/teamHistory.component').then(m => m.TeamHistoryComponent),
+    loadComponent: () => import('./features/league/teamHistory/teamHistory.component').then(m => m.TeamHistoryComponent),
     title: 'Team History'
   },
   {
     path: 'seasons',
-    loadComponent: () => import('./seasons/seasons.component').then(m => m.SeasonsComponent),
+    loadComponent: () => import('./features/league/seasons/seasons.component').then(m => m.SeasonsComponent),
     title: 'Seasons'
   },
   {
@@ -220,13 +220,13 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'commissioner-dashboard',
-    loadComponent: () => import('./commissioner-dashboard/commissioner-dashboard.component').then(m => m.CommissionerDashboardComponent),
+    loadComponent: () => import('./features/league/commissionerDashboard/commissionerDashboard.component').then(m => m.CommissionerDashboardComponent),
     title: 'Commissioner Dashboard',
     canActivate: [isEventOrganizerGuard]
   },
   {
     path: 'reschedule-request/:seasonMatchID',
-    loadComponent: () => import('./reschedule-request/reschedule-request.component').then(m => m.RescheduleRequestComponent),
+    loadComponent: () => import('./features/league/rescheduleRequest/rescheduleRequest.component').then(m => m.RescheduleRequestComponent),
     title: 'Request Reschedule'
   },
   {

@@ -19,7 +19,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { SignalRService } from '../core/signalr/signalR.service';
 import { addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTeam, movePoolPlayer, removeCaptain, removePlayerFromTeam, renameTeam, resortCaptain } from './draft';
-import { SeasonTabsComponent } from '../season/seasonTabs/seasonTabs.component';
+import { SeasonTabsComponent } from '../features/league/season/seasonTabs/seasonTabs.component';
 import { whileCurrent } from '../shared/whileCurrent';
 import { errorText } from '../shared/errorText';
 

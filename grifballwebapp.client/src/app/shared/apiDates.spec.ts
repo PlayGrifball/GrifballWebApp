@@ -2,12 +2,12 @@ import { DatePipe } from '@angular/common';
 import { DateTime } from 'luxon';
 import { fromApiDate, fromRequiredApiDate, toApiDate } from './apiDates';
 import { ToDatePipe } from './toDate.pipe';
-import { parseSeason } from '../api/seasonSettings';
+import { parseSeason } from '../features/league/api/seasonSettings';
 import { parseUser } from '../userManagement/userResponseDto';
 import type { UserResponseDto } from '@api/models';
-import { parseScheduledMatch } from '../season/scheduleList/scheduledMatchDto';
+import { parseScheduledMatch } from '../features/league/season/scheduleList/scheduledMatchDto';
 import { parseSeasonMatchPage } from '../features/matches/seasonMatch/seasonMatchPageDto';
-import { parseTeamMatch } from '../season/team/team.component';
+import { parseTeamMatch } from '../features/league/season/team/team.component';
 
 /** A user as GET /api/users/{id} sends it, with these fields. */
 const apiUser = (changes: Partial<UserResponseDto>): UserResponseDto => ({
