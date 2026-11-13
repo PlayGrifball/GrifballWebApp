@@ -137,4 +137,55 @@ public class DatabaseBackupServiceBuildUnitTests
         await scaler.Received(1).StopAsync(CancellationToken.None);
         Assert.That(progress.Reports.Select(r => r.Message), Is.EqualTo(ScratchStartReport));
     }
+
+    /// <summary>
+    /// While a dump is being made, another backup or an export is refused (null). MakeAsync takes its gate before its
+    /// first await, so the gate is held once the call has returned its task. The fake pg_dump runs until the test lets it
+    /// go (a marker file), not for a fixed time.
+    /// </summary>
+    [Test]
+    [Platform(Exclude = "Win")] // the fake pg_dump is a #!/bin/sh script
+    public async Task MakeAndExport_WhileABackupIsBeingMade_AreRefused()
+    {
+        var release = Path.Combine(_directory, "release");
+        var fake = PgDumpTestData.FakePgDump(
+            $"printf '' > \"$file\"; i=0; while [ ! -e '{release}' ] && [ $i -lt 600 ]; do sleep 0.05; i=$((i+1)); done", _directory);
+        var service = new DatabaseBackupService(
+            Configuration(("Database:Provider", "Postgres"), ("ConnectionStrings:GrifballWebApp", "Host=db;Database=d"), ("DatabaseBackup:PgDump", fake)),
+            NullLoggerFactory.Instance, new FakeTimeProvider(Now));
+        var first = service.MakeAsync(BackupFormat.Dump, CancellationToken.None);
+
+        var secondBackup = await service.MakeAsync(BackupFormat.Dump, CancellationToken.None);
+        var export = await service.ExportAsync(DatabaseProvider.Sqlite, $"Data Source={Path.Combine(_directory, "copy.db")}", CancellationToken.None);
+        await File.WriteAllTextAsync(release, "");
+        var made = await first;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(secondBackup, Is.Null);
+            Assert.That(export, Is.Null);
+            Assert.That(made?.FileName, Is.EqualTo("grifball-backup-20261113-080000.dump"));
+        }
+        if (made is not null)
+            File.Delete(made.Path);
+    }
+
+    [Test]
+    public void ExportAsync_SaysWhereItsExporting_WhenInformationIsLogged()
+    {
+        var logger = Substitute.For<Microsoft.Extensions.Logging.ILogger>();
+        logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information).Returns(true);
+        var loggers = Substitute.For<Microsoft.Extensions.Logging.ILoggerFactory>();
+        loggers.CreateLogger(Arg.Any<string>()).Returns(logger);
+        var service = new DatabaseBackupService(
+            Configuration(("Database:Provider", "Sqlite"), ("ConnectionStrings:GrifballWebApp", MissingSource)), loggers, new FakeTimeProvider(Now));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(async () => await service.ExportAsync(DatabaseProvider.Sqlite, $"Data Source={Path.Combine(_directory, "copy.db")}", CancellationToken.None),
+                Throws.TypeOf<ConversionException>());
+            Assert.That(logger.ReceivedCalls().Count(c => c.GetMethodInfo().Name == "Log" && Equals(c.GetArguments()[0], Microsoft.Extensions.Logging.LogLevel.Information)
+            && c.GetArguments()[2]?.ToString() == "Exporting the database to a new Sqlite database"), Is.EqualTo(1));
+        }
+    }
 }

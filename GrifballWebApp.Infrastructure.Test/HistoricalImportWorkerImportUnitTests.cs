@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using Microsoft.Extensions.Time.Testing;
 
 namespace GrifballWebApp.Infrastructure.Test;
 
@@ -199,5 +200,109 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
             Arg.Is<HistoricalImportRunOptions>(o => !o.DryRun && o.Guardrail == null && o.Seasons != null && o.Seasons.Count == 2
                 && o.Seasons.Contains("S2019/STATS") && o.Seasons.Contains("s2019/Playoffs")),
             Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>());
+    }
+
+    // ---- the worker's loop, its heartbeat, and a shutdown ----
+
+    private HistoricalImportWorker Worker(TimeProvider time, HistoricalImportWorkerOptions options) => new(_provider.GetRequiredService<IServiceScopeFactory>(),
+        _provider.GetRequiredService<HistoricalImportSignal>(), Options.Create(options), time, NullLogger<HistoricalImportWorker>.Instance,
+        _provider.GetRequiredService<XuidLookupSignal>());
+
+    private async Task<int> QueueUploadAsync() => await Queue(HistoricalImportJob.Upload(
+        JsonSerializer.Serialize(new HistoricalArchiveInput { Seasons = new UnifiedArchive() }, HistoricalArchiveInput.JsonOptions)));
+
+    /// <summary>An import that says it started, then runs until its token is cancelled.</summary>
+    private TaskCompletionSource ImportRunsUntilCancelled()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                started.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, call.Arg<CancellationToken>());
+                return new HistoricalImportReport();
+            });
+        return started;
+    }
+
+    [Test]
+    public async Task AJobQueuedAgainUnderItsRun_StopsTheRunAtItsNextBeat_LeavingTheJobQueued()
+    {
+        var time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 13, 12, 0, 0, TimeSpan.Zero));
+        using var worker = Worker(time, new HistoricalImportWorkerOptions { StaleAfter = TimeSpan.FromMinutes(3) });
+        var jobId = await QueueUploadAsync();
+        var started = ImportRunsUntilCancelled();
+
+        var running = worker.RunNextAsync(CancellationToken.None);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(60));
+        // Another replica found it stale and queued it again
+        await Context.HistoricalImportJobs.Where(j => j.HistoricalImportJobID == jobId)
+            .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, HistoricalImportJobStatus.Queued));
+        time.Advance(TimeSpan.FromMinutes(1));
+        var ran = await running.WaitAsync(TimeSpan.FromSeconds(60));
+
+        var job = await Reload(jobId);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ran, Is.True);
+            Assert.That((job.Status, job.Report, job.Error), Is.EqualTo((HistoricalImportJobStatus.Queued, (string?)null, (string?)null)), "left to the run that queued it again");
+        }
+    }
+
+    [Test]
+    public async Task AShutdownDuringAJob_StopsIt_LeavingItRunningForTheNextStart()
+    {
+        var jobId = await QueueUploadAsync();
+        var started = ImportRunsUntilCancelled();
+        using var shutdown = new CancellationTokenSource();
+
+        var running = _worker.RunNextAsync(shutdown.Token);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(60));
+        await shutdown.CancelAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            await Assert.ThatAsync(() => running, Throws.InstanceOf<OperationCanceledException>());
+            Assert.That((await Reload(jobId)).Status, Is.EqualTo(HistoricalImportJobStatus.Running), "queued again once its heartbeat is stale");
+        }
+    }
+
+    [Test]
+    public async Task AJobLastStartedAfterNow_WaitsForALaterPass()
+    {
+        var jobId = await QueueUploadAsync();
+        // The clock went back: its last start is after now
+        await Context.HistoricalImportJobs.Where(j => j.HistoricalImportJobID == jobId)
+            .ExecuteUpdateAsync(s => s.SetProperty(j => j.StartedAt, new DateTime(2099, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
+
+        var ran = await _worker.RunNextAsync(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ran, Is.False, "not tried again at once");
+            Assert.That((await Reload(jobId)).Status, Is.EqualTo(HistoricalImportJobStatus.Queued));
+        }
+        await _import.DidNotReceiveWithAnyArgs().Import(default!, default, default);
+    }
+
+    [Test]
+    public async Task Hosted_RunsWhatIsQueued_AndStopsWithTheHost()
+    {
+        var jobId = await QueueUploadAsync();
+        var report = new HistoricalImportReport { SeasonsCreated = 1 };
+        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>()).Returns(report);
+        using var worker = Worker(TimeProvider.System, new HistoricalImportWorkerOptions { PollInterval = TimeSpan.FromMilliseconds(50) });
+
+        await worker.StartAsync(CancellationToken.None);
+        // The worker nudges the XUID lookups once a job has finished
+        var finished = await _provider.GetRequiredService<XuidLookupSignal>().WaitAsync(TimeSpan.FromSeconds(60), CancellationToken.None);
+        await worker.StopAsync(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(finished, Is.True, "the job finished");
+            Assert.That(worker.ExecuteTask?.IsCompletedSuccessfully, Is.True, "a shutdown ends the loop, not a failure");
+            Assert.That((await Reload(jobId)).Status, Is.EqualTo(HistoricalImportJobStatus.Succeeded));
+        }
     }
 }

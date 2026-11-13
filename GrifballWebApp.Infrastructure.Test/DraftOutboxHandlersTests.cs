@@ -308,4 +308,34 @@ public class DraftOutboxHandlersTests : SqliteContextFixture
             Assert.That((onDeck.Kind, onDeck.DeadLetterSkipsGroup), Is.EqualTo((DraftOutbox.OnDeck, false)));
         }
     }
+
+    [Test]
+    public async Task OutboxDraftChannel_QueuesEachDraftChangesMessages_InTheSeasonsGroup()
+    {
+        var season = await AddSeason();
+        var captain = await AddUser("Cap");
+        var player = await AddUser("Pick");
+        var channel = new OutboxDraftChannel(Context, _outbox);
+
+        await channel.PlayerAddedAsync(_teams, new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = captain.Id, PersonID = player.Id }, CancellationToken.None);
+        await channel.PlayerMovedAsync(_teams, new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = captain.Id, NewCaptainID = captain.Id, PersonID = player.Id }, CancellationToken.None);
+        await channel.PlayerRemovedAsync(_teams, new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, PersonID = player.Id }, CancellationToken.None);
+        await channel.LockChangedAsync(_teams, season.SeasonID, locked: false, CancellationToken.None);
+
+        var (_, posts) = await QueuedAsync();
+        var groups = await Context.Outbox.AsNoTracking().Select(m => m.GroupKey).Distinct().ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(posts, Is.EqualTo(ChannelPosts));
+            Assert.That(groups, Is.EqualTo(new[] { DraftOutbox.Group(season.SeasonID) }));
+        }
+    }
+
+    private static readonly string[] ChannelPosts =
+    [
+        "Pick has been added to Cap's team",
+        "Pick has been moved from Cap's team to Cap's team",
+        "Pick has returned to the player pool",
+        "Captains are now unlocked. Draft is paused until adjustments are complete",
+    ];
 }

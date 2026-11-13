@@ -179,4 +179,30 @@ public class RescheduleThreadInviteHandlerTests : SqliteContextFixture
             Assert.That(_discord.ReceivedCalls(), Is.Empty);
         }
     }
+
+    [Test]
+    public async Task HandleAsync_AMatchMissingATeam_AndATeamWithNoCaptain_AreReportedInTheThread()
+    {
+        var season = Season.Seed(seasonName: "Reschedule season");
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
+        var away = Team.Seed(seasonID: season.SeasonID, teamName: "Captainless");
+        Context.Teams.Add(away);
+        await Context.SaveChangesAsync();
+        var match = SeasonMatch.Seed(season.SeasonID, null, away.TeamID, bestOf: 3);
+        Context.SeasonMatches.Add(match);
+        var requester = await AddUser("requester");
+        var reschedule = MatchReschedule.Request(match.SeasonMatchID, null, null, "Can't make it", requester.Id, new DateTime(2026, 11, 13, 12, 0, 0, DateTimeKind.Utc));
+        reschedule.AttachThread(ThreadId);
+        Context.MatchReschedules.Add(reschedule);
+        await Context.SaveChangesAsync();
+
+        await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), Context, CancellationToken.None);
+
+        await _discord.Received(1).SendMessageAsync(ThreadId,
+            Arg.Is<MessageProperties>(m => m.Content!.Contains("Could not add a captain to thread, the match is missing a team.")
+                && m.Content.Contains("Could not add Captainless captain to thread, team has no captain.")),
+            Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        await _discord.DidNotReceiveWithAnyArgs().AddGuildThreadUserAsync(default, default, default, default);
+    }
 }

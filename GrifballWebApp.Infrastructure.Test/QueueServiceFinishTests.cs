@@ -272,4 +272,49 @@ public class QueueServiceFinishTests : SqliteContextFixture
             Assert.That(options.Embeds!.First().Description, Does.Contain("0 players in queue"));
         }
     }
+
+    [Test]
+    public async Task Go_AMatchThatFailsToEnd_LeavesTheOthersToEnd()
+    {
+        var (a1, a2, b1, b2) = (await SeedUser(), await SeedUser(), await SeedUser(), await SeedUser());
+        var broken = await SeedMatch(a1, a2);
+        var voted = await SeedMatch(b1, b2, WinnerVote.Home, WinnerVote.Home);
+        // A Halo game of the first match's players that nobody won: it can't be reported
+        var game = Match.Seed(Guid.NewGuid(), startTime: StartedAt.AddMinutes(1), endTime: StartedAt.AddMinutes(13), duration: TimeSpan.FromMinutes(12));
+        game.AddTeam(0, 3, Outcomes.Lost);
+        game.AddTeam(1, 3, Outcomes.Lost);
+        game.AddParticipant(0, a1.XboxUserID!.Value, new MatchParticipantStats());
+        game.AddParticipant(1, a2.XboxUserID!.Value, new MatchParticipantStats());
+        Context.Matches.Add(game);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        await Service().Go(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await Context.MatchedMatches.AsNoTracking().SingleAsync(m => m.Id == broken.Id)).Status, Is.EqualTo(MatchedMatchStatus.Active));
+            Assert.That((await Context.MatchedMatches.AsNoTracking().SingleAsync(m => m.Id == voted.Id)).Status, Is.EqualTo(MatchedMatchStatus.VoteDecided));
+            Assert.That((await Reload(a1)).MMR, Is.EqualTo(User.StartingMMR), "nothing of the failed ending was saved");
+        }
+    }
+
+    [Test]
+    public async Task Go_TheQueueMessageFailingToPost_StillMakesTheMatch()
+    {
+        var (p1, p2) = (await SeedUser(), await SeedUser());
+        Context.QueuedPlayer.AddRange(QueuedPlayer.Seed(p1.Id, StartedAt), QueuedPlayer.Seed(p2.Id, StartedAt.AddMinutes(1)));
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+        _discord.SendMessageAsync(QueueChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new HttpRequestException("Discord is down"));
+
+        await Service().Go(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.MatchedMatches.CountAsync(), Is.EqualTo(1));
+            Assert.That(await Context.QueuedPlayer.AnyAsync(), Is.False);
+        }
+    }
 }
