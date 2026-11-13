@@ -116,7 +116,7 @@ public class AuditInterceptorUnitTests
         {
             Assert.That(result.HasResult, Is.False);
             Assert.That((added.CreatedByID, added.ModifiedByID), Is.EqualTo(((int?)null, (int?)null)), "A background job's save has no app user");
-            Assert.That(added.CreatedAt, Is.Not.EqualTo(default(DateTime)), "Stamped all the same");
+            Assert.That(added.CreatedAt, Is.Not.Default, "Stamped all the same");
             Assert.That(added.ModifiedAt, Is.EqualTo(added.CreatedAt));
         }
     }
