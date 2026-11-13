@@ -125,7 +125,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
     {
         var edit = _rest.Requests.LastOrDefault(r => r.Method == HttpMethod.Patch);
         if (edit is null)
-            return ((InteractionCallbackProperties<InteractionMessageProperties>)_callbacks.Last()).Data.Content;
+            return ((InteractionCallbackProperties<InteractionMessageProperties>)_callbacks[^1]).Data.Content;
         using var json = edit.Json;
         return json.RootElement.TryGetProperty("content", out var content) && content.ValueKind == System.Text.Json.JsonValueKind.String
             ? content.GetString()

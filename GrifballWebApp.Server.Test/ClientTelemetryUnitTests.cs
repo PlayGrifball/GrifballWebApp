@@ -447,7 +447,7 @@ public class ClientTelemetryUnitTests
 
         await forwarder.Forward(Batch(), "", default);
 
-        Assert.That(logger.Entries.First().Message, Is.EqualTo("The collector refused the browser's traces (503); 0 more failures since the last warning"));
+        Assert.That(logger.Entries[0].Message, Is.EqualTo("The collector refused the browser's traces (503); 0 more failures since the last warning"));
     }
 
     [Test]
@@ -458,7 +458,7 @@ public class ClientTelemetryUnitTests
 
         await forwarder.Forward(Batch(), "", default);
 
-        var entry = logger.Entries.First();
+        var entry = logger.Entries[0];
         using (Assert.EnterMultipleScope())
         {
             Assert.That(entry.Message, Is.EqualTo("Sending the browser's traces to the collector failed; 0 more failures since the last warning"));
