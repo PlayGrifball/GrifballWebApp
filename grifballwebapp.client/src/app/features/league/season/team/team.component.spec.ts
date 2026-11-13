@@ -6,7 +6,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
-import { MatchDto, TeamComponent } from './team.component';
+import { MatchDto, parseTeamMatch, TeamComponent } from './team.component';
 import type { TeamDto } from '@api/models';
 import { seasonInfo } from '../../../../shared/testing/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
@@ -251,5 +251,16 @@ describe('TeamComponent', () => {
       expect(el().querySelector('app-data-notice')).toBeNull();
       expect(rows()).toHaveSize(1);
     });
+  });
+});
+
+describe('parseTeamMatch', () => {
+  // What the server's DateTimeJsonConverter writes: UTC with a Z.
+  const UTC = '2026-01-02T03:04:00Z';
+
+  it('parseTeamMatch converts scheduledTime, and keeps an unscheduled match null', () => {
+    expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: UTC, bestOf: 3 }).scheduledTime!.toMillis()).toBe(Date.parse(UTC));
+    expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: null, bestOf: 3 }).scheduledTime).toBeNull();
+    expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: null, bestOf: 3 }).bestOf).toBe(3);
   });
 });
