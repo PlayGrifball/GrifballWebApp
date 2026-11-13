@@ -39,6 +39,21 @@ public class SignalRHubsPageTests
     }
 
     [Test]
+    public async Task RequireSysadmin_SendsARequestWithNoIdentityAtAllToSignIn()
+    {
+        var (context, passed, next) = Request("/signalr-dev");
+        context.User = new ClaimsPrincipal();
+
+        await SignalRHubsPage.RequireSysadmin(context, next);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(passed(), Is.False);
+            Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/login"));
+        }
+    }
+
+    [Test]
     public async Task RequireSysadmin_RefusesASignedInUserWhoIsNotASysadmin()
     {
         var (context, passed, next) = Request("/signalr-dev/index.html", "Commissioner");

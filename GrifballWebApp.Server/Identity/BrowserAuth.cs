@@ -50,9 +50,12 @@ public static partial class BrowserAuth
     /// is not read: it would end up in logs and history).
     /// </summary>
     public static string? HubAccessToken(HttpContext context)
-        => context.GetEndpoint()?.Metadata.GetMetadata<HubMetadata>() is not null
-           && context.Request.Query[HubAccessTokenParameter].ToString() is { Length: > 0 } token
-            ? token : null;
+    {
+        if (context.GetEndpoint()?.Metadata.GetMetadata<HubMetadata>() is null)
+            return null;
+        var token = context.Request.Query[HubAccessTokenParameter].ToString();
+        return token.Length > 0 ? token : null;
+    }
 
     /// <summary>Whether the request carries a bearer token (and so is not a browser's cookie session).</summary>
     public static bool HasBearerToken(HttpContext context)

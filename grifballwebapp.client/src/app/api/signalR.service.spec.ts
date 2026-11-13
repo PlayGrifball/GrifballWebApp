@@ -168,6 +168,10 @@ describe('SignalRService', () => {
     });
   }
 
+  it('drops a message no callback listens for', () => {
+    expect(() => handlerFor('UnlockCaptains')(8)).not.toThrow();
+  });
+
   it('gives a message to every callback even when one throws, and not to one added while it is given', () => {
     const consoleError = spyOn(console, 'error');
     const failing = jasmine.createSpy('failing').and.throwError('boom');
