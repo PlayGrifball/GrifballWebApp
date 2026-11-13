@@ -83,6 +83,14 @@ public class MatchOutboxHandlersTests
         return user;
     }
 
+    /// <summary>Real users' ids, two a side: MatchedPlayer.UserID is a foreign key, so a match's players must exist.</summary>
+    private async Task<(int[] Home, int[] Away)> SeedMatchPlayers()
+    {
+        var home = new[] { (await AddUser()).Id, (await AddUser()).Id };
+        var away = new[] { (await AddUser()).Id, (await AddUser()).Id };
+        return (home, away);
+    }
+
     private async Task<MatchedMatch> SeedMatch(IEnumerable<int> home, IEnumerable<int> away, ulong? threadId = null)
     {
         var match = MatchedMatch.Start(home, away);
@@ -113,16 +121,21 @@ public class MatchOutboxHandlersTests
 
     private static IDiscordEmbed FakeEmbed(string? title = null, string? description = null, params (string Name, string Value)[] fields)
     {
+        // Built before e.Fields.Returns(...) is called: nested Substitute.For/.Returns() calls made while evaluating
+        // that argument would otherwise consume the "last call" e.Fields itself just registered.
+        var fieldSubstitutes = new IDiscordEmbedField[fields.Length];
+        for (var i = 0; i < fields.Length; i++)
+        {
+            var field = Substitute.For<IDiscordEmbedField>();
+            field.Name.Returns(fields[i].Name);
+            field.Value.Returns(fields[i].Value);
+            fieldSubstitutes[i] = field;
+        }
+
         var e = Substitute.For<IDiscordEmbed>();
         e.Title.Returns(title);
         e.Description.Returns(description);
-        e.Fields.Returns(fields.Select(f =>
-        {
-            var field = Substitute.For<IDiscordEmbedField>();
-            field.Name.Returns(f.Name);
-            field.Value.Returns(f.Value);
-            return field;
-        }).ToArray());
+        e.Fields.Returns(fieldSubstitutes);
         return e;
     }
 
@@ -131,7 +144,8 @@ public class MatchOutboxHandlersTests
     [Test]
     public async Task MatchCreatedPostHandler_NewMatch_PostsAndSavesTheResult()
     {
-        var match = await SeedMatch(HomeIds, AwayIds);
+        var (home, away) = await SeedMatchPlayers();
+        var match = await SeedMatch(home, away);
         var posted = FakeMessage(50UL);
         _discord.SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(posted);
         var handler = new MatchCreatedPostHandler(_discord, Options_(), NullLogger<MatchCreatedPostHandler>.Instance);
@@ -145,7 +159,8 @@ public class MatchOutboxHandlersTests
     [Test]
     public async Task MatchCreatedPostHandler_MayBePosted_FindsAnExistingPostInstead()
     {
-        var match = await SeedMatch(HomeIds, AwayIds);
+        var (home, away) = await SeedMatchPlayers();
+        var match = await SeedMatch(home, away);
         var existing = FakeMessage(60UL, FakeEmbed("Match Created", fields: [("Match ID", match.Id.ToString())]));
         _discord.GetMessagesAsync(LogChannel, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ => new[] { existing }.ToAsyncEnumerable());
         var handler = new MatchCreatedPostHandler(_discord, Options_(), NullLogger<MatchCreatedPostHandler>.Instance);
@@ -160,7 +175,8 @@ public class MatchOutboxHandlersTests
     [Test]
     public async Task MatchThreadCreateHandler_AlreadyHasAThread_IsDoneAndMakesNoCalls()
     {
-        var match = await SeedMatch(HomeIds, AwayIds, threadId: 777UL);
+        var (home, away) = await SeedMatchPlayers();
+        var match = await SeedMatch(home, away, threadId: 777UL);
         var handler = new MatchThreadCreateHandler(_discord, Options_(), NullLogger<MatchThreadCreateHandler>.Instance);
 
         var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), _context, CancellationToken.None);
@@ -175,7 +191,8 @@ public class MatchOutboxHandlersTests
     [Test]
     public async Task MatchThreadCreateHandler_NoCreatedPostResult_Throws()
     {
-        var match = await SeedMatch(HomeIds, AwayIds);
+        var (home, away) = await SeedMatchPlayers();
+        var match = await SeedMatch(home, away);
         var handler = new MatchThreadCreateHandler(_discord, Options_(), NullLogger<MatchThreadCreateHandler>.Instance);
 
         Assert.That(async () => await handler.HandleAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), _context, CancellationToken.None),
@@ -185,7 +202,8 @@ public class MatchOutboxHandlersTests
     [Test]
     public async Task MatchThreadCreateHandler_MakesTheThread_AndSavesItOnTheMatch()
     {
-        var match = await SeedMatch(HomeIds, AwayIds);
+        var (home, away) = await SeedMatchPlayers();
+        var match = await SeedMatch(home, away);
         await EnqueueCreatedPostResult(match.Id, messageId: 50UL, found: false);
         var thread = Substitute.For<IDiscordGuildThread>();
         thread.Id.Returns(900UL);
@@ -200,7 +218,8 @@ public class MatchOutboxHandlersTests
     [Test]
     public async Task MatchThreadCreateHandler_PostWasFound_AlreadyHasAThread_IsTaken()
     {
-        var match = await SeedMatch(HomeIds, AwayIds);
+        var (home, away) = await SeedMatchPlayers();
+        var match = await SeedMatch(home, away);
         await EnqueueCreatedPostResult(match.Id, messageId: 50UL, found: true);
         var postedThread = Substitute.For<IDiscordGuildThread>();
         postedThread.Id.Returns(901UL);
@@ -371,7 +390,8 @@ public class MatchOutboxHandlersTests
     [Test]
     public async Task MatchThreadCloseHandler_FirstCall_SendsTheNoticeAndWaitsToDelete()
     {
-        var match = await SeedMatch(HomeIds, AwayIds, threadId: 777UL);
+        var (home, away) = await SeedMatchPlayers();
+        var match = await SeedMatch(home, away, threadId: 777UL);
         var handler = new MatchThreadCloseHandler(_discord, _time);
 
         var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadClose, new MatchPayload(match.Id)), _context, CancellationToken.None);
@@ -386,7 +406,8 @@ public class MatchOutboxHandlersTests
     [Test]
     public async Task MatchThreadCloseHandler_SecondCall_DeletesTheThread()
     {
-        var match = await SeedMatch(HomeIds, AwayIds, threadId: 777UL);
+        var (home, away) = await SeedMatchPlayers();
+        var match = await SeedMatch(home, away, threadId: 777UL);
         var handler = new MatchThreadCloseHandler(_discord, _time);
 
         var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadClose, new MatchPayload(match.Id), result: new ThreadCloseResult(true)), _context, CancellationToken.None);
@@ -401,7 +422,8 @@ public class MatchOutboxHandlersTests
     [Test]
     public async Task MatchThreadCloseHandler_NoThread_IsDoneWithoutCallingDiscord()
     {
-        var match = await SeedMatch(HomeIds, AwayIds);
+        var (home, away) = await SeedMatchPlayers();
+        var match = await SeedMatch(home, away);
         var handler = new MatchThreadCloseHandler(_discord, _time);
 
         var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadClose, new MatchPayload(match.Id)), _context, CancellationToken.None);
