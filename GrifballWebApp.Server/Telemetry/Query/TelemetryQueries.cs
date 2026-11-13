@@ -86,6 +86,8 @@ public static partial class TelemetryQueries
             new("exceptions", "Exceptions", "/min", $"sum(rate(dotnet_exceptions_total{{{s}}}[{w}])) * 60"),
             new("memory", "Memory (working set)", "MB", $"sum by (k8s_pod_name) (dotnet_process_memory_working_set_bytes{{{s}}}) / 1048576", "k8s_pod_name"),
             new("cpu", "CPU", "cores", $"sum by (k8s_pod_name) (rate(dotnet_process_cpu_time_seconds_total{{{s}}}[{w}]))", "k8s_pod_name"),
+            // SignalR's connections (the team builder's, the Late League queue's), by transport: WebSockets, or a fallback
+            new("hubConnections", "Hub connections", "connections", $"sum by (signalr_transport) (signalr_server_active_connections{{{s}}})", "signalr_transport"),
             // The app's server (grifballwebapp.client/src/server.telemetry.ts), which shares this service.name
             new("render", "Page render on the server (p95)", "ms", $"histogram_quantile(0.95, sum by (le) (rate(grif_frontend_render_duration_seconds_bucket{{{s},outcome=\"server\"}}[{w}]))) * 1000"),
             new("renderFailures", "Pages left to the browser after failing", "/min", $"sum(rate(grif_frontend_render_duration_seconds_count{{{s},outcome=\"failed\"}}[{w}])) * 60"),
