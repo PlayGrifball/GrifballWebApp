@@ -267,6 +267,7 @@ public class JsonNamedQueryParametersFilterTests
 public interface ISampleHub
 {
     int Count();
+    List<int> All();
     Task<string> Name();
     Task Save(Sample sample);
 }
@@ -275,7 +276,7 @@ public interface ISampleHub
 [TestFixture]
 public class HubSchemasDocumentFilterTests
 {
-    private static readonly Type[] SamplePayloads = [typeof(int), typeof(string), typeof(Sample)];
+    private static readonly Type[] SamplePayloads = [typeof(int), typeof(List<int>), typeof(string), typeof(Sample)];
 
     [Test]
     public void PayloadTypes_AreWhatTheHubsTakeAnswerAndSend()

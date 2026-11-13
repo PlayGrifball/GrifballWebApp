@@ -299,10 +299,11 @@ public class Program
         .AddBearerToken(IdentityConstants.BearerScheme, options =>
         {
             options.BearerTokenExpiration = TimeSpan.FromMinutes(15);
-            // A hub's token from its query too, where SignalR's clients send it (BrowserAuth.HubAccessToken)
+            // A hub's token from its query too, where SignalR's clients send it (BrowserAuth.HubAccessToken); none: the
+            // handler reads the Authorization header as always
             options.Events.OnMessageReceived = context =>
             {
-                context.Token ??= BrowserAuth.HubAccessToken(context.HttpContext);
+                context.Token = BrowserAuth.HubAccessToken(context.HttpContext);
                 return Task.CompletedTask;
             };
         });
