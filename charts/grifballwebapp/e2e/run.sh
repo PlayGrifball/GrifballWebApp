@@ -330,18 +330,16 @@ EOF
 
   step "The hubs through Traefik, sticky across the two API pods"
   # Negotiate on the IngressRoute (Traefik, as browsers reach it), then the long poll with the connection's id and the
-  # sticky cookie it set: on the pod that negotiated (200), never the other (404 "No Connection with that ID"). The
-  # cookie is Secure, so it is sent by hand over the plain HTTP entrypoint.
+  # sticky cookie it set: on the pod that negotiated (200), never the other (404 "No Connection with that ID").
   sticky_round() {
-    # Plain HTTP on purpose: inside the cluster, to Traefik's web entrypoint (the IngressRoute has no certificate here)
-    local scheme=http
-    local base="$scheme://traefik.kube-system/hub/QueueHub"
+    # Traefik's websecure entrypoint (k3s serves its default certificate there, so -k), as minimal's check does
+    local base=https://traefik.kube-system/hub/QueueHub
     kubectl -n "$ns" exec client -- env base="$base" sh -c '
-      headers=$(curl -s -D - -o /tmp/negotiate -X POST -H "Host: grifball.example" "$base/negotiate?negotiateVersion=1")
+      headers=$(curl -sk -D - -o /tmp/negotiate -X POST -H "Host: grifball.example" "$base/negotiate?negotiateVersion=1")
       cookie=$(printf "%s" "$headers" | sed -n "s/^[Ss]et-[Cc]ookie: \(grif-hub=[^;]*\).*/\1/p" | tr -d "\r")
       token=$(sed -n "s/.*\"connectionToken\":\"\([^\"]*\)\".*/\1/p" /tmp/negotiate)
       [ -n "$cookie" ] && [ -n "$token" ] || { echo "negotiate: no cookie or token: $headers"; exit 1; }
-      curl -s -o /dev/null -w "%{http_code}" --max-time 15 -H "Host: grifball.example" -H "Cookie: $cookie" "$base?id=$token"'
+      curl -sk -o /dev/null -w "%{http_code}" --max-time 15 -H "Host: grifball.example" -H "Cookie: $cookie" "$base?id=$token"'
   }
   for round in 1 2 3 4 5 6; do
     code=$(sticky_round) || fail "round $round: $code"
