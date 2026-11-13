@@ -47,7 +47,7 @@ internal sealed class HistoricalImportJobsUnitTests : ApplicationDbContextTests
         var jobId = await _jobs.Enqueue(input);
 
         var job = await Context.HistoricalImportJobs.SingleAsync(j => j.HistoricalImportJobID == jobId);
-        Assert.That(job.Payload, Does.Contain("seasons"));
+        Assert.That(job.Payload, Does.Contain("Seasons"));
     }
 
     [Test]

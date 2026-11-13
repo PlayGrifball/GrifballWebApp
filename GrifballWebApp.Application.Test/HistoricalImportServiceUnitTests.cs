@@ -2,6 +2,7 @@ using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -51,8 +52,10 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         Players = [.. players],
     };
 
-    private static readonly string[] WinterRegularAndPlayoffSourceIds = ["winter-league-2019/playoff-stats", "winter-league-2019/stats"];
-    private static readonly string[] LateLeagueSeason8SourceId = ["late-league-season-8-halo-3/stats"];
+    // HistoricalSourceID is "{workbook}/{sheet}" verbatim (HistoricalKeys.SeasonSourceId): the workbook is slugged
+    // (Entry's SourceWorkbook), but the sheet is Entry's literal "Stats"/"Playoff Stats".
+    private static readonly string[] WinterRegularAndPlayoffSourceIds = ["winter-league-2019/Playoff Stats", "winter-league-2019/Stats"];
+    private static readonly string[] LateLeagueSeason8SourceId = ["late-league-season-8-halo-3/Stats"];
     private static readonly string[] HensThenRooster = ["Hens", "Rooster"];
     private static readonly (int?, int?)[] HensThenRoosterRecords = [(2, 8), (9, 1)];
     private static readonly string[] RoosterTitleRoster = ["Silva", "Pie", "Ringer"];
@@ -125,7 +128,12 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         Context.Set<XboxGamertagHistory>().Add(new XboxGamertagHistory(2, "x0 pie x0", lastSeen: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), source: GamertagHistorySource.RenameDetected));
         await Context.SaveChangesAsync();
 
-        var report = await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("shadow s16"), Player("X0 Pie X0"))));
+        // The current-gamertag match (PlayerResolver.Find) compares x.Gamertag.Replace(" ", "") against the sheet's
+        // cleaned gamertag: on SQLite, a column wrapped in REPLACE() loses the column's collation (BINARY, not the
+        // NOCASE this layer's string columns otherwise get), so only an exact-case gamertag matches here; a spelling
+        // only differing by case needs Infrastructure's real SQLite setup, covered there. The alias below is matched
+        // by its gamertag history instead (a stored, unwrapped column, unaffected), case and all.
+        var report = await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16"), Player("X0 Pie X0"))));
 
         using (Assert.EnterMultipleScope())
         {
@@ -426,6 +434,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     {
         await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16"))));
         Context.ChangeTracker.Clear();
+        Context.DiscordUsers.Add(DiscordUser.FromDiscord(42, "RealDiscord"));
         var real = User.Seed(userName: "real", discordUserID: 42, xboxUser: XboxUser.FromXbox(5, "Shadow S16"));
         Context.Users.Add(real);
         await Context.SaveChangesAsync();
@@ -492,6 +501,284 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         {
             await _dataPull.Received(1).GetAndSaveMatch(matchId);
             Assert.That(report.MissingMatches, Has.Count.EqualTo(1), "GetAndSaveMatch didn't actually save a match row: it's reported missing");
+        }
+    }
+
+    /// <summary>A Waypoint match already in the database (GetAndSaveMatch's result), as if it had been pulled: two
+    /// teams by outcome, one participant each.</summary>
+    private async Task AddMatch(Guid matchId, params (long Xuid, string Gamertag, Outcomes Outcome, int Kills, int Deaths)[] players)
+    {
+        var match = GrifballWebApp.Domain.Halo.Match.Seed(matchId, duration: TimeSpan.FromMinutes(10));
+        var teams = new Dictionary<Outcomes, int>();
+        foreach (var player in players)
+        {
+            var xbox = await Context.XboxUsers.FindAsync(player.Xuid) ?? Context.XboxUsers.Add(XboxUser.FromXbox(player.Xuid, player.Gamertag)).Entity;
+            if (!teams.TryGetValue(player.Outcome, out var teamID))
+            {
+                teamID = teams.Count;
+                teams.Add(player.Outcome, teamID);
+                match.AddTeam(teamID, 0, player.Outcome);
+            }
+            match.AddParticipant(teamID, player.Xuid, new MatchParticipantStats
+            {
+                Kills = player.Kills,
+                Deaths = player.Deaths,
+                PersonalScore = player.Kills * 100,
+                TimePlayed = TimeSpan.FromMinutes(10),
+                AverageLife = TimeSpan.FromSeconds(12),
+                DamageDealt = 1000,
+                DamageTaken = 900,
+                FirstJoinedTime = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            }, xboxUser: xbox);
+        }
+        Context.Matches.Add(match);
+        await Context.SaveChangesAsync();
+    }
+
+    [Test]
+    public async Task Import_APulledWaypointMatch_BecomesTheSeasonsMatchAndItsPlayersStats()
+    {
+        var matchId = Guid.NewGuid();
+        await AddMatch(matchId, (1, "Alpha One", Outcomes.Won, 20, 5), (2, "Beta One", Outcomes.Lost, 10, 15));
+        var season = new ArchiveSeason
+        {
+            SeasonName = "Infinite Cup 2024",
+            GameVersion = "infinite",
+            League = "AGLA",
+            SourceWorkbook = "infinite-cup-2024",
+            SourceSheet = "Stats",
+            Players = [Player("Alpha One", team: "Alpha"), Player("Beta One", team: "Beta")],
+        };
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [season] },
+            WaypointMatches = new() { ["infinite-cup-2024/Stats"] = new WaypointSeasonMatches { Regular = [matchId.ToString()] } },
+        };
+
+        var report = await _service.Import(input);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.MissingMatches, Is.Empty, "The match is in the database: its phase is complete");
+            Assert.That(report.WaypointMatchesPulled, Is.Zero, "Already there: nothing new to pull");
+            Assert.That(report.ManualReplacedByWaypoint, Is.EqualTo(2), "The sheet's rows for both players are replaced by their game");
+            Assert.That(report.GamesLinked, Is.EqualTo(1));
+            Assert.That(await Context.SeasonMatches.CountAsync(), Is.EqualTo(1));
+            Assert.That(await Context.PlayerSeasonStats.CountAsync(), Is.Zero, "Their stats now come from the game itself, not a stored sheet row");
+            var match = await Context.SeasonMatches.SingleAsync();
+            Assert.That((match.HomeTeamID, match.AwayTeamID), Is.Not.EqualTo(((int?)null, (int?)null)), "Both sides resolved to a season team");
+        }
+    }
+
+    [Test]
+    public async Task Import_AWaypointMatchNoLongerListed_StopsBeingTheSeasonsMatch()
+    {
+        var matchId = Guid.NewGuid();
+        await AddMatch(matchId, (1, "Alpha One", Outcomes.Won, 20, 5), (2, "Beta One", Outcomes.Lost, 10, 15));
+        var season = new ArchiveSeason
+        {
+            SeasonName = "Infinite Cup 2024",
+            GameVersion = "infinite",
+            League = "AGLA",
+            SourceWorkbook = "infinite-cup-2024",
+            SourceSheet = "Stats",
+            Players = [Player("Alpha One", team: "Alpha"), Player("Beta One", team: "Beta")],
+        };
+        var withMatch = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [season] },
+            WaypointMatches = new() { ["infinite-cup-2024/Stats"] = new WaypointSeasonMatches { Regular = [matchId.ToString()] } },
+        };
+        await _service.Import(withMatch);
+        Context.ChangeTracker.Clear();
+
+        var withoutMatch = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [season] },
+            WaypointMatches = new() { ["infinite-cup-2024/Stats"] = new WaypointSeasonMatches() },
+        };
+        var report = await _service.Import(withoutMatch);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SeasonMatchesRemoved, Is.EqualTo(1));
+            Assert.That(await Context.SeasonMatches.CountAsync(), Is.Zero);
+        }
+    }
+
+    // ---------- Re-import reconciliation: a roster changed, a player dropped, a title moved ----------
+
+    private static readonly string[] RoosterRosterAfterTrade = ["Silva", "New"];
+
+    [Test]
+    public async Task Import_ARosterChangedInTheArchive_IsChangedOnTheTeam()
+    {
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Gone", team: "Rooster"))));
+
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("New", team: "Rooster"))));
+
+        Context.ChangeTracker.Clear();
+        var roster = await Context.Set<TeamPlayer>().AsNoTracking().Select(tp => tp.User.DisplayName).ToListAsync();
+        Assert.That(roster, Is.EquivalentTo(RoosterRosterAfterTrade));
+    }
+
+    [Test]
+    public async Task Import_APlayerTakenOffTheSheet_LosesTheRowAndRosterSpot()
+    {
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Gone", team: "Rooster"))));
+
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"))));
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.PlayerSeasonStats.Select(s => s.Gamertag).ToListAsync(), Is.EqualTo(RoosterRosterAfterTradeSingle));
+            Assert.That(await Context.Set<TeamPlayer>().Select(tp => tp.User.DisplayName).ToListAsync(), Is.EqualTo(RoosterRosterAfterTradeSingle));
+        }
+    }
+
+    private static readonly string[] RoosterRosterAfterTradeSingle = ["Silva"];
+
+    [Test]
+    public async Task Import_ATierRemovedOrItsTitleMoved_IsReflected()
+    {
+        HistoricalArchiveInput Input2(params ArchiveChampionship[] titles) => new()
+        {
+            Seasons = Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Hen", team: "Hens"))).Seasons,
+            Championships = new ChampionsArchive { Champions = [.. titles] },
+        };
+        await _service.Import(Input2(
+            new ArchiveChampionship { Season = "Winter League 2019", Game = "Halo 3", Tier = "Pro", Team = "Rooster", Roster = ["Silva"] },
+            new ArchiveChampionship { Season = "Winter League 2019", Game = "Halo 3", Tier = "Amateur", Team = "Hens", Roster = ["Hen"] }));
+
+        // The Amateur title is gone from the record; the Pro one went to the Hens
+        await _service.Import(Input2(new ArchiveChampionship { Season = "Winter League 2019", Game = "Halo 3", Tier = "Pro", Team = "Hens", Roster = ["Hen"] }));
+
+        Context.ChangeTracker.Clear();
+        var titles = await Context.Set<PlayerChampionship>().AsNoTracking().Select(c => new { c.Tier, c.Team.TeamName, c.GamertagUsed }).ToListAsync();
+        Assert.That(titles.Select(t => (t.Tier, t.TeamName, t.GamertagUsed)), Is.EqualTo(TierMovedResult));
+    }
+
+    private static readonly (string, string, string)[] TierMovedResult = [("Pro", "Hens", "Hen")];
+
+    // ---------- A season's dates, from its sheet's timestamps, its name's year or its source's ----------
+
+    [Test]
+    public async Task ASeasonsDates_AreWhenItsGamesWerePlayed_FromItsSheetsTimeStamps()
+    {
+        var entry = new ArchiveSeason
+        {
+            SeasonName = "GWL Tournament Series #1", GameVersion = "halo4", League = "AGLA", SourceWorkbook = "gwl", SourceSheet = "Stats", SourceYear = 2022,
+            FirstPlayedAt = new DateTime(2022, 10, 17, 21, 15, 0, DateTimeKind.Utc), LastPlayedAt = new DateTime(2022, 10, 18, 8, 1, 46, DateTimeKind.Utc),
+            Players = [Player("Galvann", team: "Silly Kids")],
+        };
+
+        await _service.Import(Input(entry));
+
+        var season = await Context.Seasons.AsNoTracking().SingleAsync();
+        Assert.That((season.SeasonStart, season.SeasonEnd), Is.EqualTo((new DateTime(2022, 10, 17, 0, 0, 0, DateTimeKind.Utc), new DateTime(2022, 10, 18, 23, 59, 59, DateTimeKind.Utc))));
+    }
+
+    [Test]
+    public async Task ASeasonsDates_IgnoreTimeStampsFarFromTheYearItsNameGives_AndFallBackToThatYear()
+    {
+        var entry = new ArchiveSeason
+        {
+            SeasonName = "Winter League 2019", GameVersion = "halo3", League = "AGLA", SourceWorkbook = "wl19", SourceSheet = "Stats",
+            FirstPlayedAt = new DateTime(2023, 5, 1, 0, 0, 0, DateTimeKind.Utc), LastPlayedAt = new DateTime(2023, 5, 2, 0, 0, 0, DateTimeKind.Utc),
+            Players = [Player("Silva")],
+        };
+
+        await _service.Import(Input(entry));
+
+        var season = await Context.Seasons.AsNoTracking().SingleAsync();
+        Assert.That((season.SeasonStart, season.SeasonEnd), Is.EqualTo((new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2019, 12, 31, 23, 59, 59, DateTimeKind.Utc))),
+            "A sheet rebuilt years later doesn't move the season");
+    }
+
+    [Test]
+    public async Task AnUndatedSeason_WithoutAYearInItsName_IsItsSourcesYear()
+    {
+        var entry = new ArchiveSeason { SeasonName = "Respawn Fall Series 1", GameVersion = "halo4", League = "AGLA", SourceWorkbook = "respawn", SourceSheet = "Stats", SourceYear = 2021, Players = [Player("Galvann")] };
+
+        await _service.Import(Input(entry));
+
+        Assert.That((await Context.Seasons.AsNoTracking().SingleAsync()).SeasonStart, Is.EqualTo(new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc)), "Not 2008");
+    }
+
+    // ---------- The schedule names a team for players the sheet names none for (#216) ----------
+
+    private const string ScheduleSeasonKey = "winter-league-2023-da/Stats";
+
+    /// <summary>Three teams' games: Red (Red One, Red Two, and Red Sub in one game), Blue (Blue One, Blue Two) and Gold
+    /// (Gold One, and Gold Two in one game), each pair once, as a schedule names them.</summary>
+    private async Task<(Guid[] Ids, List<ScheduledGame> Schedule)> ThreeTeamsGames(string red = "Red")
+    {
+        var (redBlue, redGold, goldBlue) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        await AddMatch(redBlue, (1, "Red One", Outcomes.Won, 5, 1), (2, "Red Two", Outcomes.Won, 5, 1), (3, "Blue One", Outcomes.Lost, 1, 5), (4, "Blue Two", Outcomes.Lost, 1, 5));
+        await AddMatch(redGold, (1, "Red One", Outcomes.Won, 5, 1), (7, "Red Sub", Outcomes.Won, 5, 1), (5, "Gold One", Outcomes.Lost, 1, 5));
+        await AddMatch(goldBlue, (5, "Gold One", Outcomes.Won, 5, 1), (6, "Gold Two", Outcomes.Won, 5, 1), (3, "Blue One", Outcomes.Lost, 1, 5), (4, "Blue Two", Outcomes.Lost, 1, 5));
+        return ([redBlue, redGold, goldBlue],
+        [
+            new ScheduledGame { MatchId = redBlue.ToString(), Home = red, Away = "Blue" },
+            new ScheduledGame { MatchId = $"https://www.halowaypoint.com/halo-infinite/players/x/matches/{redGold}", Home = red, Away = "Gold" },
+            new ScheduledGame { MatchId = goldBlue.ToString(), Home = "Gold", Away = "Blue" },
+        ]);
+    }
+
+    private async Task<Dictionary<string, string[]>> Rosters() => (await Context.Set<TeamPlayer>().AsNoTracking()
+            .Select(tp => new { tp.Team.TeamName, tp.User.DisplayName }).ToListAsync())
+        .GroupBy(tp => tp.TeamName).ToDictionary(g => g.Key, g => g.Select(tp => tp.DisplayName!).Order().ToArray());
+
+    [Test]
+    public async Task Import_PutsPlayersWithoutASheetTeam_OnTheTeamTheScheduleNamesInTheirGames()
+    {
+        var (ids, schedule) = await ThreeTeamsGames(red: "Red Captain");
+        var input = new HistoricalArchiveInput
+        {
+            // Red One's sheet names his team (as the schedule names its captain): the rest of the sheet names none
+            Seasons = Input(Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Red One", team: "Red Squad"), Player("Red Two"), Player("Blue One"))).Seasons,
+            WaypointMatches = new() { [ScheduleSeasonKey] = new WaypointSeasonMatches { Regular = [.. ids.Select(i => i.ToString())], Schedule = schedule } },
+        };
+
+        var report = await _service.Import(input);
+
+        var rosters = await Rosters();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(rosters.ContainsKey("Red Squad"), Is.True, "'Red Captain' is the team its players' sheet names, not a second one");
+            Assert.That(rosters["Red Squad"], Is.EqualTo(RedSquadRoster), "In all their games, or (one game) on the side the rest of their team is on");
+            Assert.That(rosters["Blue"], Is.EqualTo(BlueRoster));
+            Assert.That(rosters["Gold"], Is.EqualTo(GoldRoster));
+            Assert.That(report.Warnings, Has.None.Contains("none of the season's teams"));
+        }
+    }
+
+    private static readonly string[] RedSquadRoster = ["Red One", "Red Sub", "Red Two"];
+    private static readonly string[] BlueRoster = ["Blue One", "Blue Two"];
+    private static readonly string[] GoldRoster = ["Gold One", "Gold Two"];
+
+    [Test]
+    public async Task Import_PlaceholderNames_OnTheScheduleOrSheet_MakeNoTeam()
+    {
+        var (ids, schedule) = await ThreeTeamsGames(red: "Subs");
+        var report = await _service.Import(new HistoricalArchiveInput
+        {
+            // Blue One's sheet names only a placeholder: the schedule still puts him on Blue
+            Seasons = Input(Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Blue One", team: "Free Agent"), Player("Red One"))).Seasons,
+            WaypointMatches = new() { [ScheduleSeasonKey] = new WaypointSeasonMatches { Regular = [.. ids.Select(i => i.ToString())], Schedule = schedule } },
+        });
+
+        var rosters = await Rosters();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(rosters.ContainsKey("Subs"), Is.False, "No 'Subs' team");
+            Assert.That(rosters.ContainsKey("Free Agent"), Is.False, "No 'Free Agent' team");
+            Assert.That(rosters["Blue"], Is.EqualTo(BlueRoster));
+            Assert.That(rosters["Gold"], Is.EqualTo(GoldRoster));
         }
     }
 }
