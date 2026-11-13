@@ -120,35 +120,12 @@ internal sealed class SeasonServiceUnitTests : ApplicationDbContextTests
         Assert.That(teams, Is.Null);
     }
 
-    [Test]
-    public async Task GetSeasonTeams_ReturnsRosterAndCaptainFirst()
-    {
-        Context.Seasons.Add(Season.Seed(seasonName: "S1", seasonID: 1));
-        Context.Users.Add(User.Seed(userName: "captain", displayName: "Captain", id: 1));
-        Context.Users.Add(User.Seed(userName: "pick", displayName: "Pick", id: 2));
-        var team = Team.Seed(teamName: "Reclaimers", seasonID: 1, teamID: 10);
-        Context.Teams.Add(team);
-        await Context.SaveChangesAsync();
-        Context.Add(TeamPlayer.Seed(teamID: 10, userID: 1, draftCaptainOrder: 1));
-        Context.Add(TeamPlayer.Seed(teamID: 10, userID: 2, draftRound: 1, draftPick: 1));
-        await Context.SaveChangesAsync();
-        team.SetCaptain(1);
-        await Context.SaveChangesAsync();
-
-        var teams = await _service.GetSeasonTeams(1);
-
-        Assert.That(teams, Has.Count.EqualTo(1));
-        var dto = teams![0];
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(dto.TeamName, Is.EqualTo("Reclaimers"));
-            Assert.That(dto.Wins, Is.Zero);
-            Assert.That(dto.Losses, Is.Zero);
-            Assert.That(dto.Players, Has.Count.EqualTo(2));
-            Assert.That(dto.Players[0].UserID, Is.EqualTo(1));
-            Assert.That(dto.Players[0].IsCaptain, Is.True);
-        }
-    }
+    // GetSeasonTeams' non-null path isn't covered here: its team projection (AsSplitQuery, with Players and Titles
+    // each a nested collection) needs APPLY on SQLite ("Translating this query requires the SQL APPLY operation,
+    // which is not supported on SQLite"), which only Infrastructure's DbContextOptionsBuilder provides
+    // (ReplaceService<IQueryTranslationPostprocessorFactory, SqliteQueryTranslationPostprocessorFactory>, in
+    // DatabaseProviderExtensions.UseGrifballDatabase) - see UserManagementServiceUnitTests' GetUsers/GetUser note
+    // for the same gap. GrifballWebApp.Integration.Test covers GetSeasonTeams against the real providers.
 
     [Test]
     public async Task GetSeasons_FiltersByEnded()
