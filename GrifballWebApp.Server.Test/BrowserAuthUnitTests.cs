@@ -219,6 +219,10 @@ public class BrowserAuthUnitTests
             Assert.That(BrowserAuth.SelectScheme(HubRequest("?access_token=abc", hub: false)), Is.EqualTo("Identity.Application"));
             Assert.That(BrowserAuth.HubAccessToken(HubRequest("?access_token=")), Is.Null);
             Assert.That(BrowserAuth.SelectScheme(HubRequest("?id=1")), Is.EqualTo("Identity.Application"));
+            // No endpoint at all (a request routing found nothing for)
+            var unrouted = Context("GET");
+            unrouted.Request.QueryString = new QueryString("?access_token=abc");
+            Assert.That(BrowserAuth.HubAccessToken(unrouted), Is.Null);
         }
     }
 

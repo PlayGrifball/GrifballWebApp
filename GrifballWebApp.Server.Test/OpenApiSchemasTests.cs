@@ -262,10 +262,21 @@ public class JsonNamedQueryParametersFilterTests
     }
 }
 
+/// <summary>A hub of every kind of method, for its payloads: a value, a Task's result, nothing.</summary>
+[TypedSignalR.Client.Hub]
+public interface ISampleHub
+{
+    int Count();
+    Task<string> Name();
+    Task Save(Sample sample);
+}
+
 /// <summary>The hubs' payloads in the document (OpenApiSchemas.cs), for the client's models and its typed SignalR client.</summary>
 [TestFixture]
 public class HubSchemasDocumentFilterTests
 {
+    private static readonly Type[] SamplePayloads = [typeof(int), typeof(string), typeof(Sample)];
+
     [Test]
     public void PayloadTypes_AreWhatTheHubsTakeAnswerAndSend()
     {
@@ -282,6 +293,14 @@ public class HubSchemasDocumentFilterTests
             // Not what a method returns when it returns nothing
             Assert.That(types, Does.Not.Contain(typeof(Task)).And.Not.Contain(typeof(void)));
         }
+    }
+
+    [Test]
+    public void PayloadTypes_AreAValueATasksResultAndAnArgument()
+    {
+        var types = HubSchemasDocumentFilter.PayloadTypes(typeof(ISampleHub).Assembly);
+
+        Assert.That(types, Is.SupersetOf(SamplePayloads).And.Not.Contain(typeof(void)));
     }
 }
 
@@ -302,6 +321,7 @@ public class OpenApiInclusionTests
             Assert.That(OpenApiInclusion.Includes("v1", Api("seasons", group: "v2")), Is.False);
             Assert.That(OpenApiInclusion.Includes("v1", Api("signalr-dev/spec.json")), Is.False);
             Assert.That(OpenApiInclusion.Includes("v1", Api("signalr-dev/index.html")), Is.False);
+            Assert.That(OpenApiInclusion.Includes("v1", new Microsoft.AspNetCore.Mvc.ApiExplorer.ApiDescription()), Is.True, "No route: not the page's");
         }
     }
 }
