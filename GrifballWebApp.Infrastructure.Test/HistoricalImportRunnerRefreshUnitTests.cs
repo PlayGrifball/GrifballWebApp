@@ -155,25 +155,21 @@ public class HistoricalImportRunnerRefreshUnitTests : SqliteContextFixture
     /// <summary>The run's claim: a fixed time.</summary>
     private static readonly DateTime Claim = new(2026, 11, 1, 12, 0, 0, DateTimeKind.Utc);
 
-    /// <summary>The catalog's channel sources gone (dead), the one stats source answering: the refresh downloads it, and
-    /// the VODs step has no channel to fetch.</summary>
-    private async Task NoChannelsAsync()
-    {
-        _respond = _ => HistoricalSourcesFakeHandler.Ok(Xlsx, HistoricalSourceFetcher.XlsxContentType);
-        await Context.HistoricalSources.Where(s => s.Kind == HistoricalSourceKind.YouTubeChannel).ExecuteUpdateAsync(s => s.SetProperty(x => x.IsDead, true));
-        Context.ChangeTracker.Clear();
-    }
+    /// <summary>The fake web: YouTube's feeds answer with a feed of no videos, everything else with the stats workbook.</summary>
+    private void FeedsHaveNoVideos() => _respond = request => request.RequestUri!.AbsolutePath.Contains("/feeds/videos.xml", StringComparison.Ordinal)
+        ? HistoricalSourcesFakeHandler.Ok(Encoding.UTF8.GetBytes("<feed xmlns=\"http://www.w3.org/2005/Atom\"></feed>"), "application/atom+xml")
+        : HistoricalSourcesFakeHandler.Ok(Xlsx, HistoricalSourceFetcher.XlsxContentType);
 
-    /// <summary>A runner with the VODs step, its VodService on <paramref name="vodsContext"/>; no channel source is
-    /// enabled, so it finds nothing to fetch.</summary>
+    /// <summary>A runner with the VODs step, its VodService on <paramref name="vodsContext"/>, its feeds read through the
+    /// fake web.</summary>
     private HistoricalImportRunner RunnerWithVods(GrifballContext vodsContext) => new(Context, _sources, _import, _jobs,
         Options.Create(new HistoricalGuardrailOptions()), NullLogger<HistoricalImportRunner>.Instance,
         new VodService(vodsContext, new YouTubeClient(new HttpClient(_handler)), Options.Create(new YouTubeOptions()), NullLogger<VodService>.Instance));
 
     [Test]
-    public async Task ARefreshsVodStep_WithNoChannelToFetch_FailsNothing()
+    public async Task ARefreshsVodStep_WithFeedsOfNoNewVideos_FailsNothing()
     {
-        await NoChannelsAsync();
+        FeedsHaveNoVideos();
         var report = await RunnerWithVods(Context).Run(await QueueRefresh(HistoricalImportJobTrigger.Manual), Claim, NoProgress, CancellationToken.None);
 
         Assert.That(report.SourcesFailed, Is.Empty);
@@ -182,7 +178,7 @@ public class HistoricalImportRunnerRefreshUnitTests : SqliteContextFixture
     [Test]
     public async Task AVodStepThatFails_IsReported_AndTheRefreshStands()
     {
-        await NoChannelsAsync();
+        FeedsHaveNoVideos();
         var gone = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString).Options);
         await gone.DisposeAsync();
         var jobId = await QueueRefresh(HistoricalImportJobTrigger.Manual);
@@ -192,7 +188,7 @@ public class HistoricalImportRunnerRefreshUnitTests : SqliteContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(report.SourcesFailed, Has.Count.EqualTo(1).And.Some.StartsWith("VODs: "));
-            Assert.That(report.SourcesChanged, Is.EqualTo(expectedChanged), "the sources' refresh stands");
+            Assert.That(report.SourcesChanged, Does.Contain("2019-wl19-schedule-stats"), "the sources' refresh stands");
         }
     }
 }

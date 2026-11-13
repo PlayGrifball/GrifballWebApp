@@ -325,6 +325,67 @@ public class PostgresTemporalQueriesUnitTests
         }
     }
 
+    // Set operations: both sides as of the same time share its parameter; at different times, or one side not
+    // temporal, they can't be combined (as on SQL Server); two plain sides are as ever.
+    [Test]
+    public void ASetOperation_OfTwoSidesAsOfTheSameTime_SharesTheTime()
+    {
+        using var context = Postgres();
+
+        var sql = context.Seasons.TemporalAsOf(A).Select(s => s.SeasonID).Concat(context.Seasons.TemporalAsOf(A).Select(s => s.SeasonID)).ToQueryString();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sql, Does.Contain("UNION ALL"));
+            Assert.That(sql.Split('\n').Count(l => l.StartsWith("-- ")), Is.EqualTo(1), "one parameter for both sides' time");
+        }
+    }
+
+    [Test]
+    public void ASetOperation_OfSidesAsOfDifferentTimes_IsRefused()
+    {
+        using var context = Postgres();
+
+        Assert.That(() => context.Seasons.TemporalAsOf(A).Select(s => s.SeasonID).Concat(context.Seasons.TemporalAsOf(B).Select(s => s.SeasonID)).ToQueryString(),
+            Throws.InvalidOperationException);
+    }
+
+    [Test]
+    public void ASetOperation_OfOneTemporalSide_IsRefused()
+    {
+        using var context = Postgres();
+
+        Assert.That(() => context.Seasons.TemporalAsOf(A).Select(s => s.SeasonID).Concat(context.Seasons.Select(s => s.SeasonID)).ToQueryString(),
+            Throws.InvalidOperationException);
+    }
+
+    [Test]
+    public void ASetOperation_OfTwoPlainSides_IsAsEver()
+    {
+        using var context = Postgres();
+
+        var sql = context.Seasons.Select(s => s.SeasonID).Concat(context.Seasons.Select(s => s.SeasonID)).ToQueryString();
+
+        Assert.That(sql, Does.Contain("UNION ALL").And.Not.Contain("History"));
+    }
+
+    [Test]
+    public void BetweenAndContainedIn_HaveTheirTimesAsParameters()
+    {
+        using var context = Postgres();
+
+        var between = context.Seasons.TemporalBetween(A, B).ToQueryString();
+        var containedIn = context.Seasons.TemporalContainedIn(A, B).ToQueryString();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(between, Does.Contain("2026-10-01").And.Contain("2026-10-02"));
+            Assert.That(containedIn, Does.Contain("2026-10-01").And.Contain("2026-10-02"));
+            Assert.That(between.Split('\n').Where(l => !l.StartsWith("-- ")), Is.Not.EqualTo(containedIn.Split('\n').Where(l => !l.StartsWith("-- "))),
+                "each its own condition on the periods");
+        }
+    }
+
     private sealed class SomeOtherTemporalQueryRoot(IEntityType entityType) : TemporalQueryRootExpression(entityType)
     {
         public override Expression DetachQueryProvider() => this;

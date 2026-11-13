@@ -38,7 +38,7 @@ public class WiringPartsTests : SqliteContextFixture
     [Test]
     public async Task DistributedCache_WithoutRedis_IsInMemory_AndKeepsWhatsSet()
     {
-        await using var services = new ServiceCollection().AddAppDistributedCache(Configuration()).BuildServiceProvider();
+        await using var services = new ServiceCollection().AddLogging().AddAppDistributedCache(Configuration()).BuildServiceProvider();
         var cache = services.GetRequiredService<IDistributedCache>();
 
         await cache.SetStringAsync("k", "v");
@@ -53,7 +53,7 @@ public class WiringPartsTests : SqliteContextFixture
     [Test]
     public async Task DistributedCache_WithRedis_KeepsItsKeysUnderTheAppsPrefix_OnTheAppsConnection()
     {
-        await using var services = new ServiceCollection()
+        await using var services = new ServiceCollection().AddLogging()
             .AddAppDistributedCache(Configuration(("ConnectionStrings:Redis", "redis.test:6379,abortConnect=false"), (AppRedisExtensions.ChannelPrefixKey, "grif-test")))
             .BuildServiceProvider();
 
@@ -70,7 +70,7 @@ public class WiringPartsTests : SqliteContextFixture
     public async Task HaloCallPacer_WithRedis_SharesItsPaceThere_UnderTheAppsPrefix()
     {
         var configuration = Configuration(("ConnectionStrings:Redis", "redis.test:6379,abortConnect=false"), (AppRedisExtensions.ChannelPrefixKey, "grif-test"));
-        await using var services = new ServiceCollection().AddHaloCallPacer(configuration).BuildServiceProvider();
+        await using var services = new ServiceCollection().AddLogging().AddHaloCallPacer(configuration).BuildServiceProvider();
 
         var slots = services.GetRequiredService<IHaloCallSlots>();
 
