@@ -159,7 +159,8 @@ describe('server telemetry', () => {
       expect(routeOf('hub')).toBe('/hub/*');
       expect(routeOf('signin')).toBe('/signin-discord');
       expect(routeOf('file')).toBe('/*.*');
-      expect(routeOf('hubsPage')).toBe('/signalr-dev/*');
+      // Not yet a RequestKind on master: the hubs' page's own files still share 'api'
+      expect(routeOf('hubsPage' as unknown as ReturnType<typeof requestKind>)).toBe('/signalr-dev/*');
     });
 
     it('logs 5xx as errors, pages at info, and the rest at debug', () => {
