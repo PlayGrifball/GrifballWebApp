@@ -1,0 +1,497 @@
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Test.TestDoubles;
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using NSubstitute;
+
+namespace GrifballWebApp.Application.Test;
+
+/// <summary>
+/// HistoricalImportService.Run/Import end to end, against a fake SQLite context seeded only with the model's own reference
+/// data (Leagues and GameVersions, HasData, so AGLA and halo3 resolve as they do against the real database). Each test
+/// exercises a slice of the pipeline (GroupEntries/KeySeasons, UpsertSeason/UpsertTeams, the guardrail, matchmaking
+/// seasons, recorded games, players lists) through its two public methods, same as GrifballWebApp.Integration.Test's
+/// HistoricalImportServiceTests - whose Waypoint-match and most-nested-collection scenarios need either a real IHaloInfiniteClient
+/// behind the Halo client's own Polly policy, or an Infrastructure-only SQLite provider feature, and stay there.
+/// </summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTests
+{
+    private IDataPullService _dataPull = null!;
+    private HistoricalImportService _service = null!;
+
+    [SetUp]
+    public void SetUp()
+    {
+        _dataPull = Substitute.For<IDataPullService>();
+        _service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
+            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System);
+    }
+
+    private static HistoricalArchiveInput Input(params ArchiveSeason[] entries) => new() { Seasons = new UnifiedArchive { Seasons = [.. entries] } };
+
+    private static ArchiveSeason Entry(string name, string game, string league, bool playoffs, params ArchivePlayer[] players) => new()
+    {
+        SeasonName = name,
+        GameVersion = game,
+        League = league,
+        Division = "Open",
+        IsPlayoffs = playoffs,
+        SourceWorkbook = HistoricalKeys.Slug(name),
+        SourceSheet = playoffs ? "Playoff Stats" : "Stats",
+        Players = [.. players],
+    };
+
+    private static readonly string[] WinterRegularAndPlayoffSourceIds = ["winter-league-2019/playoff-stats", "winter-league-2019/stats"];
+    private static readonly string[] LateLeagueSeason8SourceId = ["late-league-season-8-halo-3/stats"];
+    private static readonly string[] HensThenRooster = ["Hens", "Rooster"];
+    private static readonly (int?, int?)[] HensThenRoosterRecords = [(2, 8), (9, 1)];
+    private static readonly string[] RoosterTitleRoster = ["Silva", "Pie", "Ringer"];
+    private static readonly string[] RealTeamOnly = ["RealTeam"];
+    private static readonly string[] WinterLeague2019Only = ["Winter League 2019"];
+
+    private static ArchivePlayer Player(string gamertag, int kills = 0, int stint = 1, string? team = null, int wins = 0, int losses = 0) => new()
+    {
+        Gamertag = gamertag,
+        Kills = kills,
+        Wins = wins,
+        Losses = losses,
+        Deaths = 1,
+        GamesPlayed = 1,
+        StintIndex = stint,
+        TeamName = team,
+        KdRatio = 1.23456m,
+    };
+
+    [Test]
+    public async Task Import_MakesOneSeasonPerLeagueAndName_AndOnePlaceholderPerPlayer()
+    {
+        var report = await _service.Import(Input(
+            Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10), Player("x0 pie x0", kills: 3)),
+            Entry("Winter League 2019", "halo3", "AGLA", true, Player("shadow  s16 ", kills: 2)),
+            Entry("Late League Season 8 (Halo 3)", "halo3", "Late League", false, Player("SHADOW S16", kills: 4))));
+
+        var seasons = await Context.Seasons.AsNoTracking().OrderBy(s => s.HistoricalSourceID).ToListAsync();
+        var users = await Context.Users.AsNoTracking().ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(seasons.Select(s => s.HistoricalSourceID), Is.EqualTo(WinterRegularAndPlayoffSourceIds));
+            Assert.That(await Context.MatchmakingSeasons.Select(s => s.HistoricalSourceID).ToListAsync(), Is.EqualTo(LateLeagueSeason8SourceId));
+            Assert.That(users, Has.Count.EqualTo(2), "One per player, whatever the case and spacing of their gamertag");
+            Assert.That(users.Select(u => u.IsDummyUser), Is.All.True);
+            Assert.That(await Context.PlayerSeasonStats.CountAsync(), Is.EqualTo(3));
+            Assert.That(await Context.MatchmakingPlayerStats.CountAsync(), Is.EqualTo(1));
+            Assert.That((report.SeasonsCreated, report.MatchmakingSeasonsCreated), Is.EqualTo((1, 1)));
+            Assert.That(report.StatsInserted, Is.EqualTo(4));
+            Assert.That(report.DummyUsersCreated, Is.EqualTo(2));
+        }
+    }
+
+    [Test]
+    public async Task Import_AgainWithTheSameArchive_ChangesNothing()
+    {
+        var input = Input(
+            Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10)),
+            Entry("Winter League 2019", "halo3", "AGLA", true, Player("Shadow S16", kills: 2)));
+        await _service.Import(input);
+        var before = (await Context.Seasons.CountAsync(), await Context.PlayerSeasonStats.CountAsync(), await Context.Users.CountAsync());
+        Context.ChangeTracker.Clear();
+
+        var again = await _service.Import(input);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await Context.Seasons.CountAsync(), await Context.PlayerSeasonStats.CountAsync(), await Context.Users.CountAsync()), Is.EqualTo(before));
+            Assert.That((again.SeasonsCreated, again.StatsInserted, again.DummyUsersCreated, again.StatsUpdated), Is.EqualTo((0, 0, 0, 2)));
+        }
+    }
+
+    [Test]
+    public async Task Import_FindsAccountsByTheirCurrentGamertag_AndRenamedOnesByTheirGamertagHistory()
+    {
+        var byXbox = User.Seed(userName: "noah", xboxUser: XboxUser.FromXbox(1, "Shadow S16"));
+        var byAlias = User.Seed(userName: "pie", xboxUser: XboxUser.FromXbox(2, "Pie Now"));
+        Context.AddRange(byXbox, byAlias);
+        Context.Set<XboxGamertagHistory>().Add(new XboxGamertagHistory(2, "x0 pie x0", lastSeen: new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), source: GamertagHistorySource.RenameDetected));
+        await Context.SaveChangesAsync();
+
+        var report = await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("shadow s16"), Player("X0 Pie X0"))));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.DummyUsersCreated, Is.Zero);
+            Assert.That(await Context.PlayerSeasonStats.Select(s => s.UserID).ToListAsync(), Is.EquivalentTo(new[] { byXbox.Id, byAlias.Id }));
+        }
+    }
+
+    [Test]
+    public async Task Import_MakesTheSeasonsTeams_WithTheirRostersRecordsAndTitles()
+    {
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive
+            {
+                Seasons =
+                [
+                    Entry("Winter League 2019", "halo3", "AGLA", false,
+                        Player("Silva", team: "Rooster", wins: 9, losses: 1), Player("Pie", team: "rooster ", wins: 8, losses: 2),
+                        Player("Benchy", team: "Hens", wins: 2, losses: 8)),
+                    Entry("Winter League 2019", "halo3", "AGLA", true, Player("Silva", team: "Rooster", wins: 3, losses: 0)),
+                ],
+            },
+            Championships = new ChampionsArchive
+            {
+                Champions = [new ArchiveChampionship { Season = "Winter League 2019", Game = "Halo 3", Tier = "Open", Team = "Rooster", Captain = "Silva", Roster = ["Silva", "Pie", "Ringer"] }],
+            },
+        };
+
+        var report = await _service.Import(input);
+
+        Context.ChangeTracker.Clear();
+        var teams = await Context.Teams.AsNoTracking().Include(t => t.TeamPlayers).ThenInclude(tp => tp.User).Include(t => t.Captain).ThenInclude(c => c!.User)
+            .OrderBy(t => t.TeamName).ToListAsync();
+        var titles = await Context.Set<PlayerChampionship>().AsNoTracking().Include(c => c.Team).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.TeamsCreated, Is.EqualTo(2));
+            Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(HensThenRooster), "One team whatever the case and spacing of its name");
+            Assert.That(teams.Select(t => (t.RecordedWins, t.RecordedLosses)), Is.EqualTo(HensThenRoosterRecords), "The regular season's, from the sheet");
+            Assert.That(teams[1].TeamPlayers.Select(tp => tp.User.DisplayName), Is.EquivalentTo(RoosterTitleRoster), "Its title's roster too");
+            Assert.That(teams[1].Captain!.User.DisplayName, Is.EqualTo("Silva"), "The title's captain");
+            Assert.That(titles.Select(t => t.Team.TeamName), Is.All.EqualTo("Rooster"));
+        }
+    }
+
+    [Test]
+    public async Task Import_ExcludesHeaderAndSubstituteLabels_FromCreatingTeams()
+    {
+        var input = Input(Entry("Fall League 2020 (PC)", "reach", "AGLA", false,
+            Player("Player1", team: "RealTeam"),
+            Player("Player2", team: "Subs"),
+            Player("Player3", team: "Sub"),
+            Player("Player4", team: "Team"),
+            Player("Player5", team: "Teams"),
+            Player("Player6", team: "Team Name"),
+            Player("Player7", team: "Substitute"),
+            Player("Player8", team: "Sub Pool")));
+
+        await _service.Import(input);
+
+        var teams = await Context.Teams.AsNoTracking().ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(RealTeamOnly));
+            var stats = await Context.PlayerSeasonStats.AsNoTracking().ToListAsync();
+            Assert.That(stats.Single(s => s.Gamertag == "Player1").TeamID, Is.Not.Null);
+            Assert.That(stats.Where(s => s.Gamertag != "Player1").Select(s => s.TeamID), Is.All.Null);
+        }
+    }
+
+    [Test]
+    public async Task Import_Championships_GoToTheirSeasons_ByTierOrName_OrGetASeasonOfTheirOwn()
+    {
+        var champions = new ChampionsArchive
+        {
+            Champions =
+            [
+                new ArchiveChampionship { Season = "Summer League 2021", Game = "MCC Split", Tier = "Pro", Team = "Yeji", Captain = "xStarBlade", Roster = ["xStarBlade", "oDhmon"] },
+                new ArchiveChampionship { Season = "Winter League 2019", Game = "MCC Halo 3", Tier = "Open", Team = "Rooster", Captain = "Silva", Roster = ["Silva", "silva ", "oDhmon"] },
+                new ArchiveChampionship { Season = "Winter League 2011", Game = "Halo Reach", Tier = "Pro", Team = "Cabs", Captain = "halfbreed105", Roster = ["halfbreed105"] },
+                new ArchiveChampionship { Season = "Winter league 2011", Game = "Halo Reach", Tier = "Amateur", Team = "Downstait", Captain = "Hoya16", Roster = ["Hoya16"] },
+            ],
+        };
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive
+            {
+                Seasons =
+                [
+                    Entry("Summer League 2021 (Pro)", "halo3", "AGLA", false, Player("oDhmon")),
+                    Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva")),
+                ],
+            },
+            Championships = champions,
+        };
+
+        var report = await _service.Import(input);
+        Context.ChangeTracker.Clear();
+        var again = await _service.Import(input);
+
+        var titles = await Context.Set<PlayerChampionship>().AsNoTracking().Include(c => c.Season).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.ChampionshipsInserted, Is.EqualTo(6));
+            Assert.That((again.ChampionshipsInserted, again.ChampionshipsUpdated, again.SeasonsCreated), Is.EqualTo((0, 6, 0)));
+            Assert.That(titles, Has.Count.EqualTo(6));
+            Assert.That(titles.Single(t => t.GamertagUsed == "xStarBlade").Season.SeasonName, Is.EqualTo("Summer League 2021 (Pro)"));
+            Assert.That(titles.Single(t => t.GamertagUsed == "xStarBlade").IsCaptain, Is.True);
+            Assert.That(titles.Single(t => t.GamertagUsed == "Silva").Season.SeasonName, Is.EqualTo("Winter League 2019"));
+            var created = titles.Where(t => t.Tier is "Pro" or "Amateur" && t.Season.SeasonName.StartsWith("Winter")).Select(t => t.Season).ToList();
+            Assert.That(created.Select(s => s.SeasonID).Distinct().Count(), Is.EqualTo(1), "Both tiers' titles in one titles-only season, whatever its name's case");
+            Assert.That(await Context.Seasons.CountAsync(), Is.EqualTo(3));
+        }
+    }
+
+    [Test]
+    public async Task Import_SkipsUnknownLeaguesAndGameVersions()
+    {
+        var report = await _service.Import(Input(
+            Entry("Bad League Season", "halo3", "Nonexistent League", false, Player("P1")),
+            Entry("Bad Game Season", "nonexistent-game", "AGLA", false, Player("P2"))));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Skipped, Has.Count.EqualTo(2));
+            Assert.That(await Context.Seasons.CountAsync(), Is.Zero);
+        }
+    }
+
+    [Test]
+    public async Task Run_DryRun_RollsBackEverySeason_AndReportsTheRemovals()
+    {
+        var report = await _service.Run(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10))),
+            new HistoricalImportRunOptions { DryRun = true });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.Seasons.CountAsync(), Is.Zero, "Rolled back: nothing was kept");
+            Assert.That(report.SeasonsCreated, Is.EqualTo(1), "The report still says what it would do");
+            Assert.That(report.SeasonRemovals, Has.Count.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task Run_Guardrail_StopsASeasonThatWouldRemoveTooMuch_ForReview()
+    {
+        var input = Input(
+            Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10), Player("Pie", kills: 3), Player("Gone Now", kills: 1)),
+            Entry("Winter League 2019", "halo3", "AGLA", true, Player("Shadow S16", kills: 2)));
+        await _service.Import(input);
+        Context.ChangeTracker.Clear();
+
+        var shrunk = Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10)),
+            Entry("Winter League 2019", "halo3", "AGLA", true, Player("Shadow S16", kills: 2)));
+        var report = await _service.Run(shrunk, new HistoricalImportRunOptions { Guardrail = new HistoricalGuardrailOptions { MaxRemovedFraction = 0.1m } });
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.PlayerSeasonStats.CountAsync(), Is.EqualTo(4), "Stopped: the season is untouched, the rows the shrunk import would have removed are still there");
+            Assert.That(report.SeasonRemovals.Single().Stopped, Is.True);
+            Assert.That(report.Warnings, Has.Some.Contains("stopped for review"));
+        }
+    }
+
+    [Test]
+    public async Task Run_PartialRun_OnlyImportsTheSeasonsAsked()
+    {
+        var input = Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("P1")), Entry("Spring League 2019", "halo3", "AGLA", false, Player("P2")));
+
+        await _service.Run(input, new HistoricalImportRunOptions { Seasons = new HashSet<string> { "winter-league-2019/Stats" } });
+
+        var seasons = await Context.Seasons.Select(s => s.SeasonName).ToListAsync();
+        Assert.That(seasons, Is.EqualTo(WinterLeague2019Only));
+    }
+
+    [Test]
+    public async Task Import_ASeasonWithRecordedGames_LinksThemAsASeriesAndStats()
+    {
+        var waypoint = new ArchiveSeason
+        {
+            SeasonName = "MCC Cup 2016",
+            GameVersion = "halo3",
+            League = "AGLA",
+            SourceWorkbook = "mcc-cup-2016",
+            SourceSheet = "Stats",
+            Players = [Player("Alpha One", team: "Alpha"), Player("Beta One", team: "Beta")],
+        };
+        var recorded = new RecordedGameInput
+        {
+            SeasonSourceId = "mcc-cup-2016/Stats",
+            SourceKey = "mcc-cup-2016/Stats#1",
+            GameVersion = "halo3",
+            PlayedAt = new DateTime(2016, 5, 1, 0, 0, 0, DateTimeKind.Utc),
+            Teams = [new RecordedTeamInput { Side = 1, Name = "Alpha", Outcome = GrifballWebApp.Domain.Halo.Outcomes.Won, Score = 50 },
+                     new RecordedTeamInput { Side = 2, Name = "Beta", Outcome = GrifballWebApp.Domain.Halo.Outcomes.Lost, Score = 30 }],
+            Players = [new RecordedPlayerInput { Gamertag = "Alpha One", Side = 1, Kills = 20, Deaths = 5, Assists = 2 },
+                       new RecordedPlayerInput { Gamertag = "Beta One", Side = 2, Kills = 10, Deaths = 15, Assists = 1 }],
+        };
+        var input = new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [waypoint] }, RecordedGames = [recorded] };
+
+        var report = await _service.Import(input);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.RecordedGamesImported, Is.EqualTo(1));
+            Assert.That(await Context.RecordedGames.CountAsync(), Is.EqualTo(1));
+            Assert.That(await Context.SeasonMatches.CountAsync(), Is.EqualTo(1), "The game became a season match");
+        }
+    }
+
+    [Test]
+    public async Task Import_ALateLeagueSeasonsRecordedGame_BecomesAFinishedMatchedMatch()
+    {
+        var season = new ArchiveSeason
+        {
+            SeasonName = "Late League Season 1 (Halo 3)",
+            GameVersion = "halo3",
+            League = "Late League",
+            SourceWorkbook = "late-league-season-1",
+            SourceSheet = "Stats",
+            Players = [Player("Alpha One"), Player("Beta One")],
+        };
+        var recorded = new RecordedGameInput
+        {
+            SeasonSourceId = "late-league-season-1/Stats",
+            SourceKey = "late-league-season-1/Stats#1",
+            GameVersion = "halo3",
+            PlayedAt = new DateTime(2016, 5, 1, 0, 0, 0, DateTimeKind.Utc),
+            Teams = [new RecordedTeamInput { Side = 1, Outcome = GrifballWebApp.Domain.Halo.Outcomes.Won },
+                     new RecordedTeamInput { Side = 2, Outcome = GrifballWebApp.Domain.Halo.Outcomes.Lost }],
+            Players = [new RecordedPlayerInput { Gamertag = "Alpha One", Side = 1, Kills = 20, Deaths = 5, Assists = 2 },
+                       new RecordedPlayerInput { Gamertag = "Beta One", Side = 2, Kills = 10, Deaths = 15, Assists = 1 }],
+        };
+        var input = new HistoricalArchiveInput { Seasons = new UnifiedArchive { Seasons = [season] }, RecordedGames = [recorded] };
+
+        var report = await _service.Import(input);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.MatchmakingSeasonsCreated, Is.EqualTo(1));
+            Assert.That(report.RecordedGamesImported, Is.EqualTo(1));
+            Assert.That(await Context.MatchedMatches.CountAsync(), Is.EqualTo(1));
+            Assert.That(await Context.Set<Team>().CountAsync(), Is.Zero, "Matchmaking has no teams");
+        }
+    }
+
+    [Test]
+    public async Task Import_SkipsASeasonWhoseNameTheLeagueAlreadyHas()
+    {
+        Context.Seasons.Add(Season.Seed(seasonName: "Winter League 2019").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(1)));
+        await Context.SaveChangesAsync();
+
+        var report = await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("P1"))));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Skipped, Has.Some.Contains("already has a season"));
+            Assert.That(await Context.Seasons.CountAsync(), Is.EqualTo(1));
+        }
+    }
+
+    // A season whose save fails (e.g. a column too long) is rolled back while the rest of the run still imports
+    // (Import_ASeasonThatFails_IsRolledBack_AndTheOthersImport): on SQLite, which never enforces column lengths, that
+    // save doesn't actually fail (GrifballWebApp.Integration.Test's own copy of this test Assert.Ignore()s for the same
+    // reason), so this file has nothing that reproduces it; GrifballWebApp.Integration.Test covers it against SQL
+    // Server and Postgres.
+
+    [Test]
+    public async Task Import_PlayersList_LinksAnUnheldDiscordIdToThePlaceholder()
+    {
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16"))));
+        Context.ChangeTracker.Clear();
+
+        var withPlayers = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive(),
+            Players = [new ArchivePlayerInput { Gamertag = "Shadow S16", DiscordId = "123456789012345678", Region = "East" }],
+        };
+        var report = await _service.Import(withPlayers);
+
+        var placeholder = await Context.Users.AsNoTracking().SingleAsync(u => u.IsDummyUser);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.DiscordLinked, Is.EqualTo(1));
+            Assert.That(placeholder.DiscordUserID, Is.EqualTo(123456789012345678));
+            Assert.That(await Context.DiscordUsers.AnyAsync(d => d.DiscordUserID == 123456789012345678), Is.True);
+        }
+    }
+
+    [Test]
+    public async Task Import_PlayersList_MergesThePlaceholderIntoTheDiscordLinkedAccount()
+    {
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16"))));
+        Context.ChangeTracker.Clear();
+        var real = User.Seed(userName: "real", discordUserID: 42, xboxUser: XboxUser.FromXbox(5, "Shadow S16"));
+        Context.Users.Add(real);
+        await Context.SaveChangesAsync();
+
+        var withPlayers = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive(),
+            Players = [new ArchivePlayerInput { Gamertag = "Shadow S16", DiscordId = "42" }],
+        };
+        var report = await _service.Import(withPlayers);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.DiscordMerged, Is.EqualTo(1));
+            Assert.That(await Context.Users.CountAsync(u => u.IsDummyUser), Is.Zero, "The placeholder merged into the real account");
+        }
+    }
+
+    [Test]
+    public async Task Import_PlayersList_FillsARegion_ButNeverOverwritesOne()
+    {
+        var real = User.Seed(userName: "real", xboxUser: XboxUser.FromXbox(5, "Shadow S16"), regionID: 2, regionSource: RegionSource.User);
+        Context.Users.Add(real);
+        await Context.SaveChangesAsync();
+        var withPlayers = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive(),
+            Players = [new ArchivePlayerInput { Gamertag = "Shadow S16", Region = "East" }],
+        };
+
+        var report = await _service.Import(withPlayers);
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.RegionsSet, Is.Zero, "The user already chose a region: the list never overwrites it");
+            Assert.That((await Context.Users.SingleAsync()).RegionID, Is.EqualTo(2));
+        }
+    }
+
+    [Test]
+    public async Task Import_WaypointMatches_ArePulled_AndMissingOnesAreReported()
+    {
+        var matchId = Guid.NewGuid();
+        var season = new ArchiveSeason
+        {
+            SeasonName = "Infinite Cup 2023",
+            GameVersion = "infinite",
+            League = "AGLA",
+            SourceWorkbook = "infinite-cup-2023",
+            SourceSheet = "Stats",
+            Players = [Player("Alpha One")],
+        };
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [season] },
+            WaypointMatches = new() { ["infinite-cup-2023/Stats"] = new WaypointSeasonMatches { Regular = [matchId.ToString()] } },
+        };
+        _dataPull.GetAndSaveMatch(matchId).Returns(Task.CompletedTask);
+
+        var report = await _service.Import(input);
+
+        using (Assert.EnterMultipleScope())
+        {
+            await _dataPull.Received(1).GetAndSaveMatch(matchId);
+            Assert.That(report.MissingMatches, Has.Count.EqualTo(1), "GetAndSaveMatch didn't actually save a match row: it's reported missing");
+        }
+    }
+}
