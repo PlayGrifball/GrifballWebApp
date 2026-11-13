@@ -53,8 +53,9 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     };
 
     // HistoricalSourceID is "{workbook}/{sheet}" verbatim (HistoricalKeys.SeasonSourceId): the workbook is slugged
-    // (Entry's SourceWorkbook), but the sheet is Entry's literal "Stats"/"Playoff Stats".
-    private static readonly string[] WinterRegularAndPlayoffSourceIds = ["winter-league-2019/Playoff Stats", "winter-league-2019/Stats"];
+    // (Entry's SourceWorkbook), but the sheet is Entry's literal "Stats"/"Playoff Stats". A season's regular and playoff
+    // entries make one season, keyed by its regular season's sheet (HistoricalImportService.KeySeasons).
+    private static readonly string[] WinterRegularSourceId = ["winter-league-2019/Stats"];
     private static readonly string[] LateLeagueSeason8SourceId = ["late-league-season-8-halo-3/Stats"];
     private static readonly string[] HensThenRooster = ["Hens", "Rooster"];
     private static readonly (int?, int?)[] HensThenRoosterRecords = [(2, 8), (9, 1)];
@@ -88,7 +89,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Errors, Is.Empty);
-            Assert.That(seasons.Select(s => s.HistoricalSourceID), Is.EqualTo(WinterRegularAndPlayoffSourceIds));
+            Assert.That(seasons.Select(s => s.HistoricalSourceID), Is.EqualTo(WinterRegularSourceId));
             Assert.That(await Context.MatchmakingSeasons.Select(s => s.HistoricalSourceID).ToListAsync(), Is.EqualTo(LateLeagueSeason8SourceId));
             Assert.That(users, Has.Count.EqualTo(2), "One per player, whatever the case and spacing of their gamertag");
             Assert.That(users.Select(u => u.IsDummyUser), Is.All.True);

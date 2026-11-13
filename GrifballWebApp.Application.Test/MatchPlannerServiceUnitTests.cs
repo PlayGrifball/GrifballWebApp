@@ -179,7 +179,13 @@ internal sealed class MatchPlannerServiceUnitTests : ApplicationDbContextTests
 
         var result = await _service.GetUnscheduledMatches(SeasonID);
 
-        Assert.That(result.Single().Complete, Is.True);
+        // Two teams, one home match each: A's (decided) and B's (not)
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Has.Count.EqualTo(2));
+            Assert.That(result.Single(m => m.SeasonMatchID == match.SeasonMatchID).Complete, Is.True);
+            Assert.That(result.Single(m => m.SeasonMatchID != match.SeasonMatchID).Complete, Is.False);
+        }
     }
 
     [Test]

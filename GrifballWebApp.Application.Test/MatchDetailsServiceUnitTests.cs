@@ -82,6 +82,7 @@ internal sealed class MatchDetailsServiceUnitTests : ApplicationDbContextTests
     {
         var season = Season.Seed(seasonName: "S1");
         Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
         var home = Team.Seed(seasonID: season.SeasonID, teamName: "Home");
         var away = Team.Seed(seasonID: season.SeasonID, teamName: "Away");
         Context.Teams.AddRange(home, away);

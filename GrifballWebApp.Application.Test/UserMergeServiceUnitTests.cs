@@ -497,11 +497,13 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
         var season = Season.Seed(seasonName: "Reschedule Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
         Context.Seasons.Add(season);
         await Context.SaveChangesAsync();
-        var seasonMatch = SeasonMatch.Seed(season.SeasonID, null, null);
-        Context.SeasonMatches.Add(seasonMatch);
+        // Two matches: a match has at most one pending reschedule (IX_MatchReschedules_SeasonMatchID, filtered on Status = 0)
+        var busyMatch = SeasonMatch.Seed(season.SeasonID, null, null);
+        var lateMatch = SeasonMatch.Seed(season.SeasonID, null, null);
+        Context.SeasonMatches.AddRange(busyMatch, lateMatch);
         await Context.SaveChangesAsync();
-        var late = MatchReschedule.Request(seasonMatch.SeasonMatchID, null, null, "late", to.Id, DateTime.UtcNow);
-        Context.MatchReschedules.AddRange(MatchReschedule.Request(seasonMatch.SeasonMatchID, null, null, "busy", from.Id, DateTime.UtcNow), late);
+        var late = MatchReschedule.Request(lateMatch.SeasonMatchID, null, null, "late", to.Id, DateTime.UtcNow);
+        Context.MatchReschedules.AddRange(MatchReschedule.Request(busyMatch.SeasonMatchID, null, null, "busy", from.Id, DateTime.UtcNow), late);
         await Context.SaveChangesAsync();
         var entry = Context.Entry(late);
         entry.Property(x => x.Status).CurrentValue = RescheduleStatus.Approved;

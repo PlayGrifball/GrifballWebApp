@@ -137,6 +137,8 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
 
         var count = await _service.Apply(saved.ScheduleRecommendationID, "applier");
 
+        // Apply stamps the row with ExecuteUpdate, which bypasses the change tracker: read it back fresh
+        Context.ChangeTracker.Clear();
         var updatedMatch = await Context.SeasonMatches.SingleAsync(m => m.SeasonMatchID == match.SeasonMatchID);
         var reloaded = await Context.ScheduleRecommendations.SingleAsync(r => r.ScheduleRecommendationID == saved.ScheduleRecommendationID);
         using (Assert.EnterMultipleScope())
@@ -158,6 +160,8 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
 
         var result = await _service.Apply(saved.ScheduleRecommendationID, "second");
 
+        // Apply stamps the row with ExecuteUpdate, which bypasses the change tracker: read it back fresh
+        Context.ChangeTracker.Clear();
         var reloaded = await Context.ScheduleRecommendations.SingleAsync(r => r.ScheduleRecommendationID == saved.ScheduleRecommendationID);
         using (Assert.EnterMultipleScope())
         {

@@ -1,6 +1,7 @@
 using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 
 namespace GrifballWebApp.Application.Test;
@@ -22,10 +23,15 @@ internal sealed class SeasonStatsServiceUnitTests : ApplicationDbContextTests
         _service = new SeasonStatsService(Context, TimeProvider.System);
     }
 
+    /// <summary>The player a stored row belongs to (PlayerSeasonStats.UserID is a foreign key to Users).</summary>
+    private void SeedUser(int userID) => Context.Users.Add(User.Seed(userName: $"user{userID}", id: userID));
+
     private async Task<Season> SeedSeasonWithStoredStat(int userID, string gamertag, int? teamID = null, bool isPlayoffs = false, bool isCombined = false)
     {
+        SeedUser(userID);
         var season = Season.Seed(seasonName: "S1");
         Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
         if (teamID is not null)
             Context.Teams.Add(Team.Seed(seasonID: season.SeasonID, teamName: "Team", teamID: teamID.Value));
         await Context.SaveChangesAsync();
@@ -68,6 +74,7 @@ internal sealed class SeasonStatsServiceUnitTests : ApplicationDbContextTests
         var season1 = await SeedSeasonWithStoredStat(userID: 1, gamertag: "A");
         var season2 = Season.Seed(seasonName: "S2");
         Context.Seasons.Add(season2);
+        SeedUser(2);
         await Context.SaveChangesAsync();
         Context.Add(PlayerSeasonStat.Seed(new StatSheetTotals { Gamertag = "B", GamesPlayed = 5 }, seasonID: season2.SeasonID, userID: 2, gameVersionID: HaloInfiniteGameVersionID));
         await Context.SaveChangesAsync();
@@ -82,6 +89,8 @@ internal sealed class SeasonStatsServiceUnitTests : ApplicationDbContextTests
     {
         var season = Season.Seed(seasonName: "S1");
         Context.Seasons.Add(season);
+        SeedUser(1);
+        SeedUser(2);
         await Context.SaveChangesAsync();
         Context.Add(PlayerSeasonStat.Seed(new StatSheetTotals { Gamertag = "A", GamesPlayed = 5 }, seasonID: season.SeasonID, userID: 1, gameVersionID: HaloInfiniteGameVersionID));
         Context.Add(PlayerSeasonStat.Seed(new StatSheetTotals { Gamertag = "B", GamesPlayed = 5 }, seasonID: season.SeasonID, userID: 2, gameVersionID: HaloInfiniteGameVersionID));

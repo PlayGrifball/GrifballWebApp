@@ -1,6 +1,7 @@
 using GrifballWebApp.Application.LateLeague;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.LateLeague;
+using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 
 namespace GrifballWebApp.Application.Test;
@@ -22,8 +23,12 @@ internal sealed class MatchmakingStatsServiceUnitTests : ApplicationDbContextTes
         _service = new MatchmakingStatsService(Context);
     }
 
+    /// <summary>The player a stored row belongs to (MatchmakingPlayerStats.UserID is a foreign key to Users).</summary>
+    private void SeedUser(int userID) => Context.Users.Add(User.Seed(userName: $"user{userID}", id: userID));
+
     private async Task<MatchmakingSeason> SeedSeasonWithStoredStat(string gamertag, int userID)
     {
+        SeedUser(userID);
         var season = MatchmakingSeason.Seed("MM Season 1", gameVersionID: HaloInfiniteGameVersionID);
         Context.MatchmakingSeasons.Add(season);
         await Context.SaveChangesAsync();
@@ -65,6 +70,7 @@ internal sealed class MatchmakingStatsServiceUnitTests : ApplicationDbContextTes
         var season1 = await SeedSeasonWithStoredStat("A", userID: 1);
         var season2 = MatchmakingSeason.Seed("MM Season 2", gameVersionID: HaloInfiniteGameVersionID);
         Context.MatchmakingSeasons.Add(season2);
+        SeedUser(2);
         await Context.SaveChangesAsync();
         Context.Add(MatchmakingPlayerStat.Seed(new StatSheetTotals { Gamertag = "B", GamesPlayed = 3 }, matchmakingSeasonID: season2.MatchmakingSeasonID, userID: 2, gameVersionID: HaloInfiniteGameVersionID));
         await Context.SaveChangesAsync();
