@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route, type WebSocketRoute } from '@playwright/test';
-import { RS } from './hubMock.mts';
+import { RS, negotiateResponse } from './hubMock.mts';
 
 // The client runs without zone.js: nothing re-renders a page unless the component tells
 // Angular to (signals, inputs, events). These tests go through the flows where that
@@ -275,13 +275,13 @@ test('the team builder renders a captain added by another user over SignalR', as
     [`/api/seasons/${SEASON_ID}/draft/captains/locked`]: route => json(route, true),
   });
 
-  // A minimal SignalR server: a negotiate offering WebSockets, then the JSON hub protocol over one. RS is
-  // shared with e2e/hubMock.mts, which answers the same hub for Lighthouse and the layout test (over a
-  // real socket there, so it can't share this route-based code).
+  // A minimal SignalR server: a negotiate offering WebSockets, then the JSON hub protocol over one. RS and
+  // negotiateResponse are shared with e2e/hubMock.mts, which answers the same hub for Lighthouse and the
+  // layout test (over a real socket there, so it can't share the rest of this route-based code).
   let negotiated = false;
   await page.route('**/hub/TeamsHub/negotiate**', route => {
     negotiated = true;
-    return route.fulfill({ json: { negotiateVersion: 1, connectionId: 'c', connectionToken: 't', availableTransports: [{ transport: 'WebSockets', transferFormats: ['Text', 'Binary'] }] } });
+    return route.fulfill({ json: JSON.parse(negotiateResponse()) });
   });
   const sockets: WebSocketRoute[] = [];
   await page.routeWebSocket(/\/hub\/TeamsHub/, ws => {
@@ -376,7 +376,7 @@ test('the Late League queue panel shows the count the hub sends, and joins from 
     '/api/queue/join': route => json(route, { ...status, count: 10, inQueue: true }),
   });
   // QueueHub, as the team builder's hub above: its negotiate, then a WebSocket with the handshake answered
-  await page.route('**/hub/QueueHub/negotiate**', route => route.fulfill({ json: { negotiateVersion: 1, connectionId: 'c', connectionToken: 't', availableTransports: [{ transport: 'WebSockets', transferFormats: ['Text', 'Binary'] }] } }));
+  await page.route('**/hub/QueueHub/negotiate**', route => route.fulfill({ json: JSON.parse(negotiateResponse()) }));
   const sockets: WebSocketRoute[] = [];
   await page.routeWebSocket(/\/hub\/QueueHub/, ws => {
     ws.onClose(() => sockets.splice(sockets.indexOf(ws), 1));

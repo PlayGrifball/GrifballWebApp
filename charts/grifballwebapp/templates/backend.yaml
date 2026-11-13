@@ -38,6 +38,9 @@ spec:
 {{- fail "halo-gateway.enabled needs an API key both sides read: a halo-gateway.apiKeys entry with secretName/secretKey (the backend takes the first), or backend.halo.gateway.apiKey" }}
 {{- end }}
 {{- end }}
+{{- if and (gt (int $b.replicas) 1) (not (and .Values.ingressRoute.enabled .Values.ingressRoute.hubs.enabled)) }}
+{{- fail "backend.replicas above 1 (several API pods) needs ingressRoute.enabled and ingressRoute.hubs.enabled: SignalR negotiates again, and its connection, or every poll, must reach the pod that negotiated it - only the sticky hubs route guarantees that (the frontend's proxy and the backend Service pick a pod per request)" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

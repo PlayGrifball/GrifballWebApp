@@ -101,7 +101,9 @@ backend:
     digest: ""
     pullPolicy: IfNotPresent
   # More than 1 needs worker.enabled (and redis): the Discord gateway and the background services
-  # must run in one process only. Scaled out, backend.halo.mode must be Gateway.
+  # must run in one process only. Scaled out, backend.halo.mode must be Gateway, and the hubs need
+  # ingressRoute.enabled and ingressRoute.hubs.enabled (sticky sessions): SignalR negotiates again,
+  # and its connection, or every poll, must reach the pod that negotiated it.
   replicas: 1
   # The Deployment's strategy. Empty: Recreate while the state volume (persistence) is mounted here,
   # since it is ReadWriteOnce and a new pod can't start beside the old one; RollingUpdate without it.
@@ -408,8 +410,9 @@ backupScratch:
 # so a message sent by one (a draft pick, made on the site or in Discord) reaches the browsers
 # connected to the others. worker.enabled needs it. Either the chart's own (enabled), a small Valkey
 # (Redis's protocol) holding nothing, or an existing Redis/Valkey (external). Either way the backend
-# gets ConnectionStrings:Redis; browsers connect over WebSockets without negotiating, so the Service
-# needs no sticky sessions.
+# gets ConnectionStrings:Redis; it doesn't replace sticky sessions - a browser still negotiates, then
+# connects or polls, by the pod that negotiated it (ingressRoute.hubs), and only the backplane carries a
+# message from one pod to the others' browsers.
 redis:
   enabled: false
   image:

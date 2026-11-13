@@ -8,11 +8,12 @@ import { SignalRService } from './signalR.service';
 const RS = '\x1e';
 
 /**
- * What the server side of ASP.NET Core SignalR says to the client over a WebSocket: the JSON hub protocol (handshake,
- * invocations). It runs the real @microsoft/signalr client through SignalRService, with the service's own options, so a
- * client upgrade that changes the wire protocol or how the options are used fails here. The service skips negotiate
- * (no sticky sessions needed with several backend pods), so any HTTP request is recorded, and must not happen. The
- * other spec (signalR.service.spec.ts) replaces the connection with a stub.
+ * What the server side of ASP.NET Core SignalR says to the client over a WebSocket or long polling: the JSON hub
+ * protocol (handshake, invocations), and for long polling the HTTP mechanics around it (a connect poll, then a
+ * background one held until there is data, and the handshake and invocations the client sends as POSTs). It runs the
+ * real @microsoft/signalr client through SignalRService, with the service's own options, so a client upgrade that
+ * changes the wire protocol or how the options are used fails here. The other spec (signalR.service.spec.ts) replaces
+ * the connection with a stub.
  */
 class FakeTeamsHub {
   readonly httpRequests: HttpRequest[] = [];
@@ -25,11 +26,16 @@ class FakeTeamsHub {
 
   /**
    * Every HTTP request the client makes, recorded: the negotiate (answered with a connection and the offered
-   * transports) and, over long polling, the polls (the first answered at once, as the server does, the rest held
-   * until the client stops) and the messages it sends.
+   * transports); over long polling, the connect poll (answered at once, empty, as the server's does), the
+   * background poll (held until deliver sends it data, or the client stops it) and the handshake, then
+   * invocations, sent as POSTs (answered with 204, their data delivered over the next background poll, as the
+   * real server does).
    */
   readonly http = new (class extends HttpClient {
     private polls = 0;
+    private pendingPoll: ((response: HttpResponse) => void) | null = null;
+    private queued: string | null = null;
+    private handshaken = false;
     constructor(private readonly hub: FakeTeamsHub) { super(); }
     override send(request: HttpRequest): Promise<HttpResponse> {
       this.hub.httpRequests.push(request);
@@ -38,12 +44,48 @@ class FakeTeamsHub {
           negotiateVersion: 1, connectionId: 'connection', connectionToken: 'token',
           availableTransports: this.hub.offered.map(transport => ({ transport, transferFormats: ['Text', 'Binary'] })),
         })));
-      if (request.method === 'GET' && this.polls++ > 0)
-        return new Promise(resolve => {
-          if (request.abortSignal)
-            request.abortSignal.onabort = () => resolve(new HttpResponse(204, 'No Content', ''));
-        });
-      return Promise.resolve(new HttpResponse(200, 'OK', ''));
+      if (request.method === 'POST') {
+        // The handshake, then invocations: no WebSocket to send them on over long polling.
+        for (const frame of String(request.content ?? '').split(RS).filter(f => f.length > 0)) {
+          if (!this.handshaken) {
+            this.handshaken = true;
+            this.hub.handshakes.push(JSON.parse(frame));
+            this.deliver('{}' + RS);
+          } else {
+            this.hub.fromClient.push(JSON.parse(frame));
+          }
+        }
+        return Promise.resolve(new HttpResponse(204, 'No Content', ''));
+      }
+      if (request.method !== 'GET')
+        // The DELETE the client sends on stop: nothing needs it answered.
+        return Promise.resolve(new HttpResponse(200, 'OK', ''));
+      if (this.polls++ === 0)
+        // The connect poll: the server only confirms the transport works, with no data.
+        return Promise.resolve(new HttpResponse(200, 'OK', ''));
+      // The background poll: held until deliver sends data, or the client stops it.
+      return new Promise(resolve => {
+        if (this.queued !== null) {
+          const data = this.queued;
+          this.queued = null;
+          resolve(new HttpResponse(200, 'OK', data));
+          return;
+        }
+        this.pendingPoll = resolve;
+        if (request.abortSignal)
+          request.abortSignal.onabort = () => { this.pendingPoll = null; resolve(new HttpResponse(204, 'No Content', '')); };
+      });
+    }
+
+    /** Resolves the open background poll with data, as the server would; queued if none is open yet. */
+    deliver(data: string): void {
+      if (this.pendingPoll) {
+        const resolve = this.pendingPoll;
+        this.pendingPoll = null;
+        resolve(new HttpResponse(200, 'OK', data));
+      } else {
+        this.queued = data;
+      }
     }
   })(this);
 
@@ -61,9 +103,11 @@ class FakeTeamsHub {
     return this.sockets[this.sockets.length - 1];
   }
 
-  /** Sends a hub invocation (the JSON hub protocol's type 1) down the newest socket. */
+  /** Sends a hub invocation (the JSON hub protocol's type 1) down the newest socket, or the open long poll. */
   invoke(target: string, ...args: unknown[]): void {
-    this.latest!.deliver(JSON.stringify({ type: 1, target, arguments: args }) + RS);
+    const frame = JSON.stringify({ type: 1, target, arguments: args }) + RS;
+    if (this.latest) this.latest.deliver(frame);
+    else this.http.deliver(frame);
   }
 }
 
