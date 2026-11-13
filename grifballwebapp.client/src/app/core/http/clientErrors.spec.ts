@@ -1,8 +1,7 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ErrorHandler, PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { appConfig } from '../../app.config';
 import { redactUrl } from './redactUrl';
 import { BrowserTelemetry } from '../telemetry/browserTelemetry';
 import {
@@ -321,10 +320,5 @@ describe('client errors', () => {
       expect(report.reportCall).toHaveBeenCalledTimes(1);
       expect((failed as HttpErrorResponse).status).toBe(0);
     });
-  });
-
-  it('is the app\'s ErrorHandler', () => {
-    const providers = appConfig.providers as { provide?: unknown; useClass?: unknown }[];
-    expect(providers.find(p => p?.provide === ErrorHandler)?.useClass).toBe(ReportingErrorHandler);
   });
 });

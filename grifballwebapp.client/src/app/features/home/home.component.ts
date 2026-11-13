@@ -11,7 +11,7 @@ import { eventTitles, isUnderWay, SeasonEvent } from '@shared/seasonEvents';
 import { pageNow } from '@shared/pageNow';
 import type { SeasonListItemDto } from '@api/models';
 import { apiSortDirection } from '@shared/apiSort';
-import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
+import { LateLeagueQueueComponent } from '../lateLeague';
 import { rowEnterAnimation } from '@shared/rowEnterAnimation';
 import { HomeService } from '@api/services/home.service';
 import { SeasonService } from '@api/services/season.service';
