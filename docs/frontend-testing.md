@@ -51,13 +51,13 @@ Frontend test coverage is automatically uploaded to Codecov through the `fronten
 
 ### Component Tests
 - `app.component.spec.ts` - Main application component tests
-- `commissioner-dashboard/commissioner-dashboard.component.spec.ts` - Dashboard component tests
+- `features/league/commissionerDashboard/commissionerDashboard.component.spec.ts` - Dashboard component tests
 
 ### Service Tests  
-- `account.service.spec.ts` - Authentication service tests
+- `core/auth/account.service.spec.ts` - Authentication service tests
 
 ### Infrastructure Tests
-- `testing-infrastructure.spec.ts` - Basic testing patterns and utilities
+- `shared/testing/testingInfrastructure.spec.ts` - Basic testing patterns and utilities
 
 ## Testing Patterns
 

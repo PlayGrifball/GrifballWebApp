@@ -1,7 +1,7 @@
 {{- with .Values.ingressRoute }}
 {{- if and .enabled (or .hubs.enabled .api.enabled) }}
 # The backend's paths for the routes straight to it (ingressRoute.api and .hubs): /api/x, /hub/x and the hubs' page's
-# /signalr-dev/x as /x, as the frontend's proxy sends them (src/server.ts, src/app/backendPaths.ts). /signin-discord
+# /signalr-dev/x as /x, as the frontend's proxy sends them (src/server.ts, src/app/core/http/backendPaths.ts). /signin-discord
 # stays as it is.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware

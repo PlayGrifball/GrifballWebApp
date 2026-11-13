@@ -1,0 +1,506 @@
+import { ComponentFixture, ComponentFixtureAutoDetect } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { Event, eventLink, heroKicker, heroLede, HomeComponent, pickFeatured } from './home.component';
+import { seasonInfo } from '@shared/testing/seasonInfo.stub';
+import type { SeasonChampionDto } from '@api/models';
+import { Component } from '@angular/core';
+import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
+import { noMaterialAnimations } from '@shared/testing/noMaterialAnimations';
+
+/** The queue panel has its own specs: here it is left out, with its requests and hub connection. */
+@Component({ selector: 'app-late-league-queue', template: '' })
+class LateLeagueQueueStubComponent {}
+const withoutLateLeagueQueue = () => TestBed.overrideComponent(HomeComponent, {
+  remove: { imports: [LateLeagueQueueComponent] },
+  add: { imports: [LateLeagueQueueStubComponent] },
+});
+
+describe('HomeComponent', () => {
+  let component: HomeComponent;
+  let httpTestingController: HttpTestingController;
+
+  beforeEach(async () => {
+    withoutLateLeagueQueue();
+    await TestBed.configureTestingModule({
+      imports: [HomeComponent],
+      // These specs drive the component's methods by hand. Zoneless fixtures render on their own,
+      // which would run ngOnInit and fire the real requests, so turn that off here.
+      providers: [provideHttpClient(), provideHttpClientTesting(), noMaterialAnimations, provideRouter([]), { provide: ComponentFixtureAutoDetect, useValue: false }]
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(HomeComponent);
+    component = fixture.componentInstance;
+    httpTestingController = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpTestingController.verify();
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+
+  it('should have correct displayed columns', () => {
+    expect(component.displayedColumns).toEqual(['seasonName', 'champion', 'start', 'end']);
+  });
+
+  it('should initialize with empty current and future events', () => {
+    expect(component.currentAndFutureEvents()).toEqual([]);
+  });
+
+  it('should initialize with total count of 0', () => {
+    expect(component.total()).toBe(0);
+  });
+
+  it('should initialize with page size of 10', () => {
+    expect(component.pageSize()).toBe(10);
+  });
+
+  it('should initialize with page number of 1', () => {
+    expect(component.pageNumber()).toBe(1);
+  });
+
+  it('should fetch current and future events on init', () => {
+    const mockEvents = [
+      { seasonID: 1, name: 'Event 1', start: '2024-01-01', end: '2024-01-31', eventType: 'Season' as const },
+      { seasonID: 2, name: 'Event 2', start: '2024-02-01', end: '2024-02-28', eventType: 'Draft' as const }
+    ];
+
+    component.ngOnInit();
+
+    const req = httpTestingController.expectOne('/api/events');
+    expect(req.request.method).toBe('GET');
+    req.flush(mockEvents);
+
+    expect(component.currentAndFutureEvents()).toEqual(mockEvents);
+  });
+
+  describe('getCurrentAndFutureEvents', () => {
+    it('should make GET request to correct endpoint', (done) => {
+      const mockEvents = [
+        { seasonID: 1, name: 'Test Event', start: '2024-01-01', end: '2024-01-31', eventType: 'Signup' as const }
+      ];
+
+      component.getCurrentAndFutureEvents().subscribe({
+        next: (events) => {
+          expect(events).toEqual(mockEvents);
+          done();
+        }
+      });
+
+      const req = httpTestingController.expectOne('/api/events');
+      expect(req.request.method).toBe('GET');
+      req.flush(mockEvents);
+    });
+  });
+
+  describe('getPastSeasons', () => {
+    it('should make GET request with pagination parameters', (done) => {
+      const mockResult = {
+        results: [
+          { ...seasonInfo(3, { seasonName: 'Past Event', start: '2023-01-01', end: '2023-01-31' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] }
+        ],
+        totalCount: 1,
+        pageNumber: 1,
+        pageSize: 10
+      };
+
+      component.getPastSeasons(10, 1, undefined, undefined).subscribe({
+        next: (result) => {
+          expect(result).toEqual(mockResult);
+          expect(component.total()).toBe(1);
+          expect(component.pastSeasons.data).toEqual(mockResult.results);
+          done();
+        }
+      });
+
+      const req = httpTestingController.expectOne((request) => 
+        request.url === '/api/seasons' &&
+        request.params.get('pageSize') === '10' &&
+        request.params.get('pageNumber') === '1'
+      );
+      expect(req.request.method).toBe('GET');
+      req.flush(mockResult);
+    });
+
+    it('should include sort parameters when provided', (done) => {
+      const mockResult = {
+        results: [],
+        totalCount: 0,
+        pageNumber: 1,
+        pageSize: 10
+      };
+
+      component.getPastSeasons(10, 1, 'asc', 'seasonName').subscribe({
+        next: () => done()
+      });
+
+      const req = httpTestingController.expectOne((request) => 
+        request.url === '/api/seasons' &&
+        request.params.get('sortDirection') === 'Asc' &&
+        request.params.get('sortColumn') === 'seasonName'
+      );
+      expect(req.request.method).toBe('GET');
+      req.flush(mockResult);
+    });
+
+    it('should not include sort parameters when not provided', (done) => {
+      const mockResult = {
+        results: [],
+        totalCount: 0,
+        pageNumber: 1,
+        pageSize: 10
+      };
+
+      component.getPastSeasons(10, 1, undefined, undefined).subscribe({
+        next: result => {
+          expect(result).toEqual(mockResult);
+          done();
+        }
+      });
+
+      const req = httpTestingController.expectOne((request) => {
+        return request.url === '/api/seasons' &&
+               !request.params.has('sortDirection') &&
+               !request.params.has('sortColumn');
+      });
+      req.flush(mockResult);
+    });
+
+    it('should update pastSeasons data source', (done) => {
+      const mockEvents = [
+        { ...seasonInfo(4, { seasonName: 'Old Event', start: '2022-01-01', end: '2022-01-31' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] }
+      ];
+      const mockResult = {
+        results: mockEvents,
+        totalCount: 1,
+        pageNumber: 1,
+        pageSize: 10
+      };
+
+      component.getPastSeasons(10, 1, undefined, undefined).subscribe({
+        next: () => {
+          expect(component.pastSeasons.data).toEqual(mockEvents);
+          done();
+        }
+      });
+
+      const req = httpTestingController.expectOne((request) => request.url === '/api/seasons');
+      req.flush(mockResult);
+    });
+
+    it('should update total count when getting past seasons', (done) => {
+      const mockResult = {
+        results: [],
+        totalCount: 42,
+        pageNumber: 1,
+        pageSize: 10
+      };
+
+      component.getPastSeasons(10, 1, undefined, undefined).subscribe({
+        next: () => {
+          expect(component.total()).toBe(42);
+          done();
+        }
+      });
+
+      const req = httpTestingController.expectOne((request) => request.url === '/api/seasons');
+      req.flush(mockResult);
+    });
+  });
+
+  describe('pagination and sorting', () => {
+    it('should handle page size changes', (done) => {
+      const mockResult = {
+        results: [],
+        totalCount: 0,
+        pageNumber: 1,
+        pageSize: 25
+      };
+
+      component.getPastSeasons(25, 1, undefined, undefined).subscribe({
+        next: result => {
+          expect(result).toEqual(mockResult);
+          done();
+        }
+      });
+
+      const req = httpTestingController.expectOne((request) => 
+        request.url === '/api/seasons' &&
+        request.params.get('pageSize') === '25'
+      );
+      req.flush(mockResult);
+    });
+
+    it('should handle page number changes', (done) => {
+      const mockResult = {
+        results: [],
+        totalCount: 0,
+        pageNumber: 3,
+        pageSize: 10
+      };
+
+      component.getPastSeasons(10, 3, undefined, undefined).subscribe({
+        next: result => {
+          expect(result).toEqual(mockResult);
+          done();
+        }
+      });
+
+      const req = httpTestingController.expectOne((request) => 
+        request.url === '/api/seasons' &&
+        request.params.get('pageNumber') === '3'
+      );
+      req.flush(mockResult);
+    });
+
+    it('should handle descending sort', (done) => {
+      const mockResult = {
+        results: [],
+        totalCount: 0,
+        pageNumber: 1,
+        pageSize: 10
+      };
+
+      component.getPastSeasons(10, 1, 'desc', 'seasonName').subscribe({
+        next: result => {
+          expect(result).toEqual(mockResult);
+          done();
+        }
+      });
+
+      const req = httpTestingController.expectOne((request) => 
+        request.url === '/api/seasons' &&
+        request.params.get('sortDirection') === 'Desc' &&
+        request.params.get('sortColumn') === 'seasonName'
+      );
+      req.flush(mockResult);
+    });
+  });
+});
+
+describe('HomeComponent paginator and sort wiring', () => {
+  let fixture: ComponentFixture<HomeComponent>;
+  let component: HomeComponent;
+  let http: HttpTestingController;
+
+  const page = (names: string[], totalCount: number) => ({
+    totalCount,
+    results: names.map((seasonName, i) => ({ ...seasonInfo(i + 1, { seasonName, start: '2025-01-01', end: '2025-02-01' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] })),
+  });
+
+  beforeEach(async () => {
+    withoutLateLeagueQueue();
+    await TestBed.configureTestingModule({
+      imports: [HomeComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting(), noMaterialAnimations, provideRouter([])]
+    }).compileComponents();
+
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(HomeComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/events').flush([]);
+    await settle();
+  });
+
+  afterEach(() => http.verify());
+
+  async function settle(): Promise<void> {
+    fixture.detectChanges();
+    TestBed.tick();
+    await Promise.resolve();
+    fixture.detectChanges();
+  }
+
+  function pastSeasonsRequest() {
+    const reqs = http.match(r => r.url === '/api/seasons');
+    expect(reqs.length).withContext('one past-seasons request').toBeGreaterThan(0);
+    return reqs[reqs.length - 1];
+  }
+
+  it('requests the first page of past seasons once the paginator is ready', async () => {
+    const req = pastSeasonsRequest();
+    expect(req.request.params.get('pageSize')).toBe('10');
+    expect(req.request.params.get('pageNumber')).toBe('1');
+    expect(req.request.params.has('sortColumn')).toBeFalse();
+    req.flush(page(['Season 1', 'Season 2'], 12));
+    fixture.detectChanges();
+
+    expect(component.total()).toBe(12);
+    expect(component.pastSeasons.data.map(e => e.seasonName)).toEqual(['Season 1', 'Season 2']);
+  });
+
+  it('requests the next page when the paginator moves', async () => {
+    pastSeasonsRequest().flush(page(['a'], 30));
+    await settle();
+
+    component.paginator()!.page.emit({ pageIndex: 2, pageSize: 20, length: 30 });
+    await settle();
+
+    const req = pastSeasonsRequest();
+    expect(req.request.params.get('pageSize')).toBe('20');
+    expect(req.request.params.get('pageNumber')).toBe('3');
+    req.flush(page(['c'], 30));
+  });
+
+  it('requests sorted results when a column header sort changes', async () => {
+    pastSeasonsRequest().flush(page(['a'], 1));
+    await settle();
+
+    component.sort()!.sortChange.emit({ active: 'seasonName', direction: 'desc' });
+    await settle();
+
+    const req = pastSeasonsRequest();
+    expect(req.request.params.get('sortColumn')).toBe('seasonName');
+    expect(req.request.params.get('sortDirection')).toBe('Desc');
+    req.flush(page(['z'], 1));
+  });
+
+  it('shows each past season\'s champion, its tier when there are several, and a dash without one', async () => {
+    const champion = (tier: string, teamID: number, teamName: string): SeasonChampionDto => ({ tier, teamID, teamName, roster: [] });
+    const champions = [[champion('Open', 41, 'Relentless')], [champion('Pro', 42, 'Bashers'), champion('Legacy', 43, 'Hammers')], []];
+    const result = page(['One tier', 'Two tiers', 'Undecided'], 3);
+    pastSeasonsRequest().flush({ ...result, results: result.results.map((s, i) => ({ ...s, champions: champions[i] })) });
+    await settle();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('th.mat-column-champion')!.textContent!.trim()).toBe('Champion');
+    const cells = Array.from(el.querySelectorAll<HTMLElement>('td.mat-column-champion'));
+    expect(cells).toHaveSize(3);
+
+    const link = cells[0].querySelector('a')!;
+    expect(link.textContent).toBe('Relentless');
+    expect(link.getAttribute('href')).toBe('/season/1/team/41');
+    expect(cells[0].querySelector('.hud-label')).toBeNull();
+
+    expect(Array.from(cells[1].querySelectorAll('.hud-label')).map(e => e.textContent)).toEqual(['Pro', 'Legacy']);
+    expect(Array.from(cells[1].querySelectorAll('a')).map(a => a.getAttribute('href'))).toEqual(['/season/2/team/42', '/season/2/team/43']);
+
+    expect(cells[2].querySelector('a')).toBeNull();
+    expect(cells[2].textContent!.trim()).toBe('—');
+  });
+});
+
+describe('Home page events', () => {
+  const now = Date.parse('2026-03-10T12:00:00Z');
+  const ev = (eventType: Event['eventType'], start: string, end: string, seasonID = 4, name = 'Spring'): Event =>
+    ({ seasonID, name, start, end, eventType });
+  const signup = ev('Signup', '2026-03-01T00:00:00Z', '2026-03-20T00:00:00Z');
+  const draft = ev('Draft', '2026-03-25T19:00:00Z', '2026-03-25T23:00:00Z');
+  const season = ev('Season', '2026-02-01T00:00:00Z', '2026-05-01T00:00:00Z', 3, 'Winter');
+  const later = ev('Season', '2026-04-01T00:00:00Z', '2026-06-01T00:00:00Z');
+
+  it('features the event under way, signups before the draft before a season', () => {
+    expect(pickFeatured([season, signup, draft], now)).toBe(signup);
+    expect(pickFeatured([season, draft], now)).toBe(season);
+  });
+
+  it('features the next event to start when none is under way, and nothing without events', () => {
+    expect(pickFeatured([later, draft], now)).toBe(draft);
+    expect(pickFeatured([], now)).toBeNull();
+  });
+
+  it('says whether the featured event is under way or coming', () => {
+    expect(heroKicker(signup, now)).toBe('Signups online');
+    expect(heroKicker(signup, Date.parse('2026-02-01T00:00:00Z'))).toBe('Signups incoming');
+    expect(heroKicker(draft, now)).toBe('Draft incoming');
+    expect(heroKicker(draft, Date.parse('2026-03-25T20:00:00Z'))).toBe('Draft in progress');
+    expect(heroKicker(season, now)).toBe('Season live');
+    expect(heroKicker(later, now)).toBe('Season incoming');
+  });
+
+  it("describes the featured event, with the draft date for that season's signups", () => {
+    const format = (iso: string) => iso.slice(0, 10);
+    expect(heroLede(signup, [signup, draft], format)).toBe('Signups close 2026-03-20. Captains draft on 2026-03-25. Pick up a hammer.');
+    expect(heroLede(signup, [signup, { ...draft, seasonID: 9 }], format)).toBe('Signups close 2026-03-20. Pick up a hammer.');
+    expect(heroLede(draft, [], format)).toBe('The draft starts 2026-03-25 and runs until all picks are made.');
+    expect(heroLede(season, [], format)).toBe('The season runs from 2026-02-01 to 2026-05-01.');
+  });
+
+  it('links each kind of event to its page', () => {
+    expect(eventLink(signup)).toEqual(['/season', 4, 'signups']);
+    expect(eventLink(draft)).toEqual(['/season', 4, 'draft']);
+    expect(eventLink(season)).toEqual(['/season', 3]);
+  });
+
+  describe('rendered', () => {
+    let fixture: ComponentFixture<HomeComponent>;
+    let http: HttpTestingController;
+
+    beforeEach(async () => {
+      withoutLateLeagueQueue();
+      await TestBed.configureTestingModule({
+        imports: [HomeComponent],
+        providers: [provideHttpClient(), provideHttpClientTesting(), noMaterialAnimations, provideRouter([])],
+      }).compileComponents();
+      fixture = TestBed.createComponent(HomeComponent);
+      fixture.componentInstance.now.set(now);
+      http = TestBed.inject(HttpTestingController);
+    });
+
+    const el = () => fixture.nativeElement as HTMLElement;
+    const load = (events: Event[]) => {
+      fixture.detectChanges();
+      http.expectOne('/api/events').flush(events);
+      http.match(r => r.url === '/api/seasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
+      fixture.detectChanges();
+    };
+
+    it('puts the featured season in the hero with its calls to action, and every event in a card', () => {
+      load([season, signup, draft]);
+      expect(el().querySelector('h1')!.textContent).toBe('Spring');
+      expect(el().querySelector('.hud-kicker')!.textContent).toContain('Signups online');
+      const actions = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => [a.textContent!.trim(), a.getAttribute('href')]);
+      expect(actions).toEqual([['Sign up', '/season/4/signupForm'], ['View roster', '/season/4/signups']]);
+      const cards = Array.from(el().querySelectorAll('a.hud-card'));
+      expect(cards.map(c => c.getAttribute('href'))).toEqual(['/season/3', '/season/4/signups', '/season/4/draft']);
+      expect(cards.map(c => c.classList.contains('hud-card--active'))).toEqual([true, true, false]);
+      expect(cards[2].textContent).toContain('Objective 03');
+    });
+
+    it('offers Sign up only while the featured signups are open, not before they open', () => {
+      const upcoming = ev('Signup', '2026-03-15T00:00:00Z', '2026-03-20T00:00:00Z');
+      load([upcoming]);
+      expect(el().querySelector('.hud-kicker')!.textContent).toContain('Signups incoming');
+      const actions = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim());
+      expect(actions).toEqual(['View roster']);
+
+      fixture.componentInstance.now.set(Date.parse('2026-03-16T00:00:00Z'));
+      fixture.detectChanges();
+      expect(Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim())).toEqual(['Sign up', 'View roster']);
+    });
+
+    it('offers the draft or the season when that is the featured event', () => {
+      load([draft]);
+      expect(Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim())).toEqual(['Watch the draft', 'Season overview']);
+      // The draft board, not the read-only rosters page
+      expect(el().querySelector('.home-hero__actions a')!.getAttribute('href')).toBe('/season/4/draft');
+      fixture.componentInstance.currentAndFutureEvents.set([later]);
+      fixture.detectChanges();
+      const links = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.getAttribute('href'));
+      expect(links).toEqual(['/season/4', '/season/4?tab=schedule']);
+    });
+
+    it('keeps the page hidden until the events are in, then shows it', () => {
+      fixture.detectChanges();
+      const page = () => el().querySelector('.hud-page')!;
+      expect(page().classList).toContain('hud-waiting');
+      http.expectOne('/api/events').flush('x', { status: 500, statusText: 'Server Error' });
+      http.match(r => r.url === '/api/seasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
+      fixture.detectChanges();
+      expect(page().classList).not.toContain('hud-waiting');
+      expect(el().textContent).toContain('There are no current or upcoming events');
+    });
+
+    it('says so when there are no events', () => {
+      load([]);
+      expect(el().textContent).toContain('There are no current or upcoming events');
+      expect(el().querySelector('a.hud-card')).toBeNull();
+    });
+  });
+});

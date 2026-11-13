@@ -1,16 +1,16 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit, PLATFORM_ID, afterRenderEffect, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { ToolbarComponent } from './toolbar/toolbar.component';
+import { ToolbarComponent } from './core/layout/toolbar/toolbar.component';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MediaMatcher } from '@angular/cdk/layout';
-import { SideBarDto } from './sidebarDto';
-import { AccountService } from './account.service';
+import { SideBarDto } from './core/layout/sidebarDto';
+import { AccountService } from './core/auth/account.service';
 import { SeasonService } from '@api/services/season.service';
-import { ThemingService } from './theming.service';
+import { ThemingService } from './core/layout/theming.service';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { SiteFooterComponent } from './siteFooter/siteFooter.component';
+import { SiteFooterComponent } from './core/layout/siteFooter/siteFooter.component';
 
 /** Room taken in the toolbar by the menu button (with its gap) when it is shown. */
 export const MENU_BUTTON_WIDTH = 48;

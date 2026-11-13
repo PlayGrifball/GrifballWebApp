@@ -1,9 +1,9 @@
 // The app's server's OpenTelemetry: a span per request (and one for each page it renders), its log lines
 // (JSON on stdout, and to Loki over OTLP with their trace ids, as the backend's) and its metrics, pushed over
-// OTLP/HTTP when OTEL_EXPORTER_OTLP_ENDPOINT is set (app/serverTelemetry.ts has the settings). Without it,
+// OTLP/HTTP when OTEL_EXPORTER_OTLP_ENDPOINT is set (app/core/server/serverTelemetry.ts has the settings). Without it,
 // spans are still made, so the backend still continues the trace and the logs still carry its ids.
 //
-// This sets up the SDK; what the server does with it is app/serverTelemetryCore.ts. Node only, and never
+// This sets up the SDK; what the server does with it is app/core/server/serverTelemetryCore.ts. Node only, and never
 // imported by the app: the browser's bundle (and its tests) stay without it.
 import { context, logs, metrics, propagation, trace } from '@opentelemetry/api';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
@@ -15,8 +15,8 @@ import { resourceFromAttributes } from '@opentelemetry/resources';
 import { BatchLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs';
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { BatchSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
-import type { ServerTelemetrySettings } from './app/serverTelemetry';
-import { type ServerTelemetryCore, createServerTelemetry } from './app/serverTelemetryCore';
+import type { ServerTelemetrySettings } from './app/core/server/serverTelemetry';
+import { type ServerTelemetryCore, createServerTelemetry } from './app/core/server/serverTelemetryCore';
 
 const SCOPE = 'grifballwebapp.client';
 

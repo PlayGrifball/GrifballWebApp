@@ -1,5 +1,5 @@
 import { Component, input } from '@angular/core';
-import { VodScope } from '../../api/vods';
+import { VodScope } from './vods';
 
 /** For the specs of the pages that show VODs: the list is tested on its own (vodList.component.spec.ts), so a page's
  * spec only checks what it hands it, and makes no request for it. */

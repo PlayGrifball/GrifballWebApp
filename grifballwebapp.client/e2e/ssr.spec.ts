@@ -213,7 +213,7 @@ test('the build\'s files are compressed and kept for good; the page is checked o
   const page = await request.get(SITE + '/', { headers: { 'Accept-Encoding': 'gzip' } });
   expect(page.headers()['cache-control']).toBe('no-cache');
   expect(page.headers()['content-encoding']).toBe('gzip');
-  // Loaded once the page has painted (src/app/afterFirstPaint.ts): named in the inline loader, not a <script src>
+  // Loaded once the page has painted (src/app/core/server/afterFirstPaint.ts): named in the inline loader, not a <script src>
   const html = await page.text();
   expect(html).not.toMatch(/<script src="[^"]+" type="module">|rel="modulepreload"/);
   const script = /import\(new URL\("(main-[A-Za-z0-9_-]{8}\.js)"/.exec(html)![1];

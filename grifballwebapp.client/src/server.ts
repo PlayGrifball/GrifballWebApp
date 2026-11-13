@@ -9,7 +9,7 @@
 //                     (grifball.xyz and its subdomains) and localhost. "*.example.com" allows the
 //                     subdomains. A request for any other host, or an address (ex. a probe on the
 //                     pod's), gets the page that renders in the browser instead.
-//   OTEL_*, LOG_LEVEL OpenTelemetry and the logs (app/serverTelemetry.ts): each request's span, log line
+//   OTEL_*, LOG_LEVEL OpenTelemetry and the logs (app/core/server/serverTelemetry.ts): each request's span, log line
 //                     and metrics, its trace passed on to the backend.
 //   SHUTDOWN_DELAY_MS how long it keeps serving after SIGTERM (default 10000), then it exits
 import {
@@ -21,14 +21,14 @@ import {
 import compression from 'compression';
 import express, { type Request, type Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import { BACKEND_PREFIXES, backendPath, isWebSocketPrefix, type BackendPrefix } from './app/backendPaths';
+import { BACKEND_PREFIXES, backendPath, isWebSocketPrefix, type BackendPrefix } from './app/core/http/backendPaths';
 import type { ClientRequest, IncomingMessage } from 'node:http';
 import { join } from 'node:path';
-import { isAllowedHost, parseAllowedHosts } from './app/allowedHosts';
-import { apiUrl } from './app/apiUrl';
-import { announceServing, pageHandler } from './app/pageHandler';
-import { drainThenExit, shutdownDelay } from './app/shutdown';
-import { serverTelemetrySettings } from './app/serverTelemetry';
+import { isAllowedHost, parseAllowedHosts } from './app/core/server/allowedHosts';
+import { apiUrl } from './app/core/http/apiUrl';
+import { announceServing, pageHandler } from './app/core/server/pageHandler';
+import { drainThenExit, shutdownDelay } from './app/core/server/shutdown';
+import { serverTelemetrySettings } from './app/core/server/serverTelemetry';
 import { startServerTelemetry } from './server.telemetry';
 
 const telemetry = startServerTelemetry(serverTelemetrySettings(process.env));
@@ -123,7 +123,7 @@ app.use((req, res, next) => {
   sendClientPage(res, next);
 });
 
-// Every other request: the page (app/pageHandler.ts)
+// Every other request: the page (app/core/server/pageHandler.ts)
 app.use(pageHandler({
   handle: (req: Request) => angularApp.handle(req),
   write: writeResponseToNodeResponse,
