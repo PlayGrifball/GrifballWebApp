@@ -153,6 +153,23 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
 
   const load = (dto: SeasonMatchPageDto): void => loadPage(httpMock, fixture, dto);
 
+  it('drops the previous match, and its title, while another loads', () => {
+    load(page({ homeTeamName: 'Old Home' }));
+    expect(document.title).toContain('Old Home');
+
+    fixture.componentRef.setInput('seasonMatchID', 8);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.seasonMatch()).toBeNull();
+    expect(document.title).not.toContain('Old Home');
+  });
+
+  it('cancels the previous match\'s request when the match changes before it answers', () => {
+    const first = httpMock.expectOne('/api/season-matches/7');
+    fixture.componentRef.setInput('seasonMatchID', 8);
+    fixture.detectChanges();
+    expect(first.cancelled).toBeTrue();
+  });
+
   function text(): string {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
   }
@@ -1394,22 +1411,41 @@ describe('SeasonMatchComponent on the server', () => {
 });
 
 describe('describeSeasonMatch', () => {
-  it('gives the series score and winner once decided', () => {
+  it('gives the series score and winner once its games decided it', () => {
     expect(describeSeasonMatch(page({ homeTeamScore: 1, awayTeamScore: 2, homeTeamResult: 'Loss', awayTeamResult: 'Won', decidedBy: 'Games' }))).toEqual({
       title: 'Home 1–2 Away',
       description: 'Season 3, best of 3: Away beat Home 2–1. Games, scores and player stats.',
     });
   });
 
-  it('gives a forfeit\'s winner without a score', () => {
-    expect(describeSeasonMatch(page({ homeTeamResult: 'Won', awayTeamResult: 'Forfeit', decidedBy: 'Forfeit', isPlayoff: true })).description)
-      .toBe('Season 3 playoffs, best of 3: Home beat Away. Games, scores and player stats.');
+  it('gives a forfeit\'s winner, without the games\' score even when some were played', () => {
+    expect(describeSeasonMatch(page({ homeTeamResult: 'Won', awayTeamResult: 'Forfeit', decidedBy: 'Forfeit', isPlayoff: true }))).toEqual({
+      title: 'Home vs Away',
+      description: 'Season 3 playoffs, best of 3: Away forfeited to Home. Games, scores and player stats.',
+    });
+    // Home led 1–0, then forfeited
+    expect(describeSeasonMatch(page({ homeTeamScore: 1, awayTeamScore: 0, homeTeamResult: 'Forfeit', awayTeamResult: 'Won', decidedBy: 'Forfeit' }))).toEqual({
+      title: 'Home vs Away',
+      description: 'Season 3, best of 3: Home forfeited to Away. Games, scores and player stats.',
+    });
   });
 
-  it('gives when an undecided match is scheduled, and TBD for a team not set yet', () => {
+  it('says when both teams forfeited, not when it is scheduled', () => {
+    expect(describeSeasonMatch(page({ homeTeamResult: 'Forfeit', awayTeamResult: 'Forfeit', decidedBy: 'Forfeit', scheduledTime: DateTime.fromISO('2026-11-20T01:00:00Z') })).description)
+      .toBe('Season 3, best of 3: both Home and Away forfeited. Games, scores and player stats.');
+  });
+
+  it('gives a BYE as the team that advanced', () => {
+    expect(describeSeasonMatch(page({ awayTeamName: null, awayTeamID: null, homeTeamResult: 'Won', awayTeamResult: 'Bye', decidedBy: 'Bye' }))).toEqual({
+      title: 'Home (bye)',
+      description: 'Season 3, best of 3: Home advanced with a bye. Games, scores and player stats.',
+    });
+  });
+
+  it('gives when an undecided match is scheduled (the league\'s day), and TBD for a team not set yet', () => {
     expect(describeSeasonMatch(page({ awayTeamName: null, scheduledTime: DateTime.fromISO('2026-11-20T01:00:00Z') }))).toEqual({
       title: 'Home vs TBD',
-      description: 'Season 3, best of 3: Home vs TBD, scheduled for Nov 20, 2026. Games, scores and player stats.',
+      description: 'Season 3, best of 3: Home vs TBD, scheduled for Nov 19, 2026. Games, scores and player stats.',
     });
     expect(describeSeasonMatch(page()).description).toBe('Season 3, best of 3: Home vs Away. Games, scores and player stats.');
   });

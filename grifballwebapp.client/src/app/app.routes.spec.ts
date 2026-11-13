@@ -52,8 +52,8 @@ describe('APP_ROUTES', () => {
 
   it('should have home route at root path', () => {
     const homeRoute = APP_ROUTES.find(r => r.path === '');
-    expect(homeRoute).toBeDefined();
-    expect(homeRoute?.title).toBe('Home');
+    // No title of its own: the home page is titled after the site alone (shared/pageMeta.ts)
+    expect(homeRoute?.title).toBeUndefined();
   });
 
   it('should have login route', () => {

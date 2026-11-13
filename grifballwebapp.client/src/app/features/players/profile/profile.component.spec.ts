@@ -681,7 +681,8 @@ describe('ProfileComponent: region and identity', () => {
 });
 
 describe('describeProfile', () => {
-  const profile = (changes: Partial<ProfileStatsDto>) => ({ gamertag: 'Plasma Pete', displayName: 'Pete', seasons: [{}, {}], championships: [{}], ...changes } as ProfileStatsDto);
+  // Three stat lines (a season's regular and playoff lines, and another season's), two seasons
+  const profile = (changes: Partial<ProfileStatsDto>) => ({ gamertag: 'Plasma Pete', displayName: 'Pete', seasons: [{}, {}, {}], overallCareer: { seasonsCount: 2 }, championships: [{}], ...changes } as ProfileStatsDto);
 
   it('gives the player\'s seasons and championships', () => {
     expect(describeProfile(profile({}))).toEqual({
@@ -691,7 +692,7 @@ describe('describeProfile', () => {
   });
 
   it('falls back to the display name, and says nothing without either', () => {
-    expect(describeProfile(profile({ gamertag: null, seasons: [], championships: [] }))).toEqual({
+    expect(describeProfile(profile({ gamertag: null, seasons: [], overallCareer: null, championships: [] }))).toEqual({
       title: 'Pete',
       description: 'Pete\'s Grifball career. Stats by season and game, and Late League.',
     });
