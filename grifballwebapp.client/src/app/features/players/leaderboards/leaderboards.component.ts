@@ -11,8 +11,8 @@ import type { QuickSearchPlayerDto } from '@api/models';
 import { seasonFormats } from '../../../shared/seasonFormats';
 import type { SeasonFormat } from '@api/models';
 import type { Board } from './board';
-import { PlayerSearchComponent } from './player-search/playerSearch.component';
-import { PlayerSpotlightComponent } from './player-spotlight/playerSpotlight.component';
+import { PlayerSearchComponent } from './playerSearch/playerSearch.component';
+import { PlayerSpotlightComponent } from './playerSpotlight/playerSpotlight.component';
 
 type MetricBoard = Exclude<Board, 'rings' | 'dynasties'>;
 

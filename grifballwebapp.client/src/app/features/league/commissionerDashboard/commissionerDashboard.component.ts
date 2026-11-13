@@ -8,7 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { ProcessRescheduleDialogComponent } from './process-reschedule-dialog/processRescheduleDialog.component';
+import { ProcessRescheduleDialogComponent } from './processRescheduleDialog/processRescheduleDialog.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommissionerDashboardService } from '@api/services/commissioner-dashboard.service';
 import { RescheduleService } from '@api/services/reschedule.service';
