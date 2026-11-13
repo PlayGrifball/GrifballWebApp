@@ -8897,6 +8897,42 @@
         },
         "additionalProperties": false
       },
+      "CaptainAddedDto": {
+        "required": [
+          "captainName",
+          "orderNumber",
+          "personID",
+          "seasonID",
+          "teamID",
+          "teamName"
+        ],
+        "type": "object",
+        "properties": {
+          "seasonID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "personID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "teamID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "teamName": {
+            "type": "string"
+          },
+          "captainName": {
+            "type": "string"
+          },
+          "orderNumber": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "CaptainAddedResponseDto": {
         "required": [
           "teamID",
@@ -15537,6 +15573,7 @@
           "parentSpanId",
           "pod",
           "scope",
+          "service",
           "spanId",
           "status",
           "statusMessage"
@@ -15557,6 +15594,9 @@
             "type": "string"
           },
           "scope": {
+            "type": "string"
+          },
+          "service": {
             "type": "string"
           },
           "pod": {
@@ -15592,7 +15632,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "A span: OffsetMs from the trace's first span. Status is Unset, Ok or Error."
+        "description": "A span: OffsetMs from the trace's first span. Status is Unset, Ok or Error.\nService is its service.name: this app's, or one in front of it or that it calls (TelemetryQuery:EdgeServices,\nDownstreamServices)."
       },
       "SpanEventDto": {
         "required": [
@@ -16312,7 +16352,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "This service's spans of a trace, in start order."
+        "description": "This service's spans of a trace and those of the services in front of it and that it calls, in start order."
       },
       "TraceSummaryDto": {
         "required": [

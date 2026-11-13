@@ -229,6 +229,10 @@ if [[ "$scenario" = scaleout ]]; then
   step "Install: two API pods, the worker, the chart's Redis and its own Halo gateway, no state volume"
   # The key the bundled gateway accepts and the backend sends: one Secret both read.
   kubectl -n "$ns" create secret generic halo-gateway-key --from-literal=ApiKey=e2e-gateway-key
+  # The IngressRoute needs k3s's Traefik (the workflow keeps it for this scenario) and its CRDs, installed after the
+  # cluster starts
+  wait_for 300 kubectl get crd ingressroutes.traefik.io || fail "no Traefik IngressRoute CRD"
+  wait_for 300 kubectl -n kube-system rollout status deploy/traefik --timeout=5s || fail "no Traefik"
   cat > "$work/values.yaml" <<EOF
 backend:
   replicas: 2
@@ -250,6 +254,14 @@ worker:
   replicas: 2
 redis:
   enabled: true
+# Several API pods: the hubs go straight to them on the sticky IngressRoute (k3s ships Traefik, in kube-system), as
+# the chart requires, and only Traefik and the client pod below reach the frontend (and the backend, straight)
+ingressRoute: { enabled: true, host: grifball.example }
+networkPolicy:
+  frontend:
+    from:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+      - podSelector: { matchLabels: { run: client } }
 # The halo-gateway subchart: no Microsoft app or Halo account, so it answers but has no token.
 halo-gateway:
   enabled: true
@@ -303,13 +315,37 @@ EOF
   echo "Both API pods' SignalR hubs are on the backplane."
 
   step "Network policies"
+  # client: in networkPolicy.frontend.from (as the ingress controller is); intruder: a pod without a role
+  kubectl -n "$ns" run client --image=docker.io/curlimages/curl:8.16.0 --restart=Never --command -- sleep 600
   kubectl -n "$ns" run intruder --image=docker.io/library/busybox:1.38 --restart=Never --command -- sleep 600
-  kubectl -n "$ns" wait --for=condition=Ready pod/intruder --timeout=120s
-  kubectl -n "$ns" exec intruder -- nc -w 3 grif-frontend 80 </dev/null || fail "intruder can't reach the frontend (control)"
+  kubectl -n "$ns" wait --for=condition=Ready pod/client pod/intruder --timeout=120s
+  kubectl -n "$ns" exec client -- curl -s -o /dev/null --max-time 5 http://grif-frontend/ || fail "client can't reach the frontend (control)"
+  kubectl -n "$ns" exec client -- curl -s -o /dev/null --max-time 5 http://grifballwebapp-server:5295/health/live || fail "client can't reach the backend straight (control)"
+  if kubectl -n "$ns" exec intruder -- nc -w 3 grif-frontend 80 </dev/null; then fail "intruder reached the frontend"; fi
+  if kubectl -n "$ns" exec intruder -- nc -w 3 grifballwebapp-server 5295 </dev/null; then fail "intruder reached the backend"; fi
   if kubectl -n "$ns" exec intruder -- nc -w 3 grif-redis 6379 </dev/null; then fail "intruder reached Redis"; fi
   worker_ip=$(kubectl -n "$ns" get pods -l app=grif-worker -o jsonpath='{.items[0].status.podIP}')
   if kubectl -n "$ns" exec intruder -- nc -w 3 "$worker_ip" 5295 </dev/null; then fail "intruder reached the worker"; fi
-  echo "A pod without a role reaches the frontend, but not Redis or the worker."
+  echo "Only Traefik and the client reach the frontend and the backend; nothing else reaches Redis or the worker."
+
+  step "The hubs through Traefik, sticky across the two API pods"
+  # Negotiate on the IngressRoute (Traefik, as browsers reach it), then the long poll with the connection's id and the
+  # sticky cookie it set: on the pod that negotiated (200), never the other (404 "No Connection with that ID").
+  sticky_round() {
+    # Traefik's websecure entrypoint (k3s serves its default certificate there, so -k), as minimal's check does
+    local base=https://traefik.kube-system/hub/QueueHub
+    kubectl -n "$ns" exec client -- env base="$base" sh -c '
+      headers=$(curl -sk -D - -o /tmp/negotiate -X POST -H "Host: grifball.example" "$base/negotiate?negotiateVersion=1")
+      cookie=$(printf "%s" "$headers" | sed -n "s/^[Ss]et-[Cc]ookie: \(grif-hub=[^;]*\).*/\1/p" | tr -d "\r")
+      token=$(sed -n "s/.*\"connectionToken\":\"\([^\"]*\)\".*/\1/p" /tmp/negotiate)
+      [ -n "$cookie" ] && [ -n "$token" ] || { echo "negotiate: no cookie or token: $headers"; exit 1; }
+      curl -sk -o /dev/null -w "%{http_code}" --max-time 15 -H "Host: grifball.example" -H "Cookie: $cookie" "$base?id=$token"'
+  }
+  for round in 1 2 3 4 5 6; do
+    code=$(sticky_round) || fail "round $round: $code"
+    [[ "$code" = 200 ]] || fail "round $round: the poll answered $code, not 200 (the other pod?)"
+  done
+  echo "Six negotiates and polls through Traefik each stayed on their pod."
 
   step "The bundled Halo gateway"
   kubectl -n "$ns" rollout status deploy/grif-halo-gateway --timeout=300s || fail "the bundled gateway didn't get ready"

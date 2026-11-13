@@ -62,6 +62,39 @@ spec:
       services:
         - name: {{ $svc.name }}
           port: {{ $svc.port }}
+    {{- if .hubs.enabled }}
+    # The hubs, straight to the backend and sticky (ingressRoute.hubs); their paths as the frontend's proxy sends them
+    - match: 'Host(`{{ .host }}`) && PathRegexp(`^/(hub|signalr-dev)/\w*Hub(/|$)`)'
+      kind: Rule
+      middlewares:
+        {{- with .middlewares }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        - name: grif-backend-path
+      services:
+        - name: {{ $.Values.backend.service.name }}
+          port: {{ $.Values.backend.port }}
+          sticky:
+            cookie:
+              name: {{ .hubs.cookie }}
+              httpOnly: true
+              secure: true
+              sameSite: lax
+    {{- end }}
+    {{- if .api.enabled }}
+    # The API and the Discord sign-in's callback, straight to the backend (ingressRoute.api); their paths as the
+    # frontend's proxy sends them
+    - match: 'Host(`{{ .host }}`) && PathRegexp(`^/(api/|signin-discord(/|$))`)'
+      kind: Rule
+      middlewares:
+        {{- with .middlewares }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        - name: grif-backend-path
+      services:
+        - name: {{ $.Values.backend.service.name }}
+          port: {{ $.Values.backend.port }}
+    {{- end }}
   {{- with .tls.secretName }}
   tls:
     secretName: {{ . }}

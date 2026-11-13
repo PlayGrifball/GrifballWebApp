@@ -73,7 +73,7 @@ describe('LateLeagueQueueComponent', () => {
     create();
     expect(withUrl.calls.mostRecent().args[0]).toBe(QUEUE_HUB_URL);
     expect(QUEUE_HUB_URL).toBe('hub/QueueHub');
-    expect(withUrl.calls.mostRecent().args[1]).toEqual({ skipNegotiation: true, transport: HttpTransportType.WebSockets });
+    expect(withUrl.calls.mostRecent().args[1]).toEqual({ transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling });
     await settled();
     expect(connection.start).toHaveBeenCalledTimes(1);
     expect(text()).toContain('Loading the Late League queue');

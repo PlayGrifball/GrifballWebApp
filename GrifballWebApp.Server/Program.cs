@@ -34,6 +34,7 @@ using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
 using Serilog;
+using TypedSignalR.Client.DevTools;
 using System.Security.Cryptography.X509Certificates;
 
 namespace GrifballWebApp.Server;
@@ -170,6 +171,8 @@ public class Program
             option.SchemaFilter<EveryPropertyRequiredFilter>();
             option.OperationFilter<JsonOnlyOperationFilter>();
             option.OperationFilter<JsonNamedQueryParametersFilter>();
+            option.DocumentFilter<HubSchemasDocumentFilter>();
+            option.DocInclusionPredicate(OpenApiInclusion.Includes);
 
             // Controller actions' <summary>/<param>/<returns>/<remarks>, and the DTOs' and enums' <summary> (the
             // Application's and Domain's), into the OpenAPI document (GenerateDocumentationFile, each .csproj). Each
@@ -296,6 +299,13 @@ public class Program
         .AddBearerToken(IdentityConstants.BearerScheme, options =>
         {
             options.BearerTokenExpiration = TimeSpan.FromMinutes(15);
+            // A hub's token from its query too, where SignalR's clients send it (BrowserAuth.HubAccessToken); none: the
+            // handler reads the Authorization header as always
+            options.Events.OnMessageReceived = context =>
+            {
+                context.Token = BrowserAuth.HubAccessToken(context.HttpContext);
+                return Task.CompletedTask;
+            };
         });
 
         if (!discordOff)
@@ -406,6 +416,13 @@ public class Program
             app.MapHub<TeamsHub>("TeamsHub", options => { options.CloseOnAuthenticationExpiration = true; });
             // Anonymous and read-only: the matchmaking queue's size, for the home page
             app.MapHub<QueueHub>("QueueHub");
+
+            // The hubs' page (/signalr-dev), what /swagger is to the API: in every environment, to sysadmins only
+            // (SignalRHubsPage). Its own hub connections negotiate first (ours skip it): with several API pods, as during a
+            // rollout, one may land on a pod that doesn't know it; the page reconnects.
+            app.Use(SignalRHubsPage.RequireSysadmin);
+            app.UseSignalRHubSpecification();
+            app.UseSignalRHubDevelopmentUI();
 
             app.MapGet("CommitHash", () => GitInfo.CommitShortHash).WithName("GetCommitHash").WithTags("Build");
             app.MapGet("CommitDate", () => GitInfo.CommitDate).WithName("GetCommitDate").WithTags("Build");

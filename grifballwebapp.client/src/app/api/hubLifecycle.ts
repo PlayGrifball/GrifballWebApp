@@ -5,11 +5,14 @@ import { HttpTransportType, HubConnection, HubConnectionBuilder, HubConnectionSt
 import { AuthSession } from '../authSession.service';
 
 /**
- * WebSockets only, no negotiate request: negotiate and the connection would be two requests that must
- * reach the same backend pod, which takes sticky sessions once there are several. A WebSocket is one
- * request, held open on whichever pod took it.
+ * SignalR's own way: a negotiate request, then WebSockets, or server-sent events and then long polling where
+ * WebSockets don't get through (a proxy or firewall that blocks them). Negotiate and the connection are several
+ * requests that must reach the backend pod that negotiated it: the ingress keeps a browser on one pod for the hubs
+ * (the chart's ingressRoute.hubs, a sticky cookie).
  */
-export const HUB_CONNECTION_OPTIONS = { skipNegotiation: true, transport: HttpTransportType.WebSockets } as const;
+export const HUB_CONNECTION_OPTIONS = {
+  transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling,
+} as const;
 
 /**
  * How long to wait before trying again when the connection fails to start, or closes for good once

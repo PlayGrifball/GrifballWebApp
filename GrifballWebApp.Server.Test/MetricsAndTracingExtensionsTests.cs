@@ -1,11 +1,15 @@
+using GrifballWebApp.Infrastructure.Redis;
 using GrifballWebApp.Server.Telemetry;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using OpenTelemetry.Exporter;
+using OpenTelemetry.Instrumentation.StackExchangeRedis;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using StackExchange.Redis;
 using static GrifballWebApp.Server.Test.MetricsAndTracingExtensionsTestData;
 
 namespace GrifballWebApp.Server.Test;
@@ -35,6 +39,47 @@ public class MetricsAndTracingExtensionsTests
     }
 
     [Test]
+    public async Task Redis_IsTraced_OnTheAppsConnection_OnceItIsMade()
+    {
+        var multiplexer = Substitute.For<IConnectionMultiplexer>();
+        await using var redis = new AppRedis(_ => Task.FromResult(multiplexer));
+        using var provider = Build(new() { ["OTEL_EXPORTER_OTLP_ENDPOINT"] = null }, services => services.AddSingleton(redis));
+
+        Assert.That(provider.GetService<TracerProvider>(), Is.Not.Null);
+        multiplexer.DidNotReceiveWithAnyArgs().RegisterProfiler(default!);
+
+        await redis.ConnectAsync();
+
+        multiplexer.ReceivedWithAnyArgs(1).RegisterProfiler(default!);
+    }
+
+    [Test]
+    public void Tracing_BuildsWithoutRedis()
+    {
+        using var provider = Build(new() { ["OTEL_EXPORTER_OTLP_ENDPOINT"] = null });
+
+        Assert.That(provider.GetService<TracerProvider>(), Is.Not.Null);
+    }
+
+    /// <summary>Every Halo call's pacer EVAL adds timing events (CreationToEnqueued, EnqueuedToSent, SentToResponse) to
+    /// its Redis span; turned off so each span carries only its own attributes.</summary>
+    [Test]
+    public void RedisInstrumentation_DoesNotEnrichSpansWithTimingEvents()
+    {
+        using var provider = Build(new() { ["OTEL_EXPORTER_OTLP_ENDPOINT"] = null });
+
+        var options = provider.GetRequiredService<IOptions<StackExchangeRedisInstrumentationOptions>>().Value;
+
+        Assert.That(options.EnrichActivityWithTimingEvents, Is.False);
+    }
+
+    [Test]
+    public void SignalRServerSource_IsAspNetCores()
+    {
+        Assert.That(MetricsAndTracingExtensions.SignalRServerSource, Is.EqualTo("Microsoft.AspNetCore.SignalR.Server"));
+    }
+
+    [Test]
     public void AdditionalMeters_IncludeEfCoreAndHealthChecks()
     {
         Assert.That(MetricsAndTracingExtensions.AdditionalMeters, Is.SupersetOf(EfCoreAndHealthChecks));
@@ -44,7 +89,7 @@ public class MetricsAndTracingExtensionsTests
 /// <summary>MetricsAndTracingExtensionsTests' helpers, shared with its integration tests.</summary>
 internal static class MetricsAndTracingExtensionsTestData
 {
-    internal static ServiceProvider Build(Dictionary<string, string?> values)
+    internal static ServiceProvider Build(Dictionary<string, string?> values, Action<IServiceCollection>? more = null)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
         var environment = Substitute.For<IHostEnvironment>();
@@ -55,6 +100,7 @@ internal static class MetricsAndTracingExtensionsTestData
         services.AddLogging();
         services.AddSingleton(environment);
         services.AddSingleton<IConfiguration>(configuration);
+        more?.Invoke(services);
         services.AddMetricsAndTracing(TelemetryOptions.FromConfiguration(configuration, environment), configuration);
         return services.BuildServiceProvider();
     }

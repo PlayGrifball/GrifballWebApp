@@ -7,6 +7,7 @@ import { TeamsService } from '@api/services/teams.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '../account.service';
 import { SignalRService } from '../api/signalR.service';
+import { HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { config as rxjsConfig, of, Subject, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import type { TeamResponseDto } from '@api/models';
@@ -1386,11 +1387,16 @@ describe('TeamBuilderComponent hub handler registration (real SignalRService)', 
     handlers = new Map();
     const hubConnection = {
       connectionId: 'conn',
+      state: HubConnectionState.Disconnected,
+      start: () => Promise.resolve(),
+      stop: () => Promise.resolve(),
+      onreconnected: () => {},
+      onclose: () => {},
       on: (name: string, fn: Function) => handlers.set(name, [...(handlers.get(name) ?? []), fn]),
       off: (name: string, fn: Function) => handlers.set(name, (handlers.get(name) ?? []).filter(h => h !== fn)),
     };
-    const signalR = Object.create(SignalRService.prototype) as SignalRService;
-    signalR.hubConnection = hubConnection as any;
+    // The real service (its generated receiver registered in its constructor), on this connection
+    spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(hubConnection as any);
 
     const api = jasmine.createSpyObj<TeamsService>('TeamsService', ['getTeams', 'getPlayerPool', 'areCaptainsLocked']);
     api.getTeams.and.returnValue(of([]));
@@ -1404,7 +1410,6 @@ describe('TeamBuilderComponent hub handler registration (real SignalRService)', 
         provideRouter([]),
         { provide: TeamsService, useValue: api },
         { provide: AccountService, useValue: account },
-        { provide: SignalRService, useValue: signalR },
       ]
     }).compileComponents();
   });

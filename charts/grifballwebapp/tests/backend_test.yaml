@@ -148,8 +148,10 @@ tests:
   - it: points the Telemetry page at the backends it is given
     documentIndex: 1
     set:
-      backend.telemetry: { enabled: true, endpoint: "http://otel:4317", query: { lokiUrl: "http://loki-gateway.loki", tempoUrl: "http://tempo.tempo:3200" } }
+      backend.telemetry: { enabled: true, endpoint: "http://otel:4317", query: { lokiUrl: "http://loki-gateway.loki", tempoUrl: "http://tempo.tempo:3200" }, trace: { edgeServices: "traefik,edge_processing", downstreamServices: halo-gateway } }
     asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: TelemetryQuery__DownstreamServices, value: halo-gateway } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: TelemetryQuery__EdgeServices, value: "traefik,edge_processing" } }
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: TelemetryQuery__LokiUrl, value: "http://loki-gateway.loki" } }
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: TelemetryQuery__TempoUrl, value: "http://tempo.tempo:3200" } }
       - notContains: { path: "spec.template.spec.containers[0].env", content: { name: TelemetryQuery__PrometheusUrl, value: "" } }

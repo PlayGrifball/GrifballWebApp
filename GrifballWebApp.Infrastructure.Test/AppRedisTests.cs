@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using StackExchange.Redis;
 using GrifballWebApp.Infrastructure.Redis;
@@ -23,6 +24,31 @@ public class AppRedisTests
             Assert.That(await redis.ConnectAsync(), Is.SameAs(multiplexer));
             Assert.That(await redis.ConnectAsync(TextWriter.Null), Is.SameAs(multiplexer));
             Assert.That(connects, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task WhenConnected_is_told_of_the_connection_once_made_or_at_once_when_made_already()
+    {
+        var multiplexer = Substitute.For<IConnectionMultiplexer>();
+        var connects = 0;
+        await using var redis = new AppRedis(_ => ++connects == 1
+            ? throw new RedisConnectionException(ConnectionFailureType.UnableToConnect, "Redis isn't there yet")
+            : Task.FromResult(multiplexer));
+        var before = new List<IConnectionMultiplexer>();
+        var after = new List<IConnectionMultiplexer>();
+
+        redis.WhenConnected(before.Add);
+        await Assert.ThrowsAsync<RedisConnectionException>(async () => await redis.ConnectAsync());
+        Assert.That(before, Is.Empty, "a failed connect is no connection");
+        await redis.ConnectAsync();
+        await redis.ConnectAsync();
+        redis.WhenConnected(after.Add);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(before, Is.EqualTo(new[] { multiplexer }), "told once, when made");
+            Assert.That(after, Is.EqualTo(new[] { multiplexer }), "told at once");
         }
     }
 
@@ -82,6 +108,69 @@ public class AppRedisTests
     {
         var options = AppRedis.Options(connectionString, "grif-test");
         Assert.That((options.AbortOnConnectFail, options.ChannelPrefix.ToString()), Is.EqualTo((abort, "grif-test")));
+    }
+
+    [Test]
+    public async Task A_WhenConnected_callback_that_throws_during_connect_doesnt_fail_the_connect_or_block_later_callbacks()
+    {
+        var multiplexer = Substitute.For<IConnectionMultiplexer>();
+        var logger = Substitute.For<ILogger<AppRedis>>();
+        await using var redis = new AppRedis(_ => Task.FromResult(multiplexer), logger);
+        var ranAfter = false;
+        redis.WhenConnected(_ => throw new InvalidOperationException("boom"));
+        redis.WhenConnected(_ => ranAfter = true);
+
+        var connection = await redis.ConnectAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(connection, Is.SameAs(multiplexer), "the connect itself isn't failed by a callback");
+            Assert.That(ranAfter, Is.True, "later callbacks still run after one throws");
+            Assert.That(logger.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(ILogger.Log)), Is.EqualTo(1), "the error is logged");
+        }
+    }
+
+    [Test]
+    public async Task A_WhenConnected_callback_that_throws_once_already_connected_doesnt_throw_from_WhenConnected()
+    {
+        var multiplexer = Substitute.For<IConnectionMultiplexer>();
+        var logger = Substitute.For<ILogger<AppRedis>>();
+        await using var redis = new AppRedis(_ => Task.FromResult(multiplexer), logger);
+        await redis.ConnectAsync();
+
+        Assert.That(() => redis.WhenConnected(_ => throw new InvalidOperationException("boom")), Throws.Nothing);
+        Assert.That(logger.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(ILogger.Log)), Is.EqualTo(1), "the error is logged");
+    }
+
+    [Test]
+    public async Task Disposing_async_clears_the_connected_multiplexer_so_WhenConnected_wont_hand_it_out_again()
+    {
+        var multiplexer = Substitute.For<IConnectionMultiplexer>();
+        var redis = new AppRedis(_ => Task.FromResult(multiplexer));
+        await redis.ConnectAsync();
+
+        await redis.DisposeAsync();
+
+        var called = false;
+        redis.WhenConnected(_ => called = true);
+        Assert.That(called, Is.False, "the multiplexer is disposed; WhenConnected shouldn't hand it out again");
+    }
+
+    [Test]
+    public async Task Disposing_synchronously_also_clears_the_connected_multiplexer()
+    {
+        var multiplexer = Substitute.For<IConnectionMultiplexer>();
+        // Disposed synchronously by the container that made it, as A_container_disposed_synchronously_closes_the_connection_too
+        AppRedis redis;
+        using (var provider = new ServiceCollection().AddSingleton(_ => new AppRedis(_ => Task.FromResult(multiplexer))).BuildServiceProvider())
+        {
+            redis = provider.GetRequiredService<AppRedis>();
+            await redis.ConnectAsync();
+        }
+
+        var called = false;
+        redis.WhenConnected(_ => called = true);
+        Assert.That(called, Is.False, "the multiplexer is disposed; WhenConnected shouldn't hand it out again");
     }
 
     [Test]

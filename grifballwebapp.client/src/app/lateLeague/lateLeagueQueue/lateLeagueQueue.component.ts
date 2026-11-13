@@ -7,6 +7,7 @@ import { Observable } from 'rxjs';
 import { QueueService } from '@api/services/queue.service';
 import { AuthSession } from '../../authSession.service';
 import { hubLifecycle } from '../../api/hubLifecycle';
+import { getReceiverRegister } from '@signalr/TypedSignalR.Client';
 import type { QueueStatusDto } from '@api/models';
 import { errorText } from '../../shared/errorText';
 
@@ -57,9 +58,12 @@ export class LateLeagueQueueComponent {
     // it), for the nudge when their own status changes, so hubLifecycle makes it again on a sign-in or out.
     // Connected (again): a size sent meanwhile was missed.
     const connection = hubLifecycle(QUEUE_HUB_URL, { name: 'Late League queue', connected: () => this.load() });
-    connection.on('QueueCount', (count: number) => this.counted(count));
-    // Matched, their match over, joined or left elsewhere (Discord, another tab), kicked
-    connection.on('QueueStatusChanged', () => this.load());
+    // The hub's receiver, generated from its C# interface (IQueueHubClient)
+    getReceiverRegister('IQueueHubClient').register(connection, {
+      queueCount: count => Promise.resolve(this.counted(count)),
+      // Matched, their match over, joined or left elsewhere (Discord, another tab), kicked
+      queueStatusChanged: () => Promise.resolve(this.load()),
+    });
 
     inject(AuthSession).changed$.pipe(takeUntilDestroyed()).subscribe(() => {
       this.message.set(null);

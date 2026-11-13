@@ -261,3 +261,105 @@ public class JsonNamedQueryParametersFilterTests
         Assert.That(operation.Parameters, Is.Null);
     }
 }
+
+/// <summary>A hub of every kind of method, for its payloads: a value, a Task's result, nothing.</summary>
+[TypedSignalR.Client.Hub]
+public interface ISampleHub
+{
+    int Count();
+    List<int> All();
+    Task<string> Name();
+    Task Save(Sample sample);
+}
+
+/// <summary>A base hub interface: its methods are the hub's too.</summary>
+public interface IBaseSampleHub
+{
+    Task<Outer.Inner> Inherited();
+}
+
+/// <summary>A hub of the other kinds of method: ValueTask, streams either way, and inherited ones.</summary>
+[TypedSignalR.Client.Hub]
+public interface IStreamingSampleHub : IBaseSampleHub
+{
+    ValueTask<Sample> One();
+    IAsyncEnumerable<Outer> Stream();
+    System.Threading.Channels.ChannelReader<double> Channel();
+    Task Upload(IAsyncEnumerable<decimal> items);
+    Task<System.Threading.Channels.ChannelReader<Guid>> DoubleWrapped();
+}
+
+/// <summary>The hubs' payloads in the document (OpenApiSchemas.cs), for the client's models and its typed SignalR client.</summary>
+[TestFixture]
+public class HubSchemasDocumentFilterTests
+{
+    private static readonly Type[] SamplePayloads = [typeof(int), typeof(List<int>), typeof(string), typeof(Sample)];
+    private static readonly Type[] StreamedPayloads = [typeof(Sample), typeof(Outer), typeof(double), typeof(decimal), typeof(Outer.Inner), typeof(Guid)];
+    private static readonly Type[] Wrappers =
+    [
+        typeof(ValueTask<Sample>), typeof(IAsyncEnumerable<Outer>), typeof(System.Threading.Channels.ChannelReader<double>),
+        typeof(IAsyncEnumerable<decimal>), typeof(Task<Outer.Inner>),
+        // Doubly wrapped: unwrapping once still leaves a wrapper (ChannelReader<Guid>), which must be unwrapped too
+        typeof(Task<System.Threading.Channels.ChannelReader<Guid>>), typeof(System.Threading.Channels.ChannelReader<Guid>),
+    ];
+
+    [Test]
+    public void PayloadTypes_AreWhatTheHubsTakeAnswerAndSend()
+    {
+        var types = HubSchemasDocumentFilter.PayloadTypes(typeof(HubSchemasDocumentFilter).Assembly);
+
+        using (Assert.EnterMultipleScope())
+        {
+            // Sent to the receivers
+            Assert.That(types, Does.Contain(typeof(GrifballWebApp.Application.Teams.CaptainAddedDto)));
+            Assert.That(types, Does.Contain(typeof(GrifballWebApp.Application.Teams.MovePlayerToTeamRequestDto)));
+            // Taken and answered by the hub's methods
+            Assert.That(types, Does.Contain(typeof(GrifballWebApp.Application.Teams.CaptainPlacementDto)));
+            Assert.That(types, Does.Contain(typeof(List<GrifballWebApp.Application.Teams.TeamResponseDto>)));
+            // Not what a method returns when it returns nothing
+            Assert.That(types, Does.Not.Contain(typeof(Task)).And.Not.Contain(typeof(void)));
+        }
+    }
+
+    [Test]
+    public void PayloadTypes_AreWhatAValueTaskOrAStreamCarries_AndAnInheritedMethodsToo()
+    {
+        var types = HubSchemasDocumentFilter.PayloadTypes(typeof(IStreamingSampleHub).Assembly);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(types, Is.SupersetOf(StreamedPayloads));
+            Assert.That(types, Has.None.AnyOf(Wrappers));
+        }
+    }
+
+    [Test]
+    public void PayloadTypes_AreAValueATasksResultAndAnArgument()
+    {
+        var types = HubSchemasDocumentFilter.PayloadTypes(typeof(ISampleHub).Assembly);
+
+        Assert.That(types, Is.SupersetOf(SamplePayloads).And.Not.Contain(typeof(void)));
+    }
+}
+
+/// <summary>The OpenAPI document's endpoints (OpenApiSchemas.cs): the API's, not the hubs' page's.</summary>
+[TestFixture]
+public class OpenApiInclusionTests
+{
+    private static Microsoft.AspNetCore.Mvc.ApiExplorer.ApiDescription Api(string path, string? group = null)
+        => new() { RelativePath = path, GroupName = group };
+
+    [Test]
+    public void Includes_TheApi_NotTheHubsPage()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(OpenApiInclusion.Includes("v1", Api("seasons/{seasonID}")), Is.True);
+            Assert.That(OpenApiInclusion.Includes("v1", Api("seasons", group: "v1")), Is.True);
+            Assert.That(OpenApiInclusion.Includes("v1", Api("seasons", group: "v2")), Is.False);
+            Assert.That(OpenApiInclusion.Includes("v1", Api("signalr-dev/spec.json")), Is.False);
+            Assert.That(OpenApiInclusion.Includes("v1", Api("signalr-dev/index.html")), Is.False);
+            Assert.That(OpenApiInclusion.Includes("v1", new Microsoft.AspNetCore.Mvc.ApiExplorer.ApiDescription()), Is.True, "No route: not the page's");
+        }
+    }
+}

@@ -13,6 +13,7 @@ export type { BackupInfoDto } from './models/backup-info-dto';
 export type { BracketDto } from './models/bracket-dto';
 export type { BracketInfoDto } from './models/bracket-info-dto';
 export type { BracketsMatch } from './models/brackets-match';
+export type { CaptainAddedDto } from './models/captain-added-dto';
 export type { CaptainAddedResponseDto } from './models/captain-added-response-dto';
 export type { CaptainDto } from './models/captain-dto';
 export type { CaptainPlacementDto } from './models/captain-placement-dto';

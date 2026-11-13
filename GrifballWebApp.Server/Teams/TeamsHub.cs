@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 using GrifballWebApp.Application.Teams;
+using TypedSignalR.Client;
 
 namespace GrifballWebApp.Server.Teams;
 
@@ -113,8 +114,9 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
 }
 
 /// <summary>
-/// Methods that can be invoked on front end client
+/// Methods that can be invoked on front end client (the typed client's receiver: grifballwebapp.client/src/generated/signalr)
 /// </summary>
+[Receiver]
 public interface ITeamsHubClient
 {
     Task AddCaptain(CaptainAddedDto dto);
@@ -128,8 +130,10 @@ public interface ITeamsHubClient
 }
 
 /// <summary>
-/// Methods that can be invoked on back end server
+/// Methods that can be invoked on back end server: the draft's changes over SignalR, as over REST (the typed client's hub
+/// proxy)
 /// </summary>
+[Hub]
 public interface ITeamsHubServer
 {
     Task<List<TeamResponseDto>> GetTeams(int seasonID);

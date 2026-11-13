@@ -509,6 +509,13 @@ worker:
   replicas: 2              # the workers: any number (Quartz is clustered)
 redis:
   enabled: true            # the SignalR backplane; or external.connectionString
+ingressRoute:
+  enabled: true            # required with backend.replicas above 1: the sticky hubs route (below)
+  host: grifball.example
+networkPolicy:
+  frontend:
+    from:                  # required with the IngressRoute's direct routes: the ingress controller only
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } }
 ```
 
 - **grif-worker** runs the jobs (Quartz, clustered on the database: each firing runs on one worker, a job
@@ -528,13 +535,17 @@ redis:
   when it ran on grif-worker carry over. Its resources are the workers' unless
   `worker.discord.resources` sets them.
 - **grif-backend** then serves the API and the SignalR hub: no Discord gateway (it sends Discord
-  messages over REST) and no background services. More than one replica without the worker is refused.
+  messages over REST) and no background services. More than one replica without the worker is refused,
+  and so is more than one without `ingressRoute.enabled` and `ingressRoute.hubs.enabled`: SignalR
+  negotiates again, and its connection, or every poll, must reach the pod that negotiated it, which only
+  the sticky hubs route guarantees.
 - **redis** joins the pods' SignalR hubs, so a change made on one pod, or a draft pick made in Discord
-  (on grif-discord), reaches every browser. `worker.enabled` requires it. Browsers open the hub's
-  WebSocket directly, without SignalR's negotiate request, so the Service needs no sticky sessions.
-  The chart's own is a small Valkey that stores nothing; `redis.external.connectionString` names a
-  Secret holding a StackExchange.Redis connection string instead (allow it with
-  `networkPolicy.redis`), and `redis.channelPrefix` lets environments share one server.
+  (on grif-discord), reaches every browser connected to another. `worker.enabled` requires it; it
+  doesn't replace the sticky hubs route above, it only carries a message between pods once each browser
+  is already stuck to one. The chart's own is a small Valkey that stores nothing;
+  `redis.external.connectionString` names a Secret holding a StackExchange.Redis connection string
+  instead (allow it with `networkPolicy.redis`), and `redis.channelPrefix` lets environments share one
+  server.
 - **The state volume** (`backend.persistence`) holds only Direct mode's tokens, so in Gateway mode it can
   be disabled; with `worker.enabled` it's mounted in grif-discord if left on (the workers get an emptyDir). Without the volume the
   backend rolls instead of being recreated (`backend.strategy` empty).
@@ -572,8 +583,8 @@ what it needs.
 
 | Pod | In | Out |
 | --- | --- | --- |
-| frontend | port 80 from anyone (`frontend.from`) | DNS, the backend, the OpenTelemetry endpoint's port (`frontend.telemetry`, `frontend.telemetryTo`) |
-| backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo in Direct mode, Google), the OpenTelemetry endpoint's port (and `frontend.telemetry.endpoint`'s with `frontend.telemetry.browser`: the browser's telemetry, passed on), the Halo gateway's port in Gateway mode (`backend.haloGatewayTo`, or the bundled gateway's pods), Redis, the Telemetry page's Loki, Prometheus and Tempo (`backend.telemetry.query`, `backend.telemetryQuery`) |
+| frontend | port 80 from anyone, or `frontend.from` (required with the IngressRoute's direct routes, `ingressRoute.hubs` and `ingressRoute.api`) | DNS, the backend, the OpenTelemetry endpoint's port (`frontend.telemetry`, `frontend.telemetryTo`) |
+| backend | the frontend; with the IngressRoute's direct routes, `frontend.from` too (the ingress controller), on the backend's port | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo in Direct mode, Google), the OpenTelemetry endpoint's port (and `frontend.telemetry.endpoint`'s with `frontend.telemetry.browser`: the browser's telemetry, passed on), the Halo gateway's port in Gateway mode (`backend.haloGatewayTo`, or the bundled gateway's pods), Redis, the Telemetry page's Loki, Prometheus and Tempo (`backend.telemetry.query`, `backend.telemetryQuery`) |
 | worker (`worker.enabled`) | - (`worker.extraIngress`) | the backend's |
 | Redis (`redis.enabled`) | backend, worker | - |
 | Halo gateway (`halo-gateway.enabled`) | backend, worker (`grif-halo-gateway-ingress`); the ingress controller per its chart | per its chart: DNS, HTTPS to Microsoft, Xbox Live and Halo |
