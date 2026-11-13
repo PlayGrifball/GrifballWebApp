@@ -86,7 +86,7 @@ public class HistoricalRefreshJobTests : SqliteContextFixture
         var manual = await QueueManualRefresh();
         await Job().RunAsync(CancellationToken.None);
         await Context.HistoricalImportJobs.Where(j => j.HistoricalImportJobID == manual)
-            .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, HistoricalImportJobStatus.Succeeded));
+            .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, HistoricalImportJobStatus.Succeeded).SetProperty(j => j.FinishedAt, Now.UtcDateTime));
         Context.ChangeTracker.Clear();
 
         var jobId = await Job().RunAsync(CancellationToken.None);

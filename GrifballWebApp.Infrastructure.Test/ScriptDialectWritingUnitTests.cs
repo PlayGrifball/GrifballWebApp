@@ -227,7 +227,7 @@ public class ScriptDialectWritingUnitTests
 
         var columns = DatabaseScriptExporter.TargetColumns(context, DatabaseProvider.Postgres);
 
-        var users = relational.Tables.First(t => t.Name == "AspNetUsers");
+        var users = relational.Tables.First(t => t.Name == "Users");
         using (Assert.EnterMultipleScope())
         {
             Assert.That(columns, Has.Count.EqualTo(relational.Tables.Count()));

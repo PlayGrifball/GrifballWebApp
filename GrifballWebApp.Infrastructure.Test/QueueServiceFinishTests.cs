@@ -219,11 +219,11 @@ public class QueueServiceFinishTests : SqliteContextFixture
         Assert.That(await Context.QueuedPlayer.AnyAsync(), Is.False);
     }
 
-    /// <summary>What an edit's action sets, on NetCord's own options object.</summary>
-    private static MessageOptions Applied(object? action)
+    /// <summary>What an edit's action sets, on a substitute of the options it's given (whose properties keep what's set).</summary>
+    private static IDiscordMessageOptions Applied(object? action)
     {
-        var options = (MessageOptions)Activator.CreateInstance(typeof(MessageOptions), nonPublic: true)!;
-        ((Action<MessageOptions>)action!)(options);
+        var options = Substitute.For<IDiscordMessageOptions>();
+        ((Action<IDiscordMessageOptions>)action!)(options);
         return options;
     }
 
