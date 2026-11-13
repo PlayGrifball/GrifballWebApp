@@ -3,8 +3,10 @@ using GrifballWebApp.Server.Telemetry;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using OpenTelemetry.Exporter;
+using OpenTelemetry.Instrumentation.StackExchangeRedis;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using StackExchange.Redis;
@@ -57,6 +59,18 @@ public class MetricsAndTracingExtensionsTests
         using var provider = Build(new() { ["OTEL_EXPORTER_OTLP_ENDPOINT"] = null });
 
         Assert.That(provider.GetService<TracerProvider>(), Is.Not.Null);
+    }
+
+    /// <summary>Every Halo call's pacer EVAL adds timing events (CreationToEnqueued, EnqueuedToSent, SentToResponse) to
+    /// its Redis span; turned off so each span carries only its own attributes.</summary>
+    [Test]
+    public void RedisInstrumentation_DoesNotEnrichSpansWithTimingEvents()
+    {
+        using var provider = Build(new() { ["OTEL_EXPORTER_OTLP_ENDPOINT"] = null });
+
+        var options = provider.GetRequiredService<IOptions<StackExchangeRedisInstrumentationOptions>>().Value;
+
+        Assert.That(options.EnrichActivityWithTimingEvents, Is.False);
     }
 
     [Test]
