@@ -41,7 +41,7 @@ public class ConversionMigrationsTests : SqliteContextFixture
     private DatabaseEndpoint Target => new(DatabaseProvider.Sqlite, $"Data Source={_targetPath};Pooling=False");
 
     /// <summary>The source's context with the source's migrations, any other database's with the target's.</summary>
-    private GrifballContext Contexts(DatabaseEndpoint endpoint) => new FakeMigrationsContext(
+    private FakeMigrationsContext Contexts(DatabaseEndpoint endpoint) => new(
         FakeMigrationsContext.Options(endpoint.Provider, endpoint.ConnectionString), endpoint.ConnectionString == ConnectionString ? _source : _target);
 
     private DatabaseConverter Converter() => new(_log) { Contexts = Contexts };
