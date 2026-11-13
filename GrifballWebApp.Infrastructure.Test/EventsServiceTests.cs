@@ -64,7 +64,7 @@ public class EventsServiceTests
     [Test]
     public void Constructor_NoEventsChannelConfigured_Throws()
     {
-        var urls = new UrlService(new ConfigurationBuilder().Build());
+        var urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
         Assert.That(() => new EventsService(NullLogger<EventsService>.Instance, Options.Create(new DiscordOptions()), new ContextOutbox(_context), _context, urls, _time),
             Throws.Exception.With.Message.Contains("Discord:EventsChannel"));
     }
