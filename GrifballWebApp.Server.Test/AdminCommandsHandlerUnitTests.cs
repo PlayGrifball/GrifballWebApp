@@ -2,6 +2,7 @@ using GrifballWebApp.Application;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Championships;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.MatchPlanner;
 using GrifballWebApp.Application.Notifications;
@@ -303,5 +304,17 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
         await DeepHandler().ScheduleApply(discord.Context, 999);
 
         Assert.That(discord.Content(), Is.EqualTo("That recommendation doesn't exist or was applied already."));
+    }
+
+    [Test]
+    public async Task Claims_ListsAPendingClaim()
+    {
+        Db.Set<GamertagClaim>().Add(GamertagClaim.ClaimedByUser(claimantUserID: 1, gamertag: "Grifter1", normalizedGamertag: "GRIFTER1"));
+        await Db.SaveChangesAsync();
+        var discord = await AuthorizedCaller(DiscordCaller.Roles.Sysadmin);
+
+        await DeepHandler().Claims(discord.Context);
+
+        Assert.That(discord.Embed().Description, Does.Contain("Grifter1"));
     }
 }
