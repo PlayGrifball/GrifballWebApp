@@ -428,7 +428,22 @@
           "additionalProperties": false,
           "properties": { "secretName": { "type": "string" } }
         },
-        "annotations": { "$ref": "#/definitions/stringMap" }
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "hubs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "cookie": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" }
+          }
+        },
+        "api": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" }
+          }
+        }
       }
     },
     "mssql": {

@@ -3,6 +3,7 @@ templates:
   - templates/frontend.yaml
   - templates/ingress.yaml
   - templates/misc.yaml
+  - templates/backend-paths.yaml
 release:
   namespace: grif-x
 set:
@@ -33,6 +34,63 @@ tests:
       - equal: { path: "spec.routes[0].services[0]", value: { name: grif-frontend, port: 80 } }
       - equal: { path: spec.tls.secretName, value: cert }
       - notExists: { path: spec.entryPoints }
+
+  - it: sends the hubs straight to the backend, sticky, with the site's middlewares and the hubs' path rewrite
+    template: templates/ingress.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example, middlewares: [{ name: security-headers, namespace: traefik }] }
+    asserts:
+      - equal: { path: "spec.routes[1].match", value: "Host(`grif.example`) && PathRegexp(`^/(hub|signalr-dev)/\\w*Hub(/|$)`)" }
+      - equal: { path: "spec.routes[1].middlewares", value: [{ name: security-headers, namespace: traefik }, { name: grif-backend-path }] }
+      - equal:
+          path: "spec.routes[1].services[0]"
+          value: { name: grifballwebapp-server, port: 5295, sticky: { cookie: { name: grif-hub, httpOnly: true, secure: true, sameSite: lax } } }
+
+  - it: sends the API and the Discord sign-in straight to the backend, with the site's middlewares and the path rewrite
+    template: templates/ingress.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example, middlewares: [{ name: security-headers, namespace: traefik }] }
+    asserts:
+      - equal: { path: "spec.routes[2].match", value: "Host(`grif.example`) && PathRegexp(`^/(api/|signin-discord(/|$))`)" }
+      - equal: { path: "spec.routes[2].middlewares", value: [{ name: security-headers, namespace: traefik }, { name: grif-backend-path }] }
+      - equal: { path: "spec.routes[2].services[0]", value: { name: grifballwebapp-server, port: 5295 } }
+
+  - it: rewrites the backend's paths as the frontend's proxy does
+    template: templates/backend-paths.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example }
+    asserts:
+      - isKind: { of: Middleware }
+      - equal: { path: metadata.name, value: grif-backend-path }
+      - equal: { path: spec.replacePathRegex, value: { regex: "^/(?:api|hub|signalr-dev)/(.*)", replacement: "/$1" } }
+
+  - it: leaves the hubs to the frontend when told, and the API still goes straight
+    template: templates/ingress.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example, hubs: { enabled: false } }
+    asserts:
+      - equal: { path: "spec.routes[1].match", value: "Host(`grif.example`) && PathRegexp(`^/(api/|signin-discord(/|$))`)" }
+      - notExists: { path: "spec.routes[2]" }
+
+  - it: leaves the API to the frontend when told
+    template: templates/ingress.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example, api: { enabled: false } }
+    asserts:
+      - equal: { path: "spec.routes[1].match", value: "Host(`grif.example`) && PathRegexp(`^/(hub|signalr-dev)/\\w*Hub(/|$)`)" }
+      - notExists: { path: "spec.routes[2]" }
+
+  - it: has no backend rewrite when nothing goes straight there
+    template: templates/backend-paths.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example, hubs: { enabled: false }, api: { enabled: false } }
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: has no backend rewrite without the IngressRoute
+    template: templates/backend-paths.yaml
+    asserts:
+      - hasDocuments: { count: 0 }
 
   - it: serves on the entrypoints it's given
     template: templates/ingress.yaml

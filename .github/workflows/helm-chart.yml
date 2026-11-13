@@ -245,7 +245,11 @@ jobs:
           curl --proto =https -fsSL -o /usr/local/bin/k3d https://github.com/k3d-io/k3d/releases/download/v5.8.3/k3d-linux-amd64
           chmod +x /usr/local/bin/k3d
           traefik=(--k3s-arg '--disable=traefik@server:0')
-          if [ "${{ matrix.database }}" = minimal ]; then traefik=(); fi
+          # k3s's Traefik for minimal's Ingress and scaleout's IngressRoute (the sticky hubs route)
+          case "${{ matrix.database }}" in
+            minimal|scaleout) traefik=() ;;
+            *) ;;
+          esac
           k3d cluster create e2e --image "rancher/k3s:${{ matrix.k3s }}" --no-lb "${traefik[@]}" --wait --timeout 180s
           kubectl version
           for image in "${{ runner.temp }}"/grif-*.tar; do docker load -i "$image"; done

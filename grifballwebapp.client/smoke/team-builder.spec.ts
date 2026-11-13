@@ -77,7 +77,7 @@ test.describe('team builder', () => {
     try {
       await openTeamBuilder(a, league);
       // The other browser's hub connection is held back until after the first pick: it loads the
-      // board without it, so that pick is never sent to it. Its WebSocket (no negotiate first) stays
+      // board without it, so that pick is never sent to it. Its WebSocket (after its negotiate) stays
       // connecting until released, then goes through to the server.
       let release!: () => void;
       const held = new Promise<void>(resolve => release = resolve);

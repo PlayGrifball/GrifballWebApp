@@ -57,8 +57,8 @@ describe('SignalRService', () => {
     expect(connection.start).toHaveBeenCalledTimes(1);
   });
 
-  it('opens a WebSocket straight away, without negotiate (no sticky sessions needed with several backend pods)', () => {
-    expect(withUrl.calls.mostRecent().args[1]).toEqual({ skipNegotiation: true, transport: HttpTransportType.WebSockets });
+  it('negotiates, then takes WebSockets, or server-sent events or long polling where they don\'t get through', () => {
+    expect(withUrl.calls.mostRecent().args[1]).toEqual({ transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling });
   });
 
   it('connects again when someone signs in or out', async () => {

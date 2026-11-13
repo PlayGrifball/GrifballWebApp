@@ -100,6 +100,8 @@ tests:
       worker.enabled: true
       redis.enabled: true
       backend.replicas: 2
+      ingressRoute: { enabled: true, host: grif.example }
+      networkPolicy.frontend.from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } } }]
     asserts:
       - contains:
           path: "spec.template.spec.containers[0].env"

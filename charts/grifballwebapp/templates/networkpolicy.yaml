@@ -90,6 +90,18 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.backend.port }}
+    {{- if and .Values.ingressRoute.enabled (or .Values.ingressRoute.hubs.enabled .Values.ingressRoute.api.enabled) }}
+    {{- if not $np.frontend.from }}
+    {{- fail "ingressRoute.hubs or .api sends traffic straight to the backend, which trusts the pod network's X-Real-IP: set networkPolicy.frontend.from to the ingress controller, or turn the direct routes off (ingressRoute.enabled false, or both .hubs.enabled and .api.enabled false)" }}
+    {{- end }}
+    # The API and the hubs, straight from the ingress controller (ingressRoute.api and .hubs): whoever may reach the
+    # frontend
+    - ports:
+        - protocol: TCP
+          port: {{ .Values.backend.port }}
+      from:
+        {{- toYaml $np.frontend.from | nindent 8 }}
+    {{- end }}
     {{- with $np.backend.extraIngress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

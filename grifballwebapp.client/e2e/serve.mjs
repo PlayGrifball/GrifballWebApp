@@ -12,7 +12,7 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { mockResponse, roleOf } from './mockApi.mts';
-import { handleHubUpgrade, isHubUpgrade } from './hubMock.mts';
+import { handleHubUpgrade, isHubNegotiate, isHubUpgrade, negotiateResponse } from './hubMock.mts';
 
 const port = Number(process.env.E2E_PORT ?? 4300);
 const apiPort = port + 1;
@@ -20,8 +20,13 @@ const serverEntry = fileURLToPath(new URL('../dist/grifballwebapp.client/server/
 
 // The backend, as the server reaches it: without the /api prefix. Plus the SignalR hubs
 // (/hub/TeamsHub and /hub/QueueHub, proxied here as /TeamsHub and /QueueHub): their WebSocket upgrades
-// on 'upgrade' (the clients skip negotiate).
+// on 'upgrade', after their negotiate (answered here).
 const backend = createServer((req, res) => {
+  if (isHubNegotiate(req)) {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(negotiateResponse());
+    return;
+  }
   // Only parsed for its path and query: the base's scheme and host are never used
   const url = new URL(req.url ?? '/', 'https://backend');
   const mocked = mockResponse(roleOf(req.headers.cookie), '/api' + url.pathname, url.search);

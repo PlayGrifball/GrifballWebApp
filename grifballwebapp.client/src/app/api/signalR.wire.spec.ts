@@ -8,11 +8,12 @@ import { SignalRService } from './signalR.service';
 const RS = '\x1e';
 
 /**
- * What the server side of ASP.NET Core SignalR says to the client over a WebSocket: the JSON hub protocol (handshake,
- * invocations). It runs the real @microsoft/signalr client through SignalRService, with the service's own options, so a
- * client upgrade that changes the wire protocol or how the options are used fails here. The service skips negotiate
- * (no sticky sessions needed with several backend pods), so any HTTP request is recorded, and must not happen. The
- * other spec (signalR.service.spec.ts) replaces the connection with a stub.
+ * What the server side of ASP.NET Core SignalR says to the client over a WebSocket or long polling: the JSON hub
+ * protocol (handshake, invocations), and for long polling the HTTP mechanics around it (a connect poll, then a
+ * background one held until there is data, and the handshake and invocations the client sends as POSTs). It runs the
+ * real @microsoft/signalr client through SignalRService, with the service's own options, so a client upgrade that
+ * changes the wire protocol or how the options are used fails here. The other spec (signalR.service.spec.ts) replaces
+ * the connection with a stub.
  */
 class FakeTeamsHub {
   readonly httpRequests: HttpRequest[] = [];
@@ -20,12 +21,71 @@ class FakeTeamsHub {
   readonly handshakes: unknown[] = [];
   readonly fromClient: { type: number }[] = [];
 
-  /** Every HTTP request the client makes (negotiate would be one): recorded and refused. */
+  /** The transports the negotiate offers, as the server's would (WebSockets first). */
+  constructor(readonly offered: string[] = ['WebSockets', 'ServerSentEvents', 'LongPolling']) {}
+
+  /**
+   * Every HTTP request the client makes, recorded: the negotiate (answered with a connection and the offered
+   * transports); over long polling, the connect poll (answered at once, empty, as the server's does), the
+   * background poll (held until deliver sends it data, or the client stops it) and the handshake, then
+   * invocations, sent as POSTs (answered with 204, their data delivered over the next background poll, as the
+   * real server does).
+   */
   readonly http = new (class extends HttpClient {
+    private polls = 0;
+    private pendingPoll: ((response: HttpResponse) => void) | null = null;
+    private queued: string | null = null;
+    private handshaken = false;
     constructor(private readonly hub: FakeTeamsHub) { super(); }
     override send(request: HttpRequest): Promise<HttpResponse> {
       this.hub.httpRequests.push(request);
-      return Promise.resolve(new HttpResponse(404, 'Not Found', ''));
+      if (request.url?.includes('/negotiate'))
+        return Promise.resolve(new HttpResponse(200, 'OK', JSON.stringify({
+          negotiateVersion: 1, connectionId: 'connection', connectionToken: 'token',
+          availableTransports: this.hub.offered.map(transport => ({ transport, transferFormats: ['Text', 'Binary'] })),
+        })));
+      if (request.method === 'POST') {
+        // The handshake, then invocations: no WebSocket to send them on over long polling.
+        for (const frame of String(request.content ?? '').split(RS).filter(f => f.length > 0)) {
+          if (!this.handshaken) {
+            this.handshaken = true;
+            this.hub.handshakes.push(JSON.parse(frame));
+            this.deliver('{}' + RS);
+          } else {
+            this.hub.fromClient.push(JSON.parse(frame));
+          }
+        }
+        return Promise.resolve(new HttpResponse(204, 'No Content', ''));
+      }
+      if (request.method !== 'GET')
+        // The DELETE the client sends on stop: nothing needs it answered.
+        return Promise.resolve(new HttpResponse(200, 'OK', ''));
+      if (this.polls++ === 0)
+        // The connect poll: the server only confirms the transport works, with no data.
+        return Promise.resolve(new HttpResponse(200, 'OK', ''));
+      // The background poll: held until deliver sends data, or the client stops it.
+      return new Promise(resolve => {
+        if (this.queued !== null) {
+          const data = this.queued;
+          this.queued = null;
+          resolve(new HttpResponse(200, 'OK', data));
+          return;
+        }
+        this.pendingPoll = resolve;
+        if (request.abortSignal)
+          request.abortSignal.onabort = () => { this.pendingPoll = null; resolve(new HttpResponse(204, 'No Content', '')); };
+      });
+    }
+
+    /** Resolves the open background poll with data, as the server would; queued (after any already queued) if none is open yet. */
+    deliver(data: string): void {
+      if (this.pendingPoll) {
+        const resolve = this.pendingPoll;
+        this.pendingPoll = null;
+        resolve(new HttpResponse(200, 'OK', data));
+      } else {
+        this.queued = (this.queued ?? '') + data;
+      }
     }
   })(this);
 
@@ -43,9 +103,11 @@ class FakeTeamsHub {
     return this.sockets[this.sockets.length - 1];
   }
 
-  /** Sends a hub invocation (the JSON hub protocol's type 1) down the newest socket. */
+  /** Sends a hub invocation (the JSON hub protocol's type 1) down the newest socket, or the open long poll. */
   invoke(target: string, ...args: unknown[]): void {
-    this.latest!.deliver(JSON.stringify({ type: 1, target, arguments: args }) + RS);
+    const frame = JSON.stringify({ type: 1, target, arguments: args }) + RS;
+    if (this.latest) this.latest.deliver(frame);
+    else this.http.deliver(frame);
   }
 }
 
@@ -105,15 +167,17 @@ async function waitFor(condition: () => boolean, what: string, timeoutMs = 5000)
   }
 }
 
-describe('SignalRService over the SignalR wire protocol', () => {
-  let hub: FakeTeamsHub;
-  let service: SignalRService;
-
+/**
+ * A fake hub for each test of the describe it is called in (offering these transports), and the service connected to
+ * it with its own URL and options, stopped after the test.
+ */
+function useFakeHub(offered?: ConstructorParameters<typeof FakeTeamsHub>[0]): { hub: FakeTeamsHub; service: SignalRService } {
+  const current = {} as { hub: FakeTeamsHub; service: SignalRService };
   beforeEach(() => {
-    hub = new FakeTeamsHub();
+    const hub = new FakeTeamsHub(offered);
     const withUrl = HubConnectionBuilder.prototype.withUrl as (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) => HubConnectionBuilder;
     spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callFake(function (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) {
-      // The service's own URL and options (transport, skipNegotiation), over the fake server.
+      // The service's own URL and options (its transports), over the fake server.
       return withUrl.call(this, url, { ...options, httpClient: hub.http, WebSocket: hub.WebSocket });
     } as typeof HubConnectionBuilder.prototype.withUrl);
     // The service's and the client's logging.
@@ -121,24 +185,36 @@ describe('SignalRService over the SignalR wire protocol', () => {
     spyOn(console, 'info');
     spyOn(console, 'error');
 
-    service = TestBed.inject(SignalRService);
+    current.hub = hub;
+    current.service = TestBed.inject(SignalRService);
   });
 
   afterEach(async () => {
-    await service.hubConnection.stop();
+    await current.service.hubConnection.stop();
+  });
+  return current;
+}
+
+describe('SignalRService over the SignalR wire protocol', () => {
+  const fake = useFakeHub();
+  let hub: FakeTeamsHub;
+  let service: SignalRService;
+  beforeEach(() => {
+    hub = fake.hub;
+    service = fake.service;
   });
 
   const connected = () => service.hubConnection.state === HubConnectionState.Connected && (hub.latest?.handshaken ?? false);
 
-  it('opens the WebSocket straight away, with no negotiate request, and completes the JSON handshake', async () => {
+  it('negotiates, then opens the WebSocket by its connection token and completes the JSON handshake', async () => {
     await waitFor(connected, 'the connection');
 
-    expect(hub.httpRequests).toEqual([]);
+    expect(hub.httpRequests.map(r => [r.method, new URL(r.url!, location.href).pathname])).toEqual([['POST', '/hub/TeamsHub/negotiate']]);
     const url = new URL(hub.latest!.url);
     expect(url.protocol).toMatch(/^wss?:$/);
     expect(url.pathname).toBe('/hub/TeamsHub');
-    // No connection token from a negotiate, and no access token: the session cookie goes with it (same origin)
-    expect(url.searchParams.has('id')).toBeFalse();
+    // The negotiate's connection token, and no access token: the session cookie goes with it (same origin)
+    expect(url.searchParams.get('id')).toBe('token');
     expect(url.searchParams.has('access_token')).toBeFalse();
     expect(hub.handshakes).toContain({ protocol: 'json', version: 1 });
   });
@@ -160,5 +236,33 @@ describe('SignalRService over the SignalR wire protocol', () => {
     expect(locked).toEqual([7]);
     expect(unlocked).toEqual([8]);
     expect(captains).toEqual([{ seasonID: 7, personID: 42, teamName: "Captain's Team", captainName: 'Captain', orderNumber: 1 }]);
+  });
+});
+
+describe('SignalRService where WebSockets don\'t get through', () => {
+  const fake = useFakeHub(['LongPolling']);
+  let hub: FakeTeamsHub;
+  let service: SignalRService;
+  beforeEach(() => {
+    hub = fake.hub;
+    service = fake.service;
+  });
+
+  it('falls back to long polling when the server offers no WebSockets, completes the handshake and delivers over it', async () => {
+    const locked: number[] = [];
+    service.lockCaptains(seasonID => locked.push(seasonID));
+
+    // The negotiate, then the connect poll by the connection's token: no WebSocket at all.
+    await waitFor(() => hub.httpRequests.some(r => r.method === 'GET'), 'a poll');
+    const poll = hub.httpRequests.find(r => r.method === 'GET')!;
+    expect(new URL(poll.url!, location.href).searchParams.get('id')).toBe('token');
+    expect(hub.sockets).toEqual([]);
+
+    await waitFor(() => service.hubConnection.state === HubConnectionState.Connected, 'the connection');
+    expect(hub.handshakes).toContain({ protocol: 'json', version: 1 });
+
+    hub.invoke('LockCaptains', 9);
+    await waitFor(() => locked.length === 1, 'the invocation, delivered over the poll');
+    expect(locked).toEqual([9]);
   });
 });

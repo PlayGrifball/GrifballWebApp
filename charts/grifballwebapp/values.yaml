@@ -101,7 +101,11 @@ backend:
     digest: ""
     pullPolicy: IfNotPresent
   # More than 1 needs worker.enabled (and redis): the Discord gateway and the background services
-  # must run in one process only. Scaled out, backend.halo.mode must be Gateway.
+  # must run in one process only. Scaled out, backend.halo.mode must be Gateway, and the hubs need
+  # ingressRoute.enabled and ingressRoute.hubs.enabled (sticky sessions): SignalR negotiates again,
+  # and its connection, or every poll, must reach the pod that negotiated it. One replica rolls with
+  # two pods for a while without a state volume (RollingUpdate): a hub connection made then may need
+  # a retry without the sticky route too.
   replicas: 1
   # The Deployment's strategy. Empty: Recreate while the state volume (persistence) is mounted here,
   # since it is ReadWriteOnce and a new pod can't start beside the old one; RollingUpdate without it.
@@ -408,8 +412,9 @@ backupScratch:
 # so a message sent by one (a draft pick, made on the site or in Discord) reaches the browsers
 # connected to the others. worker.enabled needs it. Either the chart's own (enabled), a small Valkey
 # (Redis's protocol) holding nothing, or an existing Redis/Valkey (external). Either way the backend
-# gets ConnectionStrings:Redis; browsers connect over WebSockets without negotiating, so the Service
-# needs no sticky sessions.
+# gets ConnectionStrings:Redis; it doesn't replace sticky sessions - a browser still negotiates, then
+# connects or polls, by the pod that negotiated it (ingressRoute.hubs), and only the backplane carries a
+# message from one pod to the others' browsers.
 redis:
   enabled: false
   image:
@@ -550,6 +555,19 @@ ingressRoute:
   tls:
     secretName: ""
   annotations: {}
+  # SignalR's hubs (/hub/<Hub>..., and the hubs' page's own /signalr-dev/<Hub>...) straight to the backend, each browser
+  # kept on one backend pod by a cookie (Traefik sticky sessions): a connection negotiates, then connects, or polls when
+  # WebSockets are blocked, by an id only the pod that negotiated it knows. Through the frontend's proxy the backend
+  # pod would be anyone's (the Service picks one per request).
+  hubs:
+    enabled: true
+    # The sticky cookie: HttpOnly, Secure, SameSite=Lax
+    cookie: grif-hub
+  # The API (/api/...) and the Discord sign-in's callback (/signin-discord) straight to the backend, one hop less than
+  # through the frontend's proxy (which still serves them without the IngressRoute, and in development). The trace goes
+  # browser, Traefik, backend.
+  api:
+    enabled: true
 
 # SQL Server in the release, with database.provider sqlserver (the default). Disabled: set
 # database.host to your own.
@@ -1001,7 +1019,8 @@ networkPolicy:
     to: []
   frontend:
     # Who may reach the frontend (its port 80). Empty: anyone - the ingress controller, wherever it
-    # runs.
+    # runs. Required with the IngressRoute's direct routes (ingressRoute.hubs, ingressRoute.api, on by
+    # default): these reach the backend's port too, and the backend trusts the pod network's X-Real-IP.
     from: []
     # OpenTelemetry (frontend.telemetry): the collector, on the endpoint's port. Empty: anywhere.
     telemetryTo: []
