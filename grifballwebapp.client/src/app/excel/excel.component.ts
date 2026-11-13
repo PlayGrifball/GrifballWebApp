@@ -30,7 +30,7 @@ export class ExcelComponent implements OnInit {
         sheetName: this.inputSheetName(),
       }]);
     } else {
-      this.excel.defaultSheetDto()
+      this.excel.defaultSheetInfo()
       .subscribe({
         next: (v) => {
           this.sheetInfo.set(v);
