@@ -190,7 +190,7 @@ describe('SignupFormComponent', () => {
     httpMock.expectOne('/api/seasons/6/name').flush('Spring');
     fixture.detectChanges();
 
-    expect(component.model().seasonID).toBe(6);
+    expect(component.seasonID()).toBe(6);
     expect(component.model().willCaptain).toBeFalsy();
     expect(component.model().timeslots).toHaveSize(3);
     expect(component.seasonName()).toBe('Spring');

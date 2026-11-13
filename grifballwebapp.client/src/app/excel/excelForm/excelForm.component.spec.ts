@@ -75,7 +75,7 @@ describe('ExcelFormComponent', () => {
     const req = http.expectOne(r => /^\/api\/matches\/[^/]+\/append-to-sheet$/.test(r.url));
     expect(req.request.method).toBe('POST');
     expect(req.request.url).toBe(`/api/matches/${guid}/append-to-sheet`);
-    expect(req.request.body).toEqual({ name: 'Season Stats', spreadsheetID: 'sheet-1', sheetName: 'Week 2');
+    expect(req.request.body).toEqual({ name: 'Season Stats', spreadsheetID: 'sheet-1', sheetName: 'Week 2' });
     req.flush({});
     fixture.detectChanges();
 
@@ -98,7 +98,7 @@ describe('ExcelFormComponent', () => {
     try {
       exportButton().click();
       const req = http.expectOne({ method: 'POST', url: '/api/sheets/export' });
-      expect(req.request.body).toEqual({ name: 'Season Stats', spreadsheetID: 'sheet-1', sheetName: 'Week 1');
+      expect(req.request.body).toEqual({ name: 'Season Stats', spreadsheetID: 'sheet-1', sheetName: 'Week 1' });
       req.flush({ ...idle, state: 'Running' });
       fixture.detectChanges();
       expect(el().textContent).toContain('Exporting every match in the copy sheet to Week 1');
