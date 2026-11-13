@@ -645,13 +645,14 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     [Test]
     public async Task Import_ARecordedGameNoLongerInTheArchive_IsRemoved_WithItsSeries()
     {
-        // cup#2's sides are no season team's: a game of the season in no series. It stays in the archive, so the season
-        // still has recorded games (with none at all, HistoricalImportService leaves its earlier games alone).
-        await _service.Import(CupWith(Game("cup#1", [("Alpha One", 1), ("Beta One", 2)]), Game("cup#2", [("Gamma", 1), ("Delta", 2)])));
+        // cup#2 is a scrim: a game of the season in no series. It stays in the archive, so the season still has
+        // recorded games (with none at all, HistoricalImportService leaves its earlier games alone).
+        var scrim = Game("cup#2", [("Alpha One", 1), ("Beta One", 2)], isScrim: true);
+        await _service.Import(CupWith(Game("cup#1", [("Alpha One", 1), ("Beta One", 2)]), scrim));
         Context.ChangeTracker.Clear();
         Assert.That(await Context.SeasonMatches.CountAsync(), Is.EqualTo(1));
 
-        var report = await _service.Import(CupWith(Game("cup#2", [("Gamma", 1), ("Delta", 2)])));
+        var report = await _service.Import(CupWith(scrim));
 
         using (Assert.EnterMultipleScope())
         {
