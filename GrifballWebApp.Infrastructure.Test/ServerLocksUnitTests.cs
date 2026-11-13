@@ -41,7 +41,7 @@ public class ServerLocksUnitTests
         Held(refusals: 1);
         await using var context = SqlServer();
 
-        var acquiring = context.Database.AcquireLockAsync(Name, CancellationToken.None, _time);
+        var acquiring = context.Database.AcquireLockAsync(Name, _time, CancellationToken.None);
         // Refused once: it waits DatabaseLocks.RetryEvery on the clock, then tries again
         for (var i = 0; i < 100 && !acquiring.IsCompleted; i++)
         {
@@ -71,7 +71,7 @@ public class ServerLocksUnitTests
         Held(refusals: 0);
         await using var context = Postgres();
 
-        await (await context.Database.AcquireLockAsync(Name, CancellationToken.None, _time)).DisposeAsync();
+        await (await context.Database.AcquireLockAsync(Name, _time, CancellationToken.None)).DisposeAsync();
 
         var sent = _connection.Sent;
         using (Assert.EnterMultipleScope())
@@ -90,7 +90,7 @@ public class ServerLocksUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            await Assert.ThatAsync(() => context.Database.AcquireLockAsync(Name, CancellationToken.None, _time), Throws.InvalidOperationException.With.Message.EqualTo("deadlock victim"));
+            await Assert.ThatAsync(() => context.Database.AcquireLockAsync(Name, _time, CancellationToken.None), Throws.InvalidOperationException.With.Message.EqualTo("deadlock victim"));
             Assert.That(_connection.Closed, Is.EqualTo(1));
         }
     }
@@ -104,7 +104,7 @@ public class ServerLocksUnitTests
         Held(refusals: 0);
         await using var context = SqlServer();
 
-        await (await context.Database.AcquireLockAsync(Name, CancellationToken.None, _time)).DisposeAsync();
+        await (await context.Database.AcquireLockAsync(Name, _time, CancellationToken.None)).DisposeAsync();
 
         Assert.That(_connection.Sent[0].Sql, Does.Contain("IF @result < -1 THROW 50000, 'sp_getapplock refused the lock', 1;"));
     }
@@ -123,7 +123,7 @@ public class ServerLocksUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            await Assert.ThatAsync(() => context.Database.AcquireLockAsync(Name, stop.Token, _time), Throws.InstanceOf<OperationCanceledException>());
+            await Assert.ThatAsync(() => context.Database.AcquireLockAsync(Name, _time, stop.Token), Throws.InstanceOf<OperationCanceledException>());
             Assert.That((_connection.Sent.Count, _connection.Closed), Is.EqualTo((1, 1)));
         }
     }

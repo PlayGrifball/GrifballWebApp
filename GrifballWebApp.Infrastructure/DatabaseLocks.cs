@@ -25,8 +25,12 @@ public static class DatabaseLocks
     /// Waits for the lock <paramref name="name"/>, then holds it until the returned handle is disposed. Not reentrant:
     /// a second acquire of the same name waits for the first to be released, on any context. Cancelling stops the wait.
     /// </summary>
-    /// <param name="time">The clock the waits between tries go by; the system's unless given.</param>
-    public static async Task<IAsyncDisposable> AcquireLockAsync(this DatabaseFacade database, string name, CancellationToken ct = default, TimeProvider? time = null)
+    public static Task<IAsyncDisposable> AcquireLockAsync(this DatabaseFacade database, string name, CancellationToken ct = default)
+        => database.AcquireLockAsync(name, TimeProvider.System, ct);
+
+    /// <inheritdoc cref="AcquireLockAsync(DatabaseFacade, string, CancellationToken)"/>
+    /// <param name="time">The clock the waits between tries go by.</param>
+    public static async Task<IAsyncDisposable> AcquireLockAsync(this DatabaseFacade database, string name, TimeProvider time, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         if (database.IsSqlite())
@@ -43,7 +47,7 @@ public static class DatabaseLocks
         try
         {
             while (!await TryAsync(database, sqlServer, name, ct))
-                await Task.Delay(RetryEvery, time ?? TimeProvider.System, ct);
+                await Task.Delay(RetryEvery, time, ct);
         }
         catch
         {
