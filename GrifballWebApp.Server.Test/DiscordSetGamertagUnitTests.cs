@@ -65,11 +65,14 @@ public class DiscordSetGamertagUnitTests : SqliteGrifballContextFixture
 
         await handler.SetGamertag(discord.Context, "NewGamertag");
 
+        var created = await Db.Users.SingleAsync(u => u.DiscordUserID == 555555);
         using (Assert.EnterMultipleScope())
         {
             Assert.That(discord.Content(), Is.EqualTo("Gamertag has been set"));
-            var created = await Db.Users.SingleAsync(u => u.DiscordUserID == 555555);
             Assert.That(created.UserName, Is.EqualTo("NewPlayer"));
         }
+        // Not just that something returned null (a substitute does that on its own): that SetGamertag was actually
+        // called, for the user just created.
+        await setGamertag.Received(1).SetGamertag(created.Id, "NewGamertag", Arg.Any<CancellationToken>());
     }
 }
