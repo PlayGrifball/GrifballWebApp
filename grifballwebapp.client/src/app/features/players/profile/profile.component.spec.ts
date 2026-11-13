@@ -11,6 +11,7 @@ import { AccountService } from '@core/auth/account.service';
 import { Component } from '@angular/core';
 import { LinkedAccountsComponent } from '@shared/linkedAccounts/linkedAccounts.component';
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';
+import { AccessTokensComponent } from './accessTokens/accessTokens.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { StubVodListComponent } from '@shared/vodList/vodList.stub';
 import { DeploymentHistoryComponent } from './deploymentHistory/deploymentHistory.component';
@@ -29,6 +30,10 @@ class ProfileIdentityStubComponent {
   readonly regionID = input<number | null>(null);
   readonly changed = output<void>();
 }
+
+// And the access tokens section (accessTokens.component.spec.ts).
+@Component({ selector: 'app-access-tokens', template: '<p>access tokens</p>' })
+class AccessTokensStubComponent {}
 
 describe('ProfileComponent', () => {
   let fixture: ComponentFixture<ProfileComponent>;
@@ -52,8 +57,8 @@ describe('ProfileComponent', () => {
       .overrideProvider(MatSnackBar, { useValue: snackBar })
       .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent, ProfileCommendationsComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, VodListComponent, ProfileCommendationsComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
       })
       .compileComponents();
 

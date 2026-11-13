@@ -11,6 +11,137 @@
     }
   ],
   "paths": {
+    "/identity/access-tokens": {
+      "get": {
+        "tags": [
+          "AccessTokens"
+        ],
+        "summary": "Your access tokens, newest first: names and dates, never the tokens themselves.",
+        "operationId": "GetAccessTokens",
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AccessTokenDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AccessTokens"
+        ],
+        "summary": "Makes an access token. The answer holds the token itself, shown this once: only its hash is kept.",
+        "operationId": "CreateAccessToken",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateAccessTokenRequest"
+                  }
+                ],
+                "description": "What to make a token for: a name to tell it by, and how many days it lasts."
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedAccessTokenDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/identity/access-tokens/{id}/revoke": {
+      "post": {
+        "tags": [
+          "AccessTokens"
+        ],
+        "summary": "Revokes one of your access tokens: it stops working at once.",
+        "operationId": "RevokeAccessToken",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/matches/{matchID}/pull": {
       "post": {
         "tags": [
@@ -8440,6 +8571,33 @@
   },
   "components": {
     "schemas": {
+      "AccessTokenDto": {
+        "required": [
+          "createdAt",
+          "expiresAt",
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A personal access token, as its owner sees it in their list: never its secret."
+      },
       "AccessTokenResponse": {
         "required": [
           "accessToken",
@@ -9321,6 +9479,24 @@
         },
         "additionalProperties": false
       },
+      "CreateAccessTokenRequest": {
+        "required": [
+          "days",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "days": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false,
+        "description": "What to make a token for: a name to tell it by, and how many days it lasts."
+      },
       "CreateUserRequestDto": {
         "required": [
           "displayName",
@@ -9340,6 +9516,28 @@
           }
         },
         "additionalProperties": false
+      },
+      "CreatedAccessTokenDto": {
+        "required": [
+          "accessToken",
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccessTokenDto"
+              }
+            ],
+            "description": "A personal access token, as its owner sees it in their list: never its secret."
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A token just made: the token itself is shown this once, and only its hash is kept."
       },
       "CustomSeedDto": {
         "required": [
@@ -17053,6 +17251,9 @@
     {}
   ],
   "tags": [
+    {
+      "name": "AccessTokens"
+    },
     {
       "name": "Admin"
     },

@@ -12,7 +12,7 @@ namespace GrifballWebApp.Server.Mcp;
 /// <summary>A personal access token, as its owner sees it in their list: never its secret.</summary>
 public sealed record AccessTokenDto(string ID, string Name, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt);
 
-/// <summary>A token just made: <see cref="Token"/> is shown this once, and only its hash is kept.</summary>
+/// <summary>A token just made: the token itself is shown this once, and only its hash is kept.</summary>
 public sealed record CreatedAccessTokenDto(AccessTokenDto AccessToken, string Token);
 
 /// <summary>What to make a token for: a name to tell it by, and how many days it lasts.</summary>
