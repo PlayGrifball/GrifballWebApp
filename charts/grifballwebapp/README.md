@@ -512,6 +512,10 @@ redis:
 ingressRoute:
   enabled: true            # required with backend.replicas above 1: the sticky hubs route (below)
   host: grifball.example
+networkPolicy:
+  frontend:
+    from:                  # required with the IngressRoute's direct routes: the ingress controller only
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } }
 ```
 
 - **grif-worker** runs the jobs (Quartz, clustered on the database: each firing runs on one worker, a job
@@ -579,8 +583,8 @@ what it needs.
 
 | Pod | In | Out |
 | --- | --- | --- |
-| frontend | port 80 from anyone (`frontend.from`) | DNS, the backend, the OpenTelemetry endpoint's port (`frontend.telemetry`, `frontend.telemetryTo`) |
-| backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo in Direct mode, Google), the OpenTelemetry endpoint's port (and `frontend.telemetry.endpoint`'s with `frontend.telemetry.browser`: the browser's telemetry, passed on), the Halo gateway's port in Gateway mode (`backend.haloGatewayTo`, or the bundled gateway's pods), Redis, the Telemetry page's Loki, Prometheus and Tempo (`backend.telemetry.query`, `backend.telemetryQuery`) |
+| frontend | port 80 from anyone, or `frontend.from` (required with the IngressRoute's direct routes, `ingressRoute.hubs` and `ingressRoute.api`) | DNS, the backend, the OpenTelemetry endpoint's port (`frontend.telemetry`, `frontend.telemetryTo`) |
+| backend | the frontend; with the IngressRoute's direct routes, `frontend.from` too (the ingress controller), on the backend's port | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo in Direct mode, Google), the OpenTelemetry endpoint's port (and `frontend.telemetry.endpoint`'s with `frontend.telemetry.browser`: the browser's telemetry, passed on), the Halo gateway's port in Gateway mode (`backend.haloGatewayTo`, or the bundled gateway's pods), Redis, the Telemetry page's Loki, Prometheus and Tempo (`backend.telemetry.query`, `backend.telemetryQuery`) |
 | worker (`worker.enabled`) | - (`worker.extraIngress`) | the backend's |
 | Redis (`redis.enabled`) | backend, worker | - |
 | Halo gateway (`halo-gateway.enabled`) | backend, worker (`grif-halo-gateway-ingress`); the ingress controller per its chart | per its chart: DNS, HTTPS to Microsoft, Xbox Live and Halo |

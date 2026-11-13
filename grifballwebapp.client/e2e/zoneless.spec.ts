@@ -281,7 +281,7 @@ test('the team builder renders a captain added by another user over SignalR', as
   let negotiated = false;
   await page.route('**/hub/TeamsHub/negotiate**', route => {
     negotiated = true;
-    return route.fulfill({ json: JSON.parse(negotiateResponse()) });
+    return route.fulfill({ body: negotiateResponse(), contentType: 'application/json' });
   });
   const sockets: WebSocketRoute[] = [];
   await page.routeWebSocket(/\/hub\/TeamsHub/, ws => {
@@ -376,7 +376,7 @@ test('the Late League queue panel shows the count the hub sends, and joins from 
     '/api/queue/join': route => json(route, { ...status, count: 10, inQueue: true }),
   });
   // QueueHub, as the team builder's hub above: its negotiate, then a WebSocket with the handshake answered
-  await page.route('**/hub/QueueHub/negotiate**', route => route.fulfill({ json: JSON.parse(negotiateResponse()) }));
+  await page.route('**/hub/QueueHub/negotiate**', route => route.fulfill({ body: negotiateResponse(), contentType: 'application/json' }));
   const sockets: WebSocketRoute[] = [];
   await page.routeWebSocket(/\/hub\/QueueHub/, ws => {
     ws.onClose(() => sockets.splice(sockets.indexOf(ws), 1));

@@ -33,6 +33,19 @@ tests:
       - failedTemplate:
           errorPattern: "ingressRoute.enabled and ingressRoute.hubs.enabled"
 
+  - it: refuses more than one API pod with the IngressRoute but not its hubs route
+    template: templates/backend.yaml
+    set:
+      worker.enabled: true
+      backend.replicas: 2
+      ingressRoute.enabled: true
+      ingressRoute.host: grif.example
+      ingressRoute.hubs.enabled: false
+      networkPolicy.frontend.from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } } }]
+    asserts:
+      - failedTemplate:
+          errorPattern: "ingressRoute.enabled and ingressRoute.hubs.enabled"
+
   - it: runs one worker pod by default, recreated, as App:Role worker, without the state volume
     template: templates/worker.yaml
     documentIndex: 0

@@ -77,14 +77,14 @@ class FakeTeamsHub {
       });
     }
 
-    /** Resolves the open background poll with data, as the server would; queued if none is open yet. */
+    /** Resolves the open background poll with data, as the server would; queued (after any already queued) if none is open yet. */
     deliver(data: string): void {
       if (this.pendingPoll) {
         const resolve = this.pendingPoll;
         this.pendingPoll = null;
         resolve(new HttpResponse(200, 'OK', data));
       } else {
-        this.queued = data;
+        this.queued = (this.queued ?? '') + data;
       }
     }
   })(this);
@@ -167,12 +167,14 @@ async function waitFor(condition: () => boolean, what: string, timeoutMs = 5000)
   }
 }
 
-describe('SignalRService over the SignalR wire protocol', () => {
-  let hub: FakeTeamsHub;
-  let service: SignalRService;
-
+/**
+ * A fake hub for each test of the describe it is called in (offering these transports), and the service connected to
+ * it with its own URL and options, stopped after the test.
+ */
+function useFakeHub(offered?: ConstructorParameters<typeof FakeTeamsHub>[0]): { hub: FakeTeamsHub; service: SignalRService } {
+  const current = {} as { hub: FakeTeamsHub; service: SignalRService };
   beforeEach(() => {
-    hub = new FakeTeamsHub();
+    const hub = new FakeTeamsHub(offered);
     const withUrl = HubConnectionBuilder.prototype.withUrl as (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) => HubConnectionBuilder;
     spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callFake(function (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) {
       // The service's own URL and options (its transports), over the fake server.
@@ -183,11 +185,23 @@ describe('SignalRService over the SignalR wire protocol', () => {
     spyOn(console, 'info');
     spyOn(console, 'error');
 
-    service = TestBed.inject(SignalRService);
+    current.hub = hub;
+    current.service = TestBed.inject(SignalRService);
   });
 
   afterEach(async () => {
-    await service.hubConnection.stop();
+    await current.service.hubConnection.stop();
+  });
+  return current;
+}
+
+describe('SignalRService over the SignalR wire protocol', () => {
+  const fake = useFakeHub();
+  let hub: FakeTeamsHub;
+  let service: SignalRService;
+  beforeEach(() => {
+    hub = fake.hub;
+    service = fake.service;
   });
 
   const connected = () => service.hubConnection.state === HubConnectionState.Connected && (hub.latest?.handshaken ?? false);
@@ -226,23 +240,12 @@ describe('SignalRService over the SignalR wire protocol', () => {
 });
 
 describe('SignalRService where WebSockets don\'t get through', () => {
+  const fake = useFakeHub(['LongPolling']);
   let hub: FakeTeamsHub;
   let service: SignalRService;
-
   beforeEach(() => {
-    hub = new FakeTeamsHub(['LongPolling']);
-    const withUrl = HubConnectionBuilder.prototype.withUrl as (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) => HubConnectionBuilder;
-    spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callFake(function (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) {
-      return withUrl.call(this, url, { ...options, httpClient: hub.http, WebSocket: hub.WebSocket });
-    } as typeof HubConnectionBuilder.prototype.withUrl);
-    spyOn(console, 'log');
-    spyOn(console, 'info');
-    spyOn(console, 'error');
-    service = TestBed.inject(SignalRService);
-  });
-
-  afterEach(async () => {
-    await service.hubConnection.stop();
+    hub = fake.hub;
+    service = fake.service;
   });
 
   it('falls back to long polling when the server offers no WebSockets, completes the handshake and delivers over it', async () => {

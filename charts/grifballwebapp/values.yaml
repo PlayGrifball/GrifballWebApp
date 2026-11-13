@@ -103,7 +103,9 @@ backend:
   # More than 1 needs worker.enabled (and redis): the Discord gateway and the background services
   # must run in one process only. Scaled out, backend.halo.mode must be Gateway, and the hubs need
   # ingressRoute.enabled and ingressRoute.hubs.enabled (sticky sessions): SignalR negotiates again,
-  # and its connection, or every poll, must reach the pod that negotiated it.
+  # and its connection, or every poll, must reach the pod that negotiated it. One replica rolls with
+  # two pods for a while without a state volume (RollingUpdate): a hub connection made then may need
+  # a retry without the sticky route too.
   replicas: 1
   # The Deployment's strategy. Empty: Recreate while the state volume (persistence) is mounted here,
   # since it is ReadWriteOnce and a new pod can't start beside the old one; RollingUpdate without it.
@@ -1017,7 +1019,8 @@ networkPolicy:
     to: []
   frontend:
     # Who may reach the frontend (its port 80). Empty: anyone - the ingress controller, wherever it
-    # runs.
+    # runs. Required with the IngressRoute's direct routes (ingressRoute.hubs, ingressRoute.api, on by
+    # default): these reach the backend's port too, and the backend trusts the pod network's X-Real-IP.
     from: []
     # OpenTelemetry (frontend.telemetry): the collector, on the endpoint's port. Empty: anywhere.
     telemetryTo: []
