@@ -165,19 +165,27 @@ public sealed class HubSchemasDocumentFilter : IDocumentFilter
             context.SchemaGenerator.GenerateSchema(type, context.SchemaRepository);
     }
 
-    /// <summary>What the assembly's hub and receiver interfaces' methods take and answer (a Task's result).</summary>
+    /// <summary>
+    /// What the assembly's hub and receiver interfaces' methods (their base interfaces' too) take and answer: a task's
+    /// result and what a stream carries, either way, not the wrapper.
+    /// </summary>
     public static List<Type> PayloadTypes(Assembly assembly)
         => assembly.GetTypes()
             .Where(t => t.IsInterface && (t.IsDefined(typeof(TypedSignalR.Client.HubAttribute), false) || t.IsDefined(typeof(TypedSignalR.Client.ReceiverAttribute), false)))
-            .SelectMany(t => t.GetMethods())
-            .SelectMany(m => m.GetParameters().Select(p => p.ParameterType).Append(Result(m.ReturnType)))
+            .SelectMany(t => t.GetMethods().Concat(t.GetInterfaces().SelectMany(i => i.GetMethods())))
+            .SelectMany(m => m.GetParameters().Select(p => p.ParameterType).Append(m.ReturnType))
+            .Select(Carried)
             .Where(t => t != typeof(void) && t != typeof(CancellationToken))
             .Distinct()
             .ToList();
 
-    private static Type Result(Type returned)
-        => returned.IsGenericType && returned.GetGenericTypeDefinition() == typeof(Task<>) ? returned.GetGenericArguments()[0]
-            : returned == typeof(Task) ? typeof(void) : returned;
+    /// <summary>The wrappers a hub method's result or argument comes in, around what goes over the wire.</summary>
+    private static readonly Type[] Wrappers = [typeof(Task<>), typeof(ValueTask<>), typeof(IAsyncEnumerable<>), typeof(System.Threading.Channels.ChannelReader<>)];
+
+    private static Type Carried(Type type)
+        => type.IsGenericType && Wrappers.Contains(type.GetGenericTypeDefinition()) ? type.GetGenericArguments()[0]
+            : type == typeof(Task) || type == typeof(ValueTask) ? typeof(void) : type;
+}
 }
 
 /// <summary>

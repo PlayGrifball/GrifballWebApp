@@ -2,6 +2,7 @@
 // requests it traces, and its log lines. Kept here, apart from the OpenTelemetry SDK, so they are tested
 // like the rest of the app.
 import type { MetricOptions } from '@opentelemetry/api';
+import { BACKEND_PREFIXES, backendPath, SIGNALR_PAGE, type BackendPrefix } from './backendPaths';
 
 /** Log levels, lowest first, as Loki's detected_level names them. */
 export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
@@ -118,18 +119,21 @@ export function isLogged(level: LogLevel, minimum: LogLevel): boolean {
 }
 
 /**
- * What a request to the server is, which names its span and its metrics' http.route: the API, the hubs and
- * the Discord callback (passed on to the backend), the build's files, or a page.
+ * What a request to the server is, which names its span and its metrics' http.route: the API (the hubs' page with it),
+ * the hubs and the Discord callback (passed on to the backend), the build's files, or a page.
  */
 export type RequestKind = 'api' | 'hub' | 'signin' | 'file' | 'page';
 
+/** What the server passes on to the backend (src/app/backendPaths.ts) is, by its prefix: the hubs' page is the backend's. */
+const BACKEND_KINDS: Record<BackendPrefix, RequestKind> = { '/api': 'api', '/hub': 'hub', '/signin-discord': 'signin', '/signalr-dev': 'api' };
+
 export function requestKind(path: string): RequestKind {
-  if (path === '/api' || path.startsWith('/api/'))
-    return 'api';
-  if (path === '/hub' || path.startsWith('/hub/'))
+  const prefix = BACKEND_PREFIXES.find(p => path === p || path.startsWith(p + '/'));
+  // The hubs' page's own connections go to a hub (backendPath sends them there)
+  if (prefix === SIGNALR_PAGE && backendPath(prefix, path) !== path)
     return 'hub';
-  if (path === '/signin-discord' || path.startsWith('/signin-discord/'))
-    return 'signin';
+  if (prefix)
+    return BACKEND_KINDS[prefix];
   // One of the build's kinds of file (main-<hash>.js, media/x.woff2, favicon.ico), not just any dot: a
   // page's path can have one (a name in it)
   const name = path.slice(path.lastIndexOf('/') + 1);

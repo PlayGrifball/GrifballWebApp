@@ -417,8 +417,10 @@ public class Program
             // Anonymous and read-only: the matchmaking queue's size, for the home page
             app.MapHub<QueueHub>("QueueHub");
 
-            // The hubs' page (/signalr-dev), what /swagger is to the API: open to all, as Swagger is. A hub call made from it is
-            // its caller's: the site's cookie, or a bearer token (Swagger's login with useCookies=false) pasted into it.
+            // The hubs' page (/signalr-dev), what /swagger is to the API: in every environment, to sysadmins only
+            // (SignalRHubsPage). Its own hub connections negotiate first (ours skip it): with several API pods, as during a
+            // rollout, one may land on a pod that doesn't know it; the page reconnects.
+            app.Use(SignalRHubsPage.RequireSysadmin);
             app.UseSignalRHubSpecification();
             app.UseSignalRHubDevelopmentUI();
 

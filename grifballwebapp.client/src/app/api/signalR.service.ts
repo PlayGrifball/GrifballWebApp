@@ -66,7 +66,15 @@ export class SignalRService {
 
   private dispatch<M extends Message>(message: M): (value: Payload<M>) => Promise<void> {
     return value => {
-      this.listeners.get(message)?.forEach(listener => (listener as (value: Payload<M>) => void).call(this, value));
+      // The callbacks as they are now (one added by a callback waits for the next message), each on its own: one that
+      // throws doesn't keep the message from the rest, as SignalR's own handlers are kept apart
+      for (const listener of [...this.listeners.get(message) ?? []]) {
+        try {
+          (listener as (value: Payload<M>) => void).call(this, value);
+        } catch (error) {
+          console.error(`Teams hub: a ${message} callback failed`, error);
+        }
+      }
       return Promise.resolve();
     };
   }
