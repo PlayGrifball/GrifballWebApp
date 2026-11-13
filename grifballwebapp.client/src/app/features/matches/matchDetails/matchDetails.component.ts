@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, si
 import { RouterModule } from '@angular/router';
 import { map, Subscription } from 'rxjs';
 import { MatchDetailsService } from '@api/services/match-details.service';
-import { ToDatePipe } from '../shared/toDate.pipe';
+import { ToDatePipe } from '../../../shared/toDate.pipe';
 import { formatSeconds, MatchDetailsDto, MatchDetailsTeamDto, parseMatchDetails } from './matchDetailsDto';
 
 /** A team's name on the page: its season team's, or Infinite's side when the game was not reported. */

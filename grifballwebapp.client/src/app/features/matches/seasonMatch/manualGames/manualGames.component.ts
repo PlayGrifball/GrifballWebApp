@@ -11,7 +11,7 @@ import { Observable } from 'rxjs';
 import { EventOrganizerService } from '@api/services/event-organizer.service';
 import { SeasonMatchService } from '@api/services/season-match.service';
 import type { GameVersionOptionDto } from '@api/models';
-import { errorText } from '../../../shared/errorText';
+import { errorText } from '../../../../shared/errorText';
 import type { TeamPagePlayerDto } from '@api/models';
 import { ManualGameRequestDto, ReportedGameDto, SeasonMatchGameParticipantDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
 

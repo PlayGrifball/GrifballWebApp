@@ -6,7 +6,7 @@ import { parseSeason } from '../api/seasonSettings';
 import { parseUser } from '../userManagement/userResponseDto';
 import type { UserResponseDto } from '@api/models';
 import { parseScheduledMatch } from '../season/scheduleList/scheduledMatchDto';
-import { parseSeasonMatchPage } from '../season/seasonMatch/seasonMatchPageDto';
+import { parseSeasonMatchPage } from '../features/matches/seasonMatch/seasonMatchPageDto';
 import { parseTeamMatch } from '../season/team/team.component';
 
 /** A user as GET /api/users/{id} sends it, with these fields. */

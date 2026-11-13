@@ -50,12 +50,12 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'seasonmatch/:seasonMatchID',
-    loadComponent: () => import('./season/seasonMatch/seasonMatch.component').then(m => m.SeasonMatchComponent),
+    loadComponent: () => import('./features/matches/seasonMatch/seasonMatch.component').then(m => m.SeasonMatchComponent),
     title: 'Season Match'
   },
   {
     path: 'match/:matchID',
-    loadComponent: () => import('./matchDetails/matchDetails.component').then(m => m.MatchDetailsComponent),
+    loadComponent: () => import('./features/matches/matchDetails/matchDetails.component').then(m => m.MatchDetailsComponent),
     title: 'Match Details'
   },
   {
