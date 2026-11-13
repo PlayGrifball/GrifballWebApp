@@ -4,8 +4,13 @@
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
           <ExcludeByFile>
-            <File>**/DiscordInterfaces/*.cs,**/DiscordInterfaceSourceGen/*.cs,**/GrifballWebApp.Migrations.*/Migrations/*.cs</File>
+            <File>**/DiscordInterfaces/*.cs,**/DiscordInterfaceSourceGen/*.cs,**/GrifballWebApp.Migrations.*/Migrations/*.cs,**/System.Text.RegularExpressions.Generator/**/*.g.cs,**/Microsoft.Extensions.Logging.Generators/**/*.g.cs,**/Microsoft.Gen.Logging/**/*.g.cs</File>
           </ExcludeByFile>
+          <!-- The last three are what .NET's regex and logging source generators write at build time
+               (obj/.../<generator>/): the [GeneratedRegex] matchers and the [LoggerMessage] methods with their static
+               fields (Microsoft.Gen.Logging writes those instead where Microsoft.Extensions.Telemetry is referenced, as in
+               Server). Our part, the pattern or the message, is tested through its callers. By file, not
+               [GeneratedCode], so another generator added later is still counted until someone decides otherwise -->
           <!-- The test projects load each other (for their helpers: the integration tests every unit test project, the
                unit tests the domain tests): test code, not covered code -->
           <Exclude>[GrifballWebApp.*.Test]*</Exclude>
