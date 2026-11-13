@@ -38,7 +38,9 @@ const backendUrl = apiUrl(process.env['API_URL']);
 const allowedHosts = parseAllowedHosts(process.env['NG_ALLOWED_HOSTS']);
 
 const app = express();
-const angularApp = new AngularNodeAppEngine({ allowedHosts });
+// The scheme the visitor used, from the ingress (which ends HTTPS before this server): the pages' canonical URLs
+// (shared/pageMeta.ts) are https. Not the host: that is the request's own, checked against allowedHosts.
+const angularApp = new AngularNodeAppEngine({ allowedHosts, trustProxyHeaders: ['x-forwarded-proto'] });
 
 // Not "X-Powered-By: Express"
 app.disable('x-powered-by');
