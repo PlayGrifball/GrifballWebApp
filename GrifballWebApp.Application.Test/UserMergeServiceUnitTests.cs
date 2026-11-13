@@ -14,10 +14,8 @@ namespace GrifballWebApp.Application.Test;
 
 /// <summary>
 /// UserMergeService.Merge: what each MergeOptions flag moves or leaves, the conflicts it refuses before touching
-/// anything, external logins, and the audit record every path writes. A "live two-context race" scenario
-/// (UserMergeServiceCombineTests.Matchmaking_BothPutInAMatchOnceTheMergeBegan_...) needs a second connection to the
-/// same database to start a match after the merge's own check; the fake context's SQLite connection is private to one
-/// instance, so that race isn't reproducible here - GrifballWebApp.Integration.Test covers it.
+/// anything, external logins, and the audit record every path writes, including the race of a match the queue starts
+/// between the merge's own check and its transaction (two contexts on the test's one SQLite connection).
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -111,6 +109,7 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
 
         await _service.Merge(mergeToUser.Id, mergeFromUser.Id, new MergeOptions { TransferXbox = true });
 
+        Context.ChangeTracker.Clear();
         var updated = await Context.Users.FindAsync(mergeToUser.Id);
         Assert.That(updated!.XboxUserID, Is.EqualTo(xboxUser.XboxUserID));
     }
@@ -179,6 +178,7 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
 
         await _service.Merge(to.Id, from.Id, new MergeOptions { TransferSignups = true });
 
+        Context.ChangeTracker.Clear();
         var updated = await Context.SeasonSignups.FirstOrDefaultAsync(s => s.SeasonSignupID == signup.SeasonSignupID);
         Assert.That(updated!.UserID, Is.EqualTo(to.Id));
     }
@@ -233,6 +233,7 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
 
         await _service.Merge(to.Id, from.Id, new MergeOptions { DeleteMergeFrom = true });
 
+        Context.ChangeTracker.Clear();
         Assert.That(await Context.Users.FindAsync(from.Id), Is.Null);
     }
 
@@ -243,6 +244,7 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
 
         await _service.Merge(to.Id, from.Id, new MergeOptions { DeleteMergeFrom = false });
 
+        Context.ChangeTracker.Clear();
         Assert.That(await Context.Users.FindAsync(from.Id), Is.Not.Null);
     }
 
@@ -254,6 +256,7 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
 
         await _service.Merge(to.Id, from.Id, null, CancellationToken.None);
 
+        Context.ChangeTracker.Clear();
         var updatedMergeTo = await Context.Users.FindAsync(to.Id);
         var deletedUser = await Context.Users.FindAsync(from.Id);
         using (Assert.EnterMultipleScope())
@@ -275,6 +278,7 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
 
         await _service.Merge(to.Id, from.Id, null, CancellationToken.None);
 
+        Context.ChangeTracker.Clear();
         var deletedRole = await Context.UserRoles.FirstOrDefaultAsync(ur => ur.UserId == from.Id && ur.RoleId == role.Id);
         Assert.That(deletedRole, Is.Null);
     }
@@ -519,6 +523,42 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
         {
             Assert.That(reschedules.Select(x => x.RequestedByUserID), Is.All.EqualTo(to.Id));
             Assert.That(reschedules.Single(x => x.Reason == "late").ApprovedByUserID, Is.EqualTo(to.Id));
+        }
+    }
+
+    [Test]
+    public async Task Matchmaking_BothPutInAMatchOnceTheMergeBegan_FailsTheMerge_AndNothingIsSaved()
+    {
+        var (to, from) = await TwoUsers();
+        Context.ChangeTracker.Clear();
+        var connection = Context.Database.GetDbConnection();
+        var options = new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).Options;
+        // The merge's context: as it opens its transaction (after the merge checked neither user is in a live match), the
+        // queue, a context of its own, starts a match of both
+        await using (var racing = new FakeApplicationDbContext(options)
+        {
+            BeforeTransaction = async ct =>
+            {
+                await using var queue = new FakeApplicationDbContext(options);
+                queue.MatchedMatches.Add(MatchedMatch.Start([to.Id], [from.Id]));
+                await queue.SaveChangesAsync(ct);
+            },
+        })
+        {
+            // The caller's own change, left unsaved: the merge saves it inside its transaction, so only a rollback keeps it out
+            (await racing.Users.SingleAsync(x => x.Id == to.Id)).Rename("Saved by the failed merge");
+            // Not a MergeConflictException: callers take that to mean nothing changed, and carry on
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => new UserMergeService(racing).Merge(to.Id, from.Id));
+            Assert.That(ex!.Message, Does.Contain("while they were being merged"));
+        }
+
+        // Disposing the merge's context rolled its transaction back
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.Users.AsNoTracking().AnyAsync(x => x.Id == from.Id), Is.True);
+            Assert.That((await Context.Users.AsNoTracking().SingleAsync(x => x.Id == to.Id)).DisplayName, Is.EqualTo("Merge To"));
+            Assert.That(await Context.UserMerges.AnyAsync(), Is.False, "No record either");
+            Assert.That(await Context.Set<MatchedPlayer>().Select(p => p.UserID).ToListAsync(), Is.EquivalentTo(new[] { to.Id, from.Id }));
         }
     }
 

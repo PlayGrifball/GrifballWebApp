@@ -97,6 +97,7 @@ internal sealed class GamertagClaimServiceUnitTests : ApplicationDbContextTests
 
         await _service.Reject(claim.GamertagClaimID, "not a match", CancellationToken.None);
 
+        Context.ChangeTracker.Clear();
         var reread = await Context.GamertagClaims.SingleAsync();
         using (Assert.EnterMultipleScope())
         {
@@ -147,6 +148,7 @@ internal sealed class GamertagClaimServiceUnitTests : ApplicationDbContextTests
 
         await _service.Approve(claim.GamertagClaimID, CancellationToken.None);
 
+        Context.ChangeTracker.Clear();
         var reread = await Context.GamertagClaims.SingleAsync();
         Assert.That(reread.Status, Is.EqualTo(GamertagClaimStatus.Approved));
         await _mergeService.Received().Merge(5, 100, Arg.Is<MergeOptions>(o => o.Trigger == MergeTrigger.UserClaim), Arg.Any<CancellationToken>());
@@ -164,6 +166,7 @@ internal sealed class GamertagClaimServiceUnitTests : ApplicationDbContextTests
 
         await _service.Approve(claim.GamertagClaimID, CancellationToken.None);
 
+        Context.ChangeTracker.Clear();
         var reread = await Context.GamertagClaims.SingleAsync();
         Assert.That(reread.Status, Is.EqualTo(GamertagClaimStatus.Approved));
         var reloadedPlaceholder = await Context.Users.FindAsync(100);

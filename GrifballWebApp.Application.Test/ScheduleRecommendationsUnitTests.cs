@@ -51,6 +51,7 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
 
         var saved = await _service.Save(SeasonID, run, "commissioner");
 
+        Context.ChangeTracker.Clear();
         var reloaded = await Context.ScheduleRecommendations.Include(r => r.Matches).SingleAsync(r => r.ScheduleRecommendationID == saved.ScheduleRecommendationID);
         var proposedMatch = reloaded.Matches.Single();
         using (Assert.EnterMultipleScope())
@@ -84,6 +85,7 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
 
         var saved = await _service.Save(SeasonID, run, null);
 
+        Context.ChangeTracker.Clear();
         var reloaded = await Context.ScheduleRecommendations.Include(r => r.Matches).SingleAsync(r => r.ScheduleRecommendationID == saved.ScheduleRecommendationID);
         Assert.That(reloaded.Matches.All(m => m.Overlaps), Is.True);
     }
@@ -181,6 +183,7 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
 
         var count = await _service.Apply(saved.ScheduleRecommendationID, "applier");
 
+        Context.ChangeTracker.Clear();
         var updatedMatch = await Context.SeasonMatches.SingleAsync(m => m.SeasonMatchID == match.SeasonMatchID);
         using (Assert.EnterMultipleScope())
         {

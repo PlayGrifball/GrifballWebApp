@@ -236,6 +236,7 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
         var someone = User.Seed(userName: "someone");
         Context.Users.Add(someone);
         await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
         var stat = await Context.PlayerSeasonStats.SingleAsync();
         stat.ReassignUser(stat.UserID, someone.Id);
         await Context.SaveChangesAsync();
@@ -309,6 +310,7 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
     public async Task Undo_IsRefused_WhenTheSourcesKeyIsTaken()
     {
         await _merges.Merge(_real.Id, _placeholder.Id);
+        Context.ChangeTracker.Clear();
         var record = await Context.UserMerges.SingleAsync();
         // A hand-made manifest whose removed row's key is in use: the real user's own
         var manifest = MergeManifest.Parse(record.Manifest);
@@ -337,6 +339,7 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
         int settledWinStreak, int settledLossStreak, int? settledRegionSource)
     {
         await _merges.Merge(_real.Id, _placeholder.Id);
+        Context.ChangeTracker.Clear();
         var record = await Context.UserMerges.SingleAsync();
         var manifest = MergeManifest.Parse(record.Manifest);
         var userRow = manifest.Entries.Single(e => e.Op == MergeManifestOp.Deleted && e.Table == "Auth.Users");

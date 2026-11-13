@@ -55,6 +55,7 @@ internal sealed class BracketServiceUnitTests : ApplicationDbContextTests
             new CustomSeedDto { TeamID = t3.TeamID, Seed = 3 },
             new CustomSeedDto { TeamID = t4.TeamID, Seed = 4 },
         });
+        Context.ChangeTracker.Clear();
         var bracket = await Context.SeasonMatches.Include(m => m.BracketMatch).Where(m => m.SeasonID == seasonID).ToListAsync();
         var match1 = bracket.Single(m => m.BracketMatch!.RoundNumber == 1 && m.BracketMatch.MatchNumber == 1);
         var match2 = bracket.Single(m => m.BracketMatch!.RoundNumber == 1 && m.BracketMatch.MatchNumber == 2);
@@ -390,6 +391,7 @@ internal sealed class BracketServiceUnitTests : ApplicationDbContextTests
             new CustomSeedDto { TeamID = t3.TeamID, Seed = 3 },
         });
 
+        Context.ChangeTracker.Clear();
         var bracket = await Context.SeasonMatches.Include(m => m.BracketMatch).Where(m => m.SeasonID == seasonID).ToListAsync();
         var match1 = bracket.Single(m => m.BracketMatch!.RoundNumber == 1 && m.BracketMatch.MatchNumber == 1);
         var final = bracket.Single(m => m.BracketMatch!.RoundNumber == 2);
@@ -415,6 +417,7 @@ internal sealed class BracketServiceUnitTests : ApplicationDbContextTests
 
         await _service.SetSeeds(seasonID, customSeeds: null);
 
+        Context.ChangeTracker.Clear();
         var match = await Context.SeasonMatches.SingleAsync(m => m.SeasonID == seasonID && m.BracketMatch != null);
         using (Assert.EnterMultipleScope())
         {
@@ -531,6 +534,7 @@ internal sealed class BracketServiceUnitTests : ApplicationDbContextTests
         await _service.UndoAdvancementAsync(match1);
         await Context.SaveChangesAsync();
 
+        Context.ChangeTracker.Clear();
         var reloaded = await Context.SeasonMatches.SingleAsync(m => m.SeasonMatchID == final.SeasonMatchID);
         Assert.That(reloaded.HomeTeamID, Is.Null);
     }

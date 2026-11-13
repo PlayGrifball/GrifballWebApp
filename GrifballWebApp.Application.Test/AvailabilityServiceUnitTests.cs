@@ -62,6 +62,7 @@ internal sealed class AvailabilityServiceUnitTests : ApplicationDbContextTests
 
         // Running it again with the same timeslots doesn't duplicate the shared AvailabilityOption rows.
         await _service.UpdateSeasonAvailability(dto, CancellationToken.None);
+        Context.ChangeTracker.Clear();
         var allOptions = await Context.Availability.ToListAsync();
         Assert.That(allOptions, Has.Count.EqualTo(2));
     }

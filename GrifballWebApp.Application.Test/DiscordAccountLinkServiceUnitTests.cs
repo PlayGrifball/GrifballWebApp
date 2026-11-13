@@ -95,6 +95,7 @@ internal sealed class DiscordAccountLinkServiceUnitTests : ApplicationDbContextT
 
         var result = await _service.LinkAsync(user, DiscordAccountLinkService.DiscordProvider, "555", "NewName");
 
+        Context.ChangeTracker.Clear();
         var reloadedUser = await Context.Users.SingleAsync(u => u.Id == 1);
         var discordUser = await Context.DiscordUsers.SingleAsync(d => d.DiscordUserID == 555);
         using (Assert.EnterMultipleScope())
@@ -115,6 +116,7 @@ internal sealed class DiscordAccountLinkServiceUnitTests : ApplicationDbContextT
 
         await _service.LinkAsync(user, DiscordAccountLinkService.DiscordProvider, "555", "FreshName");
 
+        Context.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(await Context.DiscordUsers.CountAsync(), Is.EqualTo(1));
@@ -145,6 +147,7 @@ internal sealed class DiscordAccountLinkServiceUnitTests : ApplicationDbContextT
 
         var result = await _service.LinkAsync(user, DiscordAccountLinkService.DiscordProvider, "555", "name");
 
+        Context.ChangeTracker.Clear();
         var reloaded = await Context.Users.SingleAsync(u => u.Id == 1);
         using (Assert.EnterMultipleScope())
         {
@@ -164,6 +167,7 @@ internal sealed class DiscordAccountLinkServiceUnitTests : ApplicationDbContextT
 
         var result = await _service.LinkAsync(user, DiscordAccountLinkService.DiscordProvider, "555", "name");
 
+        Context.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result, Is.EqualTo(DiscordLinkResult.DiscordLinkedToAnotherUser));

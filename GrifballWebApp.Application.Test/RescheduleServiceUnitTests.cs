@@ -104,6 +104,7 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
             Assert.That(reschedule.SeasonMatchID, Is.EqualTo(match.SeasonMatchID));
             Assert.That(reschedule.NewScheduledTime, Is.EqualTo(newTime));
         }
+        Context.ChangeTracker.Clear();
         var saved = await Context.MatchReschedules.ToListAsync();
         Assert.That(saved, Has.Count.EqualTo(1));
     }
@@ -145,6 +146,7 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
             Assert.That(decided.Status, Is.EqualTo(RescheduleStatus.Approved));
             Assert.That(decided.CommissionerNotes, Is.EqualTo("ok"));
         }
+        Context.ChangeTracker.Clear();
         var reloadedMatch = await Context.SeasonMatches.SingleAsync(m => m.SeasonMatchID == match.SeasonMatchID);
         Assert.That(reloadedMatch.ScheduledTime, Is.EqualTo(newTime));
     }

@@ -18,7 +18,8 @@ namespace GrifballWebApp.Application.Test.TestDoubles;
 /// GrifballWebApp.Infrastructure's GrifballContext builds (its entity configurations live in GrifballWebApp.Domain,
 /// beside the models, so this layer's tests reach them too). It skips what only matters for the real databases
 /// (Postgres' collation, SQL Server's temporal history, the SQLite history triggers): a unit test's database is
-/// thrown away with the test.
+/// thrown away with the test. Its model setup is a copy of GrifballContext's: GrifballWebApp.Integration.Test's
+/// FakeApplicationDbContextModelTests compares the two schemas table by table, and fails when they drift apart.
 /// </summary>
 internal sealed class FakeApplicationDbContext :
     IdentityDbContext<User, Role, int, UserClaim, UserRole, UserLogin, IdentityRoleClaim<int>, IdentityUserToken<int>>,
@@ -31,19 +32,38 @@ internal sealed class FakeApplicationDbContext :
     }
 
     /// <summary>A throwaway SQLite in-memory database, its own connection kept open for the context's lifetime
-    /// (closing it drops the database) and disposed with it.</summary>
+    /// (closing it drops the database) and disposed with it. The schema (and the model's HasData rows) is a copy of
+    /// <see cref="Template"/>'s: made once a test run, copied page by page, rather than ~80 tables' DDL a test.</summary>
     public FakeApplicationDbContext() : this(BuildOptions(out var connection))
     {
         ownedConnection = connection;
-        Database.EnsureCreated();
     }
+
+    /// <summary>The schema every fake context starts from, made once (EnsureCreated) on a connection of its own that stays
+    /// open for the test run. Only read from, by one copy at a time: a SQLite connection isn't safe to share across threads.</summary>
+    private static readonly Lazy<Microsoft.Data.Sqlite.SqliteConnection> Template = new(() =>
+    {
+        var template = new Microsoft.Data.Sqlite.SqliteConnection("DataSource=:memory:");
+        template.Open();
+        using var context = new FakeApplicationDbContext(new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(template).Options);
+        context.Database.EnsureCreated();
+        return template;
+    }, LazyThreadSafetyMode.ExecutionAndPublication);
+
+    private static readonly Lock TemplateLock = new();
 
     private static DbContextOptions<FakeApplicationDbContext> BuildOptions(out Microsoft.Data.Sqlite.SqliteConnection connection)
     {
         connection = new Microsoft.Data.Sqlite.SqliteConnection("DataSource=:memory:");
         connection.Open();
+        lock (TemplateLock)
+            Template.Value.BackupDatabase(connection);
         return new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).Options;
     }
+
+    /// <summary>Runs as <see cref="StartTransactionAsync"/> opens the outermost transaction, before it does: a test's way to
+    /// stage what another writer does between a service's own checks and its transaction (a race).</summary>
+    public Func<CancellationToken, Task>? BeforeTransaction { get; init; }
 
     public override void Dispose()
     {
@@ -180,14 +200,13 @@ internal sealed class FakeApplicationDbContext :
         builder.ApplyConfiguration(new ScheduleRecommendationMatchConfiguration());
         builder.ApplyConfiguration(new OutboxMessageConfiguration());
 
-        // Belt and suspenders: ConfigureConventions' Properties<string>().UseCollation(...) is a pre-convention default,
-        // and every entity configuration above is applied after it; this forces NOCASE onto every string column, so a
-        // search (Contains/StartsWith, as the production code writes it) that relies on case-insensitive text matches
-        // production behaviour here too (CaseInsensitiveTextTests, against the real GrifballContext on Sqlite).
-        foreach (var entityType in builder.Model.GetEntityTypes())
-            foreach (var property in entityType.GetProperties())
-                if (property.ClrType == typeof(string))
-                    property.SetCollation(SqliteCaseInsensitiveCollation);
+        // ASP.NET Identity's other two tables, where GrifballContext puts them (it marks them temporal: SQL Server only)
+        builder.Entity<IdentityRoleClaim<int>>(b => b.ToTable("RoleClaims", "Auth"));
+        builder.Entity<IdentityUserToken<int>>(b =>
+        {
+            b.ToTable("UserTokens", "Auth");
+            b.HasKey(e => new { e.UserId, e.LoginProvider, e.Name });
+        });
     }
 
     /// <summary>GrifballContext.UtcDateTimeConverter, copied: a DateTime with Kind Local can't come from this
@@ -252,6 +271,8 @@ internal sealed class FakeApplicationDbContext :
 
         if (transactionLayer == 1 && transaction is null)
         {
+            if (BeforeTransaction is not null)
+                await BeforeTransaction(cancellationToken);
             transaction = await Database.BeginTransactionAsync(cancellationToken);
         }
     }

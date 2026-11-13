@@ -558,6 +558,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
 
         var report = await _service.Import(input);
 
+        Context.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Errors, Is.Empty);

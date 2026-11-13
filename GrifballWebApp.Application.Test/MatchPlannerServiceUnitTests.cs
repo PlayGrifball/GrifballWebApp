@@ -119,6 +119,7 @@ internal sealed class MatchPlannerServiceUnitTests : ApplicationDbContextTests
         var a = await SeedTeam("A");
         await SeedTeam("B");
         await _service.CreateSeasonMatches(SeasonID, homeMatchesPerTeam: 1, bestOf: 1);
+        Context.ChangeTracker.Clear();
         var played = await Context.SeasonMatches.SingleAsync(m => m.HomeTeamID == a.TeamID);
         played.WonBy(SeasonMatchSide.Home);
         await Context.SaveChangesAsync();
@@ -173,6 +174,7 @@ internal sealed class MatchPlannerServiceUnitTests : ApplicationDbContextTests
         var a = await SeedTeam("A");
         await SeedTeam("B");
         await _service.CreateSeasonMatches(SeasonID, homeMatchesPerTeam: 1, bestOf: 1);
+        Context.ChangeTracker.Clear();
         var match = await Context.SeasonMatches.SingleAsync(m => m.HomeTeamID == a.TeamID);
         match.WonBy(SeasonMatchSide.Home);
         await Context.SaveChangesAsync();
@@ -239,6 +241,7 @@ internal sealed class MatchPlannerServiceUnitTests : ApplicationDbContextTests
 
         await _service.UpdateMatchTime(new UpdateMatchTimeDto { SeasonMatchID = match.SeasonMatchID, Time = newTime });
 
+        Context.ChangeTracker.Clear();
         var updated = await Context.SeasonMatches.SingleAsync(m => m.SeasonMatchID == match.SeasonMatchID);
         Assert.That(updated.ScheduledTime, Is.EqualTo(newTime));
     }

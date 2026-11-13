@@ -702,6 +702,7 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
     private async Task<int> GrandFinalOfTheFirstTwoSeeds(Bracket4 b)
     {
         var id = b.Sm(Bracket.GrandFinal);
+        Context.ChangeTracker.Clear();
         var grandFinal = await Context.SeasonMatches.SingleAsync(m => m.SeasonMatchID == id);
         grandFinal.PlaceTeam(SeasonMatchSide.Home, b.SeedTeamIDs[0]);
         grandFinal.PlaceTeam(SeasonMatchSide.Away, b.SeedTeamIDs[1]);

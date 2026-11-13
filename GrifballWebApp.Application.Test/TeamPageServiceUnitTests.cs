@@ -108,6 +108,7 @@ internal sealed class TeamPageServiceUnitTests : ApplicationDbContextTests
             TeamPlayer.Seed(teamID: TeamID, userID: 4, draftCaptainOrder: 1),
             TeamPlayer.Seed(teamID: RivalID, userID: 3));
         await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
         var team = await Context.Teams.Include(t => t.TeamPlayers).SingleAsync(t => t.TeamID == TeamID);
         team.SetCaptain(1);
         await Context.SaveChangesAsync();

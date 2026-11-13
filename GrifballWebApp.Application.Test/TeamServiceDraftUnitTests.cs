@@ -63,6 +63,7 @@ internal sealed class TeamServiceDraftUnitTests : ApplicationDbContextTests
         var teamName = await _service.AddCaptain(dto, resortOnly: false);
 
         Assert.That(teamName, Is.EqualTo("Alice's Crew"));
+        Context.ChangeTracker.Clear();
         var team = await Context.Teams.Include(t => t.Captain).SingleAsync();
         using (Assert.EnterMultipleScope())
         {
@@ -94,6 +95,7 @@ internal sealed class TeamServiceDraftUnitTests : ApplicationDbContextTests
         Context.Add(SeasonSignup.Seed(SeasonID, 2));
         await Context.SaveChangesAsync();
         await _service.AddCaptain(new CaptainPlacementDto { SeasonID = SeasonID, PersonID = 1, OrderNumber = 1 }, resortOnly: false);
+        Context.ChangeTracker.Clear();
         var team = await Context.Teams.SingleAsync();
         Context.Add(TeamPlayer.Seed(teamID: team.TeamID, userID: 2));
         await Context.SaveChangesAsync();
@@ -201,6 +203,7 @@ internal sealed class TeamServiceDraftUnitTests : ApplicationDbContextTests
         Context.Add(SeasonSignup.Seed(SeasonID, 1));
         await Context.SaveChangesAsync();
         await _service.AddCaptain(new CaptainPlacementDto { SeasonID = SeasonID, PersonID = 1, OrderNumber = 1 }, resortOnly: false);
+        Context.ChangeTracker.Clear();
         var team = await Context.Teams.SingleAsync();
 
         var teamID = await _service.CaptainsTeamID(SeasonID, 1);

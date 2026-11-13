@@ -165,6 +165,7 @@ internal sealed class DuplicateSuggestionServiceUnitTests : ApplicationDbContext
         await _service.Dismiss(real.Id, placeholder.Id);
 
         Assert.That(await _service.List(), Is.Empty);
+        Context.ChangeTracker.Clear();
         var dismissal = await Context.DuplicateDismissals.SingleAsync();
         Assert.That((dismissal.LowUserID, dismissal.HighUserID), Is.EqualTo((Math.Min(real.Id, placeholder.Id), Math.Max(real.Id, placeholder.Id))));
     }
@@ -203,6 +204,7 @@ internal sealed class DuplicateSuggestionServiceUnitTests : ApplicationDbContext
 
         await service.Dismiss(real.Id, placeholder.Id);
 
+        Context.ChangeTracker.Clear();
         var dismissal = await Context.DuplicateDismissals.SingleAsync(DuplicateDismissal.Of(placeholder.Id, real.Id));
         Assert.That((dismissal.DismissedByUserID, dismissal.DismissedAt), Is.EqualTo(((int?)42, Now.UtcDateTime)));
     }
@@ -235,6 +237,7 @@ internal sealed class DuplicateSuggestionServiceUnitTests : ApplicationDbContext
 
         await _service.Merge(placeholder.Id, real.Id);
 
+        Context.ChangeTracker.Clear();
         var merge = await Context.UserMerges.SingleAsync();
         using (Assert.EnterMultipleScope())
         {

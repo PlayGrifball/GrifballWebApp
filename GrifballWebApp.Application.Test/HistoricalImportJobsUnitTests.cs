@@ -46,6 +46,7 @@ internal sealed class HistoricalImportJobsUnitTests : ApplicationDbContextTests
 
         var jobId = await _jobs.Enqueue(input);
 
+        Context.ChangeTracker.Clear();
         var job = await Context.HistoricalImportJobs.SingleAsync(j => j.HistoricalImportJobID == jobId);
         Assert.That(job.Payload, Does.Contain("Seasons"));
     }
@@ -169,6 +170,7 @@ internal sealed class HistoricalImportJobsUnitTests : ApplicationDbContextTests
 
         var (decision, jobId) = await _jobs.ApplyPreview(preview.HistoricalImportJobID);
 
+        Context.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(decision, Is.EqualTo(HistoricalJobDecision.Done));
@@ -208,6 +210,7 @@ internal sealed class HistoricalImportJobsUnitTests : ApplicationDbContextTests
 
         var (decision, jobId) = await _jobs.Decide(review.HistoricalSeasonReviewID, approve: true);
 
+        Context.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(decision, Is.EqualTo(HistoricalJobDecision.Done));

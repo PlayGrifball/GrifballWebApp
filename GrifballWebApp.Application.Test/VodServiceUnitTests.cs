@@ -200,6 +200,7 @@ internal sealed class VodServiceUnitTests : ApplicationDbContextTests
         var result = await _service.Link(vod.VodID, new LinkVodRequest { SeasonMatchID = match.SeasonMatchID }, CancellationToken.None);
 
         Assert.That(result, Is.Null);
+        Context.ChangeTracker.Clear();
         var reloaded = await Context.Vods.Include(v => v.Teams).SingleAsync();
         using (Assert.EnterMultipleScope())
         {
@@ -242,6 +243,7 @@ internal sealed class VodServiceUnitTests : ApplicationDbContextTests
         var result = await _service.Dismiss(vod.VodID, CancellationToken.None);
 
         Assert.That(result, Is.True);
+        Context.ChangeTracker.Clear();
         var reloaded = await Context.Vods.SingleAsync();
         Assert.That(reloaded.MatchStatus, Is.EqualTo(VodMatchStatus.Dismissed));
     }

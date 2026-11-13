@@ -114,18 +114,23 @@ internal sealed class RescheduleServiceMoreUnitTests : ApplicationDbContextTests
     }
 
     [Test]
-    public async Task ProcessRescheduleAsync_WithThread_NoSuchApprover_IsACommissioner_AndTheDecisionIsRolledBack()
+    public async Task ProcessRescheduleAsync_WithThread_NoSuchApprover_RollsBackTheDecisionAndItsMessage()
     {
         var match = await SeedMatch();
         var id = await RequestWithThread(match);
+        // The outbox production uses: the message is a row of the same context, saved (or not) with the decision
+        var service = new RescheduleService(Context, new FakeContextOutbox(Context));
 
         // The decision names its approver (a foreign key to Users): an unknown one can't be saved
-        await Assert.ThrowsAsync<DbUpdateException>(() => _service.ProcessRescheduleAsync(id, new ProcessRescheduleDto { Approved = false }, 999));
+        await Assert.ThrowsAsync<DbUpdateException>(() => service.ProcessRescheduleAsync(id, new ProcessRescheduleDto { Approved = false }, 999));
 
-        await AssertDecisionSent(id, "Your request has been Rejected by a commissioner");
         Context.ChangeTracker.Clear();
         var request = await Context.MatchReschedules.AsNoTracking().SingleAsync(r => r.MatchRescheduleID == id);
-        Assert.That(request.Status, Is.EqualTo(RescheduleStatus.Pending));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(request.Status, Is.EqualTo(RescheduleStatus.Pending));
+            Assert.That(await Context.Outbox.AnyAsync(), Is.False, "No thread hears of a decision that was never saved");
+        }
     }
 
     [Test]
@@ -189,11 +194,12 @@ internal sealed class RescheduleServiceMoreUnitTests : ApplicationDbContextTests
     {
         var match = await SeedMatch();
         var id = await RequestWithThread(match);
+        _outbox.ClearReceivedCalls();
 
         await _service.CreateDiscordThreadAsync(id);
 
-        await _outbox.DidNotReceive().EnqueueAsync(Arg.Any<string>(), Arg.Any<RescheduleRequestPostPayload>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
-        await _outbox.DidNotReceive().EnqueueAsync(Arg.Any<string>(), Arg.Any<RescheduleThreadPayload>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        // Neither the post, the thread nor its invite (ReschedulePayload): nothing at all
+        Assert.That(_outbox.ReceivedCalls(), Is.Empty);
     }
 
     [Test]

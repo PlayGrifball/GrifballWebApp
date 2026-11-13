@@ -144,15 +144,25 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         }
     }
 
-    [TestCase(typeof(HistoricalImportOptions))]
-    [TestCase(typeof(HistoricalImportWorkerOptions))]
-    [TestCase(typeof(HistoricalGuardrailOptions))]
-    [TestCase(typeof(UserClaimOptions))]
-    [TestCase(typeof(ScheduleRunOptions))]
-    public void AddApplication_BindsEachSettingsClass(Type options)
+    [Test]
+    public void AddApplication_BindsEachSettingsClassToItsOwnSection()
     {
-        var configure = typeof(IConfigureOptions<>).MakeGenericType(options);
+        // One key under each class's section, a value none of the defaults has: a class bound to another section (or a
+        // misspelled one) keeps its default and fails here
+        using var provider = AddApplication(new Dictionary<string, string?>
+        {
+            ["HistoricalImport:MatchPullAttempts"] = "7",
+            ["HistoricalImport:Worker:ReportLinesKept"] = "42",
+            ["HistoricalImport:Guardrail:MaxRemovedFraction"] = "0.75",
+            ["UserClaims:SubmissionsPerDay"] = "9",
+        }).BuildServiceProvider();
 
-        Assert.That(AddApplication().Any(d => d.ServiceType == configure), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(provider.GetRequiredService<IOptions<HistoricalImportOptions>>().Value.MatchPullAttempts, Is.EqualTo(7));
+            Assert.That(provider.GetRequiredService<IOptions<HistoricalImportWorkerOptions>>().Value.ReportLinesKept, Is.EqualTo(42));
+            Assert.That(provider.GetRequiredService<IOptions<HistoricalGuardrailOptions>>().Value.MaxRemovedFraction, Is.EqualTo(0.75m));
+            Assert.That(provider.GetRequiredService<IOptions<UserClaimOptions>>().Value.SubmissionsPerDay, Is.EqualTo(9));
+        }
     }
 }

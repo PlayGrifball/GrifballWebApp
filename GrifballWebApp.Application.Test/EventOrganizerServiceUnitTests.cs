@@ -126,6 +126,7 @@ internal sealed class EventOrganizerServiceUnitTests : ApplicationDbContextTests
 
         var seasonId = await _service.UpsertSeason(dto);
 
+        Context.ChangeTracker.Clear();
         var saved = await Context.Seasons.SingleAsync(s => s.SeasonID == seasonId);
         using (Assert.EnterMultipleScope())
         {
@@ -154,6 +155,7 @@ internal sealed class EventOrganizerServiceUnitTests : ApplicationDbContextTests
 
         await _service.UpsertSeason(edit);
 
+        Context.ChangeTracker.Clear();
         var saved = await Context.Seasons.SingleAsync(s => s.SeasonID == created);
         Assert.That(saved.SeasonName, Is.EqualTo("Renamed"));
     }
@@ -187,6 +189,7 @@ internal sealed class EventOrganizerServiceUnitTests : ApplicationDbContextTests
         newDto.CopyTeams = true;
         var targetId = await _service.UpsertSeason(newDto);
 
+        Context.ChangeTracker.Clear();
         var copiedTeam = await Context.Teams.Include(t => t.Captain).SingleAsync(t => t.SeasonID == targetId);
         using (Assert.EnterMultipleScope())
         {

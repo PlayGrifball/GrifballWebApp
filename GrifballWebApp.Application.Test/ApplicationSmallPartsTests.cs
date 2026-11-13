@@ -1,13 +1,10 @@
 using System.Text.Json;
-using GrifballWebApp.Application.Commissioner;
 using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Dtos;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.QueryableExtensions;
-using GrifballWebApp.Application.Reschedule;
 using GrifballWebApp.Application.Seasons;
-using GrifballWebApp.Application.TeamPage;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -19,9 +16,7 @@ namespace GrifballWebApp.Application.Test;
 
 /// <summary>
 /// The Application layer's small parts: DbContextExtensions.DiscardPendingChanges, PaginationExtensions, SeasonRefDto.PlayedByAsync
-/// (against the fake IApplicationDbContext), and the DTOs and settings whose services can't fill them here (the team
-/// pages' and the season teams' projections need SQL APPLY) or that are only serialized or bound (the on-demand job
-/// status, the Discord settings, the commissioner dashboard).
+/// (against the fake IApplicationDbContext), the on-demand job status's serialization and the Discord settings' binding.
 /// </summary>
 [TestFixture]
 internal sealed class ApplicationSmallPartsTests : ApplicationDbContextTests
@@ -234,88 +229,6 @@ internal sealed class ApplicationSmallPartsTests : ApplicationDbContextTests
             Assert.That((options.MatchPlayers, options.KFactor, options.WinThreshold, options.BonusPerWin, options.MaxBonus),
                 Is.EqualTo((4, 16, 2, 5, 15)));
             Assert.That((options.LossThreshold, options.PenaltyPerLoss, options.MaxPenalty), Is.EqualTo((4, 6, 12)));
-        }
-    }
-
-    [Test]
-    public void CommissionerDashboard_StartsEmpty_AndHoldsWhatItIsGiven()
-    {
-        var empty = new CommissionerDashboardDto();
-        var dashboard = new CommissionerDashboardDto
-        {
-            PendingReschedules = [new RescheduleDto { MatchRescheduleID = 1 }],
-            OverdueMatches = [new OverdueMatchDto { SeasonMatchID = 2, HoursOverdue = 30 }],
-            Summary = new DashboardSummaryDto { PendingRescheduleCount = 1, OverdueMatchCount = 1, CriticalOverdueCount = 0 },
-        };
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(empty.PendingReschedules, Is.Empty);
-            Assert.That(empty.OverdueMatches, Is.Empty);
-            Assert.That((empty.Summary.PendingRescheduleCount, empty.Summary.OverdueMatchCount, empty.Summary.CriticalOverdueCount), Is.EqualTo((0, 0, 0)));
-            Assert.That(dashboard.PendingReschedules.Single().MatchRescheduleID, Is.EqualTo(1));
-            Assert.That(dashboard.OverdueMatches.Single().HoursOverdue, Is.EqualTo(30));
-            Assert.That((dashboard.Summary.PendingRescheduleCount, dashboard.Summary.OverdueMatchCount, dashboard.Summary.CriticalOverdueCount), Is.EqualTo((1, 1, 0)));
-        }
-    }
-
-    [Test]
-    public void SeasonTeamDto_DefaultsAndValues()
-    {
-        var empty = new SeasonTeamDto();
-        var member = new SeasonTeamMemberDto
-        {
-            TeamPlayerID = 5, UserID = 6, Gamertag = "Six", IsCaptain = true, DraftCaptainOrder = 1, DraftRound = 2, DraftPick = 3, Region = "Europe",
-        };
-        var team = new SeasonTeamDto
-        {
-            TeamID = 10, TeamName = "Bombers", Wins = 4, Losses = 1, TBD = 2, RecordFromSource = true, Titles = ["Pro"], DraftCaptainOrder = 1, Players = [member],
-        };
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That((empty.TeamName, empty.Titles.Count, empty.Players.Count, empty.DraftCaptainOrder), Is.EqualTo(("", 0, 0, (int?)null)));
-            Assert.That((team.TeamID, team.TeamName, team.Wins, team.Losses, team.TBD, team.RecordFromSource), Is.EqualTo((10, "Bombers", 4, 1, 2, true)));
-            Assert.That((team.Titles.Single(), team.DraftCaptainOrder), Is.EqualTo(("Pro", (int?)1)));
-            var player = team.Players.Single();
-            Assert.That((player.TeamPlayerID, player.UserID, player.Gamertag, player.IsCaptain), Is.EqualTo((5, 6, "Six", true)));
-            Assert.That((player.DraftCaptainOrder, player.DraftRound, player.DraftPick, player.Region), Is.EqualTo(((int?)1, (int?)2, (int?)3, "Europe")));
-        }
-    }
-
-    [Test]
-    public void TeamHistoryDtos_HoldAFranchiseAndItsSeasons()
-    {
-        var season = new TeamHistorySeasonDto
-        {
-            TeamID = 10,
-            TeamName = "Bombers",
-            Season = new SeasonInfoDto { SeasonID = 1, SeasonName = "S1" },
-            Wins = 4,
-            Losses = 1,
-            RecordFromSource = true,
-            Titles = ["Pro"],
-            Players = [],
-        };
-        var franchise = new TeamHistoryDto
-        {
-            TeamName = "Bombers",
-            LeagueName = "AGLA",
-            Appearances = 1,
-            Wins = 4,
-            Losses = 1,
-            Championships = 1,
-            Players = 5,
-            Seasons = [season],
-        };
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That((franchise.TeamName, franchise.LeagueName, franchise.Appearances), Is.EqualTo(("Bombers", "AGLA", 1)));
-            Assert.That((franchise.Wins, franchise.Losses, franchise.Championships, franchise.Players), Is.EqualTo((4, 1, 1, 5)));
-            var only = franchise.Seasons.Single();
-            Assert.That((only.TeamID, only.TeamName, only.Season.SeasonName, only.Wins, only.Losses, only.RecordFromSource), Is.EqualTo((10, "Bombers", "S1", 4, 1, true)));
-            Assert.That((only.Titles.Single(), only.Players.Length), Is.EqualTo(("Pro", 0)));
         }
     }
 }

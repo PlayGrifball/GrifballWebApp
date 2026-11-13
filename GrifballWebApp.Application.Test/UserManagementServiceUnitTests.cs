@@ -155,6 +155,7 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
         var result = await _service.EditUser(edit, CancellationToken.None);
 
         Assert.That(result, Is.Null);
+        Context.ChangeTracker.Clear();
         var reread = await Context.Users.FindAsync(1);
         using (Assert.EnterMultipleScope())
         {
@@ -200,6 +201,7 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
             Assert.That(token, Is.Not.Null.And.Not.EqualTo(oldToken));
             Assert.That(expiresAt, Is.Not.Null);
         }
+        Context.ChangeTracker.Clear();
         var links = await Context.PasswordResetLinks.ToListAsync();
         Assert.That(links, Has.Count.EqualTo(2));
         Assert.That(links.Single(l => l.Token == PasswordResetLink.HashToken(oldToken)).CanUse(DateTime.UtcNow), Is.EqualTo(PasswordResetLinkUse.Expired));
@@ -250,6 +252,7 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
 
         Assert.That(success, Is.True);
         await _userManager.Received().AddPasswordAsync(Arg.Any<User>(), "NewPassword1!");
+        Context.ChangeTracker.Clear();
         var reread = await Context.PasswordResetLinks.FirstAsync();
         Assert.That(reread.UsedAt, Is.Not.Null);
     }
@@ -302,6 +305,7 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
 
         await _service.CleanupExpiredPasswordResetLinks(CancellationToken.None);
 
+        Context.ChangeTracker.Clear();
         var remaining = await Context.PasswordResetLinks.ToListAsync();
         Assert.That(remaining, Has.Count.EqualTo(1));
         Assert.That(remaining[0].Token, Is.EqualTo(fresh.Token));

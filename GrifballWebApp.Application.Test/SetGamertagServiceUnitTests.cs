@@ -67,6 +67,7 @@ internal sealed class SetGamertagServiceUnitTests : ApplicationDbContextTests
         var result = await _service.SetGamertag(1, "GamerOne", CancellationToken.None);
 
         Assert.That(result, Is.Null);
+        Context.ChangeTracker.Clear();
         var reloaded = await Context.Users.FindAsync(1);
         Assert.That(reloaded!.XboxUserID, Is.EqualTo(111L));
     }
