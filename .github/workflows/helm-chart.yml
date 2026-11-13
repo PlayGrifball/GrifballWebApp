@@ -246,7 +246,10 @@ jobs:
           chmod +x /usr/local/bin/k3d
           traefik=(--k3s-arg '--disable=traefik@server:0')
           # k3s's Traefik for minimal's Ingress and scaleout's IngressRoute (the sticky hubs route)
-          case "${{ matrix.database }}" in minimal|scaleout) traefik=() ;; esac
+          case "${{ matrix.database }}" in
+            minimal|scaleout) traefik=() ;;
+            *) ;;
+          esac
           k3d cluster create e2e --image "rancher/k3s:${{ matrix.k3s }}" --no-lb "${traefik[@]}" --wait --timeout 180s
           kubectl version
           for image in "${{ runner.temp }}"/grif-*.tar; do docker load -i "$image"; done
