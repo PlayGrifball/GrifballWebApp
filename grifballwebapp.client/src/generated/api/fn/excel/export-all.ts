@@ -8,10 +8,10 @@ import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
 import { OnDemandJobStatusDto } from '../../models/on-demand-job-status-dto';
-import { SheetInfo } from '../../models/sheet-info';
+import { SheetDto } from '../../models/sheet-dto';
 
 export interface ExportAll$Params {
-      body?: SheetInfo
+      body?: SheetDto
 }
 
 export function exportAll(http: HttpClient, rootUrl: string, params?: ExportAll$Params, context?: HttpContext): Observable<StrictHttpResponse<OnDemandJobStatusDto>> {

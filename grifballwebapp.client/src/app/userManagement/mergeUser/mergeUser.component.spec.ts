@@ -144,11 +144,6 @@ describe('MergeUserComponent merging', () => {
         transferExperiences: true,
         transferSignups: true,
         deleteMergeFrom: false,
-        transferSeasonStats: true,
-        transferChampionships: true,
-        reason: null,
-        trigger: 'Manual',
-        triggeredByUserID: null,
       },
     });
     req.flush({});

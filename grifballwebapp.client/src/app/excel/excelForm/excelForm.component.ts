@@ -11,7 +11,7 @@ import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { RegexMatchValidValidatorDirective } from '../../validation/directives/regexMatchValidValidatorDirective.directive';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ExcelService } from '@api/services/excel.service';
-import type { SheetInfo } from '@api/models';
+import type { SheetDto } from '@api/models';
 
 /** How often a queued or running export of every match is looked at again. */
 export const EXPORT_POLL_MS = 3000;
@@ -57,12 +57,10 @@ export class ExcelFormComponent implements OnInit {
   onSubmit(matchID: string): void {
     this.isSubmittingMatch.set(true);
 
-    let dto: SheetInfo = {
+    let dto: SheetDto = {
       name: this.inputName(),
       spreadsheetID: this.spreadsheetID,
       sheetName: this.sheetName,
-      // The server's own: an export runs as whoever queued it
-      requestedByUserID: null,
     }
 
     this.excel.appendMatch({ matchID, body: dto })
@@ -80,7 +78,7 @@ export class ExcelFormComponent implements OnInit {
   /** Queues the export of every match in the copy sheet to this sheet (replacing its rows), then follows it until it's done. */
   exportAll(): void {
     this.exportError.set(null);
-    const dto: SheetInfo = { name: this.inputName(), spreadsheetID: this.spreadsheetID, sheetName: this.sheetName, requestedByUserID: null };
+    const dto: SheetDto = { name: this.inputName(), spreadsheetID: this.spreadsheetID, sheetName: this.sheetName };
     this.excel.exportAll({ body: dto })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({

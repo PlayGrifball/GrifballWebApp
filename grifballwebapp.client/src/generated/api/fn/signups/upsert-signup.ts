@@ -7,11 +7,11 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
-import { SignupRequestDto } from '../../models/signup-request-dto';
+import { SignupBodyDto } from '../../models/signup-body-dto';
 
 export interface UpsertSignup$Params {
   seasonID: number;
-      body?: SignupRequestDto
+      body?: SignupBodyDto
 }
 
 export function upsertSignup(http: HttpClient, rootUrl: string, params: UpsertSignup$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {

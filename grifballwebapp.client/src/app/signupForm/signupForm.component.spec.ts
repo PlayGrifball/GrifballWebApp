@@ -71,7 +71,6 @@ describe('SignupFormComponent', () => {
     httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush(null);
     // The model is reset for a new signup; timeslots have not arrived yet.
     expect(() => fixture.detectChanges()).not.toThrow();
-    expect(component.model().seasonID).toBe(5);
     expect(component.model().timeslots).toEqual([]);
 
     httpMock.expectOne('/api/seasons/5/signups/mine/timeslots?offset=0').flush(timeslots());
@@ -343,7 +342,9 @@ describe('SignupFormComponent', () => {
       component.onSubmit();
 
       const req = httpMock.expectOne('/api/seasons/5/signups/mine');
-      expect(req.request.body).toEqual(jasmine.objectContaining({ seasonID: 5, teamName: 'Reds' }));
+      expect(req.request.body).toEqual(jasmine.objectContaining({ teamName: 'Reds' }));
+      // Whose and which season are the server's: the route's, the signed-in player
+      expect(req.request.body.seasonID).toBeUndefined();
       req.flush({});
       expect(snackBar.open).toHaveBeenCalledWith('Signup Submitted', 'OK');
     });

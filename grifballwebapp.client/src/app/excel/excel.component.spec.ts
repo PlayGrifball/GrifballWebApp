@@ -60,7 +60,7 @@ describe('ExcelComponent', () => {
     fixture.componentRef.setInput('inputSheetName', '');
     
     const mockSheetInfo = [
-      { name: 'Default Sheet', spreadsheetID: 'default-123', sheetName: 'Default', requestedByUserID: null }
+      { name: 'Default Sheet', spreadsheetID: 'default-123', sheetName: 'Default' }
     ];
 
     component.ngOnInit();
@@ -96,7 +96,7 @@ describe('ExcelComponent', () => {
     
     component.ngOnInit();
 
-    const defaults = [{ name: 'Default Sheet', spreadsheetID: 'default-123', sheetName: 'Default', requestedByUserID: null }];
+    const defaults = [{ name: 'Default Sheet', spreadsheetID: 'default-123', sheetName: 'Default' }];
     httpTestingController.expectOne('/api/sheets/default').flush(defaults);
     expect(component.sheetInfo()).toEqual(defaults);
   });
@@ -110,7 +110,7 @@ describe('ExcelComponent', () => {
     
     component.ngOnInit();
 
-    const defaults = [{ name: 'Default Sheet', spreadsheetID: 'default-123', sheetName: 'Default', requestedByUserID: null }];
+    const defaults = [{ name: 'Default Sheet', spreadsheetID: 'default-123', sheetName: 'Default' }];
     httpTestingController.expectOne('/api/sheets/default').flush(defaults);
     expect(component.sheetInfo()).toEqual(defaults);
   });
@@ -123,8 +123,8 @@ describe('ExcelComponent', () => {
     fixture.componentRef.setInput('inputSheetName', '');
     
     const mockSheetInfo = [
-      { name: 'Sheet 1', spreadsheetID: 'id-1', sheetName: 'Sheet1', requestedByUserID: null },
-      { name: 'Sheet 2', spreadsheetID: 'id-2', sheetName: 'Sheet2', requestedByUserID: null }
+      { name: 'Sheet 1', spreadsheetID: 'id-1', sheetName: 'Sheet1' },
+      { name: 'Sheet 2', spreadsheetID: 'id-2', sheetName: 'Sheet2' }
     ];
 
     component.ngOnInit();

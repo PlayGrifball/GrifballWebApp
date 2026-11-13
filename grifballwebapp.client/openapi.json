@@ -1382,7 +1382,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/SheetInfo"
+                    "$ref": "#/components/schemas/SheetDto"
                   }
                 }
               }
@@ -1396,7 +1396,7 @@
         "tags": [
           "Excel"
         ],
-        "summary": "Queues the export of every match in the copy sheet to sheetInfo (GrifballWebApp.Infrastructure.Excel.SheetExportJob,\non the worker); nothing more while one is queued or running. Returns where it is.",
+        "summary": "Queues the export of every match in the copy sheet to sheet (GrifballWebApp.Infrastructure.Excel.SheetExportJob,\non the worker); nothing more while one is queued or running. Returns where it is.",
         "operationId": "ExportAll",
         "requestBody": {
           "content": {
@@ -1404,9 +1404,10 @@
               "schema": {
                 "allOf": [
                   {
-                    "$ref": "#/components/schemas/SheetInfo"
+                    "$ref": "#/components/schemas/SheetDto"
                   }
-                ]
+                ],
+                "description": "A Google sheet, as the Excel page names it: what it asks to export to, and the defaults it offers."
               }
             }
           }
@@ -1508,9 +1509,10 @@
               "schema": {
                 "allOf": [
                   {
-                    "$ref": "#/components/schemas/SheetInfo"
+                    "$ref": "#/components/schemas/SheetDto"
                   }
-                ]
+                ],
+                "description": "A Google sheet, as the Excel page names it: what it asks to export to, and the defaults it offers."
               }
             }
           }
@@ -6363,9 +6365,10 @@
               "schema": {
                 "allOf": [
                   {
-                    "$ref": "#/components/schemas/SignupRequestDto"
+                    "$ref": "#/components/schemas/SignupBodyDto"
                   }
-                ]
+                ],
+                "description": "A player's signup as the signup form sends it: whose and for which season are the server's (the signed-in\n            player, the route's season)."
               }
             }
           }
@@ -12081,74 +12084,6 @@
         "additionalProperties": false,
         "description": "A matchmaking season (a Late League season of the archive): its name, game and when its games were played."
       },
-      "MergeOptions": {
-        "required": [
-          "deleteMergeFrom",
-          "reason",
-          "transferChampionships",
-          "transferDiscord",
-          "transferExperiences",
-          "transferLogins",
-          "transferSeasonStats",
-          "transferSignups",
-          "transferTeamPlayers",
-          "transferXbox",
-          "trigger",
-          "triggeredByUserID"
-        ],
-        "type": "object",
-        "properties": {
-          "transferDiscord": {
-            "type": "boolean",
-            "description": "Moves the bot's Discord link (DiscordUserID) to the target. When the source has none, the target has none\n            and GrifballWebApp.Application.Profile.MergeOptions.TransferLogins is on, the link is taken from the source's Discord login if that Discord user is known."
-          },
-          "transferLogins": {
-            "type": "boolean",
-            "description": "Moves every external login (any provider, e.g. \"Sign in with Discord\") to the target, so it then signs in as the target.\n            With this off and GrifballWebApp.Application.Profile.MergeOptions.DeleteMergeFrom on, the source's logins are deleted with it."
-          },
-          "transferXbox": {
-            "type": "boolean"
-          },
-          "transferTeamPlayers": {
-            "type": "boolean"
-          },
-          "transferExperiences": {
-            "type": "boolean"
-          },
-          "transferSignups": {
-            "type": "boolean"
-          },
-          "transferSeasonStats": {
-            "type": "boolean"
-          },
-          "transferChampionships": {
-            "type": "boolean"
-          },
-          "deleteMergeFrom": {
-            "type": "boolean"
-          },
-          "trigger": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MergeTrigger"
-              }
-            ],
-            "description": "What caused the merge, for its audit record (GrifballWebApp.Domain.Players.UserMerge)."
-          },
-          "reason": {
-            "type": "string",
-            "description": "Why, e.g. \"claim 12\", for the audit record.",
-            "nullable": true
-          },
-          "triggeredByUserID": {
-            "type": "integer",
-            "description": "Who caused it; the signed-in user when null.",
-            "format": "int32",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
       "MergeRequest": {
         "required": [
           "mergeFromId",
@@ -12168,9 +12103,10 @@
           "mergeOptions": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MergeOptions"
+                "$ref": "#/components/schemas/MergeTransfers"
               }
-            ]
+            ],
+            "description": "What the merge page chooses to move (GrifballWebApp.Application.Profile.MergeOptions's transfers). The rest is the server's: the merge is a\nmanual one by the signed-in sysadmin, and season stats and championships always move."
           }
         },
         "additionalProperties": false
@@ -12202,20 +12138,42 @@
         },
         "additionalProperties": false
       },
-      "MergeTrigger": {
-        "enum": [
-          "Manual",
-          "ClaimApproval",
-          "SetGamertag",
-          "XuidLookup",
-          "UserClaim",
-          "XboxPlaceholder",
-          "DiscordMatch",
-          "Import",
-          "DuplicateSuggestion"
+      "MergeTransfers": {
+        "required": [
+          "deleteMergeFrom",
+          "transferDiscord",
+          "transferExperiences",
+          "transferLogins",
+          "transferSignups",
+          "transferTeamPlayers",
+          "transferXbox"
         ],
-        "type": "string",
-        "description": "What caused a merge."
+        "type": "object",
+        "properties": {
+          "transferDiscord": {
+            "type": "boolean"
+          },
+          "transferLogins": {
+            "type": "boolean"
+          },
+          "transferXbox": {
+            "type": "boolean"
+          },
+          "transferTeamPlayers": {
+            "type": "boolean"
+          },
+          "transferExperiences": {
+            "type": "boolean"
+          },
+          "transferSignups": {
+            "type": "boolean"
+          },
+          "deleteMergeFrom": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "description": "What the merge page chooses to move (GrifballWebApp.Application.Profile.MergeOptions's transfers). The rest is the server's: the merge is a\nmanual one by the signed-in sysadmin, and season stats and championships always move."
       },
       "MetaInfoResponse": {
         "required": [
@@ -15426,10 +15384,9 @@
         },
         "additionalProperties": false
       },
-      "SheetInfo": {
+      "SheetDto": {
         "required": [
           "name",
-          "requestedByUserID",
           "sheetName",
           "spreadsheetID"
         ],
@@ -15443,34 +15400,20 @@
           },
           "sheetName": {
             "type": "string"
-          },
-          "requestedByUserID": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A Google sheet, as the Excel page names it: what it asks to export to, and the defaults it offers."
       },
-      "SignupRequestDto": {
+      "SignupBodyDto": {
         "required": [
           "requiresAssistanceDrafting",
-          "seasonID",
           "teamName",
           "timeslots",
-          "userID",
           "willCaptain"
         ],
         "type": "object",
         "properties": {
-          "seasonID": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "userID": {
-            "type": "integer",
-            "format": "int32"
-          },
           "teamName": {
             "type": "string",
             "nullable": true
@@ -15488,7 +15431,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A player's signup as the signup form sends it: whose and for which season are the server's (the signed-in\n            player, the route's season)."
       },
       "SignupResponseDto": {
         "required": [

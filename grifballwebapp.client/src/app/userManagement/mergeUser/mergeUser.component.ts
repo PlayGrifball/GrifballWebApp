@@ -93,13 +93,6 @@ export class MergeUserComponent {
         transferExperiences: this.transferExperiences(),
         transferSignups: this.transferSignups(),
         deleteMergeFrom: this.deleteMergeFrom(),
-        // Not on the form: the server's defaults
-        transferSeasonStats: true,
-        transferChampionships: true,
-        reason: null,
-        // The server records the merge as a manual one by whoever is signed in, whatever is sent
-        trigger: 'Manual',
-        triggeredByUserID: null,
       },
     };
 

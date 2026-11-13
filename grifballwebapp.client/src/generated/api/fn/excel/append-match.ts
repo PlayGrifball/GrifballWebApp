@@ -7,11 +7,11 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
-import { SheetInfo } from '../../models/sheet-info';
+import { SheetDto } from '../../models/sheet-dto';
 
 export interface AppendMatch$Params {
   matchID: string;
-      body?: SheetInfo
+      body?: SheetDto
 }
 
 export function appendMatch(http: HttpClient, rootUrl: string, params: AppendMatch$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {

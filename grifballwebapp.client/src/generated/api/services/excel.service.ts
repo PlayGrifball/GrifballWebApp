@@ -19,7 +19,7 @@ import { ExportAll$Params } from '../fn/excel/export-all';
 import { exportAllStatus } from '../fn/excel/export-all-status';
 import { ExportAllStatus$Params } from '../fn/excel/export-all-status';
 import { OnDemandJobStatusDto } from '../models/on-demand-job-status-dto';
-import { SheetInfo } from '../models/sheet-info';
+import { SheetDto } from '../models/sheet-dto';
 
 @Injectable({ providedIn: 'root' })
 export class ExcelService extends BaseService {
@@ -40,7 +40,7 @@ export class ExcelService extends BaseService {
    *
    * This method doesn't expect any request body.
    */
-  defaultSheetInfo$Response(params?: DefaultSheetInfo$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<SheetInfo>>> {
+  defaultSheetInfo$Response(params?: DefaultSheetInfo$Params, context?: HttpContext): Observable<StrictHttpResponse<Array<SheetDto>>> {
     const obs = defaultSheetInfo(this.http, this.rootUrl, params, context);
     return obs;
   }
@@ -55,10 +55,10 @@ export class ExcelService extends BaseService {
    *
    * This method doesn't expect any request body.
    */
-  defaultSheetInfo(params?: DefaultSheetInfo$Params, context?: HttpContext): Observable<Array<SheetInfo>> {
+  defaultSheetInfo(params?: DefaultSheetInfo$Params, context?: HttpContext): Observable<Array<SheetDto>> {
     const resp = this.defaultSheetInfo$Response(params, context);
     return resp.pipe(
-      map((r: StrictHttpResponse<Array<SheetInfo>>): Array<SheetInfo> => r.body)
+      map((r: StrictHttpResponse<Array<SheetDto>>): Array<SheetDto> => r.body)
     );
   }
 
@@ -101,7 +101,7 @@ export class ExcelService extends BaseService {
   static readonly ExportAllPath = '/sheets/export';
 
   /**
-   * Queues the export of every match in the copy sheet to sheetInfo (GrifballWebApp.Infrastructure.Excel.SheetExportJob,
+   * Queues the export of every match in the copy sheet to sheet (GrifballWebApp.Infrastructure.Excel.SheetExportJob,
    * on the worker); nothing more while one is queued or running. Returns where it is.
    *
    *
@@ -117,7 +117,7 @@ export class ExcelService extends BaseService {
   }
 
   /**
-   * Queues the export of every match in the copy sheet to sheetInfo (GrifballWebApp.Infrastructure.Excel.SheetExportJob,
+   * Queues the export of every match in the copy sheet to sheet (GrifballWebApp.Infrastructure.Excel.SheetExportJob,
    * on the worker); nothing more while one is queued or running. Returns where it is.
    *
    *
