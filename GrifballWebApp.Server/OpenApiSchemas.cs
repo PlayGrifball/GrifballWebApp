@@ -151,3 +151,31 @@ public sealed class JsonNamedQueryParametersFilter(IOptions<JsonOptions> json) :
         }
     }
 }
+
+/// <summary>
+/// Adds the hubs' payloads to the document's schemas (Program.cs): what the hubs' methods take and answer and their
+/// receivers are sent, so the client's models have them too (CaptainAddedDto is only ever sent over SignalR) and the
+/// typed SignalR client (src/generated/signalr) uses the same models as the REST one.
+/// </summary>
+public sealed class HubSchemasDocumentFilter : IDocumentFilter
+{
+    public void Apply(OpenApiDocument swaggerDoc, DocumentFilterContext context)
+    {
+        foreach (var type in PayloadTypes(typeof(HubSchemasDocumentFilter).Assembly))
+            context.SchemaGenerator.GenerateSchema(type, context.SchemaRepository);
+    }
+
+    /// <summary>What the assembly's hub and receiver interfaces' methods take and answer (a Task's result).</summary>
+    public static List<Type> PayloadTypes(Assembly assembly)
+        => assembly.GetTypes()
+            .Where(t => t.IsInterface && (t.IsDefined(typeof(TypedSignalR.Client.HubAttribute), false) || t.IsDefined(typeof(TypedSignalR.Client.ReceiverAttribute), false)))
+            .SelectMany(t => t.GetMethods())
+            .SelectMany(m => m.GetParameters().Select(p => p.ParameterType).Append(Result(m.ReturnType)))
+            .Where(t => t != typeof(void) && t != typeof(CancellationToken))
+            .Distinct()
+            .ToList();
+
+    private static Type Result(Type returned)
+        => returned.IsGenericType && returned.GetGenericTypeDefinition() == typeof(Task<>) ? returned.GetGenericArguments()[0]
+            : returned == typeof(Task) ? typeof(void) : returned;
+}

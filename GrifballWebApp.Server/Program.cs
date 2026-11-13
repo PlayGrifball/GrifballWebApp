@@ -34,6 +34,7 @@ using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
 using Serilog;
+using TypedSignalR.Client.DevTools;
 using System.Security.Cryptography.X509Certificates;
 
 namespace GrifballWebApp.Server;
@@ -170,6 +171,7 @@ public class Program
             option.SchemaFilter<EveryPropertyRequiredFilter>();
             option.OperationFilter<JsonOnlyOperationFilter>();
             option.OperationFilter<JsonNamedQueryParametersFilter>();
+            option.DocumentFilter<HubSchemasDocumentFilter>();
 
             // Controller actions' <summary>/<param>/<returns>/<remarks>, and the DTOs' and enums' <summary> (the
             // Application's and Domain's), into the OpenAPI document (GenerateDocumentationFile, each .csproj). Each
@@ -406,6 +408,11 @@ public class Program
             app.MapHub<TeamsHub>("TeamsHub", options => { options.CloseOnAuthenticationExpiration = true; });
             // Anonymous and read-only: the matchmaking queue's size, for the home page
             app.MapHub<QueueHub>("QueueHub");
+
+            // The hubs' page, what /swagger is to the API: signed in only (SignalRHubsPage)
+            app.Use(SignalRHubsPage.RequireSignIn);
+            app.UseSignalRHubSpecification();
+            app.UseSignalRHubDevelopmentUI();
 
             app.MapGet("CommitHash", () => GitInfo.CommitShortHash).WithName("GetCommitHash").WithTags("Build");
             app.MapGet("CommitDate", () => GitInfo.CommitDate).WithName("GetCommitDate").WithTags("Build");

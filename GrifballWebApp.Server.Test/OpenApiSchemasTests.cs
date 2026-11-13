@@ -261,3 +261,26 @@ public class JsonNamedQueryParametersFilterTests
         Assert.That(operation.Parameters, Is.Null);
     }
 }
+
+/// <summary>The hubs' payloads in the document (OpenApiSchemas.cs), for the client's models and its typed SignalR client.</summary>
+[TestFixture]
+public class HubSchemasDocumentFilterTests
+{
+    [Test]
+    public void PayloadTypes_AreWhatTheHubsTakeAnswerAndSend()
+    {
+        var types = HubSchemasDocumentFilter.PayloadTypes(typeof(HubSchemasDocumentFilter).Assembly);
+
+        using (Assert.EnterMultipleScope())
+        {
+            // Sent to the receivers
+            Assert.That(types, Does.Contain(typeof(GrifballWebApp.Application.Teams.CaptainAddedDto)));
+            Assert.That(types, Does.Contain(typeof(GrifballWebApp.Application.Teams.MovePlayerToTeamRequestDto)));
+            // Taken and answered by the hub's methods
+            Assert.That(types, Does.Contain(typeof(GrifballWebApp.Application.Teams.CaptainPlacementDto)));
+            Assert.That(types, Does.Contain(typeof(List<GrifballWebApp.Application.Teams.TeamResponseDto>)));
+            // Not what a method returns when it returns nothing
+            Assert.That(types, Does.Not.Contain(typeof(Task)).And.Not.Contain(typeof(void)));
+        }
+    }
+}

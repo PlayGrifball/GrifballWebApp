@@ -36,6 +36,8 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.14" />
     <!-- The historical import's retries of the Halo pulls (the version Microsoft.Extensions.Http.Polly brings) -->
     <PackageReference Include="Polly" Version="7.2.4" />
+    <!-- [TranspilationSource]: the hubs' DTOs, for the typed SignalR client (the server's Teams hub; grifballwebapp.client/src/generated/signalr) -->
+    <PackageReference Include="Tapper.Attributes" Version="1.14.0" />
   </ItemGroup>
 
   <!-- What the web SDK's implicit usings gave these files in GrifballWebApp.Server -->

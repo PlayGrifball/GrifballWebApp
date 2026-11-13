@@ -1,5 +1,8 @@
-﻿namespace GrifballWebApp.Application.Teams;
+﻿using Tapper;
 
+namespace GrifballWebApp.Application.Teams;
+
+[TranspilationSource]
 public class CaptainPlacementDto
 {
     public int SeasonID { get; set; }
@@ -7,6 +10,7 @@ public class CaptainPlacementDto
     public int OrderNumber { get; set; }
 }
 
+[TranspilationSource]
 public record CaptainAddedDto
 {
     public required int SeasonID { get; set; }
@@ -17,6 +21,7 @@ public record CaptainAddedDto
     public required int OrderNumber { get; set; }
 }
 
+[TranspilationSource]
 public class RemoveCaptainDto
 {
     public int SeasonID { get; set; }

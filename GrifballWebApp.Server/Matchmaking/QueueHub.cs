@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using TypedSignalR.Client;
 using GrifballWebApp.Application.Matchmaking;
 
 namespace GrifballWebApp.Server.Matchmaking;
@@ -9,11 +10,19 @@ namespace GrifballWebApp.Server.Matchmaking;
 /// it: the page gets the rest over HTTP (<see cref="QueueController"/>). A connection is its user's from the browser's
 /// session cookie (SignalR's default user id is the NameIdentifier claim), so the page reconnects on a sign-in or out.
 /// </summary>
-public class QueueHub : Hub<IQueueHubClient>
+public class QueueHub : Hub<IQueueHubClient>, IQueueHubServer
 {
 }
 
-/// <summary>Methods that can be invoked on front end client</summary>
+// S4023: empty on purpose, the hub has nothing to call; the typed client and the SignalR page need it to know the hub
+#pragma warning disable S4023
+/// <summary>Methods that can be invoked on back end server: none (the typed client's hub proxy for it is empty).</summary>
+[Hub]
+public interface IQueueHubServer;
+#pragma warning restore S4023
+
+/// <summary>Methods that can be invoked on front end client (the typed client's receiver)</summary>
+[Receiver]
 public interface IQueueHubClient
 {
     /// <summary>The queue now has this many players.</summary>

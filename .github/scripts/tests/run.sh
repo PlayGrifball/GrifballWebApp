@@ -12,6 +12,7 @@
 #     (curl stubbed per endpoint); and analyzers/*.globalconfig name the analyzer version Directory.Build.props uses.
 #   close-stuck-report.sh: a test report's check run left in progress is completed with the tests' outcome (gh stubbed).
 #   layer-coverage.mjs: each layer's numbers from its own test project's Cobertura report, and their change from master.
+#   signalr-models.mjs: the typed SignalR client's DTOs as re-exports of the client's models (openapi.json).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 scripts=$(dirname "$here")
@@ -416,6 +417,16 @@ if report "$stuck" success "" yes && grep -q 'conclusion=success' "$work/patched
 then ok "close-stuck-report: a failed list call is retried"; else bad "close-stuck-report: list not retried:"; cat "$work/out"; fi
 if report "$stuck" success all; then bad "close-stuck-report: a failed PATCH passed"
 else ok "close-stuck-report: a report it can't complete fails the job"; fi
+
+# signalr-models.mjs: tsrts's proxies as they are, its DTOs as re-exports of the client's models (a renamed one aliased);
+# a DTO the document lacks fails, naming it
+sm=$here/fixtures/signalr-models
+if node "$scripts/signalr-models.mjs" "$sm/tsrts" "$sm/openapi.json" "$work/signalr" > "$work/out" 2>&1 && diff -ru "$sm/expected" "$work/signalr" > "$work/diff"
+then ok "signalr-models: proxies copied, DTOs re-exported"; else bad "signalr-models:"; cat "$work/out" "$work/diff"; fi
+echo '{"components":{"schemas":{"CaptainDto":{}}}}' > "$work/lacking.json"
+if node "$scripts/signalr-models.mjs" "$sm/tsrts" "$work/lacking.json" "$work/signalr2" > "$work/out" 2>&1; then bad "signalr-models: a missing DTO passed"
+elif grep -q '::error title=SignalR DTOs not in openapi.json::GrifballWebApp.Application.Teams.PlayerDto, GrifballWebApp.Application.Teams.DraftState' "$work/out"
+then ok "signalr-models: a DTO the document lacks fails, named"; else bad "signalr-models: missing DTO not named:"; cat "$work/out"; fi
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

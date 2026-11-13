@@ -1,5 +1,8 @@
-﻿namespace GrifballWebApp.Application.Teams;
+﻿using Tapper;
 
+namespace GrifballWebApp.Application.Teams;
+
+[TranspilationSource]
 public record MovePlayerToTeamRequestDto
 {
     public int SeasonID { get; set; }
