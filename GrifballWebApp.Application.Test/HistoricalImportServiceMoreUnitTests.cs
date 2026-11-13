@@ -353,6 +353,33 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     private static readonly string[] ChickensOnly = ["Chickens"];
 
     [Test]
+    public async Task Import_ATeamNoLongerInTheArchive_LeavesAClaimOfItWithoutATeam()
+    {
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"))));
+        Context.ChangeTracker.Clear();
+        var rooster = await Context.Teams.AsNoTracking().SingleAsync();
+        var placeholder = await Context.Users.AsNoTracking().SingleAsync(u => u.IsDummyUser);
+        Context.XboxUsers.Add(XboxUser.FromXbox(9, "Silva"));
+        var claim = GamertagClaim.Suggest(GamertagClaimKind.RosterMatch, 9, "Silva", "SILVA", placeholder.Id, rooster.SeasonID, rooster.TeamID);
+        Context.GamertagClaims.Add(claim);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Chickens"))));
+
+        Context.ChangeTracker.Clear();
+        var kept = await Context.GamertagClaims.AsNoTracking().SingleAsync(c => c.GamertagClaimID == claim.GamertagClaimID);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.TeamsRemoved, Is.EqualTo(1));
+            Assert.That(await Context.Teams.AnyAsync(t => t.TeamID == rooster.TeamID), Is.False);
+            Assert.That(kept.TeamID, Is.Null, "the claim stays, its removed team taken off it");
+            Assert.That(kept.SeasonID, Is.EqualTo(rooster.SeasonID));
+        }
+    }
+
+    [Test]
     public async Task Import_ASecondTitleForATier_AndATitleOfNoTeam_AreSkipped()
     {
         var input = new HistoricalArchiveInput
