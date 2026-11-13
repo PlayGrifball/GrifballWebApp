@@ -12,6 +12,25 @@ type Message = keyof ITeamsHubClient;
 /** What a message carries. */
 type Payload<M extends Message> = Parameters<ITeamsHubClient[M]>[0];
 
+/**
+ * Calls every one of `listeners` as they are now (one added by a listener waits for the next notification): one an
+ * earlier listener unregisters meanwhile is skipped, rather than called anyway off the snapshot. Each is called on
+ * its own, so one that throws (reported with `onError`) doesn't keep the notification from the rest.
+ */
+function notifyAll<T>(listeners: Set<T> | undefined, invoke: (listener: T) => void, onError: (error: unknown) => void): void {
+  if (!listeners)
+    return;
+  for (const listener of [...listeners]) {
+    if (!listeners.has(listener))
+      continue;
+    try {
+      invoke(listener);
+    } catch (error) {
+      onError(error);
+    }
+  }
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -41,7 +60,7 @@ export class SignalRService {
   }
 
   private notifyConnected(): void {
-    this.connectedListeners?.forEach(listener => listener());
+    notifyAll(this.connectedListeners, listener => listener(), error => console.error('Teams hub: a connected callback failed', error));
   }
 
   /** Each hub message's callbacks, by its receiver method. */
@@ -66,15 +85,11 @@ export class SignalRService {
 
   private dispatch<M extends Message>(message: M): (value: Payload<M>) => Promise<void> {
     return value => {
-      // The callbacks as they are now (one added by a callback waits for the next message), each on its own: one that
-      // throws doesn't keep the message from the rest, as SignalR's own handlers are kept apart
-      for (const listener of [...this.listeners.get(message) ?? []]) {
-        try {
-          (listener as (value: Payload<M>) => void).call(this, value);
-        } catch (error) {
-          console.error(`Teams hub: a ${message} callback failed`, error);
-        }
-      }
+      // The callbacks as they are now (one added by a callback waits for the next message, one removed by an
+      // earlier one is skipped), each on its own: one that throws doesn't keep the message from the rest, as
+      // SignalR's own handlers are kept apart
+      notifyAll(this.listeners.get(message), listener => (listener as (value: Payload<M>) => void).call(this, value),
+        error => console.error(`Teams hub: a ${message} callback failed`, error));
       return Promise.resolve();
     };
   }

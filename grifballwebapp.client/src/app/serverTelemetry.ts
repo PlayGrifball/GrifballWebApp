@@ -119,13 +119,13 @@ export function isLogged(level: LogLevel, minimum: LogLevel): boolean {
 }
 
 /**
- * What a request to the server is, which names its span and its metrics' http.route: the API (the hubs' page with it),
- * the hubs and the Discord callback (passed on to the backend), the build's files, or a page.
+ * What a request to the server is, which names its span and its metrics' http.route: the API, the hubs and the
+ * Discord callback (passed on to the backend), the hubs' page's own files, the build's files, or a page.
  */
-export type RequestKind = 'api' | 'hub' | 'signin' | 'file' | 'page';
+export type RequestKind = 'api' | 'hub' | 'signin' | 'hubsPage' | 'file' | 'page';
 
-/** What the server passes on to the backend (src/app/backendPaths.ts) is, by its prefix: the hubs' page is the backend's. */
-const BACKEND_KINDS: Record<BackendPrefix, RequestKind> = { '/api': 'api', '/hub': 'hub', '/signin-discord': 'signin', '/signalr-dev': 'api' };
+/** What the server passes on to the backend (src/app/backendPaths.ts) is, by its prefix: the hubs' page's own files are its own kind, not the API's. */
+const BACKEND_KINDS: Record<BackendPrefix, RequestKind> = { '/api': 'api', '/hub': 'hub', '/signin-discord': 'signin', '/signalr-dev': 'hubsPage' };
 
 export function requestKind(path: string): RequestKind {
   const prefix = BACKEND_PREFIXES.find(p => path === p || path.startsWith(p + '/'));
@@ -177,6 +177,7 @@ export function routeOf(kind: RequestKind): string {
     case 'api': return '/api/*';
     case 'hub': return '/hub/*';
     case 'signin': return '/signin-discord';
+    case 'hubsPage': return '/signalr-dev/*';
     case 'file': return '/*.*';
     case 'page': return '/*';
   }

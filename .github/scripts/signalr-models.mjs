@@ -7,7 +7,7 @@
 // models generated from openapi.json (@api/models): one set of DTOs for REST and SignalR. A DTO's model is its schema of
 // the same name or, where two of the app's types share a name, the one with its namespace's last segment in front
 // (TeamsPlayerDto: the server's OpenApiSchemaIds). A DTO with neither fails: the document lacks it.
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -58,6 +58,8 @@ function main([output, openapi, destination]) {
   }
 }
 
-// Run directly (not imported): the path as a file URL spells it, spaces and drive letters included
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
+// Run directly (not imported): its real path as a file URL spells it, spaces and drive letters included; the real
+// path, not argv[1] as given, so running through a symlink (to the script, or to its directory) still matches
+// import.meta.url, which Node resolves to the real path too
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href)
   main(process.argv.slice(2));

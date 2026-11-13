@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Mvc;
-
 namespace GrifballWebApp.Server;
 
 /// <summary>
@@ -16,26 +14,19 @@ public static class SignalRHubsPage
     private const string Sysadmin = "Sysadmin";
 
     /// <summary>
-    /// A visitor is sent to the site's sign-in (not back here after it: the site follows a follow-up within its own pages,
-    /// and this one is the backend's); a signed-in user who is not a sysadmin is refused (403).
+    /// A request with no authenticated identity is refused (401); a signed-in user who is not a sysadmin is refused
+    /// (403). Neither is redirected to the site's sign-in: it is a page of the backend's, not the site's own pages, and
+    /// Program.cs's UseStatusCodePages fills the response body (as <see cref="Identity.BrowserAuth.RefuseForeignHubRequests"/>
+    /// leaves it to for a hub request).
     /// </summary>
     public static Task RequireSysadmin(HttpContext context, RequestDelegate next)
     {
         if (!context.Request.Path.StartsWithSegments(Path) || context.User.IsInRole(Sysadmin))
             return next(context);
 
-        if (context.User.Identity?.IsAuthenticated != true)
-        {
-            context.Response.Redirect("/login");
-            return Task.CompletedTask;
-        }
-
-        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-        return context.Response.WriteAsJsonAsync(new ProblemDetails
-        {
-            Status = StatusCodes.Status403Forbidden,
-            Title = "Sysadmins only",
-            Detail = "The hubs' page is for sysadmins.",
-        }, options: null, contentType: "application/problem+json", context.RequestAborted);
+        context.Response.StatusCode = context.User.Identity?.IsAuthenticated == true
+            ? StatusCodes.Status403Forbidden
+            : StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
     }
 }

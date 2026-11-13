@@ -182,9 +182,13 @@ public sealed class HubSchemasDocumentFilter : IDocumentFilter
     /// <summary>The wrappers a hub method's result or argument comes in, around what goes over the wire.</summary>
     private static readonly Type[] Wrappers = [typeof(Task<>), typeof(ValueTask<>), typeof(IAsyncEnumerable<>), typeof(System.Threading.Channels.ChannelReader<>)];
 
+    /// <summary>What a method's parameter or result carries, unwrapping every layer (a <c>Task&lt;ChannelReader&lt;T&gt;&gt;</c>'s T).</summary>
     private static Type Carried(Type type)
-        => type.IsGenericType && Wrappers.Contains(type.GetGenericTypeDefinition()) ? type.GetGenericArguments()[0]
-            : type == typeof(Task) || type == typeof(ValueTask) ? typeof(void) : type;
+    {
+        while (type.IsGenericType && Wrappers.Contains(type.GetGenericTypeDefinition()))
+            type = type.GetGenericArguments()[0];
+        return type == typeof(Task) || type == typeof(ValueTask) ? typeof(void) : type;
+    }
 }
 
 /// <summary>
