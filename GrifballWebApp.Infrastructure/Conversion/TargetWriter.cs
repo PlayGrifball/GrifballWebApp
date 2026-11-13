@@ -20,10 +20,10 @@ internal abstract class TargetWriter(DbConnection connection, DbTransaction tran
     public static TargetWriter For(DatabaseProvider provider, DbConnection connection, DbTransaction transaction, ILogger logger) => provider switch
     {
         // The driver's own connection, checked before anything is sent: the rows go in through it (SqlBulkCopy, binary COPY)
-        DatabaseProvider.SqlServer => connection is SqlConnection && transaction is SqlTransaction
+        DatabaseProvider.SqlServer => connection is SqlConnection
             ? new SqlServerTargetWriter(connection, transaction)
             : throw new ArgumentException($"A SQL Server target needs a SqlConnection, not a {connection.GetType().Name}.", nameof(connection)),
-        DatabaseProvider.Postgres => connection is NpgsqlConnection && transaction is NpgsqlTransaction
+        DatabaseProvider.Postgres => connection is NpgsqlConnection
             ? new PostgresTargetWriter(connection, transaction, logger)
             : throw new ArgumentException($"A PostgreSQL target needs an NpgsqlConnection, not a {connection.GetType().Name}.", nameof(connection)),
         DatabaseProvider.Sqlite => new SqliteTargetWriter((Microsoft.Data.Sqlite.SqliteConnection)connection, (Microsoft.Data.Sqlite.SqliteTransaction)transaction),
