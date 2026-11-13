@@ -3,7 +3,7 @@ using Microsoft.Data.SqlClient;
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>The backups' test data and logins: SQL Server logins as the chart makes them. The fake pg_dump is
-/// GrifballWebApp.Infrastructure.Test's NativeBackupsPgDumpProcessUnitTests.FakePgDump.</summary>
+/// GrifballWebApp.Infrastructure.Test's PgDumpTestData.FakePgDump.</summary>
 internal static class BackupTestData
 {
     /// <summary>A compressed .bak's first bytes (the test servers are Developer edition, so they compress); an uncompressed one starts TAPE.</summary>

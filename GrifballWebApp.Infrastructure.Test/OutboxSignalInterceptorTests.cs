@@ -35,8 +35,8 @@ public class OutboxSignalInterceptorTests : SqliteContextFixture
         return _scope.Value.ServiceProvider.GetRequiredService<GrifballContext>();
     }
 
-    /// <summary>The scope owns the context: disposing it disposes the context, then the container goes.</summary>
-    protected override async ValueTask DisposeContextAsync()
+    /// <summary>The scope that made the context, then the container.</summary>
+    protected override async ValueTask DisposeContextOwnersAsync()
     {
         if (_scope is { } scope)
             await scope.DisposeAsync();

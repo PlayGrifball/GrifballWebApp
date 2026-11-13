@@ -556,7 +556,7 @@ public class BackupControllerTests
         var configuration = Configuration();
         // pg_dump as the suite's runner may not have it, or have an older one than the server: a stand-in that writes
         // the archive's magic.
-        var pgDump = GrifballWebApp.Infrastructure.Test.NativeBackupsPgDumpProcessUnitTests.FakePgDump("printf PGDMP > \"$file\"");
+        var pgDump = GrifballWebApp.Infrastructure.Test.PgDumpTestData.FakePgDump("printf PGDMP > \"$file\"");
         _files.Add(pgDump);
         configuration[NativeBackups.PgDumpKey] = pgDump;
         var bak = TestDatabase.Provider == DatabaseProvider.SqlServer;
@@ -669,7 +669,7 @@ public class BackupControllerTests
         // PostgreSQL's: pg_dump (a stand-in), on the app's connection string.
         var configuration = Configuration("Host=db.example;Database=GrifballWebApp");
         configuration["Database:Provider"] = "Postgres";
-        var pgDump = GrifballWebApp.Infrastructure.Test.NativeBackupsPgDumpProcessUnitTests.FakePgDump("printf PGDMP > \"$file\"");
+        var pgDump = GrifballWebApp.Infrastructure.Test.PgDumpTestData.FakePgDump("printf PGDMP > \"$file\"");
         _files.Add(pgDump);
         configuration[NativeBackups.PgDumpKey] = pgDump;
         var dump = await Service(configuration: configuration).CreateAsync(BackupFormat.Dump, CancellationToken.None);

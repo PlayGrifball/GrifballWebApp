@@ -28,9 +28,9 @@ public abstract class SqliteContextFixture
     protected virtual GrifballContext CreateContext() =>
         new(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString).Options);
 
-    /// <summary>Disposes <see cref="Context"/> (not set if <see cref="CreateContext"/> threw), and whatever an override
-    /// built it with.</summary>
-    protected virtual ValueTask DisposeContextAsync() => Context is null ? ValueTask.CompletedTask : Context.DisposeAsync();
+    /// <summary>Disposes whatever an override of <see cref="CreateContext"/> built the context with (a DI scope and
+    /// container), after the context itself. Nothing by default.</summary>
+    protected virtual ValueTask DisposeContextOwnersAsync() => ValueTask.CompletedTask;
 
     [SetUp]
     public async Task SetUpDatabase()
@@ -43,17 +43,24 @@ public abstract class SqliteContextFixture
         }
         catch
         {
-            await CleanUpAsync();
+            if (Context is not null)
+                await Context.DisposeAsync();
+            await DisposeContextOwnersAsync();
+            DeleteFiles();
             throw;
         }
     }
 
     [TearDown]
-    public Task TearDownDatabase() => CleanUpAsync();
-
-    private async Task CleanUpAsync()
+    public async Task TearDownDatabase()
     {
-        await DisposeContextAsync();
+        await Context.DisposeAsync();
+        await DisposeContextOwnersAsync();
+        DeleteFiles();
+    }
+
+    private void DeleteFiles()
+    {
         foreach (var file in new[] { DatabasePath, DatabasePath + "-wal", DatabasePath + "-shm" })
             if (File.Exists(file))
                 File.Delete(file);

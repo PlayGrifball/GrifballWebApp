@@ -10,21 +10,10 @@ namespace GrifballWebApp.Infrastructure.Test;
 [Parallelizable(ParallelScope.All)]
 public class NativeBackupsPgDumpProcessUnitTests
 {
-    /// <summary>A stand-in for pg_dump: a shell script that finds its --file and --dbname arguments (as $file and $db) and runs <paramref name="body"/>.
-    /// The caller deletes it.</summary>
-    internal static string FakePgDump(string body)
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"grif-backup-unit-pgdump-{Guid.NewGuid():N}.sh");
-        File.WriteAllText(path, "#!/bin/sh\nwhile [ $# -gt 0 ]; do if [ \"$1\" = --file ]; then file=\"$2\"; fi; if [ \"$1\" = --dbname ]; then db=\"$2\"; fi; shift; done\n" + body + "\n");
-        if (!OperatingSystem.IsWindows())
-            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        return path;
-    }
-
     [Test]
     public async Task PgDumpAsync_WritesWhateverTheProcessWritesToItsFile()
     {
-        var fake = FakePgDump("printf PGDMP > \"$file\"");
+        var fake = PgDumpTestData.FakePgDump("printf PGDMP > \"$file\"");
         var output = Path.Combine(Path.GetTempPath(), $"grif-backup-unit-test-{Guid.NewGuid():N}.dump");
         try
         {
@@ -42,7 +31,7 @@ public class NativeBackupsPgDumpProcessUnitTests
     [Test]
     public async Task PgDumpAsync_NonZeroExit_ThrowsWithItsStandardError()
     {
-        var fake = FakePgDump("echo 'pg_dump: error: server version mismatch' >&2; exit 1");
+        var fake = PgDumpTestData.FakePgDump("echo 'pg_dump: error: server version mismatch' >&2; exit 1");
         try
         {
             var e = await Assert.ThrowsAsync<InvalidOperationException>(() => NativeBackups.PgDumpAsync("Host=db;Database=d", fake, "/tmp/unused.dump", CancellationToken.None));
@@ -59,7 +48,7 @@ public class NativeBackupsPgDumpProcessUnitTests
     public async Task PgDumpAsync_StartedWhileItsFileIsStillOpenForWriting_IsTriedAgain()
     {
         // As when another test (or thread) was starting a process while the file was written: "Text file busy"
-        var fake = FakePgDump("exit 0");
+        var fake = PgDumpTestData.FakePgDump("exit 0");
         try
         {
             var writer = new FileStream(fake, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
@@ -78,7 +67,7 @@ public class NativeBackupsPgDumpProcessUnitTests
     [Test]
     public async Task PgDumpAsync_CancelledWhileRunning_KillsTheProcess()
     {
-        var fake = FakePgDump("sleep 30");
+        var fake = PgDumpTestData.FakePgDump("sleep 30");
         try
         {
             using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));

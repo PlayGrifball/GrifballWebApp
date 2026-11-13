@@ -28,7 +28,7 @@ public class DatabaseBackupServiceDumpUnitTests
     [Test]
     public async Task CreateAsync_PostgresDumpOnItsOwnServer_WritesWhatPgDumpWrites()
     {
-        var fake = NativeBackupsPgDumpProcessUnitTests.FakePgDump("printf PGDMP > \"$file\"");
+        var fake = PgDumpTestData.FakePgDump("printf PGDMP > \"$file\"");
         try
         {
             var service = Service(fake);
@@ -58,7 +58,7 @@ public class DatabaseBackupServiceDumpUnitTests
     public async Task CreateAsync_AnotherAlreadyRunning_ReturnsNull()
     {
         // Writes the (empty) file before sleeping, so CreateAsync can still open it once pg_dump exits
-        var fake = NativeBackupsPgDumpProcessUnitTests.FakePgDump("printf '' > \"$file\"; sleep 2");
+        var fake = PgDumpTestData.FakePgDump("printf '' > \"$file\"; sleep 2");
         try
         {
             var service = Service(fake);
