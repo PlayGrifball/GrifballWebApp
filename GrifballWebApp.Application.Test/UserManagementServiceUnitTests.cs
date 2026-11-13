@@ -79,8 +79,10 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
 
         var result = await _service.GetUsers(new PaginationFilter(1, 10), "bob", CancellationToken.None);
 
-        Assert.That(result.Results.Select(r => r.UserID), Is.EqualTo(new[] { 2 }));
+        Assert.That(result.Results.Select(r => r.UserID), Is.EqualTo(ExpectedBobOnly));
     }
+
+    private static readonly int[] ExpectedBobOnly = [2];
 
     [Test]
     public async Task GetUser_Found_ReturnsDto()

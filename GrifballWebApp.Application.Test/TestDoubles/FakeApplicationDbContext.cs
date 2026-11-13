@@ -184,11 +184,15 @@ internal sealed class FakeApplicationDbContext :
     /// <summary>GrifballContext.UtcDateTimeConverter, copied: a DateTime with Kind Local can't come from this
     /// layer's own tests, which build their fixtures with DateTime.UtcNow or a fixed UTC instant.</summary>
     private sealed class UtcDateTimeConverter() : ValueConverter<DateTime, DateTime>(
-        v => v.Kind == DateTimeKind.Local
-            ? throw new InvalidOperationException($"A DateTime with Kind Local ({v:O}) can't be stored: the database holds UTC.")
-            : DateTime.SpecifyKind(v, DateTimeKind.Utc),
+        v => ToUtc(v),
         v => DateTime.SpecifyKind(v, DateTimeKind.Utc))
     {
+        private static DateTime ToUtc(DateTime v)
+        {
+            if (v.Kind == DateTimeKind.Local)
+                throw new InvalidOperationException($"A DateTime with Kind Local ({v:O}) can't be stored: the database holds UTC.");
+            return DateTime.SpecifyKind(v, DateTimeKind.Utc);
+        }
     }
 
     public IQueryable<SeriesGame> SeasonSeriesGames => SeasonMatches.SelectMany(m => m.SeriesGames);
