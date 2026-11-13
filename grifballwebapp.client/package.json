@@ -18,7 +18,7 @@
     "e2e": "ng build && playwright test",
     "smoke": "playwright test -c smoke/playwright.config.ts",
     "serve:ssr:grifballwebapp.client": "node dist/grifballwebapp.client/server/server.mjs",
-    "lint": "eslint . --max-warnings 0"
+    "lint": "eslint . --max-warnings 0 && node verify-boundaries.mjs"
   },
   "private": true,
   "dependencies": {
@@ -79,6 +79,8 @@
     "@types/node": "^26.0.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^10.14.0",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-boundaries": "^7.4.3",
     "eslint-plugin-sonarjs": "^4.2.2",
     "istanbul-lib-instrument": "^6.0.3",
     "jasmine-core": "~7.0.0",

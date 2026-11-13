@@ -14,6 +14,7 @@ This directory contains all project documentation organized by topic.
 
 - [GitHub Copilot Instructions](../.github/copilot-instructions.md) - Complete development setup for AI agents
 - [Project README](../readme.md) - Main project overview
+- [Frontend structure](frontend.md) - The client's feature folders, core and shared, and the lint check on what may import what
 - [Code Coverage](code-coverage.md) - Running tests with code coverage and testing guidelines
 - [Historical Import](historical-import.md) - How the app downloads, snapshots and imports the historical archive
 - [Background jobs](jobs.md) - The Quartz jobs, where they run, and the Jobs page

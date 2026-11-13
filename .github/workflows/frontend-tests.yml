@@ -44,8 +44,9 @@ jobs:
         PR: ${{ github.event.pull_request.number }}
       run: .github/scripts/changed-areas.sh
 
-  # SonarCloud's JavaScript and TypeScript rules (eslint-plugin-sonarjs) over the client, as errors: what `npm run lint`
-  # shows locally (eslint.config.mjs). Fails the PR on any finding.
+  # SonarCloud's JavaScript and TypeScript rules (eslint-plugin-sonarjs) over the client, as errors, and what may import
+  # what in src/app (eslint-plugin-boundaries, docs/frontend.md): what `npm run lint` shows locally (eslint.config.mjs).
+  # Fails the PR on any finding.
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 15
