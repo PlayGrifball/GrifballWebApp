@@ -2518,18 +2518,6 @@
         }
       }
     },
-    "/signalr-dev/spec.json": {
-      "get": {
-        "tags": [
-          "GrifballWebApp.Server"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
     "/historical-imports": {
       "post": {
         "tags": [
@@ -17099,9 +17087,6 @@
     },
     {
       "name": "Grades"
-    },
-    {
-      "name": "GrifballWebApp.Server"
     },
     {
       "name": "HistoricalImport"
