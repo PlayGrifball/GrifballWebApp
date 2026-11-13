@@ -233,6 +233,14 @@ if [[ "$scenario" = scaleout ]]; then
 backend:
   replicas: 2
   persistence: { enabled: false }
+# Several API pods: the hubs go straight to them on the sticky IngressRoute (k3s ships Traefik, in kube-system), as
+# the chart requires; the intruder below stands in for a client the frontend serves (its control)
+ingressRoute: { enabled: true, host: grifball.example }
+networkPolicy:
+  frontend:
+    from:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+      - podSelector: { matchLabels: { run: intruder } }
   config:
     BaseUrl: https://grifball.example
     Discord:
