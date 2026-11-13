@@ -333,10 +333,13 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
 
         await DeepHandler().LockCaptains(discord.Context, "Winter", @lock: true);
 
-        Assert.That(discord.Content(), Is.EqualTo("The captains are locked."));
         // _teams is a real TeamService (not a substitute): read the season back rather than assert on a mock.
         var locked = await Db.Seasons.Where(s => s.SeasonID == season.SeasonID).Select(s => s.CaptainsLocked).FirstAsync();
-        Assert.That(locked, Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(discord.Content(), Is.EqualTo("The captains are locked."));
+            Assert.That(locked, Is.True);
+        }
     }
 
     [Test]

@@ -106,9 +106,12 @@ public class PersonalCommandsHandlerUnitTests : SqliteGrifballContextFixture
 
         await Handler().SetRegion(discord.Context, "Australia");
 
-        Assert.That(discord.Content(), Is.EqualTo("Your region is set."));
         var regionID = await Db.Users.Where(u => u.Id == user.Id).Select(u => u.RegionID).SingleAsync();
-        Assert.That(regionID, Is.EqualTo(6)); // Region.Seed("Australia", regionID: 6)
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(discord.Content(), Is.EqualTo("Your region is set."));
+            Assert.That(regionID, Is.EqualTo(6)); // Region.Seed("Australia", regionID: 6)
+        }
     }
 
     [Test]
@@ -121,9 +124,12 @@ public class PersonalCommandsHandlerUnitTests : SqliteGrifballContextFixture
 
         await Handler().SetRegion(discord.Context, "none");
 
-        Assert.That(discord.Content(), Is.EqualTo("Your region is cleared."));
         var regionID = await Db.Users.Where(u => u.Id == user.Id).Select(u => u.RegionID).SingleAsync();
-        Assert.That(regionID, Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(discord.Content(), Is.EqualTo("Your region is cleared."));
+            Assert.That(regionID, Is.Null);
+        }
     }
 
     [Test]

@@ -115,9 +115,13 @@ public class GamertagClaimsControllerUnitTests : SqliteGrifballContextFixture
     public async Task DismissDuplicate_RemembersThePair()
     {
         var result = await Controller().DismissDuplicate(new DuplicatePairRequest { SourceUserID = 1, TargetUserID = 2 }, CancellationToken.None);
+        var dismissed = await Db.DuplicateDismissals.AnyAsync();
 
-        Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status204NoContent));
-        Assert.That(await Db.DuplicateDismissals.AnyAsync(), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status204NoContent));
+            Assert.That(dismissed, Is.True);
+        }
     }
 
     [Test]
