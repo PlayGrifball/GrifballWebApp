@@ -158,4 +158,26 @@ public class HistoricalPhaseCasesTests
 
         Assert.That(season.Players.Select(p => p.Gamertag), Is.EqualTo(OnlyThePlayers));
     }
+
+    private const string Link = "https://www.halowaypoint.com/halo-infinite/players/x/matches/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+
+    /// <summary>Whether a Waypoint sheet's game below a row starting <paramref name="marker"/> is a playoff game.</summary>
+    private static bool WaypointPlayoffs(string marker)
+    {
+        var (regular, playoffs, _) = WaypointMatchParser.Parse(Sheet("Games", Row(marker), Row(null, Link)), []);
+        Assert.That(regular.Count + playoffs.Count, Is.EqualTo(1), "the one game, on one side or the other");
+        return playoffs.Count == 1;
+    }
+
+    [TestCase("Playoffs", true)]
+    [TestCase("PLAYOFF GAMES", true)]
+    [TestCase("Grand Final", true)]
+    [TestCase("Semis", true)]
+    [TestCase("Quarterfinals", true)]
+    [TestCase("Winners Bracket", true)]
+    [TestCase("Week 4", false)]
+    [TestCase("Regular season", false)]
+    [TestCase("Round Robin", false)]
+    public void WaypointMarker_PutsTheGamesBelowItInThePhase(string marker, bool playoffs)
+        => Assert.That(WaypointPlayoffs(marker), Is.EqualTo(playoffs));
 }

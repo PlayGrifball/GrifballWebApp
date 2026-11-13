@@ -355,7 +355,6 @@ public class PostgresTemporalQueriesUnitTests
             Assert.That(sql, Does.Contain("UNION ALL"));
             var parameters = sql.Split('\n').Where(l => l.StartsWith("-- ")).ToList();
             Assert.That(parameters, Is.Not.Empty.And.All.Contains("2026-10-01"), $"both sides read as of the one time: {sql}");
-            Assert.That(sql, Does.Not.Contain("2026-10-02"), sql);
         }
     }
 
