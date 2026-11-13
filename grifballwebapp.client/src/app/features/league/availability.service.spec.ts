@@ -34,7 +34,7 @@ describe('AvailabilityService', () => {
       expect(result).toBe(expectedDif);
     });
 
-    it('should return 0 if local timezone is Detroit', () => {
+    it('should return 0 if the local time zone is the league's', () => {
       // This test verifies the logic when both timezones are the same
       const leagueOffset = DateTime.now().setZone(LEAGUE_TIME_ZONE).offset;
       const localOffset = DateTime.now().offset;
