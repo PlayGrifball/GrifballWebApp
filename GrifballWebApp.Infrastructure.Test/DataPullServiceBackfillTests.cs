@@ -39,8 +39,8 @@ public class DataPullServiceBackfillTests
         catch
         {
             await _context.DisposeAsync();
-            if (File.Exists(_path))
-                File.Delete(_path);
+            if (System.IO.File.Exists(_path))
+                System.IO.File.Delete(_path);
             throw;
         }
         _halo = Substitute.For<IHaloInfiniteClient>();
@@ -51,8 +51,8 @@ public class DataPullServiceBackfillTests
     public async Task TearDown()
     {
         await _context.DisposeAsync();
-        if (File.Exists(_path))
-            File.Delete(_path);
+        if (System.IO.File.Exists(_path))
+            System.IO.File.Delete(_path);
     }
 
     private async Task<Match> AddMatchWithoutVariant()
