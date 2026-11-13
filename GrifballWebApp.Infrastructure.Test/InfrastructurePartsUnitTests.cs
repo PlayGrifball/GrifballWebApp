@@ -94,9 +94,22 @@ public class InfrastructurePartsUnitTests
         _history.QueryExecutions(Arg.Any<ExecutionHistoryQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<ExecutionHistoryEntry>([], false));
     }
 
-    private async Task RunScaleDownAsync()
+    /// <summary>A job store that doesn't answer the first time it's asked.</summary>
+    private sealed class FailingOnceSchedulers(IScheduler scheduler) : ISchedulerFactory
     {
-        using var scaleDown = new ScratchScaleDown(new OnDemandJobs(_schedulers, _history), NullLogger<ScratchScaleDown>.Instance) { RetryDelay = TimeSpan.FromMilliseconds(1) };
+        public int Asked { get; private set; }
+
+        public ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
+            => ++Asked == 1 ? throw new SchedulerException("store down") : ValueTask.FromResult(scheduler);
+
+        public ValueTask<IScheduler?> LookupScheduler(string schedulerName, CancellationToken cancellationToken = default) => ValueTask.FromResult<IScheduler?>(scheduler);
+
+        public ValueTask<List<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default) => ValueTask.FromResult<List<IScheduler>>([scheduler]);
+    }
+
+    private async Task RunScaleDownAsync(ISchedulerFactory? schedulers = null)
+    {
+        using var scaleDown = new ScratchScaleDown(new OnDemandJobs(schedulers ?? _schedulers, _history), NullLogger<ScratchScaleDown>.Instance) { RetryDelay = TimeSpan.FromMilliseconds(1) };
         await scaleDown.StartAsync(CancellationToken.None);
         await scaleDown.ExecuteTask!.WaitAsync(TimeSpan.FromSeconds(60));
         await scaleDown.StopAsync(CancellationToken.None);
@@ -120,13 +133,11 @@ public class InfrastructurePartsUnitTests
     public async Task ScaleDown_TheJobStoreNotAnswering_IsTriedAgain()
     {
         SchedulerAnswers();
-        _schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(
-            _ => throw new SchedulerException("store down"),
-            _ => ValueTask.FromResult(_scheduler));
+        var schedulers = new FailingOnceSchedulers(_scheduler);
 
-        await RunScaleDownAsync();
+        await RunScaleDownAsync(schedulers);
 
-        await _schedulers.Received().GetScheduler(Arg.Any<CancellationToken>());
+        Assert.That(schedulers.Asked, Is.GreaterThan(1), "asked again after the store didn't answer");
         await _scheduler.Received(1).ScheduleTrigger(Arg.Is<ITrigger>(t => t.Key.Equals(StopKey)), TriggerConflict.Keep, Arg.Any<CancellationToken>());
     }
 
