@@ -3,6 +3,7 @@ using Quartz.Extensibility;
 using GrifballWebApp.Infrastructure.Jobs;
 using NSubstitute;
 using static GrifballWebApp.Infrastructure.Test.JobsTestData;
+using static GrifballWebApp.Infrastructure.Test.JobsUnitTests;
 
 namespace GrifballWebApp.Infrastructure.Test;
 
@@ -37,7 +38,7 @@ public class JobsServiceUnitTests
     private JobsService Service(RecurringJobs? recurring = null, TimeProvider? time = null)
         => new(_schedulers, _history, recurring ?? new RecurringJobs().Add<CountingJob>(Job(TimeSpan.FromHours(1))), time ?? TimeProvider.System);
 
-    private JobHeader HeaderOf(JobKey key, string? description = null) => new(key, description, typeof(CountingJob).FullName!, true, false, false, false);
+    private static JobHeader HeaderOf(JobKey key, string? description = null) => new(key, description, typeof(CountingJob).FullName!, true, false, false, false);
 
     [Test]
     public async Task Overview_ARecurringJob_IsScheduled_WithItsIntervalAndDescription()
@@ -155,8 +156,8 @@ public class JobsServiceUnitTests
         var newer = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
         var entries = new[]
         {
-            new ExecutionHistoryEntry(SchedulerName, "worker-1", Key.Group, Key.Name, Key.Group, Key.Name, older, TimeSpan.FromSeconds(1), true, null) { EffectiveResult = JobRunResult.Succeeded },
-            new ExecutionHistoryEntry(SchedulerName, "worker-1", Key.Group, Key.Name, Key.Group, Key.Name, newer, TimeSpan.FromSeconds(2), false, "boom") { EffectiveResult = JobRunResult.Failed, Manual = true },
+            new ExecutionHistoryEntry(SchedulerName, "worker-1", Key.Group, Key.Name, Key.Group, Key.Name, older, TimeSpan.FromSeconds(1), true, null),
+            new ExecutionHistoryEntry(SchedulerName, "worker-1", Key.Group, Key.Name, Key.Group, Key.Name, newer, TimeSpan.FromSeconds(2), false, "boom") { Manual = true },
         };
         _history.QueryExecutions(Arg.Any<ExecutionHistoryQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<ExecutionHistoryEntry>(entries, false));
 

@@ -87,7 +87,6 @@ public class OnDemandJobsUnitTests
         var firedAt = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
         var run = new ExecutionHistoryEntry(SchedulerName, "worker-1", Key.Group, Key.Name, Key.Group, Key.Name, firedAt, TimeSpan.FromSeconds(3), false, null)
         {
-            EffectiveResult = JobRunResult.Failed,
             Summary = "3 of 10 failed",
         };
         _history.QueryExecutions(Arg.Any<ExecutionHistoryQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<ExecutionHistoryEntry>([run], false));
@@ -107,7 +106,6 @@ public class OnDemandJobsUnitTests
         _scheduler.GetTriggerState(Key, Arg.Any<CancellationToken>()).Returns(TriggerState.None);
         var run = new ExecutionHistoryEntry(SchedulerName, "worker-1", Key.Group, Key.Name, Key.Group, Key.Name, DateTimeOffset.UtcNow, TimeSpan.FromSeconds(1), true, null)
         {
-            EffectiveResult = JobRunResult.Succeeded,
             Summary = "Counted 3",
         };
         _history.QueryExecutions(Arg.Any<ExecutionHistoryQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<ExecutionHistoryEntry>([run], false));
