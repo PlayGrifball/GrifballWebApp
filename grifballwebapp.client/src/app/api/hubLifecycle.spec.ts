@@ -55,9 +55,9 @@ describe('hubLifecycle', () => {
 
   afterEach(() => jasmine.clock().uninstall());
 
-  it('opens a WebSocket straight away, without negotiate, with automatic reconnects, and starts it', async () => {
+  it('negotiates with every transport, WebSockets first, with automatic reconnects, and starts it', async () => {
     create();
-    expect(withUrl).toHaveBeenCalledOnceWith('hub/TestHub', { skipNegotiation: true, transport: HttpTransportType.WebSockets });
+    expect(withUrl).toHaveBeenCalledOnceWith('hub/TestHub', { transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling });
     // No token either: the session cookie goes with the connection
     expect(withUrl.calls.mostRecent().args[1].accessTokenFactory).toBeUndefined();
     expect(withAutomaticReconnect).toHaveBeenCalled();

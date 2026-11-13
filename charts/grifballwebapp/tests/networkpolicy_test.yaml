@@ -46,6 +46,25 @@ tests:
     asserts:
       - equal: { path: "spec.ingress[0].from[0].namespaceSelector.matchLabels", value: { kubernetes.io/metadata.name: traefik } }
 
+  - it: lets the ingress controller reach the backend for the hubs, when they go straight there
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: metadata.name, value: grif-backend }
+    set:
+      ingressRoute: { enabled: true, host: grif.example }
+      networkPolicy.frontend.from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } } }]
+    asserts:
+      - contains:
+          path: spec.ingress
+          content:
+            ports: [{ protocol: TCP, port: 5295 }]
+            from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } } }]
+
+  - it: lets only the frontend reach the backend without the IngressRoute
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: metadata.name, value: grif-backend }
+    asserts:
+      - lengthEqual: { path: spec.ingress, count: 1 }
+
   - it: lets the backend reach SQL Server, HTTPS on the internet and the collector's port
     template: templates/networkpolicy.yaml
     documentIndex: 1

@@ -6,9 +6,9 @@
 //
 // The page only *listens* on the hub (SignalRService.addCaptain and friends): its own changes are
 // plain API calls, not hub invocations (teamBuilder.component.ts never calls hubConnection.invoke
-// or .send). The client skips negotiate (api/hubLifecycle.ts: WebSockets only, so several backend pods
-// need no sticky sessions), so this only has to accept the WebSocket, complete the JSON Hub Protocol
-// handshake and keep the connection alive with pings; nothing a Lighthouse run does needs a real
+// or .send). The client negotiates first (api/hubLifecycle.ts), so this answers the negotiate offering
+// WebSockets, then accepts the WebSocket, completes the JSON Hub Protocol handshake and keeps the
+// connection alive with pings; nothing a Lighthouse run does needs a real
 // invocation answered. e2e/zoneless.spec.ts's SignalR test mocks the same hub at the Playwright
 // page.route/routeWebSocket level (for a test that pushes a change down it); the two can't share
 // code (this one speaks raw HTTP upgrade + WebSocket frames for a real socket, that one intercepts
@@ -32,6 +32,21 @@ const HUBS = new Set(['/TeamsHub', '/QueueHub']);
  * proxy, see src/server.ts's toBackend). */
 export function isHubUpgrade(req: IncomingMessage): boolean {
   return HUBS.has((req.url ?? '').split('?')[0]);
+}
+
+/** Whether `req` is one of HUBS' negotiate requests (POST /TeamsHub/negotiate?negotiateVersion=1), as the mock backend sees it. */
+export function isHubNegotiate(req: IncomingMessage): boolean {
+  const path = (req.url ?? '').split('?')[0];
+  return req.method === 'POST' && path.endsWith('/negotiate') && HUBS.has(path.slice(0, -'/negotiate'.length));
+}
+
+/** A negotiate's answer (version 1): a fresh connection, WebSockets offered, as the real hub offers them first. */
+export function negotiateResponse(): string {
+  const id = Math.random().toString(36).slice(2);
+  return JSON.stringify({
+    negotiateVersion: 1, connectionId: id, connectionToken: id,
+    availableTransports: [{ transport: 'WebSockets', transferFormats: ['Text', 'Binary'] }],
+  });
 }
 
 /**

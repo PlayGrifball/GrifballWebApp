@@ -275,12 +275,14 @@ test('the team builder renders a captain added by another user over SignalR', as
     [`/api/seasons/${SEASON_ID}/draft/captains/locked`]: route => json(route, true),
   });
 
-  // A minimal SignalR server: the JSON hub protocol over a WebSocket, which the client opens without
-  // negotiating first (so several backend pods need no sticky sessions): a negotiate request fails
-  // the test. RS is shared with e2e/hubMock.mts, which answers the same hub for Lighthouse and
-  // the layout test (over a real socket there, so it can't share this route-based code).
+  // A minimal SignalR server: a negotiate offering WebSockets, then the JSON hub protocol over one. RS is
+  // shared with e2e/hubMock.mts, which answers the same hub for Lighthouse and the layout test (over a
+  // real socket there, so it can't share this route-based code).
   let negotiated = false;
-  await page.route('**/hub/TeamsHub/negotiate**', route => { negotiated = true; return route.abort(); });
+  await page.route('**/hub/TeamsHub/negotiate**', route => {
+    negotiated = true;
+    return route.fulfill({ json: { negotiateVersion: 1, connectionId: 'c', connectionToken: 't', availableTransports: [{ transport: 'WebSockets', transferFormats: ['Text', 'Binary'] }] } });
+  });
   const sockets: WebSocketRoute[] = [];
   await page.routeWebSocket(/\/hub\/TeamsHub/, ws => {
     // The page may restart the connection once the access token is read, so only the
@@ -305,7 +307,7 @@ test('the team builder renders a captain added by another user over SignalR', as
 
   await expect(page.locator('mat-card.item:not(.dndPlaceholder) mat-card-title')).toHaveText(['1 - Red Team', "2 - Blair's Team"]);
   await expect(page.locator('mat-list-item.player-pool-item', { hasText: 'Pool Blair' })).toHaveCount(0);
-  expect(negotiated, 'the client sent a negotiate request').toBe(false);
+  expect(negotiated, 'the client negotiated first').toBe(true);
 });
 
 test('the signup form ticks single slots and whole days, and submits the chosen option ids', async ({ page }) => {

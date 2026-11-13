@@ -20,12 +20,30 @@ class FakeTeamsHub {
   readonly handshakes: unknown[] = [];
   readonly fromClient: { type: number }[] = [];
 
-  /** Every HTTP request the client makes (negotiate would be one): recorded and refused. */
+  /** The transports the negotiate offers, as the server's would (WebSockets first). */
+  constructor(readonly offered: string[] = ['WebSockets', 'ServerSentEvents', 'LongPolling']) {}
+
+  /**
+   * Every HTTP request the client makes, recorded: the negotiate (answered with a connection and the offered
+   * transports) and, over long polling, the polls (the first answered at once, as the server does, the rest held
+   * until the client stops) and the messages it sends.
+   */
   readonly http = new (class extends HttpClient {
+    private polls = 0;
     constructor(private readonly hub: FakeTeamsHub) { super(); }
     override send(request: HttpRequest): Promise<HttpResponse> {
       this.hub.httpRequests.push(request);
-      return Promise.resolve(new HttpResponse(404, 'Not Found', ''));
+      if (request.url?.includes('/negotiate'))
+        return Promise.resolve(new HttpResponse(200, 'OK', JSON.stringify({
+          negotiateVersion: 1, connectionId: 'connection', connectionToken: 'token',
+          availableTransports: this.hub.offered.map(transport => ({ transport, transferFormats: ['Text', 'Binary'] })),
+        })));
+      if (request.method === 'GET' && this.polls++ > 0)
+        return new Promise(resolve => {
+          if (request.abortSignal)
+            request.abortSignal.onabort = () => resolve(new HttpResponse(204, 'No Content', ''));
+        });
+      return Promise.resolve(new HttpResponse(200, 'OK', ''));
     }
   })(this);
 
@@ -113,7 +131,7 @@ describe('SignalRService over the SignalR wire protocol', () => {
     hub = new FakeTeamsHub();
     const withUrl = HubConnectionBuilder.prototype.withUrl as (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) => HubConnectionBuilder;
     spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callFake(function (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) {
-      // The service's own URL and options (transport, skipNegotiation), over the fake server.
+      // The service's own URL and options (its transports), over the fake server.
       return withUrl.call(this, url, { ...options, httpClient: hub.http, WebSocket: hub.WebSocket });
     } as typeof HubConnectionBuilder.prototype.withUrl);
     // The service's and the client's logging.
@@ -130,15 +148,15 @@ describe('SignalRService over the SignalR wire protocol', () => {
 
   const connected = () => service.hubConnection.state === HubConnectionState.Connected && (hub.latest?.handshaken ?? false);
 
-  it('opens the WebSocket straight away, with no negotiate request, and completes the JSON handshake', async () => {
+  it('negotiates, then opens the WebSocket by its connection token and completes the JSON handshake', async () => {
     await waitFor(connected, 'the connection');
 
-    expect(hub.httpRequests).toEqual([]);
+    expect(hub.httpRequests.map(r => [r.method, new URL(r.url!, location.href).pathname])).toEqual([['POST', '/hub/TeamsHub/negotiate']]);
     const url = new URL(hub.latest!.url);
     expect(url.protocol).toMatch(/^wss?:$/);
     expect(url.pathname).toBe('/hub/TeamsHub');
-    // No connection token from a negotiate, and no access token: the session cookie goes with it (same origin)
-    expect(url.searchParams.has('id')).toBeFalse();
+    // The negotiate's connection token, and no access token: the session cookie goes with it (same origin)
+    expect(url.searchParams.get('id')).toBe('token');
     expect(url.searchParams.has('access_token')).toBeFalse();
     expect(hub.handshakes).toContain({ protocol: 'json', version: 1 });
   });
@@ -160,5 +178,27 @@ describe('SignalRService over the SignalR wire protocol', () => {
     expect(locked).toEqual([7]);
     expect(unlocked).toEqual([8]);
     expect(captains).toEqual([{ seasonID: 7, personID: 42, teamName: "Captain's Team", captainName: 'Captain', orderNumber: 1 }]);
+  });
+});
+
+describe('SignalRService where WebSockets don\'t get through', () => {
+  it('falls back to long polling when the server offers no WebSockets', async () => {
+    const hub = new FakeTeamsHub(['LongPolling']);
+    const withUrl = HubConnectionBuilder.prototype.withUrl as (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) => HubConnectionBuilder;
+    spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callFake(function (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) {
+      return withUrl.call(this, url, { ...options, httpClient: hub.http, WebSocket: hub.WebSocket });
+    } as typeof HubConnectionBuilder.prototype.withUrl);
+    spyOn(console, 'log');
+    spyOn(console, 'info');
+    spyOn(console, 'error');
+    const service = TestBed.inject(SignalRService);
+
+    // The negotiate, then the first poll by the connection's token: no WebSocket at all
+    await waitFor(() => hub.httpRequests.some(r => r.method === 'GET'), 'a poll');
+    const poll = hub.httpRequests.find(r => r.method === 'GET')!;
+    expect(new URL(poll.url!, location.href).searchParams.get('id')).toBe('token');
+    expect(hub.sockets).toEqual([]);
+
+    await service.hubConnection.stop();
   });
 });

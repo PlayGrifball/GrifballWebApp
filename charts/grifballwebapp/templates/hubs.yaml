@@ -1,0 +1,16 @@
+{{- with .Values.ingressRoute }}
+{{- if and .enabled .hubs.enabled }}
+# The hubs' paths on the backend (ingressRoute.hubs): /hub/x and the hubs' page's /signalr-dev/x as /x, as the frontend's
+# proxy sends them (src/app/backendPaths.ts)
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: grif-hubs-path
+  labels:
+    {{- include "grif.labels" $ | nindent 4 }}
+spec:
+  replacePathRegex:
+    regex: ^/(?:hub|signalr-dev)/(.*)
+    replacement: /$1
+{{- end }}
+{{- end }}

@@ -3,6 +3,7 @@ templates:
   - templates/frontend.yaml
   - templates/ingress.yaml
   - templates/misc.yaml
+  - templates/hubs.yaml
 release:
   namespace: grif-x
 set:
@@ -33,6 +34,38 @@ tests:
       - equal: { path: "spec.routes[0].services[0]", value: { name: grif-frontend, port: 80 } }
       - equal: { path: spec.tls.secretName, value: cert }
       - notExists: { path: spec.entryPoints }
+
+  - it: sends the hubs straight to the backend, sticky, with the site's middlewares and the hubs' path rewrite
+    template: templates/ingress.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example, middlewares: [{ name: security-headers, namespace: traefik }] }
+    asserts:
+      - equal: { path: "spec.routes[1].match", value: "Host(`grif.example`) && PathRegexp(`^/(hub|signalr-dev)/\\w*Hub(/|$)`)" }
+      - equal: { path: "spec.routes[1].middlewares", value: [{ name: security-headers, namespace: traefik }, { name: grif-hubs-path }] }
+      - equal:
+          path: "spec.routes[1].services[0]"
+          value: { name: grifballwebapp-server, port: 5295, sticky: { cookie: { name: grif-hub, httpOnly: true, secure: true, sameSite: lax } } }
+
+  - it: rewrites the hubs' paths as the frontend's proxy does
+    template: templates/hubs.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example }
+    asserts:
+      - isKind: { of: Middleware }
+      - equal: { path: metadata.name, value: grif-hubs-path }
+      - equal: { path: spec.replacePathRegex, value: { regex: "^/(?:hub|signalr-dev)/(.*)", replacement: "/$1" } }
+
+  - it: leaves the hubs to the frontend when told
+    template: templates/ingress.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example, hubs: { enabled: false } }
+    asserts:
+      - notExists: { path: "spec.routes[1]" }
+
+  - it: has no hubs' rewrite without the IngressRoute
+    template: templates/hubs.yaml
+    asserts:
+      - hasDocuments: { count: 0 }
 
   - it: serves on the entrypoints it's given
     template: templates/ingress.yaml
