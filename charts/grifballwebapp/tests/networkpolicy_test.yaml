@@ -59,6 +59,23 @@ tests:
             ports: [{ protocol: TCP, port: 5295 }]
             from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } } }]
 
+  - it: lets the ingress controller reach the backend for the API alone
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: metadata.name, value: grif-backend }
+    set:
+      ingressRoute: { enabled: true, host: grif.example, hubs: { enabled: false } }
+      networkPolicy.frontend.from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } } }]
+    asserts:
+      - lengthEqual: { path: spec.ingress, count: 2 }
+
+  - it: lets only the frontend reach the backend when nothing goes straight there
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: metadata.name, value: grif-backend }
+    set:
+      ingressRoute: { enabled: true, host: grif.example, hubs: { enabled: false }, api: { enabled: false } }
+    asserts:
+      - lengthEqual: { path: spec.ingress, count: 1 }
+
   - it: lets only the frontend reach the backend without the IngressRoute
     template: templates/networkpolicy.yaml
     documentSelector: { path: metadata.name, value: grif-backend }

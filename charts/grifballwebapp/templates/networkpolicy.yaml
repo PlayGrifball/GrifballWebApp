@@ -90,8 +90,9 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.backend.port }}
-    {{- if and .Values.ingressRoute.enabled .Values.ingressRoute.hubs.enabled }}
-    # The hubs, straight from the ingress controller (ingressRoute.hubs): whoever may reach the frontend
+    {{- if and .Values.ingressRoute.enabled (or .Values.ingressRoute.hubs.enabled .Values.ingressRoute.api.enabled) }}
+    # The API and the hubs, straight from the ingress controller (ingressRoute.api and .hubs): whoever may reach the
+    # frontend
     - ports:
         - protocol: TCP
           port: {{ .Values.backend.port }}

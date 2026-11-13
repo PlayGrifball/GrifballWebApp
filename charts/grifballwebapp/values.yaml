@@ -558,6 +558,11 @@ ingressRoute:
     enabled: true
     # The sticky cookie: HttpOnly, Secure, SameSite=Lax
     cookie: grif-hub
+  # The API (/api/...) and the Discord sign-in's callback (/signin-discord) straight to the backend, one hop less than
+  # through the frontend's proxy (which still serves them without the IngressRoute, and in development). The trace goes
+  # browser, Traefik, backend.
+  api:
+    enabled: true
 
 # SQL Server in the release, with database.provider sqlserver (the default). Disabled: set
 # database.host to your own.

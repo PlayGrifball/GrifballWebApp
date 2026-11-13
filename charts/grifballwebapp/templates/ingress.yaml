@@ -70,7 +70,7 @@ spec:
         {{- with .middlewares }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        - name: grif-hubs-path
+        - name: grif-backend-path
       services:
         - name: {{ $.Values.backend.service.name }}
           port: {{ $.Values.backend.port }}
@@ -80,6 +80,20 @@ spec:
               httpOnly: true
               secure: true
               sameSite: lax
+    {{- end }}
+    {{- if .api.enabled }}
+    # The API and the Discord sign-in's callback, straight to the backend (ingressRoute.api); their paths as the
+    # frontend's proxy sends them
+    - match: 'Host(`{{ .host }}`) && PathRegexp(`^/(api/|signin-discord(/|$))`)'
+      kind: Rule
+      middlewares:
+        {{- with .middlewares }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        - name: grif-backend-path
+      services:
+        - name: {{ $.Values.backend.service.name }}
+          port: {{ $.Values.backend.port }}
     {{- end }}
   {{- with .tls.secretName }}
   tls:
