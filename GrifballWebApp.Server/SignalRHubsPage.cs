@@ -36,6 +36,6 @@ public static class SignalRHubsPage
             Status = StatusCodes.Status403Forbidden,
             Title = "Sysadmins only",
             Detail = "The hubs' page is for sysadmins.",
-        }, options: null, contentType: "application/problem+json");
+        }, options: null, contentType: "application/problem+json", context.RequestAborted);
     }
 }
