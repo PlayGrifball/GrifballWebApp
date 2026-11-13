@@ -506,8 +506,8 @@ describe('ProfileComponent linked accounts', () => {
     })
       .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent, ProfileCommendationsComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, VodListComponent, ProfileCommendationsComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
       })
       .compileComponents();
     http = TestBed.inject(HttpTestingController);
@@ -639,8 +639,8 @@ describe('ProfileComponent: region and identity', () => {
       .overrideProvider(MatSnackBar, { useValue: jasmine.createSpyObj('MatSnackBar', ['open']) })
       .overrideComponent(ProfileComponent, { remove: { imports: [DeploymentHistoryComponent] }, add: { imports: [StubDeploymentHistoryComponent] } })
       .overrideComponent(ProfileComponent, {
-        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, VodListComponent, ProfileCommendationsComponent] },
-        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
+        remove: { imports: [LinkedAccountsComponent, ProfileIdentityComponent, AccessTokensComponent, VodListComponent, ProfileCommendationsComponent] },
+        add: { imports: [LinkedAccountsStubComponent, ProfileIdentityStubComponent, AccessTokensStubComponent, StubVodListComponent, StubProfileCommendationsComponent] },
       })
       .compileComponents();
     http = TestBed.inject(HttpTestingController);
