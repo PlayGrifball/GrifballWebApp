@@ -16,7 +16,7 @@ import { BackfilledBannerComponent, DataNoticeComponent } from '@shared/dataNoti
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import type { TeamDto } from '@api/models';
-import { describePage, PageDescription } from '../../shared/pageMeta';
+import { describePage, PageDescription } from '@shared/pageMeta';
 
 /** The team as search results and link previews show it: its name and season, record, titles and roster. */
 export function describeTeam(team: TeamDto): PageDescription {

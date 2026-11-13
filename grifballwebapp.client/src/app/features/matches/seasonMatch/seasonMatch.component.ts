@@ -27,7 +27,7 @@ import type { TeamPagePlayerDto } from '@api/models';
 import { provideDatePickers } from '@shared/datePickers';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { GameSlot, ManualGamesComponent, slotChoices } from './manualGames/manualGames.component';
-import { describePage, pageDate, PageDescription } from '../../shared/pageMeta';
+import { describePage, pageDate, PageDescription } from '@shared/pageMeta';
 
 /** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
 export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';

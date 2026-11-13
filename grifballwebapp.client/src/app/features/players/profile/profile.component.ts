@@ -20,7 +20,7 @@ import { whileCurrent } from '@shared/whileCurrent';
 import type { GameCareerSummaryDto, MatchmakingPlayerStatDto, PlayerSeasonStatDetailDto, ProfileStatsDto } from '@api/models';
 import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { ProfileService } from '@api/services/profile.service';
-import { describePage, PageDescription, plural } from '../shared/pageMeta';
+import { describePage, PageDescription, plural } from '@shared/pageMeta';
 
 /** The player as search results and link previews show them: their gamertag, seasons and championships. */
 export function describeProfile(profile: ProfileStatsDto): PageDescription | null {

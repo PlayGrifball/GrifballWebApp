@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { DateTime } from 'luxon';
-import { LEAGUE_TIME_ZONE } from './shared/leagueTimeZone';
+import { LEAGUE_TIME_ZONE } from '@shared/leagueTimeZone';
 
 @Injectable({
   providedIn: 'root'

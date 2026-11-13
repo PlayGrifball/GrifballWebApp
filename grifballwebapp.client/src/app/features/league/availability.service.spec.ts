@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { AvailabilityService } from './availability.service';
 import { DateTime } from 'luxon';
-import { LEAGUE_TIME_ZONE } from './shared/leagueTimeZone';
+import { LEAGUE_TIME_ZONE } from '@shared/leagueTimeZone';
 
 describe('AvailabilityService', () => {
   let service: AvailabilityService;
