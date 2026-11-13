@@ -87,20 +87,24 @@ public class BackupControllerUnitTests
 [Parallelizable(ParallelScope.All)]
 public class BackupControllerInfoUnitTests : SqliteGrifballContextFixture
 {
-    private static readonly string[] ExpectedFormats = ["sqlite", "postgres", "sqlserver", "bak"];
+    // Database:Provider pinned to Sqlite, agreeing with Db (built UseGrifballDatabase(DatabaseProvider.Sqlite, ...)
+    // in the fixture): LatestMigration then genuinely comes from the provider Provider reports, and neither
+    // HasNativeServer(SqlServer) nor HasNativeServer(Postgres) holds, so no native-backup format is offered.
+    private static readonly string[] ExpectedFormats = ["sqlite", "postgres", "sqlserver"];
 
     [Test]
     public void Info_ReturnsTheProviderAndTheFormatsAvailableHere()
     {
-        var backups = new DatabaseBackupService(new ConfigurationBuilder().Build(), NullLoggerFactory.Instance, TimeProvider.System);
-        var controller = new BackupController(backups, null!, null!, Db, new ConfigurationBuilder().Build(), NullLogger<BackupController>.Instance);
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Database:Provider"] = "Sqlite" }).Build();
+        var backups = new DatabaseBackupService(configuration, NullLoggerFactory.Instance, TimeProvider.System);
+        var controller = new BackupController(backups, null!, null!, Db, configuration, NullLogger<BackupController>.Instance);
 
         var info = controller.Info();
 
         using (Assert.EnterMultipleScope())
         {
+            Assert.That(info.Provider, Is.EqualTo("Sqlite"));
             Assert.That(info.LatestMigration, Is.Not.Null.And.Not.Empty);
-            // Database:Provider defaults to SqlServer unset, so HasNativeServer(SqlServer) is true here: bak is offered too
             Assert.That(info.Formats, Is.EquivalentTo(ExpectedFormats));
         }
     }
