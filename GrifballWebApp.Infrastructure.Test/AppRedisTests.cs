@@ -27,6 +27,31 @@ public class AppRedisTests
     }
 
     [Test]
+    public async Task WhenConnected_is_told_of_the_connection_once_made_or_at_once_when_made_already()
+    {
+        var multiplexer = Substitute.For<IConnectionMultiplexer>();
+        var connects = 0;
+        await using var redis = new AppRedis(_ => ++connects == 1
+            ? throw new RedisConnectionException(ConnectionFailureType.UnableToConnect, "Redis isn't there yet")
+            : Task.FromResult(multiplexer));
+        var before = new List<IConnectionMultiplexer>();
+        var after = new List<IConnectionMultiplexer>();
+
+        redis.WhenConnected(before.Add);
+        await Assert.ThrowsAsync<RedisConnectionException>(async () => await redis.ConnectAsync());
+        Assert.That(before, Is.Empty, "a failed connect is no connection");
+        await redis.ConnectAsync();
+        await redis.ConnectAsync();
+        redis.WhenConnected(after.Add);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(before, Is.EqualTo(new[] { multiplexer }), "told once, when made");
+            Assert.That(after, Is.EqualTo(new[] { multiplexer }), "told at once");
+        }
+    }
+
+    [Test]
     public async Task A_connect_that_failed_is_made_again_on_the_next_use_not_kept()
     {
         var connects = 0;

@@ -17,6 +17,8 @@ public sealed class AppRedis : IAsyncDisposable, IDisposable
     private readonly Func<TextWriter?, Task<IConnectionMultiplexer>> _connect;
     private readonly Lock _lock = new();
     private Task<IConnectionMultiplexer>? _connection;
+    private IConnectionMultiplexer? _connected;
+    private readonly List<Action<IConnectionMultiplexer>> _whenConnected = [];
 
     public AppRedis(string connectionString, string channelPrefix)
         : this(async log => await ConnectionMultiplexer.ConnectAsync(Options(connectionString, channelPrefix), log))
@@ -50,8 +52,36 @@ public sealed class AppRedis : IAsyncDisposable, IDisposable
         }
     }
 
+    /// <summary>
+    /// Calls <paramref name="connected"/> with the connection: once it's made, or now when it's made already (its tracing,
+    /// which needs the connection itself).
+    /// </summary>
+    public void WhenConnected(Action<IConnectionMultiplexer> connected)
+    {
+        IConnectionMultiplexer? connection;
+        lock (_lock)
+        {
+            _whenConnected.Add(connected);
+            connection = _connected;
+        }
+        if (connection is not null)
+            connected(connection);
+    }
+
     // Async, so a connection string that can't be read fails the task, not the caller's call
-    private async Task<IConnectionMultiplexer> Connect(TextWriter? log) => await _connect(log);
+    private async Task<IConnectionMultiplexer> Connect(TextWriter? log)
+    {
+        var connection = await _connect(log);
+        Action<IConnectionMultiplexer>[] callbacks;
+        lock (_lock)
+        {
+            _connected = connection;
+            callbacks = [.. _whenConnected];
+        }
+        foreach (var callback in callbacks)
+            callback(connection);
+        return connection;
+    }
 
     public async ValueTask DisposeAsync()
     {

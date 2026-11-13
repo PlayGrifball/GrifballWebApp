@@ -5,11 +5,15 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using GrifballWebApp.Server.Telemetry.Browser;
 using Quartz.Diagnostics;
+using GrifballWebApp.Infrastructure.Redis;
 
 namespace GrifballWebApp.Server.Telemetry;
 
 public static class MetricsAndTracingExtensions
 {
+    /// <summary>SignalR's hub method calls (ASP.NET Core 9 and later).</summary>
+    public const string SignalRServerSource = "Microsoft.AspNetCore.SignalR.Server";
+
     /// <summary>Meters beyond the instrumentation packages' own.</summary>
     public static readonly string[] AdditionalMeters =
     [
@@ -65,6 +69,14 @@ public static class MetricsAndTracingExtensions
                     .AddSqlClientInstrumentation()
                     .AddNpgsql()
                     .AddEntityFrameworkCoreInstrumentation()
+                    // Redis commands (the SignalR backplane, the cache, the Halo calls' pace), on the app's one connection
+                    // once it's made (AppRedis); none without Redis
+                    .AddRedisInstrumentation()
+                    .ConfigureRedisInstrumentation((provider, redis) =>
+                        // Instrumented for the process's life: the registration AddConnection returns is never undone
+                        provider.GetService<AppRedis>()?.WhenConnected(connection => _ = redis.AddConnection(connection)))
+                    // A span per hub method call; each starts a trace of its own (a hub connection is no request to sit under)
+                    .AddSource(SignalRServerSource)
                     // A trace per job run (JobTracing), without the scheduler loop's own store calls
                     .AddSource(QuartzInstrumentation.ActivitySourceName)
                     .SetSampler(new SchedulerLoopSampler());
