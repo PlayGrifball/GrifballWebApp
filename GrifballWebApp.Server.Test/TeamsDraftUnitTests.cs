@@ -3,6 +3,7 @@ using DiscordInterfaces;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Notifications;
 using GrifballWebApp.Application.Teams;
+using GrifballWebApp.Application.Teams.Handlers;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Server.Commands;
 using GrifballWebApp.Server.Teams;
@@ -203,5 +204,24 @@ public class TeamsDraftUnitTests : SqliteGrifballContextFixture
             Assert.That(entry.Message, Is.EqualTo($"DraftPick failed for Discord user 1, season {draft.Season.SeasonID}, captain {draft.Alpha.Id}"));
             Assert.That(await PickedBy(draft.Player), Is.Null, "Rolled back");
         }
+    }
+
+    [Test]
+    public async Task TeamsHub_AddPlayerToTeam_PicksForTheCaptain_AsTheSignedInCommissioner()
+    {
+        var draft = await Signed();
+        await AddCaptain(draft, draft.Alpha, 1);
+        var commissioner = await Db.Users.Where(u => u.UserName == "Commish").Select(u => u.Id).SingleAsync();
+        var hub = new TeamsHub(Teams());
+        var caller = Substitute.For<Microsoft.AspNetCore.SignalR.HubCallerContext>();
+        caller.User.Returns(new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+            [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, commissioner.ToString())], "Test")));
+        caller.ConnectionId.Returns("connection-1");
+        hub.Context = caller;
+
+        await hub.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = draft.Season.SeasonID, CaptainID = draft.Alpha.Id, PersonID = draft.Player.Id });
+
+        Assert.That(await PickedBy(draft.Player), Is.EqualTo(draft.Alpha.Id));
+        await _publisher.Received(1).Publish(Arg.Is<Notification<AddPlayerToTeamRequestDto>>(n => n.ConnectionId == "connection-1" && n.Value.PersonID == draft.Player.Id), Arg.Any<CancellationToken>());
     }
 }

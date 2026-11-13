@@ -92,4 +92,37 @@ public class PreviewSmokeUsersUnitTests
         await users.Received(1).AddPasswordAsync(existing, "correct-password");
         await users.DidNotReceive().RemovePasswordAsync(Arg.Any<User>());
     }
+
+    [Test]
+    public async Task EnsureAsync_AnExistingUserWithARotatedPassword_LockedOut_GetsTheNewPassword_AndIsUnlocked()
+    {
+        var users = Users();
+        var existing = User.Register(PreviewSmokeUsers.UserNames[0]);
+        existing.AccessFailedCount = 3;
+        existing.LockoutEnd = DateTimeOffset.MaxValue;
+        users.FindByNameAsync(PreviewSmokeUsers.UserNames[0]).Returns(existing);
+        users.CheckPasswordAsync(existing, "correct-password").Returns(false);
+        users.HasPasswordAsync(existing).Returns(true);
+        users.RemovePasswordAsync(existing).Returns(IdentityResult.Success);
+        users.AddPasswordAsync(existing, "correct-password").Returns(IdentityResult.Success);
+        users.IsInRoleAsync(existing, Arg.Any<string>()).Returns(true);
+        users.SetLockoutEndDateAsync(existing, null).Returns(IdentityResult.Success);
+        users.ResetAccessFailedCountAsync(existing).Returns(IdentityResult.Success);
+        users.CreateAsync(Arg.Any<User>(), "correct-password").Returns(IdentityResult.Success);
+        users.AddToRolesAsync(Arg.Any<User>(), Arg.Any<IEnumerable<string>>()).Returns(IdentityResult.Success);
+        var logger = new RecordingLogger<object>();
+
+        var result = await PreviewSmokeUsers.EnsureAsync(Config(), users, logger);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.EqualTo(PreviewSmokeUsers.UserNames.Count));
+            Assert.That(logger.Entries.Select(e => e.Message), Does.Contain($"Preview smoke-test user {PreviewSmokeUsers.UserNames[0]} created or updated"));
+        }
+        await users.Received(1).RemovePasswordAsync(existing);
+        await users.Received(1).AddPasswordAsync(existing, "correct-password");
+        await users.Received(1).SetLockoutEndDateAsync(existing, null);
+        await users.Received(1).ResetAccessFailedCountAsync(existing);
+        await users.DidNotReceive().AddToRolesAsync(existing, Arg.Any<IEnumerable<string>>());
+    }
 }

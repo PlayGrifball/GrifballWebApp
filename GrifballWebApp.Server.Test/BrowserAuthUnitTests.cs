@@ -331,4 +331,78 @@ public class BrowserAuthUnitTests
             Assert.That(antiforgery.ReceivedCalls(), Is.Empty);
         }
     }
+
+    /// <summary>A request on <paramref name="context"/> to a SignalR hub endpoint, its services logging to <paramref name="logger"/>.</summary>
+    private static DefaultHttpContext ToAHub(DefaultHttpContext context, Microsoft.Extensions.Logging.ILogger logger)
+    {
+        context.SetEndpoint(new Endpoint(null, new EndpointMetadataCollection(new Microsoft.AspNetCore.SignalR.HubMetadata(typeof(GrifballWebApp.Server.Teams.TeamsHub))), "teams hub"));
+        context.Request.Path = "/hubs/teams/negotiate";
+        var loggers = Substitute.For<Microsoft.Extensions.Logging.ILoggerFactory>();
+        loggers.CreateLogger(typeof(BrowserAuth).FullName!).Returns(logger);
+        context.RequestServices = new Microsoft.Extensions.DependencyInjection.ServiceCollection()
+            .AddSingleton(loggers)
+            .BuildServiceProvider();
+        return context;
+    }
+
+    [Test]
+    public async Task HubGuard_RefusesACookieSessionsHubRequestFromAnotherSite_AndLogsIt()
+    {
+        var logger = new RecordingLogger<BrowserAuthUnitTests>();
+        var context = ToAHub(Context("GET"), logger);
+        context.Request.Headers["Sec-Fetch-Site"] = "same-site";
+        var called = false;
+
+        await BrowserAuth.RefuseForeignHubRequests(context, _ => { called = true; return Task.CompletedTask; });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(called, Is.False);
+            Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
+            Assert.That(logger.Entries.Single().Message, Is.EqualTo("Refused hub request /hubs/teams/negotiate from another origin"));
+        }
+    }
+
+    [TestCase(true, "same-origin", null)]
+    [TestCase(true, "", "https://grifball.xyz")]
+    [TestCase(false, "cross-site", "https://evil.example")]
+    public async Task HubGuard_PassesAHubRequestFromThisSite_OrWithoutACookieSession(bool signedIn, string fetchSite, string? origin)
+    {
+        var logger = new RecordingLogger<BrowserAuthUnitTests>();
+        var context = ToAHub(Context("GET", signedIn), logger);
+        context.Request.Host = new HostString("grifball.xyz");
+        if (fetchSite.Length > 0)
+            context.Request.Headers["Sec-Fetch-Site"] = fetchSite;
+        if (origin is not null)
+            context.Request.Headers.Origin = origin;
+        var called = false;
+
+        await BrowserAuth.RefuseForeignHubRequests(context, _ => { called = true; return Task.CompletedTask; });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(called, Is.True);
+            Assert.That(logger.Entries, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task ConfigureCookie_AnswersAnApiCallWithoutASession401_AndOneNotAllowed403_NotARedirect()
+    {
+        var options = new CookieAuthenticationOptions();
+        BrowserAuth.ConfigureCookie(options);
+        var scheme = new Microsoft.AspNetCore.Authentication.AuthenticationScheme(BrowserAuth.CookieName, null, typeof(CookieAuthenticationHandler));
+        var signIn = new DefaultHttpContext();
+        var denied = new DefaultHttpContext();
+
+        await options.Events.RedirectToLogin(new Microsoft.AspNetCore.Authentication.RedirectContext<CookieAuthenticationOptions>(signIn, scheme, options, new(), "/login"));
+        await options.Events.RedirectToAccessDenied(new Microsoft.AspNetCore.Authentication.RedirectContext<CookieAuthenticationOptions>(denied, scheme, options, new(), "/denied"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(signIn.Response.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
+            Assert.That(denied.Response.StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
+            Assert.That(signIn.Response.Headers.Location.ToString(), Is.Empty);
+        }
+    }
 }

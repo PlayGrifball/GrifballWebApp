@@ -1,0 +1,113 @@
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Championships;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Historical.Vods;
+using GrifballWebApp.Application.LateLeague;
+using GrifballWebApp.Application.MatchDetails;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.Stats;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Server.Commands;
+using Microsoft.Extensions.Options;
+using NSubstitute;
+using HaloMatch = GrifballWebApp.Domain.Halo.Match;
+
+namespace GrifballWebApp.Server.Test;
+
+/// <summary>
+/// /player history and matches, and /match game, with something to show: on a temp-file SQLite GrifballContext with the
+/// real profile and match services; the Xbox lookup and the Halo pull substituted.
+/// </summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class PlayerAndMatchCommandsActionsUnitTests : SqliteGrifballContextFixture
+{
+    private readonly IGetsertXboxUserService _xboxUsers = Substitute.For<IGetsertXboxUserService>();
+
+    private PlayerCommandsHandler Players() => new(new CommandLookups(Db, null!), new DiscordCaller(Db),
+        new ProfileStatsService(Db, new SeasonStatsService(Db), new MatchmakingStatsService(Db)),
+        new ProfileCommendationsService(Db),
+        new DeploymentHistoryService(Db),
+        new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!),
+        new DiscordCommandsHandler(Db, new RecordingLogger<DiscordCommandsHandler>(), Substitute.For<IDataPullService>(), _xboxUsers),
+        Urls());
+
+    [Test]
+    public async Task History_ListsTheTeamsThePlayerWasOn()
+    {
+        var player = await AddUser(5, "Grifter1");
+        var season = await AddSeason("Winter");
+        var team = await AddTeam(season, "Grifs");
+        Db.Set<TeamPlayer>().Add(TeamPlayer.Seed(teamID: team.TeamID, userID: player.Id));
+        await Db.SaveChangesAsync();
+        var discord = new CommandContextRecorder();
+
+        await Players().History(discord.Context, "Grifter1");
+
+        var embed = discord.Embed();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(embed.Title, Is.EqualTo("Grifter1 deployment history"));
+            Assert.That(embed.Description, Does.StartWith($"Winter · [Grifs](https://grif.test/season/{season.SeasonID}/team/{team.TeamID}) · 0-0 · "));
+        }
+    }
+
+    [Test]
+    public async Task Matches_TheCallersOwn_AreLookedUpByTheirDiscordAccount()
+    {
+        await AddUser(5, "Grifter1");
+        var discord = new CommandContextRecorder(discordUserId: 5);
+
+        await Players().Matches(discord.Context, null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(discord.DeferredPublicly(), Is.True);
+            Assert.That(discord.Content(), Is.EqualTo("I found no matches for "));
+        }
+        await _xboxUsers.DidNotReceiveWithAnyArgs().GetsertXboxUserByGamertag(default!);
+    }
+
+    [Test]
+    public async Task Matches_OfAPlayerNamed_AreLookedUpByTheirGamertag()
+    {
+        await AddUser(5, "Grifter1");
+        _xboxUsers.GetsertXboxUserByGamertag("Grifter1", Arg.Any<CancellationToken>()).Returns((XboxUser.FromXbox(5, "Grifter1"), (string?)null));
+        var discord = new CommandContextRecorder();
+
+        await Players().Matches(discord.Context, "Grifter1");
+
+        Assert.That(discord.Content(), Is.EqualTo("I found no matches for Grifter1"));
+        await _xboxUsers.Received(1).GetsertXboxUserByGamertag("Grifter1", Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Game_ListsEachTeamsScoreAndPlayers()
+    {
+        Db.XboxUsers.AddRange(XboxUser.FromXbox(1, "Alpha"), XboxUser.FromXbox(2, "Bravo"));
+        var matchID = Guid.Parse("00000000-0000-0000-0000-0000000000b1");
+        var game = HaloMatch.Seed(matchID, startTime: new DateTime(2026, 10, 1, 20, 0, 0, DateTimeKind.Utc), duration: TimeSpan.FromMinutes(9));
+        game.AddTeam(0, 50, Outcomes.Won);
+        game.AddTeam(1, 20, Outcomes.Lost);
+        game.AddParticipant(0, 1, new MatchParticipantStats { Kills = 10, Deaths = 2, Assists = 3 });
+        game.AddParticipant(1, 2, new MatchParticipantStats { Kills = 4, Deaths = 9, Assists = 1 });
+        Db.Matches.Add(game);
+        await Db.SaveChangesAsync();
+        var handler = new MatchCommandsHandler(new CommandLookups(Db, null!),
+            new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)), new MatchDetailsService(Db), Urls());
+        var discord = new CommandContextRecorder();
+
+        await handler.Game(discord.Context, matchID.ToString());
+
+        var fields = discord.Embed().Fields!.Skip(2).Select(f => (f.Name, f.Value)).ToList();
+        Assert.That(fields, Is.EqualTo(new[]
+        {
+            ("Team 0: 50 (Won)", "Alpha · 0 goals · 10/2/3"),
+            ("Team 1: 20 (Lost)", "Bravo · 0 goals · 4/9/1"),
+        }));
+    }
+}

@@ -116,9 +116,10 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     public async Task HandleAsync_SendsTheModelTheConversationSoFar_OldestFirst_WithItsInstructionsAndTools()
     {
         Db.DiscordUsers.AddRange(DiscordUser.FromDiscord((long)AuthorId, "user5"), DiscordUser.FromDiscord((long)BotId, "GrifballWebApp"));
+        // Earlier than the new message, which is stamped with its snowflake ID's time (ID 10: just after Discord's 2015 epoch)
         Db.DiscordMessages.AddRange(
-            new DiscordMessage { Id = 2, FromDiscordUserId = (long)BotId, ToDiscordUserId = (long)AuthorId, Content = "Earlier answer", Timestamp = new DateTime(2023, 12, 1, 0, 1, 0, DateTimeKind.Utc) },
-            new DiscordMessage { Id = 1, FromDiscordUserId = (long)AuthorId, ToDiscordUserId = (long)BotId, Content = "Earlier question", Timestamp = new DateTime(2023, 12, 1, 0, 0, 0, DateTimeKind.Utc) });
+            new DiscordMessage { Id = 2, FromDiscordUserId = (long)BotId, ToDiscordUserId = (long)AuthorId, Content = "Earlier answer", Timestamp = new DateTime(2014, 12, 31, 0, 1, 0, DateTimeKind.Utc) },
+            new DiscordMessage { Id = 1, FromDiscordUserId = (long)AuthorId, ToDiscordUserId = (long)BotId, Content = "Earlier question", Timestamp = new DateTime(2014, 12, 31, 0, 0, 0, DateTimeKind.Utc) });
         await Db.SaveChangesAsync();
         var model = new ScriptedChatClient((TimeSpan.Zero, "Answer"));
 
