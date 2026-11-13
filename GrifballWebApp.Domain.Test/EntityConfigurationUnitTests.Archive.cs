@@ -9,9 +9,9 @@ namespace GrifballWebApp.Domain.Test;
 /// reviews, XUID lookups): see the class's main file.</summary>
 public partial class EntityConfigurationUnitTests
 {
-    /// <summary>Each named column's max length, as the model has it.</summary>
+    /// <summary>Each named column's max length, as the configuration set it.</summary>
     private static Dictionary<string, int?> MaxLengths(IReadOnlyEntityType entity, IReadOnlyDictionary<string, int?> expected) =>
-        expected.Keys.ToDictionary(name => name, name => Property(entity, name).GetMaxLength());
+        expected.Keys.ToDictionary(name => name, name => MaxLengthOf(entity, name));
 
     [Test]
     public void RecordedGameTeamConfiguration_KnownOutcomeAndOneTeamASide()
@@ -25,14 +25,15 @@ public partial class EntityConfigurationUnitTests
             Assert.That(entity.FindCheckConstraint("CK_Recorded_GameTeams_KnownOutcome")!.Sql, Is.EqualTo("Outcome IN (1, 2, 3, 4)"),
                 "Tie, Won, Lost and DidNotFinish");
             Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(RecordedGameTeam.RecordedGameTeamID) }));
-            Assert.That(Property(entity, nameof(RecordedGameTeam.Name)).GetMaxLength(), Is.EqualTo(Team.TeamNameColumnLength));
+            Assert.That(MaxLengthOf(entity, nameof(RecordedGameTeam.Name)), Is.EqualTo(Team.TeamNameColumnLength));
             var byGame = ForeignKeyOf(entity, nameof(RecordedGameTeam.RecordedGame));
             var byTeam = ForeignKeyOf(entity, nameof(RecordedGameTeam.Team));
-            Assert.That((byGame.DeleteBehavior, byTeam.DeleteBehavior, byTeam.IsRequired), Is.EqualTo((DeleteBehavior.Cascade, DeleteBehavior.ClientSetNull, false)),
+            Assert.That((DeleteOf(byGame), DeleteOf(byTeam), RequiredOf(byTeam)),
+                Is.EqualTo(((DeleteBehavior?)DeleteBehavior.Cascade, (DeleteBehavior?)DeleteBehavior.ClientSetNull, (bool?)false)),
                 "A team's deletion clears the link, never the recorded game");
             Assert.That(byTeam.PrincipalToDependent, Is.Null, "A league team doesn't list its recorded sides");
-            Assert.That(IndexOn(entity, nameof(RecordedGameTeam.RecordedGameID), nameof(RecordedGameTeam.Side)).IsUnique, Is.True, "One team a side");
-            Assert.That(IndexOn(entity, nameof(RecordedGameTeam.TeamID)).IsUnique, Is.False);
+            Assert.That(IndexIsUnique(entity, nameof(RecordedGameTeam.RecordedGameID), nameof(RecordedGameTeam.Side)), Is.True, "One team a side");
+            Assert.That(IndexIsUnique(entity, nameof(RecordedGameTeam.TeamID)), Is.False);
         }
     }
 
@@ -46,17 +47,17 @@ public partial class EntityConfigurationUnitTests
             Assert.That(TableOf(entity), Is.EqualTo(("Recorded", "GameParticipants")));
             Assert.That(entity.IsTemporal(), Is.True);
             Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(RecordedGameParticipant.RecordedGameParticipantID) }));
-            var gamertag = Property(entity, nameof(RecordedGameParticipant.Gamertag));
-            Assert.That((gamertag.IsNullable, gamertag.GetMaxLength()), Is.EqualTo((false, (int?)null)), "Xbox.XboxUsers.Gamertag's type, which it is UNION ALLed with");
+            Assert.That((NullableOf(entity, nameof(RecordedGameParticipant.Gamertag)), Property(entity, nameof(RecordedGameParticipant.Gamertag)).GetMaxLength()),
+                Is.EqualTo(((bool?)false, (int?)null)), "Xbox.XboxUsers.Gamertag's type, which it is UNION ALLed with");
             var byGame = ForeignKeyOf(entity, nameof(RecordedGameParticipant.RecordedGame));
             var byTeam = ForeignKeyOf(entity, nameof(RecordedGameParticipant.RecordedGameTeam));
             var byUser = ForeignKeyOf(entity, nameof(RecordedGameParticipant.User));
-            Assert.That((byGame.DeleteBehavior, byTeam.DeleteBehavior, byTeam.IsRequired, byUser.DeleteBehavior),
-                Is.EqualTo((DeleteBehavior.Cascade, DeleteBehavior.ClientSetNull, false, DeleteBehavior.Restrict)),
+            Assert.That((DeleteOf(byGame), DeleteOf(byTeam), RequiredOf(byTeam), DeleteOf(byUser)),
+                Is.EqualTo(((DeleteBehavior?)DeleteBehavior.Cascade, (DeleteBehavior?)DeleteBehavior.ClientSetNull, (bool?)false, (DeleteBehavior?)DeleteBehavior.Restrict)),
                 "One cascade path from the game; a user with games isn't deleted");
-            Assert.That(IndexOn(entity, nameof(RecordedGameParticipant.RecordedGameID), nameof(RecordedGameParticipant.UserID)).IsUnique, Is.True,
+            Assert.That(IndexIsUnique(entity, nameof(RecordedGameParticipant.RecordedGameID), nameof(RecordedGameParticipant.UserID)), Is.True,
                 "A player has one line in a game");
-            Assert.That(IndexOn(entity, nameof(RecordedGameParticipant.UserID)).IsUnique, Is.False);
+            Assert.That(IndexIsUnique(entity, nameof(RecordedGameParticipant.UserID)), Is.False);
         }
     }
 
@@ -87,7 +88,7 @@ public partial class EntityConfigurationUnitTests
             Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(HistoricalSource.HistoricalSourceID) }));
             Assert.That(MaxLengths(entity, lengths), Is.EqualTo(lengths));
             Assert.That(new List<string> { nameof(HistoricalSource.Category), nameof(HistoricalSource.Title), nameof(HistoricalSource.Url) }
-                .Select(name => Property(entity, name).IsNullable), Is.All.False);
+                .Select(name => NullableOf(entity, name)), Is.All.False);
             Assert.That((IsIgnored(entity, nameof(HistoricalSource.IsDownloadable)), IsIgnored(entity, nameof(HistoricalSource.IsImported))),
                 Is.EqualTo((true, true)), "The model's rules, not columns");
         }
@@ -108,8 +109,8 @@ public partial class EntityConfigurationUnitTests
             Assert.That(entity.FindCheckConstraint("CK_Event_HistoricalImportJobs_PayloadOnlyForImports")!.Sql, Is.EqualTo("Payload IS NULL OR Kind = 1"));
             Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(HistoricalImportJob.HistoricalImportJobID) }));
             Assert.That(IsIgnored(entity, nameof(HistoricalImportJob.IsAppliablePreview)), Is.True);
-            Assert.That(Property(entity, nameof(HistoricalImportJob.Stage)).GetMaxLength(), Is.EqualTo(HistoricalImportJob.MaxStageLength));
-            Assert.That(IndexOn(entity, nameof(HistoricalImportJob.Status)).IsUnique, Is.False);
+            Assert.That(MaxLengthOf(entity, nameof(HistoricalImportJob.Stage)), Is.EqualTo(HistoricalImportJob.MaxStageLength));
+            Assert.That(IndexIsUnique(entity, nameof(HistoricalImportJob.Status)), Is.False);
             Assert.That((Property(entity, nameof(HistoricalImportJob.Kind)).GetDefaultValue(), Property(entity, nameof(HistoricalImportJob.Trigger)).GetDefaultValue()),
                 Is.EqualTo((HistoricalImportJobKind.Import, HistoricalImportJobTrigger.Manual)), "Jobs queued before these columns were manual imports");
         }
@@ -129,13 +130,13 @@ public partial class EntityConfigurationUnitTests
             Assert.That(entity.FindCheckConstraint("CK_Event_HistoricalSeasonReviews_ApprovalJobOnlyWhenApproved")!.Sql,
                 Is.EqualTo("ApprovalJobID IS NULL OR Status = 3"));
             Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(HistoricalSeasonReview.HistoricalSeasonReviewID) }));
-            var seasonKey = Property(entity, nameof(HistoricalSeasonReview.SeasonKey));
-            Assert.That((seasonKey.IsNullable, seasonKey.GetMaxLength()), Is.EqualTo((false, HistoricalSeasonReview.MaxSeasonKeyLength)));
-            Assert.That(Property(entity, nameof(HistoricalSeasonReview.SeasonName)).GetMaxLength(), Is.EqualTo(HistoricalSeasonReview.MaxSeasonNameLength));
+            Assert.That((NullableOf(entity, nameof(HistoricalSeasonReview.SeasonKey)), MaxLengthOf(entity, nameof(HistoricalSeasonReview.SeasonKey))),
+                Is.EqualTo(((bool?)false, (int?)HistoricalSeasonReview.MaxSeasonKeyLength)));
+            Assert.That(MaxLengthOf(entity, nameof(HistoricalSeasonReview.SeasonName)), Is.EqualTo(HistoricalSeasonReview.MaxSeasonNameLength));
             var byJob = ForeignKeyOf(entity, nameof(HistoricalSeasonReview.Job));
-            Assert.That((Names(byJob.Properties), byJob.DeleteBehavior),
-                Is.EqualTo((new List<string> { nameof(HistoricalSeasonReview.HistoricalImportJobID) }, DeleteBehavior.Cascade)), "Removed with its job");
-            Assert.That(IndexOn(entity, nameof(HistoricalSeasonReview.Status)).IsUnique, Is.False);
+            Assert.That((ColumnsOf(byJob), DeleteOf(byJob)),
+                Is.EqualTo((new List<string> { nameof(HistoricalSeasonReview.HistoricalImportJobID) }, (DeleteBehavior?)DeleteBehavior.Cascade)), "Removed with its job");
+            Assert.That(IndexIsUnique(entity, nameof(HistoricalSeasonReview.Status)), Is.False);
         }
     }
 
@@ -149,13 +150,15 @@ public partial class EntityConfigurationUnitTests
             Assert.That(TableOf(entity), Is.EqualTo(("Event", "HistoricalSourceSnapshots")));
             Assert.That(entity.IsTemporal(), Is.False);
             Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(HistoricalSourceSnapshot.HistoricalSourceSnapshotID) }));
-            var sha = Property(entity, nameof(HistoricalSourceSnapshot.Sha256));
-            Assert.That((sha.IsNullable, sha.GetMaxLength(), sha.IsFixedLength()), Is.EqualTo((false, 64, (bool?)true)), "A SHA-256 in hex: always 64 characters");
-            Assert.That(Property(entity, nameof(HistoricalSourceSnapshot.HistoricalSourceID)).GetMaxLength(), Is.EqualTo(100));
-            Assert.That(Property(entity, nameof(HistoricalSourceSnapshot.ContentType)).GetMaxLength(), Is.EqualTo(HistoricalSourceSnapshot.MaxContentTypeLength));
-            Assert.That(Property(entity, nameof(HistoricalSourceSnapshot.Content)).IsNullable, Is.False);
-            Assert.That(ForeignKeyOf(entity, nameof(HistoricalSourceSnapshot.Source)).DeleteBehavior, Is.EqualTo(DeleteBehavior.Cascade));
-            Assert.That(IndexOn(entity, nameof(HistoricalSourceSnapshot.HistoricalSourceID), nameof(HistoricalSourceSnapshot.FetchedAt)).IsUnique, Is.False,
+            var sha = nameof(HistoricalSourceSnapshot.Sha256);
+            Assert.That((NullableOf(entity, sha), MaxLengthOf(entity, sha), Property(entity, sha).IsFixedLength()),
+                Is.EqualTo(((bool?)false, (int?)64, (bool?)true)), "A SHA-256 in hex: always 64 characters");
+            Assert.That((NullableOf(entity, nameof(HistoricalSourceSnapshot.HistoricalSourceID)), MaxLengthOf(entity, nameof(HistoricalSourceSnapshot.HistoricalSourceID))),
+                Is.EqualTo(((bool?)false, (int?)100)));
+            Assert.That(MaxLengthOf(entity, nameof(HistoricalSourceSnapshot.ContentType)), Is.EqualTo(HistoricalSourceSnapshot.MaxContentTypeLength));
+            Assert.That(NullableOf(entity, nameof(HistoricalSourceSnapshot.Content)), Is.False);
+            Assert.That(DeleteOf(ForeignKeyOf(entity, nameof(HistoricalSourceSnapshot.Source))), Is.EqualTo(DeleteBehavior.Cascade));
+            Assert.That(IndexIsUnique(entity, nameof(HistoricalSourceSnapshot.HistoricalSourceID), nameof(HistoricalSourceSnapshot.FetchedAt)), Is.False,
                 "A source's snapshots, latest first");
         }
     }
@@ -171,14 +174,16 @@ public partial class EntityConfigurationUnitTests
             Assert.That((TableOf(lookup), TableOf(settings)), Is.EqualTo((("Xbox", "XuidLookups"), ("Event", "HistoricalImportSettings"))));
             Assert.That((lookup.IsTemporal(), settings.IsTemporal()), Is.EqualTo((false, false)));
             Assert.That(KeyOf(lookup), Is.EqualTo(new List<string> { nameof(XuidLookup.UserID) }), "One lookup a user");
-            Assert.That(Property(lookup, nameof(XuidLookup.Error)).GetMaxLength(), Is.EqualTo(200));
+            Assert.That(MaxLengthOf(lookup, nameof(XuidLookup.Error)), Is.EqualTo(200));
             var byUser = ForeignKeyOf(lookup, nameof(XuidLookup.User));
-            Assert.That((byUser.IsUnique, byUser.DeleteBehavior, byUser.DeclaringEntityType.ClrType), Is.EqualTo((true, DeleteBehavior.Cascade, typeof(XuidLookup))));
-            Assert.That(IndexOn(lookup, nameof(XuidLookup.LookedUpAt)).IsUnique, Is.False);
+            Assert.That((ColumnsOf(byUser), byUser.IsUnique, DeleteOf(byUser), byUser.DeclaringEntityType.ClrType),
+                Is.EqualTo((new List<string> { nameof(XuidLookup.UserID) }, true, (DeleteBehavior?)DeleteBehavior.Cascade, typeof(XuidLookup))));
+            Assert.That(IndexIsUnique(lookup, nameof(XuidLookup.LookedUpAt)), Is.False);
             Assert.That(settings.FindCheckConstraint("CK_Event_HistoricalImportSettings_Singleton")!.Sql, Is.EqualTo("HistoricalImportSettingsID = 1"),
                 "One row of settings");
-            Assert.That(Property(settings, nameof(HistoricalImportSettings.HistoricalImportSettingsID)).ValueGenerated, Is.EqualTo(ValueGenerated.Never));
-            Assert.That(Property(settings, nameof(HistoricalImportSettings.LastScheduledRunNote)).GetMaxLength(), Is.EqualTo(300));
+            Assert.That(KeyOf(settings), Is.EqualTo(new List<string> { nameof(HistoricalImportSettings.HistoricalImportSettingsID) }));
+            Assert.That(ValueGeneratedOf(settings, nameof(HistoricalImportSettings.HistoricalImportSettingsID)), Is.EqualTo(ValueGenerated.Never));
+            Assert.That(MaxLengthOf(settings, nameof(HistoricalImportSettings.LastScheduledRunNote)), Is.EqualTo(300));
         }
     }
 }

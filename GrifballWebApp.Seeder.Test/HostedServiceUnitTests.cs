@@ -1,5 +1,4 @@
 using GrifballWebApp.Infrastructure;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using static GrifballWebApp.Seeder.Test.SeederTestData;
@@ -28,13 +27,13 @@ public class HostedServiceUnitTests
     public void DeleteFolder()
     {
         _services?.Dispose();
-        // SQLite pools its connections: closed first, or the file is still open
-        SqliteConnection.ClearAllPools();
         _folder.Delete(recursive: true);
     }
 
+    /// <summary>The test's own database file, unpooled: each connection closes the file, so TearDown can delete it without
+    /// touching the pools of the tests running beside it.</summary>
     private DbContextOptions<GrifballContext> Options() => new DbContextOptionsBuilder<GrifballContext>()
-        .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={Path.Join(_folder.FullName, "grif.db")}").Options;
+        .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={Path.Join(_folder.FullName, "grif.db")};Pooling=False").Options;
 
     /// <summary>The service, on a provider that hands each scope a new context on the test's database.</summary>
     private HostedService Service(string? iconFolder)

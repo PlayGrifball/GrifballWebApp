@@ -23,13 +23,13 @@ public partial class EntityConfigurationUnitTests
             Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(MatchBracketInfo.MatchBracketInfoID) }));
             Assert.That(IsIgnored(entity, nameof(MatchBracketInfo.IsGrandFinal)), Is.True, "Worked out from the bracket");
             var bySeasonMatch = ForeignKeyOf(entity, nameof(MatchBracketInfo.SeasonMatch));
-            Assert.That((Names(bySeasonMatch.Properties), bySeasonMatch.IsUnique), Is.EqualTo((new List<string> { nameof(MatchBracketInfo.SeasonMatchID) }, true)),
+            Assert.That((ColumnsOf(bySeasonMatch), bySeasonMatch.IsUnique), Is.EqualTo((new List<string> { nameof(MatchBracketInfo.SeasonMatchID) }, true)),
                 "A season match has one slot at most");
             var home = ForeignKeyOf(entity, nameof(MatchBracketInfo.HomeTeamPreviousMatchBracketInfo));
             var away = ForeignKeyOf(entity, nameof(MatchBracketInfo.AwayTeamPreviousMatchBracketInfo));
-            Assert.That((Names(home.Properties), home.PrincipalToDependent!.Name),
+            Assert.That((ColumnsOf(home), home.PrincipalToDependent!.Name),
                 Is.EqualTo((new List<string> { nameof(MatchBracketInfo.HomeTeamPreviousMatchBracketInfoID) }, nameof(MatchBracketInfo.InverseHomeTeamPreviousMatchBracketInfo))));
-            Assert.That((Names(away.Properties), away.PrincipalToDependent!.Name),
+            Assert.That((ColumnsOf(away), away.PrincipalToDependent!.Name),
                 Is.EqualTo((new List<string> { nameof(MatchBracketInfo.AwayTeamPreviousMatchBracketInfoID) }, nameof(MatchBracketInfo.InverseAwayTeamNextMatchBracketInfo))));
         }
     }
@@ -48,12 +48,13 @@ public partial class EntityConfigurationUnitTests
             Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(SeriesGame.SeriesGameID) }));
             var byMatch = ForeignKeyOf(entity, nameof(SeriesGame.Match));
             var byRecordedGame = ForeignKeyOf(entity, nameof(SeriesGame.RecordedGame));
-            Assert.That((byMatch.DeleteBehavior, byMatch.IsRequired, byRecordedGame.DeleteBehavior, byRecordedGame.IsRequired),
-                Is.EqualTo((DeleteBehavior.Cascade, false, DeleteBehavior.Cascade, false)), "One or the other, and it goes with its game");
-            Assert.That(Names(ForeignKeyOf(entity, nameof(SeriesGame.SeasonMatch)).Properties), Is.EqualTo(new List<string> { nameof(SeriesGame.SeasonMatchID) }));
-            Assert.That(IndexOn(entity, nameof(SeriesGame.MatchID)).IsUnique, Is.True, "A game is in one series at most");
-            Assert.That(IndexOn(entity, nameof(SeriesGame.RecordedGameID)).IsUnique, Is.True);
-            Assert.That(IndexOn(entity, nameof(SeriesGame.SeasonMatchID), nameof(SeriesGame.GameNumber)).IsUnique, Is.True,
+            Assert.That((DeleteOf(byMatch), RequiredOf(byMatch), DeleteOf(byRecordedGame), RequiredOf(byRecordedGame)),
+                Is.EqualTo(((DeleteBehavior?)DeleteBehavior.Cascade, (bool?)false, (DeleteBehavior?)DeleteBehavior.Cascade, (bool?)false)),
+                "One or the other, and it goes with its game");
+            Assert.That(ColumnsOf(ForeignKeyOf(entity, nameof(SeriesGame.SeasonMatch))), Is.EqualTo(new List<string> { nameof(SeriesGame.SeasonMatchID) }));
+            Assert.That(IndexIsUnique(entity, nameof(SeriesGame.MatchID)), Is.True, "A game is in one series at most");
+            Assert.That(IndexIsUnique(entity, nameof(SeriesGame.RecordedGameID)), Is.True);
+            Assert.That(IndexIsUnique(entity, nameof(SeriesGame.SeasonMatchID), nameof(SeriesGame.GameNumber)), Is.True,
                 "A series has one game 1, one game 2, ...");
         }
     }
@@ -70,11 +71,12 @@ public partial class EntityConfigurationUnitTests
             Assert.That(entity.FindCheckConstraint("CK_Event_Teams_RecordBothOrNeither")!.Sql,
                 Is.EqualTo("(RecordedWins IS NULL AND RecordedLosses IS NULL) OR (RecordedWins IS NOT NULL AND RecordedLosses IS NOT NULL)"));
             Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(Team.TeamID) }));
-            Assert.That(Property(entity, nameof(Team.TeamName)).GetMaxLength(), Is.EqualTo(Team.TeamNameColumnLength));
+            Assert.That(MaxLengthOf(entity, nameof(Team.TeamName)), Is.EqualTo(Team.TeamNameColumnLength));
             var byCaptain = ForeignKeyOf(entity, nameof(Team.Captain));
-            Assert.That((Names(byCaptain.Properties), byCaptain.IsUnique, byCaptain.DeleteBehavior),
-                Is.EqualTo((new List<string> { nameof(Team.CaptainID) }, true, DeleteBehavior.NoAction)), "A player captains one team at most");
-            Assert.That(IndexOn(entity, nameof(Team.TeamName), nameof(Team.SeasonID)).IsUnique, Is.True, "A team name is unique in its season");
+            Assert.That((ColumnsOf(byCaptain), byCaptain.IsUnique, DeleteOf(byCaptain)),
+                Is.EqualTo((new List<string> { nameof(Team.CaptainID) }, true, (DeleteBehavior?)DeleteBehavior.NoAction)), "A player captains one team at most");
+            Assert.That(ColumnsOf(ForeignKeyOf(entity, nameof(Team.Season))), Is.EqualTo(new List<string> { nameof(Team.SeasonID) }));
+            Assert.That(IndexIsUnique(entity, nameof(Team.TeamName), nameof(Team.SeasonID)), Is.True, "A team name is unique in its season");
             Assert.That((IsIgnored(entity, nameof(Team.Picks)), IsIgnored(entity, nameof(Team.IsRecordArchived))), Is.EqualTo((true, true)),
                 "Worked out from the roster and the record");
         }
@@ -94,9 +96,9 @@ public partial class EntityConfigurationUnitTests
             Assert.That(entity.FindCheckConstraint("CK_Event_SeasonSignups_AssistanceOnlyForCaptains")!.Sql,
                 Is.EqualTo("CAST(RequiresAssistanceDrafting AS INT) = 0 OR CAST(WillCaptain AS INT) = 1"));
             Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(SeasonSignup.SeasonSignupID) }));
-            Assert.That(IndexOn(entity, nameof(SeasonSignup.UserID), nameof(SeasonSignup.SeasonID)).IsUnique, Is.True, "One signup a user a season");
-            Assert.That(Names(ForeignKeyOf(entity, nameof(SeasonSignup.Season)).Properties), Is.EqualTo(new List<string> { nameof(SeasonSignup.SeasonID) }));
-            Assert.That(Names(ForeignKeyOf(entity, nameof(SeasonSignup.User)).Properties), Is.EqualTo(new List<string> { nameof(SeasonSignup.UserID) }));
+            Assert.That(IndexIsUnique(entity, nameof(SeasonSignup.UserID), nameof(SeasonSignup.SeasonID)), Is.True, "One signup a user a season");
+            Assert.That(ColumnsOf(ForeignKeyOf(entity, nameof(SeasonSignup.Season))), Is.EqualTo(new List<string> { nameof(SeasonSignup.SeasonID) }));
+            Assert.That(ColumnsOf(ForeignKeyOf(entity, nameof(SeasonSignup.User))), Is.EqualTo(new List<string> { nameof(SeasonSignup.UserID) }));
         }
     }
 
@@ -111,12 +113,12 @@ public partial class EntityConfigurationUnitTests
             Assert.That((TableOf(vodTeam), TableOf(teamPlayer)), Is.EqualTo((("Event", "VodTeams"), ("Event", "TeamPlayers"))));
             Assert.That((vodTeam.IsTemporal(), teamPlayer.IsTemporal()), Is.EqualTo((true, true)));
             Assert.That(KeyOf(vodTeam), Is.EqualTo(new List<string> { nameof(VodTeam.VodID), nameof(VodTeam.TeamID) }));
-            Assert.That((ForeignKeyOf(vodTeam, nameof(VodTeam.Vod)).DeleteBehavior, ForeignKeyOf(vodTeam, nameof(VodTeam.Team)).DeleteBehavior),
-                Is.EqualTo((DeleteBehavior.ClientCascade, DeleteBehavior.Cascade)), "Only one path cascades in the database");
+            Assert.That((DeleteOf(ForeignKeyOf(vodTeam, nameof(VodTeam.Vod))), DeleteOf(ForeignKeyOf(vodTeam, nameof(VodTeam.Team)))),
+                Is.EqualTo(((DeleteBehavior?)DeleteBehavior.ClientCascade, (DeleteBehavior?)DeleteBehavior.Cascade)), "Only one path cascades in the database");
             Assert.That(KeyOf(teamPlayer), Is.EqualTo(new List<string> { nameof(TeamPlayer.TeamPlayerID) }));
-            Assert.That(IndexOn(teamPlayer, nameof(TeamPlayer.UserID), nameof(TeamPlayer.TeamID)).IsUnique, Is.True, "On a team once");
-            Assert.That(Names(ForeignKeyOf(teamPlayer, nameof(TeamPlayer.Team)).Properties), Is.EqualTo(new List<string> { nameof(TeamPlayer.TeamID) }));
-            Assert.That(Names(ForeignKeyOf(teamPlayer, nameof(TeamPlayer.User)).Properties), Is.EqualTo(new List<string> { nameof(TeamPlayer.UserID) }));
+            Assert.That(IndexIsUnique(teamPlayer, nameof(TeamPlayer.UserID), nameof(TeamPlayer.TeamID)), Is.True, "On a team once");
+            Assert.That(ColumnsOf(ForeignKeyOf(teamPlayer, nameof(TeamPlayer.Team))), Is.EqualTo(new List<string> { nameof(TeamPlayer.TeamID) }));
+            Assert.That(ColumnsOf(ForeignKeyOf(teamPlayer, nameof(TeamPlayer.User))), Is.EqualTo(new List<string> { nameof(TeamPlayer.UserID) }));
         }
     }
 
@@ -135,13 +137,13 @@ public partial class EntityConfigurationUnitTests
             Assert.That(KeyOf(season), Is.EqualTo(new List<string> { nameof(SeasonAvailability.SeasonID), nameof(SeasonAvailability.AvailabilityOptionID) }));
             Assert.That(KeyOf(signup), Is.EqualTo(new List<string> { nameof(SignupAvailability.SeasonSignupID), nameof(SignupAvailability.AvailabilityOptionID) }));
             Assert.That(KeyOf(team), Is.EqualTo(new List<string> { nameof(TeamAvailability.TeamID), nameof(TeamAvailability.AvailabilityOptionID) }));
-            Assert.That(Names(ForeignKeyOf(season, nameof(SeasonAvailability.AvailabilityOption)).Properties),
+            Assert.That(ColumnsOf(ForeignKeyOf(season, nameof(SeasonAvailability.AvailabilityOption))),
                 Is.EqualTo(new List<string> { nameof(SeasonAvailability.AvailabilityOptionID) }));
             Assert.That(ForeignKeyOf(signup, nameof(SignupAvailability.AvailabilityOption)).PrincipalToDependent, Is.Null,
                 "An option doesn't list the signups that chose it");
-            Assert.That(Names(ForeignKeyOf(signup, nameof(SignupAvailability.SeasonSignup)).Properties),
+            Assert.That(ColumnsOf(ForeignKeyOf(signup, nameof(SignupAvailability.SeasonSignup))),
                 Is.EqualTo(new List<string> { nameof(SignupAvailability.SeasonSignupID) }));
-            Assert.That(Names(ForeignKeyOf(team, nameof(TeamAvailability.Team)).Properties), Is.EqualTo(new List<string> { nameof(TeamAvailability.TeamID) }));
+            Assert.That(ColumnsOf(ForeignKeyOf(team, nameof(TeamAvailability.Team))), Is.EqualTo(new List<string> { nameof(TeamAvailability.TeamID) }));
         }
     }
 }

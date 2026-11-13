@@ -21,6 +21,7 @@ public class AuditInterceptorUnitTests
     private sealed class Row : AuditableEntity
     {
         public int RowID { get; set; }
+        public string? Note { get; set; }
     }
 
     private sealed class AuditContext() : DbContext(new DbContextOptionsBuilder<AuditContext>().UseSqlServer("Server=never-connected").Options)
@@ -71,9 +72,9 @@ public class AuditInterceptorUnitTests
         using var context = new AuditContext();
         var added = Added(context);
         var modified = Saved(context, 1, EntityState.Modified);
-        var interceptor = new AuditInterceptor(new CurrentUser(EditorID));
+        var user = new CurrentUser(EditorID);
 
-        var result = interceptor.SavingChanges(Saving(context), default);
+        var result = new AuditInterceptor(user).SavingChanges(Saving(context), default);
 
         using (Assert.EnterMultipleScope())
         {
@@ -85,6 +86,28 @@ public class AuditInterceptorUnitTests
             Assert.That(modified.ModifiedByID, Is.EqualTo(EditorID));
             Assert.That(modified.ModifiedAt, Is.EqualTo(added.CreatedAt), "One time for the whole save");
             Assert.That(modified.ModifiedAt, Is.Not.EqualTo(Earlier));
+            Assert.That(user.Asked, Is.EqualTo(1), "The user is asked once a save, not once a row");
+        }
+    }
+
+    // How a real save reaches it: a tracked row edited, its state never set by hand. EF calls the interceptor before its
+    // own DetectChanges, so the interceptor's reading of the tracker has to find the edit itself.
+    [Test]
+    public void SavingChanges_StampsATrackedRowEditedInPlace()
+    {
+        using var context = new AuditContext();
+        var edited = Saved(context, 1, EntityState.Unchanged);
+        var untouched = Saved(context, 2, EntityState.Unchanged);
+        edited.Note = "renamed";
+
+        new AuditInterceptor(new CurrentUser(EditorID)).SavingChanges(Saving(context), default);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(context.Entry(edited).State, Is.EqualTo(EntityState.Modified), "The edit is found");
+            Assert.That((edited.ModifiedByID, edited.CreatedByID, edited.CreatedAt), Is.EqualTo(((int?)EditorID, (int?)CreatorID, Earlier)));
+            Assert.That(edited.ModifiedAt, Is.Not.EqualTo(Earlier), "Stamped with the save's time");
+            Assert.That((untouched.ModifiedByID, untouched.ModifiedAt), Is.EqualTo(((int?)CreatorID, Earlier)), "Only the edited row");
         }
     }
 
