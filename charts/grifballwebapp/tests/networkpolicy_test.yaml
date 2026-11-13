@@ -82,6 +82,22 @@ tests:
     asserts:
       - lengthEqual: { path: spec.ingress, count: 1 }
 
+  - it: refuses an empty networkPolicy.frontend.from when the hubs and the API go straight to the backend
+    template: templates/networkpolicy.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example }
+    asserts:
+      - failedTemplate:
+          errorPattern: "networkPolicy.frontend.from"
+
+  - it: refuses an empty networkPolicy.frontend.from with only the API going straight to the backend
+    template: templates/networkpolicy.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example, hubs: { enabled: false } }
+    asserts:
+      - failedTemplate:
+          errorPattern: "networkPolicy.frontend.from"
+
   - it: lets the backend reach SQL Server, HTTPS on the internet and the collector's port
     template: templates/networkpolicy.yaml
     documentIndex: 1

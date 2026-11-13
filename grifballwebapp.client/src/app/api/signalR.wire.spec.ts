@@ -182,8 +182,11 @@ describe('SignalRService over the SignalR wire protocol', () => {
 });
 
 describe('SignalRService where WebSockets don\'t get through', () => {
-  it('falls back to long polling when the server offers no WebSockets', async () => {
-    const hub = new FakeTeamsHub(['LongPolling']);
+  let hub: FakeTeamsHub;
+  let service: SignalRService;
+
+  beforeEach(() => {
+    hub = new FakeTeamsHub(['LongPolling']);
     const withUrl = HubConnectionBuilder.prototype.withUrl as (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) => HubConnectionBuilder;
     spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callFake(function (this: HubConnectionBuilder, url: string, options: IHttpConnectionOptions) {
       return withUrl.call(this, url, { ...options, httpClient: hub.http, WebSocket: hub.WebSocket });
@@ -191,14 +194,28 @@ describe('SignalRService where WebSockets don\'t get through', () => {
     spyOn(console, 'log');
     spyOn(console, 'info');
     spyOn(console, 'error');
-    const service = TestBed.inject(SignalRService);
+    service = TestBed.inject(SignalRService);
+  });
 
-    // The negotiate, then the first poll by the connection's token: no WebSocket at all
+  afterEach(async () => {
+    await service.hubConnection.stop();
+  });
+
+  it('falls back to long polling when the server offers no WebSockets, completes the handshake and delivers over it', async () => {
+    const locked: number[] = [];
+    service.lockCaptains(seasonID => locked.push(seasonID));
+
+    // The negotiate, then the connect poll by the connection's token: no WebSocket at all.
     await waitFor(() => hub.httpRequests.some(r => r.method === 'GET'), 'a poll');
     const poll = hub.httpRequests.find(r => r.method === 'GET')!;
     expect(new URL(poll.url!, location.href).searchParams.get('id')).toBe('token');
     expect(hub.sockets).toEqual([]);
 
-    await service.hubConnection.stop();
+    await waitFor(() => service.hubConnection.state === HubConnectionState.Connected, 'the connection');
+    expect(hub.handshakes).toContain({ protocol: 'json', version: 1 });
+
+    hub.invoke('LockCaptains', 9);
+    await waitFor(() => locked.length === 1, 'the invocation, delivered over the poll');
+    expect(locked).toEqual([9]);
   });
 });

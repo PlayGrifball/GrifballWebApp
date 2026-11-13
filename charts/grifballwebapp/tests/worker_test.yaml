@@ -24,6 +24,15 @@ tests:
       - failedTemplate:
           errorPattern: "backend.replicas above 1 needs worker.enabled"
 
+  - it: refuses more than one API pod without the sticky hubs route (SignalR negotiates again)
+    template: templates/backend.yaml
+    set:
+      worker.enabled: true
+      backend.replicas: 2
+    asserts:
+      - failedTemplate:
+          errorPattern: "ingressRoute.enabled and ingressRoute.hubs.enabled"
+
   - it: runs one worker pod by default, recreated, as App:Role worker, without the state volume
     template: templates/worker.yaml
     documentIndex: 0
