@@ -566,6 +566,8 @@ public class TelemetryQueryServiceTests
     private static readonly string[] expectedArray2 = new[] { "grif-backend-1", "grif-worker-1" };
     private static readonly string[] expectedArray3 = new[] { "432816159241389fd3a112f2e194cb12", "0556214b423d5a640fb17a50481aa1fd" };
     private static readonly string[] expectedArray4 = new[] { "GET Season/Get", "SELECT" };
+    private static readonly string[] EdgeTraceSpans = ["router", "GET Season/Get", "SELECT"];
+    private static readonly string[] EdgeServiceNames = ["traefik", "edge_processing", "origin_fetch"];
 
     [Test]
     public async Task Trace_keeps_this_services_spans_only_with_hex_ids()
@@ -625,7 +627,7 @@ public class TelemetryQueryServiceTests
         var router = trace!.Spans[0];
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(trace.Spans.Select(s => s.Name), Is.EqualTo(new[] { "router", "GET Season/Get", "SELECT" }));
+            Assert.That(trace.Spans.Select(s => s.Name), Is.EqualTo(EdgeTraceSpans));
             Assert.That(trace.Start, Is.EqualTo(DateTimeOffset.FromUnixTimeMilliseconds(900)), "the trace starts with the ingress");
             Assert.That(trace.DurationMs, Is.EqualTo(200));
             Assert.That(router.Service, Is.EqualTo("traefik"));
@@ -642,7 +644,7 @@ public class TelemetryQueryServiceTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(new TelemetryQueryOptions { EdgeServices = "traefik, edge_processing,,origin_fetch " }.EdgeServiceNames,
-                Is.EquivalentTo(new[] { "traefik", "edge_processing", "origin_fetch" }));
+                Is.EquivalentTo(EdgeServiceNames));
             Assert.That(new TelemetryQueryOptions().EdgeServiceNames, Is.Empty);
         }
     }
