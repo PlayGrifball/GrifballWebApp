@@ -6,7 +6,7 @@ import { RouterLink } from '@angular/router';
 import { TelemetryService } from '@api/services/telemetry.service';
 import { LOG_LEVELS, type LogLevel } from '../../api/telemetryQueries';
 import type { LogEntryDto, SpanDto, TraceDto } from '@api/models';
-import { problemText } from '../../../../shared/errorText';
+import { problemText } from '@shared/errorText';
 import { formatValue, LineChartComponent } from './lineChart.component';
 
 export type TelemetryTab = 'overview' | 'logs' | 'traces';

@@ -5,7 +5,7 @@ import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { TeamHistoryComponent } from './teamHistory.component';
 import type { TeamHistoryDto } from '@api/models';
-import { seasonInfo } from '../../../shared/testing/seasonInfo.stub';
+import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 
 describe('TeamHistoryComponent', () => {
   let fixture: ComponentFixture<TeamHistoryComponent>;

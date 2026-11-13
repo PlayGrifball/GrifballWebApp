@@ -6,7 +6,7 @@ import { SeasonSettings } from '../api/seasonSettings';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 
-import { ToDatePipe } from '../../../shared/toDate.pipe';
+import { ToDatePipe } from '@shared/toDate.pipe';
 @Component({
     selector: 'app-season-manager',
     imports: [

@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { fromApiDate } from '../../../shared/apiDates';
+import { fromApiDate } from '@shared/apiDates';
 
 /** One Halo Infinite match with every stat pulled for it (GET /api/matches/{matchID}). */
 export interface MatchDetailsDto {

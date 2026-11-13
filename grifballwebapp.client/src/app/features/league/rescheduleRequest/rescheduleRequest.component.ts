@@ -7,7 +7,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Location } from '@angular/common';
-import { errorText } from '../../../shared/errorText';
+import { errorText } from '@shared/errorText';
 import { RescheduleService } from '@api/services/reschedule.service';
 import type { RescheduleRequestDto } from '@api/models';
 

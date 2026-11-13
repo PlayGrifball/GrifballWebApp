@@ -1,10 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { errorText } from '../../../../shared/errorText';
+import { errorText } from '@shared/errorText';
 import { ChangeDetectionStrategy, Component, computed, effect, input, signal, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { parseUser } from '../userResponseDto';
-import { SearchBoxComponent } from '../../../../shared/searchBox/searchBox.component';
+import { SearchBoxComponent } from '@shared/searchBox/searchBox.component';
 import { UserDetailComponent } from './userDetail/userDetail.component';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { FormsModule } from '@angular/forms';

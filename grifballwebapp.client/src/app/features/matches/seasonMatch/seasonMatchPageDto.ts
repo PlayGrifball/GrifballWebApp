@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { fromApiDate } from "../../../shared/apiDates";
+import { fromApiDate } from "@shared/apiDates";
 
 export interface SeasonMatchGameParticipantDto {
   userID: number | null;

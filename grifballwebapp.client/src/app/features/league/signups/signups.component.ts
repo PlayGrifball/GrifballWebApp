@@ -6,10 +6,10 @@ import type { SignupResponseDto } from '@api/models';
 import { RouterLink } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../season/seasonTabs/seasonTabs.component';
-import { DataNoticeComponent } from '../../../shared/dataNotice/dataNotice.component';
+import { DataNoticeComponent } from '@shared/dataNotice/dataNotice.component';
 import { missing, SeasonSummaryService } from '../season/seasonSummary';
 import type { SeasonSummaryDto } from '@api/models';
-import { whileCurrent } from '../../../shared/whileCurrent';
+import { whileCurrent } from '@shared/whileCurrent';
 
 @Component({
     selector: 'app-signups',

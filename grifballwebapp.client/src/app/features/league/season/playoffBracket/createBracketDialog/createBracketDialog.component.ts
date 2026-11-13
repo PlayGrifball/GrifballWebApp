@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { Subject } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { ErrorMessageComponent } from '../../../../../shared/validation/errorMessage.component';
+import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';

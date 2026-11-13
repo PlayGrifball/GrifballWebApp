@@ -7,7 +7,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Observable } from 'rxjs';
 import { VodService } from '@api/services/vod.service';
 import type { LinkVodRequest, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto } from '@api/models';
-import { problemText } from '../../../../../shared/errorText';
+import { problemText } from '@shared/errorText';
 
 /** What the matcher suggested for a VOD, "Spring League 2024 · Alpha, Bravo · its match", or null for nothing. */
 export function suggestion(vod: VodReviewDto): string | null {

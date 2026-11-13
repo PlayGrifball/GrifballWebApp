@@ -8,11 +8,11 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
 import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDialog.component';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { AccountService } from '../../../../core/auth/account.service';
+import { AccountService } from '@core/auth/account.service';
 import { Locale } from 'brackets-viewer/dist/lang';
-import { loadBracketsViewer } from '../../../../shared/loadBracketsViewer';
+import { loadBracketsViewer } from '@shared/loadBracketsViewer';
 import type { SeasonChampionDto } from '@api/models';
-import { whileCurrent } from '../../../../shared/whileCurrent';
+import { whileCurrent } from '@shared/whileCurrent';
 import { BracketsService } from '@api/services/brackets.service';
 
 @Component({

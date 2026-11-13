@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { fromApiDate } from "../../../shared/apiDates";
+import { fromApiDate } from "@shared/apiDates";
 import type { UserResponseDto as ApiUserResponseDto } from '@api/models';
 
 /** A user as the edit page holds them: the API's UserResponseDto, its lockout end as a Luxon DateTime. */

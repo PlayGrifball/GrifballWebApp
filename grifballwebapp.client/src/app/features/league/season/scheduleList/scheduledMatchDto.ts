@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { fromRequiredApiDate } from "../../../../shared/apiDates";
+import { fromRequiredApiDate } from "@shared/apiDates";
 
 export interface ScheduledMatchDto {
     seasonMatchID: number,

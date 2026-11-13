@@ -4,7 +4,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { Notifier } from '../../shared/notifier.service';
+import { Notifier } from '@shared/notifier.service';
 import { AccountService, LEGACY_STORAGE_KEYS, ME_URL, USER_STATE_KEY } from './account.service';
 import { MetaInfoResponse } from './accessTokenResponse';
 import { ANTIFORGERY_URL, AuthSession } from './authSession.service';

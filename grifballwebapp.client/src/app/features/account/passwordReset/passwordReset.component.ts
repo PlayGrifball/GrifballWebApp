@@ -7,9 +7,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { UsePasswordResetLinkRequestDto } from '@api/models';
-import { ErrorMessageComponent } from '../../../shared/validation/errorMessage.component';
-import { AccountService } from '../../../core/auth/account.service';
-import { errorText } from '../../../shared/errorText';
+import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
+import { AccountService } from '@core/auth/account.service';
+import { errorText } from '@shared/errorText';
 
 @Component({
   selector: 'app-password-reset',

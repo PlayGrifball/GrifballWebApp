@@ -12,13 +12,13 @@ import { PlayoffBracketComponent } from './playoffBracket/playoffBracket.compone
 import { TeamStandingsComponent } from './teamStandings/teamStandings.component';
 import { SeasonThisWeekComponent } from './seasonThisWeek/seasonThisWeek.component';
 import { input, output } from '@angular/core';
-import { SeasonEvent } from '../../../shared/seasonEvents';
+import { SeasonEvent } from '@shared/seasonEvents';
 import { SeasonSummaryService } from './seasonSummary';
 import type { SeasonChampionDto, SeasonSummaryDto } from '@api/models';
-import { seasonInfo } from '../../../shared/testing/seasonInfo.stub';
+import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
-import { VodListComponent } from '../../../shared/vodList/vodList.component';
-import { StubVodListComponent } from '../../../shared/vodList/vodList.stub';
+import { VodListComponent } from '@shared/vodList/vodList.component';
+import { StubVodListComponent } from '@shared/vodList/vodList.stub';
 
 /** A season as GetSeasonSummary answers: one played in the app unless changed. */
 function seasonSummary(id: number, changes: Partial<SeasonSummaryDto> = {}): SeasonSummaryDto {

@@ -4,10 +4,10 @@ import { RouterLink } from '@angular/router';
 import type { LetterDto } from '@api/models';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
-import { DataNoticeComponent } from '../../../../shared/dataNotice/dataNotice.component';
+import { DataNoticeComponent } from '@shared/dataNotice/dataNotice.component';
 import { missing, SeasonSummaryService } from '../seasonSummary';
 import type { SeasonSummaryDto } from '@api/models';
-import { whileCurrent } from '../../../../shared/whileCurrent';
+import { whileCurrent } from '@shared/whileCurrent';
 import { GradesService } from '@api/services/grades.service';
 
 @Component({

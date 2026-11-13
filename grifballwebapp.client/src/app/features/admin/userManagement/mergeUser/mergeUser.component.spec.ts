@@ -4,7 +4,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MergeUserComponent } from './mergeUser.component';
 import { UserResponseDto } from '../userResponseDto';
-import { noMaterialAnimations } from '../../../../shared/testing/noMaterialAnimations';
+import { noMaterialAnimations } from '@shared/testing/noMaterialAnimations';
 
 // A user with nothing set beyond its ID and the names made from it
 const user = (id: number): UserResponseDto => ({

@@ -1,12 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RegisterComponent } from './register.component';
-import { AccountService } from '../../../core/auth/account.service';
+import { AccountService } from '@core/auth/account.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { of, throwError } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { noMaterialAnimations } from '../../../shared/testing/noMaterialAnimations';
+import { noMaterialAnimations } from '@shared/testing/noMaterialAnimations';
 
 describe('RegisterComponent', () => {
   let component: RegisterComponent;

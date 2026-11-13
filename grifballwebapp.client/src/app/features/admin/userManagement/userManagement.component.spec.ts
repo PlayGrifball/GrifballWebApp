@@ -1,17 +1,17 @@
-import { TableComponent } from '../../../shared/table/table.component';
+import { TableComponent } from '@shared/table/table.component';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { By } from '@angular/platform-browser';
 import { DateTime } from 'luxon';
 import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { UserManagementComponent } from './userManagement.component';
-import { AccountService } from '../../../core/auth/account.service';
+import { AccountService } from '@core/auth/account.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { of, throwError } from 'rxjs';
 import { UserResponseDto } from './userResponseDto';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { noMaterialAnimations } from '../../../shared/testing/noMaterialAnimations';
+import { noMaterialAnimations } from '@shared/testing/noMaterialAnimations';
 
 describe('UserManagementComponent', () => {
   let component: UserManagementComponent;

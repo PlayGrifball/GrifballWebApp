@@ -8,10 +8,10 @@ import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { MatchDto, parseTeamMatch, TeamComponent } from './team.component';
 import type { TeamDto } from '@api/models';
-import { seasonInfo } from '../../../../shared/testing/seasonInfo.stub';
+import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
-import { VodListComponent } from '../../../../shared/vodList/vodList.component';
-import { StubVodListComponent } from '../../../../shared/vodList/vodList.stub';
+import { VodListComponent } from '@shared/vodList/vodList.component';
+import { StubVodListComponent } from '@shared/vodList/vodList.stub';
 
 /** The season's player stats table (tested on its own): here only what the team page gives it and reads back. */
 @Component({ selector: 'app-season-player-stats', template: '' })

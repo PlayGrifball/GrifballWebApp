@@ -4,17 +4,17 @@ import { EventOrganizerService } from '@api/services/event-organizer.service';
 import { SeasonSettingsApiService } from '../api/seasonSettingsApi.service';
 import { SeasonSettings } from '../api/seasonSettings';
 import type { GameVersionOptionDto, LeagueOptionDto } from '@api/models';
-import { seasonFormats } from '../../../shared/seasonFormats';
+import { seasonFormats } from '@shared/seasonFormats';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatButtonModule } from '@angular/material/button';
-import { ErrorMessageComponent } from '../../../shared/validation/errorMessage.component';
+import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
 import { MtxDatetimepickerModule, } from '@ng-matero/extensions/datetimepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSelectModule } from '@angular/material/select';
-import { provideDatePickers } from '../../../shared/datePickers';
-import { whileCurrent } from '../../../shared/whileCurrent';
+import { provideDatePickers } from '@shared/datePickers';
+import { whileCurrent } from '@shared/whileCurrent';
 
 /** A new season: in the main league, its game still to choose. */
 const newSeason = (): SeasonSettings => ({ leagueID: 1, gameVersionID: null, division: null, format: 'LeagueSeason', copyFromSeasonID: null } as SeasonSettings);

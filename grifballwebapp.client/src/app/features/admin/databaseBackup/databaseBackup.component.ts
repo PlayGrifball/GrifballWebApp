@@ -7,7 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { errorText } from '../../../shared/errorText';
+import { errorText } from '@shared/errorText';
 import { BackupService } from '@api/services/backup.service';
 import type { BackupDownloadStatus, BackupExportStatus, BackupInfoDto } from '@api/models';
 

@@ -7,16 +7,16 @@ import { PlayoffBracketComponent } from './playoffBracket/playoffBracket.compone
 import { TeamStandingsComponent } from './teamStandings/teamStandings.component';
 import { SeasonTabsComponent } from './seasonTabs/seasonTabs.component';
 import { SeasonThisWeekComponent } from './seasonThisWeek/seasonThisWeek.component';
-import { SeasonEvent, signupsOpen } from '../../../shared/seasonEvents';
-import { pageNow } from '../../../shared/pageNow';
-import { BackfilledBannerComponent, DataNoticeComponent } from '../../../shared/dataNotice/dataNotice.component';
+import { SeasonEvent, signupsOpen } from '@shared/seasonEvents';
+import { pageNow } from '@shared/pageNow';
+import { BackfilledBannerComponent, DataNoticeComponent } from '@shared/dataNotice/dataNotice.component';
 import { missing, SeasonSummaryService } from './seasonSummary';
 import type { SeasonSummaryDto } from '@api/models';
-import { seasonFormatLabel } from '../../../shared/seasonFormats';
+import { seasonFormatLabel } from '@shared/seasonFormats';
 import { SeasonChampionsComponent } from './seasonChampions/seasonChampions.component';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
-import { VodListComponent } from '../../../shared/vodList/vodList.component';
-import { whileCurrent } from '../../../shared/whileCurrent';
+import { VodListComponent } from '@shared/vodList/vodList.component';
+import { whileCurrent } from '@shared/whileCurrent';
 
 /** The sections shown on the season page itself (the other tabs are their own pages). */
 export type SeasonView = 'overview' | 'schedule' | 'bracket';

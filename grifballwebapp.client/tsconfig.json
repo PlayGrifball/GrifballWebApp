@@ -23,7 +23,10 @@
     "paths": {
       "@api/*": ["./src/generated/api/*"],
       // The typed SignalR client (TypedSignalR.Client.TypeScript, on the models above: the typed-signalr CI job)
-      "@signalr/*": ["./src/generated/signalr/*"]
+      "@signalr/*": ["./src/generated/signalr/*"],
+      // The app's core and shared code, as features (and each other) import them (src/app/core, src/app/shared)
+      "@core/*": ["./src/app/core/*"],
+      "@shared/*": ["./src/app/shared/*"]
     }
   },
   "angularCompilerOptions": {

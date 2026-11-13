@@ -9,8 +9,8 @@ import { GamertagClaimsService } from '@api/services/gamertag-claims.service';
 import { GAMERTAG_CLAIM_STATUS } from '@api/models/gamertag-claim-status-array';
 import type { DuplicateSuggestionDto, GamertagClaimDto, GamertagClaimStatus } from '@api/models';
 import type { GamertagClaimKind } from '../../api/gamertagClaims';
-import { problemText } from '../../../../shared/errorText';
-import { SeasonLinksComponent } from '../../../../shared/seasonLinks/seasonLinks.component';
+import { problemText } from '@shared/errorText';
+import { SeasonLinksComponent } from '@shared/seasonLinks/seasonLinks.component';
 
 // Re-exported for this page's own spec, which imports it from here (kept, to not churn an unrelated import).
 export { problemText };

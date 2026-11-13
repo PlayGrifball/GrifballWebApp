@@ -6,13 +6,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
 import { RegisterFormModel } from './registerFormModel';
-import { ErrorMessageComponent } from '../../../shared/validation/errorMessage.component';
-import { RegexMatchValidValidatorDirective } from '../../../shared/validation/directives/regexMatchValidValidatorDirective.directive';
-import { MatchFieldsValidatorDirective } from '../../../shared/validation/directives/matchFieldsValidator.directive';
+import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
+import { RegexMatchValidValidatorDirective } from '@shared/validation/directives/regexMatchValidValidatorDirective.directive';
+import { MatchFieldsValidatorDirective } from '@shared/validation/directives/matchFieldsValidator.directive';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { AccountService } from '../../../core/auth/account.service';
+import { AccountService } from '@core/auth/account.service';
 import { HttpErrorResponse } from '@angular/common/http';
-import { errorText } from '../../../shared/errorText';
+import { errorText } from '@shared/errorText';
 
 @Component({
     selector: 'app-register',

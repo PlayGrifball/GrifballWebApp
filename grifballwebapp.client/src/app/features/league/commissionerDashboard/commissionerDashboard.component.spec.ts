@@ -6,7 +6,7 @@ import { provideRouter } from '@angular/router';
 import { of, Subject } from 'rxjs';
 
 import { CommissionerDashboardComponent, CommissionerDashboardDto, RescheduleDto } from './commissionerDashboard.component';
-import { noMaterialAnimations } from '../../../shared/testing/noMaterialAnimations';
+import { noMaterialAnimations } from '@shared/testing/noMaterialAnimations';
 
 describe('CommissionerDashboardComponent', () => {
   let component: CommissionerDashboardComponent;

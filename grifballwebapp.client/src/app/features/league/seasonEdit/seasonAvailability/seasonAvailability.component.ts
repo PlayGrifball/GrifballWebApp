@@ -8,7 +8,7 @@ import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { DateTime } from 'luxon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { provideDatePickers } from '../../../../shared/datePickers';
+import { provideDatePickers } from '@shared/datePickers';
 import { RouterLink } from '@angular/router';
 import { AvailabilityService } from '@api/services/availability.service';
 import type { AvailabilityTimeslotDto, DayOfWeek, SeasonAvailabilityDto } from '@api/models';

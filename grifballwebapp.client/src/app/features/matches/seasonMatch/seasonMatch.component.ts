@@ -5,27 +5,27 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterModule } from '@angular/router';
 import { parseSeasonMatchPage, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { BoxScoreComponent } from './boxScore/boxScore.component';
-import { ErrorMessageComponent } from '../../../shared/validation/errorMessage.component';
+import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
-import { RegexMatchValidValidatorDirective } from '../../../shared/validation/directives/regexMatchValidValidatorDirective.directive';
+import { RegexMatchValidValidatorDirective } from '@shared/validation/directives/regexMatchValidValidatorDirective.directive';
 import type { PossibleMatchDto, PossiblePlayerDto } from '@api/models';
 import { MatTableModule } from '@angular/material/table';
-import { AccountService } from '../../../core/auth/account.service';
+import { AccountService } from '@core/auth/account.service';
 import { map, Observable, Subscription, switchMap, takeWhile, timer } from 'rxjs';
 import type { OnDemandJobStatusDto } from '@api/models';
-import { nullWhenNotFound } from '../../../core/http/nullWhenNotFound';
+import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { SeasonMatchService } from '@api/services/season-match.service';
 import { TeamService } from '@api/services/team.service';
 
-import { ToDatePipe } from '../../../shared/toDate.pipe';
-import { errorText } from '../../../shared/errorText';
+import { ToDatePipe } from '@shared/toDate.pipe';
+import { errorText } from '@shared/errorText';
 import type { TeamPagePlayerDto } from '@api/models';
-import { provideDatePickers } from '../../../shared/datePickers';
-import { VodListComponent } from '../../../shared/vodList/vodList.component';
+import { provideDatePickers } from '@shared/datePickers';
+import { VodListComponent } from '@shared/vodList/vodList.component';
 import { GameSlot, ManualGamesComponent, slotChoices } from './manualGames/manualGames.component';
 
 /** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */

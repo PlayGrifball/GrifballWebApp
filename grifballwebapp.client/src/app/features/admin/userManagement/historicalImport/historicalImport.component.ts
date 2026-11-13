@@ -7,7 +7,7 @@ import { RouterLink } from '@angular/router';
 import { EMPTY, expand, Observable, switchMap, timer } from 'rxjs';
 import { HistoricalImportService } from '@api/services/historical-import.service';
 import type { HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueued, HistoricalSeasonReviewDto, HistoricalSourceDto } from '@api/models';
-import { problemText } from '../../../../shared/errorText';
+import { problemText } from '@shared/errorText';
 import { VodReviewComponent } from './vodReview/vodReview.component';
 
 /** How often a queued or running job is looked at again. */

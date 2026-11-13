@@ -7,14 +7,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { parseUser, UserResponseDto } from './userResponseDto';
 import type { UserResponseDto as ApiUserResponseDto } from '@api/models';
-import { ToDatePipe } from '../../../shared/toDate.pipe';
-import { Column, Filter, TableComponent } from '../../../shared/table/table.component';
-import { PaginationParams } from '../../../shared/getPaginationResource';
-import { SearchBoxComponent } from '../../../shared/searchBox/searchBox.component';
-import { AccountService } from '../../../core/auth/account.service';
+import { ToDatePipe } from '@shared/toDate.pipe';
+import { Column, Filter, TableComponent } from '@shared/table/table.component';
+import { PaginationParams } from '@shared/getPaginationResource';
+import { SearchBoxComponent } from '@shared/searchBox/searchBox.component';
+import { AccountService } from '@core/auth/account.service';
 import type { GeneratePasswordResetLinkRequestDto } from '@api/models';
-import { apiSortDirection } from '../../../shared/apiSort';
-import { errorText } from '../../../shared/errorText';
+import { apiSortDirection } from '@shared/apiSort';
+import { errorText } from '@shared/errorText';
 import { UserManagementService } from '@api/services/user-management.service';
 
 @Component({

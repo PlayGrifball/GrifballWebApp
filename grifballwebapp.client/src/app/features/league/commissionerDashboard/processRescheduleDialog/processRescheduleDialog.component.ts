@@ -8,7 +8,7 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatIconModule } from '@angular/material/icon';
 import type { ProcessRescheduleDto, RescheduleDto } from '@api/models';
 import { RescheduleService } from '@api/services/reschedule.service';
-import { errorText } from '../../../../shared/errorText';
+import { errorText } from '@shared/errorText';
 
 @Component({
   selector: 'app-process-reschedule-dialog',

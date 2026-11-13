@@ -4,7 +4,7 @@ import { EventOrganizerService } from '@api/services/event-organizer.service';
 import type { SeasonDto } from '@api/models';
 // Type-only: pulling in SeasonSettings as a value would import Luxon into the main bundle (see getSeasons/getSeason).
 import type { SeasonSettings } from './seasonSettings';
-import { nullWhenNotFound } from '../../../core/http/nullWhenNotFound';
+import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 
 /**
  * Seasons for the editor, with Luxon DateTimes instead of EventOrganizerService's raw SeasonDto (ISO strings). Luxon

@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { fromApiDate, fromRequiredApiDate } from "../../../shared/apiDates";
+import { fromApiDate, fromRequiredApiDate } from "@shared/apiDates";
 import type { SeasonFormat } from "@api/models";
 
 /** A season's settings as the editor holds them: the API's SeasonDto, its dates as Luxon DateTimes. */

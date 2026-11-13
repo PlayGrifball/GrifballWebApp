@@ -5,7 +5,7 @@ import { DateTime } from 'luxon';
 import { map } from 'rxjs';
 import { MatchPlannerService } from '@api/services/match-planner.service';
 import { parseScheduledMatch, ScheduledMatchDto } from '../scheduleList/scheduledMatchDto';
-import { ToDatePipe } from '../../../../shared/toDate.pipe';
+import { ToDatePipe } from '@shared/toDate.pipe';
 
 export type WeekMatchStatus = 'final' | 'upcoming' | 'awaiting';
 

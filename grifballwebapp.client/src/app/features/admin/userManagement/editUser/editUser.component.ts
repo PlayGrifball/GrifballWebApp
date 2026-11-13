@@ -3,17 +3,17 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { ErrorMessageComponent } from '../../../../shared/validation/errorMessage.component';
+import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { parseUser, UserResponseDto } from '../userResponseDto';
 import { DateTime } from 'luxon';
-import { toApiDate } from '../../../../shared/apiDates';
+import { toApiDate } from '@shared/apiDates';
 import { RouterLink } from '@angular/router';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { LinkedAccountsComponent } from '../../../../shared/linkedAccounts/linkedAccounts.component';
-import { provideDatePickers } from '../../../../shared/datePickers';
-import { REGIONS } from '../../../../shared/regions';
-import { whileCurrent } from '../../../../shared/whileCurrent';
+import { LinkedAccountsComponent } from '@shared/linkedAccounts/linkedAccounts.component';
+import { provideDatePickers } from '@shared/datePickers';
+import { REGIONS } from '@shared/regions';
+import { whileCurrent } from '@shared/whileCurrent';
 import { UserManagementService } from '@api/services/user-management.service';
 
 @Component({

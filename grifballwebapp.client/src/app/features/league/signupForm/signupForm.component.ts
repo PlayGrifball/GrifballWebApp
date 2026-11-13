@@ -5,9 +5,9 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { ErrorMessageComponent } from '../../../shared/validation/errorMessage.component';
+import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
 import type { SignupBodyDto, SignupResponseDto } from '@api/models';
-import { noContentAsNull } from '../../../core/http/noContentAsNull';
+import { noContentAsNull } from '@core/http/noContentAsNull';
 import { RouterLink } from '@angular/router';
 import { HomeService } from '@api/services/home.service';
 import { SeasonService } from '@api/services/season.service';
@@ -16,10 +16,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import {MatCheckboxModule} from '@angular/material/checkbox';
 import { AvailabilityTableComponent } from './availabilityTable/availabilityTable.component';
 import { AvailabilityService } from '../availability.service';
-import { AccountService } from '../../../core/auth/account.service';
-import { eventTitles, isUnderWay, SeasonEvent } from '../../../shared/seasonEvents';
-import { whileCurrent } from '../../../shared/whileCurrent';
-import { errorText } from '../../../shared/errorText';
+import { AccountService } from '@core/auth/account.service';
+import { eventTitles, isUnderWay, SeasonEvent } from '@shared/seasonEvents';
+import { whileCurrent } from '@shared/whileCurrent';
+import { errorText } from '@shared/errorText';
 
 
 /** A signup with nothing filled in. */

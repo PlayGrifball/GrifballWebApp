@@ -5,10 +5,10 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { catchError, EMPTY, merge, Subject, switchMap, tap } from 'rxjs';
 import { SeasonService } from '@api/services/season.service';
-import { AccountService } from '../../../../core/auth/account.service';
+import { AccountService } from '@core/auth/account.service';
 import { SeasonSummaryService } from '../seasonSummary';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
-import { BackfilledBannerComponent } from '../../../../shared/dataNotice/dataNotice.component';
+import { BackfilledBannerComponent } from '@shared/dataNotice/dataNotice.component';
 import type { SeasonSummaryDto } from '@api/models';
 import type { SeasonTeamDto } from '@api/models';
 

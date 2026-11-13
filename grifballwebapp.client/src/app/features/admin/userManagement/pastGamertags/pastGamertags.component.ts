@@ -6,9 +6,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { GamertagClaimsService } from '@api/services/gamertag-claims.service';
 import type { AddGamertagHistoryRequest, PastGamertagDto } from '@api/models';
-import { SearchBoxComponent } from '../../../../shared/searchBox/searchBox.component';
-import { problemText } from '../../../../shared/errorText';
-import { nullWhenNotFound } from '../../../../core/http/nullWhenNotFound';
+import { SearchBoxComponent } from '@shared/searchBox/searchBox.component';
+import { problemText } from '@shared/errorText';
+import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 
 /**
  * Sysadmins: an Xbox account's current gamertag and the gamertags it is known to have gone by, by its XUID or

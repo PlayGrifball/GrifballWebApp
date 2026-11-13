@@ -8,7 +8,7 @@ import { Observable, repeat } from 'rxjs';
 import { JobsService } from '@api/services/jobs.service';
 import type { JobDto } from '@api/models';
 import { JobKey, JobState } from '../../api/jobs';
-import { problemText } from '../../../../shared/errorText';
+import { problemText } from '@shared/errorText';
 
 /** How often the jobs (and the chosen job's runs) are read again. */
 export const JOBS_POLL_MS = 10000;

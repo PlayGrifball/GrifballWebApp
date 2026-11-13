@@ -6,7 +6,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { UserMergesService } from '@api/services/user-merges.service';
 import type { UserMergeDto } from '@api/models';
-import { problemText } from '../../../../shared/errorText';
+import { problemText } from '@shared/errorText';
 
 const PAGE_SIZE = 25;
 

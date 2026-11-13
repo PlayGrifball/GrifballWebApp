@@ -3,7 +3,7 @@ import { Router, RouterModule } from '@angular/router';
 import { TeamStandingsService } from '@api/services/team-standings.service';
 import { TeamStandingDto } from './teamStandingDto';
 import { MatTableModule } from '@angular/material/table';
-import { whileCurrent } from '../../../../shared/whileCurrent';
+import { whileCurrent } from '@shared/whileCurrent';
 
 @Component({
     selector: 'app-team-standings',
