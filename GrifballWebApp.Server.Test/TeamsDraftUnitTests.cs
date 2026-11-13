@@ -58,11 +58,14 @@ public class TeamsDraftUnitTests : SqliteGrifballContextFixture
         return await Db.Teams.Select(t => new { t.Captain!.UserID, t.Captain.DraftCaptainOrder }).ToDictionaryAsync(x => x.UserID, x => x.DraftCaptainOrder);
     }
 
-    /// <summary>The captain of the team <paramref name="user"/> was picked for (not as its captain), if any.</summary>
+    /// <summary>The captain of the team <paramref name="user"/> was picked for (not as its captain), if any. A player on two teams
+    /// fails the test: every roster row of theirs is read.</summary>
     private async Task<int?> PickedBy(User user)
     {
         Db.ChangeTracker.Clear();
-        return await Db.Set<TeamPlayer>().Where(tp => tp.UserID == user.Id).Select(tp => (int?)tp.Team.Captain!.UserID).FirstOrDefaultAsync();
+        var captains = await Db.Set<TeamPlayer>().Where(tp => tp.UserID == user.Id).Select(tp => tp.Team.Captain!.UserID).ToListAsync();
+        Assert.That(captains, Has.Count.LessThanOrEqualTo(1), $"{user.UserName} is on {captains.Count} teams");
+        return captains.Count == 0 ? null : captains[0];
     }
 
     [Test]

@@ -134,10 +134,16 @@ public class DiscordSetGamertagUnitTests : SqliteGrifballContextFixture
     public async Task SetGamertag_ForADiscordUserOnAPlaceholder_MergesItIntoTheirSiteAccount()
     {
         var (placeholder, siteAccount, users) = await PlaceholderAndSiteAccount();
+        // The merge moves the placeholder's Discord link to the site account, as UserMergeService does
         var merges = Substitute.For<IUserMergeService>();
-        // Null is "set": a substitute's own default for a string is "", which the handler would reply as a refusal. The gamertag
-        // goes to whoever holds the Discord link after the merge (the real merge moves it to the site account; this one is
-        // substituted, so the placeholder still holds it): any user here.
+        merges.Merge(siteAccount.Id, placeholder.Id, Arg.Any<MergeOptions?>(), Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            placeholder.UnlinkDiscord();
+            await Db.SaveChangesAsync();
+            siteAccount.LinkDiscord(555555);
+            await Db.SaveChangesAsync();
+        });
+        // Null is "set": a substitute's own default for a string is "", which the handler would reply as a refusal
         var setGamertag = Substitute.For<ISetGamertagService>();
         setGamertag.SetGamertag(Arg.Any<int>(), "NewGamertag", Arg.Any<CancellationToken>()).Returns((string?)null);
         var discord = new CommandContextRecorder(discordUserId: 555555);
@@ -145,7 +151,8 @@ public class DiscordSetGamertagUnitTests : SqliteGrifballContextFixture
         await new DiscordSetGamertag(Db, users, setGamertag, merges).SetGamertag(discord.Context, "NewGamertag");
 
         Assert.That(discord.Content(), Is.EqualTo("Gamertag has been set"));
-        await setGamertag.Received(1).SetGamertag(placeholder.Id, "NewGamertag", Arg.Any<CancellationToken>());
+        // To whoever holds the Discord link once merged: the site account
+        await setGamertag.Received(1).SetGamertag(siteAccount.Id, "NewGamertag", Arg.Any<CancellationToken>());
         await merges.Received(1).Merge(siteAccount.Id, placeholder.Id, Arg.Is<MergeOptions?>(o => o != null && o.Trigger == MergeTrigger.DiscordMatch), Arg.Any<CancellationToken>());
     }
 

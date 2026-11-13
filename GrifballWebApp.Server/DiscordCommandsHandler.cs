@@ -143,7 +143,7 @@ public class DiscordCommandsHandler
         }
         else
         {
-            await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent($"I found no matches for {gamertag}"));
+            await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent($"I found no matches for {xboxUser.Gamertag}"));
         }
     }
 }

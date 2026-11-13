@@ -48,9 +48,12 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
             await _quartz.DisposeAsync();
     }
 
-    private async Task<AdminCommandsHandler> Handler()
+    /// <summary>The handler; with <paramref name="queues"/>, its on-demand runs on an in-memory Quartz (only the tests that queue
+    /// or read a run need one).</summary>
+    private async Task<AdminCommandsHandler> Handler(bool queues = false)
     {
-        _quartz = await InMemoryQuartz.Create();
+        if (queues)
+            _quartz = await InMemoryQuartz.Create();
         _schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(_scheduler);
         _scheduler.SchedulerName.Returns("admin-test");
         _scheduler.QueryJobs(Arg.Any<JobQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<JobHeader>([new JobHeader(Cleanup, "Cleans up", "Cleanup", true, false, false, false)], false));
@@ -68,7 +71,7 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
             Substitute.For<IBracketService>(),
             null!,
             new ScheduleRecommendations(Db, time),
-            _quartz.OnDemand,
+            _quartz?.OnDemand!,
             new JobsService(_schedulers, history, new RecurringJobs(), time),
             new GamertagClaimService(Db, Substitute.For<IUserMergeService>(), null, time),
             Substitute.For<IDataPullService>(),
@@ -92,6 +95,24 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
         return match;
     }
 
+    /// <summary>A match between teams captained by HomeCaptain and AwayCaptain, as the draft makes them.</summary>
+    private async Task<SeasonMatch> ACaptainedMatch(DateTime? scheduledTime = null)
+    {
+        var season = await AddSeason("Winter");
+        var homeCaptain = await AddUser(discordUserId: 51, gamertag: "HomeCaptain");
+        var awayCaptain = await AddUser(discordUserId: 52, gamertag: "AwayCaptain");
+        var home = Team.Drafted(season.SeasonID, "Home", homeCaptain.Id, 1);
+        var away = Team.Drafted(season.SeasonID, "Away", awayCaptain.Id, 2);
+        Db.Teams.AddRange(home, away);
+        await Db.SaveChangesAsync();
+        home.SetCaptain(homeCaptain.Id);
+        away.SetCaptain(awayCaptain.Id);
+        var match = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: 3, scheduledTime: scheduledTime);
+        Db.SeasonMatches.Add(match);
+        await Db.SaveChangesAsync();
+        return match;
+    }
+
     private async Task<SeasonMatch> ReadBack(int seasonMatchID)
     {
         Db.ChangeTracker.Clear();
@@ -99,7 +120,18 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
-    public async Task Overdue_ListsAMatchPastItsTime_WithItsLink()
+    public async Task Overdue_ListsAMatchPastItsTime_ByItsCaptains_WithItsLink()
+    {
+        var match = await ACaptainedMatch(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var (discord, _) = await Caller(DiscordCaller.Roles.Commissioner);
+
+        await (await Handler()).Overdue(discord.Context);
+
+        Assert.That(discord.Embed().Description, Does.StartWith($"[HomeCaptain vs AwayCaptain](https://grif.test/seasonmatch/{match.SeasonMatchID}) · ").And.EndWith(" hours overdue"));
+    }
+
+    [Test]
+    public async Task Overdue_AMatchOfTeamsWithoutCaptains_IsListedAsUnknownVsUnknown()
     {
         var match = await AMatch(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         var (discord, _) = await Caller(DiscordCaller.Roles.Commissioner);
@@ -123,9 +155,9 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
-    public async Task PendingReschedules_ListsARequest_WithWhoAskedAndWhy()
+    public async Task PendingReschedules_ListsARequest_ByItsCaptains_WithWhoAskedAndWhy()
     {
-        var match = await AMatch();
+        var match = await ACaptainedMatch();
         var (discord, caller) = await Caller(DiscordCaller.Roles.Commissioner);
         var request = MatchReschedule.Request(match.SeasonMatchID, null, null, "Away all week", caller.Id, new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc));
         Db.MatchReschedules.Add(request);
@@ -134,7 +166,7 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
         await (await Handler()).PendingReschedules(discord.Context);
 
         Assert.That(discord.Embed().Description, Is.EqualTo(
-            $"**#{request.MatchRescheduleID}** [UNKNOWN vs UNKNOWN](https://grif.test/seasonmatch/{match.SeasonMatchID}) · no time given · by Staffer: Away all week"));
+            $"**#{request.MatchRescheduleID}** [HomeCaptain vs AwayCaptain](https://grif.test/seasonmatch/{match.SeasonMatchID}) · no time given · by Staffer: Away all week"));
     }
 
     [TestCase(true, "Approved.", RescheduleStatus.Approved)]
@@ -259,7 +291,7 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
     {
         var match = await AMatch();
         var (discord, _) = await Caller(DiscordCaller.Roles.Commissioner);
-        var handler = await Handler();
+        var handler = await Handler(queues: true);
 
         await handler.PullGames(discord.Context, match.SeasonMatchID.ToString());
 
@@ -277,7 +309,7 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
         var season = await AddSeason("Winter");
         var (discord, _) = await Caller(DiscordCaller.Roles.Commissioner);
         var shown = new CommandContextRecorder(discordUserId: 42);
-        var handler = await Handler();
+        var handler = await Handler(queues: true);
 
         await handler.ScheduleRun(discord.Context, "Winter");
         await handler.ScheduleShow(shown.Context, "Winter");
@@ -392,7 +424,7 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
         await Db.SaveChangesAsync();
         var (discord, _) = await Caller(DiscordCaller.Roles.Commissioner);
 
-        await (await Handler()).ScheduleShow(discord.Context, "Winter");
+        await (await Handler(queues: true)).ScheduleShow(discord.Context, "Winter");
 
         Assert.That(discord.Embed().Description, Is.EqualTo(
             $"Recommendation #{recommendation.ScheduleRecommendationID}, not applied\n\n" +

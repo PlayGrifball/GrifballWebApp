@@ -35,7 +35,16 @@ internal sealed class InMemoryQuartz : IAsyncDisposable
         });
         services.AddQuartzExecutionHistory();
         var provider = services.BuildServiceProvider();
-        return new InMemoryQuartz(provider, await provider.GetRequiredService<ISchedulerFactory>().GetScheduler());
+        try
+        {
+            return new InMemoryQuartz(provider, await provider.GetRequiredService<ISchedulerFactory>().GetScheduler());
+        }
+        catch
+        {
+            // Nobody owns the provider yet: the test's TearDown never sees it
+            await provider.DisposeAsync();
+            throw;
+        }
     }
 
     public async ValueTask DisposeAsync()

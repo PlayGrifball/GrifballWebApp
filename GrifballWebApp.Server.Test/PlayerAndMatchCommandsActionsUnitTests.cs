@@ -67,7 +67,7 @@ public class PlayerAndMatchCommandsActionsUnitTests : SqliteGrifballContextFixtu
         using (Assert.EnterMultipleScope())
         {
             Assert.That(discord.DeferredPublicly(), Is.True);
-            Assert.That(discord.Content(), Is.EqualTo("I found no matches for "));
+            Assert.That(discord.Content(), Is.EqualTo("I found no matches for Grifter1"), "Their own gamertag, though they named none");
         }
         await _xboxUsers.DidNotReceiveWithAnyArgs().GetsertXboxUserByGamertag(default!);
     }

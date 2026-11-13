@@ -139,11 +139,23 @@ public class HistoricalImportControllerActionsUnitTests : SqliteGrifballContextF
     public async Task SetSchedulePaused_Pausing_PausesItByTheCaller_AndDropsTheRetry()
     {
         var schedule = Schedule();
-        _scheduler.PauseTriggerWith(HistoricalRefreshJob.TriggerKey, Arg.Any<PauseDetails>(), Arg.Any<CancellationToken>()).Returns(true);
+        // The store as a worker left it: the refresh's trigger there, and paused once paused
+        var paused = false;
+        var trigger = Substitute.For<ISimpleTrigger>();
+        trigger.Key.Returns(HistoricalRefreshJob.TriggerKey);
+        trigger.RepeatInterval.Returns(TimeSpan.FromHours(6));
+        _scheduler.GetTrigger(HistoricalRefreshJob.TriggerKey, Arg.Any<CancellationToken>()).Returns(trigger);
+        _scheduler.GetTriggerState(HistoricalRefreshJob.TriggerKey, Arg.Any<CancellationToken>()).Returns(_ => paused ? TriggerState.Paused : TriggerState.Normal);
+        _scheduler.PauseTriggerWith(HistoricalRefreshJob.TriggerKey, Arg.Any<PauseDetails>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            paused = true;
+            return true;
+        });
 
         var result = await Controller().SetSchedulePaused(schedule, new SetPausedRequest(true), CancellationToken.None);
 
-        Assert.That(result.Value!.Interval, Is.EqualTo(TimeSpan.FromDays(1)), "The schedule, read again once paused");
+        Assert.That((result.Value!.Paused, result.Value.Interval, result.Value.NextRunAt), Is.EqualTo((true, TimeSpan.FromHours(6), (DateTime?)null)),
+            "The schedule read again: paused, so no next run");
         await _scheduler.Received(1).UnscheduleJob(HistoricalRefreshJob.RetryTriggerKey, Arg.Any<CancellationToken>());
         await _scheduler.Received(1).PauseTriggerWith(HistoricalRefreshJob.TriggerKey, Arg.Is<PauseDetails>(p => p.RequestedBy == "admin"), Arg.Any<CancellationToken>());
     }

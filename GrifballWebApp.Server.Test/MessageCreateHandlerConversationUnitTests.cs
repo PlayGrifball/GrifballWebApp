@@ -12,6 +12,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NetCord.Rest;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using System.Text.Json;
@@ -45,6 +46,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     private readonly IAmbientCurrentUser _ambient = Substitute.For<IAmbientCurrentUser>();
     private readonly IGetsertXboxUserService _xboxUsers = Substitute.For<IGetsertXboxUserService>();
     private readonly IDataPullService _dataPull = Substitute.For<IDataPullService>();
+    private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
     private readonly FakeRestRequestHandler _discord = new() { EchoContent = true, UniqueIds = true };
     private ServiceProvider _services = null!;
 
@@ -71,7 +73,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         var chatClients = Substitute.For<IBotChatClients>();
         chatClients.Create().Returns(model);
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
-        return new MessageCreateHandler(Substitute.For<IDiscordRestClient>(), config, _services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger, chatClients);
+        return new MessageCreateHandler(Substitute.For<IDiscordRestClient>(), config, _services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger, chatClients, _time);
     }
 
     private NetCord.Gateway.Message MessageToTheBot()
@@ -190,13 +192,16 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     [Test]
     public async Task HandleAsync_StreamedReply_IsShownAsItComes_SplitAtTheLimit_AndEditedToTheWhole()
     {
-        // Each pause is over the second between streamed updates: the first update splits off a full message and starts the
-        // next, the second edits it, and the last chunk (no pause) is shown by the final edit.
+        // Each pause (on the fake clock) is over the second between streamed updates: the first update splits off a full
+        // message and starts the next, the second edits it, and the last chunk (no pause) is shown by the final edit.
         var model = new ScriptedChatClient(
             (TimeSpan.Zero, new string('a', 2100)),
             (TimeSpan.FromMilliseconds(1500), "!"),
             (TimeSpan.FromMilliseconds(1500), new string('b', 30)),
-            (TimeSpan.Zero, " The end."));
+            (TimeSpan.Zero, " The end."))
+        {
+            Clock = _time,
+        };
 
         await Handler(model).HandleAsync(MessageToTheBot());
 
@@ -214,7 +219,10 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     {
         var model = new ScriptedChatClient(
             (TimeSpan.Zero, "This first chunk is over 25 characters"),
-            (TimeSpan.FromMilliseconds(1500), "!"));
+            (TimeSpan.FromMilliseconds(1500), "!"))
+        {
+            Clock = _time,
+        };
 
         await Handler(model).HandleAsync(MessageToTheBot());
 

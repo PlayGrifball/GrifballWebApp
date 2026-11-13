@@ -36,9 +36,8 @@ public class PersonalCommandsHandlerActionsUnitTests : SqliteGrifballContextFixt
     private const ulong DiscordID = 42;
 
     private readonly IQueueRepository _queue = Substitute.For<IQueueRepository>();
-    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
+    private readonly RecordingPublisher _publisher = new();
     private readonly FakeTimeProvider _time = new(Now);
-    private readonly TaskCompletionSource _refreshed = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private ServiceProvider? _services;
 
     [TearDown]
@@ -50,8 +49,7 @@ public class PersonalCommandsHandlerActionsUnitTests : SqliteGrifballContextFixt
 
     private PersonalCommandsHandler Handler()
     {
-        _publisher.When(x => x.Publish(Arg.Any<UpdateDisplayNotification>(), Arg.Any<CancellationToken>())).Do(_ => _refreshed.TrySetResult());
-        _services = new ServiceCollection().AddSingleton(_publisher).BuildServiceProvider();
+        _services = new ServiceCollection().AddSingleton<IPublisher>(_publisher).BuildServiceProvider();
         var membership = new QueueMembership(_queue, Db, Substitute.For<IQueueNotifier>());
         var buttons = new MatchmakingButtonHandler(membership, _services.GetRequiredService<IServiceScopeFactory>(), Db, Substitute.For<IDiscordRestClient>(), null!,
             new RecordingLogger<MatchmakingButtonHandler>());
@@ -63,13 +61,6 @@ public class PersonalCommandsHandlerActionsUnitTests : SqliteGrifballContextFixt
 
     private async Task<(CommandContextRecorder Discord, User Caller)> Caller(params string[] roles)
         => (new CommandContextRecorder(DiscordID), await AddUser(DiscordID, "Grifter1", roles));
-
-    /// <summary>The queue display's refresh ran (it publishes in the background): waits for it.</summary>
-    private async Task AssertDisplayRefreshed()
-    {
-        await _refreshed.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        Assert.That(_refreshed.Task.IsCompletedSuccessfully, Is.True);
-    }
 
     [Test]
     public async Task QueueStatus_APlayerNotQueued_IsToldSo()
@@ -93,7 +84,7 @@ public class PersonalCommandsHandlerActionsUnitTests : SqliteGrifballContextFixt
 
         Assert.That(discord.Content(), Is.EqualTo(QueueMessages.For(QueueJoinResult.Joined)));
         await _queue.Received(1).AddPlayerToQueue(Arg.Is<Domain.LateLeague.QueuedPlayer>(x => x.UserID == caller.Id), Arg.Any<CancellationToken>());
-        await AssertDisplayRefreshed();
+        await _publisher.WaitForRefresh();
     }
 
     [Test]
@@ -120,7 +111,7 @@ public class PersonalCommandsHandlerActionsUnitTests : SqliteGrifballContextFixt
         Assert.That(discord.Content(), Is.EqualTo(QueueMessages.For(result)));
         await _queue.Received(1).RemovePlayerToQueue(caller.Id, Arg.Any<CancellationToken>());
         if (queued)
-            await AssertDisplayRefreshed();
+            await _publisher.WaitForRefresh();
     }
 
     [Test]

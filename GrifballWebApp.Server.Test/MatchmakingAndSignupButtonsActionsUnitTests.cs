@@ -33,8 +33,7 @@ public class MatchmakingAndSignupButtonsActionsUnitTests : SqliteGrifballContext
     private static readonly DateTime Now = new(2026, 11, 1, 12, 0, 0, DateTimeKind.Utc);
 
     private readonly IQueueRepository _queue = Substitute.For<IQueueRepository>();
-    private readonly IPublisher _publisher = Substitute.For<IPublisher>();
-    private readonly TaskCompletionSource _refreshed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly RecordingPublisher _publisher = new();
     private ServiceProvider? _services;
 
     [TearDown]
@@ -46,20 +45,13 @@ public class MatchmakingAndSignupButtonsActionsUnitTests : SqliteGrifballContext
 
     private MatchmakingButtonHandler Buttons()
     {
-        _publisher.When(x => x.Publish(Arg.Any<UpdateDisplayNotification>(), Arg.Any<CancellationToken>())).Do(_ => _refreshed.TrySetResult());
-        _services = new ServiceCollection().AddSingleton(_publisher).BuildServiceProvider();
+        _services = new ServiceCollection().AddSingleton<IPublisher>(_publisher).BuildServiceProvider();
         var discord = Substitute.For<IDiscordRestClient>();
         var notifier = Substitute.For<IQueueNotifier>();
         var display = new QueueService(NullLogger<QueueService>.Instance, Options.Create(new DiscordOptions { QueueChannel = 1 }), _queue, discord, Db,
             Substitute.For<IDataPullService>(), Substitute.For<IOutbox>(), notifier);
         return new MatchmakingButtonHandler(new QueueMembership(_queue, Db, notifier), _services.GetRequiredService<IServiceScopeFactory>(), Db, discord, display,
             new RecordingLogger<MatchmakingButtonHandler>());
-    }
-
-    private async Task AssertDisplayRefreshed()
-    {
-        await _refreshed.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        Assert.That(_refreshed.Task.IsCompletedSuccessfully, Is.True);
     }
 
     [Test]
@@ -73,7 +65,7 @@ public class MatchmakingAndSignupButtonsActionsUnitTests : SqliteGrifballContext
         await Buttons().JoinQueue(context);
 
         await AssertSent(context, QueueMessages.For(QueueJoinResult.Joined));
-        await AssertDisplayRefreshed();
+        await _publisher.WaitForRefresh();
     }
 
     [Test]
@@ -86,7 +78,7 @@ public class MatchmakingAndSignupButtonsActionsUnitTests : SqliteGrifballContext
         await Buttons().LeaveQueue(context);
 
         await AssertSent(context, QueueMessages.For(QueueLeaveResult.Left));
-        await AssertDisplayRefreshed();
+        await _publisher.WaitForRefresh();
     }
 
     /// <summary>Alpha and Bravo against Charlie and Delta (Discord 1 to 4).</summary>
