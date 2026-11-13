@@ -16,7 +16,7 @@ public class GamertagClaim : AuditableEntity
     public const string SameClaimAsMergeTarget = "The same claim was made by the account it was merged into";
 
     /// <summary>For EF. A claim is made by <see cref="Suggest"/>, <see cref="FromXuidLookup"/>, <see cref="FromDiscordMatch"/>
-    /// or <see cref="ClaimedByUser"/>, the ways one begins.</summary>
+    /// or <see cref="ClaimedByUser(int, long?, string, string, int, DateTime?, DateTime?)"/>, the ways one begins.</summary>
     private GamertagClaim() { }
 
     /// <summary>

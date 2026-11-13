@@ -2,7 +2,7 @@ namespace GrifballWebApp.Application.Outbox;
 
 /// <summary>
 /// Queues Discord side effects with the database change they belong to: the message is added to the scope's
-/// <see cref="IApplicationDbContext"/> and nothing is saved here. The caller's SaveChanges (and its transaction, if any)
+/// <see cref="Database.IApplicationDbContext"/> and nothing is saved here. The caller's SaveChanges (and its transaction, if any)
 /// commits the change and the message together, and a rollback drops both. <c>OutboxDispatcher</c> sends it.
 /// </summary>
 public interface IOutbox

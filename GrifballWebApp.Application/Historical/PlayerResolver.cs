@@ -51,7 +51,10 @@ internal sealed class PlayerResolver
     private readonly int? _matchmakingSeasonId;
     private readonly Dictionary<string, Resolution> _byGamertag = new();
 
+    /// <param name="context">The database the players are looked up in and their placeholders created in.</param>
     /// <param name="seasonId">The season being imported; 0 for a matchmaking season (<paramref name="matchmakingSeasonId"/>).</param>
+    /// <param name="windowStart">When the imported games' window starts: a gamertag the player had then (not renamed since) is theirs.</param>
+    /// <param name="matchmakingSeasonId">The matchmaking season being imported, when <paramref name="seasonId"/> is 0.</param>
     public PlayerResolver(IApplicationDbContext context, int seasonId, DateTime windowStart, int? matchmakingSeasonId = null)
     {
         _context = context;
