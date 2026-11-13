@@ -1,6 +1,9 @@
 using GrifballWebApp.Application;
+using GrifballWebApp.Application.Historical.Vods;
+using GrifballWebApp.Application.TeamPage;
 using GrifballWebApp.Server.Commands;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -17,6 +20,11 @@ public class TeamCommandsHandlerUnitTests : SqliteGrifballContextFixture
     private static UrlService Urls() => new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
 
     private TeamCommandsHandler Handler() => new(new CommandLookups(Db, null!), null!, null!, null!, Urls());
+
+    /// <summary>The team page services real too (all IApplicationDbContext-backed).</summary>
+    private TeamCommandsHandler DeepHandler() => new(new CommandLookups(Db, null!),
+        new TeamPageService(Db), new TeamHistoryService(Db),
+        new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!), Urls());
 
     [TestCase(nameof(TeamCommandsHandler.Info))]
     [TestCase(nameof(TeamCommandsHandler.Roster))]
@@ -43,5 +51,41 @@ public class TeamCommandsHandlerUnitTests : SqliteGrifballContextFixture
             Assert.That(discord.DeferredPublicly(), Is.True);
             Assert.That(discord.Content(), Is.EqualTo(TeamCommandsHandler.NoSuchTeam));
         }
+    }
+
+    [Test]
+    public async Task Info_ShowsTheTeam_ForAFoundTeam()
+    {
+        var season = await AddSeason("Winter 2026");
+        var team = await AddTeam(season, "Grifters");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Info(discord.Context, "Grifters");
+
+        Assert.That(discord.Embed().Title, Is.EqualTo("Grifters"));
+    }
+
+    [Test]
+    public async Task Roster_RepliesNoPlayersYet_ForAFoundTeamWithNoRoster()
+    {
+        var season = await AddSeason("Winter 2026");
+        var team = await AddTeam(season, "Grifters");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Roster(discord.Context, "Grifters");
+
+        Assert.That(discord.Embed().Description, Does.Contain("No players yet."));
+    }
+
+    [Test]
+    public async Task Matches_RepliesNoMatchesYet_ForAFoundTeamWithNoMatches()
+    {
+        var season = await AddSeason("Winter 2026");
+        var team = await AddTeam(season, "Grifters");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Matches(discord.Context, "Grifters");
+
+        Assert.That(discord.Embed().Description, Does.Contain("No matches yet."));
     }
 }

@@ -1,6 +1,11 @@
 using GrifballWebApp.Application;
+using GrifballWebApp.Application.Historical.Vods;
+using GrifballWebApp.Application.LateLeague;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Server.Commands;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -17,6 +22,15 @@ public class PlayerCommandsHandlerUnitTests : SqliteGrifballContextFixture
     private static UrlService Urls() => new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
 
     private PlayerCommandsHandler Handler() => new(new CommandLookups(Db, null!), new DiscordCaller(Db), null!, null!, null!, null!, null!, Urls());
+
+    /// <summary>The profile services real too (all IApplicationDbContext-backed); DiscordCommandsHandler (/matches) stays
+    /// null, unused by Profile/Stats/Commendations/History/Vods.</summary>
+    private PlayerCommandsHandler DeepHandler() => new(new CommandLookups(Db, null!), new DiscordCaller(Db),
+        new ProfileStatsService(Db, new SeasonStatsService(Db), new MatchmakingStatsService(Db)),
+        new ProfileCommendationsService(Db),
+        new DeploymentHistoryService(Db),
+        new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!),
+        null!, Urls());
 
     [TestCase(nameof(PlayerCommandsHandler.Profile))]
     [TestCase(nameof(PlayerCommandsHandler.Stats))]
@@ -59,5 +73,60 @@ public class PlayerCommandsHandlerUnitTests : SqliteGrifballContextFixture
         await Handler().Matches(discord.Context, "nonsense");
 
         Assert.That(discord.Content(), Is.EqualTo(PlayerCommandsHandler.NoSuchPlayer));
+    }
+
+    [Test]
+    public async Task Profile_ShowsTheirProfile_ForAFoundPlayer()
+    {
+        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Profile(discord.Context, "Grifter1");
+
+        Assert.That(discord.Embed().Title, Is.EqualTo("Grifter1"));
+    }
+
+    [Test]
+    public async Task Stats_RepliesNoStatsYet_ForAFoundPlayerWithNoStats()
+    {
+        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Stats(discord.Context, "Grifter1");
+
+        Assert.That(discord.Embed().Description, Does.Contain("No stats yet."));
+    }
+
+    [Test]
+    public async Task Commendations_RepliesNoMedalsYet_ForAFoundPlayerWithNone()
+    {
+        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Commendations(discord.Context, "Grifter1");
+
+        Assert.That(discord.Embed().Description, Does.Contain("No medals yet."));
+    }
+
+    [Test]
+    public async Task History_RepliesNoSeasonsYet_ForAFoundPlayerWithNone()
+    {
+        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().History(discord.Context, "Grifter1");
+
+        Assert.That(discord.Embed().Description, Does.Contain("No seasons yet."));
+    }
+
+    [Test]
+    public async Task Vods_RepliesNoVodsYet_ForAFoundPlayerWithNone()
+    {
+        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Vods(discord.Context, "Grifter1");
+
+        Assert.That(discord.Embed().Description, Does.Contain("No VODs yet."));
     }
 }

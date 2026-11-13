@@ -1,9 +1,13 @@
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Home;
 using GrifballWebApp.Application.LateLeague;
+using GrifballWebApp.Application.Leaderboards;
 using GrifballWebApp.Application.Search;
+using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Server.Commands;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
+using NSubstitute;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -20,6 +24,12 @@ public class BrowseCommandsHandlerUnitTests : SqliteGrifballContextFixture
     private static UrlService Urls() => new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
 
     private BrowseCommandsHandler Handler() => new(null!, new MatchmakingStatsService(Db), new HomeEventsService(Db), new QuickSearchService(Db), null!, Urls());
+
+    /// <summary>LeaderboardsService real too (IApplicationDbContext/SeasonStatsService/MatchmakingStatsService-backed;
+    /// IDistributedCache substituted, a miss every time), and the player lookup real.</summary>
+    private BrowseCommandsHandler DeepHandler() => new(
+        new LeaderboardsService(Db, new SeasonStatsService(Db), new MatchmakingStatsService(Db), Substitute.For<IDistributedCache>(), new RecordingLogger<LeaderboardsService>()),
+        new MatchmakingStatsService(Db), new HomeEventsService(Db), new QuickSearchService(Db), new CommandLookups(Db, null!), Urls());
 
     [Test]
     public async Task Events_RepliesNothingIsComingUp_ForAnEmptyDatabase()
@@ -65,5 +75,35 @@ public class BrowseCommandsHandlerUnitTests : SqliteGrifballContextFixture
         await Handler().LateLeagueSeason(discord.Context, null);
 
         Assert.That(discord.Content(), Is.EqualTo(BrowseCommandsHandler.NoSuchLateLeagueSeason));
+    }
+
+    [Test]
+    public async Task Leaderboard_RepliesNobodyIsRankedYet_ForAnEmptyDatabase()
+    {
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Leaderboard(discord.Context, LeaderboardBoard.Goals, LeaderboardFormat.All);
+
+        Assert.That(discord.Embed().Description, Does.Contain("Nobody is ranked yet."));
+    }
+
+    [Test]
+    public async Task Leaderboard_Rings_RepliesNobodyIsRankedYet_ForAnEmptyDatabase()
+    {
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Leaderboard(discord.Context, LeaderboardBoard.Rings, LeaderboardFormat.LeagueSeason);
+
+        Assert.That(discord.Embed().Description, Does.Contain("Nobody is ranked yet."));
+    }
+
+    [Test]
+    public async Task Rank_RepliesNoSuchPlayer_ForAnUnknownPlayer()
+    {
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Rank(discord.Context, "nonsense", LeaderboardFormat.All);
+
+        Assert.That(discord.Content(), Is.EqualTo(PlayerCommandsHandler.NoSuchPlayer));
     }
 }
