@@ -183,16 +183,22 @@ internal sealed class BracketServiceMoreUnitTests : ApplicationDbContextTests
         await _service.UndoAdvancementAsync(w2);
         await Context.SaveChangesAsync();
 
+        // What was saved, not the objects the undo changed
+        Context.ChangeTracker.Clear();
+        var saved = (await Context.SeasonMatches.AsNoTracking().Where(m => m.SeasonID == seasonID).ToListAsync()).ToDictionary(m => m.SeasonMatchID);
+        var winnerGame = saved[winner.Game.SeasonMatchID];
+        var loserGame = saved[loser.Game.SeasonMatchID];
+        var onwardGame = saved[onward.Game.SeasonMatchID];
         using (Assert.EnterMultipleScope())
         {
             Assert.That(sentOnBeforeUndo, Is.EqualTo(loserTeamID), "the BYE had sent W2's loser on");
             Assert.That(refusal, Is.Null);
-            Assert.That(winner.Game.TeamOf(winner.Side), Is.Null);
-            Assert.That(loser.Game.TeamOf(loser.Side), Is.Null);
-            Assert.That(onward.Game.TeamOf(onward.Side), Is.Null);
+            Assert.That(winnerGame.TeamOf(winner.Side), Is.Null);
+            Assert.That(loserGame.TeamOf(loser.Side), Is.Null);
+            Assert.That(onwardGame.TeamOf(onward.Side), Is.Null);
             // The BYE stays, its win taken back
-            Assert.That(loser.Game.IsBye(SeasonMatch.Other(loser.Side)), Is.True);
-            Assert.That(loser.Game.ResultOf(loser.Side), Is.Null);
+            Assert.That(loserGame.IsBye(SeasonMatch.Other(loser.Side)), Is.True);
+            Assert.That(loserGame.ResultOf(loser.Side), Is.Null);
         }
     }
 }

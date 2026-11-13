@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using static GrifballWebApp.Application.Test.HistoricalImportUnitTestData;
 
 namespace GrifballWebApp.Application.Test;
 
@@ -38,20 +39,6 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
             NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System);
     }
 
-    private static HistoricalArchiveInput Input(params ArchiveSeason[] entries) => new() { Seasons = new UnifiedArchive { Seasons = [.. entries] } };
-
-    private static ArchiveSeason Entry(string name, string game, string league, bool playoffs, params ArchivePlayer[] players) => new()
-    {
-        SeasonName = name,
-        GameVersion = game,
-        League = league,
-        Division = "Open",
-        IsPlayoffs = playoffs,
-        SourceWorkbook = HistoricalKeys.Slug(name),
-        SourceSheet = playoffs ? "Playoff Stats" : "Stats",
-        Players = [.. players],
-    };
-
     // HistoricalSourceID is "{workbook}/{sheet}" verbatim (HistoricalKeys.SeasonSourceId): the workbook is slugged
     // (Entry's SourceWorkbook), but the sheet is Entry's literal "Stats"/"Playoff Stats". A season's regular and playoff
     // entries make one season, keyed by its regular season's sheet (HistoricalImportService.KeySeasons).
@@ -62,19 +49,6 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     private static readonly string[] RoosterTitleRoster = ["Silva", "Pie", "Ringer"];
     private static readonly string[] RealTeamOnly = ["RealTeam"];
     private static readonly string[] WinterLeague2019Only = ["Winter League 2019"];
-
-    private static ArchivePlayer Player(string gamertag, int kills = 0, int stint = 1, string? team = null, int wins = 0, int losses = 0) => new()
-    {
-        Gamertag = gamertag,
-        Kills = kills,
-        Wins = wins,
-        Losses = losses,
-        Deaths = 1,
-        GamesPlayed = 1,
-        StintIndex = stint,
-        TeamName = team,
-        KdRatio = 1.23456m,
-    };
 
     [Test]
     public async Task Import_MakesOneSeasonPerLeagueAndName_AndOnePlaceholderPerPlayer()
@@ -505,42 +479,11 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         }
     }
 
-    /// <summary>A Waypoint match already in the database (GetAndSaveMatch's result), as if it had been pulled: two
-    /// teams by outcome, one participant each.</summary>
-    private async Task AddMatch(Guid matchId, params (long Xuid, string Gamertag, Outcomes Outcome, int Kills, int Deaths)[] players)
-    {
-        var match = GrifballWebApp.Domain.Halo.Match.Seed(matchId, duration: TimeSpan.FromMinutes(10));
-        var teams = new Dictionary<Outcomes, int>();
-        foreach (var player in players)
-        {
-            var xbox = await Context.XboxUsers.FindAsync(player.Xuid) ?? Context.XboxUsers.Add(XboxUser.FromXbox(player.Xuid, player.Gamertag)).Entity;
-            if (!teams.TryGetValue(player.Outcome, out var teamID))
-            {
-                teamID = teams.Count;
-                teams.Add(player.Outcome, teamID);
-                match.AddTeam(teamID, 0, player.Outcome);
-            }
-            match.AddParticipant(teamID, player.Xuid, new MatchParticipantStats
-            {
-                Kills = player.Kills,
-                Deaths = player.Deaths,
-                PersonalScore = player.Kills * 100,
-                TimePlayed = TimeSpan.FromMinutes(10),
-                AverageLife = TimeSpan.FromSeconds(12),
-                DamageDealt = 1000,
-                DamageTaken = 900,
-                FirstJoinedTime = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            }, xboxUser: xbox);
-        }
-        Context.Matches.Add(match);
-        await Context.SaveChangesAsync();
-    }
-
     [Test]
     public async Task Import_APulledWaypointMatch_BecomesTheSeasonsMatchAndItsPlayersStats()
     {
         var matchId = Guid.NewGuid();
-        await AddMatch(matchId, (1, "Alpha One", Outcomes.Won, 20, 5), (2, "Beta One", Outcomes.Lost, 10, 15));
+        await AddMatch(Context, matchId, (1, "Alpha One", Outcomes.Won, 20, 5), (2, "Beta One", Outcomes.Lost, 10, 15));
         var season = new ArchiveSeason
         {
             SeasonName = "Infinite Cup 2024",
@@ -577,7 +520,7 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     public async Task Import_AWaypointMatchNoLongerListed_StopsBeingTheSeasonsMatch()
     {
         var matchId = Guid.NewGuid();
-        await AddMatch(matchId, (1, "Alpha One", Outcomes.Won, 20, 5), (2, "Beta One", Outcomes.Lost, 10, 15));
+        await AddMatch(Context, matchId, (1, "Alpha One", Outcomes.Won, 20, 5), (2, "Beta One", Outcomes.Lost, 10, 15));
         var season = new ArchiveSeason
         {
             SeasonName = "Infinite Cup 2024",
@@ -718,9 +661,9 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     private async Task<(Guid[] Ids, List<ScheduledGame> Schedule)> ThreeTeamsGames(string red = "Red")
     {
         var (redBlue, redGold, goldBlue) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
-        await AddMatch(redBlue, (1, "Red One", Outcomes.Won, 5, 1), (2, "Red Two", Outcomes.Won, 5, 1), (3, "Blue One", Outcomes.Lost, 1, 5), (4, "Blue Two", Outcomes.Lost, 1, 5));
-        await AddMatch(redGold, (1, "Red One", Outcomes.Won, 5, 1), (7, "Red Sub", Outcomes.Won, 5, 1), (5, "Gold One", Outcomes.Lost, 1, 5));
-        await AddMatch(goldBlue, (5, "Gold One", Outcomes.Won, 5, 1), (6, "Gold Two", Outcomes.Won, 5, 1), (3, "Blue One", Outcomes.Lost, 1, 5), (4, "Blue Two", Outcomes.Lost, 1, 5));
+        await AddMatch(Context, redBlue, (1, "Red One", Outcomes.Won, 5, 1), (2, "Red Two", Outcomes.Won, 5, 1), (3, "Blue One", Outcomes.Lost, 1, 5), (4, "Blue Two", Outcomes.Lost, 1, 5));
+        await AddMatch(Context, redGold, (1, "Red One", Outcomes.Won, 5, 1), (7, "Red Sub", Outcomes.Won, 5, 1), (5, "Gold One", Outcomes.Lost, 1, 5));
+        await AddMatch(Context, goldBlue, (5, "Gold One", Outcomes.Won, 5, 1), (6, "Gold Two", Outcomes.Won, 5, 1), (3, "Blue One", Outcomes.Lost, 1, 5), (4, "Blue Two", Outcomes.Lost, 1, 5));
         return ([redBlue, redGold, goldBlue],
         [
             new ScheduledGame { MatchId = redBlue.ToString(), Home = red, Away = "Blue" },

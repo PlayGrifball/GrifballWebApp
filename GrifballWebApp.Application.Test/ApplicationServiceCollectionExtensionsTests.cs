@@ -1,17 +1,21 @@
 using GrifballWebApp.Application.Availability;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Championships;
+using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.EventOrganizer;
 using GrifballWebApp.Application.Grades;
-using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical.Vods;
+using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Home;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.LateLeague;
 using GrifballWebApp.Application.Leaderboards;
 using GrifballWebApp.Application.MatchDetails;
-using GrifballWebApp.Application.Matchmaking;
 using GrifballWebApp.Application.MatchPlanner;
+using GrifballWebApp.Application.Matchmaking;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Application.Outbox;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Reschedule;
 using GrifballWebApp.Application.Scheduler;
@@ -21,12 +25,18 @@ using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Signups;
 using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Application.TeamPage;
-using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Application.TeamStandings;
+using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Application.UserManagement;
+using GrifballWebApp.Domain.Players;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NSubstitute;
 
 namespace GrifballWebApp.Application.Test;
 
@@ -100,6 +110,38 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
             Assert.That(descriptor.ImplementationType, Is.EqualTo(implementation));
             Assert.That(descriptor.Lifetime, Is.EqualTo(lifetime));
         }
+    }
+
+    /// <summary>
+    /// Every registration AddApplication makes can be built, its dependencies included, given what the host and
+    /// Infrastructure register beside it (the ports below, substituted): a use case whose new constructor parameter nothing
+    /// registers fails here, whether or not Registrations lists it.
+    /// </summary>
+    [Test]
+    public void AddApplication_EveryRegistrationResolves_GivenTheHostsAndInfrastructuresServices()
+    {
+        var configuration = new ConfigurationBuilder().Build();
+        var services = new ServiceCollection().AddApplication(configuration);
+        // The host's
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+        services.AddTransient<HttpClient>();
+        services.AddTransient<YouTubeClient>();
+        services.AddScoped(_ => Substitute.For<UserManager<User>>(
+            Substitute.For<IUserStore<User>>(), null!, null!, null!, null!, null!, new IdentityErrorDescriber(), null!, null!));
+        // Infrastructure's ports
+        services.AddScoped(_ => Substitute.For<IApplicationDbContext>());
+        services.AddScoped(_ => Substitute.For<IOutbox>());
+        services.AddScoped(_ => Substitute.For<IDataPullService>());
+        services.AddScoped(_ => Substitute.For<IGetsertXboxUserService>());
+        services.AddScoped(_ => Substitute.For<IQueueNotifier>());
+        services.AddScoped(_ => Substitute.For<IPublisher>());
+        services.AddScoped(_ => Substitute.For<IDraftChannel>());
+        services.AddScoped(_ => Substitute.For<IDatabaseLocks>());
+        services.AddSingleton(_ => Substitute.For<IDistributedCache>());
+
+        Assert.That(() => services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true }).Dispose(), Throws.Nothing);
     }
 
     [Test]

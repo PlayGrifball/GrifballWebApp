@@ -249,8 +249,23 @@ internal sealed class MatchPlannerServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task UpdateMatchTime_MatchNotFound_DoesNothing()
     {
-        var dto = new UpdateMatchTimeDto { SeasonMatchID = 999, Time = DateTime.UtcNow };
+        await SeedSeason();
+        var a = await SeedTeam("A");
+        var b = await SeedTeam("B");
+        var scheduled = new DateTime(2026, 4, 1, 20, 0, 0, DateTimeKind.Utc);
+        var match = SeasonMatch.Between(SeasonID, a.TeamID, b.TeamID, bestOf: 3);
+        match.ScheduleAt(scheduled);
+        Context.SeasonMatches.Add(match);
+        await Context.SaveChangesAsync();
 
-        await Assert.DoesNotThrowAsync(() => _service.UpdateMatchTime(dto));
+        await _service.UpdateMatchTime(new UpdateMatchTimeDto { SeasonMatchID = match.SeasonMatchID + 1, Time = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc) });
+
+        Context.ChangeTracker.Clear();
+        var matches = await Context.SeasonMatches.AsNoTracking().ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(matches, Has.Count.EqualTo(1), "No match made for the unknown id");
+            Assert.That(matches[0].ScheduledTime, Is.EqualTo(scheduled), "Nor another match moved");
+        }
     }
 }

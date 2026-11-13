@@ -8,7 +8,6 @@ using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using NSubstitute;
@@ -21,7 +20,7 @@ namespace GrifballWebApp.Application.Test;
 /// adding, editing and removing a game entered by hand, what each refuses, how the series is numbered and scored from
 /// its Waypoint and recorded games alike, and what a decided bracket match sends on. The Halo pull (IDataPullService) is
 /// substituted; the bracket and championship services are the real ones. A save another commissioner's change got in
-/// ahead of is made to fail by a SaveChanges interceptor on a context of its own.
+/// ahead of is made to fail by a SaveChanges interceptor every test's context runs (idle until a test arms it).
 /// </summary>
 [TestFixture]
 internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbContextTests
@@ -32,6 +31,10 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
     private IDataPullService _dataPull = null!;
     private BracketService _bracketService = null!;
     private SeasonMatchService _service = null!;
+    private readonly FailingSaves _saves = new();
+
+    /// <summary>Every test's context runs <see cref="_saves"/>: a no-op until a test sets its Failure.</summary>
+    protected override IReadOnlyList<IInterceptor> Interceptors => [_saves];
 
     [SetUp]
     public void SetUp()
@@ -391,41 +394,29 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
     [Test]
     public async Task AddManualGame_ASaveAnotherChangeGotInAheadOf_IsRefused_AndSavesNothing()
     {
-        var saves = new FailingSaves();
-        await using var connection = new SqliteConnection("DataSource=:memory:");
-        await connection.OpenAsync();
-        await using var context = new FakeApplicationDbContext(new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).AddInterceptors(saves).Options);
-        await context.Database.EnsureCreatedAsync();
-        var seeded = await SeedAsync(context, bestOf: 3);
-        context.ChangeTracker.Clear();
-        var service = NewService(context, _dataPull);
-        saves.Failure = new DbUpdateException("Another game took game number 1 first");
+        var seeded = await SeedAsync(Context, bestOf: 3);
+        Context.ChangeTracker.Clear();
+        _saves.Failure = new DbUpdateException("Another game took game number 1 first");
 
-        var message = await Refused(() => service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Entry(5, 3)));
+        var message = await Refused(() => _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Entry(5, 3)));
 
-        saves.Failure = null;
-        context.ChangeTracker.Clear();
+        _saves.Failure = null;
+        Context.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(message, Is.EqualTo(SeasonMatchService.SeriesChangedMessage));
-            Assert.That(await context.RecordedGames.AnyAsync(), Is.False, "Nothing was saved");
+            Assert.That(await Context.RecordedGames.AnyAsync(), Is.False, "Nothing was saved");
         }
     }
 
     [Test]
     public async Task AddManualGame_AConcurrencyFailure_IsNotTakenForAnotherChangeToTheSeries()
     {
-        var saves = new FailingSaves();
-        await using var connection = new SqliteConnection("DataSource=:memory:");
-        await connection.OpenAsync();
-        await using var context = new FakeApplicationDbContext(new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).AddInterceptors(saves).Options);
-        await context.Database.EnsureCreatedAsync();
-        var seeded = await SeedAsync(context, bestOf: 3);
-        context.ChangeTracker.Clear();
-        var service = NewService(context, _dataPull);
-        saves.Failure = new DbUpdateConcurrencyException("The row changed");
+        var seeded = await SeedAsync(Context, bestOf: 3);
+        Context.ChangeTracker.Clear();
+        _saves.Failure = new DbUpdateConcurrencyException("The row changed");
 
-        var ex = await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Entry(5, 3)));
+        var ex = await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => _service.AddManualGame(seeded.SeasonMatch.SeasonMatchID, Entry(5, 3)));
 
         Assert.That(ex!.Message, Is.EqualTo("The row changed"));
     }
@@ -741,12 +732,6 @@ internal sealed class SeasonMatchServiceManualGamesUnitTests : ApplicationDbCont
     }
 
     #endregion
-
-    private static SeasonMatchService NewService(FakeApplicationDbContext context, IDataPullService dataPull)
-    {
-        var championships = new ChampionshipService(context);
-        return new SeasonMatchService(context, dataPull, new BracketService(context, new TeamStandingsService(context), championships), championships);
-    }
 
     /// <summary>Fails every save with <see cref="Failure"/> while it is set: a save another change got in ahead of.</summary>
     private sealed class FailingSaves : SaveChangesInterceptor

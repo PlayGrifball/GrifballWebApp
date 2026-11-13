@@ -8,6 +8,7 @@ using GrifballWebApp.Domain.Shared;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -34,7 +35,7 @@ internal sealed class FakeApplicationDbContext :
     /// <summary>A throwaway SQLite in-memory database, its own connection kept open for the context's lifetime
     /// (closing it drops the database) and disposed with it. The schema (and the model's HasData rows) is a copy of
     /// <see cref="Template"/>'s: made once a test run, copied page by page, rather than ~80 tables' DDL a test.</summary>
-    public FakeApplicationDbContext() : this(BuildOptions(out var connection))
+    public FakeApplicationDbContext(IEnumerable<IInterceptor>? interceptors = null) : this(BuildOptions(out var connection, interceptors ?? []))
     {
         ownedConnection = connection;
     }
@@ -52,13 +53,13 @@ internal sealed class FakeApplicationDbContext :
 
     private static readonly Lock TemplateLock = new();
 
-    private static DbContextOptions<FakeApplicationDbContext> BuildOptions(out Microsoft.Data.Sqlite.SqliteConnection connection)
+    private static DbContextOptions<FakeApplicationDbContext> BuildOptions(out Microsoft.Data.Sqlite.SqliteConnection connection, IEnumerable<IInterceptor> interceptors)
     {
         connection = new Microsoft.Data.Sqlite.SqliteConnection("DataSource=:memory:");
         connection.Open();
         lock (TemplateLock)
             Template.Value.BackupDatabase(connection);
-        return new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).Options;
+        return new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).AddInterceptors(interceptors).Options;
     }
 
     /// <summary>Runs as <see cref="StartTransactionAsync"/> opens the outermost transaction, before it does: a test's way to

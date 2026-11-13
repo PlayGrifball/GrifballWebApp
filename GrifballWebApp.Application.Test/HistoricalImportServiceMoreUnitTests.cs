@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using static GrifballWebApp.Application.Test.HistoricalImportUnitTestData;
 
 namespace GrifballWebApp.Application.Test;
 
@@ -39,30 +40,6 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
             NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System);
     }
 
-    private static HistoricalArchiveInput Input(params ArchiveSeason[] entries) => new() { Seasons = new UnifiedArchive { Seasons = [.. entries] } };
-
-    private static ArchiveSeason Entry(string name, string game, string league, bool playoffs, params ArchivePlayer[] players) => new()
-    {
-        SeasonName = name,
-        GameVersion = game,
-        League = league,
-        Division = "Open",
-        IsPlayoffs = playoffs,
-        SourceWorkbook = HistoricalKeys.Slug(name),
-        SourceSheet = playoffs ? "Playoff Stats" : "Stats",
-        Players = [.. players],
-    };
-
-    private static ArchivePlayer Player(string gamertag, string? team = null, int stint = 1) => new()
-    {
-        Gamertag = gamertag,
-        Kills = 1,
-        Deaths = 1,
-        GamesPlayed = 1,
-        StintIndex = stint,
-        TeamName = team,
-    };
-
     /// <summary>MCC Cup 2016: Alpha One and Alpha Two on Alpha, Beta One on Beta.</summary>
     private static ArchiveSeason Cup() => Entry("MCC Cup 2016", "halo3", "AGLA", false,
         Player("Alpha One", team: "Alpha"), Player("Alpha Two", team: "Alpha"), Player("Beta One", team: "Beta"));
@@ -82,36 +59,6 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     };
 
     private static HistoricalArchiveInput CupWith(params RecordedGameInput[] games) => new() { Seasons = new UnifiedArchive { Seasons = [Cup()] }, RecordedGames = [.. games] };
-
-    /// <summary>A Waypoint match already in the database (GetAndSaveMatch's result): a team per outcome.</summary>
-    private async Task AddMatch(Guid matchId, params (long Xuid, string Gamertag, Outcomes Outcome)[] players)
-    {
-        var match = GrifballWebApp.Domain.Halo.Match.Seed(matchId, duration: TimeSpan.FromMinutes(10));
-        var teams = new Dictionary<Outcomes, int>();
-        foreach (var player in players)
-        {
-            var xbox = await Context.XboxUsers.FindAsync(player.Xuid) ?? Context.XboxUsers.Add(XboxUser.FromXbox(player.Xuid, player.Gamertag)).Entity;
-            if (!teams.TryGetValue(player.Outcome, out var teamID))
-            {
-                teamID = teams.Count;
-                teams.Add(player.Outcome, teamID);
-                match.AddTeam(teamID, 0, player.Outcome);
-            }
-            match.AddParticipant(teamID, player.Xuid, new MatchParticipantStats
-            {
-                Kills = 5,
-                Deaths = 3,
-                PersonalScore = 500,
-                TimePlayed = TimeSpan.FromMinutes(10),
-                AverageLife = TimeSpan.FromSeconds(12),
-                DamageDealt = 1000,
-                DamageTaken = 900,
-                FirstJoinedTime = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            }, xboxUser: xbox);
-        }
-        Context.Matches.Add(match);
-        await Context.SaveChangesAsync();
-    }
 
     private static ArchiveSeason InfiniteSeason(params ArchivePlayer[] players) => new()
     {
@@ -260,7 +207,7 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     public async Task Import_AMatchPulledNow_IsCounted()
     {
         var matchId = new Guid("aaaaaaaa-2222-3333-4444-555555555555");
-        _dataPull.GetAndSaveMatch(matchId).Returns(_ => AddMatch(matchId, (1, "Alpha One", Outcomes.Won), (2, "Beta One", Outcomes.Lost)));
+        _dataPull.GetAndSaveMatch(matchId).Returns(_ => AddMatch(Context, matchId, (1, "Alpha One", Outcomes.Won, 5, 3), (2, "Beta One", Outcomes.Lost, 5, 3)));
 
         var report = await _service.Import(WithWaypoint(InfiniteSeason(Player("Alpha One", team: "Alpha"), Player("Beta One", team: "Beta")),
             new WaypointSeasonMatches { Regular = [matchId.ToString()] }));
@@ -290,7 +237,7 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     public async Task Import_AWaypointMatchOfThreeTeams_IsNotLinked()
     {
         var matchId = new Guid("bbbbbbbb-2222-3333-4444-555555555555");
-        await AddMatch(matchId, (1, "Alpha One", Outcomes.Won), (2, "Beta One", Outcomes.Lost), (3, "Gamma One", Outcomes.Tie));
+        await AddMatch(Context, matchId, (1, "Alpha One", Outcomes.Won, 5, 3), (2, "Beta One", Outcomes.Lost, 5, 3), (3, "Gamma One", Outcomes.Tie, 5, 3));
 
         var report = await _service.Import(WithWaypoint(InfiniteSeason(Player("Alpha One", team: "Alpha"), Player("Beta One", team: "Beta"), Player("Gamma One", team: "Gamma")),
             new WaypointSeasonMatches { Regular = [matchId.ToString()] }));
@@ -307,7 +254,7 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     public async Task Import_Again_ALinkedWaypointGamesPlayers_StillReplaceTheirSheetRows()
     {
         var matchId = new Guid("cccccccc-2222-3333-4444-555555555555");
-        await AddMatch(matchId, (1, "Alpha One", Outcomes.Won), (2, "Beta One", Outcomes.Lost));
+        await AddMatch(Context, matchId, (1, "Alpha One", Outcomes.Won, 5, 3), (2, "Beta One", Outcomes.Lost, 5, 3));
         var input = WithWaypoint(InfiniteSeason(Player("Alpha One", team: "Alpha"), Player("Beta One", team: "Beta")), new WaypointSeasonMatches { Regular = [matchId.ToString()] });
         await _service.Import(input);
         Context.ChangeTracker.Clear();
@@ -329,7 +276,7 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     {
         var matchId = new Guid("dddddddd-2222-3333-4444-555555555555");
         // Alpha Newname played with Alpha One; the sheet knows him as Alpha Oldname
-        await AddMatch(matchId, (1, "Alpha One", Outcomes.Won), (3, "Alpha Newname", Outcomes.Won), (2, "Beta One", Outcomes.Lost));
+        await AddMatch(Context, matchId, (1, "Alpha One", Outcomes.Won, 5, 3), (3, "Alpha Newname", Outcomes.Won, 5, 3), (2, "Beta One", Outcomes.Lost, 5, 3));
 
         var report = await _service.Import(WithWaypoint(
             InfiniteSeason(Player("Alpha One", team: "Alpha"), Player("Alpha Oldname", team: "Alpha"), Player("Beta One", team: "Beta")),
@@ -575,7 +522,7 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     public async Task Import_RecordedGames_OfAnUnknownGame_ListedTwice_OrAPulledWaypointMatch_AreSkipped()
     {
         var matchId = new Guid("eeeeeeee-2222-3333-4444-555555555555");
-        await AddMatch(matchId, (1, "Waypoint One", Outcomes.Won), (2, "Waypoint Two", Outcomes.Lost));
+        await AddMatch(Context, matchId, (1, "Waypoint One", Outcomes.Won, 5, 3), (2, "Waypoint Two", Outcomes.Lost, 5, 3));
         var input = CupWith(
             Game("cup#1", [("Alpha One", 1), ("Beta One", 2)], gameVersion: "nope"),
             Game("cup#2", [("Alpha One", 1), ("Beta One", 2)]),

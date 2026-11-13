@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using static GrifballWebApp.Application.Test.HistoricalImportUnitTestData;
 
 namespace GrifballWebApp.Application.Test;
 
@@ -29,8 +30,6 @@ internal sealed class HistoricalImportLateLeagueUnitTests : ApplicationDbContext
             NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System);
     }
 
-    private static ArchivePlayer Player(string gamertag) => new() { Gamertag = gamertag, Kills = 3, Deaths = 1, GamesPlayed = 1, StintIndex = 1 };
-
     private static ArchiveSeason Season(params ArchivePlayer[] players) => new()
     {
         SeasonName = "Late League Season 8 (Halo 3)",
@@ -51,30 +50,6 @@ internal sealed class HistoricalImportLateLeagueUnitTests : ApplicationDbContext
         Teams = [.. new[] { new RecordedTeamInput { Side = 1, Outcome = Outcomes.Won }, new RecordedTeamInput { Side = 2, Outcome = Outcomes.Lost } }.Take(sides)],
         Players = [.. players.Select(p => new RecordedPlayerInput { Gamertag = p.Gamertag, Side = p.Side, Kills = 5, Deaths = 3 })],
     };
-
-    private static HistoricalArchiveInput Input(ArchiveSeason season, List<RecordedGameInput>? games = null)
-        => new() { Seasons = new UnifiedArchive { Seasons = [season] }, RecordedGames = games };
-
-    private static HistoricalArchiveInput TwoPlayersAndAGame() => Input(Season(Player("Alpha One"), Player("Beta One")), [Game("ll#1", [("Alpha One", 1), ("Beta One", 2)])]);
-
-    [Test]
-    public async Task Import_Again_RestatesTheRows_AndRecordsTheGamesMatchAgain()
-    {
-        await _service.Import(TwoPlayersAndAGame());
-        Context.ChangeTracker.Clear();
-
-        var again = await _service.Import(TwoPlayersAndAGame());
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(again.Errors, Is.Empty);
-            Assert.That((again.MatchmakingSeasonsCreated, again.MatchmakingSeasonsUpdated), Is.EqualTo((0, 1)));
-            Assert.That((again.StatsInserted, again.StatsUpdated), Is.EqualTo((0, 2)));
-            Assert.That(again.RecordedGamesImported, Is.EqualTo(1));
-            Assert.That(await Context.MatchedMatches.CountAsync(), Is.EqualTo(1), "The same match, recorded again");
-            Assert.That(await Context.RecordedGames.CountAsync(), Is.EqualTo(1));
-        }
-    }
 
     [Test]
     public async Task Import_ASecondRowForTheSamePlayer_IsSkipped()

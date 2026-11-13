@@ -82,7 +82,7 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
         Context.ChangeTracker.Clear();
         var rows = new List<string>();
         rows.AddRange((await Context.Users.AsNoTracking().OrderBy(u => u.Id).ToListAsync())
-            .Select(u => $"User {u.Id} {u.UserName} {u.NormalizedUserName} {u.DisplayName} {u.IsDummyUser} {u.XboxUserID} {u.DiscordUserID} {u.MMR} {u.Wins} {u.Losses} {u.WinStreak} {u.LossStreak}"));
+            .Select(u => $"User {u.Id} {u.UserName} {u.NormalizedUserName} {u.DisplayName} {u.IsDummyUser} {u.XboxUserID} {u.DiscordUserID} {u.MMR} {u.Wins} {u.Losses} {u.WinStreak} {u.LossStreak} {u.SecurityStamp} {u.ConcurrencyStamp}"));
         rows.AddRange((await Context.Set<TeamPlayer>().AsNoTracking().OrderBy(t => t.TeamPlayerID).ToListAsync())
             .Select(t => $"TeamPlayer {t.TeamPlayerID} {t.TeamID} {t.UserID} {t.DraftCaptainOrder} {t.DraftRound}"));
         rows.AddRange((await Context.Teams.AsNoTracking().OrderBy(t => t.TeamID).ToListAsync()).Select(t => $"Team {t.TeamID} {t.CaptainID}"));
@@ -261,8 +261,11 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
         Context.Users.Add(second);
         await Context.SaveChangesAsync();
         await _merges.Merge(_real.Id, _placeholder.Id);
+        // Each merge and undo is a request of its own, with a fresh context: none reads another's tracked rows
+        Context.ChangeTracker.Clear();
         // The stats move again: the real user is merged into another account
         await new UserMergeService(Context, _time).Merge(second.Id, _real.Id);
+        Context.ChangeTracker.Clear();
         var merges = await Context.UserMerges.OrderBy(m => m.UserMergeID).ToListAsync();
 
         var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => _audit.Undo(merges[0].UserMergeID, null));
@@ -278,11 +281,15 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
         Context.Users.Add(second);
         await Context.SaveChangesAsync();
         var before = await Snapshot();
+        // Each merge and undo is a request of its own, with a fresh context: none reads another's tracked rows
         await _merges.Merge(_real.Id, _placeholder.Id);
+        Context.ChangeTracker.Clear();
         await new UserMergeService(Context, _time).Merge(second.Id, _real.Id);
+        Context.ChangeTracker.Clear();
         var merges = await Context.UserMerges.OrderBy(m => m.UserMergeID).Select(m => m.UserMergeID).ToListAsync();
 
         await _audit.Undo(merges[1], null);
+        Context.ChangeTracker.Clear();
         await _audit.Undo(merges[0], null);
 
         Assert.That(await Snapshot(), Is.EqualTo(before));

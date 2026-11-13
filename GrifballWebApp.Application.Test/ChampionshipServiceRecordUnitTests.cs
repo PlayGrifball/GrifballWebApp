@@ -45,6 +45,7 @@ internal sealed class ChampionshipServiceRecordUnitTests : ApplicationDbContextT
         await Context.SaveChangesAsync();
 
         var changes = await _service.RecordChampionsAsync(season.SeasonID, team.TeamID);
+        Context.ChangeTracker.Clear();
 
         using (Assert.EnterMultipleScope())
         {
@@ -59,6 +60,7 @@ internal sealed class ChampionshipServiceRecordUnitTests : ApplicationDbContextT
         var team = await SeedTeamWithRoster(captainUserId: 1, pickUserId: 2);
 
         var changes = await _service.RecordChampionsAsync(SeasonID, team.TeamID);
+        Context.ChangeTracker.Clear();
 
         var titles = await Context.Set<PlayerChampionship>().Where(c => c.SeasonID == SeasonID).ToListAsync();
         var captainTitle = titles.Single(c => c.UserID == 1);
@@ -78,8 +80,11 @@ internal sealed class ChampionshipServiceRecordUnitTests : ApplicationDbContextT
     {
         var team = await SeedTeamWithRoster(captainUserId: 1, pickUserId: 2);
         await _service.RecordChampionsAsync(SeasonID, team.TeamID);
+        // Each request gets a fresh context: the next call loads what the first one saved, not its tracked rows
+        Context.ChangeTracker.Clear();
 
         var changes = await _service.RecordChampionsAsync(SeasonID, team.TeamID);
+        Context.ChangeTracker.Clear();
 
         using (Assert.EnterMultipleScope())
         {
@@ -94,8 +99,11 @@ internal sealed class ChampionshipServiceRecordUnitTests : ApplicationDbContextT
     {
         var team = await SeedTeamWithRoster(captainUserId: 1, pickUserId: 2);
         await _service.RecordChampionsAsync(SeasonID, team.TeamID);
+        // Each request gets a fresh context: the next call loads what the first one saved, not its tracked rows
+        Context.ChangeTracker.Clear();
 
         var changes = await _service.RecordChampionsAsync(SeasonID, null);
+        Context.ChangeTracker.Clear();
 
         using (Assert.EnterMultipleScope())
         {
@@ -117,6 +125,7 @@ internal sealed class ChampionshipServiceRecordUnitTests : ApplicationDbContextT
         await Context.SaveChangesAsync();
 
         var changes = await _service.AwardFromBracketAsync(SeasonID);
+        Context.ChangeTracker.Clear();
 
         var title = await Context.Set<PlayerChampionship>().SingleAsync(c => c.UserID == 1);
         using (Assert.EnterMultipleScope())
