@@ -46,7 +46,8 @@ public sealed class ConversionException(string message) : Exception(message);
 /// one snapshot; otherwise nothing should write to it while this runs (a change part way through can
 /// fail the copy or the check, never pass a wrong one).
 /// </summary>
-public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
+/// <param name="contexts">How a context on a database is made; the app's own (DatabaseConverter.NewContext) unless given. The tests give theirs, whose migrations are fakes (Infrastructure.Test can't reference the Migrations assemblies).</param>
+public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger, Func<DatabaseEndpoint, GrifballContext>? contexts = null)
 {
     public Task<IReadOnlyList<ConvertedTable>> ConvertAsync(DatabaseEndpoint source, DatabaseEndpoint target, CancellationToken cancellationToken)
         => ConvertAsync(source, target, progress: null, cancellationToken);
@@ -55,10 +56,10 @@ public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
     public async Task<IReadOnlyList<ConvertedTable>> ConvertAsync(DatabaseEndpoint source, DatabaseEndpoint target, IProgress<ConversionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        await using (var sourceContext = NewContext(source))
+        await using (var sourceContext = Contexts(source))
             await CheckSourceAsync(sourceContext, cancellationToken);
 
-        await using var targetContext = NewContext(target);
+        await using var targetContext = Contexts(target);
         var created = await PrepareTargetAsync(targetContext, cancellationToken);
         try
         {
@@ -85,6 +86,9 @@ public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
             throw;
         }
     }
+
+    /// <summary>The constructor's contexts, or the app's own.</summary>
+    private Func<DatabaseEndpoint, GrifballContext> Contexts { get; } = contexts ?? NewContext;
 
     internal static GrifballContext NewContext(DatabaseEndpoint endpoint)
     {
@@ -162,7 +166,12 @@ public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
         }
     }
 
-    private async Task<IReadOnlyList<ConvertedTable>> CopyAsync(DatabaseEndpoint source, DatabaseEndpoint target, ConversionTables tables, CancellationToken cancellationToken,
+    /// <summary>
+    /// Copies every table's rows into the target, whose tables are there and hold nothing of the source's yet, checks
+    /// them and commits: the conversion after its source and target checks. Internal for the tests, which run it between
+    /// two SQLite files made from the model (no migrations).
+    /// </summary>
+    internal async Task<IReadOnlyList<ConvertedTable>> CopyAsync(DatabaseEndpoint source, DatabaseEndpoint target, ConversionTables tables, CancellationToken cancellationToken,
         IProgress<ConversionProgress>? progress)
     {
         await using var sourceConnection = Open(source);
@@ -237,7 +246,7 @@ public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
     /// </summary>
     internal async Task<List<string>> CompareAsync(DatabaseEndpoint source, DatabaseEndpoint target, CancellationToken cancellationToken = default)
     {
-        await using var targetContext = NewContext(target);
+        await using var targetContext = Contexts(target);
         var tables = ConversionTables.Order(targetContext);
         await using var sourceConnection = Open(source);
         await sourceConnection.OpenAsync(cancellationToken);

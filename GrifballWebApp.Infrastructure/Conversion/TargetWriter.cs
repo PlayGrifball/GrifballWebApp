@@ -19,9 +19,16 @@ internal abstract class TargetWriter(DbConnection connection, DbTransaction tran
 
     public static TargetWriter For(DatabaseProvider provider, DbConnection connection, DbTransaction transaction, ILogger logger) => provider switch
     {
-        DatabaseProvider.SqlServer => new SqlServerTargetWriter((SqlConnection)connection, (SqlTransaction)transaction),
-        DatabaseProvider.Postgres => new PostgresTargetWriter((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, logger),
-        DatabaseProvider.Sqlite => new SqliteTargetWriter((Microsoft.Data.Sqlite.SqliteConnection)connection, (Microsoft.Data.Sqlite.SqliteTransaction)transaction),
+        // The driver's own connection, checked before anything is sent: the rows go in through it (SqlBulkCopy, binary COPY)
+        DatabaseProvider.SqlServer => connection is SqlConnection
+            ? new SqlServerTargetWriter(connection, transaction)
+            : throw new ArgumentException($"A SQL Server target needs a SqlConnection, not a {connection.GetType().Name}.", nameof(connection)),
+        DatabaseProvider.Postgres => connection is NpgsqlConnection
+            ? new PostgresTargetWriter(connection, transaction, logger)
+            : throw new ArgumentException($"A PostgreSQL target needs an NpgsqlConnection, not a {connection.GetType().Name}.", nameof(connection)),
+        DatabaseProvider.Sqlite => connection is Microsoft.Data.Sqlite.SqliteConnection sqlite
+            ? new SqliteTargetWriter(sqlite, (Microsoft.Data.Sqlite.SqliteTransaction)transaction)
+            : throw new ArgumentException($"A SQLite target needs a SqliteConnection, not a {connection.GetType().Name}.", nameof(connection)),
         _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
     };
 
@@ -87,7 +94,9 @@ internal abstract class TargetWriter(DbConnection connection, DbTransaction tran
 /// tables, which nothing refers to: EF goes by name. Rows go in by SqlBulkCopy, identity values kept and
 /// constraints checked (so they stay trusted).
 /// </summary>
-internal sealed class SqlServerTargetWriter(SqlConnection connection, SqlTransaction transaction)
+/// <remarks>Its connection is a SqlConnection (the rows go in by SqlBulkCopy); the rest of what it sends is plain SQL, which
+/// any DbConnection carries, so the tests give it one of their own.</remarks>
+internal sealed class SqlServerTargetWriter(DbConnection connection, DbTransaction transaction)
     : TargetWriter(connection, transaction)
 {
     private static readonly SqlServerDialect Dialect = SqlServerDialect.Instance;
@@ -255,7 +264,9 @@ internal sealed class SqlServerTargetWriter(SqlConnection connection, SqlTransac
 /// generates ('infinity'), is left to it. Identity columns' sequences then carry on after the highest
 /// value, and after the commit ANALYZE gives the planner the new tables' statistics.
 /// </summary>
-internal sealed class PostgresTargetWriter(NpgsqlConnection connection, NpgsqlTransaction transaction, ILogger logger)
+/// <remarks>Its connection is an NpgsqlConnection (the rows go in by binary COPY); the rest of what it sends is plain SQL,
+/// which any DbConnection carries, so the tests give it one of their own.</remarks>
+internal sealed class PostgresTargetWriter(DbConnection connection, DbTransaction transaction, ILogger logger)
     : TargetWriter(connection, transaction)
 {
     private static readonly PostgresDialect Dialect = PostgresDialect.Instance;

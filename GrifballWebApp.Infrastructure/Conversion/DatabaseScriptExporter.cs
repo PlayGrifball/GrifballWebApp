@@ -20,8 +20,12 @@ namespace GrifballWebApp.Infrastructure.Conversion;
 /// is read as the converter reads it (one snapshot, where the server allows), and must have exactly this build's
 /// migrations. Run it with psql -v ON_ERROR_STOP=1, or sqlcmd -b.
 /// </summary>
-public sealed partial class DatabaseScriptExporter(ILogger<DatabaseConverter> logger)
+/// <param name="contexts">How a context on a database is made; the app's own (DatabaseConverter.NewContext) unless given. The tests give theirs, whose migrations are fakes (Infrastructure.Test can't reference the Migrations assemblies); passed on to its converter.</param>
+public sealed partial class DatabaseScriptExporter(ILogger<DatabaseConverter> logger, Func<DatabaseEndpoint, GrifballContext>? contexts = null)
 {
+    /// <summary>The constructor's contexts, or the app's own.</summary>
+    private Func<DatabaseEndpoint, GrifballContext> Contexts { get; } = contexts ?? DatabaseConverter.NewContext;
+
     public static bool Supports(DatabaseProvider target) => target is DatabaseProvider.SqlServer or DatabaseProvider.Postgres;
 
     /// <param name="progress">Hears each table as it's written.</param>
@@ -29,17 +33,17 @@ public sealed partial class DatabaseScriptExporter(ILogger<DatabaseConverter> lo
         IProgress<ConversionProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         var script = ScriptDialect.For(target);
-        await using (var sourceContext = DatabaseConverter.NewContext(source))
+        await using (var sourceContext = Contexts(source))
             await DatabaseConverter.CheckSourceAsync(sourceContext, cancellationToken);
 
         // A context for the target's server that never connects: its model and migrations only.
-        await using var targetContext = DatabaseConverter.NewContext(new DatabaseEndpoint(target, script.ModelConnectionString));
+        await using var targetContext = Contexts(new DatabaseEndpoint(target, script.ModelConnectionString));
         var tables = ConversionTables.Order(targetContext);
         var targetColumns = TargetColumns(targetContext, target);
         var schema = targetContext.GetService<IMigrator>().GenerateScript(options: MigrationsSqlGenerationOptions.NoTransactions);
         var lastMigration = targetContext.Database.GetMigrations().Last();
 
-        var converter = new DatabaseConverter(logger);
+        var converter = new DatabaseConverter(logger, Contexts);
         await using var connection = DatabaseConverter.Connect(source);
         await connection.OpenAsync(cancellationToken);
         await using var transaction = await converter.BeginSourceTransactionAsync(source.Provider, connection, cancellationToken);

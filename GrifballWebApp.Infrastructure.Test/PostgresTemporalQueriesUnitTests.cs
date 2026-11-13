@@ -325,6 +325,93 @@ public class PostgresTemporalQueriesUnitTests
         }
     }
 
+    // Set operations. Sides that are projections are two queries in one: each side reads its own time, as SQL Server
+    // does, and nothing needs refusing. Sides that are the entities themselves are one root as far as EF goes
+    // (AreQueryRootsCompatible): as of the same time they share its parameter; at different times, or one side not
+    // temporal, they are refused, as on SQL Server.
+    [Test]
+    public void ASetOperation_OfProjections_ReadsEachSideAtItsOwnTime()
+    {
+        using var context = Postgres();
+
+        var sql = context.Seasons.TemporalAsOf(A).Select(s => s.SeasonID).Concat(context.Seasons.TemporalAsOf(B).Select(s => s.SeasonID)).ToQueryString();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sql, Does.Contain("UNION ALL"));
+            Assert.That(sql, Does.Contain("2026-10-01").And.Contain("2026-10-02"), "each side its own time");
+        }
+    }
+
+    [Test]
+    public void ASetOperation_OfEntitiesAsOfTheSameTime_ReadsBothSidesAtThatTime()
+    {
+        using var context = Postgres();
+
+        var sql = context.Seasons.TemporalAsOf(A).Concat(context.Seasons.TemporalAsOf(A)).ToQueryString();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sql, Does.Contain("UNION ALL"));
+            var (parameters, body) = Split(sql);
+            Assert.That(parameters, Is.Not.Empty.And.All.Contains("2026-10-01"), $"both sides read as of the one time: {sql}");
+            Assert.That(body, Does.Not.Contain("2026-10-01"), "the time is a parameter, never inlined");
+        }
+    }
+
+    [Test]
+    public void ASetOperation_OfEntitiesAsOfDifferentTimes_IsRefused()
+    {
+        using var context = Postgres();
+
+        Assert.That(() => context.Seasons.TemporalAsOf(A).Concat(context.Seasons.TemporalAsOf(B)).ToQueryString(), Throws.InvalidOperationException);
+    }
+
+    [Test]
+    public void ASetOperation_OfEntitiesOneSideTemporal_IsRefused()
+    {
+        using var context = Postgres();
+
+        Assert.That(() => context.Seasons.TemporalAsOf(A).Concat(context.Seasons).ToQueryString(), Throws.InvalidOperationException);
+    }
+
+    [Test]
+    public void ASetOperation_OfTwoPlainSides_IsAsEver()
+    {
+        using var context = Postgres();
+
+        var sql = context.Seasons.Select(s => s.SeasonID).Concat(context.Seasons.Select(s => s.SeasonID)).ToQueryString();
+
+        Assert.That(sql, Does.Contain("UNION ALL").And.Not.Contain("History"));
+    }
+
+    [Test]
+    public void BetweenAndContainedIn_HaveTheirTimesAsParameters()
+    {
+        using var context = Postgres();
+
+        var between = context.Seasons.TemporalBetween(A, B).ToQueryString();
+        var containedIn = context.Seasons.TemporalContainedIn(A, B).ToQueryString();
+
+        using (Assert.EnterMultipleScope())
+        {
+            foreach (var (name, sql) in new[] { ("between", between), ("contained in", containedIn) })
+            {
+                var (parameters, body) = Split(sql);
+                Assert.That(string.Join("\n", parameters), Does.Contain("2026-10-01").And.Contain("2026-10-02"), $"{name}: both times are parameters: {sql}");
+                Assert.That(body, Does.Not.Contain("2026-10-01").And.Not.Contain("2026-10-02"), $"{name}: never inlined");
+            }
+            Assert.That(Split(between).Body, Is.Not.EqualTo(Split(containedIn).Body), "each its own condition on the periods");
+        }
+    }
+
+    /// <summary>ToQueryString's parameter lines ("-- @p=..."), and the SQL without them.</summary>
+    private static (List<string> Parameters, string Body) Split(string sql)
+    {
+        var lines = sql.Split('\n');
+        return ([.. lines.Where(l => l.StartsWith("-- ", StringComparison.Ordinal))], string.Join("\n", lines.Where(l => !l.StartsWith("-- ", StringComparison.Ordinal))));
+    }
+
     private sealed class SomeOtherTemporalQueryRoot(IEntityType entityType) : TemporalQueryRootExpression(entityType)
     {
         public override Expression DetachQueryProvider() => this;

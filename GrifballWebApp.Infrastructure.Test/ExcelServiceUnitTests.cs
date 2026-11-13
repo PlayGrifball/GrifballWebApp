@@ -362,4 +362,17 @@ public class ExcelServiceExportUnitTests : SqliteContextFixture
             Assert.That(_handler.Requests.Any(r => r.Method == HttpMethod.Post), Is.False);
         }
     }
+
+    [Test]
+    public async Task TheExportJob_ExportsTheCopySheetsMatches_ToItsInput()
+    {
+        var id = Guid.Parse("55555555-5555-5555-5555-555555555555");
+        _copySheetJson = $$"""{"values":[["header"],["{{id}}"]]}""";
+        var run = Substitute.For<Quartz.IJobExecutionContext>();
+
+        await new SheetExportJob(CreateService()).Execute(run, Target);
+
+        run.Received(1).ReportProgress(0, "Exporting to Stats");
+        await _dataPull.Received(1).GetAndSaveMatch(id);
+    }
 }

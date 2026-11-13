@@ -194,4 +194,16 @@ public class EventsServiceTests : SqliteContextFixture
             Assert.That(message.Payload, Does.Contain("Signups are closed"));
         }
     }
+
+    [Test]
+    public async Task TheRecurringJob_RunsGo_EveryTick()
+    {
+        var season = AddUpcomingAnnouncedSeason();
+        await Context.SaveChangesAsync();
+        var job = new SeasonEventsJob(_service, new GrifballWebApp.Infrastructure.Jobs.RepeatedFailures(_time, NullLogger<GrifballWebApp.Infrastructure.Jobs.RepeatedFailures>.Instance));
+
+        await job.Execute(NSubstitute.Substitute.For<Quartz.IJobExecutionContext>());
+
+        Assert.That((await Context.Outbox.SingleAsync()).GroupKey, Is.EqualTo(EventsOutbox.Group(season.SeasonID)));
+    }
 }

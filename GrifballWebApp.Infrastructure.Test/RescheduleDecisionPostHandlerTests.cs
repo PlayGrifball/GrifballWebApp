@@ -8,6 +8,7 @@ using GrifballWebApp.Infrastructure.Reschedule;
 using Microsoft.EntityFrameworkCore;
 using NetCord.Rest;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using System.Text.Json;
 using GrifballWebApp.Infrastructure.Outbox;
 
@@ -110,5 +111,18 @@ public class RescheduleDecisionPostHandlerTests : SqliteContextFixture
             Assert.That(outcome, Is.EqualTo(OutboxOutcome.Done));
         }
         await _discord.DidNotReceive().SendMessageAsync(Arg.Any<ulong>(), Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task HandleAsync_TheThreadDeletedSince_IsDone_WithNobodyLeftToTell()
+    {
+        var reschedule = await SeedReschedule(withThread: true);
+        _discord.SendMessageAsync(ThreadId, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new RestException(System.Net.HttpStatusCode.NotFound, "Not Found", new RestError(10003, "Unknown Channel", null)));
+
+        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID, "Approved"), Context, CancellationToken.None);
+
+        Assert.That(outcome, Is.EqualTo(OutboxOutcome.Done));
+        await _discord.Received(1).SendMessageAsync(ThreadId, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
 }

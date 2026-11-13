@@ -173,4 +173,43 @@ public class InfrastructureServiceCollectionExtensionsTests
                 preview ? "A preview's smoke players get made-up gamertags" : "Everything else is looked up on Halo");
         }
     }
+
+    [Test]
+    public void AddInfrastructure_TheArchivesAndTheVodsHttpClients_SayWhoTheyAre_AndWaitTheirOwnTime()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddInfrastructure(Config(ValidInfrastructureSettings(preview: false)), discordOff: true);
+        using var provider = services.BuildServiceProvider();
+        var factory = provider.GetRequiredService<IHttpClientFactory>();
+
+        using var sources = factory.CreateClient(nameof(GrifballWebApp.Infrastructure.Historical.Sources.HistoricalSourceFetcher));
+        using var vods = factory.CreateClient(nameof(GrifballWebApp.Application.Historical.Vods.YouTubeClient));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((sources.Timeout, sources.MaxResponseContentBufferSize), Is.EqualTo((TimeSpan.FromMinutes(2), 64L * 1024 * 1024)));
+            Assert.That(sources.DefaultRequestHeaders.UserAgent.ToString(), Is.EqualTo("GrifballWebApp/1.0 (historical archive)"));
+            Assert.That(vods.Timeout, Is.EqualTo(TimeSpan.FromMinutes(1)));
+            Assert.That(vods.DefaultRequestHeaders.UserAgent.ToString(), Is.EqualTo("GrifballWebApp/1.0 (VODs)"));
+        }
+    }
+
+    [TestCase("grif-backup-scratch", true, Description = "a scratch server started on demand: stopped at startup")]
+    [TestCase(null, false, Description = "none: no scaler, nothing to stop")]
+    [TestCase("", false)]
+    public void AddInfrastructure_TheScratchServersScaler_OnlyWithItsDeployment(string? deployment, bool registered)
+    {
+        var settings = ValidInfrastructureSettings(preview: false);
+        settings["DatabaseBackup:Scratch:Deployment"] = deployment;
+        var services = new ServiceCollection();
+
+        services.AddInfrastructure(Config(settings), discordOff: true);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(services.Any(d => d.ServiceType == typeof(GrifballWebApp.Infrastructure.DatabaseBackup.IScratchScaler)), Is.EqualTo(registered));
+            Assert.That(services.Any(d => d.ImplementationType == typeof(GrifballWebApp.Infrastructure.DatabaseBackup.ScratchScaleDown)), Is.EqualTo(registered));
+        }
+    }
 }

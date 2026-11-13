@@ -17,7 +17,7 @@ namespace GrifballWebApp.Infrastructure;
 public static class DatabaseLocks
 {
     /// <summary>How often a lock someone else holds is tried again.</summary>
-    public static TimeSpan RetryEvery { get; set; } = TimeSpan.FromMilliseconds(100);
+    public static readonly TimeSpan RetryEvery = TimeSpan.FromMilliseconds(100);
 
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> SqliteLocks = new();
 
@@ -25,9 +25,15 @@ public static class DatabaseLocks
     /// Waits for the lock <paramref name="name"/>, then holds it until the returned handle is disposed. Not reentrant:
     /// a second acquire of the same name waits for the first to be released, on any context. Cancelling stops the wait.
     /// </summary>
-    public static async Task<IAsyncDisposable> AcquireLockAsync(this DatabaseFacade database, string name, CancellationToken ct = default)
+    public static Task<IAsyncDisposable> AcquireLockAsync(this DatabaseFacade database, string name, CancellationToken ct = default)
+        => database.AcquireLockAsync(name, TimeProvider.System, ct);
+
+    /// <inheritdoc cref="AcquireLockAsync(DatabaseFacade, string, CancellationToken)"/>
+    /// <param name="time">The clock the waits between tries go by.</param>
+    public static async Task<IAsyncDisposable> AcquireLockAsync(this DatabaseFacade database, string name, TimeProvider time, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(time);
         if (database.IsSqlite())
         {
             var semaphore = SqliteLocks.GetOrAdd($"{database.GetConnectionString()}\n{name}", _ => new SemaphoreSlim(1, 1));
@@ -42,7 +48,7 @@ public static class DatabaseLocks
         try
         {
             while (!await TryAsync(database, sqlServer, name, ct))
-                await Task.Delay(RetryEvery, ct);
+                await Task.Delay(RetryEvery, time, ct);
         }
         catch
         {

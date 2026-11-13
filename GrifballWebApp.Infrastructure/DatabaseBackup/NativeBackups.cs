@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using System.Diagnostics;
 using Microsoft.Data.SqlClient;
 using Npgsql;
@@ -46,30 +47,38 @@ public static class NativeBackups
     public static async Task SqlServerAsync(string connectionString, string? directory, string path, CancellationToken cancellationToken, string? fileName = null)
     {
         await using var connection = new SqlConnection(connectionString);
+        await SqlServerAsync(connection, directory, path, cancellationToken, fileName);
+    }
+
+    /// <summary><see cref="SqlServerAsync(string, string?, string, CancellationToken, string?)"/> on a connection made already:
+    /// for the tests, which give it one of their own.</summary>
+    internal static async Task SqlServerAsync(DbConnection connection, string? directory, string path, CancellationToken cancellationToken, string? fileName = null)
+    {
         await connection.OpenAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(directory))
         {
-            await using var defaultPath = new SqlCommand("SELECT CONVERT(nvarchar(4000), SERVERPROPERTY('InstanceDefaultBackupPath'))", connection);
-            directory = (string)(await defaultPath.ExecuteScalarAsync(cancellationToken))!;
+            await using var defaultPath = Command(connection, "SELECT CONVERT(nvarchar(4000), SERVERPROPERTY('InstanceDefaultBackupPath'))", timeout: null);
+            // NULL (DBNull) where the instance has no default folder: a managed instance, an older server
+            directory = await defaultPath.ExecuteScalarAsync(cancellationToken) as string
+                ?? throw new NativeBackupUnavailableException(
+                    $"SQL Server has no default backup folder, so the backup can't be made: set {SqlServerDirectoryKey}, or download a SQL Server script instead.");
         }
         // Forward slashes: SQL Server takes them on Windows too.
         var file = $"{directory.TrimEnd('/', '\\')}/{fileName ?? $"download_{connection.Database}.bak"}";
 
-        await using var edition = new SqlCommand(
-            "SELECT CONVERT(int, SERVERPROPERTY('EngineEdition')), CONVERT(nvarchar(128), SERVERPROPERTY('Edition'))", connection);
+        await using var edition = Command(connection,
+            "SELECT CONVERT(int, SERVERPROPERTY('EngineEdition')), CONVERT(nvarchar(128), SERVERPROPERTY('Edition'))", timeout: null);
         bool compress;
         await using (var reader = await edition.ExecuteReaderAsync(cancellationToken))
         {
-            await reader.ReadAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+                throw new NativeBackupUnavailableException("SQL Server didn't say its edition, so the backup can't be made: download a SQL Server script instead.");
             compress = CompressesBackups(reader.GetInt32(0), reader.GetString(1));
         }
 
         try
         {
-            await using var backup = new SqlCommand(BackupStatement(compress), connection);
-            backup.CommandTimeout = 0;
-            backup.Parameters.AddWithValue("@database", connection.Database);
-            backup.Parameters.AddWithValue("@file", file);
+            await using var backup = Command(connection, BackupStatement(compress), timeout: 0, ("@database", connection.Database), ("@file", file));
             await backup.ExecuteNonQueryAsync(cancellationToken);
         }
         catch (SqlException e) when (e.Errors.Cast<SqlError>().Any(error => PermissionErrors.Contains(error.Number)))
@@ -82,13 +91,13 @@ public static class NativeBackups
         try
         {
             // OPENROWSET BULK takes the path as a literal only: SQL Server writes it into the statement from the parameter, quoted
-            await using var read = new SqlCommand(
+            await using var read = Command(connection,
                 "DECLARE @sql nvarchar(max) = N'SELECT BulkColumn FROM OPENROWSET(BULK N''' + REPLACE(@file, N'''', N'''''') + N''', SINGLE_BLOB) AS b'; EXEC sp_executesql @sql",
-                connection);
-            read.CommandTimeout = 0;
-            read.Parameters.AddWithValue("@file", file);
+                timeout: 0, ("@file", file));
             await using var reader = await read.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken);
-            await reader.ReadAsync(cancellationToken);
+            // No row: nothing to save, and no empty file left behind
+            if (!await reader.ReadAsync(cancellationToken))
+                throw new NativeBackupUnavailableException($"SQL Server made the backup ({file}) but reading it back gave nothing. Download a SQL Server script instead.");
             await using var output = File.Create(path);
             await using var stream = reader.GetStream(0);
             await stream.CopyToAsync(output, cancellationToken);
@@ -102,6 +111,24 @@ public static class NativeBackups
                 "SQL Server 2022 CU24 or 2025 CU3 or later and a folder named in mssql.conf's bulkadmin allowedpathslist, outside /var/opt/mssql " +
                 "(the chart's database.logins.app.nativeBackups sets both up on its own SQL Server). Or download a SQL Server script instead.", e);
         }
+    }
+
+    /// <summary>A command on the connection with its parameters, and its timeout: 0 (none) for the backup and its read
+    /// back, which take as long as they take; null for the driver's default.</summary>
+    private static DbCommand Command(DbConnection connection, string sql, int? timeout, params (string Name, object Value)[] parameters)
+    {
+        var command = connection.CreateCommand();
+        command.CommandText = sql;
+        if (timeout is { } seconds)
+            command.CommandTimeout = seconds;
+        foreach (var (name, value) in parameters)
+        {
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = name;
+            parameter.Value = value;
+            command.Parameters.Add(parameter);
+        }
+        return command;
     }
 
     /// <summary>pg_dump's arguments and environment for the app's connection string: the password in PGPASSWORD, never on its command line.</summary>
