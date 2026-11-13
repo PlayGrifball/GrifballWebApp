@@ -193,7 +193,10 @@ public sealed class TelemetryQueryService
             status);
     }
 
-    /// <summary>A trace's spans from this service; null when it has none (unknown trace, or another service's).</summary>
+    /// <summary>
+    /// A trace's spans from this service and the ones in front of it (TelemetryQuery:EdgeServices); null when it has none of
+    /// this service's (unknown trace, or another service's).
+    /// </summary>
     public async Task<TraceDto?> Trace(string traceId, CancellationToken ct)
     {
         var tempo = _options.Tempo ?? throw new TelemetryBackendMissingException("Tempo");
@@ -208,8 +211,9 @@ public sealed class TelemetryQueryService
         if (!doc.RootElement.TryGetProperty("trace", out var trace) || !trace.TryGetProperty("resourceSpans", out var resourceSpans))
             return null;
 
-        var spans = resourceSpans.EnumerateArray().SelectMany(ServiceSpans).ToList();
-        if (spans.Count == 0)
+        var edge = _options.EdgeServiceNames;
+        var spans = resourceSpans.EnumerateArray().SelectMany(r => ShownSpans(r, edge)).ToList();
+        if (!spans.Exists(s => s.Service == _options.ServiceName))
             return null;
 
         var start = spans.Min(s => s.Start);
@@ -219,30 +223,34 @@ public sealed class TelemetryQueryService
             FromUnixNanos(start),
             Millis(end - start),
             spans.OrderBy(s => s.Start).Select(s => new SpanDto(
-                s.SpanId, s.Parent, s.Name, Title(s.Kind), s.Scope, s.Pod, Millis(s.Start - start), Millis(s.End - s.Start),
+                s.SpanId, s.Parent, s.Name, Title(s.Kind), s.Scope, s.Service, s.Pod, Millis(s.Start - start), Millis(s.End - s.Start),
                 Title(s.Status), string.IsNullOrEmpty(s.StatusMessage) ? null : s.StatusMessage, s.SpanAttributes,
                 s.Events.Select(e => new SpanEventDto(e.Name, Millis(e.Time - start), e.Attributes)).ToList())).ToList());
     }
 
     /// <summary>A trace's span as Tempo's v2 JSON has it, its times in Unix nanoseconds.</summary>
-    private sealed record RawSpan(long Start, long End, string SpanId, string? Parent, string Name, string Kind, string Scope, string? Pod, string Status,
+    private sealed record RawSpan(long Start, long End, string SpanId, string? Parent, string Name, string Kind, string Scope, string Service, string? Pod, string Status,
         string? StatusMessage, Dictionary<string, string> SpanAttributes, List<(string Name, long Time, Dictionary<string, string> Attributes)> Events);
 
-    /// <summary>A resource's spans when it is this service (none for another's), with its pod and each span's scope.</summary>
-    private IEnumerable<RawSpan> ServiceSpans(JsonElement resource)
+    /// <summary>
+    /// A resource's spans when it is this service or one of <paramref name="edge"/> (none for another's), with its service,
+    /// its pod and each span's scope.
+    /// </summary>
+    private IEnumerable<RawSpan> ShownSpans(JsonElement resource, IReadOnlySet<string> edge)
     {
         var resourceAttributes = Attributes(resource.GetProperty("resource"));
-        if (resourceAttributes.GetValueOrDefault("service.name") != _options.ServiceName)
+        var service = resourceAttributes.GetValueOrDefault("service.name") ?? "";
+        if (service != _options.ServiceName && !edge.Contains(service))
             return [];
         var pod = resourceAttributes.GetValueOrDefault("k8s.pod.name") ?? resourceAttributes.GetValueOrDefault("service.instance.id");
         return resource.GetProperty("scopeSpans").EnumerateArray().SelectMany(scopeSpans =>
         {
             var scope = scopeSpans.TryGetProperty("scope", out var s) && s.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-            return scopeSpans.GetProperty("spans").EnumerateArray().Select(span => Span(span, scope, pod));
+            return scopeSpans.GetProperty("spans").EnumerateArray().Select(span => Span(span, scope, service, pod));
         });
     }
 
-    private static RawSpan Span(JsonElement span, string scope, string? pod)
+    private static RawSpan Span(JsonElement span, string scope, string service, string? pod)
     {
         var status = span.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.Object ? st : (JsonElement?)null;
         return new RawSpan(
@@ -253,6 +261,7 @@ public sealed class TelemetryQueryService
             span.GetProperty("name").GetString() ?? "",
             Trim(span.TryGetProperty("kind", out var kind) ? kind.GetString() : null, "SPAN_KIND_") ?? "Internal",
             scope,
+            service,
             pod,
             Trim(status?.TryGetProperty("code", out var code) is true ? code.GetString() : null, "STATUS_CODE_") ?? "Unset",
             status?.TryGetProperty("message", out var message) is true ? message.GetString() : null,

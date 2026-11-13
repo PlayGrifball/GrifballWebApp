@@ -5,6 +5,7 @@ import { SpanEventDto } from '../models/span-event-dto';
 
 /**
  * A span: OffsetMs from the trace's first span. Status is Unset, Ok or Error.
+ * Service is its service.name: this app's, or one in front of it (TelemetryQuery:EdgeServices).
  */
 export interface SpanDto {
   attributes: {
@@ -18,6 +19,7 @@ export interface SpanDto {
   parentSpanId: string | null;
   pod: string | null;
   scope: string;
+  service: string;
   spanId: string;
   status: string;
   statusMessage: string | null;

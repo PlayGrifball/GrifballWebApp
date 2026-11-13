@@ -15537,6 +15537,7 @@
           "parentSpanId",
           "pod",
           "scope",
+          "service",
           "spanId",
           "status",
           "statusMessage"
@@ -15557,6 +15558,9 @@
             "type": "string"
           },
           "scope": {
+            "type": "string"
+          },
+          "service": {
             "type": "string"
           },
           "pod": {
@@ -15592,7 +15596,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "A span: OffsetMs from the trace's first span. Status is Unset, Ok or Error."
+        "description": "A span: OffsetMs from the trace's first span. Status is Unset, Ok or Error.\nService is its service.name: this app's, or one in front of it (TelemetryQuery:EdgeServices)."
       },
       "SpanEventDto": {
         "required": [
@@ -16312,7 +16316,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "This service's spans of a trace, in start order."
+        "description": "This service's spans of a trace and those of the services in front of it, in start order."
       },
       "TraceSummaryDto": {
         "required": [

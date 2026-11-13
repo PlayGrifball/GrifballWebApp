@@ -4,7 +4,7 @@
 import { SpanDto } from '../models/span-dto';
 
 /**
- * This service's spans of a trace, in start order.
+ * This service's spans of a trace and those of the services in front of it, in start order.
  */
 export interface TraceDto {
   durationMs: number;
