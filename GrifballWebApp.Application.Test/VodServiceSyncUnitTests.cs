@@ -5,7 +5,9 @@ using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
 
 namespace GrifballWebApp.Application.Test;
@@ -49,8 +51,8 @@ internal sealed class VodServiceSyncUnitTests : ApplicationDbContextTests
         });
     }
 
-    private VodService Service(string? apiKey = null)
-        => new(Context, new YouTubeClient(new HttpClient(_handler)), Options.Create(new YouTubeOptions { ApiKey = apiKey }), NullLogger<VodService>.Instance);
+    private VodService Service(string? apiKey = null, ILogger<VodService>? logger = null)
+        => new(Context, new YouTubeClient(new HttpClient(_handler)), Options.Create(new YouTubeOptions { ApiKey = apiKey }), logger ?? NullLogger<VodService>.Instance);
 
     private async Task<HistoricalSource> AddChannel(string url, string id = SourceID)
     {
@@ -91,6 +93,19 @@ internal sealed class VodServiceSyncUnitTests : ApplicationDbContextTests
     private static readonly string[] FeedTimedOut = [$"{SourceID} feed: timed out"];
     private static readonly string[] BrokenChannelFailed = ["broken-channel: no channel ID in https://www.youtube.com/@grifball"];
     private static readonly string[] ApiForbidden = [$"{SourceID} uploads: the Data API answered 403", "YouTube videos: the Data API answered 403"];
+
+    [Test]
+    public async Task Sync_LogsWhatTheRefreshFoundAndDid()
+    {
+        await ChannelWithVideos();
+        var logger = new FakeLogger<VodService>();
+
+        await Service(logger: logger).Sync(_ => Task.CompletedTask);
+
+        // Found: the VOD, the clip, the chat and the Short; added: the VOD and the chat, both left for review
+        Assert.That(logger.Collector.GetSnapshot().Select(r => (r.Level, r.Message)), Has.Member((LogLevel.Information,
+            "VODs refreshed: 4 found, 2 added, 0 updated, 0 linked, 2 need review, 0 failed")));
+    }
 
     [Test]
     public async Task Sync_AddsEachVideoOnce_FromThePageAndTheFeed_ButNoClipOrShort()

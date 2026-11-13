@@ -18,6 +18,7 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
     private const int AwayCaptainUserID = 2;
     private const int RequesterUserID = 3;
     private const int CommissionerUserID = 4;
+    private static readonly (string, int)[] OnlyTheirs = [("theirs", AwayCaptainUserID)];
 
     private IOutbox _outbox = null!;
     private RescheduleService _service = null!;
@@ -119,6 +120,45 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
         var dto2 = new RescheduleRequestDto { SeasonMatchID = match.SeasonMatchID, Reason = "second" };
         Assert.That(async () => await _service.RequestRescheduleAsync(dto2, RequesterUserID),
             Throws.TypeOf<RescheduleAlreadyActiveException>());
+    }
+
+    [Test]
+    public async Task RequestRescheduleAsync_AnotherRequestSavedMeanwhile_ThrowsAlreadyActive_AndKeepsTheirs()
+    {
+        var match = await SeedUndecidedMatch();
+        // The away captain's request is saved after this one passed its check, as this one saves (the unique pending index)
+        var theirs = new BeforeFirstSave(async ct =>
+        {
+            await using var other = Context.NewContextLike();
+            other.MatchReschedules.Add(MatchReschedule.Request(match.SeasonMatchID, null, null, "theirs", AwayCaptainUserID, DateTime.UtcNow));
+            await other.SaveChangesAsync(ct);
+        });
+        await using var racing = Context.NewContextLike(theirs);
+        var dto = new RescheduleRequestDto { SeasonMatchID = match.SeasonMatchID, Reason = "mine" };
+
+        await Assert.ThatAsync(() => new RescheduleService(racing, _outbox).RequestRescheduleAsync(dto, RequesterUserID),
+            Throws.TypeOf<RescheduleAlreadyActiveException>());
+
+        Context.ChangeTracker.Clear();
+        var saved = await Context.MatchReschedules.ToListAsync();
+        Assert.That(saved.Select(r => (r.Reason, r.RequestedByUserID)), Is.EqualTo(OnlyTheirs));
+    }
+
+    [Test]
+    public async Task RequestRescheduleAsync_SaveRefusedForAnotherReason_Throws_AndSavesNothing()
+    {
+        var match = await SeedUndecidedMatch();
+        await using var failing = Context.NewContextLike(new RefusingSaves(_ => true, "refused"));
+        var dto = new RescheduleRequestDto { SeasonMatchID = match.SeasonMatchID, Reason = "mine" };
+
+        // No pending request is saved: not the other captain's race, so the failure is the caller's
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => new RescheduleService(failing, _outbox).RequestRescheduleAsync(dto, RequesterUserID));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("refused"));
+            Assert.That(await Context.MatchReschedules.AnyAsync(), Is.False);
+        }
     }
 
     [Test]

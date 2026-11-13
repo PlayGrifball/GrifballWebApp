@@ -10,6 +10,7 @@ namespace GrifballWebApp.Application.Test;
 internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
 {
     private static readonly DateTime Now = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly int[] OnlyUserOne = [1];
     private FakeTimeProvider _time = null!;
     private QuickSearchService _service = null!;
 
@@ -79,6 +80,42 @@ internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
 
         Assert.That(result, Has.Length.EqualTo(1));
         Assert.That(result[0].Kind, Is.EqualTo(QuickSearchPlayerKind.Archive));
+    }
+
+    [Test]
+    public async Task SearchPlayersAsync_ByAPastGamertag_ListsThePlayerByTheirCurrentName()
+    {
+        var xbox = XboxUser.FromXbox(1, "NewName");
+        _ = xbox.RecordPastGamertag("OldChief", null, new DateTime(2020, 6, 1, 0, 0, 0, DateTimeKind.Utc), GamertagHistorySource.Manual);
+        Context.XboxUsers.Add(xbox);
+        Context.Users.Add(User.Seed(userName: "renamed", xboxUser: xbox, id: 1));
+        await Context.SaveChangesAsync();
+
+        var result = await _service.SearchPlayersAsync("OldCh", CancellationToken.None);
+
+        Assert.That(result, Has.Length.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result[0].UserID, Is.EqualTo(1));
+            Assert.That(result[0].Name, Is.EqualTo("NewName"));
+            Assert.That(result[0].PastGamertag, Is.EqualTo("OldChief"));
+            Assert.That(result[0].Kind, Is.EqualTo(QuickSearchPlayerKind.Xbox));
+        }
+    }
+
+    [Test]
+    public async Task SearchPlayersAsync_QueryLongerThanTheLimit_IsCutToIt()
+    {
+        var xbox = XboxUser.FromXbox(1, "Chief117");
+        Context.XboxUsers.Add(xbox);
+        Context.Users.Add(User.Seed(userName: "chief", xboxUser: xbox, id: 1));
+        await Context.SaveChangesAsync();
+        // What is past the limit is dropped (and the spaces before it): "Chief117" is searched for
+        var query = "Chief117".PadRight(QuickSearchService.MaxLength + 4) + "zzzz";
+
+        var result = await _service.SearchPlayersAsync(query, CancellationToken.None);
+
+        Assert.That(result.Select(p => p.UserID), Is.EqualTo(OnlyUserOne));
     }
 
     [Test]

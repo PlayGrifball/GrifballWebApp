@@ -29,6 +29,39 @@ public class HistoricalImportRecordedGamesUnitTests
     }
 
     [Test]
+    public void Format_TheArchivesOwn_InAnyCase_WinsOverTheWorkbook()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(HistoricalKeys.Format(" tournament ", "agla", "wb", "Summer League"), Is.EqualTo(SeasonFormat.Tournament));
+            Assert.That(HistoricalKeys.Format("LeagueSeason", "side", "2021-side-respawn-h4-1", "Respawn 1"), Is.EqualTo(SeasonFormat.LeagueSeason),
+                "the archive says league season: not taken for Respawn's tournament");
+        }
+    }
+
+    [Test]
+    public async Task ReadAsync_ReadsTheCatalogInAnyCase()
+    {
+        using var json = new MemoryStream("""{ "SOURCES": [ { "id": "wl19", "Url": "https://example.com/wl19" }, ] }"""u8.ToArray());
+
+        var catalog = await HistoricalArchiveInput.ReadAsync<ArchiveCatalog>(json);
+
+        Assert.That(catalog.Sources.Select(s => (s.Id, s.Url)), Is.EqualTo(OneSource));
+    }
+
+    private static readonly (string, string?)[] OneSource = [("wl19", "https://example.com/wl19")];
+
+    [Test]
+    public async Task ReadAsync_AFileOfNull_IsRefused()
+    {
+        using var json = new MemoryStream("null"u8.ToArray());
+
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() => HistoricalArchiveInput.ReadAsync<ArchiveCatalog>(json));
+
+        Assert.That(ex!.Message, Is.EqualTo("The ArchiveCatalog file is empty"));
+    }
+
+    [Test]
     public void IsLateLeague_ByTheLeague_TheFormat_OrTheName()
     {
         using (Assert.EnterMultipleScope())

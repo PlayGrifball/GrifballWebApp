@@ -89,6 +89,94 @@ internal sealed class EventOrganizerServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task UpsertSeason_SignupsCloseBeforeTheyOpen_Throws()
+    {
+        var dto = NewSeasonDto();
+        dto.SignupsClose = dto.SignupsOpen.AddDays(-1);
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(dto));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("Signups can't close before they open."));
+            Assert.That(await Context.Seasons.AnyAsync(s => s.SeasonName == dto.SeasonName), Is.False);
+        }
+    }
+
+    [Test]
+    public async Task UpsertSeason_DraftAfterTheSeasonStarts_Throws()
+    {
+        var dto = NewSeasonDto();
+        dto.DraftStart = dto.SeasonStart.AddDays(1);
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(dto));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("The draft can't start after the season does."));
+            Assert.That(await Context.Seasons.AnyAsync(s => s.SeasonName == dto.SeasonName), Is.False);
+        }
+    }
+
+    [Test]
+    public async Task UpsertSeason_UnknownFormat_Throws()
+    {
+        var dto = NewSeasonDto();
+        dto.Format = (SeasonFormat)999;
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(dto));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("That season format doesn't exist."));
+            Assert.That(await Context.Seasons.AnyAsync(s => s.SeasonName == dto.SeasonName), Is.False);
+        }
+    }
+
+    [Test]
+    public async Task UpsertSeason_CopyAvailabilityAndSignups_TakesTheOtherSeasonsTimeslotsAndSignups()
+    {
+        var sourceId = await _service.UpsertSeason(NewSeasonDto("Source"));
+        Context.Users.Add(Domain.Players.User.Seed(userName: "player", id: 1));
+        var saturday = AvailabilityOption.Seed(dayOfWeek: DayOfWeek.Saturday, time: new TimeOnly(20, 0));
+        var sunday = AvailabilityOption.Seed(dayOfWeek: DayOfWeek.Sunday, time: new TimeOnly(21, 0));
+        var source = await Context.Seasons.Include(x => x.SeasonAvailability).SingleAsync(x => x.SeasonID == sourceId);
+        source.SetAvailability([saturday, sunday]);
+        Context.Add(SeasonSignup.Seed(sourceId, 1, teamName: "Crew", willCaptain: true));
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var dto = NewSeasonDto("Target");
+        dto.CopyFromSeasonID = sourceId;
+        dto.CopyAvailability = true;
+        dto.CopySignups = true;
+        var targetId = await _service.UpsertSeason(dto);
+
+        Context.ChangeTracker.Clear();
+        var timeslots = await Context.Seasons.Where(x => x.SeasonID == targetId)
+            .SelectMany(x => x.SeasonAvailability.Select(a => a.AvailabilityOptionID)).ToListAsync();
+        var signup = await Context.SeasonSignups.SingleAsync(x => x.SeasonID == targetId);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(timeslots, Is.EquivalentTo(new[] { saturday.AvailabilityOptionID, sunday.AvailabilityOptionID }));
+            Assert.That((signup.UserID, signup.TeamName, signup.WillCaptain), Is.EqualTo((1, "Crew", true)));
+            Assert.That(await Context.SeasonSignups.CountAsync(x => x.SeasonID == sourceId), Is.EqualTo(1), "the source keeps its own");
+        }
+    }
+
+    [Test]
+    public async Task UpsertSeason_CopyFromNoSuchSeason_ThrowsAndSavesNothing()
+    {
+        var dto = NewSeasonDto("Target");
+        dto.CopyFromSeasonID = 999;
+        dto.CopySignups = true;
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(dto));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("Cannot copy from season 999, it was not found"));
+            Assert.That(await Context.Seasons.AnyAsync(s => s.SeasonName == "Target"), Is.False);
+        }
+    }
+
+    [Test]
     public async Task UpsertSeason_UnknownGameVersion_Throws()
     {
         var dto = NewSeasonDto();

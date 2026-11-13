@@ -173,6 +173,35 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
     }
 
     [Test]
+    public async Task Apply_AppliedByAnotherClickMeanwhile_ReturnsNullAndSchedulesNothing()
+    {
+        var (home, away, match) = await SeedMatch();
+        var gene = new SeasonMatchGene { SeasonMatchID = match.SeasonMatchID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, ScheduledTime = ProposedTime };
+        var saved = await _service.Save(SeasonID, new ScheduleRun([gene], 0.9, 30, Options(ProposedTime, home.TeamID, away.TeamID)), "commissioner");
+        var id = saved.ScheduleRecommendationID;
+        // Another click's Apply stamps it after this one read it unapplied, as this one opens its transaction
+        var otherClick = new BeforeFirstTransaction(async ct =>
+        {
+            await using var other = Context.NewContextLike();
+            await other.ScheduleRecommendations.Where(r => r.ScheduleRecommendationID == id)
+                .ExecuteUpdateAsync(u => u.SetProperty(r => r.AppliedAt, Now).SetProperty(r => r.AppliedBy, "other"), ct);
+        });
+        await using var racing = Context.NewContextLike(otherClick);
+
+        var result = await new ScheduleRecommendations(racing, _time).Apply(id, "applier");
+
+        Context.ChangeTracker.Clear();
+        var reloaded = await Context.ScheduleRecommendations.SingleAsync(r => r.ScheduleRecommendationID == id);
+        var unscheduled = await Context.SeasonMatches.SingleAsync(m => m.SeasonMatchID == match.SeasonMatchID);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.Null);
+            Assert.That(reloaded.AppliedBy, Is.EqualTo("other"));
+            Assert.That(unscheduled.ScheduledTime, Is.Null, "the other click's Apply sets the times, not this one");
+        }
+    }
+
+    [Test]
     public async Task Apply_SkipsAlreadyDecidedMatches()
     {
         var (home, away, match) = await SeedMatch();

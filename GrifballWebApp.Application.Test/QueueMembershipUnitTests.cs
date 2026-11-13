@@ -11,8 +11,8 @@ namespace GrifballWebApp.Application.Test;
 /// QueueMembership (joining and leaving, by user and by Discord account, and what the watchers are told) over the real
 /// QueueRepository on the fake IApplicationDbContext, and QueueRepository's own reads (a player's state, the queue with
 /// its players' names, the active matches through MatchedMatchQueries.WithPlayerNames). AddPlayerToQueue's race (a spot
-/// saved by another request between its check and its insert) can't be staged on one context: the membership's answer to
-/// it is tested with a substituted repository instead.
+/// saved by another request between its check and its insert) is staged with a second context on the same connection,
+/// and the membership's answer to it with a substituted repository.
 /// </summary>
 [TestFixture]
 internal sealed class QueueMembershipUnitTests : ApplicationDbContextTests
@@ -302,6 +302,32 @@ internal sealed class QueueMembershipUnitTests : ApplicationDbContextTests
         {
             Assert.That(added, Is.False);
             Assert.That(await Queue(), Is.EqualTo(OnlyQueued));
+        }
+    }
+
+    [Test]
+    public async Task AddPlayerToQueue_QueuedByAnotherRequestMeanwhile_False_AndKeepsThatSpot()
+    {
+        await Seed();
+        // The site's join is saved after the Discord button's checked the queue, as the button's saves
+        var site = new BeforeFirstSave(async ct =>
+        {
+            await using var other = Context.NewContextLike();
+            other.QueuedPlayer.Add(QueuedPlayer.Seed(GamerID, Joined));
+            await other.SaveChangesAsync(ct);
+        });
+        await using var racing = Context.NewContextLike(site);
+
+        var added = await new QueueRepository(racing).AddPlayerToQueue(QueuedPlayer.Seed(GamerID, Joined.AddMinutes(1)));
+
+        var spot = await Context.QueuedPlayer.AsNoTracking().SingleAsync(q => q.UserID == GamerID);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(added, Is.False, "they are in the queue: the other request put them there");
+            Assert.That(spot.JoinedAt, Is.EqualTo(Joined), "the other request's spot stays");
+            Assert.That(racing.ChangeTracker.Entries<QueuedPlayer>().Any(e => e.State == EntityState.Added), Is.False, "the failed insert is let go");
+            // So the context's next save doesn't try the duplicate again
+            await Assert.ThatAsync(() => racing.SaveChangesAsync(), Throws.Nothing);
         }
     }
 

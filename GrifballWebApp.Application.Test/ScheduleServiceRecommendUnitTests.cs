@@ -2,6 +2,7 @@ using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using NSubstitute;
 
 namespace GrifballWebApp.Application.Test;
@@ -62,6 +63,18 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.Recommend(999, new ScheduleRunOptions()));
 
         Assert.That(ex!.Message, Is.EqualTo("Season not found"));
+    }
+
+    [Test]
+    public async Task Recommend_LogsTheGenerationItStoppedAt()
+    {
+        await SeedSeason();
+        var logger = new FakeLogger<ScheduleService>();
+        var service = new ScheduleService(Context, logger);
+
+        var run = await service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 3, TimeBudget = TimeSpan.FromMinutes(1) });
+
+        Assert.That(logger.Collector.GetSnapshot().Select(r => (r.Level, r.Message)), Has.Member((LogLevel.Information, $"GA Termination Reached after {run.Generations} generations")));
     }
 
     [Test]
