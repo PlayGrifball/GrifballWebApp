@@ -135,6 +135,12 @@ expect_areas "client only" "backend=false frontend=true images=false migrations=
 expect_areas "docs only" "backend=false frontend=false images=false migrations=false" pull_request docs/historical-import.md readme.md charts/grif/values.yaml
 expect_areas "the solution and the test workflow" "backend=true frontend=false images=false migrations=false" pull_request GrifballWebApp.slnx .github/workflows/dotnet-tests.yml
 expect_areas "the script itself: everything" "backend=true frontend=true images=true migrations=true" pull_request .github/scripts/changed-areas.sh
+# The typed SignalR client's inputs other than the C# code: the generator's version, the script that writes it, the
+# document it re-exports from, and the client itself (a hand edit): the typed-signalr job checks it
+for f in .config/dotnet-tools.json .github/scripts/signalr-models.mjs grifballwebapp.client/openapi.json grifballwebapp.client/src/generated/signalr/TypedSignalR.Client/index.ts; do
+  got=$(areas pull_request "$f")
+  [[ "$got" = backend=true* ]] && ok "changed-areas.sh: $f runs the .NET workflow" || bad "changed-areas.sh: $f gave '$got': the typed-signalr check would be skipped"
+done
 expect_areas "a push: everything" "backend=true frontend=true images=true migrations=true" push docs/x.md
 GH_FAILS=1 expect_areas "unreadable file list: everything" "backend=true frontend=true images=true migrations=true" pull_request docs/x.md
 # What the images are built from: the arm64 check runs; app code alone doesn't change it
@@ -427,6 +433,31 @@ echo '{"components":{"schemas":{"CaptainDto":{}}}}' > "$work/lacking.json"
 if node "$scripts/signalr-models.mjs" "$sm/tsrts" "$work/lacking.json" "$work/signalr2" > "$work/out" 2>&1; then bad "signalr-models: a missing DTO passed"
 elif grep -q '::error title=SignalR DTOs not in openapi.json::GrifballWebApp.Application.Teams.PlayerDto, GrifballWebApp.Application.Teams.DraftState' "$work/out"
 then ok "signalr-models: a DTO the document lacks fails, named"; else bad "signalr-models: missing DTO not named:"; cat "$work/out"; fi
+
+# Run from a path that a file URL spells differently (a space): it still writes the client
+spaced="$work/a checkout/scripts"
+mkdir -p "$spaced" && cp "$scripts/signalr-models.mjs" "$spaced/"
+if node "$spaced/signalr-models.mjs" "$sm/tsrts" "$sm/openapi.json" "$work/signalr3" > "$work/out" 2>&1 && [[ -f "$work/signalr3/GrifballWebApp.Application.Teams.ts" ]]
+then ok "signalr-models: runs from a path with a space"; else bad "signalr-models: did nothing from a path with a space:"; cat "$work/out"; fi
+
+# The dev proxies (src/proxy.conf*.js) send the hubs' page's paths where the SSR server does (src/app/backendPaths.ts)
+client=$(cd "$scripts/../../grifballwebapp.client" && pwd)
+if node --experimental-strip-types --no-warnings --input-type=module -e "
+  import { createRequire } from 'node:module';
+  const { backendPath } = await import('$client/src/app/backendPaths.ts');
+  const require = createRequire(import.meta.url);
+  const paths = ['/signalr-dev', '/signalr-dev/index.html', '/signalr-dev/spec.json', '/signalr-dev/_next/a.js', '/signalr-dev/TeamsHub',
+    '/signalr-dev/TeamsHub/negotiate?negotiateVersion=1', '/signalr-dev/QueueHub?id=1', '/signalr-dev/Hubris.html'];
+  let wrong = [];
+  for (const file of ['proxy.conf.js', 'proxy.conf.docker.js']) {
+    const page = require('$client/src/' + file).find(p => p.context.includes('/signalr-dev'));
+    const [[from, to]] = Object.entries(page.pathRewrite);
+    for (const path of paths)
+      if (path.replace(new RegExp(from), to) !== backendPath('/signalr-dev', path)) wrong.push(file + ' ' + path);
+  }
+  if (wrong.length) { console.log(wrong.join(', ')); process.exit(1); }
+" > "$work/out" 2>&1
+then ok "proxy.conf: the hubs' page's paths as backendPath sends them"; else bad "proxy.conf differs from backendPath:"; cat "$work/out"; fi
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

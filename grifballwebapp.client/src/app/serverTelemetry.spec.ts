@@ -134,6 +134,15 @@ describe('server telemetry', () => {
       expect(requestKind('/build-manifest.JSON')).toBe('file');
     });
 
+    it('counts the hubs\' page as the backend\'s, and its hub connections as hub traffic', () => {
+      // The page's own (src/app/backendPaths.ts): its connections go to the hubs, the rest to the backend as they are
+      expect(requestKind('/signalr-dev/TeamsHub/negotiate')).toBe('hub');
+      expect(requestKind('/signalr-dev/QueueHub')).toBe('hub');
+      expect(requestKind('/signalr-dev/spec.json')).toBe('api');
+      expect(requestKind('/signalr-dev')).toBe('api');
+      expect(requestKind('/signalr-dev/_next/static/chunks/main.js')).toBe('api');
+    });
+
     it('traces neither the build\'s files nor probes', () => {
       expect(isProbe('kube-probe/1.33')).toBeTrue();
       expect(isProbe('Mozilla/5.0')).toBeFalse();

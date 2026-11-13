@@ -413,6 +413,24 @@ public class BrowserAuthTests
     }
 
     [Test]
+    public async Task HubsPage_IsTheSysadminsOnly()
+    {
+        // The hubs' page (/signalr-dev) is a third-party page on the site's origin: only a sysadmin's browser loads it
+        using var visitor = Browser();
+        using var anonymous = await visitor.GetAsync("/signalr-dev/spec.json");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(anonymous.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+            Assert.That(anonymous.Headers.Location?.ToString(), Is.EqualTo("/login"));
+        }
+
+        using var sysadmin = Browser();
+        using (await Login(sysadmin)) { }
+        using var signedIn = await sysadmin.GetAsync("/signalr-dev/spec.json");
+        Assert.That(signedIn.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    [Test]
     public async Task Bearer_InAnApiCallsQuery_IsNotRead()
     {
         // Only a hub's query token is (SignalR's clients send it there): elsewhere it would end up in logs and history

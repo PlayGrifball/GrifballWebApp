@@ -272,11 +272,33 @@ public interface ISampleHub
     Task Save(Sample sample);
 }
 
+/// <summary>A base hub interface: its methods are the hub's too.</summary>
+public interface IBaseSampleHub
+{
+    Task<Outer.Inner> Inherited();
+}
+
+/// <summary>A hub of the other kinds of method: ValueTask, streams either way, and inherited ones.</summary>
+[TypedSignalR.Client.Hub]
+public interface IStreamingSampleHub : IBaseSampleHub
+{
+    ValueTask<Sample> One();
+    IAsyncEnumerable<Outer> Stream();
+    System.Threading.Channels.ChannelReader<double> Channel();
+    Task Upload(IAsyncEnumerable<decimal> items);
+}
+
 /// <summary>The hubs' payloads in the document (OpenApiSchemas.cs), for the client's models and its typed SignalR client.</summary>
 [TestFixture]
 public class HubSchemasDocumentFilterTests
 {
     private static readonly Type[] SamplePayloads = [typeof(int), typeof(List<int>), typeof(string), typeof(Sample)];
+    private static readonly Type[] StreamedPayloads = [typeof(Sample), typeof(Outer), typeof(double), typeof(decimal), typeof(Outer.Inner)];
+    private static readonly Type[] Wrappers =
+    [
+        typeof(ValueTask<Sample>), typeof(IAsyncEnumerable<Outer>), typeof(System.Threading.Channels.ChannelReader<double>),
+        typeof(IAsyncEnumerable<decimal>), typeof(Task<Outer.Inner>),
+    ];
 
     [Test]
     public void PayloadTypes_AreWhatTheHubsTakeAnswerAndSend()
@@ -293,6 +315,18 @@ public class HubSchemasDocumentFilterTests
             Assert.That(types, Does.Contain(typeof(List<GrifballWebApp.Application.Teams.TeamResponseDto>)));
             // Not what a method returns when it returns nothing
             Assert.That(types, Does.Not.Contain(typeof(Task)).And.Not.Contain(typeof(void)));
+        }
+    }
+
+    [Test]
+    public void PayloadTypes_AreWhatAValueTaskOrAStreamCarries_AndAnInheritedMethodsToo()
+    {
+        var types = HubSchemasDocumentFilter.PayloadTypes(typeof(IStreamingSampleHub).Assembly);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(types, Is.SupersetOf(StreamedPayloads));
+            Assert.That(types, Has.None.AnyOf(Wrappers));
         }
     }
 

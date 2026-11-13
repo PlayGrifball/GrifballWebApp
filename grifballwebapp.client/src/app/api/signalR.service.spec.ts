@@ -168,6 +168,21 @@ describe('SignalRService', () => {
     });
   }
 
+  it('gives a message to every callback even when one throws, and not to one added while it is given', () => {
+    const consoleError = spyOn(console, 'error');
+    const failing = jasmine.createSpy('failing').and.throwError('boom');
+    const added = jasmine.createSpy('added');
+    const next = jasmine.createSpy('next').and.callFake(() => service.lockCaptains(added));
+    service.lockCaptains(failing);
+    service.lockCaptains(next);
+
+    expect(() => handlerFor('LockCaptains')(7)).not.toThrow();
+
+    expect(next).toHaveBeenCalledOnceWith(7);
+    expect(added).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalled();
+  });
+
   describe('on the server', () => {
     beforeEach(() => {
       TestBed.resetTestingModule();
