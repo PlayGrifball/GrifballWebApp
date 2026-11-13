@@ -145,6 +145,27 @@ internal sealed class HistoricalImportLateLeagueUnitTests : ApplicationDbContext
     [Test]
     public async Task Import_AGameNoLongerInTheArchive_IsRemoved_WithItsMatch()
     {
+        var secondGame = Game("ll#2", [("Beta One", 1), ("Alpha One", 2)]);
+        await _service.Import(Input(Season(Player("Alpha One"), Player("Beta One")), [Game("ll#1", [("Alpha One", 1), ("Beta One", 2)]), secondGame]));
+        Context.ChangeTracker.Clear();
+
+        // ll#2 stays, so the season still has recorded games (with none at all, its earlier games are left alone)
+        var report = await _service.Import(Input(Season(Player("Alpha One"), Player("Beta One")), [secondGame]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.RecordedGamesRemoved, Is.EqualTo(1));
+            Assert.That(await Context.RecordedGames.Select(g => g.SourceKey).ToListAsync(), Is.EqualTo(SecondGameOnly));
+            Assert.That(await Context.MatchedMatches.CountAsync(), Is.EqualTo(1), "ll#1's match went with it");
+        }
+    }
+
+    private static readonly string[] SecondGameOnly = ["ll#2"];
+
+    [Test]
+    public async Task Import_NoRecordedGamesForTheSeason_LeavesItsEarlierGames()
+    {
         await _service.Import(TwoPlayersAndAGame());
         Context.ChangeTracker.Clear();
 
@@ -152,10 +173,9 @@ internal sealed class HistoricalImportLateLeagueUnitTests : ApplicationDbContext
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(report.Errors, Is.Empty);
-            Assert.That(report.RecordedGamesRemoved, Is.EqualTo(1));
-            Assert.That(await Context.RecordedGames.CountAsync(), Is.Zero);
-            Assert.That(await Context.MatchedMatches.CountAsync(), Is.Zero);
+            Assert.That(report.RecordedGamesRemoved, Is.Zero);
+            Assert.That(await Context.RecordedGames.CountAsync(), Is.EqualTo(1));
+            Assert.That(await Context.MatchedMatches.CountAsync(), Is.EqualTo(1));
         }
     }
 

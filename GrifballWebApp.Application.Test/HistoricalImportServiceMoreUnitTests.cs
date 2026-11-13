@@ -645,18 +645,36 @@ internal sealed class HistoricalImportServiceMoreUnitTests : ApplicationDbContex
     [Test]
     public async Task Import_ARecordedGameNoLongerInTheArchive_IsRemoved_WithItsSeries()
     {
-        await _service.Import(CupWith(Game("cup#1", [("Alpha One", 1), ("Beta One", 2)])));
+        // cup#2's sides are no season team's: a game of the season in no series. It stays in the archive, so the season
+        // still has recorded games (with none at all, HistoricalImportService leaves its earlier games alone).
+        await _service.Import(CupWith(Game("cup#1", [("Alpha One", 1), ("Beta One", 2)]), Game("cup#2", [("Gamma", 1), ("Delta", 2)])));
         Context.ChangeTracker.Clear();
         Assert.That(await Context.SeasonMatches.CountAsync(), Is.EqualTo(1));
 
-        var report = await _service.Import(CupWith());
+        var report = await _service.Import(CupWith(Game("cup#2", [("Gamma", 1), ("Delta", 2)])));
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That(report.RecordedGamesRemoved, Is.EqualTo(1));
-            Assert.That(await Context.RecordedGames.CountAsync(), Is.Zero);
+            Assert.That(await Context.RecordedGames.Select(g => g.SourceKey).ToListAsync(), Is.EqualTo(Cup2Only));
             Assert.That(await Context.SeasonMatches.CountAsync(), Is.Zero, "Its series had no other game");
+        }
+    }
+
+    [Test]
+    public async Task Import_NoRecordedGamesForTheSeason_LeavesItsEarlierGames()
+    {
+        await _service.Import(CupWith(Game("cup#1", [("Alpha One", 1), ("Beta One", 2)])));
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Import(CupWith());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.RecordedGamesRemoved, Is.Zero);
+            Assert.That(await Context.RecordedGames.CountAsync(), Is.EqualTo(1));
+            Assert.That(await Context.SeasonMatches.CountAsync(), Is.EqualTo(1));
         }
     }
 
