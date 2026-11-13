@@ -199,8 +199,12 @@ internal sealed class DiscordAccountLinkServiceUnitTests : ApplicationDbContextT
             return true;
         });
 
-        Assert.That(result, Is.True);
-        Assert.That(await Context.Seasons.CountAsync(), Is.EqualTo(1));
+        var seasonCount = await Context.Seasons.CountAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.True);
+            Assert.That(seasonCount, Is.EqualTo(1));
+        }
     }
 
     [Test]
@@ -213,8 +217,12 @@ internal sealed class DiscordAccountLinkServiceUnitTests : ApplicationDbContextT
             return false;
         });
 
-        Assert.That(result, Is.False);
-        Assert.That(await Context.Seasons.CountAsync(), Is.Zero);
+        var seasonCount = await Context.Seasons.CountAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.False);
+            Assert.That(seasonCount, Is.Zero);
+        }
     }
 
     [Test]
