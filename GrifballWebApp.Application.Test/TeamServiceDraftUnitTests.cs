@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Application.Teams.Handlers;
 using GrifballWebApp.Application.Test.TestDoubles;
