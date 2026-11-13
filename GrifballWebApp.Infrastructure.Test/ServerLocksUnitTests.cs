@@ -17,6 +17,10 @@ public class ServerLocksUnitTests
     private static readonly string[] AdvisoryLockAndUnlock = ["SELECT CASE WHEN pg_try_advisory_lock(@lock) THEN 0 ELSE -1 END", "SELECT pg_advisory_unlock(@lock)"];
     private static readonly object?[] SeasonSeven = [7];
     private readonly FakeDbConnection _connection = new();
+    private readonly Microsoft.Extensions.Time.Testing.FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 13, 12, 0, 0, TimeSpan.Zero));
+
+    [TearDown]
+    public void TearDown() => _connection.Dispose();
 
     private GrifballContext SqlServer() => new(new DbContextOptionsBuilder<GrifballContext>().UseSqlServer(_connection).Options);
 
@@ -37,7 +41,14 @@ public class ServerLocksUnitTests
         Held(refusals: 1);
         await using var context = SqlServer();
 
-        var handle = await context.Database.AcquireLockAsync(Name);
+        var acquiring = context.Database.AcquireLockAsync(Name, CancellationToken.None, _time);
+        // Refused once: it waits DatabaseLocks.RetryEvery on the clock, then tries again
+        for (var i = 0; i < 100 && !acquiring.IsCompleted; i++)
+        {
+            _time.Advance(DatabaseLocks.RetryEvery);
+            await Task.Yield();
+        }
+        var handle = await acquiring.WaitAsync(TimeSpan.FromSeconds(30));
         var whileHeld = (_connection.Closed, _connection.State);
         await handle.DisposeAsync();
         await handle.DisposeAsync();
@@ -60,7 +71,7 @@ public class ServerLocksUnitTests
         Held(refusals: 0);
         await using var context = Postgres();
 
-        await (await context.Database.AcquireLockAsync(Name)).DisposeAsync();
+        await (await context.Database.AcquireLockAsync(Name, CancellationToken.None, _time)).DisposeAsync();
 
         var sent = _connection.Sent;
         using (Assert.EnterMultipleScope())
@@ -72,16 +83,30 @@ public class ServerLocksUnitTests
     }
 
     [Test]
-    public async Task AnErrorTakingTheLock_ClosesTheConnection_AndIsTheCallers()
+    public async Task AnyErrorTakingTheLock_ClosesTheConnection_AndIsTheCallers()
     {
-        _connection.Answer = _ => throw new InvalidOperationException("sp_getapplock refused the lock");
+        _connection.Answer = _ => throw new InvalidOperationException("deadlock victim");
         await using var context = SqlServer();
 
         using (Assert.EnterMultipleScope())
         {
-            await Assert.ThatAsync(() => context.Database.AcquireLockAsync(Name), Throws.InvalidOperationException.With.Message.EqualTo("sp_getapplock refused the lock"));
+            await Assert.ThatAsync(() => context.Database.AcquireLockAsync(Name, CancellationToken.None, _time), Throws.InvalidOperationException.With.Message.EqualTo("deadlock victim"));
             Assert.That(_connection.Closed, Is.EqualTo(1));
         }
+    }
+
+    /// <summary>sp_getapplock's errors (-2 cancelled, -3 deadlock, -999 bad call) are turned into an error on the server, by
+    /// the SQL sent: C# reads only "granted" (0 or more) or "held" (-1), so without this guard an error would be retried
+    /// forever.</summary>
+    [Test]
+    public async Task SqlServer_TheLocksErrorsAreThrownByTheServer_NotRetried()
+    {
+        Held(refusals: 0);
+        await using var context = SqlServer();
+
+        await (await context.Database.AcquireLockAsync(Name, CancellationToken.None, _time)).DisposeAsync();
+
+        Assert.That(_connection.Sent[0].Sql, Does.Contain("IF @result < -1 THROW 50000, 'sp_getapplock refused the lock', 1;"));
     }
 
     [Test]
@@ -98,7 +123,7 @@ public class ServerLocksUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            await Assert.ThatAsync(() => context.Database.AcquireLockAsync(Name, stop.Token), Throws.InstanceOf<OperationCanceledException>());
+            await Assert.ThatAsync(() => context.Database.AcquireLockAsync(Name, stop.Token, _time), Throws.InstanceOf<OperationCanceledException>());
             Assert.That((_connection.Sent.Count, _connection.Closed), Is.EqualTo((1, 1)));
         }
     }
@@ -143,7 +168,7 @@ public class ServerLocksUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(locking.IsCompletedSuccessfully, Is.True, "nothing to wait for: SQLite writes one at a time");
-            Assert.That(File.Exists("unused.db"), Is.False, "never opened");
+            Assert.That(context.Database.GetDbConnection().State, Is.EqualTo(System.Data.ConnectionState.Closed), "never opened");
         }
         await locking;
     }

@@ -42,7 +42,11 @@ public sealed partial class DatabaseBackupService(IConfiguration configuration, 
     private DatabaseEndpoint Source() => new(configuration.GetDatabaseProvider(),
         configuration.GetConnectionString("GrifballWebApp") ?? throw new InvalidOperationException("ConnectionStrings:GrifballWebApp is not set"));
 
-    private DatabaseConverter Converter() => new(loggerFactory.CreateLogger<DatabaseConverter>());
+    private DatabaseConverter Converter() => new(loggerFactory.CreateLogger<DatabaseConverter>()) { Contexts = Contexts };
+
+    /// <summary>How a context on a database is made (DatabaseConverter.NewContext): the tests give their own, whose
+    /// migrations are fakes.</summary>
+    internal Func<DatabaseEndpoint, GrifballContext> Contexts { get; init; } = DatabaseConverter.NewContext;
 
     /// <summary>
     /// The scratch server's kind; null when there's none. Set alone (DatabaseBackup:Scratch:Provider, without the
@@ -202,7 +206,7 @@ public sealed partial class DatabaseBackupService(IConfiguration configuration, 
                     var target = format == BackupFormat.Postgres ? DatabaseProvider.Postgres : DatabaseProvider.SqlServer;
                     // sqlcmd reads a file as UTF-8 when it starts with the byte order mark; psql takes UTF-8 as it is.
                     await using (var writer = new StreamWriter(path, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: target == DatabaseProvider.SqlServer)))
-                        tables = await new DatabaseScriptExporter(loggerFactory.CreateLogger<DatabaseConverter>()).WriteAsync(source, target, writer, progress, cancellationToken);
+                        tables = await new DatabaseScriptExporter(loggerFactory.CreateLogger<DatabaseConverter>()) { Contexts = Contexts }.WriteAsync(source, target, writer, progress, cancellationToken);
                     (fileName, contentType) = ($"grifball-backup-{stamp}.{(target == DatabaseProvider.Postgres ? "postgres" : "sqlserver")}.sql", "application/sql");
                     break;
                 }
@@ -276,7 +280,7 @@ public sealed partial class DatabaseBackupService(IConfiguration configuration, 
             }
             finally
             {
-                await using var context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(copy.Provider, copy.ConnectionString).Options);
+                await using var context = Contexts(copy);
                 await context.Database.EnsureDeletedAsync(CancellationToken.None);
             }
         }

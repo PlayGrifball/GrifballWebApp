@@ -28,16 +28,20 @@ public class ServerSqlUnitTests
     private static readonly object?[][] ReadBack = [[1, "Red"], [2, null]];
     private static readonly string[] OnlyTheDelete = ["DELETE FROM [dbo].[Teams]"];
     private static readonly string[] Analyzed = ["Analyzed the target's tables"];
-    private readonly FakeDbConnection _connection = new();
+    /// <summary>A SQL Server-like connection: open, and every command must carry a pending local transaction.</summary>
+    private readonly FakeDbConnection _connection = new() { RequiresCommandTransaction = true };
 
-    /// <summary>The statements sent, queries (SELECT) left out.</summary>
-    private List<string> Statements() => [.. _connection.Sent.Select(c => c.Sql).Where(s => !s.TrimStart().StartsWith("SELECT", StringComparison.Ordinal))];
+    /// <summary>What was sent, the SQL Server catalog's queries (sys.periods, sys.indexes) left out: every write is here,
+    /// a SELECT that writes included.</summary>
+    private static List<string> Statements(FakeDbConnection connection) =>
+        [.. connection.Sent.Select(c => c.Sql).Where(s => !s.Contains("FROM sys.", StringComparison.Ordinal))];
 
     // ---- SqlDialect: each server's columns ----
 
     [Test]
     public async Task SqlServerColumns_AreReadFromItsCatalog_TheDefaultSchemaAsNone_AndEfsHistoryLeftOut()
     {
+        await _connection.OpenAsync();
         _connection.Answer = _ => FakeDbConnection.Rows(ColumnQueryColumns,
             ["dbo", "Seasons", "SeasonID", "int", false, true],
             ["dbo", "Seasons", "Total", "int", true, false],
@@ -60,6 +64,7 @@ public class ServerSqlUnitTests
     [Test]
     public async Task PostgresColumns_AreReadFromInformationSchema_PublicAsNone()
     {
+        await _connection.OpenAsync();
         _connection.Answer = _ => FakeDbConnection.Rows(ColumnQueryColumns,
             ["public", "Seasons", "SeasonID", "int4", false, true],
             ["Event", "Teams", "PeriodEnd", "timestamptz", true, false]);
@@ -77,6 +82,7 @@ public class ServerSqlUnitTests
     [Test]
     public async Task ReadRows_SelectsThePlansColumns_EachAsTheDriverReadsIt_NullsAsNull()
     {
+        await _connection.OpenAsync();
         _connection.Answer = _ => FakeDbConnection.Rows(["Id", "Name"], [1, "Red"], [2, null]);
         var plan = new TablePlan(new TableName("", "Teams"), [new ColumnInfo("Id", "int", false, true), new ColumnInfo("Name", "nvarchar", false, false)], [0], [], []);
 
@@ -94,6 +100,7 @@ public class ServerSqlUnitTests
     [Test]
     public async Task SourceSnapshot_OnPostgres_IsARepeatableReadReadOnlyTransaction()
     {
+        await _connection.OpenAsync();
         var transaction = await new DatabaseConverter(new FakeLogger<DatabaseConverter>()).BeginSourceTransactionAsync(DatabaseProvider.Postgres, _connection, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
@@ -106,6 +113,7 @@ public class ServerSqlUnitTests
     [Test]
     public async Task SourceSnapshot_OnSqlServerAllowingSnapshots_IsASnapshotTransaction()
     {
+        await _connection.OpenAsync();
         _connection.Answer = sent => sent.Sql.Contains("snapshot_isolation_state", StringComparison.Ordinal) ? (byte)1 : null;
 
         var transaction = await new DatabaseConverter(new FakeLogger<DatabaseConverter>()).BeginSourceTransactionAsync(DatabaseProvider.SqlServer, _connection, CancellationToken.None);
@@ -120,6 +128,7 @@ public class ServerSqlUnitTests
     [Test]
     public async Task SourceSnapshot_OnSqlServerWithoutSnapshots_IsNone_AndSaysNothingShouldWrite()
     {
+        await _connection.OpenAsync();
         _connection.Answer = _ => (byte)0;
         var log = new FakeLogger<DatabaseConverter>();
 
@@ -201,19 +210,19 @@ public class ServerSqlUnitTests
     public async Task SqlServerWriter_TakesTheTemporalTablesApart_ForTheLoad_ThenPutsThemBackAsTheyWere()
     {
         _connection.Answer = SqlServerCatalog;
+        await _connection.OpenAsync();
         await using var transaction = await _connection.BeginTransactionAsync();
-        await using var writer = TargetWriter.For(DatabaseProvider.SqlServer, _connection, transaction, new FakeLogger<ServerSqlUnitTests>());
+        await using var writer = new SqlServerTargetWriter(_connection, transaction);
 
         await writer.PrepareAsync([Teams], CancellationToken.None);
-        var prepared = Statements();
+        var prepared = Statements(_connection);
         await writer.WriteAsync(Teams, [], CancellationToken.None);
         await writer.FinishAsync(CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(writer, Is.TypeOf<SqlServerTargetWriter>());
             Assert.That(prepared, Is.EqualTo(SqlServerPrepare));
-            Assert.That(Statements().Skip(prepared.Count), Is.EqualTo(SqlServerFinish), "no rows: nothing written");
+            Assert.That(Statements(_connection).Skip(prepared.Count), Is.EqualTo(SqlServerFinish), "no rows: nothing written");
             Assert.That(_connection.Sent.Select(c => c.Transaction), Is.All.SameAs(transaction), "all of it in the copy's transaction");
         }
     }
@@ -221,13 +230,14 @@ public class ServerSqlUnitTests
     [Test]
     public async Task SqlServerWriter_WithNoTemporalTables_OnlyClearsTheTables()
     {
+        await _connection.OpenAsync();
         await using var transaction = await _connection.BeginTransactionAsync();
-        var writer = new SqlServerTargetWriter(_connection, transaction);
+        await using var writer = new SqlServerTargetWriter(_connection, transaction);
 
         await writer.PrepareAsync([Teams], CancellationToken.None);
         await writer.FinishAsync(CancellationToken.None);
 
-        Assert.That(Statements(), Is.EqualTo(OnlyTheDelete));
+        Assert.That(Statements(_connection), Is.EqualTo(OnlyTheDelete));
     }
 
     private static readonly TablePlan Parent = new(new TableName("", "Parent"), [new ColumnInfo("Id", "integer", false, true)], [0], [], []);
@@ -247,22 +257,40 @@ public class ServerSqlUnitTests
     [Test]
     public async Task PostgresWriter_TurnsTheTriggersOffForTheLoad_ClearsChildrenFirst_AndAnalyzesAfterTheCommit()
     {
+        // PostgreSQL's driver doesn't need each command to name the transaction
+        await using var postgres = new FakeDbConnection();
+        await postgres.OpenAsync();
         var log = new FakeLogger<ServerSqlUnitTests>();
-        await using var transaction = await _connection.BeginTransactionAsync();
-        await using var writer = TargetWriter.For(DatabaseProvider.Postgres, _connection, transaction, log);
+        await using var transaction = await postgres.BeginTransactionAsync();
+        await using var writer = new PostgresTargetWriter(postgres, transaction, log);
 
         await writer.PrepareAsync([Parent, Child], CancellationToken.None);
         await writer.WriteAsync(Parent, [], CancellationToken.None);
         await writer.FinishAsync(CancellationToken.None);
+        await transaction.CommitAsync();
         await writer.AfterCommitAsync(CancellationToken.None);
 
-        var analyze = _connection.Sent[^1];
+        var analyze = postgres.Sent[^1];
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(writer, Is.TypeOf<PostgresTargetWriter>());
-            Assert.That(Statements(), Is.EqualTo(PostgresStatements));
+            Assert.That(Statements(postgres), Is.EqualTo(PostgresStatements));
             Assert.That((analyze.Transaction, analyze.Timeout), Is.EqualTo(((System.Data.Common.DbTransaction?)null, 0)), "after the commit, as long as it takes");
             Assert.That(log.At(LogLevel.Information), Is.EqualTo(Analyzed));
+        }
+    }
+
+    [TestCase(DatabaseProvider.SqlServer, "A SQL Server target needs a SqlConnection")]
+    [TestCase(DatabaseProvider.Postgres, "A PostgreSQL target needs an NpgsqlConnection")]
+    public async Task For_AnotherDriversConnection_IsRefused_BeforeAnythingIsSent(DatabaseProvider provider, string message)
+    {
+        await _connection.OpenAsync();
+        await using var transaction = await _connection.BeginTransactionAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(() => TargetWriter.For(provider, _connection, transaction, new FakeLogger<ServerSqlUnitTests>()),
+                Throws.ArgumentException.With.Message.StartsWith(message));
+            Assert.That(_connection.Sent, Is.Empty);
         }
     }
 
@@ -274,7 +302,11 @@ public class ServerSqlUnitTests
     public void SetUp() => _directory = Directory.CreateTempSubdirectory("grif-serversql-test-").FullName;
 
     [TearDown]
-    public void TearDown() => Directory.Delete(_directory, recursive: true);
+    public void TearDown()
+    {
+        _connection.Dispose();
+        Directory.Delete(_directory, recursive: true);
+    }
 
     private static readonly byte[] Bak = [0x54, 0x41, 0x50, 0x45];
 
@@ -304,6 +336,7 @@ public class ServerSqlUnitTests
             Assert.That(backup.Parameters, Is.EquivalentTo(new Dictionary<string, object?> { ["@database"] = "grif", ["@file"] = "/var/opt/mssql/backups/download_grif.bak" }));
             Assert.That(read.Parameters, Is.EquivalentTo(new Dictionary<string, object?> { ["@file"] = "/var/opt/mssql/backups/download_grif.bak" }));
             Assert.That((backup.Timeout, read.Timeout), Is.EqualTo((0, 0)), "never timed out");
+            Assert.That(_connection.Sent.Where(c => c.Sql.Contains("SERVERPROPERTY", StringComparison.Ordinal)).Select(c => c.Timeout), Is.All.EqualTo(30), "the server's properties: the default");
             Assert.That(_connection.Opened, Is.EqualTo(1));
         }
     }
@@ -336,6 +369,37 @@ public class ServerSqlUnitTests
         {
             Assert.That(async () => await NativeBackups.SqlServerAsync(_connection, "/b", path, CancellationToken.None), Throws.InvalidOperationException.With.Message.EqualTo("disk full"));
             Assert.That(File.Exists(path), Is.False);
+        }
+    }
+
+    [Test]
+    public void Bak_WhenSqlServerGivesNoEdition_IsUnavailable_BeforeAnyBackup()
+    {
+        _connection.Answer = sent => sent.Sql.Contains("EngineEdition", StringComparison.Ordinal)
+            ? FakeDbConnection.Rows(["e", "n"])
+            : SqlServerBackups(sent, 3, "Enterprise Edition");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(async () => await NativeBackups.SqlServerAsync(_connection, "/b", Path.Combine(_directory, "made.bak"), CancellationToken.None),
+                Throws.TypeOf<NativeBackupUnavailableException>().With.Message.StartsWith("SQL Server didn't say its edition"));
+            Assert.That(_connection.Sent.Any(c => c.Sql.StartsWith("BACKUP DATABASE", StringComparison.Ordinal)), Is.False);
+        }
+    }
+
+    [Test]
+    public void Bak_ReadBackAsNothing_IsUnavailable_LeavingNoFile()
+    {
+        var path = Path.Combine(_directory, "made.bak");
+        _connection.Answer = sent => sent.Sql.Contains("OPENROWSET(BULK", StringComparison.Ordinal)
+            ? FakeDbConnection.Rows(["BulkColumn"])
+            : SqlServerBackups(sent, 3, "Enterprise Edition");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(async () => await NativeBackups.SqlServerAsync(_connection, "/b", path, CancellationToken.None),
+                Throws.TypeOf<NativeBackupUnavailableException>().With.Message.EqualTo("SQL Server made the backup (/b/download_grif.bak) but reading it back gave nothing. Download a SQL Server script instead."));
+            Assert.That(File.Exists(path), Is.False, "no empty file left behind");
         }
     }
 }

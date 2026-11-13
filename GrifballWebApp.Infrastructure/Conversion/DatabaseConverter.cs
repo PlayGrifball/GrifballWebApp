@@ -55,10 +55,10 @@ public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
     public async Task<IReadOnlyList<ConvertedTable>> ConvertAsync(DatabaseEndpoint source, DatabaseEndpoint target, IProgress<ConversionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        await using (var sourceContext = NewContext(source))
+        await using (var sourceContext = Contexts(source))
             await CheckSourceAsync(sourceContext, cancellationToken);
 
-        await using var targetContext = NewContext(target);
+        await using var targetContext = Contexts(target);
         var created = await PrepareTargetAsync(targetContext, cancellationToken);
         try
         {
@@ -85,6 +85,10 @@ public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
             throw;
         }
     }
+
+    /// <summary>How a context on a database is made (<see cref="NewContext"/>): the tests give their own, whose migrations
+    /// are fakes, as Infrastructure.Test can't reference the Migrations assemblies.</summary>
+    internal Func<DatabaseEndpoint, GrifballContext> Contexts { get; init; } = NewContext;
 
     internal static GrifballContext NewContext(DatabaseEndpoint endpoint)
     {
@@ -242,7 +246,7 @@ public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
     /// </summary>
     internal async Task<List<string>> CompareAsync(DatabaseEndpoint source, DatabaseEndpoint target, CancellationToken cancellationToken = default)
     {
-        await using var targetContext = NewContext(target);
+        await using var targetContext = Contexts(target);
         var tables = ConversionTables.Order(targetContext);
         await using var sourceConnection = Open(source);
         await sourceConnection.OpenAsync(cancellationToken);

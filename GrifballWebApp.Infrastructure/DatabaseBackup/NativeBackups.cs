@@ -57,24 +57,25 @@ public static class NativeBackups
         await connection.OpenAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(directory))
         {
-            await using var defaultPath = Command(connection, "SELECT CONVERT(nvarchar(4000), SERVERPROPERTY('InstanceDefaultBackupPath'))");
+            await using var defaultPath = Command(connection, "SELECT CONVERT(nvarchar(4000), SERVERPROPERTY('InstanceDefaultBackupPath'))", timeout: null);
             directory = (string)(await defaultPath.ExecuteScalarAsync(cancellationToken))!;
         }
         // Forward slashes: SQL Server takes them on Windows too.
         var file = $"{directory.TrimEnd('/', '\\')}/{fileName ?? $"download_{connection.Database}.bak"}";
 
         await using var edition = Command(connection,
-            "SELECT CONVERT(int, SERVERPROPERTY('EngineEdition')), CONVERT(nvarchar(128), SERVERPROPERTY('Edition'))");
+            "SELECT CONVERT(int, SERVERPROPERTY('EngineEdition')), CONVERT(nvarchar(128), SERVERPROPERTY('Edition'))", timeout: null);
         bool compress;
         await using (var reader = await edition.ExecuteReaderAsync(cancellationToken))
         {
-            await reader.ReadAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+                throw new NativeBackupUnavailableException("SQL Server didn't say its edition, so the backup can't be made: download a SQL Server script instead.");
             compress = CompressesBackups(reader.GetInt32(0), reader.GetString(1));
         }
 
         try
         {
-            await using var backup = Command(connection, BackupStatement(compress), ("@database", connection.Database), ("@file", file));
+            await using var backup = Command(connection, BackupStatement(compress), timeout: 0, ("@database", connection.Database), ("@file", file));
             await backup.ExecuteNonQueryAsync(cancellationToken);
         }
         catch (SqlException e) when (e.Errors.Cast<SqlError>().Any(error => PermissionErrors.Contains(error.Number)))
@@ -89,9 +90,11 @@ public static class NativeBackups
             // OPENROWSET BULK takes the path as a literal only: SQL Server writes it into the statement from the parameter, quoted
             await using var read = Command(connection,
                 "DECLARE @sql nvarchar(max) = N'SELECT BulkColumn FROM OPENROWSET(BULK N''' + REPLACE(@file, N'''', N'''''') + N''', SINGLE_BLOB) AS b'; EXEC sp_executesql @sql",
-                ("@file", file));
+                timeout: 0, ("@file", file));
             await using var reader = await read.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken);
-            await reader.ReadAsync(cancellationToken);
+            // No row: nothing to save, and no empty file left behind
+            if (!await reader.ReadAsync(cancellationToken))
+                throw new NativeBackupUnavailableException($"SQL Server made the backup ({file}) but reading it back gave nothing. Download a SQL Server script instead.");
             await using var output = File.Create(path);
             await using var stream = reader.GetStream(0);
             await stream.CopyToAsync(output, cancellationToken);
@@ -107,14 +110,14 @@ public static class NativeBackups
         }
     }
 
-    /// <summary>A command on the connection with its parameters; the backup and its read back never time out (they take as
-    /// long as they take), the server's properties keep the default.</summary>
-    private static DbCommand Command(DbConnection connection, string sql, params (string Name, object Value)[] parameters)
+    /// <summary>A command on the connection with its parameters, and its timeout: 0 (none) for the backup and its read
+    /// back, which take as long as they take; null for the driver's default.</summary>
+    private static DbCommand Command(DbConnection connection, string sql, int? timeout, params (string Name, object Value)[] parameters)
     {
         var command = connection.CreateCommand();
         command.CommandText = sql;
-        if (parameters.Length > 0)
-            command.CommandTimeout = 0;
+        if (timeout is { } seconds)
+            command.CommandTimeout = seconds;
         foreach (var (name, value) in parameters)
         {
             var parameter = command.CreateParameter();

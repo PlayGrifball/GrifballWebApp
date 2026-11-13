@@ -22,6 +22,10 @@ namespace GrifballWebApp.Infrastructure.Conversion;
 /// </summary>
 public sealed partial class DatabaseScriptExporter(ILogger<DatabaseConverter> logger)
 {
+    /// <summary>How a context on a database is made (DatabaseConverter.NewContext): the tests give their own, whose
+    /// migrations are fakes.</summary>
+    internal Func<DatabaseEndpoint, GrifballContext> Contexts { get; init; } = DatabaseConverter.NewContext;
+
     public static bool Supports(DatabaseProvider target) => target is DatabaseProvider.SqlServer or DatabaseProvider.Postgres;
 
     /// <param name="progress">Hears each table as it's written.</param>
@@ -29,11 +33,11 @@ public sealed partial class DatabaseScriptExporter(ILogger<DatabaseConverter> lo
         IProgress<ConversionProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         var script = ScriptDialect.For(target);
-        await using (var sourceContext = DatabaseConverter.NewContext(source))
+        await using (var sourceContext = Contexts(source))
             await DatabaseConverter.CheckSourceAsync(sourceContext, cancellationToken);
 
         // A context for the target's server that never connects: its model and migrations only.
-        await using var targetContext = DatabaseConverter.NewContext(new DatabaseEndpoint(target, script.ModelConnectionString));
+        await using var targetContext = Contexts(new DatabaseEndpoint(target, script.ModelConnectionString));
         var tables = ConversionTables.Order(targetContext);
         var targetColumns = TargetColumns(targetContext, target);
         var schema = targetContext.GetService<IMigrator>().GenerateScript(options: MigrationsSqlGenerationOptions.NoTransactions);

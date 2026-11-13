@@ -17,7 +17,7 @@ namespace GrifballWebApp.Infrastructure;
 public static class DatabaseLocks
 {
     /// <summary>How often a lock someone else holds is tried again.</summary>
-    public static TimeSpan RetryEvery { get; set; } = TimeSpan.FromMilliseconds(100);
+    public static readonly TimeSpan RetryEvery = TimeSpan.FromMilliseconds(100);
 
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> SqliteLocks = new();
 
@@ -25,7 +25,8 @@ public static class DatabaseLocks
     /// Waits for the lock <paramref name="name"/>, then holds it until the returned handle is disposed. Not reentrant:
     /// a second acquire of the same name waits for the first to be released, on any context. Cancelling stops the wait.
     /// </summary>
-    public static async Task<IAsyncDisposable> AcquireLockAsync(this DatabaseFacade database, string name, CancellationToken ct = default)
+    /// <param name="time">The clock the waits between tries go by; the system's unless given.</param>
+    public static async Task<IAsyncDisposable> AcquireLockAsync(this DatabaseFacade database, string name, CancellationToken ct = default, TimeProvider? time = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         if (database.IsSqlite())
@@ -42,7 +43,7 @@ public static class DatabaseLocks
         try
         {
             while (!await TryAsync(database, sqlServer, name, ct))
-                await Task.Delay(RetryEvery, ct);
+                await Task.Delay(RetryEvery, time ?? TimeProvider.System, ct);
         }
         catch
         {

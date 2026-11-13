@@ -11,24 +11,23 @@ internal sealed record SentCommand(string Sql, IReadOnlyDictionary<string, objec
 /// A database connection that never reaches a server: every command the code sends is recorded (<see cref="Sent"/>)
 /// and answered by <see cref="Answer"/>, which returns what the command reads (a <see cref="DbDataReader"/> for a
 /// query, a value for a scalar, a row count for the rest) or throws, as a server would. Opening and transactions are
-/// recorded too. For the code that talks ADO.NET itself (raw commands, an EF context given this connection).
+/// recorded too. For the code that talks ADO.NET itself (raw commands, an EF context given this connection). Like the
+/// real drivers, it refuses a command on a closed connection, and (with <see cref="RequiresCommandTransaction"/>, as SQL
+/// Server does) a command without the connection's pending transaction. One per test: it isn't thread-safe.
 /// </summary>
 internal sealed class FakeDbConnection : DbConnection
 {
     private ConnectionState _state = ConnectionState.Closed;
     private readonly List<SentCommand> _sent = [];
+    private FakeDbTransaction? _pending;
+
+    /// <summary>SQL Server's rule: while a local transaction is pending, every command must carry it.</summary>
+    public bool RequiresCommandTransaction { get; init; }
 
     /// <summary>What each command gets back; by default nothing (0 rows, a null scalar, an empty reader).</summary>
     public Func<SentCommand, object?> Answer { get; set; } = _ => null;
 
-    public IReadOnlyList<SentCommand> Sent
-    {
-        get
-        {
-            lock (_sent)
-                return [.. _sent];
-        }
-    }
+    public IReadOnlyList<SentCommand> Sent => _sent;
 
     public List<IsolationLevel> TransactionsBegun { get; } = [];
     public int Opened { get; private set; }
@@ -64,19 +63,30 @@ internal sealed class FakeDbConnection : DbConnection
 
     protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
     {
+        if (_state != ConnectionState.Open)
+            throw new InvalidOperationException("BeginTransaction requires an open and available Connection.");
         TransactionsBegun.Add(isolationLevel);
-        return new FakeDbTransaction(this, isolationLevel);
+        return _pending = new FakeDbTransaction(this, isolationLevel);
+    }
+
+    internal void Ended(FakeDbTransaction transaction)
+    {
+        if (_pending == transaction)
+            _pending = null;
     }
 
     protected override DbCommand CreateDbCommand() => new FakeDbCommand(this);
 
     internal object? Run(FakeDbCommand command)
     {
+        if (_state != ConnectionState.Open)
+            throw new InvalidOperationException("The command requires an open and available Connection. The connection's current state is closed.");
+        if (RequiresCommandTransaction && _pending is not null && command.Transaction != _pending)
+            throw new InvalidOperationException("The command requires the command to have a transaction when the connection assigned to the command is in a pending local transaction.");
         var sent = new SentCommand(command.CommandText,
             command.Parameters.Cast<DbParameter>().ToDictionary(p => p.ParameterName, p => p.Value == DBNull.Value ? null : p.Value),
             command.Transaction, command.CommandTimeout);
-        lock (_sent)
-            _sent.Add(sent);
+        _sent.Add(sent);
         return Answer(sent);
     }
 
@@ -97,15 +107,19 @@ internal sealed class FakeDbConnection : DbConnection
 
 internal sealed class FakeDbTransaction(FakeDbConnection connection, IsolationLevel isolationLevel) : DbTransaction
 {
-    public bool Committed { get; private set; }
-    public bool RolledBack { get; private set; }
     public override IsolationLevel IsolationLevel { get; } = isolationLevel;
     protected override DbConnection DbConnection { get; } = connection;
-    public override void Commit() => Committed = true;
-    public override void Rollback() => RolledBack = true;
+    public override void Commit() => connection.Ended(this);
+    public override void Rollback() => connection.Ended(this);
+
+    protected override void Dispose(bool disposing)
+    {
+        connection.Ended(this);
+        base.Dispose(disposing);
+    }
 }
 
-internal sealed class FakeDbCommand(FakeDbConnection connection) : DbCommand
+internal sealed class FakeDbCommand(DbConnection connection) : DbCommand
 {
     private readonly FakeParameters _parameters = new();
 
@@ -131,12 +145,15 @@ internal sealed class FakeDbCommand(FakeDbConnection connection) : DbCommand
 
     protected override DbParameter CreateDbParameter() => new FakeParameter();
 
-    public override int ExecuteNonQuery() => connection.Run(this) is int rows ? rows : 0;
+    /// <summary>Runs on the command's connection as it is now (as a real command does), refused without one.</summary>
+    private object? Run() => (DbConnection as FakeDbConnection ?? throw new InvalidOperationException("ExecuteReader: Connection property has not been initialized.")).Run(this);
 
-    public override object? ExecuteScalar() => connection.Run(this);
+    public override int ExecuteNonQuery() => Run() is int rows ? rows : 0;
+
+    public override object? ExecuteScalar() => Run();
 
     protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
-        => connection.Run(this) as DbDataReader ?? new DataTable().CreateDataReader();
+        => Run() as DbDataReader ?? new DataTable().CreateDataReader();
 }
 
 internal sealed class FakeParameter : DbParameter
