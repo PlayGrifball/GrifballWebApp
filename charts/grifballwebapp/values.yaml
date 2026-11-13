@@ -254,6 +254,14 @@ backend:
       prometheusUrl: ""
       # Tempo's HTTP port. Ex: http://tempo.tempo:3200
       tempoUrl: ""
+    # The other services whose spans the Telemetry page's traces show with the app's, by service.name
+    # (TelemetryQuery:EdgeServices, :DownstreamServices). Names, not backends: no egress of their own.
+    trace:
+      # In front of the app, comma-separated: the ingress and the CDN. Ex: traefik,edge_processing,origin_fetch
+      # (Traefik, and Cloudflare's Traces export)
+      edgeServices: ""
+      # Called by the app, comma-separated. Ex: halo-gateway
+      downstreamServices: ""
 
   # Encrypts the data protection keys (sign-in cookies, reset and download tokens), which are kept in the
   # database and so in every backup: without it a backup can forge anyone's sign-in. A kubernetes.io/tls

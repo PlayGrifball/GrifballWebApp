@@ -235,6 +235,14 @@
                 "prometheusUrl": { "type": "string" },
                 "tempoUrl": { "type": "string" }
               }
+            },
+            "trace": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "edgeServices": { "type": "string" },
+                "downstreamServices": { "type": "string" }
+              }
             }
           }
         },

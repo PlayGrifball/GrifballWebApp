@@ -193,7 +193,7 @@
                     <li>
                       <button type="button" class="tm-span" [class.tm-span--error]="row.span.status === 'Error'" [attr.aria-expanded]="openSpan()?.spanId === row.span.spanId"
                               (click)="toggleSpan(row.span)">
-                        <span class="tm-span-name" [style.padding-left.px]="row.depth * 14" [title]="row.span.name + ' ' + row.span.kind">{{row.span.name}} <span class="hud-muted">{{row.span.kind}}</span></span>
+                        <span class="tm-span-name" [style.padding-left.px]="row.depth * 14" [title]="row.span.service + ': ' + row.span.name + ' ' + row.span.kind">@if (row.span.service !== status.value().serviceName) {<span class="hud-muted">{{row.span.service}} ·</span>{{' '}}}{{row.span.name}} <span class="hud-muted">{{row.span.kind}}</span></span>
                         <span class="tm-span-track">
                           <span class="tm-span-bar" [style.left.%]="row.left" [style.width.%]="row.width"></span>
                         </span>
@@ -204,6 +204,7 @@
                           <dl class="tm-props">
                             <dt>Status</dt><dd>{{row.span.status}}@if (row.span.statusMessage) {: {{row.span.statusMessage}}}</dd>
                             <dt>Start</dt><dd>+{{msText(row.span.offsetMs)}}</dd>
+                            <dt>Service</dt><dd class="tm-mono">{{row.span.service}}</dd>
                             <dt>Instrumentation</dt><dd class="tm-mono">{{row.span.scope}}</dd>
                             @if (row.span.pod) { <dt>Pod</dt><dd class="tm-mono">{{row.span.pod}}</dd> }
                             @for (a of row.span.attributes | keyvalue; track a.key) {

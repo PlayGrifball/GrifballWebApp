@@ -207,6 +207,16 @@ spec:
           value: {{ $url | quote }}
         {{- end }}
         {{- end }}
+        {{- with .trace }}
+        {{- with .edgeServices }}
+        - name: TelemetryQuery__EdgeServices
+          value: {{ . | quote }}
+        {{- end }}
+        {{- with .downstreamServices }}
+        - name: TelemetryQuery__DownstreamServices
+          value: {{ . | quote }}
+        {{- end }}
+        {{- end }}
         {{- end }}
         {{- end }}
         {{- /* backend.halo, each one unless config or secretConfig already sets that setting. */}}

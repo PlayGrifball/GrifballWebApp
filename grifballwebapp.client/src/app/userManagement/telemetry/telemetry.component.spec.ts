@@ -10,7 +10,7 @@ const allOn: TelemetryStatusDto = { serviceName: 'grif-prod', logs: true, metric
 
 function span(spanId: string, changes: Partial<SpanDto> = {}): SpanDto {
   return {
-    spanId, parentSpanId: null, name: spanId, kind: 'Internal', scope: 'test', pod: 'grif-backend-1', offsetMs: 0, durationMs: 10,
+    spanId, parentSpanId: null, name: spanId, kind: 'Internal', scope: 'test', service: 'grif-prod', pod: 'grif-backend-1', offsetMs: 0, durationMs: 10,
     status: 'Unset', statusMessage: null, attributes: {}, events: [], ...changes,
   };
 }
@@ -242,6 +242,7 @@ describe('TelemetryComponent', () => {
     el().querySelector<HTMLButtonElement>('.tm-span')!.click();
     await settle();
     expect(text(el().querySelector('.tm-detail'))).toContain('StatusError: boom');
+    expect(text(el().querySelector('.tm-detail'))).toContain('Servicegrif-prod');
     expect(text(el().querySelector('.tm-event'))).toBe('exception +90 ms');
 
     button('Its log lines').click();
@@ -251,6 +252,26 @@ describe('TelemetryComponent', () => {
     await settle();
     expect(text(el().querySelector('.tm-chip'))).toContain('Trace t1');
     expect(text(el().querySelector('.hud-empty'))).toBe('No log lines match in this range.');
+  });
+
+  it('labels the spans of the services in front of the app, and shows their fields', async () => {
+    create('t2');
+    (await request('/api/telemetry/status')).flush(allOn);
+    await tick();
+    http.expectOne('/api/telemetry/traces/t2').flush(trace([
+      span('edge', { name: 'cloudflare_request', service: 'edge_processing', pod: null, durationMs: 100 }),
+      span('router', { name: 'GET', parentSpanId: 'edge', service: 'traefik', offsetMs: 5, durationMs: 80, attributes: { 'http.request.header.cf-connecting-ip': '[203.0.113.7]' } }),
+      span('app', { name: 'GET Season/Get', parentSpanId: 'router', offsetMs: 10, durationMs: 50 }),
+    ]));
+    http.expectOne(r => r.url === '/api/telemetry/traces').flush([]);
+    await settle();
+
+    expect(Array.from(el().querySelectorAll('.tm-span')).map(b => text(b.querySelector('.tm-span-name'))))
+      .toEqual(['edge_processing · cloudflare_request Internal', 'traefik · GET Internal', 'GET Season/Get Internal']);
+    el().querySelectorAll<HTMLButtonElement>('.tm-span')[1].click();
+    await settle();
+    expect(text(el().querySelector('.tm-detail'))).toContain('Servicetraefik');
+    expect(text(el().querySelector('.tm-detail'))).toContain('http.request.header.cf-connecting-ip[203.0.113.7]');
   });
 
   it('opens the trace a link names', async () => {

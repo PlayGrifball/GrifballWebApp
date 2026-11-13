@@ -528,7 +528,7 @@ const telemetryLogs = {
 };
 const span = (spanId: string, parentSpanId: string | null, name: string, kind: string, scope: string, offsetMs: number, durationMs: number, status: string,
   attributes: Record<string, string> = {}, extra: object = {}) => ({
-  spanId, parentSpanId, name, kind, scope, pod: 'grifballwebapp-7d9c8b6f5-x2k4q', offsetMs, durationMs, status, statusMessage: null, attributes, events: [], ...extra,
+  spanId, parentSpanId, name, kind, scope, service: 'grifballwebapp', pod: 'grifballwebapp-7d9c8b6f5-x2k4q', offsetMs, durationMs, status, statusMessage: null, attributes, events: [], ...extra,
 });
 const telemetryTrace = {
   traceId: TRACE_ID, start: '2026-10-29T17:58:11.300Z', durationMs: 1212.4,

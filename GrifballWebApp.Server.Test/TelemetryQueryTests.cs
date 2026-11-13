@@ -220,10 +220,12 @@ public class TelemetryQueryServiceTests
     private static HttpResponseMessage Json(string body, HttpStatusCode status = HttpStatusCode.OK) =>
         new(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
 
-    private static TelemetryQueryService Service(FakeBackends backends, bool configured = true) =>
+    private static TelemetryQueryService Service(FakeBackends backends, bool configured = true, string? edgeServices = null, string? downstreamServices = null) =>
         new(new HttpClient(backends), Options.Create(new TelemetryQueryOptions
         {
             ServiceName = "grif-prod",
+            EdgeServices = edgeServices,
+            DownstreamServices = downstreamServices,
             LokiUrl = configured ? "http://loki.test" : null,
             PrometheusUrl = configured ? "http://prometheus.test:9090" : null,
             TempoUrl = configured ? "http://tempo.test:3200" : null,
@@ -578,6 +580,9 @@ public class TelemetryQueryServiceTests
     private static readonly string[] expectedArray2 = new[] { "grif-backend-1", "grif-worker-1" };
     private static readonly string[] expectedArray3 = new[] { "432816159241389fd3a112f2e194cb12", "0556214b423d5a640fb17a50481aa1fd" };
     private static readonly string[] expectedArray4 = new[] { "GET Season/Get", "SELECT" };
+    private static readonly string[] EdgeTraceSpans = ["router", "GET Season/Get", "SELECT"];
+    private static readonly string[] EdgeServiceNames = ["traefik", "edge_processing", "origin_fetch"];
+    private static readonly string[] RelatedServiceNames = ["traefik", "halo-gateway"];
 
     [Test]
     public async Task Trace_keeps_this_services_spans_only_with_hex_ids()
@@ -606,6 +611,7 @@ public class TelemetryQueryServiceTests
             Assert.That(server.ParentSpanId, Is.Null);
             Assert.That(server.Kind, Is.EqualTo("Server"));
             Assert.That(server.Scope, Is.EqualTo("Microsoft.AspNetCore"));
+            Assert.That(server.Service, Is.EqualTo("grif-prod"));
             Assert.That(server.Pod, Is.EqualTo("grif-backend-1"));
             Assert.That(server.Status, Is.EqualTo("Error"));
             Assert.That(server.StatusMessage, Is.EqualTo("boom"));
@@ -627,11 +633,73 @@ public class TelemetryQueryServiceTests
         }
     }
 
+    [Test]
+    public async Task Trace_shows_the_spans_of_the_services_in_front_of_this_one_with_every_field()
+    {
+        var trace = await Service(new FakeBackends(_ => Json(TempoTrace)), edgeServices: " edge_processing, traefik ").Trace("0556214b423d5a640fb17a50481aa1fd", default);
+
+        Assert.That(trace, Is.Not.Null);
+        var router = trace!.Spans[0];
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(trace.Spans.Select(s => s.Name), Is.EqualTo(EdgeTraceSpans));
+            Assert.That(trace.Start, Is.EqualTo(DateTimeOffset.FromUnixTimeMilliseconds(900)), "the trace starts with the ingress");
+            Assert.That(trace.DurationMs, Is.EqualTo(200));
+            Assert.That(router.Service, Is.EqualTo("traefik"));
+            Assert.That(router.Scope, Is.EqualTo("traefik"));
+            Assert.That(router.Pod, Is.Null);
+            Assert.That(router.Attributes, Is.EqualTo(new Dictionary<string, string> { ["secret"] = "not grif's" }));
+            Assert.That(trace.Spans[1].OffsetMs, Is.EqualTo(100));
+        }
+    }
+
+    [Test]
+    public void Edge_and_downstream_services_are_read_comma_separated()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(new TelemetryQueryOptions { EdgeServices = "traefik, edge_processing,,origin_fetch " }.RelatedServiceNames,
+                Is.EquivalentTo(EdgeServiceNames));
+            Assert.That(new TelemetryQueryOptions { EdgeServices = "traefik", DownstreamServices = " halo-gateway" }.RelatedServiceNames,
+                Is.EquivalentTo(RelatedServiceNames));
+            Assert.That(new TelemetryQueryOptions().RelatedServiceNames, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task Trace_shows_the_spans_of_the_services_this_one_calls()
+    {
+        // The app's call to the Halo gateway, and the gateway's own span under it
+        const string calls = """
+            {"trace":{"resourceSpans":[
+              {"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"grif-prod"}}]},
+               "scopeSpans":[{"scope":{"name":"System.Net.Http"},"spans":[
+                 {"spanId":"AAAAAAAAAAE=","name":"GET halo-gateway","kind":"SPAN_KIND_CLIENT","startTimeUnixNano":"1000000000","endTimeUnixNano":"1020000000"}]}]},
+              {"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"halo-gateway"}}]},
+               "scopeSpans":[{"scope":{"name":"Microsoft.AspNetCore"},"spans":[
+                 {"spanId":"AAAAAAAAAAI=","parentSpanId":"AAAAAAAAAAE=","name":"GET halo/v1/stats","kind":"SPAN_KIND_SERVER","startTimeUnixNano":"1002000000","endTimeUnixNano":"1018000000",
+                  "attributes":[{"key":"grunt.api_key","value":{"stringValue":"grif-prod"}}]}]}]}
+            ]}}
+            """;
+
+        var trace = await Service(new FakeBackends(_ => Json(calls)), downstreamServices: "halo-gateway").Trace("0556214b423d5a640fb17a50481aa1fd", default);
+
+        Assert.That(trace, Is.Not.Null);
+        var gateway = trace!.Spans.Single(s => s.Service == "halo-gateway");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(gateway.ParentSpanId, Is.EqualTo("0000000000000001"));
+            Assert.That(gateway.Attributes["grunt.api_key"], Is.EqualTo("grif-prod"));
+        }
+    }
+
     [TestCase("""{"trace":{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"traefik"}}]},"scopeSpans":[{"scope":{"name":"t"},"spans":[{"spanId":"AQ==","name":"x","startTimeUnixNano":"1","endTimeUnixNano":"2"}]}]}]}}""")]
+    [TestCase("""{"trace":{"resourceSpans":[{"resource":{},"scopeSpans":[{"scope":{"name":"t"},"spans":[{"spanId":"AQ==","name":"x","startTimeUnixNano":"1","endTimeUnixNano":"2"}]}]}]}}""")]
     [TestCase("{}")]
     public async Task A_trace_without_this_services_spans_is_null(string answer)
     {
-        Assert.That(await Service(new FakeBackends(_ => Json(answer))).Trace("abc", default), Is.Null);
+        // The ingress's spans alone are another app's request
+        Assert.That(await Service(new FakeBackends(_ => Json(answer)), edgeServices: "traefik").Trace("abc", default), Is.Null);
     }
 
     [Test]

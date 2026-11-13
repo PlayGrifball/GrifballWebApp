@@ -29,13 +29,18 @@ public sealed record TraceSummaryDto(string TraceId, string RootName, string? Ro
 
 public sealed record SpanEventDto(string Name, double OffsetMs, IReadOnlyDictionary<string, string> Attributes);
 
-/// <summary>A span: <paramref name="OffsetMs"/> from the trace's first span. <paramref name="Status"/> is Unset, Ok or Error.</summary>
+/// <summary>
+/// A span: <paramref name="OffsetMs"/> from the trace's first span. <paramref name="Status"/> is Unset, Ok or Error.
+/// <paramref name="Service"/> is its service.name: this app's, or one in front of it or that it calls (TelemetryQuery:EdgeServices,
+/// DownstreamServices).
+/// </summary>
 public sealed record SpanDto(
     string SpanId,
     string? ParentSpanId,
     string Name,
     string Kind,
     string Scope,
+    string Service,
     string? Pod,
     double OffsetMs,
     double DurationMs,
@@ -44,5 +49,5 @@ public sealed record SpanDto(
     IReadOnlyDictionary<string, string> Attributes,
     IReadOnlyList<SpanEventDto> Events);
 
-/// <summary>This service's spans of a trace, in start order.</summary>
+/// <summary>This service's spans of a trace and those of the services in front of it and that it calls, in start order.</summary>
 public sealed record TraceDto(string TraceId, DateTimeOffset Start, double DurationMs, IReadOnlyList<SpanDto> Spans);
