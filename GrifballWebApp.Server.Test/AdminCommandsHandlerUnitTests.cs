@@ -309,7 +309,9 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Claims_ListsAPendingClaim()
     {
-        Db.Set<GamertagClaim>().Add(GamertagClaim.ClaimedByUser(claimantUserID: 1, gamertag: "Grifter1", normalizedGamertag: "GRIFTER1"));
+        // ClaimantUserID is a foreign key: a real user first
+        var claimant = await AddUser(discordUserId: 2, gamertag: "Claimant");
+        Db.Set<GamertagClaim>().Add(GamertagClaim.ClaimedByUser(claimantUserID: claimant.Id, gamertag: "Grifter1", normalizedGamertag: "GRIFTER1"));
         await Db.SaveChangesAsync();
         var discord = await AuthorizedCaller(DiscordCaller.Roles.Sysadmin);
 
