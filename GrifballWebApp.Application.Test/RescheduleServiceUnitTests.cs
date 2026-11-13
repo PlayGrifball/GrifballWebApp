@@ -158,8 +158,11 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
         // No pending request is saved: not the other captain's race, so the failure is the caller's
         var ex = await Assert.ThrowsAsync<DbUpdateException>(() => new RescheduleService(failing, _outbox).RequestRescheduleAsync(dto, RequesterUserID));
 
-        Assert.That(ex!.Message, Is.EqualTo("refused"));
-        Assert.That(await Context.MatchReschedules.AnyAsync(), Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo("refused"));
+            Assert.That(await Context.MatchReschedules.AnyAsync(), Is.False);
+        }
     }
 
     [Test]

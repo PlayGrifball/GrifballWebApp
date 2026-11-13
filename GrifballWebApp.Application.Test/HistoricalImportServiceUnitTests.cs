@@ -267,10 +267,10 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         using (Assert.EnterMultipleScope())
         {
             Assert.That(summary["SeasonsCreated"], Is.EqualTo(1));
-            Assert.That(summary["SeasonsUpdated"], Is.EqualTo(0));
+            Assert.That(summary["SeasonsUpdated"], Is.Zero);
             Assert.That(summary["StatsInserted"], Is.EqualTo(1));
             Assert.That(summary["Skipped"], Is.EqualTo(1));
-            Assert.That(summary["Errors"], Is.EqualTo(0));
+            Assert.That(summary["Errors"], Is.Zero);
         }
     }
 
