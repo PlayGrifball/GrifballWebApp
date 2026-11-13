@@ -399,7 +399,8 @@ public class TelemetryQueryServiceTests
         }
 
         var ranged = backends.Asked.Where(u => u.AbsolutePath == "/api/v1/query_range").ToList();
-        Assert.That(ranged, Has.Count.EqualTo(13));
+        // One range query per panel
+        Assert.That(ranged, Has.Count.EqualTo(expectedArray0.Length));
         using (Assert.EnterMultipleScope())
         {
             Assert.That(ranged.Select(u => Query(u, "step")), Has.All.EqualTo("24s"));
