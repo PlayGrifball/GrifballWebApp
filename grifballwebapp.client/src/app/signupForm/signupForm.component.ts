@@ -29,7 +29,8 @@ export function emptySignup(): SignupBodyDto {
 
 /** What the form edits of a player's signup. */
 function signupBody(signup: SignupResponseDto): SignupBodyDto {
-  return { teamName: signup.teamName, willCaptain: signup.willCaptain, requiresAssistanceDrafting: signup.requiresAssistanceDrafting, timeslots: signup.timeslots };
+  // An answer without its timeslots still gives the availability table a list
+  return { teamName: signup.teamName, willCaptain: signup.willCaptain, requiresAssistanceDrafting: signup.requiresAssistanceDrafting, timeslots: signup.timeslots ?? [] };
 }
 @Component({
     selector: 'app-signup-form',

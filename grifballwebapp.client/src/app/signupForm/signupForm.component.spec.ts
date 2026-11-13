@@ -324,6 +324,13 @@ describe('SignupFormComponent', () => {
   describe('onSubmit', () => {
     // signupForm is a viewChild() signal; swap it for one that returns a stand-in form.
     const stubForm = (valid: boolean) => (component as any).signupForm = () => ({ valid });
+    /** The page on season 5 (the route's), its loads answered: no signup yet. */
+    const onSeason5 = () => {
+      fixture.componentRef.setInput('seasonID', 5);
+      fixture.detectChanges();
+      for (let round = 0; round < 2; round++)
+        httpMock.match(r => r.method === 'GET').forEach(r => r.flush(null));
+    };
 
     beforeEach(() => {
       setup(null);
@@ -338,7 +345,8 @@ describe('SignupFormComponent', () => {
 
     it('submits the signup and confirms it', () => {
       stubForm(true);
-      component.model.update(model => ({ ...model, seasonID: 5, teamName: 'Reds' }));
+      onSeason5();
+      component.model.update(model => ({ ...model, teamName: 'Reds' }));
       component.onSubmit();
 
       const req = httpMock.expectOne('/api/seasons/5/signups/mine');
@@ -351,7 +359,7 @@ describe('SignupFormComponent', () => {
 
     it('reports a failed submission', () => {
       stubForm(true);
-      component.model.update(model => ({ ...model, seasonID: 5 }));
+      onSeason5();
       spyOn(console, 'log');
       component.onSubmit();
 
