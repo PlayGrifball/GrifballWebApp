@@ -35,6 +35,12 @@
           <th scope="col" class="hud-num">Punches</th>
           <th scope="col" class="hud-num">Sword</th>
         }
+        @if (showGrabs()) {
+          <th scope="col" class="hud-num">Grabs</th>
+          <th scope="col" class="hud-num">Bat Avg</th>
+          <th scope="col" class="hud-num">Score Avg</th>
+          <th scope="col" class="hud-num">Comb Avg</th>
+        }
       </tr>
     </thead>
     <tbody>
@@ -69,6 +75,12 @@
           @if (showBall()) {
             <td class="hud-num">{{p.punches ?? '-'}}</td>
             <td class="hud-num">{{p.swordKills ?? '-'}}</td>
+          }
+          @if (showGrabs()) {
+            <td class="hud-num">{{p.grabs ?? '-'}}</td>
+            <td class="hud-num">{{p.battingAverage ?? '-'}}</td>
+            <td class="hud-num">{{p.scoringAverage ?? '-'}}</td>
+            <td class="hud-num">{{p.combinedAverage ?? '-'}}</td>
           }
         </tr>
       }

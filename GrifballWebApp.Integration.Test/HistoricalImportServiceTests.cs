@@ -45,6 +45,9 @@ public class HistoricalImportServiceTests
     private static readonly string[] expected19 = ["Silva"];
     private static readonly string[] expected20 = ["halo3", "reach"];
     private static readonly string[] expected21 = ["About73Puppies", "Veritas"];
+    private static readonly string[] expectedNoCarnageRoster = ["SoloCap", "SoloMember"];
+    private static readonly string[] expectedPowerOutageRoster = ["OutageCap", "ActivePlayer", "OutageBench"];
+    private static readonly string[] expectedStrictlyBusinessRoster = ["ChampCap", "StandingsCap", "Grif", "BenchMate"];
     private GrifballContext _context;
     private IDataPullService _dataPull;
     private HistoricalImportService _service;
@@ -533,7 +536,9 @@ public class HistoricalImportServiceTests
             Player("Player5", team: "Teams"),
             Player("Player6", team: "Team Name"),
             Player("Player7", team: "Substitute"),
-            Player("Player8", team: "Sub Pool")));
+            Player("Player8", team: "Sub Pool"),
+            Player("Player9", team: "(Deleted Team)"),
+            Player("Player10", team: "Deleted Team")));
 
         await _service.Import(input);
 
@@ -1930,6 +1935,92 @@ public class HistoricalImportServiceTests
         var titles = await _context.Set<PlayerChampionship>().AsNoTracking().Include(c => c.GameVersion).Include(c => c.Season).ToListAsync();
         Assert.That(titles, Has.Count.EqualTo(5));
         Assert.That(titles.Select(t => t.GameVersion?.Slug), Is.All.EqualTo("halo3"));
+    }
+
+    [Test]
+    public async Task Import_StandingsTeams_RecordOfficialWinsLosses_RosterAndCaptain_WhileChampionshipCaptainTakesPrecedence()
+    {
+        var season = new ArchiveSeason
+        {
+            SeasonName = "Spring League 2009 (Pro)",
+            GameVersion = "halo3",
+            League = "AGLA",
+            Division = "Pro",
+            Titles = "Spring League 2009 (Pro)",
+            SourceYear = 2009,
+            SourceWorkbook = "history-grifball-com-db",
+            SourceSheet = "Season_Player_Stats#s23",
+            Players =
+            [
+                new ArchivePlayer
+                {
+                    Gamertag = "Grif",
+                    TeamName = "Strictly Business",
+                    Wins = 2,
+                    Losses = 1,
+                    Deaths = 1,
+                    GamesPlayed = 1,
+                    StintIndex = 1,
+                    KdRatio = 1.23456m,
+                    ExtendedMetrics = System.Text.Json.JsonSerializer.SerializeToElement(new { grabs = 30, battingAverage = 60.0m, scoringAverage = 73.3m, combinedAverage = 61.5m }),
+                },
+                Player("ActivePlayer", team: "Power Outage", wins: 1, losses: 1),
+            ],
+            Teams =
+            [
+                new ArchiveTeam { TeamName = "Strictly Business", Division = "Pro", Rank = 1, Wins = 9, Losses = 0, Captain = "StandingsCap", Roster = ["StandingsCap", "Grif", "BenchMate"] },
+                new ArchiveTeam { TeamName = "Power Outage", Division = "Pro", Rank = 2, Wins = 7, Losses = 2, Captain = "OutageCap", Roster = ["OutageCap", "ActivePlayer", "OutageBench"] },
+                new ArchiveTeam { TeamName = "NoCarnageTeam", Division = "Pro", Rank = 3, Wins = 4, Losses = 5, Captain = "SoloCap", Roster = ["SoloCap", "SoloMember"] },
+            ],
+        };
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [season] },
+            Championships = new ChampionsArchive
+            {
+                Champions =
+                [
+                    new ArchiveChampionship
+                    {
+                        Season = "Spring League 2009",
+                        Game = "Halo 3",
+                        Tier = "Pro",
+                        Team = "Strictly Business",
+                        Captain = "ChampCap",
+                        Roster = ["ChampCap", "Grif"],
+                    },
+                ],
+            },
+        };
+
+        var report = await _service.Import(input);
+        var again = await _service.Import(input);
+
+        _context.ChangeTracker.Clear();
+        var teams = await _context.Teams.AsNoTracking()
+            .Include(t => t.TeamPlayers).ThenInclude(tp => tp.User)
+            .Include(t => t.Captain).ThenInclude(c => c!.User)
+            .OrderBy(t => t.TeamName)
+            .ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That((report.TeamsCreated, again.TeamsCreated), Is.EqualTo((3, 0)));
+            Assert.That(teams.Select(t => (t.TeamName, t.RecordedWins, t.RecordedLosses, t.Captain?.User.DisplayName)), Is.EqualTo(new[]
+            {
+                ("NoCarnageTeam", (int?)4, (int?)5, (string?)"SoloCap"),
+                ("Power Outage", (int?)7, (int?)2, (string?)"OutageCap"),
+                ("Strictly Business", (int?)9, (int?)0, (string?)"ChampCap"),
+            }), "Standings W-L override partial player stat counts; championship captain takes precedence when present");
+            Assert.That(teams[0].TeamPlayers.Select(tp => tp.User.DisplayName), Is.EquivalentTo(expectedNoCarnageRoster));
+            Assert.That(teams[1].TeamPlayers.Select(tp => tp.User.DisplayName), Is.EquivalentTo(expectedPowerOutageRoster));
+            Assert.That(teams[2].TeamPlayers.Select(tp => tp.User.DisplayName), Is.EquivalentTo(expectedStrictlyBusinessRoster));
+        }
+
+        var line = (await Lines()).Single(l => l.Gamertag == "Grif");
+        var dto = GrifballWebApp.Application.Seasons.SeasonPlayerStatDto.From<GrifballWebApp.Application.Seasons.SeasonPlayerStatDto>(line);
+        Assert.That((dto.Grabs, dto.BattingAverage, dto.ScoringAverage, dto.CombinedAverage), Is.EqualTo(((int?)30, (decimal?)60.0m, (decimal?)73.3m, (decimal?)61.5m)));
     }
 
     private Task<List<SeasonStatLine>> Lines() => new SeasonStatsService(_context).GetAsync();

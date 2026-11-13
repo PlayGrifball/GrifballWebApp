@@ -671,6 +671,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             var kept = new HashSet<PlayerSeasonStat>(ReferenceEqualityComparer.Instance);
             var sheetPlayers = await ImportManualStats(group, season, waypoint.Users, resolver, teams, kept, counts, ct);
             await RemoveRowsNoLongerThere(season, kept, counts, ct);
+            await ImportTeamRosters(group, resolver, teams, ct);
             var games = new List<ImportedGame>();
             if (group.Waypoint is not null)
             {
@@ -878,7 +879,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         var teams = new SeasonTeams();
         await AssignScheduleTeams(group, teams, ct);
         var names = group.Entries.SelectMany(e => e.Players).Select(p => p.TeamName)
-            .Concat(group.Championships.Select(c => c.Team))
+            .Concat(group.Entries.SelectMany(e => e.Teams).Select(t => (string?)t.TeamName))
+            .Concat(group.Championships.Select(c => (string?)c.Team))
             .Concat(teams.ScheduleNames)
             .Where(n => !HistoricalKeys.IsExcludedTeamName(n))
             .Select(n => CleanTeamName(n!))
@@ -894,21 +896,61 @@ public partial class HistoricalImportService : IHistoricalImportService
                 _context.Teams.Add(team);
                 counts.TeamsCreated++;
             }
-            var record = group.Entries.Where(e => !e.IsPlayoffs && !e.IsCombined)
-                .SelectMany(e => e.Players)
-                .Where(p => p.TeamName is not null && string.Equals(CleanTeamName(p.TeamName), name, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            var longest = record.OrderByDescending(p => Int(p.Wins) + Int(p.Losses)).ThenByDescending(p => Int(p.Wins)).FirstOrDefault();
             // As the archive spells it now (CleanTeamName keeps it a name its column takes)
             team.Rename(name);
-            if (longest is null)
-                team.ClearArchivedRecord();
+            if (ArchivedRecord(group, name) is var (wins, losses))
+                team.RecordArchive(wins, losses);
             else
-                team.RecordArchive(Int(longest.Wins), Int(longest.Losses));
+                team.ClearArchivedRecord();
             teams.ByName[name] = team;
         }
         await _context.SaveChangesAsync(ct);
         return teams;
+    }
+
+    private static (int Wins, int Losses)? ArchivedRecord(SeasonGroup group, string name)
+    {
+        var standing = group.Entries.Where(e => !e.IsPlayoffs && !e.IsCombined)
+            .SelectMany(e => e.Teams)
+            .Where(t => (t.Wins is not null || t.Losses is not null) && string.Equals(CleanTeamName(t.TeamName), name, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(t => (t.Wins ?? 0) + (t.Losses ?? 0))
+            .ThenByDescending(t => t.Wins ?? 0)
+            .FirstOrDefault();
+        if (standing is not null)
+            return (standing.Wins ?? 0, standing.Losses ?? 0);
+
+        var longest = group.Entries.Where(e => !e.IsPlayoffs && !e.IsCombined)
+            .SelectMany(e => e.Players)
+            .Where(p => p.TeamName is not null && string.Equals(CleanTeamName(p.TeamName), name, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(p => Int(p.Wins) + Int(p.Losses))
+            .ThenByDescending(p => Int(p.Wins))
+            .FirstOrDefault();
+        return longest is null ? null : (Int(longest.Wins), Int(longest.Losses));
+    }
+
+    /// <summary>
+    /// Each team's roster and captain from the archive's team standings (<see cref="ArchiveSeason.Teams"/>): puts the
+    /// captain and roster players on the team, and sets the team's captain when no championship title names one.
+    /// </summary>
+    private static async Task ImportTeamRosters(SeasonGroup group, PlayerResolver resolver, SeasonTeams teams, CancellationToken ct)
+    {
+        foreach (var archiveTeam in group.Entries.SelectMany(e => e.Teams))
+        {
+            var team = teams.Find(archiveTeam.TeamName);
+            if (team is null)
+                continue;
+            if (!string.IsNullOrWhiteSpace(archiveTeam.Captain))
+            {
+                var captainId = (await resolver.Resolve(archiveTeam.Captain, null, ct)).UserId;
+                teams.Join(team.TeamName, captainId);
+                teams.Captains.TryAdd(team.TeamID, captainId);
+            }
+            foreach (var gamertag in archiveTeam.Roster.Where(r => !string.IsNullOrWhiteSpace(r)))
+            {
+                var userId = (await resolver.Resolve(gamertag, null, ct)).UserId;
+                teams.Join(team.TeamName, userId);
+            }
+        }
     }
 
     /// <summary>

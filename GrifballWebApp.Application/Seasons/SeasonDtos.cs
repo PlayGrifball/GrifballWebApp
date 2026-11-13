@@ -68,6 +68,10 @@ public class SeasonPlayerStatDto
     /// score does, #217).</summary>
     public int? Punches { get; set; }
     public int? SwordKills { get; set; }
+    public int? Grabs { get; set; }
+    public decimal? BattingAverage { get; set; }
+    public decimal? ScoringAverage { get; set; }
+    public decimal? CombinedAverage { get; set; }
 
     /// <summary>The row of a stat line, for the season page and (with its season) a profile: the one mapping of a
     /// <see cref="SeasonStatLine"/>.</summary>
@@ -100,6 +104,10 @@ public class SeasonPlayerStatDto
         Exterminations = line.Exterminations,
         Punches = line.Punches,
         SwordKills = line.SwordKills,
+        Grabs = line.Grabs,
+        BattingAverage = line.BattingAverage,
+        ScoringAverage = line.ScoringAverage,
+        CombinedAverage = line.CombinedAverage,
     };
 }
 
