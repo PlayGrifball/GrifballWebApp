@@ -186,7 +186,6 @@ public sealed class HubSchemasDocumentFilter : IDocumentFilter
         => type.IsGenericType && Wrappers.Contains(type.GetGenericTypeDefinition()) ? type.GetGenericArguments()[0]
             : type == typeof(Task) || type == typeof(ValueTask) ? typeof(void) : type;
 }
-}
 
 /// <summary>
 /// Which endpoints the OpenAPI document describes (Program.cs, DocInclusionPredicate): Swashbuckle's default (an endpoint
