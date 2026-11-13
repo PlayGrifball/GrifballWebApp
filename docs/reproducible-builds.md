@@ -88,7 +88,7 @@ It:
 2. downloads every file in the manifest from the site and compares sha256s;
 3. loads each page and checks that every script on it is the build's. Every `<script src>`, stylesheet and preload
    must be a file in the manifest. Inline scripts must be the build's own, the loader from
-   `src/app/core/layout/afterFirstPaint.ts` (checked exactly), or Angular's event-replay bootstrap (data only). Build files must
+   `src/app/core/server/afterFirstPaint.ts` (checked exactly), or Angular's event-replay bootstrap (data only). Build files must
    be loaded with no query string. There must be no other inline handlers, `javascript:` URLs, `<base>`, iframes,
    objects or `srcdoc`. Pages are parsed the way a browser parses them, so differences in quoting or spacing can't
    hide anything.

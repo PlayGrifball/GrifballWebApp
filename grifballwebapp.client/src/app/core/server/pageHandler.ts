@@ -1,4 +1,4 @@
-import { loadScriptsAfterFirstPaint } from '../layout/afterFirstPaint';
+import { loadScriptsAfterFirstPaint } from './afterFirstPaint';
 import { forLog } from '../http/forLog';
 import { pageCacheHeaders } from './pageCache';
 import { redactUrl } from '../http/redactUrl';

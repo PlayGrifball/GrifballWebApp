@@ -9,7 +9,7 @@
 // 2. Fetches every file in the manifest from the site and compares sha256s.
 // 3. Fetches the pages (/ and each --path) and checks that every script they run is the build's: <script src> and
 //    stylesheets/preloads are files in the manifest, inline scripts are the build's (manifest inlineScripts) or one of
-//    the two the server writes per page (the loader from src/app/core/layout/afterFirstPaint.ts and Angular's event replay
+//    the two the server writes per page (the loader from src/app/core/server/afterFirstPaint.ts and Angular's event replay
 //    bootstrap), the only inline event handler is the stylesheet swap (onload="this.media='all'"), and nothing
 //    moves or embeds the page (<base>, iframes, objects, srcdoc, javascript: URLs). Pages are read with parse5, the
 //    HTML standard's parser, as a browser reads them.
@@ -41,7 +41,7 @@ export function parseArgs(argv) {
   return options;
 }
 
-// The loader src/app/core/layout/afterFirstPaint.ts writes in place of the module scripts: its text with each import(...) of a
+// The loader src/app/core/server/afterFirstPaint.ts writes in place of the module scripts: its text with each import(...) of a
 // script swapped for a placeholder has to be exactly the loader's, or it isn't the loader.
 const LOADER_IMPORT = /import\(new URL\(("(?:[^"\\]|\\.)*"), document\.baseURI\)\.href\)/g;
 const LOADER_START = 'let started = false; const start = () => { if (!started) { started = true; ';
