@@ -258,6 +258,36 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task UsePasswordResetLink_UsedByAnotherRequestMeanwhile_IsRefusedAndNothingIsSaved()
+    {
+        var user = User.Seed(userName: "alice", id: 1);
+        Context.Users.Add(user);
+        var (link, token) = PasswordResetLink.Issue(1, DateTime.UtcNow);
+        Context.PasswordResetLinks.Add(link);
+        await Context.SaveChangesAsync();
+        var linkId = link.Id;
+        // Another request uses the link between this one's read and its save (UsedAt is the link's concurrency token)
+        _userManager.AddPasswordAsync(Arg.Any<User>(), "NewPassword1!").Returns(async _ =>
+        {
+            await Context.PasswordResetLinks.Where(l => l.Id == linkId)
+                .ExecuteUpdateAsync(s => s.SetProperty(l => l.UsedAt, DateTime.UtcNow));
+            return IdentityResult.Success;
+        });
+
+        var (success, message) = await _service.UsePasswordResetLink(token, "NewPassword1!", CancellationToken.None);
+
+        Context.ChangeTracker.Clear();
+        var reread = await Context.PasswordResetLinks.SingleAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(success, Is.False);
+            Assert.That(message, Is.EqualTo("Invalid or already used reset link"));
+            Assert.That(Context.Database.CurrentTransaction, Is.Null, "its transaction is gone, not committed");
+            Assert.That(reread.UsedAt, Is.Null, "the transaction rolled back: nothing it did inside it is saved");
+        }
+    }
+
+    [Test]
     public async Task UsePasswordResetLink_ExistingPassword_ResetsPassword()
     {
         var user = User.Seed(userName: "alice", id: 1, passwordHash: "existing-hash");

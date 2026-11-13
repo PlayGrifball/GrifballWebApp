@@ -14,10 +14,8 @@ namespace GrifballWebApp.Application.Test;
 
 /// <summary>
 /// Every merge writes an audit record (UserMerges) with a manifest of what it changed, and a sysadmin can undo it: the
-/// rows come back exactly as they were, unless something changed them since. Its "two sysadmins race the undo" test
-/// needs a second connection to the same database (a DbTransactionInterceptor undoing the record from a race's gap);
-/// the fake context's SQLite connection is private to one instance, so that race stays in
-/// GrifballWebApp.Integration.Test's UserMergeAuditTests, with the controller-layer test.
+/// rows come back exactly as they were, unless something changed them since. Two sysadmins racing the undo are two
+/// fake contexts on one connection, the other's undo saved as this one opens its transaction (BeforeTransaction).
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -305,6 +303,56 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
         var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => _audit.Undo(mergeId, null));
 
         Assert.That(ex!.Message, Does.Contain("undone already"));
+    }
+
+    [Test]
+    public async Task Undo_UndoneByAnotherSysadminMeanwhile_IsRefused_AndPutsNothingBack()
+    {
+        await GiveThePlaceholderEverything();
+        await _merges.Merge(_real.Id, _placeholder.Id);
+        var mergeId = (await Context.UserMerges.SingleAsync()).UserMergeID;
+        var afterMerge = await Snapshot();
+        var options = new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(Context.Database.GetDbConnection()).Options;
+        var theirs = new DateTime(2026, 11, 1, 11, 0, 0, DateTimeKind.Utc);
+
+        // As this undo opens its transaction (after it read the merge as standing), another sysadmin's undo is saved
+        await using (var racing = new FakeApplicationDbContext(options)
+        {
+            BeforeTransaction = async ct =>
+            {
+                await using var other = new FakeApplicationDbContext(options);
+                _ = (await other.UserMerges.SingleAsync(m => m.UserMergeID == mergeId, ct)).Undo(theirs, null, "theirs");
+                await other.SaveChangesAsync(ct);
+            },
+        })
+        {
+            var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => new UserMergeAuditService(racing, _time).Undo(mergeId, "mine"));
+            Assert.That(ex!.Message, Is.EqualTo($"Merge {mergeId} was undone already"));
+        }
+
+        Assert.That(await Snapshot(), Is.EqualTo(afterMerge), "this undo put nothing back");
+        var record = await Context.UserMerges.AsNoTracking().SingleAsync();
+        Assert.That((record.UndoneAt, record.UndoNote), Is.EqualTo(((DateTime?)theirs, "theirs")), "the other undo's stamp stays");
+    }
+
+    [Test]
+    public async Task Undo_IsRefused_WhenARowCantBePutBack()
+    {
+        await _merges.Merge(_real.Id, _placeholder.Id);
+        var mergeId = (await Context.UserMerges.SingleAsync()).UserMergeID;
+        // Since the merge, another user took the removed placeholder's user name (unique): it can't come back as it was
+        Context.Users.Add(User.Seed(userName: "historical:Old Tag", normalizedUserName: "HISTORICAL:OLD TAG", displayName: "Taker"));
+        await Context.SaveChangesAsync();
+        var before = await Snapshot();
+
+        var ex = await Assert.ThrowsAsync<MergeUndoRefusedException>(() => _audit.Undo(mergeId, null));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Does.StartWith("Can't undo: a row could not be put back as it was ("));
+            Assert.That(await Snapshot(), Is.EqualTo(before), "nothing left half undone");
+            Assert.That((await Context.UserMerges.AsNoTracking().SingleAsync()).UndoneAt, Is.Null);
+        }
     }
 
     [Test]

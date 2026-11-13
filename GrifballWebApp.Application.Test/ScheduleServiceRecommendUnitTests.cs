@@ -65,6 +65,18 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
     }
 
     [Test]
+    public async Task Recommend_LogsTheGenerationItStoppedAt()
+    {
+        await SeedSeason();
+        var logger = new CapturingLogger<ScheduleService>();
+        var service = new ScheduleService(Context, logger);
+
+        var run = await service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 3, TimeBudget = TimeSpan.FromMinutes(1) });
+
+        Assert.That(logger.Entries, Has.Member((LogLevel.Information, $"GA Termination Reached after {run.Generations} generations")));
+    }
+
+    [Test]
     public async Task Recommend_SchedulesEachRegularMatchWithBothTeamsOnce_WithinItsLimits()
     {
         var regular = await SeedSeason();

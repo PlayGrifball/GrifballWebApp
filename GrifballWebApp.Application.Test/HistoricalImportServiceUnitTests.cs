@@ -8,6 +8,7 @@ using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -238,6 +239,28 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         {
             Assert.That(report.Skipped, Has.Count.EqualTo(2));
             Assert.That(await Context.Seasons.CountAsync(), Is.Zero);
+        }
+    }
+
+    [Test]
+    public async Task Import_LogsEachSkipAndWhatItDid()
+    {
+        var logger = new CapturingLogger<HistoricalImportService>();
+        var service = new HistoricalImportService(Context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
+            logger, new GamertagMatching(Context), TimeProvider.System);
+
+        var report = await service.Import(Input(
+            Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16", kills: 10)),
+            Entry("Bad League Season", "halo3", "Nonexistent League", false, Player("P1"))));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SeasonsCreated, Is.EqualTo(1));
+            Assert.That(report.Skipped, Has.Count.EqualTo(1));
+            Assert.That(logger.Messages, Has.Member($"Historical import skipped: {report.Skipped[0]}"));
+            Assert.That(logger.Entries, Has.Member((LogLevel.Information,
+                $"Historical import: 1 seasons created, 0 updated, {report.StatsInserted} stats added, 0 updated, {report.DummyUsersCreated} placeholder users, 1 skipped, 0 failed")));
+            Assert.That(report.StatsInserted, Is.EqualTo(1));
         }
     }
 

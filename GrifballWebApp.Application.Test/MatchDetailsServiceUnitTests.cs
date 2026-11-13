@@ -109,4 +109,45 @@ internal sealed class MatchDetailsServiceUnitTests : ApplicationDbContextTests
             Assert.That(result.SeasonMatch.BestOf, Is.EqualTo(3));
         }
     }
+
+    [Test]
+    public async Task GetAsync_PlayersOnTheRosters_NameEachTeamsSeasonSide_ByWhoPlayed()
+    {
+        var season = Season.Seed(seasonName: "S1");
+        Context.Seasons.Add(season);
+        var homePlayer = XboxUser.FromXbox(1, "HomePlayer");
+        var awayPlayer = XboxUser.FromXbox(2, "AwayPlayer");
+        Context.XboxUsers.AddRange(homePlayer, awayPlayer);
+        Context.Users.AddRange(User.Seed(userName: "home", xboxUser: homePlayer, id: 1), User.Seed(userName: "away", xboxUser: awayPlayer, id: 2));
+        await Context.SaveChangesAsync();
+        var home = Team.Seed(seasonID: season.SeasonID, teamName: "Home");
+        var away = Team.Seed(seasonID: season.SeasonID, teamName: "Away");
+        Context.Teams.AddRange(home, away);
+        await Context.SaveChangesAsync();
+        Context.AddRange(TeamPlayer.Seed(teamID: home.TeamID, userID: 1), TeamPlayer.Seed(teamID: away.TeamID, userID: 2));
+        var seasonMatch = SeasonMatch.Between(season.SeasonID, home.TeamID, away.TeamID, bestOf: 3);
+        Context.SeasonMatches.Add(seasonMatch);
+        await Context.SaveChangesAsync();
+
+        // Halo's first team is the away roster's player, its second the home roster's
+        var matchID = Guid.NewGuid();
+        var match = Match.Seed(matchID, startTime: DateTime.UtcNow, duration: TimeSpan.FromMinutes(8));
+        match.AddTeam(0, 10, Outcomes.Won);
+        match.AddTeam(1, 5, Outcomes.Lost);
+        match.AddParticipant(0, 2, new MatchParticipantStats { Score = 10, Kills = 15, Deaths = 3 });
+        match.AddParticipant(1, 1, new MatchParticipantStats { Score = 5, Kills = 8, Deaths = 10 });
+        Context.Matches.Add(match);
+        seasonMatch.Game(1, halo: match);
+        await Context.SaveChangesAsync();
+
+        var result = await _service.GetAsync(matchID);
+
+        var first = result!.Teams.Single(t => t.TeamID == 0);
+        var second = result.Teams.Single(t => t.TeamID == 1);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((first.SeasonTeamID, first.SeasonTeamName), Is.EqualTo(((int?)away.TeamID, "Away")));
+            Assert.That((second.SeasonTeamID, second.SeasonTeamName), Is.EqualTo(((int?)home.TeamID, "Home")));
+        }
+    }
 }

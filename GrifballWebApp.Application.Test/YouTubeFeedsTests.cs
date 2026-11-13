@@ -170,6 +170,28 @@ public class YouTubeFeedsTests
         }
     }
 
+    [Test]
+    public void ParseChannelPage_ARendererWithoutAVideoId_IsNoVideo_ButOneWithoutItsDetails_IsOneWithNone()
+    {
+        var html = YouTubeFixtures.ChannelPage(
+            // A renderer of no video (an ad slot, say), with a video inside it: that one is still read
+            new { videoRenderer = new { navigationEndpoint = new { inner = YouTubeFixtures.GridVideo("InnerVideo1", "Inner", "2w ago", "1:00:00") } } },
+            new { gridVideoRenderer = new { videoId = "BareVideo01" } });
+
+        var videos = YouTubeFeeds.ParseChannelPage(html, FetchedAt, null);
+
+        Assert.That(videos.Select(v => v.VideoID), Is.EquivalentTo(InnerAndBare));
+        var bare = videos.Single(v => v.VideoID == "BareVideo01");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bare.Title, Is.Null);
+            Assert.That(bare.PublishedAt, Is.Null);
+            Assert.That(bare.DurationSeconds, Is.Null);
+        }
+    }
+
+    private static readonly string[] InnerAndBare = ["InnerVideo1", "BareVideo01"];
+
     [TestCase("<html>no data</html>")]
     [TestCase("<script>var ytInitialData = {\"broken\": ;</script>")]
     [TestCase("<script>var ytInitialData = {\"never\": \"closed\"}")]

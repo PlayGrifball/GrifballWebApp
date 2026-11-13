@@ -34,6 +34,7 @@ public class VodMatchingTests
     [TestCase("SL26 Major Week 2 — Alpha vs Bravo", SeasonTerm.Spring, 2026, "major")]
     [TestCase("Spring League 2026 (Minor) | Alpha vs Bravo", SeasonTerm.Spring, 2026, "minor")]
     [TestCase("Autumn League 2024 | \u201cAlpha\u201d vs Bravo", SeasonTerm.Fall, 2024, null)]
+    [TestCase("Winter League 2023 | Alpha vs Bravo", SeasonTerm.Winter, 2023, null)]
     public void Parse_ReadsSeasonAbbreviations(string title, SeasonTerm term, int year, string? qualifier)
     {
         var info = VodTitleParser.Parse(title);
@@ -251,4 +252,63 @@ public class VodMatchingTests
             Assert.That(several.Note, Does.Contain("2 seasons fit"));
         }
     }
+
+    // Two summers a year apart with the same teams, one match between them in the later one
+
+    private const int Summer25 = 8, Summer26Again = 9, OnlyGame = 900;
+
+    private static readonly VodMatcher Summers = new(
+    [
+        Season(Summer25, "Summer League 2025", D(2025, 7, 1), D(2025, 10, 10), [Team(81, "India"), Team(82, "Juliet")]),
+        Season(Summer26Again, "Summer League 2026", D(2026, 7, 1), D(2026, 10, 10), [Team(91, "India"), Team(92, "Juliet")],
+            [new(OnlyGame, 91, 92, D(2026, 7, 10), false, false, null)]),
+    ]);
+
+    [Test]
+    public void Match_ASeasonNamedWithoutAYear_IsTheOneRunning_OfThisYearsAndLastYears()
+    {
+        var awards = Summers.Match("AGLA Summer Awards Show", D(2026, 8, 1));
+
+        Assert.That((awards.Status, awards.SeasonID), Is.EqualTo((VodMatchStatus.Auto, (int?)Summer26Again)),
+            "Last summer's is named too, but only this one is running: the title names exactly one season");
+    }
+
+    [Test]
+    public void Match_TheOnlyMatchBetweenTheTeams_IsLinked()
+    {
+        var match = Summers.Match("Summer League 2026 | India vs Juliet", D(2026, 9, 1));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((match.Status, match.SeasonID, match.SeasonMatchID), Is.EqualTo((VodMatchStatus.Auto, (int?)Summer26Again, (int?)OnlyGame)));
+            Assert.That(match.Note, Is.EqualTo("Summer League 2026: India vs Juliet"));
+        }
+    }
+
+    [Test]
+    public void Match_PlayoffsTitle_ButNoPlayoffMatchBetweenThem_WeighsEveryMatch()
+    {
+        var match = Matcher.Match("SL26 Major Playoffs - Golf vs Hotel", D(2026, 5, 20));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((match.Status, match.SeasonID, match.SeasonMatchID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)Major, (int?)null)));
+            Assert.That(match.Note, Does.EndWith("; 2 matches between them"), "both regular matches weighed, neither scheduled");
+        }
+    }
+
+    [Test]
+    public void Match_ASideWithoutLetters_IsNoTeam()
+    {
+        var match = Matcher.Match("SL24 - Alpha vs @@@", D(2024, 3, 20));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((match.Status, match.SeasonID), Is.EqualTo((VodMatchStatus.NeedsReview, (int?)Spring24)));
+            Assert.That(match.TeamIDs, Is.EqualTo(OnlyAlpha));
+            Assert.That(match.Note, Is.EqualTo("Only Alpha found in Spring League 2024 (title: Alpha vs @@@)"));
+        }
+    }
+
+    private static readonly int[] OnlyAlpha = [11];
 }

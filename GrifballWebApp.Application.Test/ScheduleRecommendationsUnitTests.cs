@@ -1,8 +1,10 @@
+using System.Data.Common;
 using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Time.Testing;
 
 namespace GrifballWebApp.Application.Test;
@@ -169,6 +171,48 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
         {
             Assert.That(result, Is.Null);
             Assert.That(reloaded.AppliedBy, Is.EqualTo("first"), "the second Apply must not have overwritten it");
+        }
+    }
+
+    [Test]
+    public async Task Apply_AppliedByAnotherClickMeanwhile_ReturnsNullAndSchedulesNothing()
+    {
+        var (home, away, match) = await SeedMatch();
+        var gene = new SeasonMatchGene { SeasonMatchID = match.SeasonMatchID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, ScheduledTime = ProposedTime };
+        var saved = await _service.Save(SeasonID, new ScheduleRun([gene], 0.9, 30, Options(ProposedTime, home.TeamID, away.TeamID)), "commissioner");
+        var id = saved.ScheduleRecommendationID;
+        var connection = Context.Database.GetDbConnection();
+        var plain = new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).Options;
+        // Another click's Apply stamps it after this one read it unapplied, as this one opens its transaction
+        var otherClick = new OnTransactionStarting(async ct =>
+        {
+            await using var other = new FakeApplicationDbContext(plain);
+            await other.ScheduleRecommendations.Where(r => r.ScheduleRecommendationID == id)
+                .ExecuteUpdateAsync(u => u.SetProperty(r => r.AppliedAt, Now).SetProperty(r => r.AppliedBy, "other"), ct);
+        });
+        await using var racing = new FakeApplicationDbContext(new DbContextOptionsBuilder<FakeApplicationDbContext>().UseSqlite(connection).AddInterceptors(otherClick).Options);
+
+        var result = await new ScheduleRecommendations(racing, _time).Apply(id, "applier");
+
+        Context.ChangeTracker.Clear();
+        var reloaded = await Context.ScheduleRecommendations.SingleAsync(r => r.ScheduleRecommendationID == id);
+        var unscheduled = await Context.SeasonMatches.SingleAsync(m => m.SeasonMatchID == match.SeasonMatchID);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.Null);
+            Assert.That(reloaded.AppliedBy, Is.EqualTo("other"));
+            Assert.That(unscheduled.ScheduledTime, Is.Null, "the other click's Apply sets the times, not this one");
+        }
+    }
+
+    /// <summary>Runs <paramref name="action"/> as a transaction is about to begin (before it does, so its writes are its own).</summary>
+    private sealed class OnTransactionStarting(Func<CancellationToken, Task> action) : DbTransactionInterceptor
+    {
+        public override async ValueTask<InterceptionResult<DbTransaction>> TransactionStartingAsync(DbConnection connection,
+            TransactionStartingEventData eventData, InterceptionResult<DbTransaction> result, CancellationToken cancellationToken = default)
+        {
+            await action(cancellationToken);
+            return result;
         }
     }
 

@@ -49,6 +49,25 @@ internal sealed class AvailabilityServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task UpdateSeasonAvailability_ImportedSeason_IsRefusedAndSavesNothing()
+    {
+        var imported = Season.Imported("src/1", "Archive Season", Domain.Shared.League.DefaultLeagueID, 6, "", "https://x", SeasonFormat.LeagueSeason);
+        Context.Seasons.Add(imported);
+        await Context.SaveChangesAsync();
+        var dto = new SeasonAvailabilityDto { SeasonID = imported.SeasonID, Timeslots = [Slot(DayOfWeek.Monday, 18)] };
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpdateSeasonAvailability(dto, CancellationToken.None));
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Is.EqualTo(SeasonRefusedException.ImportedSeason));
+            Assert.That(await _service.GetSeasonAvailability(imported.SeasonID, CancellationToken.None), Is.Empty);
+            Assert.That(await Context.Availability.AnyAsync(), Is.False, "not even the new timeslot");
+        }
+    }
+
+    [Test]
     public async Task UpdateSeasonAvailability_SetsTimeslotsAndIsIdempotent()
     {
         Context.Seasons.Add(Season.Seed(seasonName: "S1", seasonID: 1));

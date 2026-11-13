@@ -11,8 +11,7 @@ namespace GrifballWebApp.Application.Test;
 /// <summary>
 /// UserManagementService.EditUser's gamertag, sign-in and role steps (each refusal, and a gamertag tied, untied or taken
 /// from its holder), beyond UserManagementServiceUnitTests. Not here: GetUsers and GetUser (their Roles projection needs
-/// SQL APPLY, see UserManagementServiceUnitTests), and UsePasswordResetLink's DbUpdateConcurrencyException (a link used by
-/// another request between this one's read and save, which a single context can't stage).
+/// SQL APPLY, see UserManagementServiceUnitTests).
 /// </summary>
 [TestFixture]
 internal sealed class UserManagementServiceEditUnitTests : ApplicationDbContextTests
