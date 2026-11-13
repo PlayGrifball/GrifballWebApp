@@ -76,9 +76,8 @@ export class SignalRService {
    * callback; components call it when they are destroyed so callbacks don't pile up across visits.
    */
   private on<M extends Message>(message: M, callback: (value: Payload<M>) => void): () => void {
-    let listeners = this.listeners.get(message);
-    if (!listeners)
-      this.listeners.set(message, listeners = new Set());
+    const listeners = this.listeners.get(message) ?? new Set();
+    this.listeners.set(message, listeners);
     const listener = callback as (value: never) => void;
     listeners.add(listener);
     return () => listeners.delete(listener);
