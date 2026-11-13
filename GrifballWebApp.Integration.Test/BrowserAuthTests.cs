@@ -413,6 +413,35 @@ public class BrowserAuthTests
     }
 
     [Test]
+    public async Task Bearer_InAnApiCallsQuery_IsNotRead()
+    {
+        // Only a hub's query token is (SignalR's clients send it there): elsewhere it would end up in logs and history
+        using var script = Script();
+        using var login = await Login(script, "?useCookies=false");
+        var token = (await login.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Authentication.BearerToken.AccessTokenResponse>())!.AccessToken;
+
+        using var response = await script.GetAsync($"/identity/meta-info?access_token={Uri.EscapeDataString(token)}");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+    }
+
+    [Test]
+    public async Task Hub_WebSocket_WithAQueryToken_FromAnotherOrigin_IsAccepted()
+    {
+        // A token is not a cookie session: no origin check (the browser's SignalR client sends it in the query)
+        using var script = Script();
+        using var login = await Login(script, "?useCookies=false");
+        var token = (await login.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Authentication.BearerToken.AccessTokenResponse>())!.AccessToken;
+        var socket = _factory.Server.CreateWebSocketClient();
+        socket.ConfigureRequest = request => request.Headers.Origin = "https://evil.example";
+
+        using var connected = await socket.ConnectAsync(new Uri($"wss://localhost/TeamsHub?access_token={Uri.EscapeDataString(token)}"), CancellationToken.None);
+
+        Assert.That(connected.State, Is.EqualTo(System.Net.WebSockets.WebSocketState.Open));
+        await connected.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+    }
+
+    [Test]
     public async Task Hub_WebSocket_WithTheCookie_FromAnotherOrigin_IsRefused_AndFromThisOneAccepted()
     {
         using var client = Browser();

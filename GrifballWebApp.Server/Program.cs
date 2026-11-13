@@ -298,6 +298,12 @@ public class Program
         .AddBearerToken(IdentityConstants.BearerScheme, options =>
         {
             options.BearerTokenExpiration = TimeSpan.FromMinutes(15);
+            // A hub's token from its query too, where SignalR's clients send it (BrowserAuth.HubAccessToken)
+            options.Events.OnMessageReceived = context =>
+            {
+                context.Token ??= BrowserAuth.HubAccessToken(context.HttpContext);
+                return Task.CompletedTask;
+            };
         });
 
         if (!discordOff)
@@ -409,8 +415,8 @@ public class Program
             // Anonymous and read-only: the matchmaking queue's size, for the home page
             app.MapHub<QueueHub>("QueueHub");
 
-            // The hubs' page, what /swagger is to the API: signed in only (SignalRHubsPage)
-            app.Use(SignalRHubsPage.RequireSignIn);
+            // The hubs' page (/signalr-dev), what /swagger is to the API: open to all, as Swagger is. A hub call made from it is
+            // its caller's: the site's cookie, or a bearer token (Swagger's login with useCookies=false) pasted into it.
             app.UseSignalRHubSpecification();
             app.UseSignalRHubDevelopmentUI();
 

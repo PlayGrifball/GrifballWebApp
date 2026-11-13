@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.SignalR;
 using GrifballWebApp.Server.Identity;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -181,6 +182,43 @@ public class BrowserAuthUnitTests
         {
             Assert.That(BrowserAuth.SelectScheme(Context("GET", authorization: "Bearer abc")), Is.EqualTo("Identity.Bearer"));
             Assert.That(BrowserAuth.SelectScheme(Context("GET")), Is.EqualTo("Identity.Application"));
+        }
+    }
+
+    /// <summary>A request to a hub (negotiate or the connection), with its query.</summary>
+    private static DefaultHttpContext HubRequest(string query, bool hub = true)
+    {
+        var context = Context("GET");
+        context.Request.QueryString = new QueryString(query);
+        var metadata = hub ? new EndpointMetadataCollection(new HubMetadata(typeof(GrifballWebApp.Server.Teams.TeamsHub))) : EndpointMetadataCollection.Empty;
+        context.SetEndpoint(new Endpoint(_ => Task.CompletedTask, metadata, hub ? "hub" : "api"));
+        return context;
+    }
+
+    [Test]
+    public void SelectScheme_BearerForAHubsAccessTokenInItsQuery()
+    {
+        // SignalR's browser client sends the token in the query on the WebSocket, which can't carry headers
+        var hub = HubRequest("?id=1&access_token=abc");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(BrowserAuth.HubAccessToken(hub), Is.EqualTo("abc"));
+            Assert.That(BrowserAuth.SelectScheme(hub), Is.EqualTo("Identity.Bearer"));
+            Assert.That(BrowserAuth.IsForeignHubRequest(hub), Is.False, "A token is not a cookie session");
+        }
+    }
+
+    [Test]
+    public void HubAccessToken_OnlyAHubsAndOnlyWithAValue()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            // An API call's query token is not read: it would end up in logs and history
+            Assert.That(BrowserAuth.HubAccessToken(HubRequest("?access_token=abc", hub: false)), Is.Null);
+            Assert.That(BrowserAuth.SelectScheme(HubRequest("?access_token=abc", hub: false)), Is.EqualTo("Identity.Application"));
+            Assert.That(BrowserAuth.HubAccessToken(HubRequest("?access_token=")), Is.Null);
+            Assert.That(BrowserAuth.SelectScheme(HubRequest("?id=1")), Is.EqualTo("Identity.Application"));
         }
     }
 
