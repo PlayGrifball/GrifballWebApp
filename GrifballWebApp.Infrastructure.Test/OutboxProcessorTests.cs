@@ -30,8 +30,8 @@ public class OutboxProcessorTests
         public required GrifballContext Reader { get; init; }
         public required FakeTimeProvider Time { get; init; }
         public required OutboxOptions Options { get; init; }
-        private required string Path { get; init; }
-        private required ServiceProvider Provider { get; init; }
+        public required string Path { get; init; }
+        public required ServiceProvider Provider { get; init; }
 
         public async Task<OutboxMessage> AddAsync(string kind, OutboxStatus status = OutboxStatus.Pending, string? groupKey = null,
             int sequence = 0, int attempts = 0, TimeSpan? dueIn = null)
