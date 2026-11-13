@@ -344,7 +344,7 @@ public class PostgresTemporalQueriesUnitTests
     }
 
     [Test]
-    public void ASetOperation_OfEntitiesAsOfTheSameTime_SharesItsParameter()
+    public void ASetOperation_OfEntitiesAsOfTheSameTime_ReadsBothSidesAtThatTime()
     {
         using var context = Postgres();
 
@@ -353,7 +353,9 @@ public class PostgresTemporalQueriesUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(sql, Does.Contain("UNION ALL"));
-            Assert.That(sql.Split('\n').Count(l => l.StartsWith("-- ")), Is.EqualTo(1), "one parameter for both sides' time");
+            var parameters = sql.Split('\n').Where(l => l.StartsWith("-- ")).ToList();
+            Assert.That(parameters, Is.Not.Empty.And.All.Contains("2026-10-01"), $"both sides read as of the one time: {sql}");
+            Assert.That(sql, Does.Not.Contain("2026-10-02"), sql);
         }
     }
 
