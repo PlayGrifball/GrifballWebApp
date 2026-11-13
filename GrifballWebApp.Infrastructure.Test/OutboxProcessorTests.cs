@@ -179,7 +179,7 @@ public class OutboxProcessorTests
     {
         var handler = FakeHandler("test.kind");
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>())
-            .Throws(new PreviewDiscordDisabledException("preview"));
+            .ThrowsAsync(new PreviewDiscordDisabledException("preview"));
         await using var h = await Harness.BuildAsync([handler]);
         var message = await h.AddAsync("test.kind");
 
@@ -198,7 +198,7 @@ public class OutboxProcessorTests
     {
         var handler = FakeHandler("test.kind");
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>())
-            .Throws(new InvalidOperationException("boom"));
+            .ThrowsAsync(new InvalidOperationException("boom"));
         var options = new OutboxOptions { MaxAttempts = 10, RetryDelay = TimeSpan.FromSeconds(5), MaxRetryDelay = TimeSpan.FromMinutes(5) };
         await using var h = await Harness.BuildAsync([handler], options);
         var message = await h.AddAsync("test.kind");
@@ -220,7 +220,7 @@ public class OutboxProcessorTests
     {
         var handler = FakeHandler("test.kind");
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>())
-            .Throws(new InvalidOperationException(new string('x', 2500)));
+            .ThrowsAsync(new InvalidOperationException(new string('x', 2500)));
         await using var h = await Harness.BuildAsync([handler]);
         var message = await h.AddAsync("test.kind");
 
@@ -235,7 +235,7 @@ public class OutboxProcessorTests
     {
         var handler = FakeHandler("test.kind", deadLetterSkipsGroup: true);
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>())
-            .Throws(new InvalidOperationException("boom"));
+            .ThrowsAsync(new InvalidOperationException("boom"));
         var options = new OutboxOptions { MaxAttempts = 1 };
         await using var h = await Harness.BuildAsync([handler], options);
         var first = await h.AddAsync("test.kind", groupKey: "g1", sequence: 0);
@@ -259,7 +259,7 @@ public class OutboxProcessorTests
     {
         var handler = FakeHandler("test.kind", deadLetterSkipsGroup: false);
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>())
-            .Throws(new InvalidOperationException("boom"));
+            .ThrowsAsync(new InvalidOperationException("boom"));
         var options = new OutboxOptions { MaxAttempts = 1 };
         await using var h = await Harness.BuildAsync([handler], options);
         var first = await h.AddAsync("test.kind", groupKey: "g1", sequence: 0);
@@ -276,7 +276,7 @@ public class OutboxProcessorTests
     {
         var handler = FakeHandler("test.kind", maxAge: TimeSpan.FromMinutes(1));
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>())
-            .Throws(new InvalidOperationException("boom"));
+            .ThrowsAsync(new InvalidOperationException("boom"));
         var options = new OutboxOptions { MaxAttempts = 10 };
         await using var h = await Harness.BuildAsync([handler], options);
         var message = new OutboxMessage
