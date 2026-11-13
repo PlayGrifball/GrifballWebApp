@@ -124,7 +124,7 @@ public class InfrastructureServiceCollectionExtensionsTests
         }
         finally
         {
-            SqliteContextFixture.DeleteDatabaseFiles(path);
+            SqliteFiles.Delete(path);
         }
     }
 

@@ -59,11 +59,14 @@ public abstract class SqliteContextFixture
         DeleteFiles();
     }
 
-    private void DeleteFiles() => DeleteDatabaseFiles(DatabasePath);
+    private void DeleteFiles() => SqliteFiles.Delete(DatabasePath);
+}
 
-    /// <summary>A SQLite database file and the -wal and -shm files beside it, whichever exist: for a test that makes its own
-    /// database file outside this fixture.</summary>
-    internal static void DeleteDatabaseFiles(string path)
+/// <summary>A SQLite database file and the -wal and -shm files beside it, whichever exist: for a test that makes its own
+/// database file outside <see cref="SqliteContextFixture"/>.</summary>
+internal static class SqliteFiles
+{
+    internal static void Delete(string path)
     {
         foreach (var file in new[] { path, path + "-wal", path + "-shm" })
             if (File.Exists(file))
