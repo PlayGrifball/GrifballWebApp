@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Services;
 using GrifballWebApp.Server;

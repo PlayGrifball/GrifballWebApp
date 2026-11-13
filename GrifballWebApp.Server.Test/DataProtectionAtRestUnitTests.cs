@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using GrifballWebApp.Server.Identity;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -62,6 +64,8 @@ public class DataProtectionAtRestUnitTests
 [Parallelizable(ParallelScope.All)]
 public class DiscardUnencryptedKeysUnitTests : SqliteGrifballContextFixture
 {
+    private static readonly string[] ExpectedFriendlyNames = ["sealed"];
+
     [Test]
     public async Task DiscardUnencryptedKeysAsync_ReturnsZero_WhenThereAreNoKeys()
     {
@@ -80,7 +84,7 @@ public class DiscardUnencryptedKeysUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(discarded, Is.EqualTo(1));
-            Assert.That(await Db.DataProtectionKeys.Select(k => k.FriendlyName).ToListAsync(), Is.EquivalentTo(new[] { "sealed" }));
+            Assert.That(await Db.DataProtectionKeys.Select(k => k.FriendlyName).ToListAsync(), Is.EquivalentTo(ExpectedFriendlyNames));
         }
     }
 
@@ -127,11 +131,10 @@ public class DiscardUnencryptedKeysUnitTests : SqliteGrifballContextFixture
 /// <summary>A throwaway self-signed certificate, for tests that only need a non-null one.</summary>
 internal static class TestCertificate
 {
-    internal static System.Security.Cryptography.X509Certificates.X509Certificate2 SelfSigned()
+    internal static X509Certificate2 SelfSigned()
     {
-        using var key = System.Security.Cryptography.RSA.Create(2048);
-        var request = new System.Security.Cryptography.X509Certificates.CertificateRequest(
-            "CN=grif-server-test", key, System.Security.Cryptography.HashAlgorithmName.SHA256, System.Security.Cryptography.X509Certificates.RSASignaturePadding.Pkcs1);
+        using var key = RSA.Create(2048);
+        var request = new CertificateRequest("CN=grif-server-test", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         return request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
     }
 }

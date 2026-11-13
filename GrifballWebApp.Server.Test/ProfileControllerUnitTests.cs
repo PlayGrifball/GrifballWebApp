@@ -1,7 +1,6 @@
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Stats;
-using GrifballWebApp.Application.Seasons;
-using GrifballWebApp.Application.Matchmaking;
+using GrifballWebApp.Application.LateLeague;
 using GrifballWebApp.Server.Profile;
 using Microsoft.AspNetCore.Http;
 using NSubstitute;

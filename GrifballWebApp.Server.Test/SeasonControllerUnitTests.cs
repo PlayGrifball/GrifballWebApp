@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.Seasons;
+using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Server.Seasons;
 using Microsoft.AspNetCore.Http;
 
