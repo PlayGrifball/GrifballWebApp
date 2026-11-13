@@ -157,12 +157,13 @@ public class PersonalCommandsHandlerUnitTests : SqliteGrifballContextFixture
     public async Task QueueStatus_RepliesTheQueueCount_ForAnUnknownCaller()
     {
         var handler = Handler();
-        _queue.Count().Returns(0);
+        // A non-default count: NSubstitute's Task<int> already defaults to 0, so stubbing 0 could never fail.
+        _queue.Count(Arg.Any<CancellationToken>()).Returns(4);
         var discord = new CommandContextRecorder();
 
         await handler.QueueStatus(discord.Context);
 
-        Assert.That(discord.Content(), Is.EqualTo("0 players are in the Late League queue."));
+        Assert.That(discord.Content(), Is.EqualTo("4 players are in the Late League queue."));
     }
 
     [Test]
