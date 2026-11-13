@@ -160,10 +160,13 @@ public class AppRedisTests
     public async Task Disposing_synchronously_also_clears_the_connected_multiplexer()
     {
         var multiplexer = Substitute.For<IConnectionMultiplexer>();
-        var redis = new AppRedis(_ => Task.FromResult(multiplexer));
-        await redis.ConnectAsync();
-
-        redis.Dispose();
+        // Disposed synchronously by the container that made it, as A_container_disposed_synchronously_closes_the_connection_too
+        AppRedis redis;
+        using (var provider = new ServiceCollection().AddSingleton(_ => new AppRedis(_ => Task.FromResult(multiplexer))).BuildServiceProvider())
+        {
+            redis = provider.GetRequiredService<AppRedis>();
+            await redis.ConnectAsync();
+        }
 
         var called = false;
         redis.WhenConnected(_ => called = true);

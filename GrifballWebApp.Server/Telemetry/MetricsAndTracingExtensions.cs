@@ -70,15 +70,20 @@ public static class MetricsAndTracingExtensions
                     .AddNpgsql()
                     .AddEntityFrameworkCoreInstrumentation()
                     // Redis commands (the SignalR backplane, the cache, the Halo calls' pace), on the app's one connection
-                    // once it's made (AppRedis); none without Redis
-                    .AddRedisInstrumentation()
+                    // once it's made (AppRedis); none without Redis. No timing events: every Halo call's pacer EVAL would
+                    // otherwise add 3 (CreationToEnqueued, EnqueuedToSent, SentToResponse) to its span.
+                    .AddRedisInstrumentation(options => options.EnrichActivityWithTimingEvents = false)
                     .ConfigureRedisInstrumentation((provider, redis) =>
                         // Instrumented for the process's life: the registration AddConnection returns is never undone
                         provider.GetService<AppRedis>()?.WhenConnected(connection => _ = redis.AddConnection(connection)))
-                    // A span per hub method call; each starts a trace of its own (a hub connection is no request to sit under)
+                    // A span per hub method call; each starts a trace of its own (a hub connection is no request to sit
+                    // under). A hub connection's own SUBSCRIBE/UNSUBSCRIBE (the Redis backplane joining/leaving its
+                    // group) attaches to that long-lived WebSocket request span instead, and only finishes when the
+                    // connection closes.
                     .AddSource(SignalRServerSource)
                     // A trace per job run (JobTracing), without the scheduler loop's own store calls
                     .AddSource(QuartzInstrumentation.ActivitySourceName)
+                    // Drops the scheduler loop's own spans and rootless Redis spans (SchedulerLoopSampler)
                     .SetSampler(new SchedulerLoopSampler());
 
                 if (telemetry.SignalEndpoint("traces") is { } endpoint)

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using StackExchange.Redis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace GrifballWebApp.Infrastructure.Redis;
 
@@ -15,18 +16,23 @@ namespace GrifballWebApp.Infrastructure.Redis;
 public sealed class AppRedis : IAsyncDisposable, IDisposable
 {
     private readonly Func<TextWriter?, Task<IConnectionMultiplexer>> _connect;
+    private readonly ILogger<AppRedis>? _logger;
     private readonly Lock _lock = new();
     private Task<IConnectionMultiplexer>? _connection;
     private IConnectionMultiplexer? _connected;
     private readonly List<Action<IConnectionMultiplexer>> _whenConnected = [];
 
-    public AppRedis(string connectionString, string channelPrefix)
-        : this(async log => await ConnectionMultiplexer.ConnectAsync(Options(connectionString, channelPrefix), log))
+    public AppRedis(string connectionString, string channelPrefix, ILogger<AppRedis>? logger = null)
+        : this(async log => await ConnectionMultiplexer.ConnectAsync(Options(connectionString, channelPrefix), log), logger)
     {
     }
 
     /// <summary>With its own way to connect (tests).</summary>
-    public AppRedis(Func<TextWriter?, Task<IConnectionMultiplexer>> connect) => _connect = connect;
+    public AppRedis(Func<TextWriter?, Task<IConnectionMultiplexer>> connect, ILogger<AppRedis>? logger = null)
+    {
+        _connect = connect;
+        _logger = logger;
+    }
 
     /// <summary>
     /// The connection string's options: <c>abortConnect=false</c> unless it says otherwise, and the channels (SignalR's)
@@ -54,7 +60,7 @@ public sealed class AppRedis : IAsyncDisposable, IDisposable
 
     /// <summary>
     /// Calls <paramref name="connected"/> with the connection: once it's made, or now when it's made already (its tracing,
-    /// which needs the connection itself).
+    /// which needs the connection itself). A callback that throws is logged, never thrown back at the caller.
     /// </summary>
     public void WhenConnected(Action<IConnectionMultiplexer> connected)
     {
@@ -65,7 +71,7 @@ public sealed class AppRedis : IAsyncDisposable, IDisposable
             connection = _connected;
         }
         if (connection is not null)
-            connected(connection);
+            RunCallback(connected, connection);
     }
 
     // Async, so a connection string that can't be read fails the task, not the caller's call
@@ -79,15 +85,31 @@ public sealed class AppRedis : IAsyncDisposable, IDisposable
             callbacks = [.. _whenConnected];
         }
         foreach (var callback in callbacks)
-            callback(connection);
+            RunCallback(callback, connection);
         return connection;
+    }
+
+    // A callback (tracing, caching) failing must never fail the connection it's told about, or the caller running it
+    private void RunCallback(Action<IConnectionMultiplexer> callback, IConnectionMultiplexer connection)
+    {
+        try
+        {
+            callback(connection);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "A WhenConnected callback failed");
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
         Task<IConnectionMultiplexer>? connection;
         lock (_lock)
+        {
             connection = _connection;
+            _connected = null; // So a WhenConnected added after this hands out nothing, never the multiplexer we're about to close
+        }
         if (connection is { IsCompletedSuccessfully: true })
             await (await connection).DisposeAsync();
     }
@@ -97,7 +119,10 @@ public sealed class AppRedis : IAsyncDisposable, IDisposable
     {
         Task<IConnectionMultiplexer>? connection;
         lock (_lock)
+        {
             connection = _connection;
+            _connected = null; // So a WhenConnected added after this hands out nothing, never the multiplexer we're about to close
+        }
         if (connection is { IsCompletedSuccessfully: true })
 #pragma warning disable VSTHRD002 // The task has completed (checked above): its Result can't block
             connection.Result.Dispose();
@@ -126,7 +151,7 @@ public static class AppRedisExtensions
         if (string.IsNullOrWhiteSpace(connectionString))
             return false;
         var prefix = ChannelPrefix(configuration);
-        services.TryAddSingleton(_ => new AppRedis(connectionString, prefix));
+        services.TryAddSingleton(sp => new AppRedis(connectionString, prefix, sp.GetRequiredService<ILogger<AppRedis>>()));
         return true;
     }
 }
