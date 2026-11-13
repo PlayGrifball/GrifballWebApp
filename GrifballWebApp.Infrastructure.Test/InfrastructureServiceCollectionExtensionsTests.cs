@@ -59,7 +59,9 @@ public class InfrastructureServiceCollectionExtensionsTests
         services.AddValidatedDiscordOptions(Config([]));
         using var provider = services.BuildServiceProvider();
 
-        var ex = Assert.Throws<OptionsValidationException>(() => _ = provider.GetRequiredService<IOptions<DiscordOptions>>().Value);
+        // The validator throws ArgumentException itself (with every missing setting joined into its message), rather
+        // than returning false (which the options framework would wrap in OptionsValidationException).
+        var ex = Assert.Throws<ArgumentException>(() => _ = provider.GetRequiredService<IOptions<DiscordOptions>>().Value);
 
         using (Assert.EnterMultipleScope())
         {
@@ -80,7 +82,7 @@ public class InfrastructureServiceCollectionExtensionsTests
         services.AddValidatedDiscordOptions(Config(settings));
         using var provider = services.BuildServiceProvider();
 
-        var ex = Assert.Throws<OptionsValidationException>(() => _ = provider.GetRequiredService<IOptions<DiscordOptions>>().Value);
+        var ex = Assert.Throws<ArgumentException>(() => _ = provider.GetRequiredService<IOptions<DiscordOptions>>().Value);
 
         using (Assert.EnterMultipleScope())
         {
@@ -138,7 +140,9 @@ public class InfrastructureServiceCollectionExtensionsTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(services.Any(d => d.ServiceType == typeof(QueueService)), Is.True);
-            Assert.That(services.Any(d => d.ServiceType == typeof(IOptions<DiscordOptions>)), Is.True);
+            // AddOptions<DiscordOptions>().Bind(...) registers IConfigureOptions<DiscordOptions>, not IOptions<DiscordOptions>
+            // itself directly (that comes from the open generic IOptions<> factory, resolved later).
+            Assert.That(services.Any(d => d.ServiceType == typeof(IConfigureOptions<DiscordOptions>)), Is.True);
         }
     }
 

@@ -25,7 +25,8 @@ public class DatabaseLocksSqliteTests
     {
         var database = SqliteDatabase();
 
-        Assert.That(async () => await database.AcquireLockAsync(name!), Throws.ArgumentException);
+        // Null throws ArgumentNullException, blank throws ArgumentException: both from ArgumentException.ThrowIfNullOrWhiteSpace.
+        Assert.That(async () => await database.AcquireLockAsync(name!), Throws.InstanceOf<ArgumentException>());
     }
 
     [Test]
