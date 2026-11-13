@@ -505,10 +505,11 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
         var late = MatchReschedule.Request(lateMatch.SeasonMatchID, null, null, "late", to.Id, DateTime.UtcNow);
         Context.MatchReschedules.AddRange(MatchReschedule.Request(busyMatch.SeasonMatchID, null, null, "busy", from.Id, DateTime.UtcNow), late);
         await Context.SaveChangesAsync();
-        var entry = Context.Entry(late);
-        entry.Property(x => x.Status).CurrentValue = RescheduleStatus.Approved;
-        entry.Property(x => x.ApprovedByUserID).CurrentValue = from.Id;
+        // Decided by the source (ApprovedByUserID records the decider either way). The seeded matches have no teams, so
+        // an approval would be refused (WhyNotReschedulable): a rejection it is.
+        var decision = late.Decide(approved: false, commissionerUserID: from.Id, notes: null, decidedAt: DateTime.UtcNow);
         await Context.SaveChangesAsync();
+        Assert.That(decision, Is.EqualTo(RescheduleDecision.Rejected));
 
         await _service.Merge(to.Id, from.Id);
 
