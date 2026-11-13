@@ -1,4 +1,5 @@
 using DiscordInterface.Generated;
+using DiscordInterfaces;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Notifications;
 using GrifballWebApp.Application.Teams;

@@ -14,7 +14,7 @@ using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.Grades;
-using GrifballWebApp.Server.Home;
+using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.LateLeague;
 using GrifballWebApp.Server.Leaderboards;
 using GrifballWebApp.Server.MatchDetails;
