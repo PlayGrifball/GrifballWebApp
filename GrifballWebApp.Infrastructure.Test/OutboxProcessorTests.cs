@@ -93,7 +93,6 @@ public class OutboxProcessorTests : SqliteContextFixture
 
         return new Harness { Processor = processor, Reader = Context, Time = time, Options = resolvedOptions };
     }
-    }
 
     private static IOutboxHandler FakeHandler(string kind, bool deadLetterSkipsGroup = true, TimeSpan? maxAge = null)
     {
