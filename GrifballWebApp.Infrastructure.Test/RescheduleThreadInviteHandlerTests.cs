@@ -12,6 +12,7 @@ using NetCord.Rest;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using System.Text.Json;
+using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
 
 namespace GrifballWebApp.Infrastructure.Test;
 
