@@ -58,7 +58,10 @@ public static class NativeBackups
         if (string.IsNullOrWhiteSpace(directory))
         {
             await using var defaultPath = Command(connection, "SELECT CONVERT(nvarchar(4000), SERVERPROPERTY('InstanceDefaultBackupPath'))", timeout: null);
-            directory = (string)(await defaultPath.ExecuteScalarAsync(cancellationToken))!;
+            // NULL (DBNull) where the instance has no default folder: a managed instance, an older server
+            directory = await defaultPath.ExecuteScalarAsync(cancellationToken) as string
+                ?? throw new NativeBackupUnavailableException(
+                    $"SQL Server has no default backup folder, so the backup can't be made: set {SqlServerDirectoryKey}, or download a SQL Server script instead.");
         }
         // Forward slashes: SQL Server takes them on Windows too.
         var file = $"{directory.TrimEnd('/', '\\')}/{fileName ?? $"download_{connection.Database}.bak"}";
