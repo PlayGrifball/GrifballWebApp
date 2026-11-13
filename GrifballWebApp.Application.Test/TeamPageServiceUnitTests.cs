@@ -3,6 +3,7 @@ using GrifballWebApp.Application.TeamPage;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 
@@ -95,7 +96,7 @@ internal sealed class TeamPageServiceUnitTests : ApplicationDbContextTests
     {
         await SeedTeams();
         Context.Users.AddRange(
-            User.Seed(userName: "chief", xboxUser: XboxUser.FromXbox(100, "Chief"), regionID: 1, id: 1),
+            User.Seed(userName: "chief", xboxUser: XboxUser.FromXbox(100, "Chief"), regionID: 1, regionSource: RegionSource.User, id: 1),
             User.Seed(userName: "disc", discordUser: DiscordUser.FromDiscord(200, "disc"), id: 2),
             User.Seed(userName: "zed", displayName: "Zed", id: 3),
             User.Seed(userName: "alpha", xboxUser: XboxUser.FromXbox(400, "Alpha"), id: 4));

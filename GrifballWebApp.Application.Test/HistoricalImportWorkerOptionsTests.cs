@@ -46,6 +46,19 @@ internal sealed class HistoricalImportWorkerOptionsTests
     }
 
     [Test]
+    public void Report_KeepsARefreshsSourcesAndItsJob()
+    {
+        var report = new HistoricalImportReport { SourcesUnchanged = 3, ImportJobID = 7 };
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.SourcesUnchanged, Is.EqualTo(3));
+            Assert.That(report.ImportJobID, Is.EqualTo(7));
+            Assert.That(new HistoricalImportReport().ImportJobID, Is.Null, "No job queued unless a refresh says so");
+        }
+    }
+
+    [Test]
     public void ScheduleDto_Defaults_AreUnscheduled()
     {
         var schedule = new HistoricalImportScheduleDto();

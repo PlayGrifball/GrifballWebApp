@@ -49,7 +49,7 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
 
         var regular = RoundRobin.Select(p => SeasonMatch.Seed(SeasonID, p.Home, p.Away)).ToList();
         Context.SeasonMatches.AddRange(regular);
-        Context.SeasonMatches.Add(SeasonMatch.Seed(SeasonID, 1, 2, bracketMatch: MatchBracketInfo.Seed(roundNumber: 1, matchNumber: 1)));
+        Context.SeasonMatches.Add(SeasonMatch.Seed(SeasonID, 1, 2, bracketMatch: MatchBracketInfo.Seeded(Bracket.Winner, roundNumber: 1, matchNumber: 1, homeSeed: 1, awaySeed: 2)));
         Context.SeasonMatches.Add(SeasonMatch.Seed(SeasonID, 3, null));
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();

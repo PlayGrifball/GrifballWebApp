@@ -63,7 +63,7 @@ internal sealed class SignupsServiceUnitTests : ApplicationDbContextTests
     private async Task SeedPlayer(bool withGamertag = true)
     {
         var xbox = withGamertag ? XboxUser.FromXbox(500, "Chief") : null;
-        Context.Users.Add(User.Seed(userName: "chief", displayName: "Chief Display", xboxUser: xbox, regionID: 3, id: PlayerID));
+        Context.Users.Add(User.Seed(userName: "chief", displayName: "Chief Display", xboxUser: xbox, regionID: 3, regionSource: RegionSource.User, id: PlayerID));
         await Context.SaveChangesAsync();
     }
 
