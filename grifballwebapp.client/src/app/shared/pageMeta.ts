@@ -2,6 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { DestroyRef, effect, inject, Injectable } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { RouterStateSnapshot, TitleStrategy } from '@angular/router';
+import { DateTime } from 'luxon';
 
 export const SITE_NAME = 'Play Grifball';
 export const DEFAULT_DESCRIPTION = 'Halo Infinite Grifball seasons, teams, schedules, brackets and match stats.';
@@ -15,6 +16,14 @@ export interface PageDescription {
 /** The tab's title: the page's, then the site's (the site's alone on the home page). */
 export function fullTitle(title: string | undefined): string {
   return title && title !== 'Home' ? `${title} · ${SITE_NAME}` : SITE_NAME;
+}
+
+/**
+ * A date in a description: the same on the server and in every visitor's browser (UTC, English), so the page's tags
+ * don't change when the browser takes it over.
+ */
+export function pageDate(date: DateTime | null): string | undefined {
+  return date?.isValid ? date.toUTC().setLocale('en-US').toFormat('LLL d, yyyy') : undefined;
 }
 
 /** The page's own address, as search engines should list it: no query or fragment. */

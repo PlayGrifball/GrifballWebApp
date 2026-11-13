@@ -1,7 +1,8 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, TitleStrategy } from '@angular/router';
-import { canonicalUrl, DEFAULT_DESCRIPTION, describePage, fullTitle, PageDescription, PageMeta, PageMetaTitleStrategy, SITE_NAME } from './pageMeta';
+import { DateTime } from 'luxon';
+import { canonicalUrl, DEFAULT_DESCRIPTION, describePage, fullTitle, pageDate, PageDescription, PageMeta, PageMetaTitleStrategy, SITE_NAME } from './pageMeta';
 
 const meta = (selector: string) => document.head.querySelector(`meta[${selector}]`)?.getAttribute('content');
 const canonical = () => document.head.querySelector('link[rel="canonical"]')?.getAttribute('href');
@@ -35,6 +36,13 @@ describe('pageMeta', () => {
     expect(canonicalUrl('https://grifball.xyz', '/')).toBe('https://grifball.xyz/');
     expect(canonicalUrl('https://grifball.xyz', '')).toBe('https://grifball.xyz/');
     expect(canonicalUrl('https://grifball.xyz', '?x=1')).toBe('https://grifball.xyz/');
+  });
+
+  it('writes a date the same everywhere: UTC, in English', () => {
+    expect(pageDate(DateTime.fromISO('2024-05-24T01:00:02Z'))).toBe('May 24, 2024');
+    expect(pageDate(DateTime.fromISO('2024-05-23T23:30:00-05:00'))).toBe('May 24, 2024');
+    expect(pageDate(DateTime.fromISO('nonsense'))).toBeUndefined();
+    expect(pageDate(null)).toBeUndefined();
   });
 
   describe('with the router', () => {
