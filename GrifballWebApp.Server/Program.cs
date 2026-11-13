@@ -172,6 +172,7 @@ public class Program
             option.OperationFilter<JsonOnlyOperationFilter>();
             option.OperationFilter<JsonNamedQueryParametersFilter>();
             option.DocumentFilter<HubSchemasDocumentFilter>();
+            option.DocInclusionPredicate(OpenApiInclusion.Includes);
 
             // Controller actions' <summary>/<param>/<returns>/<remarks>, and the DTOs' and enums' <summary> (the
             // Application's and Domain's), into the OpenAPI document (GenerateDocumentationFile, each .csproj). Each

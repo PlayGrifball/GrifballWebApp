@@ -284,3 +284,24 @@ public class HubSchemasDocumentFilterTests
         }
     }
 }
+
+/// <summary>The OpenAPI document's endpoints (OpenApiSchemas.cs): the API's, not the hubs' page's.</summary>
+[TestFixture]
+public class OpenApiInclusionTests
+{
+    private static Microsoft.AspNetCore.Mvc.ApiExplorer.ApiDescription Api(string path, string? group = null)
+        => new() { RelativePath = path, GroupName = group };
+
+    [Test]
+    public void Includes_TheApi_NotTheHubsPage()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(OpenApiInclusion.Includes("v1", Api("seasons/{seasonID}")), Is.True);
+            Assert.That(OpenApiInclusion.Includes("v1", Api("seasons", group: "v1")), Is.True);
+            Assert.That(OpenApiInclusion.Includes("v1", Api("seasons", group: "v2")), Is.False);
+            Assert.That(OpenApiInclusion.Includes("v1", Api("signalr-dev/spec.json")), Is.False);
+            Assert.That(OpenApiInclusion.Includes("v1", Api("signalr-dev/index.html")), Is.False);
+        }
+    }
+}

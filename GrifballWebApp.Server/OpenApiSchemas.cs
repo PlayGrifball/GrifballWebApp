@@ -179,3 +179,15 @@ public sealed class HubSchemasDocumentFilter : IDocumentFilter
         => returned.IsGenericType && returned.GetGenericTypeDefinition() == typeof(Task<>) ? returned.GetGenericArguments()[0]
             : returned == typeof(Task) ? typeof(void) : returned;
 }
+
+/// <summary>
+/// Which endpoints the OpenAPI document describes (Program.cs, DocInclusionPredicate): Swashbuckle's default (an endpoint
+/// of no group, or of the document's), without the hubs' page's own (TypedSignalR.Client.DevTools maps /signalr-dev/...
+/// as minimal endpoints): it is a page, not the API, and the client would be generated a call for it.
+/// </summary>
+public static class OpenApiInclusion
+{
+    public static bool Includes(string documentName, Microsoft.AspNetCore.Mvc.ApiExplorer.ApiDescription api)
+        => (api.GroupName is null || api.GroupName == documentName)
+           && api.RelativePath?.StartsWith("signalr-dev", StringComparison.OrdinalIgnoreCase) != true;
+}
