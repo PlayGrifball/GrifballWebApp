@@ -73,7 +73,7 @@ public class JobsControllerActionsUnitTests
         var result = await _controller.Run("Maintenance", "cleanup", CancellationToken.None);
 
         Assert.That(result, Is.InstanceOf<NoContentResult>());
-        await _scheduler.Received(1).TriggerJob(Cleanup, Arg.Is<JobDataMap>(x => (string)x[JobUser.DataKey] == "7"), Arg.Any<CancellationToken>());
+        await _scheduler.Received(1).TriggerJob(Cleanup, Arg.Is<JobDataMap>(x => (string?)x[JobUser.DataKey] == "7"), Arg.Any<CancellationToken>());
     }
 
     [Test]

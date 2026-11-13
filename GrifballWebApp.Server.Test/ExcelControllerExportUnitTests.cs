@@ -3,6 +3,7 @@ using GrifballWebApp.Infrastructure.Excel;
 using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Server.Excel;
 using Microsoft.AspNetCore.Mvc;
+using Quartz;
 
 namespace GrifballWebApp.Server.Test;
 

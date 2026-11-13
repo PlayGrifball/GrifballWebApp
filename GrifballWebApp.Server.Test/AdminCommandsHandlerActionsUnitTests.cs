@@ -313,7 +313,7 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
         await handler.Job(discord.Context, " Maintenance/cleanup ", pause: null);
 
         Assert.That(discord.Content(), Is.EqualTo(AdminCommandsHandler.Done));
-        await _scheduler.Received(1).TriggerJob(Cleanup, Arg.Is<JobDataMap>(x => (string)x[JobUser.DataKey] == caller.Id.ToString()), Arg.Any<CancellationToken>());
+        await _scheduler.Received(1).TriggerJob(Cleanup, Arg.Is<JobDataMap>(x => (string?)x[JobUser.DataKey] == caller.Id.ToString()), Arg.Any<CancellationToken>());
     }
 
     [Test]
