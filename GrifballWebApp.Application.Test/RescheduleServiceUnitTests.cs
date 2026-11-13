@@ -42,10 +42,10 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
         Context.SeasonMatches.Add(match);
         await Context.SaveChangesAsync();
 
-        Context.TeamPlayers.Add(TeamPlayer.Seed(teamID: HomeTeamID, userID: HomeCaptainUserID));
-        Context.TeamPlayers.Add(TeamPlayer.Seed(teamID: AwayTeamID, userID: AwayCaptainUserID));
+        Context.Add(TeamPlayer.Seed(teamID: HomeTeamID, userID: HomeCaptainUserID));
+        Context.Add(TeamPlayer.Seed(teamID: AwayTeamID, userID: AwayCaptainUserID));
         if (requesterOnRoster)
-            Context.TeamPlayers.Add(TeamPlayer.Seed(teamID: HomeTeamID, userID: RequesterUserID));
+            Context.Add(TeamPlayer.Seed(teamID: HomeTeamID, userID: RequesterUserID));
         await Context.SaveChangesAsync();
 
         home.SetCaptain(HomeCaptainUserID);
