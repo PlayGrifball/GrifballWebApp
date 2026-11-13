@@ -82,7 +82,13 @@ dotnet test --filter "FullyQualifiedName~CustomSeedDtoTests"
 
 All new tests follow the project's testing patterns:
 - Use `[TestFixture]` with `[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]`
-- Use `SetUpFixture.NewGrifballContext()` for database operations (integration tests only: a unit test uses none)
+- A test is an **integration test** (`GrifballWebApp.Integration.Test`) only when it integrates with something real
+  outside the process: a real database server (Testcontainers), the hosted app (`WebApplicationFactory`/`TestServer`),
+  Discord transports, or the network. Since 2026-11-12, an in-memory SQLite database (`Data Source=:memory:`) or a
+  temp file of the test's own (a `GrifballContext` included) is fine inside a unit test project: it needs no server
+  and no provider matrix, so it doesn't push the test into `GrifballWebApp.Integration.Test` (see
+  `docs/ci-cd/dotnet-tests.md`). A class with both kinds of test is split: the unit tests to the layer's own project,
+  the others left in `GrifballWebApp.Integration.Test`.
 - Use NSubstitute for mocking dependencies
-- Use descriptive test method names following `Should_ExpectedBehavior_When_Condition` pattern
-- Use `Assert.Multiple()` for grouped assertions
+- Use descriptive test method names following `MethodName_ExpectedBehavior_WhenCondition` pattern
+- Use `Assert.Multiple()` (or `Assert.EnterMultipleScope()`) for grouped assertions
