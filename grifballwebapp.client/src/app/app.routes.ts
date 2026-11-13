@@ -198,12 +198,12 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'late-league',
-    loadComponent: () => import('./lateLeague/lateLeague.component').then(m => m.LateLeagueComponent),
+    loadComponent: () => import('./features/lateLeague/lateLeague.component').then(m => m.LateLeagueComponent),
     title: 'Late League'
   },
   {
     path: 'late-league/:matchmakingSeasonID',
-    loadComponent: () => import('./lateLeague/lateLeague.component').then(m => m.LateLeagueComponent),
+    loadComponent: () => import('./features/lateLeague/lateLeague.component').then(m => m.LateLeagueComponent),
     title: 'Late League'
   },
   {

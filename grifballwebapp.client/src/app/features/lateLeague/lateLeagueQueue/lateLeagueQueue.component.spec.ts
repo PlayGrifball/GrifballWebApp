@@ -4,7 +4,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { HttpTransportType, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
-import { AuthSession } from '../../core/auth/authSession.service';
+import { AuthSession } from '../../../core/auth/authSession.service';
 import type { QueueStatusDto } from '@api/models';
 import { QUEUE_HUB_URL, LateLeagueQueueComponent } from './lateLeagueQueue.component';
 

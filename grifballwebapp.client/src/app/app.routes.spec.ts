@@ -33,7 +33,7 @@ import { ProfileComponent } from './features/players/profile/profile.component';
 import { TeamHistoryComponent } from './features/league/teamHistory/teamHistory.component';
 import { SeasonsComponent } from './features/league/seasons/seasons.component';
 import { LeaderboardsComponent } from './features/players/leaderboards/leaderboards.component';
-import { LateLeagueComponent } from './lateLeague/lateLeague.component';
+import { LateLeagueComponent } from './features/lateLeague/lateLeague.component';
 import { ExcelComponent } from './excel/excel.component';
 import { CommissionerDashboardComponent } from './features/league/commissionerDashboard/commissionerDashboard.component';
 import { RescheduleRequestComponent } from './features/league/rescheduleRequest/rescheduleRequest.component';
