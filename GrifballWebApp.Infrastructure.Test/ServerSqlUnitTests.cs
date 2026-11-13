@@ -162,7 +162,7 @@ public class ServerSqlUnitTests
 
     /// <summary>SQL Server's catalog: Teams temporal (history TeamsHistory, its start hidden), an index on its period with an
     /// included column, and a filtered clustered one on the history's.</summary>
-    private object? SqlServerCatalog(SentCommand sent) => sent.Sql switch
+    private static System.Data.Common.DbDataReader? SqlServerCatalog(SentCommand sent) => sent.Sql switch
     {
         var s when s.Contains("sys.periods", StringComparison.Ordinal) => FakeDbConnection.Rows(TemporalColumns,
             ["dbo", "Teams", "dbo", "TeamsHistory", "PeriodStart", "PeriodEnd", (byte)7, true, false]),
