@@ -14,8 +14,8 @@ using Surprenant.Grunt.Models.HaloInfinite;
 namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>
-/// HaloInfiniteHealthCheck: the Halo Infinite API probe, its caching and its FromConfiguration reader (no gateway
-/// mode here: GrifballWebApp.Server.Test covers the gateway account status wiring). No network: IHaloInfiniteClient
+/// HaloInfiniteHealthCheck: the Halo Infinite API probe, its caching and its FromConfiguration reader (the Server's
+/// AddAppHealthChecks registration is GrifballWebApp.Server.Test's). No network: IHaloInfiniteClient
 /// is substituted, and time is a FakeTimeProvider.
 /// </summary>
 [TestFixture]
@@ -77,7 +77,7 @@ public class HaloInfiniteHealthCheckTests
     }
 
     [TestCase(401)]
-    [TestCase(403)]
+    [TestCase(403)] // what the lobby qosservers endpoint answered on test, which is why the probe moved to match stats
     [TestCase(404)]
     [TestCase(503)]
     [TestCase(0)]

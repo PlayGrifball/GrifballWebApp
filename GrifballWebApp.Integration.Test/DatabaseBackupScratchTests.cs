@@ -73,7 +73,7 @@ public class DatabaseBackupScratchTests
     /// </summary>
     private string PgDump(bool fail = false)
     {
-        var path = BackupTestData.FakePgDump(fail
+        var path = GrifballWebApp.Infrastructure.Test.NativeBackupsPgDumpProcessUnitTests.FakePgDump(fail
             ? "echo 'pg_dump: error: connection refused' >&2; exit 1"
             : "printf 'PGDMP %s' \"$db\" > \"$file\"");
         _files.Add(path);

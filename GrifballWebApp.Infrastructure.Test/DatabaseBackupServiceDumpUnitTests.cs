@@ -15,17 +15,6 @@ namespace GrifballWebApp.Infrastructure.Test;
 [Parallelizable(ParallelScope.All)]
 public class DatabaseBackupServiceDumpUnitTests
 {
-    /// <summary>A stand-in for pg_dump: a shell script that finds its --file argument (as $file) and runs <paramref name="body"/>.
-    /// The caller deletes it.</summary>
-    private static string FakePgDump(string body)
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"grif-backupservice-pgdump-{Guid.NewGuid():N}.sh");
-        File.WriteAllText(path, "#!/bin/sh\nwhile [ $# -gt 0 ]; do if [ \"$1\" = --file ]; then file=\"$2\"; fi; shift; done\n" + body + "\n");
-        if (!OperatingSystem.IsWindows())
-            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        return path;
-    }
-
     private static DatabaseBackupService Service(string pgDumpPath) => new(
         new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -39,7 +28,7 @@ public class DatabaseBackupServiceDumpUnitTests
     [Test]
     public async Task CreateAsync_PostgresDumpOnItsOwnServer_WritesWhatPgDumpWrites()
     {
-        var fake = FakePgDump("printf PGDMP > \"$file\"");
+        var fake = NativeBackupsPgDumpProcessUnitTests.FakePgDump("printf PGDMP > \"$file\"");
         try
         {
             var service = Service(fake);
@@ -69,7 +58,7 @@ public class DatabaseBackupServiceDumpUnitTests
     public async Task CreateAsync_AnotherAlreadyRunning_ReturnsNull()
     {
         // Writes the (empty) file before sleeping, so CreateAsync can still open it once pg_dump exits
-        var fake = FakePgDump("printf '' > \"$file\"; sleep 2");
+        var fake = NativeBackupsPgDumpProcessUnitTests.FakePgDump("printf '' > \"$file\"; sleep 2");
         try
         {
             var service = Service(fake);

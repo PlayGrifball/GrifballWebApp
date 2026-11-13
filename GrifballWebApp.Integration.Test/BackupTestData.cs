@@ -2,24 +2,12 @@ using Microsoft.Data.SqlClient;
 
 namespace GrifballWebApp.Integration.Test;
 
-/// <summary>The backups' test doubles and logins: a fake pg_dump, and SQL Server logins as the chart makes them.</summary>
+/// <summary>The backups' test data and logins: SQL Server logins as the chart makes them. The fake pg_dump is
+/// GrifballWebApp.Infrastructure.Test's NativeBackupsPgDumpProcessUnitTests.FakePgDump.</summary>
 internal static class BackupTestData
 {
     /// <summary>A compressed .bak's first bytes (the test servers are Developer edition, so they compress); an uncompressed one starts TAPE.</summary>
     internal const string CompressedBakHeader = "MSSQ";
-
-    /// <summary>
-    /// A stand-in for pg_dump: a shell script that finds its --file and --dbname arguments (as $file and $db) and runs <paramref name="body"/>.
-    /// The caller deletes it.
-    /// </summary>
-    internal static string FakePgDump(string body)
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"grif-backup-test-pgdump-{Guid.NewGuid():N}.sh");
-        File.WriteAllText(path, "#!/bin/sh\nwhile [ $# -gt 0 ]; do if [ \"$1\" = --file ]; then file=\"$2\"; fi; if [ \"$1\" = --dbname ]; then db=\"$2\"; fi; shift; done\n" + body + "\n");
-        if (!OperatingSystem.IsWindows())
-            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        return path;
-    }
 
     /// <summary>
     /// SQL Server: a new login that reads and writes the database only, as the chart's app login without nativeBackups,
