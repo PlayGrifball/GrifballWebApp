@@ -8,7 +8,7 @@ import type { LoginDto } from '@api/models';
 import type { RegisterDto } from '@api/models';
 import type { GeneratePasswordResetLinkRequestDto, GeneratePasswordResetLinkResponseDto, UsePasswordResetLinkRequestDto } from '@api/models';
 import { AuthSession } from './authSession.service';
-import { Notifier } from './shared/notifier.service';
+import { Notifier } from '../../shared/notifier.service';
 import { IdentityService } from '@api/services/identity.service';
 import { AdminService } from '@api/services/admin.service';
 

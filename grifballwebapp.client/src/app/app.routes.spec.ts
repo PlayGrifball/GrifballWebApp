@@ -1,7 +1,7 @@
 import { Route } from '@angular/router';
 import { APP_ROUTES } from './app.routes';
 import { HomeComponent } from './home/home.component';
-import { ThemeComponent } from './theme/theme.component';
+import { ThemeComponent } from './core/layout/theme/theme.component';
 import { SeasonComponent } from './season/season.component';
 import { SignupsComponent } from './signups/signups.component';
 import { SignupFormComponent } from './signupForm/signupForm.component';
@@ -37,7 +37,7 @@ import { LateLeagueComponent } from './lateLeague/lateLeague.component';
 import { ExcelComponent } from './excel/excel.component';
 import { CommissionerDashboardComponent } from './commissioner-dashboard/commissioner-dashboard.component';
 import { RescheduleRequestComponent } from './reschedule-request/reschedule-request.component';
-import { NotFoundComponent } from './notFound/notFound.component';
+import { NotFoundComponent } from './core/layout/notFound/notFound.component';
 
 // Walks `children` recursively so a redirect nested under a parent route isn't missed.
 function flattenRoutes(routes: Route[]): Route[] {

@@ -9,7 +9,7 @@ import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
 import { Component, input, output, PLATFORM_ID, signal } from '@angular/core';
 import { ManualGamesComponent } from './manualGames/manualGames.component';
-import { AccountService } from '../../account.service';
+import { AccountService } from '../../core/auth/account.service';
 import { BracketInfoDto, ReportedGameDto, SeasonMatchPageDto } from './seasonMatchPageDto';
 import type { PossibleMatchDto, PossiblePlayerDto } from '@api/models';
 import { VodListComponent } from '../../shared/vodList/vodList.component';

@@ -8,7 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import type { LoginDto } from '@api/models';
 import { RouterLink } from '@angular/router';
 import { ErrorMessageComponent } from '../shared/validation/errorMessage.component';
-import { AccountService, appRelativePath } from '../account.service';
+import { AccountService, appRelativePath } from '../core/auth/account.service';
 import { MatCardModule } from '@angular/material/card';
 
 @Component({

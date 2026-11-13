@@ -7,7 +7,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ProfileComponent } from './profile.component';
 import type { ProfileStatsDto } from '@api/models';
 import { seasonInfo } from '../shared/testing/seasonInfo.stub';
-import { AccountService } from '../account.service';
+import { AccountService } from '../core/auth/account.service';
 import { Component } from '@angular/core';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
 import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.component';

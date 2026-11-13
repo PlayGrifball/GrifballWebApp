@@ -4,7 +4,7 @@ import { ApplicationRef, PendingTasks } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { appConfig } from './app.config';
 import { config as serverConfig } from './app.config.server';
-import { API_ORIGIN, ServerApiBackend } from './serverApi.backend';
+import { API_ORIGIN, ServerApiBackend } from './core/server/serverApi.backend';
 import { rowEnterAnimation } from './shared/rowEnterAnimation';
 
 describe('appConfig', () => {

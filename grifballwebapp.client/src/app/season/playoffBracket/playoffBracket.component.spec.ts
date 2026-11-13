@@ -6,7 +6,7 @@ import { provideRouter, Router } from '@angular/router';
 import { EventEmitter, PLATFORM_ID, signal, WritableSignal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { AccountService } from '../../account.service';
+import { AccountService } from '../../core/auth/account.service';
 import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
 import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDialog.component';
 import { Subject } from 'rxjs';

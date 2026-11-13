@@ -2,7 +2,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { DestroyRef, PLATFORM_ID, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpTransportType, HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
-import { AuthSession } from '../authSession.service';
+import { AuthSession } from '../auth/authSession.service';
 
 /**
  * SignalR's own way: a negotiate request, then WebSockets, or server-sent events and then long polling where

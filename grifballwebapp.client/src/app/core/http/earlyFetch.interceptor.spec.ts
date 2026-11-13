@@ -2,7 +2,7 @@ import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
-import { AuthSession } from './authSession.service';
+import { AuthSession } from '../auth/authSession.service';
 import { EARLY_FETCH_MAX_AGE_MS, EarlyResponse, earlyFetchInterceptor } from './earlyFetch.interceptor';
 
 describe('earlyFetchInterceptor', () => {

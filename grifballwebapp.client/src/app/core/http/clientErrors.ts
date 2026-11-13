@@ -3,7 +3,7 @@ import { ErrorHandler, Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { catchError, throwError } from 'rxjs';
 import { redactUrl, redactUrlIn, redactUrlsIn } from './redactUrl';
-import { BrowserTelemetry, parseTraceparent } from './telemetry/browserTelemetry';
+import { BrowserTelemetry, parseTraceparent } from '../telemetry/browserTelemetry';
 
 /**
  * The browser's error reports: unhandled errors and failed API calls, as error log lines of the browser's telemetry

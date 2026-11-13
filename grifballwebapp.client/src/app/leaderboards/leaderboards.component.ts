@@ -4,7 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, EMPTY, map, of, Subject, switchMap, tap } from 'rxjs';
 import { LeaderboardsService } from '@api/services/leaderboards.service';
-import { nullWhenNotFound } from '../api/nullWhenNotFound';
+import { nullWhenNotFound } from '../core/http/nullWhenNotFound';
 import type { LeaderboardsDto, MetricLeaderDto } from '@api/models';
 import type { PlayerAllTimeRankDto } from '@api/models';
 import type { QuickSearchPlayerDto } from '@api/models';

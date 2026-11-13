@@ -2,9 +2,9 @@ import { HttpClient, HttpErrorResponse, HttpHeaders, provideHttpClient, withInte
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ErrorHandler, PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { appConfig } from './app.config';
+import { appConfig } from '../../app.config';
 import { redactUrl } from './redactUrl';
-import { BrowserTelemetry } from './telemetry/browserTelemetry';
+import { BrowserTelemetry } from '../telemetry/browserTelemetry';
 import {
   ClientErrorReport,
   ClientErrorReporter,

@@ -8,7 +8,7 @@ import { DateTime } from 'luxon';
 import { map, Observable } from 'rxjs';
 import { TeamService } from '@api/services/team.service';
 import { fromApiDate } from '../../shared/apiDates';
-import { nullWhenNotFound } from '../../api/nullWhenNotFound';
+import { nullWhenNotFound } from '../../core/http/nullWhenNotFound';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';

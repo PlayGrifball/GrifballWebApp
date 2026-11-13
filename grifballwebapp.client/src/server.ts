@@ -21,14 +21,14 @@ import {
 import compression from 'compression';
 import express, { type Request, type Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import { BACKEND_PREFIXES, backendPath, isWebSocketPrefix, type BackendPrefix } from './app/backendPaths';
+import { BACKEND_PREFIXES, backendPath, isWebSocketPrefix, type BackendPrefix } from './app/core/http/backendPaths';
 import type { ClientRequest, IncomingMessage } from 'node:http';
 import { join } from 'node:path';
-import { isAllowedHost, parseAllowedHosts } from './app/allowedHosts';
-import { apiUrl } from './app/apiUrl';
-import { announceServing, pageHandler } from './app/pageHandler';
-import { drainThenExit, shutdownDelay } from './app/shutdown';
-import { serverTelemetrySettings } from './app/serverTelemetry';
+import { isAllowedHost, parseAllowedHosts } from './app/core/server/allowedHosts';
+import { apiUrl } from './app/core/http/apiUrl';
+import { announceServing, pageHandler } from './app/core/server/pageHandler';
+import { drainThenExit, shutdownDelay } from './app/core/server/shutdown';
+import { serverTelemetrySettings } from './app/core/server/serverTelemetry';
 import { startServerTelemetry } from './server.telemetry';
 
 const telemetry = startServerTelemetry(serverTelemetrySettings(process.env));

@@ -15,8 +15,8 @@ import { resourceFromAttributes } from '@opentelemetry/resources';
 import { BatchLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs';
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { BatchSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
-import type { ServerTelemetrySettings } from './app/serverTelemetry';
-import { type ServerTelemetryCore, createServerTelemetry } from './app/serverTelemetryCore';
+import type { ServerTelemetrySettings } from './app/core/server/serverTelemetry';
+import { type ServerTelemetryCore, createServerTelemetry } from './app/core/server/serverTelemetryCore';
 
 const SCOPE = 'grifballwebapp.client';
 

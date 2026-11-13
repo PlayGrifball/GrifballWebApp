@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { EnvironmentInjector, PLATFORM_ID, createEnvironmentInjector, runInInjectionContext } from '@angular/core';
 import { HttpTransportType, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
-import { AuthSession } from '../authSession.service';
+import { AuthSession } from '../auth/authSession.service';
 import { HUB_RETRY_MS, hubLifecycle } from './hubLifecycle';
 
 describe('hubLifecycle', () => {

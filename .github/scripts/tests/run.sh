@@ -450,11 +450,11 @@ ln -s "$scripts" "$work/scripts-link"
 if node "$work/scripts-link/signalr-models.mjs" "$sm/tsrts" "$sm/openapi.json" "$work/signalr5" > "$work/out" 2>&1 && [[ -f "$work/signalr5/GrifballWebApp.Application.Teams.ts" ]]
 then ok "signalr-models: runs through a symlinked directory"; else bad "signalr-models: did nothing through a symlinked directory:"; cat "$work/out"; fi
 
-# The dev proxies (src/proxy.conf*.js) send the hubs' page's paths where the SSR server does (src/app/backendPaths.ts)
+# The dev proxies (src/proxy.conf*.js) send the hubs' page's paths where the SSR server does (src/app/core/http/backendPaths.ts)
 client=$(cd "$scripts/../../grifballwebapp.client" && pwd)
 if node --experimental-strip-types --no-warnings --input-type=module -e "
   import { createRequire } from 'node:module';
-  const { backendPath } = await import('$client/src/app/backendPaths.ts');
+  const { backendPath } = await import('$client/src/app/core/http/backendPaths.ts');
   const require = createRequire(import.meta.url);
   const paths = ['/signalr-dev', '/signalr-dev/index.html', '/signalr-dev/spec.json', '/signalr-dev/_next/a.js', '/signalr-dev/TeamsHub',
     '/signalr-dev/TeamsHub/negotiate?negotiateVersion=1', '/signalr-dev/QueueHub?id=1', '/signalr-dev/Hubris.html'];

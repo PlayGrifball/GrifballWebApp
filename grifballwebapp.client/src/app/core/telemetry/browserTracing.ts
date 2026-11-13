@@ -2,8 +2,8 @@ import { HttpErrorResponse, HttpInterceptorFn, HttpResponse } from '@angular/com
 import { ApplicationRef, EnvironmentProviders, inject, makeEnvironmentProviders, provideEnvironmentInitializer } from '@angular/core';
 import { ActivatedRouteSnapshot, NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Router } from '@angular/router';
 import { finalize, tap } from 'rxjs';
-import { isCancelledByBrowser, isReportedFailure, pageTraceparent } from '../clientErrors';
-import { redactUrl } from '../redactUrl';
+import { isCancelledByBrowser, isReportedFailure, pageTraceparent } from '../http/clientErrors';
+import { redactUrl } from '../http/redactUrl';
 import { BrowserTelemetry, REQUEST_KIND_ATTRIBUTE, TELEMETRY_URL, parseTraceparent } from './browserTelemetry';
 
 /** Whether a request goes to this app's API (same origin, under /api), the telemetry's own batches aside. */

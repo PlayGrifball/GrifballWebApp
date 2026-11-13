@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
-import { isEventOrganizerGuard } from './isEventOrganizer.guard';
-import { isSysAdminGuard } from './isSysAdmin.guard';
+import { isEventOrganizerGuard } from './core/auth/isEventOrganizer.guard';
+import { isSysAdminGuard } from './core/auth/isSysAdmin.guard';
 
 export const APP_ROUTES: Routes = [
   {
@@ -10,7 +10,7 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'theme',
-    loadComponent: () => import('./theme/theme.component').then(m => m.ThemeComponent),
+    loadComponent: () => import('./core/layout/theme/theme.component').then(m => m.ThemeComponent),
     title: 'Theme'
   },
   {
@@ -231,7 +231,7 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: '**',
-    loadComponent: () => import('./notFound/notFound.component').then(m => m.NotFoundComponent),
+    loadComponent: () => import('./core/layout/notFound/notFound.component').then(m => m.NotFoundComponent),
     title: 'Page Not Found'
   },
 ];

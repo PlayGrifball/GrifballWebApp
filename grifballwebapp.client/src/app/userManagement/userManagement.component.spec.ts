@@ -5,7 +5,7 @@ import { DateTime } from 'luxon';
 import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { UserManagementComponent } from './userManagement.component';
-import { AccountService } from '../account.service';
+import { AccountService } from '../core/auth/account.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { of, throwError } from 'rxjs';
 import { UserResponseDto } from './userResponseDto';

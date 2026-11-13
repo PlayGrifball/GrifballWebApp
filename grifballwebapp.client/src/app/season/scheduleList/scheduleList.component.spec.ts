@@ -10,7 +10,7 @@ import { EventEmitter, signal, WritableSignal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
 import { DateTime } from 'luxon';
-import { AccountService } from '../../account.service';
+import { AccountService } from '../../core/auth/account.service';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { Subject } from 'rxjs';
 import type { OnDemandJobStatusDto, ScheduleRecommendationDto, ScheduleRecommendationPageDto } from '@api/models';

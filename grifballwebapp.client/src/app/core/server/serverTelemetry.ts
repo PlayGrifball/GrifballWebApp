@@ -2,7 +2,7 @@
 // requests it traces, and its log lines. Kept here, apart from the OpenTelemetry SDK, so they are tested
 // like the rest of the app.
 import type { MetricOptions } from '@opentelemetry/api';
-import { BACKEND_PREFIXES, backendPath, SIGNALR_PAGE, type BackendPrefix } from './backendPaths';
+import { BACKEND_PREFIXES, backendPath, SIGNALR_PAGE, type BackendPrefix } from '../http/backendPaths';
 
 /** Log levels, lowest first, as Loki's detected_level names them. */
 export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;

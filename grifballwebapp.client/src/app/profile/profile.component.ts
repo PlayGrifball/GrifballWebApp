@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ChangeDetectionStrategy, inject, signal, computed, effect, input, numberAttribute, untracked } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { AccountService } from '../account.service';
+import { AccountService } from '../core/auth/account.service';
 import { FormsModule } from '@angular/forms';
 import { ErrorMessageComponent } from '../shared/validation/errorMessage.component';
 import { MatInputModule } from '@angular/material/input';
@@ -18,7 +18,7 @@ import { ProfileCommendationsComponent } from './profileCommendations/profileCom
 import { errorText } from '../shared/errorText';
 import { whileCurrent } from '../shared/whileCurrent';
 import type { GameCareerSummaryDto, MatchmakingPlayerStatDto, PlayerSeasonStatDetailDto, ProfileStatsDto } from '@api/models';
-import { nullWhenNotFound } from '../api/nullWhenNotFound';
+import { nullWhenNotFound } from '../core/http/nullWhenNotFound';
 import { ProfileService } from '@api/services/profile.service';
 
 @Component({

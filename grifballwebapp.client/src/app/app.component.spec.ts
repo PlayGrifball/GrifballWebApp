@@ -1,16 +1,16 @@
 import { Component, PLATFORM_ID, input } from '@angular/core';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { of, Subject } from 'rxjs';
-import { ToolbarComponent } from './toolbar/toolbar.component';
+import { ToolbarComponent } from './core/layout/toolbar/toolbar.component';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
 
 import { AppComponent, MENU_BUTTON_WIDTH, NAV_LINK_GAP } from './app.component';
-import { AccountService } from './account.service';
+import { AccountService } from './core/auth/account.service';
 import { SeasonService } from '@api/services/season.service';
 import { BuildService } from '@api/services/build.service';
-import { ThemingService } from './theming.service';
+import { ThemingService } from './core/layout/theming.service';
 import { noMaterialAnimations } from './shared/testing/noMaterialAnimations';
 
 describe('AppComponent', () => {

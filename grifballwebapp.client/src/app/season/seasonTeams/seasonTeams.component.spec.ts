@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SeasonTeamsComponent } from './seasonTeams.component';
 import { ActivatedRoute, convertToParamMap, ParamMap, provideRouter } from '@angular/router';
 import { SeasonService } from '@api/services/season.service';
-import { AccountService } from '../../account.service';
+import { AccountService } from '../../core/auth/account.service';
 import { SeasonSummaryService } from '../seasonSummary';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 import { signal, WritableSignal } from '@angular/core';

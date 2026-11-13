@@ -4,12 +4,12 @@ import { provideClientHydration, withEventReplay } from '@angular/platform-brows
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 //import { PreloadAllModules, withDebugTracing, withPreloading } from '@angular/router';
 import { APP_ROUTES } from './app.routes';
-import { authInterceptor } from './auth.interceptor';
-import { ReportingErrorHandler, clientErrorsInterceptor } from './clientErrors';
-import { earlyFetchInterceptor } from './earlyFetch.interceptor';
+import { authInterceptor } from './core/auth/auth.interceptor';
+import { ReportingErrorHandler, clientErrorsInterceptor } from './core/http/clientErrors';
+import { earlyFetchInterceptor } from './core/http/earlyFetch.interceptor';
 import { provideRowEnterAnimation } from './shared/rowEnterAnimation';
 import { provideSnackBarDefaults } from './shared/snackBarDefaults';
-import { provideBrowserTelemetry, tracingInterceptor } from './telemetry/browserTracing';
+import { provideBrowserTelemetry, tracingInterceptor } from './core/telemetry/browserTracing';
 
 /** The app's providers, in the browser and (with app.config.server.ts on top) on the server. */
 export const appConfig: ApplicationConfig = {

@@ -14,10 +14,10 @@ import { MatInputModule } from '@angular/material/input';
 import { RegexMatchValidValidatorDirective } from '../../shared/validation/directives/regexMatchValidValidatorDirective.directive';
 import type { PossibleMatchDto, PossiblePlayerDto } from '@api/models';
 import { MatTableModule } from '@angular/material/table';
-import { AccountService } from '../../account.service';
+import { AccountService } from '../../core/auth/account.service';
 import { map, Observable, Subscription, switchMap, takeWhile, timer } from 'rxjs';
 import type { OnDemandJobStatusDto } from '@api/models';
-import { nullWhenNotFound } from '../../api/nullWhenNotFound';
+import { nullWhenNotFound } from '../../core/http/nullWhenNotFound';
 import { SeasonMatchService } from '@api/services/season-match.service';
 import { TeamService } from '@api/services/team.service';
 

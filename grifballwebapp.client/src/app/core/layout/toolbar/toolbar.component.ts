@@ -3,7 +3,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
 import { MatSidenav } from '@angular/material/sidenav';
-import { AccountService } from '../account.service';
+import { AccountService } from '../../auth/account.service';
 
 @Component({
     selector: 'app-toolbar',

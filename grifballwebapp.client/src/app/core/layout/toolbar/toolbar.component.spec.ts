@@ -4,11 +4,11 @@ import { provideRouter } from '@angular/router';
 import { MatSidenav } from '@angular/material/sidenav';
 import { ToolbarComponent } from './toolbar.component';
 import { ThemeComponent } from '../theme/theme.component';
-import { AccountService } from '../account.service';
+import { AccountService } from '../../auth/account.service';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Subject } from 'rxjs';
 import { QuickSearchComponent } from '../quickSearch/quickSearch.component';
-import { noMaterialAnimations } from '../shared/testing/noMaterialAnimations';
+import { noMaterialAnimations } from '../../../shared/testing/noMaterialAnimations';
 
 describe('ToolbarComponent', () => {
   let component: ToolbarComponent;

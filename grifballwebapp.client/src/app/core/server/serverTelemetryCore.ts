@@ -15,7 +15,7 @@ import {
   propagation,
   trace,
 } from '@opentelemetry/api';
-import { redactUrl } from './redactUrl';
+import { redactUrl } from '../http/redactUrl';
 import {
   type LogLevel,
   CLIENT_TELEMETRY_PATH,

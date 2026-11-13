@@ -10,7 +10,7 @@ import { ErrorMessageComponent } from '../shared/validation/errorMessage.compone
 import { RegexMatchValidValidatorDirective } from '../shared/validation/directives/regexMatchValidValidatorDirective.directive';
 import { MatchFieldsValidatorDirective } from '../shared/validation/directives/matchFieldsValidator.directive';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { AccountService } from '../account.service';
+import { AccountService } from '../core/auth/account.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { errorText } from '../shared/errorText';
 

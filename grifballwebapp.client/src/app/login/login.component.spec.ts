@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, ActivatedRoute } from '@angular/router';
 import { LoginComponent } from './login.component';
-import { AccountService } from '../account.service';
+import { AccountService } from '../core/auth/account.service';
 import { PLATFORM_ID } from '@angular/core';
 import { of } from 'rxjs';
 import { noMaterialAnimations } from '../shared/testing/noMaterialAnimations';

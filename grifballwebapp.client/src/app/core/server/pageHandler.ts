@@ -1,7 +1,7 @@
-import { loadScriptsAfterFirstPaint } from './afterFirstPaint';
-import { forLog } from './forLog';
+import { loadScriptsAfterFirstPaint } from '../layout/afterFirstPaint';
+import { forLog } from '../http/forLog';
 import { pageCacheHeaders } from './pageCache';
-import { redactUrl } from './redactUrl';
+import { redactUrl } from '../http/redactUrl';
 import type { RenderOutcome, ServerRequest, ServerTelemetryCore } from './serverTelemetryCore';
 
 /** What the page handler needs of the server (server.ts gives it Angular's engine and Express's response). */

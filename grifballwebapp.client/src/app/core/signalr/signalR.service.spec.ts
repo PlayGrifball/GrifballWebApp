@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { PLATFORM_ID } from '@angular/core';
 import { HttpTransportType, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { SignalRService } from './signalR.service';
-import { AuthSession } from '../authSession.service';
+import { AuthSession } from '../auth/authSession.service';
 import { HUB_RETRY_MS } from './hubLifecycle';
 
 /** The Teams hub's use of hubLifecycle; the lifecycle itself is hubLifecycle.spec.ts's. */

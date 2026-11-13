@@ -1,10 +1,10 @@
 import { HttpBackend } from '@angular/common/http';
 import { mergeApplicationConfig, ApplicationConfig, provideEnvironmentInitializer } from '@angular/core';
 import { provideServerRendering, withRoutes } from '@angular/ssr';
-import { apiUrl } from './apiUrl';
+import { apiUrl } from './core/http/apiUrl';
 import { appConfig } from './app.config';
 import { serverRoutes } from './app.routes.server';
-import { API_ORIGIN, ServerApiBackend } from './serverApi.backend';
+import { API_ORIGIN, ServerApiBackend } from './core/server/serverApi.backend';
 import { placeholderNullWhenNone } from './teamBuilder/dndServer';
 
 const serverConfig: ApplicationConfig = {

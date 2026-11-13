@@ -11,7 +11,7 @@ import { ToDatePipe } from '../shared/toDate.pipe';
 import { Column, Filter, TableComponent } from '../shared/table/table.component';
 import { PaginationParams } from '../shared/getPaginationResource';
 import { SearchBoxComponent } from '../shared/searchBox/searchBox.component';
-import { AccountService } from '../account.service';
+import { AccountService } from '../core/auth/account.service';
 import type { GeneratePasswordResetLinkRequestDto } from '@api/models';
 import { apiSortDirection } from '../shared/apiSort';
 import { errorText } from '../shared/errorText';
