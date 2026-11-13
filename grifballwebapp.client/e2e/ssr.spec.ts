@@ -26,7 +26,7 @@ async function watch(page: Page): Promise<{ calls: string[], errors: string[] }>
   const calls: string[] = [];
   const errors: string[] = [];
   await page.route(url => url.hostname !== 'localhost', route => route.abort());
-  await page.route('**/hub/**', route => route.fulfill({ status: 404, body: '' }));
+  // The hubs' negotiate and WebSocket go to e2e/serve.mjs, which answers them (e2e/hubMock.mts)
   page.on('request', request => {
     const url = new URL(request.url());
     if (url.pathname.startsWith('/api/'))

@@ -375,7 +375,8 @@ test('the Late League queue panel shows the count the hub sends, and joins from 
     '/api/queue': route => json(route, status),
     '/api/queue/join': route => json(route, { ...status, count: 10, inQueue: true }),
   });
-  // QueueHub, as the team builder's hub above: a WebSocket without negotiating, the handshake answered
+  // QueueHub, as the team builder's hub above: its negotiate, then a WebSocket with the handshake answered
+  await page.route('**/hub/QueueHub/negotiate**', route => route.fulfill({ json: { negotiateVersion: 1, connectionId: 'c', connectionToken: 't', availableTransports: [{ transport: 'WebSockets', transferFormats: ['Text', 'Binary'] }] } }));
   const sockets: WebSocketRoute[] = [];
   await page.routeWebSocket(/\/hub\/QueueHub/, ws => {
     ws.onClose(() => sockets.splice(sockets.indexOf(ws), 1));
