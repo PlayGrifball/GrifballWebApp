@@ -21,7 +21,7 @@ GrifballWebApp is a full-stack web application for planning and organizing Grifb
 - **Date Handling**: Luxon for timezone-aware date operations
 - **Real-time**: SignalR client for live updates
 - **Drag & Drop**: ngx-drag-drop for tournament brackets
-- **Authentication**: the HttpOnly session cookie (never readable by scripts) and the antiforgery token on changes (auth.interceptor.ts)
+- **Authentication**: the HttpOnly session cookie (never readable by scripts) and the antiforgery token on changes (core/auth/auth.interceptor.ts)
 
 ### Database & Infrastructure
 - **Database**: SQL Server 2022 CU12 (via Docker)
