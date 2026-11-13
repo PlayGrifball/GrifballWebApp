@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { PULL_POLL_MS, SeasonMatchComponent } from './seasonMatch.component';
+import { describeSeasonMatch, PULL_POLL_MS, SeasonMatchComponent } from './seasonMatch.component';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { ActivatedRoute, provideRouter, RouterLink } from '@angular/router';
@@ -1390,5 +1390,27 @@ describe('SeasonMatchComponent on the server', () => {
     // The page drawn on the server says the search is under way; the browser does it
     expect(fixture.componentInstance.possibleMatchesState()).toBe('loading');
     httpMock.verify();
+  });
+});
+
+describe('describeSeasonMatch', () => {
+  it('gives the series score and winner once decided', () => {
+    expect(describeSeasonMatch(page({ homeTeamScore: 1, awayTeamScore: 2, homeTeamResult: 'Loss', awayTeamResult: 'Won', decidedBy: 'Games' }))).toEqual({
+      title: 'Home 1–2 Away',
+      description: 'Season 3, best of 3: Away beat Home 2–1. Games, scores and player stats.',
+    });
+  });
+
+  it('gives a forfeit\'s winner without a score', () => {
+    expect(describeSeasonMatch(page({ homeTeamResult: 'Won', awayTeamResult: 'Forfeit', decidedBy: 'Forfeit', isPlayoff: true })).description)
+      .toBe('Season 3 playoffs, best of 3: Home beat Away. Games, scores and player stats.');
+  });
+
+  it('gives when an undecided match is scheduled, and TBD for a team not set yet', () => {
+    expect(describeSeasonMatch(page({ awayTeamName: null, scheduledTime: DateTime.fromISO('2026-11-20T01:00:00Z') }))).toEqual({
+      title: 'Home vs TBD',
+      description: 'Season 3, best of 3: Home vs TBD, scheduled for Nov 20, 2026. Games, scores and player stats.',
+    });
+    expect(describeSeasonMatch(page()).description).toBe('Season 3, best of 3: Home vs Away. Games, scores and player stats.');
   });
 });

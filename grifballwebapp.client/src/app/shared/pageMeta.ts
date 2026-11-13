@@ -18,6 +18,11 @@ export function fullTitle(title: string | undefined): string {
   return title && title !== 'Home' ? `${title} · ${SITE_NAME}` : SITE_NAME;
 }
 
+/** A count in a description: "1 season", "3 seasons". */
+export function plural(count: number, one: string, many = one + 's'): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
 /**
  * A date in a description: the same on the server and in every visitor's browser (UTC, English), so the page's tags
  * don't change when the browser takes it over.

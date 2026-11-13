@@ -3,7 +3,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
-import { TeamHistoryComponent } from './teamHistory.component';
+import { describeTeamHistory, TeamHistoryComponent } from './teamHistory.component';
 import type { TeamHistoryDto } from '@api/models';
 import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 
@@ -180,5 +180,17 @@ describe('TeamHistoryComponent', () => {
     second.flush({ ...history, teamName: 'Other Hunters' });
     await settle();
     expect(el().querySelector('h1')!.textContent).toBe('Other Hunters');
+  });
+});
+
+describe('describeTeamHistory', () => {
+  it('gives the franchise\'s league, seasons, record and championships', () => {
+    const history = { teamName: 'Red Rampage', leagueName: 'Grifball League', appearances: 1, wins: 9, losses: 4, championships: 2 } as TeamHistoryDto;
+    expect(describeTeamHistory(history)).toEqual({
+      title: 'Red Rampage · Team History',
+      description: 'Red Rampage in Grifball League: 1 season, 9–4, 2 championships. Every season\'s record, roster and captain.',
+    });
+    expect(describeTeamHistory({ ...history, appearances: 3, championships: 0 }).description)
+      .toBe('Red Rampage in Grifball League: 3 seasons, 9–4. Every season\'s record, roster and captain.');
   });
 });

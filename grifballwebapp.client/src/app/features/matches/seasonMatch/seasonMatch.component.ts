@@ -27,6 +27,7 @@ import type { TeamPagePlayerDto } from '@api/models';
 import { provideDatePickers } from '@shared/datePickers';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { GameSlot, ManualGamesComponent, slotChoices } from './manualGames/manualGames.component';
+import { describePage, pageDate, PageDescription } from '../../shared/pageMeta';
 
 /** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
 export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
@@ -54,6 +55,31 @@ const IDLE: MatchPageMode = { kind: 'idle' };
 
 /** How often a queued or running pull of the players' games is looked at again. */
 export const PULL_POLL_MS = 3000;
+
+/**
+ * The season match as search results and link previews show it: the two teams (and the series score once decided),
+ * then the season and the result or when it is scheduled.
+ */
+export function describeSeasonMatch(match: SeasonMatchPageDto): PageDescription {
+  const home = match.homeTeamName ?? 'TBD';
+  const away = match.awayTeamName ?? 'TBD';
+  const scored = match.homeTeamScore != null && match.awayTeamScore != null;
+  const title = scored && match.decidedBy ? `${home} ${match.homeTeamScore}–${match.awayTeamScore} ${away}` : `${home} vs ${away}`;
+  let result: string;
+  if (match.homeTeamResult === 'Won' || match.awayTeamResult === 'Won') {
+    const homeWon = match.homeTeamResult === 'Won';
+    const [winner, loser] = homeWon ? [home, away] : [away, home];
+    const score = scored ? ` ${homeWon ? match.homeTeamScore : match.awayTeamScore}–${homeWon ? match.awayTeamScore : match.homeTeamScore}` : '';
+    result = `${winner} beat ${loser}${score}`;
+  } else {
+    const date = pageDate(match.scheduledTime);
+    result = `${home} vs ${away}${date ? `, scheduled for ${date}` : ''}`;
+  }
+  return {
+    title,
+    description: `${match.seasonName}${match.isPlayoff ? ' playoffs' : ''}, best of ${match.bestOf}: ${result}. Games, scores and player stats.`,
+  };
+}
 
 @Component({
     selector: 'app-season-match',
@@ -228,6 +254,10 @@ export class SeasonMatchComponent {
   regexErrorMessage: string = "Must be a valid GUID";
 
   constructor() {
+    describePage(() => {
+      const match = this.seasonMatch();
+      return match ? describeSeasonMatch(match) : null;
+    });
     effect(() => {
       this.seasonMatchID();
       this.getPageDto();

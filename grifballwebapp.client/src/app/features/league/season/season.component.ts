@@ -17,9 +17,27 @@ import { SeasonChampionsComponent } from './seasonChampions/seasonChampions.comp
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { whileCurrent } from '@shared/whileCurrent';
+import { DateTime } from 'luxon';
+import { describePage, pageDate, PageDescription, plural } from '@shared/pageMeta';
 
 /** The sections shown on the season page itself (the other tabs are their own pages). */
 export type SeasonView = 'overview' | 'schedule' | 'bracket';
+
+/** The season as search results and link previews show it: its name, league, dates, size and champions. */
+export function describeSeason(season: SeasonSummaryDto): PageDescription {
+  const title = season.division ? `${season.seasonName} – ${season.division}` : season.seasonName;
+  const start = pageDate(DateTime.fromISO(season.start));
+  const end = pageDate(DateTime.fromISO(season.end));
+  const facts = [
+    season.signupCount ? plural(season.signupCount, 'player') : null,
+    season.matchCount ? plural(season.matchCount, 'match', 'matches') : null,
+    season.hasEnded && season.champions.length ? `won by ${season.champions.map(c => c.teamName).join(' and ')}` : null,
+  ].filter(f => f);
+  return {
+    title,
+    description: `${season.leagueName} Grifball season${start && end ? `, ${start} to ${end}` : ''}${facts.length ? `: ${facts.join(', ')}` : ''}. Standings, schedule, brackets and stats.`,
+  };
+}
 
 @Component({
     selector: 'app-season',
@@ -85,6 +103,10 @@ export class SeasonComponent implements OnInit {
   readonly canSignUp = computed(() => signupsOpen(this.events(), this.shownSeasonID(), this.now()));
 
   constructor() {
+    describePage(() => {
+      const summary = this.summary();
+      return summary ? describeSeason(summary) : null;
+    });
     effect(() => {
       const routeSeasonID = this.seasonID();
       untracked(() => {

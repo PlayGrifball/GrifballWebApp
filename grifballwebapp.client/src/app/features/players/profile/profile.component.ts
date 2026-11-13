@@ -20,6 +20,22 @@ import { whileCurrent } from '@shared/whileCurrent';
 import type { GameCareerSummaryDto, MatchmakingPlayerStatDto, PlayerSeasonStatDetailDto, ProfileStatsDto } from '@api/models';
 import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { ProfileService } from '@api/services/profile.service';
+import { describePage, PageDescription, plural } from '../shared/pageMeta';
+
+/** The player as search results and link previews show them: their gamertag, seasons and championships. */
+export function describeProfile(profile: ProfileStatsDto): PageDescription | null {
+  const name = profile.gamertag ?? profile.displayName;
+  if (!name)
+    return null;
+  const facts = [
+    profile.seasons.length ? plural(profile.seasons.length, 'season') : null,
+    profile.championships.length ? plural(profile.championships.length, 'championship') : null,
+  ].filter(f => f);
+  return {
+    title: name,
+    description: `${name}'s Grifball career${facts.length ? `: ${facts.join(', ')}` : ''}. Stats by season and game, and Late League.`,
+  };
+}
 
 @Component({
   selector: 'app-profile',
@@ -96,6 +112,10 @@ export class ProfileComponent {
   readonly lateLeagueByVote = computed(() => this.filteredLateLeague().some(l => l.gamesDecidedByVote > 0));
 
   constructor() {
+    describePage(() => {
+      const profile = this.profileStats();
+      return profile ? describeProfile(profile) : null;
+    });
     effect(() => {
       this.userID();
       untracked(() => {

@@ -4,7 +4,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ProfileComponent } from './profile.component';
+import { describeProfile, ProfileComponent } from './profile.component';
 import type { ProfileStatsDto } from '@api/models';
 import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 import { AccountService } from '@core/auth/account.service';
@@ -677,5 +677,24 @@ describe('ProfileComponent: region and identity', () => {
   it("hides them on someone else's profile", () => {
     personID.set(4);
     expect(render(null).querySelector('app-profile-identity')).toBeNull();
+  });
+});
+
+describe('describeProfile', () => {
+  const profile = (changes: Partial<ProfileStatsDto>) => ({ gamertag: 'Plasma Pete', displayName: 'Pete', seasons: [{}, {}], championships: [{}], ...changes } as ProfileStatsDto);
+
+  it('gives the player\'s seasons and championships', () => {
+    expect(describeProfile(profile({}))).toEqual({
+      title: 'Plasma Pete',
+      description: 'Plasma Pete\'s Grifball career: 2 seasons, 1 championship. Stats by season and game, and Late League.',
+    });
+  });
+
+  it('falls back to the display name, and says nothing without either', () => {
+    expect(describeProfile(profile({ gamertag: null, seasons: [], championships: [] }))).toEqual({
+      title: 'Pete',
+      description: 'Pete\'s Grifball career. Stats by season and game, and Late League.',
+    });
+    expect(describeProfile(profile({ gamertag: null, displayName: null }))).toBeNull();
   });
 });
