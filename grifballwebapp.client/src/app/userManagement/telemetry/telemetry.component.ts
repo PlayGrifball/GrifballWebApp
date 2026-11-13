@@ -86,8 +86,6 @@ export class TelemetryComponent implements OnInit {
   readonly minutes = signal(60);
 
   readonly status = rxResource({ stream: () => this.api.getTelemetryStatus() });
-  /** This app's service.name: a trace's other spans are the services' in front of it (Cloudflare, Traefik), labelled. */
-  readonly appService = computed(() => this.status.hasValue() ? this.status.value().serviceName : null);
 
   /** Only the open tab reads; each reads again when its inputs change, or on Refresh. */
   readonly metrics = rxResource({

@@ -662,6 +662,7 @@ public class TelemetryQueryServiceTests
     }
 
     [TestCase("""{"trace":{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"traefik"}}]},"scopeSpans":[{"scope":{"name":"t"},"spans":[{"spanId":"AQ==","name":"x","startTimeUnixNano":"1","endTimeUnixNano":"2"}]}]}]}}""")]
+    [TestCase("""{"trace":{"resourceSpans":[{"resource":{},"scopeSpans":[{"scope":{"name":"t"},"spans":[{"spanId":"AQ==","name":"x","startTimeUnixNano":"1","endTimeUnixNano":"2"}]}]}]}}""")]
     [TestCase("{}")]
     public async Task A_trace_without_this_services_spans_is_null(string answer)
     {
