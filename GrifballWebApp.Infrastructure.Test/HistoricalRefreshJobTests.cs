@@ -25,11 +25,12 @@ public class HistoricalRefreshJobTests : SqliteContextFixture
     private readonly FakeTimeProvider _time = new(Now);
     private readonly IScheduler _scheduler = Substitute.For<IScheduler>();
     private HistoricalImportJobs _jobs = null!;
+    private readonly RecordingLogger<HistoricalRefreshJob> _log = new();
 
     [SetUp]
     public void SetUp() => _jobs = new HistoricalImportJobs((IApplicationDbContext)Context, new HistoricalImportSignal(), _time);
 
-    private HistoricalRefreshJob Job() => new(_jobs, Context, _time, NullLogger<HistoricalRefreshJob>.Instance);
+    private HistoricalRefreshJob Job() => new(_jobs, Context, _time, _log);
 
     private async Task<int> QueueManualRefresh()
     {
@@ -57,6 +58,7 @@ public class HistoricalRefreshJobTests : SqliteContextFixture
             Assert.That(jobId, Is.EqualTo(queued.HistoricalImportJobID));
             Assert.That((queued.Kind, queued.Trigger, queued.Status),
                 Is.EqualTo((HistoricalImportJobKind.Refresh, HistoricalImportJobTrigger.Scheduled, HistoricalImportJobStatus.Queued)));
+            Assert.That(_log.At(Microsoft.Extensions.Logging.LogLevel.Information), Is.EqualTo(new[] { $"Scheduled historical refresh queued as job {queued.HistoricalImportJobID}" }));
             Assert.That((settings.LastScheduledJobID, settings.LastScheduledRunAt, settings.LastScheduledRunNote),
                 Is.EqualTo(((int?)queued.HistoricalImportJobID, (DateTime?)Now.UtcDateTime, (string?)null)));
         }

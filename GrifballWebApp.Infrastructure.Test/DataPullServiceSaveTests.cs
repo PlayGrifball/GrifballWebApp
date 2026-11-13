@@ -32,6 +32,7 @@ public class DataPullServiceSaveTests : SqliteContextFixture
     private IHaloInfiniteClient _halo = null!;
     private IGetsertXboxUserService _getsert = null!;
     private DataPullService _service = null!;
+    private readonly RecordingLogger<DataPullService> _log = new();
 
     [SetUp]
     public void SetUp()
@@ -40,7 +41,7 @@ public class DataPullServiceSaveTests : SqliteContextFixture
         _getsert = Substitute.For<IGetsertXboxUserService>();
         _getsert.GetsertXboxUserByXuid(Arg.Any<long>(), Arg.Any<CancellationToken>())
             .Returns(ci => XboxUser.FromXbox(ci.Arg<long>(), $"gt{ci.Arg<long>()}"));
-        _service = new DataPullService(NullLogger<DataPullService>.Instance, _halo, Context, _getsert);
+        _service = new DataPullService(_log, _halo, Context, _getsert);
     }
 
     private static CoreStats Core(int score = 1) => new() { Score = score, AverageLifeDuration = TimeSpan.FromSeconds(10), Medals = [] };
@@ -168,6 +169,7 @@ public class DataPullServiceSaveTests : SqliteContextFixture
 
         await _service.GetAndSaveMatch(id);
 
+        Assert.That(_log.At(Microsoft.Extensions.Logging.LogLevel.Debug), Is.EqualTo(new[] { $"Match {id} already exists" }));
         await _halo.DidNotReceiveWithAnyArgs().StatsGetMatchStats(default(Guid));
     }
 
@@ -181,6 +183,30 @@ public class DataPullServiceSaveTests : SqliteContextFixture
 
         Assert.That(await Context.Matches.AnyAsync(), Is.False);
         await _halo.Received(1).StatsGetMatchStats(id);
+    }
+
+    [Test]
+    public async Task Save_AGameWithNoTeams_IsNoTeamGame_AndIsntSaved()
+    {
+        var id = Guid.NewGuid();
+
+        await _service.SaveMatchStats(StatsOf(id, [], PlayerOf("xuid(5)", 0, (0, 1))));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.Matches.AnyAsync(), Is.False);
+            Assert.That(_log.At(Microsoft.Extensions.Logging.LogLevel.Debug), Is.EqualTo(new[] { $"Ignoring non team match {id}" }));
+        }
+    }
+
+    [Test]
+    public async Task Save_APlayerWhoSwitchedTeams_IsLogged()
+    {
+        var id = Guid.NewGuid();
+
+        await _service.SaveMatchStats(StatsOf(id, [(0, 2), (1, 3)], PlayerOf("xuid(11)", 1, (0, 3), (1, 7))));
+
+        Assert.That(_log.At(Microsoft.Extensions.Logging.LogLevel.Warning), Is.EqualTo(new[] { $"Player xuid(11) played on multiple teams in match {id}" }));
     }
 
     // ---- DownloadMedals ----

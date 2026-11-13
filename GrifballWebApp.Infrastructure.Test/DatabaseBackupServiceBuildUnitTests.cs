@@ -124,18 +124,23 @@ public class DatabaseBackupServiceBuildUnitTests
     public async Task MakeAsync_OnAScratchServerThatNeverLetsItIn_StopsTheScratchServerAgain()
     {
         var scaler = Substitute.For<IScratchScaler>();
+        var loggers = new RecordingLoggerFactory();
         var service = new DatabaseBackupService(
             Configuration(("Database:Provider", "Sqlite"), ("ConnectionStrings:GrifballWebApp", MissingSource),
                 ("DatabaseBackup:Scratch:Provider", "Postgres"),
                 ("DatabaseBackup:Scratch:ConnectionString", "Host=127.0.0.1;Port=1;Database=postgres;Username=admin;Password=x;Timeout=2")),
-            NullLoggerFactory.Instance, new FakeTimeProvider(Now), scaler) { ScratchLoginWait = TimeSpan.Zero };
+            loggers, new FakeTimeProvider(Now), scaler) { ScratchLoginWait = TimeSpan.Zero };
         var progress = new RecordingProgress();
 
         Assert.That(async () => await service.MakeAsync(BackupFormat.Dump, CancellationToken.None, progress), Throws.InstanceOf<DbException>());
 
         await scaler.Received(1).StartAsync(Arg.Any<CancellationToken>());
         await scaler.Received(1).StopAsync(CancellationToken.None);
-        Assert.That(progress.Reports.Select(r => r.Message), Is.EqualTo(ScratchStartReport));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(progress.Reports.Select(r => r.Message), Is.EqualTo(ScratchStartReport));
+            Assert.That(loggers.Logger.At(Microsoft.Extensions.Logging.LogLevel.Information), Is.EqualTo(ScratchStartReport), "and in the log");
+        }
     }
 
     /// <summary>

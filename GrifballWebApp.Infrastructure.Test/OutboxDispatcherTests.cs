@@ -65,11 +65,11 @@ public class OutboxDispatcherTests : SqliteContextFixture
         }
     }
 
-    private static OutboxDispatcher Dispatcher(IServiceScopeFactory scopes)
+    private static OutboxDispatcher Dispatcher(IServiceScopeFactory scopes, Microsoft.Extensions.Logging.ILogger<OutboxProcessor>? log = null)
     {
         var time = new FakeTimeProvider(Now);
         var options = Options.Create(new OutboxOptions { PollInterval = TimeSpan.FromMilliseconds(50) });
-        var processor = new OutboxProcessor(scopes, options, Options.Create(new DiscordOptions()), time, NullLogger<OutboxProcessor>.Instance);
+        var processor = new OutboxProcessor(scopes, options, Options.Create(new DiscordOptions()), time, log ?? NullLogger<OutboxProcessor>.Instance);
         return new OutboxDispatcher(processor, new OutboxSignal(), options, time, NullLogger<OutboxDispatcher>.Instance);
     }
 
@@ -135,4 +135,31 @@ public class OutboxDispatcherTests : SqliteContextFixture
             Assert.That(scopes.Asked, Is.GreaterThan(1), "the first pass failed and another followed");
         }
     }
+
+    [Test]
+    public async Task Started_DeletesSentMessagesPastTheirRetention_StraightAway()
+    {
+        var old = new OutboxMessage { Kind = Kind, Payload = "{}", Status = OutboxStatus.Sent, CreatedAt = Now.UtcDateTime.AddDays(-30), NextAttemptAt = Now.UtcDateTime.AddDays(-30), SentAt = Now.UtcDateTime.AddDays(-30) };
+        var recent = new OutboxMessage { Kind = Kind, Payload = "{}", Status = OutboxStatus.Sent, CreatedAt = Now.UtcDateTime, NextAttemptAt = Now.UtcDateTime, SentAt = Now.UtcDateTime };
+        Context.Outbox.AddRange(old, recent);
+        await Context.SaveChangesAsync();
+        var log = new RecordingLogger<OutboxProcessor>();
+        using var dispatcher = Dispatcher(_provider.GetRequiredService<IServiceScopeFactory>(), log);
+
+        await dispatcher.StartAsync(CancellationToken.None);
+        // The first pass cleans up before it waits for the next: done once its log line is there
+        using (var limit = new CancellationTokenSource(Limit))
+            while (log.Entries.Count == 0)
+                await Task.Delay(10, limit.Token);
+        await dispatcher.StopAsync(CancellationToken.None);
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.Outbox.AsNoTracking().Select(m => m.Id).ToListAsync(), Is.EqualTo(new List<long> { recent.Id }));
+            Assert.That(log.At(Microsoft.Extensions.Logging.LogLevel.Information), Is.EqualTo(OneDeleted));
+        }
+    }
+
+    private static readonly string[] OneDeleted = ["Deleted 1 old outbox messages"];
 }

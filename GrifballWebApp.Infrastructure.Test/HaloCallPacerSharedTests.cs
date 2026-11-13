@@ -77,4 +77,17 @@ public class HaloCallPacerSharedTests
 
         Assert.That(pacer.PerCall, Is.EqualTo(paced ? TimeSpan.FromMinutes(1) / (permitsPerMinute * HaloCallPacer.QuotaShare) : TimeSpan.Zero));
     }
+
+    [Test]
+    public async Task ACallWaitingItsTurn_WhenThePacerGoes_IsCancelled_NotLetThrough()
+    {
+        // One a minute: the second call waits over a minute for its turn
+        var pacer = new HaloCallPacer(1);
+        await pacer.WaitAsync();
+        var waiting = pacer.WaitAsync().AsTask();
+
+        await pacer.DisposeAsync();
+
+        await Assert.ThatAsync(() => waiting, Throws.InstanceOf<OperationCanceledException>().With.Message.EqualTo("The app is stopping"));
+    }
 }

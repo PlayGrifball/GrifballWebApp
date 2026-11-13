@@ -18,7 +18,10 @@ namespace GrifballWebApp.Infrastructure.Test;
 [Parallelizable(ParallelScope.All)]
 public class SqliteCopyUnitTests : SqliteContextFixture
 {
-    private readonly DatabaseConverter _converter = new(NullLogger<DatabaseConverter>.Instance);
+    private readonly RecordingLogger<DatabaseConverter> _log = new();
+    private readonly DatabaseConverter _converter;
+
+    public SqliteCopyUnitTests() => _converter = new DatabaseConverter(_log);
     private string _targetPath = null!;
 
     private DatabaseEndpoint Source => new(DatabaseProvider.Sqlite, ConnectionString);
@@ -95,6 +98,12 @@ public class SqliteCopyUnitTests : SqliteContextFixture
             Assert.That(copied.Single(t => t.Name == "Teams").Rows, Is.EqualTo(1));
         }
         Assert.That(await _converter.CompareAsync(Source, Target), Is.Empty, "the copy reads back as the source");
+        var logged = _log.At(Microsoft.Extensions.Logging.LogLevel.Information);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(logged, Has.One.StartsWith("Set the deferred foreign keys of 1 rows of "));
+            Assert.That(logged[^1], Does.Match(@"^Compared \d+ tables; 0 differ$"));
+        }
     }
 
     [Test]

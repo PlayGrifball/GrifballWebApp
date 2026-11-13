@@ -22,6 +22,7 @@ namespace GrifballWebApp.Infrastructure.Test;
 public class DatabaseBackupJobsUnitTests
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 13, 8, 0, 0, TimeSpan.Zero);
+    private static readonly string[] BackupMadeLog = ["admin's dump backup is made: grifball-backup-20261113-080000.dump"];
 
     private string _directory = null!;
     private BackupFiles _files = null!;
@@ -56,8 +57,10 @@ public class DatabaseBackupJobsUnitTests
         Configuration(("Database:Provider", "Sqlite"), ("ConnectionStrings:GrifballWebApp", $"Data Source={Path.Combine(_directory, "missing.db")}")),
         NullLoggerFactory.Instance, new FakeTimeProvider(Now));
 
+    private readonly RecordingLogger<DatabaseBackupJob> _backupLog = new();
+
     private DatabaseBackupJob BackupJob(DatabaseBackupService service, IConfiguration? configuration = null)
-        => new(service, _files, configuration ?? Configuration(), NullLogger<DatabaseBackupJob>.Instance);
+        => new(service, _files, configuration ?? Configuration(), _backupLog);
 
     private JobRunReport Report() => (JobRunReport)_run.Result!;
 
@@ -85,6 +88,7 @@ public class DatabaseBackupJobsUnitTests
         using var reader = new StreamReader(kept!);
         Assert.That(await reader.ReadToEndAsync(), Is.EqualTo("PGDMP"));
         _run.Received().ReportProgress(0, "Making the dump backup");
+        Assert.That(_backupLog.At(Microsoft.Extensions.Logging.LogLevel.Information), Is.EqualTo(BackupMadeLog));
     }
 
     [Test]

@@ -116,6 +116,24 @@ public class HistoricalPhaseCasesTests
     }
 
     [Test]
+    public void DraftSheet_MoreLabelSpellings_AndRowsThatNameNoPlayers()
+    {
+        var sheet = Sheet("Draft",
+            Row("TEAM NAME :", "Wolves"),
+            Row("Player 12 :", "P12"),
+            Row("1st round", "R1"),
+            Row("22nd Round:", "R22"),
+            Row("5 th round", "R5"),
+            Row("Player", "Not Numbered"),
+            Row("Round 3", "Wrong Way Round"),
+            Row("Captain Notes", "Not A Captain"));
+
+        var teams = RosterParser.Parse(sheet);
+
+        Assert.That(teams.Keys, Is.EquivalentTo(NumberedPlayers.Select(HistoricalKeys.Normalize)));
+    }
+
+    [Test]
     public void DraftSheet_RowsBeforeAnyTeamNameLabel_AreNoTeams()
     {
         var sheet = Sheet("Draft",
@@ -126,6 +144,7 @@ public class HistoricalPhaseCasesTests
         Assert.That(RosterParser.Parse(sheet), Is.EquivalentTo(new Dictionary<string, string> { [HistoricalKeys.Normalize("In Time")] = "Bears" }));
     }
 
+    private static readonly string[] NumberedPlayers = ["P12", "R1", "R22", "R5"];
     private static readonly string[] OnlyThePlayers = ["Galvann", "Invayda Zim"];
 
     [Test]

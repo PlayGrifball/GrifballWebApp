@@ -31,6 +31,8 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
     private ServiceProvider _provider = null!;
     private HistoricalImportWorker _worker = null!;
     private IHistoricalImportService _import = null!;
+    private readonly RecordingLogger<HistoricalImportWorker> _workerLog = new();
+    private readonly RecordingLogger<HistoricalImportRunner> _runnerLog = new();
 
     [SetUp]
     public void Setup()
@@ -51,11 +53,11 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
         services.AddSingleton(Options.Create(new HistoricalGuardrailOptions()));
         services.AddScoped(sp => new HistoricalImportRunner(sp.GetRequiredService<GrifballContext>(), sp.GetRequiredService<HistoricalSourceService>(),
             sp.GetRequiredService<IHistoricalImportService>(), sp.GetRequiredService<HistoricalImportJobs>(),
-            sp.GetRequiredService<IOptions<HistoricalGuardrailOptions>>(), sp.GetRequiredService<ILogger<HistoricalImportRunner>>()));
+            sp.GetRequiredService<IOptions<HistoricalGuardrailOptions>>(), _runnerLog));
         _provider = services.BuildServiceProvider();
 
         _worker = new HistoricalImportWorker(_provider.GetRequiredService<IServiceScopeFactory>(), _provider.GetRequiredService<HistoricalImportSignal>(),
-            Options.Create(new HistoricalImportWorkerOptions()), TimeProvider.System, NullLogger<HistoricalImportWorker>.Instance,
+            Options.Create(new HistoricalImportWorkerOptions()), TimeProvider.System, _workerLog,
             _provider.GetRequiredService<XuidLookupSignal>());
     }
 
@@ -116,6 +118,7 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
             Assert.That((job.SeasonsDone, job.SeasonsTotal), Is.EqualTo((2, 5)), "the importer's progress, saved on the job");
             Assert.That(JsonSerializer.Deserialize<HistoricalImportReport>(job.Report!, HistoricalArchiveInput.JsonOptions)!.SeasonsCreated, Is.EqualTo(3));
             Assert.That(job.Payload, Is.Null, "the archive goes once the job ends");
+            Assert.That(_workerLog.At(LogLevel.Information), Does.Contain($"Historical import job {jobId} finished"));
         }
         await _import.Received(1).Import(Arg.Is<HistoricalArchiveInput>(i => i.RecordedGames != null && i.RecordedGames.Count == 0),
             Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>());
@@ -157,6 +160,7 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
             Assert.That(job.Status, Is.EqualTo(HistoricalImportJobStatus.Succeeded), job.Error);
             Assert.That((review.SeasonKey, review.SeasonName, review.Status, review.StatsBefore, review.StatsRemoved),
                 Is.EqualTo(("s2020/Stats", (string?)"Season 2020", HistoricalSeasonReviewStatus.Preview, 10, 2)), "the season that removes nothing isn't listed");
+            Assert.That(_runnerLog.At(LogLevel.Information), Does.Contain($"Historical Preview job {jobId} (Manual): 1 seasons, none need review"));
             Assert.That(job.SnapshotIDs, Is.Empty, "no snapshot was read: none was there");
         }
         await _import.Received(1).Run(Arg.Any<HistoricalArchiveInput>(), Arg.Is<HistoricalImportRunOptions>(o => o.DryRun && o.Guardrail == null && o.Seasons == null),
@@ -264,6 +268,7 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
         {
             await Assert.ThatAsync(() => running, Throws.InstanceOf<OperationCanceledException>());
             Assert.That((await Reload(jobId)).Status, Is.EqualTo(HistoricalImportJobStatus.Running), "queued again once its heartbeat is stale");
+            Assert.That(_workerLog.At(LogLevel.Information).Single(), Does.StartWith($"Historical import job {jobId} was stopped by a shutdown"));
         }
     }
 

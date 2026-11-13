@@ -19,11 +19,13 @@ namespace GrifballWebApp.Infrastructure.Test;
 public class RecurringJobSeederTests
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 13, 4, 0, 0, TimeSpan.Zero);
+    private static readonly string[] TriggerRemovedLog = ["Recurring job recurring.counting is off: its trigger was removed"];
     private static readonly JobKey OtherKey = new("other", RecurringJobs.Group);
 
     private readonly ISchedulerFactory _schedulers = Substitute.For<ISchedulerFactory>();
     private readonly IScheduler _scheduler = Substitute.For<IScheduler>();
     private ServiceProvider _services = null!;
+    private readonly RecordingLogger<RecurringJobSeeder> _log = new();
 
     [SetUp]
     public void SetUp()
@@ -36,7 +38,7 @@ public class RecurringJobSeederTests
     public async Task TearDown() => await _services.DisposeAsync();
 
     private RecurringJobSeeder Seeder(RecurringJobs? jobs = null) =>
-        new(_schedulers, jobs ?? new RecurringJobs(), _services.GetRequiredService<IServiceScopeFactory>(), new FakeTimeProvider(Now), NullLogger<RecurringJobSeeder>.Instance);
+        new(_schedulers, jobs ?? new RecurringJobs(), _services.GetRequiredService<IServiceScopeFactory>(), new FakeTimeProvider(Now), _log);
 
     private void Stored(ScheduleOutcome outcome) => _scheduler.ScheduleTrigger(Arg.Any<ITrigger>(), TriggerConflict.Keep, Arg.Any<CancellationToken>())
         .Returns(new ScheduleTriggerResult(Now.AddHours(1), outcome));
@@ -65,6 +67,7 @@ public class RecurringJobSeederTests
         {
             Assert.That(made, Is.True);
             Assert.That(createdWith, Is.Not.SameAs(_services).And.Not.Null, "OnCreated runs in a scope of its own");
+            Assert.That(_log.At(Microsoft.Extensions.Logging.LogLevel.Information).Single(), Does.StartWith("Recurring job recurring.counting scheduled from its default, first at "));
         }
         await _scheduler.Received(1).ScheduleTrigger(
             Arg.Is<ITrigger>(t => t.Key.Equals(job.TriggerKey) && t.JobKey.Equals(job.Key) && t.StartTimeUtc == Now.AddMinutes(10)),
@@ -101,7 +104,11 @@ public class RecurringJobSeederTests
 
         var made = await Seeder().SeedAsync(_scheduler, job, CancellationToken.None);
 
-        Assert.That(made, Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(made, Is.False);
+            Assert.That(_log.At(Microsoft.Extensions.Logging.LogLevel.Information), Is.EqualTo(TriggerRemovedLog));
+        }
         await _scheduler.Received(1).UnscheduleJob(job.TriggerKey, Arg.Any<CancellationToken>());
         await _scheduler.DidNotReceiveWithAnyArgs().ScheduleTrigger(default!, default, default);
     }

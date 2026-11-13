@@ -27,6 +27,8 @@ public class XuidLookupWorkerTests : SqliteContextFixture
     private readonly IHaloInfiniteClient _halo = Substitute.For<IHaloInfiniteClient>();
     private readonly List<TimeSpan> _waits = [];
     private ServiceProvider _provider = null!;
+    private readonly RecordingLogger<XuidLookupWorker> _log = new();
+    private static readonly string[] BatchLines = ["XUID lookups: 2 found", "XUID lookups: 1 found"];
 
     private XuidLookupWorker Worker(int batchSize, int lookupsPerMinute = 6000)
     {
@@ -44,7 +46,7 @@ public class XuidLookupWorkerTests : SqliteContextFixture
             },
         });
         _provider = services.BuildServiceProvider();
-        return new XuidLookupWorker(_provider.GetRequiredService<IServiceScopeFactory>(), new XuidLookupSignal(), options, NullLogger<XuidLookupWorker>.Instance);
+        return new XuidLookupWorker(_provider.GetRequiredService<IServiceScopeFactory>(), new XuidLookupSignal(), options, _log);
     }
 
     [TearDown]
@@ -81,6 +83,8 @@ public class XuidLookupWorkerTests : SqliteContextFixture
             Assert.That(lookups, Has.Count.EqualTo(3).And.All.EqualTo(XuidLookupStatus.Found));
             // Two batches (2, then 1): one wait between the first batch's two lookups
             Assert.That(_waits, Is.EqualTo(new[] { TimeSpan.FromMinutes(1) / 6000 }));
+            Assert.That(_log.At(Microsoft.Extensions.Logging.LogLevel.Information).Select(m => m[..m.IndexOf(", 0 not found", StringComparison.Ordinal)]),
+                Is.EqualTo(BatchLines), "a line a batch");
         }
         await _halo.Received(3).UserByGamertag(Arg.Any<string>());
     }

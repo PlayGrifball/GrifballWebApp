@@ -32,6 +32,8 @@ namespace GrifballWebApp.Infrastructure.Test;
 [Parallelizable(ParallelScope.All)]
 public class WiringPartsTests : SqliteContextFixture
 {
+    private static readonly string[] PlaceholderLine = ["Made 1 placeholders for Xbox accounts no user holds"];
+
     private static IConfiguration Configuration(params (string Key, string? Value)[] values)
         => new ConfigurationBuilder().AddInMemoryCollection(values.Select(v => new KeyValuePair<string, string?>(v.Key, v.Value))).Build();
 
@@ -62,7 +64,7 @@ public class WiringPartsTests : SqliteContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(options.InstanceName, Is.EqualTo("grif-test:"));
-            Assert.That(services.GetRequiredService<IDistributedCache>(), Is.TypeOf<RedisCache>());
+            Assert.That(services.GetRequiredService<IDistributedCache>(), Is.InstanceOf<RedisCache>());
         }
     }
 
@@ -131,11 +133,17 @@ public class WiringPartsTests : SqliteContextFixture
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 
-        await new XboxPlaceholderJob(new GamertagMatching(Context), NullLogger<XboxPlaceholderJob>.Instance).Execute(Substitute.For<IJobExecutionContext>());
+        var log = new RecordingLogger<XboxPlaceholderJob>();
+
+        await new XboxPlaceholderJob(new GamertagMatching(Context), log).Execute(Substitute.For<IJobExecutionContext>());
 
         Context.ChangeTracker.Clear();
         var holder = await Context.Users.AsNoTracking().SingleAsync(u => u.XboxUserID == 4242);
-        Assert.That(holder.UserName, Is.EqualTo(HistoricalKeys.DummyUserName("Loner")));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(holder.UserName, Is.EqualTo(HistoricalKeys.DummyUserName("Loner")));
+            Assert.That(log.At(Microsoft.Extensions.Logging.LogLevel.Information), Is.EqualTo(PlaceholderLine));
+        }
     }
 
     [Test]
