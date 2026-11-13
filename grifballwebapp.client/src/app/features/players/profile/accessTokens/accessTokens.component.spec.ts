@@ -119,4 +119,30 @@ describe('AccessTokensComponent', () => {
     expect(snackBar.open).toHaveBeenCalledWith('Revoked Claude Code.', 'Close');
     expect(el().textContent).toContain('None yet.');
   });
+
+  it('makes one token at a time', async () => {
+    http.expectOne(listUrl).flush([]);
+    await settle();
+    typeName('Laptop');
+
+    fixture.componentInstance.create();
+    fixture.componentInstance.create();
+
+    const made = http.match(req => req.method === 'POST' && req.url === listUrl);
+    expect(made).toHaveSize(1);
+    made[0].flush({ accessToken: token('c'), token: 'grif_secret' });
+    fixture.detectChanges();
+    http.expectOne(listUrl).flush([token('c')]);
+  });
+
+  it('says when a token cannot be revoked', async () => {
+    http.expectOne(listUrl).flush([token('a')]);
+    await settle();
+
+    button('Revoke').click();
+    http.expectOne(`${listUrl}/a/revoke`).flush({ title: 'Not found', detail: 'You have no such access token' },
+      { status: 404, statusText: 'Not Found', headers: { 'Content-Type': 'application/problem+json' } });
+
+    expect(snackBar.open).toHaveBeenCalledWith('You have no such access token', 'Close');
+  });
 });

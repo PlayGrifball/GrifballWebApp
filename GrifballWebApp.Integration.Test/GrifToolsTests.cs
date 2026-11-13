@@ -117,6 +117,27 @@ public class GrifToolsTests
     }
 
     [Test]
+    public async Task EverySeasonPage_ReadsTheRunningSeason()
+    {
+        var tools = SeasonTools();
+
+        var schedule = await tools.GetSeasonSchedule();
+        var stats = await tools.GetSeasonPlayerStats();
+        var grades = await tools.GetSeasonGrades();
+        var signups = await tools.GetSeasonSignups();
+        await tools.GetSeasonBracket();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(schedule.Scheduled, Is.Empty);
+            Assert.That(schedule.Unscheduled, Is.Empty);
+            Assert.That(stats, Is.Empty);
+            Assert.That(grades.Totals, Is.Empty);
+            Assert.That(signups, Is.Empty);
+        }
+    }
+
+    [Test]
     public async Task ListSeasons_ListsThem()
     {
         var seasons = await SeasonTools().ListSeasons();
@@ -131,11 +152,15 @@ public class GrifToolsTests
 
         var team = await tools.GetTeam(_team.TeamID);
         var matches = await tools.GetTeamMatches(_team.TeamID);
+        var history = await tools.GetTeamHistory(_team.TeamID);
+        var vods = await tools.GetTeamVods(_team.TeamID);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(team.TeamName, Is.EqualTo("Alpha"));
             Assert.That(matches, Is.Empty);
+            Assert.That(history.Seasons.Select(t => t.TeamName), Is.EqualTo(Alpha));
+            Assert.That(vods, Is.Empty);
             Assert.That((await Assert.ThrowsAsync<ToolException>(() => tools.GetTeam(_team.TeamID + 1000)))!.Message, Does.Contain("search"));
             await Assert.ThrowsAsync<ToolException>(() => tools.GetTeamMatches(_team.TeamID + 1000));
             await Assert.ThrowsAsync<ToolException>(() => tools.GetTeamHistory(_team.TeamID + 1000));
@@ -176,7 +201,17 @@ public class GrifToolsTests
             await Assert.ThrowsAsync<ToolException>(() => tools.GetPlayerVods(unknown));
             Assert.That((await Assert.ThrowsAsync<ToolException>(() => tools.GetPlayerRank(gamertag: "NobodyHasThis")))!.Message, Does.Contain("NobodyHasThis"));
         }
-        Assert.That((await tools.GetPlayerRank()).UserID, Is.EqualTo(_captain.Id), "no player named: the caller");
+        var mine = await tools.GetPlayerRank();
+        var byID = await tools.GetPlayerRank(userID: _captain.Id);
+        var nobody = await PlayerTools(new ToolCaller(unknown, [])).WhoAmI();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(mine.UserID, Is.EqualTo(_captain.Id), "no player named: the caller");
+            Assert.That(byID.UserID, Is.EqualTo(_captain.Id));
+            Assert.That((await Assert.ThrowsAsync<ToolException>(() => tools.GetPlayerRank(userID: unknown)))!.Message, Does.Contain("on no leaderboard"));
+            Assert.That(nobody.Gamertag, Is.Null, "a caller with no profile has no gamertag");
+        }
     }
 
     [Test]
@@ -204,10 +239,12 @@ public class GrifToolsTests
         var tools = new BrowseTools(new QuickSearchService(_context, _time), Leaderboards(), new MatchmakingStatsService(_context));
 
         var hits = await tools.Search("Captain");
+        var leaderboards = await tools.GetLeaderboards();
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(hits.Players.Select(p => p.UserID), Does.Contain(_captain.Id));
+            Assert.That(leaderboards.RingLeaders, Is.Empty, "no titles yet");
             Assert.That(await tools.ListLateLeagueSeasons(), Is.Empty);
             Assert.That((await Assert.ThrowsAsync<ToolException>(() => tools.GetLateLeagueSeason(4242)))!.Message, Does.Contain("list_late_league_seasons"));
         }

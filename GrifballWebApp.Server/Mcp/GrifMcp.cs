@@ -28,9 +28,9 @@ public static class GrifMcp
     public static void AddGrifMcp(this IServiceCollection services, AuthenticationBuilder authentication)
     {
         services.AddTransient<AccessTokenService>();
-        authentication.AddScheme<AuthenticationSchemeOptions, AccessTokenAuthentication>(AccessTokenAuthentication.Scheme, null);
-        services.AddAuthorizationBuilder().AddPolicy(AccessTokenAuthentication.Scheme, policy => policy
-            .AddAuthenticationSchemes(AccessTokenAuthentication.Scheme)
+        authentication.AddScheme<AuthenticationSchemeOptions, AccessTokenAuthentication>(AccessTokenAuthentication.SchemeName, null);
+        services.AddAuthorizationBuilder().AddPolicy(AccessTokenAuthentication.SchemeName, policy => policy
+            .AddAuthenticationSchemes(AccessTokenAuthentication.SchemeName)
             .RequireAuthenticatedUser());
 
         services.AddMcpServer(options =>
@@ -56,7 +56,7 @@ public static class GrifMcp
 
     /// <summary>The endpoint, open to access tokens only (not to the browser's cookie or the API's bearer tokens).</summary>
     public static void MapGrifMcp(this IEndpointRouteBuilder app)
-        => app.MapMcp(Path).RequireAuthorization(AccessTokenAuthentication.Scheme);
+        => app.MapMcp(Path).RequireAuthorization(AccessTokenAuthentication.SchemeName);
 
     /// <summary>The caller a request's user is: the user ID and roles the access token signed in.</summary>
     public static ToolCaller Caller(ClaimsPrincipal user)

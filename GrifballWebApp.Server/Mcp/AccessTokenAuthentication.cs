@@ -15,7 +15,7 @@ namespace GrifballWebApp.Server.Mcp;
 /// </summary>
 public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSchemeOptions>
 {
-    public const string Scheme = "AccessToken";
+    public const string SchemeName = "AccessToken";
 
     private readonly AccessTokenService _tokens;
     private readonly SignInManager<User> _signIn;
@@ -41,6 +41,6 @@ public class AccessTokenAuthentication : AuthenticationHandler<AuthenticationSch
             return AuthenticateResult.Fail("The account is locked out.");
 
         var principal = await _signIn.CreateUserPrincipalAsync(user);
-        return AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme));
+        return AuthenticateResult.Success(new AuthenticationTicket(principal, SchemeName));
     }
 }

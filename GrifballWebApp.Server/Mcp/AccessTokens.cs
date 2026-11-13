@@ -48,7 +48,7 @@ public class AccessTokenService
     /// <summary>What a token's row holds: its secret's hash, its name and its dates.</summary>
     private sealed record Stored(string Hash, string Name, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt);
 
-    private static string Hash(string secret) => Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(secret)));
+    private static string HashOf(string secret) => Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(secret)));
 
     private IQueryable<IdentityUserToken<int>> TokensOf(int userID)
         => _context.UserTokens.Where(t => t.UserId == userID && t.LoginProvider == LoginProvider);
@@ -69,7 +69,7 @@ public class AccessTokenService
         var id = Guid.NewGuid().ToString("N");
         var secret = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(SecretBytes));
         var now = _time.GetUtcNow();
-        var stored = new Stored(Hash(secret), name, now, now.AddDays(request.Days));
+        var stored = new Stored(HashOf(secret), name, now, now.AddDays(request.Days));
         _context.UserTokens.Add(new IdentityUserToken<int>
         {
             UserId = userID,
@@ -112,7 +112,7 @@ public class AccessTokenService
             return null;
 
         var stored = JsonSerializer.Deserialize<Stored>(row.Value!)!;
-        var matches = CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(Hash(secret)), Encoding.ASCII.GetBytes(stored.Hash));
+        var matches = CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(HashOf(secret)), Encoding.ASCII.GetBytes(stored.Hash));
         if (!matches || stored.ExpiresAt <= _time.GetUtcNow())
             return null;
 

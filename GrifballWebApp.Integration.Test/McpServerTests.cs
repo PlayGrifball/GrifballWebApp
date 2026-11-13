@@ -3,7 +3,10 @@ using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Infrastructure.Preview;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Authentication.BearerToken;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using User = GrifballWebApp.Domain.Players.User;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using System.Net;
@@ -198,6 +201,31 @@ public class McpServerTests
             Assert.That(me.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
         using (var more = await client.PostAsJsonAsync("/identity/access-tokens", new CreateAccessTokenRequest("another", 30)))
             Assert.That(more.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), "a token can't make more");
+    }
+
+    [Test]
+    public async Task ALockedOutUsersToken_StopsWorking()
+    {
+        var userName = "locked-" + Guid.NewGuid().ToString("N")[..8];
+        using var site = Client();
+        using (var register = await site.PostAsJsonAsync("/identity/register", new { Username = userName, Password }))
+            Assert.That(register.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        using var login = await site.PostAsJsonAsync("/identity/login?useCookies=false", new { Username = userName, Password });
+        using var signedIn = Client((await login.Content.ReadFromJsonAsync<AccessTokenResponse>())!.AccessToken);
+        using var made = await signedIn.PostAsJsonAsync("/identity/access-tokens", new CreateAccessTokenRequest("mine", 30));
+        var created = (await made.Content.ReadFromJsonAsync<CreatedAccessTokenDto>())!;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+            var user = (await users.FindByNameAsync(userName))!;
+            await users.SetLockoutEnabledAsync(user, true);
+            await users.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddDays(1));
+        }
+
+        using var client = Client(created.Token);
+        using var response = await client.SendAsync(ListToolsRequest());
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
     }
 
     [Test]

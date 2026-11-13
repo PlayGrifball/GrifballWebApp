@@ -55,7 +55,8 @@ public class PlayerTools
     [Description("A player's teams: each season they played, the team and whether they captained it.")]
     public async Task<List<DeploymentHistoryDto>> GetPlayerHistory([Description("The player's user ID; left out, you.")] int? userID = null, CancellationToken ct = default)
     {
-        var id = (await Profile(userID, ct)).UserID;
+        // Null only for a user that doesn't exist
+        var id = userID ?? _caller.UserID;
         return await _history.GetAsync(id, ct) ?? throw NoSuchPlayer(id);
     }
 

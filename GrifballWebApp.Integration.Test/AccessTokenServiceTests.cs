@@ -37,7 +37,7 @@ public class AccessTokenServiceTests
 
     private async Task<CreatedAccessTokenDto> Create(User user, string name = "Claude Code", int days = 30)
     {
-        var (created, refusal) = await _tokens.Create(user.Id, new CreateAccessTokenRequest(name, days));
+        var (created, refusal) = await _tokens.Create(user.Id, new CreateAccessTokenRequest(name!, days));
         Assert.That(refusal, Is.Null);
         return created!;
     }
@@ -116,11 +116,12 @@ public class AccessTokenServiceTests
         Assert.That(list, Is.EqualTo(new[] { newer.AccessToken, older.AccessToken }));
     }
 
+    [TestCase(null, 30)]
     [TestCase("", 30)]
     [TestCase("   ", 30)]
     [TestCase("ok", 0)]
     [TestCase("ok", AccessTokenService.MaxDays + 1)]
-    public async Task Create_RefusesABadNameOrLifetime(string name, int days)
+    public async Task Create_RefusesABadNameOrLifetime(string? name, int days)
     {
         var (created, refusal) = await _tokens.Create(_user.Id, new CreateAccessTokenRequest(name, days));
 
