@@ -97,10 +97,10 @@ public class BrowseCommandsHandler
         await context.Reply(embed);
     }
 
-    private static SeasonFormat? SeasonFormatOf(LeaderboardFormat format) => format switch
+    private static LeaderboardFilter? SeasonFormatOf(LeaderboardFormat format) => format switch
     {
-        LeaderboardFormat.LeagueSeason => SeasonFormat.LeagueSeason,
-        LeaderboardFormat.Tournament => SeasonFormat.Tournament,
+        LeaderboardFormat.LeagueSeason => LeaderboardFilter.LeagueSeason,
+        LeaderboardFormat.Tournament => LeaderboardFilter.Tournament,
         _ => null,
     };
 

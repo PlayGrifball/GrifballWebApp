@@ -18,12 +18,12 @@ public class LeaderboardsController : ControllerBase
     }
 
     /// <summary>The all-time leaderboards.</summary>
-    /// <param name="format">Count only the titles of seasons of this format; null: every format.</param>
+    /// <param name="format">Count only seasons of this format, or Late League matchmaking; null: all seasons (excluding Late League).</param>
     /// <param name="ct">Cancelled when the caller goes away.</param>
     [AllowAnonymous]
     [HttpGet("leaderboards", Name = "GetLeaderboards")]
     [ProducesResponseType<LeaderboardsDto>(StatusCodes.Status200OK)]
-    public Task<LeaderboardsDto> GetLeaderboards([FromQuery] SeasonFormat? format, CancellationToken ct)
+    public Task<LeaderboardsDto> GetLeaderboards([FromQuery] LeaderboardFilter? format, CancellationToken ct)
         => _leaderboards.GetAsync(format, ct);
 
     /// <summary>Finds a player's rank across championships and all tracked metrics.</summary>
@@ -31,7 +31,7 @@ public class LeaderboardsController : ControllerBase
     [HttpGet("leaderboards/player-rank", Name = "GetPlayerRank")]
     [ProducesResponseType<PlayerAllTimeRankDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
-    public async Task<ActionResult<PlayerAllTimeRankDto>> GetPlayerRank([FromQuery] string? query, [FromQuery] int? userID, [FromQuery] SeasonFormat? format, CancellationToken ct)
+    public async Task<ActionResult<PlayerAllTimeRankDto>> GetPlayerRank([FromQuery] string? query, [FromQuery] int? userID, [FromQuery] LeaderboardFilter? format, CancellationToken ct)
         => await _leaderboards.GetPlayerRankAsync(query, userID, format, ct) is { } rank ? rank : this.NotFoundProblem("No player matches that");
 
     /// <summary>The player suggestions, by the toolbar search's rules: current name or past gamertag, each labelled current gamertag or archive.</summary>

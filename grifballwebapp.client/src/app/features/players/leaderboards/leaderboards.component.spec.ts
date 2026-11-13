@@ -37,9 +37,10 @@ describe('LeaderboardsComponent', () => {
     Array.from(el().querySelectorAll<HTMLButtonElement>('.hud-tab')).find(b => b.textContent!.trim() === title)!.click();
     fixture.detectChanges();
   };
+  const expectBoards = (format = 'LeagueSeason') => http.expectOne(r => r.url === '/api/leaderboards' && r.params.get('format') === format);
 
   it('shows each board, linking players to their profiles and dynasties to their franchise history', () => {
-    http.expectOne('/api/leaderboards').flush(boards);
+    expectBoards().flush(boards);
     fixture.detectChanges();
 
     expect(rows()).toEqual([['1', 'Legendary', '5', 'Summer League 2011 (Pro), Winter League 2012 (Pro)']]);
@@ -63,7 +64,7 @@ describe('LeaderboardsComponent', () => {
   });
 
   it('marks the chosen board pressed, names the table after it and scopes every header to its column', () => {
-    http.expectOne('/api/leaderboards').flush(boards);
+    expectBoards().flush(boards);
     fixture.detectChanges();
     const pressed = () => Array.from(el().querySelectorAll('.hud-tab')).map(b => b.getAttribute('aria-pressed'));
     expect(pressed()).toEqual(['true', 'false', 'false', 'false', 'false', 'false']);
@@ -82,7 +83,7 @@ describe('LeaderboardsComponent', () => {
 
   it('has no career-total board before the boards load, or on the titles boards', () => {
     expect(fixture.componentInstance.metric()).toBeNull();
-    http.expectOne('/api/leaderboards').flush(boards);
+    expectBoards().flush(boards);
     fixture.detectChanges();
     expect(fixture.componentInstance.metric()).toBeNull();
     choose('Dynasties');
@@ -91,27 +92,30 @@ describe('LeaderboardsComponent', () => {
     expect(fixture.componentInstance.metric()!.title).toBe('Kills');
   });
 
-  it('counts the titles of the chosen format, and every format again', () => {
-    http.expectOne('/api/leaderboards').flush(boards);
+  it('hides the format filter on championships and dynasties, and filters stat boards by format', () => {
+    expectBoards().flush(boards);
     fixture.detectChanges();
+    expect(el().querySelector('select')).toBeNull();
+
+    choose('Goals');
     const select = el().querySelector('select')!;
-    expect(select.closest('label')!.querySelector('.hud-label')!.textContent!.trim()).toBe('Titles from');
-    expect(Array.from(select.options).map(o => o.textContent!.trim())).toEqual(['All formats', 'League season', 'Tournament']);
+    expect(select.closest('label')!.querySelector('.hud-label')!.textContent!.trim()).toBe('Format');
+    expect(Array.from(select.options).map(o => o.textContent!.trim())).toEqual(['League season', 'Tournament', 'Late League']);
 
     select.value = 'Tournament';
     select.dispatchEvent(new Event('change'));
-    http.expectOne(r => r.url === '/api/leaderboards' && r.params.get('format') === 'Tournament')
-      .flush({ ...boards, ringLeaders: [{ rank: 1, userID: 9, gamertag: 'Bracket King', ringsCount: 1, titles: [{ seasonID: 20, seasonName: 'Respawn', tier: 'Open', teamID: 50 }] }] });
+    expectBoards('Tournament')
+      .flush({ ...boards, goalLeaders: [leader(9, 'Bracket King', 42)] });
     fixture.detectChanges();
-    expect(rows()).toEqual([['1', 'Bracket King', '1', 'Respawn (Open)']]);
+    expect(rows().map(r => r[1])).toEqual(['Bracket King']);
 
-    select.value = '';
+    select.value = 'LateLeague';
     select.dispatchEvent(new Event('change'));
-    http.expectOne('/api/leaderboards').flush(boards);
+    expectBoards('LateLeague').flush(boards);
   });
 
   it('names the game of a per-game total, and lists a player once per game', () => {
-    http.expectOne('/api/leaderboards').flush({
+    expectBoards().flush({
       ...boards,
       goalLeaders: [{ ...leader(1, 'Legendary', 120), gameVersionName: 'Halo 3' }, { ...leader(1, 'Legendary', 80), gameVersionName: 'Halo Reach' }],
     });
@@ -122,7 +126,7 @@ describe('LeaderboardsComponent', () => {
   });
 
   it('says how many of the games played were decided by vote next to a figure per game, which leaves them out', () => {
-    http.expectOne('/api/leaderboards').flush({
+    expectBoards().flush({
       ...boards,
       killLeaders: [{ ...leader(2, 'Killer', 500), gamesDecidedByVote: 1 }, leader(5, 'Boxed', 400)],
       gamesPlayedLeaders: [{ ...leader(3, 'Ironman', 30, null), gamesDecidedByVote: 1 }],
@@ -135,7 +139,7 @@ describe('LeaderboardsComponent', () => {
   });
 
   it('says when the leaderboards cannot be loaded', () => {
-    http.expectOne('/api/leaderboards').flush('', { status: 500, statusText: 'down' });
+    expectBoards().flush('', { status: 500, statusText: 'down' });
     fixture.detectChanges();
     expect(el().textContent).toContain("couldn't be loaded");
   });
@@ -155,9 +159,9 @@ describe('LeaderboardsComponent', () => {
   });
   const search = () => fixture.debugElement.query(By.directive(PlayerSearchComponent)).componentInstance as PlayerSearchComponent;
   const ranked = (match: { query?: string, userId?: string, format?: string }) => http.expectOne(r => r.url === '/api/leaderboards/player-rank'
-    && r.params.get('query') === (match.query ?? null) && r.params.get('userID') === (match.userId ?? null) && r.params.get('format') === (match.format ?? null));
+    && r.params.get('query') === (match.query ?? null) && r.params.get('userID') === (match.userId ?? null) && r.params.get('format') === (match.format ?? 'LeagueSeason'));
   const showBoards = () => {
-    http.expectOne('/api/leaderboards').flush(boards);
+    expectBoards().flush(boards);
     fixture.detectChanges();
   };
   const message = () => el().querySelector('.hud-empty')?.textContent!.trim();
@@ -236,18 +240,19 @@ describe('LeaderboardsComponent', () => {
 
   it('looks the standing up again for the format chosen, and not with none shown', () => {
     showBoards();
+    choose('Goals');
     const select = el().querySelector('select')!;
     select.value = 'Tournament';
     select.dispatchEvent(new Event('change'));
-    http.expectOne(r => r.url === '/api/leaderboards' && r.params.get('format') === 'Tournament').flush(boards);
+    expectBoards('Tournament').flush(boards);
     http.expectNone('/api/leaderboards/player-rank');
 
     search().pick({ userID: 1, name: 'Legendary', pastGamertag: null, matchedName: null, kind: null, years: null });
     ranked({ query: 'Legendary', userId: '1', format: 'Tournament' }).flush(standing(1, 'Legendary'));
-    select.value = '';
+    select.value = 'LeagueSeason';
     select.dispatchEvent(new Event('change'));
-    http.expectOne('/api/leaderboards').flush(boards);
-    ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary', { rings: { rank: 3, totalRanked: 90, statValue: 6, secondaryText: null } }));
+    expectBoards('LeagueSeason').flush(boards);
+    ranked({ query: 'Legendary', userId: '1', format: 'LeagueSeason' }).flush(standing(1, 'Legendary', { rings: { rank: 3, totalRanked: 90, statValue: 6, secondaryText: null } }));
     fixture.detectChanges();
     expect(el().querySelector('app-player-spotlight .hud-grid button')!.textContent).toContain('#3');
   });
@@ -256,13 +261,14 @@ describe('LeaderboardsComponent', () => {
     const select = el().querySelector('select')!;
     select.value = value;
     select.dispatchEvent(new Event('change'));
-    http.expectOne(r => r.url === '/api/leaderboards' && r.params.get('format') === (value || null)).flush(boards);
+    expectBoards(value).flush(boards);
   };
 
   it('looks up the player last asked for on a new format, not the one still shown', () => {
     showBoards();
+    choose('Goals');
     search().pick({ userID: 1, name: 'Legendary', pastGamertag: null, matchedName: null, kind: null, years: null });
-    ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
+    ranked({ query: 'Legendary', userId: '1', format: 'LeagueSeason' }).flush(standing(1, 'Legendary'));
     search().pick({ userID: 2, name: 'Killer', pastGamertag: null, matchedName: null, kind: null, years: null });
     const pending = ranked({ query: 'Killer', userId: '2' });
 
@@ -275,6 +281,7 @@ describe('LeaderboardsComponent', () => {
 
   it('looks the first player up again for a new format chosen while their standing loads', () => {
     showBoards();
+    choose('Goals');
     search().query.set('Silva');
     search().submit();
     const pending = ranked({ query: 'Silva' });
@@ -288,6 +295,7 @@ describe('LeaderboardsComponent', () => {
 
   it('looks nobody up on a new format once the standing is closed', () => {
     showBoards();
+    choose('Goals');
     search().pick({ userID: 1, name: 'Legendary', pastGamertag: null, matchedName: null, kind: null, years: null });
     ranked({ query: 'Legendary', userId: '1' }).flush(standing(1, 'Legendary'));
     fixture.componentInstance.clearSpotlight();

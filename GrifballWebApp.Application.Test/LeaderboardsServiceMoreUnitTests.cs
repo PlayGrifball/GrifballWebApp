@@ -60,8 +60,8 @@ internal sealed class LeaderboardsServiceMoreUnitTests : ApplicationDbContextTes
     }
 
     [TestCase(null, "all")]
-    [TestCase(SeasonFormat.Tournament, "Tournament")]
-    public async Task GetAsync_CachedBoards_AreReadFromTheCache(SeasonFormat? format, string formatKey)
+    [TestCase(LeaderboardFilter.Tournament, "Tournament")]
+    public async Task GetAsync_CachedBoards_AreReadFromTheCache(LeaderboardFilter? format, string formatKey)
     {
         var boards = new LeaderboardsDto
         {
@@ -99,8 +99,8 @@ internal sealed class LeaderboardsServiceMoreUnitTests : ApplicationDbContextTes
         await SeedTwoPlayersAndATitle();
 
         var alice = await _service.GetPlayerRankAsync(query: null, userId: 1, format: null);
-        var bob = await _service.GetPlayerRankAsync(query: null, userId: 2, format: SeasonFormat.LeagueSeason);
-        var aliceInTournaments = await _service.GetPlayerRankAsync(query: null, userId: 1, format: SeasonFormat.Tournament);
+        var bob = await _service.GetPlayerRankAsync(query: null, userId: 2, format: LeaderboardFilter.LeagueSeason);
+        var aliceInTournaments = await _service.GetPlayerRankAsync(query: null, userId: 1, format: LeaderboardFilter.Tournament);
 
         using (Assert.EnterMultipleScope())
         {

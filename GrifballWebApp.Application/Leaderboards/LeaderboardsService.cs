@@ -16,6 +16,14 @@ using GrifballWebApp.Application.TeamPage;
 
 namespace GrifballWebApp.Application.Leaderboards;
 
+/// <summary>Which competitions a leaderboard query counts: a season format, Late League matchmaking, or all seasons (null).</summary>
+public enum LeaderboardFilter
+{
+    LeagueSeason = 1,
+    Tournament = 2,
+    LateLeague = 3,
+}
+
 /// <summary>All-time leaderboards over every season, imported from the historical archive or played in the app alike. The
 /// career boards count Late League (matchmaking) games too; it has no titles.</summary>
 public class LeaderboardsService
@@ -42,9 +50,9 @@ public class LeaderboardsService
         _search = new QuickSearchService(context);
     }
 
-    /// <param name="format">Count only the titles of seasons of this format; null: every format.</param>
+    /// <param name="format">Count only seasons of this format, or Late League matchmaking; null: all seasons (excluding Late League).</param>
     /// <param name="ct">Cancels the read, and a computation for the cache.</param>
-    public async Task<LeaderboardsDto> GetAsync(SeasonFormat? format, CancellationToken ct = default)
+    public async Task<LeaderboardsDto> GetAsync(LeaderboardFilter? format, CancellationToken ct = default)
     {
         // Every season's titles and stats change only when a result is reported or an import runs: a few minutes stale is fine
         return await Cached($"{CacheKey}:boards:{FormatKey(format)}", () => Compute(format, ct), ct);
@@ -86,11 +94,18 @@ public class LeaderboardsService
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    private static string FormatKey(SeasonFormat? format) => format?.ToString() ?? "all";
+    private static string FormatKey(LeaderboardFilter? format) => format?.ToString() ?? "all";
+
+    private static SeasonFormat? ToSeasonFormat(LeaderboardFilter? format) => format switch
+    {
+        LeaderboardFilter.LeagueSeason => SeasonFormat.LeagueSeason,
+        LeaderboardFilter.Tournament => SeasonFormat.Tournament,
+        _ => null,
+    };
 
     /// <summary>A player's rank on every board: the user with this ID, or else the player a gamertag (current or past) is of.</summary>
-    /// <param name="format">Count only the titles of seasons of this format; null: every format.</param>
-    public async Task<PlayerAllTimeRankDto?> GetPlayerRankAsync(string? query, int? userId, SeasonFormat? format, CancellationToken ct = default)
+    /// <param name="format">Count only seasons of this format, or Late League matchmaking; null: all seasons (excluding Late League).</param>
+    public async Task<PlayerAllTimeRankDto?> GetPlayerRankAsync(string? query, int? userId, LeaderboardFilter? format, CancellationToken ct = default)
     {
         int? targetUserId = userId;
         string? matchedAlias = null;
@@ -137,14 +152,10 @@ public class LeaderboardsService
                 .Distinct()
                 .ToListAsync(ct);
 
-        // Ranked as the boards rank: goals and carrier stops by the player's best game (the boards list a player once per
-        // game), kills and games played across games, and titles of the format asked for
-        var careers = await GetCareersAsync(ct);
-        var rings = await GetRingCountsAsync(format, ct);
+        // Championships/Dynasties are not filtered by format; stat boards are
+        var careers = await GetCareersAsync(format, ct);
+        var rings = await GetRingCountsAsync(ct);
         var career = careers.ByUser.GetValueOrDefault(targetId);
-        var games = careers.GamesByUser[targetId].ToList();
-        var bestGoals = games.MaxBy(g => g.Goals ?? 0);
-        var bestStops = games.MaxBy(g => g.CarrierKills ?? 0);
         var kills = career?.Kills ?? 0;
         var playerRings = rings.Counts.GetValueOrDefault(targetId);
 
@@ -157,10 +168,10 @@ public class LeaderboardsService
             IsDummyUser = targetUser.IsDummyUser,
             // The tile shows the count of titles already: nothing to add to it
             Rings = RankOn(playerRings, null, rings.Ranked),
-            Goals = RankOn(bestGoals?.Goals ?? 0, InGame(bestGoals, bestGoals?.GoalsPerGame), careers.GoalsRanked),
+            Goals = RankOn(career?.Goals ?? 0, PerGame(career?.GoalsPerGame), careers.GoalsRanked),
             Kills = RankOn(kills, career?.KdRatio is decimal kd ? $"{kd} K/D" : null, careers.KillsRanked),
             GamesPlayed = RankOn(career?.GamesPlayed ?? 0, Seasons(career?.SeasonsCount ?? 0), careers.GamesPlayedRanked),
-            CarrierStops = RankOn(bestStops?.CarrierKills ?? 0, InGame(bestStops, bestStops?.StopsPerGame), careers.StopsRanked),
+            CarrierStops = RankOn(career?.CarrierKills ?? 0, PerGame(career?.StopsPerGame), careers.StopsRanked),
         };
     }
 
@@ -184,12 +195,12 @@ public class LeaderboardsService
         => _search.SearchPlayersAsync(query, ct);
 
     /// <summary>
-    /// Every player's career totals, across games and in each game, shared by every format's boards and the spotlight: the
-    /// format filters titles only.
+    /// Every player's career totals across games, filtered to <paramref name="format"/> when specified (null includes all
+    /// season formats, excluding Late League matchmaking).
     /// </summary>
-    private async Task<Careers> GetCareersAsync(CancellationToken ct)
+    private async Task<Careers> GetCareersAsync(LeaderboardFilter? format, CancellationToken ct)
     {
-        var data = await Cached($"{CacheKey}:careers", async () =>
+        var data = await Cached($"{CacheKey}:careers:{FormatKey(format)}", async () =>
         {
             // The names the app shows for users (gamertag, Discord name, display name)
             var names = (await _context.Users.AsNoTracking()
@@ -197,30 +208,45 @@ public class LeaderboardsService
                 .ToListAsync(ct))
                 .ToDictionary(u => u.Id, u => (string?)UserNames.Pick(u.Gamertag, u.Discord, u.DisplayName, u.UserName));
 
-            // Every season's stats, from its games or its stored totals (never both for a player's phase of a season), and Late
-            // League's, totalled as a profile totals them: goals and carrier stops in one game, kills and games played across games
-            var stats = (await _stats.GetAsync(ct: ct)).Concat<StatLine>(await _matchmaking.GetAsync(ct: ct)).ToList();
-            var careers = new List<PlayerCareer>();
-            var inOneGame = new List<PlayerCareer>();
-            foreach (var player in stats.GroupBy(s => s.UserID))
+            IEnumerable<StatLine> stats;
+            if (format == LeaderboardFilter.LateLeague)
             {
-                var name = names.GetValueOrDefault(player.Key) ?? player.First().Gamertag;
-                careers.Add(new PlayerCareer(player.Key, name, CareerTotals.AcrossGames(player), false));
-                inOneGame.AddRange(CareerTotals.ByGame(player).Select(game => new PlayerCareer(player.Key, name, game, true)));
+                stats = await _matchmaking.GetAsync(ct: ct);
+            }
+            else
+            {
+                var seasonStats = await _stats.GetAsync(ct: ct);
+                var seasonFormat = ToSeasonFormat(format);
+                stats = seasonFormat is null ? seasonStats : seasonStats.Where(s => s.Season.Format == seasonFormat);
             }
 
-            return new CareersData(names, careers, inOneGame);
+            var careers = new List<PlayerCareer>();
+            foreach (var player in stats.GroupBy(s => s.UserID))
+            {
+                var lines = player.ToList();
+                var name = names.GetValueOrDefault(player.Key) ?? lines[0].Gamertag;
+                var total = CareerTotals.AcrossGames(lines);
+                var goals = lines.Sum(s => s.Goals);
+                var carrierKills = lines.Sum(s => s.CarrierKills);
+                var recording = lines.Where(s => s.RecordsCarrierKills).ToList();
+                total.Goals = goals;
+                total.GoalsPerGame = StatMath.PerGame(goals, total.GamesWithStats);
+                total.CarrierKills = carrierKills;
+                total.StopsPerGame = StatMath.PerGame(recording.Sum(s => s.CarrierKills), recording.Sum(s => s.GamesWithStats));
+                careers.Add(new PlayerCareer(player.Key, name, total));
+            }
+
+            return new CareersData(names, careers);
         }, ct);
-        return new Careers(data.Names, data.AcrossGames, data.InOneGame);
+        return new Careers(data.Names, data.AcrossGames);
     }
 
-    /// <summary>How many titles each player holds, of seasons of this format (null: every format).</summary>
-    private async Task<RingCounts> GetRingCountsAsync(SeasonFormat? format, CancellationToken ct)
+    /// <summary>How many titles each player holds across all seasons.</summary>
+    private async Task<RingCounts> GetRingCountsAsync(CancellationToken ct)
     {
-        return await Cached($"{CacheKey}:rings:{FormatKey(format)}", async () =>
+        return await Cached($"{CacheKey}:rings:all", async () =>
         {
             var counts = await _context.Seasons.Championships()
-                .Where(c => format == null || c.Season.Format == format)
                 .GroupBy(c => c.UserID)
                 .Select(g => new { UserID = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(g => g.UserID, g => g.Count, ct);
@@ -240,9 +266,8 @@ public class LeaderboardsService
         SecondaryText = playerValue > 0 ? secondary : null,
     };
 
-    /// <summary>The game a total in one game is of, with its per-game figure.</summary>
-    private static string? InGame(GameCareerSummaryDto? game, decimal? perGame) =>
-        game == null ? null : perGame.HasValue ? $"{perGame} / G in {game.GameVersionName}" : $"in {game.GameVersionName}";
+    /// <summary>A per-game rate for the spotlight secondary text.</summary>
+    private static string? PerGame(decimal? perGame) => perGame.HasValue ? $"{perGame} / G" : null;
 
     /// <summary>How many seasons a career spans: "1 Season", "3 Seasons".</summary>
     private static string Seasons(int count) => count == 1 ? "1 Season" : $"{count} Seasons";
@@ -250,13 +275,12 @@ public class LeaderboardsService
     /// <summary>The values on a board, most first: only a value above zero is on it.</summary>
     private static List<long> RankedDescending(IEnumerable<long> values) => values.Where(v => v > 0).OrderByDescending(v => v).ToList();
 
-    private async Task<LeaderboardsDto> Compute(SeasonFormat? format, CancellationToken ct)
+    private async Task<LeaderboardsDto> Compute(LeaderboardFilter? format, CancellationToken ct)
     {
-        var careers = await GetCareersAsync(ct);
+        var careers = await GetCareersAsync(format, ct);
 
-        // The titles counted: of the format asked for
-        var titles = _context.Seasons.Championships()
-            .Where(c => format == null || c.Season.Format == format);
+        // The titles counted: across all seasons (not filtered by format)
+        var titles = _context.Seasons.Championships();
 
         // Who holds the most titles: counted in the database, the top players' titles then loaded
         var top = await titles
@@ -291,7 +315,7 @@ public class LeaderboardsService
         // one league that carried a name from season to season; a placeholder name is its season's team alone). Only
         // title-winning teams are loaded.
         var champions = await _context.Teams.AsNoTracking()
-            .Where(t => (format == null || t.Season.Format == format) && t.PlayerChampionships.Any())
+            .Where(t => t.PlayerChampionships.Any())
             .Select(t => new
             {
                 t.TeamID,
@@ -308,16 +332,16 @@ public class LeaderboardsService
             .Select(g =>
             {
                 var latest = g.MaxBy(t => t.SeasonStart)!;
-                var titles = g.OrderBy(t => t.SeasonStart).SelectMany(t => t.Tiers.Select(tier => new TitleDto { SeasonID = t.SeasonID, SeasonName = t.SeasonName, Tier = tier, TeamID = t.TeamID }))
+                var teamTitles = g.OrderBy(t => t.SeasonStart).SelectMany(t => t.Tiers.Select(tier => new TitleDto { SeasonID = t.SeasonID, SeasonName = t.SeasonName, Tier = tier, TeamID = t.TeamID }))
                     .DistinctBy(t => (t.SeasonID, t.Tier)).ToList();
                 return new DynastyDto
                 {
                     TeamName = latest.TeamName,
                     LatestTeamID = latest.TeamID,
                     LatestSeasonID = latest.SeasonID,
-                    ChampionshipsCount = titles.Count,
+                    ChampionshipsCount = teamTitles.Count,
                     SeasonsActive = g.Select(t => t.SeasonID).Distinct().Count(),
-                    Titles = titles,
+                    Titles = teamTitles,
                 };
             })
             .OrderByDescending(t => t.ChampionshipsCount)
@@ -330,10 +354,10 @@ public class LeaderboardsService
         {
             RingLeaders = ringLeaders,
             Dynasties = dynasties,
-            GoalLeaders = Leaders(careers.InOneGame, c => c.Goals ?? 0, c => c.GoalsPerGame, c => $"{c.GamesPlayed} GP"),
+            GoalLeaders = Leaders(careers.AcrossGames, c => c.Goals ?? 0, c => c.GoalsPerGame, c => $"{c.GamesPlayed} GP"),
             KillLeaders = Leaders(careers.AcrossGames, c => c.Kills, c => StatMath.PerGame(c.Kills, c.GamesWithStats), c => c.KdRatio is decimal kd ? $"{kd} K/D" : null),
             GamesPlayedLeaders = Leaders(careers.AcrossGames, c => c.GamesPlayed, _ => null, c => Seasons(c.SeasonsCount)),
-            CarrierStopLeaders = Leaders(careers.InOneGame, c => c.CarrierKills ?? 0, c => c.StopsPerGame, c => $"{c.GamesPlayed} GP"),
+            CarrierStopLeaders = Leaders(careers.AcrossGames, c => c.CarrierKills ?? 0, c => c.StopsPerGame, c => $"{c.GamesPlayed} GP"),
         };
     }
 
@@ -362,7 +386,7 @@ public class LeaderboardsService
             {
                 UserID = p.UserID,
                 Gamertag = p.Gamertag,
-                GameVersionName = p.InOneGame ? p.Totals.GameVersionName : null,
+                GameVersionName = null,
                 StatValue = value(p.Totals),
                 GamesPlayed = p.Totals.GamesPlayed,
                 GamesDecidedByVote = p.Totals.GamesDecidedByVote,
@@ -375,23 +399,21 @@ public class LeaderboardsService
         return leaders;
     }
 
-    private sealed record PlayerCareer(int UserID, string Gamertag, GameCareerSummaryDto Totals, bool InOneGame);
+    private sealed record PlayerCareer(int UserID, string Gamertag, GameCareerSummaryDto Totals);
 
     /// <summary>What <see cref="Careers"/> is made from, as it is cached: its lookups and rankings are made again on reading.</summary>
-    private sealed record CareersData(Dictionary<int, string?> Names, List<PlayerCareer> AcrossGames, List<PlayerCareer> InOneGame);
+    private sealed record CareersData(Dictionary<int, string?> Names, List<PlayerCareer> AcrossGames);
 
-    /// <summary>Every player's totals across games and in each game, and each board's values for ranking a player on it.</summary>
-    private sealed class Careers(Dictionary<int, string?> names, List<PlayerCareer> acrossGames, List<PlayerCareer> inOneGame)
+    /// <summary>Every player's totals across games, and each board's values for ranking a player on it.</summary>
+    private sealed class Careers(Dictionary<int, string?> names, List<PlayerCareer> acrossGames)
     {
         public Dictionary<int, string?> Names { get; } = names;
         public List<PlayerCareer> AcrossGames { get; } = acrossGames;
-        public List<PlayerCareer> InOneGame { get; } = inOneGame;
         public Dictionary<int, GameCareerSummaryDto> ByUser { get; } = acrossGames.ToDictionary(c => c.UserID, c => c.Totals);
-        public ILookup<int, GameCareerSummaryDto> GamesByUser { get; } = inOneGame.ToLookup(c => c.UserID, c => c.Totals);
-        public List<long> GoalsRanked { get; } = RankedDescending(inOneGame.Select(c => (long)(c.Totals.Goals ?? 0)));
+        public List<long> GoalsRanked { get; } = RankedDescending(acrossGames.Select(c => (long)(c.Totals.Goals ?? 0)));
         public List<long> KillsRanked { get; } = RankedDescending(acrossGames.Select(c => (long)c.Totals.Kills));
         public List<long> GamesPlayedRanked { get; } = RankedDescending(acrossGames.Select(c => (long)c.Totals.GamesPlayed));
-        public List<long> StopsRanked { get; } = RankedDescending(inOneGame.Select(c => (long)(c.Totals.CarrierKills ?? 0)));
+        public List<long> StopsRanked { get; } = RankedDescending(acrossGames.Select(c => (long)(c.Totals.CarrierKills ?? 0)));
     }
 
     private sealed record RingCounts(Dictionary<int, int> Counts, List<long> Ranked);

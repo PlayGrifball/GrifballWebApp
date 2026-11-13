@@ -2,7 +2,6 @@ using System.ComponentModel;
 using GrifballWebApp.Application.Historical.Vods;
 using GrifballWebApp.Application.Leaderboards;
 using GrifballWebApp.Application.Profile;
-using GrifballWebApp.Domain.League;
 
 namespace GrifballWebApp.Application.Tools;
 
@@ -68,7 +67,7 @@ public class PlayerTools
     public async Task<PlayerAllTimeRankDto> GetPlayerRank(
         [Description("The player's user ID; left out with no gamertag, you.")] int? userID = null,
         [Description("A gamertag, current or past, instead of a user ID.")] string? gamertag = null,
-        [Description("Count only titles of this season format; left out, every format.")] SeasonFormat? format = null,
+        [Description("Count only seasons of this format, or Late League matchmaking; left out, all seasons (excluding Late League).")] LeaderboardFilter? format = null,
         CancellationToken ct = default)
     {
         var id = gamertag is null ? userID ?? _caller.Me() : userID;

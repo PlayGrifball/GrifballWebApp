@@ -2,7 +2,6 @@ using System.ComponentModel;
 using GrifballWebApp.Application.LateLeague;
 using GrifballWebApp.Application.Leaderboards;
 using GrifballWebApp.Application.Search;
-using GrifballWebApp.Domain.League;
 
 namespace GrifballWebApp.Application.Tools;
 
@@ -27,7 +26,7 @@ public class BrowseTools
         => _search.SearchAsync(query, ct);
 
     [Description("The all-time leaderboards: most titles (ring leaders), dynasties, and the goal, kill, carrier-stop and games-played leaders.")]
-    public Task<LeaderboardsDto> GetLeaderboards([Description("Count only titles of this season format; left out, every format.")] SeasonFormat? format = null,
+    public Task<LeaderboardsDto> GetLeaderboards([Description("Count only seasons of this format, or Late League matchmaking; left out, all seasons (excluding Late League).")] LeaderboardFilter? format = null,
         CancellationToken ct = default)
         => _leaderboards.GetAsync(format, ct);
 

@@ -8,8 +8,7 @@ import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import type { LeaderboardsDto, MetricLeaderDto } from '@api/models';
 import type { PlayerAllTimeRankDto } from '@api/models';
 import type { QuickSearchPlayerDto } from '@api/models';
-import { seasonFormats } from '@shared/seasonFormats';
-import type { SeasonFormat } from '@api/models';
+import { leaderboardFormats, type LeaderboardFilter } from '@shared/seasonFormats';
 import type { Board } from './board';
 import { PlayerSearchComponent } from './playerSearch/playerSearch.component';
 import { PlayerSpotlightComponent } from './playerSpotlight/playerSpotlight.component';
@@ -43,9 +42,9 @@ export class LeaderboardsComponent implements OnInit {
   readonly boards = signal<LeaderboardsDto | null>(null);
   readonly loaded = signal(false);
   readonly board = signal<Board>('rings');
-  /** Whose titles the championship and dynasty boards count: one format's seasons, or all (null). */
-  readonly format = signal<SeasonFormat | null>(null);
-  readonly formats = seasonFormats;
+  /** Which format's competitions the stat boards count: one season format or Late League. */
+  readonly format = signal<LeaderboardFilter>('LeagueSeason');
+  readonly formats = leaderboardFormats;
 
   /** The text in the player search. */
   readonly searchQuery = signal('');
@@ -95,7 +94,7 @@ export class LeaderboardsComponent implements OnInit {
         this.spotlightLoading.set(lookup != null);
         if (!lookup) this.spotlight.set(null);
       }),
-      switchMap(lookup => !lookup ? EMPTY : this.leaderboards.getPlayerRank({ query: lookup.query || undefined, userID: lookup.userId ?? undefined, format: this.format() ?? undefined })
+      switchMap(lookup => !lookup ? EMPTY : this.leaderboards.getPlayerRank({ query: lookup.query || undefined, userID: lookup.userId ?? undefined, format: this.format() })
         .pipe(
         nullWhenNotFound(), // 404: no player matches
         map(rank => ({ lookup, rank, failed: false })),
@@ -115,8 +114,8 @@ export class LeaderboardsComponent implements OnInit {
   }
 
   setFormat(event: Event): void {
-    const value = (event.target as HTMLSelectElement).value;
-    this.format.set(value === '' ? null : value as SeasonFormat);
+    const value = (event.target as HTMLSelectElement).value as LeaderboardFilter;
+    this.format.set(value);
     this.load();
     // The standing's titles count the format too: the player last asked for, even while their standing is loading
     if (this.requested)
@@ -143,7 +142,7 @@ export class LeaderboardsComponent implements OnInit {
   }
 
   private load(): void {
-    this.leaderboards.getLeaderboards({ format: this.format() ?? undefined }).subscribe({
+    this.leaderboards.getLeaderboards({ format: this.format() }).subscribe({
       next: boards => {
         this.boards.set(boards);
         this.loaded.set(true);

@@ -1,9 +1,18 @@
 import type { SeasonFormat } from '@api/models';
 
+/** Which competitions the leaderboards filter by: a season format or Late League matchmaking. */
+export type LeaderboardFilter = SeasonFormat | 'LateLeague';
+
 /** The formats in the order the editor and filters offer them, with their labels. */
 export const seasonFormats: { value: SeasonFormat; label: string }[] = [
   { value: 'LeagueSeason', label: 'League season' },
   { value: 'Tournament', label: 'Tournament' },
+];
+
+/** The format options offered on the leaderboards page. */
+export const leaderboardFormats: { value: LeaderboardFilter; label: string }[] = [
+  ...seasonFormats,
+  { value: 'LateLeague', label: 'Late League' },
 ];
 
 /** A format's label; a league season (the default, also for a season without one) is "League season". */
