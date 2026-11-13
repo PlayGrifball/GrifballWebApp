@@ -24,6 +24,10 @@ internal sealed class VodServiceUnitTests : ApplicationDbContextTests
     private static Vod Linked(string videoId, int seasonID, int? seasonMatchID = null, IEnumerable<int>? teamIDs = null)
         => Vod.Seed(videoId, $"Title {videoId}", new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), VodMatchStatus.Auto, seasonID, seasonMatchID, teamIDs);
 
+    private static readonly string[] OnlyV1 = ["v1"];
+    private static readonly int[] NewestSeasonFirst = [2, 1];
+    private static readonly int[] HomeAndAwayTeamIDs = [10, 20];
+
     [Test]
     public async Task ForSeason_ReturnsVisibleOnly()
     {
@@ -34,7 +38,7 @@ internal sealed class VodServiceUnitTests : ApplicationDbContextTests
 
         var result = await _service.ForSeason(1, CancellationToken.None);
 
-        Assert.That(result.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "v1" }));
+        Assert.That(result.Select(v => v.YouTubeVideoID), Is.EqualTo(OnlyV1));
     }
 
     [Test]
@@ -54,7 +58,7 @@ internal sealed class VodServiceUnitTests : ApplicationDbContextTests
 
         var result = await _service.ForSeasonMatch(match1.SeasonMatchID, CancellationToken.None);
 
-        Assert.That(result.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "v1" }));
+        Assert.That(result.Select(v => v.YouTubeVideoID), Is.EqualTo(OnlyV1));
     }
 
     [Test]
@@ -70,8 +74,11 @@ internal sealed class VodServiceUnitTests : ApplicationDbContextTests
 
         var result = await _service.ForTeam(7, CancellationToken.None);
 
-        Assert.That(result.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "v1" }));
-        Assert.That(result[0].Teams.Single().TeamID, Is.EqualTo(7));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Select(v => v.YouTubeVideoID), Is.EqualTo(OnlyV1));
+            Assert.That(result[0].Teams.Single().TeamID, Is.EqualTo(7));
+        }
     }
 
     [Test]
@@ -87,7 +94,7 @@ internal sealed class VodServiceUnitTests : ApplicationDbContextTests
 
         var result = await _service.ForPlayer(50, CancellationToken.None);
 
-        Assert.That(result.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "v1" }));
+        Assert.That(result.Select(v => v.YouTubeVideoID), Is.EqualTo(OnlyV1));
     }
 
     [Test]
@@ -99,7 +106,7 @@ internal sealed class VodServiceUnitTests : ApplicationDbContextTests
 
         var result = await _service.Review(CancellationToken.None);
 
-        Assert.That(result.Select(v => v.YouTubeVideoID), Is.EqualTo(new[] { "v1" }));
+        Assert.That(result.Select(v => v.YouTubeVideoID), Is.EqualTo(OnlyV1));
     }
 
     [Test]
@@ -114,7 +121,7 @@ internal sealed class VodServiceUnitTests : ApplicationDbContextTests
 
         var result = await _service.LinkSeasons(CancellationToken.None);
 
-        Assert.That(result.Select(s => s.SeasonID), Is.EqualTo(new[] { 2, 1 }));
+        Assert.That(result.Select(s => s.SeasonID), Is.EqualTo(NewestSeasonFirst));
     }
 
     [Test]
@@ -197,7 +204,7 @@ internal sealed class VodServiceUnitTests : ApplicationDbContextTests
         {
             Assert.That(reloaded.MatchStatus, Is.EqualTo(VodMatchStatus.Confirmed));
             Assert.That(reloaded.SeasonID, Is.EqualTo(1));
-            Assert.That(reloaded.Teams.Select(t => t.TeamID), Is.EquivalentTo(new[] { 10, 20 }));
+            Assert.That(reloaded.Teams.Select(t => t.TeamID), Is.EquivalentTo(HomeAndAwayTeamIDs));
         }
     }
 

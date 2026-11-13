@@ -194,8 +194,11 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
 
         var overdue = await _service.GetOverdueMatchesAsync();
 
-        Assert.That(overdue, Has.Count.EqualTo(1));
-        Assert.That(overdue[0].HoursOverdue, Is.GreaterThanOrEqualTo(47));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(overdue, Has.Count.EqualTo(1));
+            Assert.That(overdue[0].HoursOverdue, Is.GreaterThanOrEqualTo(47));
+        }
     }
 
     [Test]

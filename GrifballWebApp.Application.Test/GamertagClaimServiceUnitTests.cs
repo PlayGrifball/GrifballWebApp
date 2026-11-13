@@ -66,8 +66,11 @@ internal sealed class GamertagClaimServiceUnitTests : ApplicationDbContextTests
 
         var result = await _service.List(GamertagClaimStatus.Pending, CancellationToken.None);
 
-        Assert.That(result, Has.Count.EqualTo(1));
-        Assert.That(result[0].Gamertag, Is.EqualTo(pending.Gamertag));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Has.Count.EqualTo(1));
+            Assert.That(result[0].Gamertag, Is.EqualTo(pending.Gamertag));
+        }
     }
 
     [Test]
