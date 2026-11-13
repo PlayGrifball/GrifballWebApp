@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Claims;
 
 namespace GrifballWebApp.Server.Test;
@@ -9,7 +10,7 @@ public class SignalRHubsPageTests
 {
     private static (DefaultHttpContext Context, Func<bool> Passed, RequestDelegate Next) Request(string path, params string[] roles)
     {
-        var context = new DefaultHttpContext { RequestServices = new Microsoft.Extensions.DependencyInjection.ServiceCollection().BuildServiceProvider() };
+        var context = new DefaultHttpContext { RequestServices = new ServiceCollection().BuildServiceProvider() };
         context.Request.Path = path;
         context.Response.Body = new MemoryStream();
         if (roles.Length > 0)
