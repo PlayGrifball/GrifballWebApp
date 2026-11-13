@@ -24,6 +24,19 @@ public class SeasonCommandsHandlerUnitTests : SqliteGrifballContextFixture
         return new SeasonCommandsHandler(new CommandLookups(Db, seasons), seasons, null!, null!, null!, null!, null!, Urls());
     }
 
+    /// <summary>The deeper services real too (all IApplicationDbContext-backed): every action but Bracket (IBracketService,
+    /// substituted interfaces aside, stays GrifballWebApp.Integration.Test's).</summary>
+    private SeasonCommandsHandler DeepHandler()
+    {
+        var seasons = new SeasonService(Db, new GrifballWebApp.Application.Stats.SeasonStatsService(Db));
+        return new SeasonCommandsHandler(new CommandLookups(Db, seasons), seasons,
+            new GrifballWebApp.Application.TeamStandings.TeamStandingsService(Db),
+            new GrifballWebApp.Application.MatchPlanner.MatchPlannerService(Db),
+            new GrifballWebApp.Application.Grades.GradesService(Db),
+            new GrifballWebApp.Application.Signups.SignupsService(Db),
+            null!, Urls());
+    }
+
     [TestCase(nameof(SeasonCommandsHandler.Info))]
     [TestCase(nameof(SeasonCommandsHandler.Standings))]
     [TestCase(nameof(SeasonCommandsHandler.Schedule))]
@@ -75,5 +88,71 @@ public class SeasonCommandsHandlerUnitTests : SqliteGrifballContextFixture
             Assert.That(embed.Title, Is.EqualTo("Winter 2026 draft"));
             Assert.That(embed.Description, Is.EqualTo("The draft board is live on the site."));
         }
+    }
+
+    [Test]
+    public async Task Info_ShowsTheSeasonSummary_ForAFoundSeason()
+    {
+        var season = await AddSeason("Winter 2026");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Info(discord.Context, "Winter 2026");
+
+        Assert.That(discord.Embed().Title, Is.EqualTo("Winter 2026"));
+    }
+
+    [Test]
+    public async Task Standings_RepliesNoTeamsYet_ForAFoundSeasonWithNoTeams()
+    {
+        var season = await AddSeason("Winter 2026");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Standings(discord.Context, "Winter 2026");
+
+        Assert.That(discord.Embed().Description, Does.Contain("No teams yet."));
+    }
+
+    [Test]
+    public async Task Schedule_RepliesNoUpcomingMatches_ForAFoundSeasonWithNoMatches()
+    {
+        var season = await AddSeason("Winter 2026");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Schedule(discord.Context, "Winter 2026");
+
+        Assert.That(discord.Embed().Description, Does.Contain("No upcoming matches are scheduled."));
+    }
+
+    [Test]
+    public async Task Grades_RepliesNoGradesYet_ForAFoundSeasonWithNoGrades()
+    {
+        var season = await AddSeason("Winter 2026");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Grades(discord.Context, "Winter 2026");
+
+        Assert.That(discord.Embed().Description, Does.Contain("No grades yet."));
+    }
+
+    [Test]
+    public async Task Signups_RepliesNobodyHasSignedUpYet_ForAFoundSeasonWithNoSignups()
+    {
+        var season = await AddSeason("Winter 2026");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Signups(discord.Context, "Winter 2026");
+
+        Assert.That(discord.Embed().Description, Does.Contain("Nobody has signed up yet."));
+    }
+
+    [Test]
+    public async Task Stats_RepliesNoStatsYet_ForAFoundSeasonWithNoStats()
+    {
+        var season = await AddSeason("Winter 2026");
+        var discord = new CommandContextRecorder();
+
+        await DeepHandler().Stats(discord.Context, "Winter 2026", SeasonStat.Goals);
+
+        Assert.That(discord.Embed().Description, Does.Contain("No stats yet."));
     }
 }
