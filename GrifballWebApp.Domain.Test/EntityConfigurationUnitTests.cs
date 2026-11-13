@@ -19,7 +19,7 @@ namespace GrifballWebApp.Domain.Test;
 /// </summary>
 [TestFixture]
 [Parallelizable(ParallelScope.All)]
-public class EntityConfigurationUnitTests
+public partial class EntityConfigurationUnitTests
 {
     private static IReadOnlyEntityType Configured<TEntity>(IEntityTypeConfiguration<TEntity> configuration) where TEntity : class
     {
@@ -35,6 +35,26 @@ public class EntityConfigurationUnitTests
     /// </summary>
     private static bool IsIgnored(IReadOnlyEntityType entity, string name) =>
         ((IConventionEntityType)entity).IsIgnored(name);
+
+    /// <summary>The table's schema and name.</summary>
+    private static (string? Schema, string? Table) TableOf(IReadOnlyEntityType entity) => (entity.GetSchema(), entity.GetTableName());
+
+    /// <summary>The primary key's columns, in order.</summary>
+    private static List<string> KeyOf(IReadOnlyEntityType entity) => [.. entity.FindPrimaryKey()!.Properties.Select(p => p.Name)];
+
+    /// <summary>The foreign key behind <paramref name="navigation"/>, on whichever side it is declared.</summary>
+    private static IReadOnlyForeignKey ForeignKeyOf(IReadOnlyEntityType entity, string navigation) => entity.FindNavigation(navigation)!.ForeignKey;
+
+    /// <summary>The one index on exactly these columns, in this order (Single: there is one, or the test fails).</summary>
+    private static IReadOnlyIndex IndexOn(IReadOnlyEntityType entity, string first, string? second = null)
+    {
+        List<string> columns = second is null ? [first] : [first, second];
+        return entity.GetIndexes().Single(i => i.Properties.Select(p => p.Name).SequenceEqual(columns));
+    }
+
+    private static IReadOnlyProperty Property(IReadOnlyEntityType entity, string name) => entity.FindProperty(name)!;
+
+    private static List<string> Names(IEnumerable<IReadOnlyProperty> properties) => [.. properties.Select(p => p.Name)];
 
     [Test]
     public void SeasonMatchConfiguration_TableKeyAndChecks()
