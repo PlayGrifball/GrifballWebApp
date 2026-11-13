@@ -267,7 +267,7 @@ describe('TelemetryComponent', () => {
     await settle();
 
     expect(Array.from(el().querySelectorAll('.tm-span')).map(b => text(b.querySelector('.tm-span-name'))))
-      .toEqual(['edge_processing cloudflare_request Internal', 'traefik GET Internal', 'GET Season/Get Internal']);
+      .toEqual(['edge_processing · cloudflare_request Internal', 'traefik · GET Internal', 'GET Season/Get Internal']);
     el().querySelectorAll<HTMLButtonElement>('.tm-span')[1].click();
     await settle();
     expect(text(el().querySelector('.tm-detail'))).toContain('Servicetraefik');

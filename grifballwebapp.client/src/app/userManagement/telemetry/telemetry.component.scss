@@ -317,15 +317,6 @@ code,
   white-space: nowrap;
 }
 
-/* A span of a service in front of the app (Cloudflare, Traefik) */
-.tm-span-service {
-  margin-right: 6px;
-  padding: 0 4px;
-  border: 1px solid var(--hud-muted-2);
-  color: var(--hud-muted);
-  font-size: 11px;
-}
-
 .tm-span-track {
   position: relative;
   height: 10px;
