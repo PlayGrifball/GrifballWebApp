@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Router, provideRouter, TitleStrategy } from '@angular/router';
+import { provideRouter, TitleStrategy } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { DateTime } from 'luxon';
 import { canonicalUrl, DEFAULT_DESCRIPTION, describePage, fullTitle, pageDate, PageDescription, PageMeta, PageMetaTitleStrategy, SITE_NAME } from './pageMeta';
 
@@ -46,7 +47,8 @@ describe('pageMeta', () => {
   });
 
   describe('with the router', () => {
-    let router: Router;
+    // The harness renders the routed page (a router alone creates no component without an outlet)
+    let router: RouterTestingHarness;
 
     beforeEach(() => {
       described.set(null);
@@ -59,7 +61,10 @@ describe('pageMeta', () => {
           { provide: TitleStrategy, useClass: PageMetaTitleStrategy },
         ],
       });
-      router = TestBed.inject(Router);
+    });
+
+    beforeEach(async () => {
+      router = await RouterTestingHarness.create();
     });
 
     it('sets the route\'s title, the default description and the page\'s address on each navigation', async () => {
