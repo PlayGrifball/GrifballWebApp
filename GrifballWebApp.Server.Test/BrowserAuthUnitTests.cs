@@ -287,12 +287,14 @@ public class BrowserAuthUnitTests
         var context = Context("POST");
         var filterContext = FilterContext(context);
         var antiforgery = Substitute.For<IAntiforgery>();
-        antiforgery.ValidateRequestAsync(context).Returns(Task.CompletedTask);
         var filter = new CookieAntiforgeryFilter(antiforgery, new RecordingLogger<CookieAntiforgeryFilter>());
 
         await filter.OnAuthorizationAsync(filterContext);
 
+        // Not just that nothing refused the request: that the token was actually checked (a wrongly false
+        // RequiresToken would also leave Result null, without ever calling ValidateRequestAsync).
         Assert.That(filterContext.Result, Is.Null);
+        await antiforgery.Received(1).ValidateRequestAsync(context);
     }
 
     [Test]

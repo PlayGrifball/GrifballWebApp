@@ -8,6 +8,18 @@ using GrifballWebApp.Application.EventOrganizer;
 
 namespace GrifballWebApp.Server.Test;
 
+/// <summary>EventOrganizerController's reflection-only unit tests: no database, host, file or network.</summary>
+[TestFixture]
+[Parallelizable(ParallelScope.All)]
+public class EventOrganizerControllerAttributeTests
+{
+    [Test]
+    public void Controller_RequiresCommissionerOrSysadmin()
+    {
+        Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(EventOrganizerController))!.Roles, Is.EqualTo("Commissioner,Sysadmin"));
+    }
+}
+
 /// <summary>EventOrganizerControllerTests's unit tests: a real GrifballContext (temp-file SQLite, #402) for
 /// EventOrganizerService, which needs nothing else. Its other tests stay in GrifballWebApp.Integration.Test.</summary>
 [TestFixture]
@@ -16,12 +28,6 @@ namespace GrifballWebApp.Server.Test;
 public class EventOrganizerControllerUnitTests : SqliteGrifballContextFixture
 {
     private EventOrganizerController Controller() => new(new EventOrganizerService(Db));
-
-    [Test]
-    public void Controller_RequiresCommissionerOrSysadmin()
-    {
-        Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(EventOrganizerController))!.Roles, Is.EqualTo("Commissioner,Sysadmin"));
-    }
 
     [Test]
     public async Task GetSeasons_ReturnsNone_WhenThereAreNoSeasons()
@@ -36,7 +42,11 @@ public class EventOrganizerControllerUnitTests : SqliteGrifballContextFixture
     {
         var result = await Controller().GetGameVersions(CancellationToken.None);
 
-        Assert.That(result, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Has.Count.EqualTo(6));
+            Assert.That(result.Select(g => g.Name), Does.Contain("Halo Infinite"));
+        }
     }
 
     [Test]
@@ -44,7 +54,11 @@ public class EventOrganizerControllerUnitTests : SqliteGrifballContextFixture
     {
         var result = await Controller().GetLeagues(CancellationToken.None);
 
-        Assert.That(result, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Has.Count.EqualTo(4));
+            Assert.That(result.Select(l => l.Name), Does.Contain("AGLA"));
+        }
     }
 
     [Test]
