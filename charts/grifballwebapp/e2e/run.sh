@@ -229,6 +229,10 @@ if [[ "$scenario" = scaleout ]]; then
   step "Install: two API pods, the worker, the chart's Redis and its own Halo gateway, no state volume"
   # The key the bundled gateway accepts and the backend sends: one Secret both read.
   kubectl -n "$ns" create secret generic halo-gateway-key --from-literal=ApiKey=e2e-gateway-key
+  # The IngressRoute needs k3s's Traefik (the workflow keeps it for this scenario) and its CRDs, installed after the
+  # cluster starts
+  wait_for 300 kubectl get crd ingressroutes.traefik.io || fail "no Traefik IngressRoute CRD"
+  wait_for 300 kubectl -n kube-system rollout status deploy/traefik --timeout=5s || fail "no Traefik"
   cat > "$work/values.yaml" <<EOF
 backend:
   replicas: 2
