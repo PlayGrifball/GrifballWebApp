@@ -345,12 +345,19 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task GenerateMatches_RepliesTheMatchesAreMade_ForAFoundSeason()
     {
-        await AddSeason("Winter");
+        var season = await AddSeason("Winter");
+        await AddTeam(season, "Home");
+        await AddTeam(season, "Away");
         var discord = await AuthorizedCaller(DiscordCaller.Roles.Commissioner);
 
         await DeepHandler().GenerateMatches(discord.Context, "Winter", 1, 3);
 
-        Assert.That(discord.Content(), Does.Contain("The matches are made."));
+        var madeMatches = await Db.SeasonMatches.CountAsync(m => m.SeasonID == season.SeasonID);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(discord.Content(), Does.Contain("The matches are made."));
+            Assert.That(madeMatches, Is.EqualTo(2)); // two teams, 1 home game each: home vs away and away vs home
+        }
     }
 
     [Test]
