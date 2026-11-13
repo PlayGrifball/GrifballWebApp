@@ -319,4 +319,49 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
 
         Assert.That(discord.Embed().Description, Does.Contain("Grifter1"));
     }
+
+    [Test]
+    public async Task LockCaptains_LocksTheDraft_ForAFoundSeason()
+    {
+        var season = await AddSeason("Winter");
+        var discord = await AuthorizedCaller(DiscordCaller.Roles.Commissioner);
+
+        await DeepHandler().LockCaptains(discord.Context, "Winter", @lock: true);
+
+        Assert.That(discord.Content(), Is.EqualTo("The captains are locked."));
+    }
+
+    [Test]
+    public async Task GenerateMatches_RepliesTheMatchesAreMade_ForAFoundSeason()
+    {
+        var season = await AddSeason("Winter");
+        var discord = await AuthorizedCaller(DiscordCaller.Roles.Commissioner);
+
+        await DeepHandler().GenerateMatches(discord.Context, "Winter", 1, 3);
+
+        Assert.That(discord.Content(), Does.Contain("The matches are made."));
+    }
+
+    [Test]
+    public async Task CreateBracket_RepliesTheBracketIsMade_ForAFoundSeason()
+    {
+        var season = await AddSeason("Winter");
+        var discord = await AuthorizedCaller(DiscordCaller.Roles.Commissioner);
+
+        await DeepHandler().CreateBracket(discord.Context, "Winter", 8, false, 3);
+
+        Assert.That(discord.Content(), Is.EqualTo("The bracket is made. Seed it with /admin bracket seed, or set custom seeds on the site."));
+    }
+
+    [Test]
+    public async Task SeedBracket_RepliesTheBracketIsSeeded_ForAFoundSeason()
+    {
+        var season = await AddSeason("Winter");
+        var discord = await AuthorizedCaller(DiscordCaller.Roles.Commissioner);
+
+        await DeepHandler().SeedBracket(discord.Context, "Winter");
+
+        Assert.That(discord.Content(), Is.EqualTo("The bracket is seeded by the standings."));
+    }
+
 }
