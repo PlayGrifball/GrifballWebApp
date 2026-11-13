@@ -73,7 +73,7 @@ describe('pageMeta', () => {
       expect(meta('name="twitter:title"')).toBe('Seasons · Play Grifball');
       expect(meta('name="twitter:description"')).toBe(DEFAULT_DESCRIPTION);
       expect(canonical()).toBe(url);
-      expect(document.head.querySelectorAll('link[rel="canonical"]').length).toBe(1);
+      expect(document.head.querySelectorAll('link[rel="canonical"]')).toHaveSize(1);
     });
 
     it('lets a page describe itself once its data is in, and drops that when it goes', async () => {

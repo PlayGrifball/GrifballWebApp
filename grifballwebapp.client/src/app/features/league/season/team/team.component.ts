@@ -20,11 +20,17 @@ import { describePage, PageDescription } from '../../shared/pageMeta';
 
 /** The team as search results and link previews show it: its name and season, record, titles and roster. */
 export function describeTeam(team: TeamDto): PageDescription {
-  const record = `${team.wins}–${team.losses}${team.titles.length ? `, ${team.titles.join(', ')}` : ''}`;
-  const roster = team.players.map(p => p.gamertag);
+  let record = `${team.wins}–${team.losses}`;
+  if (team.titles.length)
+    record = `${record}, ${team.titles.join(', ')}`;
+  const season = `${team.season.leagueName} ${team.season.seasonName}`;
+  const parts = [`${team.teamName} in ${season}: ${record}.`];
+  if (team.players.length)
+    parts.push(`Roster: ${team.players.map(p => p.gamertag).join(', ')}.`);
+  parts.push('Matches and player stats.');
   return {
     title: `${team.teamName} · ${team.season.seasonName}`,
-    description: `${team.teamName} in ${team.season.leagueName} ${team.season.seasonName}: ${record}.${roster.length ? ` Roster: ${roster.join(', ')}.` : ''} Matches and player stats.`,
+    description: parts.join(' '),
   };
 }
 

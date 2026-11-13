@@ -65,20 +65,29 @@ export function describeSeasonMatch(match: SeasonMatchPageDto): PageDescription 
   const away = match.awayTeamName ?? 'TBD';
   const scored = match.homeTeamScore != null && match.awayTeamScore != null;
   const title = scored && match.decidedBy ? `${home} ${match.homeTeamScore}–${match.awayTeamScore} ${away}` : `${home} vs ${away}`;
-  let result: string;
-  if (match.homeTeamResult === 'Won' || match.awayTeamResult === 'Won') {
-    const homeWon = match.homeTeamResult === 'Won';
-    const [winner, loser] = homeWon ? [home, away] : [away, home];
-    const score = scored ? ` ${homeWon ? match.homeTeamScore : match.awayTeamScore}–${homeWon ? match.awayTeamScore : match.homeTeamScore}` : '';
-    result = `${winner} beat ${loser}${score}`;
-  } else {
-    const date = pageDate(match.scheduledTime);
-    result = `${home} vs ${away}${date ? `, scheduled for ${date}` : ''}`;
-  }
+  let season = match.seasonName;
+  if (match.isPlayoff)
+    season = `${season} playoffs`;
   return {
     title,
-    description: `${match.seasonName}${match.isPlayoff ? ' playoffs' : ''}, best of ${match.bestOf}: ${result}. Games, scores and player stats.`,
+    description: `${season}, best of ${match.bestOf}: ${seasonMatchResult(match, home, away)}. Games, scores and player stats.`,
   };
+}
+
+/** Who beat whom (with the series score when there is one), or when the match is scheduled. */
+function seasonMatchResult(match: SeasonMatchPageDto, home: string, away: string): string {
+  const homeWon = match.homeTeamResult === 'Won';
+  if (!homeWon && match.awayTeamResult !== 'Won') {
+    const date = pageDate(match.scheduledTime);
+    return date ? `${home} vs ${away}, scheduled for ${date}` : `${home} vs ${away}`;
+  }
+  const winner = homeWon ? home : away;
+  const loser = homeWon ? away : home;
+  if (match.homeTeamScore == null || match.awayTeamScore == null)
+    return `${winner} beat ${loser}`;
+  const winnerScore = homeWon ? match.homeTeamScore : match.awayTeamScore;
+  const loserScore = homeWon ? match.awayTeamScore : match.homeTeamScore;
+  return `${winner} beat ${loser} ${winnerScore}–${loserScore}`;
 }
 
 @Component({

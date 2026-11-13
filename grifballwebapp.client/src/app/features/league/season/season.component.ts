@@ -28,14 +28,20 @@ export function describeSeason(season: SeasonSummaryDto): PageDescription {
   const title = season.division ? `${season.seasonName} – ${season.division}` : season.seasonName;
   const start = pageDate(DateTime.fromISO(season.start));
   const end = pageDate(DateTime.fromISO(season.end));
+  const champions = season.champions.map(c => c.teamName).join(' and ');
   const facts = [
     season.signupCount ? plural(season.signupCount, 'player') : null,
     season.matchCount ? plural(season.matchCount, 'match', 'matches') : null,
-    season.hasEnded && season.champions.length ? `won by ${season.champions.map(c => c.teamName).join(' and ')}` : null,
+    season.hasEnded && champions ? `won by ${champions}` : null,
   ].filter(f => f);
+  let summary = `${season.leagueName} Grifball season`;
+  if (start && end)
+    summary = `${summary}, ${start} to ${end}`;
+  if (facts.length)
+    summary = `${summary}: ${facts.join(', ')}`;
   return {
     title,
-    description: `${season.leagueName} Grifball season${start && end ? `, ${start} to ${end}` : ''}${facts.length ? `: ${facts.join(', ')}` : ''}. Standings, schedule, brackets and stats.`,
+    description: `${summary}. Standings, schedule, brackets and stats.`,
   };
 }
 

@@ -22,17 +22,21 @@ export function describeMatch(match: MatchDetailsDto): PageDescription {
   if (!first || !second)
     return { title: 'Match Details' };
   const score = `${teamName(first)} ${first.score}–${second.score} ${teamName(second)}`;
-  const where = match.seasonMatch
-    ? `${match.seasonMatch.seasonName}, game ${match.seasonMatch.gameNumber} of best of ${match.seasonMatch.bestOf}`
-    : 'Halo Infinite Grifball match';
-  const [winner, loser] = second.outcome === 'Won' && first.outcome !== 'Won' ? [second, first] : [first, second];
-  const result = winner.outcome === 'Won'
-    ? `${teamName(winner)} beat ${teamName(loser)} ${winner.score}–${loser.score}`
-    : score;
+  let where = 'Halo Infinite Grifball match';
+  if (match.seasonMatch)
+    where = `${match.seasonMatch.seasonName}, game ${match.seasonMatch.gameNumber} of best of ${match.seasonMatch.bestOf}`;
+  const secondWon = second.outcome === 'Won' && first.outcome !== 'Won';
+  const winner = secondWon ? second : first;
+  const loser = secondWon ? first : second;
+  let result = score;
+  if (winner.outcome === 'Won')
+    result = `${teamName(winner)} beat ${teamName(loser)} ${winner.score}–${loser.score}`;
   const date = pageDate(match.startTime);
+  if (date)
+    result = `${result} on ${date}`;
   return {
     title: score,
-    description: `${where}: ${result}${date ? ` on ${date}` : ''}. Every player's goals, kills, deaths and medals.`,
+    description: `${where}: ${result}. Every player's goals, kills, deaths and medals.`,
   };
 }
 

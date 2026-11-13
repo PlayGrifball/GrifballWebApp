@@ -31,9 +31,12 @@ export function describeProfile(profile: ProfileStatsDto): PageDescription | nul
     profile.seasons.length ? plural(profile.seasons.length, 'season') : null,
     profile.championships.length ? plural(profile.championships.length, 'championship') : null,
   ].filter(f => f);
+  let career = `${name}'s Grifball career`;
+  if (facts.length)
+    career = `${career}: ${facts.join(', ')}`;
   return {
     title: name,
-    description: `${name}'s Grifball career${facts.length ? `: ${facts.join(', ')}` : ''}. Stats by season and game, and Late League.`,
+    description: `${career}. Stats by season and game, and Late League.`,
   };
 }
 
