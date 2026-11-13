@@ -23,42 +23,18 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class RescheduleThreadInviteHandlerTests
+public class RescheduleThreadInviteHandlerTests : SqliteContextFixture
 {
     private const ulong ThreadId = 888UL;
 
-    private string _path = null!;
-    private GrifballContext _context = null!;
     private IDiscordRestClient _discord = null!;
     private RescheduleThreadInviteHandler _handler = null!;
 
     [SetUp]
-    public async Task SetUp()
+    public void SetUp()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-reschedule-invite-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        try
-        {
-            await _context.Database.EnsureCreatedAsync();
-        }
-        catch
-        {
-            await _context.DisposeAsync();
-            if (File.Exists(_path))
-                File.Delete(_path);
-            throw;
-        }
         _discord = Substitute.For<IDiscordRestClient>();
         _handler = new RescheduleThreadInviteHandler(_discord, NullLogger<RescheduleThreadInviteHandler>.Instance);
-    }
-
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _context.DisposeAsync();
-        if (File.Exists(_path))
-            File.Delete(_path);
     }
 
     private async Task<User> AddUser(string name, long? xboxId = null, long? discordId = null, string? displayName = null)
@@ -68,39 +44,39 @@ public class RescheduleThreadInviteHandlerTests
             user.TieToXbox(XboxUser.FromXbox(xuid, $"GT_{name}"));
         if (discordId is { } discordUserId)
             user.LinkDiscord(DiscordUser.FromDiscord(discordUserId, name));
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        Context.Users.Add(user);
+        await Context.SaveChangesAsync();
         return user;
     }
 
     private async Task<Team> AddTeamWithCaptain(Season season, string name, User captain)
     {
         var team = Team.Seed(seasonID: season.SeasonID, teamName: name);
-        _context.Teams.Add(team);
-        await _context.SaveChangesAsync();
+        Context.Teams.Add(team);
+        await Context.SaveChangesAsync();
         if (team.AddPlayer(captain.Id) is not TeamRosterResult.Done)
             throw new InvalidOperationException("Could not add the captain to the roster");
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
         if (team.SetCaptain(captain.Id) is not TeamCaptainResult.Appointed)
             throw new InvalidOperationException("Could not appoint the captain");
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
         return team;
     }
 
     private async Task<MatchReschedule> SeedMatchWithReschedule(User homeCaptain, User awayCaptain)
     {
         var season = Season.Seed(seasonName: "Reschedule season");
-        _context.Seasons.Add(season);
-        await _context.SaveChangesAsync();
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
         var home = await AddTeamWithCaptain(season, "Home", homeCaptain);
         var away = await AddTeamWithCaptain(season, "Away", awayCaptain);
         var match = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: 3);
-        _context.SeasonMatches.Add(match);
-        await _context.SaveChangesAsync();
+        Context.SeasonMatches.Add(match);
+        await Context.SaveChangesAsync();
         var reschedule = MatchReschedule.Request(match.SeasonMatchID, null, null, "Can't make it", homeCaptain.Id, DateTime.UtcNow);
         reschedule.AttachThread(ThreadId);
-        _context.MatchReschedules.Add(reschedule);
-        await _context.SaveChangesAsync();
+        Context.MatchReschedules.Add(reschedule);
+        await Context.SaveChangesAsync();
         return reschedule;
     }
 
@@ -117,7 +93,7 @@ public class RescheduleThreadInviteHandlerTests
         var awayCaptain = await AddUser("awaycap", 1002, 5002);
         var reschedule = await SeedMatchWithReschedule(homeCaptain, awayCaptain);
 
-        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), _context, CancellationToken.None);
+        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), Context, CancellationToken.None);
 
         Assert.That(outcome, Is.EqualTo(OutboxOutcome.Done));
         await _discord.Received(1).AddGuildThreadUserAsync(ThreadId, 5001UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
@@ -132,7 +108,7 @@ public class RescheduleThreadInviteHandlerTests
         var awayCaptain = await AddUser("awaycap", displayName: "Away Captain");
         var reschedule = await SeedMatchWithReschedule(homeCaptain, awayCaptain);
 
-        await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), _context, CancellationToken.None);
+        await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), Context, CancellationToken.None);
 
         await _discord.Received(1).SendMessageAsync(ThreadId,
             Arg.Is<MessageProperties>(m => m.Content!.Contains("Could not add Away Captain to thread, missing discord id.")),
@@ -146,7 +122,7 @@ public class RescheduleThreadInviteHandlerTests
         var awayCaptain = await AddUser("awaycap-login");
         var reschedule = await SeedMatchWithReschedule(homeCaptain, awayCaptain);
 
-        await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), _context, CancellationToken.None);
+        await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), Context, CancellationToken.None);
 
         await _discord.Received(1).SendMessageAsync(ThreadId,
             Arg.Is<MessageProperties>(m => m.Content!.Contains($"Could not add user {awayCaptain.Id} to thread") && !m.Content.Contains("awaycap-login")),
@@ -161,7 +137,7 @@ public class RescheduleThreadInviteHandlerTests
         var reschedule = await SeedMatchWithReschedule(homeCaptain, awayCaptain);
         _discord.AddGuildThreadUserAsync(ThreadId, 5001UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).ThrowsAsync(new Exception("boom"));
 
-        await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), _context, CancellationToken.None);
+        await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), Context, CancellationToken.None);
 
         await _discord.Received(1).AddGuildThreadUserAsync(ThreadId, 5002UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         await _discord.Received(1).SendMessageAsync(ThreadId,
@@ -176,12 +152,12 @@ public class RescheduleThreadInviteHandlerTests
         var homeCaptain = await AddUser("homecap", 1001, 5001);
         var awayCaptain = await AddUser("awaycap", 1002, 5002);
         var commissioner = await AddUser("commish", 1003, 5003);
-        var role = await _context.Roles.SingleAsync(x => x.Name == "Commissioner");
-        _context.UserRoles.Add(new UserRole { UserId = commissioner.Id, RoleId = role.Id });
-        await _context.SaveChangesAsync();
+        var role = await Context.Roles.SingleAsync(x => x.Name == "Commissioner");
+        Context.UserRoles.Add(new UserRole { UserId = commissioner.Id, RoleId = role.Id });
+        await Context.SaveChangesAsync();
         var reschedule = await SeedMatchWithReschedule(homeCaptain, awayCaptain);
 
-        await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), _context, CancellationToken.None);
+        await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), Context, CancellationToken.None);
 
         await _discord.Received(1).AddGuildThreadUserAsync(ThreadId, 5003UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
@@ -195,7 +171,7 @@ public class RescheduleThreadInviteHandlerTests
         var message = Message(reschedule.MatchRescheduleID);
         message.Result = JsonSerializer.Serialize(new RescheduleInviteResult(true), OutboxJson.Options);
 
-        var outcome = await _handler.HandleAsync(message, _context, CancellationToken.None);
+        var outcome = await _handler.HandleAsync(message, Context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {

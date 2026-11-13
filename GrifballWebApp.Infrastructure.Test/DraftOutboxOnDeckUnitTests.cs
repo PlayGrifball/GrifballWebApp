@@ -22,70 +22,55 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class DraftOutboxOnDeckUnitTests
+public class DraftOutboxOnDeckUnitTests : SqliteContextFixture
 {
-    private string _path = null!;
-    private GrifballContext _context = null!;
     private TeamService _teams = null!;
     private IOutbox _outbox = null!;
 
     [SetUp]
-    public async Task Setup()
+    public void Setup()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-draft-outbox-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        await _context.Database.EnsureCreatedAsync();
-        _teams = new TeamService((IApplicationDbContext)_context, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>());
-        _outbox = new ContextOutbox(_context);
-    }
-
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _context.DisposeAsync();
-        foreach (var file in new[] { _path, _path + "-wal", _path + "-shm" })
-            if (File.Exists(file))
-                File.Delete(file);
+        _teams = new TeamService((IApplicationDbContext)Context, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>());
+        _outbox = new ContextOutbox(Context);
     }
 
     private async Task<Season> AddSeason()
     {
         var season = Season.Seed(seasonName: "Test Season");
-        _context.Seasons.Add(season);
-        await _context.SaveChangesAsync();
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
         return season;
     }
 
     private async Task<User> AddUser(string displayName)
     {
         var user = User.Seed(userName: displayName, displayName: displayName);
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        Context.Users.Add(user);
+        await Context.SaveChangesAsync();
         return user;
     }
 
     private async Task<Team> AddCaptainedTeam(Season season, User captain, string teamName = "Team", int captainOrder = 1)
     {
         var team = Team.Drafted(season.SeasonID, teamName, captain.Id, captainOrder);
-        _context.Teams.Add(team);
-        await _context.SaveChangesAsync();
+        Context.Teams.Add(team);
+        await Context.SaveChangesAsync();
         Assert.That(team.SetCaptain(captain.Id), Is.EqualTo(TeamCaptainResult.Appointed));
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
         return team;
     }
 
     private async Task AddSignup(Season season, User user)
     {
-        _context.Add(SeasonSignup.Seed(season.SeasonID, user.Id));
-        await _context.SaveChangesAsync();
+        Context.Add(SeasonSignup.Seed(season.SeasonID, user.Id));
+        await Context.SaveChangesAsync();
     }
 
     private async Task<DraftOnDeckPayload> EnqueueAndRead(int seasonId)
     {
-        await _outbox.EnqueueOnDeckAsync(_context, _teams, seasonId, CancellationToken.None);
-        await _context.SaveChangesAsync();
-        var message = await _context.Outbox.AsNoTracking().SingleAsync(m => m.Kind == DraftOutbox.OnDeck);
+        await _outbox.EnqueueOnDeckAsync(Context, _teams, seasonId, CancellationToken.None);
+        await Context.SaveChangesAsync();
+        var message = await Context.Outbox.AsNoTracking().SingleAsync(m => m.Kind == DraftOutbox.OnDeck);
         return JsonSerializer.Deserialize<DraftOnDeckPayload>(message.Payload, OutboxJson.Options)!;
     }
 
@@ -148,7 +133,7 @@ public class DraftOutboxOnDeckUnitTests
         var team = await AddCaptainedTeam(season, captain);
         var already = await AddUser("Already");
         team.SeedPlayer(already.Id, draftRound: 1);
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
         await AddSignup(season, already);
         var stillPooled = await AddUser("Pooled");
         await AddSignup(season, stillPooled);

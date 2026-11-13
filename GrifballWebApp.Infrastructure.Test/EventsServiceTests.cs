@@ -20,52 +20,28 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class EventsServiceTests
+public class EventsServiceTests : SqliteContextFixture
 {
     private static readonly DateTimeOffset Now = new(2026, 6, 1, 12, 0, 0, TimeSpan.Zero);
     private const ulong EventsChannel = 555UL;
 
-    private string _path = null!;
-    private GrifballContext _context = null!;
     private FakeTimeProvider _time = null!;
     private EventsService _service = null!;
 
     [SetUp]
-    public async Task SetUp()
+    public void SetUp()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-events-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        try
-        {
-            await _context.Database.EnsureCreatedAsync();
-        }
-        catch
-        {
-            await _context.DisposeAsync();
-            if (File.Exists(_path))
-                File.Delete(_path);
-            throw;
-        }
         _time = new FakeTimeProvider(Now);
         var urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
         var discordOptions = Options.Create(new DiscordOptions { EventsChannel = EventsChannel });
-        _service = new EventsService(NullLogger<EventsService>.Instance, discordOptions, new ContextOutbox(_context), _context, urls, _time);
-    }
-
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _context.DisposeAsync();
-        if (File.Exists(_path))
-            File.Delete(_path);
+        _service = new EventsService(NullLogger<EventsService>.Instance, discordOptions, new ContextOutbox(Context), Context, urls, _time);
     }
 
     [Test]
     public void Constructor_NoEventsChannelConfigured_Throws()
     {
         var urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-        Assert.That(() => new EventsService(NullLogger<EventsService>.Instance, Options.Create(new DiscordOptions()), new ContextOutbox(_context), _context, urls, _time),
+        Assert.That(() => new EventsService(NullLogger<EventsService>.Instance, Options.Create(new DiscordOptions()), new ContextOutbox(Context), Context, urls, _time),
             Throws.Exception.With.Message.Contains("Discord:EventsChannel"));
     }
 
@@ -74,7 +50,7 @@ public class EventsServiceTests
         var season = Season.Seed(seasonName: name);
         var scheduled = season.Schedule(signupsOpen, signupsClose, draftStart, seasonStart, seasonEnd);
         season.AnnounceAt(publicAt);
-        _context.Seasons.Add(season);
+        Context.Seasons.Add(season);
         Assert.That(scheduled, Is.EqualTo(SeasonScheduleResult.Scheduled), "The test's own dates must be in order");
         return season;
     }
@@ -88,11 +64,11 @@ public class EventsServiceTests
     public async Task Go_AnnouncedUnfinishedSeason_QueuesTheAnnouncement()
     {
         var season = AddUpcomingAnnouncedSeason();
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
 
         await _service.Go(CancellationToken.None);
 
-        var message = await _context.Outbox.SingleAsync();
+        var message = await Context.Outbox.SingleAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(message.Kind, Is.EqualTo(EventsOutbox.SeasonUpsert));
@@ -106,11 +82,11 @@ public class EventsServiceTests
         AddSeason("S1", publicAt: null,
             signupsOpen: Now.UtcDateTime.AddDays(1), signupsClose: Now.UtcDateTime.AddDays(10),
             draftStart: Now.UtcDateTime.AddDays(11), seasonStart: Now.UtcDateTime.AddDays(12), seasonEnd: Now.UtcDateTime.AddDays(100));
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
 
         await _service.Go(CancellationToken.None);
 
-        Assert.That(await _context.Outbox.AnyAsync(), Is.False);
+        Assert.That(await Context.Outbox.AnyAsync(), Is.False);
     }
 
     [Test]
@@ -119,37 +95,37 @@ public class EventsServiceTests
         AddSeason("S1", publicAt: Now.UtcDateTime.AddDays(-100),
             signupsOpen: Now.UtcDateTime.AddDays(-99), signupsClose: Now.UtcDateTime.AddDays(-90),
             draftStart: Now.UtcDateTime.AddDays(-89), seasonStart: Now.UtcDateTime.AddDays(-88), seasonEnd: Now.UtcDateTime.AddDays(-1));
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
 
         await _service.Go(CancellationToken.None);
 
-        Assert.That(await _context.Outbox.AnyAsync(), Is.False);
+        Assert.That(await Context.Outbox.AnyAsync(), Is.False);
     }
 
     [Test]
     public async Task Go_CalledAgain_SameAnnouncement_QueuesNothingMore()
     {
         AddUpcomingAnnouncedSeason();
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
         await _service.Go(CancellationToken.None);
 
         await _service.Go(CancellationToken.None);
 
-        Assert.That(await _context.Outbox.CountAsync(), Is.EqualTo(1));
+        Assert.That(await Context.Outbox.CountAsync(), Is.EqualTo(1));
     }
 
     [Test]
     public async Task Go_CalledAgain_AnnouncementChanged_QueuesAnother()
     {
         var season = AddUpcomingAnnouncedSeason();
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
         await _service.Go(CancellationToken.None);
         // Signups now open: the announcement's signup status (and so its payload) changes.
         _time.SetUtcNow(season.SignupsOpen.Add(TimeSpan.FromMinutes(1)));
 
         await _service.Go(CancellationToken.None);
 
-        var messages = await _context.Outbox.OrderBy(x => x.Sequence).ToListAsync();
+        var messages = await Context.Outbox.OrderBy(x => x.Sequence).ToListAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(messages, Has.Count.EqualTo(2));
@@ -162,26 +138,26 @@ public class EventsServiceTests
     public async Task Go_CalledAgain_LastWasDeadLettered_QueuesAnotherEvenUnchanged()
     {
         AddUpcomingAnnouncedSeason();
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
         await _service.Go(CancellationToken.None);
-        var first = await _context.Outbox.SingleAsync();
+        var first = await Context.Outbox.SingleAsync();
         first.Status = OutboxStatus.DeadLettered;
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
 
         await _service.Go(CancellationToken.None);
 
-        Assert.That(await _context.Outbox.CountAsync(), Is.EqualTo(2));
+        Assert.That(await Context.Outbox.CountAsync(), Is.EqualTo(2));
     }
 
     [Test]
     public async Task Go_SignupsNotYetOpen_AnnouncementSaysWhenTheyStart()
     {
         AddUpcomingAnnouncedSeason();
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
 
         await _service.Go(CancellationToken.None);
 
-        var message = await _context.Outbox.SingleAsync();
+        var message = await Context.Outbox.SingleAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(message.Payload, Does.Contain("\"signupsOpen\":false"));
@@ -193,12 +169,12 @@ public class EventsServiceTests
     public async Task Go_SignupsOpen_AnnouncementSaysSoAndLinksToSignUp()
     {
         var season = AddUpcomingAnnouncedSeason();
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
         _time.SetUtcNow(season.SignupsOpen.Add(TimeSpan.FromMinutes(1)));
 
         await _service.Go(CancellationToken.None);
 
-        var message = await _context.Outbox.SingleAsync();
+        var message = await Context.Outbox.SingleAsync();
         Assert.That(message.Payload, Does.Contain("\"signupsOpen\":true"));
     }
 
@@ -206,12 +182,12 @@ public class EventsServiceTests
     public async Task Go_SignupsClosed_AnnouncementSaysSo()
     {
         var season = AddUpcomingAnnouncedSeason();
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
         _time.SetUtcNow(season.SignupsClose.Add(TimeSpan.FromMinutes(1)));
 
         await _service.Go(CancellationToken.None);
 
-        var message = await _context.Outbox.SingleAsync();
+        var message = await Context.Outbox.SingleAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(message.Payload, Does.Contain("\"signupsOpen\":false"));

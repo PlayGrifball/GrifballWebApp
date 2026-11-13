@@ -23,10 +23,8 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class HistoricalImportRunnerRefreshUnitTests
+public class HistoricalImportRunnerRefreshUnitTests : SqliteContextFixture
 {
-    private string _path = null!;
-    private GrifballContext _context = null!;
     private FakeTimeProvider _time = null!;
     private Func<HttpRequestMessage, HttpResponseMessage> _respond = null!;
     private HistoricalSourcesFakeHandler _handler = null!;
@@ -39,39 +37,26 @@ public class HistoricalImportRunnerRefreshUnitTests
     [SetUp]
     public async Task Setup()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-import-runner-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        await _context.Database.EnsureCreatedAsync();
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
         _respond = _ => HistoricalSourcesFakeHandler.Status(HttpStatusCode.NotFound);
         _handler = new HistoricalSourcesFakeHandler(request => _respond(request));
-        var sources = new HistoricalSourceService(_context, new HistoricalSourceFetcher(new HttpClient(_handler)), _time, NullLogger<HistoricalSourceService>.Instance);
-        var jobs = new HistoricalImportJobs(_context, new HistoricalImportSignal());
-        _runner = new HistoricalImportRunner(_context, sources, Substitute.For<IHistoricalImportService>(), jobs,
+        var sources = new HistoricalSourceService(Context, new HistoricalSourceFetcher(new HttpClient(_handler)), _time, NullLogger<HistoricalSourceService>.Instance);
+        var jobs = new HistoricalImportJobs(Context, new HistoricalImportSignal());
+        _runner = new HistoricalImportRunner(Context, sources, Substitute.For<IHistoricalImportService>(), jobs,
             Options.Create(new HistoricalGuardrailOptions()), NullLogger<HistoricalImportRunner>.Instance);
 
         // Only the one import-tracked source stays enabled: the test's one download
         await sources.EnsureCatalog();
-        await _context.HistoricalSources.Where(s => s.HistoricalSourceID != "2019-wl19-schedule-stats")
+        await Context.HistoricalSources.Where(s => s.HistoricalSourceID != "2019-wl19-schedule-stats")
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, false));
-        _context.ChangeTracker.Clear();
-    }
-
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _context.DisposeAsync();
-        foreach (var file in new[] { _path, _path + "-wal", _path + "-shm" })
-            if (File.Exists(file))
-                File.Delete(file);
+        Context.ChangeTracker.Clear();
     }
 
     private async Task<int> QueueRefresh(HistoricalImportJobTrigger trigger)
     {
         var job = HistoricalImportJob.Refresh(trigger);
-        _context.HistoricalImportJobs.Add(job);
-        await _context.SaveChangesAsync();
+        Context.HistoricalImportJobs.Add(job);
+        await Context.SaveChangesAsync();
         return job.HistoricalImportJobID;
     }
 
@@ -88,7 +73,7 @@ public class HistoricalImportRunnerRefreshUnitTests
             Assert.That(report.SourcesChanged, Is.EqualTo(expectedChanged));
             Assert.That(report.ImportJobID, Is.Not.Null);
         }
-        var queued = await _context.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID == report.ImportJobID);
+        var queued = await Context.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID == report.ImportJobID);
         using (Assert.EnterMultipleScope())
         {
             Assert.That((queued.Kind, queued.Trigger, queued.Guarded), Is.EqualTo((HistoricalImportJobKind.Import, HistoricalImportJobTrigger.Scheduled, true)));
@@ -109,7 +94,7 @@ public class HistoricalImportRunnerRefreshUnitTests
             Assert.That(report.SourcesChanged, Is.EqualTo(expectedChanged));
             Assert.That(report.ImportJobID, Is.Null, "A manual refresh never queues an import on its own");
         }
-        Assert.That(await _context.HistoricalImportJobs.CountAsync(j => j.Kind == HistoricalImportJobKind.Import), Is.Zero);
+        Assert.That(await Context.HistoricalImportJobs.CountAsync(j => j.Kind == HistoricalImportJobKind.Import), Is.Zero);
     }
 
     [Test]

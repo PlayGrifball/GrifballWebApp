@@ -24,22 +24,17 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class HistoricalImportWorkerRunNextUnitTests
+public class HistoricalImportWorkerRunNextUnitTests : SqliteContextFixture
 {
-    private string _path = null!;
     private ServiceProvider _provider = null!;
-    private GrifballContext _reader = null!;
     private HistoricalImportWorker _worker = null!;
 
     [SetUp]
     public async Task Setup()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-import-worker-{Guid.NewGuid():N}.db");
-        var connectionString = $"Data Source={_path};Pooling=False";
-
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddDbContext<GrifballContext>(o => o.UseGrifballDatabase(DatabaseProvider.Sqlite, connectionString));
+        services.AddDbContext<GrifballContext>(o => o.UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString));
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<GrifballContext>());
         services.AddSingleton(new HistoricalImportSignal());
         services.AddSingleton(new XuidLookupSignal());
@@ -59,13 +54,11 @@ public class HistoricalImportWorkerRunNextUnitTests
         await using (var scope = _provider.CreateAsyncScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
-            await context.Database.EnsureCreatedAsync();
             // Nothing downloadable: the refresh itself is a no-op, no HTTP call
             await scope.ServiceProvider.GetRequiredService<HistoricalSourceService>().EnsureCatalog();
             await context.HistoricalSources.ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, false));
         }
 
-        _reader = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(DatabaseProvider.Sqlite, connectionString).Options);
         _worker = new HistoricalImportWorker(_provider.GetRequiredService<IServiceScopeFactory>(), _provider.GetRequiredService<HistoricalImportSignal>(),
             Options.Create(new HistoricalImportWorkerOptions()), TimeProvider.System, NullLogger<HistoricalImportWorker>.Instance,
             _provider.GetRequiredService<XuidLookupSignal>());
@@ -81,19 +74,15 @@ public class HistoricalImportWorkerRunNextUnitTests
     [TearDown]
     public async Task TearDown()
     {
-        await _reader.DisposeAsync();
         await _provider.DisposeAsync();
-        foreach (var file in new[] { _path, _path + "-wal", _path + "-shm" })
-            if (File.Exists(file))
-                File.Delete(file);
     }
 
     private async Task<int> QueueRefresh()
     {
         var job = HistoricalImportJob.Refresh();
-        _reader.HistoricalImportJobs.Add(job);
-        await _reader.SaveChangesAsync();
-        _reader.ChangeTracker.Clear();
+        Context.HistoricalImportJobs.Add(job);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
         return job.HistoricalImportJobID;
     }
 
@@ -108,7 +97,7 @@ public class HistoricalImportWorkerRunNextUnitTests
 
         var ran = await _worker.RunNextAsync(CancellationToken.None);
 
-        var job = await _reader.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID == jobId);
+        var job = await Context.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID == jobId);
         using (Assert.EnterMultipleScope())
         {
             Assert.That(ran, Is.True);
@@ -125,7 +114,7 @@ public class HistoricalImportWorkerRunNextUnitTests
         var second = await QueueRefresh();
 
         var ranFirst = await _worker.RunNextAsync(CancellationToken.None);
-        var statusAfterFirst = (await _reader.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID == second)).Status;
+        var statusAfterFirst = (await Context.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID == second)).Status;
         var ranSecond = await _worker.RunNextAsync(CancellationToken.None);
         var ranThird = await _worker.RunNextAsync(CancellationToken.None);
 
@@ -133,7 +122,7 @@ public class HistoricalImportWorkerRunNextUnitTests
         {
             Assert.That((ranFirst, ranSecond, ranThird), Is.EqualTo((true, true, false)));
             Assert.That(statusAfterFirst, Is.EqualTo(HistoricalImportJobStatus.Queued), "The second waited for the first");
-            Assert.That((await _reader.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID == first)).Status, Is.EqualTo(HistoricalImportJobStatus.Succeeded));
+            Assert.That((await Context.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID == first)).Status, Is.EqualTo(HistoricalImportJobStatus.Succeeded));
         }
     }
 }

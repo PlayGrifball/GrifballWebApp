@@ -23,59 +23,44 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class RescheduleThreadCreateHandlerTests
+public class RescheduleThreadCreateHandlerTests : SqliteContextFixture
 {
     private const ulong Channel = 333UL;
 
-    private string _path = null!;
-    private GrifballContext _context = null!;
     private IDiscordRestClient _discord = null!;
     private RescheduleThreadCreateHandler _handler = null!;
 
     [SetUp]
-    public async Task SetUp()
+    public void SetUp()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-reschedule-create-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        await _context.Database.EnsureCreatedAsync();
         _discord = Substitute.For<IDiscordRestClient>();
         _handler = new RescheduleThreadCreateHandler(_discord, Options.Create(new DiscordOptions { ReschedulesChannel = Channel }));
-    }
-
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _context.DisposeAsync();
-        foreach (var file in new[] { _path, _path + "-wal", _path + "-shm" })
-            if (File.Exists(file))
-                File.Delete(file);
     }
 
     private async Task<MatchReschedule> SeedReschedule()
     {
         var season = Season.Seed(seasonName: "Reschedule create season");
-        _context.Seasons.Add(season);
-        await _context.SaveChangesAsync();
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
         var home = Team.Seed(seasonID: season.SeasonID, teamName: "Home");
         var away = Team.Seed(seasonID: season.SeasonID, teamName: "Away");
-        _context.Teams.AddRange(home, away);
-        await _context.SaveChangesAsync();
+        Context.Teams.AddRange(home, away);
+        await Context.SaveChangesAsync();
         var match = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: 3);
-        _context.SeasonMatches.Add(match);
-        await _context.SaveChangesAsync();
+        Context.SeasonMatches.Add(match);
+        await Context.SaveChangesAsync();
         var requester = User.Register("requester");
-        _context.Users.Add(requester);
-        await _context.SaveChangesAsync();
+        Context.Users.Add(requester);
+        await Context.SaveChangesAsync();
         var reschedule = MatchReschedule.Request(match.SeasonMatchID, null, null, "Can't make it", requester.Id, DateTime.UtcNow);
-        _context.MatchReschedules.Add(reschedule);
-        await _context.SaveChangesAsync();
+        Context.MatchReschedules.Add(reschedule);
+        await Context.SaveChangesAsync();
         return reschedule;
     }
 
     private async Task SeedRequestPostResult(int rescheduleId, ulong messageId, bool found)
     {
-        _context.Outbox.Add(new OutboxMessage
+        Context.Outbox.Add(new OutboxMessage
         {
             Kind = RescheduleOutbox.RequestPost,
             Payload = "{}",
@@ -84,8 +69,8 @@ public class RescheduleThreadCreateHandlerTests
             Status = OutboxStatus.Sent,
             Result = JsonSerializer.Serialize(new RescheduleRequestPostResult(messageId, found), OutboxJson.Options),
         });
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
     }
 
     private static OutboxMessage Message(int rescheduleId, int attempts = 0) => new()
@@ -100,9 +85,9 @@ public class RescheduleThreadCreateHandlerTests
     {
         var reschedule = await SeedReschedule();
         reschedule.AttachThread(777UL);
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
 
-        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), _context, CancellationToken.None);
+        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), Context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -116,7 +101,7 @@ public class RescheduleThreadCreateHandlerTests
     {
         var reschedule = await SeedReschedule();
 
-        Assert.That(async () => await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), _context, CancellationToken.None),
+        Assert.That(async () => await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), Context, CancellationToken.None),
             Throws.InvalidOperationException.With.Message.Contains("has no request post to make its thread from"));
     }
 
@@ -130,12 +115,12 @@ public class RescheduleThreadCreateHandlerTests
         _discord.CreateGuildThreadAsync(Channel, 50UL, Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
             .Returns(thread);
 
-        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), _context, CancellationToken.None);
+        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), Context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(outcome, Is.EqualTo(OutboxOutcome.Done));
-            Assert.That((await _context.MatchReschedules.SingleAsync()).DiscordThreadID, Is.EqualTo(901UL));
+            Assert.That((await Context.MatchReschedules.SingleAsync()).DiscordThreadID, Is.EqualTo(901UL));
         }
         await _discord.DidNotReceive().GetMessageAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
@@ -151,12 +136,12 @@ public class RescheduleThreadCreateHandlerTests
         posted.StartedThread.Returns(existingThread);
         _discord.GetMessageAsync(Channel, 50UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(posted);
 
-        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID, attempts: 2), _context, CancellationToken.None);
+        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID, attempts: 2), Context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(outcome, Is.EqualTo(OutboxOutcome.Done));
-            Assert.That((await _context.MatchReschedules.SingleAsync()).DiscordThreadID, Is.EqualTo(902UL));
+            Assert.That((await Context.MatchReschedules.SingleAsync()).DiscordThreadID, Is.EqualTo(902UL));
         }
         await _discord.DidNotReceive().CreateGuildThreadAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
@@ -174,9 +159,9 @@ public class RescheduleThreadCreateHandlerTests
         _discord.CreateGuildThreadAsync(Channel, 50UL, Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
             .Returns(thread);
 
-        await _handler.HandleAsync(Message(reschedule.MatchRescheduleID, attempts: 2), _context, CancellationToken.None);
+        await _handler.HandleAsync(Message(reschedule.MatchRescheduleID, attempts: 2), Context, CancellationToken.None);
 
-        Assert.That((await _context.MatchReschedules.SingleAsync()).DiscordThreadID, Is.EqualTo(903UL));
+        Assert.That((await Context.MatchReschedules.SingleAsync()).DiscordThreadID, Is.EqualTo(903UL));
     }
 
     [Test]
@@ -190,8 +175,8 @@ public class RescheduleThreadCreateHandlerTests
         posted.StartedThread.Returns(existingThread);
         _discord.GetMessageAsync(Channel, 60UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(posted);
 
-        await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), _context, CancellationToken.None);
+        await _handler.HandleAsync(Message(reschedule.MatchRescheduleID), Context, CancellationToken.None);
 
-        Assert.That((await _context.MatchReschedules.SingleAsync()).DiscordThreadID, Is.EqualTo(904UL));
+        Assert.That((await Context.MatchReschedules.SingleAsync()).DiscordThreadID, Is.EqualTo(904UL));
     }
 }

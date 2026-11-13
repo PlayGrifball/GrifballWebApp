@@ -19,7 +19,7 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class GetsertXboxUserServiceTests
+public class GetsertXboxUserServiceTests : SqliteContextFixture
 {
     private static readonly DateTimeOffset Now = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
     private static readonly long[] OneAndTwo = [1, 2];
@@ -27,40 +27,16 @@ public class GetsertXboxUserServiceTests
     private static readonly long[] JustSeven = [7];
     private static readonly string[] OneAndTwoGamertags = ["One", "Two"];
 
-    private string _path = null!;
-    private GrifballContext _context = null!;
     private IHaloInfiniteClient _client = null!;
     private FakeTimeProvider _time = null!;
     private GetsertXboxUserService _service = null!;
 
     [SetUp]
-    public async Task SetUp()
+    public void SetUp()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-getsert-xbox-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        try
-        {
-            await _context.Database.EnsureCreatedAsync();
-        }
-        catch
-        {
-            await _context.DisposeAsync();
-            if (File.Exists(_path))
-                File.Delete(_path);
-            throw;
-        }
         _client = Substitute.For<IHaloInfiniteClient>();
         _time = new FakeTimeProvider(Now);
-        _service = new GetsertXboxUserService(NullLogger<GetsertXboxUserService>.Instance, _context, _client, _time);
-    }
-
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _context.DisposeAsync();
-        if (File.Exists(_path))
-            File.Delete(_path);
+        _service = new GetsertXboxUserService(NullLogger<GetsertXboxUserService>.Instance, Context, _client, _time);
     }
 
     private static GruntUser Gamertag(string xuid, string gamertag) => new() { xuid = xuid, gamertag = gamertag };
@@ -68,8 +44,8 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUserByGamertag_AlreadyStored_ReturnsItWithoutCallingHalo()
     {
-        _context.XboxUsers.Add(XboxUser.FromXbox(42, "Grif"));
-        await _context.SaveChangesAsync();
+        Context.XboxUsers.Add(XboxUser.FromXbox(42, "Grif"));
+        await Context.SaveChangesAsync();
 
         var (xboxUser, error) = await _service.GetsertXboxUserByGamertag("Grif");
 
@@ -88,7 +64,7 @@ public class GetsertXboxUserServiceTests
 
         var (xboxUser, error) = await _service.GetsertXboxUserByGamertag("Grif");
 
-        var stored = await _context.XboxUsers.SingleAsync();
+        var stored = await Context.XboxUsers.SingleAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(error, Is.Null);
@@ -143,13 +119,13 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUserByGamertag_RenamedAccount_UpdatesTheStoredGamertagInstead()
     {
-        _context.XboxUsers.Add(XboxUser.FromXbox(42, "OldName"));
-        await _context.SaveChangesAsync();
+        Context.XboxUsers.Add(XboxUser.FromXbox(42, "OldName"));
+        await Context.SaveChangesAsync();
         _client.UserByGamertag("NewName").Returns(new HaloApiResultContainer<GruntUser, HaloApiErrorContainer>(Gamertag("42", "NewName"), null!));
 
         var (xboxUser, error) = await _service.GetsertXboxUserByGamertag("NewName");
 
-        var stored = await _context.XboxUsers.SingleAsync();
+        var stored = await Context.XboxUsers.SingleAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(error, Is.Null);
@@ -162,8 +138,8 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUsersByXuid_SomeAlreadyStored_OnlyLooksUpTheRest()
     {
-        _context.XboxUsers.Add(XboxUser.FromXbox(1, "One"));
-        await _context.SaveChangesAsync();
+        Context.XboxUsers.Add(XboxUser.FromXbox(1, "One"));
+        await Context.SaveChangesAsync();
         var newGamertags = new List<GruntUser> { Gamertag("2", "Two") };
         _client.Users(Arg.Is<IEnumerable<string>>(x => x.Single() == "2")).Returns(new HaloApiResultContainer<List<GruntUser>, HaloApiErrorContainer>(newGamertags, null!));
 
@@ -172,15 +148,15 @@ public class GetsertXboxUserServiceTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Select(x => x.XboxUserID), Is.EquivalentTo(OneAndTwo));
-            Assert.That((await _context.XboxUsers.ToListAsync()).Select(x => x.Gamertag), Is.EquivalentTo(OneAndTwoGamertags));
+            Assert.That((await Context.XboxUsers.ToListAsync()).Select(x => x.Gamertag), Is.EquivalentTo(OneAndTwoGamertags));
         }
     }
 
     [Test]
     public async Task GetsertXboxUsersByXuid_AllAlreadyStored_NeverCallsHalo()
     {
-        _context.XboxUsers.Add(XboxUser.FromXbox(1, "One"));
-        await _context.SaveChangesAsync();
+        Context.XboxUsers.Add(XboxUser.FromXbox(1, "One"));
+        await Context.SaveChangesAsync();
 
         var result = await _service.GetsertXboxUsersByXuid(JustOne);
 
@@ -212,8 +188,8 @@ public class GetsertXboxUserServiceTests
     [Test]
     public async Task GetsertXboxUserByXuid_AlreadyStored_ReturnsItWithoutCallingHalo()
     {
-        _context.XboxUsers.Add(XboxUser.FromXbox(42, "Grif"));
-        await _context.SaveChangesAsync();
+        Context.XboxUsers.Add(XboxUser.FromXbox(42, "Grif"));
+        await Context.SaveChangesAsync();
 
         var xboxUser = await _service.GetsertXboxUserByXuid(42);
 
@@ -228,7 +204,7 @@ public class GetsertXboxUserServiceTests
 
         var xboxUser = await _service.GetsertXboxUserByXuid(42);
 
-        var stored = await _context.XboxUsers.SingleAsync();
+        var stored = await Context.XboxUsers.SingleAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(xboxUser.Gamertag, Is.EqualTo("Grif"));

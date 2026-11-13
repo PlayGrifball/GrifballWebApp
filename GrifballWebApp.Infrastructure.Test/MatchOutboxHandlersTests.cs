@@ -24,36 +24,20 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class MatchOutboxHandlersTests
+public class MatchOutboxHandlersTests : SqliteContextFixture
 {
     private const ulong LogChannel = 222UL;
     private static readonly int[] HomeIds = [1, 2];
     private static readonly int[] AwayIds = [3, 4];
 
-    private string _path = null!;
-    private GrifballContext _context = null!;
     private IDiscordRestClient _discord = null!;
     private DiscordOptions _options = null!;
     private FakeTimeProvider _time = null!;
     private int _seq;
 
     [SetUp]
-    public async Task SetUp()
+    public void SetUp()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-match-outbox-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        try
-        {
-            await _context.Database.EnsureCreatedAsync();
-        }
-        catch
-        {
-            await _context.DisposeAsync();
-            if (File.Exists(_path))
-                File.Delete(_path);
-            throw;
-        }
         _discord = Substitute.For<IDiscordRestClient>();
         _options = new DiscordOptions { LogChannel = LogChannel };
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
@@ -64,22 +48,14 @@ public class MatchOutboxHandlersTests
             .Returns(_ => AsyncEnumerable.Empty<IDiscordRestMessage>());
     }
 
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _context.DisposeAsync();
-        if (File.Exists(_path))
-            File.Delete(_path);
-    }
-
     private IOptions<DiscordOptions> Options_() => Options.Create(_options);
 
     private async Task<User> AddUser(long? discordId = null)
     {
         var n = ++_seq;
         var user = User.Seed(userName: $"user{n}", discordUser: discordId is { } id ? GrifballWebApp.Domain.Players.DiscordUser.FromDiscord(id, $"disc{n}") : null);
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        Context.Users.Add(user);
+        await Context.SaveChangesAsync();
         return user;
     }
 
@@ -96,9 +72,9 @@ public class MatchOutboxHandlersTests
         var match = MatchedMatch.Start(home, away);
         if (threadId is { } thread)
             match.AttachThread(thread);
-        _context.MatchedMatches.Add(match);
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
+        Context.MatchedMatches.Add(match);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
         return match;
     }
 
@@ -150,7 +126,7 @@ public class MatchOutboxHandlersTests
         _discord.SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(posted);
         var handler = new MatchCreatedPostHandler(_discord, Options_(), NullLogger<MatchCreatedPostHandler>.Instance);
 
-        var outcome = await handler.HandleAsync(Message(MatchOutbox.CreatedPost, new MatchCreatedPayload(match.Id, false)), _context, CancellationToken.None);
+        var outcome = await handler.HandleAsync(Message(MatchOutbox.CreatedPost, new MatchCreatedPayload(match.Id, false)), Context, CancellationToken.None);
 
         Assert.That(outcome, Is.EqualTo(OutboxOutcome.Done));
         await _discord.Received(1).SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
@@ -165,7 +141,7 @@ public class MatchOutboxHandlersTests
         _discord.GetMessagesAsync(LogChannel, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ => new[] { existing }.ToAsyncEnumerable());
         var handler = new MatchCreatedPostHandler(_discord, Options_(), NullLogger<MatchCreatedPostHandler>.Instance);
 
-        await handler.HandleAsync(Message(MatchOutbox.CreatedPost, new MatchCreatedPayload(match.Id, true)), _context, CancellationToken.None);
+        await handler.HandleAsync(Message(MatchOutbox.CreatedPost, new MatchCreatedPayload(match.Id, true)), Context, CancellationToken.None);
 
         await _discord.DidNotReceive().SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
@@ -179,7 +155,7 @@ public class MatchOutboxHandlersTests
         var match = await SeedMatch(home, away, threadId: 777UL);
         var handler = new MatchThreadCreateHandler(_discord, Options_(), NullLogger<MatchThreadCreateHandler>.Instance);
 
-        var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), _context, CancellationToken.None);
+        var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), Context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -195,7 +171,7 @@ public class MatchOutboxHandlersTests
         var match = await SeedMatch(home, away);
         var handler = new MatchThreadCreateHandler(_discord, Options_(), NullLogger<MatchThreadCreateHandler>.Instance);
 
-        Assert.That(async () => await handler.HandleAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), _context, CancellationToken.None),
+        Assert.That(async () => await handler.HandleAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), Context, CancellationToken.None),
             Throws.InvalidOperationException.With.Message.Contains("no Match Created post"));
     }
 
@@ -210,9 +186,9 @@ public class MatchOutboxHandlersTests
         _discord.CreateGuildThreadAsync(LogChannel, 50UL, Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(thread);
         var handler = new MatchThreadCreateHandler(_discord, Options_(), NullLogger<MatchThreadCreateHandler>.Instance);
 
-        await handler.HandleAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), _context, CancellationToken.None);
+        await handler.HandleAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), Context, CancellationToken.None);
 
-        Assert.That((await _context.MatchedMatches.SingleAsync()).ThreadID, Is.EqualTo(900UL));
+        Assert.That((await Context.MatchedMatches.SingleAsync()).ThreadID, Is.EqualTo(900UL));
     }
 
     [Test]
@@ -228,11 +204,11 @@ public class MatchOutboxHandlersTests
         _discord.GetMessageAsync(LogChannel, 50UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(posted);
         var handler = new MatchThreadCreateHandler(_discord, Options_(), NullLogger<MatchThreadCreateHandler>.Instance);
 
-        await handler.HandleAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), _context, CancellationToken.None);
+        await handler.HandleAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), Context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That((await _context.MatchedMatches.SingleAsync()).ThreadID, Is.EqualTo(901UL));
+            Assert.That((await Context.MatchedMatches.SingleAsync()).ThreadID, Is.EqualTo(901UL));
             Assert.That(_discord.ReceivedCalls().Any(c => c.GetMethodInfo().Name == nameof(IDiscordRestClient.CreateGuildThreadAsync)), Is.False);
         }
     }
@@ -248,9 +224,9 @@ public class MatchOutboxHandlersTests
             Status = OutboxStatus.Sent,
             Result = JsonSerializer.Serialize(new MatchCreatedResult(messageId, found), OutboxJson.Options),
         };
-        _context.Outbox.Add(message);
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
+        Context.Outbox.Add(message);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
     }
 
     // ---- MatchThreadInviteHandler ----
@@ -264,7 +240,7 @@ public class MatchOutboxHandlersTests
         var match = await SeedMatch([withDiscord1.Id, noDiscord.Id], [withDiscord2.Id], threadId: 777UL);
         var handler = new MatchThreadInviteHandler(_discord, Options_(), NullLogger<MatchThreadInviteHandler>.Instance);
 
-        await handler.HandleAsync(Message(MatchOutbox.ThreadInvite, new MatchPayload(match.Id)), _context, CancellationToken.None);
+        await handler.HandleAsync(Message(MatchOutbox.ThreadInvite, new MatchPayload(match.Id)), Context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -283,7 +259,7 @@ public class MatchOutboxHandlersTests
         _discord.AddGuildThreadUserAsync(777UL, 5001UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).ThrowsAsync(new Exception("gone"));
         var handler = new MatchThreadInviteHandler(_discord, Options_(), NullLogger<MatchThreadInviteHandler>.Instance);
 
-        var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadInvite, new MatchPayload(match.Id)), _context, CancellationToken.None);
+        var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadInvite, new MatchPayload(match.Id)), Context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -299,7 +275,7 @@ public class MatchOutboxHandlersTests
         var match = await SeedMatch([user.Id], []);
         var handler = new MatchThreadInviteHandler(_discord, Options_(), NullLogger<MatchThreadInviteHandler>.Instance);
 
-        Assert.That(async () => await handler.HandleAsync(Message(MatchOutbox.ThreadInvite, new MatchPayload(match.Id)), _context, CancellationToken.None),
+        Assert.That(async () => await handler.HandleAsync(Message(MatchOutbox.ThreadInvite, new MatchPayload(match.Id)), Context, CancellationToken.None),
             Throws.InvalidOperationException.With.Message.Contains("no thread"));
     }
 
@@ -315,9 +291,9 @@ public class MatchOutboxHandlersTests
         _discord.SendMessageAsync(777UL, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(posted);
         var handler = new MatchVotePostHandler(_discord, Options_(), NullLogger<MatchVotePostHandler>.Instance);
 
-        await handler.HandleAsync(Message(MatchOutbox.VotePost, new MatchPayload(match.Id)), _context, CancellationToken.None);
+        await handler.HandleAsync(Message(MatchOutbox.VotePost, new MatchPayload(match.Id)), Context, CancellationToken.None);
 
-        Assert.That((await _context.MatchedMatches.SingleAsync()).VoteMessageID, Is.EqualTo(70UL));
+        Assert.That((await Context.MatchedMatches.SingleAsync()).VoteMessageID, Is.EqualTo(70UL));
     }
 
     [Test]
@@ -326,12 +302,12 @@ public class MatchOutboxHandlersTests
         var home = await AddUser();
         var away = await AddUser();
         var match = await SeedMatch([home.Id], [away.Id], threadId: 777UL);
-        match = await _context.MatchedMatches.SingleAsync();
+        match = await Context.MatchedMatches.SingleAsync();
         match.PostVoteMessage(70UL);
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
         var handler = new MatchVotePostHandler(_discord, Options_(), NullLogger<MatchVotePostHandler>.Instance);
 
-        await handler.HandleAsync(Message(MatchOutbox.VotePost, new MatchPayload(match.Id)), _context, CancellationToken.None);
+        await handler.HandleAsync(Message(MatchOutbox.VotePost, new MatchPayload(match.Id)), Context, CancellationToken.None);
 
         await _discord.DidNotReceive().SendMessageAsync(Arg.Any<ulong>(), Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
@@ -343,7 +319,7 @@ public class MatchOutboxHandlersTests
     {
         var handler = new MatchEndedPostHandler(_discord, Options_());
 
-        await handler.HandleAsync(Message(MatchOutbox.EndedPost, new MatchEndedPayload(5, 0, "5m", "a", "b")), _context, CancellationToken.None);
+        await handler.HandleAsync(Message(MatchOutbox.EndedPost, new MatchEndedPayload(5, 0, "5m", "a", "b")), Context, CancellationToken.None);
 
         await _discord.Received(1).SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
@@ -356,7 +332,7 @@ public class MatchOutboxHandlersTests
         _discord.GetMessagesAsync(LogChannel, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ => new[] { existing }.ToAsyncEnumerable());
         var handler = new MatchEndedPostHandler(_discord, Options_());
 
-        await handler.HandleAsync(Message(MatchOutbox.EndedPost, new MatchEndedPayload(5, 0, "5m", "a", "b"), attempts: 2), _context, CancellationToken.None);
+        await handler.HandleAsync(Message(MatchOutbox.EndedPost, new MatchEndedPayload(5, 0, "5m", "a", "b"), attempts: 2), Context, CancellationToken.None);
 
         await _discord.DidNotReceive().SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
@@ -368,7 +344,7 @@ public class MatchOutboxHandlersTests
     {
         var handler = new MatchCanceledPostHandler(_discord, Options_());
 
-        await handler.HandleAsync(Message(MatchOutbox.CanceledPost, new MatchCanceledPayload(5, false)), _context, CancellationToken.None);
+        await handler.HandleAsync(Message(MatchOutbox.CanceledPost, new MatchCanceledPayload(5, false)), Context, CancellationToken.None);
 
         await _discord.Received(1).SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
@@ -380,7 +356,7 @@ public class MatchOutboxHandlersTests
         _discord.GetMessagesAsync(LogChannel, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ => new[] { existing }.ToAsyncEnumerable());
         var handler = new MatchCanceledPostHandler(_discord, Options_());
 
-        await handler.HandleAsync(Message(MatchOutbox.CanceledPost, new MatchCanceledPayload(5, false), attempts: 2), _context, CancellationToken.None);
+        await handler.HandleAsync(Message(MatchOutbox.CanceledPost, new MatchCanceledPayload(5, false), attempts: 2), Context, CancellationToken.None);
 
         await _discord.DidNotReceive().SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
@@ -394,7 +370,7 @@ public class MatchOutboxHandlersTests
         var match = await SeedMatch(home, away, threadId: 777UL);
         var handler = new MatchThreadCloseHandler(_discord, _time);
 
-        var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadClose, new MatchPayload(match.Id)), _context, CancellationToken.None);
+        var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadClose, new MatchPayload(match.Id)), Context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -410,7 +386,7 @@ public class MatchOutboxHandlersTests
         var match = await SeedMatch(home, away, threadId: 777UL);
         var handler = new MatchThreadCloseHandler(_discord, _time);
 
-        var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadClose, new MatchPayload(match.Id), result: new ThreadCloseResult(true)), _context, CancellationToken.None);
+        var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadClose, new MatchPayload(match.Id), result: new ThreadCloseResult(true)), Context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -426,7 +402,7 @@ public class MatchOutboxHandlersTests
         var match = await SeedMatch(home, away);
         var handler = new MatchThreadCloseHandler(_discord, _time);
 
-        var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadClose, new MatchPayload(match.Id)), _context, CancellationToken.None);
+        var outcome = await handler.HandleAsync(Message(MatchOutbox.ThreadClose, new MatchPayload(match.Id)), Context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -445,13 +421,13 @@ public class MatchOutboxHandlersTests
         var match = await SeedMatch([home.Id], [away.Id]);
         var handler = new MatchThreadCreateHandler(_discord, Options_(), NullLogger<MatchThreadCreateHandler>.Instance);
 
-        await handler.OnDeadLetteredAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), _context, new ContextOutbox(_context), CancellationToken.None);
-        await _context.SaveChangesAsync();
+        await handler.OnDeadLetteredAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), Context, new ContextOutbox(Context), CancellationToken.None);
+        await Context.SaveChangesAsync();
 
-        var requeued = await _context.QueuedPlayer.Select(x => x.UserID).ToListAsync();
+        var requeued = await Context.QueuedPlayer.Select(x => x.UserID).ToListAsync();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That((await _context.MatchedMatches.SingleAsync()).Status, Is.EqualTo(MatchedMatchStatus.Canceled));
+            Assert.That((await Context.MatchedMatches.SingleAsync()).Status, Is.EqualTo(MatchedMatchStatus.Canceled));
             Assert.That(requeued, Is.EquivalentTo(new[] { home.Id, away.Id }));
         }
     }
@@ -462,14 +438,14 @@ public class MatchOutboxHandlersTests
         var home = await AddUser();
         var away = await AddUser();
         var match = await SeedMatch([home.Id], [away.Id]);
-        match = await _context.MatchedMatches.SingleAsync();
+        match = await Context.MatchedMatches.SingleAsync();
         match.Cancel();
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
         var handler = new MatchThreadCreateHandler(_discord, Options_(), NullLogger<MatchThreadCreateHandler>.Instance);
 
-        await handler.OnDeadLetteredAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), _context, new ContextOutbox(_context), CancellationToken.None);
+        await handler.OnDeadLetteredAsync(Message(MatchOutbox.ThreadCreate, new MatchPayload(match.Id)), Context, new ContextOutbox(Context), CancellationToken.None);
 
-        Assert.That(await _context.QueuedPlayer.AnyAsync(), Is.False);
+        Assert.That(await Context.QueuedPlayer.AnyAsync(), Is.False);
     }
 }

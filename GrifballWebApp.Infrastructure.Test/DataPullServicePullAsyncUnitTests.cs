@@ -24,10 +24,8 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class DataPullServicePullAsyncUnitTests
+public class DataPullServicePullAsyncUnitTests : SqliteContextFixture
 {
-    private string _path = null!;
-    private GrifballContext _context = null!;
     private IHaloInfiniteClient _halo = null!;
     private IGetsertXboxUserService _getsert = null!;
     private DataPullService _service = null!;
@@ -36,27 +34,13 @@ public class DataPullServicePullAsyncUnitTests
     private static readonly string[] expectedArray1 = ["xuid(10)", "xuid(11)", "xuid(12)"];
 
     [SetUp]
-    public async Task SetUp()
+    public void SetUp()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-pullasync-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        await _context.Database.EnsureCreatedAsync();
         _halo = Substitute.For<IHaloInfiniteClient>();
         _getsert = Substitute.For<IGetsertXboxUserService>();
         _getsert.GetsertXboxUserByXuid(Arg.Any<long>(), Arg.Any<CancellationToken>())
             .Returns(ci => XboxUser.FromXbox(ci.Arg<long>(), $"gt{ci.Arg<long>()}"));
-        _service = new DataPullService(NullLogger<DataPullService>.Instance, _halo, _context, _getsert);
-    }
-
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _context.DisposeAsync();
-        // Surprenant.Grunt.Models.HaloInfinite has its own File type: qualified against System.IO's
-        foreach (var file in new[] { _path, _path + "-wal", _path + "-shm" })
-            if (System.IO.File.Exists(file))
-                System.IO.File.Delete(file);
+        _service = new DataPullService(NullLogger<DataPullService>.Instance, _halo, Context, _getsert);
     }
 
     private static CoreStats Core(int score = 1) => new()
@@ -103,8 +87,8 @@ public class DataPullServicePullAsyncUnitTests
         var alreadyDownloaded = Guid.NewGuid();
         var missingStats = Guid.NewGuid();
         var otherMode = Guid.NewGuid();
-        _context.Matches.Add(Match.Seed(alreadyDownloaded));
-        await _context.SaveChangesAsync();
+        Context.Matches.Add(Match.Seed(alreadyDownloaded));
+        await Context.SaveChangesAsync();
 
         // Player 1: API failure. Player 2: matches. Player 3: no matches at all.
         _halo.StatsGetMatchHistory("xuid(1)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>())
@@ -126,13 +110,13 @@ public class DataPullServicePullAsyncUnitTests
             .Returns(Ok(new MatchHistoryResponse { Results = [] }));
         _halo.StatsGetMatchStats(newMatch).Returns(Ok(StatsOf(newMatch, [(0, 2), (1, 3)], PlayerOf("xuid(2)", 0, (0, 5)), PlayerOf("xuid(9)", 1, (1, 2)))));
         _halo.StatsGetMatchStats(missingStats).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null!, null!));
-        _context.XboxUsers.Add(XboxUser.FromXbox(2, "existing"));
-        await _context.SaveChangesAsync();
-        _getsert.GetsertXboxUserByXuid(2, Arg.Any<CancellationToken>()).Returns(_ => _context.XboxUsers.Single(x => x.XboxUserID == 2));
+        Context.XboxUsers.Add(XboxUser.FromXbox(2, "existing"));
+        await Context.SaveChangesAsync();
+        _getsert.GetsertXboxUserByXuid(2, Arg.Any<CancellationToken>()).Returns(_ => Context.XboxUsers.Single(x => x.XboxUserID == 2));
 
         var result = await _service.DownloadRecentMatchesForPlayers([1, 2, 2, 3], startPage: 0, endPage: 1, perPage: 5);
 
-        var saved = await _context.Matches.Select(x => x.MatchID).ToListAsync();
+        var saved = await Context.Matches.Select(x => x.MatchID).ToListAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(saved, Is.EquivalentTo(new[] { alreadyDownloaded, newMatch }));
@@ -234,22 +218,22 @@ public class DataPullServicePullAsyncUnitTests
         _halo.StatsGetMatchStats(notTeams).Returns(Ok(StatsOf(notTeams, [], PlayerOf("xuid(7)", 0, (0, 5)))));
         // The caller's own entity, changed before the pull and saved after it
         var mine = XboxUser.FromXbox(70, "before");
-        _context.XboxUsers.Add(mine);
-        await _context.SaveChangesAsync();
+        Context.XboxUsers.Add(mine);
+        await Context.SaveChangesAsync();
         mine.Renamed("after", DateTime.UtcNow);
 
         var result = await _service.DownloadRecentMatchesForPlayers([6, 7], startPage: 0, endPage: 0, perPage: 5);
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await _context.Matches.Select(x => x.MatchID).ToListAsync(), Is.EqualTo(new[] { saved }));
+            Assert.That(await Context.Matches.Select(x => x.MatchID).ToListAsync(), Is.EqualTo(new[] { saved }));
             Assert.That((result.MatchesFound, result.MatchesFetched, result.MatchesNotTeamGames), Is.EqualTo((3, 1, 1)));
             Assert.That(result.FailedHistories, Is.EqualTo(expectedArray0));
             Assert.That(result.FailedMatches, Is.EqualTo(new[] { unanswered }));
             Assert.That(result.Summary, Does.EndWith("; 1 not team games, not saved"));
-            Assert.That(_context.ChangeTracker.AutoDetectChangesEnabled, Is.True, "Back on for the caller");
-            Assert.That(await _context.XboxUsers.AsNoTracking().Where(x => x.XboxUserID == 70).Select(x => x.Gamertag).SingleAsync(), Is.EqualTo("after"));
+            Assert.That(Context.ChangeTracker.AutoDetectChangesEnabled, Is.True, "Back on for the caller");
+            Assert.That(await Context.XboxUsers.AsNoTracking().Where(x => x.XboxUserID == 70).Select(x => x.Gamertag).SingleAsync(), Is.EqualTo("after"));
         }
     }
 

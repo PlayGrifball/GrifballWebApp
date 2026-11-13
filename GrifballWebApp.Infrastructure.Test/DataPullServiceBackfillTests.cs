@@ -19,47 +19,23 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class DataPullServiceBackfillTests
+public class DataPullServiceBackfillTests : SqliteContextFixture
 {
-    private string _path = null!;
-    private GrifballContext _context = null!;
     private IHaloInfiniteClient _halo = null!;
     private DataPullService _service = null!;
 
     [SetUp]
-    public async Task SetUp()
+    public void SetUp()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-backfill-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        try
-        {
-            await _context.Database.EnsureCreatedAsync();
-        }
-        catch
-        {
-            await _context.DisposeAsync();
-            if (System.IO.File.Exists(_path))
-                System.IO.File.Delete(_path);
-            throw;
-        }
         _halo = Substitute.For<IHaloInfiniteClient>();
-        _service = new DataPullService(NullLogger<DataPullService>.Instance, _halo, _context, Substitute.For<GrifballWebApp.Application.HaloInfinite.IGetsertXboxUserService>());
-    }
-
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _context.DisposeAsync();
-        if (System.IO.File.Exists(_path))
-            System.IO.File.Delete(_path);
+        _service = new DataPullService(NullLogger<DataPullService>.Instance, _halo, Context, Substitute.For<GrifballWebApp.Application.HaloInfinite.IGetsertXboxUserService>());
     }
 
     private async Task<Match> AddMatchWithoutVariant()
     {
         var match = Match.Seed(Guid.NewGuid());
-        _context.Matches.Add(match);
-        await _context.SaveChangesAsync();
+        Context.Matches.Add(match);
+        await Context.SaveChangesAsync();
         return match;
     }
 
@@ -93,7 +69,7 @@ public class DataPullServiceBackfillTests
 
         var result = await _service.BackfillGameVariants(10);
 
-        var saved = await _context.Matches.SingleAsync();
+        var saved = await Context.Matches.SingleAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Filled, Is.EqualTo(1));
@@ -115,7 +91,7 @@ public class DataPullServiceBackfillTests
         {
             Assert.That(result.NoVariant, Is.EqualTo(1));
             Assert.That(result.Filled, Is.Zero);
-            Assert.That((await _context.Matches.SingleAsync()).UgcGameVariantVersionID, Is.Null);
+            Assert.That((await Context.Matches.SingleAsync()).UgcGameVariantVersionID, Is.Null);
         }
     }
 
@@ -130,7 +106,7 @@ public class DataPullServiceBackfillTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Failed, Is.EquivalentTo(new[] { match.MatchID }));
-            Assert.That((await _context.Matches.SingleAsync()).UgcGameVariantVersionID, Is.Null);
+            Assert.That((await Context.Matches.SingleAsync()).UgcGameVariantVersionID, Is.Null);
         }
     }
 

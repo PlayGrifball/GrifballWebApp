@@ -25,38 +25,21 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class QueueServiceTests
+public class QueueServiceTests : SqliteContextFixture
 {
     private const ulong QueueChannel = 111UL;
     private const ulong BotId = 1UL;
     private static readonly ulong[] DeletedMessageIds = [11, 14];
     private static readonly string[] MatchAnnouncementSteps = [MatchOutbox.CreatedPost, MatchOutbox.ThreadCreate, MatchOutbox.ThreadInvite, MatchOutbox.VotePost];
 
-    private string _path = null!;
-    private GrifballContext _context = null!;
     private IDiscordRestClient _discord = null!;
     private IQueueNotifier _notifier = null!;
     private DiscordOptions _options = null!;
     private int _seq;
 
     [SetUp]
-    public async Task SetUp()
+    public void SetUp()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-queue-service-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        try
-        {
-            await _context.Database.EnsureCreatedAsync();
-        }
-        catch
-        {
-            await _context.DisposeAsync();
-            if (File.Exists(_path))
-                File.Delete(_path);
-            throw;
-        }
-
         _discord = Substitute.For<IDiscordRestClient>();
         var me = Substitute.For<IDiscordCurrentUser>();
         me.Id.Returns(BotId);
@@ -71,17 +54,9 @@ public class QueueServiceTests
         _options = new DiscordOptions { QueueChannel = QueueChannel, MatchPlayers = 2 };
     }
 
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _context.DisposeAsync();
-        if (File.Exists(_path))
-            File.Delete(_path);
-    }
-
     private QueueService Service(IQueueRepository? repository = null, IDataPullService? dataPullService = null) => new(
-        NullLogger<QueueService>.Instance, Options.Create(_options), repository ?? new QueueRepository(_context), _discord, _context,
-        dataPullService ?? Substitute.For<IDataPullService>(), new ContextOutbox(_context), _notifier);
+        NullLogger<QueueService>.Instance, Options.Create(_options), repository ?? new QueueRepository(Context), _discord, Context,
+        dataPullService ?? Substitute.For<IDataPullService>(), new ContextOutbox(Context), _notifier);
 
     private async Task<List<User>> SeedUsers(int count)
     {
@@ -91,16 +66,16 @@ public class QueueServiceTests
             var n = ++_seq;
             users.Add(User.Seed(userName: $"user{n}", xboxUser: GrifballWebApp.Domain.Players.XboxUser.FromXbox(1000 + n, $"gt{n}")));
         }
-        _context.Users.AddRange(users);
-        await _context.SaveChangesAsync();
+        Context.Users.AddRange(users);
+        await Context.SaveChangesAsync();
         return users;
     }
 
     private async Task QueuePlayers(IEnumerable<User> users)
     {
-        _context.QueuedPlayer.AddRange(users.Select((u, i) => QueuedPlayer.Seed(u.Id, DateTime.UtcNow.AddMinutes(-10 + i))));
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
+        Context.QueuedPlayer.AddRange(users.Select((u, i) => QueuedPlayer.Seed(u.Id, DateTime.UtcNow.AddMinutes(-10 + i))));
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
     }
 
     private async Task<MatchedMatch> SeedActiveMatch(IEnumerable<User> home, IEnumerable<User> away, ulong? threadId = null)
@@ -111,9 +86,9 @@ public class QueueServiceTests
             match.AttachThread(thread);
             match.PostVoteMessage(4242UL);
         }
-        _context.MatchedMatches.Add(match);
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
+        Context.MatchedMatches.Add(match);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
         return match;
     }
 
@@ -138,8 +113,8 @@ public class QueueServiceTests
     public void Constructor_NoQueueChannelConfigured_Throws()
     {
         var options = Options.Create(new DiscordOptions());
-        Assert.That(() => new QueueService(NullLogger<QueueService>.Instance, options, new QueueRepository(_context), _discord, _context,
-            Substitute.For<IDataPullService>(), new ContextOutbox(_context), _notifier), Throws.Exception.With.Message.EqualTo("Discord:QueueChannel is not set"));
+        Assert.That(() => new QueueService(NullLogger<QueueService>.Instance, options, new QueueRepository(Context), _discord, Context,
+            Substitute.For<IDataPullService>(), new ContextOutbox(Context), _notifier), Throws.Exception.With.Message.EqualTo("Discord:QueueChannel is not set"));
     }
 
     [Test]
@@ -198,9 +173,9 @@ public class QueueServiceTests
 
         await Service().Go(CancellationToken.None);
 
-        var match = await _context.MatchedMatches.SingleAsync();
-        var queued = await _context.Outbox.OrderBy(x => x.Sequence).ToListAsync();
-        var stillQueued = await _context.QueuedPlayer.ToListAsync();
+        var match = await Context.MatchedMatches.SingleAsync();
+        var queued = await Context.Outbox.OrderBy(x => x.Sequence).ToListAsync();
+        var stillQueued = await Context.QueuedPlayer.ToListAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(stillQueued, Is.Empty);
@@ -219,8 +194,8 @@ public class QueueServiceTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await _context.MatchedMatches.AnyAsync(), Is.False);
-            Assert.That(await _context.QueuedPlayer.CountAsync(), Is.EqualTo(1));
+            Assert.That(await Context.MatchedMatches.AnyAsync(), Is.False);
+            Assert.That(await Context.QueuedPlayer.CountAsync(), Is.EqualTo(1));
         }
     }
 
@@ -229,8 +204,8 @@ public class QueueServiceTests
     {
         var queued = await SeedUsers(1);
         await QueuePlayers(queued);
-        _context.Ranks.Add(Rank.Create("Bronze", 0, "#CD7F32", "Starting out", []));
-        await _context.SaveChangesAsync();
+        Context.Ranks.Add(Rank.Create("Bronze", 0, "#CD7F32", "Starting out", []));
+        await Context.SaveChangesAsync();
         var home = await SeedUsers(1);
         var away = await SeedUsers(1);
         var match = await SeedActiveMatch(home, away);
@@ -258,7 +233,7 @@ public class QueueServiceTests
 
         await Service().Go(CancellationToken.None);
 
-        var queued = await _context.Outbox.Where(x => x.GroupKey == MatchOutbox.Group(match.Id)).OrderBy(x => x.Sequence).ToListAsync();
+        var queued = await Context.Outbox.Where(x => x.GroupKey == MatchOutbox.Group(match.Id)).OrderBy(x => x.Sequence).ToListAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(queued.Select(x => x.Kind), Is.EqualTo(MatchAnnouncementSteps));
@@ -275,7 +250,7 @@ public class QueueServiceTests
 
         await Service().Go(CancellationToken.None);
 
-        Assert.That(await _context.Outbox.AnyAsync(), Is.False, "Already announced (its vote message is posted): nothing queued again");
+        Assert.That(await Context.Outbox.AnyAsync(), Is.False, "Already announced (its vote message is posted): nothing queued again");
     }
 
     [Test]
@@ -295,19 +270,19 @@ public class QueueServiceTests
     {
         var players = await SeedUsers(2);
         await QueuePlayers(players);
-        _context.SavingChanges += (_, _) =>
+        Context.SavingChanges += (_, _) =>
         {
-            if (_context.ChangeTracker.Entries<OutboxMessage>().Any(x => x.State == EntityState.Added))
+            if (Context.ChangeTracker.Entries<OutboxMessage>().Any(x => x.State == EntityState.Added))
                 throw new InvalidOperationException("database down");
         };
 
         Assert.That(async () => await Service().Go(CancellationToken.None), Throws.InstanceOf<InvalidOperationException>());
 
-        _context.ChangeTracker.Clear();
+        Context.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await _context.MatchedMatches.AnyAsync(), Is.False, "Rolled back along with the outbox save that failed");
-            Assert.That(await _context.QueuedPlayer.CountAsync(), Is.EqualTo(2), "Still queued: the match was rolled back too");
+            Assert.That(await Context.MatchedMatches.AnyAsync(), Is.False, "Rolled back along with the outbox save that failed");
+            Assert.That(await Context.QueuedPlayer.CountAsync(), Is.EqualTo(2), "Still queued: the match was rolled back too");
         }
         await _notifier.Received(1).Send(2);
         Assert.That(StatusChanged(), Is.Empty, "Rolled back: nobody's place changed");
@@ -334,7 +309,7 @@ public class QueueServiceTests
         var away = await SeedUsers(1);
         var match = await SeedActiveMatch(home, away, threadId: 999UL);
 
-        await Service().UpdateThreadMessage(match, _context, _discord);
+        await Service().UpdateThreadMessage(match, Context, _discord);
 
         var call = _discord.ReceivedCalls().Single(c => c.GetMethodInfo().Name == nameof(IDiscordRestClient.ModifyMessageAsync));
         using (Assert.EnterMultipleScope())
@@ -350,10 +325,10 @@ public class QueueServiceTests
         var home = await SeedUsers(1);
         var away = await SeedUsers(1);
         var match = MatchedMatch.Start(home.Select(x => x.Id), away.Select(x => x.Id));
-        _context.MatchedMatches.Add(match);
-        await _context.SaveChangesAsync();
+        Context.MatchedMatches.Add(match);
+        await Context.SaveChangesAsync();
 
-        await Service().UpdateThreadMessage(match, _context, _discord);
+        await Service().UpdateThreadMessage(match, Context, _discord);
 
         Assert.That(_discord.ReceivedCalls(), Is.Empty);
     }
@@ -361,7 +336,7 @@ public class QueueServiceTests
     [Test]
     public async Task UpdateThreadMessage_NullMatch_DoesNothing()
     {
-        await Service().UpdateThreadMessage(null, _context, _discord);
+        await Service().UpdateThreadMessage(null, Context, _discord);
 
         Assert.That(_discord.ReceivedCalls(), Is.Empty);
     }

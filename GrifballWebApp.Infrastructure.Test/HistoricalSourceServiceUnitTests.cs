@@ -44,35 +44,20 @@ internal sealed class HistoricalSourcesFakeHandler(Func<HttpRequestMessage, Http
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class HistoricalSourceServiceUnitTests
+public class HistoricalSourceServiceUnitTests : SqliteContextFixture
 {
-    private GrifballContext _context = null!;
-    private string _path = null!;
     private FakeTimeProvider _time = null!;
     private Func<HttpRequestMessage, HttpResponseMessage> _respond = null!;
     private HistoricalSourcesFakeHandler _handler = null!;
     private HistoricalSourceService _service = null!;
 
     [SetUp]
-    public async Task Setup()
+    public void Setup()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-historical-source-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        await _context.Database.EnsureCreatedAsync();
         _time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
         _respond = _ => HistoricalSourcesFakeHandler.Status(HttpStatusCode.NotFound);
         _handler = new HistoricalSourcesFakeHandler(request => _respond(request));
-        _service = new HistoricalSourceService(_context, new HistoricalSourceFetcher(new HttpClient(_handler)), _time, NullLogger<HistoricalSourceService>.Instance);
-    }
-
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _context.DisposeAsync();
-        foreach (var file in new[] { _path, _path + "-wal", _path + "-shm" })
-            if (File.Exists(file))
-                File.Delete(file);
+        _service = new HistoricalSourceService(Context, new HistoricalSourceFetcher(new HttpClient(_handler)), _time, NullLogger<HistoricalSourceService>.Instance);
     }
 
     private static readonly byte[] Xlsx = HistoricalXlsx.Workbook(("Stats", HistoricalXlsx.StatsTab(("A", "T", 1))));
@@ -87,24 +72,24 @@ public class HistoricalSourceServiceUnitTests
     private async Task OnlyEnabled(params string[] ids)
     {
         await _service.EnsureCatalog();
-        await _context.HistoricalSources.Where(s => !ids.Contains(s.HistoricalSourceID)).ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, false));
-        _context.ChangeTracker.Clear();
+        await Context.HistoricalSources.Where(s => !ids.Contains(s.HistoricalSourceID)).ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, false));
+        Context.ChangeTracker.Clear();
     }
 
     [Test]
     public async Task TheCatalog_IsWrittenAtRuntime_AndASysadminsChoiceIsKept()
     {
         await _service.EnsureCatalog();
-        var source = await _context.HistoricalSources.SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats");
+        var source = await Context.HistoricalSources.SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats");
         source.SetEnabled(false);
-        _context.Entry(source).Property(s => s.Title).CurrentValue = "edited";
-        await _context.SaveChangesAsync();
+        Context.Entry(source).Property(s => s.Title).CurrentValue = "edited";
+        await Context.SaveChangesAsync();
 
         await _service.EnsureCatalog();
         var list = await _service.List();
 
-        _context.ChangeTracker.Clear();
-        var again = await _context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats");
+        Context.ChangeTracker.Clear();
+        var again = await Context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats");
         using (Assert.EnterMultipleScope())
         {
             Assert.That(list, Has.Count.EqualTo(HistoricalSourceCatalog.Sources.Count));
@@ -133,7 +118,7 @@ public class HistoricalSourceServiceUnitTests
         _time.Advance(TimeSpan.FromDays(1));
         var third = await _service.Refresh();
 
-        var snapshots = await _context.Set<HistoricalSourceSnapshot>().AsNoTracking().OrderBy(s => s.HistoricalSourceSnapshotID)
+        var snapshots = await Context.Set<HistoricalSourceSnapshot>().AsNoTracking().OrderBy(s => s.HistoricalSourceSnapshotID)
             .Select(s => new { s.HistoricalSourceID, s.Sha256, s.Size, s.ContentType }).ToListAsync();
         var list = await _service.List();
         using (Assert.EnterMultipleScope())
@@ -145,7 +130,7 @@ public class HistoricalSourceServiceUnitTests
             Assert.That(snapshots.Select(s => s.Sha256.Length), Is.All.EqualTo(64));
             Assert.That(snapshots[0].ContentType, Is.EqualTo(HistoricalSourceFetcher.XlsxContentType));
             Assert.That(snapshots[0].Size, Is.EqualTo(Xlsx.Length));
-            var sheetKey = (await _context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats")).SheetKey;
+            var sheetKey = (await Context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats")).SheetKey;
             Assert.That(_handler.Requests, Does.Contain(HistoricalSourceFetcher.ExportUrl(sheetKey!)));
             var website = list.Single(s => s.SourceID == "late-league-website");
             Assert.That((website.SnapshotCount, website.LastFetchStatus, website.LastChangedAt, website.LastFetchedAt), Is.EqualTo((2, (string?)"Changed", (DateTime?)_time.GetUtcNow().UtcDateTime, (DateTime?)_time.GetUtcNow().UtcDateTime)));
@@ -182,8 +167,8 @@ public class HistoricalSourceServiceUnitTests
             Assert.That(privateNow.Failed.Single(), Is.EqualTo(("2019-wl19-schedule-stats", "the xlsx export answered 200")));
             Assert.That(unreachable.Failed.Single().Reason, Is.EqualTo("no route"));
             Assert.That(slow.Failed.Single().Reason, Is.EqualTo("timed out"));
-            Assert.That(await _context.Set<HistoricalSourceSnapshot>().CountAsync(), Is.EqualTo(1));
-            Assert.That((await _context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats")).LastFetchStatus, Is.EqualTo("Failed: timed out"));
+            Assert.That(await Context.Set<HistoricalSourceSnapshot>().CountAsync(), Is.EqualTo(1));
+            Assert.That((await Context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats")).LastFetchStatus, Is.EqualTo("Failed: timed out"));
             Assert.That(latest, Is.EqualTo(new[] { first.Changed.Single().SnapshotID }));
             Assert.That(contents.Single().Content, Is.EqualTo(Xlsx), "The import reads the last snapshot");
             Assert.That(contents[0].Source.HistoricalSourceID, Is.EqualTo("2019-wl19-schedule-stats"));
@@ -203,7 +188,7 @@ public class HistoricalSourceServiceUnitTests
         _respond = _ => HistoricalSourcesFakeHandler.Status(HttpStatusCode.Unauthorized);
         var refused = await _service.Refresh();
 
-        var snapshot = await _context.Set<HistoricalSourceSnapshot>().AsNoTracking().SingleAsync();
+        var snapshot = await Context.Set<HistoricalSourceSnapshot>().AsNoTracking().SingleAsync();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(ok.Changed, Has.Count.EqualTo(1));
@@ -217,7 +202,7 @@ public class HistoricalSourceServiceUnitTests
     public async Task DeadAndDisabledSources_AreNotDownloaded()
     {
         await OnlyEnabled("2018-fl18-schedule", "youtube-grifball-channel");
-        await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "2018-fl18-schedule").ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, true));
+        await Context.HistoricalSources.Where(s => s.HistoricalSourceID == "2018-fl18-schedule").ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, true));
         _respond = _ => HistoricalSourcesFakeHandler.Ok(Encoding.UTF8.GetBytes("<html>channel</html>"), "text/html");
 
         var result = await _service.Refresh();
@@ -235,17 +220,17 @@ public class HistoricalSourceServiceUnitTests
         // Both were listed dead by an earlier catalog and are alive (and enabled) in this one. The website was dead from its
         // first sync (stored disabled, never downloaded); the stats sheet was downloaded, then turned off by a sysadmin.
         await OnlyEnabled("late-league-website");
-        await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "late-league-website")
+        await Context.HistoricalSources.Where(s => s.HistoricalSourceID == "late-league-website")
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsDead, true).SetProperty(x => x.Enabled, false));
-        await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "2019-wl19-schedule-stats")
+        await Context.HistoricalSources.Where(s => s.HistoricalSourceID == "2019-wl19-schedule-stats")
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsDead, true).SetProperty(x => x.LastFetchedAt, (DateTime?)_time.GetUtcNow().UtcDateTime.AddDays(-30)));
         _respond = _ => HistoricalSourcesFakeHandler.Ok(Encoding.UTF8.GetBytes("<html>Late League</html>"), "text/html");
 
         var result = await _service.Refresh();
 
-        _context.ChangeTracker.Clear();
-        var website = await _context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "late-league-website");
-        var stats = await _context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats");
+        Context.ChangeTracker.Clear();
+        var website = await Context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "late-league-website");
+        var stats = await Context.HistoricalSources.AsNoTracking().SingleAsync(s => s.HistoricalSourceID == "2019-wl19-schedule-stats");
         using (Assert.EnterMultipleScope())
         {
             Assert.That((website.IsDead, website.Enabled, website.LastFetchStatus), Is.EqualTo((false, true, (string?)HistoricalSource.ChangedStatus)), "Never downloaded: the catalog's");
@@ -263,9 +248,9 @@ public class HistoricalSourceServiceUnitTests
         {
             Assert.That(await _service.SetEnabled("late-league-website", false), Is.EqualTo(HistoricalSourceSetEnabledResult.Set));
             Assert.That(await _service.SetEnabled("2018-fl18-schedule", true), Is.EqualTo(HistoricalSourceSetEnabledResult.Dead), "A dead source is never enabled");
-            Assert.That(await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "2018-fl18-schedule").Select(s => s.Enabled).SingleAsync(), Is.False);
+            Assert.That(await Context.HistoricalSources.Where(s => s.HistoricalSourceID == "2018-fl18-schedule").Select(s => s.Enabled).SingleAsync(), Is.False);
             Assert.That(await _service.SetEnabled("nope", true), Is.Null);
-            Assert.That(await _context.HistoricalSources.Where(s => s.HistoricalSourceID == "late-league-website").Select(s => s.Enabled).SingleAsync(), Is.False);
+            Assert.That(await Context.HistoricalSources.Where(s => s.HistoricalSourceID == "late-league-website").Select(s => s.Enabled).SingleAsync(), Is.False);
         }
     }
 

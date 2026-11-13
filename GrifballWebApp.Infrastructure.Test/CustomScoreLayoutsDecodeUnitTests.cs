@@ -15,29 +15,14 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class CustomScoreLayoutsDecodeUnitTests
+public class CustomScoreLayoutsDecodeUnitTests : SqliteContextFixture
 {
-    private string _path = null!;
-    private GrifballContext _context = null!;
     private CustomScoreLayouts _layouts = null!;
 
     [SetUp]
-    public async Task Setup()
+    public void Setup()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-score-layouts-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        await _context.Database.EnsureCreatedAsync();
-        _layouts = new CustomScoreLayouts(_context);
-    }
-
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _context.DisposeAsync();
-        foreach (var file in new[] { _path, _path + "-wal", _path + "-shm" })
-            if (File.Exists(file))
-                File.Delete(file);
+        _layouts = new CustomScoreLayouts(Context);
     }
 
     private long _nextXuid;
@@ -51,9 +36,9 @@ public class CustomScoreLayoutsDecodeUnitTests
         var xuidB = ++_nextXuid;
         match.AddParticipant(0, xuidA, new MatchParticipantStats { Score = scoreA }, [], XboxUser.FromXbox(xuidA, "A"));
         match.AddParticipant(1, xuidB, new MatchParticipantStats { Score = scoreB }, [], XboxUser.FromXbox(xuidB, "B"));
-        _context.Matches.Add(match);
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
+        Context.Matches.Add(match);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
         return match;
     }
 
@@ -75,7 +60,7 @@ public class CustomScoreLayoutsDecodeUnitTests
             Assert.That(changed, Is.EqualTo(1));
             Assert.That(done, Is.EqualTo(1));
         }
-        var saved = await _context.Matches.AsNoTracking().Include(m => m.MatchTeams).ThenInclude(t => t.MatchParticipants)
+        var saved = await Context.Matches.AsNoTracking().Include(m => m.MatchTeams).ThenInclude(t => t.MatchParticipants)
             .SingleAsync(m => m.MatchID == matchId);
         using (Assert.EnterMultipleScope())
         {

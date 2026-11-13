@@ -21,55 +21,40 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class RescheduleDecisionPostHandlerTests
+public class RescheduleDecisionPostHandlerTests : SqliteContextFixture
 {
     private const ulong ThreadId = 444UL;
 
-    private string _path = null!;
-    private GrifballContext _context = null!;
     private IDiscordRestClient _discord = null!;
     private RescheduleDecisionPostHandler _handler = null!;
 
     [SetUp]
-    public async Task SetUp()
+    public void SetUp()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-reschedule-decision-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        await _context.Database.EnsureCreatedAsync();
         _discord = Substitute.For<IDiscordRestClient>();
         _handler = new RescheduleDecisionPostHandler(_discord);
-    }
-
-    [TearDown]
-    public async Task TearDown()
-    {
-        await _context.DisposeAsync();
-        foreach (var file in new[] { _path, _path + "-wal", _path + "-shm" })
-            if (File.Exists(file))
-                File.Delete(file);
     }
 
     private async Task<MatchReschedule> SeedReschedule(bool withThread)
     {
         var season = Season.Seed(seasonName: "Decision season");
-        _context.Seasons.Add(season);
-        await _context.SaveChangesAsync();
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
         var home = Team.Seed(seasonID: season.SeasonID, teamName: "Home");
         var away = Team.Seed(seasonID: season.SeasonID, teamName: "Away");
-        _context.Teams.AddRange(home, away);
-        await _context.SaveChangesAsync();
+        Context.Teams.AddRange(home, away);
+        await Context.SaveChangesAsync();
         var match = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID, bestOf: 3);
-        _context.SeasonMatches.Add(match);
-        await _context.SaveChangesAsync();
+        Context.SeasonMatches.Add(match);
+        await Context.SaveChangesAsync();
         var requester = User.Register("decision-requester");
-        _context.Users.Add(requester);
-        await _context.SaveChangesAsync();
+        Context.Users.Add(requester);
+        await Context.SaveChangesAsync();
         var reschedule = MatchReschedule.Request(match.SeasonMatchID, null, null, "Can't make it", requester.Id, DateTime.UtcNow);
         if (withThread)
             reschedule.AttachThread(ThreadId);
-        _context.MatchReschedules.Add(reschedule);
-        await _context.SaveChangesAsync();
+        Context.MatchReschedules.Add(reschedule);
+        await Context.SaveChangesAsync();
         return reschedule;
     }
 
@@ -85,7 +70,7 @@ public class RescheduleDecisionPostHandlerTests
     {
         var reschedule = await SeedReschedule(withThread: false);
 
-        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID, "Approved"), _context, CancellationToken.None);
+        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID, "Approved"), Context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -99,7 +84,7 @@ public class RescheduleDecisionPostHandlerTests
     {
         var reschedule = await SeedReschedule(withThread: true);
 
-        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID, "Approved"), _context, CancellationToken.None);
+        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID, "Approved"), Context, CancellationToken.None);
 
         Assert.That(outcome, Is.EqualTo(OutboxOutcome.Done));
         await _discord.Received(1).SendMessageAsync(ThreadId, Arg.Is<MessageProperties>(m => m.Content == "Approved"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
@@ -118,7 +103,7 @@ public class RescheduleDecisionPostHandlerTests
         posted.Content.Returns("Approved");
         _discord.GetMessagesAsync(ThreadId, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ => new[] { posted }.ToAsyncEnumerable());
 
-        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID, "Approved", attempts: 2), _context, CancellationToken.None);
+        var outcome = await _handler.HandleAsync(Message(reschedule.MatchRescheduleID, "Approved", attempts: 2), Context, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {

@@ -14,50 +14,34 @@ namespace GrifballWebApp.Infrastructure.Test;
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class OutboxSignalInterceptorTests
+public class OutboxSignalInterceptorTests : SqliteContextFixture
 {
     private static readonly TimeSpan ShortWait = TimeSpan.FromSeconds(2);
 
-    private string _path = null!;
-    private ServiceProvider _provider = null!;
-    private AsyncServiceScope _scope;
-    private GrifballContext _context = null!;
-    private OutboxSignal _signal = null!;
+    private readonly OutboxSignal _signal = new();
+    private ServiceProvider? _provider;
+    private AsyncServiceScope? _scope;
 
-    [SetUp]
-    public async Task SetUp()
+    /// <summary>The context from a scope of a DI container that adds the interceptor, as AddGrifballDatabase does.</summary>
+    protected override GrifballContext CreateContext()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-outbox-signal-{Guid.NewGuid():N}.db");
-        _signal = new OutboxSignal();
         var services = new ServiceCollection();
         services.AddSingleton(new OutboxSignalInterceptor(_signal));
         services.AddDbContext<GrifballContext>((provider, options) => options
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False")
+            .UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString)
             .AddInterceptors(provider.GetRequiredService<OutboxSignalInterceptor>()));
         _provider = services.BuildServiceProvider();
         _scope = _provider.CreateAsyncScope();
-        _context = _scope.ServiceProvider.GetRequiredService<GrifballContext>();
-        try
-        {
-            await _context.Database.EnsureCreatedAsync();
-        }
-        catch
-        {
-            await _scope.DisposeAsync();
-            await _provider.DisposeAsync();
-            if (File.Exists(_path))
-                File.Delete(_path);
-            throw;
-        }
+        return _scope.Value.ServiceProvider.GetRequiredService<GrifballContext>();
     }
 
-    [TearDown]
-    public async Task TearDown()
+    /// <summary>The scope owns the context: disposing it disposes the context, then the container goes.</summary>
+    protected override async ValueTask DisposeContextAsync()
     {
-        await _scope.DisposeAsync();
-        await _provider.DisposeAsync();
-        if (File.Exists(_path))
-            File.Delete(_path);
+        if (_scope is { } scope)
+            await scope.DisposeAsync();
+        if (_provider is not null)
+            await _provider.DisposeAsync();
     }
 
     private static OutboxMessage NewMessage() => new()
@@ -69,9 +53,9 @@ public class OutboxSignalInterceptorTests
     [Test]
     public async Task SaveChangesAsync_OutsideATransaction_SignalsAtOnce()
     {
-        _context.Outbox.Add(NewMessage());
+        Context.Outbox.Add(NewMessage());
 
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
 
         Assert.That(await _signal.WaitAsync(ShortWait, CancellationToken.None), Is.True);
     }
@@ -79,11 +63,11 @@ public class OutboxSignalInterceptorTests
     [Test]
     public async Task SaveChanges_Sync_OutsideATransaction_SignalsAtOnce()
     {
-        _context.Outbox.Add(NewMessage());
+        Context.Outbox.Add(NewMessage());
 
         // The sync SavingChanges/SavedChanges overrides are the case under test, not a sync-over-async shortcut.
 #pragma warning disable VSTHRD103 // Call async methods when in an async method
-        _context.SaveChanges();
+        Context.SaveChanges();
 #pragma warning restore VSTHRD103
 
         Assert.That(await _signal.WaitAsync(ShortWait, CancellationToken.None), Is.True);
@@ -92,14 +76,14 @@ public class OutboxSignalInterceptorTests
     [Test]
     public async Task SaveChangesAsync_NoOutboxMessageAdded_DoesNotSignal()
     {
-        _context.Outbox.Add(NewMessage());
-        await _context.SaveChangesAsync();
+        Context.Outbox.Add(NewMessage());
+        await Context.SaveChangesAsync();
         // Drain the signal from the first save, so this test observes only the second.
         await _signal.WaitAsync(ShortWait, CancellationToken.None);
 
-        var message = await _context.Outbox.SingleAsync();
+        var message = await Context.Outbox.SingleAsync();
         message.LastError = "no outbox row added by this save";
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
 
         Assert.That(await _signal.WaitAsync(TimeSpan.FromMilliseconds(100), CancellationToken.None), Is.False);
     }
@@ -107,9 +91,9 @@ public class OutboxSignalInterceptorTests
     [Test]
     public async Task SaveChangesAsync_InsideATransaction_NotYetCommitted_DoesNotSignal()
     {
-        await using var transaction = await _context.Database.BeginTransactionAsync();
-        _context.Outbox.Add(NewMessage());
-        await _context.SaveChangesAsync();
+        await using var transaction = await Context.Database.BeginTransactionAsync();
+        Context.Outbox.Add(NewMessage());
+        await Context.SaveChangesAsync();
 
         Assert.That(await _signal.WaitAsync(TimeSpan.FromMilliseconds(100), CancellationToken.None), Is.False);
     }
@@ -117,9 +101,9 @@ public class OutboxSignalInterceptorTests
     [Test]
     public async Task SaveChangesAsync_InsideATransaction_SignalsOnceCommitted()
     {
-        await using var transaction = await _context.Database.BeginTransactionAsync();
-        _context.Outbox.Add(NewMessage());
-        await _context.SaveChangesAsync();
+        await using var transaction = await Context.Database.BeginTransactionAsync();
+        Context.Outbox.Add(NewMessage());
+        await Context.SaveChangesAsync();
 
         await transaction.CommitAsync();
 
@@ -129,9 +113,9 @@ public class OutboxSignalInterceptorTests
     [Test]
     public async Task SaveChangesAsync_InsideATransaction_RolledBack_NeverSignals()
     {
-        await using var transaction = await _context.Database.BeginTransactionAsync();
-        _context.Outbox.Add(NewMessage());
-        await _context.SaveChangesAsync();
+        await using var transaction = await Context.Database.BeginTransactionAsync();
+        Context.Outbox.Add(NewMessage());
+        await Context.SaveChangesAsync();
 
         await transaction.RollbackAsync();
 
