@@ -3,6 +3,7 @@ using GrifballWebApp.Server.Signups;
 using Microsoft.AspNetCore.Mvc;
 using User = GrifballWebApp.Domain.Players.User;
 using Team = GrifballWebApp.Domain.League.Team;
+using Season = GrifballWebApp.Domain.League.Season;
 using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
 using SignupButtonInteractions = GrifballWebApp.Server.Signups.ButtonInteractions;
 using GrifballWebApp.Application.Signups;
@@ -94,5 +95,29 @@ public class SignupsControllerDatabaseUnitTests : SqliteGrifballContextFixture
         var result = await controller.GetTimeslots(1, 0, CancellationToken.None);
 
         Assert.That(result.Value, Is.Empty);
+    }
+
+    [Test]
+    public async Task UpsertSignup_SignsTheCallerUp_AndGetSignupIsTheirs()
+    {
+        var now = new DateTime(2026, 11, 1, 12, 0, 0, DateTimeKind.Utc);
+        var season = Season.Seed(seasonName: "Winter").WithDates(signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(8),
+            seasonStart: now.AddDays(10), seasonEnd: now.AddDays(60));
+        Db.Seasons.Add(season);
+        await Db.SaveChangesAsync();
+        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        var controller = new SignupsController(new SignupsService(Db, new Microsoft.Extensions.Time.Testing.FakeTimeProvider(new DateTimeOffset(now))))
+            .WithUser(user.Id.ToString());
+
+        var result = await controller.UpsertSignup(season.SeasonID, new SignupBodyDto { TeamName = "Grifs", WillCaptain = true, RequiresAssistanceDrafting = false },
+            CancellationToken.None);
+        var signup = await controller.GetSignup(season.SeasonID, 0, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status204NoContent));
+            var dto = (SignupResponseDto)((OkObjectResult)signup).Value!;
+            Assert.That((dto.UserID, dto.PersonName, dto.TeamName, dto.WillCaptain), Is.EqualTo((user.Id, "Grifter1", (string?)"Grifs", true)));
+        }
     }
 }
