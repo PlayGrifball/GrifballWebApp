@@ -162,7 +162,12 @@ public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
         }
     }
 
-    private async Task<IReadOnlyList<ConvertedTable>> CopyAsync(DatabaseEndpoint source, DatabaseEndpoint target, ConversionTables tables, CancellationToken cancellationToken,
+    /// <summary>
+    /// Copies every table's rows into the target, whose tables are there and hold nothing of the source's yet, checks
+    /// them and commits: the conversion after its source and target checks. Internal for the tests, which run it between
+    /// two SQLite files made from the model (no migrations).
+    /// </summary>
+    internal async Task<IReadOnlyList<ConvertedTable>> CopyAsync(DatabaseEndpoint source, DatabaseEndpoint target, ConversionTables tables, CancellationToken cancellationToken,
         IProgress<ConversionProgress>? progress)
     {
         await using var sourceConnection = Open(source);
