@@ -1,5 +1,6 @@
 using Quartz;
 using Quartz.Extensibility;
+using GrifballWebApp.Infrastructure.Jobs;
 using NSubstitute;
 using GrifballWebApp.Application.Jobs;
 using static GrifballWebApp.Infrastructure.Test.JobsUnitTests;
