@@ -31,7 +31,7 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
 
     private async Task<SeasonMatch> SeedUndecidedMatch(bool requesterOnRoster = true)
     {
-        Context.Seasons.Add(Season.Seed(seasonID: SeasonID));
+        Context.Seasons.Add(Season.Seed(seasonName: "S1", seasonID: SeasonID));
         Context.Users.Add(User.Seed(userName: "homecap", displayName: "HomeCap", id: HomeCaptainUserID));
         Context.Users.Add(User.Seed(userName: "awaycap", displayName: "AwayCap", id: AwayCaptainUserID));
         Context.Users.Add(User.Seed(userName: "requester", displayName: "Requester", id: RequesterUserID));
@@ -77,7 +77,7 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task RequestRescheduleAsync_NoBothTeams_ThrowsNotAllowed()
     {
-        Context.Seasons.Add(Season.Seed(seasonID: SeasonID));
+        Context.Seasons.Add(Season.Seed(seasonName: "S1", seasonID: SeasonID));
         var match = SeasonMatch.InBracket(SeasonID, Domain.League.MatchBracketInfo.Seed(1), bestOf: 3);
         Context.SeasonMatches.Add(match);
         await Context.SaveChangesAsync();

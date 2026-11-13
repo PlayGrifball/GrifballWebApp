@@ -179,6 +179,15 @@ internal sealed class FakeApplicationDbContext :
         builder.ApplyConfiguration(new ScheduleRecommendationConfiguration());
         builder.ApplyConfiguration(new ScheduleRecommendationMatchConfiguration());
         builder.ApplyConfiguration(new OutboxMessageConfiguration());
+
+        // Belt and suspenders: ConfigureConventions' Properties<string>().UseCollation(...) is a pre-convention default,
+        // and every entity configuration above is applied after it; this forces NOCASE onto every string column, so a
+        // search (Contains/StartsWith, as the production code writes it) that relies on case-insensitive text matches
+        // production behaviour here too (CaseInsensitiveTextTests, against the real GrifballContext on Sqlite).
+        foreach (var entityType in builder.Model.GetEntityTypes())
+            foreach (var property in entityType.GetProperties())
+                if (property.ClrType == typeof(string))
+                    property.SetCollation(SqliteCaseInsensitiveCollation);
     }
 
     /// <summary>GrifballContext.UtcDateTimeConverter, copied: a DateTime with Kind Local can't come from this
