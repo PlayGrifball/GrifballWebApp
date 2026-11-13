@@ -8,10 +8,12 @@ using GrifballWebApp.Application.Historical.Vods;
 
 namespace GrifballWebApp.Server.Test;
 
-/// <summary>VodController's reflection-only unit tests: no database, host, file or network.</summary>
+/// <summary>VodControllerTests's unit tests: no database, host, file or network. Its other tests stay in
+/// GrifballWebApp.Integration.Test.</summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class VodControllerAttributeTests
+public class VodControllerUnitTests
 {
     [TestCase(nameof(VodController.Review), true)]
     [TestCase(nameof(VodController.LinkSeasons), true)]
@@ -29,12 +31,12 @@ public class VodControllerAttributeTests
     }
 }
 
-/// <summary>VodControllerTests's unit tests: a real GrifballContext (temp-file SQLite, #402) for VodService's reads,
-/// which touch nothing else. Its other tests stay in GrifballWebApp.Integration.Test.</summary>
+/// <summary>VodControllerTests's database-backed unit tests: a real GrifballContext (temp-file SQLite, #402) for
+/// VodService's reads, which touch nothing else.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class VodControllerUnitTests : SqliteGrifballContextFixture
+public class VodControllerDatabaseUnitTests : SqliteGrifballContextFixture
 {
     private VodController Controller() => new(new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!));
 

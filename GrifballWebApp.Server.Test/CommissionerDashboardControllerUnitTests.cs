@@ -8,10 +8,12 @@ using NSubstitute;
 
 namespace GrifballWebApp.Server.Test;
 
-/// <summary>CommissionerDashboardController's reflection-only unit tests: no database, host, file or network.</summary>
+/// <summary>CommissionerDashboardControllerTests's unit tests: no database, host, file or network. Its other tests
+/// stay in GrifballWebApp.Integration.Test.</summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class CommissionerDashboardControllerAttributeTests
+public class CommissionerDashboardControllerUnitTests
 {
     [Test]
     public void Controller_RequiresCommissionerOrSysadmin()
@@ -20,13 +22,12 @@ public class CommissionerDashboardControllerAttributeTests
     }
 }
 
-/// <summary>CommissionerDashboardControllerTests's unit tests: a real GrifballContext (temp-file SQLite, #402) for
-/// RescheduleService, which needs nothing else for these reads. Its other tests stay in
-/// GrifballWebApp.Integration.Test.</summary>
+/// <summary>CommissionerDashboardControllerTests's database-backed unit tests: a real GrifballContext (temp-file
+/// SQLite, #402) for RescheduleService, which needs nothing else for these reads.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class CommissionerDashboardControllerUnitTests : SqliteGrifballContextFixture
+public class CommissionerDashboardControllerDatabaseUnitTests : SqliteGrifballContextFixture
 {
     private CommissionerDashboardController Controller() => new(new RescheduleService(Db, Substitute.For<IOutbox>()));
 

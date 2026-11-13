@@ -6,10 +6,12 @@ using GrifballWebApp.Application.Historical;
 
 namespace GrifballWebApp.Server.Test;
 
-/// <summary>HistoricalImportControllerTests's reflection and signal unit tests: no database, host, file or network.</summary>
+/// <summary>HistoricalImportControllerTests's unit tests: no database, host, file or network. Its other tests stay
+/// in GrifballWebApp.Integration.Test.</summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class HistoricalImportControllerAttributeTests
+public class HistoricalImportControllerUnitTests
 {
     private static readonly string[] SysadminOnly = ["Sysadmin"];
 
@@ -52,12 +54,12 @@ public class HistoricalImportControllerAttributeTests
     }
 }
 
-/// <summary>HistoricalImportControllerTests's unit tests: a real GrifballContext (temp-file SQLite, #402) for
-/// HistoricalImportJobs, which needs nothing else. Its other tests stay in GrifballWebApp.Integration.Test.</summary>
+/// <summary>HistoricalImportControllerTests's database-backed unit tests: a real GrifballContext (temp-file SQLite,
+/// #402) for HistoricalImportJobs, which needs nothing else.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class HistoricalImportControllerUnitTests : SqliteGrifballContextFixture
+public class HistoricalImportControllerDatabaseUnitTests : SqliteGrifballContextFixture
 {
     // Refused before HistoricalSourceService (the archive's own HTTP fetcher) is ever asked
     private HistoricalImportController Controller() => new(new HistoricalImportJobs(Db, new HistoricalImportSignal()), null!);

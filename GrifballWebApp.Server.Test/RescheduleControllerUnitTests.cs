@@ -9,10 +9,12 @@ using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Server.Test;
 
-/// <summary>RescheduleController's reflection-only unit tests: no database, host, file or network.</summary>
+/// <summary>RescheduleControllerTests's unit tests: no database, host, file or network. Its other tests stay in
+/// GrifballWebApp.Integration.Test.</summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class RescheduleControllerAttributeTests
+public class RescheduleControllerUnitTests
 {
     [Test]
     public void Authorization_IsConfigured()
@@ -30,13 +32,12 @@ public class RescheduleControllerAttributeTests
     }
 }
 
-/// <summary>RescheduleControllerTests's unit tests: a real GrifballContext (temp-file SQLite, #402) for
-/// RescheduleService, which needs nothing else (IOutbox substituted, never reached by these "not found" cases).
-/// Its other tests stay in GrifballWebApp.Integration.Test.</summary>
+/// <summary>RescheduleControllerTests's database-backed unit tests: a real GrifballContext (temp-file SQLite, #402)
+/// for RescheduleService, which needs nothing else (IOutbox substituted, never reached by these "not found" cases).</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class RescheduleControllerUnitTests : SqliteGrifballContextFixture
+public class RescheduleControllerDatabaseUnitTests : SqliteGrifballContextFixture
 {
     private RescheduleController Controller() => new(new RescheduleService(Db, Substitute.For<IOutbox>()));
 

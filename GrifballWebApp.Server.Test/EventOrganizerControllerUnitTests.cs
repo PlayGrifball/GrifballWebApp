@@ -8,10 +8,12 @@ using GrifballWebApp.Application.EventOrganizer;
 
 namespace GrifballWebApp.Server.Test;
 
-/// <summary>EventOrganizerController's reflection-only unit tests: no database, host, file or network.</summary>
+/// <summary>EventOrganizerControllerTests's unit tests: no database, host, file or network. Its other tests stay in
+/// GrifballWebApp.Integration.Test.</summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class EventOrganizerControllerAttributeTests
+public class EventOrganizerControllerUnitTests
 {
     [Test]
     public void Controller_RequiresCommissionerOrSysadmin()
@@ -20,12 +22,12 @@ public class EventOrganizerControllerAttributeTests
     }
 }
 
-/// <summary>EventOrganizerControllerTests's unit tests: a real GrifballContext (temp-file SQLite, #402) for
-/// EventOrganizerService, which needs nothing else. Its other tests stay in GrifballWebApp.Integration.Test.</summary>
+/// <summary>EventOrganizerControllerTests's database-backed unit tests: a real GrifballContext (temp-file SQLite,
+/// #402) for EventOrganizerService, which needs nothing else.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class EventOrganizerControllerUnitTests : SqliteGrifballContextFixture
+public class EventOrganizerControllerDatabaseUnitTests : SqliteGrifballContextFixture
 {
     private EventOrganizerController Controller() => new(new EventOrganizerService(Db));
 
