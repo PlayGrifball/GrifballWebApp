@@ -2,13 +2,14 @@ import type { Page } from '@playwright/test';
 import type { TimeslotDto } from './api';
 import { expect, test } from './fixtures';
 import { createLeague, ensureGamertag, type League } from './league';
+import { LEAGUE_TIME_ZONE } from '../src/app/shared/leagueTimeZone';
 
 // The signup form (/season/:id/signupForm): ticking single slots, the day and time headers (which
 // toggle: tick all when none is ticked, else untick all), submitting, and what the server keeps.
 
-// The app shows times in US Eastern (it offsets from America/Detroit); in that zone the slots show
+// The app shows times in the league's zone, US Eastern (LEAGUE_TIME_ZONE); in that zone the slots show
 // unshifted, so the grid is exactly the season's Mon-Wed x 19:00-22:00.
-test.use({ timezoneId: 'America/Detroit' });
+test.use({ timezoneId: LEAGUE_TIME_ZONE });
 
 const table = (page: Page) => page.locator('app-availability-table table');
 const row = (page: Page, day: string) => table(page).locator('tbody tr').filter({ has: page.locator('td', { hasText: day }) });

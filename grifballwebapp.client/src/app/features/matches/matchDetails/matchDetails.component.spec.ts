@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { MatchDetailsComponent, teamName } from './matchDetails.component';
+import { describeMatch, MatchDetailsComponent, teamName } from './matchDetails.component';
 import { formatSeconds, fromApiTimeSpan, parseMatchDetails } from './matchDetailsDto';
 
 const MATCH_ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
@@ -65,6 +65,27 @@ describe('matchDetailsDto', () => {
     expect(parsed.teams[0].players).toEqual([]);
     expect(parsed.medals).toEqual([]);
     expect(parseMatchDetails({ ...apiMatch(), teams: undefined })!.teams).toEqual([]);
+  });
+
+  it('describes the match for search results and link previews', () => {
+    expect(describeMatch(parseMatchDetails(apiMatch())!)).toEqual({
+      title: 'Red Rampage 5–3 Team 2',
+      description: 'Autumn Brawl, game 2 of best of 3: Red Rampage beat Team 2 5–3 on Oct 30, 2026. Every player\'s goals, kills, deaths and medals.',
+    });
+    // The winner first in the sentence, the teams in their order in the title
+    const lost = parseMatchDetails(apiMatch({ seasonMatch: null, startTime: null, teams: [
+      { teamID: 0, seasonTeamName: 'Sarge\'s Squad', score: 3, outcome: 'Lost' },
+      { teamID: 1, seasonTeamName: 'Skill Diff', score: 5, outcome: 'Won' },
+    ] }))!;
+    expect(describeMatch(lost)).toEqual({
+      title: 'Sarge\'s Squad 3–5 Skill Diff',
+      description: 'Halo Infinite Grifball match: Skill Diff beat Sarge\'s Squad 5–3. Every player\'s goals, kills, deaths and medals.',
+    });
+    const tie = parseMatchDetails(apiMatch({ seasonMatch: null, startTime: null, teams: [
+      { teamID: 0, seasonTeamName: null, score: 2, outcome: 'Tie' }, { teamID: 1, seasonTeamName: null, score: 2, outcome: 'Tie' },
+    ] }))!;
+    expect(describeMatch(tie).description).toBe('Halo Infinite Grifball match: Team 1 2–2 Team 2. Every player\'s goals, kills, deaths and medals.');
+    expect(describeMatch(parseMatchDetails(apiMatch({ teams: [] }))!)).toEqual({ title: 'Match Details' });
   });
 
   it('names a team after its season team, or Infinite\'s side', () => {
@@ -132,6 +153,13 @@ describe('MatchDetailsComponent', () => {
     expect(el.querySelectorAll('.md-medal')).toHaveSize(2); // the match's, and Plasma Pete's
     expect(el.querySelector('.md-player')!.textContent).toContain('Plasma Pete');
     expect(el.querySelector('.md-player')!.textContent).toContain('×2');
+  });
+
+  it('titles the page after the match once it is in', async () => {
+    httpMock.expectOne(URL).flush(apiMatch());
+    await fixture.whenStable();
+    expect(document.title).toBe('Red Rampage 5–3 Team 2 · Play Grifball');
+    expect(document.head.querySelector('meta[name="description"]')!.getAttribute('content')).toContain('Red Rampage beat Team 2 5–3');
   });
 
   it('shows – for goals and points a custom mode packed and no one could read (#217)', async () => {

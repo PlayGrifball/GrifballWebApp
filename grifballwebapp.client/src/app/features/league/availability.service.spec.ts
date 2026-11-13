@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { AvailabilityService } from './availability.service';
 import { DateTime } from 'luxon';
+import { LEAGUE_TIME_ZONE } from '@shared/leagueTimeZone';
 
 describe('AvailabilityService', () => {
   let service: AvailabilityService;
@@ -19,28 +20,28 @@ describe('AvailabilityService', () => {
   });
 
   describe('getDif', () => {
-    it('should return the difference between local and Detroit timezone offsets', () => {
+    it('should return the difference between local and league time zone offsets', () => {
       const result = service.getDif();
       
       // The result should be a number (in minutes)
       expect(typeof result).toBe('number');
       
       // Verify it calculates correctly
-      const detroitOffset = DateTime.now().setZone('America/Detroit').offset;
+      const leagueOffset = DateTime.now().setZone(LEAGUE_TIME_ZONE).offset;
       const localOffset = DateTime.now().offset;
-      const expectedDif = localOffset - detroitOffset;
+      const expectedDif = localOffset - leagueOffset;
       
       expect(result).toBe(expectedDif);
     });
 
-    it('should return 0 if local timezone is Detroit', () => {
+    it('should return 0 if the local time zone is the league\'s', () => {
       // This test verifies the logic when both timezones are the same
-      const detroitOffset = DateTime.now().setZone('America/Detroit').offset;
+      const leagueOffset = DateTime.now().setZone(LEAGUE_TIME_ZONE).offset;
       const localOffset = DateTime.now().offset;
-      const dif = localOffset - detroitOffset;
+      const dif = localOffset - leagueOffset;
       
-      // If we're in Detroit timezone, difference should be 0
-      if (localOffset === detroitOffset) {
+      // If we're in league time zone, difference should be 0
+      if (localOffset === leagueOffset) {
         expect(dif).toBe(0);
       } else {
         // Otherwise, just verify it's a valid number

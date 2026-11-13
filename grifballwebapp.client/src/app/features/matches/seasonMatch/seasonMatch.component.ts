@@ -27,6 +27,7 @@ import type { TeamPagePlayerDto } from '@api/models';
 import { provideDatePickers } from '@shared/datePickers';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { GameSlot, ManualGamesComponent, slotChoices } from './manualGames/manualGames.component';
+import { describePage, pageDate, PageDescription } from '@shared/pageMeta';
 
 /** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
 export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
@@ -54,6 +55,65 @@ const IDLE: MatchPageMode = { kind: 'idle' };
 
 /** How often a queued or running pull of the players' games is looked at again. */
 export const PULL_POLL_MS = 3000;
+
+/**
+ * The season match as search results and link previews show it: the two teams (and the series score once decided),
+ * then the season and the result or when it is scheduled.
+ */
+export function describeSeasonMatch(match: SeasonMatchPageDto): PageDescription {
+  const home = match.homeTeamName ?? 'TBD';
+  const away = match.awayTeamName ?? 'TBD';
+  let title = `${home} vs ${away}`;
+  if (match.decidedBy === 'Games' && match.homeTeamScore != null && match.awayTeamScore != null)
+    title = `${home} ${match.homeTeamScore}–${match.awayTeamScore} ${away}`;
+  else if (match.decidedBy === 'Bye')
+    title = `${byeTeam(match, home, away)} (bye)`;
+  let season = match.seasonName;
+  if (match.isPlayoff)
+    season = `${season} playoffs`;
+  return {
+    title,
+    description: `${season}, best of ${match.bestOf}: ${seasonMatchResult(match, home, away)}. Games, scores and player stats.`,
+  };
+}
+
+/** The team a BYE advanced: the one that won it, or the only one there is. */
+function byeTeam(match: SeasonMatchPageDto, home: string, away: string): string {
+  if (match.homeTeamResult === 'Won')
+    return home;
+  if (match.awayTeamResult === 'Won')
+    return away;
+  return match.homeTeamName ? home : away;
+}
+
+/**
+ * What decided the match, as the server says (decidedBy), never worked out from the two results: who won its games
+ * (with the series score), who forfeited to whom, both forfeiting, a BYE; or, undecided, when it is scheduled.
+ */
+function seasonMatchResult(match: SeasonMatchPageDto, home: string, away: string): string {
+  const homeWon = match.homeTeamResult === 'Won';
+  const winner = homeWon ? home : away;
+  const loser = homeWon ? away : home;
+  switch (match.decidedBy) {
+    case 'Games': {
+      if (match.homeTeamScore == null || match.awayTeamScore == null)
+        return `${winner} beat ${loser}`;
+      const winnerScore = homeWon ? match.homeTeamScore : match.awayTeamScore;
+      const loserScore = homeWon ? match.awayTeamScore : match.homeTeamScore;
+      return `${winner} beat ${loser} ${winnerScore}–${loserScore}`;
+    }
+    case 'Forfeit':
+      if (!homeWon && match.awayTeamResult !== 'Won')
+        return `both ${home} and ${away} forfeited`;
+      return `${loser} forfeited to ${winner}`;
+    case 'Bye':
+      return `${byeTeam(match, home, away)} advanced with a bye`;
+    default: {
+      const date = pageDate(match.scheduledTime);
+      return date ? `${home} vs ${away}, scheduled for ${date}` : `${home} vs ${away}`;
+    }
+  }
+}
 
 @Component({
     selector: 'app-season-match',
@@ -228,11 +288,19 @@ export class SeasonMatchComponent {
   regexErrorMessage: string = "Must be a valid GUID";
 
   constructor() {
-    effect(() => {
+    describePage(() => {
+      const match = this.seasonMatch();
+      return match ? describeSeasonMatch(match) : null;
+    });
+    // Another match: nothing of the previous one stays (its teams would title this page), and its request is cancelled
+    // so a late answer can't land on this one
+    effect(onCleanup => {
       this.seasonMatchID();
-      this.getPageDto();
+      this.seasonMatch.set(null);
+      const page = this.getPageDto();
       this.getPossibleMatches();
       this.getPullStatus();
+      onCleanup(() => page.unsubscribe());
     })
     effect(() => this.loadRoster(this.homeTeamID(), this.homeLoaded));
     effect(() => this.loadRoster(this.awayTeamID(), this.awayLoaded));

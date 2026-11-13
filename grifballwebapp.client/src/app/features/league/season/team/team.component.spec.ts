@@ -6,8 +6,8 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
-import { MatchDto, parseTeamMatch, TeamComponent } from './team.component';
-import type { TeamDto } from '@api/models';
+import { describeTeam, MatchDto, parseTeamMatch, TeamComponent } from './team.component';
+import type { SeasonInfoDto, TeamDto } from '@api/models';
 import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
@@ -83,6 +83,25 @@ describe('TeamComponent', () => {
   const stats = () => fixture.debugElement.query(By.directive(StubPlayerStats)).componentInstance as StubPlayerStats;
   const rows = () => Array.from(el().querySelectorAll('tr.mat-mdc-row'))
     .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
+
+  it('drops the previous team, and its title, while another loads, and cancels its requests', () => {
+    load(team, []);
+    expect(document.title).toContain('Red Team');
+
+    fixture.componentRef.setInput('teamID', 8);
+    fixture.detectChanges();
+    expect(component.team()).toBeNull();
+    expect(document.title).not.toContain('Red Team');
+
+    const teamRequest = http.expectOne('/api/teams/8');
+    const matchesRequest = http.expectOne('/api/teams/8/matches');
+    fixture.componentRef.setInput('teamID', 9);
+    fixture.detectChanges();
+    expect(teamRequest.cancelled).toBeTrue();
+    expect(matchesRequest.cancelled).toBeTrue();
+    http.expectOne('/api/teams/9').flush(null);
+    http.expectOne('/api/teams/9/matches').flush([]);
+  });
 
   it('shows the team name, record, remaining matches and roster', () => {
     load(team, []);
@@ -262,5 +281,17 @@ describe('parseTeamMatch', () => {
     expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: UTC, bestOf: 3 }).scheduledTime!.toMillis()).toBe(Date.parse(UTC));
     expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: null, bestOf: 3 }).scheduledTime).toBeNull();
     expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: null, bestOf: 3 }).bestOf).toBe(3);
+  });
+});
+
+describe('describeTeam', () => {
+  it('gives the team\'s season, record, titles and roster', () => {
+    const team = { teamName: 'Red Rampage', wins: 7, losses: 2, titles: ['Gold'], season: { seasonID: 3, seasonName: 'Autumn Brawl', division: null, leagueName: 'Grifball League', leagueID: 1, leagueSlug: 'gl', start: '2026-09-01T00:00:00Z', end: '2026-11-30T00:00:00Z', hasEnded: false } as SeasonInfoDto, players: [{ gamertag: 'Plasma Pete' }, { gamertag: 'Ringer' }] } as TeamDto;
+    expect(describeTeam(team)).toEqual({
+      title: 'Red Rampage · Autumn Brawl',
+      description: 'Red Rampage in Grifball League Autumn Brawl: 7–2, Gold champions. Roster: Plasma Pete, Ringer. Matches and player stats.',
+    });
+    expect(describeTeam({ ...team, titles: [], players: [] }).description)
+      .toBe('Red Rampage in Grifball League Autumn Brawl: 7–2. Matches and player stats.');
   });
 });

@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { DateTime } from 'luxon';
+import { LEAGUE_TIME_ZONE } from '@shared/leagueTimeZone';
 
 @Injectable({
   providedIn: 'root'
@@ -11,9 +12,9 @@ export class AvailabilityService {
   constructor() { }
 
   getDif(): number {
-    const detroitOffset = DateTime.now().setZone('America/Detroit').offset;
+    const leagueOffset = DateTime.now().setZone(LEAGUE_TIME_ZONE).offset;
     const localOffset = DateTime.now().offset;
-    const dif = localOffset - detroitOffset;
+    const dif = localOffset - leagueOffset;
     return dif;
   }
 

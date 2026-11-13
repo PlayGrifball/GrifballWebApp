@@ -16,6 +16,23 @@ import { BackfilledBannerComponent, DataNoticeComponent } from '@shared/dataNoti
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import type { TeamDto } from '@api/models';
+import { describePage, PageDescription } from '@shared/pageMeta';
+
+/** The team as search results and link previews show it: its name and season, record, titles and roster. */
+export function describeTeam(team: TeamDto): PageDescription {
+  // The tiers it won, named as titles ("Gold champions", not a bare "Gold")
+  const record = [`${team.wins}–${team.losses}`, ...team.titles.map(tier => `${tier} champions`)].join(', ');
+  const season = `${team.season.leagueName} ${team.season.seasonName}`;
+  const parts = [`${team.teamName} in ${season}: ${record}.`];
+  if (team.players.length)
+    parts.push(`Roster: ${team.players.map(p => p.gamertag).join(', ')}.`);
+  parts.push('Matches and player stats.');
+  return {
+    title: `${team.teamName} · ${team.season.seasonName}`,
+    description: parts.join(' '),
+  };
+}
+
 @Component({
     selector: 'app-team',
     imports: [
@@ -56,19 +73,31 @@ export class TeamComponent {
   displayedColumns: string[] = ['otherTeam', 'score', 'result', 'scheduledTime', 'matchPage'];
 
   constructor() {
-    effect(() => {
+    describePage(() => {
+      const team = this.team();
+      return team ? describeTeam(team) : null;
+    });
+    // Another team: nothing of the previous one stays (its name would title this page), and its requests are cancelled
+    // so a late answer can't land on this one
+    effect(onCleanup => {
       this.teamID();
       this.seasonID();
-      this.getTeam().subscribe({
+      this.team.set(null);
+      this.matchesLoaded.set(false);
+      const team = this.getTeam().subscribe({
         next: (v) => this.team.set(v),
       });
-  
-      this.getMatches().subscribe({
+
+      const matches = this.getMatches().subscribe({
         next: (v) => {
           this.matches.data = v;
           this.matchCount.set(v.length);
           this.matchesLoaded.set(true);
         },
+      });
+      onCleanup(() => {
+        team.unsubscribe();
+        matches.unsubscribe();
       });
     })
   }

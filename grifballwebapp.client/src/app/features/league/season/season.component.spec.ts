@@ -4,7 +4,7 @@ import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { By } from '@angular/platform-browser';
-import { SeasonComponent } from './season.component';
+import { describeSeason, SeasonComponent } from './season.component';
 import { HomeService } from '@api/services/home.service';
 import { SeasonService } from '@api/services/season.service';
 import { ScheduleListComponent } from './scheduleList/scheduleList.component';
@@ -496,5 +496,35 @@ describe('SeasonComponent links', () => {
     expect(second).toBe(first);
     expect(summaries.get).toHaveBeenCalledWith(12);
     expect(harness.routeNativeElement!.querySelector('h1')!.textContent).toBe('Season 12');
+  });
+});
+
+describe('describeSeason', () => {
+  const season = (changes: Partial<SeasonSummaryDto>) => ({
+    seasonID: 3, seasonName: 'Autumn Brawl', division: null, leagueName: 'Grifball League', start: '2026-09-01T12:00:00Z', end: '2026-11-30T12:00:00Z',
+    signupCount: 24, matchCount: 1, hasEnded: false, champions: [], ...changes,
+  } as SeasonSummaryDto);
+
+  it('gives the league, dates (the league\'s days) and size, and the season\'s own address', () => {
+    expect(describeSeason(season({}))).toEqual({
+      title: 'Autumn Brawl',
+      description: 'Grifball League Grifball season, Sep 1, 2026 to Nov 30, 2026: 24 players, 1 match. Standings, schedule, brackets and stats.',
+      path: '/season/3',
+    });
+  });
+
+  it('gives the division and, once it has ended, the champions', () => {
+    const ended = season({ division: 'Pro', hasEnded: true, matchCount: 0, signupCount: 0, champions: [{ teamName: 'Red Rampage', tier: 'Gold' }] as SeasonChampionDto[] });
+    expect(describeSeason(ended)).toEqual({
+      title: 'Autumn Brawl – Pro',
+      description: 'Grifball League Grifball season, Sep 1, 2026 to Nov 30, 2026: won by Red Rampage. Standings, schedule, brackets and stats.',
+      path: '/season/3',
+    });
+    // A champion per tier: each with its tier
+    const tiers = season({ hasEnded: true, matchCount: 0, signupCount: 0, champions: [{ teamName: 'Red Rampage', tier: 'Gold' }, { teamName: 'Blue Bombers', tier: 'Silver' }] as SeasonChampionDto[] });
+    expect(describeSeason(tiers).description)
+      .toBe('Grifball League Grifball season, Sep 1, 2026 to Nov 30, 2026: Gold champions Red Rampage, Silver champions Blue Bombers. Standings, schedule, brackets and stats.');
+    expect(describeSeason(season({ start: 'nonsense', signupCount: 0, matchCount: 0 })).description)
+      .toBe('Grifball League Grifball season. Standings, schedule, brackets and stats.');
   });
 });
