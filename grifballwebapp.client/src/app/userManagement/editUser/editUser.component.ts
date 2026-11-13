@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { ErrorMessageComponent } from '../../validation/errorMessage.component';
+import { ErrorMessageComponent } from '../../shared/validation/errorMessage.component';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { parseUser, UserResponseDto } from '../userResponseDto';
 import { DateTime } from 'luxon';

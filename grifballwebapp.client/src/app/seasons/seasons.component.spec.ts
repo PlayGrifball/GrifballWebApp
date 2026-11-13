@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { SeasonsComponent } from './seasons.component';
 import type { SeasonListItemDto } from '@api/models';
-import { seasonInfo } from '../api/seasonInfo.stub';
+import { seasonInfo } from '../shared/testing/seasonInfo.stub';
 
 function season(seasonID: number, changes: Partial<SeasonListItemDto> = {}): SeasonListItemDto {
   return { ...seasonInfo(seasonID), teamCount: 4, playerCount: 20, champions: [], teamNames: [], ...changes };

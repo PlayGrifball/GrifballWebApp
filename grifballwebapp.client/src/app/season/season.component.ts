@@ -12,7 +12,7 @@ import { pageNow } from '../shared/pageNow';
 import { BackfilledBannerComponent, DataNoticeComponent } from '../shared/dataNotice/dataNotice.component';
 import { missing, SeasonSummaryService } from './seasonSummary';
 import type { SeasonSummaryDto } from '@api/models';
-import { seasonFormatLabel } from '../api/seasonFormats';
+import { seasonFormatLabel } from '../shared/seasonFormats';
 import { SeasonChampionsComponent } from './seasonChampions/seasonChampions.component';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../shared/vodList/vodList.component';

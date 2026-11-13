@@ -11,7 +11,7 @@ import { AccountService } from './account.service';
 import { SeasonService } from '@api/services/season.service';
 import { BuildService } from '@api/services/build.service';
 import { ThemingService } from './theming.service';
-import { noMaterialAnimations } from './testing/noMaterialAnimations';
+import { noMaterialAnimations } from './shared/testing/noMaterialAnimations';
 
 describe('AppComponent', () => {
   let component: AppComponent;

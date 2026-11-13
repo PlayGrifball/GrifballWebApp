@@ -1,6 +1,6 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { Subject } from 'rxjs';
-import { ErrorMessageComponent } from '../../../validation/errorMessage.component';
+import { ErrorMessageComponent } from '../../../shared/validation/errorMessage.component';
 import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';

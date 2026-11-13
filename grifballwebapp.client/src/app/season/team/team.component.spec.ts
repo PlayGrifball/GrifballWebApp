@@ -8,7 +8,7 @@ import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { MatchDto, TeamComponent } from './team.component';
 import type { TeamDto } from '@api/models';
-import { seasonInfo } from '../../api/seasonInfo.stub';
+import { seasonInfo } from '../../shared/testing/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../../shared/vodList/vodList.stub';

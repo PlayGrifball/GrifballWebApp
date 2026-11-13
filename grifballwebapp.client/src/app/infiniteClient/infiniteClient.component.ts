@@ -4,7 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { ErrorMessageComponent } from '../validation/errorMessage.component';
+import { ErrorMessageComponent } from '../shared/validation/errorMessage.component';
 import { ActivatedRoute } from '@angular/router';
 import { AdminService } from '@api/services/admin.service';
 import type { HaloInfiniteMode, HaloStatusDto } from '@api/models';

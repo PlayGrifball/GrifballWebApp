@@ -4,7 +4,7 @@ import { HttpClient, provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Sort } from '@angular/material/sort';
 import { PageEvent } from '@angular/material/paginator';
-import { noMaterialAnimations } from '../../testing/noMaterialAnimations';
+import { noMaterialAnimations } from '../testing/noMaterialAnimations';
 import { of } from 'rxjs';
 import { PaginationParams } from '../getPaginationResource';
 import { PaginationResult } from '../paginationResult';

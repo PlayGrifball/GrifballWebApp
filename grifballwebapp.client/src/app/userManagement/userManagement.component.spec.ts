@@ -11,7 +11,7 @@ import { of, throwError } from 'rxjs';
 import { UserResponseDto } from './userResponseDto';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { noMaterialAnimations } from '../testing/noMaterialAnimations';
+import { noMaterialAnimations } from '../shared/testing/noMaterialAnimations';
 
 describe('UserManagementComponent', () => {
   let component: UserManagementComponent;

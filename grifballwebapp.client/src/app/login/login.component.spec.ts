@@ -4,7 +4,7 @@ import { LoginComponent } from './login.component';
 import { AccountService } from '../account.service';
 import { PLATFORM_ID } from '@angular/core';
 import { of } from 'rxjs';
-import { noMaterialAnimations } from '../testing/noMaterialAnimations';
+import { noMaterialAnimations } from '../shared/testing/noMaterialAnimations';
 
 describe('LoginComponent', () => {
   let component: LoginComponent;

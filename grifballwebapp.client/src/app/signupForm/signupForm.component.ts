@@ -5,7 +5,7 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { ErrorMessageComponent } from '../validation/errorMessage.component';
+import { ErrorMessageComponent } from '../shared/validation/errorMessage.component';
 import type { SignupBodyDto, SignupResponseDto } from '@api/models';
 import { noContentAsNull } from '../api/noContentAsNull';
 import { RouterLink } from '@angular/router';

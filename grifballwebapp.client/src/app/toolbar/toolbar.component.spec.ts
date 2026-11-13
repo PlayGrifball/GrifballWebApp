@@ -8,7 +8,7 @@ import { AccountService } from '../account.service';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Subject } from 'rxjs';
 import { QuickSearchComponent } from '../quickSearch/quickSearch.component';
-import { noMaterialAnimations } from '../testing/noMaterialAnimations';
+import { noMaterialAnimations } from '../shared/testing/noMaterialAnimations';
 
 describe('ToolbarComponent', () => {
   let component: ToolbarComponent;

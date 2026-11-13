@@ -7,7 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { UsePasswordResetLinkRequestDto } from '@api/models';
-import { ErrorMessageComponent } from '../validation/errorMessage.component';
+import { ErrorMessageComponent } from '../shared/validation/errorMessage.component';
 import { AccountService } from '../account.service';
 import { errorText } from '../shared/errorText';
 

@@ -4,11 +4,11 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Event, eventLink, heroKicker, heroLede, HomeComponent, pickFeatured } from './home.component';
-import { seasonInfo } from '../api/seasonInfo.stub';
+import { seasonInfo } from '../shared/testing/seasonInfo.stub';
 import type { SeasonChampionDto } from '@api/models';
 import { Component } from '@angular/core';
 import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
-import { noMaterialAnimations } from '../testing/noMaterialAnimations';
+import { noMaterialAnimations } from '../shared/testing/noMaterialAnimations';
 
 /** The queue panel has its own specs: here it is left out, with its requests and hub connection. */
 @Component({ selector: 'app-late-league-queue', template: '' })

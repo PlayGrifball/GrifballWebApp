@@ -7,7 +7,7 @@ import { SignupFormComponent } from './signupForm.component';
 import { AvailabilityService } from '../availability.service';
 import { AccountService } from '../account.service';
 import { signal } from '@angular/core';
-import { noMaterialAnimations } from '../testing/noMaterialAnimations';
+import { noMaterialAnimations } from '../shared/testing/noMaterialAnimations';
 
 describe('SignupFormComponent', () => {
   let fixture: ComponentFixture<SignupFormComponent>;

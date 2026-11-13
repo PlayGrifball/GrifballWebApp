@@ -8,7 +8,7 @@ import { nullWhenNotFound } from '../api/nullWhenNotFound';
 import type { LeaderboardsDto, MetricLeaderDto } from '@api/models';
 import type { PlayerAllTimeRankDto } from '@api/models';
 import type { QuickSearchPlayerDto } from '@api/models';
-import { seasonFormats } from '../api/seasonFormats';
+import { seasonFormats } from '../shared/seasonFormats';
 import type { SeasonFormat } from '@api/models';
 import type { Board } from './board';
 import { PlayerSearchComponent } from './player-search/player-search.component';

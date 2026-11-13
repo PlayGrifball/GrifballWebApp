@@ -4,7 +4,7 @@ import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AccountService } from '../account.service';
 import { FormsModule } from '@angular/forms';
-import { ErrorMessageComponent } from '../validation/errorMessage.component';
+import { ErrorMessageComponent } from '../shared/validation/errorMessage.component';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';

@@ -6,7 +6,7 @@ import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ProfileComponent } from './profile.component';
 import type { ProfileStatsDto } from '@api/models';
-import { seasonInfo } from '../api/seasonInfo.stub';
+import { seasonInfo } from '../shared/testing/seasonInfo.stub';
 import { AccountService } from '../account.service';
 import { Component } from '@angular/core';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';

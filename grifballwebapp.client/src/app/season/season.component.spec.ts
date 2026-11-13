@@ -15,7 +15,7 @@ import { input, output } from '@angular/core';
 import { SeasonEvent } from '../shared/seasonEvents';
 import { SeasonSummaryService } from './seasonSummary';
 import type { SeasonChampionDto, SeasonSummaryDto } from '@api/models';
-import { seasonInfo } from '../api/seasonInfo.stub';
+import { seasonInfo } from '../shared/testing/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../shared/vodList/vodList.stub';

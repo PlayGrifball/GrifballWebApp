@@ -7,7 +7,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import type { ScheduleRecommendationMatchDto, ScheduleRecommendationPageDto, UnscheduledMatchDto, UpdateMatchTimeDto } from '@api/models';
 import { MatDividerModule } from '@angular/material/divider';
 import { AccountService } from '../../account.service';
-import { ErrorMessageComponent } from "../../validation/errorMessage.component";
+import { ErrorMessageComponent } from "../../shared/validation/errorMessage.component";
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { FormsModule } from '@angular/forms';

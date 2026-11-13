@@ -4,7 +4,7 @@ import { PasswordResetComponent } from './password-reset.component';
 import { AccountService } from '../account.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { of, Subject, throwError } from 'rxjs';
-import { noMaterialAnimations } from '../testing/noMaterialAnimations';
+import { noMaterialAnimations } from '../shared/testing/noMaterialAnimations';
 
 describe('PasswordResetComponent', () => {
   let component: PasswordResetComponent;
