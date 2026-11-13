@@ -77,7 +77,7 @@ internal sealed class MatchPlannerServiceUnitTests : ApplicationDbContextTests
             Assert.That(matches, Has.Count.EqualTo(6)); // 3 teams, each hosts the other 2 once
             Assert.That(matches.All(m => m.BestOf == 3), Is.True);
             Assert.That(matches.Count(m => m.HomeTeamID == a.TeamID), Is.EqualTo(2));
-            Assert.That(matches.Select(m => (m.HomeTeamID, m.AwayTeamID)).Distinct(), Has.Count.EqualTo(6));
+            Assert.That(matches.Select(m => (m.HomeTeamID, m.AwayTeamID)).Distinct().ToList(), Has.Count.EqualTo(6));
         }
     }
 
