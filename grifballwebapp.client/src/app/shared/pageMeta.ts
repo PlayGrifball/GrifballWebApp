@@ -3,6 +3,7 @@ import { DestroyRef, effect, inject, Injectable } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { RouterStateSnapshot, TitleStrategy } from '@angular/router';
 import { DateTime } from 'luxon';
+import { LEAGUE_TIME_ZONE } from './leagueTimeZone';
 
 export const SITE_NAME = 'Play Grifball';
 export const DEFAULT_DESCRIPTION = 'Halo Infinite Grifball seasons, teams, schedules, brackets and match stats.';
@@ -11,8 +12,6 @@ export const DEFAULT_DESCRIPTION = 'Halo Infinite Grifball seasons, teams, sched
  * search engines list the public page and link previews point to it.
  */
 export const PUBLIC_ORIGIN = 'https://grifball.xyz';
-/** The league's time zone (ScheduleService.LeagueTimeZoneId on the server): the day a match or season is on. */
-export const LEAGUE_TIME_ZONE = 'America/New_York';
 
 /** What a page says about itself in search results and link previews. */
 export interface PageDescription {
