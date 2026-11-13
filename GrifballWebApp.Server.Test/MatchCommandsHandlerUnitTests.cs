@@ -61,4 +61,43 @@ public class MatchCommandsHandlerUnitTests : SqliteGrifballContextFixture
 
         Assert.That(discord.Content(), Is.EqualTo(MatchCommandsHandler.NoSuchGame));
     }
+
+    [Test]
+    public async Task Info_RepliesWithTheMatch_WhenItIsFound()
+    {
+        var season = await AddSeason("Winter League");
+        var home = await AddTeam(season, "Home");
+        var away = await AddTeam(season, "Away");
+        var match = await AddSeasonMatch(season, home, away);
+        var discord = new CommandContextRecorder();
+
+        await Handler().Info(discord.Context, match.SeasonMatchID.ToString());
+
+        var embed = discord.Embed();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(discord.DeferredPublicly(), Is.True);
+            Assert.That(embed.Title, Is.EqualTo("Home vs Away"));
+            Assert.That(embed.Fields!.ToList()[0].Value, Does.Contain("Winter League"));
+        }
+    }
+
+    [Test]
+    public async Task Game_RepliesWithTheMatch_WhenItHasBeenPulled()
+    {
+        var matchID = Guid.NewGuid();
+        Db.Matches.Add(GrifballWebApp.Domain.Halo.Match.Seed(matchID));
+        await Db.SaveChangesAsync();
+        var discord = new CommandContextRecorder();
+
+        await Handler().Game(discord.Context, matchID.ToString());
+
+        var embed = discord.Embed();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(discord.DeferredPublicly(), Is.True);
+            Assert.That(embed.Title, Is.EqualTo("Halo Infinite match"));
+            Assert.That(embed.Fields!.ToList(), Has.Count.EqualTo(2));
+        }
+    }
 }
