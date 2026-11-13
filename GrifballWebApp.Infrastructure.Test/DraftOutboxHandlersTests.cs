@@ -53,7 +53,7 @@ public class DraftOutboxHandlersTests : SqliteContextFixture
             .Returns(_ => AsyncEnumerable.Empty<IDiscordRestMessage>());
     }
 
-    private IOptions<DiscordOptions> Options() => Microsoft.Extensions.Options.Options.Create(new DiscordOptions { DraftChannel = DraftChannel });
+    private static IOptions<DiscordOptions> Options() => Microsoft.Extensions.Options.Options.Create(new DiscordOptions { DraftChannel = DraftChannel });
 
     private async Task<Season> AddSeason()
     {

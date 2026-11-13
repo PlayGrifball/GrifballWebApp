@@ -73,7 +73,7 @@ public class BackgroundJobsDbTests : SqliteContextFixture
         Assert.That((Report().Result, Report().Metrics!["failed"]), Is.EqualTo((JobRunResult.Failed, (object?)2)));
     }
 
-    private HealthCheckContext HealthContext(OutboxHealthCheck check) => new()
+    private static HealthCheckContext HealthContext(OutboxHealthCheck check) => new()
     {
         Registration = new HealthCheckRegistration("outbox", check, HealthStatus.Degraded, null),
     };

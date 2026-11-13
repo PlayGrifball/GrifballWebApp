@@ -65,7 +65,7 @@ public class OutboxDispatcherTests : SqliteContextFixture
         }
     }
 
-    private OutboxDispatcher Dispatcher(IServiceScopeFactory scopes)
+    private static OutboxDispatcher Dispatcher(IServiceScopeFactory scopes)
     {
         var time = new FakeTimeProvider(Now);
         var options = Options.Create(new OutboxOptions { PollInterval = TimeSpan.FromMilliseconds(50) });

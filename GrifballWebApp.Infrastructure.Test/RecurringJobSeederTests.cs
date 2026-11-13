@@ -50,7 +50,7 @@ public class RecurringJobSeederTests
         {
             Key = JobsTestData.Key,
             Description = "Counts its runs",
-            DefaultSchedule = (trigger, now) => trigger.StartAt(now + TimeSpan.FromMinutes(10)).WithSimpleSchedule(s => s.WithIntervalInHours(1).RepeatForever()),
+            DefaultSchedule = (trigger, now) => trigger.StartAt(now + TimeSpan.FromMinutes(10)).WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromHours(1)).RepeatForever()),
             OnCreated = (scheduler, services, _) =>
             {
                 Assert.That(scheduler, Is.SameAs(_scheduler));
@@ -114,7 +114,7 @@ public class RecurringJobSeederTests
         {
             Key = OtherKey,
             Description = "Another",
-            DefaultSchedule = (trigger, now) => trigger.StartAt(now).WithSimpleSchedule(s => s.WithIntervalInHours(2).RepeatForever()),
+            DefaultSchedule = (trigger, now) => trigger.StartAt(now).WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromHours(2)).RepeatForever()),
         };
         var counting = JobsTestData.Job(TimeSpan.FromHours(1));
         var jobs = new RecurringJobs().Add<CountingJob>(counting).Add<CountingJob2>(other);
