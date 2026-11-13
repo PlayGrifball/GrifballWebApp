@@ -401,6 +401,27 @@ public class ServerSqlUnitTests
         }
     }
 
+    /// <summary>SERVERPROPERTY('InstanceDefaultBackupPath') is NULL where the instance has no default folder (a managed
+    /// instance, an older server): the driver's DBNull, or a null.</summary>
+    [TestCase(true)]
+    [TestCase(false)]
+    public void Bak_WithNoFolderGiven_WhereSqlServerHasNoDefaultFolder_IsUnavailable_BeforeAnyBackup(bool dbNull)
+    {
+        var path = Path.Combine(_directory, "made.bak");
+        _connection.Answer = sent => sent.Sql.Contains("InstanceDefaultBackupPath", StringComparison.Ordinal)
+            ? (dbNull ? DBNull.Value : null)
+            : SqlServerBackups(sent, 3, "Enterprise Edition");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(async () => await NativeBackups.SqlServerAsync(_connection, null, path, CancellationToken.None),
+                Throws.TypeOf<NativeBackupUnavailableException>().With.Message.EqualTo(
+                    "SQL Server has no default backup folder, so the backup can't be made: set DatabaseBackup:SqlServerDirectory, or download a SQL Server script instead."));
+            Assert.That(_connection.Sent.Select(c => c.Sql), Has.None.StartsWith("BACKUP DATABASE"), "nothing made");
+            Assert.That(File.Exists(path), Is.False);
+        }
+    }
+
     [Test]
     public void Bak_WhenSqlServerGivesNoEdition_IsUnavailable_BeforeAnyBackup()
     {
