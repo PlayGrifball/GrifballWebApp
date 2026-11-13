@@ -349,9 +349,9 @@ internal sealed class GamertagMatchingUnitTests : ApplicationDbContextTests
     // ---------- ClaimAsync / ClaimForUserAsync ----------
 
     [Test]
-    public void ClaimAsync_AnXuidLookupWithoutWhatXboxFound_Throws()
+    public async Task ClaimAsync_AnXuidLookupWithoutWhatXboxFound_Throws()
     {
-        Assert.ThrowsAsync<ArgumentNullException>(() => _matching.ClaimAsync(GamertagClaimKind.XuidLookup, 1, "OldName", 100, null, null, evenIfRejected: false, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _matching.ClaimAsync(GamertagClaimKind.XuidLookup, 1, "OldName", 100, null, null, evenIfRejected: false, CancellationToken.None));
     }
 
     [Test]
@@ -408,9 +408,9 @@ internal sealed class GamertagMatchingUnitTests : ApplicationDbContextTests
     }
 
     [Test]
-    public void ClaimForUserAsync_AnyKindButADiscordMatch_Throws()
+    public async Task ClaimForUserAsync_AnyKindButADiscordMatch_Throws()
     {
-        Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _matching.ClaimForUserAsync(GamertagClaimKind.RosterMatch, 5, null, "OldName", 100, evenIfRejected: false, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _matching.ClaimForUserAsync(GamertagClaimKind.RosterMatch, 5, null, "OldName", 100, evenIfRejected: false, CancellationToken.None));
     }
 
     [Test]

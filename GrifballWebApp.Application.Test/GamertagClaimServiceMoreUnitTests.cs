@@ -69,7 +69,7 @@ internal sealed class GamertagClaimServiceMoreUnitTests : ApplicationDbContextTe
         await Context.SaveChangesAsync();
         var claimId = claim.GamertagClaimID;
 
-        var ex = Assert.ThrowsAsync<GamertagClaimConflictException>(() => _service.Approve(claimId, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<GamertagClaimConflictException>(() => _service.Approve(claimId, CancellationToken.None));
 
         var reread = await Context.GamertagClaims.AsNoTracking().SingleAsync();
         var pastGamertags = await Context.XboxUsers.SelectMany(x => x.PastGamertags).CountAsync();
@@ -89,7 +89,7 @@ internal sealed class GamertagClaimServiceMoreUnitTests : ApplicationDbContextTe
         Context.XboxUsers.Add(XboxUser.FromXbox(123, "CurrentName"));
         await Context.SaveChangesAsync();
 
-        var ex = Assert.ThrowsAsync<GamertagClaimException>(() => _service.AddHistory(new AddGamertagHistoryRequest { XboxUserID = 123, Gamertag = "  " }, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<GamertagClaimException>(() => _service.AddHistory(new AddGamertagHistoryRequest { XboxUserID = 123, Gamertag = "  " }, CancellationToken.None));
 
         Assert.That(ex!.Message, Is.EqualTo("Give the gamertag"));
     }
@@ -107,7 +107,7 @@ internal sealed class GamertagClaimServiceMoreUnitTests : ApplicationDbContextTe
             LastSeen = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc),
         };
 
-        var ex = Assert.ThrowsAsync<GamertagClaimException>(() => _service.AddHistory(request, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<GamertagClaimException>(() => _service.AddHistory(request, CancellationToken.None));
 
         using (Assert.EnterMultipleScope())
         {
@@ -124,7 +124,7 @@ internal sealed class GamertagClaimServiceMoreUnitTests : ApplicationDbContextTe
         Context.Set<XboxGamertagHistory>().Add(seen);
         await Context.SaveChangesAsync();
 
-        var ex = Assert.ThrowsAsync<GamertagClaimException>(() => _service.RemoveHistory(seen.XboxGamertagHistoryID, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<GamertagClaimException>(() => _service.RemoveHistory(seen.XboxGamertagHistoryID, CancellationToken.None));
 
         using (Assert.EnterMultipleScope())
         {

@@ -157,15 +157,15 @@ internal sealed class UserGamertagClaimServiceUnitTests : ApplicationDbContextTe
     // ---------- Submit ----------
 
     [Test]
-    public void Submit_NoGamertag_Throws()
+    public async Task Submit_NoGamertag_Throws()
     {
-        var ex = Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(1, new SubmitGamertagClaimRequest { Gamertag = " " }));
+        var ex = await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(1, new SubmitGamertagClaimRequest { Gamertag = " " }));
 
         Assert.That(ex!.Message, Is.EqualTo("Give the gamertag"));
     }
 
     [Test]
-    public void Submit_APeriodThatEndsBeforeItStarts_Throws()
+    public async Task Submit_APeriodThatEndsBeforeItStarts_Throws()
     {
         var request = new SubmitGamertagClaimRequest
         {
@@ -174,7 +174,7 @@ internal sealed class UserGamertagClaimServiceUnitTests : ApplicationDbContextTe
             LastSeen = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
         };
 
-        var ex = Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(1, request));
+        var ex = await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(1, request));
 
         Assert.That(ex!.Message, Is.EqualTo("The start of the period is after its end"));
     }
@@ -188,7 +188,7 @@ internal sealed class UserGamertagClaimServiceUnitTests : ApplicationDbContextTe
         Context.Entry(earlier).Property(c => c.CreatedAt).CurrentValue = Now.AddHours(-2);
         await Context.SaveChangesAsync();
 
-        var ex = Assert.ThrowsAsync<GamertagClaimException>(() => Service(1).Submit(1, new SubmitGamertagClaimRequest { Gamertag = "OldName" }));
+        var ex = await Assert.ThrowsAsync<GamertagClaimException>(() => Service(1).Submit(1, new SubmitGamertagClaimRequest { Gamertag = "OldName" }));
 
         Assert.That(ex!.Message, Is.EqualTo("You can make 1 claims a day; try again tomorrow"));
     }
@@ -242,7 +242,7 @@ internal sealed class UserGamertagClaimServiceUnitTests : ApplicationDbContextTe
         await ClaimantAndPlaceholder();
         await _service.Submit(1, new SubmitGamertagClaimRequest { Gamertag = "OldName" });
 
-        var ex = Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(1, new SubmitGamertagClaimRequest { Gamertag = "oldname" }));
+        var ex = await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(1, new SubmitGamertagClaimRequest { Gamertag = "oldname" }));
 
         using (Assert.EnterMultipleScope())
         {
@@ -256,7 +256,7 @@ internal sealed class UserGamertagClaimServiceUnitTests : ApplicationDbContextTe
     {
         await ClaimantAndPlaceholder();
 
-        var ex = Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(1, new SubmitGamertagClaimRequest { Gamertag = "NeverPlayed" }));
+        var ex = await Assert.ThrowsAsync<GamertagClaimException>(() => _service.Submit(1, new SubmitGamertagClaimRequest { Gamertag = "NeverPlayed" }));
 
         using (Assert.EnterMultipleScope())
         {

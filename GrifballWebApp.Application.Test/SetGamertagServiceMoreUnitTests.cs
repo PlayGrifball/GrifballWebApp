@@ -62,7 +62,7 @@ internal sealed class SetGamertagServiceMoreUnitTests : ApplicationDbContextTest
         await Context.SaveChangesAsync();
         var xbox = XboxUser.FromXbox(Xuid, "GamerOne");
         // Another request ties the (tracked) user to an account while the lookup runs
-        _xboxService.GetsertXboxUserByGamertag("GamerOne", Arg.Any<CancellationToken>()).Returns(_ =>
+        _xboxService.GetsertXboxUserByGamertag("GamerOne", Arg.Any<CancellationToken>()).Returns(call =>
         {
             _ = user.TieToXbox(222L);
             return ((XboxUser?)xbox, (string?)null);
