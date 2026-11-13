@@ -23,7 +23,9 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
     {
         var sources = HistoricalSourceCatalog.Sources;
 
-        Assert.That(sources, Has.All.Matches<HistoricalSourceCatalog.Entry>(s => !string.IsNullOrWhiteSpace(s.Title) && !string.IsNullOrWhiteSpace(s.Url)));
+        var blank = sources.Where(s => string.IsNullOrWhiteSpace(s.Title) || string.IsNullOrWhiteSpace(s.Url)).ToList();
+
+        Assert.That(blank, Is.Empty);
     }
 
     [Test]
@@ -114,8 +116,10 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
             Assert.That(names, Does.Contain("DraftSheet"));
             Assert.That(names, Does.Contain("Champions"));
             Assert.That(names, Does.Contain("Players"));
-            // Case-insensitive: "stats" (any case) is the same entry as "Stats"
-            Assert.That(names.Contains("STATS"), Is.True);
+            // Case-insensitive: "stats" (any case) is the same entry as "Stats" - names' own comparer decides
+            // this, not NUnit's Does.Contain (which wouldn't consult it), so the check goes through Contains directly.
+            var hasStatsAnyCase = names.Contains("STATS");
+            Assert.That(hasStatsAnyCase, Is.True);
         }
     }
 
