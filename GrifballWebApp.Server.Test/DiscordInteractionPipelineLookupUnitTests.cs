@@ -17,16 +17,18 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class DiscordInteractionPipelineLookupUnitTests : SqliteGrifballContextFixture
 {
+    private ServiceProvider Services() => new ServiceCollection()
+        .AddSingleton(Db)
+        .AddSingleton<IAmbientCurrentUser, AmbientCurrentUser>()
+        .AddSingleton(Substitute.For<IHttpContextAccessor>())
+        .AddScoped<ICurrentUserService, CurrentUserService>()
+        .BuildServiceProvider();
+
     [Test]
     public async Task SetCurrentUserAsync_SetsTheCurrentUser_AndTheAmbientUser_ForALinkedDiscordAccount()
     {
         var user = await AddUser(4242, "Someone");
-        var services = new ServiceCollection()
-            .AddSingleton(Db)
-            .AddSingleton<IAmbientCurrentUser, AmbientCurrentUser>()
-            .AddSingleton(Substitute.For<IHttpContextAccessor>())
-            .AddScoped<ICurrentUserService, CurrentUserService>()
-            .BuildServiceProvider();
+        await using var services = Services();
         var ambientUser = services.GetRequiredService<IAmbientCurrentUser>();
         ambientUser.Begin();
         var logger = new RecordingLogger<DiscordInteractionPipelineLookupUnitTests>();
@@ -46,12 +48,7 @@ public class DiscordInteractionPipelineLookupUnitTests : SqliteGrifballContextFi
     [Test]
     public async Task SetCurrentUserAsync_LeavesTheCurrentUserUnset_ForAnUnlinkedDiscordAccount()
     {
-        var services = new ServiceCollection()
-            .AddSingleton(Db)
-            .AddSingleton<IAmbientCurrentUser, AmbientCurrentUser>()
-            .AddSingleton(Substitute.For<IHttpContextAccessor>())
-            .AddScoped<ICurrentUserService, CurrentUserService>()
-            .BuildServiceProvider();
+        await using var services = Services();
         var ambientUser = services.GetRequiredService<IAmbientCurrentUser>();
         ambientUser.Begin();
         var logger = new RecordingLogger<DiscordInteractionPipelineLookupUnitTests>();

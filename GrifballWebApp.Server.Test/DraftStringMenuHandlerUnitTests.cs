@@ -1,7 +1,5 @@
-using DiscordInterfaces;
 using GrifballWebApp.Server.Teams;
-using NetCord.Rest;
-using NSubstitute;
+using static GrifballWebApp.Server.Test.DiscordComponentContexts;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -19,12 +17,10 @@ public class DraftStringMenuHandlerUnitTests : SqliteGrifballContextFixture
     public async Task DraftPick_RepliesToSetAGamertag_ForAnUnknownCaller()
     {
         var handler = new DraftStringMenuHandler(Db, null!, new RecordingLogger<DraftStringMenuHandler>());
-        var context = Substitute.For<IDiscordStringMenuInteractionContext>();
-        context.User.Id.Returns(909090ul);
+        var context = StringMenuContext(909090);
 
         await handler.DraftPick(context, seasonId: 1, captainId: 1);
 
-        await context.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(p =>
-            ((InteractionCallbackProperties<InteractionMessageProperties>)p).Data.Content == "You must set your gamertag first"));
+        await AssertSent(context, "You must set your gamertag first");
     }
 }

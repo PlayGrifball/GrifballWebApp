@@ -1,11 +1,8 @@
-using DiscordInterface.Generated;
-using DiscordInterfaces;
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Signups;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Server.Signups;
-using NetCord.Rest;
-using NSubstitute;
+using static GrifballWebApp.Server.Test.DiscordComponentContexts;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -19,17 +16,6 @@ namespace GrifballWebApp.Server.Test;
 public class SignupButtonHandlerUnitTests : SqliteGrifballContextFixture
 {
     private SignupButtonHandler Handler() => new(Db, new SignupsService(Db), Urls());
-
-    private static IDiscordButtonInteractionContext ButtonContext(ulong discordUserId)
-    {
-        var context = Substitute.For<IDiscordButtonInteractionContext>();
-        context.User.Id.Returns(discordUserId);
-        return context;
-    }
-
-    private static async Task AssertSent(IDiscordButtonInteractionContext context, string expected)
-        => await context.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(p =>
-            ((InteractionCallbackProperties<InteractionMessageProperties>)p).Data.Content == expected));
 
     [Test]
     public async Task Signup_RepliesToSetAGamertag_ForAnUnknownCaller()

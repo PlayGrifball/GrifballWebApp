@@ -1,7 +1,5 @@
-using DiscordInterfaces;
 using GrifballWebApp.Server.Matchmaking;
-using NetCord.Rest;
-using NSubstitute;
+using static GrifballWebApp.Server.Test.DiscordComponentContexts;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -16,22 +14,10 @@ public class MatchmakingStringMenuHandlerUnitTests : SqliteGrifballContextFixtur
 {
     private MatchmakingStringMenuHandler Handler() => new(Db, null!, null!, null!);
 
-    private static IDiscordStringMenuInteractionContext Context(ulong discordUserId, params string[] selectedValues)
-    {
-        var context = Substitute.For<IDiscordStringMenuInteractionContext>();
-        context.User.Id.Returns(discordUserId);
-        context.SelectedValues.Returns(selectedValues);
-        return context;
-    }
-
-    private static async Task AssertSent(IDiscordStringMenuInteractionContext context, string expected)
-        => await context.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(p =>
-            ((InteractionCallbackProperties<InteractionMessageProperties>)p).Data.Content == expected));
-
     [Test]
     public async Task VoteToKick_RepliesToSetAGamertag_ForAnUnknownCaller()
     {
-        var context = Context(909090, "1");
+        var context = StringMenuContext(909090, "1");
 
         await Handler().VoteToKick(context, matchId: 1);
 
@@ -42,7 +28,7 @@ public class MatchmakingStringMenuHandlerUnitTests : SqliteGrifballContextFixtur
     public async Task VoteToKick_RepliesThisMatchDoesNotExist_ForAnUnknownMatch()
     {
         await AddUser(42, "Grifter1");
-        var context = Context(42, "1");
+        var context = StringMenuContext(42, "1");
 
         await Handler().VoteToKick(context, matchId: 999);
 

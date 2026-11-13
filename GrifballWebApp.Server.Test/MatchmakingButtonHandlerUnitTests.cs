@@ -1,9 +1,9 @@
-using DiscordInterfaces;
 using GrifballWebApp.Application.Matchmaking;
 using GrifballWebApp.Server.Matchmaking;
 using Microsoft.Extensions.DependencyInjection;
 using NetCord.Rest;
 using NSubstitute;
+using static GrifballWebApp.Server.Test.DiscordComponentContexts;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -17,20 +17,15 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class MatchmakingButtonHandlerUnitTests : SqliteGrifballContextFixture
 {
+    // One scope factory for every test in this fixture instance (LifeCycle.InstancePerTestCase): disposed in TearDownScopes.
+    private readonly ServiceProvider _services = new ServiceCollection().BuildServiceProvider();
+
+    [TearDown]
+    public async Task TearDownScopes() => await _services.DisposeAsync();
+
     private MatchmakingButtonHandler Handler(IQueueRepository? queue = null) => new(
         new QueueMembership(queue ?? Substitute.For<IQueueRepository>(), Db, Substitute.For<IQueueNotifier>()),
-        new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), Db, null!, null!, new RecordingLogger<MatchmakingButtonHandler>());
-
-    private static IDiscordButtonInteractionContext ButtonContext(ulong discordUserId)
-    {
-        var context = Substitute.For<IDiscordButtonInteractionContext>();
-        context.User.Id.Returns(discordUserId);
-        return context;
-    }
-
-    private static async Task AssertSent(IDiscordButtonInteractionContext context, string expected)
-        => await context.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(p =>
-            ((InteractionCallbackProperties<InteractionMessageProperties>)p).Data.Content == expected));
+        _services.GetRequiredService<IServiceScopeFactory>(), Db, null!, null!, new RecordingLogger<MatchmakingButtonHandler>());
 
     [Test]
     public async Task JoinQueue_RepliesToSetAGamertag_ForAnUnknownCaller()
