@@ -46,7 +46,8 @@ public sealed class ConversionException(string message) : Exception(message);
 /// one snapshot; otherwise nothing should write to it while this runs (a change part way through can
 /// fail the copy or the check, never pass a wrong one).
 /// </summary>
-public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
+/// <param name="contexts">How a context on a database is made; the app's own (DatabaseConverter.NewContext) unless given. The tests give theirs, whose migrations are fakes (Infrastructure.Test can't reference the Migrations assemblies).</param>
+public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger, Func<DatabaseEndpoint, GrifballContext>? contexts = null)
 {
     public Task<IReadOnlyList<ConvertedTable>> ConvertAsync(DatabaseEndpoint source, DatabaseEndpoint target, CancellationToken cancellationToken)
         => ConvertAsync(source, target, progress: null, cancellationToken);
@@ -86,9 +87,8 @@ public sealed partial class DatabaseConverter(ILogger<DatabaseConverter> logger)
         }
     }
 
-    /// <summary>How a context on a database is made (<see cref="NewContext"/>): the tests give their own, whose migrations
-    /// are fakes, as Infrastructure.Test can't reference the Migrations assemblies.</summary>
-    internal Func<DatabaseEndpoint, GrifballContext> Contexts { get; init; } = NewContext;
+    /// <summary>The constructor's contexts, or the app's own.</summary>
+    private Func<DatabaseEndpoint, GrifballContext> Contexts { get; } = contexts ?? NewContext;
 
     internal static GrifballContext NewContext(DatabaseEndpoint endpoint)
     {

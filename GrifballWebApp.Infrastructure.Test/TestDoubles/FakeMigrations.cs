@@ -10,12 +10,16 @@ namespace GrifballWebApp.Infrastructure.Test;
 /// <summary>
 /// A database's migrations as a test sets them, in place of the Migrations assemblies Infrastructure.Test can't
 /// reference: the migrations this build knows, those the database has applied, what migrating does (make the model's
-/// tables, as EnsureCreated does, or fail), and the script the migrations would write. What was asked of them is kept.
+/// tables, as EnsureCreated does, and EF's history table, or fail part way), what undoing them does (drop the tables
+/// but EF's history, keeping the database, or fail), and the script the migrations would write. What was asked of
+/// them is kept.
 /// </summary>
 internal sealed class MigrationsState
 {
     public List<string> Known { get; init; } = [];
     public List<string> Applied { get; init; } = [];
+
+    /// <summary>Migrating fails part way: after the tables are made, as a later migration's failure leaves them.</summary>
     public bool FailMigrate { get; init; }
     public bool FailUndo { get; init; }
 
@@ -79,15 +83,38 @@ internal sealed class FakeMigrator(ICurrentDbContext current) : IMigrator
         {
             if (state.FailUndo)
                 throw new InvalidOperationException("the down migrations failed");
-            // Every migration undone: no tables left
-            await context.Database.EnsureDeletedAsync(cancellationToken);
+            // Every migration's Down: the model's tables dropped, the database kept, and EF's history table with it
+            await DropTablesAsync(context.Database, cancellationToken);
             return;
         }
+        await context.Database.EnsureCreatedAsync(cancellationToken);
+        // EF's history table, which migrating makes
+        await context.Database.ExecuteSqlRawAsync(
+            "CREATE TABLE IF NOT EXISTS \"__EFMigrationsHistory\" (\"MigrationId\" TEXT NOT NULL PRIMARY KEY, \"ProductVersion\" TEXT NOT NULL)", cancellationToken);
         if (state.FailMigrate)
             throw new InvalidOperationException("a migration failed");
-        await context.Database.EnsureCreatedAsync(cancellationToken);
         if (state.DropAfterMigrate is { } table)
             await context.Database.ExecuteSqlRawAsync(string.Concat("DROP TABLE \"", table, "\""), cancellationToken);
+    }
+
+    /// <summary>Drops every table but EF's history, on one connection with its foreign keys off, so in any order.</summary>
+    private static async Task DropTablesAsync(DatabaseFacade database, CancellationToken cancellationToken)
+    {
+        await database.OpenConnectionAsync(cancellationToken);
+        try
+        {
+            await database.ExecuteSqlRawAsync("PRAGMA foreign_keys = OFF", cancellationToken);
+            var tables = await database.SqlQueryRaw<string>(
+                    "SELECT name AS \"Value\" FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name <> '__EFMigrationsHistory'")
+                .ToListAsync(cancellationToken);
+            foreach (var table in tables)
+                await database.ExecuteSqlRawAsync(string.Concat("DROP TABLE \"", table, "\""), cancellationToken);
+            await database.ExecuteSqlRawAsync("PRAGMA foreign_keys = ON", cancellationToken);
+        }
+        finally
+        {
+            await database.CloseConnectionAsync();
+        }
     }
 
     public string GenerateScript(string? fromMigration = null, string? toMigration = null, MigrationsSqlGenerationOptions options = MigrationsSqlGenerationOptions.Default)

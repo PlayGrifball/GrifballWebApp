@@ -33,6 +33,7 @@ public static class DatabaseLocks
     public static async Task<IAsyncDisposable> AcquireLockAsync(this DatabaseFacade database, string name, TimeProvider time, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(time);
         if (database.IsSqlite())
         {
             var semaphore = SqliteLocks.GetOrAdd($"{database.GetConnectionString()}\n{name}", _ => new SemaphoreSlim(1, 1));

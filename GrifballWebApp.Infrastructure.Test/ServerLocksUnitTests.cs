@@ -1,4 +1,14 @@
+using DiscordInterface.Generated;
+using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Matchmaking;
+using GrifballWebApp.Application.Outbox;
+using GrifballWebApp.Infrastructure.Matchmaking;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace GrifballWebApp.Infrastructure.Test;
 
@@ -125,6 +135,53 @@ public class ServerLocksUnitTests
         {
             await Assert.ThatAsync(() => context.Database.AcquireLockAsync(Name, _time, stop.Token), Throws.InstanceOf<OperationCanceledException>());
             Assert.That((_connection.Sent.Count, _connection.Closed), Is.EqualTo((1, 1)));
+        }
+    }
+
+    [Test]
+    public async Task ANullClock_IsRefused_BeforeTheConnectionIsOpened()
+    {
+        Held(refusals: 0);
+        await using var context = SqlServer();
+
+        using (Assert.EnterMultipleScope())
+        {
+            await Assert.ThatAsync(() => context.Database.AcquireLockAsync(Name, null!, CancellationToken.None),
+                Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName)).EqualTo("time"));
+            Assert.That((_connection.Opened, _connection.Sent.Count), Is.EqualTo((0, 0)));
+        }
+    }
+
+    /// <summary>QueueService.Go waits for the queue's lock on its own clock: held by another worker, the next try comes
+    /// only when that clock has moved on. Past the lock, the queue read fails here, so the tick goes no further.</summary>
+    [Test]
+    public async Task QueueService_WaitsForTheQueueLock_OnItsOwnClock()
+    {
+        Held(refusals: 1);
+        await using var context = SqlServer();
+        var queue = Substitute.For<IQueueRepository>();
+        queue.GetQueuePlayersWithInfo(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("past the lock"));
+        var service = new QueueService(NullLogger<QueueService>.Instance, Options.Create(new DiscordOptions { QueueChannel = 111UL }), queue,
+            Substitute.For<IDiscordRestClient>(), context, Substitute.For<IDataPullService>(), Substitute.For<IOutbox>(), Substitute.For<IQueueNotifier>(), _time);
+        int Tries() => _connection.Sent.Count(c => c.Sql.Contains("sp_getapplock", StringComparison.Ordinal));
+
+        var going = service.Go(CancellationToken.None);
+        for (var i = 0; i < 100 && Tries() < 1; i++)
+            await Task.Yield();
+        var beforeTheClockMoved = (Tries(), going.IsCompleted);
+        for (var i = 0; i < 100 && !going.IsCompleted; i++)
+        {
+            _time.Advance(DatabaseLocks.RetryEvery);
+            await Task.Yield();
+        }
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(beforeTheClockMoved, Is.EqualTo((1, false)), "refused once, and waiting on the service's clock");
+            await Assert.ThatAsync(() => going.WaitAsync(TimeSpan.FromSeconds(30)), Throws.InvalidOperationException.With.Message.EqualTo("past the lock"));
+            Assert.That(Tries(), Is.EqualTo(2), "tried again once the clock moved on");
+            Assert.That(_connection.Sent[^1].Sql, Is.EqualTo("EXEC sp_releaseapplock @Resource = @lock, @LockOwner = 'Session'"), "and let go after the failed tick");
+            Assert.That(_connection.Sent.Select(c => c.Parameters["@lock"]), Is.All.EqualTo(QueueService.LockName));
         }
     }
 

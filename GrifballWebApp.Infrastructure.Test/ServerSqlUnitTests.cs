@@ -281,6 +281,7 @@ public class ServerSqlUnitTests
 
     [TestCase(DatabaseProvider.SqlServer, "A SQL Server target needs a SqlConnection")]
     [TestCase(DatabaseProvider.Postgres, "A PostgreSQL target needs an NpgsqlConnection")]
+    [TestCase(DatabaseProvider.Sqlite, "A SQLite target needs a SqliteConnection")]
     public async Task For_AnotherDriversConnection_IsRefused_BeforeAnythingIsSent(DatabaseProvider provider, string message)
     {
         await _connection.OpenAsync();
@@ -321,6 +322,30 @@ public class ServerSqlUnitTests
             Assert.That(() => TargetWriter.For((DatabaseProvider)99, _connection, transaction, new FakeLogger<ServerSqlUnitTests>()), Throws.InstanceOf<ArgumentOutOfRangeException>());
             Assert.That(_connection.Sent, Is.Empty);
         }
+    }
+
+    /// <summary>The fake as SQL Server: a command must carry the pending transaction, but closing the connection rolls
+    /// that transaction back, so after reopening a command runs without it.</summary>
+    [Test]
+    public async Task TheFakeConnection_ClosedWithATransactionPending_HasNoneWhenReopened()
+    {
+        await _connection.OpenAsync();
+        var transaction = await _connection.BeginTransactionAsync();
+        await using var inTheSession = _connection.CreateCommand();
+        inTheSession.CommandText = "SELECT 1";
+
+        await Assert.ThatAsync(() => inTheSession.ExecuteNonQueryAsync(),
+            Throws.InvalidOperationException.With.Message.StartsWith("The command requires the command to have a transaction"));
+        await _connection.CloseAsync();
+        await _connection.OpenAsync();
+        await inTheSession.ExecuteNonQueryAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_connection.Sent, Has.Count.EqualTo(1), "run once, after the reopen");
+            Assert.That(_connection.Sent[0].Transaction, Is.Null);
+        }
+        await transaction.DisposeAsync();
     }
 
     // ---- NativeBackups.SqlServerAsync ----

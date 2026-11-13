@@ -59,6 +59,8 @@ internal sealed class FakeDbConnection : DbConnection
         if (_state == ConnectionState.Open)
             Closed++;
         _state = ConnectionState.Closed;
+        // A real close rolls the session's pending transaction back
+        _pending = null;
     }
 
     protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)

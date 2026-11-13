@@ -26,7 +26,9 @@ internal abstract class TargetWriter(DbConnection connection, DbTransaction tran
         DatabaseProvider.Postgres => connection is NpgsqlConnection
             ? new PostgresTargetWriter(connection, transaction, logger)
             : throw new ArgumentException($"A PostgreSQL target needs an NpgsqlConnection, not a {connection.GetType().Name}.", nameof(connection)),
-        DatabaseProvider.Sqlite => new SqliteTargetWriter((Microsoft.Data.Sqlite.SqliteConnection)connection, (Microsoft.Data.Sqlite.SqliteTransaction)transaction),
+        DatabaseProvider.Sqlite => connection is Microsoft.Data.Sqlite.SqliteConnection sqlite
+            ? new SqliteTargetWriter(sqlite, (Microsoft.Data.Sqlite.SqliteTransaction)transaction)
+            : throw new ArgumentException($"A SQLite target needs a SqliteConnection, not a {connection.GetType().Name}.", nameof(connection)),
         _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
     };
 

@@ -20,11 +20,11 @@ namespace GrifballWebApp.Infrastructure.Conversion;
 /// is read as the converter reads it (one snapshot, where the server allows), and must have exactly this build's
 /// migrations. Run it with psql -v ON_ERROR_STOP=1, or sqlcmd -b.
 /// </summary>
-public sealed partial class DatabaseScriptExporter(ILogger<DatabaseConverter> logger)
+/// <param name="contexts">How a context on a database is made; the app's own (DatabaseConverter.NewContext) unless given. The tests give theirs, whose migrations are fakes (Infrastructure.Test can't reference the Migrations assemblies); passed on to its converter.</param>
+public sealed partial class DatabaseScriptExporter(ILogger<DatabaseConverter> logger, Func<DatabaseEndpoint, GrifballContext>? contexts = null)
 {
-    /// <summary>How a context on a database is made (DatabaseConverter.NewContext): the tests give their own, whose
-    /// migrations are fakes.</summary>
-    internal Func<DatabaseEndpoint, GrifballContext> Contexts { get; init; } = DatabaseConverter.NewContext;
+    /// <summary>The constructor's contexts, or the app's own.</summary>
+    private Func<DatabaseEndpoint, GrifballContext> Contexts { get; } = contexts ?? DatabaseConverter.NewContext;
 
     public static bool Supports(DatabaseProvider target) => target is DatabaseProvider.SqlServer or DatabaseProvider.Postgres;
 
@@ -43,7 +43,7 @@ public sealed partial class DatabaseScriptExporter(ILogger<DatabaseConverter> lo
         var schema = targetContext.GetService<IMigrator>().GenerateScript(options: MigrationsSqlGenerationOptions.NoTransactions);
         var lastMigration = targetContext.Database.GetMigrations().Last();
 
-        var converter = new DatabaseConverter(logger);
+        var converter = new DatabaseConverter(logger, Contexts);
         await using var connection = DatabaseConverter.Connect(source);
         await connection.OpenAsync(cancellationToken);
         await using var transaction = await converter.BeginSourceTransactionAsync(source.Provider, connection, cancellationToken);

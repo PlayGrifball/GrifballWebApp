@@ -34,19 +34,19 @@ public sealed record BuiltBackup(string Path, string FileName, string ContentTyp
 /// Database Backup page runs both as jobs (BackupJobs), on the pod that runs the jobs. One backup or export at a time in
 /// a process: the copy holds a table's rows in memory.
 /// </summary>
+/// <param name="contexts">How a context on a database is made; the app's own (DatabaseConverter.NewContext) unless given. The tests give theirs, whose migrations are fakes (Infrastructure.Test can't reference the Migrations assemblies); passed on to every converter and script exporter made here.</param>
 public sealed partial class DatabaseBackupService(IConfiguration configuration, ILoggerFactory loggerFactory, TimeProvider timeProvider,
-    IScratchScaler? scratchScaler = null)
+    IScratchScaler? scratchScaler = null, Func<DatabaseEndpoint, GrifballContext>? contexts = null)
 {
     private readonly SemaphoreSlim _running = new(1, 1);
     private readonly ILogger _logger = loggerFactory.CreateLogger<DatabaseBackupService>();
     private DatabaseEndpoint Source() => new(configuration.GetDatabaseProvider(),
         configuration.GetConnectionString("GrifballWebApp") ?? throw new InvalidOperationException("ConnectionStrings:GrifballWebApp is not set"));
 
-    private DatabaseConverter Converter() => new(loggerFactory.CreateLogger<DatabaseConverter>()) { Contexts = Contexts };
+    private DatabaseConverter Converter() => new(loggerFactory.CreateLogger<DatabaseConverter>(), Contexts);
 
-    /// <summary>How a context on a database is made (DatabaseConverter.NewContext): the tests give their own, whose
-    /// migrations are fakes.</summary>
-    internal Func<DatabaseEndpoint, GrifballContext> Contexts { get; init; } = DatabaseConverter.NewContext;
+    /// <summary>The constructor's contexts, or the app's own.</summary>
+    private Func<DatabaseEndpoint, GrifballContext> Contexts { get; } = contexts ?? DatabaseConverter.NewContext;
 
     /// <summary>
     /// The scratch server's kind; null when there's none. Set alone (DatabaseBackup:Scratch:Provider, without the
@@ -206,7 +206,7 @@ public sealed partial class DatabaseBackupService(IConfiguration configuration, 
                     var target = format == BackupFormat.Postgres ? DatabaseProvider.Postgres : DatabaseProvider.SqlServer;
                     // sqlcmd reads a file as UTF-8 when it starts with the byte order mark; psql takes UTF-8 as it is.
                     await using (var writer = new StreamWriter(path, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: target == DatabaseProvider.SqlServer)))
-                        tables = await new DatabaseScriptExporter(loggerFactory.CreateLogger<DatabaseConverter>()) { Contexts = Contexts }.WriteAsync(source, target, writer, progress, cancellationToken);
+                        tables = await new DatabaseScriptExporter(loggerFactory.CreateLogger<DatabaseConverter>(), Contexts).WriteAsync(source, target, writer, progress, cancellationToken);
                     (fileName, contentType) = ($"grifball-backup-{stamp}.{(target == DatabaseProvider.Postgres ? "postgres" : "sqlserver")}.sql", "application/sql");
                     break;
                 }

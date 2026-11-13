@@ -43,7 +43,7 @@ public class QueueService
     private readonly IQueueNotifier _notifier;
     private readonly TimeProvider _time;
 
-    /// <param name="time">The clock a match goes stale by (two hours undecided); the system's unless given.</param>
+    /// <param name="time">The clock a match goes stale by (two hours undecided), and the queue lock's waits between tries go by; the system's unless given.</param>
     public QueueService(ILogger<QueueService> logger,
         IOptions<DiscordOptions> discordOptions,
         IQueueRepository queueRepository,
@@ -72,7 +72,7 @@ public class QueueService
     {
         // Players whose own place changed this tick (matched, dropped from the queue, their match over), once saved
         var changed = new HashSet<int>();
-        await using (await _context.Database.AcquireLockAsync(LockName, ct))
+        await using (await _context.Database.AcquireLockAsync(LockName, _time, ct))
         try
         {
             QueuedPlayer[] queuePlayers;

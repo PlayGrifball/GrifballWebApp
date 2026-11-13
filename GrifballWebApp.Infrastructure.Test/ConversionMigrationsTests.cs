@@ -44,7 +44,7 @@ public class ConversionMigrationsTests : SqliteContextFixture
     private FakeMigrationsContext Contexts(DatabaseEndpoint endpoint) => new(
         FakeMigrationsContext.Options(endpoint.Provider, endpoint.ConnectionString), endpoint.ConnectionString == ConnectionString ? _source : _target);
 
-    private DatabaseConverter Converter() => new(_log) { Contexts = Contexts };
+    private DatabaseConverter Converter() => new(_log, Contexts);
 
     private async Task SeedUsersAsync()
     {
@@ -53,11 +53,35 @@ public class ConversionMigrationsTests : SqliteContextFixture
         Context.ChangeTracker.Clear();
     }
 
-    /// <summary>A target that's there already, empty: a database made beforehand.</summary>
+    /// <summary>The mark the owner's own database carries (SQLite's user_version, in the file's header): a database
+    /// deleted and made again has 0.</summary>
+    private const long OwnersMark = 42;
+
+    /// <summary>A target that's there already, empty: a database made beforehand, marked as the owner's.</summary>
     private async Task EmptyTargetAsync()
     {
         await using var connection = new SqliteConnection(Target.ConnectionString);
         await connection.OpenAsync();
+        await using var mark = connection.CreateCommand();
+        mark.CommandText = "PRAGMA user_version = 42";
+        await mark.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>The target as it's left: its mark and its tables. Read-only, so a target that's gone isn't made again.</summary>
+    private async Task<(long Mark, List<string> Tables)> TargetLeftAsync()
+    {
+        await using var connection = new SqliteConnection($"Data Source={_targetPath};Mode=ReadOnly;Pooling=False");
+        await connection.OpenAsync();
+        await using var mark = connection.CreateCommand();
+        mark.CommandText = "PRAGMA user_version";
+        var userVersion = System.Convert.ToInt64(await mark.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+        await using var tables = connection.CreateCommand();
+        tables.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name";
+        var names = new List<string>();
+        await using var reader = await tables.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+            names.Add(reader.GetString(0));
+        return (userVersion, names);
     }
 
     private async Task<int> TargetUsersAsync()
@@ -143,6 +167,27 @@ public class ConversionMigrationsTests : SqliteContextFixture
             Assert.That(async () => await Converter().ConvertAsync(Source, Target, CancellationToken.None), Throws.InvalidOperationException);
             Assert.That(_target.MigratedTo, Is.EqualTo(MigratedThenUndone), "migrated, then back to before the first");
             Assert.That(_log.At(LogLevel.Information), Does.Contain("Undid the target's migrations: it has no tables again"));
+            var (mark, tables) = await TargetLeftAsync();
+            Assert.That(mark, Is.EqualTo(OwnersMark), "the owner's database, kept");
+            Assert.That(tables, Is.Empty, "with no tables (EF's history dropped too)");
+        }
+    }
+
+    [Test]
+    public async Task Convert_ACopyThatFails_OnATargetThatWasThere_UndoesItsMigrations_KeepingTheDatabaseEmpty()
+    {
+        await SeedUsersAsync();
+        await EmptyTargetAsync();
+        _target = new MigrationsState { Known = [Init], DropAfterMigrate = "Teams" };
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(async () => await Converter().ConvertAsync(Source, Target, CancellationToken.None), Throws.TypeOf<ConversionException>());
+            Assert.That(_target.MigratedTo, Is.EqualTo(MigratedThenUndone));
+            Assert.That(_log.At(LogLevel.Error).Single(), Does.StartWith("The conversion failed (").And.EndWith("the target database was there before it: undoing its migrations"));
+            var (mark, tables) = await TargetLeftAsync();
+            Assert.That(mark, Is.EqualTo(OwnersMark), "the owner's database, kept");
+            Assert.That(tables, Is.Empty, "with no tables");
         }
     }
 
@@ -171,6 +216,9 @@ public class ConversionMigrationsTests : SqliteContextFixture
             Assert.That(async () => await Converter().ConvertAsync(Source, Target, CancellationToken.None), Throws.TypeOf<ConversionException>());
             Assert.That(_target.MigratedTo, Is.EqualTo(MigratedThenUndone));
             Assert.That(_log.At(LogLevel.Error), Has.Some.StartsWith("The conversion failed (").And.Some.StartsWith("Undoing the target's migrations failed"));
+            var (mark, tables) = await TargetLeftAsync();
+            Assert.That(mark, Is.EqualTo(OwnersMark), "kept, though the undo failed");
+            Assert.That(tables, Does.Contain("Users").And.Contain("__EFMigrationsHistory"), "its tables left, as the error says");
         }
     }
 
@@ -185,7 +233,7 @@ public class ConversionMigrationsTests : SqliteContextFixture
         await using var output = new StringWriter();
         var steps = new List<ConversionProgress>();
 
-        var tables = await new DatabaseScriptExporter(_log) { Contexts = Contexts }
+        var tables = await new DatabaseScriptExporter(_log, Contexts)
             .WriteAsync(Source, target, output, new SynchronousProgress(steps.Add), CancellationToken.None);
 
         var script = output.ToString();
@@ -208,7 +256,7 @@ public class ConversionMigrationsTests : SqliteContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(async () => await new DatabaseScriptExporter(_log) { Contexts = Contexts }.WriteAsync(Source, DatabaseProvider.Postgres, output),
+            Assert.That(async () => await new DatabaseScriptExporter(_log, Contexts).WriteAsync(Source, DatabaseProvider.Postgres, output),
                 Throws.TypeOf<ConversionException>());
             Assert.That(output.ToString(), Is.Empty);
         }
@@ -222,10 +270,7 @@ public class ConversionMigrationsTests : SqliteContextFixture
             ["Database:Provider"] = "Sqlite",
             ["ConnectionStrings:GrifballWebApp"] = ConnectionString,
         }).Build(),
-        Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance, new FakeTimeProvider(new DateTimeOffset(2026, 11, 13, 8, 0, 0, TimeSpan.Zero)))
-    {
-        Contexts = Contexts,
-    };
+        Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance, new FakeTimeProvider(new DateTimeOffset(2026, 11, 13, 8, 0, 0, TimeSpan.Zero)), contexts: Contexts);
 
     [Test]
     public async Task Backup_AsASqliteFile_IsTheCopy_InOneFile()
