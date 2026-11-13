@@ -25,7 +25,7 @@ public class RecurringJobSeederTests
     private readonly ISchedulerFactory _schedulers = Substitute.For<ISchedulerFactory>();
     private readonly IScheduler _scheduler = Substitute.For<IScheduler>();
     private ServiceProvider _services = null!;
-    private readonly RecordingLogger<RecurringJobSeeder> _log = new();
+    private readonly LogRecorder<RecurringJobSeeder> _log = new();
 
     [SetUp]
     public void SetUp()

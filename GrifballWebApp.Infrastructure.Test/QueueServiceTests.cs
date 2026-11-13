@@ -340,4 +340,15 @@ public class QueueServiceTests : SqliteContextFixture
 
         Assert.That(_discord.ReceivedCalls(), Is.Empty);
     }
+
+    [Test]
+    public async Task TheRecurringJob_RunsATick()
+    {
+        var job = new MatchmakingQueueJob(Service(), new GrifballWebApp.Infrastructure.Jobs.RepeatedFailures(TimeProvider.System, NullLogger<GrifballWebApp.Infrastructure.Jobs.RepeatedFailures>.Instance));
+
+        await job.Execute(Substitute.For<Quartz.IJobExecutionContext>());
+
+        await _discord.Received(1).SendMessageAsync(QueueChannel, Arg.Is<MessageProperties>(m => m.Content == QueueService.QueueEmbedTitle),
+            Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+    }
 }

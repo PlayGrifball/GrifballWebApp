@@ -31,8 +31,8 @@ public class HistoricalImportWorkerImportUnitTests : SqliteContextFixture
     private ServiceProvider _provider = null!;
     private HistoricalImportWorker _worker = null!;
     private IHistoricalImportService _import = null!;
-    private readonly RecordingLogger<HistoricalImportWorker> _workerLog = new();
-    private readonly RecordingLogger<HistoricalImportRunner> _runnerLog = new();
+    private readonly LogRecorder<HistoricalImportWorker> _workerLog = new();
+    private readonly LogRecorder<HistoricalImportRunner> _runnerLog = new();
 
     [SetUp]
     public void Setup()

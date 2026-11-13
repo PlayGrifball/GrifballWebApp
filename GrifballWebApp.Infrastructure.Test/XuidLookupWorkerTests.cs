@@ -27,7 +27,7 @@ public class XuidLookupWorkerTests : SqliteContextFixture
     private readonly IHaloInfiniteClient _halo = Substitute.For<IHaloInfiniteClient>();
     private readonly List<TimeSpan> _waits = [];
     private ServiceProvider _provider = null!;
-    private readonly RecordingLogger<XuidLookupWorker> _log = new();
+    private readonly LogRecorder<XuidLookupWorker> _log = new();
     private static readonly string[] BatchLines = ["XUID lookups: 2 found", "XUID lookups: 1 found"];
 
     private XuidLookupWorker Worker(int batchSize, int lookupsPerMinute = 6000)

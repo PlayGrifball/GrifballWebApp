@@ -6,7 +6,7 @@ namespace GrifballWebApp.Infrastructure.Test;
 /// A logger that keeps every entry (its level and formatted message), for a test that checks what the code logs. Every
 /// level is enabled, so a [LoggerMessage] method formats its message as it does in the app.
 /// </summary>
-internal sealed class RecordingLogger<T> : ILogger<T>
+internal sealed class LogRecorder<T> : ILogger<T>
 {
     private readonly List<(LogLevel Level, string Message)> _entries = [];
 
@@ -34,10 +34,10 @@ internal sealed class RecordingLogger<T> : ILogger<T>
     }
 }
 
-/// <summary>A logger factory whose loggers all record into one <see cref="RecordingLogger{T}"/>.</summary>
-internal sealed class RecordingLoggerFactory : ILoggerFactory
+/// <summary>A logger factory whose loggers all record into one <see cref="LogRecorder{T}"/>.</summary>
+internal sealed class LogRecorderFactory : ILoggerFactory
 {
-    public RecordingLogger<RecordingLoggerFactory> Logger { get; } = new();
+    public LogRecorder<LogRecorderFactory> Logger { get; } = new();
 
     public ILogger CreateLogger(string categoryName) => Logger;
 

@@ -25,7 +25,7 @@ public class HistoricalRefreshJobTests : SqliteContextFixture
     private readonly FakeTimeProvider _time = new(Now);
     private readonly IScheduler _scheduler = Substitute.For<IScheduler>();
     private HistoricalImportJobs _jobs = null!;
-    private readonly RecordingLogger<HistoricalRefreshJob> _log = new();
+    private readonly LogRecorder<HistoricalRefreshJob> _log = new();
 
     [SetUp]
     public void SetUp() => _jobs = new HistoricalImportJobs((IApplicationDbContext)Context, new HistoricalImportSignal(), _time);

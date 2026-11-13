@@ -32,7 +32,7 @@ public class DataPullServiceSaveTests : SqliteContextFixture
     private IHaloInfiniteClient _halo = null!;
     private IGetsertXboxUserService _getsert = null!;
     private DataPullService _service = null!;
-    private readonly RecordingLogger<DataPullService> _log = new();
+    private readonly LogRecorder<DataPullService> _log = new();
 
     [SetUp]
     public void SetUp()

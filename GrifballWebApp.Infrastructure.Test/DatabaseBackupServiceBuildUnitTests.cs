@@ -124,7 +124,7 @@ public class DatabaseBackupServiceBuildUnitTests
     public async Task MakeAsync_OnAScratchServerThatNeverLetsItIn_StopsTheScratchServerAgain()
     {
         var scaler = Substitute.For<IScratchScaler>();
-        var loggers = new RecordingLoggerFactory();
+        var loggers = new LogRecorderFactory();
         var service = new DatabaseBackupService(
             Configuration(("Database:Provider", "Sqlite"), ("ConnectionStrings:GrifballWebApp", MissingSource),
                 ("DatabaseBackup:Scratch:Provider", "Postgres"),

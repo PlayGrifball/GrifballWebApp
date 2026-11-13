@@ -133,7 +133,7 @@ public class WiringPartsTests : SqliteContextFixture
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 
-        var log = new RecordingLogger<XboxPlaceholderJob>();
+        var log = new LogRecorder<XboxPlaceholderJob>();
 
         await new XboxPlaceholderJob(new GamertagMatching(Context), log).Execute(Substitute.For<IJobExecutionContext>());
 

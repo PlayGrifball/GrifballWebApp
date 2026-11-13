@@ -143,7 +143,7 @@ public class OutboxDispatcherTests : SqliteContextFixture
         var recent = new OutboxMessage { Kind = Kind, Payload = "{}", Status = OutboxStatus.Sent, CreatedAt = Now.UtcDateTime, NextAttemptAt = Now.UtcDateTime, SentAt = Now.UtcDateTime };
         Context.Outbox.AddRange(old, recent);
         await Context.SaveChangesAsync();
-        var log = new RecordingLogger<OutboxProcessor>();
+        var log = new LogRecorder<OutboxProcessor>();
         using var dispatcher = Dispatcher(_provider.GetRequiredService<IServiceScopeFactory>(), log);
 
         await dispatcher.StartAsync(CancellationToken.None);

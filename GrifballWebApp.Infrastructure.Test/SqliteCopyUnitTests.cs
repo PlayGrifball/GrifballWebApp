@@ -18,7 +18,7 @@ namespace GrifballWebApp.Infrastructure.Test;
 [Parallelizable(ParallelScope.All)]
 public class SqliteCopyUnitTests : SqliteContextFixture
 {
-    private readonly RecordingLogger<DatabaseConverter> _log = new();
+    private readonly LogRecorder<DatabaseConverter> _log = new();
     private readonly DatabaseConverter _converter;
 
     public SqliteCopyUnitTests() => _converter = new DatabaseConverter(_log);
