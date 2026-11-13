@@ -51,6 +51,27 @@ internal sealed class HistoricalImportLateLeagueUnitTests : ApplicationDbContext
         Players = [.. players.Select(p => new RecordedPlayerInput { Gamertag = p.Gamertag, Side = p.Side, Kills = 5, Deaths = 3 })],
     };
 
+    private static HistoricalArchiveInput TwoPlayersAndAGame() => Input(Season(Player("Alpha One"), Player("Beta One")), [Game("ll#1", [("Alpha One", 1), ("Beta One", 2)])]);
+
+    [Test]
+    public async Task Import_Again_RestatesTheRows_AndRecordsTheGamesMatchAgain()
+    {
+        await _service.Import(TwoPlayersAndAGame());
+        Context.ChangeTracker.Clear();
+
+        var again = await _service.Import(TwoPlayersAndAGame());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(again.Errors, Is.Empty);
+            Assert.That((again.MatchmakingSeasonsCreated, again.MatchmakingSeasonsUpdated), Is.EqualTo((0, 1)));
+            Assert.That((again.StatsInserted, again.StatsUpdated), Is.EqualTo((0, 2)));
+            Assert.That(again.RecordedGamesImported, Is.EqualTo(1));
+            Assert.That(await Context.MatchedMatches.CountAsync(), Is.EqualTo(1), "The same match, recorded again");
+            Assert.That(await Context.RecordedGames.CountAsync(), Is.EqualTo(1));
+        }
+    }
+
     [Test]
     public async Task Import_ASecondRowForTheSamePlayer_IsSkipped()
     {
