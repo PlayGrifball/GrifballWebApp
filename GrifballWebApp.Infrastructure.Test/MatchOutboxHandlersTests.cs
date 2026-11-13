@@ -115,6 +115,9 @@ public class MatchOutboxHandlersTests : SqliteContextFixture
         return e;
     }
 
+    private static MatchCreatedResult? CreatedResultOf(OutboxMessage message) =>
+        message.Result is null ? null : JsonSerializer.Deserialize<MatchCreatedResult>(message.Result, OutboxJson.Options);
+
     // ---- MatchCreatedPostHandler ----
 
     [Test]
@@ -126,9 +129,16 @@ public class MatchOutboxHandlersTests : SqliteContextFixture
         _discord.SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(posted);
         var handler = new MatchCreatedPostHandler(_discord, Options_(), NullLogger<MatchCreatedPostHandler>.Instance);
 
-        var outcome = await handler.HandleAsync(Message(MatchOutbox.CreatedPost, new MatchCreatedPayload(match.Id, false)), Context, CancellationToken.None);
+        var message = Message(MatchOutbox.CreatedPost, new MatchCreatedPayload(match.Id, false));
 
-        Assert.That(outcome, Is.EqualTo(OutboxOutcome.Done));
+        var outcome = await handler.HandleAsync(message, Context, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(outcome, Is.EqualTo(OutboxOutcome.Done));
+            // MatchThreadCreateHandler reads this to find the post to thread from
+            Assert.That(CreatedResultOf(message), Is.EqualTo(new MatchCreatedResult(50UL, false)), "The new post, sent by this try");
+        }
         await _discord.Received(1).SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
 
@@ -141,8 +151,15 @@ public class MatchOutboxHandlersTests : SqliteContextFixture
         _discord.GetMessagesAsync(LogChannel, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ => new[] { existing }.ToAsyncEnumerable());
         var handler = new MatchCreatedPostHandler(_discord, Options_(), NullLogger<MatchCreatedPostHandler>.Instance);
 
-        await handler.HandleAsync(Message(MatchOutbox.CreatedPost, new MatchCreatedPayload(match.Id, true)), Context, CancellationToken.None);
+        var message = Message(MatchOutbox.CreatedPost, new MatchCreatedPayload(match.Id, true));
 
+        var outcome = await handler.HandleAsync(message, Context, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(outcome, Is.EqualTo(OutboxOutcome.Done));
+            Assert.That(CreatedResultOf(message), Is.EqualTo(new MatchCreatedResult(60UL, true)), "The earlier post, found");
+        }
         await _discord.DidNotReceive().SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
 
@@ -247,7 +264,8 @@ public class MatchOutboxHandlersTests : SqliteContextFixture
             await _discord.Received(1).AddGuildThreadUserAsync(777UL, 5001UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
             await _discord.Received(1).AddGuildThreadUserAsync(777UL, 5002UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         }
-        await _discord.DidNotReceive().AddGuildThreadUserAsync(777UL, 0UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        // Those two and no one else: the player without Discord isn't invited under any id
+        await _discord.Received(2).AddGuildThreadUserAsync(777UL, Arg.Any<ulong>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
 
     [Test]
