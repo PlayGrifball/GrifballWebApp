@@ -50,10 +50,15 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Season_WithNoInput_DefaultUpcoming_AndAnUpcomingSeason_ReturnsTheEarliestUpcoming()
     {
-        var later = await AddSeason("Later");
-        later.WithDates(signupsOpen: Now.AddDays(10), signupsClose: Now.AddDays(20), draftStart: Now.AddDays(25), seasonStart: Now.AddDays(60), seasonEnd: Now.AddDays(90));
+        // CommandLookups.Season's Upcoming branch filters by the real clock (Season.NotStartedAt(DateTime.UtcNow)), not
+        // SeasonService's FixedTimeProvider, so these dates are relative to DateTime.UtcNow, not the fixture's fixed Now.
+        // Sooner is inserted first (the lower ID), so only its earlier SeasonStart - not the latest-by-ID fallback -
+        // explains the result.
+        var now = DateTime.UtcNow;
         var sooner = await AddSeason("Sooner");
-        sooner.WithDates(signupsOpen: Now.AddDays(1), signupsClose: Now.AddDays(5), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(30), seasonEnd: Now.AddDays(60));
+        sooner.WithDates(signupsOpen: now.AddDays(1), signupsClose: now.AddDays(5), draftStart: now.AddDays(8), seasonStart: now.AddDays(30), seasonEnd: now.AddDays(60));
+        var later = await AddSeason("Later");
+        later.WithDates(signupsOpen: now.AddDays(10), signupsClose: now.AddDays(20), draftStart: now.AddDays(25), seasonStart: now.AddDays(60), seasonEnd: now.AddDays(90));
         await Db.SaveChangesAsync();
 
         var result = await Lookups().Season(null, SeasonDefault.Upcoming);
@@ -289,7 +294,7 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
     public async Task TeamChoices_ReturnsMatchingTeams_LabelledWithTheirSeason()
     {
         var season = await AddSeason("Winter 2026");
-        var team = await AddTeam(season, "Grifters");
+        await AddTeam(season, "Grifters");
 
         var choices = await Lookups().TeamChoices("Grif");
 
