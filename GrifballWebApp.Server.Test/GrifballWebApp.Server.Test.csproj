@@ -34,6 +34,8 @@
     <ProjectReference Include="..\GrifballWebApp.Server\GrifballWebApp.Server.csproj" />
     <!-- The domain tests' helpers (a test season, a season match in a state) -->
     <ProjectReference Include="..\GrifballWebApp.Domain.Test\GrifballWebApp.Domain.Test.csproj" />
+    <!-- The infrastructure tests' helpers (HaloInfiniteHealthCheckTestData) -->
+    <ProjectReference Include="..\GrifballWebApp.Infrastructure.Test\GrifballWebApp.Infrastructure.Test.csproj" />
   </ItemGroup>
 
   <!-- Its helpers (ControllerTestHelpers, the test doubles) serve the integration tests too -->

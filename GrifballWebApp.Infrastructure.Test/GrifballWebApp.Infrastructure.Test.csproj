@@ -44,6 +44,7 @@
        DesignTimeContextFactoryTestsBase serve the migrations projects' own Test, one subclass of each per provider -->
   <ItemGroup>
     <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Server.Test" />
     <InternalsVisibleTo Include="GrifballWebApp.Migrations.Postgres.Test" />
     <InternalsVisibleTo Include="GrifballWebApp.Migrations.Sqlite.Test" />
     <InternalsVisibleTo Include="GrifballWebApp.Migrations.SqlServer.Test" />

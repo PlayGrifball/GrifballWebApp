@@ -4,9 +4,10 @@ using Surprenant.Grunt.Models;
 using Surprenant.Grunt.Models.HaloInfinite;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 
-namespace GrifballWebApp.Server.Test;
+namespace GrifballWebApp.Infrastructure.Test;
 
-/// <summary>A Halo Infinite client factory whose probe answers as told.</summary>
+/// <summary>A Halo Infinite client factory whose probe answers as told. Shared by this project's, Server.Test's and
+/// Integration.Test's health check tests.</summary>
 internal static class HaloInfiniteHealthCheckTestData
 {
     /// <summary>A factory whose probe answers with <paramref name="code"/>.</summary>

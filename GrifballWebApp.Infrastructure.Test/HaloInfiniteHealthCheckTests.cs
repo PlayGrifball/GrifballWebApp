@@ -10,6 +10,7 @@ using NSubstitute.ExceptionExtensions;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using Surprenant.Grunt.Models.HaloInfinite;
+using static GrifballWebApp.Infrastructure.Test.HaloInfiniteHealthCheckTestData;
 
 namespace GrifballWebApp.Infrastructure.Test;
 
@@ -44,15 +45,10 @@ public class HaloInfiniteHealthCheckTests
     private Task<HealthCheckResult> Check(CancellationToken cancellationToken = default) =>
         _check.CheckHealthAsync(Context(_check), cancellationToken);
 
-    private static HaloApiResultContainer<MatchStats, HaloApiErrorContainer> Response(int code) =>
-        new(new MatchStats(), new HaloApiErrorContainer { Code = code });
-
-    private void Answering(int code) => _factory.StatsGetMatchStats(Arg.Any<string>()).Returns(Response(code));
-
     [Test]
     public async Task ApiAnswers_Healthy()
     {
-        Answering(200);
+        Answering(200, _factory);
 
         var result = await Check();
 
@@ -66,7 +62,7 @@ public class HaloInfiniteHealthCheckTests
     [Test]
     public async Task Probe_FetchesTheConfiguredMatch()
     {
-        Answering(200);
+        Answering(200, _factory);
         var check = new HaloInfiniteHealthCheck(_factory, Interval, Timeout, _time, NullLogger<HaloInfiniteHealthCheck>.Instance, "my-match");
 
         await check.CheckHealthAsync(Context(check));
@@ -83,7 +79,7 @@ public class HaloInfiniteHealthCheckTests
     [TestCase(0)]
     public async Task ApiFails_DegradedNotUnhealthy(int code)
     {
-        Answering(code);
+        Answering(code, _factory);
 
         var result = await Check();
 
@@ -131,7 +127,7 @@ public class HaloInfiniteHealthCheckTests
     [Test]
     public async Task Result_IsCachedForTheInterval()
     {
-        Answering(200);
+        Answering(200, _factory);
 
         await Check();
         _time.Advance(Interval - TimeSpan.FromSeconds(1));
@@ -215,7 +211,7 @@ public class HaloInfiniteHealthCheckTests
         await cancellation.CancelAsync();
         var result = await pending;
 
-        Answering(200);
+        Answering(200, _factory);
         var next = await Check();
 
         using (Assert.EnterMultipleScope())

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Surprenant.Grunt.Core;
 using GrifballWebApp.Infrastructure.HaloInfinite;
-using static GrifballWebApp.Server.Test.HaloInfiniteHealthCheckTestData;
+using static GrifballWebApp.Infrastructure.Test.HaloInfiniteHealthCheckTestData;
 
 namespace GrifballWebApp.Server.Test;
 

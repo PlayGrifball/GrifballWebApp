@@ -19,7 +19,7 @@ namespace GrifballWebApp.Infrastructure.Test;
 /// loop, the already-downloaded and not-a-team-game skips, a page or a match Halo didn't answer, and the binary search
 /// for a season's pages between two dates. On a real (temp-file SQLite) GrifballContext with a substituted
 /// IHaloInfiniteClient: no database server, host or network. GrifballWebApp.Integration.Test keeps the same scenarios
-/// (and the log-message assertions, which need its RecordingLogger) for its own layer's coverage.
+/// on each real database server (SQL Server, Postgres, the SQLite leg), with the log-message assertions.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
