@@ -262,6 +262,16 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
                 $"Historical import: 1 seasons created, 0 updated, {report.StatsInserted} stats added, 0 updated, {report.DummyUsersCreated} placeholder users, 1 skipped, 0 failed")));
             Assert.That(report.StatsInserted, Is.EqualTo(1));
         }
+        // The summary's counts are fields of their own, for a log query to read
+        var summary = logger.Fields.Single(f => f.TryGetValue("{OriginalFormat}", out var format) && ((string)format!).StartsWith("Historical import: ", StringComparison.Ordinal));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(summary["SeasonsCreated"], Is.EqualTo(1));
+            Assert.That(summary["SeasonsUpdated"], Is.EqualTo(0));
+            Assert.That(summary["StatsInserted"], Is.EqualTo(1));
+            Assert.That(summary["Skipped"], Is.EqualTo(1));
+            Assert.That(summary["Errors"], Is.EqualTo(0));
+        }
     }
 
     [Test]

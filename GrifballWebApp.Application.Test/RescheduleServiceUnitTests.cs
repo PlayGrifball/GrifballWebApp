@@ -147,6 +147,22 @@ internal sealed class RescheduleServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task RequestRescheduleAsync_SaveRefusedForAnotherReason_Throws_AndSavesNothing()
+    {
+        var match = await SeedUndecidedMatch();
+        var refused = new BeforeFirstSave(_ => Task.FromException(new DbUpdateException("refused")));
+        await using var failing = new FakeApplicationDbContext(new DbContextOptionsBuilder<FakeApplicationDbContext>()
+            .UseSqlite(Context.Database.GetDbConnection()).AddInterceptors(refused).Options);
+        var dto = new RescheduleRequestDto { SeasonMatchID = match.SeasonMatchID, Reason = "mine" };
+
+        // No pending request is saved: not the other captain's race, so the failure is the caller's
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => new RescheduleService(failing, _outbox).RequestRescheduleAsync(dto, RequesterUserID));
+
+        Assert.That(ex!.Message, Is.EqualTo("refused"));
+        Assert.That(await Context.MatchReschedules.AnyAsync(), Is.False);
+    }
+
+    [Test]
     public async Task ProcessRescheduleAsync_NotFound_Throws()
     {
         var dto = new ProcessRescheduleDto { Approved = true };

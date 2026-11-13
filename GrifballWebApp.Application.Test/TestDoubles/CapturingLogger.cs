@@ -10,6 +10,7 @@ namespace GrifballWebApp.Application.Test.TestDoubles;
 internal sealed class CapturingLogger<T> : ILogger<T>
 {
     private readonly List<(LogLevel Level, string Message)> _entries = [];
+    private readonly List<IReadOnlyDictionary<string, object?>> _fields = [];
     private readonly Lock _lock = new();
 
     /// <summary>Each entry written, its level and its formatted message, in order.</summary>
@@ -19,6 +20,16 @@ internal sealed class CapturingLogger<T> : ILogger<T>
         {
             lock (_lock)
                 return _entries.ToList();
+        }
+    }
+
+    /// <summary>Each entry's structured fields (its message template's values, and {OriginalFormat}), in order.</summary>
+    public IReadOnlyList<IReadOnlyDictionary<string, object?>> Fields
+    {
+        get
+        {
+            lock (_lock)
+                return _fields.ToList();
         }
     }
 
@@ -32,6 +43,11 @@ internal sealed class CapturingLogger<T> : ILogger<T>
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {
         lock (_lock)
+        {
             _entries.Add((logLevel, formatter(state, exception)));
+            _fields.Add(state is IEnumerable<KeyValuePair<string, object?>> pairs
+                ? pairs.ToDictionary(p => p.Key, p => p.Value)
+                : new Dictionary<string, object?>());
+        }
     }
 }

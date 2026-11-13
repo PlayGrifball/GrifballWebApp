@@ -311,4 +311,20 @@ public class VodMatchingTests
     }
 
     private static readonly int[] OnlyAlpha = [11];
+
+    [Test]
+    public void Match_ATeamWhoseNameHasNoLetters_IsNeverFound()
+    {
+        var matcher = new VodMatcher([Season(10, "Spring League 2027", D(2027, 3, 1), D(2027, 5, 31), [Team(101, "Kilo"), Team(102, "???")])]);
+
+        var match = matcher.Match("SL27 - Kilo vs Lima", D(2027, 3, 20));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(match.TeamIDs, Is.EqualTo(OnlyKilo), "Lima is close to no team, not even one of no letters");
+            Assert.That(match.Status, Is.EqualTo(VodMatchStatus.NeedsReview));
+        }
+    }
+
+    private static readonly int[] OnlyKilo = [101];
 }
