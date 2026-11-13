@@ -87,6 +87,8 @@ public class BackupControllerUnitTests
 [Parallelizable(ParallelScope.All)]
 public class BackupControllerInfoUnitTests : SqliteGrifballContextFixture
 {
+    private static readonly string[] ExpectedFormats = ["sqlite", "postgres", "sqlserver", "bak"];
+
     [Test]
     public void Info_ReturnsTheProviderAndTheFormatsAvailableHere()
     {
@@ -99,7 +101,7 @@ public class BackupControllerInfoUnitTests : SqliteGrifballContextFixture
         {
             Assert.That(info.LatestMigration, Is.Not.Null.And.Not.Empty);
             // Database:Provider defaults to SqlServer unset, so HasNativeServer(SqlServer) is true here: bak is offered too
-            Assert.That(info.Formats, Is.EquivalentTo(new[] { "sqlite", "postgres", "sqlserver", "bak" }));
+            Assert.That(info.Formats, Is.EquivalentTo(ExpectedFormats));
         }
     }
 }
