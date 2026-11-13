@@ -23,6 +23,12 @@ public sealed class TelemetryQueryOptions
     /// </summary>
     public string? EdgeServices { get; set; }
 
+    /// <summary>
+    /// The services this app calls whose spans a trace shows with its own, comma-separated service.names (ex.
+    /// <c>halo-gateway</c>). Only in a trace that has this app's spans.
+    /// </summary>
+    public string? DownstreamServices { get; set; }
+
     /// <summary>service.name (<see cref="TelemetryOptions.ServiceName"/>, not bound): every query is scoped to it.</summary>
     public string ServiceName { get; set; } = "";
 
@@ -30,9 +36,9 @@ public sealed class TelemetryQueryOptions
     public Uri? Prometheus => TelemetryOptions.ParseEndpoint(PrometheusUrl);
     public Uri? Tempo => TelemetryOptions.ParseEndpoint(TempoUrl);
 
-    /// <summary><see cref="EdgeServices"/>, each one.</summary>
-    public IReadOnlySet<string> EdgeServiceNames =>
-        (EdgeServices ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+    /// <summary><see cref="EdgeServices"/> and <see cref="DownstreamServices"/>, each one: the services a trace shows besides this one.</summary>
+    public IReadOnlySet<string> RelatedServiceNames =>
+        $"{EdgeServices},{DownstreamServices}".Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
 }
 
 public static class TelemetryQueryServiceCollectionExtensions

@@ -194,8 +194,8 @@ public sealed class TelemetryQueryService
     }
 
     /// <summary>
-    /// A trace's spans from this service and the ones in front of it (TelemetryQuery:EdgeServices); null when it has none of
-    /// this service's (unknown trace, or another service's).
+    /// A trace's spans from this service, the ones in front of it and the ones it calls (TelemetryQuery:EdgeServices and
+    /// DownstreamServices); null when it has none of this service's (unknown trace, or another service's).
     /// </summary>
     public async Task<TraceDto?> Trace(string traceId, CancellationToken ct)
     {
@@ -211,8 +211,8 @@ public sealed class TelemetryQueryService
         if (!doc.RootElement.TryGetProperty("trace", out var trace) || !trace.TryGetProperty("resourceSpans", out var resourceSpans))
             return null;
 
-        var edge = _options.EdgeServiceNames;
-        var spans = resourceSpans.EnumerateArray().SelectMany(r => ShownSpans(r, edge)).ToList();
+        var related = _options.RelatedServiceNames;
+        var spans = resourceSpans.EnumerateArray().SelectMany(r => ShownSpans(r, related)).ToList();
         if (!spans.Exists(s => s.Service == _options.ServiceName))
             return null;
 
@@ -233,14 +233,14 @@ public sealed class TelemetryQueryService
         string? StatusMessage, Dictionary<string, string> SpanAttributes, List<(string Name, long Time, Dictionary<string, string> Attributes)> Events);
 
     /// <summary>
-    /// A resource's spans when it is this service or one of <paramref name="edge"/> (none for another's), with its service,
-    /// its pod and each span's scope.
+    /// A resource's spans when it is this service or one of <paramref name="related"/> (none for another's), with its
+    /// service, its pod and each span's scope.
     /// </summary>
-    private IEnumerable<RawSpan> ShownSpans(JsonElement resource, IReadOnlySet<string> edge)
+    private IEnumerable<RawSpan> ShownSpans(JsonElement resource, IReadOnlySet<string> related)
     {
         var resourceAttributes = Attributes(resource.GetProperty("resource"));
         var service = resourceAttributes.GetValueOrDefault("service.name") ?? "";
-        if (service != _options.ServiceName && !edge.Contains(service))
+        if (service != _options.ServiceName && !related.Contains(service))
             return [];
         var pod = resourceAttributes.GetValueOrDefault("k8s.pod.name") ?? resourceAttributes.GetValueOrDefault("service.instance.id");
         return resource.GetProperty("scopeSpans").EnumerateArray().SelectMany(scopeSpans =>

@@ -253,6 +253,8 @@ backend:
       # The services in front of the app whose spans a trace shows with its own, comma-separated service.names: the
       # ingress and the CDN. Ex: traefik,edge_processing,origin_fetch (Traefik, and Cloudflare's Traces export)
       edgeServices: ""
+      # The services the app calls whose spans a trace shows with its own, comma-separated. Ex: halo-gateway
+      downstreamServices: ""
 
   # Encrypts the data protection keys (sign-in cookies, reset and download tokens), which are kept in the
   # database and so in every backup: without it a backup can forge anyone's sign-in. A kubernetes.io/tls

@@ -234,7 +234,8 @@
                 "lokiUrl": { "type": "string" },
                 "prometheusUrl": { "type": "string" },
                 "tempoUrl": { "type": "string" },
-                "edgeServices": { "type": "string" }
+                "edgeServices": { "type": "string" },
+                "downstreamServices": { "type": "string" }
               }
             }
           }

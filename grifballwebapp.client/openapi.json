@@ -15596,7 +15596,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "A span: OffsetMs from the trace's first span. Status is Unset, Ok or Error.\nService is its service.name: this app's, or one in front of it (TelemetryQuery:EdgeServices)."
+        "description": "A span: OffsetMs from the trace's first span. Status is Unset, Ok or Error.\nService is its service.name: this app's, or one in front of it or that it calls (TelemetryQuery:EdgeServices,\nDownstreamServices)."
       },
       "SpanEventDto": {
         "required": [
@@ -16316,7 +16316,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "This service's spans of a trace and those of the services in front of it, in start order."
+        "description": "This service's spans of a trace and those of the services in front of it and that it calls, in start order."
       },
       "TraceSummaryDto": {
         "required": [

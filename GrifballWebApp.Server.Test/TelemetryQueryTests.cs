@@ -208,11 +208,12 @@ public class TelemetryQueryServiceTests
     private static HttpResponseMessage Json(string body, HttpStatusCode status = HttpStatusCode.OK) =>
         new(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
 
-    private static TelemetryQueryService Service(FakeBackends backends, bool configured = true, string? edgeServices = null) =>
+    private static TelemetryQueryService Service(FakeBackends backends, bool configured = true, string? edgeServices = null, string? downstreamServices = null) =>
         new(new HttpClient(backends), Options.Create(new TelemetryQueryOptions
         {
             ServiceName = "grif-prod",
             EdgeServices = edgeServices,
+            DownstreamServices = downstreamServices,
             LokiUrl = configured ? "http://loki.test" : null,
             PrometheusUrl = configured ? "http://prometheus.test:9090" : null,
             TempoUrl = configured ? "http://tempo.test:3200" : null,
@@ -568,6 +569,7 @@ public class TelemetryQueryServiceTests
     private static readonly string[] expectedArray4 = new[] { "GET Season/Get", "SELECT" };
     private static readonly string[] EdgeTraceSpans = ["router", "GET Season/Get", "SELECT"];
     private static readonly string[] EdgeServiceNames = ["traefik", "edge_processing", "origin_fetch"];
+    private static readonly string[] RelatedServiceNames = ["traefik", "halo-gateway"];
 
     [Test]
     public async Task Trace_keeps_this_services_spans_only_with_hex_ids()
@@ -639,14 +641,24 @@ public class TelemetryQueryServiceTests
     }
 
     [Test]
-    public void Edge_services_are_read_comma_separated()
+    public void Edge_and_downstream_services_are_read_comma_separated()
     {
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(new TelemetryQueryOptions { EdgeServices = "traefik, edge_processing,,origin_fetch " }.EdgeServiceNames,
+            Assert.That(new TelemetryQueryOptions { EdgeServices = "traefik, edge_processing,,origin_fetch " }.RelatedServiceNames,
                 Is.EquivalentTo(EdgeServiceNames));
-            Assert.That(new TelemetryQueryOptions().EdgeServiceNames, Is.Empty);
+            Assert.That(new TelemetryQueryOptions { EdgeServices = "traefik", DownstreamServices = " halo-gateway" }.RelatedServiceNames,
+                Is.EquivalentTo(RelatedServiceNames));
+            Assert.That(new TelemetryQueryOptions().RelatedServiceNames, Is.Empty);
         }
+    }
+
+    [Test]
+    public async Task Trace_shows_the_spans_of_the_services_this_one_calls()
+    {
+        var trace = await Service(new FakeBackends(_ => Json(TempoTrace)), downstreamServices: "traefik").Trace("0556214b423d5a640fb17a50481aa1fd", default);
+
+        Assert.That(trace!.Spans.Single(s => s.Service == "traefik").Name, Is.EqualTo("router"));
     }
 
     [TestCase("""{"trace":{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"traefik"}}]},"scopeSpans":[{"scope":{"name":"t"},"spans":[{"spanId":"AQ==","name":"x","startTimeUnixNano":"1","endTimeUnixNano":"2"}]}]}]}}""")]
