@@ -2,23 +2,20 @@ using GrifballWebApp.Application;
 using GrifballWebApp.Application.Historical.Vods;
 using GrifballWebApp.Application.TeamPage;
 using GrifballWebApp.Server.Commands;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace GrifballWebApp.Server.Test;
 
 /// <summary>
 /// TeamCommandsHandler's unit tests: the team lookup (<see cref="CommandLookups.Team"/>) every action goes through first
-/// is real, on a temp-file SQLite GrifballContext (#402); the team page services each goes on to stay null
-/// (GrifballWebApp.Integration.Test's, with a database).
+/// is real, on a temp-file SQLite GrifballContext (#402); <see cref="Handler"/> leaves the team page services null, for
+/// the lookup guard; <see cref="DeepHandler"/> makes them real too, for the actions themselves.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class TeamCommandsHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private static UrlService Urls() => new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-
     private TeamCommandsHandler Handler() => new(new CommandLookups(Db, null!), null!, null!, null!, Urls());
 
     /// <summary>The team page services real too (all IApplicationDbContext-backed).</summary>
@@ -57,7 +54,7 @@ public class TeamCommandsHandlerUnitTests : SqliteGrifballContextFixture
     public async Task Info_ShowsTheTeam_ForAFoundTeam()
     {
         var season = await AddSeason("Winter 2026");
-        var team = await AddTeam(season, "Grifters");
+        await AddTeam(season, "Grifters");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().Info(discord.Context, "Grifters");
@@ -69,7 +66,7 @@ public class TeamCommandsHandlerUnitTests : SqliteGrifballContextFixture
     public async Task Roster_RepliesNoPlayersYet_ForAFoundTeamWithNoRoster()
     {
         var season = await AddSeason("Winter 2026");
-        var team = await AddTeam(season, "Grifters");
+        await AddTeam(season, "Grifters");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().Roster(discord.Context, "Grifters");
@@ -81,7 +78,7 @@ public class TeamCommandsHandlerUnitTests : SqliteGrifballContextFixture
     public async Task Matches_RepliesNoMatchesYet_ForAFoundTeamWithNoMatches()
     {
         var season = await AddSeason("Winter 2026");
-        var team = await AddTeam(season, "Grifters");
+        await AddTeam(season, "Grifters");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().Matches(discord.Context, "Grifters");

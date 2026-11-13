@@ -1,23 +1,21 @@
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Server.Commands;
-using Microsoft.Extensions.Configuration;
 
 namespace GrifballWebApp.Server.Test;
 
 /// <summary>
 /// SeasonCommandsHandler's unit tests: the season lookup (<see cref="CommandLookups.SeasonFor"/>) and name
 /// (<see cref="SeasonService.GetSeasonName"/>) every action goes through first are real, on a temp-file SQLite
-/// GrifballContext (#402); the season page services each goes on to stay null (GrifballWebApp.Integration.Test's,
-/// with a database). <see cref="SeasonCommandsHandler.Draft"/> needs nothing past that, so it is covered fully.
+/// GrifballContext (#402). <see cref="Handler"/> leaves the season page services null, for the lookup guard;
+/// <see cref="DeepHandler"/> makes them real too, for the actions themselves. <see cref="SeasonCommandsHandler.Draft"/>
+/// needs nothing past that, so it is covered fully by <see cref="Handler"/> alone.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class SeasonCommandsHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private static UrlService Urls() => new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-
     private SeasonCommandsHandler Handler()
     {
         var seasons = new SeasonService(Db, null!);
@@ -77,7 +75,7 @@ public class SeasonCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Draft_LinksToTheLiveDraftBoard_WhenTheSeasonIsFound()
     {
-        var season = await AddSeason("Winter 2026");
+        await AddSeason("Winter 2026");
         var discord = new CommandContextRecorder();
 
         await Handler().Draft(discord.Context, "Winter 2026");
@@ -93,7 +91,7 @@ public class SeasonCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Info_ShowsTheSeasonSummary_ForAFoundSeason()
     {
-        var season = await AddSeason("Winter 2026");
+        await AddSeason("Winter 2026");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().Info(discord.Context, "Winter 2026");
@@ -104,7 +102,7 @@ public class SeasonCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Standings_RepliesNoTeamsYet_ForAFoundSeasonWithNoTeams()
     {
-        var season = await AddSeason("Winter 2026");
+        await AddSeason("Winter 2026");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().Standings(discord.Context, "Winter 2026");
@@ -115,7 +113,7 @@ public class SeasonCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Schedule_RepliesNoUpcomingMatches_ForAFoundSeasonWithNoMatches()
     {
-        var season = await AddSeason("Winter 2026");
+        await AddSeason("Winter 2026");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().Schedule(discord.Context, "Winter 2026");
@@ -126,7 +124,7 @@ public class SeasonCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Grades_RepliesNoGradesYet_ForAFoundSeasonWithNoGrades()
     {
-        var season = await AddSeason("Winter 2026");
+        await AddSeason("Winter 2026");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().Grades(discord.Context, "Winter 2026");
@@ -137,7 +135,7 @@ public class SeasonCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Signups_RepliesNobodyHasSignedUpYet_ForAFoundSeasonWithNoSignups()
     {
-        var season = await AddSeason("Winter 2026");
+        await AddSeason("Winter 2026");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().Signups(discord.Context, "Winter 2026");
@@ -148,7 +146,7 @@ public class SeasonCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Stats_RepliesNoStatsYet_ForAFoundSeasonWithNoStats()
     {
-        var season = await AddSeason("Winter 2026");
+        await AddSeason("Winter 2026");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().Stats(discord.Context, "Winter 2026", SeasonStat.Goals);

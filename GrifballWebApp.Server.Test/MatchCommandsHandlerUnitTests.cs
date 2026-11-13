@@ -5,7 +5,6 @@ using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.MatchDetails;
 using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Server.Commands;
-using Microsoft.Extensions.Configuration;
 using NSubstitute;
 
 namespace GrifballWebApp.Server.Test;
@@ -19,8 +18,6 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class MatchCommandsHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private static UrlService Urls() => new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-
     private MatchCommandsHandler Handler()
     {
         var seasonMatches = new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db));

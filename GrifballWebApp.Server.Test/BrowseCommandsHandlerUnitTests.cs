@@ -6,23 +6,21 @@ using GrifballWebApp.Application.Search;
 using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Server.Commands;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Configuration;
 using NSubstitute;
 
 namespace GrifballWebApp.Server.Test;
 
 /// <summary>
-/// BrowseCommandsHandler's unit tests, over the real services that need nothing but a GrifballContext (temp-file SQLite,
-/// #402): HomeEventsService, QuickSearchService, MatchmakingStatsService. Leaderboard and Rank, whose LeaderboardsService
-/// also needs a distributed cache and stats services, stay GrifballWebApp.Integration.Test's.
+/// BrowseCommandsHandler's unit tests, on a temp-file SQLite GrifballContext (#402). <see cref="Handler"/> covers the
+/// services that need nothing but it (HomeEventsService, QuickSearchService, MatchmakingStatsService);
+/// <see cref="DeepHandler"/> makes LeaderboardsService real too (IDistributedCache substituted, a miss every time),
+/// for Leaderboard and Rank.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class BrowseCommandsHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private static UrlService Urls() => new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-
     private BrowseCommandsHandler Handler() => new(null!, new MatchmakingStatsService(Db), new HomeEventsService(Db), new QuickSearchService(Db), null!, Urls());
 
     /// <summary>LeaderboardsService real too (IApplicationDbContext/SeasonStatsService/MatchmakingStatsService-backed;

@@ -9,10 +9,10 @@ using NSubstitute;
 namespace GrifballWebApp.Server.Test;
 
 /// <summary>
-/// TeamsHub's unit tests, on a real GrifballContext (temp-file SQLite, #402) for the reads TeamService needs nothing
-/// else for (IPublisher/IDraftChannel/IDatabaseLocks substituted, never reached by them). Its SignalR broadcasts stay
-/// TeamsSignalRHandlersTests' (the handlers) and GrifballWebApp.Integration.Test's (the writes, with a database and a
-/// real hub connection).
+/// TeamsHub's unit tests, on a real GrifballContext (temp-file SQLite, #402): TeamService is real throughout
+/// (IPublisher/IDraftChannel/IDatabaseLocks substituted, so its own real validation and writes run here too). What its
+/// notifications cause (the SignalR broadcasts) stays TeamsSignalRHandlersTests' (the handlers) and
+/// GrifballWebApp.Integration.Test's (a real hub connection).
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]

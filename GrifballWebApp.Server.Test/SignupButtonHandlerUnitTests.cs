@@ -4,7 +4,6 @@ using GrifballWebApp.Application;
 using GrifballWebApp.Application.Signups;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Server.Signups;
-using Microsoft.Extensions.Configuration;
 using NetCord.Rest;
 using NSubstitute;
 
@@ -19,8 +18,6 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class SignupButtonHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private static UrlService Urls() => new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-
     private SignupButtonHandler Handler() => new(Db, new SignupsService(Db), Urls());
 
     private static IDiscordButtonInteractionContext ButtonContext(ulong discordUserId)

@@ -4,23 +4,21 @@ using GrifballWebApp.Application.LateLeague;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Server.Commands;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace GrifballWebApp.Server.Test;
 
 /// <summary>
 /// PlayerCommandsHandler's unit tests: the player lookup (<see cref="CommandLookups.Player"/>) and the account gate
-/// (<see cref="DiscordCaller"/>) every action goes through first are real, on a temp-file SQLite GrifballContext (#402);
-/// the profile services each goes on to stay null (GrifballWebApp.Integration.Test's, with a database).
+/// (<see cref="DiscordCaller"/>) every action goes through first are real, on a temp-file SQLite GrifballContext (#402).
+/// <see cref="Handler"/> leaves the profile services null, for the lookup/gate guards; <see cref="DeepHandler"/> makes
+/// them real too, for the actions themselves.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class PlayerCommandsHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private static UrlService Urls() => new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-
     private PlayerCommandsHandler Handler() => new(new CommandLookups(Db, null!), new DiscordCaller(Db), null!, null!, null!, null!, null!, Urls());
 
     /// <summary>The profile services real too (all IApplicationDbContext-backed); DiscordCommandsHandler (/matches) stays
@@ -78,7 +76,7 @@ public class PlayerCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Profile_ShowsTheirProfile_ForAFoundPlayer()
     {
-        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        await AddUser(discordUserId: 1, gamertag: "Grifter1");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().Profile(discord.Context, "Grifter1");
@@ -89,7 +87,7 @@ public class PlayerCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Stats_RepliesNoStatsYet_ForAFoundPlayerWithNoStats()
     {
-        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        await AddUser(discordUserId: 1, gamertag: "Grifter1");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().Stats(discord.Context, "Grifter1");
@@ -100,7 +98,7 @@ public class PlayerCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Commendations_RepliesNoMedalsYet_ForAFoundPlayerWithNone()
     {
-        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        await AddUser(discordUserId: 1, gamertag: "Grifter1");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().Commendations(discord.Context, "Grifter1");
@@ -111,7 +109,7 @@ public class PlayerCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task History_RepliesNoSeasonsYet_ForAFoundPlayerWithNone()
     {
-        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        await AddUser(discordUserId: 1, gamertag: "Grifter1");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().History(discord.Context, "Grifter1");
@@ -122,7 +120,7 @@ public class PlayerCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task Vods_RepliesNoVodsYet_ForAFoundPlayerWithNone()
     {
-        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        await AddUser(discordUserId: 1, gamertag: "Grifter1");
         var discord = new CommandContextRecorder();
 
         await DeepHandler().Vods(discord.Context, "Grifter1");
