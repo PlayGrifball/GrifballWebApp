@@ -657,7 +657,7 @@ public class TelemetryQueryServiceTests
     public async Task Trace_shows_the_spans_of_the_services_this_one_calls()
     {
         // The app's call to the Halo gateway, and the gateway's own span under it
-        const calls = """
+        const string calls = """
             {"trace":{"resourceSpans":[
               {"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"grif-prod"}}]},
                "scopeSpans":[{"scope":{"name":"System.Net.Http"},"spans":[
