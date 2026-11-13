@@ -13,23 +13,26 @@ using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Server.Commands;
-using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 namespace GrifballWebApp.Server.Test;
 
 /// <summary>
 /// AdminCommandsHandler's unit tests: the staff gate (<see cref="DiscordCaller"/>) and lookups (<see cref="CommandLookups"/>)
-/// are real, on a temp-file SQLite GrifballContext (#402); the deeper services each action goes on to are null, so these
-/// cover the gate and the validation every method does before it reaches them (as the site's own 401/400 would). The
-/// actions themselves are GrifballWebApp.Integration.Test's, with a database.
+/// are real, on a temp-file SQLite GrifballContext (#402). <see cref="Handler"/> leaves the deeper services null, for the
+/// gate and the validation every method does before reaching them (as the site's own 401/400 would); <see cref="DeepHandler"/>
+/// makes the IApplicationDbContext-backed ones real too (plus the kept <see cref="_dataPullService"/>/<see cref="_bracketService"/>
+/// substitutes, asserted on below), for the actions themselves.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private static UrlService Urls() => new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
+    // Kept so DeepHandler's tests can assert what the handler called them with, not just the reply.
+    private readonly IDataPullService _dataPullService = Substitute.For<IDataPullService>();
+    private readonly IBracketService _bracketService = Substitute.For<IBracketService>();
 
     private AdminCommandsHandler Handler() => new(
         new DiscordCaller(Db), new CommandLookups(Db, null!),
@@ -42,12 +45,12 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
         new RescheduleService(Db, Substitute.For<IOutbox>()),
         new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)),
         new MatchPlannerService(Db),
-        Substitute.For<IBracketService>(),
+        _bracketService,
         new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), null!),
         new ScheduleRecommendations(Db, TimeProvider.System),
         null!, null!,
         new GamertagClaimService(Db, Substitute.For<IUserMergeService>()),
-        Substitute.For<IDataPullService>(),
+        _dataPullService,
         Urls());
 
     private async Task AssertRefusesUnknownCaller(Func<AdminCommandsHandler, CommandContextRecorder, Task> call)
@@ -283,6 +286,7 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
         await DeepHandler().RefreshMedals(discord.Context);
 
         Assert.That(discord.Content(), Is.EqualTo("The medals are refreshed."));
+        await _dataPullService.Received(1).DownloadMedals();
     }
 
     [Test]
@@ -294,6 +298,7 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
         await DeepHandler().HaloPull(discord.Context, matchID.ToString());
 
         Assert.That(discord.Content(), Is.EqualTo($"Pulled: [the game](https://grif.test/match/{matchID})."));
+        await _dataPullService.Received(1).GetAndSaveMatch(matchID);
     }
 
     [Test]
@@ -329,12 +334,15 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
         await DeepHandler().LockCaptains(discord.Context, "Winter", @lock: true);
 
         Assert.That(discord.Content(), Is.EqualTo("The captains are locked."));
+        // _teams is a real TeamService (not a substitute): read the season back rather than assert on a mock.
+        var locked = await Db.Seasons.Where(s => s.SeasonID == season.SeasonID).Select(s => s.CaptainsLocked).FirstAsync();
+        Assert.That(locked, Is.True);
     }
 
     [Test]
     public async Task GenerateMatches_RepliesTheMatchesAreMade_ForAFoundSeason()
     {
-        var season = await AddSeason("Winter");
+        await AddSeason("Winter");
         var discord = await AuthorizedCaller(DiscordCaller.Roles.Commissioner);
 
         await DeepHandler().GenerateMatches(discord.Context, "Winter", 1, 3);
@@ -351,6 +359,7 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
         await DeepHandler().CreateBracket(discord.Context, "Winter", 8, false, 3);
 
         Assert.That(discord.Content(), Is.EqualTo("The bracket is made. Seed it with /admin bracket seed, or set custom seeds on the site."));
+        await _bracketService.Received(1).CreateBracket(8, season.SeasonID, false, 3, Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -362,6 +371,6 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
         await DeepHandler().SeedBracket(discord.Context, "Winter");
 
         Assert.That(discord.Content(), Is.EqualTo("The bracket is seeded by the standings."));
+        await _bracketService.Received(1).SetSeeds(season.SeasonID, null, Arg.Any<CancellationToken>());
     }
-
 }
