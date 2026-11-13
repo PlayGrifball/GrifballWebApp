@@ -1,6 +1,19 @@
 using GrifballWebApp.Application;
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Championships;
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.MatchPlanner;
+using GrifballWebApp.Application.Notifications;
+using GrifballWebApp.Application.Outbox;
+using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Application.Reschedule;
+using GrifballWebApp.Application.Scheduler;
+using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Server.Commands;
 using Microsoft.Extensions.Configuration;
+using NSubstitute;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -20,6 +33,21 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
     private AdminCommandsHandler Handler() => new(
         new DiscordCaller(Db), new CommandLookups(Db, null!),
         null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, Urls());
+
+    /// <summary>The deeper services real too (IApplicationDbContext-backed ones), where an action goes past the gate
+    /// without needing Quartz (OnDemandJobs, JobsService) or a draft channel/locks' real behavior.</summary>
+    private AdminCommandsHandler DeepHandler() => new(
+        new DiscordCaller(Db), new CommandLookups(Db, null!),
+        new RescheduleService(Db, Substitute.For<IOutbox>()),
+        new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)),
+        new MatchPlannerService(Db),
+        Substitute.For<IBracketService>(),
+        new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), null!),
+        new ScheduleRecommendations(Db, TimeProvider.System),
+        null!, null!,
+        new GamertagClaimService(Db, Substitute.For<IUserMergeService>()),
+        Substitute.For<IDataPullService>(),
+        Urls());
 
     private async Task AssertRefusesUnknownCaller(Func<AdminCommandsHandler, CommandContextRecorder, Task> call)
     {
@@ -204,5 +232,76 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
         await Handler().CreateBracket(discord.Context, "Winter", 0, false, 3);
 
         Assert.That(discord.Content(), Is.EqualTo("A bracket needs participants."));
+    }
+
+    [Test]
+    public async Task Dashboard_ShowsNothingPendingOrOverdue_ForAnEmptyDatabase()
+    {
+        var discord = await AuthorizedCaller(DiscordCaller.Roles.Commissioner);
+
+        await DeepHandler().Dashboard(discord.Context);
+
+        Assert.That(discord.Embed().Description, Is.EqualTo("0 pending reschedules · 0 overdue matches · 0 over 3 days"));
+    }
+
+    [Test]
+    public async Task Overdue_RepliesNoMatchIsOverdue_ForAnEmptyDatabase()
+    {
+        var discord = await AuthorizedCaller(DiscordCaller.Roles.Commissioner);
+
+        await DeepHandler().Overdue(discord.Context);
+
+        Assert.That(discord.Embed().Description, Does.Contain("No match is overdue."));
+    }
+
+    [Test]
+    public async Task PendingReschedules_RepliesNoneArePending_ForAnEmptyDatabase()
+    {
+        var discord = await AuthorizedCaller(DiscordCaller.Roles.Commissioner);
+
+        await DeepHandler().PendingReschedules(discord.Context);
+
+        Assert.That(discord.Embed().Description, Does.Contain("No reschedule is pending."));
+    }
+
+    [Test]
+    public async Task Claims_RepliesNoneArePending_ForAnEmptyDatabase()
+    {
+        var discord = await AuthorizedCaller(DiscordCaller.Roles.Sysadmin);
+
+        await DeepHandler().Claims(discord.Context);
+
+        Assert.That(discord.Embed().Description, Does.Contain("No claim is pending."));
+    }
+
+    [Test]
+    public async Task RefreshMedals_RepliesRefreshed()
+    {
+        var discord = await AuthorizedCaller(DiscordCaller.Roles.Sysadmin);
+
+        await DeepHandler().RefreshMedals(discord.Context);
+
+        Assert.That(discord.Content(), Is.EqualTo("The medals are refreshed."));
+    }
+
+    [Test]
+    public async Task HaloPull_RepliesPulled_ForAValidGuid()
+    {
+        var discord = await AuthorizedCaller(DiscordCaller.Roles.Sysadmin);
+        var matchID = Guid.NewGuid();
+
+        await DeepHandler().HaloPull(discord.Context, matchID.ToString());
+
+        Assert.That(discord.Content(), Is.EqualTo($"Pulled: [the game](https://grif.test/match/{matchID})."));
+    }
+
+    [Test]
+    public async Task ScheduleApply_RepliesDoesNotExist_ForANonExistentRecommendation()
+    {
+        var discord = await AuthorizedCaller(DiscordCaller.Roles.Commissioner, DiscordCaller.Roles.Sysadmin);
+
+        await DeepHandler().ScheduleApply(discord.Context, 999);
+
+        Assert.That(discord.Content(), Is.EqualTo("That recommendation doesn't exist or was applied already."));
     }
 }
