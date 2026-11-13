@@ -48,6 +48,12 @@ export class TeamBuilderComponent implements OnInit {
   private snackBarService = inject(MatSnackBar);
   accountService = inject(AccountService);
   private signalR = inject(SignalRService);
+
+  /** This page's hub connection, for the server to leave out of the broadcast of its own change; none (no header) until it connects. */
+  private get connectionID(): string | undefined {
+    return this.signalR.hubConnection.connectionId || undefined;
+  }
+
   private destroyRef = inject(DestroyRef);
 
   /** The :seasonID of the route (0: the current season). Angular keeps this page when only it changes, so a new one
@@ -227,13 +233,13 @@ export class TeamBuilderComponent implements OnInit {
 
   lockCaptainsButtonClicked(): void {
     if (this.captainLocked()) {
-      this.draft.unlockCaptains({ seasonID: this.shownSeasonID(), signalRConnectionID: this.signalR.hubConnection.connectionId || undefined })
+      this.draft.unlockCaptains({ seasonID: this.shownSeasonID(), signalRConnectionID: this.connectionID })
         .subscribe({
           next: r => this.captainLocked.set(false)
         })
     }
     else {
-      this.draft.lockCaptains({ seasonID: this.shownSeasonID(), signalRConnectionID: this.signalR.hubConnection.connectionId || undefined })
+      this.draft.lockCaptains({ seasonID: this.shownSeasonID(), signalRConnectionID: this.connectionID })
         .subscribe(
           {
             next: r => this.captainLocked.set(true)
@@ -336,7 +342,7 @@ export class TeamBuilderComponent implements OnInit {
       const dto: CaptainPlacementDto = { seasonID: this.shownSeasonID(), personID: added.captain.personID, orderNumber: added.captain.order! };
       // The server names the team (the signup's team name, or "<display name>'s Team") and
       // answers with that name; the broadcast to others skips this connection.
-      this.save(this.draft.addCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.signalR.hubConnection.connectionId || undefined, body: dto }),
+      this.save(this.draft.addCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.connectionID, body: dto }),
         added => this.applyDraft(draft => renameTeam(draft, player.personID, added.teamName, added.teamID)));
       console.log('Added new captain ' + added.captain.name + ' with pick order ' + added.captain.order);
     }
@@ -350,7 +356,7 @@ export class TeamBuilderComponent implements OnInit {
       // Order must not be null
       const dto: CaptainPlacementDto = { seasonID: this.shownSeasonID(), personID: moved.captain.personID, orderNumber: moved.captain.order! };
       // Announce to backend that team has been resorted
-      this.save(this.draft.resortCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.signalR.hubConnection.connectionId || undefined, body: dto }));
+      this.save(this.draft.resortCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.connectionID, body: dto }));
       console.log('Resorted captains ' + moved.captain.name + ' now has pick order ' + moved.captain.order);
     }
   }
@@ -384,7 +390,7 @@ export class TeamBuilderComponent implements OnInit {
       // Announce player is now available
       this.save(this.draft.removePlayerFromTeam({
         seasonID: this.shownSeasonID(),
-        signalRConnectionID: this.signalR.hubConnection.connectionId || undefined,
+        signalRConnectionID: this.connectionID,
         body: {
           seasonID: this.shownSeasonID(),
           captainID: captainID,
@@ -401,7 +407,7 @@ export class TeamBuilderComponent implements OnInit {
       // Announce to backend that player is now available. RemoveCaptainDto carries no order
       // number: the server re-sequences the remaining captains 1..n itself (TeamService.RemoveCaptain).
       const dto: RemoveCaptainDto = { seasonID: this.shownSeasonID(), personID };
-      this.save(this.draft.removeCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.signalR.hubConnection.connectionId || undefined, body: dto }));
+      this.save(this.draft.removeCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.connectionID, body: dto }));
     }
     else {
       console.log('Unexpected type placed in draft pool: ' + this.grabbedThing);
@@ -429,7 +435,7 @@ export class TeamBuilderComponent implements OnInit {
       // Announce player moved
       this.save(this.draft.movePlayerToTeam({
         seasonID: this.shownSeasonID(),
-        signalRConnectionID: this.signalR.hubConnection.connectionId || undefined,
+        signalRConnectionID: this.connectionID,
         body: {
           seasonID: this.shownSeasonID(),
           previousCaptainID: previousCaptainID,
@@ -451,7 +457,7 @@ export class TeamBuilderComponent implements OnInit {
       // Announce player added to team
       this.save(this.draft.addPlayerToTeam({
         seasonID: this.shownSeasonID(),
-        signalRConnectionID: this.signalR.hubConnection.connectionId || undefined,
+        signalRConnectionID: this.connectionID,
         body: {
           seasonID: this.shownSeasonID(),
           captainID: captainID,
