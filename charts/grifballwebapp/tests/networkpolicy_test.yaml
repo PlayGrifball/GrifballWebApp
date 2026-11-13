@@ -216,3 +216,12 @@ tests:
           path: spec.egress
           content: { ports: [{ protocol: TCP, port: 3200 }] }
         documentSelector: { path: metadata.name, value: grif-backend }
+
+  - it: opens no egress for the services a trace shows besides the app's (names, not backends)
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: metadata.name, value: grif-backend }
+    set:
+      backend.telemetry: { enabled: true, endpoint: "http://otel:4317", query: { tempoUrl: "http://tempo.tempo:3200" }, trace: { edgeServices: "traefik,edge_processing", downstreamServices: halo-gateway } }
+    asserts:
+      - notContains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 80 }] } }
+      - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 3200 }] } }

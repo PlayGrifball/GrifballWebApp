@@ -656,9 +656,28 @@ public class TelemetryQueryServiceTests
     [Test]
     public async Task Trace_shows_the_spans_of_the_services_this_one_calls()
     {
-        var trace = await Service(new FakeBackends(_ => Json(TempoTrace)), downstreamServices: "traefik").Trace("0556214b423d5a640fb17a50481aa1fd", default);
+        // The app's call to the Halo gateway, and the gateway's own span under it
+        const calls = """
+            {"trace":{"resourceSpans":[
+              {"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"grif-prod"}}]},
+               "scopeSpans":[{"scope":{"name":"System.Net.Http"},"spans":[
+                 {"spanId":"AAAAAAAAAAE=","name":"GET halo-gateway","kind":"SPAN_KIND_CLIENT","startTimeUnixNano":"1000000000","endTimeUnixNano":"1020000000"}]}]},
+              {"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"halo-gateway"}}]},
+               "scopeSpans":[{"scope":{"name":"Microsoft.AspNetCore"},"spans":[
+                 {"spanId":"AAAAAAAAAAI=","parentSpanId":"AAAAAAAAAAE=","name":"GET halo/v1/stats","kind":"SPAN_KIND_SERVER","startTimeUnixNano":"1002000000","endTimeUnixNano":"1018000000",
+                  "attributes":[{"key":"grunt.api_key","value":{"stringValue":"grif-prod"}}]}]}]}
+            ]}}
+            """;
 
-        Assert.That(trace!.Spans.Single(s => s.Service == "traefik").Name, Is.EqualTo("router"));
+        var trace = await Service(new FakeBackends(_ => Json(calls)), downstreamServices: "halo-gateway").Trace("0556214b423d5a640fb17a50481aa1fd", default);
+
+        Assert.That(trace, Is.Not.Null);
+        var gateway = trace!.Spans.Single(s => s.Service == "halo-gateway");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(gateway.ParentSpanId, Is.EqualTo("0000000000000001"));
+            Assert.That(gateway.Attributes["grunt.api_key"], Is.EqualTo("grif-prod"));
+        }
     }
 
     [TestCase("""{"trace":{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"traefik"}}]},"scopeSpans":[{"scope":{"name":"t"},"spans":[{"spanId":"AQ==","name":"x","startTimeUnixNano":"1","endTimeUnixNano":"2"}]}]}]}}""")]
