@@ -4,10 +4,11 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, si
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
-import { ApiClientService } from '../../api/apiClient.service';
-import type { AddGamertagHistoryDto, PastGamertagDto } from '../../api/dtos/gamertagClaimDto';
+import { GamertagClaimsService } from '@api/services/gamertag-claims.service';
+import type { AddGamertagHistoryRequest, PastGamertagDto } from '@api/models';
 import { SearchBoxComponent } from '../../shared/searchBox/searchBox.component';
 import { problemText } from '../../shared/errorText';
+import { nullWhenNotFound } from '../../api/nullWhenNotFound';
 
 /**
  * Sysadmins: an Xbox account's current gamertag and the gamertags it is known to have gone by, by its XUID or
@@ -22,7 +23,7 @@ import { problemText } from '../../shared/errorText';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PastGamertagsComponent {
-  private api = inject(ApiClientService);
+  private api = inject(GamertagClaimsService);
   private snackBar = inject(MatSnackBar);
 
   /** The ?xboxUserID= and ?userID= query parameters: how the page is reached from the claims page or a bookmark. */
@@ -56,7 +57,8 @@ export class PastGamertagsComponent {
 
   readonly past = rxResource({
     params: () => this.query(),
-    stream: ({ params }) => this.api.getPastGamertags(params!),
+    // 404: no such Xbox account (by that XUID or user ID).
+    stream: ({ params }) => this.api.getPastGamertags(params!).pipe(nullWhenNotFound()),
   });
 
   readonly loading = computed(() => this.past.isLoading());
@@ -71,7 +73,7 @@ export class PastGamertagsComponent {
 
   remove(row: PastGamertagDto): void {
     this.removing.set(row.xboxGamertagHistoryID);
-    this.api.removeGamertagHistory(row.xboxGamertagHistoryID).subscribe({
+    this.api.removeGamertagHistory({ historyID: row.xboxGamertagHistoryID }).subscribe({
       next: () => {
         this.removing.set(null);
         this.past.reload();
@@ -103,14 +105,14 @@ export class PastGamertagsComponent {
       return;
     this.adding.set(true);
     this.addError.set(null);
-    const dto: AddGamertagHistoryDto = {
+    const dto: AddGamertagHistoryRequest = {
       xboxUserID: account.xboxUserID,
       gamertag,
       firstSeen: toDayStart(this.newFirstSeen()),
       lastSeen: toDayStart(this.newLastSeen()),
       note: this.newNote().trim() || null,
     };
-    this.api.addGamertagHistory(dto).subscribe({
+    this.api.addGamertagHistory({ body: dto }).subscribe({
       next: () => {
         this.adding.set(false);
         this.newGamertag.set('');

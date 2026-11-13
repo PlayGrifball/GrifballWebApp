@@ -6,9 +6,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Component } from '@angular/core';
 import { VodReviewComponent } from './vodReview/vodReview.component';
 import { HistoricalImportComponent, interval, isActive, JOB_POLL_MS, removalText, size } from './historicalImport.component';
-import type {
-  HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportReportDto, HistoricalImportScheduleDto, HistoricalSourceDto,
-} from '../../api/dtos/historicalImportDto';
+import type { HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportReport, HistoricalImportScheduleDto, HistoricalSourceDto } from '@api/models';
 
 /** The VOD review (tested on its own): here only where it sits, without its requests. */
 @Component({ selector: 'app-vod-review', template: '' })
@@ -22,11 +20,11 @@ function source(id: string, changes: Partial<HistoricalSourceDto> = {}): Histori
   };
 }
 
-function report(changes: Partial<HistoricalImportReportDto> = {}): HistoricalImportReportDto {
+function report(changes: Partial<HistoricalImportReport> = {}): HistoricalImportReport {
   return {
     seasonsCreated: 0, seasonsUpdated: 2, teamsCreated: 0, teamsRemoved: 1, statsRemoved: 3, championshipsRemoved: 0, statsInserted: 0, statsUpdated: 10,
     recordedGamesImported: 4, recordedGamesRemoved: 0, championshipsInserted: 0, championshipsUpdated: 0, dummyUsersCreated: 0, waypointMatchesPulled: 0,
-    skipped: [], warnings: [], errors: [], seasonRemovals: [], sourcesChanged: [], sourcesFailed: [], sourcesUnchanged: 0, importJobID: null, ...changes,
+    skipped: [], warnings: [], errors: [], seasonRemovals: [], sourcesChanged: [], sourcesFailed: [], sourcesUnchanged: 0, importJobID: null, discordClaimsCreated: 0, discordLinked: 0, discordMerged: 0, gamesLinked: 0, manualReplacedByWaypoint: 0, matchmakingSeasonsCreated: 0, matchmakingSeasonsUpdated: 0, missingMatches: [], recordedGamesSkippedAsWaypoint: 0, regionsSet: 0, seasonMatchesCreated: 0, seasonMatchesRemoved: 0, seasonsRetired: 0, suggestionsCreated: 0, ...changes,
   };
 }
 
@@ -183,7 +181,7 @@ describe('HistoricalImportComponent', () => {
       jasmine.clock().tick(JOB_POLL_MS);
       http.expectOne('/api/historical-imports/11').flush(job(11, {
         reviews: [{ reviewID: 3, seasonKey: '2019-wl19-schedule-stats/Team and Player Stats', seasonName: 'Winter League 2019', status: 'Preview',
-          statsBefore: 5, statsRemoved: 3, teamsBefore: 2, teamsRemoved: 1, titlesBefore: 0, titlesRemoved: 0, approvalJobID: null, decidedAt: null }],
+          statsBefore: 5, statsRemoved: 3, teamsBefore: 2, teamsRemoved: 1, titlesBefore: 0, titlesRemoved: 0, approvalJobID: null, decidedAt: null, seasonID: null }],
       }));
     } finally {
       jasmine.clock().uninstall();
@@ -216,7 +214,7 @@ describe('HistoricalImportComponent', () => {
     await load();
     const stopped = (id: number, name: string) => ({
       reviewID: id, seasonKey: name + '/Stats', seasonName: name, status: 'NeedsReview' as const, statsBefore: 5, statsRemoved: 4, teamsBefore: 2,
-      teamsRemoved: 0, titlesBefore: 1, titlesRemoved: 1, approvalJobID: null, decidedAt: null,
+      teamsRemoved: 0, titlesBefore: 1, titlesRemoved: 1, approvalJobID: null, decidedAt: null, seasonID: null
     });
     await showJob(job(8, { kind: 'Import', guarded: true, reviews: [stopped(1, 'A'), stopped(2, 'B'), { ...stopped(3, 'C'), status: 'Approved', approvalJobID: 20 }] }));
 
@@ -239,7 +237,7 @@ describe('HistoricalImportComponent', () => {
 
   it("shows an approved season's import", async () => {
     await load();
-    await showJob(job(8, { kind: 'Import', reviews: [{ reviewID: 3, seasonKey: 'c/Stats', seasonName: null, status: 'Approved', statsBefore: 1, statsRemoved: 1, teamsBefore: 1, teamsRemoved: 0, titlesBefore: 0, titlesRemoved: 0, approvalJobID: 20, decidedAt: '2026-10-31T07:00:00Z' }] }));
+    await showJob(job(8, { kind: 'Import', reviews: [{ reviewID: 3, seasonID: null, seasonKey: 'c/Stats', seasonName: null, status: 'Approved', statsBefore: 1, statsRemoved: 1, teamsBefore: 1, teamsRemoved: 0, titlesBefore: 0, titlesRemoved: 0, approvalJobID: 20, decidedAt: '2026-10-31T07:00:00Z' }] }));
 
     expect(text(region('Season removals'))).toContain('c/Stats');
     button('Its import').click();

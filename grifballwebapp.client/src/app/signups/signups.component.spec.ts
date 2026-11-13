@@ -2,31 +2,38 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { SignupsComponent } from './signups.component';
-import { ApiClientService } from '../api/apiClient.service';
-import { SignupResponseDto } from '../api/dtos/signupResponseDto';
+import { SeasonService } from '@api/services/season.service';
+import { SignupsService } from '@api/services/signups.service';
+import type { SignupResponseDto } from '@api/models';
 import { SeasonSummaryService } from '../season/seasonSummary';
-import { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
+import type { SeasonSummaryDto } from '@api/models';
 
 describe('SignupsComponent', () => {
   let fixture: ComponentFixture<SignupsComponent>;
   let component: SignupsComponent;
-  let api: jasmine.SpyObj<ApiClientService>;
+  let seasons: jasmine.SpyObj<SeasonService>;
+  let api: jasmine.SpyObj<SignupsService>;
   let summary: Partial<SeasonSummaryDto>;
 
   const signup = (personName: string, overrides: Partial<SignupResponseDto> = {}): SignupResponseDto =>
-    Object.assign(new SignupResponseDto(), { personName, timestamp: '2026-01-07T19:00:00Z', teamName: `${personName}'s team`, ...overrides });
+    ({
+      seasonID: 0, userID: 0, personName, timestamp: '2026-01-07T19:00:00Z', teamName: `${personName}'s team`, willCaptain: false,
+      requiresAssistanceDrafting: false, region: null, timeslots: [], ...overrides,
+    });
 
   beforeEach(async () => {
     summary = { isHistorical: false, hasEnded: false, signupCount: 0 };
-    api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getSignups']);
+    api = jasmine.createSpyObj<SignupsService>('SignupsService', ['getSignups']);
+    seasons = jasmine.createSpyObj<SeasonService>('SeasonService', ['getCurrentSeasonId']);
     api.getSignups.and.returnValue(of([]));
-    api.getCurrentSeasonID.and.returnValue(of(9));
+    seasons.getCurrentSeasonId.and.returnValue(of(9));
 
     await TestBed.configureTestingModule({
       imports: [SignupsComponent],
       providers: [
         provideRouter([]),
-        { provide: ApiClientService, useValue: api },
+        { provide: SignupsService, useValue: api },
+        { provide: SeasonService, useValue: seasons },
         { provide: SeasonSummaryService, useValue: { get: () => of(summary) } },
       ]
     }).compileComponents();
@@ -66,26 +73,26 @@ describe('SignupsComponent', () => {
 
   it('loads the signups for the season in the route', () => {
     fixture.detectChanges();
-    expect(api.getSignups).toHaveBeenCalledWith(3);
-    expect(api.getCurrentSeasonID).not.toHaveBeenCalled();
+    expect(api.getSignups).toHaveBeenCalledWith({ seasonID: 3 });
+    expect(seasons.getCurrentSeasonId).not.toHaveBeenCalled();
   });
 
   it('falls back to the current season when the route has none', () => {
     fixture.componentRef.setInput('seasonID', '0');
     fixture.detectChanges();
     expect(component.shownSeasonID()).toBe(9);
-    expect(api.getSignups).toHaveBeenCalledWith(9);
+    expect(api.getSignups).toHaveBeenCalledWith({ seasonID: 9 });
   });
 
   it("replaces the signups with the new season's when the route moves to another season", () => {
-    api.getSignups.and.callFake((id: number) => of([signup(id === 3 ? 'Grif' : 'Simmons')]));
+    api.getSignups.and.callFake(p => of([signup(p.seasonID === 3 ? 'Grif' : 'Simmons')]));
     fixture.detectChanges();
     expect(rows().map(r => r[0])).toEqual([jasmine.stringContaining('Grif')]);
 
     fixture.componentRef.setInput('seasonID', '4');
     fixture.detectChanges();
 
-    expect(api.getSignups).toHaveBeenCalledWith(4);
+    expect(api.getSignups).toHaveBeenCalledWith({ seasonID: 4 });
     expect(component.shownSeasonID()).toBe(4);
     expect(rows().map(r => r[0])).toEqual([jasmine.stringContaining('Simmons')]);
     expect((fixture.nativeElement as HTMLElement).querySelector('app-season-tabs a')!.getAttribute('href')).toBe('/season/4');
@@ -93,7 +100,7 @@ describe('SignupsComponent', () => {
 
   it("drops the previous season's signups when they arrive late", () => {
     const late = new Subject<SignupResponseDto[]>();
-    api.getSignups.and.callFake((id: number) => id === 3 ? late : of([signup('Simmons')]));
+    api.getSignups.and.callFake(p => p.seasonID === 3 ? late : of([signup('Simmons')]));
     fixture.detectChanges();
 
     fixture.componentRef.setInput('seasonID', '4');
@@ -106,7 +113,7 @@ describe('SignupsComponent', () => {
 
   it("drops the current season's ID when the route moves on before it arrives", () => {
     const current = new Subject<number>();
-    api.getCurrentSeasonID.and.returnValue(current);
+    seasons.getCurrentSeasonId.and.returnValue(current);
     fixture.componentRef.setInput('seasonID', '0');
     fixture.detectChanges();
 
@@ -114,7 +121,7 @@ describe('SignupsComponent', () => {
     fixture.detectChanges();
     current.next(9);
 
-    expect(api.getSignups).not.toHaveBeenCalledWith(9);
+    expect(api.getSignups).not.toHaveBeenCalledWith({ seasonID: 9 });
     expect(component.shownSeasonID()).toBe(4);
   });
 

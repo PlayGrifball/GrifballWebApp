@@ -1,14 +1,17 @@
 import { Component, ChangeDetectionStrategy, computed, effect, inject, input, numberAttribute, untracked, viewChild, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
-import { SignupRequestDto } from '../api/dtos/signupRequestDto';
+import type { SignupBodyDto, SignupResponseDto } from '@api/models';
+import { noContentAsNull } from '../api/noContentAsNull';
 import { RouterLink } from '@angular/router';
-import { ApiClientService } from '../api/apiClient.service';
+import { HomeService } from '@api/services/home.service';
+import { SeasonService } from '@api/services/season.service';
+import { SignupsService } from '@api/services/signups.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {MatCheckboxModule} from '@angular/material/checkbox';
 import { AvailabilityTableComponent } from './availabilityTable/availabilityTable.component';
@@ -18,6 +21,17 @@ import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 import { whileCurrent } from '../shared/whileCurrent';
 import { errorText } from '../shared/errorText';
 
+
+/** A signup with nothing filled in. */
+export function emptySignup(): SignupBodyDto {
+  return { teamName: null, willCaptain: false, requiresAssistanceDrafting: false, timeslots: [] };
+}
+
+/** What the form edits of a player's signup. */
+function signupBody(signup: SignupResponseDto): SignupBodyDto {
+  // An answer without its timeslots still gives the availability table a list
+  return { teamName: signup.teamName, willCaptain: signup.willCaptain, requiresAssistanceDrafting: signup.requiresAssistanceDrafting, timeslots: signup.timeslots ?? [] };
+}
 @Component({
     selector: 'app-signup-form',
     imports: [
@@ -36,10 +50,11 @@ import { errorText } from '../shared/errorText';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SignupFormComponent {
-  private api = inject(ApiClientService);
+  private signups = inject(SignupsService);
+  private seasons = inject(SeasonService);
+  private home = inject(HomeService);
   private snackBar = inject(MatSnackBar);
   private availabilityService = inject(AvailabilityService);
-  private http = inject(HttpClient);
   accountService = inject(AccountService);
 
   readonly eventTitles = eventTitles;
@@ -60,9 +75,9 @@ export class SignupFormComponent {
 
 
   readonly signupForm = viewChild.required<NgForm>('signupForm');
-  // Initialised with the class defaults (timeslots: []) because the template binds
+  // Initialised with an empty signup (timeslots: []) because the template binds
   // model.timeslots on the first render, before getSignup has responded.
-  readonly model = signal(new SignupRequestDto());
+  readonly model = signal(emptySignup());
   /** The signup and its timeslots are in (or failed to load): the form is shown then, in one go,
    * so the availability table does not push the rest of the page down as it arrives. */
   readonly loaded = signal(false);
@@ -76,24 +91,23 @@ export class SignupFormComponent {
 
   private load(seasonID: number): void {
     // Nothing of the previous season's signup stays in the form
-    this.model.set(new SignupRequestDto());
+    this.model.set(emptySignup());
     this.seasonName.set(null);
     this.loaded.set(false);
 
     // Fetch from backend
     if (seasonID > 0) {
       this.loadSeasonInfo(seasonID);
-      this.api.getSignup(seasonID, this.availabilityService.getDif())
-        .pipe(whileCurrent(seasonID, this.seasonID))
+      // 204 before the user signs up (not a 404: the season takes signups, this user has none yet).
+      this.signups.getSignup({ seasonID, offset: this.availabilityService.getDif() })
+        .pipe(noContentAsNull(), whileCurrent(seasonID, this.seasonID))
         .subscribe({
           next: (result) =>
           {
             if (result === null)
             {
-              const model = new SignupRequestDto();
-              model.seasonID = seasonID;
-              this.model.set(model);
-              this.api.getTimeslots(seasonID, this.availabilityService.getDif()).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({
+              this.model.set(emptySignup());
+              this.signups.getTimeslots({ seasonID, offset: this.availabilityService.getDif() }).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({
                 next: (r) => {
                   this.model.update(model => ({ ...model, timeslots: r }));
                   this.loaded.set(true);
@@ -106,7 +120,7 @@ export class SignupFormComponent {
             }
             else
             {
-              this.model.set({ ...result, timeslots: result.timeslots ?? [] });
+              this.model.set(signupBody(result));
               this.loaded.set(true);
             }
           },
@@ -123,12 +137,12 @@ export class SignupFormComponent {
 
   /** The season's name and dates, for the heading and the timeline. Neither is needed to sign up. */
   private loadSeasonInfo(seasonID: number): void {
-    this.api.getSeasonName(seasonID).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({ next: name => this.seasonName.set(name), error: () => {} });
-    this.http.get<SeasonEvent[]>('/api/events').subscribe({ next: events => this.events.set(events), error: () => {} });
+    this.seasons.getSeasonName({ seasonID }).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({ next: name => this.seasonName.set(name), error: () => {} });
+    this.home.currentAndFutureEvents().subscribe({ next: events => this.events.set(events), error: () => {} });
   }
 
   /** Every edit (form fields and the availability table) replaces the model rather than mutating it. */
-  patch(changes: Partial<SignupRequestDto>): void {
+  patch(changes: Partial<SignupBodyDto>): void {
     this.model.update(model => ({ ...model, ...changes }));
   }
 
@@ -137,7 +151,8 @@ export class SignupFormComponent {
       return;
     }
 
-    this.api.upsertSignup(this.model()).subscribe({
+    // The signed-in player's own signup, for this page's season
+    this.signups.upsertSignup({ seasonID: this.seasonID(), body: this.model() }).subscribe({
       next: (result) => this.snackBar.open('Signup Submitted', 'OK'),
       error: (result: HttpErrorResponse) =>
       {

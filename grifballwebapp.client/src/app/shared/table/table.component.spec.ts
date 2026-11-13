@@ -1,10 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TableComponent, Column, Filter } from './table.component';
-import { provideHttpClient, withXhr } from '@angular/common/http';
+import { HttpClient, provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Sort } from '@angular/material/sort';
 import { PageEvent } from '@angular/material/paginator';
 import { noMaterialAnimations } from '../../testing/noMaterialAnimations';
+import { of } from 'rxjs';
+import { PaginationParams } from '../getPaginationResource';
+import { PaginationResult } from '../paginationResult';
 
 describe('TableComponent', () => {
   let component: TableComponent<TestData>;
@@ -44,7 +47,7 @@ describe('TableComponent', () => {
     
     // Set required inputs
     fixture.componentRef.setInput('displayedColumns', ['id', 'name']);
-    fixture.componentRef.setInput('url', '/api/test');
+    fixture.componentRef.setInput('request', () => of<PaginationResult<TestData>>({ totalCount: 0, results: [] }));
     fixture.componentRef.setInput('columns', testColumns);
     
     fixture.detectChanges();
@@ -167,6 +170,10 @@ describe('TableComponent API responses', () => {
     { columnDef: 'name', header: 'Name', cell: r => r.name },
   ];
 
+  // A stand-in for a generated service method: a real HttpClient call, as any page's `request` would make.
+  const request = (http: HttpClient) => (params: PaginationParams) =>
+    http.get<PaginationResult<Row>>('/api/test', { params: { pageNumber: params.pageNumber, pageSize: params.pageSize } });
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [TableComponent],
@@ -176,7 +183,7 @@ describe('TableComponent API responses', () => {
     fixture = TestBed.createComponent(TableComponent<Row>);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('displayedColumns', ['id', 'name']);
-    fixture.componentRef.setInput('url', '/api/test');
+    fixture.componentRef.setInput('request', request(TestBed.inject(HttpClient)));
     fixture.componentRef.setInput('columns', columns);
     fixture.detectChanges();
   });

@@ -1,12 +1,13 @@
 import { isPlatformBrowser } from '@angular/common';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, PLATFORM_ID, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
+import { QueueService } from '@api/services/queue.service';
 import { AuthSession } from '../../authSession.service';
 import { hubLifecycle } from '../../api/hubLifecycle';
-import type { QueueStatusDto } from '../../api/dtos/queueStatusDto';
+import type { QueueStatusDto } from '@api/models';
 import { errorText } from '../../shared/errorText';
 
 /** The queue's hub (QueueHub): it sends the queue's size whenever it changes. */
@@ -27,7 +28,7 @@ export const QUEUE_HUB_URL = 'hub/QueueHub';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LateLeagueQueueComponent {
-  private http = inject(HttpClient);
+  private api = inject(QueueService);
 
   /** Link to the Late League page: not on that page itself. */
   readonly showLink = input(true);
@@ -73,7 +74,7 @@ export class LateLeagueQueueComponent {
       return;
     }
     const request = ++this.latest;
-    this.http.get<QueueStatusDto>('/api/queue').subscribe({
+    this.api.getQueueStatus().subscribe({
       next: status => {
         if (request !== this.latest)
           return;
@@ -108,11 +109,11 @@ export class LateLeagueQueueComponent {
   }
 
   join(): void {
-    this.change(this.http.post<QueueStatusDto>('/api/queue/join', {}), 'You have joined the Late League queue');
+    this.change(this.api.joinQueue(), 'You have joined the Late League queue');
   }
 
   leave(): void {
-    this.change(this.http.post<QueueStatusDto>('/api/queue/leave', {}), 'You have left the Late League queue');
+    this.change(this.api.leaveQueue(), 'You have left the Late League queue');
   }
 
   private change(request: Observable<QueueStatusDto>, done: string): void {

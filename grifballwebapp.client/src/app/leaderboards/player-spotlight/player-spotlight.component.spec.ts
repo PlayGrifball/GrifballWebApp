@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { PlayerSpotlightComponent } from './player-spotlight.component';
-import type { PlayerAllTimeRankDto } from '../../api/dtos/playerAllTimeRankDto';
+import type { PlayerAllTimeRankDto } from '@api/models';
 import type { Board } from '../board';
 
 describe('PlayerSpotlightComponent', () => {
@@ -16,7 +16,7 @@ describe('PlayerSpotlightComponent', () => {
     goals: { rank: 2, totalRanked: 300, statValue: 120, secondaryText: '4 / G in Halo 3' },
     kills: { rank: 10, totalRanked: 250, statValue: 350, secondaryText: '1.75 K/D' },
     gamesPlayed: { rank: 15, totalRanked: 250, statValue: 30, secondaryText: '3 Seasons' },
-    carrierStops: { rank: 4, totalRanked: 200, statValue: 20 },
+    carrierStops: { rank: 4, totalRanked: 200, statValue: 20, secondaryText: null },
   };
 
   const render = (shown: PlayerAllTimeRankDto, board: Board = 'goals') => {

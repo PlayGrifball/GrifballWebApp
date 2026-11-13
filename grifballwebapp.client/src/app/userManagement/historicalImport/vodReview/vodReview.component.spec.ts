@@ -2,8 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { of, Subject, throwError } from 'rxjs';
-import { ApiClientService } from '../../../api/apiClient.service';
-import type { VodReviewDto } from '../../../api/dtos/vodDto';
+import { VodService } from '@api/services/vod.service';
+import type { VodReviewDto } from '@api/models';
 import { suggestion, VodReviewComponent } from './vodReview.component';
 
 function review(id: number, changes: Partial<VodReviewDto> = {}): VodReviewDto {
@@ -16,7 +16,7 @@ function review(id: number, changes: Partial<VodReviewDto> = {}): VodReviewDto {
 
 describe('VodReviewComponent', () => {
   let fixture: ComponentFixture<VodReviewComponent>;
-  let api: jasmine.SpyObj<ApiClientService>;
+  let api: jasmine.SpyObj<VodService>;
   let snackBar: jasmine.SpyObj<MatSnackBar>;
   const el = () => fixture.nativeElement as HTMLElement;
   const button = (label: string) => el().querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
@@ -35,12 +35,12 @@ describe('VodReviewComponent', () => {
   }
 
   beforeEach(() => {
-    api = jasmine.createSpyObj('ApiClientService', ['getVodReview', 'getVodLinkSeasons', 'getVodLinkOptions', 'linkVod', 'dismissVod']);
+    api = jasmine.createSpyObj<VodService>('VodService', ['getVodReview', 'getVodLinkSeasons', 'getVodLinkOptions', 'linkVod', 'dismissVod']);
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
     api.linkVod.and.returnValue(of(undefined));
     api.dismissVod.and.returnValue(of(undefined));
     api.getVodLinkSeasons.and.returnValue(of([{ seasonID: 5, seasonName: 'Summer League 2026' }, { seasonID: 6, seasonName: 'Fall League 2026' }]));
-    api.getVodLinkOptions.and.callFake((seasonID: number) => of(seasonID === 6
+    api.getVodLinkOptions.and.callFake(p => of(p.seasonID === 6
       ? { teams: [], matches: [] }
       : {
           teams: [{ teamID: 31, teamName: 'Low IQ' }, { teamID: 32, teamName: 'Reach for the Balls' }],
@@ -48,7 +48,7 @@ describe('VodReviewComponent', () => {
         }));
     TestBed.configureTestingModule({
       imports: [VodReviewComponent],
-      providers: [{ provide: ApiClientService, useValue: api }, { provide: MatSnackBar, useValue: snackBar }],
+      providers: [{ provide: VodService, useValue: api }, { provide: MatSnackBar, useValue: snackBar }],
     });
   });
 
@@ -86,7 +86,7 @@ describe('VodReviewComponent', () => {
     button('Accept the suggestion for VOD 1').click();
     await settle();
 
-    expect(api.linkVod).toHaveBeenCalledWith(1, { seasonID: 5, seasonMatchID: 90, teamIDs: [31, 32] });
+    expect(api.linkVod).toHaveBeenCalledWith({ vodID: 1, body: { seasonID: 5, seasonMatchID: 90, teamIDs: [31, 32] } });
     expect(el().textContent).toContain('Nothing to review.');
   });
 
@@ -97,7 +97,7 @@ describe('VodReviewComponent', () => {
     button('Dismiss VOD 1').click();
     await settle();
 
-    expect(api.dismissVod).toHaveBeenCalledWith(1);
+    expect(api.dismissVod).toHaveBeenCalledWith({ vodID: 1 });
     expect(el().textContent).toContain('Nothing to review.');
   });
 
@@ -124,7 +124,7 @@ describe('VodReviewComponent', () => {
     byText('Save link').click();
     await settle();
 
-    expect(api.linkVod).toHaveBeenCalledWith(1, { seasonID: 5, seasonMatchID: 90, teamIDs: [32] });
+    expect(api.linkVod).toHaveBeenCalledWith({ vodID: 1, body: { seasonID: 5, seasonMatchID: 90, teamIDs: [32] } });
     expect(el().querySelector('.vr-editor')).toBeNull();
   });
 
@@ -140,7 +140,7 @@ describe('VodReviewComponent', () => {
     season.value = '6';
     season.dispatchEvent(new Event('change'));
     await settle();
-    expect(api.getVodLinkOptions).toHaveBeenCalledWith(6);
+    expect(api.getVodLinkOptions).toHaveBeenCalledWith({ seasonID: 6 });
     expect(el().querySelector('.vr-teams')!.textContent).toContain('This season has no teams.');
     expect(byText('Save link').disabled).toBeFalse();
 

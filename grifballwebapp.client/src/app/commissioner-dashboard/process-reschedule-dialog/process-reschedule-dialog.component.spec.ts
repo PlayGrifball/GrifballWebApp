@@ -3,7 +3,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ProcessRescheduleDialogComponent } from './process-reschedule-dialog.component';
-import { RescheduleDto } from '../commissioner-dashboard.component';
+import type { RescheduleDto } from '@api/models';
 
 describe('ProcessRescheduleDialogComponent', () => {
   let fixture: ComponentFixture<ProcessRescheduleDialogComponent>;
@@ -17,11 +17,13 @@ describe('ProcessRescheduleDialogComponent', () => {
     homeCaptain: 'HomeCap',
     awayCaptain: 'AwayCap',
     originalScheduledTime: '2026-03-01T19:00:00Z',
-    newScheduledTime: undefined,
+    newScheduledTime: null,
     reason: 'Out of town',
     requestedByGamertag: 'Requester',
+    requestedByUserID: null,
     requestedAt: '2026-02-20T12:00:00Z',
     status: 'Pending',
+    discordThreadID: null,
     canApprove: true,
     whyNotApprovable: null,
   };
@@ -105,7 +107,7 @@ describe('ProcessRescheduleDialogComponent', () => {
     component.processReschedule();
 
     const req = http.expectOne('/api/reschedules/55/decision');
-    expect(req.request.body).toEqual({ approved: false, commissionerNotes: undefined });
+    expect(req.request.body).toEqual({ approved: false, commissionerNotes: null });
     req.flush({});
   });
 
@@ -177,7 +179,8 @@ describe('ProcessRescheduleDialogComponent for a match that can no longer move',
   beforeEach(async () => {
     const reschedule: RescheduleDto = {
       matchRescheduleID: 56, seasonMatchID: 9, homeCaptain: 'HomeCap', awayCaptain: 'AwayCap', reason: 'Out of town',
-      requestedByGamertag: 'Requester', requestedAt: '2026-02-20T12:00:00Z', status: 'Pending',
+      originalScheduledTime: null, newScheduledTime: null, discordThreadID: null,
+      requestedByGamertag: 'Requester', requestedByUserID: null, requestedAt: '2026-02-20T12:00:00Z', status: 'Pending',
       canApprove: false, whyNotApprovable: 'This match already has a result.',
     };
     await TestBed.configureTestingModule({
@@ -206,6 +209,6 @@ describe('ProcessRescheduleDialogComponent for a match that can no longer move',
     expect(action.textContent).toContain('Reject');
 
     action.click();
-    expect(http.expectOne('/api/reschedules/56/decision').request.body).toEqual({ approved: false, commissionerNotes: undefined });
+    expect(http.expectOne('/api/reschedules/56/decision').request.body).toEqual({ approved: false, commissionerNotes: null });
   });
 });

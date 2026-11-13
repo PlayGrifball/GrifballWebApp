@@ -1,19 +1,19 @@
 import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
-import { ApiClientService } from '../api/apiClient.service';
+import { BuildService } from '@api/services/build.service';
 import { SiteFooterComponent } from './siteFooter.component';
 
 describe('SiteFooterComponent', () => {
-  let api: jasmine.SpyObj<ApiClientService>;
+  let api: jasmine.SpyObj<BuildService>;
 
   beforeEach(async () => {
-    api = jasmine.createSpyObj('ApiClientService', ['commitHash', 'commitDate']);
-    api.commitHash.and.returnValue(of('abc123'));
-    api.commitDate.and.returnValue(of(new Date()));
+    api = jasmine.createSpyObj<BuildService>('BuildService', ['getCommitHash', 'getCommitDate']);
+    api.getCommitHash.and.returnValue(of('abc123'));
+    api.getCommitDate.and.returnValue(of(new Date().toISOString()));
     await TestBed.configureTestingModule({
       imports: [SiteFooterComponent],
-      providers: [{ provide: ApiClientService, useValue: api }],
+      providers: [{ provide: BuildService, useValue: api }],
     }).compileComponents();
   });
 
@@ -22,8 +22,8 @@ describe('SiteFooterComponent', () => {
 
   it('loads the commit hash and date on creation', () => {
     const date = new Date('2024-01-15T10:30:00Z');
-    api.commitHash.and.returnValue(of('test-commit-hash'));
-    api.commitDate.and.returnValue(of(date));
+    api.getCommitHash.and.returnValue(of('test-commit-hash'));
+    api.getCommitDate.and.returnValue(of(date.toISOString()));
 
     const footer = create().componentInstance;
 
@@ -31,9 +31,16 @@ describe('SiteFooterComponent', () => {
     expect(footer.commitDate()).toEqual(date);
   });
 
+  it('shows no build date when the API has none (an empty answer)', () => {
+    api.getCommitHash.and.returnValue(of('test-commit-hash'));
+    api.getCommitDate.and.returnValue(of(''));
+
+    expect(create().componentInstance.commitDate()).toBeNull();
+  });
+
   it('has no build info until the API answers', () => {
-    api.commitHash.and.returnValue(new Subject<string>());
-    api.commitDate.and.returnValue(new Subject<Date>());
+    api.getCommitHash.and.returnValue(new Subject<string>());
+    api.getCommitDate.and.returnValue(new Subject<string>());
 
     const footer = create().componentInstance;
 
@@ -43,7 +50,7 @@ describe('SiteFooterComponent', () => {
 
   it('renders the commit hash once it arrives, without a manual detectChanges', async () => {
     const hash = new Subject<string>();
-    api.commitHash.and.returnValue(hash);
+    api.getCommitHash.and.returnValue(hash);
     const fixture = create();
     fixture.autoDetectChanges();
     await fixture.whenStable();
@@ -55,8 +62,8 @@ describe('SiteFooterComponent', () => {
   });
 
   it('still renders when the build info cannot be loaded', () => {
-    api.commitHash.and.returnValue(throwError(() => new Error('down')));
-    api.commitDate.and.returnValue(throwError(() => new Error('down')));
+    api.getCommitHash.and.returnValue(throwError(() => new Error('down')));
+    api.getCommitDate.and.returnValue(throwError(() => new Error('down')));
     const fixture = create();
 
     expect(() => fixture.detectChanges()).not.toThrow();
@@ -65,7 +72,7 @@ describe('SiteFooterComponent', () => {
   });
 
   it('shows the build date as the date pipe shows the API value, linked to the source', () => {
-    api.commitDate.and.returnValue(of(new Date('2026-01-02T03:04:05Z')));
+    api.getCommitDate.and.returnValue(of('2026-01-02T03:04:05Z'));
     const fixture = create();
     fixture.detectChanges();
     const link = (fixture.nativeElement as HTMLElement).querySelector('a')!;

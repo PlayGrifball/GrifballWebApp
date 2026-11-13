@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting, type TestRequest } fro
 import { provideRouter } from '@angular/router';
 import { msText, TelemetryComponent, waterfall } from './telemetry.component';
 import { formatValue, niceMax } from './lineChart.component';
-import type { LogEntryDto, MetricsDto, SpanDto, TelemetryStatusDto, TraceDto, TraceSummaryDto } from '../../api/dtos/telemetryDto';
+import type { LogEntryDto, MetricsDto, SpanDto, TelemetryStatusDto, TraceDto, TraceSummaryDto } from '@api/models';
 
 const allOn: TelemetryStatusDto = { serviceName: 'grif-prod', logs: true, metrics: true, traces: true };
 
@@ -183,6 +183,15 @@ describe('TelemetryComponent', () => {
     const searched = await request('/api/telemetry/logs');
     expect(searched.request.params.get('search')).toBe('events');
     searched.flush({ entries: [line()], truncated: false });
+    await settle();
+
+    // Only spaces: no search at all, not a search for spaces
+    search.value = '   ';
+    search.dispatchEvent(new Event('input'));
+    search.form!.dispatchEvent(new Event('submit'));
+    const blank = await request('/api/telemetry/logs');
+    expect(blank.request.params.has('search')).toBeFalse();
+    blank.flush({ entries: [line()], truncated: false });
     await settle();
 
     el().querySelector<HTMLButtonElement>('.tm-log-line')!.click();

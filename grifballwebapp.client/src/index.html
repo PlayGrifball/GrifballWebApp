@@ -74,7 +74,7 @@
       // Who is signed in (the session cookie goes with every call; a visitor gets 204)
       var m, urls = ['/api/seasons/current', '/api/CommitHash', '/api/CommitDate', '/api/identity/me'];
       if (path === '/') {
-        urls.push('/api/events', '/api/seasons?ended=true&pageSize=10&pageNumber=1');
+        urls.push('/api/events', '/api/seasons?ended=true&pageNumber=1&pageSize=10');
       } else if ((m = /^\/season\/([1-9]\d*)$/.exec(path))) {
         urls.push('/api/seasons/' + m[1] + '/summary');
         if (tab === 'schedule') urls.push(`/api/seasons/${m[1]}/matches/unscheduled`, `/api/seasons/${m[1]}/matches/scheduled`);

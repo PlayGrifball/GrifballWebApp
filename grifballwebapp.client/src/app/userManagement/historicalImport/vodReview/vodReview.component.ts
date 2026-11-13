@@ -5,8 +5,8 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Observable } from 'rxjs';
-import { ApiClientService } from '../../../api/apiClient.service';
-import type { LinkVodRequest, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto } from '../../../api/dtos/vodDto';
+import { VodService } from '@api/services/vod.service';
+import type { LinkVodRequest, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto } from '@api/models';
 import { problemText } from '../../../shared/errorText';
 
 /** What the matcher suggested for a VOD, "Spring League 2024 · Alpha, Bravo · its match", or null for nothing. */
@@ -29,7 +29,7 @@ export function suggestion(vod: VodReviewDto): string | null {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VodReviewComponent {
-  private api = inject(ApiClientService);
+  private api = inject(VodService);
   private snackBar = inject(MatSnackBar);
 
   readonly suggestion = suggestion;
@@ -46,7 +46,7 @@ export class VodReviewComponent {
   /** Loaded with the first editor opened. */
   readonly seasons = rxResource({ params: () => this.editing() ? true : undefined, stream: () => this.api.getVodLinkSeasons() });
   readonly seasonRows = computed<VodLinkSeasonDto[]>(() => this.seasons.hasValue() ? this.seasons.value() : []);
-  readonly options = rxResource({ params: () => this.seasonID() ?? undefined, stream: ({ params }) => this.api.getVodLinkOptions(params) });
+  readonly options = rxResource({ params: () => this.seasonID() ?? undefined, stream: ({ params }) => this.api.getVodLinkOptions({ seasonID: params }) });
   readonly optionsValue = computed<VodLinkOptionsDto | null>(() => this.options.hasValue() ? this.options.value() : null);
 
   /** An action waiting for its answer: the buttons wait too. */
@@ -97,11 +97,11 @@ export class VodReviewComponent {
   }
 
   dismiss(vod: VodReviewDto): void {
-    this.run(this.api.dismissVod(vod.vodID), "Couldn't dismiss the VOD.");
+    this.run(this.api.dismissVod({ vodID: vod.vodID }), "Couldn't dismiss the VOD.");
   }
 
   private link(vod: VodReviewDto, request: LinkVodRequest): void {
-    this.run(this.api.linkVod(vod.vodID, request), "Couldn't link the VOD.");
+    this.run(this.api.linkVod({ vodID: vod.vodID, body: request }), "Couldn't link the VOD.");
   }
 
   /** Runs a decision; done, the VOD leaves the list. */

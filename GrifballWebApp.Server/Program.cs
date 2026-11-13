@@ -161,13 +161,22 @@ public class Program
 
         builder.Services.AddSwaggerGen(option =>
         {
-            option.CustomSchemaIds(x => x.FullName);
+            // Names and shapes the client is generated from (grifballwebapp.client/openapi.json): short type names, the
+            // types' own nullability, and every property the API always writes required (OpenApiSchemas.cs)
+            option.CustomSchemaIds(OpenApiSchemaIds.For);
+            option.SupportNonNullableReferenceTypes();
+            // A property that refers to another schema can be null too (allOf around the $ref: OpenAPI 3.0 has no other way)
+            option.UseAllOfToExtendReferenceSchemas();
+            option.SchemaFilter<EveryPropertyRequiredFilter>();
+            option.OperationFilter<JsonOnlyOperationFilter>();
+            option.OperationFilter<JsonNamedQueryParametersFilter>();
 
-            // Controller actions' <summary>/<param>/<returns>/<remarks> (GenerateDocumentationFile, the .csproj),
-            // into the OpenAPI document. The file sits next to this assembly in every environment, including the
-            // Docker publish (GenerateDocumentationFile copies it there by default).
-            var xmlFile = Path.Combine(AppContext.BaseDirectory, $"{typeof(Program).Assembly.GetName().Name}.xml");
-            option.IncludeXmlComments(xmlFile);
+            // Controller actions' <summary>/<param>/<returns>/<remarks>, and the DTOs' and enums' <summary> (the
+            // Application's and Domain's), into the OpenAPI document (GenerateDocumentationFile, each .csproj). Each
+            // file sits next to this assembly in every environment, the Docker publish included: a project reference
+            // copies its XML doc file with it.
+            foreach (var assembly in new[] { typeof(Program).Assembly, typeof(GrifballWebApp.Application.Dtos.PaginationResult<>).Assembly, typeof(GrifballWebApp.Domain.League.Season).Assembly })
+                option.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{assembly.GetName().Name}.xml"));
 
             option.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
             {
@@ -398,8 +407,8 @@ public class Program
             // Anonymous and read-only: the matchmaking queue's size, for the home page
             app.MapHub<QueueHub>("QueueHub");
 
-            app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
-            app.MapGet("CommitDate", () => GitInfo.CommitDate);
+            app.MapGet("CommitHash", () => GitInfo.CommitShortHash).WithName("GetCommitHash").WithTags("Build");
+            app.MapGet("CommitDate", () => GitInfo.CommitDate).WithName("GetCommitDate").WithTags("Build");
         }
 
         // A worker hands an API pod the backup a job made here, for a token only the app's pods can make (BackupDownloads)

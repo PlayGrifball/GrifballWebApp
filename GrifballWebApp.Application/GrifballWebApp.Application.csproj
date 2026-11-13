@@ -4,6 +4,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- The XML doc file, next to the server's assembly in every build and the Docker publish: Swagger's
+         IncludeXmlComments (the server's Program.cs) reads it, so the DTOs' and enums' <summary> comments reach the
+         OpenAPI document and the client generated from it. CS1591 (a public member without one) stays quiet: not
+         every public type here needs one. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <!-- The use cases' internals, tested directly. -->

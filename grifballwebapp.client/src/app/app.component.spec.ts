@@ -8,7 +8,8 @@ import { signal } from '@angular/core';
 
 import { AppComponent, MENU_BUTTON_WIDTH, NAV_LINK_GAP } from './app.component';
 import { AccountService } from './account.service';
-import { ApiClientService } from './api/apiClient.service';
+import { SeasonService } from '@api/services/season.service';
+import { BuildService } from '@api/services/build.service';
 import { ThemingService } from './theming.service';
 import { noMaterialAnimations } from './testing/noMaterialAnimations';
 
@@ -27,10 +28,12 @@ describe('AppComponent', () => {
       displayName: signal(null)
     };
 
-    // The real toolbar is rendered here and asks for the build's commit hash and date on creation.
-    const mockApiClientService = jasmine.createSpyObj('ApiClientService', ['getSidebarItems', 'commitHash', 'commitDate']);
-    mockApiClientService.commitHash.and.returnValue(of(''));
-    mockApiClientService.commitDate.and.returnValue(of(null));
+    // The real footer is rendered here and asks for the build's commit hash and date on creation.
+    const mockSeasonService = jasmine.createSpyObj<SeasonService>('SeasonService', ['getCurrentSeasonId']);
+    mockSeasonService.getCurrentSeasonId.and.returnValue(of(0));
+    const mockBuildService = jasmine.createSpyObj<BuildService>('BuildService', ['getCommitHash', 'getCommitDate']);
+    mockBuildService.getCommitHash.and.returnValue(of(''));
+    mockBuildService.getCommitDate.and.returnValue(of(''));
 
     const mockThemingService = {
       neutral: signal('#000000'),
@@ -57,7 +60,8 @@ describe('AppComponent', () => {
         noMaterialAnimations,
         provideRouter([]),
         { provide: AccountService, useValue: mockAccountService },
-        { provide: ApiClientService, useValue: mockApiClientService },
+        { provide: SeasonService, useValue: mockSeasonService },
+        { provide: BuildService, useValue: mockBuildService },
         { provide: ThemingService, useValue: mockThemingService }
       ]
     }).compileComponents();
@@ -92,7 +96,8 @@ class StubToolbarComponent {
 describe('AppComponent behaviour', () => {
   let fixture: ComponentFixture<AppComponent>;
   let component: AppComponent;
-  let api: jasmine.SpyObj<ApiClientService>;
+  let api: jasmine.SpyObj<SeasonService>;
+  let build: jasmine.SpyObj<BuildService>;
   let theming: any;
   let account: any;
   let mobile: boolean;
@@ -132,11 +137,12 @@ describe('AppComponent behaviour', () => {
       personID: signal(null),
       displayName: signal(null)
     };
-    api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'commitHash', 'commitDate']);
-    api.getCurrentSeasonID.and.returnValue(of(0));
+    api = jasmine.createSpyObj<SeasonService>('SeasonService', ['getCurrentSeasonId']);
+    api.getCurrentSeasonId.and.returnValue(of(0));
     // The footer shows the build.
-    api.commitHash.and.returnValue(of(''));
-    api.commitDate.and.returnValue(of(null));
+    build = jasmine.createSpyObj<BuildService>('BuildService', ['getCommitHash', 'getCommitDate']);
+    build.getCommitHash.and.returnValue(of(''));
+    build.getCommitDate.and.returnValue(of(''));
     theming = {
       neutral: signal('#111111'),
       neutralVariant: signal('#222222'),
@@ -208,7 +214,8 @@ describe('AppComponent behaviour', () => {
         noMaterialAnimations,
         provideRouter([]),
         { provide: AccountService, useValue: account },
-        { provide: ApiClientService, useValue: api },
+        { provide: SeasonService, useValue: api },
+        { provide: BuildService, useValue: build },
         { provide: ThemingService, useValue: theming },
         { provide: MediaMatcher, useValue: media },
       ]
@@ -250,7 +257,7 @@ describe('AppComponent behaviour', () => {
   });
 
   it('adds a Current Season link pointing at the current season', () => {
-    api.getCurrentSeasonID.and.returnValue(of(12));
+    api.getCurrentSeasonId.and.returnValue(of(12));
     fixture.detectChanges();
 
     const current = component.navLinks().find(n => n.title === 'Current Season');
@@ -321,7 +328,7 @@ describe('AppComponent behaviour', () => {
 
   it('renders a Current Season link that arrives after the first render without a manual detectChanges', async () => {
     const season = new Subject<number>();
-    api.getCurrentSeasonID.and.returnValue(season);
+    api.getCurrentSeasonId.and.returnValue(season);
     fixture.autoDetectChanges();
     await fixture.whenStable();
 
@@ -336,7 +343,7 @@ describe('AppComponent behaviour', () => {
   it('shows a Current Season link that arrives after the first render in the toolbar, without a resize', async () => {
     toolbarWidth = 10000;
     const season = new Subject<number>();
-    api.getCurrentSeasonID.and.returnValue(season);
+    api.getCurrentSeasonId.and.returnValue(season);
     fixture.autoDetectChanges();
     await fixture.whenStable();
 
@@ -469,7 +476,7 @@ describe('AppComponent behaviour', () => {
   });
 
   it('puts the Current Season link right after Home', () => {
-    api.getCurrentSeasonID.and.returnValue(of(4));
+    api.getCurrentSeasonId.and.returnValue(of(4));
     fixture.detectChanges();
     expect(component.navLinks().map(n => n.title).slice(0, 3)).toEqual(['Home', 'Current Season', 'Seasons']);
   });
@@ -575,10 +582,11 @@ describe('AppComponent rendered on the server', () => {
       setNeutralShade: jasmine.createSpy(), setNeutralVariantShade: jasmine.createSpy(), setErrorShade: jasmine.createSpy(),
       setFont: jasmine.createSpy('setFont'), setPrimaryShade: jasmine.createSpy(), setSecondaryShade: jasmine.createSpy(), setTertiaryShade: jasmine.createSpy(),
     };
-    const api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'commitHash', 'commitDate']);
-    api.getCurrentSeasonID.and.returnValue(of(0));
-    api.commitHash.and.returnValue(of(''));
-    api.commitDate.and.returnValue(of(null));
+    const api = jasmine.createSpyObj<SeasonService>('SeasonService', ['getCurrentSeasonId']);
+    api.getCurrentSeasonId.and.returnValue(of(0));
+    const build = jasmine.createSpyObj<BuildService>('BuildService', ['getCommitHash', 'getCommitDate']);
+    build.getCommitHash.and.returnValue(of(''));
+    build.getCommitDate.and.returnValue(of(''));
     const addListener = spyOn(window, 'addEventListener').and.callThrough();
     const removeListener = spyOn(window, 'removeEventListener').and.callThrough();
     TestBed.configureTestingModule({
@@ -588,7 +596,8 @@ describe('AppComponent rendered on the server', () => {
         provideRouter([]),
         { provide: PLATFORM_ID, useValue: 'server' },
         { provide: AccountService, useValue: { isLoggedIn: signal(false), isEventOrganizer: signal(false), isSysAdmin: signal(false), isPlayer: signal(false), personID: signal(null), displayName: signal(null) } },
-        { provide: ApiClientService, useValue: api },
+        { provide: SeasonService, useValue: api },
+        { provide: BuildService, useValue: build },
         { provide: ThemingService, useValue: theming },
       ]
     }).overrideComponent(AppComponent, {

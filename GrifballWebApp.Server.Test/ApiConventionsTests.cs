@@ -108,6 +108,53 @@ public class ApiConventionsTests
     }
 
     [Test]
+    public void EveryAction_DeclaresWhatItsOkAnswersWith()
+    {
+        // A 200 says what its body is (a DTO, text, a file), so the client generated from the document reads it: without
+        // a type the generated method expects no body and throws the answer away
+        var untyped = Actions()
+            .Where(a => a.GetCustomAttributes<ProducesResponseTypeAttribute>().Any(p => p.StatusCode == StatusCodes.Status200OK && p.Type == typeof(void)))
+            .Select(Name)
+            .ToList();
+
+        Assert.That(untyped, Is.Empty);
+    }
+
+    /// <summary>What the server sets itself, from who is signed in or the route, whatever a request says.</summary>
+    private static readonly string[] ServerSet = ["RequestedByUserID", "TriggeredByUserID", "Trigger"];
+
+    [Test]
+    public void EveryRequestBody_LeavesOutWhatTheServerSets()
+    {
+        // A body that names who asked (or what caused it) makes the generated client send a value the server throws away
+        var offending = Actions()
+            .SelectMany(a => a.GetParameters().Where(p => p.GetCustomAttribute<FromBodyAttribute>() is not null)
+                .SelectMany(p => PropertyPaths(p.ParameterType, depth: 2))
+                .Where(path => ServerSet.Contains(path.Split('.')[^1]))
+                .Select(path => $"{Name(a)}: {path}"))
+            .ToList();
+
+        Assert.That(offending, Is.Empty);
+    }
+
+    [Test]
+    public void TheSignupBody_LeavesOutWhoAndWhichSeason()
+    {
+        // The signed-in player's own signup, for the season in the route
+        var body = typeof(GrifballWebApp.Server.Signups.SignupsController).GetMethod("UpsertSignup")!
+            .GetParameters().Single(p => p.GetCustomAttribute<FromBodyAttribute>() is not null).ParameterType;
+
+        Assert.That(body.GetProperties().Select(p => p.Name), Does.Not.Contain("UserID").And.Not.Contain("SeasonID"));
+    }
+
+    /// <summary>A type's public properties, and its app-type properties' own, as "Outer.Inner".</summary>
+    private static IEnumerable<string> PropertyPaths(Type type, int depth)
+        => type.GetProperties(BindingFlags.Public | BindingFlags.Instance).SelectMany(p =>
+            depth > 1 && p.PropertyType.Namespace?.StartsWith("GrifballWebApp", StringComparison.Ordinal) == true && p.PropertyType.IsClass
+                ? PropertyPaths(p.PropertyType, depth - 1).Select(inner => $"{p.Name}.{inner}").Prepend(p.Name)
+                : [p.Name]);
+
+    [Test]
     public void EveryAction_ReadsWithGet_AndChangesWithPost_AtItsOwnRoute()
     {
         // The owner's rules (#270): GET to read and POST for every change, no PUT/PATCH/DELETE; each action names its

@@ -74,7 +74,7 @@ describe('RescheduleRequestComponent', () => {
 
     const req = http.expectOne('/api/season-matches/31/reschedules');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ seasonMatchID: 31, newScheduledTime: undefined, reason: 'Team conflict' });
+    expect(req.request.body).toEqual({ seasonMatchID: 31, newScheduledTime: null, reason: 'Team conflict' });
     req.flush({});
   });
 
@@ -99,7 +99,7 @@ describe('RescheduleRequestComponent', () => {
     component.newDate = new Date(2026, 2, 4);
     component.submitRescheduleRequest();
 
-    expect(http.expectOne('/api/season-matches/31/reschedules').request.body.newScheduledTime).toBeUndefined();
+    expect(http.expectOne('/api/season-matches/31/reschedules').request.body.newScheduledTime).toBeNull();
   });
 
   it('combines the chosen date and time into an ISO timestamp', () => {

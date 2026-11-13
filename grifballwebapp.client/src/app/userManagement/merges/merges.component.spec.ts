@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@a
 import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MergesComponent } from './merges.component';
-import type { UserMergeDto } from '../../api/dtos/userMergeDto';
+import type { UserMergeDto } from '@api/models';
 
 function merge(id: number, changes: Partial<UserMergeDto> = {}): UserMergeDto {
   return {

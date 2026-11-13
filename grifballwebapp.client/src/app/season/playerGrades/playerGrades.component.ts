@@ -1,14 +1,14 @@
 import { DecimalPipe } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { Component, ChangeDetectionStrategy, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { GradesDto, Letter, LetterDto } from './gradesDto';
+import type { LetterDto } from '@api/models';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { DataNoticeComponent } from '../../shared/dataNotice/dataNotice.component';
 import { missing, SeasonSummaryService } from '../seasonSummary';
-import type { SeasonSummaryDto } from '../../api/dtos/seasonSummaryDto';
+import type { SeasonSummaryDto } from '@api/models';
 import { whileCurrent } from '../../shared/whileCurrent';
+import { GradesService } from '@api/services/grades.service';
 
 @Component({
     selector: 'app-player-grades',
@@ -24,7 +24,7 @@ import { whileCurrent } from '../../shared/whileCurrent';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PlayerGradesComponent {
-  private http = inject(HttpClient);
+  private grades = inject(GradesService);
   private pipe = inject(DecimalPipe);
   private summaries = inject(SeasonSummaryService);
 
@@ -169,7 +169,7 @@ export class PlayerGradesComponent {
 
   getGrades(): void {
     const seasonID = this.seasonID();
-    this.http.get<GradesDto>(`/api/seasons/${seasonID}/grades`)
+    this.grades.getGrades({ seasonID })
       .pipe(whileCurrent(seasonID, this.seasonID))
       .subscribe({
         next: result => {
@@ -183,7 +183,7 @@ export class PlayerGradesComponent {
       });
   }
 
-  getColor(letter: Letter): string {
+  getColor(letter: string): string {
     switch (letter) {
       case "S+":
         return '#FFD700'

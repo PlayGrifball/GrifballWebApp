@@ -1,10 +1,21 @@
 import { Injectable } from '@angular/core';
-import { CaptainAddedDto, CaptainPlacementDto, RemoveCaptainDto } from './dtos/captainPlacementDto';
+import type { CaptainPlacementDto, RemoveCaptainDto } from '@api/models';
 import { HubConnection } from '@microsoft/signalr';
 import { hubLifecycle } from './hubLifecycle';
-import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
-import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
-import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamRequestDto';
+import type { AddPlayerToTeamRequestDto } from '@api/models';
+import type { MovePlayerToTeamRequestDto } from '@api/models';
+import type { RemovePlayerFromTeamRequestDto } from '@api/models';
+
+
+/** A captain added to the draft, as the hub announces it. */
+export interface CaptainAddedDto {
+  seasonID: number;
+  personID: number;
+  teamID: number;
+  teamName: string;
+  captainName: string;
+  orderNumber: number;
+}
 
 @Injectable({
   providedIn: 'root'

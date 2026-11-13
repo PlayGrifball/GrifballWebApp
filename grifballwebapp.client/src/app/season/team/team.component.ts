@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, input, signal, WritableSignal, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -7,6 +6,7 @@ import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { RouterModule } from '@angular/router';
 import { DateTime } from 'luxon';
 import { map, Observable } from 'rxjs';
+import { TeamService } from '@api/services/team.service';
 import { fromApiDate } from '../../shared/apiDates';
 import { nullWhenNotFound } from '../../api/nullWhenNotFound';
 
@@ -15,7 +15,7 @@ import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { BackfilledBannerComponent, DataNoticeComponent } from '../../shared/dataNotice/dataNotice.component';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
-import type { SeasonInfoDto } from '../../api/dtos/seasonInfoDto';
+import type { TeamDto } from '@api/models';
 @Component({
     selector: 'app-team',
     imports: [
@@ -36,7 +36,7 @@ import type { SeasonInfoDto } from '../../api/dtos/seasonInfoDto';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamComponent {
-  private http = inject(HttpClient);
+  private api = inject(TeamService);
 
 
   teamID = input.required<number>();
@@ -74,42 +74,13 @@ export class TeamComponent {
   }
 
   getTeam(): Observable<TeamDto | null> {
-    return this.http.get<TeamDto>(`/api/teams/${this.teamID()}`).pipe(nullWhenNotFound());
+    return this.api.team({ teamID: this.teamID() }).pipe(nullWhenNotFound());
   }
 
   getMatches(): Observable<MatchDto[]> {
-    return this.http.get<unknown[]>(`/api/teams/${this.teamID()}/matches`)
+    return this.api.matches({ teamID: this.teamID() })
       .pipe(map(matches => matches.map(parseTeamMatch)));
-  } 
-}
-
-export interface TeamDto
-{
-  teamName: string,
-  /** The team's season: imported from the historical archive (its isHistorical), over (its hasEnded), and so on. */
-  season: SeasonInfoDto,
-  /** wins and losses are the source spreadsheet's: the season's matches are not in the app. */
-  recordFromSource?: boolean,
-  /** The tiers whose title the team won. */
-  titles?: string[],
-  wins: number,
-  losses: number,
-  tbd: number,
-  players: PlayerDto[],
-}
-
-export interface PlayerDto
-{
-  teamPlayerID: number,
-  userID: number,
-  /** null for a player without an Xbox account linked */
-  gamertag: string | null,
-  draftCaptainOrder: number | null,
-  draftRound: number | null,
-  /** Its drafted captain, or the one its title names. */
-  isCaptain?: boolean,
-  /** Where the player plays from, if known. */
-  region?: string | null,
+  }
 }
 
 export interface MatchDto

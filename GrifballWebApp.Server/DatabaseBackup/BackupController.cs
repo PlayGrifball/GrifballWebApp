@@ -93,7 +93,7 @@ public partial class BackupController(DatabaseBackupService backups, BackupRuns 
 
     /// <summary>The format's backup <see cref="StartDownload"/> made, once it's made; 404 when there's none (not made, or discarded since). 400 for another format.</summary>
     [HttpGet("backups/{format}/file", Name = "BackupDownload")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType<FileResult>(StatusCodes.Status200OK, "application/octet-stream")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> Download([FromRoute] string format, CancellationToken ct)

@@ -10,7 +10,7 @@ import { noMaterialAnimations } from '../../testing/noMaterialAnimations';
 const user = (id: number): UserResponseDto => ({
   userID: id, userName: 'user' + id, lockoutEnd: null, lockoutEnabled: false, isDummyUser: false,
   accessFailedCount: 0, region: null, displayName: 'User ' + id, gamertag: null, discord: null,
-  externalAuthCount: 0, hasPassword: true, roles: [],
+  externalAuthCount: 0, hasPassword: true, roles: [], regionID: null
 });
 
 describe('MergeUserComponent', () => {

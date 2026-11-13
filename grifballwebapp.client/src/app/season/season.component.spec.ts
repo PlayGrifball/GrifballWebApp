@@ -5,7 +5,8 @@ import { of, Subject, throwError } from 'rxjs';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { By } from '@angular/platform-browser';
 import { SeasonComponent } from './season.component';
-import { ApiClientService } from '../api/apiClient.service';
+import { HomeService } from '@api/services/home.service';
+import { SeasonService } from '@api/services/season.service';
 import { ScheduleListComponent } from './scheduleList/scheduleList.component';
 import { PlayoffBracketComponent } from './playoffBracket/playoffBracket.component';
 import { TeamStandingsComponent } from './teamStandings/teamStandings.component';
@@ -13,8 +14,8 @@ import { SeasonThisWeekComponent } from './seasonThisWeek/seasonThisWeek.compone
 import { input, output } from '@angular/core';
 import { SeasonEvent } from '../shared/seasonEvents';
 import { SeasonSummaryService } from './seasonSummary';
-import { SeasonChampionDto, SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
-import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
+import type { SeasonChampionDto, SeasonSummaryDto } from '@api/models';
+import { seasonInfo } from '../api/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '../shared/vodList/vodList.component';
 import { StubVodListComponent } from '../shared/vodList/vodList.stub';
@@ -45,21 +46,24 @@ class StubPlayerStats { readonly seasonID = input<number>(); }
 
 describe('SeasonComponent', () => {
   let fixture: ComponentFixture<SeasonComponent>;
-  let api: jasmine.SpyObj<ApiClientService>;
+  let api: jasmine.SpyObj<SeasonService>;
+  let home: jasmine.SpyObj<HomeService>;
   let summaries: jasmine.SpyObj<SeasonSummaryService>;
 
   beforeEach(async () => {
-    api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getCurrentAndFutureEvents']);
+    api = jasmine.createSpyObj<SeasonService>('SeasonService', ['getCurrentSeasonId']);
+    home = jasmine.createSpyObj<HomeService>('HomeService', ['currentAndFutureEvents']);
     summaries = jasmine.createSpyObj('SeasonSummaryService', ['get']);
     summaries.get.and.callFake((id: number) => of(seasonSummary(id)));
-    api.getCurrentSeasonID.and.returnValue(of(8));
-    api.getCurrentAndFutureEvents.and.returnValue(of([]));
+    api.getCurrentSeasonId.and.returnValue(of(8));
+    home.currentAndFutureEvents.and.returnValue(of([]));
 
     await TestBed.configureTestingModule({
       imports: [SeasonComponent],
       providers: [
         provideRouter([]),
-        { provide: ApiClientService, useValue: api },
+        { provide: SeasonService, useValue: api },
+        { provide: HomeService, useValue: home },
         { provide: SeasonSummaryService, useValue: summaries },
       ]
     })
@@ -80,7 +84,7 @@ describe('SeasonComponent', () => {
     fixture.detectChanges();
 
     expect(summaries.get).toHaveBeenCalledWith(5);
-    expect(api.getCurrentSeasonID).not.toHaveBeenCalled();
+    expect(api.getCurrentSeasonId).not.toHaveBeenCalled();
     expect(heading()).toBe('Season 5');
   });
 
@@ -96,7 +100,7 @@ describe('SeasonComponent', () => {
     fixture.componentRef.setInput('seasonID', '0');
     fixture.detectChanges();
 
-    expect(api.getCurrentSeasonID).toHaveBeenCalled();
+    expect(api.getCurrentSeasonId).toHaveBeenCalled();
     expect(summaries.get).toHaveBeenCalledWith(8);
     expect(heading()).toBe('Season 8');
   });
@@ -154,7 +158,7 @@ describe('SeasonComponent', () => {
 
   it('drops the current season\'s ID when the route moves on before it arrives', () => {
     const current = new Subject<number>();
-    api.getCurrentSeasonID.and.returnValue(current);
+    api.getCurrentSeasonId.and.returnValue(current);
     fixture.componentRef.setInput('seasonID', '0');
     fixture.detectChanges();
 
@@ -264,31 +268,31 @@ describe('SeasonComponent', () => {
       .find(a => a.textContent!.trim() === 'Sign up');
 
     it('is offered while the season\'s signups are open', () => {
-      api.getCurrentAndFutureEvents.and.returnValue(of([signup(-day, day)]));
+      home.currentAndFutureEvents.and.returnValue(of([signup(-day, day)]));
       fixture.detectChanges();
       expect(signUpLink()).toBeDefined();
     });
 
     it('is not offered before signups open', () => {
-      api.getCurrentAndFutureEvents.and.returnValue(of([signup(day, 2 * day)]));
+      home.currentAndFutureEvents.and.returnValue(of([signup(day, 2 * day)]));
       fixture.detectChanges();
       expect(signUpLink()).toBeUndefined();
     });
 
     it('is not offered once signups have closed', () => {
-      api.getCurrentAndFutureEvents.and.returnValue(of([signup(-2 * day, -day)]));
+      home.currentAndFutureEvents.and.returnValue(of([signup(-2 * day, -day)]));
       fixture.detectChanges();
       expect(signUpLink()).toBeUndefined();
     });
 
     it('is not offered without a signup window: none listed, another season\'s, or the events failing', () => {
-      api.getCurrentAndFutureEvents.and.returnValue(of([signup(-day, day, 6), { ...signup(-day, day), eventType: 'Season' }]));
+      home.currentAndFutureEvents.and.returnValue(of([signup(-day, day, 6), { ...signup(-day, day), eventType: 'Season' }]));
       fixture.detectChanges();
       expect(signUpLink()).toBeUndefined();
     });
 
     it('is not offered when the events cannot be loaded, and the page still shows', () => {
-      api.getCurrentAndFutureEvents.and.returnValue(throwError(() => new Error('down')));
+      home.currentAndFutureEvents.and.returnValue(throwError(() => new Error('down')));
       fixture.detectChanges();
       expect(signUpLink()).toBeUndefined();
       expect((fixture.nativeElement as HTMLElement).querySelector('.hud-page')!.classList).not.toContain('hud-waiting');
@@ -296,7 +300,7 @@ describe('SeasonComponent', () => {
 
     it('keeps the page hidden until it is known whether to offer it', () => {
       const events = new Subject<SeasonEvent[]>();
-      api.getCurrentAndFutureEvents.and.returnValue(events);
+      home.currentAndFutureEvents.and.returnValue(events);
       fixture.detectChanges();
       const page = () => (fixture.nativeElement as HTMLElement).querySelector('.hud-page')!;
       expect(page().classList).toContain('hud-waiting');
@@ -307,7 +311,7 @@ describe('SeasonComponent', () => {
     });
 
     it('follows the clock: closing while the page is open takes it away', () => {
-      api.getCurrentAndFutureEvents.and.returnValue(of([signup(-day, day)]));
+      home.currentAndFutureEvents.and.returnValue(of([signup(-day, day)]));
       fixture.detectChanges();
       fixture.componentInstance.now.set(Date.now() + 2 * day);
       fixture.detectChanges();
@@ -441,16 +445,18 @@ describe('SeasonComponent', () => {
 
 describe('SeasonComponent links', () => {
   it('links to the sub-pages of the current season', async () => {
-    const api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getCurrentAndFutureEvents']);
+    const api = jasmine.createSpyObj<SeasonService>('SeasonService', ['getCurrentSeasonId']);
+    const home = jasmine.createSpyObj<HomeService>('HomeService', ['currentAndFutureEvents']);
     const summaries = jasmine.createSpyObj('SeasonSummaryService', ['get']);
     summaries.get.and.returnValue(of(seasonSummary(5)));
     const day = 24 * 3600 * 1000;
-    api.getCurrentAndFutureEvents.and.returnValue(of([{ seasonID: 5, name: 'Season 5', eventType: 'Signup',
+    home.currentAndFutureEvents.and.returnValue(of([{ seasonID: 5, name: 'Season 5', eventType: 'Signup',
       start: new Date(Date.now() - day).toISOString(), end: new Date(Date.now() + day).toISOString() }]));
     TestBed.configureTestingModule({
       providers: [
         provideRouter([{ path: 'season/:seasonID', component: SeasonComponent }], withComponentInputBinding()),
-        { provide: ApiClientService, useValue: api },
+        { provide: SeasonService, useValue: api },
+        { provide: HomeService, useValue: home },
         { provide: SeasonSummaryService, useValue: summaries },
       ]
     }).overrideComponent(SeasonComponent, {
@@ -467,14 +473,16 @@ describe('SeasonComponent links', () => {
   });
 
   it('shows the other season when the router goes from one season to another (the page is kept)', async () => {
-    const api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getCurrentAndFutureEvents']);
+    const api = jasmine.createSpyObj<SeasonService>('SeasonService', ['getCurrentSeasonId']);
+    const home = jasmine.createSpyObj<HomeService>('HomeService', ['currentAndFutureEvents']);
     const summaries = jasmine.createSpyObj('SeasonSummaryService', ['get']);
     summaries.get.and.callFake((id: number) => of(seasonSummary(id)));
-    api.getCurrentAndFutureEvents.and.returnValue(of([]));
+    home.currentAndFutureEvents.and.returnValue(of([]));
     TestBed.configureTestingModule({
       providers: [
         provideRouter([{ path: 'season/:seasonID', component: SeasonComponent }], withComponentInputBinding()),
-        { provide: ApiClientService, useValue: api },
+        { provide: SeasonService, useValue: api },
+        { provide: HomeService, useValue: home },
         { provide: SeasonSummaryService, useValue: summaries },
       ]
     }).overrideComponent(SeasonComponent, {

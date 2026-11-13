@@ -119,7 +119,7 @@
             All Eras
           </button>
           @for (game of availableGames(); track game.gameVersionSlug) {
-            <button type="button" class="hud-tab" [class.hud-tab--active]="selectedGame() === game.gameVersionSlug" [attr.aria-pressed]="selectedGame() === game.gameVersionSlug" (click)="selectGame(game.gameVersionSlug)">
+            <button type="button" class="hud-tab" [class.hud-tab--active]="selectedGame() === game.gameVersionSlug" [attr.aria-pressed]="selectedGame() === game.gameVersionSlug" (click)="selectGame(game.gameVersionSlug!)">
               {{game.gameVersionName}}
             </button>
           }

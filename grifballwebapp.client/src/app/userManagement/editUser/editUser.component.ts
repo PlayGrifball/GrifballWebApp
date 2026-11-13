@@ -9,12 +9,12 @@ import { parseUser, UserResponseDto } from '../userResponseDto';
 import { DateTime } from 'luxon';
 import { toApiDate } from '../../shared/apiDates';
 import { RouterLink } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { LinkedAccountsComponent } from '../../shared/linkedAccounts/linkedAccounts.component';
 import { provideDatePickers } from '../../shared/datePickers';
 import { REGIONS } from '../../shared/regions';
 import { whileCurrent } from '../../shared/whileCurrent';
+import { UserManagementService } from '@api/services/user-management.service';
 
 @Component({
     selector: 'app-edit-user',
@@ -35,7 +35,7 @@ import { whileCurrent } from '../../shared/whileCurrent';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EditUserComponent {
-  private http = inject(HttpClient);
+  private userManagement = inject(UserManagementService);
 
   /** The :userID of the route. Angular keeps this page when only it changes, so a new one resets the form to that user. */
   readonly userID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });
@@ -80,7 +80,7 @@ export class EditUserComponent {
     }
 
     // Fetch from backend
-    this.http.get<any>(`/api/users/${userID}`)
+    this.userManagement.getUser({ userID })
       .pipe(whileCurrent(userID, this.userID))
       .subscribe({
         next: (raw) => {
@@ -101,7 +101,7 @@ export class EditUserComponent {
     const unchanged = user.lockoutEnd === loaded
       || (user.lockoutEnd !== null && loaded !== null && user.lockoutEnd.toMillis() === loaded.toMillis());
     const lockoutEnd = unchanged ? this.loadedLockoutEnd.raw : toApiDate(user.lockoutEnd);
-    this.http.post(`/api/users/${this.userID()}`, { ...user, lockoutEnd }).subscribe({
+    this.userManagement.editUser({ userID: this.userID(), body: { ...user, lockoutEnd } }).subscribe({
       next: (result) => console.log('Updated user'),
       error: (result) => console.log(result),
     });

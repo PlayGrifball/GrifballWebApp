@@ -1,8 +1,9 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { map, Subscription } from 'rxjs';
+import { MatchDetailsService } from '@api/services/match-details.service';
 import { ToDatePipe } from '../shared/toDate.pipe';
 import { formatSeconds, MatchDetailsDto, MatchDetailsTeamDto, parseMatchDetails } from './matchDetailsDto';
 
@@ -26,7 +27,7 @@ export type MatchDetailsState = 'loading' | 'loaded' | 'notFound' | 'error';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MatchDetailsComponent {
-  private readonly http = inject(HttpClient);
+  private readonly api = inject(MatchDetailsService);
 
   /** The Waypoint match ID (the route's :matchID). */
   readonly matchID = input.required<string>();
@@ -52,7 +53,7 @@ export class MatchDetailsComponent {
   private load(matchID: string): Subscription {
     this.state.set('loading');
     this.details.set(null);
-    return this.http.get<unknown>(`/api/matches/${encodeURIComponent(matchID)}`)
+    return this.api.getMatchDetails({ matchID })
       .pipe(map(parseMatchDetails))
       .subscribe({
         next: details => {

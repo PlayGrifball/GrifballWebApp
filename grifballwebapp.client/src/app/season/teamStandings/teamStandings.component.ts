@@ -1,6 +1,6 @@
-import { HttpClient } from '@angular/common/http';
 import { Component, ChangeDetectionStrategy, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
+import { TeamStandingsService } from '@api/services/team-standings.service';
 import { TeamStandingDto } from './teamStandingDto';
 import { MatTableModule } from '@angular/material/table';
 import { whileCurrent } from '../../shared/whileCurrent';
@@ -16,7 +16,7 @@ import { whileCurrent } from '../../shared/whileCurrent';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamStandingsComponent {
-  private http = inject(HttpClient);
+  private api = inject(TeamStandingsService);
   private router = inject(Router);
 
   /** The season page's season (0: none yet). A new one loads its standings in place of the ones shown. */
@@ -45,7 +45,7 @@ export class TeamStandingsComponent {
     }
     this.loaded.set(false);
 
-    this.http.get<TeamStandingDto[]>(`api/seasons/${seasonID}/standings`)
+    this.api.getTeamStandings({ seasonID })
       .pipe(whileCurrent(seasonID, this.seasonID))
       .subscribe(
         {

@@ -4,8 +4,8 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Event, eventLink, heroKicker, heroLede, HomeComponent, pickFeatured } from './home.component';
-import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
-import type { SeasonChampionDto } from '../api/dtos/seasonSummaryDto';
+import { seasonInfo } from '../api/seasonInfo.stub';
+import type { SeasonChampionDto } from '@api/models';
 import { Component } from '@angular/core';
 import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
 import { noMaterialAnimations } from '../testing/noMaterialAnimations';
@@ -141,7 +141,7 @@ describe('HomeComponent', () => {
 
       const req = httpTestingController.expectOne((request) => 
         request.url === '/api/seasons' &&
-        request.params.get('sortDirection') === 'asc' &&
+        request.params.get('sortDirection') === 'Asc' &&
         request.params.get('sortColumn') === 'seasonName'
       );
       expect(req.request.method).toBe('GET');
@@ -275,7 +275,7 @@ describe('HomeComponent', () => {
 
       const req = httpTestingController.expectOne((request) => 
         request.url === '/api/seasons' &&
-        request.params.get('sortDirection') === 'desc' &&
+        request.params.get('sortDirection') === 'Desc' &&
         request.params.get('sortColumn') === 'seasonName'
       );
       req.flush(mockResult);
@@ -357,7 +357,7 @@ describe('HomeComponent paginator and sort wiring', () => {
 
     const req = pastSeasonsRequest();
     expect(req.request.params.get('sortColumn')).toBe('seasonName');
-    expect(req.request.params.get('sortDirection')).toBe('desc');
+    expect(req.request.params.get('sortDirection')).toBe('Desc');
     req.flush(page(['z'], 1));
   });
 

@@ -4,25 +4,28 @@ import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter
 import { DateTime } from 'luxon';
 import { of, Subject, throwError } from 'rxjs';
 import { SeasonEditComponent } from './seasonEdit.component';
-import { ApiClientService } from '../api/apiClient.service';
-import { SeasonDto } from '../api/dtos/seasonDto';
+import { EventOrganizerService } from '@api/services/event-organizer.service';
+import { SeasonSettingsApiService } from '../api/seasonSettingsApi.service';
+import { SeasonSettings } from '../api/seasonSettings';
 
 describe('SeasonEditComponent', () => {
   let fixture: ComponentFixture<SeasonEditComponent>;
   let component: SeasonEditComponent;
-  let api: jasmine.SpyObj<ApiClientService>;
+  let eventOrganizer: jasmine.SpyObj<EventOrganizerService>;
+  let api: jasmine.SpyObj<SeasonSettingsApiService>;
 
   const t = DateTime.fromISO('2026-05-01T19:00:00');
-  const season = (overrides: Partial<SeasonDto> = {}): SeasonDto => Object.assign(new SeasonDto(), {
+  const season = (overrides: Partial<SeasonSettings> = {}): SeasonSettings => Object.assign(new SeasonSettings(), {
     seasonID: 4, seasonName: 'Season 4', gameVersionID: 6, leagueID: 1,
     signupsOpen: t, signupsClose: t, draftStart: t, seasonStart: t, seasonEnd: t,
     ...overrides
   });
 
   beforeEach(async () => {
-    api = jasmine.createSpyObj('ApiClientService', ['getSeason', 'getSeasons', 'upsertSeason', 'getGameVersions', 'getLeagues']);
-    api.getGameVersions.and.returnValue(of([{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]));
-    api.getLeagues.and.returnValue(of([{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'GWL' }]));
+    eventOrganizer = jasmine.createSpyObj<EventOrganizerService>('EventOrganizerService', ['getGameVersions', 'getLeagues']);
+    api = jasmine.createSpyObj<SeasonSettingsApiService>('SeasonSettingsApiService', ['getSeason', 'getSeasons', 'upsertSeason']);
+    eventOrganizer.getGameVersions.and.returnValue(of([{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]));
+    eventOrganizer.getLeagues.and.returnValue(of([{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'GWL' }]));
     api.getSeason.and.returnValue(of(season()));
     api.getSeasons.and.returnValue(of([season({ seasonID: 3, seasonName: 'Season 3' }), season()]));
 
@@ -31,7 +34,8 @@ describe('SeasonEditComponent', () => {
       providers: [
         provideRouter([]),
         provideLuxonDatetimeAdapter(),
-        { provide: ApiClientService, useValue: api },
+        { provide: EventOrganizerService, useValue: eventOrganizer },
+        { provide: SeasonSettingsApiService, useValue: api },
       ]
     }).compileComponents();
 
@@ -130,7 +134,7 @@ describe('SeasonEditComponent', () => {
   });
 
   it('fills the form once the season arrives, without a manual detectChanges', async () => {
-    const loaded = new Subject<SeasonDto>();
+    const loaded = new Subject<SeasonSettings>();
     api.getSeason.and.returnValue(loaded);
     await fixture.whenStable();
     expect(el().textContent).not.toContain('Edit Availability');
@@ -233,7 +237,7 @@ describe('SeasonEditComponent', () => {
   });
 
   it('empties the form for a new season, and drops the previous season when it arrives late', async () => {
-    const late = new Subject<SeasonDto>();
+    const late = new Subject<SeasonSettings>();
     api.getSeason.and.returnValue(late);
     await render();
 
@@ -323,8 +327,8 @@ describe('SeasonEditComponent', () => {
 
     it('still works when the games and leagues fail to load', async () => {
       const err = spyOn(console, 'error');
-      api.getGameVersions.and.returnValue(throwError(() => 'no games'));
-      api.getLeagues.and.returnValue(throwError(() => 'no leagues'));
+      eventOrganizer.getGameVersions.and.returnValue(throwError(() => 'no games'));
+      eventOrganizer.getLeagues.and.returnValue(throwError(() => 'no leagues'));
       await render();
       expect(err).toHaveBeenCalledWith('no games');
       expect(err).toHaveBeenCalledWith('no leagues');

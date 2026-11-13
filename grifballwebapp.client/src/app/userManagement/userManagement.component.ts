@@ -6,12 +6,16 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { parseUser, UserResponseDto } from './userResponseDto';
+import type { UserResponseDto as ApiUserResponseDto } from '@api/models';
 import { ToDatePipe } from '../shared/toDate.pipe';
 import { Column, Filter, TableComponent } from '../shared/table/table.component';
+import { PaginationParams } from '../shared/getPaginationResource';
 import { SearchBoxComponent } from '../shared/searchBox/searchBox.component';
 import { AccountService } from '../account.service';
-import { GeneratePasswordResetLinkRequestDto } from '../api/dtos/passwordResetDtos';
+import type { GeneratePasswordResetLinkRequestDto } from '@api/models';
+import { apiSortDirection } from '../shared/apiSort';
 import { errorText } from '../shared/errorText';
+import { UserManagementService } from '@api/services/user-management.service';
 
 @Component({
     selector: 'app-user-management',
@@ -32,11 +36,19 @@ import { errorText } from '../shared/errorText';
 export class UserManagementComponent {
   private accountService = inject(AccountService);
   private snackBar = inject(MatSnackBar);
+  private userManagement = inject(UserManagementService);
 
   public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'actions'];
-  url = '/api/users';
+  readonly request = (params: PaginationParams) => this.userManagement.getUsers({
+    pageNumber: params.pageNumber,
+    pageSize: params.pageSize,
+    sortDirection: apiSortDirection(params.sortDirection),
+    sortColumn: params.sortColumn,
+    search: params.filters?.find(f => f.column === 'search')?.value?.toString(),
+  });
   // Rows of the user list are never null (PaginationResult<UserResponseDto> on the server).
-  readonly parseUser = (row: unknown) => parseUser(row)!;
+  // A row of the users page (GET /api/users)
+  readonly parseUser = (row: unknown) => parseUser(row as ApiUserResponseDto)!;
 
   filter = signal<string>('');
   filters = computed<Filter[]>(() => {

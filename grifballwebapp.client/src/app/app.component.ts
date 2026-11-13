@@ -6,7 +6,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { SideBarDto } from './sidebarDto';
 import { AccountService } from './account.service';
-import { ApiClientService } from './api/apiClient.service';
+import { SeasonService } from '@api/services/season.service';
 import { ThemingService } from './theming.service';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -36,7 +36,7 @@ export const NAV_LINK_GAP = 4;
 })
 export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
   accountService = inject(AccountService);
-  api = inject(ApiClientService);
+  private seasons = inject(SeasonService);
   private themingService = inject(ThemingService);
   /** In a browser, not rendering on the server: the window, its size and the theme are only there. */
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
@@ -109,7 +109,7 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
   }
 
   ngOnInit(): void {
-    this.api.getCurrentSeasonID().subscribe({
+    this.seasons.getCurrentSeasonId().subscribe({
       next: (result) => {
         if (result == 0) return;
         const sideBarDto = {

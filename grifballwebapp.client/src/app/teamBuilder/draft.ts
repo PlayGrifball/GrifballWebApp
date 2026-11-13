@@ -1,5 +1,5 @@
-import { PlayerDto } from '../api/dtos/playerDto';
-import { TeamResponseDto } from '../api/dtos/teamResponseDto';
+import type { TeamsPlayerDto } from '@api/models';
+import type { TeamResponseDto } from '@api/models';
 
 /**
  * The team builder's state: the teams (in pick order) and the undrafted player pool.
@@ -17,14 +17,14 @@ import { TeamResponseDto } from '../api/dtos/teamResponseDto';
  */
 export interface Draft {
   teams: TeamResponseDto[];
-  pool: PlayerDto[];
+  pool: TeamsPlayerDto[];
 }
 
 const insertAt = <T>(list: T[], index: number, ...items: T[]): T[] => [...list.slice(0, index), ...items, ...list.slice(index)];
 const removeAt = <T>(list: T[], index: number): T[] => [...list.slice(0, index), ...list.slice(index + 1)];
 const teamIndex = (teams: TeamResponseDto[], captainID: number) => teams.findIndex(t => t.captain.personID === captainID);
-const playerIndex = (players: PlayerDto[], personID: number) => players.findIndex(p => p.personID === personID);
-const undrafted = (player: PlayerDto): PlayerDto => ({ ...player, round: null, pick: null });
+const playerIndex = (players: TeamsPlayerDto[], personID: number) => players.findIndex(p => p.personID === personID);
+const undrafted = (player: TeamsPlayerDto): TeamsPlayerDto => ({ ...player, round: null, pick: null });
 
 /** Captain order follows the team's position (1-based). */
 function renumberCaptains(teams: TeamResponseDto[]): TeamResponseDto[] {
@@ -32,7 +32,7 @@ function renumberCaptains(teams: TeamResponseDto[]): TeamResponseDto[] {
 }
 
 /** A player's round follows their position on the team (1-based). */
-function withPlayers(team: TeamResponseDto, players: PlayerDto[]): TeamResponseDto {
+function withPlayers(team: TeamResponseDto, players: TeamsPlayerDto[]): TeamResponseDto {
   return { ...team, players: players.map((p, i) => p.round === i + 1 ? p : { ...p, round: i + 1 }) };
 }
 
@@ -46,7 +46,7 @@ export function addCaptain(draft: Draft, personID: number, teamName: string, cap
   const from = playerIndex(draft.pool, personID);
   if (from === -1)
     return null;
-  const team: TeamResponseDto = { teamID, teamName, captain: { name: captainName, personID, order }, players: [] };
+  const team: TeamResponseDto = { teamID, teamName, captain: { name: captainName, personID, order, region: null }, players: [] };
   return { teams: renumberCaptains(insertAt(draft.teams, order - 1, team)), pool: removeAt(draft.pool, from) };
 }
 
@@ -79,7 +79,7 @@ export function removeCaptain(draft: Draft, personID: number, poolIndex = 0): Dr
   if (from === -1)
     return null;
   const team = draft.teams[from];
-  const captain: PlayerDto = { name: team.captain.name, personID: team.captain.personID, pick: null, round: null };
+  const captain: TeamsPlayerDto = { name: team.captain.name, personID: team.captain.personID, pick: null, round: null, region: null };
   const returned = [...team.players.map(undrafted).reverse(), captain];
   return { teams: renumberCaptains(removeAt(draft.teams, from)), pool: insertAt(draft.pool, poolIndex, ...returned) };
 }

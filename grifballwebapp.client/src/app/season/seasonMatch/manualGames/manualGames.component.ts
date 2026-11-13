@@ -1,4 +1,4 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,10 +7,12 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { DateTime } from 'luxon';
-import { ApiClientService } from '../../../api/apiClient.service';
-import { GameVersionDto } from '../../../api/dtos/optionDtos';
+import { Observable } from 'rxjs';
+import { EventOrganizerService } from '@api/services/event-organizer.service';
+import { SeasonMatchService } from '@api/services/season-match.service';
+import type { GameVersionOptionDto } from '@api/models';
 import { errorText } from '../../../shared/errorText';
-import { PlayerDto } from '../../team/team.component';
+import type { TeamPagePlayerDto } from '@api/models';
 import { ManualGameRequestDto, ReportedGameDto, SeasonMatchGameParticipantDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
 
 /** Halo Infinite (seeded): what a game is entered as unless the commissioner picks another. */
@@ -114,14 +116,14 @@ const IDLE: ManualGamesMode = { kind: 'idle' };
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ManualGamesComponent {
-  private readonly http = inject(HttpClient);
-  private readonly api = inject(ApiClientService);
+  private readonly eventOrganizer = inject(EventOrganizerService);
+  private readonly seasonMatch = inject(SeasonMatchService);
 
   readonly seasonMatchID = input.required<number>();
   /** The match, null while the page loads. */
   readonly match = input<SeasonMatchPageDto | null>(null);
-  readonly homeRoster = input<PlayerDto[]>([]);
-  readonly awayRoster = input<PlayerDto[]>([]);
+  readonly homeRoster = input<TeamPagePlayerDto[]>([]);
+  readonly awayRoster = input<TeamPagePlayerDto[]>([]);
   /** The user is a commissioner: may enter, edit and delete games. */
   readonly canEdit = input(false);
   /** The page is sending a report or an action of its own: nothing starts or is sent here meanwhile. */
@@ -132,7 +134,7 @@ export class ManualGamesComponent {
   /** A game was added, changed or deleted: the page reloads the match. */
   readonly changed = output<void>();
 
-  readonly gameVersions = signal<GameVersionDto[]>([]);
+  readonly gameVersions = signal<GameVersionOptionDto[]>([]);
 
   /** What manual entry is doing (see {@link ManualGamesMode}). Changed only by the methods below. */
   private readonly _mode = signal<ManualGamesMode>(IDLE);
@@ -187,7 +189,7 @@ export class ManualGamesComponent {
       if (!this.canManage() || this.versionsRequested)
         return;
       this.versionsRequested = true;
-      this.api.getGameVersions().subscribe({
+      this.eventOrganizer.getGameVersions().subscribe({
         next: versions => this.gameVersions.set(versions ?? []),
         error: () => this.gameVersions.set([]),
       });
@@ -245,11 +247,11 @@ export class ManualGamesComponent {
     if (mode.kind !== 'entering' || !this.formValid())
       return;
     const editing = mode.target;
-    const body = editing === 'new' ? toRequest(this.form) : { ...toRequest(this.form), replacesSeriesGameID: null };
-    const url = editing === 'new'
-      ? `/api/season-matches/${this.seasonMatchID()}/manual-games`
-      : `/api/season-matches/${this.seasonMatchID()}/manual-games/${editing}`;
-    this.send(mode, url, body);
+    const seasonMatchID = this.seasonMatchID();
+    const request = editing === 'new'
+      ? this.seasonMatch.addManualGame({ seasonMatchID, body: toRequest(this.form) })
+      : this.seasonMatch.editManualGame({ seasonMatchID, recordedGameID: editing, body: { ...toRequest(this.form), replacesSeriesGameID: null } });
+    this.send(mode, request);
   }
 
   /** Asks to confirm unreporting a game of the series. */
@@ -265,16 +267,16 @@ export class ManualGamesComponent {
     const mode = this.mode();
     if (mode.kind !== 'confirmDelete')
       return;
-    this.send(mode, `/api/season-matches/${this.seasonMatchID()}/games/${mode.game.seriesGameID}/remove`, null);
+    this.send(mode, this.seasonMatch.removeGame({ seasonMatchID: this.seasonMatchID(), seriesGameID: mode.game.seriesGameID }));
   }
 
   /** Sends what is shown: done, manual entry is idle and the page reloads; refused, it is shown again with why. */
-  private send(from: Entering | ConfirmingDelete, url: string, body: unknown): void {
+  private send(from: Entering | ConfirmingDelete, request: Observable<unknown>): void {
     if (this.blocked())
       return;
     this._mode.set({ kind: 'saving', from });
     this.error.set(null);
-    this.http.post(url, body).subscribe({
+    request.subscribe({
       next: () => {
         this._mode.set(IDLE);
         this.changed.emit();
@@ -304,7 +306,7 @@ export class ManualGamesComponent {
       ...(game?.homePlayers ?? []).filter(p => p.userID != null).map(p => [p.userID!, line(p, true)] as const),
       ...(game?.awayPlayers ?? []).filter(p => p.userID != null).map(p => [p.userID!, line(p, false)] as const),
     ]);
-    const roster = (players: PlayerDto[], isHomeTeam: boolean): PlayerLine[] => players.map(p => {
+    const roster = (players: TeamPagePlayerDto[], isHomeTeam: boolean): PlayerLine[] => players.map(p => {
       const entry = entered.get(p.userID);
       entered.delete(p.userID);
       return entry

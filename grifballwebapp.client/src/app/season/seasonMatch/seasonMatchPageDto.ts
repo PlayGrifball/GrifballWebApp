@@ -101,7 +101,7 @@ export interface ManualGameRequestDto {
   awayTeamScore: number,
   players: ManualGamePlayerRequestDto[],
   /** The game of the series this one replaces, as the commissioner picked it; null for a new game. */
-  replacesSeriesGameID?: number | null,
+  replacesSeriesGameID: number | null,
 }
 
 export interface ManualGamePlayerRequestDto {

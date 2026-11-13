@@ -71,7 +71,6 @@ describe('SignupFormComponent', () => {
     httpMock.expectOne('/api/seasons/5/signups/mine?offset=0').flush(null);
     // The model is reset for a new signup; timeslots have not arrived yet.
     expect(() => fixture.detectChanges()).not.toThrow();
-    expect(component.model().seasonID).toBe(5);
     expect(component.model().timeslots).toEqual([]);
 
     httpMock.expectOne('/api/seasons/5/signups/mine/timeslots?offset=0').flush(timeslots());
@@ -191,7 +190,7 @@ describe('SignupFormComponent', () => {
     httpMock.expectOne('/api/seasons/6/name').flush('Spring');
     fixture.detectChanges();
 
-    expect(component.model().seasonID).toBe(6);
+    expect(component.seasonID()).toBe(6);
     expect(component.model().willCaptain).toBeFalsy();
     expect(component.model().timeslots).toHaveSize(3);
     expect(component.seasonName()).toBe('Spring');
@@ -325,6 +324,13 @@ describe('SignupFormComponent', () => {
   describe('onSubmit', () => {
     // signupForm is a viewChild() signal; swap it for one that returns a stand-in form.
     const stubForm = (valid: boolean) => (component as any).signupForm = () => ({ valid });
+    /** The page on season 5 (the route's), its loads answered: no signup yet. */
+    const onSeason5 = () => {
+      fixture.componentRef.setInput('seasonID', 5);
+      fixture.detectChanges();
+      for (let round = 0; round < 2; round++)
+        httpMock.match(r => r.method === 'GET').forEach(r => r.flush(null));
+    };
 
     beforeEach(() => {
       setup(null);
@@ -339,18 +345,21 @@ describe('SignupFormComponent', () => {
 
     it('submits the signup and confirms it', () => {
       stubForm(true);
-      component.model.update(model => ({ ...model, seasonID: 5, teamName: 'Reds' }));
+      onSeason5();
+      component.model.update(model => ({ ...model, teamName: 'Reds' }));
       component.onSubmit();
 
       const req = httpMock.expectOne('/api/seasons/5/signups/mine');
-      expect(req.request.body).toEqual(jasmine.objectContaining({ seasonID: 5, teamName: 'Reds' }));
+      expect(req.request.body).toEqual(jasmine.objectContaining({ teamName: 'Reds' }));
+      // Whose and which season are the server's: the route's, the signed-in player
+      expect(req.request.body.seasonID).toBeUndefined();
       req.flush({});
       expect(snackBar.open).toHaveBeenCalledWith('Signup Submitted', 'OK');
     });
 
     it('reports a failed submission', () => {
       stubForm(true);
-      component.model.update(model => ({ ...model, seasonID: 5 }));
+      onSeason5();
       spyOn(console, 'log');
       component.onSubmit();
 

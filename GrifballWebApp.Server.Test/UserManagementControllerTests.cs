@@ -117,16 +117,27 @@ public class UserManagementControllerTests
         Assert.That(result.AssertProblem(StatusCodes.Status400BadRequest).Detail, Is.EqualTo("Failed to set username"));
     }
 
+    /// <summary>The merge page's choices: everything moved, the source deleted, Xbox's left behind.</summary>
+    private static MergeTransfers Transfers() => new()
+    {
+        TransferDiscord = true, TransferLogins = true, TransferXbox = false, TransferTeamPlayers = true,
+        TransferExperiences = true, TransferSignups = true, DeleteMergeFrom = true,
+    };
+
     [Test]
     public async Task MergeUser_CallsMergeServiceWithIdsAndOptions()
     {
-        var options = new MergeOptions();
-        var req = new MergeRequest { MergeToId = 1, MergeFromId = 2, MergeOptions = options };
+        var req = new MergeRequest { MergeToId = 1, MergeFromId = 2, MergeOptions = Transfers() };
 
         var result = await _controller.MergeUser(req, CancellationToken.None);
 
         Assert.That(result, Is.TypeOf<NoContentResult>());
-        await _mergeService.Received(1).Merge(1, 2, options, Arg.Any<CancellationToken>());
+        // The page's transfers, the rest the server's: a manual merge by the signed-in user, stats and titles moved
+        await _mergeService.Received(1).Merge(1, 2, Arg.Is<MergeOptions>(o =>
+            o.TransferDiscord && o.TransferLogins && !o.TransferXbox && o.TransferTeamPlayers && o.TransferExperiences && o.TransferSignups
+            && o.DeleteMergeFrom && o.TransferSeasonStats && o.TransferChampionships
+            && o.Trigger == GrifballWebApp.Domain.Players.MergeTrigger.Manual && o.TriggeredByUserID == null && o.Reason == null),
+            Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -134,7 +145,7 @@ public class UserManagementControllerTests
     {
         // A second click after the first merge deleted the source used to surface as a 500.
         _mergeService.Merge(1, 2, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(Task.FromException(new UserNotFoundException(2)));
-        var req = new MergeRequest { MergeToId = 1, MergeFromId = 2, MergeOptions = new MergeOptions() };
+        var req = new MergeRequest { MergeToId = 1, MergeFromId = 2, MergeOptions = Transfers() };
 
         var result = await _controller.MergeUser(req, CancellationToken.None);
 
@@ -149,7 +160,7 @@ public class UserManagementControllerTests
     public async Task MergeUser_InvalidRequest_ReturnsBadRequest()
     {
         _mergeService.Merge(1, 1, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(Task.FromException(new ArgumentException("Cannot merge a user into itself")));
-        var req = new MergeRequest { MergeToId = 1, MergeFromId = 1, MergeOptions = new MergeOptions() };
+        var req = new MergeRequest { MergeToId = 1, MergeFromId = 1, MergeOptions = Transfers() };
 
         var result = await _controller.MergeUser(req, CancellationToken.None);
 
@@ -160,7 +171,7 @@ public class UserManagementControllerTests
     public async Task MergeUser_Conflict_Returns409WithTheReason()
     {
         _mergeService.Merge(1, 2, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(Task.FromException(new MergeConflictException("Both users are on different teams in season S1.")));
-        var req = new MergeRequest { MergeToId = 1, MergeFromId = 2, MergeOptions = new MergeOptions() };
+        var req = new MergeRequest { MergeToId = 1, MergeFromId = 2, MergeOptions = Transfers() };
 
         var result = await _controller.MergeUser(req, CancellationToken.None);
 
@@ -171,7 +182,7 @@ public class UserManagementControllerTests
     public async Task MergeUser_DatabaseRefusesIt_Returns409()
     {
         _mergeService.Merge(1, 2, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(Task.FromException(new Microsoft.EntityFrameworkCore.DbUpdateException("unique index")));
-        var req = new MergeRequest { MergeToId = 1, MergeFromId = 2, MergeOptions = new MergeOptions() };
+        var req = new MergeRequest { MergeToId = 1, MergeFromId = 2, MergeOptions = Transfers() };
 
         var result = await _controller.MergeUser(req, CancellationToken.None);
 

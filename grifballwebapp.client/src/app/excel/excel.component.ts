@@ -1,6 +1,7 @@
-import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, input, OnInit, signal, inject } from '@angular/core';
 import { ExcelFormComponent } from './excelForm/excelForm.component';
+import { ExcelService } from '@api/services/excel.service';
+import type { SheetDto } from '@api/models';
 
 @Component({
   selector: 'app-excel',
@@ -12,13 +13,13 @@ import { ExcelFormComponent } from './excelForm/excelForm.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExcelComponent implements OnInit {
-  private httpClient = inject(HttpClient);
+  private excel = inject(ExcelService);
 
 
   inputSpreadsheetId = input<string>('');
   inputSheetName = input<string>('');
   
-  sheetInfo = signal<SheetInfo[]>([]);
+  sheetInfo = signal<SheetDto[]>([]);
 
   ngOnInit(): void {
 
@@ -26,10 +27,10 @@ export class ExcelComponent implements OnInit {
       this.sheetInfo.set([{
         name: '',
         spreadsheetID: this.inputSpreadsheetId(),
-        sheetName: this.inputSheetName()
+        sheetName: this.inputSheetName(),
       }]);
     } else {
-      this.httpClient.get<SheetInfo[]>('/api/sheets/default')
+      this.excel.defaultSheetInfo()
       .subscribe({
         next: (v) => {
           this.sheetInfo.set(v);
@@ -38,11 +39,4 @@ export class ExcelComponent implements OnInit {
     }
   }
 
-}
-
-export interface SheetInfo
-{
-  name: string,
-  spreadsheetID: string,
-  sheetName: string,
 }

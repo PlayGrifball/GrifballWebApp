@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { missing, SeasonSummaryService } from './seasonSummary';
-import { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
+import type { SeasonSummaryDto } from '@api/models';
 
 describe('SeasonSummaryService', () => {
   let service: SeasonSummaryService;

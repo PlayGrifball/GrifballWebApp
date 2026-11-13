@@ -5,10 +5,10 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
-import { ApiClientService } from '../../api/apiClient.service';
-import {
-  GAMERTAG_CLAIM_STATUSES, type DuplicateSuggestionDto, type GamertagClaimDto, type GamertagClaimKind, type GamertagClaimStatus,
-} from '../../api/dtos/gamertagClaimDto';
+import { GamertagClaimsService } from '@api/services/gamertag-claims.service';
+import { GAMERTAG_CLAIM_STATUS } from '@api/models/gamertag-claim-status-array';
+import type { DuplicateSuggestionDto, GamertagClaimDto, GamertagClaimStatus } from '@api/models';
+import type { GamertagClaimKind } from '../../api/gamertagClaims';
 import { problemText } from '../../shared/errorText';
 import { SeasonLinksComponent } from '../../shared/seasonLinks/seasonLinks.component';
 
@@ -17,13 +17,14 @@ export { problemText };
 
 type Decision = 'approve' | 'reject';
 
-const KIND_LABELS: Record<GamertagClaimKind, string> = {
+// Every GamertagClaimKind labelled; looked up by the API's kind (a string)
+const KIND_LABELS: Readonly<Record<string, string>> = {
   RosterMatch: 'Roster match',
   SetGamertag: 'Set gamertag',
   XuidLookup: 'Xbox lookup',
   UserClaim: 'User claim',
   DiscordMatch: 'Discord match',
-};
+} satisfies Record<GamertagClaimKind, string>;
 
 /** What the snack bar says for each decision. */
 const DECISIONS: Record<Decision, { done: string, failed: string }> = {
@@ -43,16 +44,16 @@ const DECISIONS: Record<Decision, { done: string, failed: string }> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GamertagClaimsComponent {
-  private api = inject(ApiClientService);
+  private api = inject(GamertagClaimsService);
   private snackBar = inject(MatSnackBar);
 
-  readonly statuses = GAMERTAG_CLAIM_STATUSES;
+  readonly statuses = GAMERTAG_CLAIM_STATUS;
   readonly kindLabels = KIND_LABELS;
   readonly status = signal<GamertagClaimStatus>('Pending');
 
   readonly claims = rxResource({
     params: () => this.status(),
-    stream: ({ params }) => this.api.getGamertagClaims(params),
+    stream: ({ params }) => this.api.getGamertagClaims({ status: params }),
   });
 
   /** The claims with the chosen status (none while they load, or if they could not be loaded). */
@@ -93,7 +94,7 @@ export class GamertagClaimsComponent {
   }
 
   approve(claim: GamertagClaimDto): void {
-    this.decide(claim, 'approve', this.api.approveGamertagClaim(claim.gamertagClaimID));
+    this.decide(claim, 'approve', this.api.approveGamertagClaim({ claimID: claim.gamertagClaimID }));
   }
 
   /** Each pending claim's rejection reason as typed (shown to the claimant); empty sends none. */
@@ -104,7 +105,7 @@ export class GamertagClaimsComponent {
 
   reject(claim: GamertagClaimDto): void {
     const reason = this.reasons()[claim.gamertagClaimID]?.trim() || null;
-    this.decide(claim, 'reject', this.api.rejectGamertagClaim(claim.gamertagClaimID, reason));
+    this.decide(claim, 'reject', this.api.rejectGamertagClaim({ claimID: claim.gamertagClaimID, body: { reason } }));
   }
 
   /** The claim is about a user (their own claim, or a Discord match) rather than an Xbox account. */
@@ -143,12 +144,12 @@ export class GamertagClaimsComponent {
   }
 
   mergeDuplicate(pair: DuplicateSuggestionDto): void {
-    this.decidePair(pair, this.api.mergeDuplicate(pair.sourceUserID, pair.targetUserID),
+    this.decidePair(pair, this.api.mergeDuplicate({ body: { sourceUserID: pair.sourceUserID, targetUserID: pair.targetUserID } }),
       `Merged ${pair.sourceGamertag} into ${pair.targetGamertag}.`, `Couldn't merge ${pair.sourceGamertag}.`);
   }
 
   dismissDuplicate(pair: DuplicateSuggestionDto): void {
-    this.decidePair(pair, this.api.dismissDuplicate(pair.sourceUserID, pair.targetUserID),
+    this.decidePair(pair, this.api.dismissDuplicate({ body: { sourceUserID: pair.sourceUserID, targetUserID: pair.targetUserID } }),
       `Dismissed ${pair.sourceGamertag} and ${pair.targetGamertag}.`, `Couldn't dismiss ${pair.sourceGamertag}.`);
   }
 

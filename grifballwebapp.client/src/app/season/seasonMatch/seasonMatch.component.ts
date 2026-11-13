@@ -1,5 +1,5 @@
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, Injector, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, PLATFORM_ID, inject, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterModule } from '@angular/router';
@@ -12,28 +12,24 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { RegexMatchValidValidatorDirective } from '../../validation/directives/regexMatchValidValidatorDirective.directive';
-import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
+import type { PossibleMatchDto, PossiblePlayerDto } from '@api/models';
 import { MatTableModule } from '@angular/material/table';
 import { AccountService } from '../../account.service';
-import { map, Subscription, switchMap, takeWhile, timer } from 'rxjs';
-import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
+import { map, Observable, Subscription, switchMap, takeWhile, timer } from 'rxjs';
+import type { OnDemandJobStatusDto } from '@api/models';
 import { nullWhenNotFound } from '../../api/nullWhenNotFound';
+import { SeasonMatchService } from '@api/services/season-match.service';
+import { TeamService } from '@api/services/team.service';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
 import { errorText } from '../../shared/errorText';
-import { PlayerDto, TeamDto } from '../team/team.component';
+import type { TeamPagePlayerDto } from '@api/models';
 import { provideDatePickers } from '../../shared/datePickers';
 import { VodListComponent } from '../../shared/vodList/vodList.component';
 import { GameSlot, ManualGamesComponent, slotChoices } from './manualGames/manualGames.component';
 
 /** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
 export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
-
-/** What confirming each action does. */
-/** Each action's path under its season match. */
-const ACTION_PATHS: Record<MatchAction, string> = {
-  HomeForfeit: 'forfeit/home', AwayForfeit: 'forfeit/away', DoubleForfeit: 'forfeit/double', UndoResult: 'result/undo',
-};
 
 export const actionPrompts: Record<MatchAction, string> = {
   HomeForfeit: 'The home team forfeits and the away team wins.',
@@ -83,7 +79,8 @@ export const PULL_POLL_MS = 3000;
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonMatchComponent {
-  private http = inject(HttpClient);
+  private seasonMatchService = inject(SeasonMatchService);
+  private teamService = inject(TeamService);
   accountService = inject(AccountService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly destroyRef = inject(DestroyRef);
@@ -245,7 +242,7 @@ export class SeasonMatchComponent {
     roster.set({ teamID, players: teamID === null ? [] : null });
     if (teamID === null)
       return;
-    this.http.get<TeamDto>(`/api/teams/${teamID}`).pipe(nullWhenNotFound())
+    this.teamService.team({ teamID }).pipe(nullWhenNotFound())
       .subscribe({
         next: team => roster.set({ teamID, players: team?.players ?? [] }),
         error: () => roster.set({ teamID, players: [] }),
@@ -254,7 +251,7 @@ export class SeasonMatchComponent {
 
   /** Loads the match; the subscription ends once it is in (or failed). */
   getPageDto(): Subscription {
-    return this.http.get<unknown>(`/api/season-matches/${this.seasonMatchID()}`)
+    return this.seasonMatchService.getSeasonMatchPage({ seasonMatchID: this.seasonMatchID() })
       .pipe(map(parseSeasonMatchPage))
       .subscribe({
         next: result => {
@@ -276,7 +273,7 @@ export class SeasonMatchComponent {
     this.possibleMatchesState.set('loading');
     if (!this.isBrowser)
       return;
-    this.http.get<PossibleMatchDto[]>(`/api/season-matches/${this.seasonMatchID()}/possible-matches`)
+    this.seasonMatchService.getPossibleMatches({ seasonMatchID: this.seasonMatchID() })
       .subscribe({
         next: result => {
           this.possibleMatches.set(result ?? []);
@@ -296,7 +293,7 @@ export class SeasonMatchComponent {
     this.pullError.set(null);
     if (!this.isBrowser)
       return;
-    this.http.get<OnDemandJobStatusDto>(`/api/season-matches/${this.seasonMatchID()}/match-pull`)
+    this.seasonMatchService.getMatchPullStatus({ seasonMatchID: this.seasonMatchID() })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: status => this.showPull(status),
@@ -310,8 +307,7 @@ export class SeasonMatchComponent {
    */
   pullMatches(backToSeasonStart = false): void {
     this.pullError.set(null);
-    const query = backToSeasonStart ? '?backToSeasonStart=true' : '';
-    this.http.post<OnDemandJobStatusDto>(`/api/season-matches/${this.seasonMatchID()}/match-pull${query}`, null)
+    this.seasonMatchService.pullMatches({ seasonMatchID: this.seasonMatchID(), backToSeasonStart: backToSeasonStart || undefined })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: status => this.showPull(status),
@@ -326,7 +322,7 @@ export class SeasonMatchComponent {
     // Look again every few seconds until it's done, then read the games it found
     this.pullWatch?.unsubscribe();
     this.pullWatch = timer(PULL_POLL_MS, PULL_POLL_MS).pipe(
-      switchMap(() => this.http.get<OnDemandJobStatusDto>(`/api/season-matches/${this.seasonMatchID()}/match-pull`)),
+      switchMap(() => this.seasonMatchService.getMatchPullStatus({ seasonMatchID: this.seasonMatchID() })),
       takeWhile(next => next.state !== 'Idle', true),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({
@@ -350,7 +346,7 @@ export class SeasonMatchComponent {
       this.returnFocus = () => opener;
       return;
     }
-    this.send(`/api/season-matches/${this.seasonMatchID()}/games/${matchID}/report`);
+    this.send(this.seasonMatchService.reportMatch({ seasonMatchID: this.seasonMatchID(), matchID }));
   }
 
   /** Reports the Waypoint game waiting to be placed, where the commissioner said it goes. */
@@ -358,8 +354,8 @@ export class SeasonMatchComponent {
     const mode = this.mode();
     if (mode.kind !== 'placeReport')
       return;
-    const replaces = typeof slot === 'number' ? '?replaces=' + slot : '';
-    this.send(`/api/season-matches/${this.seasonMatchID()}/games/${mode.matchID}/report${replaces}`);
+    const replaces = typeof slot === 'number' ? slot : undefined;
+    this.send(this.seasonMatchService.reportMatch({ seasonMatchID: this.seasonMatchID(), matchID: mode.matchID, replaces }));
   }
 
   /** Asks the commissioner to confirm an action before it is sent; a game waiting to be placed is dropped. */
@@ -386,7 +382,18 @@ export class SeasonMatchComponent {
     const action = this.confirming();
     if (action === null)
       return;
-    this.send(`/api/season-matches/${this.seasonMatchID()}/${ACTION_PATHS[action]}`);
+    this.send(this.actionCall(action));
+  }
+
+  /** The generated service call for a commissioner action, each a POST to the endpoint of the same name. */
+  private actionCall(action: MatchAction): Observable<void> {
+    const seasonMatchID = this.seasonMatchID();
+    switch (action) {
+      case 'HomeForfeit': return this.seasonMatchService.homeForfeit({ seasonMatchID });
+      case 'AwayForfeit': return this.seasonMatchService.awayForfeit({ seasonMatchID });
+      case 'DoubleForfeit': return this.seasonMatchService.doubleForfeit({ seasonMatchID });
+      case 'UndoResult': return this.seasonMatchService.undoResult({ seasonMatchID });
+    }
   }
 
   /**
@@ -416,7 +423,7 @@ export class SeasonMatchComponent {
    * no tool is offered against the match as it was. A refusal says why. Nothing while manual entry is saving. Focus
    * goes to the section's heading, as the panel or button that sent it is gone or waits.
    */
-  private send(url: string): void {
+  private send(call: Observable<void>): void {
     if (this.busy())
       return;
     this.manualGames().cancel();
@@ -424,7 +431,7 @@ export class SeasonMatchComponent {
     this.returnFocus = null;
     this.focusAfterRender();
     this.actionError.set(null);
-    this.http.post<string>(url, null)
+    call
       .subscribe({
         error: (e: HttpErrorResponse) => this.actionError.set(errorText(e, 'The server could not do that.')),
       }).add(() => this.getPageDto().add(() => this._mode.set(IDLE)));
@@ -452,7 +459,7 @@ export class SeasonMatchComponent {
 /** A side's players and the team they were loaded for; players is null while loading. */
 interface Roster {
   teamID: number | null,
-  players: PlayerDto[] | null,
+  players: TeamPagePlayerDto[] | null,
 }
 
 /** The roster of this team has arrived. */

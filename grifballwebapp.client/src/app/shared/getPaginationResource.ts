@@ -1,21 +1,35 @@
-import { httpResource, HttpResourceRef } from "@angular/common/http";
+import { map, Observable } from "rxjs";
+import { rxResource } from "@angular/core/rxjs-interop";
 import { PaginationResult } from "./paginationResult";
-import { linkedSignal } from "@angular/core";
+import { linkedSignal, ResourceRef } from "@angular/core";
 import { Filter } from "./table/table.component";
 
+/** One page's request, built from the table's own filter and whatever extra column filters it has. */
+export interface PaginationParams {
+    pageSize: number,
+    pageNumber: number,
+    sortDirection?: string,
+    sortColumn?: string,
+    filters?: Filter[],
+}
+
 export function getPaginationResource<T>(
-    url: () => string,
+    // Takes this page's request and returns the generated service call for it. Its rows are the raw,
+    // pre-parseRow shape (e.g. a generated model with dates as strings), hence any: parseRow below is
+    // what actually turns them into T, same as the raw JSON this used to parse directly.
+    request: (params: PaginationParams) => Observable<PaginationResult<any>>,
     paginationFilter: PaginationFilter,
     additionalFilters?: () => Filter[] | undefined,
     // Turns each row from its JSON form (e.g. dates as strings) into a T; rows are used as
     // they are when it is missing or returns undefined.
     parseRow?: () => ((row: any) => T) | undefined,
 ) {
-    const resource = httpResource<PaginationResult<T>>(
-        () => {
-            const x = new URLSearchParams(); // HttpParams vs URLSearchParams?
-            x.set('pageSize', paginationFilter.pageSize().toString());
-            x.set('pageNumber', paginationFilter.pageNumber().toString());
+    const resource = rxResource<PaginationResult<T>, PaginationParams>({
+        params: () => {
+            const params: PaginationParams = {
+                pageSize: paginationFilter.pageSize(),
+                pageNumber: paginationFilter.pageNumber(),
+            };
 
             // First check if the signals for sortDirection and sortColumn are defined
             if (paginationFilter.sortDirection && paginationFilter.sortColumn) {
@@ -23,36 +37,26 @@ export function getPaginationResource<T>(
                 const sortDirection = paginationFilter.sortDirection();
                 const sortColumn = paginationFilter.sortColumn();
                 if (sortDirection && sortColumn) {
-                    x.set('sortDirection', sortDirection);
-                    x.set('sortColumn', sortColumn);
+                    params.sortDirection = sortDirection;
+                    params.sortColumn = sortColumn;
                 }
             }
 
-            if (additionalFilters) {
-                const filters = additionalFilters();
-                if (filters) {
-                    for (const filter of filters) {
-                        if (filter.value) {
-                            x.set(filter.column, filter.value.toString());
-                        }
-                    }
-                }
-            }
-            
-            return `${url()}?${x}`;
+            const filters = additionalFilters?.()?.filter(f => !!f.value);
+            if (filters?.length)
+                params.filters = filters;
+
+            return params;
         },
-        {
-            defaultValue: PAGINATION_RESPONSE_DEFAULT,
-            parse: (raw: unknown) => {
-                const page = raw as PaginationResult<any>;
-                const parse = parseRow?.();
-                return parse ? { ...page, results: page.results.map(parse) } : page;
-            },
-        }
-    );
+        stream: ({ params }) => request(params).pipe(map(page => {
+            const parse = parseRow?.();
+            return parse ? { ...page, results: page.results.map(parse) } : page;
+        })),
+        defaultValue: PAGINATION_RESPONSE_DEFAULT,
+    });
 
     const current = linkedSignal<
-    HttpResourceRef<PaginationResult<T>>,
+    ResourceRef<PaginationResult<T>>,
     PaginationResult<T>
     >({
         source: () => resource,

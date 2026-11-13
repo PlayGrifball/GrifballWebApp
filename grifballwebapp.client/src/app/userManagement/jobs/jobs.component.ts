@@ -5,8 +5,9 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { Observable, repeat } from 'rxjs';
-import { ApiClientService } from '../../api/apiClient.service';
-import type { JobDto, JobKeyDto, JobState } from '../../api/dtos/jobsDto';
+import { JobsService } from '@api/services/jobs.service';
+import type { JobDto } from '@api/models';
+import { JobKey, JobState } from '../../api/jobs';
 import { problemText } from '../../shared/errorText';
 
 /** How often the jobs (and the chosen job's runs) are read again. */
@@ -46,7 +47,8 @@ export function durationText(ms: number): string {
   return intervalText(Math.round(ms / 1000));
 }
 
-const STATE_LABELS: Record<JobState, string> = { Scheduled: 'Scheduled', Paused: 'Paused', Off: 'Off', OnDemand: 'On demand', Error: 'Error', Blocked: 'Running' };
+// Every JobState labelled; looked up by the API's state (a string)
+const STATE_LABELS: Readonly<Record<string, string>> = { Scheduled: 'Scheduled', Paused: 'Paused', Off: 'Off', OnDemand: 'On demand', Error: 'Error', Blocked: 'Running' } satisfies Record<JobState, string>;
 
 /**
  * The background jobs (sysadmins): what the worker runs on a schedule, when each runs next and how its last runs went,
@@ -61,7 +63,7 @@ const STATE_LABELS: Record<JobState, string> = { Scheduled: 'Scheduled', Paused:
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class JobsComponent {
-  private api = inject(ApiClientService);
+  private api = inject(JobsService);
   private snackBar = inject(MatSnackBar);
 
   readonly intervalText = intervalText;
@@ -77,14 +79,14 @@ export class JobsComponent {
   readonly nodes = computed(() => this.overview.hasValue() ? this.overview.value().nodes : []);
 
   /** The job whose runs and schedule are shown. */
-  readonly selectedKey = signal<JobKeyDto | null>(null);
+  readonly selectedKey = signal<JobKey | null>(null);
   readonly selected = computed<JobDto | null>(() => {
     const key = this.selectedKey();
     return key ? this.jobs().find(j => j.group === key.group && j.name === key.name) ?? null : null;
   });
   readonly history = rxResource({
     params: () => this.selectedKey() ?? undefined,
-    stream: ({ params }) => this.api.getJobHistory(params).pipe(repeat({ delay: JOBS_POLL_MS })),
+    stream: ({ params }) => this.api.getJobHistory({ group: params.group, name: params.name, take: 50 }).pipe(repeat({ delay: JOBS_POLL_MS })),
   });
 
   constructor() {
@@ -135,24 +137,24 @@ export class JobsComponent {
   }
 
   run(job: JobDto): void {
-    this.act(this.api.runJob(job), `${job.displayName} will run in a few seconds.`, "Couldn't run the job.");
+    this.act(this.api.runJob({ group: job.group, name: job.name }), `${job.displayName} will run in a few seconds.`, "Couldn't run the job.");
   }
 
   setPaused(job: JobDto, paused: boolean): void {
-    this.act(this.api.setJobPaused(job, paused), paused ? `${job.displayName} is paused.` : `${job.displayName} is resumed.`, "Couldn't change the job.");
+    this.act(this.api.setJobPaused({ group: job.group, name: job.name, body: { paused } }), paused ? `${job.displayName} is paused.` : `${job.displayName} is resumed.`, "Couldn't change the job.");
   }
 
   saveInterval(job: JobDto): void {
     const seconds = this.intervalSeconds();
-    this.act(this.api.setJobInterval(job, seconds), `${job.displayName} runs every ${intervalText(seconds)}.`, "Couldn't change the schedule.");
+    this.act(this.api.setJobInterval({ group: job.group, name: job.name, body: { intervalSeconds: seconds } }), `${job.displayName} runs every ${intervalText(seconds)}.`, "Couldn't change the schedule.");
   }
 
   resetSchedule(job: JobDto): void {
-    this.act(this.api.resetJobSchedule(job), `${job.displayName} is back on its default schedule.`, "Couldn't reset the schedule.", () => this.editInterval(job.defaultIntervalSeconds ?? 60));
+    this.act(this.api.resetJobSchedule({ group: job.group, name: job.name }), `${job.displayName} is back on its default schedule.`, "Couldn't reset the schedule.", () => this.editInterval(job.defaultIntervalSeconds ?? 60));
   }
 
   interrupt(fireInstanceID: string): void {
-    this.act(this.api.interruptJob(fireInstanceID), 'Asked the run to stop.', "Couldn't stop the run.");
+    this.act(this.api.interruptJob({ fireInstanceID }), 'Asked the run to stop.', "Couldn't stop the run.");
   }
 
   private act(action: Observable<void>, done: string, failed: string, then?: () => void): void {

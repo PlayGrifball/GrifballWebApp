@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { finalize, Observable, share } from 'rxjs';
-import { ApiClientService } from '../api/apiClient.service';
-import type { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
+import { SeasonService } from '@api/services/season.service';
+import type { SeasonSummaryDto } from '@api/models';
 
 /**
  * Season summaries. Nothing is kept between pages, so a page always shows the season as it is now (after a result is
@@ -9,13 +9,13 @@ import type { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
  */
 @Injectable({ providedIn: 'root' })
 export class SeasonSummaryService {
-  private api = inject(ApiClientService);
+  private api = inject(SeasonService);
   private readonly inFlight = new Map<number, Observable<SeasonSummaryDto>>();
 
   get(seasonID: number): Observable<SeasonSummaryDto> {
     let summary = this.inFlight.get(seasonID);
     if (!summary) {
-      summary = this.api.getSeasonSummary(seasonID).pipe(
+      summary = this.api.getSeasonSummary({ seasonID }).pipe(
         // Done (or failed, or nobody is listening any more): the next page asks again
         finalize(() => this.inFlight.delete(seasonID)),
         // Shared while on its way only: nothing is replayed once it is done

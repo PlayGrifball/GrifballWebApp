@@ -1,5 +1,4 @@
 import { DatePipe } from '@angular/common';
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, computed, OnInit, signal, viewChild, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { MatPaginator } from '@angular/material/paginator';
@@ -10,9 +9,12 @@ import { combineLatest, Observable, of, switchMap, tap } from 'rxjs';
 import { PaginationResult } from '../shared/paginationResult';
 import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 import { pageNow } from '../shared/pageNow';
-import type { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
+import type { SeasonListItemDto } from '@api/models';
+import { apiSortDirection } from '../shared/apiSort';
 import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
 import { rowEnterAnimation } from '../shared/rowEnterAnimation';
+import { HomeService } from '@api/services/home.service';
+import { SeasonService } from '@api/services/season.service';
 
 @Component({
     selector: 'app-home',
@@ -34,7 +36,8 @@ import { rowEnterAnimation } from '../shared/rowEnterAnimation';
 export class HomeComponent implements OnInit {
   /** The rows' fade-in, once hydration is past (rowEnterAnimation) */
   readonly rowEnter = rowEnterAnimation();
-  private http = inject(HttpClient);
+  private home = inject(HomeService);
+  private seasonService = inject(SeasonService);
 
 
   private datePipe = new DatePipe('en-US');
@@ -113,18 +116,19 @@ export class HomeComponent implements OnInit {
   }
 
   getCurrentAndFutureEvents(): Observable<Event[]> {
-    return this.http.get<Event[]>('/api/events');
+    return this.home.currentAndFutureEvents();
   }
 
   getPastSeasons(pageSize: number, pageNumber: number, sortDirection: SortDirection | undefined, sortColumn: string | undefined): Observable<PaginationResult<SeasonListItemDto>> {
     // The season list's seasons that have ended (index.html fetches the first page early, with these parameters in this order)
-    let params = new HttpParams().set('ended', true).set('pageSize', pageSize).set('pageNumber', pageNumber);
-    if (sortColumn && sortDirection) {
-      params = params.set('sortDirection', sortDirection);
-      params = params.set('sortColumn', sortColumn);
-    }
-
-    return this.http.get<PaginationResult<SeasonListItemDto>>('/api/seasons', { params })
+    const sorted = !!(sortColumn && sortDirection);
+    return this.seasonService.getSeasonList({
+      ended: true,
+      pageNumber,
+      pageSize,
+      sortDirection: sorted ? apiSortDirection(sortDirection) : undefined,
+      sortColumn: sorted ? sortColumn : undefined,
+    })
     .pipe(
       tap((result) => {
       this.total.set(result.totalCount);

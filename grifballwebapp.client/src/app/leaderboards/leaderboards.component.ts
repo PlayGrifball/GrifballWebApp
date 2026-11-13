@@ -3,11 +3,13 @@ import { ChangeDetectionStrategy, Component, computed, inject, LOCALE_ID, OnInit
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, EMPTY, map, of, Subject, switchMap, tap } from 'rxjs';
-import { ApiClientService } from '../api/apiClient.service';
-import type { LeaderboardsDto, MetricLeaderDto } from '../api/dtos/leaderboardsDto';
-import type { PlayerAllTimeRankDto } from '../api/dtos/playerAllTimeRankDto';
-import type { QuickSearchPlayerDto } from '../api/dtos/quickSearchDto';
-import { seasonFormats, type SeasonFormat } from '../api/dtos/seasonFormat';
+import { LeaderboardsService } from '@api/services/leaderboards.service';
+import { nullWhenNotFound } from '../api/nullWhenNotFound';
+import type { LeaderboardsDto, MetricLeaderDto } from '@api/models';
+import type { PlayerAllTimeRankDto } from '@api/models';
+import type { QuickSearchPlayerDto } from '@api/models';
+import { seasonFormats } from '../api/seasonFormats';
+import type { SeasonFormat } from '@api/models';
 import type { Board } from './board';
 import { PlayerSearchComponent } from './player-search/player-search.component';
 import { PlayerSpotlightComponent } from './player-spotlight/player-spotlight.component';
@@ -35,7 +37,7 @@ interface Lookup { query: string, userId: number | null }
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LeaderboardsComponent implements OnInit {
-  private api = inject(ApiClientService);
+  private leaderboards = inject(LeaderboardsService);
   private locale = inject(LOCALE_ID);
 
   readonly boards = signal<LeaderboardsDto | null>(null);
@@ -93,7 +95,9 @@ export class LeaderboardsComponent implements OnInit {
         this.spotlightLoading.set(lookup != null);
         if (!lookup) this.spotlight.set(null);
       }),
-      switchMap(lookup => !lookup ? EMPTY : this.api.getPlayerRank(lookup.query, lookup.userId, this.format()).pipe(
+      switchMap(lookup => !lookup ? EMPTY : this.leaderboards.getPlayerRank({ query: lookup.query || undefined, userID: lookup.userId ?? undefined, format: this.format() ?? undefined })
+        .pipe(
+        nullWhenNotFound(), // 404: no player matches
         map(rank => ({ lookup, rank, failed: false })),
         catchError(() => of({ lookup, rank: null, failed: true })),
       )),
@@ -139,7 +143,7 @@ export class LeaderboardsComponent implements OnInit {
   }
 
   private load(): void {
-    this.api.getLeaderboards(this.format()).subscribe({
+    this.leaderboards.getLeaderboards({ format: this.format() ?? undefined }).subscribe({
       next: boards => {
         this.boards.set(boards);
         this.loaded.set(true);

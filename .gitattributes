@@ -1,3 +1,6 @@
 # The backend image finds its Alpine packages by the sha256 of this file (GrifballWebApp.Server/Dockerfile): the same
 # bytes on every checkout, Windows included.
 GrifballWebApp.Server/apk.lock text eol=lf
+# Generated from the OpenAPI document (grifballwebapp.client/ng-openapi-gen.json): collapsed in PR diffs
+grifballwebapp.client/openapi.json linguist-generated=true
+grifballwebapp.client/src/generated/** linguist-generated=true

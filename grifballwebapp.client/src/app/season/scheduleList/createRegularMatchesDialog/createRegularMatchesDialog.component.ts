@@ -7,7 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { MatchPlannerService } from '@api/services/match-planner.service';
 
 @Component({
     selector: 'app-create-regular-matches-dialog',
@@ -25,7 +25,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CreateRegularMatchesDialogComponent {
-  private http = inject(HttpClient);
+  private matchPlanner = inject(MatchPlannerService);
   data = inject(MAT_DIALOG_DATA);
   private snackBar = inject(MatSnackBar);
   private dialogRef = inject(MatDialogRef);
@@ -41,10 +41,11 @@ export class CreateRegularMatchesDialogComponent {
   readonly regularMatchesCreated = new Subject<void>();
 
   onSubmit() {
-    const params = new HttpParams()
-      .set('homeMatchesPerTeam', this.homeMatchesPerTeam!)
-      .set('bestOf', this.bestOf!);
-    this.http.post(`api/seasons/${this.seasonID}/matches/generate`, null, { params })
+    this.matchPlanner.createSeasonMatches({
+      seasonID: this.seasonID,
+      homeMatchesPerTeam: this.homeMatchesPerTeam!,
+      bestOf: this.bestOf!,
+    })
       .subscribe({
         next: r => {
           this.regularMatchesCreated.next();

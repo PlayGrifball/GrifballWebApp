@@ -1,16 +1,24 @@
 import { Component, OnInit, ChangeDetectionStrategy, inject, input, signal } from '@angular/core';
+import { Observable } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormField, MatInputModule } from '@angular/material/input';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { DateTime } from 'luxon';
-import { AvailabilityOption } from '../../api/dtos/availabilityOption';
 import { MatSelectModule } from '@angular/material/select';
-import { HttpClient } from '@angular/common/http';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { provideDatePickers } from '../../shared/datePickers';
 import { RouterLink } from '@angular/router';
+import { AvailabilityService } from '@api/services/availability.service';
+import type { AvailabilityTimeslotDto, DayOfWeek, SeasonAvailabilityDto } from '@api/models';
+
+
+/** A row of the editor: a timeslot, its day empty until one is picked. */
+export class AvailabilityOption {
+  dayOfWeek: DayOfWeek | '' = '';
+  time: string = '';
+}
 
 @Component({
     selector: 'app-season-availability',
@@ -30,7 +38,7 @@ import { RouterLink } from '@angular/router';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonAvailabilityComponent implements OnInit {
-  private http = inject(HttpClient);
+  private availability = inject(AvailabilityService);
   private snackbar = inject(MatSnackBar);
 
 
@@ -127,18 +135,20 @@ export class SeasonAvailabilityComponent implements OnInit {
   }
 
   updateSeasonAvailability() {
-    return this.http.post(`api/seasons/${this.seasonID()}/availability`, {
+    const body: SeasonAvailabilityDto = {
       seasonID: this.seasonID(),
-      timeslots: this.options(),
-    });
+      // A row whose day was never picked goes as it is, and the server refuses the save, as it always has
+      timeslots: this.options().map(o => ({ dayOfWeek: o.dayOfWeek as DayOfWeek, time: o.time })),
+    };
+    return this.availability.updateSeasonAvailability({ seasonID: this.seasonID(), body });
   }
 
-  getSeasonAvailability() {
-    return this.http.get<AvailabilityOption[]>(`api/seasons/${this.seasonID()}/availability`);
+  getSeasonAvailability(): Observable<AvailabilityTimeslotDto[]> {
+    return this.availability.getSeasonAvailability({ seasonID: this.seasonID() });
   }
 }
 
 export interface DayOfWeekCheckbox {
-  name: string;
+  name: DayOfWeek;
   isChecked: boolean;
 }

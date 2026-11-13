@@ -316,17 +316,15 @@ describe('AccountService', () => {
       expect(response).toBe('Password reset');
     });
 
-    it('cleans up expired reset links', () => {
-      let response: string | undefined;
-      service.cleanupExpiredPasswordResetLinks().subscribe(r => response = r);
+    it('cleans up expired reset links (204, no body)', () => {
+      let done = false;
+      service.cleanupExpiredPasswordResetLinks().subscribe(() => done = true);
 
       http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
       const req = http.expectOne('/api/password-reset-links/cleanup');
       expect(req.request.method).toBe('POST');
-      expect(req.request.body).toEqual({});
-      expect(req.request.responseType).toBe('text');
-      req.flush('Removed 3');
-      expect(response).toBe('Removed 3');
+      req.flush(null, { status: 204, statusText: 'No Content' });
+      expect(done).toBeTrue();
     });
   });
 

@@ -2,17 +2,16 @@ import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@ang
 import { Subject } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { HttpClient } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { DndModule, DndDropEvent } from 'ngx-drag-drop';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
+import { BracketsService } from '@api/services/brackets.service';
+import { TeamStandingsService } from '@api/services/team-standings.service';
+import type { TeamStandingDto } from '@api/models';
 
-interface TeamStanding {
-  teamID: number;
-  teamName: string;
-  wins: number;
-  losses: number;
+/** A team's standing, with the seed it is given as the commissioner orders the list (unset until the standings arrive). */
+interface TeamStanding extends TeamStandingDto {
   seed?: number;
 }
 
@@ -31,7 +30,8 @@ interface TeamStanding {
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeedOrderingDialogComponent implements OnInit {
-  private http = inject(HttpClient);
+  private brackets = inject(BracketsService);
+  private teamStandings = inject(TeamStandingsService);
   data = inject(MAT_DIALOG_DATA);
   private snackBar = inject(MatSnackBar);
   private dialogRef = inject<MatDialogRef<SeedOrderingDialogComponent>>(MatDialogRef);
@@ -48,7 +48,7 @@ export class SeedOrderingDialogComponent implements OnInit {
   }
 
   loadTeamStandings(): void {
-    this.http.get<TeamStanding[]>(`api/seasons/${this.seasonID}/standings`)
+    this.teamStandings.getTeamStandings({ seasonID: this.seasonID })
       .subscribe({
         next: (standings) => {
           this.teams.set(standings.map((team, index) => ({
@@ -106,7 +106,7 @@ export class SeedOrderingDialogComponent implements OnInit {
       seed: team.seed!
     }));
 
-    this.http.post(`api/seasons/${this.seasonID}/bracket/seeds`, customSeeding)
+    this.brackets.setCustomSeeds({ seasonID: this.seasonID, body: customSeeding })
       .subscribe({
         next: () => {
           this.seedingOrder.next();

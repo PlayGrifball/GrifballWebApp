@@ -90,7 +90,7 @@ describe('PlayoffBracketComponent behaviour', () => {
 
   it('shows "No bracket created" and skips rendering when the bracket has no participants', () => {
     fixture.detectChanges();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     fixture.detectChanges();
 
     expect(component.hasBracket()).toBeFalse();
@@ -102,7 +102,7 @@ describe('PlayoffBracketComponent behaviour', () => {
     fixture.detectChanges();
     expect(text()).not.toContain('No bracket created'); // not known yet
     const data = viewerData([{ id: 1, name: 'Alpha' }]);
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(data);
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(data);
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -118,7 +118,7 @@ describe('PlayoffBracketComponent behaviour', () => {
 
   it("loads the new season's bracket when the season changes, showing none of the previous one meanwhile", async () => {
     fixture.detectChanges();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([{ id: 1, name: 'Alpha' }]));
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([{ id: 1, name: 'Alpha' }]));
     await fixture.whenStable();
     expect(component.drawn()).toBeTrue();
 
@@ -129,7 +129,7 @@ describe('PlayoffBracketComponent behaviour', () => {
     expect(component.loaded()).toBeFalse();
 
     const data = viewerData([{ id: 2, name: 'Bravo' }]);
-    http.expectOne('api/seasons/7/bracket/viewer-data').flush(data);
+    http.expectOne('/api/seasons/7/bracket/viewer-data').flush(data);
     await fixture.whenStable();
     expect(viewer.render).toHaveBeenCalledWith(data, jasmine.objectContaining({ clear: true }));
     expect(component.hasBracket()).toBeTrue();
@@ -137,11 +137,11 @@ describe('PlayoffBracketComponent behaviour', () => {
 
   it("drops the previous season's bracket when it arrives late", () => {
     fixture.detectChanges();
-    const late = http.expectOne('api/seasons/6/bracket/viewer-data');
+    const late = http.expectOne('/api/seasons/6/bracket/viewer-data');
     fixture.componentRef.setInput('seasonID', 7);
     fixture.detectChanges();
 
-    http.expectOne('api/seasons/7/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/7/bracket/viewer-data').flush(viewerData([]));
     late.flush(viewerData([{ id: 1, name: 'Alpha' }]));
 
     expect(component.hasBracket()).toBeFalse();
@@ -151,7 +151,7 @@ describe('PlayoffBracketComponent behaviour', () => {
   it('opens the dialogs for the season shown', () => {
     fixture.componentRef.setInput('seasonID', 7);
     fixture.detectChanges();
-    http.expectOne('api/seasons/7/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/7/bracket/viewer-data').flush(viewerData([]));
     dialog.open.and.returnValue({ componentInstance: { bracketCreated: new Subject<void>(), seedingOrder: new Subject<void>() } } as any);
 
     component.openDialog();
@@ -173,14 +173,14 @@ describe('PlayoffBracketComponent behaviour', () => {
   it('reports a failure to load the bracket', () => {
     spyOn(console, 'log');
     fixture.detectChanges();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush('x', { status: 500, statusText: 'Server Error' });
 
     expect(snackBar.open).toHaveBeenCalledWith('Failed to get viewer data', 'Close');
   });
 
   it('only shows the bracket controls to organizers', () => {
     fixture.detectChanges();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     expect(text()).not.toContain('Create Bracket');
 
     isEventOrganizer.set(true);
@@ -191,7 +191,7 @@ describe('PlayoffBracketComponent behaviour', () => {
 
   it('reloads the bracket after one is created in the dialog', () => {
     fixture.detectChanges();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     const created = new EventEmitter<void>();
     dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as any);
 
@@ -202,13 +202,13 @@ describe('PlayoffBracketComponent behaviour', () => {
     expect(dialog.open).toHaveBeenCalledWith(CreateBracketDialogComponent, { data: 6 });
 
     created.emit();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     expect(changed).toBe(1); // the page fetches the champion again: the server cleared it
   });
 
   it('reloads the bracket each time it is created again from the same dialog', () => {
     fixture.detectChanges();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     const created = new Subject<void>();
     dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as any);
     let changed = 0;
@@ -216,16 +216,16 @@ describe('PlayoffBracketComponent behaviour', () => {
     component.openDialog();
 
     created.next();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     created.next();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     expect(changed).toBe(2);
     expect(dialog.open).toHaveBeenCalledTimes(1);
   });
 
   it('reloads the bracket after custom seeds are saved', () => {
     fixture.detectChanges();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     const seeded = new EventEmitter<void>();
     dialog.open.and.returnValue({ componentInstance: { seedingOrder: seeded } } as any);
 
@@ -236,13 +236,13 @@ describe('PlayoffBracketComponent behaviour', () => {
     expect(dialog.open).toHaveBeenCalledWith(SeedOrderingDialogComponent, { data: 6, width: '600px', maxHeight: '80vh' });
 
     seeded.emit();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     expect(changed).toBe(1);
   });
 
   it('stops listening to the dialogs once the page is destroyed', () => {
     fixture.detectChanges();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     const created = new EventEmitter<void>();
     const seeded = new EventEmitter<void>();
     dialog.open.and.returnValues({ componentInstance: { bracketCreated: created } } as any, { componentInstance: { seedingOrder: seeded } } as any);
@@ -259,7 +259,7 @@ describe('PlayoffBracketComponent behaviour', () => {
 
   it('shows "No bracket created" without an error for a season that does not exist (404)', () => {
     fixture.detectChanges();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush({ status: 404, title: 'Not found', detail: 'Season does not exist' }, { status: 404, statusText: 'Not Found' });
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush({ status: 404, title: 'Not found', detail: 'Season does not exist' }, { status: 404, statusText: 'Not Found' });
     fixture.detectChanges();
 
     expect(snackBar.open).not.toHaveBeenCalled();
@@ -272,7 +272,7 @@ describe('PlayoffBracketComponent behaviour', () => {
 
     async function drawBracket(): Promise<void> {
       fixture.detectChanges();
-      http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([{ id: 1, name: 'Alpha' }]));
+      http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([{ id: 1, name: 'Alpha' }]));
       await fixture.whenStable();
       fixture.detectChanges();
     }
@@ -330,7 +330,7 @@ describe('PlayoffBracketComponent behaviour', () => {
     it('is left out without a bracket', () => {
       fixture.componentRef.setInput('champions', [champion('Open', 41, 'Relentless')]);
       fixture.detectChanges();
-      http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([]));
+      http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
       fixture.detectChanges();
 
       expect(slot()).toBeNull();
@@ -339,7 +339,7 @@ describe('PlayoffBracketComponent behaviour', () => {
 
   it('reloads when the bracket is created after its dialog was already closed', () => {
     fixture.detectChanges();
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     const created = new Subject<void>();
     dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as any);
     component.openDialog();
@@ -350,7 +350,7 @@ describe('PlayoffBracketComponent behaviour', () => {
     // The dialog is gone (Esc), its request still finishes.
     created.next();
 
-    http.expectOne('api/seasons/6/bracket/viewer-data').flush(viewerData([]));
+    http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     expect(changed).toBe(1);
   });
 });

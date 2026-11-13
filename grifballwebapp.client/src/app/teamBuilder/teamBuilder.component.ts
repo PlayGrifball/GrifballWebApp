@@ -3,16 +3,17 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ApiClientService } from '../api/apiClient.service';
-import { TeamResponseDto } from '../api/dtos/teamResponseDto';
-import { PlayerDto } from '../api/dtos/playerDto';
+import { SeasonService } from '@api/services/season.service';
+import { TeamsService } from '@api/services/teams.service';
+import type { TeamResponseDto } from '@api/models';
+import type { TeamsPlayerDto } from '@api/models';
 import { DndDropEvent, DndModule } from 'ngx-drag-drop';
 import { catchError, finalize, forkJoin, map, Observable, of, Subject, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { GrabbedPlayer, GrabbedThing, GrabbedThingTypes } from './personStatus';
-import { CaptainDto } from '../api/dtos/captainDto';
-import { CaptainPlacementDto, RemoveCaptainDto } from '../api/dtos/captainPlacementDto';
+import type { CaptainDto } from '@api/models';
+import type { CaptainPlacementDto, RemoveCaptainDto } from '@api/models';
 import { AccountService } from '../account.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -42,10 +43,17 @@ import { errorText } from '../shared/errorText';
     host: { ngSkipHydration: 'true' },
 })
 export class TeamBuilderComponent implements OnInit {
-  private api = inject(ApiClientService);
+  private draft = inject(TeamsService);
+  private seasons = inject(SeasonService);
   private snackBarService = inject(MatSnackBar);
   accountService = inject(AccountService);
   private signalR = inject(SignalRService);
+
+  /** This page's hub connection, for the server to leave out of the broadcast of its own change; none (no header) until it connects. */
+  private get connectionID(): string | undefined {
+    return this.signalR.hubConnection.connectionId || undefined;
+  }
+
   private destroyRef = inject(DestroyRef);
 
   /** The :seasonID of the route (0: the current season). Angular keeps this page when only it changes, so a new one
@@ -55,7 +63,7 @@ export class TeamBuilderComponent implements OnInit {
   protected readonly shownSeasonID = signal(0);
   readonly captainLocked = signal(true);
   readonly teams = signal<TeamResponseDto[]>([]);
-  readonly playerPool = signal<PlayerDto[]>([]);
+  readonly playerPool = signal<TeamsPlayerDto[]>([]);
 
   private grabbedThing: GrabbedThing = GrabbedThing.AvailablePlayer;
 
@@ -106,9 +114,9 @@ export class TeamBuilderComponent implements OnInit {
         const savesStarted = this.savesStarted;
         const seasonID = this.shownSeasonID();
         return forkJoin({
-          teams: part(this.api.getTeams(seasonID)),
-          pool: part(this.api.getPlayerPool(seasonID)),
-          locked: part(this.api.areCaptainsLocked(seasonID)),
+          teams: part(this.draft.getTeams({ seasonID })),
+          pool: part(this.draft.getPlayerPool({ seasonID })),
+          locked: part(this.draft.areCaptainsLocked({ seasonID })),
         }).pipe(whileCurrent(seasonID, this.shownSeasonID), map(snapshot => ({ ...snapshot, savesStarted })));
       }),
       takeUntilDestroyed(),
@@ -140,7 +148,7 @@ export class TeamBuilderComponent implements OnInit {
         this.playerPool.set([]);
         this.captainLocked.set(true);
         if (routeSeasonID === 0) {
-          this.api.getCurrentSeasonID()
+          this.seasons.getCurrentSeasonId()
             .pipe(whileCurrent(routeSeasonID, this.seasonID))
             .subscribe({
               next: (result) => {
@@ -225,13 +233,13 @@ export class TeamBuilderComponent implements OnInit {
 
   lockCaptainsButtonClicked(): void {
     if (this.captainLocked()) {
-      this.api.unlockCaptains(this.shownSeasonID(), this.signalR.hubConnection.connectionId)
+      this.draft.unlockCaptains({ seasonID: this.shownSeasonID(), signalRConnectionID: this.connectionID })
         .subscribe({
           next: r => this.captainLocked.set(false)
         })
     }
     else {
-      this.api.lockCaptains(this.shownSeasonID(), this.signalR.hubConnection.connectionId)
+      this.draft.lockCaptains({ seasonID: this.shownSeasonID(), signalRConnectionID: this.connectionID })
         .subscribe(
           {
             next: r => this.captainLocked.set(true)
@@ -330,13 +338,11 @@ export class TeamBuilderComponent implements OnInit {
       if (!next)
         return;
       const added = next.teams.find(t => t.captain.personID === player.personID)!;
-      const dto = new CaptainPlacementDto();
-      dto.seasonID = this.shownSeasonID();
-      dto.personID = added.captain.personID;
-      dto.orderNumber = added.captain.order!; // Order must not be null
+      // Order must not be null
+      const dto: CaptainPlacementDto = { seasonID: this.shownSeasonID(), personID: added.captain.personID, orderNumber: added.captain.order! };
       // The server names the team (the signup's team name, or "<display name>'s Team") and
       // answers with that name; the broadcast to others skips this connection.
-      this.save(this.api.addCaptain(dto, this.signalR.hubConnection.connectionId),
+      this.save(this.draft.addCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.connectionID, body: dto }),
         added => this.applyDraft(draft => renameTeam(draft, player.personID, added.teamName, added.teamID)));
       console.log('Added new captain ' + added.captain.name + ' with pick order ' + added.captain.order);
     }
@@ -347,17 +353,15 @@ export class TeamBuilderComponent implements OnInit {
       if (!next)
         return;
       const moved = next.teams.find(t => t.captain.personID === team.captain.personID)!;
-      const dto = new CaptainPlacementDto();
-      dto.seasonID = this.shownSeasonID();
-      dto.personID = moved.captain.personID;
-      dto.orderNumber = moved.captain.order!; // Order must not be null
+      // Order must not be null
+      const dto: CaptainPlacementDto = { seasonID: this.shownSeasonID(), personID: moved.captain.personID, orderNumber: moved.captain.order! };
       // Announce to backend that team has been resorted
-      this.save(this.api.resortCaptain(dto, this.signalR.hubConnection.connectionId));
+      this.save(this.draft.resortCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.connectionID, body: dto }));
       console.log('Resorted captains ' + moved.captain.name + ' now has pick order ' + moved.captain.order);
     }
   }
 
-  createDraggedPlayer(player: PlayerDto, team: TeamResponseDto): GrabbedPlayer {
+  createDraggedPlayer(player: TeamsPlayerDto, team: TeamResponseDto): GrabbedPlayer {
     return {
       team: team,
       player: player,
@@ -384,11 +388,15 @@ export class TeamBuilderComponent implements OnInit {
       if (!this.applyDraft(draft => removePlayerFromTeam(draft, captainID, personID, index)))
         return;
       // Announce player is now available
-      this.save(this.api.removePlayerFromTeam({
+      this.save(this.draft.removePlayerFromTeam({
         seasonID: this.shownSeasonID(),
-        captainID: captainID,
-        personID: personID,
-      }, this.signalR.hubConnection.connectionId));
+        signalRConnectionID: this.connectionID,
+        body: {
+          seasonID: this.shownSeasonID(),
+          captainID: captainID,
+          personID: personID,
+        },
+      }));
     }
     // Team -> AvailablePlayer = the captain and their picks are available again
     else if (this.grabbedThing === GrabbedThing.Team) {
@@ -399,7 +407,7 @@ export class TeamBuilderComponent implements OnInit {
       // Announce to backend that player is now available. RemoveCaptainDto carries no order
       // number: the server re-sequences the remaining captains 1..n itself (TeamService.RemoveCaptain).
       const dto: RemoveCaptainDto = { seasonID: this.shownSeasonID(), personID };
-      this.save(this.api.removeCaptain(dto, this.signalR.hubConnection.connectionId));
+      this.save(this.draft.removeCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.connectionID, body: dto }));
     }
     else {
       console.log('Unexpected type placed in draft pool: ' + this.grabbedThing);
@@ -425,13 +433,17 @@ export class TeamBuilderComponent implements OnInit {
         return;
       const player = next.teams.find(t => t.captain.personID === captainID)!.players.find(p => p.personID === personID)!;
       // Announce player moved
-      this.save(this.api.movePlayerToTeam({
+      this.save(this.draft.movePlayerToTeam({
         seasonID: this.shownSeasonID(),
-        previousCaptainID: previousCaptainID,
-        newCaptainID: captainID,
-        personID: personID,
-        roundNumber: player.round!, // MUST NOT BE NULL :(
-      }, this.signalR.hubConnection.connectionId));
+        signalRConnectionID: this.connectionID,
+        body: {
+          seasonID: this.shownSeasonID(),
+          previousCaptainID: previousCaptainID,
+          newCaptainID: captainID,
+          personID: personID,
+          roundNumber: player.round!, // MUST NOT BE NULL :(
+        },
+      }));
       console.log(team.captain.name + '\'s ' + player.round + ' pick is ' + player.name);
     }
     else {
@@ -443,19 +455,23 @@ export class TeamBuilderComponent implements OnInit {
         return;
       const player = next.teams.find(t => t.captain.personID === captainID)!.players.find(p => p.personID === personID)!;
       // Announce player added to team
-      this.save(this.api.addPlayerToTeam({
+      this.save(this.draft.addPlayerToTeam({
         seasonID: this.shownSeasonID(),
-        captainID: captainID,
-        personID: personID,
-      }, this.signalR.hubConnection.connectionId));
+        signalRConnectionID: this.connectionID,
+        body: {
+          seasonID: this.shownSeasonID(),
+          captainID: captainID,
+          personID: personID,
+        },
+      }));
       console.log(team.captain.name + '\'s ' + player.round + ' pick is ' + player.name);
     }
   }
 
   /** The pool player a drag carries (drag data is a copy made by ngx-drag-drop). */
-  MapToPlayer(data: any, t: GrabbedThing): PlayerDto {
+  MapToPlayer(data: any, t: GrabbedThing): TeamsPlayerDto {
     if (t === GrabbedThing.AvailablePlayer) {
-      return { ...(data as PlayerDto), round: null, pick: null };
+      return { ...(data as TeamsPlayerDto), round: null, pick: null };
     } else {
       console.log(data);
       throw new Error('Unable to map to player');
@@ -465,8 +481,8 @@ export class TeamBuilderComponent implements OnInit {
   /** The team a drag carries, or the new team a pool player would captain. */
   MapToTeam(data: any, t: GrabbedThing): TeamResponseDto {
     if (t === GrabbedThing.AvailablePlayer) {
-      const player = data as PlayerDto;
-      return { teamID: 0, teamName: player.name + "'s Team", captain: { name: player.name, personID: player.personID, order: null }, players: [] };
+      const player = data as TeamsPlayerDto;
+      return { teamID: 0, teamName: player.name + "'s Team", captain: { name: player.name, personID: player.personID, order: null, region: null }, players: [] };
     } else if (t === GrabbedThing.Team) {
       return data as TeamResponseDto;
     } else {
@@ -511,7 +527,7 @@ export class TeamBuilderComponent implements OnInit {
     }
   }
 
-  DisableDraggingPlayerFromPool(playerDto: PlayerDto): boolean {
+  DisableDraggingPlayerFromPool(playerDto: TeamsPlayerDto): boolean {
     return false; // Should only be true if has EventManager, OR has Player role & is captain & is their turn to pick
   }
 

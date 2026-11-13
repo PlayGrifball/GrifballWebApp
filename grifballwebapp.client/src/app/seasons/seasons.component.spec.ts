@@ -3,8 +3,8 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { SeasonsComponent } from './seasons.component';
-import { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
-import { seasonInfo } from '../api/dtos/seasonInfoDto.stub';
+import type { SeasonListItemDto } from '@api/models';
+import { seasonInfo } from '../api/seasonInfo.stub';
 
 function season(seasonID: number, changes: Partial<SeasonListItemDto> = {}): SeasonListItemDto {
   return { ...seasonInfo(seasonID), teamCount: 4, playerCount: 20, champions: [], teamNames: [], ...changes };

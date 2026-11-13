@@ -365,7 +365,7 @@ public class IdentityController : ControllerBase
     /// <summary>Sets a new password using a one-time reset token.</summary>
     [AllowAnonymous]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType<string>(StatusCodes.Status200OK, "text/plain")]
     [HttpPost("identity/password-reset", Name = "ResetPassword")]
     public async Task<IActionResult> ResetPassword([FromBody] UsePasswordResetLinkRequestDto request, CancellationToken ct)
     {

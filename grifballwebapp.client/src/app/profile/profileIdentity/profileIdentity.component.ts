@@ -3,8 +3,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ApiClientService } from '../../api/apiClient.service';
-import type { ClaimPreviewDto, GamertagClaimDto } from '../../api/dtos/gamertagClaimDto';
+import { MyProfileService } from '@api/services/my-profile.service';
+import type { ClaimPreviewDto, GamertagClaimDto } from '@api/models';
 import { problemText } from '../../shared/errorText';
 import { REGIONS } from '../../shared/regions';
 import { SeasonLinksComponent } from '../../shared/seasonLinks/seasonLinks.component';
@@ -26,7 +26,7 @@ function apiDay(value: string): string | null {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProfileIdentityComponent {
-  private api = inject(ApiClientService);
+  private api = inject(MyProfileService);
   private snackBar = inject(MatSnackBar);
 
   /** The user's region now (from their profile). */
@@ -40,7 +40,7 @@ export class ProfileIdentityComponent {
   setRegion(value: string): void {
     const regionID = value ? Number(value) : null;
     this.savingRegion.set(true);
-    this.api.setMyRegion(regionID).subscribe({
+    this.api.setMyRegion({ body: { regionID } }).subscribe({
       next: () => {
         this.savingRegion.set(false);
         this.snackBar.open(regionID ? 'Region saved.' : 'Region cleared.', 'Close');
@@ -76,7 +76,7 @@ export class ProfileIdentityComponent {
     if (!gamertag)
       return;
     this.previewing.set(true);
-    this.api.previewGamertagClaim(gamertag).subscribe({
+    this.api.previewGamertagClaim({ gamertag }).subscribe({
       next: preview => {
         this.previewing.set(false);
         this.preview.set(preview);
@@ -92,7 +92,7 @@ export class ProfileIdentityComponent {
     if (!this.canSubmit())
       return;
     this.submitting.set(true);
-    this.api.claimGamertag({ gamertag: this.gamertag().trim(), firstSeen: apiDay(this.firstSeen()), lastSeen: apiDay(this.lastSeen()) }).subscribe({
+    this.api.claimGamertag({ body: { gamertag: this.gamertag().trim(), firstSeen: apiDay(this.firstSeen()), lastSeen: apiDay(this.lastSeen()) } }).subscribe({
       next: claim => {
         this.submitting.set(false);
         this.snackBar.open(`Your claim to ${claim.gamertag} is waiting for a sysadmin.`, 'Close');

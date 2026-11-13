@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SeasonTeamsComponent } from './seasonTeams.component';
 import { ActivatedRoute, convertToParamMap, ParamMap, provideRouter } from '@angular/router';
-import { ApiClientService } from '../../api/apiClient.service';
+import { SeasonService } from '@api/services/season.service';
 import { AccountService } from '../../account.service';
 import { SeasonSummaryService } from '../seasonSummary';
 import { BehaviorSubject, of, Subject, throwError } from 'rxjs';
 import { signal, WritableSignal } from '@angular/core';
-import type { SeasonSummaryDto } from '../../api/dtos/seasonSummaryDto';
-import type { SeasonTeamDto } from '../../api/dtos/seasonTeamDto';
+import type { SeasonSummaryDto } from '@api/models';
+import type { SeasonTeamDto } from '@api/models';
 
 describe('SeasonTeamsComponent', () => {
   let fixture: ComponentFixture<SeasonTeamsComponent>;
   let component: SeasonTeamsComponent;
-  let api: jasmine.SpyObj<ApiClientService>;
+  let api: jasmine.SpyObj<SeasonService>;
   let summaries: jasmine.SpyObj<SeasonSummaryService>;
   let isEventOrganizer: WritableSignal<boolean>;
   let personID: WritableSignal<number | null>;
@@ -38,7 +38,7 @@ describe('SeasonTeamsComponent', () => {
     hasEnded: false,
     gameVersionID: 1,
     gameVersionName: 'Halo Infinite',
-    format: 'LeagueSeason',
+    format: 'LeagueSeason', division: null, gameVersionSlug: null
   };
 
   const mockTeams: SeasonTeamDto[] = [
@@ -52,8 +52,8 @@ describe('SeasonTeamsComponent', () => {
       titles: ['Pro'],
       draftCaptainOrder: 1,
       players: [
-        { teamPlayerID: 1, userID: 10, gamertag: 'MasterChief', isCaptain: true, region: 'NA-East' },
-        { teamPlayerID: 2, userID: 20, gamertag: 'Cortana', isCaptain: false, draftRound: 1, region: 'NA-West' },
+        { teamPlayerID: 1, userID: 10, gamertag: 'MasterChief', isCaptain: true, region: 'NA-East', draftCaptainOrder: null, draftPick: null, draftRound: null },
+        { teamPlayerID: 2, userID: 20, gamertag: 'Cortana', isCaptain: false, draftRound: 1, region: 'NA-West', draftCaptainOrder: null, draftPick: null },
       ],
     },
     {
@@ -66,7 +66,7 @@ describe('SeasonTeamsComponent', () => {
       titles: [],
       draftCaptainOrder: 2,
       players: [
-        { teamPlayerID: 3, userID: 30, gamertag: 'Arbiter', isCaptain: true, region: 'EU' },
+        { teamPlayerID: 3, userID: 30, gamertag: 'Arbiter', isCaptain: true, region: 'EU', draftCaptainOrder: null, draftPick: null, draftRound: null },
       ],
     },
   ];
@@ -76,7 +76,7 @@ describe('SeasonTeamsComponent', () => {
     personID = signal<number | null>(null);
     params = new BehaviorSubject(convertToParamMap({ seasonID: '7' }));
 
-    api = jasmine.createSpyObj<ApiClientService>('ApiClientService', ['getSeasonTeams']);
+    api = jasmine.createSpyObj<SeasonService>('SeasonService', ['getSeasonTeams']);
     summaries = jasmine.createSpyObj<SeasonSummaryService>('SeasonSummaryService', ['get']);
 
     api.getSeasonTeams.and.returnValue(of(mockTeams));
@@ -92,7 +92,7 @@ describe('SeasonTeamsComponent', () => {
             paramMap: params,
           },
         },
-        { provide: ApiClientService, useValue: api },
+        { provide: SeasonService, useValue: api },
         { provide: SeasonSummaryService, useValue: summaries },
         {
           provide: AccountService,
@@ -201,7 +201,7 @@ describe('SeasonTeamsComponent', () => {
     const season5Teams = new Subject<SeasonTeamDto[]>();
     const season5Summary = new Subject<SeasonSummaryDto>();
     const season12Teams = new Subject<SeasonTeamDto[]>();
-    api.getSeasonTeams.and.callFake(id => id === 5 ? season5Teams : season12Teams);
+    api.getSeasonTeams.and.callFake(p => p.seasonID === 5 ? season5Teams : season12Teams);
     summaries.get.and.callFake(id => id === 5 ? season5Summary : throwError(() => ({ status: 500 })));
 
     params.next(convertToParamMap({ seasonID: '5' }));
@@ -275,7 +275,7 @@ describe('SeasonTeamsComponent', () => {
   it('links every player to their profile, with ? for a player without a name', () => {
     api.getSeasonTeams.and.returnValue(of([{
       ...mockTeams[1],
-      players: [{ teamPlayerID: 9, userID: 90, gamertag: '', isCaptain: false }],
+      players: [{ teamPlayerID: 9, userID: 90, gamertag: '', isCaptain: false, draftCaptainOrder: null, draftPick: null, draftRound: null, region: null }],
     }]));
     component.loadData(7);
     fixture.detectChanges();

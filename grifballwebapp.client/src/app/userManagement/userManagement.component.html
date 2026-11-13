@@ -22,7 +22,7 @@
     Columns are almost entirely setup in ts,
     but we allow the use of templates that can be used in the ts via index
    -->
-  <app-table [url]="url" [displayedColumns]="displayedColumns" [columns]="columns" [filters]="filters()" [parseRow]="parseUser">
+  <app-table [request]="request" [displayedColumns]="displayedColumns" [columns]="columns" [filters]="filters()" [parseRow]="parseUser">
     <ng-template let-row>
       <div class="action-buttons">
         <a mat-button [routerLink]="['edituser', row.userID]" matTooltip="Edit User">

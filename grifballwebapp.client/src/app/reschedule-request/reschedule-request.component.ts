@@ -6,15 +6,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
 import { Location } from '@angular/common';
 import { errorText } from '../shared/errorText';
-
-interface RescheduleRequest {
-  seasonMatchID: number;
-  newScheduledTime?: string;
-  reason: string;
-}
+import { RescheduleService } from '@api/services/reschedule.service';
+import type { RescheduleRequestDto } from '@api/models';
 
 @Component({
   selector: 'app-reschedule-request',
@@ -34,7 +29,7 @@ interface RescheduleRequest {
 })
 export class RescheduleRequestComponent {
   location = inject(Location);
-  private httpClient = inject(HttpClient);
+  private rescheduleService = inject(RescheduleService);
   private snackBar = inject(MatSnackBar);
 
   /** The :seasonMatchID of the route. */
@@ -65,7 +60,7 @@ export class RescheduleRequestComponent {
 
     this.submitting.set(true);
 
-    let newScheduledTime: string | undefined;
+    let newScheduledTime: string | null = null;
     if (this.newDate && this.newTime) {
       const [hours, minutes] = this.newTime.split(':').map(Number);
       const dateTime = new Date(this.newDate);
@@ -73,13 +68,13 @@ export class RescheduleRequestComponent {
       newScheduledTime = dateTime.toISOString();
     }
 
-    const request: RescheduleRequest = {
+    const request: RescheduleRequestDto = {
       seasonMatchID: this.seasonMatchID(),
       newScheduledTime,
       reason: this.reason.trim()
     };
 
-    this.httpClient.post(`/api/season-matches/${request.seasonMatchID}/reschedules`, request)
+    this.rescheduleService.requestReschedule({ seasonMatchID: request.seasonMatchID, body: request })
     .subscribe({
       next: () => {
         this.snackBar.open('Reschedule request submitted successfully!', 'Close', { duration: 5000 });

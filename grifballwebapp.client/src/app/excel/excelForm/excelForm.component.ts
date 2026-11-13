@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, input, OnInit
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { switchMap, takeWhile, timer } from 'rxjs';
-import type { OnDemandJobStatusDto } from '../../api/dtos/onDemandJobDto';
+import type { OnDemandJobStatusDto } from '@api/models';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -10,8 +10,8 @@ import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { RegexMatchValidValidatorDirective } from '../../validation/directives/regexMatchValidValidatorDirective.directive';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { SheetInfo } from '../excel.component';
-import { HttpClient } from '@angular/common/http';
+import { ExcelService } from '@api/services/excel.service';
+import type { SheetDto } from '@api/models';
 
 /** How often a queued or running export of every match is looked at again. */
 export const EXPORT_POLL_MS = 3000;
@@ -33,7 +33,7 @@ export const EXPORT_POLL_MS = 3000;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExcelFormComponent implements OnInit {
-  private httpClient = inject(HttpClient);
+  private excel = inject(ExcelService);
   private destroyRef = inject(DestroyRef);
 
 
@@ -57,13 +57,13 @@ export class ExcelFormComponent implements OnInit {
   onSubmit(matchID: string): void {
     this.isSubmittingMatch.set(true);
 
-    let dto: SheetInfo = {
+    let dto: SheetDto = {
       name: this.inputName(),
       spreadsheetID: this.spreadsheetID,
       sheetName: this.sheetName,
     }
 
-    this.httpClient.post(`/api/matches/${encodeURIComponent(matchID)}/append-to-sheet`, dto)
+    this.excel.appendMatch({ matchID, body: dto })
         .subscribe({
           next: result => console.log(result),
           error: result => console.log(result),
@@ -78,8 +78,8 @@ export class ExcelFormComponent implements OnInit {
   /** Queues the export of every match in the copy sheet to this sheet (replacing its rows), then follows it until it's done. */
   exportAll(): void {
     this.exportError.set(null);
-    const dto: SheetInfo = { name: this.inputName(), spreadsheetID: this.spreadsheetID, sheetName: this.sheetName };
-    this.httpClient.post<OnDemandJobStatusDto>('/api/sheets/export', dto)
+    const dto: SheetDto = { name: this.inputName(), spreadsheetID: this.spreadsheetID, sheetName: this.sheetName };
+    this.excel.exportAll({ body: dto })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: status => this.followExport(status),
@@ -92,7 +92,7 @@ export class ExcelFormComponent implements OnInit {
     if (status.state === 'Idle')
       return;
     timer(EXPORT_POLL_MS, EXPORT_POLL_MS).pipe(
-      switchMap(() => this.httpClient.get<OnDemandJobStatusDto>('/api/sheets/export')),
+      switchMap(() => this.excel.exportAllStatus()),
       takeWhile(next => next.state !== 'Idle', true),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({

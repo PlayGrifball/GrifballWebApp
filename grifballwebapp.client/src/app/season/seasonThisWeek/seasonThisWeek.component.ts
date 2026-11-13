@@ -1,9 +1,9 @@
 import { DatePipe } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DateTime } from 'luxon';
 import { map } from 'rxjs';
+import { MatchPlannerService } from '@api/services/match-planner.service';
 import { parseScheduledMatch, ScheduledMatchDto } from '../scheduleList/scheduledMatchDto';
 import { ToDatePipe } from '../../shared/toDate.pipe';
 
@@ -73,7 +73,7 @@ function weekStatus(match: ScheduledMatchDto, now: DateTime): WeekMatchStatus {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SeasonThisWeekComponent {
-  private http = inject(HttpClient);
+  private api = inject(MatchPlannerService);
 
   readonly seasonID = input.required<number>();
   /** When the page was opened. */
@@ -86,7 +86,7 @@ export class SeasonThisWeekComponent {
       const seasonID = this.seasonID();
       if (seasonID === 0)
         return;
-      this.http.get<unknown[]>(`/api/seasons/${seasonID}/matches/scheduled`)
+      this.api.getScheduledMatches({ seasonID })
         .pipe(map(matches => matches.map(parseScheduledMatch)))
         .subscribe({
           next: matches => this.matches.set(matches),

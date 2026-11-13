@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { MetricRankDetailDto, PlayerAllTimeRankDto } from '../../api/dtos/playerAllTimeRankDto';
+import type { MetricRankDetail, PlayerAllTimeRankDto } from '@api/models';
 import type { Board } from '../board';
 
 type SpotlightBoard = Exclude<Board, 'dynasties'>;
 
-const TILES: { board: SpotlightBoard, label: string, unit: [one: string, many: string], detail: (p: PlayerAllTimeRankDto) => MetricRankDetailDto }[] = [
+const TILES: { board: SpotlightBoard, label: string, unit: [one: string, many: string], detail: (p: PlayerAllTimeRankDto) => MetricRankDetail }[] = [
   { board: 'rings', label: 'Championships', unit: ['Title', 'Titles'], detail: p => p.rings },
   { board: 'goals', label: 'Goals', unit: ['Goal', 'Goals'], detail: p => p.goals },
   { board: 'kills', label: 'Kills', unit: ['Kill', 'Kills'], detail: p => p.kills },

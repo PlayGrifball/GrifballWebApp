@@ -1,5 +1,5 @@
-import { PlayerDto } from "../api/dtos/playerDto";
-import { TeamResponseDto } from "../api/dtos/teamResponseDto";
+import type { TeamsPlayerDto } from '@api/models';
+import type { TeamResponseDto } from '@api/models';
 
 export enum GrabbedThing {
   AvailablePlayer = "AvailablePlayer",
@@ -8,13 +8,13 @@ export enum GrabbedThing {
 }
 
 //export class GrabbedPlayer {
-//  player!: PlayerDto;
+//  player!: TeamsPlayerDto;
 //  team!: TeamResponseDto;
 //}
 
 export interface GrabbedPlayer {
-  player: PlayerDto;
+  player: TeamsPlayerDto;
   team: TeamResponseDto;
 }
 
-export type GrabbedThingTypes = TeamResponseDto | PlayerDto;
+export type GrabbedThingTypes = TeamResponseDto | TeamsPlayerDto;

@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { ApiClientService } from '../../api/apiClient.service';
-import type { SeasonPlayerStatDto } from '../../api/dtos/seasonPlayerStatDto';
+import { SeasonService } from '@api/services/season.service';
+import type { SeasonPlayerStatDto } from '@api/models';
 
 export type StatPhase = 'all' | 'regular' | 'playoffs';
 /** The columns the leaderboard sorts by. */
@@ -28,7 +28,7 @@ const UNSORTED = { ariaSort: 'none', arrow: '' };
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SeasonPlayerStatsComponent {
-  private api = inject(ApiClientService);
+  private api = inject(SeasonService);
 
   readonly seasonID = input.required<number>();
   /** Only this team's players; null or unset for the whole season. */
@@ -37,7 +37,7 @@ export class SeasonPlayerStatsComponent {
   // A new season or team starts over (no rows) rather than showing the last one's while it loads.
   private readonly resource = rxResource({
     params: () => ({ seasonID: this.seasonID(), teamID: this.teamID() }),
-    stream: ({ params }) => this.api.getSeasonPlayerStats(params.seasonID, params.teamID),
+    stream: ({ params }) => this.api.getSeasonPlayerStats({ seasonID: params.seasonID, teamID: params.teamID ?? undefined }),
   });
 
   /** The rows as the server sent them (none while loading, or if they could not be loaded). */

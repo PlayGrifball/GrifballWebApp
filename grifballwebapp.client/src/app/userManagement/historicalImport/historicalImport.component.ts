@@ -5,10 +5,8 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { EMPTY, expand, Observable, switchMap, timer } from 'rxjs';
-import { ApiClientService } from '../../api/apiClient.service';
-import type {
-  HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueuedDto, HistoricalSeasonReviewDto, HistoricalSourceDto,
-} from '../../api/dtos/historicalImportDto';
+import { HistoricalImportService } from '@api/services/historical-import.service';
+import type { HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueued, HistoricalSeasonReviewDto, HistoricalSourceDto } from '@api/models';
 import { problemText } from '../../shared/errorText';
 import { VodReviewComponent } from './vodReview/vodReview.component';
 
@@ -62,7 +60,7 @@ const REVIEW_LABELS: Record<string, string> = { Preview: 'Would remove', NeedsRe
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HistoricalImportComponent {
-  private api = inject(ApiClientService);
+  private api = inject(HistoricalImportService);
   private snackBar = inject(MatSnackBar);
 
   readonly kindLabels = KIND_LABELS;
@@ -81,8 +79,8 @@ export class HistoricalImportComponent {
   readonly selectedJobID = signal<number | null>(null);
   readonly job = rxResource({
     params: () => this.selectedJobID() ?? undefined,
-    stream: ({ params }) => this.api.getHistoricalImportJob(params).pipe(
-      expand(job => isActive(job) ? timer(JOB_POLL_MS).pipe(switchMap(() => this.api.getHistoricalImportJob(params))) : EMPTY),
+    stream: ({ params }) => this.api.getHistoricalImportJob({ jobID: params }).pipe(
+      expand(job => isActive(job) ? timer(JOB_POLL_MS).pipe(switchMap(() => this.api.getHistoricalImportJob({ jobID: params }))) : EMPTY),
     ),
   });
   readonly selectedJob = computed<HistoricalImportJobDto | null>(() => this.job.hasValue() ? this.job.value() : null);
@@ -109,30 +107,30 @@ export class HistoricalImportComponent {
   apply(): void {
     const job = this.selectedJob();
     if (job)
-      this.queue(this.api.applyHistoricalImportPreview(job.jobID), "Couldn't start the import.");
+      this.queue(this.api.applyHistoricalImportPreview({ jobID: job.jobID }), "Couldn't start the import.");
   }
 
   approve(review: HistoricalSeasonReviewDto): void {
-    this.queue(this.api.approveHistoricalSeasonReview(review.reviewID), "Couldn't approve the season.");
+    this.queue(this.api.approveHistoricalSeasonReview({ reviewID: review.reviewID }), "Couldn't approve the season.");
   }
 
   skip(review: HistoricalSeasonReviewDto): void {
-    this.run(this.api.skipHistoricalSeasonReview(review.reviewID), "Couldn't skip the season.", () => {
+    this.run(this.api.skipHistoricalSeasonReview({ reviewID: review.reviewID }), "Couldn't skip the season.", () => {
       this.job.reload();
       this.jobs.reload();
     });
   }
 
   setEnabled(source: HistoricalSourceDto, enabled: boolean): void {
-    this.run(this.api.setHistoricalSourceEnabled(source.sourceID, enabled), "Couldn't change the source.", () => this.sources.reload());
+    this.run(this.api.setHistoricalSourceEnabled({ sourceID: source.sourceID, body: { enabled } }), "Couldn't change the source.", () => this.sources.reload());
   }
 
   setPaused(paused: boolean): void {
-    this.run(this.api.setHistoricalImportSchedulePaused(paused), "Couldn't change the schedule.", () => this.schedule.reload());
+    this.run(this.api.setHistoricalImportSchedulePaused({ body: { paused } }), "Couldn't change the schedule.", () => this.schedule.reload());
   }
 
   /** Queues a job and shows it. */
-  private queue(action: Observable<HistoricalImportQueuedDto>, failed: string): void {
+  private queue(action: Observable<HistoricalImportQueued>, failed: string): void {
     this.run(action, failed, queued => {
       this.jobs.reload();
       this.show(queued.jobID);

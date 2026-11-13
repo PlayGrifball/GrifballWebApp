@@ -1,12 +1,16 @@
-import { HttpClient, HttpErrorResponse, httpResource } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { errorText } from '../../shared/errorText';
 import { ChangeDetectionStrategy, Component, computed, effect, input, signal, inject } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs';
 import { parseUser } from '../userResponseDto';
 import { SearchBoxComponent } from '../../shared/searchBox/searchBox.component';
 import { UserDetailComponent } from './userDetail/userDetail.component';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { UserManagementService } from '@api/services/user-management.service';
+import type { MergeRequest } from '@api/models';
 
 @Component({
   selector: 'app-merge-user',
@@ -22,18 +26,24 @@ import { MatButton } from '@angular/material/button';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MergeUserComponent {
-  private http = inject(HttpClient);
+  private userManagement = inject(UserManagementService);
 
 
   fromInput = input<number>(0);
   toInput = input<number>(0);
 
-  // An undefined URL keeps the resource idle, so no request is made until an ID is chosen.
+  // An undefined userID keeps the resource idle, so no request is made until an ID is chosen.
   mergeFromId = signal<number>(0);
-  mergeFrom = httpResource(() => this.mergeFromId() ? `/api/users/${this.mergeFromId()}` : undefined, { parse: parseUser });
+  mergeFrom = rxResource({
+    params: () => this.mergeFromId() || undefined,
+    stream: ({ params: userID }) => this.userManagement.getUser({ userID }).pipe(map(parseUser)),
+  });
 
   mergeToId = signal<number>(0);
-  mergeTo = httpResource(() => this.mergeToId() ? `/api/users/${this.mergeToId()}` : undefined, { parse: parseUser });
+  mergeTo = rxResource({
+    params: () => this.mergeToId() || undefined,
+    stream: ({ params: userID }) => this.userManagement.getUser({ userID }).pipe(map(parseUser)),
+  });
 
   // value() throws while a resource is in the error state (Angular 20+), so
   // the template reads these instead and shows resource.error() separately.
@@ -72,7 +82,7 @@ export class MergeUserComponent {
   }
 
   submit() {
-    const dto = {
+    const dto: MergeRequest = {
       mergeToId: this.mergeToId(),
       mergeFromId: this.mergeFromId(),
       mergeOptions: {
@@ -88,7 +98,7 @@ export class MergeUserComponent {
 
     this.submitting.set(true);
     this.result.set(null);
-    this.http.post('/api/user-merges', dto).subscribe({
+    this.userManagement.mergeUser({ body: dto }).subscribe({
       next: () => {
         console.log('Merged user');
         this.submitting.set(false);

@@ -14,7 +14,7 @@ const asErrors = Object.fromEntries(
 );
 
 export default [
-  { ignores: ['dist/', 'coverage/', 'test-results/', 'playwright-report/', '.angular/', 'out-tsc/'] },
+  { ignores: ['dist/', 'coverage/', 'test-results/', 'playwright-report/', '.angular/', 'out-tsc/', 'src/generated/'] },
   {
     files: ['**/*.{ts,mts,cts,js,mjs,cjs}'],
     plugins: recommended.plugins,

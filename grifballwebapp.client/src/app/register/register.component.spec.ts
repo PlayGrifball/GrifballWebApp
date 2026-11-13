@@ -92,7 +92,7 @@ describe('RegisterComponent', () => {
       stubForm({
         valid: true
       });
-      mockAccountService.register.and.returnValue(of({}));
+      mockAccountService.register.and.returnValue(of(undefined));
       
       component.onSubmit();
 
@@ -103,7 +103,7 @@ describe('RegisterComponent', () => {
       stubForm({
         valid: true
       });
-      mockAccountService.register.and.returnValue(of({}));
+      mockAccountService.register.and.returnValue(of(undefined));
       
       component.onSubmit();
 
@@ -132,7 +132,7 @@ describe('RegisterComponent', () => {
       stubForm({
         valid: true
       });
-      mockAccountService.register.and.returnValue(of({}));
+      mockAccountService.register.and.returnValue(of(undefined));
       
       component.onSubmit();
 

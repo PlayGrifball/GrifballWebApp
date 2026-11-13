@@ -1,4 +1,4 @@
-import type { QuickSearchPlayerDto } from '../api/dtos/quickSearchDto';
+import type { QuickSearchPlayerDto } from '@api/models';
 
 /**
  * What a player hit says beside the name: the past or other name the search matched, else where the name comes from, so

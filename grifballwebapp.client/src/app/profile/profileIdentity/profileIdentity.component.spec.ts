@@ -4,13 +4,13 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ProfileIdentityComponent } from './profileIdentity.component';
-import type { GamertagClaimDto } from '../../api/dtos/gamertagClaimDto';
+import type { GamertagClaimDto } from '@api/models';
 
 function claim(id: number, changes: Partial<GamertagClaimDto> = {}): GamertagClaimDto {
   return {
     gamertagClaimID: id, kind: 'UserClaim', status: 'Pending', xboxUserID: null, xboxGamertag: null, userID: 21, claimantUserID: 21,
     gamertag: 'Old Me', placeholderUserID: 501, seasonID: null, seasonName: null, teamID: null, teamName: null,
-    createdAt: '2026-11-01T12:00:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: [], ...changes,
+    createdAt: '2026-11-01T12:00:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: [], claimantName: null, firstSeen: null, lastSeen: null, rejectionReason: null, ...changes,
   };
 }
 

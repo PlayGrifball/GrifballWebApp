@@ -1,9 +1,10 @@
 import { Component, OnInit, ChangeDetectionStrategy, computed, effect, inject, input, numberAttribute, untracked, viewChild, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { ApiClientService } from '../api/apiClient.service';
-import { SeasonDto } from '../api/dtos/seasonDto';
-import type { GameVersionDto, LeagueDto } from '../api/dtos/optionDtos';
-import { seasonFormats } from '../api/dtos/seasonFormat';
+import { EventOrganizerService } from '@api/services/event-organizer.service';
+import { SeasonSettingsApiService } from '../api/seasonSettingsApi.service';
+import { SeasonSettings } from '../api/seasonSettings';
+import type { GameVersionOptionDto, LeagueOptionDto } from '@api/models';
+import { seasonFormats } from '../api/seasonFormats';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -16,7 +17,7 @@ import { provideDatePickers } from '../shared/datePickers';
 import { whileCurrent } from '../shared/whileCurrent';
 
 /** A new season: in the main league, its game still to choose. */
-const newSeason = (): SeasonDto => ({ leagueID: 1, gameVersionID: null, division: null, format: 'LeagueSeason', copyFromSeasonID: null } as SeasonDto);
+const newSeason = (): SeasonSettings => ({ leagueID: 1, gameVersionID: null, division: null, format: 'LeagueSeason', copyFromSeasonID: null } as SeasonSettings);
 
 @Component({
     selector: 'app-season-edit',
@@ -37,7 +38,8 @@ const newSeason = (): SeasonDto => ({ leagueID: 1, gameVersionID: null, division
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonEditComponent implements OnInit {
-  private api = inject(ApiClientService);
+  private eventOrganizer = inject(EventOrganizerService);
+  private api = inject(SeasonSettingsApiService);
 
   readonly seasonForm = viewChild.required<NgForm>('seasonForm');
 
@@ -45,17 +47,17 @@ export class SeasonEditComponent implements OnInit {
    * the form to that season. */
   readonly seasonID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });
 
-  readonly model = signal<SeasonDto>(newSeason());
+  readonly model = signal<SeasonSettings>(newSeason());
 
   /** The formats a season can have. */
   readonly formats = seasonFormats;
 
   /** The games and leagues a season can have (empty if they fail to load). */
-  readonly gameVersions = signal<GameVersionDto[]>([]);
-  readonly leagues = signal<LeagueDto[]>([]);
+  readonly gameVersions = signal<GameVersionOptionDto[]>([]);
+  readonly leagues = signal<LeagueOptionDto[]>([]);
 
   /** Every season, for "Copy from" (chosen by its ID). */
-  private readonly seasons = signal<SeasonDto[]>([]);
+  private readonly seasons = signal<SeasonSettings[]>([]);
   /** The seasons this one can copy from: all but itself. */
   readonly copyableSeasons = computed(() => this.seasons().filter(season => season.seasonID !== this.model().seasonID));
   /**
@@ -77,7 +79,7 @@ export class SeasonEditComponent implements OnInit {
   });
 
   /** Form edits replace the model rather than mutating it. */
-  patch(changes: Partial<SeasonDto>): void {
+  patch(changes: Partial<SeasonSettings>): void {
     this.model.update(model => ({ ...model, ...changes }));
   }
 
@@ -90,11 +92,11 @@ export class SeasonEditComponent implements OnInit {
 
   ngOnInit(): void {
     // Without these lists their selects are empty; the rest of the form still works.
-    this.api.getGameVersions().subscribe({
+    this.eventOrganizer.getGameVersions().subscribe({
       next: (gameVersions) => this.gameVersions.set(gameVersions),
       error: (error) => console.error(error),
     });
-    this.api.getLeagues().subscribe({
+    this.eventOrganizer.getLeagues().subscribe({
       next: (leagues) => this.leagues.set(leagues),
       error: (error) => console.error(error),
     });

@@ -1,26 +1,15 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, InjectionToken, OnInit, PLATFORM_ID, computed, inject, input, signal } from '@angular/core';
 import { Location, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { errorText } from '../errorText';
+import { ExternalLoginsService } from '@api/services/external-logins.service';
+import type { ExternalLoginDto, ExternalProviderDto, LinkedLoginsDto } from '@api/models';
 
-export interface ExternalLogin {
-  loginProvider: string;
-  providerKey: string;
-  providerDisplayName: string;
-}
-
-export interface ExternalProvider {
-  name: string;
-  displayName: string;
-}
-
-export interface LinkedLogins {
-  hasPassword: boolean;
-  logins: ExternalLogin[];
-  providers: ExternalProvider[];
-}
+export type ExternalLogin = ExternalLoginDto;
+export type ExternalProvider = ExternalProviderDto;
+export type LinkedLogins = LinkedLoginsDto;
 
 /** Full-page navigation, swapped out in tests. */
 export const BROWSER_NAVIGATE = new InjectionToken<(url: string) => void>('BROWSER_NAVIGATE', {
@@ -41,7 +30,7 @@ export const BROWSER_NAVIGATE = new InjectionToken<(url: string) => void>('BROWS
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LinkedAccountsComponent implements OnInit {
-  private http = inject(HttpClient);
+  private externalLogins = inject(ExternalLoginsService);
   private route = inject(ActivatedRoute);
   private location = inject(Location);
   private navigate = inject(BROWSER_NAVIGATE);
@@ -71,8 +60,8 @@ export class LinkedAccountsComponent implements OnInit {
 
   load(): void {
     const id = this.userID();
-    const url = id === undefined ? '/api/me/external-logins' : `/api/users/${id}/external-logins`;
-    this.http.get<LinkedLogins>(url).subscribe({
+    const call = id === undefined ? this.externalLogins.getMyExternalLogins() : this.externalLogins.getUserExternalLogins({ userID: id });
+    call.subscribe({
       next: r => this.data.set({ ...r, providers: r.providers ?? [] }),
       error: (e: HttpErrorResponse) => this.message.set(errorText(e, 'Failed to load linked accounts')),
     });
@@ -80,7 +69,7 @@ export class LinkedAccountsComponent implements OnInit {
 
   link(provider: ExternalProvider): void {
     this.busy.set(true);
-    this.http.post<{ token: string }>('/api/me/external-logins/link-token?provider=' + encodeURIComponent(provider.name), null).subscribe({
+    this.externalLogins.startExternalLoginLink({ provider: provider.name }).subscribe({
       next: r => this.navigate('/api/external-logins/link?provider=' + encodeURIComponent(provider.name) + '&token=' + encodeURIComponent(r.token)),
       error: (e: HttpErrorResponse) => {
         this.busy.set(false);
@@ -91,9 +80,10 @@ export class LinkedAccountsComponent implements OnInit {
 
   unlink(login: ExternalLogin): void {
     const id = this.userID();
-    const url = id === undefined ? '/api/me/external-logins/remove' : `/api/users/${id}/external-logins/remove`;
+    const body = { loginProvider: login.loginProvider, providerKey: login.providerKey };
+    const call = id === undefined ? this.externalLogins.unlinkExternalLogin({ body }) : this.externalLogins.removeUserExternalLogin({ userID: id, body });
     this.busy.set(true);
-    this.http.post(url, { loginProvider: login.loginProvider, providerKey: login.providerKey }).subscribe({
+    call.subscribe({
       next: () => {
         this.busy.set(false);
         this.message.set('Unlinked ' + login.providerDisplayName);
@@ -109,7 +99,7 @@ export class LinkedAccountsComponent implements OnInit {
   /** Back from the provider: add the login it returned to this account, then drop the query parameter. */
   private finishLink(): void {
     this.location.replaceState(this.location.path().split('?')[0]);
-    this.http.post<ExternalLogin>('/api/me/external-logins', null).subscribe({
+    this.externalLogins.externalLoginLinkCallback().subscribe({
       next: r => {
         this.message.set('Linked ' + r.providerDisplayName);
         this.load();

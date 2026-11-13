@@ -5,7 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { CreateUserDto } from './createUserDto';
-import { HttpClient } from '@angular/common/http';
+import { UserManagementService } from '@api/services/user-management.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
@@ -22,14 +22,14 @@ import { MatSnackBar } from '@angular/material/snack-bar';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CreateUserComponent {
-  private http = inject(HttpClient);
+  private api = inject(UserManagementService);
   private snackbar = inject(MatSnackBar);
 
   model: CreateUserDto = {} as CreateUserDto;
 
 
   onSubmit(): void {
-    this.http.post("/api/users", this.model).subscribe({
+    this.api.createUser({ body: this.model }).subscribe({
       next: r => {
         this.snackbar.open('Created User');
       },

@@ -4,11 +4,13 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, ReplaySubject, take } from 'rxjs';
 import { MetaInfoResponse } from './accessTokenResponse';
-import { LoginDto } from './api/dtos/loginDto';
-import { RegisterDto } from './api/dtos/registerDto';
-import { GeneratePasswordResetLinkRequestDto, GeneratePasswordResetLinkResponseDto, UsePasswordResetLinkRequestDto } from './api/dtos/passwordResetDtos';
+import type { LoginDto } from '@api/models';
+import type { RegisterDto } from '@api/models';
+import type { GeneratePasswordResetLinkRequestDto, GeneratePasswordResetLinkResponseDto, UsePasswordResetLinkRequestDto } from '@api/models';
 import { AuthSession } from './authSession.service';
 import { Notifier } from './shared/notifier.service';
+import { IdentityService } from '@api/services/identity.service';
+import { AdminService } from '@api/services/admin.service';
 
 /** Who is signed in (IdentityController.Me): the user, or 204 No Content (null) for a visitor. */
 export const ME_URL = '/api/identity/me';
@@ -31,7 +33,10 @@ export const LEGACY_STORAGE_KEYS = ['access_token', 'metaInfo'] as const;
   providedIn: 'root',
 })
 export class AccountService {
+  // Kept on HttpClient: refreshUser ({ transferCache: false }, which the generated client can't express).
   private readonly http = inject(HttpClient);
+  private readonly identity = inject(IdentityService);
+  private readonly admin = inject(AdminService);
   private readonly notifier = inject(Notifier);
   private readonly router = inject(Router);
   private readonly session = inject(AuthSession);
@@ -82,12 +87,13 @@ export class AccountService {
   }
 
   register(registerDto: RegisterDto) {
-    return this.http.post('/api/identity/register', registerDto);
+    return this.identity.register({ body: registerDto });
   }
 
   /** Signs in with a password, then goes on to `followUp` (a path on this site), or home. */
   login(loginDto: LoginDto, followUp?: string): void {
-    this.http.post('/api/identity/login', loginDto, { responseType: 'text' }).subscribe({
+    // With the session cookie (useCookies, the default) the answer has no body: read as null
+    this.identity.login({ body: loginDto }).subscribe({
       error: () => this.notifier.open("Login failed", "Close"),
       next: () => this.onSignedIn(followUp),
     });
@@ -98,7 +104,7 @@ export class AccountService {
    * goes on to `followUp` (a path on this site), or home.
    */
   loginExternal(followUp?: string): void {
-    this.http.post('/api/identity/external-login/callback', null, { responseType: 'text' }).subscribe({
+    this.identity.externalLoginCallback().subscribe({
       error: () => this.notifier.open("Login failed", "Close"),
       next: () => this.onSignedIn(followUp),
     });
@@ -120,7 +126,7 @@ export class AccountService {
   }
 
   logout(): void {
-    this.http.post('/api/identity/logout', null).subscribe({
+    this.identity.logout().subscribe({
       error: () => this.notifier.open("Logout failed", "Close"),
       next: () => {
         this.session.signedInOrOut();
@@ -137,15 +143,16 @@ export class AccountService {
   }
 
   generatePasswordResetLink(request: GeneratePasswordResetLinkRequestDto): Observable<GeneratePasswordResetLinkResponseDto> {
-    return this.http.post<GeneratePasswordResetLinkResponseDto>('/api/password-reset-links', request);
+    return this.admin.generatePasswordResetLink({ body: request });
   }
 
+  /** The server's message, as text. */
   resetPassword(request: UsePasswordResetLinkRequestDto): Observable<string> {
-    return this.http.post('/api/identity/password-reset', request, { responseType: 'text' });
+    return this.identity.resetPassword({ body: request });
   }
 
-  cleanupExpiredPasswordResetLinks(): Observable<string> {
-    return this.http.post('/api/password-reset-links/cleanup', {}, { responseType: 'text' });
+  cleanupExpiredPasswordResetLinks(): Observable<void> {
+    return this.admin.cleanupExpiredPasswordResetLinks();
   }
 }
 

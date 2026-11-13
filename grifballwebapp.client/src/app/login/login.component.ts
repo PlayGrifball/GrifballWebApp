@@ -5,7 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { LoginDto } from '../api/dtos/loginDto';
+import type { LoginDto } from '@api/models';
 import { RouterLink } from '@angular/router';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
 import { AccountService, appRelativePath } from '../account.service';

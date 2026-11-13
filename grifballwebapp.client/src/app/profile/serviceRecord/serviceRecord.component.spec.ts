@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ServiceRecordComponent, ServiceRecordDto, ServiceRecordTotalsDto } from './serviceRecord.component';
+import { ServiceRecordComponent } from './serviceRecord.component';
+import type { ServiceRecordDto, ServiceRecordTotalsDto } from '@api/models';
 
 function totals(changes: Partial<ServiceRecordTotalsDto> = {}): ServiceRecordTotalsDto {
   return { gamesPlayed: 0, wins: 0, losses: 0, winPercent: null, kills: 0, deaths: 0, kdRatio: null, bombScores: 0, uncountedBombScoreGames: 0, ...changes };

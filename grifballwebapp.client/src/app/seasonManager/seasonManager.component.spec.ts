@@ -4,21 +4,21 @@ import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { of, Subject, throwError } from 'rxjs';
 import { SeasonManagerComponent } from './seasonManager.component';
-import { ApiClientService } from '../api/apiClient.service';
-import { SeasonDto } from '../api/dtos/seasonDto';
+import { SeasonSettingsApiService } from '../api/seasonSettingsApi.service';
+import { SeasonSettings } from '../api/seasonSettings';
 
 describe('SeasonManagerComponent', () => {
   let fixture: ComponentFixture<SeasonManagerComponent>;
-  let api: jasmine.SpyObj<ApiClientService>;
+  let api: jasmine.SpyObj<SeasonSettingsApiService>;
 
-  const season = (seasonID: number, seasonName: string): SeasonDto =>
-    Object.assign(new SeasonDto(), { seasonID, seasonName, signupsCount: seasonID * 10, signupsOpen: DateTime.fromISO('2026-01-02T03:04:00') });
+  const season = (seasonID: number, seasonName: string): SeasonSettings =>
+    Object.assign(new SeasonSettings(), { seasonID, seasonName, signupsCount: seasonID * 10, signupsOpen: DateTime.fromISO('2026-01-02T03:04:00') });
 
   beforeEach(async () => {
-    api = jasmine.createSpyObj('ApiClientService', ['getSeasons']);
+    api = jasmine.createSpyObj<SeasonSettingsApiService>('SeasonSettingsApiService', ['getSeasons']);
     await TestBed.configureTestingModule({
       imports: [SeasonManagerComponent],
-      providers: [provideRouter([]), { provide: ApiClientService, useValue: api }]
+      providers: [provideRouter([]), { provide: SeasonSettingsApiService, useValue: api }]
     }).compileComponents();
     fixture = TestBed.createComponent(SeasonManagerComponent);
   });
@@ -58,7 +58,7 @@ describe('SeasonManagerComponent', () => {
   });
 
   it('shows a loading state, then an empty state when there are no seasons', async () => {
-    const seasons = new Subject<SeasonDto[]>();
+    const seasons = new Subject<SeasonSettings[]>();
     api.getSeasons.and.returnValue(seasons);
     await fixture.whenStable();
     expect(el().querySelector('[role="status"]')!.textContent).toContain('Loading seasons');
@@ -78,7 +78,7 @@ describe('SeasonManagerComponent', () => {
   });
 
   it('renders the seasons once they arrive, without a manual detectChanges', async () => {
-    const seasons = new Subject<SeasonDto[]>();
+    const seasons = new Subject<SeasonSettings[]>();
     api.getSeasons.and.returnValue(seasons);
     await fixture.whenStable();
 

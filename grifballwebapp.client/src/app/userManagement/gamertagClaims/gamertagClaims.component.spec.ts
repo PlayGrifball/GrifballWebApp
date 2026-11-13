@@ -4,13 +4,13 @@ import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@a
 import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { GamertagClaimsComponent, problemText } from './gamertagClaims.component';
-import { GamertagClaimDto } from '../../api/dtos/gamertagClaimDto';
+import type { GamertagClaimDto } from '@api/models';
 
 function claim(id: number, changes: Partial<GamertagClaimDto> = {}): GamertagClaimDto {
   return {
     gamertagClaimID: id, kind: 'RosterMatch', status: 'Pending', xboxUserID: 2535400000000000 + id, xboxGamertag: 'Legendary117',
     userID: 117, gamertag: 'Legendary', placeholderUserID: 501, seasonID: 5, seasonName: 'Summer League 2010', teamID: 41,
-    teamName: 'Relentless', createdAt: '2026-10-28T15:00:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: [], ...changes,
+    teamName: 'Relentless', createdAt: '2026-10-28T15:00:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: [], claimantName: null, claimantUserID: null, firstSeen: null, lastSeen: null, rejectionReason: null, ...changes,
   };
 }
 

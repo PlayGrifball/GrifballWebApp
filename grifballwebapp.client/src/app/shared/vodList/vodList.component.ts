@@ -3,8 +3,9 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { rxResource } from '@angular/core/rxjs-interop';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
-import { ApiClientService } from '../../api/apiClient.service';
-import { isVideoID, vodDuration, type VodDto, type VodScope } from '../../api/dtos/vodDto';
+import { VodService } from '@api/services/vod.service';
+import { getVods, isVideoID, vodDuration, type VodScope } from '../../api/vods';
+import type { VodDto } from '@api/models';
 
 /** The privacy-enhanced player: no YouTube cookies until the video plays. */
 export const EMBED_ORIGIN = 'https://www.youtube-nocookie.com';
@@ -22,7 +23,7 @@ export const EMBED_ORIGIN = 'https://www.youtube-nocookie.com';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VodListComponent {
-  private api = inject(ApiClientService);
+  private api = inject(VodService);
   private sanitizer = inject(DomSanitizer);
 
   readonly scope = input.required<VodScope>();
@@ -32,7 +33,7 @@ export class VodListComponent {
 
   readonly vodsResource = rxResource({
     params: () => ({ scope: this.scope(), id: this.id() }),
-    stream: ({ params }) => this.api.getVods(params.scope, params.id),
+    stream: ({ params }) => getVods(this.api, params.scope, params.id),
   });
   readonly vods = computed<VodDto[]>(() => this.vodsResource.hasValue() ? this.vodsResource.value() : []);
   readonly headingID = computed(() => `vods-${this.scope()}-${this.id()}`);

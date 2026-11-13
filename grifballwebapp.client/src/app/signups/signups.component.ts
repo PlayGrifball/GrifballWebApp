@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
-import { ApiClientService } from '../api/apiClient.service';
-import { SignupResponseDto } from '../api/dtos/signupResponseDto';
+import { SeasonService } from '@api/services/season.service';
+import { SignupsService } from '@api/services/signups.service';
+import type { SignupResponseDto } from '@api/models';
 import { RouterLink } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../season/seasonTabs/seasonTabs.component';
 import { DataNoticeComponent } from '../shared/dataNotice/dataNotice.component';
 import { missing, SeasonSummaryService } from '../season/seasonSummary';
-import type { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
+import type { SeasonSummaryDto } from '@api/models';
 import { whileCurrent } from '../shared/whileCurrent';
 
 @Component({
@@ -24,7 +25,8 @@ import { whileCurrent } from '../shared/whileCurrent';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SignupsComponent {
-  private api = inject(ApiClientService);
+  private seasons = inject(SeasonService);
+  private signups = inject(SignupsService);
   private summaries = inject(SeasonSummaryService);
 
   readonly signUps = signal<SignupResponseDto[]>([]);
@@ -46,7 +48,7 @@ export class SignupsComponent {
         this.summary.set(null);
         this.shownSeasonID.set(routeSeasonID);
         if (routeSeasonID === 0) {
-          this.api.getCurrentSeasonID()
+          this.seasons.getCurrentSeasonId()
             .pipe(whileCurrent(routeSeasonID, this.seasonID))
             .subscribe({
               next: (result) => {
@@ -65,7 +67,7 @@ export class SignupsComponent {
   getSignups(): void {
     const seasonID = this.shownSeasonID();
     this.summaries.get(seasonID).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({ next: s => this.summary.set(s), error: () => {} });
-    this.api.getSignups(seasonID).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({
+    this.signups.getSignups({ seasonID }).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({
       next: (result) => this.signUps.set(result),
       error: (error) => console.error(error),
     });
