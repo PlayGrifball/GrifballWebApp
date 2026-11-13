@@ -38,6 +38,8 @@ public class HistoricalArchiveParsingTests
     private static readonly string[] expected19 = ["66666666-2222-3333-4444-555555555555"];
     private static readonly string[] expected20 = ["stats/Stats"];
     private static readonly string[] expected21 = ["stats/Stats", "stats/Playoff Stats"];
+    private static readonly string[] expected22 = ["Gap Season", "Empty Roster"];
+    private static readonly string[] expected23 = ["First", "Third"];
     private static SheetWorkbook Read(byte[] xlsx) => SheetWorkbook.Read(xlsx)!;
 
     [Test]
@@ -257,6 +259,29 @@ public class HistoricalArchiveParsingTests
                 ("Summer League 2021", "MCC Halo 3", "Pro", "Bandits", "A"),
             }));
             Assert.That(champions.Champions[0].Roster, Is.EqualTo(expected1));
+        }
+    }
+
+    [Test]
+    public void Champions_SkipsARowWithNoSeasonOrNoTeam_AndCompactsGapsInTheRoster()
+    {
+        var sheet = Read(Workbook(("AGLA Champions", [Row("AGLA Champions"), Row("Season", "Game", "League", "Team"),
+            Row("", "MCC Halo 3", "Pro", "Ghost Team", "Someone"), // no season: skipped
+            Row("No Team Season", "MCC Halo 3", "Pro", ""), // no team: skipped
+            Row("Gap Season", "MCC Halo 3", "-", "Gaps", "First", "", "Third"), // a blank player mid-roster is compacted out
+            Row("Empty Roster", "MCC Halo 3", "Pro", "NoOne")]))).Sheet("AGLA Champions")!;
+
+        var champions = ChampionsParser.Parse("history-agla-champions", "https://example.org/c", sheet);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(champions.Champions.Select(c => c.Season), Is.EqualTo(expected22), "The two rows with neither a season nor a team are skipped");
+            var gaps = champions.Champions[0];
+            Assert.That(gaps.Captain, Is.EqualTo("First"));
+            Assert.That(gaps.Roster, Is.EqualTo(expected23), "The blank player between them is left out, not kept as a gap");
+            var empty = champions.Champions[1];
+            Assert.That(empty.Captain, Is.Null, "No roster: no captain either");
+            Assert.That(empty.Roster, Is.Empty);
         }
     }
 
@@ -510,6 +535,22 @@ public class HistoricalArchiveParsingTests
             Assert.That(games, Is.Empty);
             Assert.That(warnings, Is.EqualTo(OneSideLeftOut));
         }
+    }
+
+    [Test]
+    public void BlockGames_ATitleWithAnImpossibleDate_HasNoPlayedAt()
+    {
+        // 2/30 doesn't exist: BlockDate's ArgumentOutOfRangeException is caught and the game is dated null, not thrown
+        object?[] header = Row("Team", "Player", "Games Played", "Wins", "Minutes", "Goals", "Kills", "Assists", "Deaths", "Carrier Kills");
+        var workbook = Read(Workbook(("Game Results", [Row("Template"),
+            Row("Week 1 - 2/30/19 - Tuna over Damage (5-2)"), header,
+            Row("Tuna", "imShad (c)", 1, 1, 17.6, 0, 73, 1, 44, 2),
+            Row("Damage", "godwit1ivy (c)", 1, 0, 16.5, 1, 56, 0, 62, 1)])));
+        var warnings = new List<string>();
+
+        var games = RecordedGameParser.Parse("wl19", new GamesTab { Sheet = "Game Results", Season = "wl19/Stats", Game = "halo3", Layout = GamesLayout.Blocks }, workbook, warnings);
+
+        Assert.That(games.Single().PlayedAt, Is.Null);
     }
 
     [Test]
