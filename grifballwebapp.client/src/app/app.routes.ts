@@ -93,85 +93,85 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'infiniteclient',
-    loadComponent: () => import('./infiniteClient/infiniteClient.component').then(m => m.InfiniteClientComponent),
+    loadComponent: () => import('./features/admin/infiniteClient/infiniteClient.component').then(m => m.InfiniteClientComponent),
     title: 'Infinite Client',
     canActivate: [isSysAdminGuard]
   },
   {
     path: 'databasebackup',
-    loadComponent: () => import('./databaseBackup/databaseBackup.component').then(m => m.DatabaseBackupComponent),
+    loadComponent: () => import('./features/admin/databaseBackup/databaseBackup.component').then(m => m.DatabaseBackupComponent),
     title: 'Database Backup',
     canActivate: [isSysAdminGuard]
   },
   {
     path: 'usermanagement',
-    loadComponent: () => import('./userManagement/userManagement.component').then(m => m.UserManagementComponent),
+    loadComponent: () => import('./features/admin/userManagement/userManagement.component').then(m => m.UserManagementComponent),
     title: 'User Management',
     canActivate: [isSysAdminGuard]
   },
   {
     path: 'usermanagement/createuser',
-    loadComponent: () => import('./userManagement/createUser/createUser.component').then(m => m.CreateUserComponent),
+    loadComponent: () => import('./features/admin/userManagement/createUser/createUser.component').then(m => m.CreateUserComponent),
     title: 'Create User',
     canActivate: [isSysAdminGuard]
   },
   {
     path: 'usermanagement/edituser/:userID',
-    loadComponent: () => import('./userManagement/editUser/editUser.component').then(m => m.EditUserComponent),
+    loadComponent: () => import('./features/admin/userManagement/editUser/editUser.component').then(m => m.EditUserComponent),
     title: 'Edit User',
     canActivate: [isSysAdminGuard]
   },
   {
     path: 'usermanagement/mergeuser',
-    loadComponent: () => import('./userManagement/mergeUser/mergeUser.component').then(m => m.MergeUserComponent),
+    loadComponent: () => import('./features/admin/userManagement/mergeUser/mergeUser.component').then(m => m.MergeUserComponent),
     title: 'Merge User',
     canActivate: [isSysAdminGuard]
   },
   {
     path: 'usermanagement/mergeuser/:fromInput',
-    loadComponent: () => import('./userManagement/mergeUser/mergeUser.component').then(m => m.MergeUserComponent),
+    loadComponent: () => import('./features/admin/userManagement/mergeUser/mergeUser.component').then(m => m.MergeUserComponent),
     title: 'Merge User',
     canActivate: [isSysAdminGuard]
   },
   {
     path: 'usermanagement/mergeuser/:fromInput/:toInput',
-    loadComponent: () => import('./userManagement/mergeUser/mergeUser.component').then(m => m.MergeUserComponent),
+    loadComponent: () => import('./features/admin/userManagement/mergeUser/mergeUser.component').then(m => m.MergeUserComponent),
     title: 'Merge User',
     canActivate: [isSysAdminGuard]
   },
   {
     path: 'usermanagement/claims',
-    loadComponent: () => import('./userManagement/gamertagClaims/gamertagClaims.component').then(m => m.GamertagClaimsComponent),
+    loadComponent: () => import('./features/admin/userManagement/gamertagClaims/gamertagClaims.component').then(m => m.GamertagClaimsComponent),
     title: 'Gamertag Claims',
     canActivate: [isSysAdminGuard]
   },
   {
     path: 'usermanagement/merges',
-    loadComponent: () => import('./userManagement/merges/merges.component').then(m => m.MergesComponent),
+    loadComponent: () => import('./features/admin/userManagement/merges/merges.component').then(m => m.MergesComponent),
     title: 'Merges',
     canActivate: [isSysAdminGuard]
   },
   {
     path: 'usermanagement/historicalimport',
-    loadComponent: () => import('./userManagement/historicalImport/historicalImport.component').then(m => m.HistoricalImportComponent),
+    loadComponent: () => import('./features/admin/userManagement/historicalImport/historicalImport.component').then(m => m.HistoricalImportComponent),
     title: 'Historical Import',
     canActivate: [isSysAdminGuard]
   },
   {
     path: 'usermanagement/jobs',
-    loadComponent: () => import('./userManagement/jobs/jobs.component').then(m => m.JobsComponent),
+    loadComponent: () => import('./features/admin/userManagement/jobs/jobs.component').then(m => m.JobsComponent),
     title: 'Jobs',
     canActivate: [isSysAdminGuard]
   },
   {
     path: 'usermanagement/telemetry',
-    loadComponent: () => import('./userManagement/telemetry/telemetry.component').then(m => m.TelemetryComponent),
+    loadComponent: () => import('./features/admin/userManagement/telemetry/telemetry.component').then(m => m.TelemetryComponent),
     title: 'Telemetry',
     canActivate: [isSysAdminGuard]
   },
   {
     path: 'usermanagement/pastgamertags',
-    loadComponent: () => import('./userManagement/pastGamertags/pastGamertags.component').then(m => m.PastGamertagsComponent),
+    loadComponent: () => import('./features/admin/userManagement/pastGamertags/pastGamertags.component').then(m => m.PastGamertagsComponent),
     title: 'Past Gamertags',
     canActivate: [isSysAdminGuard]
   },
@@ -208,13 +208,13 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'excel',
-    loadComponent: () => import('./excel/excel.component').then(m => m.ExcelComponent),
+    loadComponent: () => import('./features/admin/excel/excel.component').then(m => m.ExcelComponent),
     title: 'Excel Exporter',
     canActivate: [isEventOrganizerGuard]
   },
   {
     path: 'excel/:inputSpreadsheetId/:inputSheetName',
-    loadComponent: () => import('./excel/excel.component').then(m => m.ExcelComponent),
+    loadComponent: () => import('./features/admin/excel/excel.component').then(m => m.ExcelComponent),
     title: 'Excel Exporter',
     canActivate: [isEventOrganizerGuard]
   },

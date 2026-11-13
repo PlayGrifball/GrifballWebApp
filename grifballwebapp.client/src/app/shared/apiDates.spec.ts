@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { fromApiDate, fromRequiredApiDate, toApiDate } from './apiDates';
 import { ToDatePipe } from './toDate.pipe';
 import { parseSeason } from '../features/league/api/seasonSettings';
-import { parseUser } from '../userManagement/userResponseDto';
+import { parseUser } from '../features/admin/userManagement/userResponseDto';
 import type { UserResponseDto } from '@api/models';
 import { parseScheduledMatch } from '../features/league/season/scheduleList/scheduledMatchDto';
 import { parseSeasonMatchPage } from '../features/matches/seasonMatch/seasonMatchPageDto';
