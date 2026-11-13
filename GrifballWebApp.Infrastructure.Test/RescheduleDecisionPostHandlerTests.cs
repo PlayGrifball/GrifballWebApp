@@ -88,7 +88,7 @@ public class RescheduleDecisionPostHandlerTests : SqliteContextFixture
 
         Assert.That(outcome, Is.EqualTo(OutboxOutcome.Done));
         await _discord.Received(1).SendMessageAsync(ThreadId, Arg.Is<MessageProperties>(m => m.Content == "Approved"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
-        await _discord.DidNotReceive().GetMessagesAsync(Arg.Any<ulong>(), Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>());
+        _ = _discord.DidNotReceive().GetMessagesAsync(Arg.Any<ulong>(), Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>());
     }
 
     [Test]
