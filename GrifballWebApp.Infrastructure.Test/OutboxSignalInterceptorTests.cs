@@ -81,7 +81,10 @@ public class OutboxSignalInterceptorTests
     {
         _context.Outbox.Add(NewMessage());
 
+        // The sync SavingChanges/SavedChanges overrides are the case under test, not a sync-over-async shortcut.
+#pragma warning disable VSTHRD103 // Call async methods when in an async method
         _context.SaveChanges();
+#pragma warning restore VSTHRD103
 
         Assert.That(await _signal.WaitAsync(ShortWait, CancellationToken.None), Is.True);
     }

@@ -112,8 +112,11 @@ public class DatabaseLocksSqliteTests
     public void Key_SameName_IsStable()
     {
         var name = LockName();
+        var first = DatabaseLocks.Key(name);
 
-        Assert.That(DatabaseLocks.Key(name), Is.EqualTo(DatabaseLocks.Key(name)));
+        var second = DatabaseLocks.Key(name);
+
+        Assert.That(second, Is.EqualTo(first));
     }
 
     [Test]
