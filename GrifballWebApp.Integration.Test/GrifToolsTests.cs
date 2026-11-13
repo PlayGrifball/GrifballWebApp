@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Net;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Championships;
@@ -29,6 +28,7 @@ using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Team = GrifballWebApp.Domain.League.Team;
 using User = GrifballWebApp.Domain.Players.User;
+using ToolDescription = System.ComponentModel.DescriptionAttribute;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -48,6 +48,9 @@ public class GrifToolsTests
     private Season _season = null!;
     private Team _team = null!;
     private User _captain = null!;
+
+    private static readonly string[] Alpha = ["Alpha"];
+    private static readonly string[] PlayerRole = ["Player"];
 
     [SetUp]
     public async Task SetUp()
@@ -91,7 +94,7 @@ public class GrifToolsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(standings.Select(s => s.TeamName), Is.EqualTo(new[] { "Alpha" }));
+            Assert.That(standings.Select(s => s.TeamName), Is.EqualTo(Alpha));
             Assert.That(summary.SeasonName, Is.EqualTo("Spring"));
         }
     }
@@ -104,9 +107,13 @@ public class GrifToolsTests
 
         _time.SetUtcNow(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
         var none = await Assert.ThrowsAsync<ToolException>(() => SeasonTools().GetSeasonStandings());
-        Assert.That(none!.Message, Does.Contain("No season is running"));
+        var byID = await SeasonTools().GetSeasonStandings(_season.SeasonID);
 
-        Assert.That((await SeasonTools().GetSeasonStandings(_season.SeasonID)).Select(s => s.TeamName), Is.EqualTo(new[] { "Alpha" }), "a season given by ID still answers");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(none!.Message, Does.Contain("No season is running"));
+            Assert.That(byID.Select(s => s.TeamName), Is.EqualTo(Alpha), "a season given by ID still answers");
+        }
     }
 
     [Test]
@@ -123,11 +130,12 @@ public class GrifToolsTests
         var tools = new TeamTools(new TeamPageService(_context, _time), new TeamHistoryService(_context, _time), Vods());
 
         var team = await tools.GetTeam(_team.TeamID);
-        Assert.That(team.TeamName, Is.EqualTo("Alpha"));
-        Assert.That(await tools.GetTeamMatches(_team.TeamID), Is.Empty);
+        var matches = await tools.GetTeamMatches(_team.TeamID);
 
         using (Assert.EnterMultipleScope())
         {
+            Assert.That(team.TeamName, Is.EqualTo("Alpha"));
+            Assert.That(matches, Is.Empty);
             Assert.That((await Assert.ThrowsAsync<ToolException>(() => tools.GetTeam(_team.TeamID + 1000)))!.Message, Does.Contain("search"));
             await Assert.ThrowsAsync<ToolException>(() => tools.GetTeamMatches(_team.TeamID + 1000));
             await Assert.ThrowsAsync<ToolException>(() => tools.GetTeamHistory(_team.TeamID + 1000));
@@ -148,9 +156,9 @@ public class GrifToolsTests
         {
             Assert.That(me.UserID, Is.EqualTo(_captain.Id));
             Assert.That(me.Gamertag, Is.EqualTo("CaptainGT"));
-            Assert.That(me.Roles, Is.EqualTo(new[] { "Player" }));
+            Assert.That(me.Roles, Is.EqualTo(PlayerRole));
             Assert.That(profile.UserID, Is.EqualTo(_captain.Id));
-            Assert.That(history.Select(h => h.TeamName), Is.EqualTo(new[] { "Alpha" }));
+            Assert.That(history.Select(h => h.TeamName), Is.EqualTo(Alpha));
         }
     }
 
@@ -212,7 +220,7 @@ public class GrifToolsTests
     {
         var undescribed = AllTools()
             .SelectMany(m => m.GetParameters()
-                .Where(p => p.ParameterType != typeof(CancellationToken) && p.GetCustomAttributes(typeof(DescriptionAttribute), false).Length == 0)
+                .Where(p => p.ParameterType != typeof(CancellationToken) && p.GetCustomAttributes(typeof(ToolDescription), false).Length == 0)
                 .Select(p => $"{m.DeclaringType!.Name}.{m.Name}({p.Name})"))
             .ToList();
 

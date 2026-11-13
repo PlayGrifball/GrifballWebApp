@@ -30,6 +30,8 @@ public class McpServerTests
 
     private static string UserName => PreviewSmokeUsers.UserNames[0];
 
+    private static readonly string[] SomeTools = ["who_am_i", "search", "list_seasons", "get_season_standings", "get_team", "get_player", "get_season_match"];
+
     private sealed class PreviewFactory(Dictionary<string, string?> settings) : WebApplicationFactory<ServerProgram>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -125,7 +127,7 @@ public class McpServerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(tools.Select(t => t.Name), Is.SupersetOf(new[] { "who_am_i", "search", "list_seasons", "get_season_standings", "get_team", "get_player", "get_season_match" }));
+            Assert.That(tools.Select(t => t.Name), Is.SupersetOf(SomeTools));
             Assert.That(tools.Select(t => t.ProtocolTool.Annotations?.ReadOnlyHint), Has.All.True, "every tool so far only reads");
             Assert.That(tools.Select(t => t.Description), Has.None.Null.And.None.Empty);
         }
