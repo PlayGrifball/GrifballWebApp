@@ -173,7 +173,7 @@ public partial class DataPullService : IDataPullService
             if (page > Volatile.Read(ref lastPage))
                 return;
 
-            var records = await HistoryPageAsync(xboxUserID, page, Math.Max(page * perPage - 1, 0), perPage, innerCt);
+            var records = await HistoryPageAsync(xboxUserID, page, page * perPage, perPage, innerCt);
             if (records is null)
             {
                 histories.Failed.Add(xboxUserID);
