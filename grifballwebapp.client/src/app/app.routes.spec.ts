@@ -1,6 +1,6 @@
 import { Route } from '@angular/router';
 import { APP_ROUTES } from './app.routes';
-import { HomeComponent } from './home/home.component';
+import { HomeComponent } from './features/home/home.component';
 import { ThemeComponent } from './core/layout/theme/theme.component';
 import { SeasonComponent } from './season/season.component';
 import { SignupsComponent } from './signups/signups.component';

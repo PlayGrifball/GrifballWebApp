@@ -6,13 +6,13 @@ import { MatSort, MatSortModule, Sort, SortDirection } from '@angular/material/s
 import { MatHeaderRow, MatRow, MatTable, MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { RouterModule } from '@angular/router';
 import { combineLatest, Observable, of, switchMap, tap } from 'rxjs';
-import { PaginationResult } from '../shared/paginationResult';
-import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
-import { pageNow } from '../shared/pageNow';
+import { PaginationResult } from '../../shared/paginationResult';
+import { eventTitles, isUnderWay, SeasonEvent } from '../../shared/seasonEvents';
+import { pageNow } from '../../shared/pageNow';
 import type { SeasonListItemDto } from '@api/models';
-import { apiSortDirection } from '../shared/apiSort';
-import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
-import { rowEnterAnimation } from '../shared/rowEnterAnimation';
+import { apiSortDirection } from '../../shared/apiSort';
+import { LateLeagueQueueComponent } from '../../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
+import { rowEnterAnimation } from '../../shared/rowEnterAnimation';
 import { HomeService } from '@api/services/home.service';
 import { SeasonService } from '@api/services/season.service';
 
