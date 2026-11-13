@@ -7,14 +7,14 @@ namespace GrifballWebApp.Domain.League;
 /// <summary>
 /// A request to move a season match to another time, which a commissioner approves or rejects. A match has one pending
 /// request at most (a filtered unique index): its pending one is its active one, no pointer kept beside it. Made by
-/// <see cref="Request"/> and decided by <see cref="Decide"/>, the only ways its state changes.
+/// <see cref="Request(SeasonMatch, DateTime?, string, int, DateTime)"/> and decided by <see cref="Decide"/>, the only ways its state changes.
 /// </summary>
 // Adds itself to its match's requests (SeasonMatch.AddReschedule), the inverse of its own match link
 [AggregateRoot]
 [AggregateAccess(typeof(SeasonMatch))]
 public class MatchReschedule : AuditableEntity
 {
-    /// <summary>For EF. A request is made by <see cref="Request"/>.</summary>
+    /// <summary>For EF. A request is made by <see cref="Request(SeasonMatch, DateTime?, string, int, DateTime)"/>.</summary>
     private MatchReschedule() { }
 
     /// <summary>
@@ -182,7 +182,7 @@ public class MatchReschedule : AuditableEntity
     }
 }
 
-/// <summary>What <see cref="MatchReschedule.Request"/> made: the request, or why none was made.</summary>
+/// <summary>What <see cref="MatchReschedule.Request(SeasonMatch, DateTime?, string, int, DateTime)"/> made: the request, or why none was made.</summary>
 public sealed record RescheduleRequestResult(MatchReschedule? Reschedule, string? Refused);
 
 /// <summary>What <see cref="MatchReschedule.Decide"/> did.</summary>

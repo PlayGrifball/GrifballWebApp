@@ -43,6 +43,7 @@ public class LeaderboardsService
     }
 
     /// <param name="format">Count only the titles of seasons of this format; null: every format.</param>
+    /// <param name="ct">Cancels the read, and a computation for the cache.</param>
     public async Task<LeaderboardsDto> GetAsync(SeasonFormat? format, CancellationToken ct = default)
     {
         // Every season's titles and stats change only when a result is reported or an import runs: a few minutes stale is fine
@@ -51,7 +52,7 @@ public class LeaderboardsService
 
     /// <summary>
     /// The value cached under <paramref name="key"/>, else computed and cached for <see cref="CacheFor"/>. The cache is
-    /// shared by every API pod when scaled out (Redis, <see cref="Hosting.AppDistributedCacheExtensions.AddAppDistributedCache"/>),
+    /// shared by every API pod when scaled out (Redis, the host's <c>AddAppDistributedCache</c>),
     /// so every pod shows the same boards and ranks a player on the boards it shows. A cache that can't be reached (Redis
     /// down) is skipped: computed, as with no cache.
     /// </summary>
