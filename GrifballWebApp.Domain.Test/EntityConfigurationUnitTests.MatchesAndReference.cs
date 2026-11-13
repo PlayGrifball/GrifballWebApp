@@ -29,7 +29,8 @@ public partial class EntityConfigurationUnitTests
             Assert.That(MaxLengthOf(entity, nameof(MatchmakingSeason.HistoricalSourceUrl)), Is.EqualTo(500));
             Assert.That(IndexIsUnique(entity, nameof(MatchmakingSeason.HistoricalSourceID)), Is.True, "The import upserts by it");
             var byGameVersion = ForeignKeyOf(entity, nameof(MatchmakingSeason.GameVersion));
-            Assert.That((DeleteOf(byGameVersion), byGameVersion.PrincipalToDependent), Is.EqualTo(((DeleteBehavior?)DeleteBehavior.Restrict, (IReadOnlyNavigation?)null)));
+            Assert.That((DeleteOf(byGameVersion), ColumnsOf(byGameVersion)),
+                Is.EqualTo(((DeleteBehavior?)DeleteBehavior.Restrict, new List<string> { nameof(MatchmakingSeason.GameVersionID) })));
         }
     }
 

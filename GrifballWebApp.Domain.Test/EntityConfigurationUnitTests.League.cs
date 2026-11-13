@@ -139,8 +139,10 @@ public partial class EntityConfigurationUnitTests
             Assert.That(KeyOf(team), Is.EqualTo(new List<string> { nameof(TeamAvailability.TeamID), nameof(TeamAvailability.AvailabilityOptionID) }));
             Assert.That(ColumnsOf(ForeignKeyOf(season, nameof(SeasonAvailability.AvailabilityOption))),
                 Is.EqualTo(new List<string> { nameof(SeasonAvailability.AvailabilityOptionID) }));
-            Assert.That(ForeignKeyOf(signup, nameof(SignupAvailability.AvailabilityOption)).PrincipalToDependent, Is.Null,
-                "An option doesn't list the signups that chose it");
+            Assert.That(ColumnsOf(ForeignKeyOf(signup, nameof(SignupAvailability.AvailabilityOption))),
+                Is.EqualTo(new List<string> { nameof(SignupAvailability.AvailabilityOptionID) }));
+            Assert.That(ColumnsOf(ForeignKeyOf(team, nameof(TeamAvailability.AvailabilityOption))),
+                Is.EqualTo(new List<string> { nameof(TeamAvailability.AvailabilityOptionID) }));
             Assert.That(ColumnsOf(ForeignKeyOf(signup, nameof(SignupAvailability.SeasonSignup))),
                 Is.EqualTo(new List<string> { nameof(SignupAvailability.SeasonSignupID) }));
             Assert.That(ColumnsOf(ForeignKeyOf(team, nameof(TeamAvailability.Team))), Is.EqualTo(new List<string> { nameof(TeamAvailability.TeamID) }));

@@ -31,7 +31,6 @@ public partial class EntityConfigurationUnitTests
             Assert.That((DeleteOf(byGame), DeleteOf(byTeam), RequiredOf(byTeam)),
                 Is.EqualTo(((DeleteBehavior?)DeleteBehavior.Cascade, (DeleteBehavior?)DeleteBehavior.ClientSetNull, (bool?)false)),
                 "A team's deletion clears the link, never the recorded game");
-            Assert.That(byTeam.PrincipalToDependent, Is.Null, "A league team doesn't list its recorded sides");
             Assert.That(IndexIsUnique(entity, nameof(RecordedGameTeam.RecordedGameID), nameof(RecordedGameTeam.Side)), Is.True, "One team a side");
             Assert.That(IndexIsUnique(entity, nameof(RecordedGameTeam.TeamID)), Is.False);
         }

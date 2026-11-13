@@ -25,7 +25,6 @@ public class QueryRulesUnitTests
         var season = Scheduled();
         var times = AroundEachDate().ToList();
 
-        bool[] Run(Func<Season, bool> rule) => [.. times.Select(_ => rule(season))];
         bool[] RunAt(Func<DateTime, System.Linq.Expressions.Expression<Func<Season, bool>>> query) =>
             [.. times.Select(t => query(t).Compile()(season))];
 
@@ -38,7 +37,7 @@ public class QueryRulesUnitTests
             Assert.That(RunAt(Season.RunningAt), Is.EqualTo(times.Select(season.IsRunningAt)));
             Assert.That(RunAt(Season.EndedAt), Is.EqualTo(times.Select(season.HasEndedAt)));
             Assert.That(RunAt(Season.NotEndedAt), Is.EqualTo(times.Select(t => !season.HasEndedAt(t))));
-            Assert.That(RunAt(Season.AnnouncedAt), Is.EqualTo(Run(_ => false)), "Never announced: PublicAt is null");
+            Assert.That(RunAt(Season.AnnouncedAt), Is.EqualTo(times.Select(_ => false)), "Never announced: PublicAt is null");
             Assert.That(RunAt(Season.PublicAsOf), Is.EqualTo(times.Select(season.IsPublicAsOf)), "Public once started");
         }
     }
@@ -115,14 +114,18 @@ public class QueryRulesUnitTests
         var reported = MatchedMatch.Start([1, 5], [6, 7], Now).Reported(Guid.NewGuid());
         var canceled = MatchedMatch.Start([8], [9], Now).Canceled();
         var archived = MatchedMatchTestExtensions.ArchiveGame(1, Now, [10], [11]);
-        var matches = new List<MatchedMatch> { active, reported, canceled, archived };
+        var voted = MatchedMatch.Start([12], [13], Now);
+        voted.DecideByVote(MatchedSide.Home);
+        var matches = new List<MatchedMatch> { active, reported, canceled, archived, voted };
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(matches.Where(MatchedMatch.PlayedToAResult.Compile()), Is.EqualTo(new List<MatchedMatch> { reported, archived }));
+            Assert.That(matches.Where(MatchedMatch.PlayedToAResult.Compile()), Is.EqualTo(new List<MatchedMatch> { reported, archived, voted }),
+                "Reported, or decided by its players' vote");
             Assert.That(matches.Where(MatchedMatch.ReportedFromHalo.Compile()), Is.EqualTo(new List<MatchedMatch> { reported }),
                 "An archive game's result is its recorded game, not Halo's");
-            Assert.That(matches.Where(MatchedMatch.DecidedByVote.Compile()), Is.Empty, "None was decided by its players");
+            Assert.That(matches.Where(MatchedMatch.DecidedByVote.Compile()), Is.EqualTo(new List<MatchedMatch> { voted }), "Only the one its players decided");
+            Assert.That((voted.Status, voted.WinnerSide), Is.EqualTo((MatchedMatchStatus.VoteDecided, (MatchedSide?)MatchedSide.Home)));
             Assert.That(matches.Where(MatchedMatch.HasPlayer(1).Compile()), Is.EqualTo(new List<MatchedMatch> { active, reported }), "Home or away");
             Assert.That(matches.Where(MatchedMatch.HasPlayer(11).Compile()), Is.EqualTo(new List<MatchedMatch> { archived }));
             Assert.That(matches.Where(MatchedMatch.HasPlayer(99).Compile()), Is.Empty);
@@ -226,6 +229,8 @@ public class QueryRulesUnitTests
         var stillHeld = new XboxGamertagHistory(1, "Old Tag", firstSeen: Now, lastSeen: null);
         var letGo = new XboxGamertagHistory(1, "Older Tag", firstSeen: Now.AddYears(-2), lastSeen: Now);
         var heldAt = (DateTime? from) => XboxGamertagHistory.HeldAt(from).Compile();
+        // The edges of both rules: before, at and after LastSeen, and an unknown time
+        var times = new List<DateTime?> { Now.AddYears(-5), Now.AddTicks(-1), Now, Now.AddTicks(1), Now.AddYears(5), null };
 
         using (Assert.EnterMultipleScope())
         {
@@ -233,6 +238,8 @@ public class QueryRulesUnitTests
             Assert.That((heldAt(Now)(letGo), heldAt(Now.AddTicks(1))(letGo)), Is.EqualTo((true, false)), "Held up to when it was last seen");
             Assert.That(heldAt(Now.AddYears(-5))(letGo), Is.True, "Before it was first seen counts: FirstSeen isn't when it was taken");
             Assert.That(heldAt(null)(letGo), Is.True, "An unknown time can't rule it out");
+            Assert.That(times.Select(t => heldAt(t)(letGo)), Is.EqualTo(times.Select(letGo.WasHeldAt)), "The query's rule is the loaded row's, LastSeen == from included");
+            Assert.That(times.Select(t => heldAt(t)(stillHeld)), Is.EqualTo(times.Select(stillHeld.WasHeldAt)));
         }
     }
 

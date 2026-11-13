@@ -74,7 +74,11 @@ public partial class EntityConfigurationUnitTests
     /// </summary>
     private static bool? IndexIsUnique(IReadOnlyEntityType entity, IReadOnlyList<string> columns)
     {
-        var index = (IConventionIndex?)entity.GetIndexes().SingleOrDefault(i => i.Properties.Select(p => p.Name).SequenceEqual(columns));
+        var matching = entity.GetIndexes().Where(i => i.Properties.Select(p => p.Name).SequenceEqual(columns)).ToList();
+        // Several indexes on one column list (EF allows it, named): a failed assertion naming them, not a crash
+        Assert.That(matching.Select(i => i.Name ?? "(unnamed)").ToList(), Has.Count.LessThanOrEqualTo(1),
+            $"One index on ({string.Join(", ", columns)}) at most: name the one meant");
+        var index = (IConventionIndex?)matching.FirstOrDefault();
         if (index is null || !IsExplicit(index.GetConfigurationSource()))
             return null;
         return index.IsUnique && IsExplicit(index.GetIsUniqueConfigurationSource());
@@ -180,6 +184,7 @@ public partial class EntityConfigurationUnitTests
             Assert.That(DeleteOf(ForeignKeyOf(entity, nameof(PlayerSeasonStat.User))), Is.EqualTo(DeleteBehavior.Restrict),
                 "A merge moves a user's stats before it deletes the user");
             Assert.That(IndexIsUnique(entity, new List<string> { "SeasonID", "UserID", "StintIndex", "IsPlayoffs" }), Is.True);
+            Assert.That(entity.GetIndexes().Where(i => i.IsUnique).ToList(), Has.Count.EqualTo(1), "That one only: a user has a row in every season");
         }
     }
 
@@ -303,6 +308,7 @@ public partial class EntityConfigurationUnitTests
             Assert.That(TableOf(matchEntity), Is.EqualTo(("Event", "ScheduleRecommendationMatches")));
             Assert.That(IsIgnored(matchEntity, nameof(ScheduleRecommendationMatch.HasConflict)), Is.True, "Worked out from its flags");
             Assert.That(IndexIsUnique(matchEntity, "ScheduleRecommendationID", "SeasonMatchID"), Is.True);
+            Assert.That(matchEntity.GetIndexes().ToList(), Has.Count.EqualTo(1), "Its only index");
         }
     }
 
@@ -340,6 +346,7 @@ public partial class EntityConfigurationUnitTests
             Assert.That((DeleteOf(byUser), DeleteOf(bySeason), DeleteOf(byTeam)),
                 Is.EqualTo(((DeleteBehavior?)DeleteBehavior.Restrict, (DeleteBehavior?)DeleteBehavior.Cascade, (DeleteBehavior?)DeleteBehavior.NoAction)));
             Assert.That(IndexIsUnique(entity, new List<string> { "SeasonID", "Tier", "UserID" }), Is.True);
+            Assert.That(entity.GetIndexes().Where(i => i.IsUnique).ToList(), Has.Count.EqualTo(1), "That one only: a player can hold titles in many seasons");
         }
     }
 

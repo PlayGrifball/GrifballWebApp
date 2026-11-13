@@ -104,8 +104,8 @@ public class AuditInterceptorUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(context.Entry(edited).State, Is.EqualTo(EntityState.Modified), "The edit is found");
-            Assert.That((edited.ModifiedByID, edited.CreatedByID, edited.CreatedAt), Is.EqualTo(((int?)EditorID, (int?)CreatorID, Earlier)));
+            Assert.That((edited.ModifiedByID, edited.CreatedByID, edited.CreatedAt), Is.EqualTo(((int?)EditorID, (int?)CreatorID, Earlier)),
+                "Stamped by the editor: the interceptor found the edit itself, its state never set by hand");
             Assert.That(edited.ModifiedAt, Is.Not.EqualTo(Earlier), "Stamped with the save's time");
             Assert.That((untouched.ModifiedByID, untouched.ModifiedAt), Is.EqualTo(((int?)CreatorID, Earlier)), "Only the edited row");
         }
