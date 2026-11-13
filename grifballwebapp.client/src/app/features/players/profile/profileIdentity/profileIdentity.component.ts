@@ -5,9 +5,9 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MyProfileService } from '@api/services/my-profile.service';
 import type { ClaimPreviewDto, GamertagClaimDto } from '@api/models';
-import { problemText } from '../../shared/errorText';
-import { REGIONS } from '../../shared/regions';
-import { SeasonLinksComponent } from '../../shared/seasonLinks/seasonLinks.component';
+import { problemText } from '../../../../shared/errorText';
+import { REGIONS } from '../../../../shared/regions';
+import { SeasonLinksComponent } from '../../../../shared/seasonLinks/seasonLinks.component';
 
 /** A date input's "yyyy-MM-dd" as the API takes it (midnight UTC), or null when empty. */
 function apiDay(value: string): string | null {

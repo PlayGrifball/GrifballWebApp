@@ -17,8 +17,8 @@ const TILES: { board: SpotlightBoard, label: string, unit: [one: string, many: s
 @Component({
   selector: 'app-player-spotlight',
   imports: [RouterLink],
-  templateUrl: './player-spotlight.component.html',
-  styleUrl: './player-spotlight.component.scss',
+  templateUrl: './playerSpotlight.component.html',
+  styleUrl: './playerSpotlight.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlayerSpotlightComponent {

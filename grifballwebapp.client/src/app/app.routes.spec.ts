@@ -29,10 +29,10 @@ import { HistoricalImportComponent } from './userManagement/historicalImport/his
 import { JobsComponent } from './userManagement/jobs/jobs.component';
 import { TelemetryComponent } from './userManagement/telemetry/telemetry.component';
 import { MergesComponent } from './userManagement/merges/merges.component';
-import { ProfileComponent } from './profile/profile.component';
+import { ProfileComponent } from './features/players/profile/profile.component';
 import { TeamHistoryComponent } from './features/league/teamHistory/teamHistory.component';
 import { SeasonsComponent } from './features/league/seasons/seasons.component';
-import { LeaderboardsComponent } from './leaderboards/leaderboards.component';
+import { LeaderboardsComponent } from './features/players/leaderboards/leaderboards.component';
 import { LateLeagueComponent } from './lateLeague/lateLeague.component';
 import { ExcelComponent } from './excel/excel.component';
 import { CommissionerDashboardComponent } from './features/league/commissionerDashboard/commissionerDashboard.component';

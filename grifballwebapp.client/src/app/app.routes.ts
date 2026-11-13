@@ -177,7 +177,7 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'profile/:userID',
-    loadComponent: () => import('./profile/profile.component').then(m => m.ProfileComponent),
+    loadComponent: () => import('./features/players/profile/profile.component').then(m => m.ProfileComponent),
     title: 'User Profile'
   },
   {
@@ -193,7 +193,7 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'leaderboards',
-    loadComponent: () => import('./leaderboards/leaderboards.component').then(m => m.LeaderboardsComponent),
+    loadComponent: () => import('./features/players/leaderboards/leaderboards.component').then(m => m.LeaderboardsComponent),
     title: 'Leaderboards'
   },
   {

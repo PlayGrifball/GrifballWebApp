@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { PlayerSpotlightComponent } from './player-spotlight.component';
+import { PlayerSpotlightComponent } from './playerSpotlight.component';
 import type { PlayerAllTimeRankDto } from '@api/models';
 import type { Board } from '../board';
 

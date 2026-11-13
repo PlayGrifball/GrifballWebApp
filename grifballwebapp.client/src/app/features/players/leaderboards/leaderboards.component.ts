@@ -4,15 +4,15 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, EMPTY, map, of, Subject, switchMap, tap } from 'rxjs';
 import { LeaderboardsService } from '@api/services/leaderboards.service';
-import { nullWhenNotFound } from '../core/http/nullWhenNotFound';
+import { nullWhenNotFound } from '../../../core/http/nullWhenNotFound';
 import type { LeaderboardsDto, MetricLeaderDto } from '@api/models';
 import type { PlayerAllTimeRankDto } from '@api/models';
 import type { QuickSearchPlayerDto } from '@api/models';
-import { seasonFormats } from '../shared/seasonFormats';
+import { seasonFormats } from '../../../shared/seasonFormats';
 import type { SeasonFormat } from '@api/models';
 import type { Board } from './board';
-import { PlayerSearchComponent } from './player-search/player-search.component';
-import { PlayerSpotlightComponent } from './player-spotlight/player-spotlight.component';
+import { PlayerSearchComponent } from './player-search/playerSearch.component';
+import { PlayerSpotlightComponent } from './player-spotlight/playerSpotlight.component';
 
 type MetricBoard = Exclude<Board, 'rings' | 'dynasties'>;
 

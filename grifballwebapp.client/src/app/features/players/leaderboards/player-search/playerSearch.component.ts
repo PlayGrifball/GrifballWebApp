@@ -3,8 +3,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, map, of, Subject, switchMap, timer } from 'rxjs';
 import { LeaderboardsService } from '@api/services/leaderboards.service';
 import type { QuickSearchPlayerDto } from '@api/models';
-import { playerDetail } from '../../core/layout/quickSearch/playerDetail';
-import { QUICK_SEARCH_MIN_LENGTH } from '../../core/layout/quickSearch/quickSearch.component';
+import { playerDetail } from '../../../../core/layout/quickSearch/playerDetail';
+import { QUICK_SEARCH_MIN_LENGTH } from '../../../../core/layout/quickSearch/quickSearch.component';
 
 /** How long typing pauses before the players are searched. */
 export const SEARCH_DEBOUNCE_MS = 250;
@@ -43,8 +43,8 @@ export function onlyMatch(found: QuickSearchPlayerDto[], text: string): QuickSea
  */
 @Component({
   selector: 'app-player-search',
-  templateUrl: './player-search.component.html',
-  styleUrl: './player-search.component.scss',
+  templateUrl: './playerSearch.component.html',
+  styleUrl: './playerSearch.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlayerSearchComponent {
