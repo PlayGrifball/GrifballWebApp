@@ -1,10 +1,8 @@
 #pragma warning disable EF1001 // EF's migrations services, subclassed in place of the Migrations assemblies
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.EntityFrameworkCore.Migrations.Internal;
 using Microsoft.EntityFrameworkCore.Sqlite.Migrations.Internal;
 
 namespace GrifballWebApp.Infrastructure.Test;
@@ -46,15 +44,20 @@ internal sealed class FakeMigrationsContext(DbContextOptions<GrifballContext> op
     public static MigrationsState StateOf(ICurrentDbContext current) => ((FakeMigrationsContext)current.Context).State;
 }
 
-internal sealed class FakeMigrationsAssembly(ICurrentDbContext currentContext, IDbContextOptions options, IMigrationsIdGenerator idGenerator,
-    IDiagnosticsLogger<DbLoggerCategory.Migrations> logger) : MigrationsAssembly(currentContext, options, idGenerator, logger)
+/// <summary>The migrations this build knows: the state's, by ID. (EF's own MigrationsAssembly loads the Migrations
+/// assembly as it's made, so this implements the interface instead.)</summary>
+internal sealed class FakeMigrationsAssembly(ICurrentDbContext current) : IMigrationsAssembly
 {
-    private readonly ICurrentDbContext _current = currentContext;
+    public IReadOnlyDictionary<string, TypeInfo> Migrations
+        => FakeMigrationsContext.StateOf(current).Known.ToDictionary(id => id, _ => typeof(Migration).GetTypeInfo());
 
-    public override IReadOnlyDictionary<string, TypeInfo> Migrations
-        => FakeMigrationsContext.StateOf(_current).Known.ToDictionary(id => id, _ => typeof(Migration).GetTypeInfo());
+    public ModelSnapshot? ModelSnapshot => null;
 
-    public override ModelSnapshot? ModelSnapshot => null;
+    public Assembly Assembly => typeof(FakeMigrationsAssembly).Assembly;
+
+    public string? FindMigrationId(string nameOrId) => Migrations.Keys.FirstOrDefault(id => id == nameOrId || id.EndsWith("_" + nameOrId, StringComparison.Ordinal));
+
+    public Migration CreateMigration(TypeInfo migrationClass, string activeProvider) => throw new NotSupportedException("The fake migrator runs no migration classes");
 }
 
 internal sealed class FakeHistoryRepository(HistoryRepositoryDependencies dependencies) : SqliteHistoryRepository(dependencies)
