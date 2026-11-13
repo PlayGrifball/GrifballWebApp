@@ -68,7 +68,8 @@ public class DatabaseBackupServiceDumpUnitTests
     [Test]
     public async Task CreateAsync_AnotherAlreadyRunning_ReturnsNull()
     {
-        var fake = FakePgDump("sleep 2");
+        // Writes the (empty) file before sleeping, so CreateAsync can still open it once pg_dump exits
+        var fake = FakePgDump("printf '' > \"$file\"; sleep 2");
         try
         {
             var service = Service(fake);
