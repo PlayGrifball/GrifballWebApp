@@ -2,7 +2,7 @@
 // for the signed-in user: asked as Lighthouse asks (lighthouserc.cjs with LIGHTHOUSE_SESSION=signed-in,
 // its URLs and the Cookie header it sends), each page must have that user's name in the HTML the
 // server drew (not only in the API answers it passes on to the browser) and be kept out of caches
-// as a signed-in user's page is (src/app/pageCache.ts). Otherwise the signed-in scores would be a
+// as a signed-in user's page is (src/app/core/server/pageCache.ts). Otherwise the signed-in scores would be a
 // visitor's.
 // Usage: node e2e/lighthouse-signed-in.mjs (after the build; starts and stops e2e/serve.mjs itself)
 import { spawn } from 'node:child_process';

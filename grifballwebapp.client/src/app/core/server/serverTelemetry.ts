@@ -124,7 +124,7 @@ export function isLogged(level: LogLevel, minimum: LogLevel): boolean {
  */
 export type RequestKind = 'api' | 'hub' | 'signin' | 'hubsPage' | 'file' | 'page';
 
-/** What the server passes on to the backend (src/app/backendPaths.ts) is, by its prefix: the hubs' page's own files are its own kind, not the API's. */
+/** What the server passes on to the backend (src/app/core/http/backendPaths.ts) is, by its prefix: the hubs' page's own files are its own kind, not the API's. */
 const BACKEND_KINDS: Record<BackendPrefix, RequestKind> = { '/api': 'api', '/hub': 'hub', '/signin-discord': 'signin', '/signalr-dev': 'hubsPage' };
 
 export function requestKind(path: string): RequestKind {
@@ -198,7 +198,7 @@ export function formatTraceparent(traceId: string, spanId: string, sampled: bool
 /**
  * The Server-Timing header that hands a page its trace: scripts can't read a page's own response headers,
  * but they can read this one (performance.getEntriesByType('navigation')[0].serverTiming), and the browser's
- * error reports (app/clientErrors.ts) send it back.
+ * error reports (app/core/http/clientErrors.ts) send it back.
  */
 export function serverTimingHeader(traceparent: string, browserTelemetry = false): string {
   return `traceparent;desc="${traceparent}"` + (browserTelemetry ? `, ${BROWSER_TELEMETRY_MARK}` : '');
@@ -206,7 +206,7 @@ export function serverTimingHeader(traceparent: string, browserTelemetry = false
 
 /**
  * The Server-Timing entry that tells the page browser telemetry is on (the API takes it): without it the browser
- * records nothing, and sends no traceparent whose span would never arrive (telemetry/browserTelemetry.ts).
+ * records nothing, and sends no traceparent whose span would never arrive (core/telemetry/browserTelemetry.ts).
  */
 export const BROWSER_TELEMETRY_MARK = 'browser-telemetry';
 

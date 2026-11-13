@@ -12,7 +12,7 @@ export type MockBody = unknown;
 export const MOCK_NOW = '2026-10-29T18:00:00Z';
 
 /**
- * The session cookie (BrowserAuth.CookieName on the API, SESSION_COOKIE in src/app/pageCache.ts).
+ * The session cookie (BrowserAuth.CookieName on the API, SESSION_COOKIE in src/app/core/server/pageCache.ts).
  * Its value here is the role it signs in as, for the mock backend of e2e/serve.mjs.
  */
 export const SESSION_COOKIE = '__Host-Grifball';

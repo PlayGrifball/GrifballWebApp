@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mockResponse, signIn, type Role } from './mockApi.mts';
 
 // index.html starts the first page's API calls before the app has loaded; the app then uses those
-// answers (src/app/earlyFetch.interceptor.ts). Each call must still go out only once, and a failed
+// answers (src/app/core/http/earlyFetch.interceptor.ts). Each call must still go out only once, and a failed
 // early call must not leave the page empty. The backend is mocked (e2e/mockApi.mts).
 
 /** Mocks the backend as `role` and counts the API calls by path and query. */

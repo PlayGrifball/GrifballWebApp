@@ -135,7 +135,7 @@ describe('server telemetry', () => {
     });
 
     it('counts the hubs\' page\'s own files as its own kind, and its hub connections as hub traffic, not the API\'s', () => {
-      // The page's own (src/app/backendPaths.ts): its connections go to the hubs, the rest is the page itself, not the API
+      // The page's own (src/app/core/http/backendPaths.ts): its connections go to the hubs, the rest is the page itself, not the API
       expect(requestKind('/signalr-dev/TeamsHub/negotiate')).toBe('hub');
       expect(requestKind('/signalr-dev/QueueHub')).toBe('hub');
       expect(requestKind('/signalr-dev/spec.json')).toBe('hubsPage');

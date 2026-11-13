@@ -18,7 +18,7 @@ const PROXY_CONFIG = [
   },
   {
     // The hubs' page (TypedSignalR.Client.DevTools): as it is, but its own hub connections go to the hub
-    // (src/app/backendPaths.ts)
+    // (src/app/core/http/backendPaths.ts)
     context: [
       "/signalr-dev",
     ],

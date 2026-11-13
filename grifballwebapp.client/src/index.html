@@ -60,7 +60,7 @@
     <div class="boot-shell" aria-hidden="true"><div class="boot-shell__bar"><div class="boot-shell__brand">Grifball</div></div></div>
   </app-root>
   <!-- Starts the API calls of the page being opened while the app's scripts download; the app uses
-       each answer once, instead of asking again (src/app/earlyFetch.interceptor.ts). The URLs must
+       each answer once, instead of asking again (src/app/core/http/earlyFetch.interceptor.ts). The URLs must
        match what the pages ask for (with the same query): a URL nobody asks for is just not used.
        Not for a page the server rendered (app-root has ng-server-context then): the server sends
        its API answers with the page, and the app uses those. -->

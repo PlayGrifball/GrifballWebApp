@@ -7,7 +7,7 @@ import { BrowserTelemetry, parseTraceparent } from '../telemetry/browserTelemetr
 
 /**
  * The browser's error reports: unhandled errors and failed API calls, as error log lines of the browser's telemetry
- * (telemetry/browserTelemetry.ts), with their page and trace. Each is in the trace it belongs to: a failed call's own
+ * (core/telemetry/browserTelemetry.ts), with their page and trace. Each is in the trace it belongs to: a failed call's own
  * (its traceresponse header, or the ProblemDetails' traceId), or else the navigation under way, or else the page's
  * (the Server-Timing header the app's server sends, src/server.telemetry.ts).
  *

@@ -23,7 +23,7 @@ export const appConfig: ApplicationConfig = {
     // tracingInterceptor last, nearest the network: a span (and traceparent) for each call that goes out, the
     // antiforgery token's fetch included, none for an answer earlyFetchInterceptor already had
     provideHttpClient(withXhr(), withInterceptors([clientErrorsInterceptor, earlyFetchInterceptor, authInterceptor, tracingInterceptor])),
-    // The browser's telemetry: a span for each navigation, and the Web Vitals (telemetry/browserTracing.ts)
+    // The browser's telemetry: a span for each navigation, and the Web Vitals (core/telemetry/browserTracing.ts)
     provideBrowserTelemetry(),
     provideRouter(APP_ROUTES
       , withComponentInputBinding()

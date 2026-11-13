@@ -13,7 +13,7 @@ const serverConfig: ApplicationConfig = {
     // The backend, as the proxy in server.ts reaches it
     { provide: API_ORIGIN, useFactory: () => apiUrl(process.env['API_URL']) },
     { provide: HttpBackend, useClass: ServerApiBackend },
-    // ngx-drag-drop's dropzones, as they work in the browser (teamBuilder/dndServer.ts)
+    // ngx-drag-drop's dropzones, as they work in the browser (features/draft/teamBuilder/dndServer.ts)
     provideEnvironmentInitializer(placeholderNullWhenNone),
   ]
 };
