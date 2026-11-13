@@ -145,8 +145,9 @@ public class DataPullServicePullAsyncUnitTests
         await _halo.DidNotReceive().StatsGetMatchStats(otherMode);
         // Duplicated xbox ids are only queried once per page
         await _halo.Received(1).StatsGetMatchHistory("xuid(2)", 0, 5, Arg.Any<GruntMatchType>());
-        // Page 1 starts at index page * perPage - 1
-        await _halo.Received(1).StatsGetMatchHistory("xuid(2)", 4, 5, Arg.Any<GruntMatchType>());
+        // Page 1 starts at index page * perPage, right after page 0's last game: no overlap, none skipped
+        await _halo.Received(1).StatsGetMatchHistory("xuid(2)", 5, 5, Arg.Any<GruntMatchType>());
+        await _halo.DidNotReceive().StatsGetMatchHistory("xuid(2)", 4, 5, Arg.Any<GruntMatchType>());
         // Only users that are not in the database yet are bulk fetched
         await _getsert.Received(1).GetsertXboxUsersByXuid(Arg.Is<long[]>(x => x.SequenceEqual(new long[] { 9 })), Arg.Any<CancellationToken>());
     }
@@ -163,11 +164,12 @@ public class DataPullServicePullAsyncUnitTests
         var page1Answered = new TaskCompletionSource();
         _halo.StatsGetMatchHistory("xuid(5)", 0, 5, Arg.Any<GruntMatchType>()).Returns(async _ =>
         {
-            await page1Answered.Task;
+            // Bounded: if page 1 is ever not asked for alongside page 0, this fails instead of hanging the run
+            await page1Answered.Task.WaitAsync(TimeSpan.FromSeconds(10));
             await Task.Delay(50);
             return Ok(new MatchHistoryResponse { Results = [RecordOf(onPage0)] });
         });
-        _halo.StatsGetMatchHistory("xuid(5)", 4, 5, Arg.Any<GruntMatchType>()).Returns(_ =>
+        _halo.StatsGetMatchHistory("xuid(5)", 5, 5, Arg.Any<GruntMatchType>()).Returns(_ =>
         {
             page1Answered.SetResult();
             return Ok(new MatchHistoryResponse { Results = [] });
@@ -177,8 +179,38 @@ public class DataPullServicePullAsyncUnitTests
         var result = await _service.DownloadRecentMatchesForPlayers([5], startPage: 0, endPage: 3, perPage: 5);
 
         Assert.That(result.MatchesFound, Is.EqualTo(1), "Page 0's game, answered after page 1 was found empty");
-        await _halo.DidNotReceive().StatsGetMatchHistory("xuid(5)", 9, 5, Arg.Any<GruntMatchType>());
-        await _halo.DidNotReceive().StatsGetMatchHistory("xuid(5)", 14, 5, Arg.Any<GruntMatchType>());
+        await _halo.DidNotReceive().StatsGetMatchHistory("xuid(5)", 10, 5, Arg.Any<GruntMatchType>());
+        await _halo.DidNotReceive().StatsGetMatchHistory("xuid(5)", 15, 5, Arg.Any<GruntMatchType>());
+    }
+
+    /// <summary>
+    /// Pages follow one another: page p starts at p * perPage, so pages 0 and 1 of 5 read games 0 to 9, each once, the
+    /// range's last game included. (They started at p * perPage - 1: game 4 was read twice and game 9 never.)
+    /// </summary>
+    [Test]
+    public async Task DownloadRecentMatchesForPlayers_ConsecutivePages_ReadEveryGameOnce_TheLastOneIncluded()
+    {
+        var games = Enumerable.Range(0, 12).Select(_ => Guid.NewGuid()).ToList();
+        _halo.StatsGetMatchHistory("xuid(4)", Arg.Any<int>(), Arg.Any<int>(), Arg.Any<GruntMatchType>()).Returns(call => Ok(new MatchHistoryResponse
+        {
+            Results = games.Skip(call.ArgAt<int>(1)).Take(call.ArgAt<int>(2)).Select(id => Record(id.ToString(), 41)).ToArray(),
+        }));
+        _halo.StatsGetMatchStats(Arg.Any<Guid>()).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(null!, null!));
+
+        var result = await _service.DownloadRecentMatchesForPlayers([4], startPage: 0, endPage: 1, perPage: 5);
+
+        var fetched = _halo.ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == "StatsGetMatchStats")
+            .Select(c => (Guid)c.GetArguments()[0]!)
+            .Distinct()
+            .ToList();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.MatchesFound, Is.EqualTo(10), "Two pages of 5, none read twice");
+            Assert.That(fetched, Is.EquivalentTo(games.Take(10)), "Games 0 to 9: the range's last game (9) included, game 10 not");
+        }
+        await _halo.Received(1).StatsGetMatchHistory("xuid(4)", 0, 5, Arg.Any<GruntMatchType>());
+        await _halo.Received(1).StatsGetMatchHistory("xuid(4)", 5, 5, Arg.Any<GruntMatchType>());
     }
 
     /// <summary>

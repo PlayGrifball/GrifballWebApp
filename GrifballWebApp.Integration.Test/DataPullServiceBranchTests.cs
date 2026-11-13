@@ -336,8 +336,9 @@ public class DataPullServiceBranchTests
         await _factory.DidNotReceive().StatsGetMatchStats(otherMode);
         // Duplicated xbox ids are only queried once per page
         await _factory.Received(1).StatsGetMatchHistory("xuid(2)", 0, 5, Arg.Any<GruntMatchType>());
-        // Page 1 starts at index page * perPage - 1
-        await _factory.Received(1).StatsGetMatchHistory("xuid(2)", 4, 5, Arg.Any<GruntMatchType>());
+        // Page 1 starts at index page * perPage, right after page 0's last game: no overlap, none skipped
+        await _factory.Received(1).StatsGetMatchHistory("xuid(2)", 5, 5, Arg.Any<GruntMatchType>());
+        await _factory.DidNotReceive().StatsGetMatchHistory("xuid(2)", 4, 5, Arg.Any<GruntMatchType>());
         // Only users that are not in the database yet are bulk fetched
         await _getsert.Received(1).GetsertXboxUsersByXuid(Arg.Is<long[]>(x => x.SequenceEqual(new long[] { 9 })), Arg.Any<CancellationToken>());
     }
@@ -354,11 +355,12 @@ public class DataPullServiceBranchTests
         var page1Answered = new TaskCompletionSource();
         _factory.StatsGetMatchHistory("xuid(5)", 0, 5, Arg.Any<GruntMatchType>()).Returns(async _ =>
         {
-            await page1Answered.Task;
+            // Bounded: if page 1 is ever not asked for alongside page 0, this fails instead of hanging the run
+            await page1Answered.Task.WaitAsync(TimeSpan.FromSeconds(10));
             await Task.Delay(50);
             return Ok(new MatchHistoryResponse { Results = [Record(onPage0)] });
         });
-        _factory.StatsGetMatchHistory("xuid(5)", 4, 5, Arg.Any<GruntMatchType>()).Returns(_ =>
+        _factory.StatsGetMatchHistory("xuid(5)", 5, 5, Arg.Any<GruntMatchType>()).Returns(_ =>
         {
             page1Answered.SetResult();
             return Ok(new MatchHistoryResponse { Results = [] });
@@ -368,8 +370,8 @@ public class DataPullServiceBranchTests
         var result = await _service.DownloadRecentMatchesForPlayers([5], startPage: 0, endPage: 3, perPage: 5);
 
         Assert.That(result.MatchesFound, Is.EqualTo(1), "Page 0's game, answered after page 1 was found empty");
-        await _factory.DidNotReceive().StatsGetMatchHistory("xuid(5)", 9, 5, Arg.Any<GruntMatchType>());
-        await _factory.DidNotReceive().StatsGetMatchHistory("xuid(5)", 14, 5, Arg.Any<GruntMatchType>());
+        await _factory.DidNotReceive().StatsGetMatchHistory("xuid(5)", 10, 5, Arg.Any<GruntMatchType>());
+        await _factory.DidNotReceive().StatsGetMatchHistory("xuid(5)", 15, 5, Arg.Any<GruntMatchType>());
         Assert.That(_logger.Entries.Select(x => x.Message), Has.None.Contains("No recent custom games"), "It has some");
     }
 
