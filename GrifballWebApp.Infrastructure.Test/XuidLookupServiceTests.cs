@@ -11,6 +11,7 @@ using NSubstitute.ExceptionExtensions;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
 using GruntUser = Surprenant.Grunt.Models.User;
+using User = GrifballWebApp.Domain.Players.User;
 
 namespace GrifballWebApp.Infrastructure.Test;
 
