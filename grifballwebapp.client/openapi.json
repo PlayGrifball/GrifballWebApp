@@ -8897,6 +8897,42 @@
         },
         "additionalProperties": false
       },
+      "CaptainAddedDto": {
+        "required": [
+          "captainName",
+          "orderNumber",
+          "personID",
+          "seasonID",
+          "teamID",
+          "teamName"
+        ],
+        "type": "object",
+        "properties": {
+          "seasonID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "personID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "teamID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "teamName": {
+            "type": "string"
+          },
+          "captainName": {
+            "type": "string"
+          },
+          "orderNumber": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "CaptainAddedResponseDto": {
         "required": [
           "teamID",

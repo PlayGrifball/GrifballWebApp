@@ -30,7 +30,10 @@ count=$(grep -c . <<< "$files" || true)
 
 # This script and the workflows that use it test both sides: a change to them is checked by a full run
 shared='^\.github/scripts/changed-areas\.sh$'
-backend="$shared|^\.github/scripts/layer-coverage\.mjs$|^GrifballWebApp\.|^DiscordInterface|\.slnx$|^coverlet\.runsettings$|^Directory\.[A-Za-z]+\.(props|targets)$|^analyzers/|^\.github/workflows/dotnet-tests\.yml$"
+
+# The typed SignalR client's inputs besides the C# code (the typed-signalr job): its generator's version, the script that
+# writes it, the document it re-exports from, and the client itself, which a hand edit would leave stale
+backend="$shared|^\.github/scripts/layer-coverage\.mjs$|^GrifballWebApp\.|^DiscordInterface|\.slnx$|^coverlet\.runsettings$|^Directory\.[A-Za-z]+\.(props|targets)$|^analyzers/|^\.github/workflows/dotnet-tests\.yml$|^\.config/dotnet-tools\.json$|^\.github/scripts/signalr-models\.mjs$|^grifballwebapp\.client/openapi\.json$|^grifballwebapp\.client/src/generated/signalr/"
 frontend="$shared|^grifballwebapp\.client/|^\.github/workflows/frontend-tests\.yml$"
 # What decides whether an image builds for arm64: its Dockerfiles and ignore files, the packages and SDKs it restores,
 # and the steps that build it. App code compiles to arm64 alike (and master builds both platforms on every push).

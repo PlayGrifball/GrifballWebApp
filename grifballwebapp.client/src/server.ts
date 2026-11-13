@@ -21,6 +21,7 @@ import {
 import compression from 'compression';
 import express, { type Request, type Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import { BACKEND_PREFIXES, backendPath, isWebSocketPrefix, type BackendPrefix } from './app/backendPaths';
 import type { ClientRequest, IncomingMessage } from 'node:http';
 import { join } from 'node:path';
 import { isAllowedHost, parseAllowedHosts } from './app/allowedHosts';
@@ -45,18 +46,18 @@ app.disable('x-powered-by');
 // First, so it sees every request: its span (which the backend continues), log line and metrics.
 app.use(telemetry.requests);
 
-// The backend, as nginx proxied it: /api/x and /hub/x to /x, /signin-discord as it is (the Discord
-// sign-in callback), with the same headers. The request's own headers go along (the backend reads
+// The backend, as nginx proxied it (backendPath): /api/x and /hub/x to /x, /signin-discord as it is (the Discord
+// sign-in callback), and the hubs' page (/signalr-dev), with the same headers. The request's own headers go along (the backend reads
 // the client from X-Real-IP, set by the ingress), with its Host, and nginx's X-Forwarded-For
 // (with this hop added), X-Forwarded-Proto (the scheme the visitor used: the ingress's, which ends
 // HTTPS before this server, else the scheme this server was reached on) and X-Forwarded-Host.
-const toBackend = (prefix: string) => createProxyMiddleware<Request, Response>({
+const toBackend = (prefix: BackendPrefix) => createProxyMiddleware<Request, Response>({
   target: backendUrl,
   changeOrigin: false,
   pathFilter: path => path === prefix || path.startsWith(prefix + '/'),
-  pathRewrite: path => prefix === '/signin-discord' ? path : path.slice(prefix.length) || '/',
+  pathRewrite: path => backendPath(prefix, path),
   // SignalR's WebSocket
-  ws: prefix === '/hub',
+  ws: isWebSocketPrefix(prefix),
   proxyTimeout: 100_000,
   on: {
     proxyReq: (proxyReq, req) => {
@@ -83,7 +84,7 @@ export function setForwardedHeaders(proxyReq: Pick<ClientRequest, 'setHeader'>, 
   if (req.headers.host)
     proxyReq.setHeader('X-Forwarded-Host', req.headers.host);
 }
-const proxies = [toBackend('/api'), toBackend('/hub'), toBackend('/signin-discord')];
+const proxies = BACKEND_PREFIXES.map(toBackend);
 for (const proxy of proxies)
   app.use(proxy);
 
@@ -137,8 +138,11 @@ if (isMainModule(import.meta.url)) {
       throw error;
     announceServing(telemetry, port, backendUrl);
   });
-  // SignalR's WebSocket upgrade, for /hub
-  server.on('upgrade', proxies[1].upgrade);
+  // SignalR's WebSocket upgrade, for /hub and the hubs' page (each proxy takes only its own paths)
+  BACKEND_PREFIXES.forEach((prefix, i) => {
+    if (isWebSocketPrefix(prefix))
+      server.on('upgrade', proxies[i].upgrade);
+  });
   // Kubernetes is stopping the pod. It keeps serving for SHUTDOWN_DELAY_MS while the ingress stops sending it
   // requests (the endpoint's removal reaches it after the signal), then lets go of the port, sends the telemetry
   // that's queued and exits. As PID 1 without this, Node ignored the signal and served until it was killed.

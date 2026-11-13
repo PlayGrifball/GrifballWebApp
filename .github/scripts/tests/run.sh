@@ -12,6 +12,7 @@
 #     (curl stubbed per endpoint); and analyzers/*.globalconfig name the analyzer version Directory.Build.props uses.
 #   close-stuck-report.sh: a test report's check run left in progress is completed with the tests' outcome (gh stubbed).
 #   layer-coverage.mjs: each layer's numbers from its own test project's Cobertura report, and their change from master.
+#   signalr-models.mjs: the typed SignalR client's DTOs as re-exports of the client's models (openapi.json).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 scripts=$(dirname "$here")
@@ -134,6 +135,12 @@ expect_areas "client only" "backend=false frontend=true images=false migrations=
 expect_areas "docs only" "backend=false frontend=false images=false migrations=false" pull_request docs/historical-import.md readme.md charts/grif/values.yaml
 expect_areas "the solution and the test workflow" "backend=true frontend=false images=false migrations=false" pull_request GrifballWebApp.slnx .github/workflows/dotnet-tests.yml
 expect_areas "the script itself: everything" "backend=true frontend=true images=true migrations=true" pull_request .github/scripts/changed-areas.sh
+# The typed SignalR client's inputs other than the C# code: the generator's version, the script that writes it, the
+# document it re-exports from, and the client itself (a hand edit): the typed-signalr job checks it
+for f in .config/dotnet-tools.json .github/scripts/signalr-models.mjs grifballwebapp.client/openapi.json grifballwebapp.client/src/generated/signalr/TypedSignalR.Client/index.ts; do
+  got=$(areas pull_request "$f")
+  [[ "$got" = backend=true* ]] && ok "changed-areas.sh: $f runs the .NET workflow" || bad "changed-areas.sh: $f gave '$got': the typed-signalr check would be skipped"
+done
 expect_areas "a push: everything" "backend=true frontend=true images=true migrations=true" push docs/x.md
 GH_FAILS=1 expect_areas "unreadable file list: everything" "backend=true frontend=true images=true migrations=true" pull_request docs/x.md
 # What the images are built from: the arm64 check runs; app code alone doesn't change it
@@ -416,6 +423,51 @@ if report "$stuck" success "" yes && grep -q 'conclusion=success' "$work/patched
 then ok "close-stuck-report: a failed list call is retried"; else bad "close-stuck-report: list not retried:"; cat "$work/out"; fi
 if report "$stuck" success all; then bad "close-stuck-report: a failed PATCH passed"
 else ok "close-stuck-report: a report it can't complete fails the job"; fi
+
+# signalr-models.mjs: tsrts's proxies as they are, its DTOs as re-exports of the client's models (a renamed one aliased);
+# a DTO the document lacks fails, naming it
+sm=$here/fixtures/signalr-models
+if node "$scripts/signalr-models.mjs" "$sm/tsrts" "$sm/openapi.json" "$work/signalr" > "$work/out" 2>&1 && diff -ru "$sm/expected" "$work/signalr" > "$work/diff"
+then ok "signalr-models: proxies copied, DTOs re-exported"; else bad "signalr-models:"; cat "$work/out" "$work/diff"; fi
+echo '{"components":{"schemas":{"CaptainDto":{}}}}' > "$work/lacking.json"
+if node "$scripts/signalr-models.mjs" "$sm/tsrts" "$work/lacking.json" "$work/signalr2" > "$work/out" 2>&1; then bad "signalr-models: a missing DTO passed"
+elif grep -q '::error title=SignalR DTOs not in openapi.json::GrifballWebApp.Application.Teams.PlayerDto, GrifballWebApp.Application.Teams.DraftState' "$work/out"
+then ok "signalr-models: a DTO the document lacks fails, named"; else bad "signalr-models: missing DTO not named:"; cat "$work/out"; fi
+
+# Run from a path that a file URL spells differently (a space): it still writes the client
+spaced="$work/a checkout/scripts"
+mkdir -p "$spaced" && cp "$scripts/signalr-models.mjs" "$spaced/"
+if node "$spaced/signalr-models.mjs" "$sm/tsrts" "$sm/openapi.json" "$work/signalr3" > "$work/out" 2>&1 && [[ -f "$work/signalr3/GrifballWebApp.Application.Teams.ts" ]]
+then ok "signalr-models: runs from a path with a space"; else bad "signalr-models: did nothing from a path with a space:"; cat "$work/out"; fi
+
+# Run through a symlink (to the script, and to its directory): argv[1] is the symlink's path, not the real one
+symlinked="$work/symlinked-scripts"
+mkdir -p "$symlinked"
+ln -s "$scripts/signalr-models.mjs" "$symlinked/signalr-models.mjs"
+if node "$symlinked/signalr-models.mjs" "$sm/tsrts" "$sm/openapi.json" "$work/signalr4" > "$work/out" 2>&1 && [[ -f "$work/signalr4/GrifballWebApp.Application.Teams.ts" ]]
+then ok "signalr-models: runs through a symlink to the script"; else bad "signalr-models: did nothing through a symlink:"; cat "$work/out"; fi
+ln -s "$scripts" "$work/scripts-link"
+if node "$work/scripts-link/signalr-models.mjs" "$sm/tsrts" "$sm/openapi.json" "$work/signalr5" > "$work/out" 2>&1 && [[ -f "$work/signalr5/GrifballWebApp.Application.Teams.ts" ]]
+then ok "signalr-models: runs through a symlinked directory"; else bad "signalr-models: did nothing through a symlinked directory:"; cat "$work/out"; fi
+
+# The dev proxies (src/proxy.conf*.js) send the hubs' page's paths where the SSR server does (src/app/backendPaths.ts)
+client=$(cd "$scripts/../../grifballwebapp.client" && pwd)
+if node --experimental-strip-types --no-warnings --input-type=module -e "
+  import { createRequire } from 'node:module';
+  const { backendPath } = await import('$client/src/app/backendPaths.ts');
+  const require = createRequire(import.meta.url);
+  const paths = ['/signalr-dev', '/signalr-dev/index.html', '/signalr-dev/spec.json', '/signalr-dev/_next/a.js', '/signalr-dev/TeamsHub',
+    '/signalr-dev/TeamsHub/negotiate?negotiateVersion=1', '/signalr-dev/QueueHub?id=1', '/signalr-dev/Hubris.html'];
+  let wrong = [];
+  for (const file of ['proxy.conf.js', 'proxy.conf.docker.js']) {
+    const page = require('$client/src/' + file).find(p => p.context.includes('/signalr-dev'));
+    const [[from, to]] = Object.entries(page.pathRewrite);
+    for (const path of paths)
+      if (path.replace(new RegExp(from), to) !== backendPath('/signalr-dev', path)) wrong.push(file + ' ' + path);
+  }
+  if (wrong.length) { console.log(wrong.join(', ')); process.exit(1); }
+" > "$work/out" 2>&1
+then ok "proxy.conf: the hubs' page's paths as backendPath sends them"; else bad "proxy.conf differs from backendPath:"; cat "$work/out"; fi
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

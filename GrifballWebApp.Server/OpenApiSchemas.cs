@@ -151,3 +151,54 @@ public sealed class JsonNamedQueryParametersFilter(IOptions<JsonOptions> json) :
         }
     }
 }
+
+/// <summary>
+/// Adds the hubs' payloads to the document's schemas (Program.cs): what the hubs' methods take and answer and their
+/// receivers are sent, so the client's models have them too (CaptainAddedDto is only ever sent over SignalR) and the
+/// typed SignalR client (src/generated/signalr) uses the same models as the REST one.
+/// </summary>
+public sealed class HubSchemasDocumentFilter : IDocumentFilter
+{
+    public void Apply(OpenApiDocument swaggerDoc, DocumentFilterContext context)
+    {
+        foreach (var type in PayloadTypes(typeof(HubSchemasDocumentFilter).Assembly))
+            context.SchemaGenerator.GenerateSchema(type, context.SchemaRepository);
+    }
+
+    /// <summary>
+    /// What the assembly's hub and receiver interfaces' methods (their base interfaces' too) take and answer: a task's
+    /// result and what a stream carries, either way, not the wrapper.
+    /// </summary>
+    public static List<Type> PayloadTypes(Assembly assembly)
+        => assembly.GetTypes()
+            .Where(t => t.IsInterface && (t.IsDefined(typeof(TypedSignalR.Client.HubAttribute), false) || t.IsDefined(typeof(TypedSignalR.Client.ReceiverAttribute), false)))
+            .SelectMany(t => t.GetMethods().Concat(t.GetInterfaces().SelectMany(i => i.GetMethods())))
+            .SelectMany(m => m.GetParameters().Select(p => p.ParameterType).Append(m.ReturnType))
+            .Select(Carried)
+            .Where(t => t != typeof(void) && t != typeof(CancellationToken))
+            .Distinct()
+            .ToList();
+
+    /// <summary>The wrappers a hub method's result or argument comes in, around what goes over the wire.</summary>
+    private static readonly Type[] Wrappers = [typeof(Task<>), typeof(ValueTask<>), typeof(IAsyncEnumerable<>), typeof(System.Threading.Channels.ChannelReader<>)];
+
+    /// <summary>What a method's parameter or result carries, unwrapping every layer (a <c>Task&lt;ChannelReader&lt;T&gt;&gt;</c>'s T).</summary>
+    private static Type Carried(Type type)
+    {
+        while (type.IsGenericType && Wrappers.Contains(type.GetGenericTypeDefinition()))
+            type = type.GetGenericArguments()[0];
+        return type == typeof(Task) || type == typeof(ValueTask) ? typeof(void) : type;
+    }
+}
+
+/// <summary>
+/// Which endpoints the OpenAPI document describes (Program.cs, DocInclusionPredicate): Swashbuckle's default (an endpoint
+/// of no group, or of the document's), without the hubs' page's own (TypedSignalR.Client.DevTools maps /signalr-dev/...
+/// as minimal endpoints): it is a page, not the API, and the client would be generated a call for it.
+/// </summary>
+public static class OpenApiInclusion
+{
+    public static bool Includes(string documentName, Microsoft.AspNetCore.Mvc.ApiExplorer.ApiDescription api)
+        => (api.GroupName is null || api.GroupName == documentName)
+           && api.RelativePath?.StartsWith("signalr-dev", StringComparison.OrdinalIgnoreCase) != true;
+}

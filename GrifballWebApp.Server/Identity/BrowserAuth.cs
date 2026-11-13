@@ -37,13 +37,33 @@ public static partial class BrowserAuth
     /// <summary>How long a session lasts without a visit; every request in the second half of it renews it.</summary>
     public static readonly TimeSpan CookieLifetime = TimeSpan.FromDays(14);
 
-    /// <summary>Whether the request carries a bearer token (and so is not a browser's cookie session).</summary>
+    /// <summary>The query parameter SignalR's clients send a hub's bearer token in, where they can't send a header.</summary>
+    public const string HubAccessTokenParameter = "access_token";
+
+    /// <summary>Whether the request carries a bearer token in its Authorization header.</summary>
     public static bool HasBearerToken(HttpRequest request)
         => request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>The scheme that authenticates this request.</summary>
+    /// <summary>
+    /// The bearer token a hub request carries in its query: SignalR's browser client sends it there on the WebSocket and
+    /// server-sent events, which can't carry headers. Null for any other request (a token in the query of an API call
+    /// is not read: it would end up in logs and history).
+    /// </summary>
+    public static string? HubAccessToken(HttpContext context)
+    {
+        if (context.GetEndpoint()?.Metadata.GetMetadata<HubMetadata>() is null)
+            return null;
+        var token = context.Request.Query[HubAccessTokenParameter].ToString();
+        return token.Length > 0 ? token : null;
+    }
+
+    /// <summary>Whether the request carries a bearer token (and so is not a browser's cookie session).</summary>
+    public static bool HasBearerToken(HttpContext context)
+        => HasBearerToken(context.Request) || HubAccessToken(context) is not null;
+
+    /// <summary>The scheme that authenticates this request: the bearer token's when it has one, else the cookie's.</summary>
     public static string SelectScheme(HttpContext context)
-        => HasBearerToken(context.Request) ? IdentityConstants.BearerScheme : IdentityConstants.ApplicationScheme;
+        => HasBearerToken(context) ? IdentityConstants.BearerScheme : IdentityConstants.ApplicationScheme;
 
     /// <summary>How often a cookie session is checked against the user's security stamp. Logging out changes the
     /// stamp, so a copy of the cookie stops working within this time (as do the user's other sessions).</summary>
@@ -227,7 +247,7 @@ public sealed partial class CookieAntiforgeryFilter(IAntiforgery antiforgery, IL
 
     /// <summary>Signed in, and not by a bearer token: the browser's cookie.</summary>
     public static bool IsCookieSession(HttpContext context)
-        => !BrowserAuth.HasBearerToken(context.Request) && context.User.Identity?.IsAuthenticated is true;
+        => !BrowserAuth.HasBearerToken(context) && context.User.Identity?.IsAuthenticated is true;
 
     /// <summary>
     /// The browser says the request came from another site or subdomain (Fetch Metadata). "same-origin" (the app's

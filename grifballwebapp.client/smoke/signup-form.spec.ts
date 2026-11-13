@@ -61,7 +61,8 @@ test.describe('signup form', () => {
 
     const upsert = page.waitForRequest(r => /\/api\/seasons\/\d+\/signups\/mine$/i.test(r.url()) && r.method() === 'POST');
     await page.getByRole('button', { name: 'Submit' }).click();
-    const sent = (await upsert).postDataJSON() as { seasonID: number; timeslots: TimeslotDto[] };
+    const request = await upsert;
+    const sent = request.postDataJSON() as { seasonID?: number; timeslots: TimeslotDto[] };
     await expect(page.getByText('Signup Submitted')).toBeVisible();
 
     // The payload names slots by the season's optionIDs.
@@ -69,7 +70,9 @@ test.describe('signup form', () => {
     const optionID = new Map(options.map(o => [key(o), o.optionID]));
     const wanted = ['Monday 19:00:00', 'Monday 21:00:00', 'Tuesday 21:00:00',
       'Wednesday 19:00:00', 'Wednesday 20:00:00', 'Wednesday 21:00:00', 'Wednesday 22:00:00'];
-    expect(sent.seasonID).toBe(league.seasonID);
+    // Sent to this season's signups; whose and which season are the server's (the route's, the signed-in player)
+    expect(new URL(request.url()).pathname).toBe(`/api/seasons/${league.seasonID}/signups/mine`);
+    expect(sent.seasonID).toBeUndefined();
     const sentTicked = sent.timeslots.filter(t => t.isChecked);
     expect(sentTicked.map(t => t.optionID).sort()).toEqual(wanted.map(w => optionID.get(w)).sort());
     expect(sentTicked.map(key).sort()).toEqual([...wanted].sort());

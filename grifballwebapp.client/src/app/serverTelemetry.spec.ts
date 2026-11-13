@@ -134,6 +134,15 @@ describe('server telemetry', () => {
       expect(requestKind('/build-manifest.JSON')).toBe('file');
     });
 
+    it('counts the hubs\' page\'s own files as its own kind, and its hub connections as hub traffic, not the API\'s', () => {
+      // The page's own (src/app/backendPaths.ts): its connections go to the hubs, the rest is the page itself, not the API
+      expect(requestKind('/signalr-dev/TeamsHub/negotiate')).toBe('hub');
+      expect(requestKind('/signalr-dev/QueueHub')).toBe('hub');
+      expect(requestKind('/signalr-dev/spec.json')).toBe('hubsPage');
+      expect(requestKind('/signalr-dev')).toBe('hubsPage');
+      expect(requestKind('/signalr-dev/_next/static/chunks/main.js')).toBe('hubsPage');
+    });
+
     it('traces neither the build\'s files nor probes', () => {
       expect(isProbe('kube-probe/1.33')).toBeTrue();
       expect(isProbe('Mozilla/5.0')).toBeFalse();
@@ -150,6 +159,8 @@ describe('server telemetry', () => {
       expect(routeOf('hub')).toBe('/hub/*');
       expect(routeOf('signin')).toBe('/signin-discord');
       expect(routeOf('file')).toBe('/*.*');
+      // Not yet a RequestKind on master: the hubs' page's own files still share 'api'
+      expect(routeOf('hubsPage' as unknown as ReturnType<typeof requestKind>)).toBe('/signalr-dev/*');
     });
 
     it('logs 5xx as errors, pages at info, and the rest at debug', () => {

@@ -44,6 +44,12 @@ describe('SignalRService', () => {
     service = TestBed.inject(SignalRService);
   });
 
+  it('registers the generated receiver once: every message of the hub, by its name on the wire', () => {
+    expect(connection.on.calls.allArgs().map(args => args[0]).sort((a, b) => String(a).localeCompare(String(b)))).toEqual([
+      'AddCaptain', 'AddPlayerToTeam', 'LockCaptains', 'MovePlayerToTeam', 'RemoveCaptain', 'RemovePlayerFromTeam', 'ResortCaptain', 'UnlockCaptains',
+    ]);
+  });
+
   it('connects to the teams hub and starts the connection immediately', async () => {
     expect(withUrl.calls.mostRecent().args[0]).toBe('hub/TeamsHub');
     expect(service.hubConnection as unknown).toBe(connection);
@@ -118,6 +124,19 @@ describe('SignalRService', () => {
       expect(console.log).toHaveBeenCalledWith('Error while starting the Teams hub connection: offline');
     });
 
+    it('tells every listener even when one throws, each on its own', async () => {
+      const consoleError = spyOn(console, 'error');
+      const failing = jasmine.createSpy('failing').and.throwError('boom');
+      const kept = jasmine.createSpy('kept');
+      service.connected(failing);
+      service.connected(kept);
+
+      await flush();
+
+      expect(kept).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalled();
+    });
+
     it('returns a function that stops telling that listener', async () => {
       const listener = jasmine.createSpy('connected');
       service.connected(listener)();
@@ -148,14 +167,53 @@ describe('SignalRService', () => {
       expect(callback.calls.mostRecent().object).toBe(service);
     });
 
-    it(`${String(method)} returns a function that unregisters that same ${event} handler`, () => {
-      const unsubscribe = (service[method] as (cb: (v: unknown) => void) => () => void).call(service, () => {});
+    it(`${String(method)} returns a function that stops that callback getting ${event} messages, and only it`, () => {
+      const stopped = jasmine.createSpy('stopped');
+      const kept = jasmine.createSpy('kept');
+      const unsubscribe = (service[method] as (cb: (v: unknown) => void) => () => void).call(service, stopped);
+      (service[method] as (cb: (v: unknown) => void) => void).call(service, kept);
 
       unsubscribe();
+      handlerFor(event)(payload);
 
-      expect(connection.off).toHaveBeenCalledOnceWith(event, handlerFor(event));
+      expect(stopped).not.toHaveBeenCalled();
+      expect(kept).toHaveBeenCalledOnceWith(payload);
     });
   }
+
+  it('drops a message no callback listens for', () => {
+    expect(() => handlerFor('UnlockCaptains')(8)).not.toThrow();
+  });
+
+  it('gives a message to every callback even when one throws, and not to one added while it is given', () => {
+    const consoleError = spyOn(console, 'error');
+    const failing = jasmine.createSpy('failing').and.throwError('boom');
+    const added = jasmine.createSpy('added');
+    const next = jasmine.createSpy('next').and.callFake(() => service.lockCaptains(added));
+    service.lockCaptains(failing);
+    service.lockCaptains(next);
+
+    expect(() => handlerFor('LockCaptains')(7)).not.toThrow();
+
+    expect(next).toHaveBeenCalledOnceWith(7);
+    expect(added).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalled();
+  });
+
+  it('does not give the message to a callback an earlier one unregistered during the same dispatch', () => {
+    let stopRemoved: () => void;
+    const remover = jasmine.createSpy('remover').and.callFake(() => stopRemoved());
+    service.lockCaptains(remover);
+    const removed = jasmine.createSpy('removed');
+    stopRemoved = service.lockCaptains(removed);
+    const kept = jasmine.createSpy('kept');
+    service.lockCaptains(kept);
+
+    handlerFor('LockCaptains')(7);
+
+    expect(removed).not.toHaveBeenCalled();
+    expect(kept).toHaveBeenCalledOnceWith(7);
+  });
 
   describe('on the server', () => {
     beforeEach(() => {
