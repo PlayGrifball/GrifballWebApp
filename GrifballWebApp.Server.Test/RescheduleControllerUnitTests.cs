@@ -3,23 +3,17 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
-using System.Reflection;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Application.Outbox;
 using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Server.Test;
 
-/// <summary>RescheduleControllerTests's unit tests: a real GrifballContext (temp-file SQLite, #402) for
-/// RescheduleService, which needs nothing else (IOutbox substituted, never reached by these "not found" cases).
-/// Its other tests stay in GrifballWebApp.Integration.Test.</summary>
+/// <summary>RescheduleController's reflection-only unit tests: no database, host, file or network.</summary>
 [TestFixture]
-[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class RescheduleControllerUnitTests : SqliteGrifballContextFixture
+public class RescheduleControllerAttributeTests
 {
-    private RescheduleController Controller() => new(new RescheduleService(Db, Substitute.For<IOutbox>()));
-
     [Test]
     public void Authorization_IsConfigured()
     {
@@ -34,6 +28,17 @@ public class RescheduleControllerUnitTests : SqliteGrifballContextFixture
             Assert.That(ControllerTestHelpers.ActionAuthorize(type, name)?.Roles, Is.EqualTo("Commissioner,Sysadmin"), name);
         }
     }
+}
+
+/// <summary>RescheduleControllerTests's unit tests: a real GrifballContext (temp-file SQLite, #402) for
+/// RescheduleService, which needs nothing else (IOutbox substituted, never reached by these "not found" cases).
+/// Its other tests stay in GrifballWebApp.Integration.Test.</summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class RescheduleControllerUnitTests : SqliteGrifballContextFixture
+{
+    private RescheduleController Controller() => new(new RescheduleService(Db, Substitute.For<IOutbox>()));
 
     [Test]
     public async Task RequestReschedule_RepliesNotFound_ForANonExistentMatch()

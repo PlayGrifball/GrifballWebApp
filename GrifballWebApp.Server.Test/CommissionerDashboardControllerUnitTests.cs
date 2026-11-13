@@ -8,6 +8,18 @@ using NSubstitute;
 
 namespace GrifballWebApp.Server.Test;
 
+/// <summary>CommissionerDashboardController's reflection-only unit tests: no database, host, file or network.</summary>
+[TestFixture]
+[Parallelizable(ParallelScope.All)]
+public class CommissionerDashboardControllerAttributeTests
+{
+    [Test]
+    public void Controller_RequiresCommissionerOrSysadmin()
+    {
+        Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(CommissionerDashboardController))!.Roles, Is.EqualTo("Commissioner,Sysadmin"));
+    }
+}
+
 /// <summary>CommissionerDashboardControllerTests's unit tests: a real GrifballContext (temp-file SQLite, #402) for
 /// RescheduleService, which needs nothing else for these reads. Its other tests stay in
 /// GrifballWebApp.Integration.Test.</summary>
@@ -17,12 +29,6 @@ namespace GrifballWebApp.Server.Test;
 public class CommissionerDashboardControllerUnitTests : SqliteGrifballContextFixture
 {
     private CommissionerDashboardController Controller() => new(new RescheduleService(Db, Substitute.For<IOutbox>()));
-
-    [Test]
-    public void Controller_RequiresCommissionerOrSysadmin()
-    {
-        Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(CommissionerDashboardController))!.Roles, Is.EqualTo("Commissioner,Sysadmin"));
-    }
 
     [Test]
     public async Task GetDashboardData_ReturnsEmptySummary_WhenThereIsNothingPendingOrOverdue()

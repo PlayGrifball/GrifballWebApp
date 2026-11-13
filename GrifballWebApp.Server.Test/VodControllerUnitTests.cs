@@ -8,15 +8,11 @@ using GrifballWebApp.Application.Historical.Vods;
 
 namespace GrifballWebApp.Server.Test;
 
-/// <summary>VodControllerTests's unit tests: a real GrifballContext (temp-file SQLite, #402) for VodService's reads,
-/// which touch nothing else. Its other tests stay in GrifballWebApp.Integration.Test.</summary>
+/// <summary>VodController's reflection-only unit tests: no database, host, file or network.</summary>
 [TestFixture]
-[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class VodControllerUnitTests : SqliteGrifballContextFixture
+public class VodControllerAttributeTests
 {
-    private VodController Controller() => new(new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!));
-
     [TestCase(nameof(VodController.Review), true)]
     [TestCase(nameof(VodController.LinkSeasons), true)]
     [TestCase(nameof(VodController.LinkOptions), true)]
@@ -31,6 +27,16 @@ public class VodControllerUnitTests : SqliteGrifballContextFixture
         var authorize = typeof(VodController).GetMethod(action)!.GetCustomAttribute<AuthorizeAttribute>();
         Assert.That(authorize?.Roles, sysadmin ? (NUnit.Framework.Constraints.IResolveConstraint)Is.EqualTo("Sysadmin") : Is.Null);
     }
+}
+
+/// <summary>VodControllerTests's unit tests: a real GrifballContext (temp-file SQLite, #402) for VodService's reads,
+/// which touch nothing else. Its other tests stay in GrifballWebApp.Integration.Test.</summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class VodControllerUnitTests : SqliteGrifballContextFixture
+{
+    private VodController Controller() => new(new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!));
 
     [Test]
     public async Task ForSeasonMatch_ReturnsNone_WhenThereAreNoVods()
