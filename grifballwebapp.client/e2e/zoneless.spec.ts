@@ -361,7 +361,9 @@ test('the signup form ticks single slots and whole days, and submits the chosen 
     { optionID: 57, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false },
     { optionID: 58, dayOfWeek: 'Tuesday', time: '20:00:00', isChecked: true },
   ]);
-  expect(posted[0].seasonID).toBe(5);
+  // Posted to season 5's signups (the only route answered); whose and which season are the server's
+  expect(posted[0].seasonID).toBeUndefined();
+  expect(posted[0].userID).toBeUndefined();
 });
 
 test('the Late League queue panel shows the count the hub sends, and joins from it', async ({ page }) => {
