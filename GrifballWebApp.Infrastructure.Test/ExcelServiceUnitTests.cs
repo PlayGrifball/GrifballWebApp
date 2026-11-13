@@ -280,6 +280,26 @@ public class ExcelServiceExportUnitTests : SqliteContextFixture
         Assert.That(_handler.Requests.Any(r => r.Method == HttpMethod.Post), Is.False);
     }
 
+    /// <summary>The same game twice in the sheet (a lower-case Waypoint URL, and its ID pasted in upper case): pulled once.</summary>
+    [Test]
+    public async Task ExportAll_SameGameInTwoCases_PullsItOnce()
+    {
+        var game = Guid.Parse("55555555-abcd-4ef0-abcd-0123456789ab");
+        _copySheetJson = $$"""
+        {"values":[
+          ["header"],
+          ["https://halowaypoint.com/halo-infinite/players/x/matches/{{game}}"],
+          ["{{game.ToString().ToUpperInvariant()}}"]
+        ]}
+        """;
+        var service = CreateService();
+
+        await service.ExportAll(Target);
+
+        Assert.That(_dataPull.ReceivedCalls().Count(), Is.EqualTo(1), "One pull, not one per copy");
+        await _dataPull.Received(1).GetAndSaveMatch(game);
+    }
+
     [Test]
     public async Task ExportAll_MissingCopySpreadsheetConfig_Throws()
     {
