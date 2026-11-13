@@ -33,6 +33,8 @@ public class HistoricalImportRunnerRefreshUnitTests
     private HistoricalImportRunner _runner = null!;
     private static readonly byte[] Xlsx = HistoricalXlsx.Workbook(("Stats", HistoricalXlsx.StatsTab(("A", "T", 1))));
     private static readonly Func<HistoricalImportProgress, Task> NoProgress = _ => Task.CompletedTask;
+    private static readonly string[] expectedChanged = ["2019-wl19-schedule-stats"];
+    private static readonly string[] expectedFailed = ["2019-wl19-schedule-stats: no route"];
 
     [SetUp]
     public async Task Setup()
@@ -83,7 +85,7 @@ public class HistoricalImportRunnerRefreshUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(report.SourcesChanged, Is.EqualTo(new[] { "2019-wl19-schedule-stats" }));
+            Assert.That(report.SourcesChanged, Is.EqualTo(expectedChanged));
             Assert.That(report.ImportJobID, Is.Not.Null);
         }
         var queued = await _context.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID == report.ImportJobID);
@@ -104,7 +106,7 @@ public class HistoricalImportRunnerRefreshUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(report.SourcesChanged, Is.EqualTo(new[] { "2019-wl19-schedule-stats" }));
+            Assert.That(report.SourcesChanged, Is.EqualTo(expectedChanged));
             Assert.That(report.ImportJobID, Is.Null, "A manual refresh never queues an import on its own");
         }
         Assert.That(await _context.HistoricalImportJobs.CountAsync(j => j.Kind == HistoricalImportJobKind.Import), Is.Zero);
@@ -137,7 +139,7 @@ public class HistoricalImportRunnerRefreshUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(report.SourcesFailed, Is.EqualTo(new[] { "2019-wl19-schedule-stats: no route" }));
+            Assert.That(report.SourcesFailed, Is.EqualTo(expectedFailed));
             Assert.That(report.ImportJobID, Is.Null);
         }
     }
