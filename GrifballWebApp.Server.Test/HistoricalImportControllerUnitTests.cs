@@ -92,4 +92,28 @@ public class HistoricalImportControllerUnitTests : SqliteGrifballContextFixture
 
         Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status202Accepted));
     }
+
+    [Test]
+    public async Task ApplyPreview_RepliesNotFound_ForANonExistentJob()
+    {
+        var result = await Controller().ApplyPreview(999, CancellationToken.None);
+
+        Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status404NotFound));
+    }
+
+    [Test]
+    public async Task ApproveReview_RepliesNotFound_ForANonExistentReview()
+    {
+        var result = await Controller().ApproveReview(999, CancellationToken.None);
+
+        Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status404NotFound));
+    }
+
+    [Test]
+    public async Task SkipReview_RepliesNotFound_ForANonExistentReview()
+    {
+        var result = await Controller().SkipReview(999, CancellationToken.None);
+
+        Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status404NotFound));
+    }
 }

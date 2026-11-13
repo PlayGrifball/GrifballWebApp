@@ -63,3 +63,30 @@ public class SeasonMatchControllerUnitTests
         await _dataPullService.DidNotReceiveWithAnyArgs().GetAndSaveMatch(default);
     }
 }
+
+/// <summary>SeasonMatchControllerTests' unit tests on a real GrifballContext (temp-file SQLite, #402), where
+/// SeasonMatchService's reads need IApplicationDbContext alone.</summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class SeasonMatchControllerDatabaseUnitTests : SqliteGrifballContextFixture
+{
+    private SeasonMatchController Controller() => new(new SeasonMatchService(Db, NSubstitute.Substitute.For<IDataPullService>(),
+        NSubstitute.Substitute.For<GrifballWebApp.Application.Brackets.IBracketService>(), new GrifballWebApp.Application.Championships.ChampionshipService(Db)));
+
+    [Test]
+    public async Task GetSeasonMatchPage_RepliesNotFound_ForANonExistentMatch()
+    {
+        var result = await Controller().GetSeasonMatchPage(999, CancellationToken.None);
+
+        result.Result.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound, "There is no such season match");
+    }
+
+    [Test]
+    public async Task GetPossibleMatches_ReturnsNone_ForANonExistentMatch()
+    {
+        var result = await Controller().GetPossibleMatches(999, CancellationToken.None);
+
+        Assert.That(result, Is.Empty);
+    }
+}

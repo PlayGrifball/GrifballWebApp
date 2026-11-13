@@ -79,3 +79,27 @@ public class BackupControllerUnitTests
         result.AssertProblem(StatusCodes.Status400BadRequest, "The provider must be SqlServer, Postgres or Sqlite.");
     }
 }
+
+/// <summary>BackupController.Info on a real GrifballContext (temp-file SQLite, #402): Database.GetMigrations() is
+/// the assembly's own, so it works with no server, and DatabaseBackupService's Formats needs only configuration.</summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class BackupControllerInfoUnitTests : SqliteGrifballContextFixture
+{
+    [Test]
+    public void Info_ReturnsTheProviderAndTheFormatsAvailableHere()
+    {
+        var backups = new DatabaseBackupService(new ConfigurationBuilder().Build(), NullLoggerFactory.Instance, TimeProvider.System);
+        var controller = new BackupController(backups, null!, null!, Db, new ConfigurationBuilder().Build(), NullLogger<BackupController>.Instance);
+
+        var info = controller.Info();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(info.LatestMigration, Is.Not.Null.And.Not.Empty);
+            // Database:Provider defaults to SqlServer unset, so HasNativeServer(SqlServer) is true here: bak is offered too
+            Assert.That(info.Formats, Is.EquivalentTo(new[] { "sqlite", "postgres", "sqlserver", "bak" }));
+        }
+    }
+}
