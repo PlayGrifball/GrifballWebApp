@@ -190,8 +190,8 @@ internal sealed class VodServiceSyncUnitTests : ApplicationDbContextTests
             Assert.That(await Context.Vods.Select(v => v.YouTubeVideoID).ToListAsync(), Is.EqualTo(Week1Only), "Two minutes is a clip");
             Assert.That((week1.DurationSeconds, week1.PublishedAtIsApproximate), Is.EqualTo(((int?)6601, false)));
             Assert.That(week1.Description, Is.EqualTo("About SL24 Week 1 - Alpha vs Bravo"));
-            Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r.Contains("/playlistItems?") && r.Contains("key=test-key")), "The key, trimmed");
-            Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r.Contains("/videos?") && r.Contains("week1video0")));
+            Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r is not null && r.Contains("/playlistItems?") && r.Contains("key=test-key")), "The key, trimmed");
+            Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r is not null && r.Contains("/videos?") && r.Contains("week1video0")));
             Assert.That(result.Failed, Is.EqualTo(FeedNotFound), "No feed; the API's videos still count");
         }
 
@@ -260,7 +260,7 @@ internal sealed class VodServiceSyncUnitTests : ApplicationDbContextTests
             Assert.That(ids, Is.SupersetOf(VodArchive.Videos.Select(v => v.VideoID)));
             Assert.That(ids, Does.Contain("8IjYNH7Vsso"));
             Assert.That(ids, Has.Count.EqualTo(VodArchive.Videos.Count + 1), "The untitled IDs the API doesn't answer for aren't kept");
-            Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r.Contains("/videos?") && VodArchive.VideoIDs.All(r.Contains)), "Every archive ID asked about");
+            Assert.That(_handler.Requests, Has.Some.Matches<string>(r => r is not null && r.Contains("/videos?") && VodArchive.VideoIDs.All(r.Contains)), "Every archive ID asked about");
         }
     }
 
