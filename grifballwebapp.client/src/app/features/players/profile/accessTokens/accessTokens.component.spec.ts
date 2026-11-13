@@ -60,7 +60,7 @@ describe('AccessTokensComponent', () => {
     expect(el().textContent).toContain('None yet.');
 
     fixture.componentInstance.tokens.reload();
-    await settle();
+    fixture.detectChanges();
     http.expectOne(listUrl).flush('down', { status: 500, statusText: 'Server Error' });
     await settle();
     expect(el().querySelector('[role="alert"]')!.textContent).toContain("couldn't be loaded");
@@ -76,7 +76,7 @@ describe('AccessTokensComponent', () => {
     const make = http.expectOne(req => req.method === 'POST' && req.url === listUrl);
     expect(make.request.body).toEqual({ name: 'Laptop', days: 90 });
     make.flush({ accessToken: token('c', { name: 'Laptop' }), token: 'grif_secret' });
-    await settle();
+    fixture.detectChanges();
     http.expectOne(listUrl).flush([token('c', { name: 'Laptop' })]);
     await settle();
 
@@ -112,7 +112,7 @@ describe('AccessTokensComponent', () => {
 
     button('Revoke').click();
     http.expectOne(req => req.method === 'POST' && req.url === `${listUrl}/a/revoke`).flush(null, { status: 204, statusText: 'No Content' });
-    await settle();
+    fixture.detectChanges();
     http.expectOne(listUrl).flush([]);
     await settle();
 
