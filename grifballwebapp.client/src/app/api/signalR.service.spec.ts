@@ -44,6 +44,12 @@ describe('SignalRService', () => {
     service = TestBed.inject(SignalRService);
   });
 
+  it('registers the generated receiver once: every message of the hub, by its name on the wire', () => {
+    expect(connection.on.calls.allArgs().map(args => args[0]).sort((a, b) => String(a).localeCompare(String(b)))).toEqual([
+      'AddCaptain', 'AddPlayerToTeam', 'LockCaptains', 'MovePlayerToTeam', 'RemoveCaptain', 'RemovePlayerFromTeam', 'ResortCaptain', 'UnlockCaptains',
+    ]);
+  });
+
   it('connects to the teams hub and starts the connection immediately', async () => {
     expect(withUrl.calls.mostRecent().args[0]).toBe('hub/TeamsHub');
     expect(service.hubConnection as unknown).toBe(connection);
@@ -148,12 +154,17 @@ describe('SignalRService', () => {
       expect(callback.calls.mostRecent().object).toBe(service);
     });
 
-    it(`${String(method)} returns a function that unregisters that same ${event} handler`, () => {
-      const unsubscribe = (service[method] as (cb: (v: unknown) => void) => () => void).call(service, () => {});
+    it(`${String(method)} returns a function that stops that callback getting ${event} messages, and only it`, () => {
+      const stopped = jasmine.createSpy('stopped');
+      const kept = jasmine.createSpy('kept');
+      const unsubscribe = (service[method] as (cb: (v: unknown) => void) => () => void).call(service, stopped);
+      (service[method] as (cb: (v: unknown) => void) => void).call(service, kept);
 
       unsubscribe();
+      handlerFor(event)(payload);
 
-      expect(connection.off).toHaveBeenCalledOnceWith(event, handlerFor(event));
+      expect(stopped).not.toHaveBeenCalled();
+      expect(kept).toHaveBeenCalledOnceWith(payload);
     });
   }
 

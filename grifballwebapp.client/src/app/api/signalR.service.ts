@@ -1,21 +1,16 @@
 import { Injectable } from '@angular/core';
-import type { CaptainPlacementDto, RemoveCaptainDto } from '@api/models';
+import type {
+  AddPlayerToTeamRequestDto, CaptainAddedDto, CaptainPlacementDto, MovePlayerToTeamRequestDto, RemoveCaptainDto, RemovePlayerFromTeamRequestDto,
+} from '@api/models';
+import { getReceiverRegister } from '@signalr/TypedSignalR.Client';
+import type { ITeamsHubClient } from '@signalr/TypedSignalR.Client/GrifballWebApp.Server.Teams';
 import { HubConnection } from '@microsoft/signalr';
 import { hubLifecycle } from './hubLifecycle';
-import type { AddPlayerToTeamRequestDto } from '@api/models';
-import type { MovePlayerToTeamRequestDto } from '@api/models';
-import type { RemovePlayerFromTeamRequestDto } from '@api/models';
 
-
-/** A captain added to the draft, as the hub announces it. */
-export interface CaptainAddedDto {
-  seasonID: number;
-  personID: number;
-  teamID: number;
-  teamName: string;
-  captainName: string;
-  orderNumber: number;
-}
+/** A message the Teams hub sends, by its receiver method's name. */
+type Message = keyof ITeamsHubClient;
+/** What a message carries. */
+type Payload<M extends Message> = Parameters<ITeamsHubClient[M]>[0];
 
 @Injectable({
   providedIn: 'root'
@@ -49,45 +44,75 @@ export class SignalRService {
     this.connectedListeners?.forEach(listener => listener());
   }
 
+  /** Each hub message's callbacks, by its receiver method. */
+  private readonly listeners = new Map<Message, Set<(value: never) => void>>();
+
   /**
-   * Registers `callback` for a hub method. Returns a function that unregisters exactly this
-   * handler; components call it when they are destroyed so handlers don't pile up across visits.
+   * The hub's receiver, generated from its C# interface (ITeamsHubClient): every message, by its name on the wire, to
+   * that message's callbacks. Registered once, on the connection that is kept (started again on a sign-in or out).
    */
-  private on<T>(methodName: string, callback: (value: T) => void): () => void {
-    const handler = (dto: T) => callback.call(this, dto);
-    this.hubConnection.on(methodName, handler);
-    return () => this.hubConnection.off(methodName, handler);
+  constructor() {
+    getReceiverRegister('ITeamsHubClient').register(this.hubConnection, {
+      addCaptain: this.dispatch('addCaptain'),
+      resortCaptain: this.dispatch('resortCaptain'),
+      removeCaptain: this.dispatch('removeCaptain'),
+      removePlayerFromTeam: this.dispatch('removePlayerFromTeam'),
+      movePlayerToTeam: this.dispatch('movePlayerToTeam'),
+      addPlayerToTeam: this.dispatch('addPlayerToTeam'),
+      lockCaptains: this.dispatch('lockCaptains'),
+      unlockCaptains: this.dispatch('unlockCaptains'),
+    });
+  }
+
+  private dispatch<M extends Message>(message: M): (value: Payload<M>) => Promise<void> {
+    return value => {
+      this.listeners.get(message)?.forEach(listener => (listener as (value: Payload<M>) => void).call(this, value));
+      return Promise.resolve();
+    };
+  }
+
+  /**
+   * Registers `callback` for a hub message. Returns a function that unregisters exactly this
+   * callback; components call it when they are destroyed so callbacks don't pile up across visits.
+   */
+  private on<M extends Message>(message: M, callback: (value: Payload<M>) => void): () => void {
+    let listeners = this.listeners.get(message);
+    if (!listeners)
+      this.listeners.set(message, listeners = new Set());
+    const listener = callback as (value: never) => void;
+    listeners.add(listener);
+    return () => listeners.delete(listener);
   }
 
   public addCaptain(callback: (value: CaptainAddedDto) => void): () => void {
-    return this.on('AddCaptain', callback);
+    return this.on('addCaptain', callback);
   }
 
   public resortCaptain(callback: (value: CaptainPlacementDto) => void): () => void {
-    return this.on('ResortCaptain', callback);
+    return this.on('resortCaptain', callback);
   }
 
   public removeCaptain(callback: (value: RemoveCaptainDto) => void): () => void {
-    return this.on('RemoveCaptain', callback);
+    return this.on('removeCaptain', callback);
   }
 
   public removePlayerFromTeam(callback: (value: RemovePlayerFromTeamRequestDto) => void): () => void {
-    return this.on('RemovePlayerFromTeam', callback);
+    return this.on('removePlayerFromTeam', callback);
   }
 
   public movePlayerToTeam(callback: (value: MovePlayerToTeamRequestDto) => void): () => void {
-    return this.on('MovePlayerToTeam', callback);
+    return this.on('movePlayerToTeam', callback);
   }
 
   public addPlayerToTeam(callback: (value: AddPlayerToTeamRequestDto) => void): () => void {
-    return this.on('AddPlayerToTeam', callback);
+    return this.on('addPlayerToTeam', callback);
   }
 
   public lockCaptains(callback: (value: number) => void): () => void {
-    return this.on('LockCaptains', callback);
+    return this.on('lockCaptains', callback);
   }
 
   public unlockCaptains(callback: (value: number) => void): () => void {
-    return this.on('UnlockCaptains', callback);
+    return this.on('unlockCaptains', callback);
   }
 }

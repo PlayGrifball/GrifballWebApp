@@ -21,7 +21,9 @@
     "useDefineForClassFields": false,
     // The API client generated from openapi.json (ng-openapi-gen.json)
     "paths": {
-      "@api/*": ["./src/generated/api/*"]
+      "@api/*": ["./src/generated/api/*"],
+      // The typed SignalR client (TypedSignalR.Client.TypeScript, on the models above: the typed-signalr CI job)
+      "@signalr/*": ["./src/generated/signalr/*"]
     }
   },
   "angularCompilerOptions": {
