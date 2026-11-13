@@ -1,7 +1,14 @@
 using GrifballWebApp.Server.Identity;
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using System.Net.Http.Json;
 using System.Security.Claims;
 
@@ -174,6 +181,154 @@ public class BrowserAuthUnitTests
         {
             Assert.That(BrowserAuth.SelectScheme(Context("GET", authorization: "Bearer abc")), Is.EqualTo("Identity.Bearer"));
             Assert.That(BrowserAuth.SelectScheme(Context("GET")), Is.EqualTo("Identity.Application"));
+        }
+    }
+
+    [Test]
+    public void IsCookieSession_SignedInWithoutABearerToken()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(CookieAntiforgeryFilter.IsCookieSession(Context("GET")), Is.True);
+            Assert.That(CookieAntiforgeryFilter.IsCookieSession(Context("GET", authorization: "Bearer abc")), Is.False);
+            Assert.That(CookieAntiforgeryFilter.IsCookieSession(Context("GET", signedIn: false)), Is.False);
+        }
+    }
+
+    [Test]
+    public void ConfigureCookie_SetsTheHostOnlySessionCookie()
+    {
+        var options = new CookieAuthenticationOptions();
+
+        BrowserAuth.ConfigureCookie(options);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(options.Cookie.Name, Is.EqualTo(BrowserAuth.CookieName));
+            Assert.That(options.Cookie.HttpOnly, Is.True);
+            Assert.That(options.Cookie.SecurePolicy, Is.EqualTo(CookieSecurePolicy.Always));
+            Assert.That(options.Cookie.SameSite, Is.EqualTo(SameSiteMode.Lax));
+            Assert.That(options.ExpireTimeSpan, Is.EqualTo(BrowserAuth.CookieLifetime));
+            Assert.That(options.SlidingExpiration, Is.True);
+        }
+    }
+
+    [Test]
+    public void ConfigureAntiforgery_SetsTheHostOnlyStrictCookie()
+    {
+        var options = new AntiforgeryOptions();
+
+        BrowserAuth.ConfigureAntiforgery(options);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(options.HeaderName, Is.EqualTo(BrowserAuth.AntiforgeryHeader));
+            Assert.That(options.Cookie.Name, Is.EqualTo(BrowserAuth.AntiforgeryCookieName));
+            Assert.That(options.Cookie.HttpOnly, Is.True);
+            Assert.That(options.Cookie.SecurePolicy, Is.EqualTo(CookieSecurePolicy.Always));
+            Assert.That(options.Cookie.SameSite, Is.EqualTo(SameSiteMode.Strict));
+        }
+    }
+
+    // ---------- CookieAntiforgeryFilter.OnAuthorizationAsync ----------
+
+    private static AuthorizationFilterContext FilterContext(HttpContext httpContext, List<object>? endpointMetadata = null)
+    {
+        var actionDescriptor = new ActionDescriptor
+        {
+            EndpointMetadata = endpointMetadata ?? [],
+        };
+        var actionContext = new ActionContext(httpContext, new RouteData(), actionDescriptor);
+        return new AuthorizationFilterContext(actionContext, []);
+    }
+
+    [Test]
+    public async Task OnAuthorizationAsync_Refuses403_FromAnotherSite()
+    {
+        var context = Context("POST");
+        context.Request.Headers["Sec-Fetch-Site"] = "cross-site";
+        var filterContext = FilterContext(context);
+        var filter = new CookieAntiforgeryFilter(Substitute.For<IAntiforgery>(), new RecordingLogger<CookieAntiforgeryFilter>());
+
+        await filter.OnAuthorizationAsync(filterContext);
+
+        Assert.That(((ObjectResult)filterContext.Result!).StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
+    }
+
+    [Test]
+    public async Task OnAuthorizationAsync_Refuses403_FromAnotherOriginWithoutFetchMetadata()
+    {
+        var context = Context("POST", signedIn: false);
+        context.Request.Host = new HostString("grifball.xyz");
+        context.Request.Headers.Origin = "https://evil.example";
+        var filterContext = FilterContext(context);
+        var filter = new CookieAntiforgeryFilter(Substitute.For<IAntiforgery>(), new RecordingLogger<CookieAntiforgeryFilter>());
+
+        await filter.OnAuthorizationAsync(filterContext);
+
+        Assert.That(((ObjectResult)filterContext.Result!).StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
+    }
+
+    [Test]
+    public async Task OnAuthorizationAsync_DoesNothing_ForASafeMethod()
+    {
+        var context = Context("GET");
+        var filterContext = FilterContext(context);
+        var filter = new CookieAntiforgeryFilter(Substitute.For<IAntiforgery>(), new RecordingLogger<CookieAntiforgeryFilter>());
+
+        await filter.OnAuthorizationAsync(filterContext);
+
+        Assert.That(filterContext.Result, Is.Null);
+    }
+
+    [Test]
+    public async Task OnAuthorizationAsync_DoesNothing_WhenTheTokenValidates()
+    {
+        var context = Context("POST");
+        var filterContext = FilterContext(context);
+        var antiforgery = Substitute.For<IAntiforgery>();
+        var filter = new CookieAntiforgeryFilter(antiforgery, new RecordingLogger<CookieAntiforgeryFilter>());
+
+        await filter.OnAuthorizationAsync(filterContext);
+
+        // Not just that nothing refused the request: that the token was actually checked (a wrongly false
+        // RequiresToken would also leave Result null, without ever calling ValidateRequestAsync).
+        Assert.That(filterContext.Result, Is.Null);
+        await antiforgery.Received(1).ValidateRequestAsync(context);
+    }
+
+    [Test]
+    public async Task OnAuthorizationAsync_Refuses400_WhenTheTokenDoesNotValidate()
+    {
+        var context = Context("POST");
+        var filterContext = FilterContext(context);
+        var antiforgery = Substitute.For<IAntiforgery>();
+        antiforgery.ValidateRequestAsync(context).ThrowsAsync(new AntiforgeryValidationException("bad token"));
+        var filter = new CookieAntiforgeryFilter(antiforgery, new RecordingLogger<CookieAntiforgeryFilter>());
+
+        await filter.OnAuthorizationAsync(filterContext);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(((ObjectResult)filterContext.Result!).StatusCode, Is.EqualTo(StatusCodes.Status400BadRequest));
+            Assert.That(context.Response.Headers[BrowserAuth.AntiforgeryRejectedHeader].ToString(), Is.EqualTo("true"));
+        }
+    }
+
+    [Test]
+    public async Task OnAuthorizationAsync_SkipsTheToken_ForAnIgnoredAction()
+    {
+        var context = Context("POST");
+        var filterContext = FilterContext(context, [new IgnoreAntiforgeryTokenAttribute()]);
+        var antiforgery = Substitute.For<IAntiforgery>();
+        var filter = new CookieAntiforgeryFilter(antiforgery, new RecordingLogger<CookieAntiforgeryFilter>());
+
+        await filter.OnAuthorizationAsync(filterContext);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(filterContext.Result, Is.Null);
+            Assert.That(antiforgery.ReceivedCalls(), Is.Empty);
         }
     }
 }

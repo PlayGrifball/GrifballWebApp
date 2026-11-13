@@ -56,3 +56,43 @@ public class SignupsControllerUnitTests
         (await _controller.GetTimeslots(1, 0, CancellationToken.None)).AssertProblem(StatusCodes.Status401Unauthorized);
     }
 }
+
+/// <summary>SignupsControllerTests's unit tests on a real GrifballContext (temp-file SQLite, #402), where
+/// SignupsService needs nothing more.</summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class SignupsControllerDatabaseUnitTests : SqliteGrifballContextFixture
+{
+    private SignupsController Controller() => new(new SignupsService(Db));
+
+    [Test]
+    public async Task GetSignups_ReturnsNone_ForASeasonWithNoSignups()
+    {
+        var result = await Controller().GetSignups(1, CancellationToken.None);
+
+        Assert.That(result, Is.Empty);
+    }
+
+    [Test]
+    public async Task GetSignup_RepliesNoContent_ForAPlayerWithNoSignup()
+    {
+        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        var controller = Controller().WithUser(user.Id.ToString());
+
+        var result = await controller.GetSignup(1, 0, CancellationToken.None);
+
+        Assert.That(ControllerTestHelpers.StatusOf(result), Is.EqualTo(StatusCodes.Status204NoContent));
+    }
+
+    [Test]
+    public async Task GetTimeslots_ReturnsNone_ForASeasonWithNoTimeslots()
+    {
+        var user = await AddUser(discordUserId: 1, gamertag: "Grifter1");
+        var controller = Controller().WithUser(user.Id.ToString());
+
+        var result = await controller.GetTimeslots(1, 0, CancellationToken.None);
+
+        Assert.That(result.Value, Is.Empty);
+    }
+}

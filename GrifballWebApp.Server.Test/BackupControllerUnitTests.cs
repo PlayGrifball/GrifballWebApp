@@ -1,5 +1,6 @@
 using GrifballWebApp.Infrastructure.Conversion;
 using GrifballWebApp.Server.DatabaseBackup;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
@@ -41,5 +42,70 @@ public class BackupControllerUnitTests
     public void Is_sysadmin_only()
     {
         Assert.That(ControllerTestHelpers.ClassAuthorize(typeof(BackupController))?.Roles, Is.EqualTo("Sysadmin"));
+    }
+
+    // Refused before BackupRuns/BackupDownloads are ever asked
+    private static BackupController Controller() => new(null!, null!, null!, null!, new ConfigurationBuilder().Build(), NullLogger<BackupController>.Instance);
+
+    [Test]
+    public async Task StartDownload_RepliesBadRequest_ForAnUnknownFormat()
+    {
+        var result = await Controller().StartDownload("not-a-format", CancellationToken.None);
+
+        result.AssertProblem(StatusCodes.Status400BadRequest, "The format must be sqlite, postgres, sqlserver, bak or dump.");
+    }
+
+    [Test]
+    public async Task DownloadStatus_RepliesBadRequest_ForAnUnknownFormat()
+    {
+        var result = await Controller().DownloadStatus("not-a-format", CancellationToken.None);
+
+        result.Result.AssertProblem(StatusCodes.Status400BadRequest, "The format must be sqlite, postgres, sqlserver, bak or dump.");
+    }
+
+    [Test]
+    public async Task Download_RepliesBadRequest_ForAnUnknownFormat()
+    {
+        var result = await Controller().Download("not-a-format", CancellationToken.None);
+
+        result.AssertProblem(StatusCodes.Status400BadRequest, "The format must be sqlite, postgres, sqlserver, bak or dump.");
+    }
+
+    [Test]
+    public async Task Export_RepliesBadRequest_ForAnUnknownProvider()
+    {
+        var result = await Controller().Export(new ExportRequestDto("not-a-provider", "cs"), CancellationToken.None);
+
+        result.AssertProblem(StatusCodes.Status400BadRequest, "The provider must be SqlServer, Postgres or Sqlite.");
+    }
+}
+
+/// <summary>BackupController.Info on a real GrifballContext (temp-file SQLite, #402): Database.GetMigrations() is
+/// the assembly's own, so it works with no server, and DatabaseBackupService's Formats needs only configuration.</summary>
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class BackupControllerInfoUnitTests : SqliteGrifballContextFixture
+{
+    // Database:Provider pinned to Sqlite, agreeing with Db (built UseGrifballDatabase(DatabaseProvider.Sqlite, ...)
+    // in the fixture): LatestMigration then genuinely comes from the provider Provider reports, and neither
+    // HasNativeServer(SqlServer) nor HasNativeServer(Postgres) holds, so no native-backup format is offered.
+    private static readonly string[] ExpectedFormats = ["sqlite", "postgres", "sqlserver"];
+
+    [Test]
+    public void Info_ReturnsTheProviderAndTheFormatsAvailableHere()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Database:Provider"] = "Sqlite" }).Build();
+        var backups = new DatabaseBackupService(configuration, NullLoggerFactory.Instance, TimeProvider.System);
+        var controller = new BackupController(backups, null!, null!, Db, configuration, NullLogger<BackupController>.Instance);
+
+        var info = controller.Info();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(info.Provider, Is.EqualTo("Sqlite"));
+            Assert.That(info.LatestMigration, Is.Not.Null.And.Not.Empty);
+            Assert.That(info.Formats, Is.EquivalentTo(ExpectedFormats));
+        }
     }
 }
