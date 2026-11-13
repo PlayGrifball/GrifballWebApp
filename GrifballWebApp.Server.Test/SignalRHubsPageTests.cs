@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using System.Security.Claims;
 
 namespace GrifballWebApp.Server.Test;
@@ -10,7 +9,7 @@ public class SignalRHubsPageTests
 {
     private static (DefaultHttpContext Context, Func<bool> Passed, RequestDelegate Next) Request(string path, params string[] roles)
     {
-        var context = new DefaultHttpContext { RequestServices = new ServiceCollection().BuildServiceProvider() };
+        var context = new DefaultHttpContext();
         context.Request.Path = path;
         context.Response.Body = new MemoryStream();
         if (roles.Length > 0)
@@ -24,7 +23,7 @@ public class SignalRHubsPageTests
 
     [TestCase("/signalr-dev")]
     [TestCase("/signalr-dev/spec.json")]
-    public async Task RequireSysadmin_SendsAVisitorToSignIn(string path)
+    public async Task RequireSysadmin_RefusesAVisitor_With401AndNoRedirect(string path)
     {
         var (context, passed, next) = Request(path);
 
@@ -33,13 +32,13 @@ public class SignalRHubsPageTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(passed(), Is.False);
-            Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status302Found));
-            Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/login"));
+            Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
+            Assert.That(context.Response.Headers.Location.ToString(), Is.Empty);
         }
     }
 
     [Test]
-    public async Task RequireSysadmin_SendsARequestWithNoIdentityAtAllToSignIn()
+    public async Task RequireSysadmin_Refuses_ARequestWithNoIdentityAtAll_With401()
     {
         var (context, passed, next) = Request("/signalr-dev");
         context.User = new ClaimsPrincipal();
@@ -49,12 +48,12 @@ public class SignalRHubsPageTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(passed(), Is.False);
-            Assert.That(context.Response.Headers.Location.ToString(), Is.EqualTo("/login"));
+            Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
         }
     }
 
     [Test]
-    public async Task RequireSysadmin_RefusesASignedInUserWhoIsNotASysadmin()
+    public async Task RequireSysadmin_RefusesASignedInUserWhoIsNotASysadmin_With403()
     {
         var (context, passed, next) = Request("/signalr-dev/index.html", "Commissioner");
 
@@ -64,7 +63,6 @@ public class SignalRHubsPageTests
         {
             Assert.That(passed(), Is.False);
             Assert.That(context.Response.StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
-            Assert.That(context.Response.ContentType, Does.StartWith("application/problem+json"));
         }
     }
 

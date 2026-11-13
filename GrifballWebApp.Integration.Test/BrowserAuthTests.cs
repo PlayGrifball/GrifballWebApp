@@ -420,8 +420,8 @@ public class BrowserAuthTests
         using var anonymous = await visitor.GetAsync("/signalr-dev/spec.json");
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(anonymous.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
-            Assert.That(anonymous.Headers.Location?.ToString(), Is.EqualTo("/login"));
+            Assert.That(anonymous.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+            Assert.That(anonymous.Headers.Location, Is.Null);
         }
 
         using var sysadmin = Browser();

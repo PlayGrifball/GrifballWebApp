@@ -124,6 +124,19 @@ describe('SignalRService', () => {
       expect(console.log).toHaveBeenCalledWith('Error while starting the Teams hub connection: offline');
     });
 
+    it('tells every listener even when one throws, each on its own', async () => {
+      const consoleError = spyOn(console, 'error');
+      const failing = jasmine.createSpy('failing').and.throwError('boom');
+      const kept = jasmine.createSpy('kept');
+      service.connected(failing);
+      service.connected(kept);
+
+      await flush();
+
+      expect(kept).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalled();
+    });
+
     it('returns a function that stops telling that listener', async () => {
       const listener = jasmine.createSpy('connected');
       service.connected(listener)();
@@ -185,6 +198,21 @@ describe('SignalRService', () => {
     expect(next).toHaveBeenCalledOnceWith(7);
     expect(added).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalled();
+  });
+
+  it('does not give the message to a callback an earlier one unregistered during the same dispatch', () => {
+    let stopRemoved: () => void;
+    const remover = jasmine.createSpy('remover').and.callFake(() => stopRemoved());
+    service.lockCaptains(remover);
+    const removed = jasmine.createSpy('removed');
+    stopRemoved = service.lockCaptains(removed);
+    const kept = jasmine.createSpy('kept');
+    service.lockCaptains(kept);
+
+    handlerFor('LockCaptains')(7);
+
+    expect(removed).not.toHaveBeenCalled();
+    expect(kept).toHaveBeenCalledOnceWith(7);
   });
 
   describe('on the server', () => {

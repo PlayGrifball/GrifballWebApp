@@ -286,6 +286,7 @@ public interface IStreamingSampleHub : IBaseSampleHub
     IAsyncEnumerable<Outer> Stream();
     System.Threading.Channels.ChannelReader<double> Channel();
     Task Upload(IAsyncEnumerable<decimal> items);
+    Task<System.Threading.Channels.ChannelReader<Guid>> DoubleWrapped();
 }
 
 /// <summary>The hubs' payloads in the document (OpenApiSchemas.cs), for the client's models and its typed SignalR client.</summary>
@@ -293,11 +294,13 @@ public interface IStreamingSampleHub : IBaseSampleHub
 public class HubSchemasDocumentFilterTests
 {
     private static readonly Type[] SamplePayloads = [typeof(int), typeof(List<int>), typeof(string), typeof(Sample)];
-    private static readonly Type[] StreamedPayloads = [typeof(Sample), typeof(Outer), typeof(double), typeof(decimal), typeof(Outer.Inner)];
+    private static readonly Type[] StreamedPayloads = [typeof(Sample), typeof(Outer), typeof(double), typeof(decimal), typeof(Outer.Inner), typeof(Guid)];
     private static readonly Type[] Wrappers =
     [
         typeof(ValueTask<Sample>), typeof(IAsyncEnumerable<Outer>), typeof(System.Threading.Channels.ChannelReader<double>),
         typeof(IAsyncEnumerable<decimal>), typeof(Task<Outer.Inner>),
+        // Doubly wrapped: unwrapping once still leaves a wrapper (ChannelReader<Guid>), which must be unwrapped too
+        typeof(Task<System.Threading.Channels.ChannelReader<Guid>>), typeof(System.Threading.Channels.ChannelReader<Guid>),
     ];
 
     [Test]

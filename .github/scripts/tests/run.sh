@@ -440,6 +440,16 @@ mkdir -p "$spaced" && cp "$scripts/signalr-models.mjs" "$spaced/"
 if node "$spaced/signalr-models.mjs" "$sm/tsrts" "$sm/openapi.json" "$work/signalr3" > "$work/out" 2>&1 && [[ -f "$work/signalr3/GrifballWebApp.Application.Teams.ts" ]]
 then ok "signalr-models: runs from a path with a space"; else bad "signalr-models: did nothing from a path with a space:"; cat "$work/out"; fi
 
+# Run through a symlink (to the script, and to its directory): argv[1] is the symlink's path, not the real one
+symlinked="$work/symlinked-scripts"
+mkdir -p "$symlinked"
+ln -s "$scripts/signalr-models.mjs" "$symlinked/signalr-models.mjs"
+if node "$symlinked/signalr-models.mjs" "$sm/tsrts" "$sm/openapi.json" "$work/signalr4" > "$work/out" 2>&1 && [[ -f "$work/signalr4/GrifballWebApp.Application.Teams.ts" ]]
+then ok "signalr-models: runs through a symlink to the script"; else bad "signalr-models: did nothing through a symlink:"; cat "$work/out"; fi
+ln -s "$scripts" "$work/scripts-link"
+if node "$work/scripts-link/signalr-models.mjs" "$sm/tsrts" "$sm/openapi.json" "$work/signalr5" > "$work/out" 2>&1 && [[ -f "$work/signalr5/GrifballWebApp.Application.Teams.ts" ]]
+then ok "signalr-models: runs through a symlinked directory"; else bad "signalr-models: did nothing through a symlinked directory:"; cat "$work/out"; fi
+
 # The dev proxies (src/proxy.conf*.js) send the hubs' page's paths where the SSR server does (src/app/backendPaths.ts)
 client=$(cd "$scripts/../../grifballwebapp.client" && pwd)
 if node --experimental-strip-types --no-warnings --input-type=module -e "
