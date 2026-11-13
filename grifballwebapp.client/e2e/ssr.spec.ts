@@ -9,16 +9,16 @@ import { META, SESSION_COOKIE, signIn } from './mockApi.mts';
 const SITE = `http://localhost:${process.env.E2E_PORT ?? 4300}`;
 
 const PAGES = [
-  { path: '/', content: '.home-hero h1', text: 'Winter Campaign', data: ['/api/events', '/api/seasons'] },
-  { path: '/season/12', content: 'app-team-standings', text: 'Red Rampage', data: ['/api/seasons/12/summary', '/api/seasons/12/standings', '/api/seasons/12/matches/scheduled'] },
-  { path: '/season/12?tab=schedule', content: '.sched-match', text: 'Gravity Wells', data: ['/api/seasons/12/matches/scheduled', '/api/seasons/12/matches/unscheduled'] },
-  { path: '/seasonmatch/31', content: '.lobby-player', text: 'Blue Bombers', data: ['/api/season-matches/31'] },
-  { path: '/match/0f8fad5b-d9cb-469f-a165-70867728950e', content: '.md-player', text: 'Red Rampage', data: ['/api/matches/0f8fad5b-d9cb-469f-a165-70867728950e'] },
-  { path: '/profile/117', content: '.profile-card', text: 'MasterChief117', data: ['/api/users/117/gamertag', '/api/users/117/stats', '/api/users/117/commendations', '/api/users/117/deployment-history'] },
-  { path: '/leaderboards', content: 'app-leaderboards table.board', text: 'Legendary', data: ['/api/leaderboards'] },
-  { path: '/history/team/1', content: '.history-season', text: 'Summer Smash', data: ['/api/teams/1/history'] },
-  { path: '/late-league', content: 'app-late-league table.board', text: 'Late League Season 3', data: ['/api/late-league/queue', '/api/late-league/seasons'] },
-  { path: '/late-league/3', content: 'app-late-league table.board', text: 'MasterChief117', data: ['/api/late-league/seasons/3'] },
+  { path: '/', title: 'Play Grifball', content: '.home-hero h1', text: 'Winter Campaign', data: ['/api/events', '/api/seasons'] },
+  { path: '/season/12', title: 'Autumn Brawl · Play Grifball', content: 'app-team-standings', text: 'Red Rampage', data: ['/api/seasons/12/summary', '/api/seasons/12/standings', '/api/seasons/12/matches/scheduled'] },
+  { path: '/season/12?tab=schedule', title: 'Autumn Brawl · Play Grifball', content: '.sched-match', text: 'Gravity Wells', data: ['/api/seasons/12/matches/scheduled', '/api/seasons/12/matches/unscheduled'] },
+  { path: '/seasonmatch/31', title: 'Red Rampage vs Blue Bombers · Play Grifball', content: '.lobby-player', text: 'Blue Bombers', data: ['/api/season-matches/31'] },
+  { path: '/match/0f8fad5b-d9cb-469f-a165-70867728950e', title: 'Red Rampage 5–3 Blue Bombers · Play Grifball', content: '.md-player', text: 'Red Rampage', data: ['/api/matches/0f8fad5b-d9cb-469f-a165-70867728950e'] },
+  { path: '/profile/117', title: 'MasterChief117 · Play Grifball', content: '.profile-card', text: 'MasterChief117', data: ['/api/users/117/gamertag', '/api/users/117/stats', '/api/users/117/commendations', '/api/users/117/deployment-history'] },
+  { path: '/leaderboards', title: 'Leaderboards · Play Grifball', content: 'app-leaderboards table.board', text: 'Legendary', data: ['/api/leaderboards'] },
+  { path: '/history/team/1', title: 'Red Rampage · Team History · Play Grifball', content: '.history-season', text: 'Summer Smash', data: ['/api/teams/1/history'] },
+  { path: '/late-league', title: 'Late League · Play Grifball', content: 'app-late-league table.board', text: 'Late League Season 3', data: ['/api/late-league/queue', '/api/late-league/seasons'] },
+  { path: '/late-league/3', title: 'Late League · Play Grifball', content: 'app-late-league table.board', text: 'MasterChief117', data: ['/api/late-league/seasons/3'] },
 ] as const;
 
 /** Keeps the run hermetic, and lists the API calls the browser makes and what it logs as an error. */
@@ -50,6 +50,22 @@ for (const { path, content, text } of PAGES) {
     expect(response?.status()).toBe(200);
     await expect(page.locator(content).first()).toBeVisible();
     await expect(page.locator('main')).toContainText(text);
+    await context.close();
+  });
+}
+
+for (const { path, title } of PAGES) {
+  test(`${path} is titled and addressed as itself in the page the server sends`, async ({ browser }) => {
+    // Crawlers and link previews read the tags the server wrote (src/app/shared/pageMeta.ts)
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto(SITE + path);
+    const address = SITE + new URL(SITE + path).pathname;
+
+    await expect(page).toHaveTitle(title);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', address);
+    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', address);
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', title);
     await context.close();
   });
 }
