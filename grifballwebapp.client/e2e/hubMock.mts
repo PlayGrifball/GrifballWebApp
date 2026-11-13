@@ -13,7 +13,7 @@
 // page.route/routeWebSocket level (for a test that pushes a change down it); the two can't share
 // code (this one speaks raw HTTP upgrade + WebSocket frames for a real socket, that one intercepts
 // in the browser), but they share the record separator below.
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import type { Socket } from 'node:net';
 
@@ -42,7 +42,7 @@ export function isHubNegotiate(req: IncomingMessage): boolean {
 
 /** A negotiate's answer (version 1): a fresh connection, WebSockets offered, as the real hub offers them first. */
 export function negotiateResponse(): string {
-  const id = Math.random().toString(36).slice(2);
+  const id = randomUUID();
   return JSON.stringify({
     negotiateVersion: 1, connectionId: id, connectionToken: id,
     availableTransports: [{ transport: 'WebSockets', transferFormats: ['Text', 'Binary'] }],
