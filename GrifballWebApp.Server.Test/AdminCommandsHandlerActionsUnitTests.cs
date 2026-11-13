@@ -376,4 +376,26 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
 
         Assert.That(refusal!.Message, Is.EqualTo($"Claim {claim.GamertagClaimID} was already rejected"));
     }
+
+    [Test]
+    public async Task ScheduleShow_ListsTheLatestRecommendation_SoonestFirst_AndWhetherItIsApplied()
+    {
+        var match = await AMatch();
+        var second = SeasonMatch.Seed(match.SeasonID, match.AwayTeamID, match.HomeTeamID);
+        Db.SeasonMatches.Add(second);
+        await Db.SaveChangesAsync();
+        var sooner = new DateTime(2026, 11, 20, 20, 0, 0, DateTimeKind.Utc);
+        var later = sooner.AddDays(7);
+        var recommendation = ScheduleRecommendation.Propose(match.SeasonID, "commish", 0.9, 10,
+            [new ProposedMatchTime(second.SeasonMatchID, later, false, true, true), new ProposedMatchTime(match.SeasonMatchID, sooner, false, true, true)]);
+        Db.ScheduleRecommendations.Add(recommendation);
+        await Db.SaveChangesAsync();
+        var (discord, _) = await Caller(DiscordCaller.Roles.Commissioner);
+
+        await (await Handler()).ScheduleShow(discord.Context, "Winter");
+
+        Assert.That(discord.Embed().Description, Is.EqualTo(
+            $"Recommendation #{recommendation.ScheduleRecommendationID}, not applied\n\n" +
+            $"<t:{new DateTimeOffset(sooner).ToUnixTimeSeconds()}> · Home vs Away\n<t:{new DateTimeOffset(later).ToUnixTimeSeconds()}> · Away vs Home"));
+    }
 }

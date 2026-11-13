@@ -20,9 +20,12 @@ public class RequestTelemetryPipelineUnitTests
     public async Task UseRequestTelemetry_LogsEachRequest_AtItsLevel_WithItsHost(int status, LogEventLevel level)
     {
         var sink = new LoggingExtensionsTestData.CollectingSink();
+        var logger = new LoggerConfiguration().MinimumLevel.Verbose().WriteTo.Sink(sink).CreateLogger();
+        // Serilog's request logging writes to the options' logger, else the static Log.Logger (shared by every test): this one
         using var services = new ServiceCollection()
             .AddLogging()
-            .AddSerilog(new LoggerConfiguration().MinimumLevel.Verbose().WriteTo.Sink(sink).CreateLogger(), dispose: true)
+            .AddSerilog(logger, dispose: true)
+            .Configure<Serilog.AspNetCore.RequestLoggingOptions>(options => options.Logger = logger)
             .BuildServiceProvider();
         // The pipeline built over the services, as the app builds it; no host
         var app = new ApplicationBuilder(services);

@@ -18,6 +18,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
     private static readonly string[] GrifsInWinter = ["Grifs (Winter)"];
     private static readonly string[] TheMatchInWinter = ["Grifs vs Rivals (Winter)"];
     private static readonly string[] HoldingGrif = ["Grifter1", "TheGrifter"];
+    private static readonly string[] TheEuropes = ["North Europe", "South Europe", "Europe", "None (clear it)"];
 
     private static NetCord.ApplicationCommandInteractionDataOption Typed(string value)
         => new(JsonSerializer.Deserialize<NetCord.JsonModels.JsonApplicationCommandInteractionDataOption>(
@@ -85,5 +86,13 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
         var choices = await new GamertagAutocomplete(Db).GetChoicesAsync(Typed("Grif"), null!);
 
         Assert.That(Names(choices), Is.EquivalentTo(HoldingGrif));
+    }
+
+    [Test]
+    public async Task RegionAutocomplete_OffersTheRegionsNamed_AndClearingIt()
+    {
+        var choices = await new RegionAutocomplete(new GrifballWebApp.Application.Profile.RegionService(Db)).GetChoicesAsync(Typed("europe"), null!);
+
+        Assert.That(Names(choices), Is.EquivalentTo(TheEuropes));
     }
 }
