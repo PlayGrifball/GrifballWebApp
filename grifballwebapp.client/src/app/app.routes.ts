@@ -35,7 +35,7 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'season/:seasonID/draft',
-    loadComponent: () => import('./teamBuilder/teamBuilder.component').then(m => m.TeamBuilderComponent),
+    loadComponent: () => import('./features/draft/teamBuilder/teamBuilder.component').then(m => m.TeamBuilderComponent),
     title: 'Draft Board'
   },
   {

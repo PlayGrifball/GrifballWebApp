@@ -14,14 +14,14 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { GrabbedPlayer, GrabbedThing, GrabbedThingTypes } from './personStatus';
 import type { CaptainDto } from '@api/models';
 import type { CaptainPlacementDto, RemoveCaptainDto } from '@api/models';
-import { AccountService } from '../core/auth/account.service';
+import { AccountService } from '../../../core/auth/account.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { SignalRService } from '../core/signalr/signalR.service';
+import { SignalRService } from '../../../core/signalr/signalR.service';
 import { addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTeam, movePoolPlayer, removeCaptain, removePlayerFromTeam, renameTeam, resortCaptain } from './draft';
-import { SeasonTabsComponent } from '../features/league/season/seasonTabs/seasonTabs.component';
-import { whileCurrent } from '../shared/whileCurrent';
-import { errorText } from '../shared/errorText';
+import { SeasonTabsComponent } from '../../league/season/seasonTabs/seasonTabs.component';
+import { whileCurrent } from '../../../shared/whileCurrent';
+import { errorText } from '../../../shared/errorText';
 
 @Component({
     selector: 'app-team-builder',

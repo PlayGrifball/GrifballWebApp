@@ -5,7 +5,7 @@ import { ThemeComponent } from './core/layout/theme/theme.component';
 import { SeasonComponent } from './features/league/season/season.component';
 import { SignupsComponent } from './features/league/signups/signups.component';
 import { SignupFormComponent } from './features/league/signupForm/signupForm.component';
-import { TeamBuilderComponent } from './teamBuilder/teamBuilder.component';
+import { TeamBuilderComponent } from './features/draft/teamBuilder/teamBuilder.component';
 import { SeasonTeamsComponent } from './features/league/season/seasonTeams/seasonTeams.component';
 import { TeamComponent } from './features/league/season/team/team.component';
 import { PlayerGradesComponent } from './features/league/season/playerGrades/playerGrades.component';
