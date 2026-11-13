@@ -16,23 +16,33 @@ namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>
 /// OutboxProcessor, on a real (temp-file SQLite) GrifballContext behind a real DI container: no database server, host
-/// or network. Each test builds its own small container and file, and a reader context to seed and check rows.
+/// or network. Each test gets its own file (SqliteContextFixture) and a small container on it; the fixture's context
+/// seeds and checks rows.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class OutboxProcessorTests
+public class OutboxProcessorTests : SqliteContextFixture
 {
     private static readonly DateTimeOffset Now = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
-    private sealed class Harness : IAsyncDisposable
+    /// <summary>The test's containers (one per <see cref="Build"/>), disposed before the base fixture deletes the file.</summary>
+    private readonly List<ServiceProvider> _providers = [];
+
+    [TearDown]
+    public async Task DisposeProviders()
+    {
+        foreach (var provider in _providers)
+            await provider.DisposeAsync();
+    }
+
+    /// <summary>The processor under test, and the fixture's context (Reader) to seed and check rows.</summary>
+    private sealed class Harness
     {
         public required OutboxProcessor Processor { get; init; }
         public required GrifballContext Reader { get; init; }
         public required FakeTimeProvider Time { get; init; }
         public required OutboxOptions Options { get; init; }
-        public required string Path { get; init; }
-        public required ServiceProvider Provider { get; init; }
 
         public async Task<OutboxMessage> AddAsync(string kind, OutboxStatus status = OutboxStatus.Pending, string? groupKey = null,
             int sequence = 0, int attempts = 0, TimeSpan? dueIn = null)
@@ -59,43 +69,30 @@ public class OutboxProcessorTests
             Reader.ChangeTracker.Clear();
             return await Reader.Outbox.AsNoTracking().SingleAsync(x => x.Id == id);
         }
+    }
 
-        public async ValueTask DisposeAsync()
-        {
-            await Reader.DisposeAsync();
-            await Provider.DisposeAsync();
-            if (File.Exists(Path))
-                File.Delete(Path);
-        }
+    /// <summary>An OutboxProcessor behind a small DI container on the fixture's database (its schema already made).</summary>
+    private Harness Build(IEnumerable<IOutboxHandler>? handlers = null, OutboxOptions? options = null, DiscordOptions? discordOptions = null)
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<GrifballContext>(o => o.UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString));
+        services.AddScoped<IOutbox, ContextOutbox>();
+        foreach (var handler in handlers ?? [])
+            services.AddSingleton(handler);
+        var provider = services.BuildServiceProvider();
+        _providers.Add(provider);
 
-        public static async Task<Harness> BuildAsync(IEnumerable<IOutboxHandler>? handlers = null, OutboxOptions? options = null, DiscordOptions? discordOptions = null)
-        {
-            var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"grif-outbox-processor-{Guid.NewGuid():N}.db");
-            var connectionString = $"Data Source={path};Pooling=False";
+        var time = new FakeTimeProvider(Now);
+        var resolvedOptions = options ?? new OutboxOptions();
+        var processor = new OutboxProcessor(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            Microsoft.Extensions.Options.Options.Create(resolvedOptions),
+            Microsoft.Extensions.Options.Options.Create(discordOptions ?? new DiscordOptions()),
+            time,
+            NullLogger<OutboxProcessor>.Instance);
 
-            var services = new ServiceCollection();
-            services.AddDbContext<GrifballContext>(o => o.UseGrifballDatabase(DatabaseProvider.Sqlite, connectionString));
-            services.AddScoped<IOutbox, ContextOutbox>();
-            foreach (var handler in handlers ?? [])
-                services.AddSingleton(handler);
-            var provider = services.BuildServiceProvider();
-
-            await using (var scope = provider.CreateAsyncScope())
-                await scope.ServiceProvider.GetRequiredService<GrifballContext>().Database.EnsureCreatedAsync();
-
-            var time = new FakeTimeProvider(Now);
-            var resolvedOptions = options ?? new OutboxOptions();
-            var processor = new OutboxProcessor(
-                provider.GetRequiredService<IServiceScopeFactory>(),
-                Microsoft.Extensions.Options.Options.Create(resolvedOptions),
-                Microsoft.Extensions.Options.Options.Create(discordOptions ?? new DiscordOptions()),
-                time,
-                NullLogger<OutboxProcessor>.Instance);
-
-            var reader = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(DatabaseProvider.Sqlite, connectionString).Options);
-
-            return new Harness { Processor = processor, Reader = reader, Time = time, Options = resolvedOptions, Path = path, Provider = provider };
-        }
+        return new Harness { Processor = processor, Reader = Context, Time = time, Options = resolvedOptions };
+    }
     }
 
     private static IOutboxHandler FakeHandler(string kind, bool deadLetterSkipsGroup = true, TimeSpan? maxAge = null)
@@ -110,7 +107,7 @@ public class OutboxProcessorTests
     [Test]
     public async Task ProcessDueAsync_NoMessagesDue_ReturnsZero()
     {
-        await using var h = await Harness.BuildAsync();
+        var h = Build();
 
         var taken = await h.Processor.ProcessDueAsync(CancellationToken.None);
 
@@ -122,7 +119,7 @@ public class OutboxProcessorTests
     {
         var handler = FakeHandler("test.kind");
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>()).Returns(OutboxOutcome.Done);
-        await using var h = await Harness.BuildAsync([handler]);
+        var h = Build([handler]);
         var message = await h.AddAsync("test.kind");
 
         var taken = await h.Processor.ProcessDueAsync(CancellationToken.None);
@@ -144,7 +141,7 @@ public class OutboxProcessorTests
         var handler = FakeHandler("test.kind");
         var continueAt = (Now + TimeSpan.FromMinutes(10)).UtcDateTime;
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>()).Returns(OutboxOutcome.ContinueLater(continueAt));
-        await using var h = await Harness.BuildAsync([handler]);
+        var h = Build([handler]);
         var message = await h.AddAsync("test.kind");
 
         await h.Processor.ProcessDueAsync(CancellationToken.None);
@@ -161,7 +158,7 @@ public class OutboxProcessorTests
     [Test]
     public async Task ProcessDueAsync_DiscordDisabledGlobally_SkipsWithoutCallingAHandler()
     {
-        await using var h = await Harness.BuildAsync(discordOptions: new DiscordOptions { DisableGlobally = true });
+        var h = Build(discordOptions: new DiscordOptions { DisableGlobally = true });
         var message = await h.AddAsync("anything");
 
         await h.Processor.ProcessDueAsync(CancellationToken.None);
@@ -180,7 +177,7 @@ public class OutboxProcessorTests
         var handler = FakeHandler("test.kind");
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new PreviewDiscordDisabledException("preview"));
-        await using var h = await Harness.BuildAsync([handler]);
+        var h = Build([handler]);
         var message = await h.AddAsync("test.kind");
 
         await h.Processor.ProcessDueAsync(CancellationToken.None);
@@ -200,7 +197,7 @@ public class OutboxProcessorTests
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("boom"));
         var options = new OutboxOptions { MaxAttempts = 10, RetryDelay = TimeSpan.FromSeconds(5), MaxRetryDelay = TimeSpan.FromMinutes(5) };
-        await using var h = await Harness.BuildAsync([handler], options);
+        var h = Build([handler], options);
         var message = await h.AddAsync("test.kind");
 
         await h.Processor.ProcessDueAsync(CancellationToken.None);
@@ -221,7 +218,7 @@ public class OutboxProcessorTests
         var handler = FakeHandler("test.kind");
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException(new string('x', 2500)));
-        await using var h = await Harness.BuildAsync([handler]);
+        var h = Build([handler]);
         var message = await h.AddAsync("test.kind");
 
         await h.Processor.ProcessDueAsync(CancellationToken.None);
@@ -237,7 +234,7 @@ public class OutboxProcessorTests
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("boom"));
         var options = new OutboxOptions { MaxAttempts = 1 };
-        await using var h = await Harness.BuildAsync([handler], options);
+        var h = Build([handler], options);
         var first = await h.AddAsync("test.kind", groupKey: "g1", sequence: 0);
         var second = await h.AddAsync("test.kind", groupKey: "g1", sequence: 1);
 
@@ -261,7 +258,7 @@ public class OutboxProcessorTests
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("boom"));
         var options = new OutboxOptions { MaxAttempts = 1 };
-        await using var h = await Harness.BuildAsync([handler], options);
+        var h = Build([handler], options);
         var first = await h.AddAsync("test.kind", groupKey: "g1", sequence: 0);
         var second = await h.AddAsync("test.kind", groupKey: "g1", sequence: 1);
 
@@ -278,7 +275,7 @@ public class OutboxProcessorTests
         handler.HandleAsync(Arg.Any<OutboxMessage>(), Arg.Any<GrifballContext>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("boom"));
         var options = new OutboxOptions { MaxAttempts = 10 };
-        await using var h = await Harness.BuildAsync([handler], options);
+        var h = Build([handler], options);
         var message = new OutboxMessage
         {
             Kind = "test.kind",
@@ -300,7 +297,7 @@ public class OutboxProcessorTests
     [Test]
     public async Task ProcessDueAsync_NoHandlerRegisteredForTheKind_FailsWithADescriptiveError()
     {
-        await using var h = await Harness.BuildAsync();
+        var h = Build();
         var message = await h.AddAsync("mystery.kind");
 
         await h.Processor.ProcessDueAsync(CancellationToken.None);
@@ -316,7 +313,7 @@ public class OutboxProcessorTests
     [Test]
     public async Task ClaimAsync_TakesOnlyUpToBatchSize_OldestIdsFirst()
     {
-        await using var h = await Harness.BuildAsync();
+        var h = Build();
         var a = await h.AddAsync("k");
         var b = await h.AddAsync("k");
         var c = await h.AddAsync("k");
@@ -333,7 +330,7 @@ public class OutboxProcessorTests
     [Test]
     public async Task ClaimAsync_LeasesTheClaimedRowsAndCountsTheAttempt()
     {
-        await using var h = await Harness.BuildAsync();
+        var h = Build();
         var message = await h.AddAsync("k");
         var leaseUntil = (Now + TimeSpan.FromMinutes(2)).UtcDateTime;
 
@@ -350,7 +347,7 @@ public class OutboxProcessorTests
     [Test]
     public async Task ClaimAsync_NotYetDue_IsNotClaimed()
     {
-        await using var h = await Harness.BuildAsync();
+        var h = Build();
         var message = await h.AddAsync("k", dueIn: TimeSpan.FromMinutes(5));
 
         var claimed = await OutboxProcessor.ClaimAsync(h.Reader, Now.UtcDateTime, (Now + TimeSpan.FromMinutes(2)).UtcDateTime, batchSize: 20, CancellationToken.None);
@@ -368,7 +365,7 @@ public class OutboxProcessorTests
     [TestCase(OutboxStatus.DeadLettered)]
     public async Task ClaimAsync_AlreadyFinished_IsNotClaimedAgain(OutboxStatus status)
     {
-        await using var h = await Harness.BuildAsync();
+        var h = Build();
         await h.AddAsync("k", status: status);
 
         var claimed = await OutboxProcessor.ClaimAsync(h.Reader, Now.UtcDateTime, (Now + TimeSpan.FromMinutes(2)).UtcDateTime, batchSize: 20, CancellationToken.None);
@@ -379,7 +376,7 @@ public class OutboxProcessorTests
     [Test]
     public async Task ClaimAsync_ABlockedGroupMember_IsSkippedUntilTheEarlierOneFinishes()
     {
-        await using var h = await Harness.BuildAsync();
+        var h = Build();
         var first = await h.AddAsync("k", groupKey: "g1", sequence: 0);
         var second = await h.AddAsync("k", groupKey: "g1", sequence: 1);
 
@@ -397,7 +394,7 @@ public class OutboxProcessorTests
     public async Task CleanupAsync_DeletesPastRetention_KeepsEverythingElse()
     {
         var options = new OutboxOptions { SentRetention = TimeSpan.FromHours(1), DeadLetterRetention = TimeSpan.FromHours(2) };
-        await using var h = await Harness.BuildAsync(options: options);
+        var h = Build(options: options);
         var oldSent = await h.AddAsync("k", status: OutboxStatus.Sent);
         oldSent.SentAt = (Now - TimeSpan.FromHours(2)).UtcDateTime;
         var freshSent = await h.AddAsync("k", status: OutboxStatus.Sent);

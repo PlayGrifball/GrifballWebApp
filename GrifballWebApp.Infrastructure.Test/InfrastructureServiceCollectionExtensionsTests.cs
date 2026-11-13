@@ -124,8 +124,7 @@ public class InfrastructureServiceCollectionExtensionsTests
         }
         finally
         {
-            if (File.Exists(path))
-                File.Delete(path);
+            SqliteContextFixture.DeleteDatabaseFiles(path);
         }
     }
 
