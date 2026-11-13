@@ -146,7 +146,8 @@ jobs:
       run: |
         dotnet tool restore
         dotnet restore GrifballWebApp.slnx
-        dotnet tsrts --project GrifballWebApp.Server/GrifballWebApp.Server.csproj --output "$RUNNER_TEMP/tsrts"
+        # --asm: the hubs' DTOs are the Application's; --enum name: the API sends enums by name (JsonStringEnumConverter)
+        dotnet tsrts --project GrifballWebApp.Server/GrifballWebApp.Server.csproj --output "$RUNNER_TEMP/tsrts" --asm true --enum name
         node .github/scripts/signalr-models.mjs "$RUNNER_TEMP/tsrts" grifballwebapp.client/openapi.json grifballwebapp.client/src/generated/signalr
 
     - name: Typed SignalR client is up to date
