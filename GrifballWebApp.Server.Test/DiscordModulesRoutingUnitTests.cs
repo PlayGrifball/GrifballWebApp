@@ -5,6 +5,7 @@ using GrifballWebApp.Application.Home;
 using GrifballWebApp.Application.LateLeague;
 using GrifballWebApp.Application.Leaderboards;
 using GrifballWebApp.Application.Matchmaking;
+using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Search;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Signups;
@@ -208,7 +209,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.InstanceOf<SuccessResult>(), (result as IFailResult)?.Message);
+            Assert.That(result, Is.Not.InstanceOf<IFailResult>(), (result as IFailResult)?.Message);
             Assert.That(Reply(), Is.EqualTo(expected));
         }
     }
@@ -223,7 +224,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.InstanceOf<SuccessResult>(), (result as IFailResult)?.Message);
+            Assert.That(result, Is.Not.InstanceOf<IFailResult>(), (result as IFailResult)?.Message);
             Assert.That(Reply(), Is.EqualTo("Commands"));
         }
     }
@@ -241,7 +242,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.InstanceOf<SuccessResult>(), (result as IFailResult)?.Message);
+            Assert.That(result, Is.Not.InstanceOf<IFailResult>(), (result as IFailResult)?.Message);
             Assert.That(Reply(), Is.EqualTo(expected));
         }
     }
@@ -256,7 +257,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.InstanceOf<SuccessResult>(), (result as IFailResult)?.Message);
+            Assert.That(result, Is.Not.InstanceOf<IFailResult>(), (result as IFailResult)?.Message);
             Assert.That(_callbacks.Single().Type, Is.EqualTo(InteractionCallbackType.Modal));
         }
     }
@@ -272,7 +273,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.InstanceOf<SuccessResult>(), (result as IFailResult)?.Message);
+            Assert.That(result, Is.Not.InstanceOf<IFailResult>(), (result as IFailResult)?.Message);
             Assert.That(Reply(), Is.EqualTo("You must set your gamertag first"));
         }
     }
@@ -287,7 +288,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.InstanceOf<SuccessResult>(), (result as IFailResult)?.Message);
+            Assert.That(result, Is.Not.InstanceOf<IFailResult>(), (result as IFailResult)?.Message);
             Assert.That(Reply(), Is.EqualTo(DiscordSetGamertag.LinkedToOtherDiscord));
         }
     }

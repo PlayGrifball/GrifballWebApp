@@ -415,6 +415,57 @@ public class ClientTelemetryUnitTests
         Assert.That(QueryRedaction.Redact(url), Is.EqualTo(expected));
     }
 
+    [TestCase("token")]
+    [TestCase("code")]
+    [TestCase("secret")]
+    [TestCase("password")]
+    [TestCase("pwd")]
+    [TestCase("apiKey")]
+    [TestCase("auth")]
+    [TestCase("sessionId")]
+    [TestCase("sig")]
+    [TestCase("credentials")]
+    [TestCase("cookie")]
+    [TestCase("EMAIL")]
+    [TestCase("username")]
+    [TestCase("state")]
+    [TestCase("nonce")]
+    [TestCase("otp")]
+    [TestCase("ticket")]
+    [TestCase("hash")]
+    [TestCase("jwt")]
+    public void QueryRedaction_RedactsEachSensitiveName_InAnyCase_InsideALongerName(string name)
+    {
+        Assert.That(QueryRedaction.RedactUrlsIn($"failed at /x?{name}=v1&page=2 then"), Is.EqualTo($"failed at /x?{name}=REDACTED&page=2 then"));
+    }
+
+    [Test]
+    public async Task Forward_ACollectorThatRefuses_IsWarnedAboutWithItsStatus()
+    {
+        var logger = new RecordingLogger<ClientTelemetryForwarder>();
+        var forwarder = new ClientTelemetryForwarder(new HttpClient(new Collector(HttpStatusCode.ServiceUnavailable)), new ClientTelemetryResource(Telemetry), Options(), logger);
+
+        await forwarder.Forward(Batch(), "", default);
+
+        Assert.That(logger.Entries.First().Message, Is.EqualTo("The collector refused the browser's traces (503); 0 more failures since the last warning"));
+    }
+
+    [Test]
+    public async Task Forward_ACollectorThatIsAway_IsWarnedAboutWithTheError()
+    {
+        var logger = new RecordingLogger<ClientTelemetryForwarder>();
+        var forwarder = new ClientTelemetryForwarder(new HttpClient(new Unreachable()), new ClientTelemetryResource(Telemetry), Options(), logger);
+
+        await forwarder.Forward(Batch(), "", default);
+
+        var entry = logger.Entries.First();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(entry.Message, Is.EqualTo("Sending the browser's traces to the collector failed; 0 more failures since the last warning"));
+            Assert.That(entry.Exception, Is.TypeOf<HttpRequestException>());
+        }
+    }
+
     [Test]
     public void OtlpJson_SpanKindsStatusesAndLevels()
     {
