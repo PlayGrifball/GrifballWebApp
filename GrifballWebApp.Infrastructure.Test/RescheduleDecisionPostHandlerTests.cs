@@ -2,6 +2,7 @@ using DiscordInterface.Generated;
 using GrifballWebApp.Application.Reschedule;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Reschedule;
 using Microsoft.EntityFrameworkCore;
