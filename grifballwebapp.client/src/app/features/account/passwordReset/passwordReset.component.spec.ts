@@ -1,10 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, ActivatedRoute } from '@angular/router';
-import { PasswordResetComponent } from './password-reset.component';
-import { AccountService } from '../core/auth/account.service';
+import { PasswordResetComponent } from './passwordReset.component';
+import { AccountService } from '../../../core/auth/account.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { of, Subject, throwError } from 'rxjs';
-import { noMaterialAnimations } from '../shared/testing/noMaterialAnimations';
+import { noMaterialAnimations } from '../../../shared/testing/noMaterialAnimations';
 
 describe('PasswordResetComponent', () => {
   let component: PasswordResetComponent;

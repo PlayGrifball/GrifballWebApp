@@ -60,17 +60,17 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'login',
-    loadComponent: () => import('./login/login.component').then(m => m.LoginComponent),
+    loadComponent: () => import('./features/account/login/login.component').then(m => m.LoginComponent),
     title: 'Login'
   },
   {
     path: 'register',
-    loadComponent: () => import('./register/register.component').then(m => m.RegisterComponent),
+    loadComponent: () => import('./features/account/register/register.component').then(m => m.RegisterComponent),
     title: 'Register'
   },
   {
     path: 'reset-password',
-    loadComponent: () => import('./password-reset/password-reset.component').then(m => m.PasswordResetComponent),
+    loadComponent: () => import('./features/account/passwordReset/passwordReset.component').then(m => m.PasswordResetComponent),
     title: 'Reset Password'
   },
   {
