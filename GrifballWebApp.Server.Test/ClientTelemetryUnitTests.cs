@@ -282,6 +282,27 @@ public class ClientTelemetryUnitTests
     }
 
     [Test]
+    public async Task ClientTelemetryPump_ForwardsWhatIsQueued_WithAForwarderFromItsServices_UntilStopped()
+    {
+        var collector = new Collector();
+        var queue = new ClientTelemetryQueue(NullLogger<ClientTelemetryQueue>.Instance, new ForwardFailures());
+        using var services = new ServiceCollection().AddTransient(_ => Forwarder(collector)).BuildServiceProvider();
+        using var pump = new ClientTelemetryPump(queue, services);
+
+        await pump.StartAsync(CancellationToken.None);
+        queue.Enqueue(Batch(), "");
+        for (var i = 0; i < 100 && collector.Posted.Count < 2; i++)
+            await Task.Delay(20);
+        await pump.StopAsync(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(collector.Posted.Select(p => p.Url.AbsoluteUri), Is.EqualTo(TracesThenLogs));
+            Assert.That(pump.ExecuteTask!.IsCompleted, Is.True, "Stopped with the host");
+        }
+    }
+
+    [Test]
     public void ForwardFailures_WarnOnceAMinute_CountingTheRest()
     {
         var time = new Microsoft.Extensions.Time.Testing.FakeTimeProvider();

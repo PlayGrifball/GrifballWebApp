@@ -110,4 +110,26 @@ public class PlayerAndMatchCommandsActionsUnitTests : SqliteGrifballContextFixtu
             ("Team 1: 20 (Lost)", "Bravo · 0 goals · 4/9/1"),
         }));
     }
+
+    [Test]
+    public async Task Info_ListsTheMatchsReportedGames_WithALinkToEach()
+    {
+        var season = await AddSeason("Winter");
+        var match = await AddSeasonMatch(season, await AddTeam(season, "Home"), await AddTeam(season, "Away"));
+        var gameID = Guid.Parse("00000000-0000-0000-0000-0000000000c1");
+        var game = HaloMatch.Seed(gameID, startTime: new DateTime(2026, 10, 1, 20, 0, 0, DateTimeKind.Utc));
+        game.AddTeam(0, 3, Outcomes.Won);
+        game.AddTeam(1, 1, Outcomes.Lost);
+        Db.Matches.Add(game);
+        match.AddGame(game, 1);
+        await Db.SaveChangesAsync();
+        var handler = new MatchCommandsHandler(new CommandLookups(Db, null!),
+            new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)), new MatchDetailsService(Db), Urls());
+        var discord = new CommandContextRecorder();
+
+        await handler.Info(discord.Context, match.SeasonMatchID.ToString());
+
+        var games = discord.Embed().Fields!.Single(f => f.Name == "Games").Value;
+        Assert.That(games, Does.StartWith("Game 1: ").And.EndWith($" · [details](https://grif.test/match/{gameID})"));
+    }
 }
