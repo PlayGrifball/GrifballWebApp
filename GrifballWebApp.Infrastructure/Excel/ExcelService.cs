@@ -32,6 +32,18 @@ public class ExcelService
         });
     }
 
+    /// <summary>
+    /// Test seam: a ready-made <paramref name="sheetsService"/> (one on a fake HTTP handler), so tests need neither a
+    /// service-account key file nor the network. Internal, so dependency injection keeps using the public constructor.
+    /// </summary>
+    internal ExcelService(GrifballContext context, IDataPullService dataPullService, IConfiguration configuration, SheetsService sheetsService)
+    {
+        _context = context;
+        _dataPullService = dataPullService;
+        _configuration = configuration;
+        _sheetsService = sheetsService;
+    }
+
     private static string GetExcelRange(IList<IList<object>> data, int startRow)
     {
         if (data == null || data.Count == 0 || data[0].Count == 0)

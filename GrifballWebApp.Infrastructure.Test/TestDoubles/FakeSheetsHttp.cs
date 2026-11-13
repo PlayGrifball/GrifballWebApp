@@ -1,9 +1,13 @@
 using System.Net;
 using System.Text;
+using Google.Apis.Sheets.v4;
 
-namespace GrifballWebApp.Integration.Test;
+namespace GrifballWebApp.Infrastructure.Test;
 
-/// <summary>Records Google Sheets API requests and returns canned JSON.</summary>
+/// <summary>
+/// Records Google Sheets API requests and returns canned JSON. Shared with GrifballWebApp.Integration.Test, which
+/// references this project.
+/// </summary>
 internal sealed class FakeSheetsHandler : HttpMessageHandler
 {
     public List<(HttpMethod Method, string Url, string Body)> Requests { get; } = new();
@@ -25,4 +29,12 @@ internal sealed class FakeSheetsHttpClientFactory : Google.Apis.Http.HttpClientF
     private readonly HttpMessageHandler _handler;
     public FakeSheetsHttpClientFactory(HttpMessageHandler handler) => _handler = handler;
     protected override HttpMessageHandler CreateHandler(Google.Apis.Http.CreateHttpClientArgs args) => _handler;
+
+    /// <summary>A real SheetsService whose requests all go to <paramref name="handler"/>: no credential, no network.</summary>
+    public static SheetsService SheetsServiceOn(HttpMessageHandler handler) => new(new Google.Apis.Services.BaseClientService.Initializer
+    {
+        HttpClientFactory = new FakeSheetsHttpClientFactory(handler),
+        ApplicationName = "tests",
+        GZipEnabled = false,
+    });
 }

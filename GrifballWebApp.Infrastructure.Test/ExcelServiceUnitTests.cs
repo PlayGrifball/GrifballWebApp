@@ -1,65 +1,33 @@
-using System.Net;
-using System.Reflection;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Excel;
-using Google.Apis.Sheets.v4;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NSubstitute;
 using GrifballWebApp.Application.HaloInfinite;
 
 namespace GrifballWebApp.Infrastructure.Test;
 
-/// <summary>Records Google Sheets API requests and returns canned JSON.</summary>
-internal sealed class InfrastructureSheetsHandler : HttpMessageHandler
-{
-    public List<(HttpMethod Method, string Url, string Body)> Requests { get; } = new();
-    public Func<HttpRequestMessage, string> Respond { get; set; } = _ => "{}";
-
-    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-        var body = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
-        Requests.Add((request.Method, Uri.UnescapeDataString(request.RequestUri!.ToString()), body));
-        return new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(Respond(request), Encoding.UTF8, "application/json"),
-        };
-    }
-}
-
-internal sealed class InfrastructureSheetsHttpClientFactory : Google.Apis.Http.HttpClientFactory
-{
-    private readonly HttpMessageHandler _handler;
-    public InfrastructureSheetsHttpClientFactory(HttpMessageHandler handler) => _handler = handler;
-    protected override HttpMessageHandler CreateHandler(Google.Apis.Http.CreateHttpClientArgs args) => _handler;
-}
-
 /// <summary>
 /// ExcelService: ExportToExcel's row building (every medal column, outcomes, team ordering, null handling) and the
 /// Google Sheets calls around it, over a fake HttpMessageHandler standing in for the real Sheets API (never the
-/// network), and a real (temp-file SQLite) GrifballContext for the matches it reads. No production seam is needed:
-/// the real SheetsService is built on a fake Google.Apis.Http.HttpClientFactory, exactly as GrifballWebApp.Integration.Test
-/// does with a real database server, for its own layer's coverage.
+/// network), and a real (temp-file SQLite) GrifballContext for the matches it reads. The service is built through its
+/// internal constructor with a real SheetsService on that handler (<see cref="FakeSheetsHttpClientFactory.SheetsServiceOn"/>,
+/// shared with GrifballWebApp.Integration.Test): no key file or credential. One test builds it through the public
+/// constructor from a generated service-account key file.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
-public class ExcelServiceExportUnitTests
+public class ExcelServiceExportUnitTests : SqliteContextFixture
 {
     private const string CopySpreadsheet = "copy-spreadsheet";
     private const string TargetSpreadsheet = "target-spreadsheet";
     private const int ColumnsPerRow = 197; // A..GO
 
-    private string _path = null!;
-    private GrifballContext _context = null!;
     private IDataPullService _dataPull = null!;
-    private InfrastructureSheetsHandler _handler = null!;
-    private string _keyFile = null!;
+    private FakeSheetsHandler _handler = null!;
     private string _lColumnJson = """{"values":[]}""";
     private string _copySheetJson = """{"values":[]}""";
 
@@ -68,16 +36,13 @@ public class ExcelServiceExportUnitTests
     private static readonly int[] expectedArray = [1, 1, 0, 1, 1, 0];
     private static readonly int[] expectedArray0 = [2, 2, 3, 2, 2, 3];
     private static readonly string[] expectedArray1 = ["Amy300", "Zed300", "Bob300"];
+    private static readonly string[] MainOnly = ["Main"];
 
     [SetUp]
-    public async Task Setup()
+    public void Setup()
     {
-        _path = Path.Combine(Path.GetTempPath(), $"grif-excel-{Guid.NewGuid():N}.db");
-        _context = new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseGrifballDatabase(DatabaseProvider.Sqlite, $"Data Source={_path};Pooling=False").Options);
-        await _context.Database.EnsureCreatedAsync();
         _dataPull = Substitute.For<IDataPullService>();
-        _handler = new InfrastructureSheetsHandler
+        _handler = new FakeSheetsHandler
         {
             Respond = req =>
             {
@@ -89,71 +54,31 @@ public class ExcelServiceExportUnitTests
                 return _lColumnJson;
             },
         };
-
-        var dir = Path.Combine(TestContext.CurrentContext.WorkDirectory, "excel-keys-unit");
-        Directory.CreateDirectory(dir);
-        _keyFile = Path.Combine(dir, $"{Guid.NewGuid()}.json");
-        using var rsa = RSA.Create(2048);
-        var key = new Dictionary<string, string>
-        {
-            ["type"] = "service_account",
-            ["project_id"] = "test-project",
-            ["private_key_id"] = "abc123",
-            ["private_key"] = rsa.ExportPkcs8PrivateKeyPem(),
-            ["client_email"] = "test@test-project.iam.gserviceaccount.com",
-            ["client_id"] = "1234567890",
-            ["token_uri"] = "https://oauth2.googleapis.com/token",
-        };
-        await File.WriteAllTextAsync(_keyFile, JsonSerializer.Serialize(key));
     }
 
-    [TearDown]
-    public async Task TearDown()
-    {
-        if (File.Exists(_keyFile))
-            File.Delete(_keyFile);
-        await _context.DisposeAsync();
-        foreach (var file in new[] { _path, _path + "-wal", _path + "-shm" })
-            if (File.Exists(file))
-                File.Delete(file);
-    }
-
-    private IConfiguration Config(Dictionary<string, string?>? extra = null, bool includeKey = true)
+    private static IConfiguration Config(Dictionary<string, string?>? extra = null)
     {
         var values = new Dictionary<string, string?>
         {
             ["GoogleSheets:CopySpreadsheetID"] = CopySpreadsheet,
             ["GoogleSheets:CopySheetNameRange"] = "Matches!A:Z",
         };
-        if (includeKey)
-            values["GoogleSheets:Key"] = _keyFile;
         foreach (var kv in extra ?? new())
             values[kv.Key] = kv.Value;
         return new ConfigurationBuilder().AddInMemoryCollection(values).Build();
     }
 
-    private ExcelService CreateService(IConfiguration? config = null)
-    {
-        var service = new ExcelService(_context, _dataPull, config ?? Config());
-        var sheets = new SheetsService(new Google.Apis.Services.BaseClientService.Initializer
-        {
-            HttpClientFactory = new InfrastructureSheetsHttpClientFactory(_handler),
-            ApplicationName = "tests",
-            GZipEnabled = false,
-        });
-        var field = typeof(ExcelService).GetField("_sheetsService", BindingFlags.NonPublic | BindingFlags.Instance)
-            ?? throw new InvalidOperationException("_sheetsService field not found");
-        field.SetValue(service, sheets);
-        return service;
-    }
+    // The internal seam: a SheetsService on the fake handler, no key file or credential
+    private ExcelService CreateService(IConfiguration? config = null) =>
+        new(Context, _dataPull, config ?? Config(), FakeSheetsHttpClientFactory.SheetsServiceOn(_handler));
 
     private async Task SeedMedals()
     {
-        _context.MedalDifficulties.Add(MedalDifficulty.Imported(1, "Normal"));
-        _context.MedalTypes.Add(MedalType.Imported(1, "Spree"));
-        _context.Medals.Add(Medal.Imported(10, "Killing Spree", "d", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
-        _context.Medals.Add(Medal.Imported(11, "Double Kill", "d", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
-        await _context.SaveChangesAsync();
+        Context.MedalDifficulties.Add(MedalDifficulty.Imported(1, "Normal"));
+        Context.MedalTypes.Add(MedalType.Imported(1, "Spree"));
+        Context.Medals.Add(Medal.Imported(10, "Killing Spree", "d", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
+        Context.Medals.Add(Medal.Imported(11, "Double Kill", "d", spriteIndex: 0, sortingWeight: 0, medalDifficultyID: 1, medalTypeID: 1, personalScore: 0));
+        await Context.SaveChangesAsync();
     }
 
     private static void Participant(Match match, int teamID, long xuid, string gamertag, int kills, int rank, params MedalCount[] medals) =>
@@ -175,9 +100,9 @@ public class ExcelServiceExportUnitTests
         Participant(match, 0, xuidOffset + 2, $"Bob{xuidOffset}", 1, 3);
         Participant(match, 1, xuidOffset + 3, $"Zed{xuidOffset}", 4, 2);
         Participant(match, 1, xuidOffset + 1, $"Amy{xuidOffset}", 5, 1, new MedalCount(10, 3), new MedalCount(11, 2));
-        _context.Matches.Add(match);
-        await _context.SaveChangesAsync();
-        _context.ChangeTracker.Clear();
+        Context.Matches.Add(match);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
     }
 
     private (string Range, JsonElement[][] Rows, string InputOption) SingleBatchUpdate()
@@ -195,8 +120,49 @@ public class ExcelServiceExportUnitTests
     [Test]
     public void Constructor_MissingKey_Throws()
     {
-        var ex = Assert.Throws<Exception>(() => new ExcelService(_context, _dataPull, Config(includeKey: false)));
+        var ex = Assert.Throws<Exception>(() => new ExcelService(Context, _dataPull, Config()));
         Assert.That(ex!.Message, Is.EqualTo("Missing GoogleSheets:Key"));
+    }
+
+    /// <summary>
+    /// The public constructor (the one dependency injection uses) reads the configured service-account key file and
+    /// builds its own SheetsService, without calling Google. The only test that needs a key: generated here, once.
+    /// </summary>
+    [Test]
+    public async Task Constructor_ServiceAccountKeyFile_BuildsTheService()
+    {
+        var keyFile = Path.Combine(Path.GetTempPath(), $"grif-excel-key-{Guid.NewGuid():N}.json");
+        try
+        {
+            using (var rsa = RSA.Create(2048))
+            {
+                var key = new Dictionary<string, string>
+                {
+                    ["type"] = "service_account",
+                    ["project_id"] = "test-project",
+                    ["private_key_id"] = "abc123",
+                    ["private_key"] = rsa.ExportPkcs8PrivateKeyPem(),
+                    ["client_email"] = "test@test-project.iam.gserviceaccount.com",
+                    ["client_id"] = "1234567890",
+                    ["token_uri"] = "https://oauth2.googleapis.com/token",
+                };
+                await File.WriteAllTextAsync(keyFile, JsonSerializer.Serialize(key));
+            }
+
+            var service = new ExcelService(Context, _dataPull, Config(new()
+            {
+                ["GoogleSheets:Key"] = keyFile,
+                ["GoogleSheets:Sheets:0:Name"] = "Main",
+                ["GoogleSheets:Sheets:0:SpreadsheetID"] = "sheet-1",
+                ["GoogleSheets:Sheets:0:SheetName"] = "Tab1",
+            }));
+
+            Assert.That(service.GetDefaultInfo().Select(x => x.Name), Is.EqualTo(MainOnly));
+        }
+        finally
+        {
+            File.Delete(keyFile);
+        }
     }
 
     [Test]
@@ -248,6 +214,8 @@ public class ExcelServiceExportUnitTests
         var early = Guid.Parse("11111111-1111-1111-1111-111111111111");
         var late = Guid.Parse("22222222-2222-2222-2222-222222222222");
         var notInDb = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        // Pasted in upper case (as some tools print GUIDs): still a match ID, pulled like the rest
+        var upperCase = Guid.Parse("44444444-abcd-4ef0-abcd-0123456789ab");
         await SeedMatch(late, new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), 100);
         await SeedMatch(early, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), 200);
         _copySheetJson = $$"""
@@ -255,7 +223,7 @@ public class ExcelServiceExportUnitTests
           ["header aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa (skipped)"],
           ["https://halowaypoint.com/halo-infinite/players/x/matches/{{late}}", "no guid here"],
           ["{{early}} and {{notInDb}}"],
-          ["UPPERCASE {{Guid.NewGuid().ToString().ToUpperInvariant()}} is ignored"]
+          ["UPPERCASE {{upperCase.ToString().ToUpperInvariant()}} is pulled too"]
         ]}
         """;
         var service = CreateService();
@@ -267,8 +235,9 @@ public class ExcelServiceExportUnitTests
             _ = _dataPull.GetAndSaveMatch(late);
             _ = _dataPull.GetAndSaveMatch(early);
             _ = _dataPull.GetAndSaveMatch(notInDb);
+            _ = _dataPull.GetAndSaveMatch(upperCase);
         });
-        await _dataPull.ReceivedWithAnyArgs(3).GetAndSaveMatch(default);
+        await _dataPull.ReceivedWithAnyArgs(4).GetAndSaveMatch(default);
 
         var get = _handler.Requests.Single(r => r.Method == HttpMethod.Get);
         Assert.That(get.Url, Does.Contain($"spreadsheets/{CopySpreadsheet}/values/Matches!A:Z"));
