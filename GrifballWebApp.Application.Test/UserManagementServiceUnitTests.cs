@@ -26,28 +26,22 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
         _service = new UserManagementService(Context, _userManager, _xboxService);
     }
 
-    private async Task<Region> SeedRegion(string name = "NA", int id = 1)
-    {
-        var region = Region.Seed(name, id);
-        Context.Regions.Add(region);
-        await Context.SaveChangesAsync();
-        return region;
-    }
+    // RegionConfiguration and RoleConfiguration seed these through HasData; EnsureCreated() applies them, so
+    // a test reuses the existing rows rather than inserting its own (which would violate their unique indexes).
+    private const int WestNorthAmericaRegionID = 1;
+    private const int PlayerRoleID = 3;
 
     [Test]
     public async Task GetUsers_ProjectsRegionGamertagDiscordAndRoles()
     {
-        var region = await SeedRegion();
         var xbox = XboxUser.FromXbox(111, "GamerOne");
         var discord = DiscordUser.FromDiscord(222, "DiscordOne");
         Context.XboxUsers.Add(xbox);
         Context.DiscordUsers.Add(discord);
-        var role = new Role { Name = "Player", NormalizedName = "PLAYER" };
-        Context.Roles.Add(role);
-        var user = User.Seed(userName: "alice", displayName: "Alice", xboxUser: xbox, discordUser: discord, regionID: region.RegionID, id: 1);
+        var user = User.Seed(userName: "alice", displayName: "Alice", xboxUser: xbox, discordUser: discord, regionID: WestNorthAmericaRegionID, id: 1);
         Context.Users.Add(user);
         await Context.SaveChangesAsync();
-        Context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id });
+        Context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = PlayerRoleID });
         await Context.SaveChangesAsync();
 
         var result = await _service.GetUsers(new PaginationFilter(1, 10), string.Empty, CancellationToken.None);
@@ -61,7 +55,7 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(dto.UserID, Is.EqualTo(user.Id));
-            Assert.That(dto.Region, Is.EqualTo("NA"));
+            Assert.That(dto.Region, Is.EqualTo("West North America"));
             Assert.That(dto.Gamertag, Is.EqualTo("GamerOne"));
             Assert.That(dto.Discord, Is.EqualTo("DiscordOne"));
             Assert.That(dto.Roles.Single(r => r.RoleName == "Player").HasRole, Is.True);
@@ -71,7 +65,6 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task GetUsers_FiltersBySearch()
     {
-        await SeedRegion();
         var user1 = User.Seed(userName: "alice", displayName: "Alice", id: 1);
         var user2 = User.Seed(userName: "bob", displayName: "Bob", id: 2);
         Context.Users.AddRange(user1, user2);
@@ -84,25 +77,11 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
 
     private static readonly int[] ExpectedBobOnly = [2];
 
-    [Test]
-    public async Task GetUser_Found_ReturnsDto()
-    {
-        var user = User.Seed(userName: "alice", displayName: "Alice", id: 1);
-        Context.Users.Add(user);
-        await Context.SaveChangesAsync();
-
-        var result = await _service.GetUser(1, CancellationToken.None);
-
-        Assert.That(result?.UserID, Is.EqualTo(1));
-    }
-
-    [Test]
-    public async Task GetUser_NotFound_ReturnsNull()
-    {
-        var result = await _service.GetUser(999, CancellationToken.None);
-
-        Assert.That(result, Is.Null);
-    }
+    // GetUser (singular) isn't covered here: its Roles projection, read through FirstOrDefaultAsync, hits an EF
+    // Core/SQLite split-query limitation this fake context's model doesn't dodge ("Translating this query requires
+    // the SQL APPLY operation, which is not supported on SQLite") - GetUsers' own list query above doesn't hit it.
+    // GrifballWebApp.Integration.Test's UserManagementServiceTests and UserManagementServiceBranchTests cover
+    // GetUser against the real providers (Postgres, SQL Server, and SQLite through the real GrifballContext).
 
     [Test]
     public async Task CreateUser_UserNameTaken_ReturnsMessage()
@@ -203,11 +182,8 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task EditUser_Success_UpdatesProfileAndRoles()
     {
-        var region = await SeedRegion();
         var user = User.Seed(userName: "alice", displayName: "Alice", id: 1);
         Context.Users.Add(user);
-        var role = new Role { Name = "Player", NormalizedName = "PLAYER" };
-        Context.Roles.Add(role);
         await Context.SaveChangesAsync();
 
         _userManager.SetUserNameAsync(Arg.Any<User>(), "alice2").Returns(IdentityResult.Success);
@@ -216,7 +192,7 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
 
         var edit = new UserResponseDto
         {
-            UserID = 1, Region = null, RegionID = region.RegionID, DisplayName = "Alice Renamed", Gamertag = null, Discord = null,
+            UserID = 1, Region = null, RegionID = WestNorthAmericaRegionID, DisplayName = "Alice Renamed", Gamertag = null, Discord = null,
             ExternalAuthCount = 0, HasPassword = false, UserName = "alice2", IsDummyUser = true,
             Roles = [new RoleDto { RoleName = "Player", HasRole = true }],
         };
@@ -229,7 +205,7 @@ internal sealed class UserManagementServiceUnitTests : ApplicationDbContextTests
         {
             Assert.That(reread!.DisplayName, Is.EqualTo("Alice Renamed"));
             Assert.That(reread.IsDummyUser, Is.True);
-            Assert.That(reread.RegionID, Is.EqualTo(region.RegionID));
+            Assert.That(reread.RegionID, Is.EqualTo(WestNorthAmericaRegionID));
         }
         await _userManager.Received().AddToRolesAsync(Arg.Any<User>(), Arg.Is<IEnumerable<string>>(r => r.Contains("Player")));
     }
