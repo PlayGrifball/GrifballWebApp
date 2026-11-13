@@ -38,11 +38,13 @@ public class CommandLookups
 
     private readonly GrifballContext _context;
     private readonly SeasonService _seasons;
+    private readonly TimeProvider _time;
 
-    public CommandLookups(GrifballContext context, SeasonService seasons)
+    public CommandLookups(GrifballContext context, SeasonService seasons, TimeProvider? time = null)
     {
         _context = context;
         _seasons = seasons;
+        _time = time ?? TimeProvider.System;
     }
 
     /// <summary>A choice's value: the ID, marked as picked so that a name of digits is still a name.</summary>
@@ -65,7 +67,7 @@ public class CommandLookups
         if (string.IsNullOrWhiteSpace(input))
         {
             if (@default is SeasonDefault.Upcoming
-                && await seasons.Where(GrifballWebApp.Domain.League.Season.NotStartedAt(DateTime.UtcNow)).OrderBy(x => x.SeasonStart)
+                && await seasons.Where(GrifballWebApp.Domain.League.Season.NotStartedAt(_time.GetUtcNow().UtcDateTime)).OrderBy(x => x.SeasonStart)
                     .Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct) is int upcoming)
                 return upcoming;
             var current = await _seasons.GetCurrentSeasonID(ct);
