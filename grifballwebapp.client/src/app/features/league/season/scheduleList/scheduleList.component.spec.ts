@@ -2,7 +2,8 @@ import { DatePipe } from '@angular/common';
 import { By } from '@angular/platform-browser';
 import { NgForm } from '@angular/forms';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { conflictText, RECOMMEND_POLL_MS, ScheduleListComponent } from './scheduleList.component';
+import { ScheduleListComponent } from './scheduleList.component';
+import { conflictText, RECOMMEND_POLL_MS } from './scheduleList.store';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
@@ -401,7 +402,10 @@ describe('ScheduleListComponent behaviour', () => {
       jasmine.clock().install();
       try {
         openEditor({ run: { ...idleRun, state: 'Running' }, latest: recommendation() });
-        component.recommendationError.set('old error');
+        // A run the server refused: its error stays until the season changes
+        component.recommend();
+        http.expectOne({ method: 'POST', url: '/api/seasons/4/schedule-recommendation/run' }).flush(null, { status: 500, statusText: 'Server Error' });
+        expect(component.recommendationError()).toBeTruthy();
         component.confirmingApply.set(true);
 
         fixture.componentRef.setInput('seasonID', 5);
