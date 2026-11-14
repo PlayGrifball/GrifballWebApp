@@ -60,6 +60,7 @@ public class GrifToolsTests
     private static readonly string[] Staff = ["Commissioner", "Sysadmin"];
     private static readonly string[] CommissionerOnly = ["Commissioner"];
     private static readonly string[] SysadminOnly = ["Sysadmin"];
+    private static readonly string[] StaffReachingHalo = ["pull_halo_game", "refresh_medals", "report_season_match_game"];
 
     [SetUp]
     public async Task SetUp()
@@ -312,6 +313,7 @@ public class GrifToolsTests
             Assert.That(changing, Is.Not.Empty);
             Assert.That(changing.Select(a => a?.ReadOnlyHint), Has.All.False, "staff's actions change data: clients ask first");
             Assert.That(changing.Select(a => a?.DestructiveHint), Has.All.True, "a result undone, a claim decided");
+            Assert.That(names.Where(n => n.Effect is ToolEffect.ChangesData && tools[n.Name]?.OpenWorldHint == true).Select(n => n.Name), Is.EquivalentTo(StaffReachingHalo), "they call Halo's API");
             Assert.That(names.Where(n => n.Effect is not ToolEffect.ChangesData).Select(n => tools[n.Name]?.DestructiveHint), Has.All.False, "reads and pulls change or delete nothing");
         }
     }

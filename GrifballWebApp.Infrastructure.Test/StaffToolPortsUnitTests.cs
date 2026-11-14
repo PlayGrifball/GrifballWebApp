@@ -6,11 +6,11 @@ using NSubstitute;
 using Quartz;
 using Quartz.Extensibility;
 
-namespace GrifballWebApp.Server.Test;
+namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>
-/// The staff tools' ports on Infrastructure: <see cref="JobControl"/> on JobsService (a substituted scheduler, as JobsService's own
-/// unit tests do) and <see cref="ScheduleRecommendationRuns"/> on an in-memory Quartz.
+/// The staff tools' ports: <see cref="JobControl"/> on JobsService and <see cref="ScheduleRecommendationRuns"/> on OnDemandJobs,
+/// against a substituted scheduler, as JobsServiceUnitTests and OnDemandJobsUnitTests do.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -18,33 +18,34 @@ namespace GrifballWebApp.Server.Test;
 public class StaffToolPortsUnitTests
 {
     private static readonly JobKey Cleanup = new("cleanup", "Maintenance");
-    private static readonly JobKey Pull = OnDemandJobs.JobKeyOf(typeof(ScheduleRecommendationJob));
+    private static readonly JobKey Recommend = OnDemandJobs.JobKeyOf(typeof(ScheduleRecommendationJob));
+    private static readonly TriggerKey SeasonRun = OnDemandJobs.TriggerKeyOf<ScheduleRecommendationJob>(ScheduleRecommendationJob.RunName(41));
+    private static readonly DateTimeOffset Now = new(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);
 
     private readonly ISchedulerFactory _schedulers = Substitute.For<ISchedulerFactory>();
     private readonly IScheduler _scheduler = Substitute.For<IScheduler>();
-    private InMemoryQuartz? _quartz;
+    private readonly IExecutionHistoryStore _history = Substitute.For<IExecutionHistoryStore>();
 
-    [TearDown]
-    public async Task TearDownQuartz()
-    {
-        if (_quartz is not null)
-            await _quartz.DisposeAsync();
-    }
-
-    private JobControl Control()
+    [SetUp]
+    public void SetUp()
     {
         _schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(_scheduler);
         _scheduler.SchedulerName.Returns("ports-test");
+        _scheduler.TimeProvider.Returns(new FakeTimeProvider(Now));
         _scheduler.QueryJobs(Arg.Any<JobQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<JobHeader>([new JobHeader(Cleanup, "Cleans up", "Cleanup", true, false, false, false)], false));
         _scheduler.QueryFireInstances(Arg.Any<FireInstanceQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<FireInstance>([], false));
         _scheduler.GetTrigger(Arg.Any<TriggerKey>(), Arg.Any<CancellationToken>()).Returns((ITrigger?)null);
         _scheduler.QueryClusterNodes(Arg.Any<CancellationToken>()).Returns(new List<ClusterNode>());
         _scheduler.Exists(Cleanup, Arg.Any<CancellationToken>()).Returns(true);
-        _scheduler.Exists(Pull, Arg.Any<CancellationToken>()).Returns(true);
-        var history = Substitute.For<IExecutionHistoryStore>();
-        history.QueryJobRunStatuses(Arg.Any<JobRunStatusQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<JobRunStatus>([], false));
+        _scheduler.Exists(Recommend, Arg.Any<CancellationToken>()).Returns(true);
+        _history.QueryJobRunStatuses(Arg.Any<JobRunStatusQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<JobRunStatus>([], false));
+        _history.QueryExecutions(Arg.Any<ExecutionHistoryQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<ExecutionHistoryEntry>([], false));
+    }
+
+    private JobControl Control()
+    {
         var recurring = new RecurringJobs().AddOnDemand<ScheduleRecommendationJob>("schedule-recommendation", "Works out a schedule");
-        return new JobControl(new JobsService(_schedulers, history, recurring, new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero))));
+        return new JobControl(new JobsService(_schedulers, _history, recurring, new FakeTimeProvider(Now)));
     }
 
     [Test]
@@ -56,7 +57,7 @@ public class StaffToolPortsUnitTests
         var ran = await control.RunNow("Maintenance", "cleanup", 7);
         var paused = await control.SetPaused("Maintenance", "cleanup", true, "Staffer");
         var missing = await control.RunNow("Nope", "nothing", null);
-        var onDemand = await control.SetPaused(Pull.Group, Pull.Name, true, "Staffer");
+        var onDemand = await control.SetPaused(Recommend.Group, Recommend.Name, true, "Staffer");
 
         using (Assert.EnterMultipleScope())
         {
@@ -72,18 +73,21 @@ public class StaffToolPortsUnitTests
     [Test]
     public async Task ScheduleRecommendationRuns_QueueASeasonsRun_AndShowIt()
     {
-        _quartz = await InMemoryQuartz.Create();
-        var runs = new ScheduleRecommendationRuns(_quartz.OnDemand);
+        // Idle until the season's trigger is stored, queued once it is
+        _scheduler.GetTriggerState(SeasonRun, Arg.Any<CancellationToken>()).Returns(TriggerState.None, TriggerState.None, TriggerState.Normal);
+        var runs = new ScheduleRecommendationRuns(new OnDemandJobs(_schedulers, _history));
 
         var before = await runs.Status(41);
         var queued = await runs.Queue(41, "commish", 1);
-        var after = await runs.Status(41);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(before.State, Is.EqualTo(OnDemandJobState.Idle));
             Assert.That(queued.State, Is.EqualTo(OnDemandJobState.Queued));
-            Assert.That(after.State, Is.EqualTo(OnDemandJobState.Queued));
         }
+        await _scheduler.Received(1).ScheduleTrigger(
+            Arg.Is<ITrigger>(t => t.Key.Equals(SeasonRun) && t.Description == "Season 41"
+                && new RecommendSchedule(41, "commish", 1).Equals(t.JobDataMap[SchedulerConstants.JobInput])),
+            TriggerConflict.Keep, Arg.Any<CancellationToken>());
     }
 }

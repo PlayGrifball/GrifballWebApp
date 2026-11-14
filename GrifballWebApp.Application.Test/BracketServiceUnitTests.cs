@@ -438,7 +438,7 @@ internal sealed class BracketServiceUnitTests : ApplicationDbContextTests
         Context.SeasonMatches.Add(SeasonMatch.Seed(seasonID, t1.TeamID, t2.TeamID, bestOf: 1, bracketMatch: slot));
         await Context.SaveChangesAsync();
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID,
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.SetSeeds(seasonID,
             new[] { new CustomSeedDto { TeamID = t1.TeamID, Seed = 1 }, new CustomSeedDto { TeamID = t2.TeamID, Seed = 2 } }));
 
         Assert.That(ex!.Message, Is.EqualTo("Teams have already been seeded"));

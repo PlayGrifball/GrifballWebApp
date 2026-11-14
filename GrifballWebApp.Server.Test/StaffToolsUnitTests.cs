@@ -8,6 +8,7 @@ using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.Scheduler;
+using GrifballWebApp.Application.MatchDetails;
 using GrifballWebApp.Application.MatchPlanner;
 using GrifballWebApp.Application.Notifications;
 using GrifballWebApp.Application.Outbox;
@@ -22,6 +23,7 @@ using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
+using HaloMatch = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -44,6 +46,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
         "There is no season match 999999.",
         "Home matches per team and best of must be at least 1.",
         "A bracket needs participants.",
+        "Best of must be at least 1.",
         "There is no season 999999: list_seasons has their IDs.",
         "Reschedule request not found",
     ];
@@ -73,7 +76,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
         new MatchPlannerService(Db), _brackets,
         new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()), Recommendations(), _runs);
 
-    private SysadminTools Sysadmins(ToolCaller caller) => new(caller, Claims(), _dataPull, _jobs);
+    private SysadminTools Sysadmins(ToolCaller caller) => new(caller, Claims(), _dataPull, new MatchDetailsService(Db), _jobs);
 
     private async Task<int> AMatch()
     {
@@ -140,6 +143,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
             await Assert.ThrowsAsync<ToolException>(() => tools.UndoSeasonMatchResult(999999)),
             await Assert.ThrowsAsync<ToolException>(() => tools.GenerateSeasonMatches(0, 3)),
             await Assert.ThrowsAsync<ToolException>(() => tools.CreateSeasonBracket(0, false, 3)),
+            await Assert.ThrowsAsync<ToolException>(() => tools.CreateSeasonBracket(4, false, 0)),
             await Assert.ThrowsAsync<ToolException>(() => tools.SeedSeasonBracket(999999)),
             await Assert.ThrowsAsync<ToolException>(() => tools.DecideReschedule(999999, true)),
         };
@@ -171,17 +175,25 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
     public async Task TheSysadminsTools_PullAGame_AndRefreshTheMedals_AndRefuseANonGame()
     {
         var game = Guid.Parse("00000000-0000-0000-0000-0000000000c1");
+        var notATeamGame = Guid.Parse("00000000-0000-0000-0000-0000000000c3");
+        _dataPull.When(d => d.GetAndSaveMatch(game)).Do(_ =>
+        {
+            Db.Matches.Add(HaloMatch.Seed(game));
+            Db.SaveChanges();
+        });
         var tools = Sysadmins(Sysadmin);
 
         var pulled = await tools.PullHaloGame(game);
         var medals = await tools.RefreshMedals();
         var refused = await Assert.ThrowsAsync<ToolException>(() => tools.PullHaloGame(Guid.Empty));
+        var nothingSaved = await Assert.ThrowsAsync<ToolException>(() => tools.PullHaloGame(notATeamGame));
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(pulled, Is.EqualTo("Pulled: get_game shows it."));
-            Assert.That(medals, Is.EqualTo("The medals are refreshed."));
+            Assert.That(medals, Is.EqualTo("The medals are downloaded."));
             Assert.That(refused!.Message, Is.EqualTo("That isn't a game's match ID."));
+            Assert.That(nothingSaved!.Message, Is.EqualTo($"Halo has no team game {notATeamGame}: nothing was saved."));
         }
         await _dataPull.Received(1).GetAndSaveMatch(game);
         await _dataPull.Received(1).DownloadMedals();
@@ -254,7 +266,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
     {
         var match = await AMatch();
 
-        var refused = await Assert.CatchAsync(() => Commissioners(Commissioner).ReportSeasonMatchGame(match, Guid.Parse("00000000-0000-0000-0000-0000000000c2")));
+        var refused = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => Commissioners(Commissioner).ReportSeasonMatchGame(match, Guid.Parse("00000000-0000-0000-0000-0000000000c2")));
 
         Assert.That(refused!.Message, Is.EqualTo("Match does not exist"));
     }

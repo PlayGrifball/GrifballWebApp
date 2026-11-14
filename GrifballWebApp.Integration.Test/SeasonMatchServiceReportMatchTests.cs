@@ -46,7 +46,7 @@ public class SeasonMatchServiceReportMatchTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var matchID = Guid.NewGuid();
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, matchID));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, matchID));
 
         Assert.That(ex!.Message, Is.EqualTo("Match does not exist"));
         await _dataPullService.Received(1).GetAndSaveMatch(matchID);
