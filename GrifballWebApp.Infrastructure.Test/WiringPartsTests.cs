@@ -81,13 +81,15 @@ public class WiringPartsTests : SqliteContextFixture
     }
 
     [Test]
-    public void ChatClient_TalksToTheConfiguredOllama_AndRunsTheBotsFunctions()
+    public void ChatClient_IsTheConfiguredOllama_WithNoToolCallsOfItsOwn()
     {
-        var client = new OllamaChatClients(Configuration(("Ollama:Url", "http://ollama.test:11434/"))).Create();
+        using var client = new OllamaChatClients(Configuration(("Ollama:Url", "http://ollama.test:11434/"))).Create();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(client, Is.TypeOf<FunctionInvokingChatClient>());
+            // GrifChat calls the tools, whatever the provider
+            Assert.That(client, Is.TypeOf<OllamaApiClient>());
+            Assert.That(client.GetService<FunctionInvokingChatClient>(), Is.Null);
             Assert.That(client.GetService<OllamaApiClient>()?.Uri, Is.EqualTo(new Uri("http://ollama.test:11434/")));
             Assert.That(client.GetService<OllamaApiClient>()?.SelectedModel, Is.EqualTo(OllamaChatClients.Model));
         }

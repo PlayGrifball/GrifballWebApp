@@ -49,7 +49,7 @@
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.14" />
     <!-- The sheet export (Excel/ExcelService) -->
     <PackageReference Include="Google.Apis.Sheets.v4" Version="1.77.0.4309" />
-    <!-- The Discord bot's chat model (Ollama/OllamaChatClients) -->
+    <!-- The chats' model on Ollama (Ollama/OllamaChatClients): OllamaSharp's Microsoft.Extensions.AI client -->
     <PackageReference Include="Microsoft.Extensions.AI" Version="10.11.0" />
     <PackageReference Include="OllamaSharp" Version="5.5.0" />
     <!-- Apache-2.0: the background jobs, their schedules and history in the app database (GrifballWebApp.Infrastructure/Jobs) -->
