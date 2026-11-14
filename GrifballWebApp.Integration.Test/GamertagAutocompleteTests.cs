@@ -43,7 +43,7 @@ public class GamertagAutocompleteTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(choices.Select(c => c.Name), Has.All.StartWith("Grunt "));
-            Assert.That(choices.Select(c => c.StringValue), Has.All.Match<string>(v => v.StartsWith(CommandLookups.ChoicePrefix + "10")), "each is sent as its XUID");
+            Assert.That(choices.Select(c => c.StringValue), Has.All.StartWith(CommandLookups.ChoicePrefix + "10"), "each is sent as its XUID");
         }
     }
 
