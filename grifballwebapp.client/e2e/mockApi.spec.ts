@@ -9,7 +9,8 @@ import { mockRoutes, type Operation, type Role } from './mockApi.mts';
 
 /** Each generated call's path and method (src/generated/api/fn/<tag>/<name>.ts: "<name>.PATH = '...'", its RequestBuilder). */
 function generatedOperations(): Map<string, { path: string, method: string }> {
-  const root = join(import.meta.dirname, '../src/generated/api/fn');
+  // Playwright runs from the client's root (playwright.config.ts) and loads specs as CommonJS, without import.meta
+  const root = join(process.cwd(), 'src/generated/api/fn');
   const operations = new Map<string, { path: string, method: string }>();
   for (const tag of readdirSync(root))
     for (const file of readdirSync(join(root, tag))) {

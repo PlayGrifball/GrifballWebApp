@@ -10,7 +10,7 @@ import type {
   BracketsMatch, CommissionerDashboardDto, DayOfWeek, GamertagClaimDto, HistoricalImportJobDto, LetterDto, MatchDetailsDto, MatchDetailsMedalDto,
   MatchDetailsTeamDto, MatchmakingPlayerStatDto, MatchmakingSeasonDto, MetricLeaderDto, Outcomes, ParticpantResult, Participant, PossibleTeamDto,
   ProfileCommendationsDto, ProfileStatsDto, QuickSearchDto, QuickSearchPlayerDto, SeasonDto, SeasonInfoDto, SeasonListItemDto, SeasonPlayerStatDto,
-  SeasonSummaryDto, Status, TeamDto, TeamHistoryDto, TeamHistorySeasonDto, TeamResponseDto, TeamsPlayerDto, TitleDto, UserResponseDto, ViewerDataDto,
+  SeasonMatchPageDto, SeasonSummaryDto, Status, TeamDto, TeamHistoryDto, TeamHistorySeasonDto, TeamResponseDto, TeamsPlayerDto, TitleDto, UserResponseDto, ViewerDataDto,
 } from '../src/generated/api/models';
 
 export type Role = 'anon' | 'player' | 'admin';
@@ -186,7 +186,7 @@ const commissionerDashboard: CommissionerDashboardDto = {
     canApprove: true, whyNotApprovable: null },
   { matchRescheduleID: 9, seasonMatchID: 34, homeCaptain: 'Red Rampage', awayCaptain: 'Blue Bombers',
     originalScheduledTime: '2026-10-28T01:00:00Z', newScheduledTime: '2026-11-01T01:00:00Z', reason: 'Two of us are travelling',
-    requestedByGamertag: 'Sarge Prime', requestedByUserID: 10, requestedAt: '2026-10-27T18:00:00Z', status: 'Pending', discordThreadID: '1300000000000000009',
+    requestedByGamertag: 'Sarge Prime', requestedByUserID: 10, requestedAt: '2026-10-27T18:00:00Z', status: 'Pending', discordThreadID: 1300000000000009,
     canApprove: false, whyNotApprovable: 'This match already has a result.' }],
   overdueMatches: [{ seasonMatchID: 33, homeCaptain: 'Gravity Wells', awayCaptain: 'Sticky Situation', scheduledTime: '2026-10-27T00:30:00Z', hoursOverdue: 65 }],
   summary: { pendingRescheduleCount: 2, overdueMatchCount: 1, criticalOverdueCount: 1 },
@@ -604,7 +604,7 @@ const telemetryTraces = [
 /** The mocked endpoints, by path (without the query string), and the few answered by their query too (path + "?..."). */
 /** Match 31's page (SeasonMatchPageDto): a best of 3 at 1-1, game 1 reported from Waypoint, game 2 entered by hand by a
  * commissioner. */
-function matchPage31(role: Role) {
+function matchPage31(role: Role): SeasonMatchPageDto {
   return {
     seasonID: 12, seasonName: 'Autumn Brawl', isPlayoff: false,
     homeTeamName: 'Red Rampage', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
@@ -773,7 +773,7 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
     '/api/game-versions': answer('getGameVersions', [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]),
     '/api/leagues': answer('getLeagues', [{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'Late League' }]),
     // The times each season offers for signups: weeknights at 7 and 8
-    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/availability`, answer('getSeasonAvailability', ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time }))))])),
+    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/availability`, answer('getSeasonAvailability', (['Monday', 'Wednesday', 'Thursday'] as DayOfWeek[]).flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time }))))])),
     '/api/halo/check': answer('checkStatus', { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' }),
     // The Infinite Client page in the default Gateway mode: the gateway's in-cluster address, plain HTTP as the chart's is
     // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the Halo gateway's in-cluster address: plain HTTP inside the cluster
