@@ -215,9 +215,9 @@ describe('MatchDetailsComponent', () => {
     httpMock.expectOne(URL).flush(apiMatch());
     await fixture.whenStable();
 
+    // Drawing the page starts the new request (whenStable would wait for it: the page is loading)
     fixture.componentRef.setInput('matchID', 'other');
     fixture.detectChanges();
-    await fixture.whenStable();
 
     httpMock.expectOne('/api/matches/other');
     expect(fixture.componentInstance.state()).toBe('loading');
@@ -229,7 +229,6 @@ describe('MatchDetailsComponent', () => {
 
     fixture.componentRef.setInput('matchID', 'other');
     fixture.detectChanges();
-    await fixture.whenStable();
 
     expect(first.cancelled).toBeTrue();
     httpMock.expectOne('/api/matches/other').flush(apiMatch({ matchID: 'other' }));

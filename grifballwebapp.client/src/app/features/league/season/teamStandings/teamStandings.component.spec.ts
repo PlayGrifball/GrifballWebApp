@@ -137,6 +137,7 @@ describe('TeamStandingsComponent links', () => {
     await harness.navigateByUrl('/season/2', TeamStandingsComponent);
     TestBed.inject(HttpTestingController).expectOne('/api/seasons/2/standings')
       .flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
+    await harness.fixture.whenStable();
     harness.detectChanges();
 
     const link = harness.routeNativeElement!.querySelector('td a') as HTMLAnchorElement;
