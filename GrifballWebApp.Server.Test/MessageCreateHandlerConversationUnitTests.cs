@@ -259,9 +259,10 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         using (Assert.EnterMultipleScope())
         {
             Assert.That(AsJson(now).GetProperty("unixSeconds").GetInt64(), Is.EqualTo(_time.GetUtcNow().ToUnixTimeSeconds()));
-            Assert.That(AsJson(games).GetArrayLength(), Is.Zero);
+            Assert.That(AsJson(games).GetProperty("games").GetArrayLength(), Is.Zero);
             Assert.That(refused, Is.EqualTo("Refused: No such gamertag"));
-            Assert.That(model.Options!.Instructions, Does.Contain("<t:UNIX_SECONDS:f>"));
+            // A small model can't turn the tools' ISO times into Discord's epoch timestamps reliably: it writes them as given
+            Assert.That(model.Options!.Instructions, Does.Contain("in UTC, as the tools give them").And.Not.Contain("<t:"));
         }
         await _dataPull.Received(1).DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), 0, 0, 5, Arg.Any<CancellationToken>());
     }

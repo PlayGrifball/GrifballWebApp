@@ -28,6 +28,11 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
 
     private HaloTools Tools() => new(Db, _xboxUsers, _dataPull, _logger);
 
+    [SetUp]
+    public void PullsComplete()
+        => _dataPull.DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(MatchPullResult.Empty);
+
     private async Task<XboxUser> AddPlayer()
     {
         var xbox = XboxUser.FromXbox(77, "Grunt Padre");
@@ -55,13 +60,14 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
         Db.Matches.Add(notTheirs);
         await Db.SaveChangesAsync();
 
-        var games = await Tools().GetRecentGames("Grunt Padre", 3);
+        var recent = await Tools().GetRecentGames("Grunt Padre", 3);
 
         await _dataPull.Received(1).DownloadRecentMatchesForPlayers(Arg.Is<List<long>>(x => x.SequenceEqual(Xuid77)), 0, 0, 3, Arg.Any<CancellationToken>());
-        var game = games.Single();
+        var game = recent.Games.Single();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(_logger.Entries, Is.Empty);
+            Assert.That(recent.PulledFresh, Is.True);
             Assert.That(game.MatchID, Is.EqualTo(MatchID));
             Assert.That(game.WaypointUrl, Is.EqualTo($"https://www.halowaypoint.com/halo-infinite/players/Grunt%20Padre/matches/{MatchID}"));
             Assert.That(game.Teams.SelectMany(t => t.Players), Is.EquivalentTo(BothPlayers));
@@ -70,13 +76,13 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
-    public async Task GetRecentGames_WhenThePullFails_LogsItAndGivesTheGamesAlreadySaved()
+    public async Task GetRecentGames_WhenThePullThrows_LogsItAndGivesTheGamesAlreadySaved_NotAsFresh()
     {
         await AddPlayer();
         _dataPull.DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new HttpRequestException("Halo is down"));
 
-        var games = await Tools().GetRecentGames("Grunt Padre");
+        var recent = await Tools().GetRecentGames("Grunt Padre");
 
         var entry = _logger.Entries.Single();
         using (Assert.EnterMultipleScope())
@@ -84,8 +90,38 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
             Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
             Assert.That(entry.Message, Is.EqualTo("Failed to fetch recent matches for Grunt Padre"));
             Assert.That(entry.Exception, Is.TypeOf<HttpRequestException>());
-            Assert.That(games, Is.Empty);
+            Assert.That(recent.Games, Is.Empty);
+            Assert.That(recent.PulledFresh, Is.False);
         }
+    }
+
+    [Test]
+    public async Task GetRecentGames_WhenHaloMissesTheHistory_SaysTheGamesArentFresh()
+    {
+        // The pull reports Halo's failures in its result, not by throwing
+        await AddPlayer();
+        _dataPull.DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new MatchPullResult(1, ["Grunt Padre"], 0, 0, 0, []));
+
+        var recent = await Tools().GetRecentGames("Grunt Padre");
+
+        var entry = _logger.Entries.Single();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(recent.PulledFresh, Is.False);
+            Assert.That(entry.Level, Is.EqualTo(LogLevel.Warning));
+            Assert.That(entry.Message, Does.Contain("Grunt Padre"));
+        }
+    }
+
+    [Test]
+    public void GetRecentGames_SaysItIsGrifballCustomGames()
+    {
+        // The pull reads custom games' history and keeps Grifball's: not matchmaking, not other modes
+        var description = typeof(HaloTools).GetMethod(nameof(HaloTools.GetRecentGames))!.GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
+            .Cast<System.ComponentModel.DescriptionAttribute>().Single().Description;
+
+        Assert.That(description, Does.Contain("Grifball").And.Contain("custom").And.Not.Contain("any playlist"));
     }
 
     [Test]

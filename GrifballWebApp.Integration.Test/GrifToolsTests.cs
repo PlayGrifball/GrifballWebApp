@@ -299,6 +299,7 @@ public class GrifToolsTests
             Assert.That(reading.Select(a => a?.OpenWorldHint), Has.All.False);
             Assert.That(tools["get_recent_games"]?.ReadOnlyHint, Is.False, "it saves the games it pulls: clients ask first");
             Assert.That(tools["get_recent_games"]?.OpenWorldHint, Is.True, "it reaches Halo");
+            Assert.That(tools["get_recent_games"]?.IdempotentHint, Is.False, "a second call can save games played since");
             Assert.That(tools.Values.Select(a => a?.DestructiveHint), Has.All.False, "no tool changes or deletes anything yet");
         }
     }
@@ -360,7 +361,7 @@ public class GrifToolsTests
     {
         await using var services = ChatServices();
 
-        var tools = GrifTools.AIFunctions(services, new ToolCaller(_captain.Id, PlayerRole), GrifTools.Chat);
+        var tools = GrifTools.AIFunctions(services.GetRequiredService<IServiceScopeFactory>(), new ToolCaller(_captain.Id, PlayerRole), GrifTools.Chat);
         var me = await Function(tools, "who_am_i").InvokeAsync(new AIFunctionArguments());
 
         using (Assert.EnterMultipleScope())
@@ -374,7 +375,7 @@ public class GrifToolsTests
     public async Task AIFunctions_GiveARefusal_AsTheToolsResult()
     {
         await using var services = ChatServices();
-        var tools = GrifTools.AIFunctions(services, ToolCaller.Anonymous, GrifTools.Chat);
+        var tools = GrifTools.AIFunctions(services.GetRequiredService<IServiceScopeFactory>(), ToolCaller.Anonymous, GrifTools.Chat);
 
         var unknown = await Function(tools, "get_season").InvokeAsync(new AIFunctionArguments { ["seasonID"] = 987654 });
         var aboutMe = await Function(tools, "get_player").InvokeAsync(new AIFunctionArguments());
@@ -389,4 +390,36 @@ public class GrifToolsTests
     /// <summary>A function's result as JSON, whether it gave it marshalled or as its own value.</summary>
     private static System.Text.Json.JsonElement Json(object? result)
         => result is System.Text.Json.JsonElement json ? json : System.Text.Json.JsonSerializer.SerializeToElement(result, AIJsonUtilities.DefaultOptions);
+
+    /// <summary>A clock a scope makes, which says when its scope is done with it.</summary>
+    private sealed class ScopedClock(DateTimeOffset now) : FakeTimeProvider(now), IDisposable
+    {
+        public bool Disposed { get; private set; }
+        public void Dispose() => Disposed = true;
+    }
+
+    [Test]
+    public async Task AIFunctions_RunEachCallInAScopeOfItsOwn()
+    {
+        // The bot saves its streamed reply on its own scope's context meanwhile: a tool sharing it would race those saves
+        var clocks = new List<ScopedClock>();
+        await using var services = new ServiceCollection()
+            .AddScoped<TimeProvider>(_ =>
+            {
+                var clock = new ScopedClock(_time.GetUtcNow());
+                clocks.Add(clock);
+                return clock;
+            })
+            .BuildServiceProvider();
+        var now = Function(GrifTools.AIFunctions(services.GetRequiredService<IServiceScopeFactory>(), ToolCaller.Anonymous, GrifTools.Chat), "get_current_time");
+
+        await now.InvokeAsync(new AIFunctionArguments());
+        await now.InvokeAsync(new AIFunctionArguments());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(clocks, Has.Count.EqualTo(2), "a scope per call");
+            Assert.That(clocks.Select(c => c.Disposed), Has.All.True, "each scope ended with its call");
+        }
+    }
 }
