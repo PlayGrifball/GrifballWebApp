@@ -28,6 +28,7 @@ public class ChatHubUnitTests
 {
     private static readonly string[] HiThere = ["Hi ", "there"];
     private static readonly string[] Hi = ["Hi"];
+    private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
 
     private readonly IChatClientFactory _clients = Substitute.For<IChatClientFactory>();
     private readonly IAmbientCurrentUser _ambient = Substitute.For<IAmbientCurrentUser>();
@@ -307,7 +308,7 @@ public class ChatHubUnitTests
             History = [.. Enumerable.Range(0, GrifChat.HistoryLimit).Select(i => new ChatTurnDto { FromBot = i % 2 == 1, Text = new string(character, GrifChat.MaxHistoryMessageLength) })],
         };
         var invocation = JsonSerializer.Serialize(new { type = 4, invocationId = "1", target = "Ask", arguments = new object[] { request }, streamIds = Array.Empty<string>() },
-            new JsonSerializerOptions(JsonSerializerDefaults.Web)) + "\u001e";
+            WebJson) + "\u001e";
 
         Assert.That(Encoding.UTF8.GetByteCount(invocation), Is.LessThanOrEqualTo(ChatHub.MaximumReceiveMessageSize));
     }

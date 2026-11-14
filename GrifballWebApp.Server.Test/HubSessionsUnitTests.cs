@@ -21,6 +21,8 @@ public class HubSessionsUnitTests
 {
     private static readonly HubUserState Commissioner = new(7, ["Player", "Commissioner"]);
     private static readonly HubUserState Player = new(7, ["Player"]);
+    private static readonly int[] Seven = [7];
+    private static readonly int[] SevenAndTwelve = [7, 12];
 
     private readonly HubConnections _connections = new();
     private readonly FakeValidator _validator = new();
@@ -221,8 +223,8 @@ public class HubSessionsUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(HubUserSessions.Format([7, 12]), Is.EqualTo("7,12"));
-            Assert.That(HubUserSessions.Parse("7,12"), Is.EqualTo(new[] { 7, 12 }));
-            Assert.That(HubUserSessions.Parse("7,x,"), Is.EqualTo(new[] { 7 }));
+            Assert.That(HubUserSessions.Parse("7,12"), Is.EqualTo(SevenAndTwelve));
+            Assert.That(HubUserSessions.Parse("7,x,"), Is.EqualTo(Seven));
             Assert.That(HubUserSessions.Parse(null), Is.Empty);
         }
     }
