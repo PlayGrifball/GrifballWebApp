@@ -34,7 +34,7 @@ async function openProfile(page: Page, start: { hasPassword: boolean; logins: Lo
     if (request.method() !== 'GET' && request.headers()['x-xsrf-token'] !== 'e2e-xsrf')
       return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
     if (path === `/api/users/${USER_ID}/gamertag`) return json(typed('getGamertag', { gamertag: 'Sgt Grif' }));
-    if (path === `/api/users/${USER_ID}/stats`) return json(typed('getProfileStats', { userID: USER_ID, gamertag: 'Sgt Grif', displayName: 'Sgt Grif', isDummyUser: false, pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [] }));
+    if (path === `/api/users/${USER_ID}/stats`) return json(typed('getProfileStats', { userID: USER_ID, gamertag: 'Sgt Grif', displayName: 'Sgt Grif', isDummyUser: false, regionID: null, regionName: null, pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [], lateLeague: [], serviceRecord: null }));
     if (path === '/api/me/external-logins' && request.method() === 'GET')
       return json(typed('getMyExternalLogins', { ...state, providers: [{ name: 'Discord', displayName: 'Discord' }] }));
     if (path === '/api/me/external-logins/link-token') return json(typed('startExternalLoginLink', { token: 'signed-token' }));

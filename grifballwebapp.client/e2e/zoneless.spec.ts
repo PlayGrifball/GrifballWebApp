@@ -1,5 +1,9 @@
 import { expect, test, type Page, type Route, type WebSocketRoute } from '@playwright/test';
 import { RS, negotiateResponse } from './hubMock.mts';
+import type {
+  BracketsMatch, ParticpantResult, Participant, PossibleTeamDto, RescheduleDto, SeasonInfoDto, SeasonMatchGameParticipantDto, SeasonMatchPageDto,
+  SignupsTimeslotDto, StageSettings, Status, TeamDto, UserResponseDto, ViewerDataDto,
+} from '../src/generated/api/models';
 import { typed } from './mockApi.mts';
 
 // The client runs without zone.js: nothing re-renders a page unless the component tells
@@ -10,6 +14,42 @@ import { typed } from './mockApi.mts';
 // The backend is mocked with page.route (and page.routeWebSocket for SignalR).
 
 type Handler = (route: Route, url: URL) => Promise<void> | void;
+
+/** The season the season tests are about (SeasonInfoDto, which its list item and its summary carry). */
+const winter: SeasonInfoDto = {
+  seasonID: 3, seasonName: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', year: 2025, hasEnded: false,
+  leagueID: 1, leagueName: 'AGLA', leagueSlug: 'agla', gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite',
+  division: null, format: 'LeagueSeason', isHistorical: false, historicalSourceUrl: null,
+};
+const winterListed = { ...winter, teamCount: 0, playerCount: 0, champions: [], teamNames: [] };
+const winterSummary = { ...winter, seasonName: 'Winter Season', teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] };
+
+/** A side of a bracket match (brackets-model's ParticipantResult). */
+const side = (id: number | null, extra: Partial<ParticpantResult> = {}): ParticpantResult => ({ id, forfeit: false, ...extra });
+/** A bracket stage's settings beyond its size, seeding and finals: brackets-model's defaults. */
+const stageDefaults = { balanceByes: false, groupCount: 1, manualOrdering: [], matchesChildCount: 0, roundRobinMode: 'simple', skipFirstRound: false } satisfies Partial<StageSettings>;
+/** A team of a season match's page (TeamDto), its one player its captain. */
+const team = (teamID: number, teamName: string, gamertag: string): TeamDto => ({
+  teamName, season: winter, wins: 0, losses: 0, tbd: 1, recordFromSource: false, titles: [],
+  players: [{ teamPlayerID: teamID * 10, userID: teamID * 10, gamertag, draftCaptainOrder: 1, draftRound: null, isCaptain: true, region: null }],
+});
+/** One side of a Waypoint game the match page offers to report (PossibleTeamDto). */
+const possibleTeam = (teamID: number, score: number, gamertag: string): PossibleTeamDto =>
+  ({ teamID, score, outcome: score > 3 ? 'Won' : 'Lost', players: [{ xboxUserID: teamID, gamertag, score: 900, kills: 12, deaths: 7, isOnTeam: true }] });
+/** A player's line of a reported game (SeasonMatchGameParticipantDto). */
+const line = (userID: number, gamertag: string): SeasonMatchGameParticipantDto => ({ userID, gamertag, kills: 10, deaths: 8, assists: 2, bombScores: 1, score: 100, kdRatio: null });
+/** Season match 9's page (SeasonMatchPageDto): a best of 3 with game 1 reported from Waypoint. */
+const matchPage = (): SeasonMatchPageDto => ({
+  seasonID: 3, seasonName: 'Spring', isPlayoff: false,
+  homeTeamName: 'Reds', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
+  awayTeamName: 'Blues', awayTeamID: 2, awayTeamScore: 0, awayTeamResult: 'TBD',
+  decidedBy: null, canUndo: true,
+  scheduledTime: '2026-03-10T23:00:00Z', bestOf: 3,
+  reportedGames: [{ seriesGameID: 1, matchNumber: 1, matchID: '0f8fad5b-d9cb-469f-a165-70867728950e', recordedGameID: null, homeScore: 5, awayScore: 2,
+    homePlayers: [line(10, 'Sarge')], awayPlayers: [line(20, 'Tucker')], isManual: false,
+    gameVersionID: null, gameVersionName: null, map: null, gametype: null, playedAt: null }],
+  seriesTotals: null, isImported: false, bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: true,
+});
 
 const json = (route: Route, body: unknown) =>
   route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
@@ -52,7 +92,7 @@ test('home renders the events and past seasons that load after navigation', asyn
             ])),
     '/api/seasons': route => json(route, typed('getSeasonList', {
           totalCount: 1,
-          results: [{ seasonID: 3, seasonName: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
+          results: [winterListed],
         })),
   });
 
@@ -68,10 +108,10 @@ test('a season page reached by an in-app link renders the data it loads', async 
     '/api/events': route => json(route, typed('currentAndFutureEvents', [])),
     '/api/seasons': route => json(route, typed('getSeasonList', {
           totalCount: 1,
-          results: [{ seasonID: 3, seasonName: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
+          results: [winterListed],
         })),
-    '/api/seasons/3/summary': route => json(route, typed('getSeasonSummary', { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] })),
-    '/api/seasons/3/standings': route => json(route, typed('getTeamStandings', [{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }])),
+    '/api/seasons/3/summary': route => json(route, typed('getSeasonSummary', winterSummary)),
+    '/api/seasons/3/standings': route => json(route, typed('getTeamStandings', [{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1, recordFromSource: false }])),
     '/api/seasons/3/matches/unscheduled': route => json(route, typed('getUnscheduledMatches', [
               { seasonMatchID: 21, homeCaptain: 'Home Cap', awayCaptain: 'Away Cap', homeTeam: 'Home Cap', awayTeam: 'Away Cap', complete: false },
             ])),
@@ -94,28 +134,27 @@ test('a season page reached by an in-app link renders the data it loads', async 
 });
 
 test('a season with a bracket draws it with the bundled viewer and links its matches', async ({ page }) => {
-  const team = (id: number, name: string) => ({ id, tournament_id: 3, name });
-  const side = (id: number, position: number, extra: object = {}) => ({ id, position, ...extra });
+  const team = (id: number, name: string): Participant => ({ id, tournament_id: 3, name });
   // Four teams, single elimination: one semifinal played, the other ready, the final waiting.
-  const bracket = {
+  const bracket: ViewerDataDto = {
     stages: [{
       id: 1, tournament_id: 3, name: 'Winter Playoffs', type: 'single_elimination', number: 1,
-      settings: { size: 4, seedOrdering: ['natural'], grandFinal: 'none', consolationFinal: false },
+      settings: { size: 4, seedOrdering: ['natural'], grandFinal: 'none', consolationFinal: false, ...stageDefaults },
     }],
     matches: [
       { id: 101, stage_id: 1, group_id: 1, round_id: 1, number: 1, child_count: 0, status: 4,
-        opponent1: side(1, 1, { score: 3, result: 'win' }), opponent2: side(2, 2, { score: 1, result: 'loss' }) },
+        opponent1: side(1, { position: 1, score: 3, result: 'win' }), opponent2: side(2, { position: 2, score: 1, result: 'loss' }) },
       { id: 102, stage_id: 1, group_id: 1, round_id: 1, number: 2, child_count: 0, status: 2,
-        opponent1: side(3, 3), opponent2: side(4, 4) },
+        opponent1: side(3, { position: 3 }), opponent2: side(4, { position: 4 }) },
       { id: 103, stage_id: 1, group_id: 1, round_id: 2, number: 1, child_count: 0, status: 1,
-        opponent1: { id: 1 }, opponent2: { id: null } },
+        opponent1: side(1), opponent2: side(null) },
     ],
     matchGames: [],
     participants: [team(1, 'Alpha'), team(2, 'Bravo'), team(3, 'Charlie'), team(4, 'Delta')],
   };
 
   await mockBackend(page, {
-    '/api/seasons/3/summary': route => json(route, typed('getSeasonSummary', { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] })),
+    '/api/seasons/3/summary': route => json(route, typed('getSeasonSummary', winterSummary)),
     '/api/seasons/3/standings': route => json(route, typed('getTeamStandings', [])),
     '/api/seasons/3/matches/unscheduled': route => json(route, typed('getUnscheduledMatches', [])),
     '/api/seasons/3/matches/scheduled': route => json(route, typed('getScheduledMatches', [])),
@@ -140,31 +179,31 @@ test('a season with a bracket draws it with the bundled viewer and links its mat
 });
 
 test('a double-elimination bracket draws its losers bracket and grand final', async ({ page }) => {
-  const team = (id: number, name: string) => ({ id, tournament_id: 3, name });
-  const match = (id: number, group_id: number, round_id: number, number: number, status: number, opponent1: object | null, opponent2: object | null) =>
+  const team = (id: number, name: string): Participant => ({ id, tournament_id: 3, name });
+  const match = (id: number, group_id: number, round_id: number, number: number, status: Status, opponent1: ParticpantResult | null, opponent2: ParticpantResult | null): BracketsMatch =>
     ({ id, stage_id: 3, group_id, round_id, number, child_count: 0, status, opponent1, opponent2 });
   // Shaped like BracketService.GetViewerData: winners in group 1, losers in group 2 with round ids
   // continuing after the last winners round, grand final and its reset in group 3 at round 0.
-  const bracket = {
+  const bracket: ViewerDataDto = {
     stages: [{
       id: 3, tournament_id: 3, name: 'Winter Playoffs', type: 'double_elimination', number: 1,
-      settings: { size: 4, seedOrdering: ['inner_outer', 'natural', 'reverse_half_shift', 'reverse'], grandFinal: 'double', consolationFinal: false },
+      settings: { size: 4, seedOrdering: ['inner_outer', 'natural', 'reverse_half_shift', 'reverse'], grandFinal: 'double', consolationFinal: false, ...stageDefaults },
     }],
     matches: [
-      match(201, 1, 1, 1, 4, { id: 1, position: 1, score: 3, result: 'win' }, { id: 4, position: 4, score: 1, result: 'loss' }),
-      match(202, 1, 1, 2, 4, { id: 2, position: 2, score: 2, result: 'loss' }, { id: 3, position: 3, score: 3, result: 'win' }),
-      match(203, 1, 2, 1, 2, { id: 1 }, { id: 3 }),
-      match(204, 2, 3, 1, 4, { id: 4, position: 1, score: 3, result: 'win' }, { id: 2, position: 2, score: 0, result: 'loss' }),
-      match(205, 2, 4, 1, 1, { id: 4 }, { id: null, position: 1 }),
-      match(206, 3, 0, 1, 0, { id: null }, { id: null, position: 1 }),
-      match(207, 3, 0, 2, 0, { id: null }, { id: null }),
+      match(201, 1, 1, 1, 4, side(1, { position: 1, score: 3, result: 'win' }), side(4, { position: 4, score: 1, result: 'loss' })),
+      match(202, 1, 1, 2, 4, side(2, { position: 2, score: 2, result: 'loss' }), side(3, { position: 3, score: 3, result: 'win' })),
+      match(203, 1, 2, 1, 2, side(1), side(3)),
+      match(204, 2, 3, 1, 4, side(4, { position: 1, score: 3, result: 'win' }), side(2, { position: 2, score: 0, result: 'loss' })),
+      match(205, 2, 4, 1, 1, side(4), side(null, { position: 1 })),
+      match(206, 3, 0, 1, 0, side(null), side(null, { position: 1 })),
+      match(207, 3, 0, 2, 0, side(null), side(null)),
     ],
     matchGames: [],
     participants: [team(1, 'Alpha'), team(2, 'Bravo'), team(3, 'Charlie'), team(4, 'Delta')],
   };
 
   await mockBackend(page, {
-    '/api/seasons/3/summary': route => json(route, typed('getSeasonSummary', { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] })),
+    '/api/seasons/3/summary': route => json(route, typed('getSeasonSummary', winterSummary)),
     '/api/seasons/3/standings': route => json(route, typed('getTeamStandings', [])),
     '/api/seasons/3/matches/unscheduled': route => json(route, typed('getUnscheduledMatches', [])),
     '/api/seasons/3/matches/scheduled': route => json(route, typed('getScheduledMatches', [])),
@@ -194,11 +233,11 @@ test('a double-elimination bracket draws its losers bracket and grand final', as
 });
 
 test('processing a reschedule in the dialog refreshes the commissioner dashboard', async ({ page }) => {
-  const reschedule = {
+  const reschedule: RescheduleDto = {
     matchRescheduleID: 8, seasonMatchID: 80, homeCaptain: 'Red Cap', awayCaptain: 'Blue Cap',
     originalScheduledTime: '2026-03-01T19:00:00Z', newScheduledTime: '2026-03-02T19:00:00Z',
-    reason: 'Travel', requestedByGamertag: 'Red Cap', requestedAt: '2026-02-20T10:00:00Z', status: 'Pending',
-    canApprove: true, whyNotApprovable: null,
+    reason: 'Travel', requestedByGamertag: 'Red Cap', requestedByUserID: null, requestedAt: '2026-02-20T10:00:00Z', status: 'Pending',
+    discordThreadID: null, canApprove: true, whyNotApprovable: null,
   };
   let processed = false;
   await mockBackend(page, {
@@ -209,7 +248,7 @@ test('processing a reschedule in the dialog refreshes the commissioner dashboard
         })),
     '/api/reschedules/8/decision': route => {
       processed = true;
-      return json(route, typed('processReschedule', {}));
+      return json(route, typed('processReschedule', null));
     },
   });
 
@@ -229,8 +268,8 @@ test('processing a reschedule in the dialog refreshes the commissioner dashboard
 
 test('the user search box debounces typing and the table shows the filtered users', async ({ page }) => {
   // GrifballWebApp.Server UserResponseDto, as the API sends it.
-  const user = (userID: number, userName: string, displayName: string, gamertag: string) => ({
-    userID, userName, lockoutEnd: null, lockoutEnabled: true, isDummyUser: false, accessFailedCount: 0, region: null,
+  const user = (userID: number, userName: string, displayName: string, gamertag: string): UserResponseDto => ({
+    userID, userName, lockoutEnd: null, lockoutEnabled: true, isDummyUser: false, accessFailedCount: 0, region: null, regionID: null,
     displayName, gamertag, discord: null, externalAuthCount: 0, hasPassword: true, roles: [],
   });
   const users = [user(1, 'grif', 'Grif', 'SgtGrif'), user(2, 'simmons', 'Simmons', 'Simmons')];
@@ -266,12 +305,12 @@ test('the team builder renders a captain added by another user over SignalR', as
   let captainAdded = false;
   await mockBackend(page, {
     [`/api/seasons/${SEASON_ID}/draft/teams`]: route => json(route, typed('getTeams', [
-              { teamID: 1, teamName: 'Red Team', captain: { name: 'Captain Red', personID: 201, order: 1 }, players: [] },
-              ...(captainAdded ? [{ teamID: 2, teamName: "Blair's Team", captain: { name: 'Pool Blair', personID: 102, order: 2 }, players: [] }] : []),
+              { teamID: 1, teamName: 'Red Team', captain: { name: 'Captain Red', personID: 201, order: 1, region: null }, players: [] },
+              ...(captainAdded ? [{ teamID: 2, teamName: "Blair's Team", captain: { name: 'Pool Blair', personID: 102, order: 2, region: null }, players: [] }] : []),
             ])),
     [`/api/seasons/${SEASON_ID}/draft/player-pool`]: route => json(route, typed('getPlayerPool', [
-              { name: 'Pool Alex', personID: 101, pick: null, round: null },
-              ...(captainAdded ? [] : [{ name: 'Pool Blair', personID: 102, pick: null, round: null }]),
+              { name: 'Pool Alex', personID: 101, pick: null, round: null, region: null },
+              ...(captainAdded ? [] : [{ name: 'Pool Blair', personID: 102, pick: null, round: null, region: null }]),
             ])),
     [`/api/seasons/${SEASON_ID}/draft/captains/locked`]: route => json(route, typed('areCaptainsLocked', true)),
   });
@@ -314,7 +353,7 @@ test('the team builder renders a captain added by another user over SignalR', as
 test('the signup form ticks single slots and whole days, and submits the chosen option ids', async ({ page }) => {
   // Exactly what GET /api/seasons/{seasonID}/signups/mine/timeslots sends (GrifballWebApp.Server.Signups.TimeslotDto):
   // optionID, the day as the enum name, the time as "HH:mm:ss", isChecked.
-  const timeslots = [
+  const timeslots: SignupsTimeslotDto[] = [
     { optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
     { optionID: 42, dayOfWeek: 'Monday', time: '20:00:00', isChecked: true },
     { optionID: 57, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false },
@@ -409,25 +448,10 @@ test('the Late League queue panel shows the count the hub sends, and joins from 
 test('a commissioner enters a game by hand, and reports a Waypoint game in place of one', async ({ page }) => {
   const SEASON_MATCH_ID = 9;
   const WAYPOINT_ID = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
-  // A best of 3 with game 1 reported from Waypoint (SeasonMatchPageDto, ReportedGameDto)
-  const line = (userID: number, gamertag: string) => ({ userID, gamertag, kills: 10, deaths: 8, assists: 2, bombScores: 1, score: 100 });
-  const matchPage = {
-    seasonID: 3, seasonName: 'Spring', isPlayoff: false,
-    homeTeamName: 'Reds', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
-    awayTeamName: 'Blues', awayTeamID: 2, awayTeamScore: 0, awayTeamResult: 'TBD',
-    decidedBy: null, canUndo: true,
-    scheduledTime: '2026-03-10T23:00:00Z', bestOf: 3,
-    reportedGames: [{ seriesGameID: 1, matchNumber: 1, matchID: '0f8fad5b-d9cb-469f-a165-70867728950e', recordedGameID: null, homeScore: 5, awayScore: 2,
-      homePlayers: [line(10, 'Sarge')], awayPlayers: [line(20, 'Tucker')], isManual: false }],
-    seriesTotals: null, isImported: false, bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: true,
-  };
-  const team = (teamID: number, teamName: string, gamertag: string) => ({ teamName, players: [
-    { teamPlayerID: teamID * 10, userID: teamID * 10, gamertag, draftCaptainOrder: 1, draftRound: null }] });
-  const possibleTeam = (teamID: number, score: number, gamertag: string) =>
-    ({ teamID, score, outcome: score > 3 ? 'Won' : 'Lost', players: [{ xboxUserID: teamID, gamertag, score: 900, kills: 12, deaths: 7, isOnTeam: true }] });
+  // A best of 3 with game 1 reported from Waypoint (matchPage above)
   const posted: unknown[] = [];
   const requests = await mockBackend(page, {
-    [`/api/season-matches/${SEASON_MATCH_ID}`]: route => json(route, typed('getSeasonMatchPage', matchPage)),
+    [`/api/season-matches/${SEASON_MATCH_ID}`]: route => json(route, typed('getSeasonMatchPage', matchPage())),
     '/api/teams/1': route => json(route, typed('team', team(1, 'Reds', 'Sarge'))),
     '/api/teams/2': route => json(route, typed('team', team(2, 'Blues', 'Tucker'))),
     '/api/game-versions': route => json(route, typed('getGameVersions', [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }])),
@@ -437,7 +461,7 @@ test('a commissioner enters a game by hand, and reports a Waypoint game in place
       posted.push(route.request().postDataJSON());
       return route.fulfill({ status: 200, body: '' });
     },
-    [`/api/season-matches/${SEASON_MATCH_ID}/games/${WAYPOINT_ID}/report`]: route => json(route, typed('reportMatch', 'Reported')),
+    [`/api/season-matches/${SEASON_MATCH_ID}/games/${WAYPOINT_ID}/report`]: route => json(route, typed('reportMatch', null)),
   });
   const pageLoads = () => requests.filter(r => r === `GET /api/season-matches/${SEASON_MATCH_ID}`).length;
 
@@ -474,27 +498,13 @@ test('a commissioner enters a game by hand, and reports a Waypoint game in place
 test('the match page does one thing at a time: an action drops a game waiting to be placed, and every tool waits while one is sent', async ({ page }) => {
   const SEASON_MATCH_ID = 10;
   const WAYPOINT_ID = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
-  // A best of 3 with game 1 reported from Waypoint; once the home team forfeits, the server says so (decidedBy, canUndo)
-  const line = (userID: number, gamertag: string) => ({ userID, gamertag, kills: 10, deaths: 8, assists: 2, bombScores: 1, score: 100 });
-  const undecided = {
-    seasonID: 3, seasonName: 'Spring', isPlayoff: false,
-    homeTeamName: 'Reds', homeTeamID: 1, homeTeamScore: 1, homeTeamResult: 'TBD',
-    awayTeamName: 'Blues', awayTeamID: 2, awayTeamScore: 0, awayTeamResult: 'TBD',
-    decidedBy: null, canUndo: true,
-    scheduledTime: '2026-03-10T23:00:00Z', bestOf: 3,
-    reportedGames: [{ seriesGameID: 1, matchNumber: 1, matchID: '0f8fad5b-d9cb-469f-a165-70867728950e', recordedGameID: null, homeScore: 5, awayScore: 2,
-      homePlayers: [line(10, 'Sarge')], awayPlayers: [line(20, 'Tucker')], isManual: false }],
-    seriesTotals: null, isImported: false, bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: true,
-  };
-  const forfeited = { ...undecided, homeTeamResult: 'Forfeit', awayTeamResult: 'Won', decidedBy: 'Forfeit' };
-  let current: object = undecided;
+  // A best of 3 with game 1 reported from Waypoint (matchPage above); once the home team forfeits, the server says so (decidedBy, canUndo)
+  const undecided = matchPage();
+  const forfeited: SeasonMatchPageDto = { ...undecided, homeTeamResult: 'Forfeit', awayTeamResult: 'Won', decidedBy: 'Forfeit' };
+  let current = undecided;
   // The forfeit is answered only once the test has looked at the page while it is being sent
   let answer!: () => void;
   const answered = new Promise<void>(resolve => answer = resolve);
-  const team = (teamID: number, teamName: string, gamertag: string) => ({ teamName, players: [
-    { teamPlayerID: teamID * 10, userID: teamID * 10, gamertag, draftCaptainOrder: 1, draftRound: null }] });
-  const possibleTeam = (teamID: number, score: number, gamertag: string) =>
-    ({ teamID, score, outcome: score > 3 ? 'Won' : 'Lost', players: [{ xboxUserID: teamID, gamertag, score: 900, kills: 12, deaths: 7, isOnTeam: true }] });
   const requests = await mockBackend(page, {
     [`/api/season-matches/${SEASON_MATCH_ID}`]: route => json(route, typed('getSeasonMatchPage', current)),
     '/api/teams/1': route => json(route, typed('team', team(1, 'Reds', 'Sarge'))),
@@ -505,7 +515,7 @@ test('the match page does one thing at a time: an action drops a game waiting to
     [`/api/season-matches/${SEASON_MATCH_ID}/forfeit/home`]: async route => {
       await answered;
       current = forfeited;
-      return json(route, typed('homeForfeit', 'Forfeited'));
+      return json(route, typed('homeForfeit', null));
     },
   });
 

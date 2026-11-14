@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import type { TeamResponseDto, TeamsPlayerDto } from '../src/generated/api/models';
 import { typed } from './mockApi.mts';
 
 // End-to-end drag and drop on the team builder (/season/:seasonID/draft).
@@ -17,18 +18,18 @@ const SEASON_ID = 7;
 // keep the whole board (header, season tabs, teams and pool) on screen.
 test.use({ viewport: { width: 1280, height: 1200 } });
 
-interface Player { name: string; personID: number; pick: number | null; round: number | null }
-interface Team { teamID: number; teamName: string; captain: { name: string; personID: number; order: number }; players: Player[] }
+type Player = TeamsPlayerDto;
+type Team = TeamResponseDto;
 interface Call { path: string; body: unknown }
 
 const player = (personID: number, name: string, round: number | null = null): Player =>
-  ({ name, personID, pick: round, round });
+  ({ name, personID, pick: round, round, region: null });
 
 function seed(): { teams: Team[]; pool: Player[] } {
   return {
     teams: [
-      { teamID: 1, teamName: 'Red Team', captain: { name: 'Captain Red', personID: 201, order: 1 }, players: [player(301, 'Player Pat', 1), player(302, 'Player Quinn', 2)] },
-      { teamID: 2, teamName: 'Blue Team', captain: { name: 'Captain Blue', personID: 202, order: 2 }, players: [] },
+      { teamID: 1, teamName: 'Red Team', captain: { name: 'Captain Red', personID: 201, order: 1, region: null }, players: [player(301, 'Player Pat', 1), player(302, 'Player Quinn', 2)] },
+      { teamID: 2, teamName: 'Blue Team', captain: { name: 'Captain Blue', personID: 202, order: 2, region: null }, players: [] },
     ],
     pool: [player(101, 'Pool Alex'), player(102, 'Pool Blair'), player(103, 'Pool Casey')],
   };
@@ -75,7 +76,7 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
       // response carries that name (CaptainAddedResponseDto).
       if (path === `/api/seasons/${SEASON_ID}/draft/captains`) {
         const captain = data.pool.find(p => p.personID === body.personID)!;
-        return json(typed('addCaptain', { teamName: `${captain.name.replace('Pool ', '')} Crew` }));
+        return json(typed('addCaptain', { teamID: 90 + captain.personID, teamName: `${captain.name.replace('Pool ', '')} Crew` }));
       }
       return json({});
     }
