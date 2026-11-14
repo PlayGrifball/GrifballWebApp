@@ -111,6 +111,7 @@ describe('LeaderboardsComponent', () => {
     fixture.detectChanges();
     // The select takes its first value once its options are there
     await fixture.whenStable();
+    fixture.detectChanges();
     expect(el().querySelector('mat-form-field mat-label')!.textContent!.trim()).toBe('Format');
     expect(formatsText()).toBe('All formats');
     choose('Dynasties');
@@ -139,6 +140,7 @@ describe('LeaderboardsComponent', () => {
     expectBoards().flush(boards);
     fixture.detectChanges();
     await fixture.whenStable();
+    fixture.detectChanges();
     expect(fixture.componentInstance.formats()).toEqual(['LeagueSeason', 'Tournament', 'LateLeague']);
     expect(formatsText()).toBe('All formats');
   });
