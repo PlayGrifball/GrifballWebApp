@@ -44,7 +44,13 @@ const cases = [
   ['src/server.ts', "import { X } from './app/core/server/afterFirstPaint';", true],
 ];
 
-const eslint = new ESLint({ cwd: import.meta.dirname });
+// Only the plugin's rules, on the import alone: the rest (sonarjs's type-aware ones) aren't what's checked here, and can
+// fail on a file's text swapped for one line
+const eslint = new ESLint({
+  cwd: import.meta.dirname,
+  ruleFilter: ({ ruleId }) => ruleId.startsWith(PLUGIN),
+  overrideConfig: { files: ['src/**/*.ts'], languageOptions: { parserOptions: { project: null } } },
+});
 let failures = 0;
 for (const [file, code, allowed] of cases) {
   const [result] = await eslint.lintText(code, { filePath: file });
