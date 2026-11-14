@@ -19,11 +19,11 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class PlayerCommandsHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private PlayerCommandsHandler Handler() => new(new CommandLookups(Db, null!), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), null!);
+    private PlayerCommandsHandler Handler() => new(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), null!);
 
     /// <summary>The profile services real too (all IApplicationDbContext-backed); the pull tools stay null, unused by
     /// Profile/Stats/Commendations/History/Vods.</summary>
-    private PlayerCommandsHandler DeepHandler() => new(new CommandLookups(Db, null!), new DiscordCaller(Db),
+    private PlayerCommandsHandler DeepHandler() => new(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), new DiscordCaller(Db),
         new ProfileStatsService(Db, new SeasonStatsService(Db), new MatchmakingStatsService(Db)),
         new ProfileCommendationsService(Db),
         new DeploymentHistoryService(Db),

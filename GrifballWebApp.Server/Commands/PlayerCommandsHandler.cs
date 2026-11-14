@@ -139,8 +139,9 @@ public class PlayerCommandsHandler
         await context.Defer(ephemeral: true);
         if (await _caller.Require(context, GrifTools.RolesByName["pull_xbox_account_games"]) is not { } caller)
             return;
+        // The caller's own: the account their caller check found, so the two never disagree
         var account = string.IsNullOrWhiteSpace(gamertag)
-            ? await _lookups.OwnXboxAccount(context.Interaction.User.Id)
+            ? (caller.XboxUserID, caller.Gamertag)
             : await _lookups.XboxAccount(gamertag);
         if (account is not { } found)
         {

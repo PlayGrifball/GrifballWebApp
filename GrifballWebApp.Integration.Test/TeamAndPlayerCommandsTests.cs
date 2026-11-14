@@ -45,7 +45,7 @@ public class TeamAndPlayerCommandsTests
     {
         _context = await TestDatabase.NewGrifballContext();
         var urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-        var lookups = new CommandLookups(_context, new SeasonService(_context, new SeasonStatsService(_context)));
+        var lookups = new CommandLookups(_context, new SeasonService(_context, new SeasonStatsService(_context)), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context));
         var vods = new VodService(_context, new YouTubeClient(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(HttpStatusCode.NotFound)))),
             Options.Create(new YouTubeOptions()), NullLogger<VodService>.Instance);
         _teams = new TeamCommandsHandler(lookups, new TeamPageService(_context), new TeamHistoryService(_context), vods, urls);

@@ -27,7 +27,7 @@ public class BrowseCommandsHandlerUnitTests : SqliteGrifballContextFixture
     /// IDistributedCache substituted, a miss every time), and the player lookup real.</summary>
     private BrowseCommandsHandler DeepHandler() => new(
         new LeaderboardsService(Db, new SeasonStatsService(Db), new MatchmakingStatsService(Db), Substitute.For<IDistributedCache>(), new RecordingLogger<LeaderboardsService>()),
-        new MatchmakingStatsService(Db), new HomeEventsService(Db), new QuickSearchService(Db), new CommandLookups(Db, null!), Urls());
+        new MatchmakingStatsService(Db), new HomeEventsService(Db), new QuickSearchService(Db), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), Urls());
 
     [Test]
     public async Task Events_RepliesNothingIsComingUp_ForAnEmptyDatabase()

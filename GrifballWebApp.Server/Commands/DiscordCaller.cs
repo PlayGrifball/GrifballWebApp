@@ -9,8 +9,9 @@ using NetCord.Rest;
 
 namespace GrifballWebApp.Server.Commands;
 
-/// <summary>The app user who ran a command: the one linked to their Discord account, with their site roles.</summary>
-public sealed record CallerUser(int UserID, string Gamertag, IReadOnlyList<string> Roles)
+/// <summary>The app user who ran a command: the one linked to their Discord account, with their Xbox account (its XUID and
+/// gamertag) and site roles.</summary>
+public sealed record CallerUser(int UserID, long XboxUserID, string Gamertag, IReadOnlyList<string> Roles)
 {
     /// <summary>Whether the user has one of <paramref name="roles"/>; with none given, anyone does.</summary>
     public bool IsInAnyRole(IReadOnlyCollection<string> roles) => SiteRoles.IsInAnyRole(Roles, roles);
@@ -49,7 +50,7 @@ public class DiscordCaller
 
     /// <summary>The user linked to this Discord account, with their gamertag and roles; null when none is, or they have no gamertag.</summary>
     public async Task<CallerUser?> Find(ulong discordUserId, CancellationToken ct = default)
-        => await Linked(discordUserId, ct) is { Gamertag: { } gamertag } user ? new CallerUser(user.Id, gamertag, user.RoleNames) : null;
+        => await Linked(discordUserId, ct) is { XboxUserID: { } xuid, Gamertag: { } gamertag } user ? new CallerUser(user.Id, xuid, gamertag, user.RoleNames) : null;
 
     /// <summary>
     /// Who the agents' tools run as for this Discord user (the bot's chat): their linked site account with its roles, gamertag or
@@ -58,15 +59,15 @@ public class DiscordCaller
     public async Task<ToolCaller> AsToolCaller(ulong discordUserId, CancellationToken ct = default)
         => await Linked(discordUserId, ct) is { } user ? new ToolCaller(user.Id, user.RoleNames) : ToolCaller.Anonymous;
 
-    /// <summary>The site account linked to a Discord user: its ID, gamertag (if it has one) and roles.</summary>
-    private sealed record LinkedUser(int Id, string? Gamertag, List<string> RoleNames);
+    /// <summary>The site account linked to a Discord user: its ID, Xbox account (if it has one) and roles.</summary>
+    private sealed record LinkedUser(int Id, long? XboxUserID, string? Gamertag, List<string> RoleNames);
 
     /// <summary>The site account linked to this Discord user, if any (<see cref="Find"/> and <see cref="AsToolCaller"/> both read it).</summary>
     private Task<LinkedUser?> Linked(ulong discordUserId, CancellationToken ct)
         => _context.Users
             .AsNoTracking()
             .Where(x => x.DiscordUserID == (long)discordUserId)
-            .Select(x => new LinkedUser(x.Id, x.XboxUser != null ? x.XboxUser.Gamertag : null, x.UserRoles.Select(r => r.Role.Name!).ToList()))
+            .Select(x => new LinkedUser(x.Id, x.XboxUserID, x.XboxUser != null ? x.XboxUser.Gamertag : null, x.UserRoles.Select(r => r.Role.Name!).ToList()))
             .FirstOrDefaultAsync(ct);
 
     /// <summary>

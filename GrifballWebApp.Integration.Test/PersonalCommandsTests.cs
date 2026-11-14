@@ -48,7 +48,7 @@ public class PersonalCommandsTests
         var buttons = new MatchmakingButtonHandler(null!, new ServiceCollection().AddScoped(_ => _publisher).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
             null!, null!, null!, NullLogger<MatchmakingButtonHandler>.Instance);
         var claims = new UserGamertagClaimService(_context, new GamertagMatching(_context), TimeProvider.System, Options.Create(new UserClaimOptions()));
-        _handler = new PersonalCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons), new QueueMembership(queue, _context, Substitute.For<IQueueNotifier>()),
+        _handler = new PersonalCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context)), new QueueMembership(queue, _context, Substitute.For<IQueueNotifier>()),
             queue, buttons, new RegionService(_context), claims, new SignupsService(_context), seasons, new AvailabilityService(_context),
             new RescheduleService(_context, new ContextOutbox(_context)), urls);
 

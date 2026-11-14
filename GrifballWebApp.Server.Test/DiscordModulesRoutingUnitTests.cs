@@ -151,7 +151,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
         var urls = Urls();
         var stats = new SeasonStatsService(Db);
         var seasons = new SeasonService(Db, stats, _time);
-        var lookups = new CommandLookups(Db, seasons);
+        var lookups = new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db));
         var caller = new DiscordCaller(Db);
         var queue = Substitute.For<IQueueRepository>();
         // In the queue already: /queue join and its button are refused; /queue leave too, as nothing is removed

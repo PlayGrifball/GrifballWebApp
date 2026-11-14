@@ -31,7 +31,7 @@ public class SeasonCommandsHandlerActionsUnitTests : SqliteGrifballContextFixtur
     private SeasonCommandsHandler Handler()
     {
         var seasons = new SeasonService(Db, new SeasonStatsService(Db), _time);
-        return new SeasonCommandsHandler(new CommandLookups(Db, seasons), seasons, new TeamStandingsService(Db), new MatchPlannerService(Db),
+        return new SeasonCommandsHandler(new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), seasons, new TeamStandingsService(Db), new MatchPlannerService(Db),
             new GradesService(Db), new SignupsService(Db, _time), _brackets, Urls());
     }
 

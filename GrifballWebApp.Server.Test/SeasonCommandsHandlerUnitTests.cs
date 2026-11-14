@@ -19,7 +19,7 @@ public class SeasonCommandsHandlerUnitTests : SqliteGrifballContextFixture
     private SeasonCommandsHandler Handler()
     {
         var seasons = new SeasonService(Db, null!);
-        return new SeasonCommandsHandler(new CommandLookups(Db, seasons), seasons, null!, null!, null!, null!, null!, Urls());
+        return new SeasonCommandsHandler(new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), seasons, null!, null!, null!, null!, null!, Urls());
     }
 
     /// <summary>The deeper services real too (all IApplicationDbContext-backed): every action but Bracket (IBracketService,
@@ -27,7 +27,7 @@ public class SeasonCommandsHandlerUnitTests : SqliteGrifballContextFixture
     private SeasonCommandsHandler DeepHandler()
     {
         var seasons = new SeasonService(Db, new GrifballWebApp.Application.Stats.SeasonStatsService(Db));
-        return new SeasonCommandsHandler(new CommandLookups(Db, seasons), seasons,
+        return new SeasonCommandsHandler(new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), seasons,
             new GrifballWebApp.Application.TeamStandings.TeamStandingsService(Db),
             new GrifballWebApp.Application.MatchPlanner.MatchPlannerService(Db),
             new GrifballWebApp.Application.Grades.GradesService(Db),

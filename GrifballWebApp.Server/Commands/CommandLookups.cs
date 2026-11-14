@@ -47,12 +47,12 @@ public class CommandLookups
     private readonly XboxAccountService _accounts;
     private readonly TimeProvider _time;
 
-    public CommandLookups(GrifballContext context, SeasonService seasons, TimeProvider? time = null, XboxAccountService? accounts = null)
+    public CommandLookups(GrifballContext context, SeasonService seasons, XboxAccountService accounts, TimeProvider? time = null)
     {
         _context = context;
         _seasons = seasons;
+        _accounts = accounts;
         _time = time ?? TimeProvider.System;
-        _accounts = accounts ?? new XboxAccountService(context);
     }
 
     /// <summary>A choice's value: the ID, marked as picked so that a name of digits is still a name.</summary>

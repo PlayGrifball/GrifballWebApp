@@ -64,7 +64,7 @@ public class CommandReviewFindingsTests
         _context = await TestDatabase.NewGrifballContext();
         _urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
         _seasons = new SeasonService(_context, new SeasonStatsService(_context));
-        _lookups = new CommandLookups(_context, _seasons);
+        _lookups = new CommandLookups(_context, _seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context));
         _brackets = new BracketService(_context, new TeamStandingsService(_context), new ChampionshipService(_context));
         _commissioner = await _context.AddUser("commish", gamertag: "CommishGT", discordName: "commish", commissioner: true);
     }

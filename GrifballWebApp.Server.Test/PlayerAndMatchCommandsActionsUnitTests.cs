@@ -26,7 +26,7 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class PlayerAndMatchCommandsActionsUnitTests : SqliteGrifballContextFixture
 {
-    private PlayerCommandsHandler Players() => new(new CommandLookups(Db, null!), new DiscordCaller(Db),
+    private PlayerCommandsHandler Players() => new(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), new DiscordCaller(Db),
         new ProfileStatsService(Db, new SeasonStatsService(Db), new MatchmakingStatsService(Db)),
         new ProfileCommendationsService(Db),
         new DeploymentHistoryService(Db),
@@ -65,7 +65,7 @@ public class PlayerAndMatchCommandsActionsUnitTests : SqliteGrifballContextFixtu
         game.AddParticipant(1, 2, new MatchParticipantStats { Kills = 4, Deaths = 9, Assists = 1 });
         Db.Matches.Add(game);
         await Db.SaveChangesAsync();
-        var handler = new MatchCommandsHandler(new CommandLookups(Db, null!),
+        var handler = new MatchCommandsHandler(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)),
             new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)), new MatchDetailsService(Db), Urls(), null!, null!);
         var discord = new CommandContextRecorder();
 
@@ -91,7 +91,7 @@ public class PlayerAndMatchCommandsActionsUnitTests : SqliteGrifballContextFixtu
         Db.Matches.Add(game);
         match.AddGame(game, 1);
         await Db.SaveChangesAsync();
-        var handler = new MatchCommandsHandler(new CommandLookups(Db, null!),
+        var handler = new MatchCommandsHandler(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)),
             new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)), new MatchDetailsService(Db), Urls(), null!, null!);
         var discord = new CommandContextRecorder();
 
