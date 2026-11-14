@@ -2,9 +2,16 @@
 // (layout.spec.ts, through page.route) and by e2e/serve.mjs as the backend of the app's server
 // (pages rendered on the server, Lighthouse CI), so both run without the .NET server. Plain TypeScript Node can run as is (no enums etc.).
 
+import type { BrowserContext } from '@playwright/test';
 import type { Observable } from 'rxjs';
 import type * as ApiFunctions from '../src/generated/api/functions';
 import type { StrictHttpResponse } from '../src/generated/api/strict-http-response';
+import type {
+  BracketsMatch, CommissionerDashboardDto, DayOfWeek, GamertagClaimDto, HistoricalImportJobDto, LetterDto, MatchDetailsDto, MatchDetailsMedalDto,
+  MatchDetailsTeamDto, MatchmakingPlayerStatDto, MatchmakingSeasonDto, MetricLeaderDto, Outcomes, ParticpantResult, Participant, PossibleTeamDto,
+  ProfileCommendationsDto, ProfileStatsDto, QuickSearchDto, QuickSearchPlayerDto, SeasonDto, SeasonInfoDto, SeasonListItemDto, SeasonPlayerStatDto,
+  SeasonSummaryDto, Status, TeamDto, TeamHistoryDto, TeamHistorySeasonDto, TeamResponseDto, TeamsPlayerDto, TitleDto, UserResponseDto, ViewerDataDto,
+} from '../src/generated/api/models';
 
 export type Role = 'anon' | 'player' | 'admin';
 
@@ -54,7 +61,7 @@ export function roleOf(cookieHeader: string | undefined): Role {
  * the hosts the tests open (localhost renders on the server, which sends it to the mock backend;
  * 127.0.0.1 renders in the browser, where the tests answer the API themselves).
  */
-export async function signIn(context: { addCookies(cookies: object[]): Promise<void> }, role: Role): Promise<void> {
+export async function signIn(context: Pick<BrowserContext, 'addCookies'>, role: Role): Promise<void> {
   if (role === 'anon')
     return;
   await context.addCookies(['localhost', '127.0.0.1'].map(domain =>
@@ -72,14 +79,14 @@ const teams: [number, string, string][] = [
 ];
 const teamName = (id: number) => teams[id - 1][1];
 
-function roster(teamID: number) {
+function roster(teamID: number): TeamDto {
   const [, name, captain] = teams[teamID - 1];
   const base = ['Plasma Pete', 'Banshee Bri', 'Warthog Wes', 'Needler Nan', 'Spartan Sam', 'Elite Eli', 'Grunt Gus', 'Jackal Jo'];
   return {
-    teamName: name, season: seasonInfo(12, { hasEnded: false }), wins: 7 - teamID, losses: teamID - 1, tbd: 2,
+    teamName: name, season: seasonInfo(12, { hasEnded: false }), wins: 7 - teamID, losses: teamID - 1, tbd: 2, recordFromSource: false, titles: [],
     players: [
-      { teamPlayerID: teamID * 10, userID: teamID * 10, gamertag: captain, draftCaptainOrder: teamID, draftRound: null },
-      ...[0, 1, 2].map(i => ({ teamPlayerID: teamID * 10 + i + 1, userID: teamID * 10 + i + 1, gamertag: base[(teamID + i) % 8], draftCaptainOrder: null, draftRound: i + 1 })),
+      { teamPlayerID: teamID * 10, userID: teamID * 10, gamertag: captain, draftCaptainOrder: teamID, draftRound: null, isCaptain: true, region: null },
+      ...[0, 1, 2].map(i => ({ teamPlayerID: teamID * 10 + i + 1, userID: teamID * 10 + i + 1, gamertag: base[(teamID + i) % 8], draftCaptainOrder: null, draftRound: i + 1, isCaptain: false, region: null })),
     ],
   };
 }
@@ -92,46 +99,54 @@ const scheduled = ([
   ({ seasonMatchID: id, homeCaptain: teamName(h), awayCaptain: teamName(a), homeTeam: teamName(h), awayTeam: teamName(a), complete, time }));
 
 // brackets-viewer data (brackets-model): an 8-team single elimination with one BYE and one forfeit.
-const side = (id: number, position: number, extra: object = {}) => ({ id, position, ...extra });
-const participant = (id: number, name: string) => ({ id, tournament_id: 12, name });
-const bracket = {
+const side = (id: number | null, position: number | null = null, extra: Partial<ParticpantResult> = {}): ParticpantResult => ({ id, position, forfeit: false, ...extra });
+const participant = (id: number, name: string): Participant => ({ id, tournament_id: 12, name });
+/**
+ * A match's status as the server sends it: brackets-viewer's number (ViewerData.cs gives Status a JsonNumberEnumConverter),
+ * though openapi.json, and so the generated Status, says it is the enum's name.
+ */
+const status = (value: number) => value as unknown as Status;
+const bracketMatch = (id: number, round: number, number: number, value: number, opponent1: ParticpantResult | null, opponent2: ParticpantResult | null): BracketsMatch =>
+  ({ id, stage_id: 1, group_id: 1, round_id: round, number, child_count: 0, status: status(value), opponent1, opponent2 });
+const bracket: ViewerDataDto = {
   stages: [{ id: 1, tournament_id: 12, name: 'Autumn Brawl Playoffs', type: 'single_elimination', number: 1,
-    settings: { size: 8, seedOrdering: ['inner_outer'], grandFinal: 'none', consolationFinal: false } }],
+    settings: { size: 8, seedOrdering: ['inner_outer'], grandFinal: 'none', consolationFinal: false, balanceByes: false, groupCount: 1, manualOrdering: [],
+      matchesChildCount: 0, roundRobinMode: 'simple', skipFirstRound: false } }],
   matches: [
-    { id: 101, stage_id: 1, group_id: 1, round_id: 1, number: 1, child_count: 0, status: 4, opponent1: side(1, 1, { result: 'win' }), opponent2: null },
-    { id: 102, stage_id: 1, group_id: 1, round_id: 1, number: 2, child_count: 0, status: 4, opponent1: side(4, 4, { score: 1, result: 'loss' }), opponent2: side(5, 5, { score: 2, result: 'win' }) },
-    { id: 103, stage_id: 1, group_id: 1, round_id: 1, number: 3, child_count: 0, status: 4, opponent1: side(2, 2, { score: 2, result: 'win' }), opponent2: side(7, 7, { score: 0, result: 'loss' }) },
-    { id: 104, stage_id: 1, group_id: 1, round_id: 1, number: 4, child_count: 0, status: 4, opponent1: side(3, 3, { score: 0, result: 'loss', forfeit: true }), opponent2: side(6, 6, { result: 'win' }) },
-    { id: 105, stage_id: 1, group_id: 1, round_id: 2, number: 1, child_count: 0, status: 3, opponent1: { id: 1, score: 1 }, opponent2: { id: 5, score: 1 } },
-    { id: 106, stage_id: 1, group_id: 1, round_id: 2, number: 2, child_count: 0, status: 2, opponent1: { id: 2 }, opponent2: { id: 6 } },
-    { id: 107, stage_id: 1, group_id: 1, round_id: 3, number: 1, child_count: 0, status: 0, opponent1: { id: null }, opponent2: { id: null } },
+    bracketMatch(101, 1, 1, 4, side(1, 1, { result: 'win' }), null),
+    bracketMatch(102, 1, 2, 4, side(4, 4, { score: 1, result: 'loss' }), side(5, 5, { score: 2, result: 'win' })),
+    bracketMatch(103, 1, 3, 4, side(2, 2, { score: 2, result: 'win' }), side(7, 7, { score: 0, result: 'loss' })),
+    bracketMatch(104, 1, 4, 4, side(3, 3, { score: 0, result: 'loss', forfeit: true }), side(6, 6, { result: 'win' })),
+    bracketMatch(105, 2, 1, 3, side(1, null, { score: 1 }), side(5, null, { score: 1 })),
+    bracketMatch(106, 2, 2, 2, side(2), side(6)),
+    bracketMatch(107, 3, 1, 0, side(null), side(null)),
   ],
   matchGames: [],
   participants: [...teams.map(([id, name]) => participant(id, name)), participant(7, 'Late Joiners')],
 };
 
-const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const days: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const times = ['18:00:00', '19:00:00', '20:00:00', '21:00:00', '22:00:00'];
 const timeslots = days.flatMap((dayOfWeek, d) => times.map((time, t) =>
   ({ optionID: d * times.length + t + 1, dayOfWeek, time, isChecked: (d * times.length + t + 1) % 3 === 0 })));
 
 const players = ['MasterChief117', 'Plasma Pete', 'Banshee Bri', 'Warthog Wes', 'Needler Nan', 'Caboose42'];
 const letters = ['S', 'A+', 'A', 'B+', 'B', 'C', 'D'];
-const grades = (i: number, gamertag: string) => {
+const grades = (i: number, gamertag: string): LetterDto => {
   const L = (k: number) => letters[(i + k) % letters.length];
-  return { xboxUserID: i, gamertag, goals: L(0), kdSpread: L(1), punches: L(2), sprees: L(3), doubleKills: L(1), tripleKills: L(4),
+  return { xboxUserID: i, userID: null, gamertag, goals: L(0), kdSpread: L(1), punches: L(2), sprees: L(3), doubleKills: L(1), tripleKills: L(4),
     multiKills: L(5), xFactor: L(2), kills: L(0), gradeAvgMath: 3.2 - i * 0.2, gradeAvg: L(1) };
 };
 
-const possibleTeam = (teamID: number, score: number, outcome: string, offset: number) => ({
+const possibleTeam = (teamID: number, score: number, outcome: Outcomes, offset: number): PossibleTeamDto => ({
   teamID, score, outcome,
   players: roster(teamID).players.map((p, i) => ({ xboxUserID: offset + i, gamertag: p.gamertag, score: 900 - offset * 20 - i * 80, kills: 14 - i, deaths: 6 + i, isOnTeam: true })),
 });
 
 // The match details page (/match/0f8f...): game 1 of season match 31, Red Rampage 5 - 3 Blue Bombers. A function:
 // roster() reads values declared further down
-const medal = (medalID: number, name: string, count: number) => ({ medalID, name, description: name, type: 'Mode', difficulty: 'Normal', count });
-const matchDetailsTeam = (teamID: number, seasonTeamID: number, seasonTeamName: string, score: number, outcome: string, offset: number) => ({
+const medal = (medalID: number, name: string, count: number): MatchDetailsMedalDto => ({ medalID, name, description: name, type: 'Mode', difficulty: 'Normal', count });
+const matchDetailsTeam = (teamID: number, seasonTeamID: number, seasonTeamName: string, score: number, outcome: MatchDetailsTeamDto['outcome'], offset: number): MatchDetailsTeamDto => ({
   teamID, seasonTeamID, seasonTeamName, score, outcome,
   players: roster(seasonTeamID).players.map((p, i) => ({
     userID: p.userID, gamertag: p.gamertag, goals: Math.max(0, score - i * 2), personalScore: 1400 - offset * 20 - i * 100, rank: i + 1 + (offset ? 4 : 0),
@@ -142,36 +157,36 @@ const matchDetailsTeam = (teamID: number, seasonTeamID: number, seasonTeamName: 
     medals: i === 0 ? [medal(1, 'Grand Slam', 2), medal(2, 'Pancake', 1)] : [medal(3, 'Double Kill', 1)],
   })),
 });
-const matchDetails = () => ({
+const matchDetails = (): MatchDetailsDto => ({
   matchID: '0f8fad5b-d9cb-469f-a165-70867728950e', startTime: '2026-10-30T23:05:00Z', endTime: '2026-10-30T23:15:00Z', duration: '00:10:00',
   seasonMatch: { seasonMatchID: 31, seasonID: 12, seasonName: 'Autumn Brawl', gameNumber: 1, bestOf: 3 },
   teams: [matchDetailsTeam(0, 1, 'Red Rampage', 5, 'Won', 0), matchDetailsTeam(1, 2, 'Blue Bombers', 3, 'Lost', 10)],
   medals: [medal(3, 'Double Kill', 6), medal(1, 'Grand Slam', 4), medal(2, 'Pancake', 2)],
 });
 
-const users = [['admin', 'Commander Grif', 'CommanderGrif', 'grif#0001'], ['chief', 'MasterChief117', 'MasterChief117', 'chief'], ['tucker', 'Tucker Tactics', null, 'tucker.t']]
+const users: UserResponseDto[] = ([['admin', 'Commander Grif', 'CommanderGrif', 'grif#0001'], ['chief', 'MasterChief117', 'MasterChief117', 'chief'], ['tucker', 'Tucker Tactics', null, 'tucker.t']] as [string, string, string | null, string][])
   .map(([userName, displayName, gamertag, discord], i) => ({ userID: i + 1, userName, lockoutEnd: null, lockoutEnabled: true, isDummyUser: false,
-    accessFailedCount: 0, region: 'NA', displayName, gamertag, discord, externalAuthCount: 1, hasPassword: true, roles: [] }));
+    accessFailedCount: 0, region: 'NA', regionID: 1, displayName, gamertag, discord, externalAuthCount: 1, hasPassword: true, roles: [] }));
 
 // The team builder's board for the Winter Campaign draft (/season/13/draft): two captains with
 // their first picks, the rest of the signups in the pool.
-const draftPlayer = (personID: number, name: string, round: number | null = null) => ({ name, personID, pick: round, round });
-const draftTeams = [
-  { teamID: 1, teamName: "Sarge Prime's Crew", captain: { name: 'Sarge Prime', personID: 201, order: 1 }, players: [draftPlayer(301, 'Plasma Pete', 1)] },
-  { teamID: 2, teamName: "Caboose42's Crew", captain: { name: 'Caboose42', personID: 202, order: 2 }, players: [draftPlayer(302, 'Banshee Bri', 1)] },
+const draftPlayer = (personID: number, name: string, round: number | null = null): TeamsPlayerDto => ({ name, personID, pick: round, round, region: null });
+const draftTeams: TeamResponseDto[] = [
+  { teamID: 1, teamName: "Sarge Prime's Crew", captain: { name: 'Sarge Prime', personID: 201, order: 1, region: null }, players: [draftPlayer(301, 'Plasma Pete', 1)] },
+  { teamID: 2, teamName: "Caboose42's Crew", captain: { name: 'Caboose42', personID: 202, order: 2, region: null }, players: [draftPlayer(302, 'Banshee Bri', 1)] },
 ];
 const draftPool = ['Warthog Wes', 'Needler Nan', 'Spartan Sam', 'Elite Eli', 'Grunt Gus', 'Jackal Jo'].map((name, i) => draftPlayer(401 + i, name));
 
 // The commissioner dashboard: a reschedule waiting for a decision, one whose match was reported since (Reject only),
 // and a match past its time.
-const commissionerDashboard = {
+const commissionerDashboard: CommissionerDashboardDto = {
   pendingReschedules: [{ matchRescheduleID: 7, seasonMatchID: 32, homeCaptain: 'Hammer Bros', awayCaptain: 'Sword Swallowers',
     originalScheduledTime: '2026-10-29T01:00:00Z', newScheduledTime: '2026-10-31T01:00:00Z', reason: 'Half the team is at a LAN that night',
-    requestedByGamertag: 'Grifmeister', requestedAt: '2026-10-27T15:20:00Z', status: 'Pending', discordThreadID: null,
+    requestedByGamertag: 'Grifmeister', requestedByUserID: 30, requestedAt: '2026-10-27T15:20:00Z', status: 'Pending', discordThreadID: null,
     canApprove: true, whyNotApprovable: null },
   { matchRescheduleID: 9, seasonMatchID: 34, homeCaptain: 'Red Rampage', awayCaptain: 'Blue Bombers',
     originalScheduledTime: '2026-10-28T01:00:00Z', newScheduledTime: '2026-11-01T01:00:00Z', reason: 'Two of us are travelling',
-    requestedByGamertag: 'Sarge Prime', requestedAt: '2026-10-27T18:00:00Z', status: 'Pending', discordThreadID: '1300000000000000009',
+    requestedByGamertag: 'Sarge Prime', requestedByUserID: 10, requestedAt: '2026-10-27T18:00:00Z', status: 'Pending', discordThreadID: '1300000000000000009',
     canApprove: false, whyNotApprovable: 'This match already has a result.' }],
   overdueMatches: [{ seasonMatchID: 33, homeCaptain: 'Gravity Wells', awayCaptain: 'Sticky Situation', scheduledTime: '2026-10-27T00:30:00Z', hoursOverdue: 65 }],
   summary: { pendingRescheduleCount: 2, overdueMatchCount: 1, criticalOverdueCount: 1 },
@@ -184,23 +199,23 @@ const signupsClose = new Date(Math.max(Date.parse('2026-11-10T23:59:00Z'), Date.
 
 const seasonNames: Record<number, string> = { 11: 'Summer Smash', 12: 'Autumn Brawl', 13: 'Winter Campaign' };
 /** A season's facts (SeasonInfoDto), as every DTO of or about a season has them: an AGLA Halo Infinite season of 2026 played in the app unless changed. */
-const seasonInfo = (seasonID: number, changes: Record<string, unknown> = {}) => ({
+const seasonInfo = (seasonID: number, changes: Partial<SeasonInfoDto> = {}): SeasonInfoDto => ({
   seasonID, seasonName: seasonNames[seasonID] ?? `Season ${seasonID}`, start: '2026-01-01T00:00:00Z', end: '2026-03-01T00:00:00Z', year: 2026,
   hasEnded: true, leagueID: 1, leagueName: 'AGLA', leagueSlug: 'agla', gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite',
   division: null, format: 'LeagueSeason', isHistorical: false, historicalSourceUrl: null, ...changes,
 });
 
 // The season editor's form (/seasonEdit/12), in the shape GetSeasons lists them
-const season = (seasonID: number) => ({ seasonID, seasonName: seasonNames[seasonID], signupsOpen: '2026-08-01T00:00:00Z',
+const season = (seasonID: number): SeasonDto => ({ seasonID, seasonName: seasonNames[seasonID], publicAt: null, signupsOpen: '2026-08-01T00:00:00Z',
   signupsClose: '2026-08-31T00:00:00Z', draftStart: '2026-09-02T00:00:00Z', seasonStart: '2026-09-07T00:00:00Z', seasonEnd: '2026-11-30T00:00:00Z', signupsCount: 24,
-  gameVersionID: 6, leagueID: 1, division: null, format: 'LeagueSeason' });
+  gameVersionID: 6, leagueID: 1, division: null, format: 'LeagueSeason', copyFromSeasonID: null, copyAvailability: false, copySignups: false, copyTeams: false });
 
 // A user as User Management edits and merges them (/usermanagement/edituser/2, /usermanagement/mergeuser/2/3)
 const roleNames = ['Sysadmin', 'Commissioner', 'Player'];
-const userDetail = (user: typeof users[number]) => ({ ...user, roles: roleNames.map((roleName, i) => ({ roleName, hasRole: user.userID === 1 || i === 2 })) });
+const userDetail = (user: UserResponseDto): UserResponseDto => ({ ...user, roles: roleNames.map((roleName, i) => ({ roleName, hasRole: user.userID === 1 || i === 2 })) });
 
 // A profile's most earned medals (/profile/117, /profile/999)
-const commendations = (userID: number) => ({
+const commendations = (userID: number): ProfileCommendationsDto => ({
   userID, totalMedals: 1342, distinctMedals: 9,
   commendations: [
     { medalID: 1, medalName: 'Killing Spree', description: 'Kill 5 enemies without dying.', difficultyName: 'Normal', typeName: 'Spree', count: 412, matches: 120, tier: 4, tierFloor: 250, nextTierAt: 500 },
@@ -209,7 +224,7 @@ const commendations = (userID: number) => ({
   ],
 });
 
-const profileStats = (userID: number, gamertag: string | null) => ({
+const profileStats = (userID: number, gamertag: string | null): ProfileStatsDto => ({
   userID,
   gamertag,
   displayName: gamertag ?? `User ${userID}`,
@@ -238,6 +253,7 @@ const profileStats = (userID: number, gamertag: string | null) => ({
       gameVersionSlug: 'halo3',
       seasonsCount: 1,
       gamesPlayed: 10,
+      gamesDecidedByVote: 0,
       wins: 8,
       losses: 2,
       winPercent: 80,
@@ -269,6 +285,7 @@ const profileStats = (userID: number, gamertag: string | null) => ({
       gameVersionSlug: 'infinite',
       seasonsCount: 0,
       gamesPlayed: 42,
+      gamesDecidedByVote: 0,
       wins: 27,
       losses: 15,
       winPercent: 64.3,
@@ -300,6 +317,7 @@ const profileStats = (userID: number, gamertag: string | null) => ({
     gameVersionSlug: 'career',
     seasonsCount: 1,
     gamesPlayed: 10,
+    gamesDecidedByVote: 0,
     wins: 8,
     losses: 2,
     winPercent: 80,
@@ -328,6 +346,8 @@ const profileStats = (userID: number, gamertag: string | null) => ({
   seasons: [
     {
       playerSeasonStatID: 1,
+      userID,
+      gamertag: gamertag ?? `User ${userID}`,
       season: seasonInfo(12, { leagueName: 'Grifball League', leagueSlug: 'gl', division: 'Pro' }),
       gameVersionID: 1,
       gameVersionName: 'Halo 3',
@@ -354,6 +374,9 @@ const profileStats = (userID: number, gamertag: string | null) => ({
       sprees: 5,
       multiKills: 12,
       exterminations: 1,
+      punches: null,
+      swordKills: null,
+      score: null,
       damageDealt: null,
       damageTaken: null,
     },
@@ -391,7 +414,7 @@ const manualGame = {
 };
 
 /** A season played in the app, as GetSeasonSummary answers. */
-const summary = (seasonID: number) => ({
+const summary = (seasonID: number): SeasonSummaryDto => ({
   ...seasonInfo(seasonID, { hasEnded: seasonID === 11 }), teamCount: 6, signupCount: 10, matchCount: 12, bracketMatchCount: 7, playerStatCount: 0, champions: [],
 });
 
@@ -400,11 +423,11 @@ const HISTORICAL_SOURCE = 'https://docs.google.com/spreadsheets/d/e2e-summer-lea
 const historicalSeason = seasonInfo(5, { seasonName: 'Summer League 2010', start: '2010-01-01T00:00:00Z', end: '2010-12-31T00:00:00Z', year: 2010,
   gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true, historicalSourceUrl: HISTORICAL_SOURCE });
 const historicalTeams: [number, string, number, number][] = [[41, 'Relentless', 9, 1], [42, 'Benchwarmers', 5, 5], [43, 'Truthless and the Truthlessettes', 1, 9]];
-const historicalStat = (id: number, gamertag: string, teamID: number, goals: number, isPlayoffs = false) => ({
+const historicalStat = (id: number, gamertag: string, teamID: number, goals: number, isPlayoffs = false): SeasonPlayerStatDto => ({
   playerSeasonStatID: id, userID: 500 + id, gamertag, teamID, teamName: historicalTeams.find(t => t[0] === teamID)![1],
   tradeNote: null, roleNote: null, stintIndex: 1, isPlayoffs, isCombined: false, source: 'Manual', gamesPlayed: 10, wins: 6, losses: 4,
   winPercent: 60, goals, kills: 60 + goals, deaths: 40, assists: 5, kdRatio: 1.5, kdSpread: 20 + goals, carrierKills: 4, sprees: 2,
-  multiKills: 3, exterminations: 0,
+  multiKills: 3, exterminations: 0, punches: null, swordKills: null,
 });
 const historicalStats = [
   historicalStat(1, 'Legendary', 41, 14), historicalStat(2, 'Old Timer', 41, 9), historicalStat(3, 'Bench Boss', 42, 7),
@@ -412,13 +435,14 @@ const historicalStats = [
 ];
 
 /** A season in the season list (GET /api/seasons), played in the app unless changed. */
-const seasonListItem = (seasonID: number, seasonName: string, start: string, end: string, changes: Record<string, unknown> = {}) => ({
+const seasonListItem = (seasonID: number, seasonName: string, start: string, end: string, changes: Partial<SeasonListItemDto> = {}): SeasonListItemDto => ({
   ...seasonInfo(seasonID, { seasonName, start: start + 'T00:00:00Z', end: end + 'T00:00:00Z', year: Number(start.slice(0, 4)) }),
   teamCount: 6, playerCount: 30, champions: [], teamNames: teams.map(t => t[1]), ...changes,
 });
 /** A title on the leaderboards: its season, tier and winning team. */
-const title = (seasonID: number, seasonName: string, tier: string, teamID: number) => ({ seasonID, seasonName, tier, teamID });
-const leader = (rank: number, userID: number, gamertag: string, statValue: number, perGame: number | null) => ({ rank, userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
+const title = (seasonID: number, seasonName: string, tier: string, teamID: number): TitleDto => ({ seasonID, seasonName, tier, teamID });
+const leader = (rank: number, userID: number, gamertag: string, statValue: number, perGame: number | null): MetricLeaderDto =>
+  ({ rank, userID, gamertag, statValue, gamesPlayed: 30, gamesDecidedByVote: 0, perGame, seasonsCount: 3, gameVersionName: null, secondaryStat: null });
 
 // The seasons a long-time archive player played: a list long enough that, on one line, it once widened the claims
 // table's Gamertag column until every other column was off to the side (#308)
@@ -431,14 +455,15 @@ const veteranSeasons = [
 
 // Four pending gamertag claims on the backfilled season 5's players: a roster match with a team, a set gamertag
 // without, an XUID lookup (who holds the gamertag now) and a user's claim of a past gamertag
-const gamertagClaims = [
-  { gamertagClaimID: 1, kind: 'RosterMatch', status: 'Pending', xboxUserID: 2535400000000117, xboxGamertag: 'MasterChief117', userID: 117,
+const unclaimed = { claimantUserID: null, claimantName: null, firstSeen: null, lastSeen: null, rejectionReason: null };
+const gamertagClaims: GamertagClaimDto[] = [
+  { ...unclaimed, gamertagClaimID: 1, kind: 'RosterMatch', status: 'Pending', xboxUserID: 2535400000000117, xboxGamertag: 'MasterChief117', userID: 117,
     gamertag: 'Legendary', placeholderUserID: 501, seasonID: 5, seasonName: 'Summer League 2010', teamID: 41, teamName: 'Relentless',
     createdAt: '2026-10-27T15:20:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: [] },
-  { gamertagClaimID: 2, kind: 'SetGamertag', status: 'Pending', xboxUserID: 2535400000000002, xboxGamertag: 'Old Timer', userID: 2,
+  { ...unclaimed, gamertagClaimID: 2, kind: 'SetGamertag', status: 'Pending', xboxUserID: 2535400000000002, xboxGamertag: 'Old Timer', userID: 2,
     gamertag: 'Old Timer', placeholderUserID: 502, seasonID: 5, seasonName: 'Summer League 2010', teamID: null, teamName: null,
     createdAt: '2026-10-28T09:05:00Z', currentGamertag: null, lookedUpAt: null, placeholderSeasons: [] },
-  { gamertagClaimID: 3, kind: 'XuidLookup', status: 'Pending', xboxUserID: 2535400000000503, xboxGamertag: null, userID: null,
+  { ...unclaimed, gamertagClaimID: 3, kind: 'XuidLookup', status: 'Pending', xboxUserID: 2535400000000503, xboxGamertag: null, userID: null,
     gamertag: 'Old School', placeholderUserID: 503, seasonID: 5, seasonName: 'Summer League 2010', teamID: null, teamName: null,
     createdAt: '2026-10-29T08:00:00Z', currentGamertag: 'ClutchKing22', lookedUpAt: '2026-10-29T09:00:00Z',
     placeholderSeasons: veteranSeasons },
@@ -459,11 +484,12 @@ const userMerges = [
 ];
 
 // A franchise's history (/history/team/1): Red Rampage this season, champions of the Summer Smash, and in the archive
-const franchiseSeason = (teamID: number, teamName: string, season: object, wins: number, losses: number, titles: string[], players: [number, string, boolean][], extra: object = {}) => ({
-  teamID, teamName, season, wins, losses, titles, ...extra,
-  players: players.map(([userID, gamertag, isCaptain], i) => ({ teamPlayerID: teamID * 100 + i, userID, gamertag, draftCaptainOrder: isCaptain ? 1 : null, draftRound: isCaptain ? null : i, isCaptain })),
+const franchiseSeason = (teamID: number, teamName: string, season: SeasonInfoDto, wins: number, losses: number, titles: string[], players: [number, string, boolean][],
+  extra: Partial<TeamHistorySeasonDto> = {}): TeamHistorySeasonDto => ({
+  teamID, teamName, season, wins, losses, titles, recordFromSource: false, ...extra,
+  players: players.map(([userID, gamertag, isCaptain], i) => ({ teamPlayerID: teamID * 100 + i, userID, gamertag, draftCaptainOrder: isCaptain ? 1 : null, draftRound: isCaptain ? null : i, isCaptain, region: null })),
 });
-const teamHistory = {
+const teamHistory: TeamHistoryDto = {
   teamName: 'Red Rampage', leagueName: 'AGLA', appearances: 3, wins: 22, losses: 9, championships: 1, players: 9,
   seasons: [
     franchiseSeason(1, 'Red Rampage', seasonInfo(12, { hasEnded: false, start: '2026-09-07T00:00:00Z', end: '2026-11-30T00:00:00Z' }), 6, 0, [],
@@ -477,37 +503,36 @@ const teamHistory = {
 };
 
 // Late League (/late-league, /late-league/3): the Discord queue's players now, and two archived seasons
-const matchmakingSeason = (matchmakingSeasonID: number, name: string, startsAt: string, endsAt: string, gameCount: number, playerCount: number) => ({
+const matchmakingSeason = (matchmakingSeasonID: number, name: string, startsAt: string, endsAt: string, gameCount: number, playerCount: number): MatchmakingSeasonDto => ({
   matchmakingSeasonID, name, gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', startsAt: startsAt + 'T00:00:00Z', endsAt: endsAt + 'T00:00:00Z',
   gameCount, playerCount, isHistorical: true, historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/e2e-late-league-' + matchmakingSeasonID,
 });
 const lateLeagueSeasons = [matchmakingSeason(3, 'Late League Season 3', '2011-01-03', '2011-04-25', 212, 48), matchmakingSeason(2, 'Late League Season 2', '2010-08-02', '2010-12-13', 187, 41)];
-type MatchmakingSeason = typeof lateLeagueSeasons[number];
-const matchmakingStat = (userID: number, gamertag: string, gamesPlayed: number, wins: number, goals: number, kills: number, deaths: number, season: MatchmakingSeason | null) => ({
+const matchmakingStat = (userID: number, gamertag: string, gamesPlayed: number, wins: number, goals: number, kills: number, deaths: number, season: MatchmakingSeasonDto | null): MatchmakingPlayerStatDto => ({
   matchmakingSeasonID: season?.matchmakingSeasonID ?? null, matchmakingSeasonName: season?.name ?? null, userID, gamertag,
   gameVersionID: season ? 1 : 6, gameVersionName: season ? 'Halo 3' : 'Halo Infinite', gameVersionSlug: season ? 'halo3' : 'infinite',
-  source: season ? 'Recorded' : 'Matches', gamesPlayed, wins, losses: gamesPlayed - wins, winPercent: Math.round(wins / gamesPlayed * 1000) / 10,
+  source: season ? 'Recorded' : 'Matches', gamesPlayed, gamesDecidedByVote: 0, wins, losses: gamesPlayed - wins, winPercent: Math.round(wins / gamesPlayed * 1000) / 10,
   goals, kills, deaths, assists: Math.round(kills / 4), kdRatio: Math.round(kills / deaths * 100) / 100, kdSpread: kills - deaths, carrierKills: Math.round(kills / 6),
 });
-const lateLeaguePlayers = (season: MatchmakingSeason | null) => [
+const lateLeaguePlayers = (season: MatchmakingSeasonDto | null) => [
   matchmakingStat(117, 'MasterChief117', 42, 27, 31, 412, 298, season), matchmakingStat(501, 'Legendary', 38, 22, 25, 377, 301, season),
   matchmakingStat(12, 'Banshee Bri', 35, 16, 12, 289, 310, season), matchmakingStat(999, 'CommanderGrif', 29, 11, 8, 201, 260, season),
 ];
 
 // Two players of one name, told apart by their labels (QuickSearchPlayerDto.Kind): the Xbox account that holds the
 // gamertag now ("Current gamertag"), and the archive's player who used it (no Xbox account; "Archive · 2009–2011")
-const oldTimers = [
+const oldTimers: QuickSearchPlayerDto[] = [
   { userID: 2, name: 'Old Timer', pastGamertag: null, matchedName: null, kind: 'Xbox', years: null },
   { userID: 502, name: 'Old Timer', pastGamertag: null, matchedName: null, kind: 'Archive', years: '2009–2011' },
 ];
 
 // The quick search (Ctrl+K), whatever is typed (the query string is not matched): players (the two Old Timers; one
 // found by a past gamertag, one by their Discord name), teams and seasons
-const quickSearch = {
+const quickSearch: QuickSearchDto = {
   players: [
     ...oldTimers,
-    { userID: 117, name: 'MasterChief117', pastGamertag: 'Legendary', matchedName: null },
-    { userID: 999, name: 'Commander Grif', pastGamertag: null, matchedName: 'grif#0001' },
+    { userID: 117, name: 'MasterChief117', pastGamertag: 'Legendary', matchedName: null, kind: null, years: null },
+    { userID: 999, name: 'Commander Grif', pastGamertag: null, matchedName: 'grif#0001', kind: null, years: null },
   ],
   teams: [
     { teamID: 41, teamName: 'Relentless', seasonID: 5, seasonName: 'Summer League 2010' },
@@ -681,17 +706,17 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
     '/api/seasons/12/player-stats': answer('getSeasonPlayerStats', []),
     '/api/seasons/5/teams': answer('getSeasonTeams', [
               {
-                teamID: 41, teamName: 'Relentless', wins: 9, losses: 1, tbd: 0, recordFromSource: true, titles: ['Pro'],
+                teamID: 41, teamName: 'Relentless', wins: 9, losses: 1, tbd: 0, recordFromSource: true, titles: ['Pro'], draftCaptainOrder: null,
                 players: [
-                  { teamPlayerID: 4101, userID: 501, gamertag: 'Legendary', isCaptain: true },
-                  { teamPlayerID: 4102, userID: 502, gamertag: 'Old Timer', isCaptain: false },
+                  { teamPlayerID: 4101, userID: 501, gamertag: 'Legendary', isCaptain: true, draftCaptainOrder: null, draftPick: null, draftRound: null, region: null },
+                  { teamPlayerID: 4102, userID: 502, gamertag: 'Old Timer', isCaptain: false, draftCaptainOrder: null, draftPick: null, draftRound: null, region: null },
                 ],
               },
             ]),
     '/api/seasons/12/teams': answer('getSeasonTeams', teams.map(([teamID, name], i) => ({
-              teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1, tbd: 0, recordFromSource: false, titles: [],
+              teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1, tbd: 0, recordFromSource: false, titles: [], draftCaptainOrder: i + 1,
               players: [
-                { teamPlayerID: teamID * 10 + 1, userID: teamID * 100 + 1, gamertag: `${name} Captain`, isCaptain: true },
+                { teamPlayerID: teamID * 10 + 1, userID: teamID * 100 + 1, gamertag: `${name} Captain`, isCaptain: true, draftCaptainOrder: i + 1, draftPick: null, draftRound: null, region: null },
               ],
             }))),
     '/api/seasons/5/standings': answer('getTeamStandings', historicalTeams.map(([teamID, teamName, wins, losses]) => ({ teamID, teamName, wins, losses, recordFromSource: true }))),
@@ -701,12 +726,12 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
               teamName: 'Relentless', season: historicalSeason, recordFromSource: true,
               wins: 9, losses: 1, tbd: 0, titles: ['Pro'],
               players: [
-                { teamPlayerID: 4101, userID: 501, gamertag: 'Legendary', draftCaptainOrder: null, draftRound: null, isCaptain: true },
-                { teamPlayerID: 4102, userID: 502, gamertag: 'Old Timer', draftCaptainOrder: null, draftRound: null, isCaptain: false },
+                { teamPlayerID: 4101, userID: 501, gamertag: 'Legendary', draftCaptainOrder: null, draftRound: null, isCaptain: true, region: null },
+                { teamPlayerID: 4102, userID: 502, gamertag: 'Old Timer', draftCaptainOrder: null, draftRound: null, isCaptain: false, region: null },
               ],
             }),
     '/api/teams/41/matches': answer('matches', []),
-    '/api/seasons/12/standings': answer('getTeamStandings', teams.map(([teamID, name], i) => ({ teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1 }))),
+    '/api/seasons/12/standings': answer('getTeamStandings', teams.map(([teamID, name], i) => ({ teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1, recordFromSource: false }))),
     '/api/seasons/12/matches/scheduled': answer('getScheduledMatches', scheduled),
     '/api/seasons/12/matches/unscheduled': answer('getUnscheduledMatches', [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', complete: false }]),
     // The season's playoff bracket, for any season
@@ -741,10 +766,10 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
     '/api/seasons/13/signups/mine': answer('getSignup', null),
     '/api/seasons/13/signups/mine/timeslots': answer('getTimeslots', timeslots),
     '/api/seasons/12/signups': answer('getSignups', players.map((personName, i) => ({ seasonID: 12, userID: i, personName, timestamp: `2026-10-2${i}T18:0${i}:00Z`,
-              teamName: i % 3 === 0 ? `${personName}'s Crew` : null, willCaptain: i % 3 === 0, requiresAssistanceDrafting: i === 3, timeslots: [] }))),
+              teamName: i % 3 === 0 ? `${personName}'s Crew` : null, willCaptain: i % 3 === 0, requiresAssistanceDrafting: i === 3, region: null, timeslots: [] }))),
     '/api/seasons/12/grades': answer('getGrades', { totals: [], perMinutes: [], letters: players.slice(0, 5).map((p, i) => grades(i, p)) }),
     '/api/seasons/settings': answer('getSeasons', [12, 13, 11].map(season)),
-    '/api/seasons/12/settings': answer('getSeason', { ...season(12), copyFromSeasonID: null, copyAvailability: false, copySignups: false, copyTeams: false }),
+    '/api/seasons/12/settings': answer('getSeason', season(12)),
     '/api/game-versions': answer('getGameVersions', [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]),
     '/api/leagues': answer('getLeagues', [{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'Late League' }]),
     // The times each season offers for signups: weeknights at 7 and 8
@@ -831,7 +856,7 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
     '/api/xuid-lookups/status': answer('getXuidLookupStatus', { placeholders: 12, due: 3, found: 7, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-29T09:00:00Z' }),
     // A franchise's seasons, from its team of this season (the team page's "Franchise history" link)
     '/api/teams/1/history': answer('history', teamHistory),
-    '/api/late-league/queue': answer('getLateLeagueQueue', { gameCount: 96, players: lateLeaguePlayers(null) }),
+    '/api/late-league/queue': answer('getLateLeagueQueue', { gameCount: 96, voteDecidedGameCount: 0, players: lateLeaguePlayers(null) }),
     '/api/late-league/seasons': answer('getLateLeagueSeasons', lateLeagueSeasons),
     '/api/late-league/seasons/3': answer('getLateLeagueSeason', { season: lateLeagueSeasons[0], players: lateLeaguePlayers(lateLeagueSeasons[0]) }),
     '/api/search': answer('quickSearch', quickSearch),
@@ -839,7 +864,7 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
     '/api/backups/info': answer('backupInfo', { provider: 'PostgreSQL', latestMigration: '20261028211400_MatchmakingSeasons', formats: ['sqlite', 'postgres', 'sqlserver', 'dump'] }),
     '/api/backups/sqlite/status': answer('backupDownloadStatus', { state: 'Succeeded', format: 'sqlite', started: '2026-10-29T17:40:00Z', finished: '2026-10-29T17:41:12Z',
               fileName: 'GrifballWebApp-2026-10-29.sqlite', tables: 64, rows: 182340, message: null, size: 41_943_040, runningFormat: null, progress: null, progressMessage: null }),
-    '/api/database-exports/status': answer('backupExportStatus', { state: 'Succeeded', provider: 'SqlServer', started: '2026-10-28T09:00:00Z', finished: '2026-10-28T09:03:10Z', tables: 64, rows: 181902, message: null }),
+    '/api/database-exports/status': answer('backupExportStatus', { state: 'Succeeded', provider: 'SqlServer', started: '2026-10-28T09:00:00Z', finished: '2026-10-28T09:03:10Z', tables: 64, rows: 181902, message: null, progress: null, progressMessage: null }),
     // The Telemetry page (/usermanagement/telemetry): every backend set up
     '/api/telemetry/status': answer('getTelemetryStatus', { serviceName: 'grifballwebapp', logs: true, metrics: true, traces: true }),
     '/api/telemetry/metrics': answer('getTelemetryMetrics', telemetryMetrics),
@@ -916,17 +941,19 @@ const historicalJobs = [
   { jobID: 40, kind: 'Refresh', trigger: 'Scheduled', status: 'Succeeded', stage: 'Done', createdAt: '2026-10-29T06:00:00Z', finishedAt: '2026-10-29T06:02:00Z', needsReview: 0 },
   { jobID: 39, kind: 'Preview', trigger: 'Manual', status: 'Failed', stage: 'Failed', createdAt: '2026-10-28T20:00:00Z', finishedAt: '2026-10-28T20:00:05Z', needsReview: 0 },
 ];
-const historicalJob = {
+const historicalJob: HistoricalImportJobDto = {
   jobID: 41, kind: 'Import', trigger: 'Scheduled', guarded: true, status: 'Succeeded', stage: 'Done', seasonsDone: 12, seasonsTotal: 12,
   report: {
     seasonsCreated: 0, seasonsUpdated: 11, teamsCreated: 0, teamsRemoved: 0, statsRemoved: 2, championshipsRemoved: 0, statsInserted: 3, statsUpdated: 540,
     recordedGamesImported: 1210, recordedGamesRemoved: 0, championshipsInserted: 0, championshipsUpdated: 0, dummyUsersCreated: 4, waypointMatchesPulled: 0,
     skipped: [], warnings: ['late-league-aspence-main/S8Halo 3 Stats: stopped for review, it would remove 30 of 64 stat rows, 2 of 8 teams, 0 of 0 titles'], errors: [],
-    seasonRemovals: [], sourcesChanged: [], sourcesFailed: [], sourcesUnchanged: 0, importJobID: null,
+    seasonRemovals: [], sourcesChanged: [], sourcesFailed: [], sourcesUnchanged: 0, importJobID: null, discordClaimsCreated: 0, discordLinked: 0,
+    discordMerged: 0, gamesLinked: 0, manualReplacedByWaypoint: 0, matchmakingSeasonsCreated: 0, matchmakingSeasonsUpdated: 0, missingMatches: [],
+    recordedGamesSkippedAsWaypoint: 0, regionsSet: 0, seasonMatchesCreated: 0, seasonMatchesRemoved: 0, seasonsRetired: 0, suggestionsCreated: 0,
   },
   error: null, createdAt: '2026-10-29T06:02:00Z', startedAt: '2026-10-29T06:02:01Z', finishedAt: '2026-10-29T06:09:00Z',
   reviews: [
-    { reviewID: 7, seasonKey: 'late-league-aspence-main/S8Halo 3 Stats', seasonName: 'Late League Season 8 (Halo 3)', status: 'NeedsReview', statsBefore: 64, statsRemoved: 30,
+    { reviewID: 7, seasonID: null, seasonKey: 'late-league-aspence-main/S8Halo 3 Stats', seasonName: 'Late League Season 8 (Halo 3)', status: 'NeedsReview', statsBefore: 64, statsRemoved: 30,
       teamsBefore: 8, teamsRemoved: 2, titlesBefore: 0, titlesRemoved: 0, approvalJobID: null, decidedAt: null },
   ],
 };

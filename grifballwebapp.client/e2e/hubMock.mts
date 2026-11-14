@@ -82,7 +82,7 @@ export function handleHubUpgrade(req: IncomingMessage, socket: Socket): void {
   socket.on('error', stop);
   socket.on('close', stop);
 
-  socket.on('data', chunk => {
+  socket.on('data', (chunk: Buffer) => {
     buffer = Buffer.concat([buffer, chunk]);
     let frame;
     while ((frame = readClientFrame(buffer)) != null) {
