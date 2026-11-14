@@ -106,114 +106,27 @@ describe('HomeStore', () => {
       req.flush(mockResult);
     });
 
-    it('should update pastSeasons data source', (done) => {
-      const mockEvents = [
-        { ...seasonInfo(4, { seasonName: 'Old Event', start: '2022-01-01', end: '2022-01-31' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] }
-      ];
-      const mockResult = {
-        results: mockEvents,
-        totalCount: 1,
-        pageNumber: 1,
-        pageSize: 10
-      };
-
-      store.loadPastSeasons(10, 1, undefined, undefined).subscribe({
-        next: () => {
-          expect(store.pastSeasons()).toEqual(mockEvents);
-          done();
-        }
-      });
-
-      const req = http.expectOne((request) => request.url === '/api/seasons');
-      req.flush(mockResult);
+    it('asks for a page sorted descending', () => {
+      store.loadPastSeasons(25, 3, 'desc', 'seasonName').subscribe();
+      const req = http.expectOne(r => r.url === '/api/seasons');
+      expect(req.request.params.get('pageSize')).toBe('25');
+      expect(req.request.params.get('pageNumber')).toBe('3');
+      expect(req.request.params.get('sortDirection')).toBe('Desc');
+      req.flush({ results: [], totalCount: 0 });
     });
 
-    it('should update total count when getting past seasons', (done) => {
-      const mockResult = {
-        results: [],
-        totalCount: 42,
-        pageNumber: 1,
-        pageSize: 10
-      };
+    it('keeps the page shown, and stays usable, when a page fails', () => {
+      const shown = { ...seasonInfo(3, { seasonName: 'Past Event', start: '2023-01-01', end: '2023-01-31' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] };
+      store.loadPastSeasons(10, 1, undefined, undefined).subscribe();
+      http.expectOne(r => r.url === '/api/seasons').flush({ results: [shown], totalCount: 11 });
 
-      store.loadPastSeasons(10, 1, undefined, undefined).subscribe({
-        next: () => {
-          expect(store.total()).toBe(42);
-          done();
-        }
-      });
-
-      const req = http.expectOne((request) => request.url === '/api/seasons');
-      req.flush(mockResult);
-    });
-  });
-
-  describe('pagination and sorting', () => {
-    it('should handle page size changes', (done) => {
-      const mockResult = {
-        results: [],
-        totalCount: 0,
-        pageNumber: 1,
-        pageSize: 25
-      };
-
-      store.loadPastSeasons(25, 1, undefined, undefined).subscribe({
-        next: result => {
-          expect(result).toEqual(mockResult);
-          done();
-        }
-      });
-
-      const req = http.expectOne((request) => 
-        request.url === '/api/seasons' &&
-        request.params.get('pageSize') === '25'
-      );
-      req.flush(mockResult);
-    });
-
-    it('should handle page number changes', (done) => {
-      const mockResult = {
-        results: [],
-        totalCount: 0,
-        pageNumber: 3,
-        pageSize: 10
-      };
-
-      store.loadPastSeasons(10, 3, undefined, undefined).subscribe({
-        next: result => {
-          expect(result).toEqual(mockResult);
-          done();
-        }
-      });
-
-      const req = http.expectOne((request) => 
-        request.url === '/api/seasons' &&
-        request.params.get('pageNumber') === '3'
-      );
-      req.flush(mockResult);
-    });
-
-    it('should handle descending sort', (done) => {
-      const mockResult = {
-        results: [],
-        totalCount: 0,
-        pageNumber: 1,
-        pageSize: 10
-      };
-
-      store.loadPastSeasons(10, 1, 'desc', 'seasonName').subscribe({
-        next: result => {
-          expect(result).toEqual(mockResult);
-          done();
-        }
-      });
-
-      const req = http.expectOne((request) => 
-        request.url === '/api/seasons' &&
-        request.params.get('sortDirection') === 'Desc' &&
-        request.params.get('sortColumn') === 'seasonName'
-      );
-      req.flush(mockResult);
+      const failed = jasmine.createSpy('failed');
+      // A failure must not reach the paging stream: it would end it, and the table would page no more
+      store.loadPastSeasons(10, 2, undefined, undefined).subscribe({ error: failed });
+      http.expectOne(r => r.url === '/api/seasons').flush(null, { status: 500, statusText: 'Server Error' });
+      expect(failed).not.toHaveBeenCalled();
+      expect(store.pastSeasons()).toEqual([shown]);
+      expect(store.total()).toBe(11);
     });
   });
 });

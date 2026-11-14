@@ -289,7 +289,7 @@ describe('LateLeagueQueueComponent', () => {
     create();
     show({ ...player, inQueue: true });
     button()!.click();
-    http.expectOne('/api/queue/leave').flush({ ...player, inQueue: true });
+    http.expectOne('/api/queue/leave').flush(player);
     expect(fixture.componentInstance.message()).toBe('You have left the Late League queue');
 
     connection.onreconnected.calls.mostRecent().args[0]();

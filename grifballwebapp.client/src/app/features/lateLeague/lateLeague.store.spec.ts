@@ -23,6 +23,8 @@ describe('LateLeagueStore', () => {
     TestBed.tick();
     http.expectNone(() => true);
     expect(store.detail()).toBeNull();
+    // Nothing has been asked for yet: not done loading
+    expect(store.loaded()).toBeFalse();
   });
 
   it("loads the queue's players and the seasons without a season, one failing without the other", async () => {
