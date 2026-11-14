@@ -167,9 +167,9 @@ public class SeasonMatchControllerActionsUnitTests : SqliteGrifballContextFixtur
         _quartz = await InMemoryQuartz.Create();
         var controller = Controller();
 
-        var idle = await controller.MatchPullStatus(match.SeasonMatchID, _quartz.OnDemand, CancellationToken.None);
-        var pulled = await controller.PullMatches(match.SeasonMatchID, _quartz.OnDemand, CancellationToken.None, backToSeasonStart: true);
-        var queued = await controller.MatchPullStatus(match.SeasonMatchID, _quartz.OnDemand, CancellationToken.None);
+        var idle = await controller.MatchPullStatus(match.SeasonMatchID, new SeasonMatchPulls(_quartz.OnDemand), CancellationToken.None);
+        var pulled = await controller.PullMatches(match.SeasonMatchID, new SeasonMatchPulls(_quartz.OnDemand), CancellationToken.None, backToSeasonStart: true);
+        var queued = await controller.MatchPullStatus(match.SeasonMatchID, new SeasonMatchPulls(_quartz.OnDemand), CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -186,7 +186,7 @@ public class SeasonMatchControllerActionsUnitTests : SqliteGrifballContextFixtur
     {
         _quartz = await InMemoryQuartz.Create();
 
-        var result = await Controller().PullMatches(999, _quartz.OnDemand, CancellationToken.None);
+        var result = await Controller().PullMatches(999, new SeasonMatchPulls(_quartz.OnDemand), CancellationToken.None);
 
         result.Result.AssertProblem(StatusCodes.Status404NotFound, "There is no such season match");
     }

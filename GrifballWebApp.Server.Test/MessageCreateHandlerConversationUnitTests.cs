@@ -1,7 +1,9 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.HaloInfinite;
-using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Application.Tools;
+using Microsoft.Extensions.Logging.Abstractions;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Infrastructure;
@@ -14,9 +16,7 @@ using Microsoft.Extensions.Logging;
 using NetCord.Rest;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
 using System.Text.Json;
-using HaloMatch = GrifballWebApp.Domain.Halo.Match;
 using DiscordUser = GrifballWebApp.Domain.Players.DiscordUser;
 
 namespace GrifballWebApp.Server.Test;
@@ -36,10 +36,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     private const ulong AuthorId = 5;
     private static readonly ulong[] MentionsTheBot = [BotId];
     private static readonly string[] HiThere = ["Hi there"];
-    private static readonly string[] TheTools = ["GetTime", "RecentMatches", "RecentMatchesUrl"];
     private static readonly string[] ShownInFull = ["This first chunk is over 25 characters!"];
-    private static readonly string[] JustNone = ["None"];
-    private static readonly long[] Xuid77 = [77];
 
     private readonly RecordingLogger<MessageCreateHandler> _logger = new();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
@@ -65,6 +62,9 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         _ambient.IsActive.Returns(true);
         _services = new ServiceCollection()
             .AddSingleton<GrifballContext>(Db)
+            .AddSingleton<IApplicationDbContext>(Db)
+            .AddSingleton<TimeProvider>(_time)
+            .AddSingleton(typeof(ILogger<>), typeof(NullLogger<>))
             .AddSingleton(_currentUser)
             .AddSingleton(_ambient)
             .AddSingleton(_xboxUsers)
@@ -136,7 +136,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
                 (ChatRole.User, "hello"),
             }));
             Assert.That(model.Options!.Instructions, Does.Contain("You are a Discord bot"));
-            Assert.That(model.Options!.Tools!.Select(x => x.Name), Is.EquivalentTo(TheTools));
+            // The author has no linked account: every chat tool but the one only some roles may use
+            Assert.That(model.Options!.Tools!.Select(x => x.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => t != "pull_season_match_games")));
             // The two users were there already: not added again
             Assert.That(await Db.DiscordUsers.CountAsync(), Is.EqualTo(2));
         }
@@ -235,120 +236,36 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     }
 
     [Test]
-    public async Task RecentMatchesTool_PullsThePlayersGames_AndGivesTheirLatest()
+    public async Task TheSharedTools_RunInTheMessagesScope_AndARefusalReachesTheModel()
     {
         var xbox = XboxUser.FromXbox(77, "Grunt Padre");
-        var other = XboxUser.FromXbox(78, "Other");
-        Db.XboxUsers.AddRange(xbox, other);
-        var matchID = Guid.Parse("6f0c1c7e-1a52-4c11-9d7e-3f1c2b9a0a01");
-        var match = HaloMatch.Seed(matchID, startTime: new DateTime(2026, 10, 1, 20, 0, 0, DateTimeKind.Utc));
-        match.AddTeam(0, 50, Outcomes.Won);
-        match.AddTeam(1, 20, Outcomes.Lost);
-        match.AddParticipant(0, 77, new MatchParticipantStats());
-        match.AddParticipant(1, 78, new MatchParticipantStats());
-        Db.Matches.Add(match);
-        // Someone else's game: not theirs
-        var notTheirs = HaloMatch.Seed(Guid.NewGuid(), startTime: new DateTime(2026, 10, 2, 20, 0, 0, DateTimeKind.Utc));
-        notTheirs.AddTeam(0, 1, Outcomes.Won);
-        notTheirs.AddParticipant(0, 78, new MatchParticipantStats());
-        Db.Matches.Add(notTheirs);
+        Db.XboxUsers.Add(xbox);
         await Db.SaveChangesAsync();
-        _xboxUsers.GetsertXboxUserByGamertag("Grunt Padre", Arg.Any<CancellationToken>()).Returns((xbox, (string?)null));
-        object? result = null;
-        var model = new ScriptedChatClient((TimeSpan.Zero, "Here they are"))
+        object? now = null, games = null, refused = null;
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Done"))
         {
-            BeforeReply = async options => result = await Tool(options, "RecentMatches").InvokeAsync(new AIFunctionArguments { ["xboxGamertag"] = "Grunt Padre", ["matchCount"] = 3 }),
+            BeforeReply = async options =>
+            {
+                now = await Tool(options, "get_current_time").InvokeAsync(new AIFunctionArguments());
+                games = await Tool(options, "get_recent_games").InvokeAsync(new AIFunctionArguments { ["gamertag"] = "Grunt Padre" });
+                refused = await Tool(options, "get_recent_games").InvokeAsync(new AIFunctionArguments { ["gamertag"] = "Nobody" });
+            },
         };
 
         await Handler(model).HandleAsync(MessageToTheBot());
 
         AssertNothingLogged();
-        await _dataPull.Received(1).DownloadRecentMatchesForPlayers(Arg.Is<List<long>>(x => x.SequenceEqual(Xuid77)), 0, 0, 3, Arg.Any<CancellationToken>());
-        var matches = AsJson(result).EnumerateArray().ToList();
-        Assert.That(matches, Has.Count.EqualTo(1));
-        var text = matches[0].GetRawText();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(text, Does.Contain(matchID.ToString()));
-            Assert.That(text, Does.Contain("Grunt Padre").And.Contain("Other"));
+            Assert.That(AsJson(now).GetProperty("unixSeconds").GetInt64(), Is.EqualTo(_time.GetUtcNow().ToUnixTimeSeconds()));
+            Assert.That(AsJson(games).GetArrayLength(), Is.Zero);
+            Assert.That(refused?.ToString(), Does.StartWith("Refused: The site has no games saved for the gamertag Nobody"));
+            // A small model can't turn the tools' ISO times into Discord's epoch timestamps reliably: it writes them as given
+            Assert.That(model.Options!.Instructions, Does.Contain("in UTC, as the tools give them").And.Not.Contain("<t:"));
+            // The bot runs tools without asking first, as an MCP client would before one that isn't read-only
+            Assert.That(model.Options!.Instructions, Does.Contain("pull_season_match_games only when the person asks"));
         }
-    }
-
-    [Test]
-    public async Task RecentMatchesTool_WhenThePullFails_LogsItAndGivesTheGamesAlreadySaved()
-    {
-        var xbox = XboxUser.FromXbox(77, "Grunt Padre");
-        Db.XboxUsers.Add(xbox);
-        await Db.SaveChangesAsync();
-        _xboxUsers.GetsertXboxUserByGamertag("Grunt Padre", Arg.Any<CancellationToken>()).Returns((xbox, (string?)null));
-        _dataPull.DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .ThrowsAsync(new HttpRequestException("Halo is down"));
-        object? result = null;
-        var model = new ScriptedChatClient((TimeSpan.Zero, "None"))
-        {
-            BeforeReply = async options => result = await Tool(options, "RecentMatches").InvokeAsync(new AIFunctionArguments { ["xboxGamertag"] = "Grunt Padre" }),
-        };
-
-        await Handler(model).HandleAsync(MessageToTheBot());
-
-        var entry = _logger.Entries.Single();
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
-            Assert.That(entry.Message, Is.EqualTo("Failed to fetch recent matches for Grunt Padre"));
-            Assert.That(entry.Exception, Is.TypeOf<HttpRequestException>());
-            Assert.That(AsJson(result).GetArrayLength(), Is.Zero);
-            Assert.That(await SavedReplies(), Is.EqualTo(JustNone));
-        }
-    }
-
-    [Test]
-    public async Task RecentMatchesTool_UnknownGamertag_FailsWithWhyItIsUnknown()
-    {
-        _xboxUsers.GetsertXboxUserByGamertag("Nobody", Arg.Any<CancellationToken>()).Returns(((XboxUser?)null, (string?)"No such gamertag"));
-        Exception? failure = null;
-        var model = new ScriptedChatClient((TimeSpan.Zero, "Sorry"))
-        {
-            BeforeReply = async options =>
-            {
-                try
-                {
-                    await Tool(options, "RecentMatches").InvokeAsync(new AIFunctionArguments { ["xboxGamertag"] = "Nobody" });
-                }
-                catch (InvalidOperationException e)
-                {
-                    failure = e;
-                }
-            },
-        };
-
-        await Handler(model).HandleAsync(MessageToTheBot());
-
-        Assert.That(failure?.Message, Is.EqualTo("No such gamertag"));
+        // Reading the saved games pulls nothing from Halo
         await _dataPull.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);
-    }
-
-    [Test]
-    public async Task GetTimeAndUrlTools_GiveADiscordTimestampAndAWaypointLink()
-    {
-        object? time = null;
-        object? url = null;
-        var matchID = Guid.Parse("6f0c1c7e-1a52-4c11-9d7e-3f1c2b9a0a01");
-        var model = new ScriptedChatClient((TimeSpan.Zero, "Done"))
-        {
-            BeforeReply = async options =>
-            {
-                time = await Tool(options, "GetTime").InvokeAsync(new AIFunctionArguments());
-                url = await Tool(options, "RecentMatchesUrl").InvokeAsync(new AIFunctionArguments { ["xboxGamertag"] = "Grunt Padre", ["matchId"] = matchID });
-            },
-        };
-
-        await Handler(model).HandleAsync(MessageToTheBot());
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(AsJson(time).GetString(), Does.Match("^<t:\\d+>$"));
-            Assert.That(AsJson(url).GetString(), Is.EqualTo($"https://www.halowaypoint.com/halo-infinite/players/Grunt%20Padre/matches/{matchID}"));
-        }
     }
 }

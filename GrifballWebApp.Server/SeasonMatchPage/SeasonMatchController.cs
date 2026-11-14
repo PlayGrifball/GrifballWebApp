@@ -1,10 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Infrastructure.Jobs;
-using GrifballWebApp.Infrastructure.SeasonMatchPage;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
 
@@ -169,22 +169,22 @@ public class SeasonMatchController : ControllerBase
     [AllowAnonymous]
     [HttpGet("season-matches/{seasonMatchID:int}/match-pull", Name = "GetMatchPullStatus")]
     [ProducesResponseType<OnDemandJobStatusDto>(StatusCodes.Status200OK)]
-    public Task<OnDemandJobStatusDto> MatchPullStatus([FromRoute] int seasonMatchID, [FromServices] OnDemandJobs jobs, CancellationToken ct)
-        => jobs.Status<SeasonMatchPullJob>(SeasonMatchPullJob.RunName(seasonMatchID), ct);
+    public Task<OnDemandJobStatusDto> MatchPullStatus([FromRoute] int seasonMatchID, [FromServices] ISeasonMatchPulls pulls, CancellationToken ct)
+        => pulls.Status(seasonMatchID, ct);
 
     /// <summary>Queues a pull of the players' recent games (back to the season's start, when asked): a 202 with where it is.</summary>
-    [Authorize(Roles = "Commissioner,Sysadmin")]
+    // Any player may ask, as staff may: one pull per match is queued or running at a time (ISeasonMatchPulls)
+    [Authorize(Roles = SiteRoles.Pullers)]
     [HttpPost("season-matches/{seasonMatchID:int}/match-pull", Name = "PullMatches")]
     [ProducesResponseType<OnDemandJobStatusDto>(StatusCodes.Status202Accepted)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson)]
-    public async Task<ActionResult<OnDemandJobStatusDto>> PullMatches([FromRoute] int seasonMatchID, [FromServices] OnDemandJobs jobs, CancellationToken ct,
+    public async Task<ActionResult<OnDemandJobStatusDto>> PullMatches([FromRoute] int seasonMatchID, [FromServices] ISeasonMatchPulls pulls, CancellationToken ct,
         [FromQuery] bool backToSeasonStart = false)
     {
         if (!await _seasonMatchService.Exists(seasonMatchID, ct))
             return this.NotFoundProblem("There is no such season match");
-        return Accepted(await jobs.Enqueue<SeasonMatchPullJob, SeasonMatchPull>(SeasonMatchPullJob.RunName(seasonMatchID), new SeasonMatchPull(seasonMatchID, JobUser.IdOf(User), backToSeasonStart),
-            backToSeasonStart ? $"Season match {seasonMatchID}, back to its season's start" : $"Season match {seasonMatchID}", JobsServiceCollectionExtensions.HaloMatchPulls, ct));
+        return Accepted(await pulls.Queue(seasonMatchID, JobUser.IdOf(User), backToSeasonStart, ct));
     }
 }

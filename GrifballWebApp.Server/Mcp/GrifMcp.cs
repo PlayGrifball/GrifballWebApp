@@ -39,19 +39,30 @@ public static class GrifMcp
                 options.ServerInstructions = Instructions;
             })
             .WithHttpTransport(options => options.Stateless = true)
-            .WithTools(Tools(GrifTools.ReadOnly, readOnly: true))
-            .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (request, ct) =>
-            {
-                try
+            .WithTools(Tools(GrifTools.All))
+            .WithRequestFilters(filters => filters
+                // A tool the user's roles don't allow isn't listed for them...
+                .AddListToolsFilter(next => async (request, ct) =>
                 {
-                    return await next(request, ct);
-                }
-                catch (ToolException e)
+                    var result = await next(request, ct);
+                    var caller = Caller(request.User!);
+                    result.Tools = result.Tools.Where(t => caller.IsInAnyRole(GrifTools.RolesByName.GetValueOrDefault(t.Name, []))).ToList();
+                    return result;
+                })
+                // ...and is refused if called anyway (the tool checks too)
+                .AddCallToolFilter(next => async (request, ct) =>
                 {
-                    // The model sees this message and can act on it; the SDK hides any other exception's
-                    throw new McpException(e.Message, e);
-                }
-            }));
+                    try
+                    {
+                        Caller(request.User!).Require(GrifTools.RolesByName.GetValueOrDefault(request.Params?.Name ?? "", []));
+                        return await next(request, ct);
+                    }
+                    catch (ToolException e)
+                    {
+                        // The model sees this message and can act on it; the SDK hides any other exception's
+                        throw new McpException(e.Message, e);
+                    }
+                }));
     }
 
     /// <summary>The endpoint, open to access tokens only (not to the browser's cookie or the API's bearer tokens).</summary>
@@ -64,24 +75,26 @@ public static class GrifMcp
             user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList());
 
     /// <summary>
-    /// An MCP tool for each tool method of <paramref name="types"/>, named as <see cref="GrifTools.Name"/> says. Each call gets a
-    /// new instance from the request's services, given the caller when its constructor takes one.
+    /// An MCP tool for each tool method of <paramref name="sets"/>, named as <see cref="GrifTools.Name"/> says, its annotations
+    /// telling clients what it does (they ask before a tool that isn't read-only). Each call gets a new instance from the
+    /// request's services, as the request's user (<see cref="GrifTools.Factory"/>).
     /// </summary>
-    public static IEnumerable<McpServerTool> Tools(IEnumerable<Type> types, bool readOnly)
-        => types.SelectMany(type =>
+    public static IEnumerable<McpServerTool> Tools(IEnumerable<(Type Type, ToolEffect Effect)> sets)
+        => sets.SelectMany(set =>
         {
-            var takesCaller = type.GetConstructors().Single().GetParameters().Any(p => p.ParameterType == typeof(ToolCaller));
-            return GrifTools.Methods(type).Select(method => McpServerTool.Create(method,
-                request => takesCaller
-                    ? ActivatorUtilities.CreateInstance(request.Services!, type, Caller(request.User!))
-                    : ActivatorUtilities.CreateInstance(request.Services!, type),
+            var create = GrifTools.Factory(set.Type);
+            return GrifTools.Methods(set.Type).Select(method => McpServerTool.Create(method,
+                request => create(request.Services!, Caller(request.User!)),
                 new McpServerToolCreateOptions
                 {
                     Name = GrifTools.Name(method),
-                    ReadOnly = readOnly,
-                    Destructive = !readOnly,
-                    Idempotent = readOnly,
-                    OpenWorld = false,
+                    ReadOnly = set.Effect == ToolEffect.ReadsOnly,
+                    // A queued pull from Halo adds games; nothing is changed or deleted
+                    Destructive = false,
+                    // Asked again once a pull is done, it pulls again and can save games played since: not idempotent
+                    // (asked while one is queued or running, it adds nothing and says where that one is)
+                    Idempotent = set.Effect == ToolEffect.ReadsOnly,
+                    OpenWorld = set.Effect == ToolEffect.QueuesHaloPull,
                 }));
         });
 }

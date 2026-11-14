@@ -1,7 +1,6 @@
 ﻿using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Services;
-using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -10,9 +9,9 @@ using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
 using System.Text;
 using System.Threading.Channels;
-using GrifballWebApp.Application.Extensions;
-using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.Tools;
+using GrifballWebApp.Server.Commands;
 
 namespace GrifballWebApp.Server;
 
@@ -53,7 +52,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     private async ValueTask HandleResponse(Message message)
     {
         // A fresh ambient user slot per message, filled in with the author in HandleResponseCore, for contexts with no scope of
-        // their own (IDbContextFactory) and other scopes (RecentMatches)
+        // their own (IDbContextFactory) and other scopes (each tool call's, GrifTools.AIFunctions)
         ambientCurrentUser.Begin();
         try
         {
@@ -87,10 +86,16 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 
         var instructions = @"
 You are a Discord bot, and all messages must stay under the 2000-character limit.
-Your primary purpose is to provide stats and information about Grifball.
-You currently support standard Discord slash commands.
-In future updates, users should be able to interact with the bot using natural language commands directly (without the slash).
+Your primary purpose is to provide stats and information about Grifball, which your tools look up.
+Tools take IDs: search finds players, teams and seasons by name. A season tool with no season uses the running one, and a player tool with no player uses the person you are talking to.
+Write times in UTC, as the tools give them, and say they are UTC.
+Use pull_season_match_games only when the person asks for their games to be pulled: it starts a pull from Halo that others wait behind.
+The bot also has slash commands; /help lists them.
 ";
+        // The tools, as the author: their linked site account and its roles, or no account (every tool not about ""you"")
+        var caller = await new DiscordCaller(context).AsToolCaller(message.Author.Id);
+        // Each tool call in a scope of its own: this scope's context saves the streamed reply meanwhile
+        var tools = GrifTools.AIFunctions(scopeFactory, caller, GrifTools.Chat);
 
         // Each chunk with when it arrived: the reply is paced by the stream, not by when the background task gets to it
         var channel = Channel.CreateUnbounded<(string Text, long ArrivedAt)>();
@@ -106,12 +111,7 @@ In future updates, users should be able to interact with the bot using natural l
             {
                 Instructions = instructions,
 
-                Tools =
-                [
-                    AIFunctionFactory.Create(GetTime),
-                    AIFunctionFactory.Create(RecentMatches),
-                    AIFunctionFactory.Create(RecentMatchesUrl, null, "This method is used to get a waypoint url by a match id and gamertag. Do not ever remove %20 from the final response if it is present in the result."),
-                ],
+                Tools = tools,
             }))
             {
                 await channel.Writer.WriteAsync((item.Text, Time.GetTimestamp()));
@@ -282,71 +282,4 @@ In future updates, users should be able to interact with the bot using natural l
         context.DiscordMessages.Add(newMessage);
         await context.SaveChangesAsync();
     }
-
-    private string GetTime() => DateTime.UtcNow.DiscordTimeEmbed();
-
-    public string RecentMatchesUrl(string xboxGamertag, Guid matchId)
-    {
-        var url = $"https://www.halowaypoint.com/halo-infinite/players/{Uri.EscapeDataString(xboxGamertag)}/matches/{matchId}";
-        return url;
-    }
-
-    private async Task<List<MatchDTO>> RecentMatches(string xboxGamertag, int matchCount = 5)
-    {
-        using var scope = scopeFactory.CreateScope();
-        var xboxUserService = scope.ServiceProvider.GetRequiredService<IGetsertXboxUserService>();
-
-        var x = await xboxUserService.GetsertXboxUserByGamertag(xboxGamertag);
-
-        if (x.Item1 is null)
-            throw new InvalidOperationException(x.Item2);
-
-        var xboxUser = x.Item1;
-
-        var _dataPullService = scope.ServiceProvider.GetRequiredService<IDataPullService>();
-        var _context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
-        try
-        {
-            await _dataPullService.DownloadRecentMatchesForPlayers([xboxUser.XboxUserID], startPage: 0, endPage: 0, matchCount);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to fetch recent matches for {Gamertag}", xboxUser.Gamertag);
-        }
-
-        var matches = await _context.Matches
-            .Where(x => x.MatchTeams.Any(x => x.MatchParticipants.Any(x => x.XboxUserID == xboxUser.XboxUserID)))
-            .OrderByDescending(x => x.StartTime)
-            .Take(matchCount)
-            .Select(x => new MatchDTO
-            {
-                Id = x.MatchID,
-                StartTime = x.StartTime ?? DateTime.MinValue,
-                Teams = x.MatchTeams.Select(t => new MatchTeamDTO
-                {
-                    Id = t.TeamID,
-                    Score = t.Score,
-                    Outcome = t.Outcome,
-                    Players = t.MatchParticipants.Select(p => p.XboxUser.Gamertag).ToList()
-                }).ToList()
-            })
-            .AsNoTracking()
-            .ToListAsync();
-        return matches;
-    }
-}
-
-public class MatchDTO
-{
-    public Guid Id { get; set; }
-    public DateTime? StartTime { get; set; }
-    public List<MatchTeamDTO> Teams { get; set; } = [];
-}
-
-public class MatchTeamDTO
-{
-    public int Id { get; set; }
-    public int Score { get; set; }
-    public Outcomes Outcome { get; set; }
-    public List<string> Players { get; set; } = [];
 }

@@ -15,6 +15,7 @@ using GrifballWebApp.Infrastructure.Matchmaking;
 using GrifballWebApp.Infrastructure.Ollama;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Infrastructure.Preview;
+using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Infrastructure.SeasonMatchPage;
 using GrifballWebApp.Infrastructure.Scheduler;
 using GrifballWebApp.Infrastructure.Services;
@@ -137,6 +138,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddTransient<XuidLookupService>();
         services.AddSingleton<XuidLookupSignal>();
         services.AddHostedService<XuidLookupWorker>();
+        // A season match's pull from Halo, queued from its page and the agents' tools
+        services.AddTransient<ISeasonMatchPulls, SeasonMatchPulls>();
         // Quartz.NET: the recurring jobs (their schedules, kept in the database, and the Jobs page) and the scheduler that runs them
         services.AddJobs(configuration, jobs =>
         {

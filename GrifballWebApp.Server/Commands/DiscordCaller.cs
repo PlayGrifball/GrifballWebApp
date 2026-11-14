@@ -1,4 +1,6 @@
 using DiscordInterface.Generated;
+using GrifballWebApp.Application.Identity;
+using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Discord;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +13,7 @@ namespace GrifballWebApp.Server.Commands;
 public sealed record CallerUser(int UserID, string Gamertag, IReadOnlyList<string> Roles)
 {
     /// <summary>Whether the user has one of <paramref name="roles"/>; with none given, anyone does.</summary>
-    public bool IsInAnyRole(IReadOnlyCollection<string> roles) => roles.Count == 0 || roles.Any(Roles.Contains);
+    public bool IsInAnyRole(IReadOnlyCollection<string> roles) => SiteRoles.IsInAnyRole(Roles, roles);
 }
 
 /// <summary>
@@ -27,9 +29,9 @@ public class DiscordCaller
     /// <summary>The roles the site's controllers name.</summary>
     public static class Roles
     {
-        public const string Player = "Player";
-        public const string Commissioner = "Commissioner";
-        public const string Sysadmin = "Sysadmin";
+        public const string Player = SiteRoles.Player;
+        public const string Commissioner = SiteRoles.Commissioner;
+        public const string Sysadmin = SiteRoles.Sysadmin;
 
         public static readonly string[] Anyone = [];
         public static readonly string[] Staff = [Commissioner, Sysadmin];
@@ -47,19 +49,25 @@ public class DiscordCaller
 
     /// <summary>The user linked to this Discord account, with their gamertag and roles; null when none is, or they have no gamertag.</summary>
     public async Task<CallerUser?> Find(ulong discordUserId, CancellationToken ct = default)
-    {
-        var user = await _context.Users
+        => await Linked(discordUserId, ct) is { Gamertag: { } gamertag } user ? new CallerUser(user.Id, gamertag, user.RoleNames) : null;
+
+    /// <summary>
+    /// Who the agents' tools run as for this Discord user (the bot's chat): their linked site account with its roles, gamertag or
+    /// not, or <see cref="ToolCaller.Anonymous"/> when none is linked.
+    /// </summary>
+    public async Task<ToolCaller> AsToolCaller(ulong discordUserId, CancellationToken ct = default)
+        => await Linked(discordUserId, ct) is { } user ? new ToolCaller(user.Id, user.RoleNames) : ToolCaller.Anonymous;
+
+    /// <summary>The site account linked to a Discord user: its ID, gamertag (if it has one) and roles.</summary>
+    private sealed record LinkedUser(int Id, string? Gamertag, List<string> RoleNames);
+
+    /// <summary>The site account linked to this Discord user, if any (<see cref="Find"/> and <see cref="AsToolCaller"/> both read it).</summary>
+    private Task<LinkedUser?> Linked(ulong discordUserId, CancellationToken ct)
+        => _context.Users
             .AsNoTracking()
-            .Where(x => x.DiscordUserID == (long)discordUserId && x.XboxUser != null)
-            .Select(x => new
-            {
-                x.Id,
-                x.XboxUser!.Gamertag,
-                Roles = x.UserRoles.Select(r => r.Role.Name!).ToList(),
-            })
+            .Where(x => x.DiscordUserID == (long)discordUserId)
+            .Select(x => new LinkedUser(x.Id, x.XboxUser != null ? x.XboxUser.Gamertag : null, x.UserRoles.Select(r => r.Role.Name!).ToList()))
             .FirstOrDefaultAsync(ct);
-        return user is null ? null : new CallerUser(user.Id, user.Gamertag, user.Roles);
-    }
 
     /// <summary>
     /// The caller, when they have an account with a gamertag and one of <paramref name="roles"/> (none: any account will do).
@@ -86,5 +94,5 @@ public class DiscordCaller
     }
 
     /// <summary>The reply to a caller without the role: the site would answer 403.</summary>
-    public static string MissingRole(IReadOnlyCollection<string> roles) => $"Only a {string.Join(" or ", roles.Select(r => r.ToLowerInvariant()))} can do that.";
+    public static string MissingRole(IReadOnlyCollection<string> roles) => SiteRoles.MissingRole(roles);
 }
