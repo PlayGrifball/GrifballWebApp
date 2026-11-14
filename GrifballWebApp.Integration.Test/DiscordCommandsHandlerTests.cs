@@ -30,7 +30,7 @@ public class DiscordCommandsHandlerTests
     private readonly List<IDiscordMessageOptions> _modifications = [];
     private static readonly string[] expected = new[]
             {
-                "Match ID", "Start Time",
+                "Match ID", "Start Time", "Duration",
                 "Team", "Score", "Outcome", "Players",
                 "**-------------------------**",
                 "Team", "Score", "Outcome", "Players",

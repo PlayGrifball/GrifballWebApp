@@ -10,10 +10,10 @@ namespace GrifballWebApp.Application.Tools;
 public sealed record RecentGameTeamDto(int TeamID, int Score, Outcomes Outcome, List<string> Players);
 
 /// <summary>
-/// A recent Halo game: its match ID (get_game has its details), when it started, how it went for the player (their team's
+/// A recent Halo game: its match ID (get_game has its details), when it started and how long it lasted, how it went for the player (their team's
 /// outcome), its Halo Waypoint page and its teams.
 /// </summary>
-public sealed record RecentGameDto(Guid MatchID, DateTime? StartTime, Outcomes Outcome, string WaypointUrl, List<RecentGameTeamDto> Teams);
+public sealed record RecentGameDto(Guid MatchID, DateTime? StartTime, TimeSpan Duration, Outcomes Outcome, string WaypointUrl, List<RecentGameTeamDto> Teams);
 
 /// <summary>A player's recent games: the gamertag of the Xbox account they were found as, and the games.</summary>
 public sealed record RecentGamesDto(string Gamertag, List<RecentGameDto> Games);
@@ -71,10 +71,11 @@ public class HaloTools
             {
                 m.MatchID,
                 m.StartTime,
+                m.Duration,
                 Outcome = m.MatchTeams.Where(t => t.MatchParticipants.Any(p => p.XboxUserID == xuid)).Select(t => t.Outcome).First(),
                 Teams = m.MatchTeams.Select(t => new RecentGameTeamDto(t.TeamID, t.Score, t.Outcome, t.MatchParticipants.Select(p => p.XboxUser.Gamertag).ToList())).ToList(),
             })
             .ToListAsync(ct);
-        return new RecentGamesDto(gamertag, games.Select(g => new RecentGameDto(g.MatchID, g.StartTime, g.Outcome, WaypointUrl(gamertag, g.MatchID), g.Teams)).ToList());
+        return new RecentGamesDto(gamertag, games.Select(g => new RecentGameDto(g.MatchID, g.StartTime, g.Duration, g.Outcome, WaypointUrl(gamertag, g.MatchID), g.Teams)).ToList());
     }
 }

@@ -66,6 +66,7 @@ public class DiscordCommandsHandler
                 [
                     new EmbedFieldProperties().WithName("Match ID").WithValue(game.MatchID.ToString().LinkMarkdown(game.WaypointUrl)).WithInline(true),
                     new EmbedFieldProperties().WithName("Start Time").WithValue(game.StartTime?.DiscordTimeEmbed() ?? "Unknown").WithInline(true),
+                    new EmbedFieldProperties().WithName("Duration").WithValue(game.Duration.ToString()).WithInline(true),
                 ],
             };
             foreach (var (team, index) in game.Teams.Select((team, index) => (team, index)))

@@ -88,6 +88,7 @@ public class DiscordCommandsHandlerMatchesUnitTests : SqliteGrifballContextFixtu
         Assert.That(fields.Skip(1), Is.EqualTo(new[]
         {
             ("Start Time", $"<t:{new DateTimeOffset(Played).ToUnixTimeSeconds()}>"),
+            ("Duration", "00:12:00"),
             ("Team", "0"), ("Score", "50"), ("Outcome", "Won"), ("Players", "Grifter1"),
             ("**-------------------------**", "\u200B"),
             ("Team", "1"), ("Score", "20"), ("Outcome", "Lost"), ("Players", "Opponent"),

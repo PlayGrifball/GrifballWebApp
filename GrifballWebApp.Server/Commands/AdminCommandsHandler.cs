@@ -165,7 +165,6 @@ public class AdminCommandsHandler
         await Act(context, () => _seasonMatches.UndoResult(id), "The result is undone.");
     }
 
-    /// <summary>Queues a pull of the match's players' recent games, as the match page does.</summary>
     public async Task SetTime(IDiscordInteractionContext context, string match, string time)
     {
         if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonMatchFor(context, match) is not int id)
