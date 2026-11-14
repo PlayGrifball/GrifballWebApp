@@ -380,6 +380,10 @@ const profileStats = (userID: number, gamertag: string | null): ProfileStatsDto 
       exterminations: 1,
       punches: null,
       swordKills: null,
+      grabs: null,
+      battingAverage: null,
+      scoringAverage: null,
+      combinedAverage: null,
       score: null,
       damageDealt: null,
       damageTaken: null,
@@ -431,7 +435,7 @@ const historicalStat = (id: number, gamertag: string, teamID: number, goals: num
   playerSeasonStatID: id, userID: 500 + id, gamertag, teamID, teamName: historicalTeams.find(t => t[0] === teamID)![1],
   tradeNote: null, roleNote: null, stintIndex: 1, isPlayoffs, isCombined: false, source: 'Manual', gamesPlayed: 10, wins: 6, losses: 4,
   winPercent: 60, goals, kills: 60 + goals, deaths: 40, assists: 5, kdRatio: 1.5, kdSpread: 20 + goals, carrierKills: 4, sprees: 2,
-  multiKills: 3, exterminations: 0, punches: null, swordKills: null,
+  multiKills: 3, exterminations: 0, punches: null, swordKills: null, grabs: null, battingAverage: null, scoringAverage: null, combinedAverage: null,
 });
 const historicalStats = [
   historicalStat(1, 'Legendary', 41, 14), historicalStat(2, 'Old Timer', 41, 9), historicalStat(3, 'Bench Boss', 42, 7),
