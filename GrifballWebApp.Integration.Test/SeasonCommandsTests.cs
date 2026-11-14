@@ -33,9 +33,9 @@ public class SeasonCommandsTests
     public async Task SetUp()
     {
         _context = await TestDatabase.NewGrifballContext();
-        var seasons = new SeasonService(_context, new SeasonStatsService(_context));
+        var seasons = new SeasonService(_context, new SeasonStatsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
         var urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-        _lookups = new CommandLookups(_context, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context));
+        _lookups = new CommandLookups(_context, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
         _brackets = Substitute.For<IBracketService>();
         _handler = new SeasonCommandsHandler(_lookups, seasons, new TeamStandingsService(_context), new MatchPlannerService(_context),
             new GradesService(_context), new SignupsService(_context), _brackets, urls);

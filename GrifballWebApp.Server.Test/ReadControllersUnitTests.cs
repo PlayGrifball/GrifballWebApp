@@ -114,7 +114,7 @@ public class ReadControllersUnitTests : SqliteGrifballContextFixture
     public async Task Team_ItsPageHistoryAndMatches_AndAnUnknownTeamIsNotFound()
     {
         var (_, home, _) = await RunningSeason();
-        var controller = new TeamController(new TeamPageService(Db, _time), new TeamHistoryService(Db, _time));
+        var controller = new TeamController(new TeamPageService(Db, _time), new TeamHistoryService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time));
 
         var team = await controller.Team(home.TeamID, CancellationToken.None);
         var history = await controller.History(home.TeamID, CancellationToken.None);
@@ -188,7 +188,7 @@ public class ReadControllersUnitTests : SqliteGrifballContextFixture
 
         var standings = await new TeamStandingsController(new TeamStandingsService(Db)).GetTeamStandings(season.SeasonID, CancellationToken.None);
         var grades = await new GradesController(new GradesService(Db)).GetGrades(season.SeasonID, CancellationToken.None);
-        var events = await new HomeController(new HomeEventsService(Db, _time)).CurrentAndFutureEvents(CancellationToken.None);
+        var events = await new HomeController(new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time)).CurrentAndFutureEvents(CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -203,7 +203,7 @@ public class ReadControllersUnitTests : SqliteGrifballContextFixture
     {
         var (season, home, _) = await RunningSeason();
 
-        var found = await new SearchController(new QuickSearchService(Db, _time)).QuickSearch("Hom", CancellationToken.None);
+        var found = await new SearchController(new QuickSearchService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time))).QuickSearch("Hom", CancellationToken.None);
 
         Assert.That(found.Teams.Select(t => (t.SeasonID, t.TeamID)), Is.EqualTo(new[] { (season.SeasonID, home.TeamID) }));
     }

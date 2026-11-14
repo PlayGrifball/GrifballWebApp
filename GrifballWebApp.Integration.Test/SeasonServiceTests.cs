@@ -18,7 +18,7 @@ public class SeasonServiceTests
     public async Task Setup()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _service = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context));
+        _service = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
     }
 
     [TearDown]
@@ -99,7 +99,7 @@ public class SeasonServiceTests
     {
         // Arrange: a season is running from its start, included, up to its end, not included (Season.RunningAt)
         var now = new DateTime(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);
-        var service = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new FakeTimeProvider(now));
+        var service = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, new FakeTimeProvider(now)), new FakeTimeProvider(now));
         var exactStartSeason = Season.Seed(seasonName: "Exact Start Season").WithDates(seasonStart: now, seasonEnd: now.AddDays(10));
         var exactEndSeason = Season.Seed(seasonName: "Exact End Season").WithDates(seasonStart: now.AddDays(-10), seasonEnd: now);
 

@@ -226,6 +226,7 @@ public class ControllerActionsMoreUnitTests : SqliteGrifballContextFixture
             SeasonName = "Winter",
             GameVersionID = 1,
             SignupsOpen = open,
+            PublicAt = open,
             SignupsClose = open.AddDays(7),
             DraftStart = open.AddDays(10),
             SeasonStart = open.AddDays(14),

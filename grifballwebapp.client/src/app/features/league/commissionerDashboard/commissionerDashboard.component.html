@@ -38,6 +38,23 @@
       }
     </div>
 
+    <!-- Seasons that won't be public by their signups: players can't sign up for a season they can't see -->
+    @if (data.seasonsNotPublicBySignups.length > 0) {
+    <section class="hud-panel hud-panel--chamfer cd-unannounced" aria-labelledby="cd-unannounced-title">
+      <h2 class="hud-label" id="cd-unannounced-title"><mat-icon aria-hidden="true">visibility_off</mat-icon> Not public by their signups</h2>
+      <p class="hud-muted">Set each one's "Public from" no later than its signups open: players can't sign up for a season they can't see.</p>
+      <ul class="cd-unannounced-list">
+        @for (season of data.seasonsNotPublicBySignups; track season.seasonID) {
+        <li>
+          <a class="hud-text-link" [routerLink]="['/seasonEdit', season.seasonID]">{{ season.seasonName }}</a>
+          · signups open {{ formatDateTime(season.signupsOpen) }}
+          · {{ season.publicAt ? 'public from ' + formatDateTime(season.publicAt) : 'no public date' }}
+        </li>
+        }
+      </ul>
+    </section>
+    }
+
     <!-- Details -->
     <mat-tab-group class="cd-tabs" mat-stretch-tabs="false" mat-align-tabs="start">
 

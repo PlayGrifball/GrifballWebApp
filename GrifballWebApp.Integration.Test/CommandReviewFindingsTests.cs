@@ -63,8 +63,8 @@ public class CommandReviewFindingsTests
     {
         _context = await TestDatabase.NewGrifballContext();
         _urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-        _seasons = new SeasonService(_context, new SeasonStatsService(_context));
-        _lookups = new CommandLookups(_context, _seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context));
+        _seasons = new SeasonService(_context, new SeasonStatsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
+        _lookups = new CommandLookups(_context, _seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
         _brackets = new BracketService(_context, new TeamStandingsService(_context), new ChampionshipService(_context));
         _commissioner = await _context.AddUser("commish", gamertag: "CommishGT", discordName: "commish", commissioner: true);
     }
@@ -177,7 +177,7 @@ public class CommandReviewFindingsTests
         var now = DateTime.UtcNow;
         await _context.AddCurrentSeason("Running");
         var next = Season.Seed(seasonName: "Signing Up").WithDates(signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(6),
-            seasonStart: now.AddDays(40), seasonEnd: now.AddDays(80));
+            seasonStart: now.AddDays(40), seasonEnd: now.AddDays(80), publicAt: now.AddDays(-2));
         _context.Seasons.Add(next);
         await _context.SaveChangesAsync();
         var player = await _context.AddUser("signer", gamertag: "SignerGT", discordName: "signer");
@@ -256,7 +256,7 @@ public class CommandReviewFindingsTests
         var lateLeague = new MatchmakingStatsService(_context);
         var browse = new BrowseCommandsHandler(new LeaderboardsService(_context, stats, lateLeague,
                 new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())), NullLogger<LeaderboardsService>.Instance),
-            lateLeague, new HomeEventsService(_context), new QuickSearchService(_context), _lookups, _urls);
+            lateLeague, new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), new QuickSearchService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), _lookups, _urls);
         var discord = new CommandContextRecorder();
 
         await browse.Search(discord.Context, new string('q', 300));

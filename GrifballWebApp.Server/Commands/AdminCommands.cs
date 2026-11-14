@@ -43,24 +43,24 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
 
         [SubSlashCommand("report", "Report a Halo game as one of the match's")]
         public Task Report(
-            [SlashCommandParameter(Description = MatchDescription, AutocompleteProviderType = typeof(SeasonMatchAutocomplete))] string match,
+            [SlashCommandParameter(Description = MatchDescription, AutocompleteProviderType = typeof(StaffSeasonMatchAutocomplete))] string match,
             [SlashCommandParameter(Name = "match_id", Description = "The game's Halo match ID")] string gameID,
             [SlashCommandParameter(Description = "The series game it replaces (default: none)")] int replaces = 0)
             => _handler.ReportGame(Context.ToDiscordContext(), match, gameID, replaces > 0 ? replaces : null);
 
         [SubSlashCommand("forfeit", "Forfeit the match")]
         public Task Forfeit(
-            [SlashCommandParameter(Description = MatchDescription, AutocompleteProviderType = typeof(SeasonMatchAutocomplete))] string match,
+            [SlashCommandParameter(Description = MatchDescription, AutocompleteProviderType = typeof(StaffSeasonMatchAutocomplete))] string match,
             [SlashCommandParameter(Description = "Who forfeits")] ForfeitSide side)
             => _handler.Forfeit(Context.ToDiscordContext(), match, side);
 
         [SubSlashCommand("undo", "Undo the match's result")]
-        public Task Undo([SlashCommandParameter(Description = MatchDescription, AutocompleteProviderType = typeof(SeasonMatchAutocomplete))] string match)
+        public Task Undo([SlashCommandParameter(Description = MatchDescription, AutocompleteProviderType = typeof(StaffSeasonMatchAutocomplete))] string match)
             => _handler.UndoResult(Context.ToDiscordContext(), match);
 
         [SubSlashCommand("time", "Schedule the match")]
         public Task Time(
-            [SlashCommandParameter(Description = MatchDescription, AutocompleteProviderType = typeof(SeasonMatchAutocomplete))] string match,
+            [SlashCommandParameter(Description = MatchDescription, AutocompleteProviderType = typeof(StaffSeasonMatchAutocomplete))] string match,
             [SlashCommandParameter(Description = "The time in UTC, like 2026-11-20 20:00")] string time)
             => _handler.SetTime(Context.ToDiscordContext(), match, time);
     }
@@ -77,7 +77,7 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
 
         [SubSlashCommand("generate", "Make the season's matches (refused once any is played)")]
         public Task Generate(
-            [SlashCommandParameter(Description = RebuiltSeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string season,
+            [SlashCommandParameter(Description = RebuiltSeasonDescription, AutocompleteProviderType = typeof(StaffSeasonAutocomplete))] string season,
             [SlashCommandParameter(Name = "home_matches", Description = "Home matches per team")] int homeMatchesPerTeam,
             [SlashCommandParameter(Name = "best_of", Description = "Games per match")] int bestOf)
             => _handler.GenerateMatches(Context.ToDiscordContext(), season, homeMatchesPerTeam, bestOf);
@@ -95,14 +95,14 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
 
         [SubSlashCommand("create", "Make the season's bracket (refused once any of it is played)")]
         public Task Create(
-            [SlashCommandParameter(Description = RebuiltSeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string season,
+            [SlashCommandParameter(Description = RebuiltSeasonDescription, AutocompleteProviderType = typeof(StaffSeasonAutocomplete))] string season,
             [SlashCommandParameter(Description = "Teams in the bracket")] int participants,
             [SlashCommandParameter(Name = "best_of", Description = "Games per match")] int bestOf,
             [SlashCommandParameter(Name = "double_elimination", Description = "Double elimination")] bool doubleElimination = false)
             => _handler.CreateBracket(Context.ToDiscordContext(), season, participants, doubleElimination, bestOf);
 
         [SubSlashCommand("seed", "Seed the bracket by the standings")]
-        public Task Seed([SlashCommandParameter(Description = SeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string? season = null)
+        public Task Seed([SlashCommandParameter(Description = SeasonDescription, AutocompleteProviderType = typeof(StaffSeasonAutocomplete))] string? season = null)
             => _handler.SeedBracket(Context.ToDiscordContext(), season);
     }
 
@@ -117,11 +117,11 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
         }
 
         [SubSlashCommand("lock", "Lock the captains")]
-        public Task Lock([SlashCommandParameter(Description = UpcomingSeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string? season = null)
+        public Task Lock([SlashCommandParameter(Description = UpcomingSeasonDescription, AutocompleteProviderType = typeof(StaffSeasonAutocomplete))] string? season = null)
             => _handler.LockCaptains(Context.ToDiscordContext(), season, @lock: true);
 
         [SubSlashCommand("unlock", "Unlock the captains")]
-        public Task Unlock([SlashCommandParameter(Description = UpcomingSeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string? season = null)
+        public Task Unlock([SlashCommandParameter(Description = UpcomingSeasonDescription, AutocompleteProviderType = typeof(StaffSeasonAutocomplete))] string? season = null)
             => _handler.LockCaptains(Context.ToDiscordContext(), season, @lock: false);
     }
 
@@ -136,11 +136,11 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
         }
 
         [SubSlashCommand("show", "The latest recommendation")]
-        public Task Show([SlashCommandParameter(Description = SeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string? season = null)
+        public Task Show([SlashCommandParameter(Description = SeasonDescription, AutocompleteProviderType = typeof(StaffSeasonAutocomplete))] string? season = null)
             => _handler.ScheduleShow(Context.ToDiscordContext(), season);
 
         [SubSlashCommand("run", "Work out a new recommendation")]
-        public Task Run([SlashCommandParameter(Description = SeasonDescription, AutocompleteProviderType = typeof(SeasonAutocomplete))] string? season = null)
+        public Task Run([SlashCommandParameter(Description = SeasonDescription, AutocompleteProviderType = typeof(StaffSeasonAutocomplete))] string? season = null)
             => _handler.ScheduleRun(Context.ToDiscordContext(), season);
 
         [SubSlashCommand("apply", "Schedule the matches as recommended")]

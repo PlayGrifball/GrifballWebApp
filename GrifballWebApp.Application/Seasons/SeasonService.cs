@@ -19,8 +19,10 @@ public class SeasonService
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
     private readonly SeasonStatsService _stats;
-    public SeasonService(IApplicationDbContext context, SeasonStatsService stats, TimeProvider? time = null)
+    private readonly SeasonVisibility _visibility;
+    public SeasonService(IApplicationDbContext context, SeasonStatsService stats, SeasonVisibility visibility, TimeProvider? time = null)
     {
+        _visibility = visibility;
         _time = time ?? TimeProvider.System;
         _context = context;
         _stats = stats;
@@ -35,22 +37,31 @@ public class SeasonService
     }
 
     /// <summary>
-    /// The season a page, command or tool means when it names none: the running one; else, between seasons, the next one
-    /// to start once it's announced (<see cref="Season.PublicAsOf"/>: its signups, its draft); else the one that ended
-    /// last. Never one not announced yet. 0 when none is public.
+    /// The season a page, command or tool means when it names none, for <paramref name="purpose"/>, among those
+    /// <paramref name="viewer"/> may see (<see cref="SeasonVisibility.Visible"/>): the running one, the one that ended last
+    /// and the next to start, in the purpose's order. A season not announced yet is never a player's or a signed-out
+    /// caller's. 0 when there is none.
     /// </summary>
-    public async Task<int> GetCurrentOrLatestSeasonID(CancellationToken ct = default)
+    public async Task<int> GetDefaultSeasonID(SeasonPurpose purpose, SeasonViewer viewer, CancellationToken ct = default)
     {
-        var current = await GetCurrentSeasonID(ct);
-        if (current != 0)
-            return current;
         var now = _time.GetUtcNow().UtcDateTime;
-        var upcoming = await _context.Seasons.Where(Season.PublicAsOf(now)).Where(Season.NotStartedAt(now))
+        Func<Task<int>> running = () => GetCurrentSeasonID(ct);
+        Func<Task<int>> endedLast = () => _context.Seasons.Where(Season.StartedAt(now))
+            .OrderByDescending(x => x.SeasonStart).ThenByDescending(x => x.SeasonID).Select(x => x.SeasonID).FirstOrDefaultAsync(ct);
+        Func<Task<int>> next = () => _visibility.Visible(viewer).Where(Season.NotStartedAt(now))
             .OrderBy(x => x.SeasonStart).ThenBy(x => x.SeasonID).Select(x => x.SeasonID).FirstOrDefaultAsync(ct);
-        return upcoming != 0
-            ? upcoming
-            : await _context.Seasons.Where(Season.StartedAt(now))
-                .OrderByDescending(x => x.SeasonStart).ThenByDescending(x => x.SeasonID).Select(x => x.SeasonID).FirstOrDefaultAsync(ct);
+        var order = purpose switch
+        {
+            SeasonPurpose.Upcoming => new[] { next, running, endedLast },
+            SeasonPurpose.Active => [running, next, endedLast],
+            _ => [running, endedLast, next],
+        };
+        foreach (var find in order)
+        {
+            if (await find() is var id and not 0)
+                return id;
+        }
+        return 0;
     }
 
     public Task<string?> GetSeasonName(int seasonID, CancellationToken ct = default)
@@ -201,13 +212,14 @@ public class SeasonService
     }
 
     /// <summary>
-    /// The season list: every season that has started (the current ones included), imported or played in the app
-    /// alike, filtered by league, game, format, year and whether it has ended. Latest end first unless sorted otherwise.
+    /// The season list: every season <paramref name="viewer"/> may see (<see cref="SeasonVisibility.Visible"/>: started or
+    /// announced; staff, the ones not announced yet too), imported or played in the app alike, filtered by league, game,
+    /// format, year and whether it has ended. Latest end first unless sorted otherwise.
     /// </summary>
-    public async Task<PaginationResult<SeasonListItemDto>> GetSeasons(SeasonListFilter filter, CancellationToken ct = default)
+    public async Task<PaginationResult<SeasonListItemDto>> GetSeasons(SeasonListFilter filter, SeasonViewer viewer = SeasonViewer.Public, CancellationToken ct = default)
     {
         var now = _time.GetUtcNow().UtcDateTime;
-        var seasons = _context.Seasons.AsNoTracking().Where(Season.StartedAt(now));
+        var seasons = _visibility.Visible(viewer);
         if (filter.LeagueID is not null)
             seasons = seasons.Where(s => s.LeagueID == filter.LeagueID);
         if (filter.GameVersionID is not null)

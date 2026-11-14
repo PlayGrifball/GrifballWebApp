@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -49,7 +50,8 @@ public class LeaderboardsService
         _matchmaking = matchmaking;
         _cache = cache;
         _logger = logger;
-        _search = new QuickSearchService(context);
+        // For its player search, which reads no seasons
+        _search = new QuickSearchService(context, new SeasonVisibility(context));
     }
 
     /// <param name="formats">The formats counted, titles and stats alike; null or none: every format.</param>

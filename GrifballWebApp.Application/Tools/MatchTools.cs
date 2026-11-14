@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using GrifballWebApp.Application.MatchDetails;
 using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.Seasons;
 
 namespace GrifballWebApp.Application.Tools;
 
@@ -10,10 +11,12 @@ public class MatchTools
     private readonly ToolCaller _caller;
     private readonly SeasonMatchService _seasonMatches;
     private readonly MatchDetailsService _matchDetails;
+    private readonly SeasonVisibility _visibility;
 
-    public MatchTools(ToolCaller caller, SeasonMatchService seasonMatches, MatchDetailsService matchDetails)
+    public MatchTools(ToolCaller caller, SeasonMatchService seasonMatches, MatchDetailsService matchDetails, SeasonVisibility visibility)
     {
         _caller = caller;
+        _visibility = visibility;
         _seasonMatches = seasonMatches;
         _matchDetails = matchDetails;
     }
@@ -22,8 +25,11 @@ public class MatchTools
         + "and whether you may request a reschedule.")]
     public async Task<SeasonMatchPageDto> GetSeasonMatch([Description("The season match's ID (schedules and team matches list them).")] int seasonMatchID,
         CancellationToken ct = default)
-        => await _seasonMatches.GetSeasonMatchPage(seasonMatchID, _caller.UserID, ct)
-            ?? throw new ToolException($"There is no season match {seasonMatchID}.");
+    {
+        // One of a season not announced yet is no match to anyone but staff
+        var page = await _visibility.CanSeeSeasonMatch(seasonMatchID, _caller.Viewer, ct) ? await _seasonMatches.GetSeasonMatchPage(seasonMatchID, _caller.UserID, ct) : null;
+        return page ?? throw new ToolException($"There is no season match {seasonMatchID}.");
+    }
 
     [Description("A recorded Halo game's details: its time and length, the season match it counts for, each team's score and outcome, and each player's stats and medals.")]
     public async Task<MatchDetailsDto> GetGame([Description("The game's match ID, a GUID (a season match lists its games').")] Guid matchID,

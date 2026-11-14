@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
+using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Teams;
 using TypedSignalR.Client;
 
@@ -8,12 +9,24 @@ namespace GrifballWebApp.Server.Teams;
 
 public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
 {
+    /// <summary>Staff's connections (commissioners, sysadmins): the drafts of seasons not announced yet go to them alone (#435).</summary>
+    public const string StaffGroup = "season-staff";
+
     private readonly TeamService _teamService;
+    private readonly SeasonVisibility _visibility;
     //private static ConcurrentDictionary<string, int?> _connections = new ConcurrentDictionary<string, int?>();
 
-    public TeamsHub(TeamService teamService)
+    public TeamsHub(TeamService teamService, SeasonVisibility visibility)
     {
         _teamService = teamService;
+        _visibility = visibility;
+    }
+
+    /// <summary>The draft of a season the caller may not see (not announced yet, to anyone but staff): refused as no such season (#435).</summary>
+    private async Task RequireVisible(int seasonID)
+    {
+        if (!await _visibility.CanSeeSeason(seasonID, SeasonVisibility.For(Context?.User)))
+            throw new HubException(GrifballWebApp.Server.Seasons.SeasonVisibilityFilter.NoSuchSeason);
     }
 
     //private IEnumerable<string> GetConnections(int? personID)
@@ -21,12 +34,11 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
     //    return _connections.Where(x => x.Value == personID).Select(x => x.Key);
     //}
 
-    public override Task OnConnectedAsync()
+    public override async Task OnConnectedAsync()
     {
-        //var isAuth = Context.User?.Identity?.IsAuthenticated ?? false;
-        //var personID = GetPersonID();
-        //var added = _connections.TryAdd(Context.ConnectionId, personID);
-        return base.OnConnectedAsync();
+        if (SeasonVisibility.For(Context.User) is SeasonViewer.Staff)
+            await Groups.AddToGroupAsync(Context.ConnectionId, StaffGroup);
+        await base.OnConnectedAsync();
     }
 
     public override Task OnDisconnectedAsync(Exception? exception)
@@ -36,14 +48,16 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
         return base.OnDisconnectedAsync(exception);
     }
 
-    public Task<List<TeamResponseDto>> GetTeams(int seasonID)
+    public async Task<List<TeamResponseDto>> GetTeams(int seasonID)
     {
-        return _teamService.GetTeams(seasonID);
+        await RequireVisible(seasonID);
+        return await _teamService.GetTeams(seasonID);
     }
 
-    public Task<List<PlayerDto>> GetPlayerPool(int seasonID)
+    public async Task<List<PlayerDto>> GetPlayerPool(int seasonID)
     {
-        return _teamService.GetPlayerPool(seasonID);
+        await RequireVisible(seasonID);
+        return await _teamService.GetPlayerPool(seasonID);
     }
 
     [Authorize(Roles = "Commissioner")]
@@ -98,9 +112,10 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
         return _teamService.LockCaptains(seasonID, @lock: false, Context.ConnectionId);
     }
 
-    public Task<bool> AreCaptainsLocked(int seasonID)
+    public async Task<bool> AreCaptainsLocked(int seasonID)
     {
-        return _teamService.AreCaptainsLocked(seasonID);
+        await RequireVisible(seasonID);
+        return await _teamService.AreCaptainsLocked(seasonID);
     }
 
     private int? GetUserID()

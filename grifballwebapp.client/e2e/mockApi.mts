@@ -185,7 +185,8 @@ const commissionerDashboard: CommissionerDashboardDto = {
     requestedByGamertag: 'Sarge Prime', requestedByUserID: 10, requestedAt: '2026-10-27T18:00:00Z', status: 'Pending', discordThreadID: '1300000000000000009',
     canApprove: false, whyNotApprovable: 'This match already has a result.' }],
   overdueMatches: [{ seasonMatchID: 33, homeCaptain: 'Gravity Wells', awayCaptain: 'Sticky Situation', scheduledTime: '2026-10-27T00:30:00Z', hoursOverdue: 65 }],
-  summary: { pendingRescheduleCount: 2, overdueMatchCount: 1, criticalOverdueCount: 1 },
+  seasonsNotPublicBySignups: [],
+  summary: { pendingRescheduleCount: 2, overdueMatchCount: 1, criticalOverdueCount: 1, seasonsNotPublicBySignupsCount: 0 },
 };
 
 // The Winter Campaign's signups close on 10 November, or (the server that renders the pages goes by

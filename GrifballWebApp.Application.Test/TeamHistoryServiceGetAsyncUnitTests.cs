@@ -23,7 +23,7 @@ internal sealed class TeamHistoryServiceGetAsyncUnitTests : ApplicationDbContext
     public void SetUp()
     {
         _time = new FakeTimeProvider(Now);
-        _service = new TeamHistoryService(Context, _time);
+        _service = new TeamHistoryService(Context, new GrifballWebApp.Application.Seasons.SeasonVisibility(Context, _time), _time);
     }
 
     [Test]

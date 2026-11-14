@@ -18,7 +18,7 @@ namespace GrifballWebApp.Server.Test;
 public class DiscordCommandsHandlerMatchesUnitTests : SqliteGrifballContextFixture
 {
     private static readonly DateTime Played = new(2026, 10, 1, 20, 0, 0, DateTimeKind.Utc);
-    private DiscordCommandsHandler Handler() => new(new GrifballWebApp.Server.Commands.CommandLookups(Db, null!, new XboxAccountService(Db)), new HaloTools(Db, new XboxAccountService(Db)));
+    private DiscordCommandsHandler Handler() => new(new GrifballWebApp.Server.Commands.CommandLookups(Db, null!, new XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), new HaloTools(Db, new XboxAccountService(Db)));
 
     /// <summary>A game the player (Xbox 42) played on team 0, ending <paramref name="outcome"/>, against a team of one (Xbox 43) or of none.</summary>
     private void AddGame(Guid id, int hoursLater, Outcomes outcome, bool opponent = true)

@@ -29,7 +29,7 @@ public class BrowseCommandsHandlerActionsUnitTests : SqliteGrifballContextFixtur
 
     private BrowseCommandsHandler Handler() => new(
         new LeaderboardsService(Db, new SeasonStatsService(Db), new MatchmakingStatsService(Db), Substitute.For<IDistributedCache>(), new RecordingLogger<LeaderboardsService>()),
-        new MatchmakingStatsService(Db), new HomeEventsService(Db, _time), new QuickSearchService(Db, _time), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), Urls());
+        new MatchmakingStatsService(Db), new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time), new QuickSearchService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), Urls());
 
     [TestCase(LeaderboardBoard.Kills, LeaderboardFormat.Tournament, "All-time Kills (Tournament)")]
     [TestCase(LeaderboardBoard.Games, LeaderboardFormat.LeagueSeason, "All-time Games (League season)")]
@@ -135,7 +135,7 @@ public class BrowseCommandsHandlerActionsUnitTests : SqliteGrifballContextFixtur
     public async Task Events_ListsTheNextSeasonsSignupsDraftAndSeason()
     {
         var season = Season.Seed(seasonName: "Winter").WithDates(signupsOpen: Now.AddDays(1), signupsClose: Now.AddDays(5), draftStart: Now.AddDays(8),
-            seasonStart: Now.AddDays(10), seasonEnd: Now.AddDays(60));
+            seasonStart: Now.AddDays(10), seasonEnd: Now.AddDays(60), publicAt: Now.AddDays(-1));
         Db.Seasons.Add(season);
         await Db.SaveChangesAsync();
         var discord = new CommandContextRecorder();

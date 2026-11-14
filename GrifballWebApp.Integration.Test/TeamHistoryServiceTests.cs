@@ -23,7 +23,7 @@ public class TeamHistoryServiceTests
     public async Task SetUp()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _service = new TeamHistoryService(_context);
+        _service = new TeamHistoryService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
     }
 
     [TearDown]

@@ -16,7 +16,7 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class DiscordCommandsHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private DiscordCommandsHandler Handler() => new(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), new HaloTools(Db, new XboxAccountService(Db)));
+    private DiscordCommandsHandler Handler() => new(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), new HaloTools(Db, new XboxAccountService(Db)));
 
     [Test]
     public async Task RecentMatches_SaysItFoundNoAccount_ForAGamertagItDoesntKnow()

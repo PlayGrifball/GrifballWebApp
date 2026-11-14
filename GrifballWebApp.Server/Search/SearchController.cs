@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Search;
+using GrifballWebApp.Application.Seasons;
 
 namespace GrifballWebApp.Server.Search;
 
@@ -18,5 +19,5 @@ public class SearchController : ControllerBase
     [AllowAnonymous]
     [HttpGet("search", Name = "QuickSearch")]
     [ProducesResponseType<QuickSearchDto>(StatusCodes.Status200OK)]
-    public Task<QuickSearchDto> QuickSearch([FromQuery] string? q, CancellationToken ct) => _search.SearchAsync(q, ct);
+    public Task<QuickSearchDto> QuickSearch([FromQuery] string? q, CancellationToken ct) => _search.SearchAsync(q, SeasonVisibility.For(User), ct);
 }

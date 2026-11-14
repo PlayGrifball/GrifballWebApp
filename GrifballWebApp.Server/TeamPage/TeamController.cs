@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.TeamPage;
 
 namespace GrifballWebApp.Server.TeamPage;
@@ -35,7 +36,7 @@ public class TeamController : ControllerBase
     [ProducesResponseType<TeamHistoryDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<ActionResult<TeamHistoryDto>> History([FromRoute] int teamID, CancellationToken ct)
-        => await _history.GetAsync(teamID, ct) is { } history ? history : this.NotFoundProblem("There is no such team");
+        => await _history.GetAsync(teamID, SeasonVisibility.For(User), ct) is { } history ? history : this.NotFoundProblem("There is no such team");
 
     /// <summary>A team's matches, soonest unplayed first, then played ones by scheduled time.</summary>
     [AllowAnonymous]

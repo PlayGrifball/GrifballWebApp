@@ -46,7 +46,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
     {
         await SeedLeague();
 
-        var choices = await new SeasonAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db))).GetChoicesAsync(Typed("Win"), null!);
+        var choices = await new SeasonAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db))).GetChoicesAsync(Typed("Win"), null!);
 
         Assert.That(Names(choices), Is.EqualTo(WinterOnly));
     }
@@ -56,7 +56,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
     {
         await SeedLeague();
 
-        var choices = await new TeamAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db))).GetChoicesAsync(Typed("Gri"), null!);
+        var choices = await new TeamAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db))).GetChoicesAsync(Typed("Gri"), null!);
 
         Assert.That(Names(choices), Is.EqualTo(GrifsInWinter));
     }
@@ -66,7 +66,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
     {
         await SeedLeague();
 
-        var choices = await new PlayerAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db))).GetChoicesAsync(Typed("Grif"), null!);
+        var choices = await new PlayerAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db))).GetChoicesAsync(Typed("Grif"), null!);
 
         Assert.That(Names(choices), Is.EqualTo(HoldingGrif));
     }
@@ -76,7 +76,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
     {
         await SeedLeague();
 
-        var choices = await new SeasonMatchAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db))).GetChoicesAsync(Typed("Rivals"), null!);
+        var choices = await new SeasonMatchAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db))).GetChoicesAsync(Typed("Rivals"), null!);
 
         Assert.That(Names(choices), Is.EqualTo(TheMatchInWinter));
     }
@@ -86,7 +86,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
     {
         await SeedLeague();
 
-        var choices = await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db))).GetChoicesAsync(Typed("Grif"), null!);
+        var choices = await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db))).GetChoicesAsync(Typed("Grif"), null!);
 
         Assert.That(Names(choices), Is.EquivalentTo(HoldingGrif));
     }
@@ -102,7 +102,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
         Db.XboxUsers.AddRange(renamed, current, XboxUser.FromXbox(7003, "Grifter"));
         await Db.SaveChangesAsync();
 
-        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db))).GetChoicesAsync(Typed("Grif"), null!))!.ToList();
+        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db))).GetChoicesAsync(Typed("Grif"), null!))!.ToList();
 
         Assert.That(choices.Select(c => (c.Name, c.StringValue)), Is.EqualTo(new[]
         {
@@ -119,7 +119,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
         renamed.RecordPastGamertag("Old Grif", null, null, GamertagHistorySource.Manual);
         Db.XboxUsers.Add(renamed);
         await Db.SaveChangesAsync();
-        var autocomplete = new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)));
+        var autocomplete = new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)));
 
         var one = (await autocomplete.GetChoicesAsync(Typed("G"), null!))!.ToList();
         var two = (await autocomplete.GetChoicesAsync(Typed("Gr"), null!))!.ToList();
@@ -142,7 +142,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
         Db.Matches.Add(game);
         await Db.SaveChangesAsync();
 
-        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)))
+        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)))
             .GetChoicesAsync(Typed("Shared"), null!))!.ToList();
 
         Assert.That(choices.Select(c => (c.Name, c.StringValue)), Is.EqualTo(new[] { ("Shared Tag", "id:7102") }));
@@ -154,7 +154,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
         Db.XboxUsers.AddRange(XboxUser.FromXbox(7151, "Space Tag"), XboxUser.FromXbox(7152, "Space  Tag"));
         await Db.SaveChangesAsync();
 
-        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)))
+        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)))
             .GetChoicesAsync(Typed("Space"), null!))!.ToList();
 
         Assert.That(choices.Select(c => c.StringValue), Is.EquivalentTo(BothSpacings), "two gamertags, as typing each finds its own account");
@@ -173,7 +173,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
         Db.Matches.Add(game);
         await Db.SaveChangesAsync();
 
-        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)))
+        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)))
             .GetChoicesAsync(Typed("A"), null!))!.ToList();
 
         using (Assert.EnterMultipleScope())
@@ -192,7 +192,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
         Db.XboxUsers.Add(respaced);
         await Db.SaveChangesAsync();
 
-        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)))
+        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)))
             .GetChoicesAsync(Typed("Foo B"), null!))!.ToList();
 
         Assert.That(choices.Select(c => (c.Name, c.StringValue)), Is.EqualTo(new[] { ("Foo  Bar", "id:7201") }), "listed, unlabelled: no alias");

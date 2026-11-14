@@ -102,12 +102,12 @@ public class DiscordModuleRegistrationTests
         Assert.That(commands, Is.EqualTo(new[]
         {
             "/admin bracket create \"Make the season's bracket (refused once any of it is played)\" permissions: default, preconditions: 0"
-                + " [season: String \"The season (its matches not played yet are replaced)\" autocomplete: SeasonAutocomplete, preconditions: 0]"
+                + " [season: String \"The season (its matches not played yet are replaced)\" autocomplete: StaffSeasonAutocomplete, preconditions: 0]"
                 + " [participants: Int32 \"Teams in the bracket\" autocomplete: none, preconditions: 0]"
                 + " [best_of: Int32 \"Games per match\" autocomplete: none, preconditions: 0]"
                 + " [double_elimination: Boolean = False \"Double elimination\" autocomplete: none, preconditions: 0]",
             "/admin bracket seed \"Seed the bracket by the standings\" permissions: default, preconditions: 0"
-                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+                + " [season: String = null \"The season (default: the current one)\" autocomplete: StaffSeasonAutocomplete, preconditions: 0]",
             "/admin claims approve \"Approve a claim\" permissions: default, preconditions: 0"
                 + " [claim: Int32 \"The claim's number\" autocomplete: none, preconditions: 0]",
             "/admin claims list \"Pending claims\" permissions: default, preconditions: 0",
@@ -116,9 +116,9 @@ public class DiscordModuleRegistrationTests
                 + " [reason: String = null \"Why, for the claimant\" autocomplete: none, preconditions: 0]",
             "/admin dashboard \"Pending reschedules and overdue matches, counted\" permissions: default, preconditions: 0",
             "/admin draft lock \"Lock the captains\" permissions: default, preconditions: 0"
-                + " [season: String = null \"The season (default: the next to start)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+                + " [season: String = null \"The season (default: the next to start)\" autocomplete: StaffSeasonAutocomplete, preconditions: 0]",
             "/admin draft unlock \"Unlock the captains\" permissions: default, preconditions: 0"
-                + " [season: String = null \"The season (default: the next to start)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+                + " [season: String = null \"The season (default: the next to start)\" autocomplete: StaffSeasonAutocomplete, preconditions: 0]",
             "/admin halo pull \"Pull a Halo game's stats\" permissions: default, preconditions: 0"
                 + " [match_id: String \"The game's Halo match ID\" autocomplete: none, preconditions: 0]",
             "/admin jobs list \"The jobs and their state\" permissions: default, preconditions: 0",
@@ -128,27 +128,27 @@ public class DiscordModuleRegistrationTests
             "/admin jobs run \"Run a job now\" permissions: default, preconditions: 0"
                 + " [job: String \"The job, as group/name\" autocomplete: none, preconditions: 0]",
             "/admin match forfeit \"Forfeit the match\" permissions: default, preconditions: 0"
-                + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]"
+                + " [match: String \"The match (search by team)\" autocomplete: StaffSeasonMatchAutocomplete, preconditions: 0]"
                 + " [side: ForfeitSide \"Who forfeits\" autocomplete: none, preconditions: 0]",
             "/admin match report \"Report a Halo game as one of the match's\" permissions: default, preconditions: 0"
-                + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]"
+                + " [match: String \"The match (search by team)\" autocomplete: StaffSeasonMatchAutocomplete, preconditions: 0]"
                 + " [match_id: String \"The game's Halo match ID\" autocomplete: none, preconditions: 0]"
                 + " [replaces: Int32 = 0 \"The series game it replaces (default: none)\" autocomplete: none, preconditions: 0]",
             "/admin match time \"Schedule the match\" permissions: default, preconditions: 0"
-                + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]"
+                + " [match: String \"The match (search by team)\" autocomplete: StaffSeasonMatchAutocomplete, preconditions: 0]"
                 + " [time: String \"The time in UTC, like 2026-11-20 20:00\" autocomplete: none, preconditions: 0]",
             "/admin match undo \"Undo the match's result\" permissions: default, preconditions: 0"
-                + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]",
+                + " [match: String \"The match (search by team)\" autocomplete: StaffSeasonMatchAutocomplete, preconditions: 0]",
             "/admin medals \"Refresh the Halo medals\" permissions: default, preconditions: 0",
             "/admin overdue \"Matches overdue to be played\" permissions: default, preconditions: 0",
             "/admin schedule apply \"Schedule the matches as recommended\" permissions: default, preconditions: 0"
                 + " [recommendation: Int32 \"The recommendation's number\" autocomplete: none, preconditions: 0]",
             "/admin schedule run \"Work out a new recommendation\" permissions: default, preconditions: 0"
-                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+                + " [season: String = null \"The season (default: the current one)\" autocomplete: StaffSeasonAutocomplete, preconditions: 0]",
             "/admin schedule show \"The latest recommendation\" permissions: default, preconditions: 0"
-                + " [season: String = null \"The season (default: the current one)\" autocomplete: SeasonAutocomplete, preconditions: 0]",
+                + " [season: String = null \"The season (default: the current one)\" autocomplete: StaffSeasonAutocomplete, preconditions: 0]",
             "/admin season generate \"Make the season's matches (refused once any is played)\" permissions: default, preconditions: 0"
-                + " [season: String \"The season (its matches not played yet are replaced)\" autocomplete: SeasonAutocomplete, preconditions: 0]"
+                + " [season: String \"The season (its matches not played yet are replaced)\" autocomplete: StaffSeasonAutocomplete, preconditions: 0]"
                 + " [home_matches: Int32 \"Home matches per team\" autocomplete: none, preconditions: 0]"
                 + " [best_of: Int32 \"Games per match\" autocomplete: none, preconditions: 0]",
             "/availability show \"A season's match times\" permissions: default, preconditions: 0"

@@ -109,7 +109,7 @@ public class RequestBodyRequiredTests
         {
             SeasonID = 0, SeasonName = $"Location {Guid.NewGuid():N}"[..20], GameVersionID = 6,
             SignupsOpen = "2030-01-01T00:00:00Z", SignupsClose = "2030-01-08T00:00:00Z", DraftStart = "2030-01-09T00:00:00Z",
-            SeasonStart = "2030-01-10T00:00:00Z", SeasonEnd = "2030-03-01T00:00:00Z",
+            SeasonStart = "2030-01-10T00:00:00Z", SeasonEnd = "2030-03-01T00:00:00Z", PublicAt = "2030-01-01T00:00:00Z",
         });
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created), await response.Content.ReadAsStringAsync());

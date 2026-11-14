@@ -21,7 +21,7 @@ public class TeamsHubUnitTests : SqliteGrifballContextFixture
 {
     private TeamsHub Hub(ClaimsPrincipal? user = null)
     {
-        var hub = new TeamsHub(new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()));
+        var hub = new TeamsHub(new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db));
         var context = Substitute.For<HubCallerContext>();
         context.User.Returns(user ?? new ClaimsPrincipal(new ClaimsIdentity()));
         context.ConnectionId.Returns("test-connection");
@@ -32,7 +32,9 @@ public class TeamsHubUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task GetTeams_ReturnsNone_ForASeasonWithNoTeams()
     {
-        var result = await Hub().GetTeams(1);
+        var season = await AddSeason("Empty");
+
+        var result = await Hub().GetTeams(season.SeasonID);
 
         Assert.That(result, Is.Empty);
     }
@@ -40,9 +42,24 @@ public class TeamsHubUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task GetPlayerPool_ReturnsNone_ForASeasonWithNoSignups()
     {
-        var result = await Hub().GetPlayerPool(1);
+        var season = await AddSeason("Empty");
+
+        var result = await Hub().GetPlayerPool(season.SeasonID);
 
         Assert.That(result, Is.Empty);
+    }
+
+    [Test]
+    public async Task TheDraftsReads_RefuseASeasonThatIsntThere_AsAHiddenOne()
+    {
+        var teams = await Assert.ThrowsAsync<HubException>(() => Hub().GetTeams(999));
+        var pool = await Assert.ThrowsAsync<HubException>(() => Hub().GetPlayerPool(999));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(teams!.Message, Is.EqualTo(GrifballWebApp.Server.Seasons.SeasonVisibilityFilter.NoSuchSeason));
+            Assert.That(pool!.Message, Is.EqualTo(GrifballWebApp.Server.Seasons.SeasonVisibilityFilter.NoSuchSeason));
+        }
     }
 
     [Test]

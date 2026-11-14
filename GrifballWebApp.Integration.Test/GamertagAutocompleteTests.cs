@@ -37,7 +37,7 @@ public class GamertagAutocompleteTests
         _context.XboxUsers.Add(XboxUser.FromXbox(2000, "Elite"));
         await _context.SaveChangesAsync();
 
-        var choices = (await new GamertagAutocomplete(new CommandLookups(_context, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context))).GetChoicesAsync(Typed("runt"), null!))!.ToList();
+        var choices = (await new GamertagAutocomplete(new CommandLookups(_context, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context))).GetChoicesAsync(Typed("runt"), null!))!.ToList();
 
         Assert.That(choices, Has.Count.EqualTo(25));
         using (Assert.EnterMultipleScope())
@@ -53,7 +53,7 @@ public class GamertagAutocompleteTests
         _context.XboxUsers.Add(XboxUser.FromXbox(2000, "Elite"));
         await _context.SaveChangesAsync();
 
-        var choices = await new GamertagAutocomplete(new CommandLookups(_context, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context))).GetChoicesAsync(Typed("Grunt"), null!);
+        var choices = await new GamertagAutocomplete(new CommandLookups(_context, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context))).GetChoicesAsync(Typed("Grunt"), null!);
 
         Assert.That(choices, Is.Empty);
     }

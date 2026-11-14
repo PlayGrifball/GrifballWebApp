@@ -42,7 +42,7 @@ public class DiscordCommandsHandlerTests
     public async Task SetUp()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _handler = new DiscordCommandsHandler(new GrifballWebApp.Server.Commands.CommandLookups(_context, null!, new XboxAccountService(_context)), new HaloTools(_context, new XboxAccountService(_context)));
+        _handler = new DiscordCommandsHandler(new GrifballWebApp.Server.Commands.CommandLookups(_context, null!, new XboxAccountService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), new HaloTools(_context, new XboxAccountService(_context)));
 
         _discordContext = Substitute.For<IDiscordApplicationCommandContext>();
         _discordContext.User.Id.Returns(DiscordId);

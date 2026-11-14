@@ -16,9 +16,11 @@ public class TeamHistoryService
 {
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
+    private readonly SeasonVisibility _visibility;
 
-    public TeamHistoryService(IApplicationDbContext context, TimeProvider? time = null)
+    public TeamHistoryService(IApplicationDbContext context, SeasonVisibility visibility, TimeProvider? time = null)
     {
+        _visibility = visibility;
         _time = time ?? TimeProvider.System;
         _context = context;
     }
@@ -26,9 +28,10 @@ public class TeamHistoryService
     /// <summary>
     /// The franchise of the team <paramref name="teamID"/>: every season of its league a team of its name played, newest
     /// first, with its record (counted as the standings count it), roster and captain, and the titles it won (as its
-    /// team page shows them); with the franchise's totals. Null when there is no such team.
+    /// team page shows them); with the franchise's totals: of the seasons <paramref name="viewer"/> may see, so a season not
+    /// announced yet stays out of a public franchise's history (#435). Null when there is no such team.
     /// </summary>
-    public async Task<TeamHistoryDto?> GetAsync(int teamID, CancellationToken ct = default)
+    public async Task<TeamHistoryDto?> GetAsync(int teamID, SeasonViewer viewer = SeasonViewer.Public, CancellationToken ct = default)
     {
         var team = await _context.Teams.AsNoTracking()
             .Where(t => t.TeamID == teamID)
@@ -48,8 +51,9 @@ public class TeamHistoryService
             .Where(t => FranchiseKey.Of(t.TeamID, leagueID, t.TeamName) == key)
             .Select(t => t.TeamID)
             .ToList();
+        var visible = _visibility.Visible(viewer);
         var teams = await _context.Teams.AsNoTracking()
-            .Where(t => ids.Contains(t.TeamID))
+            .Where(t => ids.Contains(t.TeamID) && visible.Any(s => s.SeasonID == t.SeasonID))
             // Counted as the standings count it, in the same query
             .Select(TeamRecord.Select(t => new FranchiseTeam
             {
@@ -76,6 +80,10 @@ public class TeamHistoryService
             .OrderByDescending(l => l.Season.Start)
             .ThenByDescending(l => l.Season.SeasonID)
             .ToArray();
+
+        // None the viewer may see (a team of a season not announced yet, alone in its franchise): no such team to them
+        if (lines.Length == 0)
+            return null;
 
         return new TeamHistoryDto
         {

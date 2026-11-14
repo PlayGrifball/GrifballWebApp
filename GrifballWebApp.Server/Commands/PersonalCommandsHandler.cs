@@ -165,7 +165,7 @@ public class PersonalCommandsHandler
     {
         await context.Defer(ephemeral: true);
         if (await _caller.Require(context, DiscordCaller.Roles.PlayerOrSysadmin) is not { } caller
-            || await _lookups.SeasonFor(context, season, SeasonDefault.Upcoming) is not int seasonID)
+            || await _lookups.SeasonFor(context, season, SeasonPurpose.Upcoming) is not int seasonID)
             return;
         var name = (await _seasons.GetSeasonName(seasonID))!;
 
@@ -190,7 +190,7 @@ public class PersonalCommandsHandler
     public async Task AvailabilityShow(IDiscordInteractionContext context, string? season)
     {
         await context.Defer(ephemeral: false);
-        if (await _lookups.SeasonFor(context, season, SeasonDefault.Upcoming) is not int seasonID)
+        if (await _lookups.SeasonFor(context, season, SeasonPurpose.Upcoming) is not int seasonID)
             return;
         var name = (await _seasons.GetSeasonName(seasonID))!;
 

@@ -123,7 +123,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
     {
         var caller = await AddUser(CallerDiscordID, "Staffer", "Sysadmin", "Commissioner", "Player");
         var season = Season.Seed(seasonName: "Winter").WithDates(signupsOpen: Now.AddDays(-1), signupsClose: Now.AddDays(5), draftStart: Now.AddDays(8),
-            seasonStart: Now.AddDays(10), seasonEnd: Now.AddDays(60));
+            seasonStart: Now.AddDays(10), seasonEnd: Now.AddDays(60), publicAt: Now.AddDays(-2));
         Db.Seasons.Add(season);
         await Db.SaveChangesAsync();
         var match = await AddSeasonMatch(season, await AddTeam(season, "Grifs"), await AddTeam(season, "Rivals"));
@@ -150,8 +150,8 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
     {
         var urls = Urls();
         var stats = new SeasonStatsService(Db);
-        var seasons = new SeasonService(Db, stats, _time);
-        var lookups = new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db));
+        var seasons = new SeasonService(Db, stats, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time);
+        var lookups = new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db));
         var caller = new DiscordCaller(Db);
         var queue = Substitute.For<IQueueRepository>();
         // In the queue already: /queue join and its button are refused; /queue leave too, as nothing is removed
@@ -181,11 +181,11 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
             .AddSingleton(new PersonalCommandsHandler(caller, lookups, membership, queue, null!, new RegionService(Db),
                 new UserGamertagClaimService(Db, new GamertagMatching(Db), _time, MsOptions.Create(new UserClaimOptions())), signups, seasons,
                 new AvailabilityService(Db), reschedules, urls))
-            .AddSingleton(new BrowseCommandsHandler(leaderboards, new MatchmakingStatsService(Db), new HomeEventsService(Db, _time), new QuickSearchService(Db, _time), lookups, urls))
+            .AddSingleton(new BrowseCommandsHandler(leaderboards, new MatchmakingStatsService(Db), new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time), new QuickSearchService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), lookups, urls))
             .AddSingleton(new SeasonCommandsHandler(lookups, seasons, new TeamStandingsService(Db), new MatchPlannerService(Db), new GradesService(Db), signups, brackets, urls))
             .AddSingleton(new PlayerCommandsHandler(lookups, caller, new ProfileStatsService(Db, stats, new MatchmakingStatsService(Db)), new ProfileCommendationsService(Db),
                 new DeploymentHistoryService(Db, _time), vods, urls, null!))
-            .AddSingleton(new TeamCommandsHandler(lookups, new TeamPageService(Db, _time), new TeamHistoryService(Db, _time), vods, urls))
+            .AddSingleton(new TeamCommandsHandler(lookups, new TeamPageService(Db, _time), new TeamHistoryService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time), vods, urls))
             .AddSingleton(new MatchCommandsHandler(lookups, seasonMatches, new MatchDetailsService(Db), urls, null!, null!))
             .AddSingleton(recentMatches)
             .AddSingleton(new DiscordSetGamertag(Db, Substitute.For<UserManager<User>>(Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null), _setGamertag))

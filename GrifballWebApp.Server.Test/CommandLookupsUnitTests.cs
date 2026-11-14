@@ -14,8 +14,9 @@ namespace GrifballWebApp.Server.Test;
 public class CommandLookupsUnitTests : SqliteGrifballContextFixture
 {
     private static readonly DateTime Now = new(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly string[] OnlySecret = ["Secret"];
 
-    private CommandLookups Lookups() => new(Db, new SeasonService(Db, null!, new FixedTimeProvider(Now)), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new FixedTimeProvider(Now));
+    private CommandLookups Lookups() => new(Db, new SeasonService(Db, null!, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, new FixedTimeProvider(Now)), new FixedTimeProvider(Now)), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, new FixedTimeProvider(Now)));
 
     [Test]
     public async Task Season_WithNoInput_AndNoSeasons_ReturnsNull()
@@ -31,7 +32,7 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
         await AddSeason("Latest"); // not running, not started: the latest by ID when none is running
         await Db.SaveChangesAsync();
 
-        var result = await Lookups().Season(null, SeasonDefault.Current);
+        var result = await Lookups().Season(null, SeasonPurpose.Current);
 
         Assert.That(result, Is.EqualTo(running.SeasonID));
     }
@@ -42,7 +43,7 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
         await AddSeason("Older");
         var newer = await AddSeason("Newer");
 
-        var result = await Lookups().Season(null, SeasonDefault.Current);
+        var result = await Lookups().Season(null, SeasonPurpose.Current);
 
         Assert.That(result, Is.EqualTo(newer.SeasonID));
     }
@@ -54,14 +55,33 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
         // explains the result. CommandLookups now reads the same FixedTimeProvider as Lookups() wires up, so both
         // seasons are safely relative to the fixed Now.
         var sooner = await AddSeason("Sooner");
-        sooner.WithDates(signupsOpen: Now.AddDays(1), signupsClose: Now.AddDays(5), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(30), seasonEnd: Now.AddDays(60));
+        sooner.WithDates(signupsOpen: Now.AddDays(1), signupsClose: Now.AddDays(5), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(30), seasonEnd: Now.AddDays(60), publicAt: Now.AddDays(-1));
         var later = await AddSeason("Later");
-        later.WithDates(signupsOpen: Now.AddDays(10), signupsClose: Now.AddDays(20), draftStart: Now.AddDays(25), seasonStart: Now.AddDays(60), seasonEnd: Now.AddDays(90));
+        later.WithDates(signupsOpen: Now.AddDays(10), signupsClose: Now.AddDays(20), draftStart: Now.AddDays(25), seasonStart: Now.AddDays(60), seasonEnd: Now.AddDays(90), publicAt: Now.AddDays(-1));
         await Db.SaveChangesAsync();
 
-        var result = await Lookups().Season(null, SeasonDefault.Upcoming);
+        var result = await Lookups().Season(null, SeasonPurpose.Upcoming);
 
         Assert.That(result, Is.EqualTo(sooner.SeasonID));
+    }
+
+    [Test]
+    public async Task Season_ANotAnnouncedSeason_IsNoDefaultOrNameForThePublic_ButIsForStaff()
+    {
+        var secret = await AddSeason("Secret");
+        secret.WithDates(signupsOpen: Now.AddDays(1), signupsClose: Now.AddDays(5), draftStart: Now.AddDays(8), seasonStart: Now.AddDays(30), seasonEnd: Now.AddDays(60), publicAt: Now.AddDays(3));
+        await Db.SaveChangesAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Lookups().Season(null, SeasonPurpose.Upcoming), Is.Null, "no default for the public");
+            Assert.That(await Lookups().Season("Secret"), Is.Null, "typed: no such season");
+            Assert.That(await Lookups().Season(CommandLookups.ChoiceValue(secret.SeasonID)), Is.Null, "picked by ID: no such season");
+            Assert.That((await Lookups().SeasonChoices("Sec")).Select(c => c.Name), Is.Empty);
+            Assert.That(await Lookups().Season(null, SeasonPurpose.Upcoming, SeasonViewer.Staff), Is.EqualTo(secret.SeasonID));
+            Assert.That(await Lookups().Season("Secret", viewer: SeasonViewer.Staff), Is.EqualTo(secret.SeasonID));
+            Assert.That((await Lookups().SeasonChoices("Sec", SeasonViewer.Staff)).Select(c => c.Name), Is.EqualTo(OnlySecret));
+        }
     }
 
     [Test]
@@ -71,7 +91,7 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
         running.WithDates(signupsOpen: Now.AddDays(-30), signupsClose: Now.AddDays(-20), draftStart: Now.AddDays(-10), seasonStart: Now.AddDays(-1), seasonEnd: Now.AddDays(30));
         await Db.SaveChangesAsync();
 
-        var result = await Lookups().Season(null, SeasonDefault.Upcoming);
+        var result = await Lookups().Season(null, SeasonPurpose.Upcoming);
 
         Assert.That(result, Is.EqualTo(running.SeasonID));
     }

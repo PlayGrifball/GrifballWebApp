@@ -27,7 +27,8 @@ export class CommissionerDashboardService extends BaseService {
   static readonly GetDashboardDataPath = '/commissioner-dashboard';
 
   /**
-   * The commissioner dashboard: pending reschedules, overdue matches, and their counts. Commissioners and sysadmins only.
+   * The commissioner dashboard: pending reschedules, overdue matches, seasons that won't be public by their signups, and
+   * their counts. Commissioners and sysadmins only.
    *
    *
    *
@@ -42,7 +43,8 @@ export class CommissionerDashboardService extends BaseService {
   }
 
   /**
-   * The commissioner dashboard: pending reschedules, overdue matches, and their counts. Commissioners and sysadmins only.
+   * The commissioner dashboard: pending reschedules, overdue matches, seasons that won't be public by their signups, and
+   * their counts. Commissioners and sysadmins only.
    *
    *
    *

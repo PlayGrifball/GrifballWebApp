@@ -8,12 +8,14 @@ namespace GrifballWebApp.Application.Tools;
 /// <summary>Finding things: search, the all-time leaderboards and Late League, open to everyone on the site.</summary>
 public class BrowseTools
 {
+    private readonly ToolCaller _caller;
     private readonly QuickSearchService _search;
     private readonly LeaderboardsService _leaderboards;
     private readonly MatchmakingStatsService _lateLeague;
 
-    public BrowseTools(QuickSearchService search, LeaderboardsService leaderboards, MatchmakingStatsService lateLeague)
+    public BrowseTools(ToolCaller caller, QuickSearchService search, LeaderboardsService leaderboards, MatchmakingStatsService lateLeague)
     {
+        _caller = caller;
         _search = search;
         _leaderboards = leaderboards;
         _lateLeague = lateLeague;
@@ -23,7 +25,7 @@ public class BrowseTools
         + "up to 8 hits of each kind, each with the ID the other tools take. The query needs at least 2 characters.")]
     public Task<QuickSearchDto> Search([Description("What to look for: part of a gamertag, team or season name, or a year.")] string query,
         CancellationToken ct = default)
-        => _search.SearchAsync(query, ct);
+        => _search.SearchAsync(query, _caller.Viewer, ct);
 
     [Description("The all-time leaderboards: most titles (ring leaders), dynasties, and the goal, kill, carrier-stop and games-played leaders.")]
     public Task<LeaderboardsDto> GetLeaderboards([Description("The formats counted, titles and stats alike: any of LeagueSeason, Tournament and LateLeague (Late League has no titles); left out, every format.")] LeaderboardFilter[]? formats = null,

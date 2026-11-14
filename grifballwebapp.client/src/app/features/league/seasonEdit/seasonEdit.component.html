@@ -64,7 +64,7 @@
           <input matInput [mtxDatetimepicker]="datetimePicker0" [ngModel]="model().publicAt" (ngModelChange)="patch({ publicAt: $event })" name="publicAt">
           <mtx-datetimepicker-toggle [for]="datetimePicker0" matSuffix />
           <mtx-datetimepicker #datetimePicker0 [timeInput]="true" [twelvehour]="true" type="datetime" />
-          <mat-hint>Announced on Discord from here. Leave empty to keep it hidden.</mat-hint>
+          <mat-hint>Shown to players and announced on Discord from here: no later than signups open.</mat-hint>
           <app-error-message [control]="seasonForm.controls['publicAt']" />
         </mat-form-field>
 

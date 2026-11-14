@@ -53,8 +53,8 @@ public class PersonalCommandsHandlerActionsUnitTests : SqliteGrifballContextFixt
         var membership = new QueueMembership(_queue, Db, Substitute.For<IQueueNotifier>());
         var buttons = new MatchmakingButtonHandler(membership, _services.GetRequiredService<IServiceScopeFactory>(), Db, Substitute.For<IDiscordRestClient>(), null!,
             new RecordingLogger<MatchmakingButtonHandler>());
-        var seasons = new SeasonService(Db, null!, _time);
-        return new PersonalCommandsHandler(new DiscordCaller(Db), new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), membership, _queue, buttons, null!,
+        var seasons = new SeasonService(Db, null!, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time);
+        return new PersonalCommandsHandler(new DiscordCaller(Db), new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), membership, _queue, buttons, null!,
             new UserGamertagClaimService(Db, new GamertagMatching(Db), _time, Options.Create(new UserClaimOptions())),
             new SignupsService(Db, _time), seasons, new AvailabilityService(Db), new RescheduleService(Db, Substitute.For<IOutbox>()), Urls());
     }

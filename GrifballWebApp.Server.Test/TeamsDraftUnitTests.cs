@@ -215,7 +215,7 @@ public class TeamsDraftUnitTests : SqliteGrifballContextFixture
         var draft = await Signed();
         await AddCaptain(draft, draft.Alpha, 1);
         var commissioner = await Db.Users.Where(u => u.UserName == "Commish").Select(u => u.Id).SingleAsync();
-        var hub = new TeamsHub(Teams());
+        var hub = new TeamsHub(Teams(), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db));
         var caller = Substitute.For<Microsoft.AspNetCore.SignalR.HubCallerContext>();
         caller.User.Returns(new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
             [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, commissioner.ToString())], "Test")));

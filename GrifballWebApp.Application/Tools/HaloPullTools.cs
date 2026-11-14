@@ -2,6 +2,7 @@ using System.ComponentModel;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.XboxAccounts;
 
 namespace GrifballWebApp.Application.Tools;
@@ -15,15 +16,15 @@ namespace GrifballWebApp.Application.Tools;
 public class HaloPullTools
 {
     private readonly ToolCaller _caller;
-    private readonly SeasonMatchService _seasonMatches;
+    private readonly SeasonVisibility _visibility;
     private readonly ISeasonMatchPulls _pulls;
     private readonly XboxAccountService _accounts;
     private readonly IXboxAccountPulls _accountPulls;
 
-    public HaloPullTools(ToolCaller caller, SeasonMatchService seasonMatches, ISeasonMatchPulls pulls, XboxAccountService accounts, IXboxAccountPulls accountPulls)
+    public HaloPullTools(ToolCaller caller, SeasonVisibility visibility, ISeasonMatchPulls pulls, XboxAccountService accounts, IXboxAccountPulls accountPulls)
     {
         _caller = caller;
-        _seasonMatches = seasonMatches;
+        _visibility = visibility;
         _pulls = pulls;
         _accounts = accounts;
         _accountPulls = accountPulls;
@@ -39,7 +40,8 @@ public class HaloPullTools
     {
         // The roles its [ToolRoles] names: a host's filtering isn't the only guard
         _caller.Require(GrifTools.RolesByName["pull_season_match_games"]);
-        if (!await _seasonMatches.Exists(seasonMatchID, ct))
+        // One of a season not announced yet is no match to anyone but staff, as there is none
+        if (!await _visibility.CanSeeSeasonMatch(seasonMatchID, _caller.Viewer, ct))
             throw new ToolException($"There is no season match {seasonMatchID}.");
         return await _pulls.Queue(seasonMatchID, _caller.UserID, backToSeasonStart, ct);
     }

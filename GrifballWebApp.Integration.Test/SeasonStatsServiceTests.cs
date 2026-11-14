@@ -57,7 +57,7 @@ public class SeasonStatsServiceTests
     public async Task ALiveSeason_HasStatsOnItsPages_WithNoImportInvolved()
     {
         var seeded = await PlayALiveSeason();
-        var seasons = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context));
+        var seasons = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
 
         var stats = await seasons.GetSeasonPlayerStats(seeded.Season.SeasonID);
         var summary = (await seasons.GetSeasonSummary(seeded.Season.SeasonID))!;

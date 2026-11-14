@@ -51,10 +51,13 @@ public class SeasonCommandsHandler
         _urls = urls;
     }
 
-    /// <summary>The season asked for, with its name; null when there is none, the caller told so.</summary>
-    private async Task<(int ID, string Name)?> SeasonFor(IDiscordInteractionContext context, string? season)
+    /// <summary>
+    /// The season asked for, with its name, or the one <paramref name="purpose"/> means; null when there is none, the caller told so.
+    /// The reply is the channel's, so a season not announced yet is none, whoever asks (#435).
+    /// </summary>
+    private async Task<(int ID, string Name)?> SeasonFor(IDiscordInteractionContext context, string? season, SeasonPurpose purpose = SeasonPurpose.Current)
     {
-        return await _lookups.SeasonFor(context, season) is int id ? (id, (await _seasons.GetSeasonName(id))!) : null;
+        return await _lookups.SeasonFor(context, season, purpose) is int id ? (id, (await _seasons.GetSeasonName(id))!) : null;
     }
 
     public async Task List(IDiscordInteractionContext context)
@@ -160,7 +163,7 @@ public class SeasonCommandsHandler
     public async Task Signups(IDiscordInteractionContext context, string? season)
     {
         await context.Defer(ephemeral: false);
-        if (await SeasonFor(context, season) is not { } s)
+        if (await SeasonFor(context, season, SeasonPurpose.Upcoming) is not { } s)
             return;
         var signups = await _signups.GetSignups(s.ID);
         var lines = signups
@@ -188,7 +191,7 @@ public class SeasonCommandsHandler
     public async Task Draft(IDiscordInteractionContext context, string? season)
     {
         await context.Defer(ephemeral: false);
-        if (await SeasonFor(context, season) is not { } s)
+        if (await SeasonFor(context, season, SeasonPurpose.Upcoming) is not { } s)
             return;
         await context.Reply(CommandReplies.Embed($"{s.Name} draft", _urls.Draft(s.ID), "The draft board is live on the site."));
     }

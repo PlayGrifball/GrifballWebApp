@@ -142,6 +142,22 @@ public class DraftOutboxTests
     }
 
     [Test]
+    public async Task ASeasonNotAnnouncedYet_PostsNothingToTheDraftChannel()
+    {
+        // Starts in 40 days, announced in 10: the public channel mustn't learn of its draft (#435)
+        var now = DateTime.UtcNow;
+        var hidden = Season.Seed(seasonName: "Hidden Draft").WithDates(signupsOpen: now.AddDays(15), signupsClose: now.AddDays(20),
+            draftStart: now.AddDays(25), seasonStart: now.AddDays(40), seasonEnd: now.AddDays(90), publicAt: now.AddDays(10));
+        _context.Seasons.Add(hidden);
+        await _context.SaveChangesAsync();
+
+        await _teams.LockCaptains(hidden.SeasonID, true);
+
+        await using var fresh = _context.NewContextLike();
+        Assert.That(await fresh.Outbox.AnyAsync(), Is.False);
+    }
+
+    [Test]
     public async Task PreviewWithoutDiscord_SendsNothing()
     {
         await using var preview = new OutboxTestDriver(_context, Substitute.For<IDiscordRestClient>(), new DiscordOptions { DraftChannel = DraftChannel, DisableGlobally = true });

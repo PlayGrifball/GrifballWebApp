@@ -23,6 +23,7 @@ internal sealed class EventOrganizerServiceUnitTests : ApplicationDbContextTests
         SeasonName = name,
         GameVersionID = HaloInfiniteGameVersionID,
         SignupsOpen = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        PublicAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
         SignupsClose = new DateTime(2026, 1, 10, 0, 0, 0, DateTimeKind.Utc),
         DraftStart = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc),
         SeasonStart = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc),

@@ -22,11 +22,37 @@ public class CommissionerDashboardControllerTests
     {
         _context = await TestDatabase.NewGrifballContext();
         var service = new RescheduleService(_context, new ContextOutbox(_context));
-        _controller = new CommissionerDashboardController(service);
+        _controller = new CommissionerDashboardController(service, new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(_context));
     }
 
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
+
+    [Test]
+    public async Task TheDashboard_ListsTheSeasonsStillToStart_ThatWontBePublicByTheirSignups()
+    {
+        var now = DateTime.UtcNow;
+        // Signups in 10 days: one with no Public at, one announced after them, one announced before them (fine), one started
+        var unannounced = Season.Seed(seasonName: "No Date").WithDates(signupsOpen: now.AddDays(10), signupsClose: now.AddDays(15),
+            draftStart: now.AddDays(20), seasonStart: now.AddDays(30), seasonEnd: now.AddDays(60));
+        var late = Season.Seed(seasonName: "Too Late").WithDates(signupsOpen: now.AddDays(10), signupsClose: now.AddDays(15),
+            draftStart: now.AddDays(20), seasonStart: now.AddDays(30), seasonEnd: now.AddDays(60), publicAt: now.AddDays(12));
+        var fine = Season.Seed(seasonName: "In Time").WithDates(signupsOpen: now.AddDays(10), signupsClose: now.AddDays(15),
+            draftStart: now.AddDays(20), seasonStart: now.AddDays(30), seasonEnd: now.AddDays(60), publicAt: now.AddDays(5));
+        var started = Season.Seed(seasonName: "Started").WithDates(signupsOpen: now.AddDays(-40), signupsClose: now.AddDays(-30),
+            draftStart: now.AddDays(-20), seasonStart: now.AddDays(-10), seasonEnd: now.AddDays(30));
+        _context.Seasons.AddRange(unannounced, late, fine, started);
+        await _context.SaveChangesAsync();
+
+        var data = await _controller.GetDashboardData(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(data.SeasonsNotPublicBySignups.Select(s => (s.SeasonName, s.PublicAt is null)),
+                Is.EquivalentTo(new[] { ("No Date", true), ("Too Late", false) }));
+            Assert.That(data.Summary.SeasonsNotPublicBySignupsCount, Is.EqualTo(2));
+        }
+    }
 
     private async Task SeedOverdueAndPending()
     {

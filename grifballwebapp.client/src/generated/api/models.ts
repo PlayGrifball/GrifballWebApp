@@ -167,6 +167,7 @@ export type { SeasonMatchPageDto } from './models/season-match-page-dto';
 export type { SeasonMatchResult } from './models/season-match-result';
 export type { SeasonMatchResultDto } from './models/season-match-result-dto';
 export type { SeasonMatchSeriesTotalsDto } from './models/season-match-series-totals-dto';
+export type { SeasonNotPublicBySignupsDto } from './models/season-not-public-by-signups-dto';
 export type { SeasonPlayerStatDto } from './models/season-player-stat-dto';
 export type { SeasonRefDto } from './models/season-ref-dto';
 export type { SeasonSummaryDto } from './models/season-summary-dto';

@@ -31,7 +31,7 @@ public class TeamsHubTests
     {
         _context = await TestDatabase.NewGrifballContext();
         _publisher = Substitute.For<IPublisher>();
-        _hub = new TeamsHub(new TeamService(_context, _publisher, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)));
+        _hub = new TeamsHub(new TeamService(_context, _publisher, new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context)), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
         _callerContext = Substitute.For<HubCallerContext>();
         _callerContext.ConnectionId.Returns("hub-conn");
         _hub.Context = _callerContext;
@@ -81,7 +81,7 @@ public class TeamsHubTests
         await _hub.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = c1.Id, PersonID = p.Id });
         await _hub.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = c1.Id, NewCaptainID = c2.Id, PersonID = p.Id, RoundNumber = 1 });
 
-        var teams = await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>())).GetTeams(season.SeasonID);
+        var teams = await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)).GetTeams(season.SeasonID);
         using (Assert.EnterMultipleScope())
         {
             Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(TeamsByDraftOrder));
@@ -92,9 +92,9 @@ public class TeamsHubTests
         await _hub.RemovePlayerFromTeam(new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, CaptainID = c2.Id, PersonID = p.Id });
         await _hub.RemoveCaptain(new RemoveCaptainDto { SeasonID = season.SeasonID, PersonID = c1.Id });
         await _hub.LockCaptains(season.SeasonID);
-        Assert.That(await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>())).AreCaptainsLocked(season.SeasonID), Is.True);
+        Assert.That(await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)).AreCaptainsLocked(season.SeasonID), Is.True);
         await _hub.UnlockCaptains(season.SeasonID);
-        Assert.That(await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>())).AreCaptainsLocked(season.SeasonID), Is.False);
+        Assert.That(await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)).AreCaptainsLocked(season.SeasonID), Is.False);
 
         var published = Published();
         using (Assert.EnterMultipleScope())

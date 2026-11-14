@@ -16,7 +16,7 @@ internal sealed class HomeEventsServiceUnitTests : ApplicationDbContextTests
     public void SetUp()
     {
         _time = new FakeTimeProvider(Now);
-        _service = new HomeEventsService(Context, _time);
+        _service = new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(Context, _time), _time);
     }
 
     [Test]
@@ -35,6 +35,7 @@ internal sealed class HomeEventsServiceUnitTests : ApplicationDbContextTests
         season.Schedule(
             signupsOpen: Now.AddDays(-5), signupsClose: Now.AddDays(5),
             draftStart: Now.AddDays(10), seasonStart: Now.AddDays(20), seasonEnd: Now.AddDays(60));
+        season.AnnounceAt(Now.AddDays(-6));
         Context.Seasons.Add(season);
         await Context.SaveChangesAsync();
 
@@ -49,6 +50,27 @@ internal sealed class HomeEventsServiceUnitTests : ApplicationDbContextTests
             Assert.That(events[1].Start, Is.EqualTo(season.DraftStart));
             Assert.That(events[2].EventType, Is.EqualTo(EventType.Season));
             Assert.That(events[2].Start, Is.EqualTo(season.SeasonStart));
+        }
+    }
+
+    [Test]
+    public async Task CurrentAndFuture_ASeasonNotAnnouncedYet_IsStaffsAlone()
+    {
+        var season = Season.Seed(seasonName: "Secret", seasonID: 1);
+        season.Schedule(
+            signupsOpen: Now.AddDays(5), signupsClose: Now.AddDays(10),
+            draftStart: Now.AddDays(12), seasonStart: Now.AddDays(20), seasonEnd: Now.AddDays(60));
+        season.AnnounceAt(Now.AddDays(3));
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
+
+        var everyone = await _service.CurrentAndFuture();
+        var staff = await _service.CurrentAndFuture(GrifballWebApp.Application.Seasons.SeasonViewer.Staff);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(everyone, Is.Empty, "announced in 3 days");
+            Assert.That(staff, Has.Length.EqualTo(3));
         }
     }
 

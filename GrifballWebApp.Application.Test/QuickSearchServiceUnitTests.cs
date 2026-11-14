@@ -18,7 +18,7 @@ internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
     public void SetUp()
     {
         _time = new FakeTimeProvider(Now);
-        _service = new QuickSearchService(Context, _time);
+        _service = new QuickSearchService(Context, new GrifballWebApp.Application.Seasons.SeasonVisibility(Context, _time));
     }
 
     // The queries below match the seeded text's own case. Case-insensitive Contains (NOCASE on SQLite) needs a
@@ -31,7 +31,7 @@ internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task SearchAsync_TooShort_ReturnsEmpty()
     {
-        var result = await _service.SearchAsync("a", CancellationToken.None);
+        var result = await _service.SearchAsync("a", ct: CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -44,7 +44,7 @@ internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task SearchAsync_Null_ReturnsEmpty()
     {
-        var result = await _service.SearchAsync(null, CancellationToken.None);
+        var result = await _service.SearchAsync(null, ct: CancellationToken.None);
 
         Assert.That(result.Players, Is.Empty);
     }
@@ -139,7 +139,7 @@ internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
         Context.Teams.Add(team);
         await Context.SaveChangesAsync();
 
-        var result = await _service.SearchAsync("Reclaim", CancellationToken.None);
+        var result = await _service.SearchAsync("Reclaim", ct: CancellationToken.None);
 
         Assert.That(result.Teams, Has.Length.EqualTo(1));
         using (Assert.EnterMultipleScope())
@@ -156,7 +156,7 @@ internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
         Context.Seasons.Add(season);
         await Context.SaveChangesAsync();
 
-        var result = await _service.SearchAsync("Winter", CancellationToken.None);
+        var result = await _service.SearchAsync("Winter", ct: CancellationToken.None);
 
         Assert.That(result.Seasons, Has.Length.EqualTo(1));
         Assert.That(result.Seasons[0].SeasonName, Is.EqualTo("Winter Cup"));
@@ -172,7 +172,7 @@ internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
         Context.Seasons.Add(season);
         await Context.SaveChangesAsync();
 
-        var result = await _service.SearchAsync("2019", CancellationToken.None);
+        var result = await _service.SearchAsync("2019", ct: CancellationToken.None);
 
         Assert.That(result.Seasons, Has.Length.EqualTo(1));
         Assert.That(result.Seasons[0].SeasonID, Is.EqualTo(1));
