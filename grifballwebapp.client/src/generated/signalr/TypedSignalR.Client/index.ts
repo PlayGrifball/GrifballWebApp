@@ -3,8 +3,10 @@
 /* tslint:disable */
 // @ts-nocheck
 import type { HubConnection, IStreamResult, Subject } from '@microsoft/signalr';
+import type { IChatHubServer, IChatHubClient } from './GrifballWebApp.Server.Chat';
 import type { IQueueHubServer, IQueueHubClient } from './GrifballWebApp.Server.Matchmaking';
 import type { ITeamsHubServer, ITeamsHubClient } from './GrifballWebApp.Server.Teams';
+import type { ChatRequestDto } from '../GrifballWebApp.Application.Chat';
 import type { TeamResponseDto, PlayerDto, CaptainPlacementDto, RemoveCaptainDto, RemovePlayerFromTeamRequestDto, MovePlayerToTeamRequestDto, AddPlayerToTeamRequestDto, CaptainAddedDto } from '../GrifballWebApp.Application.Teams';
 
 
@@ -44,11 +46,15 @@ class ReceiverMethodSubscription implements Disposable {
 // API
 
 export type HubProxyFactoryProvider = {
+    (hubType: "IChatHubServer"): HubProxyFactory<IChatHubServer>;
     (hubType: "IQueueHubServer"): HubProxyFactory<IQueueHubServer>;
     (hubType: "ITeamsHubServer"): HubProxyFactory<ITeamsHubServer>;
 }
 
 export const getHubProxyFactory = ((hubType: string) => {
+    if(hubType === "IChatHubServer") {
+        return IChatHubServer_HubProxyFactory.Instance;
+    }
     if(hubType === "IQueueHubServer") {
         return IQueueHubServer_HubProxyFactory.Instance;
     }
@@ -58,11 +64,15 @@ export const getHubProxyFactory = ((hubType: string) => {
 }) as HubProxyFactoryProvider;
 
 export type ReceiverRegisterProvider = {
+    (receiverType: "IChatHubClient"): ReceiverRegister<IChatHubClient>;
     (receiverType: "IQueueHubClient"): ReceiverRegister<IQueueHubClient>;
     (receiverType: "ITeamsHubClient"): ReceiverRegister<ITeamsHubClient>;
 }
 
 export const getReceiverRegister = ((receiverType: string) => {
+    if(receiverType === "IChatHubClient") {
+        return IChatHubClient_Binder.Instance;
+    }
     if(receiverType === "IQueueHubClient") {
         return IQueueHubClient_Binder.Instance;
     }
@@ -72,6 +82,27 @@ export const getReceiverRegister = ((receiverType: string) => {
 }) as ReceiverRegisterProvider;
 
 // HubProxy
+
+class IChatHubServer_HubProxyFactory implements HubProxyFactory<IChatHubServer> {
+    public static Instance = new IChatHubServer_HubProxyFactory();
+
+    private constructor() {
+    }
+
+    public readonly createHubProxy = (connection: HubConnection): IChatHubServer => {
+        return new IChatHubServer_HubProxy(connection);
+    }
+}
+
+class IChatHubServer_HubProxy implements IChatHubServer {
+
+    public constructor(private connection: HubConnection) {
+    }
+
+    public readonly ask = (request: ChatRequestDto): IStreamResult<string> => {
+        return this.connection.stream("Ask", request);
+    }
+}
 
 class IQueueHubServer_HubProxyFactory implements HubProxyFactory<IQueueHubServer> {
     public static Instance = new IQueueHubServer_HubProxyFactory();
@@ -153,6 +184,24 @@ class ITeamsHubServer_HubProxy implements ITeamsHubServer {
 
 
 // Receiver
+
+class IChatHubClient_Binder implements ReceiverRegister<IChatHubClient> {
+
+    public static Instance = new IChatHubClient_Binder();
+
+    private constructor() {
+    }
+
+    public readonly register = (connection: HubConnection, receiver: IChatHubClient): Disposable => {
+
+
+
+        const methodList: ReceiverMethod[] = [
+        ]
+
+        return new ReceiverMethodSubscription(connection, methodList);
+    }
+}
 
 class IQueueHubClient_Binder implements ReceiverRegister<IQueueHubClient> {
 
