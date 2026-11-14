@@ -70,10 +70,12 @@ describe('CommissionerDashboardComponent', () => {
 
   it('should load dashboard data on init', () => {
     const mockDashboardData: CommissionerDashboardDto = {
+      seasonsNotPublicBySignups: [],
       summary: {
         pendingRescheduleCount: 2,
         overdueMatchCount: 1,
-        criticalOverdueCount: 0
+        criticalOverdueCount: 0,
+        seasonsNotPublicBySignupsCount: 0
       },
       pendingReschedules: [
         {
@@ -207,13 +209,13 @@ describe('CommissionerDashboardComponent', () => {
     
     // After the POST completes, the component calls loadDashboardData()
     const refreshReq = httpTestingController.expectOne('/api/commissioner-dashboard');
-    refreshReq.flush({ pendingReschedules: [], overdueMatches: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0 } });
+    refreshReq.flush({ pendingReschedules: [], overdueMatches: [], seasonsNotPublicBySignups: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0 } });
   });
 
   describe('reschedule actions', () => {
     const reschedule = { matchRescheduleID: 4, seasonMatchID: 40, homeCaptain: 'A', awayCaptain: 'B',
       reason: 'r', requestedByGamertag: 'p', requestedAt: '2024-01-01T00:00:00Z', status: 'Pending', canApprove: true } as RescheduleDto;
-    const empty = { pendingReschedules: [], overdueMatches: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0 } };
+    const empty = { pendingReschedules: [], overdueMatches: [], seasonsNotPublicBySignups: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0 } };
 
     it('reloads the dashboard after the dialog reports a processed request', () => {
       const ref = jasmine.createSpyObj('MatDialogRef', ['afterClosed']);
@@ -251,8 +253,8 @@ describe('CommissionerDashboardComponent', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Loading dashboard data...');
 
     httpTestingController.expectOne('/api/commissioner-dashboard').flush({
-      pendingReschedules: [], overdueMatches: [],
-      summary: { pendingRescheduleCount: 4, overdueMatchCount: 0, criticalOverdueCount: 0 },
+      pendingReschedules: [], overdueMatches: [], seasonsNotPublicBySignups: [],
+      summary: { pendingRescheduleCount: 4, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0 },
     });
     await fixture.whenStable();
 
@@ -266,7 +268,8 @@ describe('CommissionerDashboardComponent', () => {
     httpTestingController.expectOne('/api/commissioner-dashboard').flush({
       pendingReschedules: [],
       overdueMatches: [{ seasonMatchID: 33, homeCaptain: 'A', awayCaptain: 'B', scheduledTime: '2026-10-27T00:30:00Z', hoursOverdue: 80 }],
-      summary: { pendingRescheduleCount: 0, overdueMatchCount: 1, criticalOverdueCount: 1 },
+      seasonsNotPublicBySignups: [],
+      summary: { pendingRescheduleCount: 0, overdueMatchCount: 1, criticalOverdueCount: 1, seasonsNotPublicBySignupsCount: 0 },
     });
     await fixture.whenStable();
     (Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="tab"]'))[1]).click();
@@ -294,8 +297,8 @@ describe('CommissionerDashboardComponent', () => {
     const open: RescheduleDto = { ...base, matchRescheduleID: 8, canApprove: true, whyNotApprovable: null };
     await fixture.whenStable();
     httpTestingController.expectOne('/api/commissioner-dashboard').flush({
-      pendingReschedules: [decided, open], overdueMatches: [],
-      summary: { pendingRescheduleCount: 2, overdueMatchCount: 0, criticalOverdueCount: 0 },
+      pendingReschedules: [decided, open], overdueMatches: [], seasonsNotPublicBySignups: [],
+      summary: { pendingRescheduleCount: 2, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0 },
     });
     await fixture.whenStable();
 
@@ -312,6 +315,36 @@ describe('CommissionerDashboardComponent', () => {
     spyOn(component['dialog'], 'open').and.returnValue(mockDialogRef);
     decidedButton.click();
     expect(component['dialog'].open).toHaveBeenCalledWith(jasmine.any(Function), { width: '600px', data: decided });
+  });
+
+  it('warns of the seasons not public by their signups, each linked to its edit page', async () => {
+    await fixture.whenStable();
+    httpTestingController.expectOne('/api/commissioner-dashboard').flush({
+      pendingReschedules: [], overdueMatches: [],
+      seasonsNotPublicBySignups: [
+        { seasonID: 5, seasonName: 'Spring', signupsOpen: '2026-12-01T00:00:00Z', publicAt: null },
+        { seasonID: 6, seasonName: 'Summer', signupsOpen: '2027-03-01T00:00:00Z', publicAt: '2027-03-05T00:00:00Z' },
+      ],
+      summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 2 },
+    });
+    await fixture.whenStable();
+
+    const items = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.cd-unannounced li'));
+    expect(items.length).toBe(2);
+    expect(items[0].querySelector('a')!.getAttribute('href')).toBe('/seasonEdit/5');
+    expect(items[0].textContent).toContain('no public date');
+    expect(items[1].textContent).toContain('public from');
+  });
+
+  it('shows no warning when every season will be public by its signups', async () => {
+    await fixture.whenStable();
+    httpTestingController.expectOne('/api/commissioner-dashboard').flush({
+      pendingReschedules: [], overdueMatches: [], seasonsNotPublicBySignups: [],
+      summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0 },
+    });
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.cd-unannounced')).toBeNull();
   });
 
   it('stops listening to the dialog once destroyed', () => {

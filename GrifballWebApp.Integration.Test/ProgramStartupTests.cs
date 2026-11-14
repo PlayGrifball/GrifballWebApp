@@ -501,9 +501,10 @@ public class ProgramStartupTests
     {
         // The real IPublisher from Program.cs's registration: LockChanged reaches LockChangeHandler, which tells every
         // other connection to lock the captains (and the draft channel message it queues is skipped, Discord being disabled).
+        // Seasons 7 and 8 aren't there, so no one but staff may see them: the change goes to staff's connections (#435).
         var others = Substitute.For<ITeamsHubClient>();
         var clients = Substitute.For<IHubClients<ITeamsHubClient>>();
-        clients.AllExcept(Arg.Any<IReadOnlyList<string>>()).Returns(others);
+        clients.GroupExcept(TeamsHub.StaffGroup, Arg.Any<IReadOnlyList<string>>()).Returns(others);
         var hub = Substitute.For<IHubContext<TeamsHub, ITeamsHubClient>>();
         hub.Clients.Returns(clients);
 
@@ -518,8 +519,8 @@ public class ProgramStartupTests
 
         await others.Received(1).LockCaptains(7);
         await others.Received(1).UnlockCaptains(8);
-        clients.Received(1).AllExcept(Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(FirstConnection)));
-        clients.Received(1).AllExcept(Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(SecondConnection)));
+        clients.Received(1).GroupExcept(TeamsHub.StaffGroup, Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(FirstConnection)));
+        clients.Received(1).GroupExcept(TeamsHub.StaffGroup, Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(SecondConnection)));
     }
 
     [Test]

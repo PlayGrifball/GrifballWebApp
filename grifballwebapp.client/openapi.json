@@ -1065,7 +1065,7 @@
         "tags": [
           "CommissionerDashboard"
         ],
-        "summary": "The commissioner dashboard: pending reschedules, overdue matches, and their counts. Commissioners and sysadmins only.",
+        "summary": "The commissioner dashboard: pending reschedules, overdue matches, seasons that won't be public by their signups, and\ntheir counts. Commissioners and sysadmins only.",
         "operationId": "GetDashboardData",
         "responses": {
           "401": {
@@ -9598,6 +9598,7 @@
         "required": [
           "overdueMatches",
           "pendingReschedules",
+          "seasonsNotPublicBySignups",
           "summary"
         ],
         "type": "object",
@@ -9613,6 +9614,13 @@
             "items": {
               "$ref": "#/components/schemas/OverdueMatchDto"
             }
+          },
+          "seasonsNotPublicBySignups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonNotPublicBySignupsDto"
+            },
+            "description": "Seasons still to start that won't be public by their signups: to fix on their edit page."
           },
           "summary": {
             "allOf": [
@@ -9706,7 +9714,8 @@
         "required": [
           "criticalOverdueCount",
           "overdueMatchCount",
-          "pendingRescheduleCount"
+          "pendingRescheduleCount",
+          "seasonsNotPublicBySignupsCount"
         ],
         "type": "object",
         "properties": {
@@ -9719,6 +9728,10 @@
             "format": "int32"
           },
           "criticalOverdueCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "seasonsNotPublicBySignupsCount": {
             "type": "integer",
             "format": "int32"
           }
@@ -15238,6 +15251,36 @@
           }
         },
         "additionalProperties": false
+      },
+      "SeasonNotPublicBySignupsDto": {
+        "required": [
+          "publicAt",
+          "seasonID",
+          "seasonName",
+          "signupsOpen"
+        ],
+        "type": "object",
+        "properties": {
+          "seasonID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "seasonName": {
+            "type": "string"
+          },
+          "signupsOpen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publicAt": {
+            "type": "string",
+            "description": "When it's announced; null when it has no date.",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A season still to start that won't be public by the time its signups open (Season.NotPublicBySignups): players can't sign up\nfor a season they can't see, so its \"Public at\" needs setting no later than its signups open (#435)."
       },
       "SeasonPlayerStatDto": {
         "required": [

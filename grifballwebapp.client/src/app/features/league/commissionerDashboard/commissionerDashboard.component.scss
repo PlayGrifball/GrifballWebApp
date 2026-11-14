@@ -110,3 +110,25 @@
 
 .mat-mdc-row.warning-row { background: rgba(255, 210, 94, 0.06); box-shadow: inset 3px 0 0 var(--hud-gold); }
 .mat-mdc-row.critical-row { background: rgba(229, 72, 77, 0.08); box-shadow: inset 3px 0 0 var(--hud-red); }
+
+// Seasons that won't be public by their signups: a warning, like a critical metric
+.cd-unannounced {
+  --panel-bg: rgba(229, 72, 77, 0.12);
+  border-color: var(--hud-red);
+  margin-block: 16px;
+
+  .hud-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: var(--hud-red-text);
+  }
+
+  .mat-icon { font-size: 20px; width: 20px; height: 20px; }
+}
+
+.cd-unannounced-list {
+  margin: 8px 0 0;
+  padding-inline-start: 20px;
+}

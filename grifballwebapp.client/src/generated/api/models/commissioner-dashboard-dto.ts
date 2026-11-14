@@ -4,8 +4,14 @@
 import { DashboardSummaryDto } from '../models/dashboard-summary-dto';
 import { OverdueMatchDto } from '../models/overdue-match-dto';
 import { RescheduleDto } from '../models/reschedule-dto';
+import { SeasonNotPublicBySignupsDto } from '../models/season-not-public-by-signups-dto';
 export interface CommissionerDashboardDto {
   overdueMatches: Array<OverdueMatchDto>;
   pendingReschedules: Array<RescheduleDto>;
+
+  /**
+   * Seasons still to start that won't be public by their signups: to fix on their edit page.
+   */
+  seasonsNotPublicBySignups: Array<SeasonNotPublicBySignupsDto>;
   summary: DashboardSummaryDto;
 }

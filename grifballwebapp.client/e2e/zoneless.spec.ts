@@ -243,8 +243,8 @@ test('processing a reschedule in the dialog refreshes the commissioner dashboard
   await mockBackend(page, {
     '/api/commissioner-dashboard': route => json(route, typed('getDashboardData', {
           pendingReschedules: processed ? [] : [reschedule],
-          overdueMatches: [],
-          summary: { pendingRescheduleCount: processed ? 0 : 1, overdueMatchCount: 0, criticalOverdueCount: 0 },
+          overdueMatches: [], seasonsNotPublicBySignups: [],
+          summary: { pendingRescheduleCount: processed ? 0 : 1, overdueMatchCount: 0, criticalOverdueCount: 0, seasonsNotPublicBySignupsCount: 0 },
         })),
     '/api/reschedules/8/decision': route => {
       processed = true;

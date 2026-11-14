@@ -5,4 +5,5 @@ export interface DashboardSummaryDto {
   criticalOverdueCount: number;
   overdueMatchCount: number;
   pendingRescheduleCount: number;
+  seasonsNotPublicBySignupsCount: number;
 }
