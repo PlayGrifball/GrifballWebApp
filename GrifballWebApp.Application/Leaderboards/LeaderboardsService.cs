@@ -104,7 +104,10 @@ public class LeaderboardsService
     };
 
     /// <summary>A player's rank on every board: the user with this ID, or else the player a gamertag (current or past) is of.</summary>
+    /// <param name="query">A gamertag, current or past, looked up when <paramref name="userId"/> is null.</param>
+    /// <param name="userId">The player's user ID; null: the player <paramref name="query"/> names.</param>
     /// <param name="format">Count only seasons of this format, or Late League matchmaking; null: all seasons (excluding Late League).</param>
+    /// <param name="ct">Cancels the reads, and a computation for the cache.</param>
     public async Task<PlayerAllTimeRankDto?> GetPlayerRankAsync(string? query, int? userId, LeaderboardFilter? format, CancellationToken ct = default)
     {
         int? targetUserId = userId;

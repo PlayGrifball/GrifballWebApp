@@ -613,15 +613,15 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       gamesPlayedLeaders: [leader(1, 501, 'Legendary', 30, null)],
       carrierStopLeaders: [leader(1, 501, 'Legendary', 45, 1.5)],
     },
-    // "Titles from: Tournament": the titles of the tournaments only (the other boards count every game alike)
+    // Format: Tournament: the stat boards count the tournaments' games only (titles and dynasties count every format)
     '/api/leaderboards?format=Tournament': {
-      ringLeaders: [{ rank: 1, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(8, 'Harvest Hammer', 'Open', 3)] },
-        { rank: 1, userID: 12, gamertag: 'Banshee Bri', ringsCount: 1, titles: [title(8, 'Harvest Hammer', 'Open', 3)] }],
-      dynasties: [{ rank: 1, teamName: 'Hammer Bros', latestTeamID: 3, latestSeasonID: 12, championshipsCount: 1, seasonsActive: 2, titles: [title(8, 'Harvest Hammer', 'Open', 3)] }],
-      goalLeaders: [leader(1, 501, 'Legendary', 120, 4), leader(2, 117, 'MasterChief117', 88, 2.93)],
-      killLeaders: [leader(1, 117, 'MasterChief117', 640, 21.33)],
-      gamesPlayedLeaders: [leader(1, 501, 'Legendary', 30, null)],
-      carrierStopLeaders: [leader(1, 501, 'Legendary', 45, 1.5)],
+      ringLeaders: [{ rank: 1, userID: 501, gamertag: 'Legendary', ringsCount: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1), title(9, 'Frostbite Cup', 'Open', 2)] },
+        { rank: 2, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(12, 'Autumn Brawl', 'Open', 2)] }],
+      dynasties: [{ rank: 1, teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1)] }],
+      goalLeaders: [leader(1, 12, 'Banshee Bri', 31, 3.1), leader(2, 117, 'MasterChief117', 19, 1.9)],
+      killLeaders: [leader(1, 12, 'Banshee Bri', 140, 14)],
+      gamesPlayedLeaders: [leader(1, 12, 'Banshee Bri', 10, null)],
+      carrierStopLeaders: [leader(1, 117, 'MasterChief117', 12, 1.2)],
     },
     '/api/leaderboards/player-rank': {
       userID: 501,

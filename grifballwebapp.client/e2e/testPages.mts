@@ -344,7 +344,7 @@ export const OVERLAYS: Overlay[] = [
     },
     close: closeQuickSearch,
   },
-  // The leaderboards: each board (Championships is the page as it opens), the titles of one format, the player search's
+  // The leaderboards: each board (Championships is the page as it opens), one format's goals, the player search's
   // suggestions (two players of one name, labelled Current gamertag and Archive), the standing of the player picked,
   // and a search that finds nobody
   ...([['Dynasties', 'Team'], ['Goals', 'Goals'], ['Kills', 'Kills'], ['Games played', 'Games played'], ['Carrier stops', 'Carrier stops']] as const)
@@ -355,12 +355,12 @@ export const OVERLAYS: Overlay[] = [
       close: null,
     })),
   {
-    name: 'leaderboards, tournament titles', role: 'anon', path: '/leaderboards', sheet: 'leaderboards',
+    name: 'leaderboards, tournament goals', role: 'anon', path: '/leaderboards', sheet: 'leaderboards',
     parts: [HEADING, TABS, 'app-leaderboards .hud-table-wrap'],
     setup: async page => {
+      const table = await showBoard(page, 'Goals', 'Goals');
       await page.locator('app-leaderboards .board-filter select').selectOption('Tournament');
-      const table = page.locator('app-leaderboards .hud-table-wrap');
-      await expect(table).toContainText('Harvest Hammer');
+      await expect(table).toContainText('Banshee Bri');
       return table;
     },
     close: null,
