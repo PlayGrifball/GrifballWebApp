@@ -21,7 +21,7 @@ public class JobDto
     public bool Recurring { get; init; }
     /// <summary>Off (a Discord job while Discord is off): no trigger, and it can't be run.</summary>
     public bool Enabled { get; init; }
-    /// <summary>Scheduled, Paused, Off (no trigger), OnDemand (started from its page, <see cref="OnDemandJobs"/>), Error (its trigger failed to fire) or Blocked (running, the next waits).</summary>
+    /// <summary>Scheduled, Paused, Off (no trigger), Manual (run from the Jobs page only, <see cref="RecurringJob.ManualOnly"/>), OnDemand (started from its page, <see cref="OnDemandJobs"/>), Error (its trigger failed to fire) or Blocked (running, the next waits).</summary>
     public required string State { get; init; }
     /// <summary>How often it runs, in seconds (a recurring job's interval).</summary>
     public long? IntervalSeconds { get; init; }
@@ -156,6 +156,8 @@ public class JobsService
             {
                 // Started from its page, with an input: no trigger of its own, one per run
                 TriggerState.None when onDemand is not null => "OnDemand",
+                // Run from the Jobs page only: no trigger, by design
+                TriggerState.None when recurring is { ManualOnly: true, Enabled: true } => "Manual",
                 TriggerState.None => "Off",
                 TriggerState.Paused => "Paused",
                 TriggerState.Error => "Error",
@@ -227,8 +229,8 @@ public class JobsService
         var scheduler = await _schedulers.GetScheduler(ct);
         if (!await scheduler.Exists(key, ct))
             return JobChange.NotFound;
-        // A pause would hold only the runs queued now, not the next page's
-        if (paused && _recurring.FindOnDemand(key) is not null)
+        // A pause would hold only the runs queued now, not the next page's; a manual-only job has no schedule to hold
+        if (paused && (_recurring.FindOnDemand(key) is not null || _recurring.Find(key) is { ManualOnly: true }))
             return JobChange.Conflict;
         if (paused)
             await scheduler.PauseJobWith(key, new PauseDetails { Reason = PausedReason, RequestedBy = by }, ct);

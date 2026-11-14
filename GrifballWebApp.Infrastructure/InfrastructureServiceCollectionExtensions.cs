@@ -140,11 +140,15 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddHostedService<XuidLookupWorker>();
         // A season match's pull from Halo, queued from its page and the agents' tools
         services.AddTransient<ISeasonMatchPulls, SeasonMatchPulls>();
+        // The cleanup of placeholders that are no league players (XboxPlaceholderCleanupJob)
+        services.AddTransient<XboxPlaceholderCleanup>();
         // Quartz.NET: the recurring jobs (their schedules, kept in the database, and the Jobs page) and the scheduler that runs them
         services.AddJobs(configuration, jobs =>
         {
             jobs.Add<HistoricalRefreshJob>(HistoricalRefreshJob.Definition);
             jobs.Add<XboxPlaceholderJob>(XboxPlaceholderJob.Definition);
+            // Run from the Jobs page only: it deletes users
+            jobs.Add<XboxPlaceholderCleanupJob>(XboxPlaceholderCleanupJob.Definition);
             jobs.Add<ActiveSeasonPullJob>(ActiveSeasonPullJob.Definition);
             jobs.Add<MatchVariantBackfillJob>(MatchVariantBackfillJob.Definition);
             jobs.Add<PasswordResetLinkCleanupJob>(PasswordResetLinkCleanupJob.Definition);

@@ -20,7 +20,7 @@ namespace GrifballWebApp.Infrastructure.Test;
 public class RecurringJobSeederTests
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 13, 4, 0, 0, TimeSpan.Zero);
-    private static readonly string[] TriggerRemovedLog = ["Recurring job recurring.counting is off: its trigger was removed"];
+    private static readonly string[] TriggerRemovedLog = ["Recurring job recurring.counting is off or manual only: its trigger was removed"];
     private static readonly JobKey OtherKey = new("other", RecurringJobs.Group);
 
     private readonly ISchedulerFactory _schedulers = Substitute.For<ISchedulerFactory>();
@@ -110,6 +110,18 @@ public class RecurringJobSeederTests
             Assert.That(made, Is.False);
             Assert.That(_log.At(Microsoft.Extensions.Logging.LogLevel.Information), Is.EqualTo(TriggerRemovedLog));
         }
+        await _scheduler.Received(1).UnscheduleJob(job.TriggerKey, Arg.Any<CancellationToken>());
+        await _scheduler.DidNotReceiveWithAnyArgs().ScheduleTrigger(default!, default, default);
+    }
+
+    [Test]
+    public async Task Seed_ManualOnly_GetsNoTrigger_SoItNeverRunsOnASchedule()
+    {
+        var job = JobsTestData.Job(TimeSpan.FromHours(1), manualOnly: true);
+
+        var made = await Seeder().SeedAsync(_scheduler, job, CancellationToken.None);
+
+        Assert.That(made, Is.False);
         await _scheduler.Received(1).UnscheduleJob(job.TriggerKey, Arg.Any<CancellationToken>());
         await _scheduler.DidNotReceiveWithAnyArgs().ScheduleTrigger(default!, default, default);
     }

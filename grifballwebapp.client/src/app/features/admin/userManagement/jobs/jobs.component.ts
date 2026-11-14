@@ -48,7 +48,7 @@ export function durationText(ms: number): string {
 }
 
 // Every JobState labelled; looked up by the API's state (a string)
-const STATE_LABELS: Readonly<Record<string, string>> = { Scheduled: 'Scheduled', Paused: 'Paused', Off: 'Off', OnDemand: 'On demand', Error: 'Error', Blocked: 'Running' } satisfies Record<JobState, string>;
+const STATE_LABELS: Readonly<Record<string, string>> = { Scheduled: 'Scheduled', Paused: 'Paused', Off: 'Off', Manual: 'Run by hand', OnDemand: 'On demand', Error: 'Error', Blocked: 'Running' } satisfies Record<JobState, string>;
 
 /**
  * The background jobs (sysadmins): what the worker runs on a schedule, when each runs next and how its last runs went,

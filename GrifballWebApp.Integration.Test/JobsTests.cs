@@ -373,6 +373,25 @@ public class JobsTests
     }
 
     [Test]
+    public async Task AManualOnlyJob_HasNoSchedule_RunsOnlyWhenRun_AndCantBePausedOrRescheduled()
+    {
+        var host = await StartHost(Job(TimeSpan.FromMinutes(1), manualOnly: true));
+        var service = Service(host);
+
+        var job = (await service.Overview()).Jobs.Single();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((job.State, job.Enabled, job.NextRunAt), Is.EqualTo(("Manual", true, (DateTime?)null)));
+            Assert.That(host.Services.GetRequiredService<Runs>().Count, Is.Zero, "never on a schedule");
+            Assert.That(await service.SetPaused(Key, paused: true, by: null), Is.EqualTo(JobChange.Conflict));
+            Assert.That(await service.SetInterval(Key, TimeSpan.FromMinutes(5)), Is.EqualTo(JobChange.Conflict));
+            Assert.That(await service.ResetSchedule(Key), Is.EqualTo(JobChange.Conflict));
+            Assert.That(await service.RunNow(Key), Is.EqualTo(JobChange.Done));
+            Assert.That(await Eventually(() => Task.FromResult(host.Services.GetRequiredService<Runs>().Count > 0)), Is.True, "a run started by hand runs");
+        }
+    }
+
+    [Test]
     public async Task TheController_RefusesAnIntervalOutOfRange_AndMapsWhatTheServiceSays()
     {
         var host = await StartHost(Job(TimeSpan.FromHours(1), startIn: TimeSpan.FromHours(1)));
