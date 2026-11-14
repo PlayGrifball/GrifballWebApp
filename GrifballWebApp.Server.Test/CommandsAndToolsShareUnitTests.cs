@@ -73,7 +73,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
-    public async Task BetweenSeasons_ANextSeasonAlreadyMade_IsNotTheDefault_ForACommandOrATool()
+    public async Task BetweenSeasons_ANextSeasonNotAnnouncedYet_IsNotTheDefault_ForACommandOrATool()
     {
         var ended = await SeasonEnded("Ended", daysAgo: 10);
         // Made already (a higher ID), starting in 40 days and announced in 10: nobody signed out sees it yet
@@ -90,7 +90,24 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
-    public async Task WithNoSeasons_ACommandFindsNone_AndAToolSaysThereAreNone()
+    public async Task BetweenSeasons_ANextSeasonAnnounced_IsTheDefault_ForACommandOrATool()
+    {
+        await SeasonEnded("Ended", daysAgo: 10);
+        // Starts in 20 days, announced 10 days ago: public, its signups open
+        var next = await SeasonEnded("Next", daysAgo: -80);
+
+        var command = await new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time).Season(null);
+        var tool = await SeasonTools().GetSeason();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(command, Is.EqualTo(next.SeasonID));
+            Assert.That(tool.SeasonName, Is.EqualTo("Next"));
+        }
+    }
+
+    [Test]
+    public async Task WithNoSeasons_ACommandFindsNone_AndAToolSaysToNameOne()
     {
         var command = await new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time).Season(null);
         var tool = await Assert.ThrowsAsync<ToolException>(() => SeasonTools().GetSeason());
@@ -98,7 +115,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(command, Is.Null);
-            Assert.That(tool!.Message, Is.EqualTo("No season has started yet."));
+            Assert.That(tool!.Message, Is.EqualTo(SeasonTools.NoSeasonYet));
         }
     }
 

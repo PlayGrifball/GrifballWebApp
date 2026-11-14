@@ -35,6 +35,9 @@ public class SeasonTools
         _brackets = brackets;
     }
 
+    /// <summary>The refusal when no season is named and none is running or announced: a season can still be named.</summary>
+    public const string NoSeasonYet = "No season is running or announced yet: pass a seasonID (list_seasons has their IDs) to ask about one.";
+
     /// <summary>The season asked for, or the running one, else the latest; a <see cref="ToolException"/> when there is none.</summary>
     private async Task<int> SeasonOrCurrent(int? seasonID, CancellationToken ct)
     {
@@ -42,7 +45,7 @@ public class SeasonTools
             return await _seasons.GetSeasonName(id, ct) is null ? throw new ToolException($"There is no season {id}: list_seasons has their IDs.") : id;
         // The same default as the slash commands: the running season, else the latest
         var current = await _seasons.GetCurrentOrLatestSeasonID(ct);
-        return current != 0 ? current : throw new ToolException("No season has started yet.");
+        return current != 0 ? current : throw new ToolException(NoSeasonYet);
     }
 
     [Description("Lists the league's seasons, 25 to a page: each one's ID, name, league, game, dates and whether it has ended.")]
