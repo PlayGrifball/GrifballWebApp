@@ -1,13 +1,8 @@
 import { DatePipe } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { Observable } from 'rxjs';
-import { VodService } from '@api/services/vod.service';
-import type { LinkVodRequest, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto } from '@api/models';
-import { problemText } from '@shared/errorText';
+import type { LinkVodRequest, VodReviewDto } from '@api/models';
+import { VodReviewStore } from './vodReview.store';
 
 /** What the matcher suggested for a VOD, "Spring League 2024 · Alpha, Bravo · its match", or null for nothing. */
 export function suggestion(vod: VodReviewDto): string | null {
@@ -27,15 +22,16 @@ export function suggestion(vod: VodReviewDto): string | null {
   templateUrl: './vodReview.component.html',
   styleUrl: './vodReview.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [VodReviewStore],
 })
 export class VodReviewComponent {
-  private api = inject(VodService);
-  private snackBar = inject(MatSnackBar);
+  private readonly store = inject(VodReviewStore);
 
   readonly suggestion = suggestion;
 
-  readonly review = rxResource({ params: () => true, stream: () => this.api.getVodReview() });
-  readonly rows = computed<VodReviewDto[]>(() => this.review.hasValue() ? this.review.value() : []);
+  readonly rows = this.store.rows;
+  readonly loaded = this.store.loaded;
+  readonly failed = this.store.failed;
 
   /** The VOD being linked by hand, and what it is being linked to. */
   readonly editing = signal<VodReviewDto | null>(null);
@@ -44,13 +40,16 @@ export class VodReviewComponent {
   readonly teamIDs = signal<number[]>([]);
 
   /** Loaded with the first editor opened. */
-  readonly seasons = rxResource({ params: () => this.editing() ? true : undefined, stream: () => this.api.getVodLinkSeasons() });
-  readonly seasonRows = computed<VodLinkSeasonDto[]>(() => this.seasons.hasValue() ? this.seasons.value() : []);
-  readonly options = rxResource({ params: () => this.seasonID() ?? undefined, stream: ({ params }) => this.api.getVodLinkOptions({ seasonID: params }) });
-  readonly optionsValue = computed<VodLinkOptionsDto | null>(() => this.options.hasValue() ? this.options.value() : null);
+  readonly seasonRows = this.store.seasonRows;
+  readonly optionsValue = this.store.optionsValue;
 
   /** An action waiting for its answer: the buttons wait too. */
-  readonly busy = signal(false);
+  readonly busy = this.store.busy;
+
+  constructor() {
+    this.store.editing.use(computed(() => this.editing() !== null));
+    this.store.seasonID.use(this.seasonID);
+  }
 
   watchUrl(vod: VodReviewDto): string {
     return 'https://www.youtube.com/watch?v=' + encodeURIComponent(vod.youTubeVideoID);
@@ -97,26 +96,10 @@ export class VodReviewComponent {
   }
 
   dismiss(vod: VodReviewDto): void {
-    this.run(this.api.dismissVod({ vodID: vod.vodID }), "Couldn't dismiss the VOD.");
+    this.store.dismiss(vod.vodID, () => this.editing.set(null));
   }
 
   private link(vod: VodReviewDto, request: LinkVodRequest): void {
-    this.run(this.api.linkVod({ vodID: vod.vodID, body: request }), "Couldn't link the VOD.");
-  }
-
-  /** Runs a decision; done, the VOD leaves the list. */
-  private run(action: Observable<void>, failed: string): void {
-    this.busy.set(true);
-    action.subscribe({
-      next: () => {
-        this.busy.set(false);
-        this.editing.set(null);
-        this.review.reload();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.busy.set(false);
-        this.snackBar.open(problemText(error, failed), 'Close');
-      },
-    });
+    this.store.link(vod.vodID, request, () => this.editing.set(null));
   }
 }

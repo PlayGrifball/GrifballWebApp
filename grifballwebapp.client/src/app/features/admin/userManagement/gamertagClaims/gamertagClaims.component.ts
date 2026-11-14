@@ -1,21 +1,15 @@
 import { DatePipe } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
-import { Observable } from 'rxjs';
-import { GamertagClaimsService } from '@api/services/gamertag-claims.service';
 import { GAMERTAG_CLAIM_STATUS } from '@api/models/gamertag-claim-status-array';
 import type { DuplicateSuggestionDto, GamertagClaimDto, GamertagClaimStatus } from '@api/models';
 import type { GamertagClaimKind } from '../../api/gamertagClaims';
 import { problemText } from '@shared/errorText';
 import { SeasonLinksComponent } from '@shared/seasonLinks/seasonLinks.component';
+import { GamertagClaimsStore, pairKey } from './gamertagClaims.store';
 
 // Re-exported for this page's own spec, which imports it from here (kept, to not churn an unrelated import).
 export { problemText };
-
-type Decision = 'approve' | 'reject';
 
 // Every GamertagClaimKind labelled; looked up by the API's kind (a string)
 const KIND_LABELS: Readonly<Record<string, string>> = {
@@ -25,12 +19,6 @@ const KIND_LABELS: Readonly<Record<string, string>> = {
   UserClaim: 'User claim',
   DiscordMatch: 'Discord match',
 } satisfies Record<GamertagClaimKind, string>;
-
-/** What the snack bar says for each decision. */
-const DECISIONS: Record<Decision, { done: string, failed: string }> = {
-  approve: { done: 'Approved', failed: "Couldn't approve" },
-  reject: { done: 'Rejected', failed: "Couldn't reject" },
-};
 
 /**
  * Gamertag claims (sysadmins): a historical player from the archive claimed as a user's Xbox account, by a roster
@@ -42,26 +30,21 @@ const DECISIONS: Record<Decision, { done: string, failed: string }> = {
   templateUrl: './gamertagClaims.component.html',
   styleUrl: './gamertagClaims.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [GamertagClaimsStore],
 })
 export class GamertagClaimsComponent {
-  private api = inject(GamertagClaimsService);
-  private snackBar = inject(MatSnackBar);
+  private readonly store = inject(GamertagClaimsStore);
 
   readonly statuses = GAMERTAG_CLAIM_STATUS;
   readonly kindLabels = KIND_LABELS;
   readonly status = signal<GamertagClaimStatus>('Pending');
 
-  readonly claims = rxResource({
-    params: () => this.status(),
-    stream: ({ params }) => this.api.getGamertagClaims({ status: params }),
-  });
-
   /** The claims with the chosen status (none while they load, or if they could not be loaded). */
-  readonly rows = computed<GamertagClaimDto[]>(() => this.claims.hasValue() ? this.claims.value() : []);
-  readonly failed = computed(() => this.claims.status() === 'error');
+  readonly rows = this.store.rows;
+  readonly failed = this.store.failed;
   /** The first load of a status: laid out but hidden (a reload after a decision keeps the list shown). */
-  readonly waiting = computed(() => this.claims.status() === 'loading');
-  readonly empty = computed(() => this.claims.status() === 'resolved' && this.rows().length === 0);
+  readonly waiting = this.store.waiting;
+  readonly empty = this.store.empty;
   readonly emptyText = computed(() => `No ${this.status().toLowerCase()} claims.`);
   /** Only a pending claim can be decided, and never an informational Xbox lookup note. */
   readonly decidable = computed(() => this.status() === 'Pending');
@@ -70,31 +53,22 @@ export class GamertagClaimsComponent {
     return this.decidable() && claim.status === 'Pending';
   }
   /** The claim being approved or rejected: its buttons wait for the answer. */
-  readonly acting = signal<number | null>(null);
+  readonly acting = this.store.acting;
 
   /** How the background lookup of placeholders' current Xbox gamertags is going (loaded once; reloaded after a lookup). */
-  readonly xuidStatus = rxResource({
-    params: () => true,
-    stream: () => this.api.getXuidLookupStatus(),
-  });
-  readonly lookingUp = signal(false);
+  readonly xuidStatus = this.store.xuidStatusValue;
+  readonly lookingUp = this.store.lookingUp;
+
+  constructor() {
+    this.store.status.use(this.status);
+  }
 
   lookUpXuids(): void {
-    this.lookingUp.set(true);
-    this.api.lookUpXuids().subscribe({
-      next: () => {
-        this.lookingUp.set(false);
-        this.xuidStatus.reload();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.lookingUp.set(false);
-        this.snackBar.open(problemText(error, "Couldn't start the lookup."), 'Close');
-      },
-    });
+    this.store.lookUpXuids();
   }
 
   approve(claim: GamertagClaimDto): void {
-    this.decide(claim, 'approve', this.api.approveGamertagClaim({ claimID: claim.gamertagClaimID }));
+    this.store.approve(claim);
   }
 
   /** Each pending claim's rejection reason as typed (shown to the claimant); empty sends none. */
@@ -105,7 +79,7 @@ export class GamertagClaimsComponent {
 
   reject(claim: GamertagClaimDto): void {
     const reason = this.reasons()[claim.gamertagClaimID]?.trim() || null;
-    this.decide(claim, 'reject', this.api.rejectGamertagClaim({ claimID: claim.gamertagClaimID, body: { reason } }));
+    this.store.reject(claim, reason);
   }
 
   /** The claim is about a user (their own claim, or a Discord match) rather than an Xbox account. */
@@ -114,18 +88,13 @@ export class GamertagClaimsComponent {
   }
 
   /** Possible duplicates: computed on demand (it compares every placeholder's gamertag), never merged on their own. */
-  readonly duplicatesShown = signal(false);
-  readonly duplicates = rxResource({
-    params: () => this.duplicatesShown() || undefined,
-    stream: () => this.api.getDuplicateSuggestions(),
-  });
-  readonly duplicateRows = computed<DuplicateSuggestionDto[]>(() => this.duplicates.hasValue() ? this.duplicates.value() : []);
-  readonly duplicatesFailed = computed(() => this.duplicates.status() === 'error');
+  readonly duplicateRows = this.store.duplicateRows;
+  readonly duplicatesLoaded = this.store.duplicatesLoaded;
+  readonly duplicatesLoading = this.store.duplicatesLoading;
+  readonly duplicatesFailed = this.store.duplicatesFailed;
   /** The pair being merged or dismissed: its buttons wait for the answer. */
-  readonly actingPair = signal<string | null>(null);
-  pairKey(pair: DuplicateSuggestionDto): string {
-    return `${pair.sourceUserID}-${pair.targetUserID}`;
-  }
+  readonly actingPair = this.store.actingPair;
+  readonly pairKey = pairKey;
   /** Why the pair was suggested: only an edit match is a number of letters apart. */
   matchNote(pair: DuplicateSuggestionDto): string {
     switch (pair.match) {
@@ -137,53 +106,14 @@ export class GamertagClaimsComponent {
   }
 
   findDuplicates(): void {
-    if (this.duplicatesShown())
-      this.duplicates.reload();
-    else
-      this.duplicatesShown.set(true);
+    this.store.findDuplicates();
   }
 
   mergeDuplicate(pair: DuplicateSuggestionDto): void {
-    this.decidePair(pair, this.api.mergeDuplicate({ body: { sourceUserID: pair.sourceUserID, targetUserID: pair.targetUserID } }),
-      `Merged ${pair.sourceGamertag} into ${pair.targetGamertag}.`, `Couldn't merge ${pair.sourceGamertag}.`);
+    this.store.mergeDuplicate(pair);
   }
 
   dismissDuplicate(pair: DuplicateSuggestionDto): void {
-    this.decidePair(pair, this.api.dismissDuplicate({ body: { sourceUserID: pair.sourceUserID, targetUserID: pair.targetUserID } }),
-      `Dismissed ${pair.sourceGamertag} and ${pair.targetGamertag}.`, `Couldn't dismiss ${pair.sourceGamertag}.`);
-  }
-
-  private decidePair(pair: DuplicateSuggestionDto, request: Observable<void>, done: string, failed: string): void {
-    this.actingPair.set(this.pairKey(pair));
-    request.subscribe({
-      next: () => {
-        this.actingPair.set(null);
-        this.snackBar.open(done, 'Close');
-        this.duplicates.reload();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.actingPair.set(null);
-        this.snackBar.open(problemText(error, failed), 'Close');
-      },
-    });
-  }
-
-  private decide(claim: GamertagClaimDto, decision: Decision, request: Observable<void>): void {
-    this.acting.set(claim.gamertagClaimID);
-    const words = DECISIONS[decision];
-    request.subscribe({
-      next: () => {
-        this.acting.set(null);
-        this.snackBar.open(`${words.done} the claim to ${claim.gamertag}.`, 'Close');
-        this.claims.reload();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.acting.set(null);
-        this.snackBar.open(problemText(error, `${words.failed} the claim to ${claim.gamertag}.`), 'Close');
-        // Someone else decided it first: show the list as it is now
-        if (error.status === 409)
-          this.claims.reload();
-      },
-    });
+    this.store.dismissDuplicate(pair);
   }
 }

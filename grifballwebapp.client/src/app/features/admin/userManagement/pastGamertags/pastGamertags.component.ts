@@ -1,14 +1,9 @@
 import { DatePipe } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, WritableSignal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
-import { GamertagClaimsService } from '@api/services/gamertag-claims.service';
 import type { AddGamertagHistoryRequest, PastGamertagDto } from '@api/models';
 import { SearchBoxComponent } from '@shared/searchBox/searchBox.component';
-import { problemText } from '@shared/errorText';
-import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
+import { PastGamertagsQuery, PastGamertagsStore } from './pastGamertags.store';
 
 /**
  * Sysadmins: an Xbox account's current gamertag and the gamertags it is known to have gone by, by its XUID or
@@ -21,10 +16,10 @@ import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
   templateUrl: './pastGamertags.component.html',
   styleUrl: './pastGamertags.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [PastGamertagsStore],
 })
 export class PastGamertagsComponent {
-  private api = inject(GamertagClaimsService);
-  private snackBar = inject(MatSnackBar);
+  private readonly store = inject(PastGamertagsStore);
 
   /** The ?xboxUserID= and ?userID= query parameters: how the page is reached from the claims page or a bookmark. */
   readonly xboxUserID = input<number | null>(null);
@@ -35,6 +30,7 @@ export class PastGamertagsComponent {
   readonly useridQuery = signal<number>(0);
 
   constructor() {
+    this.store.query.use(this.query);
     effect(() => {
       const xboxUserID = Number(this.xboxUserID() ?? 0);
       const userID = Number(this.userID() ?? 0);
@@ -46,7 +42,7 @@ export class PastGamertagsComponent {
   }
 
   /** What to fetch; undefined (the resource stays idle) until an XUID or user ID is given. The XUID wins if both are. */
-  readonly query = computed<{ xboxUserID?: number, userID?: number } | undefined>(() => {
+  readonly query = computed<PastGamertagsQuery | undefined>(() => {
     if (this.xuidQuery())
       return { xboxUserID: this.xuidQuery() };
     if (this.useridQuery())
@@ -55,34 +51,18 @@ export class PastGamertagsComponent {
   });
   readonly hasQuery = computed(() => this.query() !== undefined);
 
-  readonly past = rxResource({
-    params: () => this.query(),
-    // 404: no such Xbox account (by that XUID or user ID).
-    stream: ({ params }) => this.api.getPastGamertags(params!).pipe(nullWhenNotFound()),
-  });
-
-  readonly loading = computed(() => this.past.isLoading());
-  readonly failed = computed(() => this.past.status() === 'error');
+  readonly loading = this.store.loading;
+  readonly failed = this.store.failed;
   /** The account (none while loading, or if it could not be loaded). */
-  readonly account = computed(() => this.past.hasValue() ? this.past.value() : null);
-  readonly notFound = computed(() => this.past.status() === 'resolved' && this.account() === null);
-  readonly rows = computed<PastGamertagDto[]>(() => this.account()?.pastGamertags ?? []);
+  readonly account = this.store.account;
+  readonly notFound = this.store.notFound;
+  readonly rows = this.store.rows;
 
   /** The row being removed: its button (and every other Remove button) waits for the answer. */
-  readonly removing = signal<number | null>(null);
+  readonly removing = this.store.removing;
 
   remove(row: PastGamertagDto): void {
-    this.removing.set(row.xboxGamertagHistoryID);
-    this.api.removeGamertagHistory({ historyID: row.xboxGamertagHistoryID }).subscribe({
-      next: () => {
-        this.removing.set(null);
-        this.past.reload();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.removing.set(null);
-        this.snackBar.open(problemText(error, "Couldn't remove that gamertag."), 'Close');
-      },
-    });
+    this.store.remove(row.xboxGamertagHistoryID);
   }
 
   // The add-a-gamertag form.
@@ -90,8 +70,8 @@ export class PastGamertagsComponent {
   readonly newFirstSeen = signal('');
   readonly newLastSeen = signal('');
   readonly newNote = signal('');
-  readonly adding = signal(false);
-  readonly addError = signal<string | null>(null);
+  readonly adding = this.store.adding;
+  readonly addError = this.store.addError;
 
   /** A plain text input's value, into one of the form fields above. */
   setField(field: WritableSignal<string>, event: Event): void {
@@ -103,8 +83,6 @@ export class PastGamertagsComponent {
     const gamertag = this.newGamertag().trim();
     if (!account || !gamertag)
       return;
-    this.adding.set(true);
-    this.addError.set(null);
     const dto: AddGamertagHistoryRequest = {
       xboxUserID: account.xboxUserID,
       gamertag,
@@ -112,19 +90,11 @@ export class PastGamertagsComponent {
       lastSeen: toDayStart(this.newLastSeen()),
       note: this.newNote().trim() || null,
     };
-    this.api.addGamertagHistory({ body: dto }).subscribe({
-      next: () => {
-        this.adding.set(false);
-        this.newGamertag.set('');
-        this.newFirstSeen.set('');
-        this.newLastSeen.set('');
-        this.newNote.set('');
-        this.past.reload();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.adding.set(false);
-        this.addError.set(problemText(error, "Couldn't add that gamertag."));
-      },
+    this.store.add(dto, () => {
+      this.newGamertag.set('');
+      this.newFirstSeen.set('');
+      this.newLastSeen.set('');
+      this.newNote.set('');
     });
   }
 }

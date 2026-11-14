@@ -77,7 +77,7 @@ describe('MergeUserComponent', () => {
     httpMock.expectOne('/api/users/2').flush(user(2));
     await fixture.whenStable();
 
-    expect(component.mergeFrom.status()).toBe('error');
+    expect(component.mergeFromError()).toBeTruthy();
     expect(() => fixture.detectChanges()).not.toThrow();
 
     const alerts = el().querySelectorAll('[role="alert"]');

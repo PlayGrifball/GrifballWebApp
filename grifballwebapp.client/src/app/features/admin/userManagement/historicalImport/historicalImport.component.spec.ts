@@ -5,7 +5,8 @@ import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Component } from '@angular/core';
 import { VodReviewComponent } from './vodReview/vodReview.component';
-import { HistoricalImportComponent, interval, isActive, JOB_POLL_MS, removalText, size } from './historicalImport.component';
+import { HistoricalImportComponent, interval, removalText, size } from './historicalImport.component';
+import { isActive, JOB_POLL_MS } from './historicalImport.store';
 import type { HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportReport, HistoricalImportScheduleDto, HistoricalSourceDto } from '@api/models';
 
 /** The VOD review (tested on its own): here only where it sits, without its requests. */

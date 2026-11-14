@@ -1,9 +1,9 @@
 <section class="vr" aria-labelledby="vr-heading">
   <h2 id="vr-heading" class="vr-heading">VODs to review</h2>
   <p class="vr-note">Videos of the YouTube channel, found by each refresh, that the matcher wasn't sure of. A linked VOD shows on its season, match and team pages; a dismissed one never comes back.</p>
-  @if (review.status() === 'error') {
+  @if (failed()) {
     <p class="hud-empty hud-empty--error" role="alert">The VODs couldn't be loaded.</p>
-  } @else if (review.hasValue() && !rows().length) {
+  } @else if (loaded() && !rows().length) {
     <p class="hud-empty">Nothing to review.</p>
   } @else {
     <ul class="vr-list">

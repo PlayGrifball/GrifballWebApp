@@ -56,7 +56,9 @@ store. `profileCommendations` is the smallest example, `xboxAccount` one with pa
 - **Inputs reach the store as a `StoreInput`** (`@shared/storeInput`). The store declares
   `readonly userID = new StoreInput<number>();` and reads `this.userID.value()` (undefined until the component hands
   its input over, so a resource keyed on it stays idle), and the component hands it over once, in its constructor:
-  `this.store.userID.use(this.userID);`. The store then follows the input, with no effect copying it across.
+  `this.store.userID.use(this.userID);`. The store then follows the input, with no effect copying it across. A field
+  the user edits that decides what is loaded (a tab, a filter, an ID typed in) is handed over the same way, as its
+  signal or a `computed` of several.
 - **What the component does after a call** (clear the form, emit an output) it passes as a callback:
   `this.store.create(name, days, () => this.name.set(''));`.
 - **A form filled from the server** is a `linkedSignal` of the store's copy: `readonly model = linkedSignal(() =>
@@ -65,6 +67,9 @@ store. `profileCommendations` is the smallest example, `xboxAccount` one with pa
   not to refresh it after a save. What a save answers (a new ID, say) goes into the form through the save's callback.
 - **Drawing with a library that doesn't read signals** (the playoff bracket's viewer) stays in the component: one
   effect on the store's data draws it, or clears it when there is none. The store doesn't touch the page.
+- **A template that reads several states of one load** (its value, error and loading, as the Telemetry page's tabs do)
+  can read the store's resource itself: the store gives it as a read-only `Resource<T>` (no `reload()`), and reloads
+  it through its own methods.
 - **Each store has its own spec** (`<name>.store.spec.ts`), which injects it with `HttpTestingController` and tests
   its calls, answers and failures without a template. The component's spec stays as it was: rendering and the user's
   actions, through the real store. A resource's value comes a microtask after the answer, so a spec waits for

@@ -3,7 +3,8 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { durationText, intervalText, JOBS_POLL_MS, JobsComponent, splitInterval } from './jobs.component';
+import { durationText, JobsComponent, splitInterval } from './jobs.component';
+import { intervalText, JOBS_POLL_MS } from './jobs.store';
 import type { JobDto, JobRunDto, JobsOverviewDto, JobStatusDto } from '@api/models';
 
 function status(changes: Partial<JobStatusDto> = {}): JobStatusDto {

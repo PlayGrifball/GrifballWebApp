@@ -1,22 +1,9 @@
 import { DatePipe } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { EMPTY, expand, Observable, switchMap, timer } from 'rxjs';
-import { HistoricalImportService } from '@api/services/historical-import.service';
-import type { HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueued, HistoricalSeasonReviewDto, HistoricalSourceDto } from '@api/models';
-import { problemText } from '@shared/errorText';
+import type { HistoricalSeasonReviewDto, HistoricalSourceDto } from '@api/models';
 import { VodReviewComponent } from './vodReview/vodReview.component';
-
-/** How often a queued or running job is looked at again. */
-export const JOB_POLL_MS = 5000;
-
-/** A finished job is not polled any more. */
-export function isActive(job: { status: string }): boolean {
-  return job.status === 'Queued' || job.status === 'Running';
-}
+import { HistoricalImportStore } from './historicalImport.store';
 
 /** A snapshot's size, "1.2 MB". */
 export function size(bytes: number | null): string {
@@ -58,10 +45,10 @@ const REVIEW_LABELS: Record<string, string> = { Preview: 'Would remove', NeedsRe
   templateUrl: './historicalImport.component.html',
   styleUrl: './historicalImport.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [HistoricalImportStore],
 })
 export class HistoricalImportComponent {
-  private api = inject(HistoricalImportService);
-  private snackBar = inject(MatSnackBar);
+  private readonly store = inject(HistoricalImportStore);
 
   readonly kindLabels = KIND_LABELS;
   readonly reviewLabels = REVIEW_LABELS;
@@ -69,85 +56,56 @@ export class HistoricalImportComponent {
   readonly interval = interval;
   readonly removalText = removalText;
 
-  readonly sources = rxResource({ params: () => true, stream: () => this.api.getHistoricalSources() });
-  readonly sourceRows = computed<HistoricalSourceDto[]>(() => this.sources.hasValue() ? this.sources.value() : []);
-  readonly jobs = rxResource({ params: () => true, stream: () => this.api.getHistoricalImportJobs() });
-  readonly jobRows = computed<HistoricalImportJobSummaryDto[]>(() => this.jobs.hasValue() ? this.jobs.value() : []);
-  readonly schedule = rxResource({ params: () => true, stream: () => this.api.getHistoricalImportSchedule() });
+  readonly sourceRows = this.store.sourceRows;
+  readonly sourcesFailed = this.store.sourcesFailed;
+  readonly jobRows = this.store.jobRows;
+  readonly jobsLoaded = this.store.jobsLoaded;
+  readonly jobsFailed = this.store.jobsFailed;
+  readonly scheduleValue = this.store.scheduleValue;
+  readonly scheduleFailed = this.store.scheduleFailed;
 
   /** The job shown: looked at again every few seconds until it finishes. */
-  readonly selectedJobID = signal<number | null>(null);
-  readonly job = rxResource({
-    params: () => this.selectedJobID() ?? undefined,
-    stream: ({ params }) => this.api.getHistoricalImportJob({ jobID: params }).pipe(
-      expand(job => isActive(job) ? timer(JOB_POLL_MS).pipe(switchMap(() => this.api.getHistoricalImportJob({ jobID: params }))) : EMPTY),
-    ),
-  });
-  readonly selectedJob = computed<HistoricalImportJobDto | null>(() => this.job.hasValue() ? this.job.value() : null);
+  readonly selectedJobID = this.store.selectedJobID;
+  readonly selectedJob = this.store.selectedJob;
   readonly canApply = computed(() => {
     const job = this.selectedJob();
     return job?.kind === 'Preview' && job.status === 'Succeeded';
   });
 
   /** An action waiting for its answer: the buttons wait too. */
-  readonly busy = signal(false);
+  readonly busy = this.store.busy;
 
   show(jobID: number): void {
-    this.selectedJobID.set(jobID);
+    this.store.show(jobID);
   }
 
   refresh(): void {
-    this.queue(this.api.refreshHistoricalSources(), "Couldn't start the refresh.");
+    this.store.refresh();
   }
 
   preview(): void {
-    this.queue(this.api.previewHistoricalImport(), "Couldn't start the preview.");
+    this.store.preview();
   }
 
   apply(): void {
     const job = this.selectedJob();
     if (job)
-      this.queue(this.api.applyHistoricalImportPreview({ jobID: job.jobID }), "Couldn't start the import.");
+      this.store.apply(job.jobID);
   }
 
   approve(review: HistoricalSeasonReviewDto): void {
-    this.queue(this.api.approveHistoricalSeasonReview({ reviewID: review.reviewID }), "Couldn't approve the season.");
+    this.store.approve(review.reviewID);
   }
 
   skip(review: HistoricalSeasonReviewDto): void {
-    this.run(this.api.skipHistoricalSeasonReview({ reviewID: review.reviewID }), "Couldn't skip the season.", () => {
-      this.job.reload();
-      this.jobs.reload();
-    });
+    this.store.skip(review.reviewID);
   }
 
   setEnabled(source: HistoricalSourceDto, enabled: boolean): void {
-    this.run(this.api.setHistoricalSourceEnabled({ sourceID: source.sourceID, body: { enabled } }), "Couldn't change the source.", () => this.sources.reload());
+    this.store.setEnabled(source.sourceID, enabled);
   }
 
   setPaused(paused: boolean): void {
-    this.run(this.api.setHistoricalImportSchedulePaused({ body: { paused } }), "Couldn't change the schedule.", () => this.schedule.reload());
-  }
-
-  /** Queues a job and shows it. */
-  private queue(action: Observable<HistoricalImportQueued>, failed: string): void {
-    this.run(action, failed, queued => {
-      this.jobs.reload();
-      this.show(queued.jobID);
-    });
-  }
-
-  private run<T>(action: Observable<T>, failed: string, done: (value: T) => void): void {
-    this.busy.set(true);
-    action.subscribe({
-      next: value => {
-        this.busy.set(false);
-        done(value);
-      },
-      error: (error: HttpErrorResponse) => {
-        this.busy.set(false);
-        this.snackBar.open(problemText(error, failed), 'Close');
-      },
-    });
+    this.store.setPaused(paused);
   }
 }

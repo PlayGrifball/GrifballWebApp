@@ -1,13 +1,12 @@
 import { DatePipe, DecimalPipe, KeyValuePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal, type OnInit } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { TelemetryService } from '@api/services/telemetry.service';
 import { LOG_LEVELS, type LogLevel } from '../../api/telemetryQueries';
 import type { LogEntryDto, SpanDto, TraceDto } from '@api/models';
 import { problemText } from '@shared/errorText';
 import { formatValue, LineChartComponent } from './lineChart.component';
+import { LogsQuery, MetricsQuery, TelemetryStore, TracesQuery } from './telemetry.store';
 
 export type TelemetryTab = 'overview' | 'logs' | 'traces';
 
@@ -69,9 +68,10 @@ export function msText(ms: number): string {
   templateUrl: './telemetry.component.html',
   styleUrl: './telemetry.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [TelemetryStore],
 })
 export class TelemetryComponent implements OnInit {
-  private api = inject(TelemetryService);
+  private readonly store = inject(TelemetryStore);
 
   /** ?trace=<id> (router input binding): a link straight to a trace. */
   readonly trace = input<string | undefined>(undefined);
@@ -85,13 +85,11 @@ export class TelemetryComponent implements OnInit {
   readonly tab = signal<TelemetryTab>('overview');
   readonly minutes = signal(60);
 
-  readonly status = rxResource({ stream: () => this.api.getTelemetryStatus() });
+  readonly status = this.store.status;
 
   /** Only the open tab reads; each reads again when its inputs change, or on Refresh. */
-  readonly metrics = rxResource({
-    params: () => this.tab() === 'overview' && this.status.hasValue() && this.status.value().metrics ? { minutes: this.minutes() } : undefined,
-    stream: ({ params }) => this.api.getTelemetryMetrics(params),
-  });
+  readonly metrics = this.store.metrics;
+  private readonly metricsQuery = computed<MetricsQuery | undefined>(() => this.tab() === 'overview' ? { minutes: this.minutes() } : undefined);
   /** An ISO time as the charts take it, in Unix milliseconds. */
   readonly ms = (iso: string) => Date.parse(iso);
 
@@ -101,32 +99,32 @@ export class TelemetryComponent implements OnInit {
   readonly search = signal('');
   readonly traceFilter = signal('');
   readonly limit = signal(200);
-  readonly logs = rxResource({
-    params: () => this.tab() === 'logs' && this.status.hasValue() && this.status.value().logs
+  readonly logs = this.store.logs;
+  private readonly logsQuery = computed<LogsQuery | undefined>(() => this.tab() === 'logs'
       ? { minutes: this.minutes(), level: this.pickedLevels(), search: this.search().trim() || undefined, traceId: this.traceFilter().trim() || undefined, limit: this.limit() }
-      : undefined,
-    stream: ({ params }) => this.api.getTelemetryLogs(params),
-  });
+      : undefined);
   /** The log line opened to show its properties. */
   readonly openLine = signal<LogEntryDto | null>(null);
 
   // Traces: the search, and the trace open below it.
   readonly errorsOnly = signal(false);
   readonly minDurationMs = signal<number | null>(null);
-  readonly traces = rxResource({
-    params: () => this.tab() === 'traces' && this.status.hasValue() && this.status.value().traces
+  readonly traces = this.store.traces;
+  private readonly tracesQuery = computed<TracesQuery | undefined>(() => this.tab() === 'traces'
       ? { minutes: this.minutes(), errorsOnly: this.errorsOnly(), minDurationMs: this.minDurationMs() ?? undefined }
-      : undefined,
-    stream: ({ params }) => this.api.getTelemetryTraces(params),
-  });
+      : undefined);
   readonly traceIdDraft = signal('');
   readonly traceId = signal<string | null>(null);
-  readonly traceDetail = rxResource({
-    params: () => this.traceId() ?? undefined,
-    stream: ({ params }) => this.api.getTelemetryTrace({ traceID: params }),
-  });
+  readonly traceDetail = this.store.traceDetail;
   readonly rows = computed(() => this.traceDetail.hasValue() ? waterfall(this.traceDetail.value()) : []);
   readonly openSpan = signal<SpanDto | null>(null);
+
+  constructor() {
+    this.store.metricsQuery.use(this.metricsQuery);
+    this.store.logsQuery.use(this.logsQuery);
+    this.store.tracesQuery.use(this.tracesQuery);
+    this.store.traceId.use(this.traceId);
+  }
 
   ngOnInit(): void {
     const linked = this.trace();
@@ -137,14 +135,11 @@ export class TelemetryComponent implements OnInit {
   refresh(): void {
     const tab = this.tab();
     if (tab === 'overview')
-      this.metrics.reload();
+      this.store.reloadMetrics();
     else if (tab === 'logs')
-      this.logs.reload();
-    else {
-      this.traces.reload();
-      if (this.traceId())
-        this.traceDetail.reload();
-    }
+      this.store.reloadLogs();
+    else
+      this.store.reloadTraces();
   }
 
   setMinutes(value: string): void {
