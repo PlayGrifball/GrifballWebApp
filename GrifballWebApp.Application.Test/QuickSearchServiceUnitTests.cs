@@ -18,7 +18,7 @@ internal sealed class QuickSearchServiceUnitTests : ApplicationDbContextTests
     public void SetUp()
     {
         _time = new FakeTimeProvider(Now);
-        _service = new QuickSearchService(Context, _time);
+        _service = new QuickSearchService(Context, new GrifballWebApp.Application.Seasons.SeasonVisibility(Context, _time));
     }
 
     // The queries below match the seeded text's own case. Case-insensitive Contains (NOCASE on SQLite) needs a

@@ -38,14 +38,14 @@ public class CommandLookups
     private readonly GrifballContext _context;
     private readonly SeasonService _seasons;
     private readonly XboxAccountService _accounts;
-    private readonly TimeProvider _time;
+    private readonly SeasonVisibility _visibility;
 
-    public CommandLookups(GrifballContext context, SeasonService seasons, XboxAccountService accounts, TimeProvider? time = null)
+    public CommandLookups(GrifballContext context, SeasonService seasons, XboxAccountService accounts, SeasonVisibility visibility)
     {
+        _visibility = visibility;
         _context = context;
         _seasons = seasons;
         _accounts = accounts;
-        _time = time ?? TimeProvider.System;
     }
 
     /// <summary>A choice's value: the ID, marked as picked so that a name of digits is still a name.</summary>
@@ -100,9 +100,8 @@ public class CommandLookups
         return two.Count == 1 ? two[0] : null;
     }
 
-    /// <summary>The seasons <paramref name="viewer"/> may see (<see cref="SeasonVisibility.VisibleTo"/>).</summary>
-    private IQueryable<GrifballWebApp.Domain.League.Season> Visible(SeasonViewer viewer)
-        => _context.Seasons.AsNoTracking().Where(SeasonVisibility.VisibleTo(viewer, _time.GetUtcNow().UtcDateTime));
+    /// <summary>The seasons <paramref name="viewer"/> may see (<see cref="SeasonVisibility.Visible"/>).</summary>
+    private IQueryable<GrifballWebApp.Domain.League.Season> Visible(SeasonViewer viewer) => _visibility.Visible(viewer);
 
     /// <summary>
     /// The season named or picked, of those <paramref name="viewer"/> may see; with none given, the one <paramref name="purpose"/>

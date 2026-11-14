@@ -16,7 +16,7 @@ internal sealed class HomeEventsServiceUnitTests : ApplicationDbContextTests
     public void SetUp()
     {
         _time = new FakeTimeProvider(Now);
-        _service = new HomeEventsService(Context, _time);
+        _service = new HomeEventsService(Context, new GrifballWebApp.Application.Seasons.SeasonVisibility(Context, _time), _time);
     }
 
     [Test]

@@ -40,7 +40,7 @@ internal sealed class SeasonServiceMoreUnitTests : ApplicationDbContextTests
     public void SetUp()
     {
         var time = new FakeTimeProvider(Now);
-        _service = new SeasonService(Context, new SeasonStatsService(Context, time), time);
+        _service = new SeasonService(Context, new SeasonStatsService(Context, time), new GrifballWebApp.Application.Seasons.SeasonVisibility(Context, time), time);
     }
 
     private static StatSheetTotals Totals(string gamertag, int goals, int kills) => new()

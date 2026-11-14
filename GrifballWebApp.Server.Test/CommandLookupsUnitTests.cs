@@ -16,7 +16,7 @@ public class CommandLookupsUnitTests : SqliteGrifballContextFixture
     private static readonly DateTime Now = new(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly string[] OnlySecret = ["Secret"];
 
-    private CommandLookups Lookups() => new(Db, new SeasonService(Db, null!, new FixedTimeProvider(Now)), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new FixedTimeProvider(Now));
+    private CommandLookups Lookups() => new(Db, new SeasonService(Db, null!, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, new FixedTimeProvider(Now)), new FixedTimeProvider(Now)), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, new FixedTimeProvider(Now)));
 
     [Test]
     public async Task Season_WithNoInput_AndNoSeasons_ReturnsNull()

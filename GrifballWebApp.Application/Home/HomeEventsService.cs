@@ -10,19 +10,21 @@ public class HomeEventsService
 {
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
+    private readonly SeasonVisibility _visibility;
 
-    public HomeEventsService(IApplicationDbContext context, TimeProvider? time = null)
+    public HomeEventsService(IApplicationDbContext context, SeasonVisibility visibility, TimeProvider? time = null)
     {
+        _visibility = visibility;
         _time = time ?? TimeProvider.System;
         _context = context;
     }
 
     /// <summary>Current and upcoming signups, drafts and seasons, soonest first: of the seasons <paramref name="viewer"/> may see
-    /// (<see cref="SeasonVisibility.VisibleTo"/>), so a season not announced yet is staff's alone.</summary>
+    /// (<see cref="SeasonVisibility.Visible"/>), so a season not announced yet is staff's alone.</summary>
     public async Task<Event[]> CurrentAndFuture(SeasonViewer viewer = SeasonViewer.Public, CancellationToken ct = default)
     {
         var now = _time.GetUtcNow().UtcDateTime;
-        var visible = _context.Seasons.Where(SeasonVisibility.VisibleTo(viewer, now));
+        var visible = _visibility.Visible(viewer);
 
         var signups = await visible.Where(Season.SignupsNotClosedAt(now))
             .Select(x => new Event()

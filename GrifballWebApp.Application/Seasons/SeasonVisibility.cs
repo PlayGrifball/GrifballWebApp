@@ -50,8 +50,8 @@ public class SeasonVisibility
     public static SeasonViewer For(System.Security.Claims.ClaimsPrincipal? user)
         => user is not null && SiteRoles.Staff.Any(user.IsInRole) ? SeasonViewer.Staff : SeasonViewer.Public;
 
-    /// <summary>The seasons <paramref name="viewer"/> may see at <paramref name="now"/>.</summary>
-    public static Expression<Func<Season, bool>> VisibleTo(SeasonViewer viewer, DateTime now)
+    /// <summary>The seasons <paramref name="viewer"/> may see at <paramref name="now"/>: <see cref="Visible"/> applies it, the one place that does.</summary>
+    private static Expression<Func<Season, bool>> VisibleTo(SeasonViewer viewer, DateTime now)
         => viewer is SeasonViewer.Staff ? _ => true : Season.PublicAsOf(now);
 
     /// <summary>Whether the season exists and <paramref name="viewer"/> may see it.</summary>
@@ -72,6 +72,9 @@ public class SeasonVisibility
         return _context.SeasonMatches.AnyAsync(m => m.SeasonMatchID == seasonMatchID && seasons.Any(s => s.SeasonID == m.SeasonID), ct);
     }
 
-    /// <summary>The seasons <paramref name="viewer"/> may see now.</summary>
-    public IQueryable<Season> Visible(SeasonViewer viewer) => _context.Seasons.Where(VisibleTo(viewer, _time.GetUtcNow().UtcDateTime));
+    /// <summary>
+    /// The seasons <paramref name="viewer"/> may see now, untracked: what every season list, default, lookup and check starts
+    /// from (#435), so a season not announced yet is filtered out in one place.
+    /// </summary>
+    public IQueryable<Season> Visible(SeasonViewer viewer) => _context.Seasons.AsNoTracking().Where(VisibleTo(viewer, _time.GetUtcNow().UtcDateTime));
 }

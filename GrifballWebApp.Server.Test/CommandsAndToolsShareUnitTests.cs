@@ -34,7 +34,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     private readonly ISeasonMatchPulls _seasonPulls = Substitute.For<ISeasonMatchPulls>();
     private readonly IXboxAccountPulls _accountPulls = Substitute.For<IXboxAccountPulls>();
 
-    private SeasonService Seasons() => new(Db, new SeasonStatsService(Db), _time);
+    private SeasonService Seasons() => new(Db, new SeasonStatsService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time);
 
     private SeasonTools SeasonTools() => new(ToolCaller.Anonymous, Seasons(), new SeasonVisibility(Db, _time), new TeamStandingsService(Db), new MatchPlannerService(Db), new GradesService(Db),
         new SignupsService(Db, _time), Substitute.For<IBracketService>());
@@ -62,7 +62,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
         await SeasonEnded("Older", daysAgo: 200);
         var latest = await SeasonEnded("Latest", daysAgo: 10);
 
-        var command = await new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time).Season(null);
+        var command = await new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)).Season(null);
         var tool = await SeasonTools().GetSeason();
 
         using (Assert.EnterMultipleScope())
@@ -79,7 +79,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
         // Made already (a higher ID), starting in 40 days and announced in 10: nobody signed out sees it yet
         await SeasonEnded("Next", daysAgo: -100);
 
-        var command = await new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time).Season(null);
+        var command = await new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)).Season(null);
         var tool = await SeasonTools().GetSeason();
 
         using (Assert.EnterMultipleScope())
@@ -99,7 +99,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
             signupsOpen: _time.GetUtcNow().UtcDateTime.AddDays(90), signupsClose: _time.GetUtcNow().UtcDateTime.AddDays(100),
             draftStart: _time.GetUtcNow().UtcDateTime.AddDays(110), seasonStart: _time.GetUtcNow().UtcDateTime.AddDays(120), seasonEnd: _time.GetUtcNow().UtcDateTime.AddDays(180)));
         await Db.SaveChangesAsync();
-        var lookups = new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time);
+        var lookups = new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time));
 
         var current = await lookups.Season(null);
         var upcoming = await lookups.Season(null, SeasonPurpose.Upcoming);
@@ -139,7 +139,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task WithNoSeasons_ACommandFindsNone_AndAToolSaysToNameOne()
     {
-        var command = await new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time).Season(null);
+        var command = await new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)).Season(null);
         var tool = await Assert.ThrowsAsync<ToolException>(() => SeasonTools().GetSeason());
 
         using (Assert.EnterMultipleScope())
@@ -156,7 +156,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
         var season = await AddSeason("Winter");
         var match = await AddSeasonMatch(season, await AddTeam(season, "Home"), await AddTeam(season, "Away"));
         _seasonPulls.Queue(match.SeasonMatchID, caller.Id, true, Arg.Any<CancellationToken>()).Returns(new OnDemandJobStatusDto { State = OnDemandJobState.Queued });
-        var handler = new MatchCommandsHandler(new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time), SeasonMatches(), new MatchDetailsService(Db), Urls(), new DiscordCaller(Db), Pulls());
+        var handler = new MatchCommandsHandler(new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), SeasonMatches(), new MatchDetailsService(Db), Urls(), new DiscordCaller(Db), Pulls());
         var discord = new CommandContextRecorder(discordUserId: 5);
 
         await handler.Pull(discord.Context, match.SeasonMatchID.ToString(), backToSeasonStart: true);
@@ -174,7 +174,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     {
         var caller = await AddUser(5, "Puller", "Player");
         _accountPulls.Queue(5, caller.Id, Arg.Any<CancellationToken>()).Returns(new OnDemandJobStatusDto { State = OnDemandJobState.Running });
-        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
+        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
         var discord = new CommandContextRecorder(discordUserId: 5);
 
         await handler.Pull(discord.Context, null);
@@ -188,7 +188,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     {
         await AddUser(5, "NoRole");
         await AddUser(6, "Puller", "Player");
-        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
+        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
         var noRole = new CommandContextRecorder(discordUserId: 5);
         var unknown = new CommandContextRecorder(discordUserId: 6);
 
@@ -212,7 +212,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
         Db.XboxUsers.Add(renamed);
         await Db.SaveChangesAsync();
         _accountPulls.Queue(2001, caller.Id, Arg.Any<CancellationToken>()).Returns(new OnDemandJobStatusDto { State = OnDemandJobState.Queued });
-        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
+        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
         var typed = new CommandContextRecorder(discordUserId: 6);
         var picked = new CommandContextRecorder(discordUserId: 6);
 
@@ -231,7 +231,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     public async Task MatchPull_RefusesACallerWithoutTheRole()
     {
         await AddUser(5, "NoRole");
-        var handler = new MatchCommandsHandler(new CommandLookups(Db, Seasons(), new XboxAccountService(Db), _time), SeasonMatches(), new MatchDetailsService(Db), Urls(), new DiscordCaller(Db), Pulls());
+        var handler = new MatchCommandsHandler(new CommandLookups(Db, Seasons(), new XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), SeasonMatches(), new MatchDetailsService(Db), Urls(), new DiscordCaller(Db), Pulls());
         var discord = new CommandContextRecorder(discordUserId: 5);
 
         await handler.Pull(discord.Context, "1", backToSeasonStart: false);
@@ -244,7 +244,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     public async Task MatchPull_SaysSo_ForAMatchItCantFind()
     {
         await AddUser(5, "Puller", "Player");
-        var handler = new MatchCommandsHandler(new CommandLookups(Db, Seasons(), new XboxAccountService(Db), _time), SeasonMatches(), new MatchDetailsService(Db), Urls(), new DiscordCaller(Db), Pulls());
+        var handler = new MatchCommandsHandler(new CommandLookups(Db, Seasons(), new XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), SeasonMatches(), new MatchDetailsService(Db), Urls(), new DiscordCaller(Db), Pulls());
         var discord = new CommandContextRecorder(discordUserId: 5);
 
         await handler.Pull(discord.Context, "Nobody", backToSeasonStart: false);
@@ -257,7 +257,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     public async Task PlayerPull_RefusesAPickedAccountTheSiteDoesntKnow()
     {
         await AddUser(6, "Puller", "Player");
-        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), new XboxAccountService(Db), _time), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
+        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), new XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
         var discord = new CommandContextRecorder(discordUserId: 6);
 
         await handler.Pull(discord.Context, CommandLookups.ChoiceValue(999L));
@@ -292,7 +292,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
         Db.XboxUsers.Add(renamed);
         await Db.SaveChangesAsync();
 
-        var choices = await new CommandLookups(Db, Seasons(), new XboxAccountService(Db), _time).XboxAccountChoices(null);
+        var choices = await new CommandLookups(Db, Seasons(), new XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)).XboxAccountChoices(null);
 
         Assert.That(choices.Select(c => (c.Name, c.StringValue)), Is.EqualTo(new[] { ("New Name", "id:2001") }));
     }

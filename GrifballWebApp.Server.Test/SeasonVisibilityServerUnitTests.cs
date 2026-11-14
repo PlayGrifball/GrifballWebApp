@@ -155,7 +155,7 @@ public class SeasonVisibilityServerUnitTests : SqliteGrifballContextFixture
     public async Task ATypedTeamOrTeamsMatch_OfAHiddenSeason_IsFoundForStaffAlone()
     {
         var (_, team, match) = await Hidden();
-        var lookups = new CommandLookups(Db, new SeasonService(Db, new SeasonStatsService(Db)), new XboxAccountService(Db));
+        var lookups = new CommandLookups(Db, new SeasonService(Db, new SeasonStatsService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), new XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db));
 
         using (Assert.EnterMultipleScope())
         {
@@ -170,7 +170,7 @@ public class SeasonVisibilityServerUnitTests : SqliteGrifballContextFixture
     public async Task TheTeamTools_RefuseAHiddenTeam_ToThePublic_AndShowItToStaff()
     {
         var (_, team, _) = await Hidden();
-        TeamTools As(ToolCaller caller) => new(caller, new SeasonVisibility(Db), new TeamPageService(Db), new TeamHistoryService(Db),
+        TeamTools As(ToolCaller caller) => new(caller, new SeasonVisibility(Db), new TeamPageService(Db), new TeamHistoryService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)),
             new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!));
         var everyone = As(ToolCaller.Anonymous);
         var staff = As(new ToolCaller(1, [SiteRoles.Commissioner]));

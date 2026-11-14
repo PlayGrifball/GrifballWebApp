@@ -16,9 +16,11 @@ public class TeamHistoryService
 {
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
+    private readonly SeasonVisibility _visibility;
 
-    public TeamHistoryService(IApplicationDbContext context, TimeProvider? time = null)
+    public TeamHistoryService(IApplicationDbContext context, SeasonVisibility visibility, TimeProvider? time = null)
     {
+        _visibility = visibility;
         _time = time ?? TimeProvider.System;
         _context = context;
     }
@@ -49,7 +51,7 @@ public class TeamHistoryService
             .Where(t => FranchiseKey.Of(t.TeamID, leagueID, t.TeamName) == key)
             .Select(t => t.TeamID)
             .ToList();
-        var visible = _context.Seasons.Where(SeasonVisibility.VisibleTo(viewer, _time.GetUtcNow().UtcDateTime));
+        var visible = _visibility.Visible(viewer);
         var teams = await _context.Teams.AsNoTracking()
             .Where(t => ids.Contains(t.TeamID) && visible.Any(s => s.SeasonID == t.SeasonID))
             // Counted as the standings count it, in the same query

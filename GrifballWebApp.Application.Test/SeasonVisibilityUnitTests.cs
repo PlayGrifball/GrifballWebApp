@@ -22,7 +22,7 @@ internal sealed class SeasonVisibilityUnitTests : ApplicationDbContextTests
     [SetUp]
     public void SetUp() => _time = new FakeTimeProvider(Now);
 
-    private SeasonService Seasons() => new(Context, new SeasonStatsService(Context, _time), _time);
+    private SeasonService Seasons() => new(Context, new SeasonStatsService(Context, _time), new GrifballWebApp.Application.Seasons.SeasonVisibility(Context, _time), _time);
 
     /// <summary>A season starting <paramref name="startsInDays"/> from now (negative: started), announced
     /// <paramref name="announcedInDays"/> from now (null: never).</summary>

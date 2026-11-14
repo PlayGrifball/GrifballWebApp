@@ -45,10 +45,10 @@ public class TeamAndPlayerCommandsTests
     {
         _context = await TestDatabase.NewGrifballContext();
         var urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-        var lookups = new CommandLookups(_context, new SeasonService(_context, new SeasonStatsService(_context)), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context));
+        var lookups = new CommandLookups(_context, new SeasonService(_context, new SeasonStatsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
         var vods = new VodService(_context, new YouTubeClient(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(HttpStatusCode.NotFound)))),
             Options.Create(new YouTubeOptions()), NullLogger<VodService>.Instance);
-        _teams = new TeamCommandsHandler(lookups, new TeamPageService(_context), new TeamHistoryService(_context), vods, urls);
+        _teams = new TeamCommandsHandler(lookups, new TeamPageService(_context), new TeamHistoryService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), vods, urls);
         _players = new PlayerCommandsHandler(lookups, new DiscordCaller(_context), new ProfileStatsService(_context, new SeasonStatsService(_context), new MatchmakingStatsService(_context)), new ProfileCommendationsService(_context),
             new DeploymentHistoryService(_context), vods, urls, null!);
 

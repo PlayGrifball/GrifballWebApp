@@ -25,7 +25,7 @@ public class TeamPageControllerTests
     public async Task SetUp()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _controller = new TeamController(new GrifballWebApp.Application.TeamPage.TeamPageService(_context), new TeamHistoryService(_context));
+        _controller = new TeamController(new GrifballWebApp.Application.TeamPage.TeamPageService(_context), new TeamHistoryService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)));
     }
 
     [TearDown]

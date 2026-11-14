@@ -25,8 +25,8 @@ public class PersonalCommandsHandlerUnitTests : SqliteGrifballContextFixture
     private PersonalCommandsHandler Handler()
     {
         _queue = Substitute.For<IQueueRepository>();
-        var seasons = new SeasonService(Db, null!);
-        return new PersonalCommandsHandler(new DiscordCaller(Db), new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)),
+        var seasons = new SeasonService(Db, null!, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db));
+        return new PersonalCommandsHandler(new DiscordCaller(Db), new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)),
             null!, _queue, null!, new RegionService(Db), null!, null!, seasons,
             new AvailabilityService(Db), null!, Urls());
     }

@@ -33,7 +33,7 @@ public class SeasonAndAvailabilityControllerTests
         var current = Season.Seed(seasonName: "Current").WithDates(seasonStart: now.AddDays(-1), seasonEnd: now.AddDays(10));
         _context.Seasons.AddRange(past, current);
         await _context.SaveChangesAsync();
-        var controller = new SeasonController(new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context)));
+        var controller = new SeasonController(new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)));
 
         using (Assert.EnterMultipleScope())
         {

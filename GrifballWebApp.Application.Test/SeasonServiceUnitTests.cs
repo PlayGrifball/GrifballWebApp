@@ -19,7 +19,7 @@ internal sealed class SeasonServiceUnitTests : ApplicationDbContextTests
     {
         _time = new FakeTimeProvider(Now);
         var stats = new SeasonStatsService(Context, _time);
-        _service = new SeasonService(Context, stats, _time);
+        _service = new SeasonService(Context, stats, new GrifballWebApp.Application.Seasons.SeasonVisibility(Context, _time), _time);
     }
 
     [Test]

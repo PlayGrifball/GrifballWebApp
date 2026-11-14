@@ -62,7 +62,7 @@ public class GrifToolsTests
     public async Task SetUp()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _seasons = new SeasonService(_context, new SeasonStatsService(_context), _time);
+        _seasons = new SeasonService(_context, new SeasonStatsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), _time);
         _season = await _context.AddSeason("Spring");
         _captain = await _context.AddUser("cap", gamertag: "CaptainGT");
         _team = await _context.AddTeam(_season, "Alpha", _captain, 1);
@@ -155,7 +155,7 @@ public class GrifToolsTests
     [Test]
     public async Task TeamTools_ShowATeam_AndRefuseAnUnknownOne()
     {
-        var tools = new TeamTools(ToolCaller.Anonymous, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), new TeamPageService(_context, _time), new TeamHistoryService(_context, _time), Vods());
+        var tools = new TeamTools(ToolCaller.Anonymous, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), new TeamPageService(_context, _time), new TeamHistoryService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), _time), Vods());
 
         var team = await tools.GetTeam(_team.TeamID);
         var matches = await tools.GetTeamMatches(_team.TeamID);
@@ -243,7 +243,7 @@ public class GrifToolsTests
     [Test]
     public async Task BrowseTools_Search_AndRefuseAnUnknownLateLeagueSeason()
     {
-        var tools = new BrowseTools(ToolCaller.Anonymous, new QuickSearchService(_context, _time), Leaderboards(), new MatchmakingStatsService(_context));
+        var tools = new BrowseTools(ToolCaller.Anonymous, new QuickSearchService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time)), Leaderboards(), new MatchmakingStatsService(_context));
 
         var hits = await tools.Search("Captain");
         var leaderboards = await tools.GetLeaderboards();

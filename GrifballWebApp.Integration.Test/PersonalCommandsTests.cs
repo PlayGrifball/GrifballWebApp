@@ -42,13 +42,13 @@ public class PersonalCommandsTests
     {
         _context = await TestDatabase.NewGrifballContext();
         var urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-        var seasons = new SeasonService(_context, new SeasonStatsService(_context));
+        var seasons = new SeasonService(_context, new SeasonStatsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
         var queue = new QueueRepository(_context);
         _publisher = Substitute.For<IPublisher>();
         var buttons = new MatchmakingButtonHandler(null!, new ServiceCollection().AddScoped(_ => _publisher).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
             null!, null!, null!, NullLogger<MatchmakingButtonHandler>.Instance);
         var claims = new UserGamertagClaimService(_context, new GamertagMatching(_context), TimeProvider.System, Options.Create(new UserClaimOptions()));
-        _handler = new PersonalCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context)), new QueueMembership(queue, _context, Substitute.For<IQueueNotifier>()),
+        _handler = new PersonalCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), new QueueMembership(queue, _context, Substitute.For<IQueueNotifier>()),
             queue, buttons, new RegionService(_context), claims, new SignupsService(_context), seasons, new AvailabilityService(_context),
             new RescheduleService(_context, new ContextOutbox(_context)), urls);
 

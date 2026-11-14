@@ -45,11 +45,11 @@ public class AdminCommandsTests
     {
         _context = await TestDatabase.NewGrifballContext();
         var urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-        var seasons = new SeasonService(_context, new SeasonStatsService(_context));
+        var seasons = new SeasonService(_context, new SeasonStatsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
         _dataPull = Substitute.For<IDataPullService>();
         var brackets = new BracketService(_context, new TeamStandingsService(_context), new ChampionshipService(_context));
         var teams = new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
-        _handler = new AdminCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context)), new RescheduleService(_context, new ContextOutbox(_context)),
+        _handler = new AdminCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), new RescheduleService(_context, new ContextOutbox(_context)),
             new SeasonMatchService(_context, _dataPull, brackets, new ChampionshipService(_context)), new MatchPlannerService(_context), brackets, teams,
             new ScheduleRecommendations(_context, TimeProvider.System), onDemand: null!, jobs: null!, new GamertagClaimService(_context, new UserMergeService(_context)),
             _dataPull, urls);

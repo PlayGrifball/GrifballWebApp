@@ -19,7 +19,7 @@ public class QuickSearchTests
     public async Task SetUp()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _controller = new SearchController(new QuickSearchService(_context));
+        _controller = new SearchController(new QuickSearchService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)));
     }
 
     [TearDown]

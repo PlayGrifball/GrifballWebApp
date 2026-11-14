@@ -27,11 +27,11 @@ public class QuickSearchService
     public const int MaxLength = 64;
 
     private readonly IApplicationDbContext _context;
-    private readonly TimeProvider _time;
+    private readonly SeasonVisibility _visibility;
 
-    public QuickSearchService(IApplicationDbContext context, TimeProvider? time = null)
+    public QuickSearchService(IApplicationDbContext context, SeasonVisibility visibility)
     {
-        _time = time ?? TimeProvider.System;
+        _visibility = visibility;
         _context = context;
     }
 
@@ -44,12 +44,11 @@ public class QuickSearchService
         if (Clean(query) is not { } q)
             return new QuickSearchDto { Players = [], Teams = [], Seasons = [] };
 
-        var now = _time.GetUtcNow().UtcDateTime;
         return new QuickSearchDto
         {
             Players = await SearchPlayers(q, ct),
-            Teams = await SearchTeams(q, now, viewer, ct),
-            Seasons = await SearchSeasons(q, now, viewer, ct),
+            Teams = await SearchTeams(q, viewer, ct),
+            Seasons = await SearchSeasons(q, viewer, ct),
         };
     }
 
@@ -183,14 +182,14 @@ public class QuickSearchService
         return Expression.Lambda<Func<User, bool>>(Expression.Not(holds.Body), holds.Parameters);
     }
 
-    /// <summary>Teams whose name holds the query, of seasons that are public: names starting with it first, then the
-    /// latest season's first.</summary>
-    private Task<QuickSearchTeamDto[]> SearchTeams(string q, DateTime now, SeasonViewer viewer, CancellationToken ct)
+    /// <summary>Teams whose name holds the query, of seasons <paramref name="viewer"/> may see (<see cref="SeasonVisibility.Visible"/>):
+    /// names starting with it first, then the latest season's first.</summary>
+    private Task<QuickSearchTeamDto[]> SearchTeams(string q, SeasonViewer viewer, CancellationToken ct)
     {
-        var publicSeasons = _context.Seasons.Where(SeasonVisibility.VisibleTo(viewer, now));
+        var visibleSeasons = _visibility.Visible(viewer);
         return _context.Teams.AsNoTracking()
             .Where(t => t.TeamName.Contains(q))
-            .Where(t => publicSeasons.Any(s => s.SeasonID == t.SeasonID))
+            .Where(t => visibleSeasons.Any(s => s.SeasonID == t.SeasonID))
             .OrderBy(t => t.TeamName.StartsWith(q) ? 0 : 1).ThenByDescending(t => t.Season.SeasonEnd).ThenBy(t => t.TeamName).ThenBy(t => t.TeamID)
             .Take(Limit)
             .Select(t => new QuickSearchTeamDto { TeamID = t.TeamID, TeamName = t.TeamName, SeasonID = t.SeasonID, SeasonName = t.Season.SeasonName })
@@ -198,12 +197,12 @@ public class QuickSearchService
     }
 
     /// <summary>
-    /// Public seasons whose name holds the query or, when it is a year, that ran in that year: names starting with it
-    /// first, then the latest first. A season is public once it starts or is announced (see Season.PublicAsOf).
+    /// Seasons <paramref name="viewer"/> may see (<see cref="SeasonVisibility.Visible"/>) whose name holds the query or, when it is
+    /// a year, that ran in that year: names starting with it first, then the latest first.
     /// </summary>
-    private Task<QuickSearchSeasonDto[]> SearchSeasons(string q, DateTime now, SeasonViewer viewer, CancellationToken ct)
+    private Task<QuickSearchSeasonDto[]> SearchSeasons(string q, SeasonViewer viewer, CancellationToken ct)
     {
-        var seasons = _context.Seasons.AsNoTracking().Where(SeasonVisibility.VisibleTo(viewer, now));
+        var seasons = _visibility.Visible(viewer);
 
         if (TryParseYear(q, out var year))
         {

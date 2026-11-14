@@ -14,7 +14,7 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class SeasonControllerUnitTests : SqliteGrifballContextFixture
 {
-    private SeasonController Controller() => new(new SeasonService(Db, new SeasonStatsService(Db)));
+    private SeasonController Controller() => new(new SeasonService(Db, new SeasonStatsService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)));
 
     [Test]
     public async Task GetCurrentSeasonID_ReturnsZero_WhenNoSeasonIsRunning()

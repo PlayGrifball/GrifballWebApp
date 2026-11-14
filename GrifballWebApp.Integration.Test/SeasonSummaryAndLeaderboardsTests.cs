@@ -37,7 +37,7 @@ public class SeasonSummaryAndLeaderboardsTests
     public async Task Setup()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _service = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context));
+        _service = new SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
     }
 
     [TearDown]
@@ -284,7 +284,7 @@ public class SeasonSummaryAndLeaderboardsTests
         _context.ChangeTracker.Clear();
 
         var dynasties = (await NewLeaderboardsController().GetLeaderboards(null, CancellationToken.None)).Dynasties;
-        var history = new TeamHistoryService(_context);
+        var history = new TeamHistoryService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context));
 
         using (Assert.EnterMultipleScope())
         {

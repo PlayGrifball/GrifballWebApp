@@ -19,8 +19,10 @@ public class SeasonService
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
     private readonly SeasonStatsService _stats;
-    public SeasonService(IApplicationDbContext context, SeasonStatsService stats, TimeProvider? time = null)
+    private readonly SeasonVisibility _visibility;
+    public SeasonService(IApplicationDbContext context, SeasonStatsService stats, SeasonVisibility visibility, TimeProvider? time = null)
     {
+        _visibility = visibility;
         _time = time ?? TimeProvider.System;
         _context = context;
         _stats = stats;
@@ -36,7 +38,7 @@ public class SeasonService
 
     /// <summary>
     /// The season a page, command or tool means when it names none, for <paramref name="purpose"/>, among those
-    /// <paramref name="viewer"/> may see (<see cref="SeasonVisibility.VisibleTo"/>): the running one, the one that ended last
+    /// <paramref name="viewer"/> may see (<see cref="SeasonVisibility.Visible"/>): the running one, the one that ended last
     /// and the next to start, in the purpose's order. A season not announced yet is never a player's or a signed-out
     /// caller's. 0 when there is none.
     /// </summary>
@@ -46,7 +48,7 @@ public class SeasonService
         Func<Task<int>> running = () => GetCurrentSeasonID(ct);
         Func<Task<int>> endedLast = () => _context.Seasons.Where(Season.StartedAt(now))
             .OrderByDescending(x => x.SeasonStart).ThenByDescending(x => x.SeasonID).Select(x => x.SeasonID).FirstOrDefaultAsync(ct);
-        Func<Task<int>> next = () => _context.Seasons.Where(SeasonVisibility.VisibleTo(viewer, now)).Where(Season.NotStartedAt(now))
+        Func<Task<int>> next = () => _visibility.Visible(viewer).Where(Season.NotStartedAt(now))
             .OrderBy(x => x.SeasonStart).ThenBy(x => x.SeasonID).Select(x => x.SeasonID).FirstOrDefaultAsync(ct);
         var order = purpose switch
         {
@@ -210,14 +212,14 @@ public class SeasonService
     }
 
     /// <summary>
-    /// The season list: every season <paramref name="viewer"/> may see (<see cref="SeasonVisibility.VisibleTo"/>: started or
+    /// The season list: every season <paramref name="viewer"/> may see (<see cref="SeasonVisibility.Visible"/>: started or
     /// announced; staff, the ones not announced yet too), imported or played in the app alike, filtered by league, game,
     /// format, year and whether it has ended. Latest end first unless sorted otherwise.
     /// </summary>
     public async Task<PaginationResult<SeasonListItemDto>> GetSeasons(SeasonListFilter filter, SeasonViewer viewer = SeasonViewer.Public, CancellationToken ct = default)
     {
         var now = _time.GetUtcNow().UtcDateTime;
-        var seasons = _context.Seasons.AsNoTracking().Where(SeasonVisibility.VisibleTo(viewer, now));
+        var seasons = _visibility.Visible(viewer);
         if (filter.LeagueID is not null)
             seasons = seasons.Where(s => s.LeagueID == filter.LeagueID);
         if (filter.GameVersionID is not null)
