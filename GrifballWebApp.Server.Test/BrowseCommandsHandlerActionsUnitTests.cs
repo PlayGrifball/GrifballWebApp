@@ -135,7 +135,7 @@ public class BrowseCommandsHandlerActionsUnitTests : SqliteGrifballContextFixtur
     public async Task Events_ListsTheNextSeasonsSignupsDraftAndSeason()
     {
         var season = Season.Seed(seasonName: "Winter").WithDates(signupsOpen: Now.AddDays(1), signupsClose: Now.AddDays(5), draftStart: Now.AddDays(8),
-            seasonStart: Now.AddDays(10), seasonEnd: Now.AddDays(60));
+            seasonStart: Now.AddDays(10), seasonEnd: Now.AddDays(60), publicAt: Now.AddDays(-1));
         Db.Seasons.Add(season);
         await Db.SaveChangesAsync();
         var discord = new CommandContextRecorder();

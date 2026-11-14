@@ -156,7 +156,7 @@ public class PersonalCommandsTests
     {
         var now = DateTime.UtcNow;
         var season = Season.Seed(seasonName: "Open").WithDates(signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(6),
-            seasonStart: now.AddDays(7), seasonEnd: now.AddDays(40));
+            seasonStart: now.AddDays(7), seasonEnd: now.AddDays(40), publicAt: now.AddDays(-2));
         _context.Seasons.Add(season);
         await _context.SaveChangesAsync();
         await GivePlayerRole(_me);
@@ -258,7 +258,7 @@ public class PersonalCommandsTests
         var closed = Season.Seed(seasonName: "Closed").WithDates(signupsOpen: now.AddDays(-20), signupsClose: now.AddDays(-10), draftStart: now.AddDays(-9),
             seasonStart: now.AddDays(-8), seasonEnd: now.AddDays(40));
         var open = Season.Seed(seasonName: "Open Too").WithDates(signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(6),
-            seasonStart: now.AddDays(7), seasonEnd: now.AddDays(40));
+            seasonStart: now.AddDays(7), seasonEnd: now.AddDays(40), publicAt: now.AddDays(-2));
         _context.Seasons.AddRange(closed, open);
         await _context.SaveChangesAsync();
         var tooLong = new CommandContextRecorder((ulong)_me.DiscordUserID!.Value);

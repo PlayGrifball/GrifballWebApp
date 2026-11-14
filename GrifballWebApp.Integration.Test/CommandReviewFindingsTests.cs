@@ -177,7 +177,7 @@ public class CommandReviewFindingsTests
         var now = DateTime.UtcNow;
         await _context.AddCurrentSeason("Running");
         var next = Season.Seed(seasonName: "Signing Up").WithDates(signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(6),
-            seasonStart: now.AddDays(40), seasonEnd: now.AddDays(80));
+            seasonStart: now.AddDays(40), seasonEnd: now.AddDays(80), publicAt: now.AddDays(-2));
         _context.Seasons.Add(next);
         await _context.SaveChangesAsync();
         var player = await _context.AddUser("signer", gamertag: "SignerGT", discordName: "signer");

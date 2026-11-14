@@ -123,7 +123,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
     {
         var caller = await AddUser(CallerDiscordID, "Staffer", "Sysadmin", "Commissioner", "Player");
         var season = Season.Seed(seasonName: "Winter").WithDates(signupsOpen: Now.AddDays(-1), signupsClose: Now.AddDays(5), draftStart: Now.AddDays(8),
-            seasonStart: Now.AddDays(10), seasonEnd: Now.AddDays(60));
+            seasonStart: Now.AddDays(10), seasonEnd: Now.AddDays(60), publicAt: Now.AddDays(-2));
         Db.Seasons.Add(season);
         await Db.SaveChangesAsync();
         var match = await AddSeasonMatch(season, await AddTeam(season, "Grifs"), await AddTeam(season, "Rivals"));
