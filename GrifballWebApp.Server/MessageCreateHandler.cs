@@ -92,7 +92,7 @@ Write a time as a Discord timestamp, <t:UNIX_SECONDS:f>, so each reader sees it 
 The bot also has slash commands; /help lists them.
 ";
         // The tools, as the author: their linked site account and its roles, or no account (every tool not about ""you"")
-        var caller = await scope.ServiceProvider.GetRequiredService<DiscordCaller>().AsToolCaller(message.Author.Id);
+        var caller = await new DiscordCaller(context).AsToolCaller(message.Author.Id);
         var tools = GrifTools.AIFunctions(scope.ServiceProvider, caller, GrifTools.Chat);
 
         // Each chunk with when it arrived: the reply is paced by the stream, not by when the background task gets to it

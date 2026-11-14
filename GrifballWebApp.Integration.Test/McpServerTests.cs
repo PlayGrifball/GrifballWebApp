@@ -131,7 +131,7 @@ public class McpServerTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(tools.Select(t => t.Name), Is.SupersetOf(SomeTools));
-            Assert.That(tools.Select(t => t.ProtocolTool.Annotations?.ReadOnlyHint), Has.All.True, "every tool so far only reads");
+            Assert.That(tools.Where(t => t.Name != "get_recent_games").Select(t => t.ProtocolTool.Annotations?.ReadOnlyHint), Has.All.True, "every tool but get_recent_games (it saves what it pulls) only reads");
             Assert.That(tools.Select(t => t.Description), Has.None.Null.And.None.Empty);
         }
 

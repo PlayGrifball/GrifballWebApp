@@ -3,7 +3,6 @@ using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Tools;
-using GrifballWebApp.Server.Commands;
 using Microsoft.Extensions.Logging.Abstractions;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
@@ -66,7 +65,6 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .AddSingleton<IApplicationDbContext>(Db)
             .AddSingleton<TimeProvider>(_time)
             .AddSingleton(typeof(ILogger<>), typeof(NullLogger<>))
-            .AddTransient<DiscordCaller>()
             .AddSingleton(_currentUser)
             .AddSingleton(_ambient)
             .AddSingleton(_xboxUsers)
