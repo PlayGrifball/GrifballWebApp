@@ -62,6 +62,11 @@ public static class GrifMcp
                         // The model sees this message and can act on it; the SDK hides any other exception's
                         throw new McpException(e.Message, e);
                     }
+                    catch (Exception e) when (GlobalExceptionHandler.Expected(e) is { Detail: { } refusal })
+                    {
+                        // A service's refusal the site answers with a 4xx (a match already reported, a claim decided): its reason
+                        throw new McpException(refusal, e);
+                    }
                 }));
     }
 
@@ -89,8 +94,9 @@ public static class GrifMcp
                 {
                     Name = GrifTools.Name(method),
                     ReadOnly = set.Effect == ToolEffect.ReadsOnly,
-                    // A queued pull from Halo adds games; nothing is changed or deleted
-                    Destructive = false,
+                    // A queued pull from Halo adds games, changing or deleting nothing; staff's actions change results,
+                    // schedules, brackets and claims
+                    Destructive = set.Effect == ToolEffect.ChangesData,
                     // Asked again once a pull is done, it pulls again and can save games played since: not idempotent
                     // (asked while one is queued or running, it adds nothing and says where that one is)
                     Idempotent = set.Effect == ToolEffect.ReadsOnly,

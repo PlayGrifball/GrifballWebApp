@@ -31,8 +31,8 @@ claude mcp add --transport http grifball https://grifball.xyz/api/mcp --header "
 
 ## Tools
 
-The tools show no more than the site shows signed out (or, for `get_season_match`, shows the caller). All of them only
-read, except the pull tools (`pull_season_match_games`, `pull_xbox_account_games`). They queue a page's pull from Halo
+The tools show no more than the site shows the caller (signed out, for most; staff's tools are for staff, below). All of
+them only read, except staff's actions (below) and the pull tools (`pull_season_match_games`, `pull_xbox_account_games`). They queue a page's pull from Halo
 (a season match's, an Xbox account's), a background job that saves the games it finds. Only players, commissioners and sysadmins may use them, as on the pages (see [Roles](#roles)). They are marked
 as not read-only, so MCP clients ask before calling them. They never change or delete anything. Tools take IDs: `search` finds players, teams and seasons by name, and `list_seasons` lists seasons. A season tool
 called without a `seasonID` uses the running season, else the one that ended last (`get_season_signups`: the next to
@@ -71,8 +71,32 @@ the channel, so it uses the public view whoever asks (`ToolCaller.InPublic`, #43
 | `pull_xbox_account_games` | Queues the pull of an Xbox account's recent games from Halo (players and staff; `/player pull` too) |
 | `get_current_time` | The time now, in UTC and as Unix seconds |
 
+### Staff's tools
+
+The MCP server lists these to the roles each names alone, as their pages and `/admin` are; the Discord bot's chat, which
+answers in a public channel, doesn't get them. They call the same services as the pages and `/admin`. The actions are
+marked as changing data (not read-only, destructive), so MCP clients ask before calling them, and a service's refusal
+(a match already reported, a claim decided) is the tool's error, with the reason the site gives.
+
+| Tool | Roles | What it does |
+| --- | --- | --- |
+| `get_commissioner_dashboard` | Commissioner, Sysadmin | Pending reschedules, overdue matches, seasons that won't be public by their signups, and the counts |
+| `list_pending_gamertag_claims` | Sysadmin | The claims waiting for a decision |
+| `decide_reschedule` | Commissioner, Sysadmin | Approves or rejects a reschedule request |
+| `report_season_match_game` | Commissioner | Reports a Halo game as one of a season match's games |
+| `forfeit_season_match` | Commissioner | Home, away or both forfeit |
+| `undo_season_match_result` | Commissioner | Undoes a match's result |
+| `set_season_match_time` | Commissioner | Schedules a match, in UTC |
+| `generate_season_matches` | Commissioner | Makes a season's matches (refused once one is played) |
+| `create_season_bracket` | Commissioner | Makes the playoff bracket (refused once it's played) |
+| `seed_season_bracket` | Commissioner | Seeds the bracket by the standings |
+| `set_captains_locked` | Commissioner | Locks or unlocks the draft's captains |
+| `decide_gamertag_claim` | Sysadmin | Approves or rejects a gamertag claim |
+| `pull_halo_game` | Sysadmin | Pulls one Halo game's stats |
+| `refresh_medals` | Sysadmin | Downloads Halo's medals again |
+
 A refusal the model can act on (no such season, say) is a `ToolException`. The MCP server returns it as a tool error with
-its reason. The chat hosts return it as the tool's result, `Refused: …`. Any other error's details stay in the server's
+its reason, as it does a service's refusal the site answers with a 4xx (`GlobalExceptionHandler.Expected`). The chat hosts return it as the tool's result, `Refused: …`. Any other error's details stay in the server's
 logs.
 
 ## The chat hosts
@@ -99,7 +123,8 @@ server's clients get every tool.
 A tool is a public method with a `[Description]` on a class in `GrifballWebApp.Application/Tools`, and each of its
 parameters has a `[Description]` too. Its name is the method's name in snake_case. It calls the same service as the
 controller for that page and returns its DTO. A class whose constructor takes a `ToolCaller` gets the signed-in user. A new
-class is listed in `GrifTools.ReadOnly`, or in `GrifTools.QueuingHaloPulls` if it queues a pull from Halo. A tool that chats
+class is listed in `GrifTools.ReadOnly`, in `GrifTools.QueuingHaloPulls` if it queues a pull from Halo, or in
+`GrifTools.ChangingData` if it changes the league's data (staff's actions). A tool that chats
 should have is named in `GrifTools.Chat`. `GrifToolsTests` checks the descriptions and names.
 
 ## Roles
@@ -108,6 +133,5 @@ A tool only some roles may use has `[ToolRoles(...)]` on its method or class, na
 them will do. A caller without one doesn't get the tool:
 - `GrifTools.AIFunctions` leaves it out of a chat's tools, so an anonymous Discord user never sees it.
 - The MCP server leaves it out of the user's tool list, and refuses a call to it anyway.
-- The tool also checks itself (`ToolCaller.Require`), so a host's filtering can't be the only guard.
-
-Tools that change things (reporting a match, setting availability) will come the same way, with the site's role checks.
+- The tool also checks itself (`ToolCaller.Require`, or `ToolCaller.RequireRolesOf()` for its own `[ToolRoles]`), so a
+  host's filtering can't be the only guard.
