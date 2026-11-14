@@ -15,6 +15,9 @@ public sealed record CallerUser(int UserID, long XboxUserID, string Gamertag, IR
 {
     /// <summary>Whether the user has one of <paramref name="roles"/>; with none given, anyone does.</summary>
     public bool IsInAnyRole(IReadOnlyCollection<string> roles) => SiteRoles.IsInAnyRole(Roles, roles);
+
+    /// <summary>Who the agents' tools run as for this caller: their account and roles.</summary>
+    public ToolCaller AsToolCaller() => new(UserID, Roles);
 }
 
 /// <summary>

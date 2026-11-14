@@ -61,6 +61,8 @@ public class HaloPullTools
     public async Task<PulledAccountDto> PullXboxAccountGamesOf(long xuid, string gamertag, CancellationToken ct = default)
     {
         _caller.Require(GrifTools.RolesByName["pull_xbox_account_games"]);
+        if (!await _accounts.Exists(xuid, ct))
+            throw new ToolException($"The site knows no Xbox account {xuid}: search finds the players it knows.");
         return new PulledAccountDto(xuid, gamertag, await _accountPulls.Queue(xuid, _caller.UserID, ct));
     }
 }

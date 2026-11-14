@@ -13,13 +13,11 @@ public static class PullReplies
     /// <summary>Where a queued pull is, in a sentence.</summary>
     public static string State(OnDemandJobStatusDto status) => status.State switch
     {
-        OnDemandJobState.Queued => "is queued: the worker starts it within a few seconds",
+        // Halo pulls run one at a time: a queued one waits for any ahead of it
+        OnDemandJobState.Queued => "is queued: it starts once any Halo pull ahead of it finishes",
         OnDemandJobState.Running => "is running",
         _ => "has finished",
     };
-
-    /// <summary>The agents' caller for this Discord caller: their account and roles.</summary>
-    public static ToolCaller AsToolCaller(CallerUser caller) => new(caller.UserID, caller.Roles);
 }
 
 /// <summary>
@@ -37,5 +35,5 @@ public sealed class PullToolsFor
         _services = services;
     }
 
-    public HaloPullTools As(CallerUser caller) => (HaloPullTools)Create(_services, PullReplies.AsToolCaller(caller));
+    public HaloPullTools As(CallerUser caller) => (HaloPullTools)Create(_services, caller.AsToolCaller());
 }

@@ -223,7 +223,19 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
         await _accountPulls.DidNotReceiveWithAnyArgs().Queue(default, default);
     }
 
-    [TestCase(OnDemandJobState.Queued, "is queued: the worker starts it within a few seconds")]
+    [Test]
+    public async Task ThePullByXuid_RefusesAnAccountTheSiteDoesntKnow()
+    {
+        var caller = await AddUser(6, "Puller", "Player");
+        var tools = Pulls().As(new CallerUser(caller.Id, 6, "Puller", ["Player"]));
+
+        var refused = await Assert.ThrowsAsync<ToolException>(() => tools.PullXboxAccountGamesOf(999, "Nobody"));
+
+        Assert.That(refused!.Message, Does.Contain("knows no Xbox account 999"));
+        await _accountPulls.DidNotReceiveWithAnyArgs().Queue(default, default);
+    }
+
+    [TestCase(OnDemandJobState.Queued, "is queued: it starts once any Halo pull ahead of it finishes")]
     [TestCase(OnDemandJobState.Running, "is running")]
     [TestCase(OnDemandJobState.Idle, "has finished")]
     public void APullsReply_SaysWhereItIs(OnDemandJobState state, string expected)
