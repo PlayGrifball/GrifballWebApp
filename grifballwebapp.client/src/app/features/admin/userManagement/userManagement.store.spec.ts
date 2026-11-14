@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '@core/auth/account.service';
+import type { GeneratePasswordResetLinkResponseDto } from '@api/models';
 import { of, throwError } from 'rxjs';
 import { UserManagementStore } from './userManagement.store';
 
@@ -40,8 +41,8 @@ describe('UserManagementStore', () => {
 
   it("makes a user's password reset link, and says when it cannot", () => {
     const made = jasmine.createSpy('made');
-    const response = { resetLink: '/reset?token=x', expiresAt: '2026-11-15T00:00:00Z' };
-    account.generatePasswordResetLink.and.returnValue(of(response as never));
+    const response = { resetLink: '/reset?token=x', expiresAt: '2026-11-15T00:00:00Z' } as GeneratePasswordResetLinkResponseDto;
+    account.generatePasswordResetLink.and.returnValue(of(response));
     store.generatePasswordResetLink('grif', made);
     expect(account.generatePasswordResetLink).toHaveBeenCalledWith({ username: 'grif' });
     expect(made).toHaveBeenCalledWith(response);

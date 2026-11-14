@@ -78,7 +78,7 @@ export class HistoricalImportStore {
     });
   }
 
-  setEnabled(sourceID: number, enabled: boolean): void {
+  setEnabled(sourceID: HistoricalSourceDto['sourceID'], enabled: boolean): void {
     this.run(this.api.setHistoricalSourceEnabled({ sourceID, body: { enabled } }), "Couldn't change the source.", () => this.sources.reload());
   }
 

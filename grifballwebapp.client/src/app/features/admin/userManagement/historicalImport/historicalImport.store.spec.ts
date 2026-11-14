@@ -28,7 +28,7 @@ describe('HistoricalImportStore', () => {
   /** Answers the page's three lists. */
   const lists = (fail = false) => {
     TestBed.tick();
-    const answer = (url: string, body: unknown) => fail
+    const answer = (url: string, body: object) => fail
       ? http.expectOne(url).flush('x', { status: 500, statusText: 'Server Error' })
       : http.expectOne(url).flush(body);
     answer('/api/historical-sources', [{ sourceID: 1 }]);
@@ -95,7 +95,7 @@ describe('HistoricalImportStore', () => {
     TestBed.tick();
     http.expectOne('/api/historical-imports').flush([]);
 
-    store.setEnabled(1, false);
+    store.setEnabled('1', false);
     const enabled = http.expectOne({ method: 'POST', url: '/api/historical-sources/1/enabled' });
     expect(enabled.request.body).toEqual({ enabled: false });
     enabled.flush(null);
