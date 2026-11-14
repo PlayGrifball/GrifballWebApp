@@ -38,6 +38,13 @@ jobs:
       - name: Install dotnet ef cli tool
         run: dotnet tool install --global dotnet-ef --version 10.*
 
+      # The repository's local tools (.config/dotnet-tools.json: the typed SignalR client generator)
+      - name: Restore .NET tools
+        run: dotnet tool restore
+
+      - name: Restore NuGet packages
+        run: dotnet restore GrifballWebApp.slnx
+
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:

@@ -26,7 +26,7 @@ npm run generate-coverage-imports
 
 ## Why This Approach?
 
-Angular 20's new build system (esbuild-based) doesn't support `require.context` or `import.meta.glob` patterns that were commonly used in webpack-based setups. This script-based approach provides the same benefits:
+Angular's esbuild-based build system (esbuild-based) doesn't support `require.context` or `import.meta.glob` patterns that were commonly used in webpack-based setups. This script-based approach provides the same benefits:
 
 - ✅ All files automatically included in coverage
 - ✅ No manual maintenance required

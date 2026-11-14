@@ -4,7 +4,7 @@ This document describes the frontend testing setup for the GrifballWebApp Angula
 
 ## Overview
 
-The frontend now includes a comprehensive testing infrastructure using:
+The frontend's tests use:
 - **Jasmine** for testing framework and assertions
 - **Karma** for test runner
 - **Chrome Headless** for browser testing
@@ -24,12 +24,10 @@ cd grifballwebapp.client
 npm run test:ci
 ```
 
-## Current Test Coverage
+## Code Coverage
 
-As of current implementation:
-- **377 total tests** discovered by Karma
-- **377 tests passing** (100% success rate)
-- **Code coverage**: 45.49% statements, 33.87% functions, 46.02% lines
+The current numbers are on [Codecov](https://codecov.io/gh/PlayGrifball/GrifballWebApp) (the frontend's flag) and
+SonarCloud.
 
 ### Code Coverage Reporting
 

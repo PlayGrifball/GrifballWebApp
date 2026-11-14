@@ -1,326 +1,56 @@
-[![codecov](https://codecov.io/gh/PlayGrifball/GrifballWebApp/branch/master/graph/badge.svg)](https://codecov.io/gh/PlayGrifball/GrifballWebApp)
-[![.NET Tests](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/dotnet-tests.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/dotnet-tests.yml)
 # Grifball Web App
-Full stack web application for planning and organizing Grifball tournaments, pulling match stats, and providing data insights.
 
-## Objectives
-- Users of this application are primarily expected to be players, event organizers, and/or viewers.
-- Event organizers should have the ability to create and plan Seasons and/or short-term tournaments.
-- Players should be able to define their standard availability.
-- Players should be able to sign up for events.
-- Players should be able to adjust availability on a per event basis and otherwise track any deviations to standard availability
-- Event organizers should be able to use availability data to plan matches
-- Captains should be able to submit the MatchID (found in Waypoint link) after match for data to be pulled
-- There must be a draft page
-- Captains must be able to use the draft page to pick players
-- Viewers should be able to view seasons, teams, and players.
-- Player profile page should show all teams and seasons they are participated in along with grand total stats.
-- There must be a Schedule list page with dates and times
-- There must be a Team Standings page with Wins and Losses
-- There must be a Game History page to display the final score of each match. Each should link to a more detailed match page.
-- There must be a Playoffs Bracket page
+Plan and run Grifball leagues and tournaments: seasons, signups, availability, drafts, schedules, brackets, Late League
+matchmaking through Discord, and match stats pulled from Halo Infinite.
 
+**Build and test**
+[![.NET Tests](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/dotnet-tests.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/dotnet-tests.yml)
+[![Frontend Tests](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/frontend-tests.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/frontend-tests.yml)
+[![Migrations](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/migrations.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/migrations.yml)
+[![Docker](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/docker-publish.yml)
+[![Helm chart](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/helm-chart.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/helm-chart.yml)
+[![Reproducible images](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/reproducible.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/reproducible.yml)
 
-## Missing Requirements
-- Need to know how to determine whether a team makes playoffs
-- Need to know how teams are seeded in playoffs
+**Quality and security**
+[![codecov](https://codecov.io/gh/PlayGrifball/GrifballWebApp/branch/master/graph/badge.svg)](https://codecov.io/gh/PlayGrifball/GrifballWebApp)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=PlayGrifball_GrifballWebApp&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=PlayGrifball_GrifballWebApp)
+[![SonarCloud](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/sonarcloud.yml)
+[![Trivy](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/trivy.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/trivy.yml)
+[![Lighthouse](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/lighthouse.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/lighthouse.yml)
+[![Alpine package lock](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/apk-lock.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/apk-lock.yml)
 
+**Deploy and previews**
+[![Promote to staging](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/promote-to-staging.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/promote-to-staging.yml)
+[![Promote to prod](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/promote-to-prod.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/promote-to-prod.yml)
+[![Preview smoke tests](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/preview-smoke.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/preview-smoke.yml)
+[![Preview label](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/preview-label.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/preview-label.yml)
+[![Preview cleanup](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/preview-cleanup.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/preview-cleanup.yml)
+[![Copilot Setup Steps](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/copilot-setup-steps.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/copilot-setup-steps.yml)
 
-Up until now stats have been compiled into excel sheets, see Winter League 2023 Stats:
-https://docs.google.com/spreadsheets/d/14tRPXLkjauRV-xfQiegUD6VMlqso7_EYe68E9HY45_c
-https://docs.google.com/spreadsheets/d/1xpraseVR_rQu7LCuUNWuFWf4qSHcLyJlxDN2RtMF240
+## Environments
 
-## Deploying
-To Kubernetes with the Helm chart in [charts/grifballwebapp](charts/grifballwebapp/README.md), published to
-`oci://ghcr.io/playgrifball/charts/grifballwebapp`: frontend, backend, optionally SQL Server or PostgreSQL, and a
-migration Job that backs the database up before applying new migrations.
+| Environment | URL | What runs there |
+| --- | --- | --- |
+| Production | https://grifball.xyz | Staging's images, moved by the [Promote to prod](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/promote-to-prod.yml) workflow |
+| Staging | https://grif-staging.grifball.xyz | Test's images, moved by the [Promote to staging](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/promote-to-staging.yml) workflow |
+| Test | https://grif-test.grifball.xyz | Every build of `master` |
+| PR previews | [grif-preview1](https://grif-preview1.grifball.xyz), [2](https://grif-preview2.grifball.xyz), [3](https://grif-preview3.grifball.xyz), [4](https://grif-preview4.grifball.xyz), [5](https://grif-preview5.grifball.xyz), [6](https://grif-preview6.grifball.xyz) | PRs with the `preview` label, one slot each (slots 1-3 with Discord); the PR's comment says which |
+| Halo gateway | https://grunt.grifball.xyz/admin | Holds the signed-in Halo account every environment's stats go through |
 
-## Backend Technologies
-- [.NET 10](https://learn.microsoft.com/en-us/dotnet/) - [source](https://github.com/dotnet)
-- [ASP.NET Core Web API](https://learn.microsoft.com/en-us/aspnet/core) - [source](https://github.com/dotnet/aspnetcore)
-- [SignalR](https://learn.microsoft.com/en-us/aspnet/core/signalr/) - [source](https://github.com/dotnet/aspnetcore/tree/main/src/SignalR)
-- [Entity Framework Core](https://learn.microsoft.com/en-us/ef/core/) - [source](https://github.com/dotnet/efcore)
-- [Grunt API](https://github.com/NoahSurprenant/grunt) for pulling Halo Infinite stats
+All of them run on Kubernetes from the [Helm chart](charts/grifballwebapp/README.md)
+(`oci://ghcr.io/playgrifball/charts/grifballwebapp`).
 
-## Frontend Technologies
-- [Angular 20](https://angular.io/) - [source](https://github.com/angular/angular)
-- [Angular Material](https://material.angular.io/) - [source](https://github.com/angular/components)
-- [ngx-drag-drop](https://reppners.github.io/ngx-drag-drop/) - [source](https://github.com/reppners/ngx-drag-drop) because [the standard angular dnd does not know how to flex](https://github.com/angular/components/issues/13372)
-- [ng-matero extensions](https://ng-matero.github.io/extensions/) - [source](https://github.com/ng-matero/extensions) for its DateTimepicker
-- [Luxon](https://moment.github.io/luxon) - [source](https://github.com/moment/luxon/) because Date + Javascript + Coordinated Lunar Time = :(
+## Tech
 
-## Developer Setup
+- **Backend:** .NET 10, ASP.NET Core, SignalR, Entity Framework Core on SQL Server, PostgreSQL or SQLite, Quartz,
+  OpenTelemetry, and [Grunt](https://github.com/PlayGrifball/grunt) for Halo Infinite. Domain-driven design inside
+  Clean Architecture layers: see [docs/architecture.md](docs/architecture.md).
+- **Frontend:** Angular with Angular Material, Tailwind CSS and Luxon, organised by feature: see
+  [docs/frontend.md](docs/frontend.md).
 
-### Installation
+## Docs
 
-To get started with Grifball Web App development, install the following tools:
-
-- **[Visual Studio 2026](https://visualstudio.microsoft.com/downloads/)**  
-  - Community Edition is sufficient.
-  - During installation, select the "ASP.NET and web development" workload.
-  - If already installed, you can modify the installation via the Visual Studio Installer. 
-  - It is great for backend development.
-  - You can also use Visual Studio for frontend work if you prefer.
-
-- **[Visual Studio Code](https://code.visualstudio.com/download)** (Optional)  
-  - Recommended for frontend development.
-  - When you open the project, VS Code will prompt you to install recommended extensions (see [extensions.json](grifballwebapp.client/.vscode/extensions.json)).
-  - You can use VS Code for backend development as well, but some additional configuration may be required (e.g., setting up launch configurations in [launch.json](grifballwebapp.client/.vscode/launch.json)).
-	- In theory this would involve installing the .NET SDK manually (Assuming you did not install it with VS 2026)
-	- Manually using the terminal to run and debug the backend application with commands like `dotnet watch run` or setting up launch.json to do it for you.
-
-- **[SQL Server 2022 Developer](https://go.microsoft.com/fwlink/p/?linkid=2215158&clcid=0x809&culture=en-gb&country=gb)**  
-  - Required for local database development.
-
-- **[SQL Server Management Studio (SSMS)](https://aka.ms/ssms/21/release/vs_SSMS.exe)**  
-  - Useful for managing and inspecting your local database.
-  - If the link breaks, refer to the [Install Guide](https://learn.microsoft.com/en-gb/ssms/install/install).
-
-- **[Node.js](https://nodejs.org/)**  
-  - Recommend using [nvm-windows](https://github.com/coreybutler/nvm-windows/releases) to manage Node.js versions rather than installing Node.js directly.
-  - The project currently uses Node.js v22.12.0, but any version [compatible with Angular](https://angular.dev/reference/versions) will work.
-  - Use nvm to install node: `nvm install 22.12.0`
-  - Use nvm to switch node versions: `nvm use 22.12.0`
-
-- **Angular CLI**  
-  - Install globally after setting up Node.js: `npm install -g @angular/cli`
-  - See [Angular CLI documentation](https://angular.dev/installation) for more details.
-  - Inside the `grifballwebapp.client` folder, run `npm install --force` to install all required packages.
-
-- **Entity Framework Core Tools**  
-  - Used for managing database migrations: `dotnet tool install --global dotnet-ef --version 10.*`
-  - See [EF Core CLI documentation](https://learn.microsoft.com/en-us/ef/core/cli/dotnet) for more information.
-
-### Configuration
-This application uses the IConfiguration interface to access settings that are effectively a set of key-value pairs.  
-The source of these settings comes from multiple sources, including: appsettings.json, environment variables, user secrets just to name the most important ones.  
-Some settings cannot be committed to source control either because they are sensitive, or they are specific to your needs. For this reason it is recommended that you setup your own user secrets by right-clicking GrifballWebApp.Server project in Solution Explorer and selecting user secrets.  
-Here is an example of what the user secrets file might look like:
-```json
-{
-  "Kestrel:Certificates:Development:Password": "", // Generated by Kestrel, developer specific.
-  "JwtSecret": "", // A base64 encoded string used to sign JWT tokens, should be kept secret.
-  // The GoogleSheets:Sheets array is used by the export to Google Sheets page for stat tracking
-  "GoogleSheets": {
-    "Sheets": [
-      {
-        "Name": "Pro",
-        "SpreadsheetID": "1Pzw2oh54gHF4dCC-RIwBoBKolH9qsPrYGXLwqYqWBQI",
-        "SheetName": "Season Match History"
-      },
-      {
-        "Name": "Ammy",
-        "SpreadsheetID": "1v6tCrEpFPUGx9HhHw42y8wEeu4BJeyfL7six0PkgbUs",
-        "SheetName": "Season Match History"
-      }
-    ]
-  },
-  "GoogleSheets:Key": "C:/Users/username/grifball-449020-2e7985f8e46b.json", // Path to the Google Sheets API key file, should be kept secret.
-  "GoogleSheets:CopySpreadsheetID": "1-zTTfLK4RgxlTJfzWEGhI-vaecS6UOSLhZq3ikTyzA4", // I am not sure if this is needed anymore
-  "GoogleSheets:CopySheetNameRange": "Game History!F:F", // I am not sure if this is needed anymore
-  "Discord:Token": "", // Token for the Discord bot, should be kept secret
-  "Discord:QueueChannel": "1368687948010356797", // Channel where the bot post the queue message.
-  "Discord:MatchPlayers": "2", // The number of players needed to start a LL match. Notice I set it to 2 for testing purposes.
-  "Discord:LogChannel": "1368717929499197550", // Channel where the bot will log messages like match created.
-  "Discord:EventsChannel": "1387623047124619459", // Channel where the bot will post events like season signups.
-  "Discord:DraftChannel": "886634393333022754", // Channel where the bot will post draft messages.
-  "Discord:DisableGlobally": "False", // The intention of this is to be a feature flag for discord functionality but I do not believe it is fully honored and may only disable the LL queue.
-  "Discord:ClientSecret": "", // Discord client secret
-  "Discord:ClientId": "", // Discord client ID
-  "BaseUrl": "https://localhost:4200",
-  "HaloInfinite:Mode": "Direct", // Gateway (the default) or Direct, see "Halo Infinite" below.
-  "ClientConfiguration:RedirectUrl": "https://localhost:4200/infiniteclient", // Direct mode only
-  "ClientConfiguration:ClientSecret": "", // Direct mode only: Microsoft client secret for the Halo Infinite API
-  "ClientConfiguration:ClientId": "", // Direct mode only: Microsoft client Id for the Halo Infinite API
-  "ApplyMigrations": "True" // Whether to apply migrations on startup, set to false if you want to manage migrations manually.
-}
-```
-
-### Halo Infinite
-The app reads match results from Halo Infinite with [Grunt](https://github.com/PlayGrifball/grunt), in one of two modes,
-set by `HaloInfinite:Mode`:
-
-- **`Gateway`** (the default, and what every deployed environment and PR preview uses): every Halo call goes through
-  the Halo gateway (Grunt's `Grunt.Gateway.Host`), which holds the one signed-in Halo account for all environments. The
-  app needs only `HaloGateway:BaseUrl` (default `http://halo-gateway.halo-gateway.svc:8080/`, the gateway inside the
-  cluster) and its own `HaloGateway:ApiKey` (a secret, sent as `X-Api-Key`). Optional: `HaloGateway:AdminUrl` (default
-  `https://grunt.grifball.xyz/admin`, the gateway's admin page, where its Halo account is signed in) and
-  `HaloGateway:Retry` (the client's transport retries, e.g. `MaxAttempts`).
-- **`Direct`**: the app signs in to Halo itself, as it did before the gateway, with its own Microsoft app
-  (`ClientConfiguration:ClientId`, `ClientSecret`, `RedirectUrl`), and keeps the tokens (`tokens.json`,
-  `AccountAuthorization.txt`) in its working directory.
-
-Locally, outside the cluster, the gateway's Service address does not resolve. Either point `HaloGateway:BaseUrl` at a
-gateway you can reach (e.g. `kubectl port-forward -n halo-gateway svc/halo-gateway 8080:8080` and
-`http://localhost:8080/`) with an API key the gateway knows, or use Direct mode with your own Microsoft app, in user
-secrets as above. An unknown mode or a gateway URL that isn't an absolute http(s) URL stops the app at startup, naming
-the setting. Without either, the app still runs; only the Halo features (match imports, gamertag lookups) fail.
-
-The **Infinite Client** page (`/infiniteclient`, sysadmins) shows which mode is active:
-
-- Gateway: the gateway's status from a fresh check (`GET /api/halo/status`): whether the gateway answered, its Halo
-  account's status (Healthy, or Degraded when it has to be signed in again), what a test call (one match's stats)
-  through it answered, and whether this environment has an API key. The sign-in code and Delete Tokens controls are
-  hidden: the account is signed in centrally on the gateway's admin page, which the page links to. `POST /api/halo/auth-code` and
-  `POST /api/halo/tokens/delete` answer 409 Conflict in this mode.
-- Direct: the page as it always was. Check status, open the Microsoft sign-in link it gives when signed out, and paste
-  the code from the redirect; Delete Tokens clears the stored tokens.
-
-The `halo_infinite` health check follows the mode: Direct makes the test call through the app's own sign-in; Gateway
-needs the test call through the gateway to succeed and the gateway's Halo account to be Healthy. Either way it is only
-ever Healthy or Degraded, never Unhealthy, and not part of readiness, so Halo never takes the site out of service.
-
-### Database
-The app runs on SQL Server (the default) or PostgreSQL, picked by the `Database:Provider` setting (`SqlServer` or
-`Postgres`); `ConnectionStrings:GrifballWebApp` is in that database's own format. For Postgres, in user secrets:
-```json
-{
-  "Database:Provider": "Postgres",
-  "ConnectionStrings:GrifballWebApp": "Host=localhost;Port=5432;Database=GrifballWebApp;Username=postgres;Password=..."
-}
-```
-
-SQLite works too, for a single instance (`"Database:Provider": "Sqlite"`, `"ConnectionStrings:GrifballWebApp": "Data Source=grif.db"`):
-see [docs/sqlite.md](docs/sqlite.md) for what it does and doesn't do.
-
-Each database has its own migrations project, all generated from the one model (`GrifballWebApp.Domain`'s entities and configurations, in `GrifballWebApp.Infrastructure`'s context):
-`GrifballWebApp.Migrations.SqlServer`, `GrifballWebApp.Migrations.Postgres` and `GrifballWebApp.Migrations.Sqlite`. A
-model change needs a migration in each (a test fails for whichever is missing). Each project is its own startup project and reads the connection string
-from `GrifballWebApp.Infrastructure`'s user secrets or `ConnectionStrings__GrifballWebApp`; `migrations add` needs none
-that works, so any placeholder will do there:
-```sh
-dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
-dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.Postgres --startup-project GrifballWebApp.Migrations.Postgres
-ConnectionStrings__GrifballWebApp="Data Source=design.db" dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.Sqlite --startup-project GrifballWebApp.Migrations.Sqlite
-```
-
-The two behave alike: every DateTime is UTC (read back with Kind Utc, Local refused), and
-text compares case-insensitively and accent-sensitively on both ("Noah" = "noah"; on Postgres an ICU collation
-mirrors SQL Server's default). Postgres keeps times to the microsecond, SQL Server to 100ns. The tests run on SQL Server unless `GRIF_TEST_DATABASE=Postgres` (or `Sqlite`); CI runs them on all three.
-
-#### Row history
-Both databases keep every version of every row, of every table but `MatchReschedules`, in the same place: for each table
-`"Schema"."Table"`, the versions a row had before an update or delete are in `"Schema"."TableHistory"`, each with
-`PeriodStart` and `PeriodEnd`, the UTC times it was current. The table's own `PeriodStart` is when the row got the
-values it has now, and its `PeriodEnd` is always the end of time, `DateTime.MaxValue` (SQL Server's
-`9999-12-31 23:59:59.9999999`, Postgres's `infinity`). SQL Server does this with temporal tables. Postgres has none, so triggers do it
-(`GrifballWebApp.Infrastructure/PostgresHistory.cs`, functions in `PostgresHistoryFunctions.cs`): every `UPDATE`,
-`DELETE` (cascades included) and `TRUNCATE` copies the rows it replaces into the history table, one `INSERT` a
-statement. Each table has its own versioning function, `"Schema"."Table_versioning"`, written for it by
-`grif_refresh_versioning`: plain SQL naming its history table and their columns, which Postgres parses once a session
-rather than building the SQL from the catalog on every write. The time is the
-transaction's start, so the changes of one transaction share it. The app's login can read the history but not
-change it. Nothing deletes old history: the tables grow with every change.
-
-Rows a table already has when it becomes temporal have been current since the beginning of time: their `PeriodStart`
-is `DateTime.MinValue` (SQL Server's `0001-01-01`, Postgres's `-infinity`), so `TemporalAsOf` a time before then
-finds them as they are now, and their first change keeps that version from `DateTime.MinValue`. On Postgres that
-includes the rows every table had when `AddRowHistory` added history to them. Rows written after get the
-transaction's time.
-
-On Postgres the history tables are in the EF model, generated from their tables, so `migrations add` changes both
-together, with no hand edits: a column added to a table is added to its history table too (nullable there), a
-renamed column is renamed in both (`RenameColumn` twice), and a new table gets a history table and its triggers (the
-migration calls `grif_enable_versioning`, added by the Postgres project's `HistoryMigrationsModelDiffer`). An existing table
-made temporal gets them the same way, and the differ scaffolds its `PeriodStart` as added with the default
-`'-infinity'`, for the rows it has, then altered to the model's default, `transaction_timestamp()`: both change only
-the catalog, rewriting no rows. A table renamed or moved to another schema takes its history table with it
-(`RenameTable` and `RenameIndex` for both, as SQL Server alters its `HISTORY_TABLE`), keeping the history and the
-triggers, which are on the tables.
-
-As the versioning function names the tables and columns, a migration that renames or moves a table with history, or
-adds, drops or renames a column of one, writes it again once those are done: the differ scaffolds
-`CALL public.grif_refresh_versioning('"Schema"."Table"')` after them (and `grif_disable_versioning`, which drops the
-function, before a history table is dropped). A change to such a table made with hand-written SQL in a migration
-(`migrationBuilder.Sql`) needs that call too, or the next `UPDATE` or `DELETE` of the table fails (a renamed or
-dropped column) or leaves a new column out of the history. A column's type can change without it.
-
-Besides its index on the key and `PeriodEnd` (a row's versions, and the one current at a time), a history table has
-one on each foreign key's columns and `PeriodEnd`, like the table's own foreign key indexes, so `TemporalAsOf` with
-`Include` or a navigation finds the related rows' versions by index, not by reading the whole history table. They
-come from the model too: a foreign key added to a table gets its history table's index in the same migration.
-
-The triggers' functions are scaffolded too, from `PostgresHistoryFunctions.cs`: the migration that gives the first
-table history creates them, and one that takes away the last drops them. They are versioned: the model records the
-version (`Grif:HistoryFunctions`, in the snapshot), so to change a function, add a version there with the whole of
-its SQL, and `migrations add` scaffolds a migration that creates it over the old one (its `Down` puts the old one
-back); `has-pending-model-changes` reports the new version until then. Keep the old versions: those migrations need
-them. A version that changes a function's signature or drops one must drop the old one first itself, as `CREATE OR
-REPLACE` can't, and one that changes what `grif_refresh_versioning` writes must call it for each table with history
-(and its `Down`'s version again).
-
-One change loses data, on both databases (EF's doing, not the history's): renaming an entity class and its table in
-the same migration. EF can't tell that is the same table, so it scaffolds `DropTable` and `CreateTable` (and warns
-that the operation may result in the loss of data): the table's rows go, and its history with them. Rename the class
-first (an empty migration), then the table in a second one: both keep the rows and the history.
-
-In code, query the history with EF's temporal queries, the same code on both databases:
-```csharp
-var then = await context.Seasons.TemporalAsOf(time).Include(s => s.SeasonMatches).SingleAsync(s => s.SeasonID == id);
-var versions = await context.Seasons.TemporalAll()
-    .Where(s => s.SeasonID == id)
-    .OrderBy(s => EF.Property<DateTime>(s, "PeriodStart"))
-    .Select(s => new { s.SeasonName, From = EF.Property<DateTime>(s, "PeriodStart"), To = EF.Property<DateTime>(s, "PeriodEnd") })
-    .ToListAsync();
-// Also TemporalFromTo(a, b), TemporalBetween(a, b) and TemporalContainedIn(a, b).
-```
-SQL Server translates them to `FOR SYSTEM_TIME`. On Postgres `UseGrifballDatabase` adds a translator
-(`GrifballWebApp.Infrastructure/PostgresTemporalQueries.cs`) that reads the table and its history table with SQL Server's
-rules, so they return the same rows: `AS OF` carries to `Include`s and navigations, other operations refuse them, and
-versions that lasted no time (a row changed twice in one transaction) are left out, as `FOR SYSTEM_TIME` does. Their
-times are query parameters on Postgres, so EF compiles a temporal query once and caches it whatever its times (SQL
-Server's `FOR SYSTEM_TIME` has the time in its SQL, so there each time is a query of its own; in `EF.CompileQuery`,
-on both, the time is fixed when the query is compiled). Times
-are UTC (`Kind` `Local` is refused on Postgres; SQL Server would read its local clock time as UTC). Postgres
-keeps microseconds, so a time between two is rounded the way that gives each comparison SQL Server's answer.
-
-By hand in psql, a row's old versions, and the row as it was at a time:
-```sql
-SELECT * FROM "Event"."SeasonsHistory" WHERE "SeasonID" = 1 ORDER BY "PeriodEnd";
-
-SELECT * FROM (
-  SELECT "SeasonID", "SeasonName", "PeriodStart", "PeriodEnd" FROM "Event"."Seasons"
-  UNION ALL
-  SELECT "SeasonID", "SeasonName", "PeriodStart", "PeriodEnd" FROM "Event"."SeasonsHistory"
-) v WHERE "SeasonID" = 1 AND "PeriodStart" <= '2026-10-01 12:00+00' AND "PeriodEnd" > '2026-10-01 12:00+00';
-```
-
-#### Converting between SQL Server and PostgreSQL
-`GrifballWebApp.Convert` copies a database into a new one on either server, or the same kind:
-```sh
-dotnet run --project GrifballWebApp.Convert -- \
-  --Source:Provider=SqlServer --Source:ConnectionString="Server=...;Database=GrifballWebApp;..." \
-  --Target:Provider=Postgres --Target:ConnectionString="Host=...;Database=GrifballWebApp;..."
-```
-(or `Source__Provider` and the rest in the environment; the target defaults to the app's own `Database:Provider` and
-`ConnectionStrings:GrifballWebApp`). The backend image has it at `/app/convert`, and the Helm chart runs it on a first
-deploy with `migrations.convert`.
-
-- **The target** must be new: missing, or without tables. It's created with this build's migrations, so it has the
-  schema the app expects on its server: the collation, row history's triggers (Postgres) or system versioning (SQL
-  Server), the same keys and indexes.
-- **The source** is only read. It must have exactly this build's migrations, so both have the same tables and
-  columns. On Postgres it's read in one snapshot, and on SQL Server too if the database allows snapshot isolation;
-  otherwise nothing should write to it during the copy.
-- **Every row** of every table is copied in one transaction, keys as they are; identity columns carry on after the
-  highest. Rows go in parents first. Where two tables refer to each other (a team and its captain, a match and its
-  active reschedule request), the nullable side is set once both are in; a table's references to itself (a bracket's
-  previous matches) are met by the order of its rows.
-- **Row history** comes too, each version with its times: Postgres's triggers are off while its history tables load,
-  and SQL Server's period columns, which take no values, are made plain columns for the load and its period and
-  system versioning put back after, checking the history against the current rows.
-- **Values** go across as what both hold: times UTC and to the microsecond (Postgres's precision), the end of time
-  (SQL Server's 9999-12-31, Postgres's `infinity`) and the beginning (`-infinity`) as each other, `datetimeoffset`
-  as the same instant.
-- **Before it commits**, every table is read back from the target and compared with what was read from the source
-  (the row count and a hash of every row's values, to the microsecond); any difference fails the conversion. If
-  anything fails, the target is put back: dropped when the conversion created it, or, if it was there already (an
-  empty database made beforehand), its migrations undone, so it has no tables again.
-
-### Running the Application
-
-0. Optionally, open the `grifballwebapp.client` folder in Visual Studio Code to work on the frontend. In the terminal, run `npm start` to start the Angular development server. The Angular frontend will be available at [https://localhost:4200](https://localhost:4200).
-1. Open the `GrifballWebApp.slnx` file in Visual Studio.
-2. The startup project should be set to `GrifballWebApp.Server`, the project in bold in the Solution Explorer is the startup project, additionally it shows up as the startup project to the right of the cogwheel near the green debug arrow. Startup project can be changed either via cogwheel dropdown or by right-clicking the project and selecting "Set as Startup Project" in solution explorer.
-3. Recommended startup profile is `https`, or `IIS Express`. This is set via the dropdown near green debug arrow.
-4. Press `F5` or click the green debug arrow to start the backend server. The API swagger page will be available at [https://localhost:7210/swagger](https://localhost:7210/swagger). The backend will attempt to run `npm start` for the frontend, if it does not detect it already running as specified in step 0. It is recommended to run the frontend separately in step 0 to avoid issues with the backend trying to start the frontend.
+- [Developer setup](docs/development-setup.md): tools, configuration, running the app and the tests
+- [Architecture](docs/architecture.md) and [database](docs/database.md)
+- [Everything else](docs/README.md): jobs, Discord commands, the MCP server, telemetry, historical import, CI
+- Working on this repo with an AI agent: [AGENTS.md](AGENTS.md)
