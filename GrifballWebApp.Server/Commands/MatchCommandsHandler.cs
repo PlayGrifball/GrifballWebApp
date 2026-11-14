@@ -46,15 +46,9 @@ public class MatchCommandsHandler
             return;
         if (await _lookups.SeasonMatchFor(context, match) is not int id)
             return;
-        try
-        {
-            var status = await _pulls.As(caller).PullSeasonMatchGames(id, backToSeasonStart);
-            await context.Reply($"The pull of this match's players' games {PullReplies.State(status)}. The match page shows the games it finds: {_urls.SeasonMatch(id)}");
-        }
-        catch (ToolException e)
-        {
-            await context.Reply(e.Message);
-        }
+        // The caller check and the lookup refuse first, as the tool would: it has nothing left to refuse
+        var status = await _pulls.As(caller).PullSeasonMatchGames(id, backToSeasonStart);
+        await context.Reply($"The pull of this match's players' games {PullReplies.State(status)}. The match page shows the games it finds: {_urls.SeasonMatch(id)}");
     }
 
     public async Task Info(IDiscordInteractionContext context, string match)

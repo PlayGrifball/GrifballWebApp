@@ -148,14 +148,8 @@ public class PlayerCommandsHandler
             await context.Reply(CommandLookups.NoSuchXboxAccount);
             return;
         }
-        try
-        {
-            var pulled = await _pulls.As(caller).PullXboxAccountGamesOf(found.XboxUserID, found.Gamertag);
-            await context.Reply($"The pull of {pulled.Gamertag}'s recent games {PullReplies.State(pulled.Pull)}. /matches and their Xbox page show them: {_urls.XboxAccount(pulled.XboxUserID)}");
-        }
-        catch (ToolException e)
-        {
-            await context.Reply(e.Message);
-        }
+        // The caller check and the lookup refuse first, as the tool would: it has nothing left to refuse
+        var pulled = await _pulls.As(caller).PullXboxAccountGamesOf(found.XboxUserID, found.Gamertag);
+        await context.Reply($"The pull of {pulled.Gamertag}'s recent games {PullReplies.State(pulled.Pull)}. /matches and their Xbox page show them: {_urls.XboxAccount(pulled.XboxUserID)}");
     }
 }

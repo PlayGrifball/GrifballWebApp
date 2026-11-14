@@ -20,7 +20,7 @@ public enum SeasonDefault
 
 /// <summary>
 /// The season, team, player and season match a command names. A choice picked from the autocomplete is sent as its ID
-/// (<see cref="ChoiceValue"/>: "id:12"); anything else is what was typed, looked up by name: the exact name (a team's or
+/// (<see cref="ChoiceValue(int)"/>: "id:12"); anything else is what was typed, looked up by name: the exact name (a team's or
 /// season's newest), else the only one whose name has it, else, for digits that name nothing, the ID they are. A typed name
 /// that fits several is none: the caller is told to pick one, so an action never lands on a guess.
 /// String options, not integer ones: Discord lets only digits be typed into an integer option, so names couldn't be searched.

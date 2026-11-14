@@ -179,4 +179,49 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
         }
         await _accountPulls.Received(1).Queue(2001, caller.Id, Arg.Any<CancellationToken>());
     }
+
+    [Test]
+    public async Task MatchPull_RefusesACallerWithoutTheRole()
+    {
+        await AddUser(5, "NoRole");
+        var handler = new MatchCommandsHandler(new CommandLookups(Db, Seasons(), new XboxAccountService(Db), _time), SeasonMatches(), new MatchDetailsService(Db), Urls(), new DiscordCaller(Db), Pulls());
+        var discord = new CommandContextRecorder(discordUserId: 5);
+
+        await handler.Pull(discord.Context, "1", backToSeasonStart: false);
+
+        Assert.That(discord.Content(), Is.EqualTo(DiscordCaller.MissingRole(GrifTools.RolesByName["pull_season_match_games"])));
+        await _seasonPulls.DidNotReceiveWithAnyArgs().Queue(default, default, default);
+    }
+
+    [Test]
+    public async Task PlayerPull_RefusesAPickedAccountTheSiteDoesntKnow()
+    {
+        await AddUser(6, "Puller", "Player");
+        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), new XboxAccountService(Db), _time), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
+        var discord = new CommandContextRecorder(discordUserId: 6);
+
+        await handler.Pull(discord.Context, CommandLookups.ChoiceValue(999L));
+
+        Assert.That(discord.Content(), Is.EqualTo(CommandLookups.NoSuchXboxAccount));
+        await _accountPulls.DidNotReceiveWithAnyArgs().Queue(default, default);
+    }
+
+    [TestCase(OnDemandJobState.Queued, "is queued: the worker starts it within a few seconds")]
+    [TestCase(OnDemandJobState.Running, "is running")]
+    [TestCase(OnDemandJobState.Idle, "has finished")]
+    public void APullsReply_SaysWhereItIs(OnDemandJobState state, string expected)
+        => Assert.That(PullReplies.State(new OnDemandJobStatusDto { State = state }), Is.EqualTo(expected));
+
+    [Test]
+    public async Task TheGamertagList_WithNothingTyped_ListsAccountsByTheirCurrentGamertag()
+    {
+        var renamed = XboxUser.FromXbox(2001, "New Name");
+        renamed.RecordPastGamertag("Old Name", null, null, GamertagHistorySource.Manual);
+        Db.XboxUsers.Add(renamed);
+        await Db.SaveChangesAsync();
+
+        var choices = await new CommandLookups(Db, Seasons(), new XboxAccountService(Db), _time).XboxAccountChoices(null);
+
+        Assert.That(choices.Select(c => (c.Name, c.StringValue)), Is.EqualTo(new[] { ("New Name", "id:2001") }));
+    }
 }
