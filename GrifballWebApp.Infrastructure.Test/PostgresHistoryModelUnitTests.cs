@@ -18,6 +18,9 @@ public class PostgresHistoryModelUnitTests
         Assert.That((version.Create, version.Drop), Is.EqualTo(("a\nb", "c\nd")));
     }
 
+    private static readonly string[] TeamAvailabilityHistoryIndexes =
+        ["IX_TeamAvailabilityHistory_TeamAvailabilityID_PeriodEnd", "IX_TeamAvailabilityHistory_TeamID_AvailabilityOptionID_PeriodE~"];
+
     // EF's own names, cut as EF cuts them, whenever they stay apart: the history indexes Postgres already has keep
     // their names (TeamAvailabilityHistory's is one EF cuts).
     [Test]
@@ -25,7 +28,7 @@ public class PostgresHistoryModelUnitTests
     {
         var names = PostgresHistory.HistoryIndexNames("TeamAvailabilityHistory", [["TeamAvailabilityID", "PeriodEnd"], ["TeamID", "AvailabilityOptionID", "PeriodEnd"]]);
 
-        Assert.That(names, Is.EqualTo(new[] { "IX_TeamAvailabilityHistory_TeamAvailabilityID_PeriodEnd", "IX_TeamAvailabilityHistory_TeamID_AvailabilityOptionID_PeriodE~" }));
+        Assert.That(names, Is.EqualTo(TeamAvailabilityHistoryIndexes));
     }
 
     // Postgres cuts identifiers at 63 bytes, and EF's cut gave ScheduleRecommendationMatchesHistory's two indexes one

@@ -150,6 +150,8 @@ public class DatabaseProviderUnitTests
         Assert.That(shared, Is.Empty);
     }
 
+    private static readonly string[] TablesWithoutHistory = ["Discord.Outbox", "Event.HistoricalImportJobs", "Event.HistoricalSourceSnapshots"];
+
     // Every table keeps its rows' history but these three, whose rows churn and would grow it without end: the outbox
     // (sent messages are deleted after their retention), an import job (its heartbeat rewrites the row every few
     // seconds) and a source's snapshots (each a whole downloaded file). A new table gets history unless it joins them here.
@@ -163,7 +165,7 @@ public class DatabaseProviderUnitTests
             .Select(e => $"{e.GetSchema()}.{e.GetTableName()}")
             .Order(StringComparer.Ordinal);
 
-        Assert.That(withoutHistory, Is.EqualTo(new[] { "Discord.Outbox", "Event.HistoricalImportJobs", "Event.HistoricalSourceSnapshots" }));
+        Assert.That(withoutHistory, Is.EqualTo(TablesWithoutHistory));
     }
 
     // Postgres's index names are one namespace a schema, cut at 63 bytes: each fits, and no two are the same.
