@@ -35,7 +35,10 @@ The tools show no more than the site shows signed out (or, for `get_season_match
 read, except the pull tools (`pull_season_match_games`, `pull_xbox_account_games`). They queue a page's pull from Halo
 (a season match's, an Xbox account's), a background job that saves the games it finds. Only players, commissioners and sysadmins may use them, as on the pages (see [Roles](#roles)). They are marked
 as not read-only, so MCP clients ask before calling them. They never change or delete anything. Tools take IDs: `search` finds players, teams and seasons by name, and `list_seasons` lists seasons. A season tool
-called without a `seasonID` uses the running season, else the latest (as the slash commands do), and a player tool called without a `userID` uses the caller.
+called without a `seasonID` uses the running season, else the one that ended last (`get_season_signups`: the next to
+start), as the slash commands do; a player tool called without a `userID` uses the caller. A season not announced yet,
+its teams and its matches are no such thing to anyone but a commissioner or sysadmin; the Discord bot's chat answers in
+the channel, so it uses the public view whoever asks (`ToolCaller.InPublic`, #435).
 
 | Tool | What it returns |
 | --- | --- |

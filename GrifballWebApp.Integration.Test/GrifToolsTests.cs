@@ -74,7 +74,7 @@ public class GrifToolsTests
         await _context.DropDatabaseAndDispose();
     }
 
-    private SeasonTools SeasonTools() => new(_seasons, new TeamStandingsService(_context), new MatchPlannerService(_context), new GradesService(_context),
+    private SeasonTools SeasonTools(ToolCaller? caller = null) => new(caller ?? ToolCaller.Anonymous, _seasons, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), new TeamStandingsService(_context), new MatchPlannerService(_context), new GradesService(_context),
         new SignupsService(_context, _time), Substitute.For<IBracketService>());
 
     private VodService Vods() => new(_context, new YouTubeClient(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(HttpStatusCode.NotFound)))),
@@ -90,7 +90,7 @@ public class GrifToolsTests
     private MatchTools MatchTools(ToolCaller caller) => new(caller,
         new SeasonMatchService(_context, Substitute.For<IDataPullService>(),
             new BracketService(_context, new TeamStandingsService(_context), new ChampionshipService(_context)), new ChampionshipService(_context)),
-        new MatchDetailsService(_context));
+        new MatchDetailsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time));
 
     [Test]
     public async Task ASeasonTool_UsesTheRunningSeason_WhenGivenNone()
@@ -155,7 +155,7 @@ public class GrifToolsTests
     [Test]
     public async Task TeamTools_ShowATeam_AndRefuseAnUnknownOne()
     {
-        var tools = new TeamTools(new TeamPageService(_context, _time), new TeamHistoryService(_context, _time), Vods());
+        var tools = new TeamTools(ToolCaller.Anonymous, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), new TeamPageService(_context, _time), new TeamHistoryService(_context, _time), Vods());
 
         var team = await tools.GetTeam(_team.TeamID);
         var matches = await tools.GetTeamMatches(_team.TeamID);

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Reflection;
 using System.Text;
 using GrifballWebApp.Application.Identity;
+using GrifballWebApp.Application.Seasons;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,6 +15,15 @@ namespace GrifballWebApp.Application.Tools;
 public sealed record ToolCaller(int? UserID, IReadOnlyList<string> Roles)
 {
     public static readonly ToolCaller Anonymous = new(null, []);
+
+    /// <summary>
+    /// Whether others see the answers: a Discord channel's, where the bot's chat replies. Then the caller sees seasons as the public
+    /// does, whatever their roles: a season not announced yet stays out of a reply its players read (#435).
+    /// </summary>
+    public bool InPublic { get; init; }
+
+    /// <summary>Which seasons the caller sees: staff the ones not announced yet too, unless <see cref="InPublic"/>.</summary>
+    public SeasonViewer Viewer => InPublic ? SeasonViewer.Public : SeasonVisibility.For(Roles);
 
     /// <summary>Whether the caller has one of <paramref name="roles"/>; with none given, anyone does.</summary>
     public bool IsInAnyRole(IReadOnlyCollection<string> roles) => SiteRoles.IsInAnyRole(Roles, roles);
