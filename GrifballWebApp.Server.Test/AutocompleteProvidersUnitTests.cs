@@ -131,6 +131,38 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task GamertagAutocomplete_ListsAGamertagTwoAccountsShare_Once_AsTheOneThatPlayedLast()
+    {
+        // 7101's row is stale: its account renamed away from "Shared Tag", which 7102 holds now and has played under
+        Db.XboxUsers.AddRange(XboxUser.FromXbox(7101, "Shared Tag"), XboxUser.FromXbox(7102, "Shared Tag"));
+        var game = GrifballWebApp.Domain.Halo.Match.Seed(Guid.NewGuid(), startTime: new DateTime(2026, 10, 1, 20, 0, 0, DateTimeKind.Utc), duration: TimeSpan.FromMinutes(9));
+        game.AddTeam(0, 50, GrifballWebApp.Domain.Halo.Outcomes.Won);
+        game.AddParticipant(0, 7102, new GrifballWebApp.Domain.Halo.MatchParticipantStats());
+        Db.Matches.Add(game);
+        await Db.SaveChangesAsync();
+
+        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)))
+            .GetChoicesAsync(Typed("Shared"), null!))!.ToList();
+
+        Assert.That(choices.Select(c => (c.Name, c.StringValue)), Is.EqualTo(new[] { ("Shared Tag", "id:7102") }));
+    }
+
+    [Test]
+    public async Task GamertagAutocomplete_ListsAnAccount_ByItsCurrentGamertag_WhenItsPastOneDiffersOnlyInSpacing()
+    {
+        // Its gamertag now has two spaces: what was typed isn't in it, but the past one is the same gamertag
+        var respaced = XboxUser.FromXbox(7201, "Foo  Bar");
+        respaced.RecordPastGamertag("Foo Bar", null, null, GamertagHistorySource.Manual);
+        Db.XboxUsers.Add(respaced);
+        await Db.SaveChangesAsync();
+
+        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)))
+            .GetChoicesAsync(Typed("Foo B"), null!))!.ToList();
+
+        Assert.That(choices.Select(c => (c.Name, c.StringValue)), Is.EqualTo(new[] { ("Foo  Bar", "id:7201") }), "listed, unlabelled: no alias");
+    }
+
+    [Test]
     public async Task RegionAutocomplete_OffersTheRegionsNamed_AndClearingIt()
     {
         var choices = await new RegionAutocomplete(new GrifballWebApp.Application.Profile.RegionService(Db)).GetChoicesAsync(Typed("europe"), null!);

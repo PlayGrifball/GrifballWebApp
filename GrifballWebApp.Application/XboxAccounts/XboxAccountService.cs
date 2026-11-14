@@ -102,17 +102,19 @@ public class XboxAccountService
     /// those with a past gamertag holding it (one per account, none already listed by its current gamertag), each group
     /// with the gamertags starting with it first. At most <paramref name="limit"/>. Past gamertags are searched from
     /// <see cref="Search.QuickSearchService.MinLength"/> characters, as the site's quick search does, reading at most
-    /// <see cref="MaxPastRows"/> of them: Discord asks on every keystroke.
+    /// <see cref="MaxPastRows"/> of them: Discord asks on every keystroke. Accounts sharing a current gamertag (a stale row
+    /// keeps the one its account renamed away from) are listed once, as the one that played last: the account
+    /// <see cref="FindByCurrentGamertagAsync"/> finds for it typed.
     /// </summary>
     public async Task<List<XboxAccountChoice>> SearchAsync(string? query, int limit, CancellationToken ct = default)
     {
         var q = (query ?? "").Trim();
-        var current = await _context.XboxUsers.AsNoTracking()
+        var current = await OnePerGamertag(await _context.XboxUsers.AsNoTracking()
             .Where(x => x.Gamertag.Contains(q))
             .OrderBy(x => x.Gamertag.StartsWith(q) ? 0 : 1).ThenBy(x => x.Gamertag).ThenBy(x => x.XboxUserID)
             .Take(limit)
             .Select(x => new XboxAccountChoice(x.XboxUserID, x.Gamertag, null))
-            .ToListAsync(ct);
+            .ToListAsync(ct), ct);
         if (current.Count >= limit || q.Length < Search.QuickSearchService.MinLength)
             return current;
 
@@ -123,14 +125,43 @@ public class XboxAccountService
             .Select(h => new { h.XboxUserID, Current = h.XboxUser.Gamertag, h.Gamertag, h.NormalizedGamertag, Rank = h.Gamertag.StartsWith(q) ? 0 : 1 })
             .ToListAsync(ct);
         var past = pastRows
-            // A past gamertag that is the current one (in another case or spacing) is no alias
-            .Where(h => h.NormalizedGamertag != XboxGamertagHistory.Normalize(h.Current))
             .GroupBy(h => h.XboxUserID)
             .Select(g => g.OrderBy(h => h.Rank).ThenBy(h => h.Gamertag, StringComparer.OrdinalIgnoreCase).First())
             .OrderBy(h => h.Rank).ThenBy(h => h.Gamertag, StringComparer.OrdinalIgnoreCase).ThenBy(h => h.XboxUserID)
             .Take(limit - current.Count)
-            .Select(h => new XboxAccountChoice(h.XboxUserID, h.Current, h.Gamertag));
+            // A past gamertag that is the current one in another case or spacing is no alias: the account is listed by its
+            // current gamertag, unlabelled
+            .Select(h => new XboxAccountChoice(h.XboxUserID, h.Current,
+                h.NormalizedGamertag == XboxGamertagHistory.Normalize(h.Current) ? null : h.Gamertag));
         return [.. current, .. past];
+    }
+
+    /// <summary>
+    /// <paramref name="choices"/> with each current gamertag once (as normalized): of accounts sharing one, the one that played
+    /// last (by XUID when none has), as <see cref="FindAsync"/> picks. The order is kept.
+    /// </summary>
+    private async Task<List<XboxAccountChoice>> OnePerGamertag(List<XboxAccountChoice> choices, CancellationToken ct)
+    {
+        var shared = choices.GroupBy(c => XboxGamertagHistory.Normalize(c.Gamertag)).Where(g => g.Count() > 1).ToList();
+        if (shared.Count == 0)
+            return choices;
+        var xuids = shared.SelectMany(g => g.Select(c => c.XboxUserID)).ToList();
+        var lastPlayed = await _context.XboxUsers.AsNoTracking()
+            .Where(x => xuids.Contains(x.XboxUserID))
+            .Select(x => new
+            {
+                x.XboxUserID,
+                LastPlayed = _context.Matches.Where(m => m.MatchTeams.Any(t => t.MatchParticipants.Any(p => p.XboxUserID == x.XboxUserID))).Max(m => m.StartTime),
+            })
+            .ToDictionaryAsync(x => x.XboxUserID, x => x.LastPlayed, ct);
+        var dropped = shared
+            .SelectMany(g => g.OrderByDescending(c => lastPlayed.GetValueOrDefault(c.XboxUserID) != null)
+                .ThenByDescending(c => lastPlayed.GetValueOrDefault(c.XboxUserID))
+                .ThenByDescending(c => c.XboxUserID)
+                .Skip(1))
+            .Select(c => c.XboxUserID)
+            .ToHashSet();
+        return choices.Where(c => !dropped.Contains(c.XboxUserID)).ToList();
     }
 
     /// <summary>Whether the site has the account.</summary>
