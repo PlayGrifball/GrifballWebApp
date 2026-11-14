@@ -1,5 +1,5 @@
 @let match = seasonMatch();
-<div class="hud-page" [class.hud-waiting]="!ready()">
+<div class="hud-page" [class.hud-waiting]="!store.ready()">
 
   <div class="lobby-head">
     <div class="hud-page-head">
@@ -31,7 +31,7 @@
           <span>{{match?.homeTeamName}}</span><span class="hud-label">Red</span>
         </a>
       }
-      @for (player of homeRoster(); track player.teamPlayerID) {
+      @for (player of store.homeRoster(); track player.teamPlayerID) {
         <div class="lobby-player">
           <span class="hud-avatar" aria-hidden="true">{{(player.gamertag ?? '?').charAt(0)}}</span>
           <span class="lobby-player__name"><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag ?? 'Unknown Spartan'}}</a></span>
@@ -69,7 +69,7 @@
           <span class="hud-label">Blue</span><span>{{match?.awayTeamName}}</span>
         </a>
       }
-      @for (player of awayRoster(); track player.teamPlayerID) {
+      @for (player of store.awayRoster(); track player.teamPlayerID) {
         <div class="lobby-player">
           @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
           <span class="lobby-player__name"><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag ?? 'Unknown Spartan'}}</a></span>
@@ -138,7 +138,7 @@
         </div>
       }
       <!-- Entering a game by hand, and editing or deleting one (from the box score above) -->
-      <app-manual-games #manualGames [seasonMatchID]="seasonMatchID()" [match]="match" [homeRoster]="homeRoster()" [awayRoster]="awayRoster()"
+      <app-manual-games #manualGames [seasonMatchID]="seasonMatchID()" [match]="match" [homeRoster]="store.homeRoster()" [awayRoster]="store.awayRoster()"
         [canEdit]="accountService.isEventOrganizer()" [blocked]="submitting()" (started)="dropWaiting()" (changed)="onManualChanged()" />
     </section>
 
@@ -238,16 +238,16 @@
   </ng-template>
 
   <!-- The games the teams' players have played together, for everyone; reporting one is for the organizers -->
-  <section class="hud-section lobby-possibles hud-panel hud-panel--soft" aria-labelledby="lobby-possible-matches" [attr.aria-busy]="possibleMatchesState() === 'loading'">
+  <section class="hud-section lobby-possibles hud-panel hud-panel--soft" aria-labelledby="lobby-possible-matches" [attr.aria-busy]="store.possibleMatchesState() === 'loading'">
     <h2 id="lobby-possible-matches" class="hud-h2">Possible Matches</h2>
     <!-- The players' recent games are pulled from Halo Infinite by a job: every 30 minutes for seasons under way, or from here -->
     <div class="lobby-pull">
       <p class="hud-muted" role="status">
-        @switch (pull()?.state) {
+        @switch (store.pull()?.state) {
         @case ('Queued') { Pulling the players' recent games from Halo Infinite: waiting for the worker… }
         @case ('Running') { Pulling the players' recent games from Halo Infinite… }
         @default {
-        @if (pull()?.lastRun; as last) {
+        @if (store.pull()?.lastRun; as last) {
         @if (last.result === 'Failed') { The last pull failed ({{last.firedAt | date: 'short'}}). }
         @else { Recent games last pulled {{last.firedAt | date: 'short'}}. }
         }
@@ -255,15 +255,15 @@
         }
       </p>
       @if (accountService.isEventOrganizer()) {
-      <button mat-stroked-button type="button" (click)="pullMatches()" [disabled]="pulling()">Pull recent games</button>
+      <button mat-stroked-button type="button" (click)="store.pullMatches()" [disabled]="store.pulling()">Pull recent games</button>
       <!-- Back through the players' histories to the season's start: for an old match, whose games are past their recent ones -->
-      <button mat-stroked-button type="button" (click)="pullMatches(true)" [disabled]="pulling()">Pull back to the season's start</button>
+      <button mat-stroked-button type="button" (click)="store.pullMatches(true)" [disabled]="store.pulling()">Pull back to the season's start</button>
       }
-      @if (pullError(); as error) {
+      @if (store.pullError(); as error) {
       <p class="hud-muted" role="alert">{{error}}</p>
       }
     </div>
-    @switch (possibleMatchesState()) {
+    @switch (store.possibleMatchesState()) {
     @case ('loading') {
     <p class="hud-muted" role="status">Looking for games…</p>
     }
@@ -271,7 +271,7 @@
     <p class="hud-muted" role="alert">Could not look for games right now.</p>
     }
     @default {
-    @for (possible of possibleMatches(); track possible.matchID) {
+    @for (possible of store.possibleMatches(); track possible.matchID) {
     <div class="lobby-possible">
       <span class="lobby-possible__title"><a class="hud-text-link" [routerLink]="['/match', possible.matchID]">{{possible.matchID}}</a>: {{possible.homeTeam.score}} - {{possible.awayTeam.score}}</span>
       <div class="lobby-possible__teams">

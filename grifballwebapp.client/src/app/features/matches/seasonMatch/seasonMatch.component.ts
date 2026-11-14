@@ -1,9 +1,9 @@
-import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, Injector, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, PLATFORM_ID, inject, viewChild } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { afterNextRender, Component, computed, effect, ElementRef, Injector, input, linkedSignal, signal, Signal, WritableSignal, ChangeDetectionStrategy, inject, viewChild } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { parseSeasonMatchPage, SeasonMatchPageDto } from './seasonMatchPageDto';
+import { SeasonMatchPageDto } from './seasonMatchPageDto';
+import { MatchAction, SeasonMatchStore } from './seasonMatch.store';
 import { BoxScoreComponent } from './boxScore/boxScore.component';
 import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
@@ -12,25 +12,17 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { RegexMatchValidValidatorDirective } from '@shared/validation/directives/regexMatchValidValidatorDirective.directive';
-import type { PossibleMatchDto, PossiblePlayerDto } from '@api/models';
+import type { PossiblePlayerDto } from '@api/models';
 import { MatTableModule } from '@angular/material/table';
 import { AccountService } from '@core/auth/account.service';
-import { map, Observable, Subscription, switchMap, takeWhile, timer } from 'rxjs';
-import type { OnDemandJobStatusDto } from '@api/models';
-import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
-import { SeasonMatchService } from '@api/services/season-match.service';
-import { TeamService } from '@api/services/team.service';
+import { Observable } from 'rxjs';
 
 import { ToDatePipe } from '@shared/toDate.pipe';
 import { errorText } from '@shared/errorText';
-import type { TeamPagePlayerDto } from '@api/models';
 import { provideDatePickers } from '@shared/datePickers';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { GameSlot, ManualGamesComponent, slotChoices } from './manualGames/manualGames.component';
 import { describePage, pageDate, PageDescription } from '@shared/pageMeta';
-
-/** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
-export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
 
 export const actionPrompts: Record<MatchAction, string> = {
   HomeForfeit: 'The home team forfeits and the away team wins.',
@@ -52,9 +44,6 @@ export type MatchPageMode =
   | { kind: 'submitting' };
 
 const IDLE: MatchPageMode = { kind: 'idle' };
-
-/** How often a queued or running pull of the players' games is looked at again. */
-export const PULL_POLL_MS = 3000;
 
 /**
  * The season match as search results and link previews show it: the two teams (and the series score once decided),
@@ -135,15 +124,13 @@ function seasonMatchResult(match: SeasonMatchPageDto, home: string, away: string
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',
-    providers: [provideDatePickers()],
+    providers: [provideDatePickers(), SeasonMatchStore],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonMatchComponent {
-  private seasonMatchService = inject(SeasonMatchService);
-  private teamService = inject(TeamService);
+  /** The match, its rosters, possible games and pull, and the calls that change it. */
+  readonly store = inject(SeasonMatchStore);
   accountService = inject(AccountService);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
-  private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly document = inject(DOCUMENT);
 
@@ -153,7 +140,7 @@ export class SeasonMatchComponent {
   private readonly reportHeading = viewChild<ElementRef<HTMLElement>>('reportHeading');
 
   seasonMatchID: Signal<number> = input.required<number>()
-  seasonMatch: WritableSignal<SeasonMatchPageDto | null> = signal(null);
+  readonly seasonMatch = this.store.seasonMatch;
 
   /** What the commissioner's tools are doing (see {@link MatchPageMode}). Changed only by the methods below. */
   private readonly _mode = signal<MatchPageMode>(IDLE);
@@ -179,22 +166,14 @@ export class SeasonMatchComponent {
   /** A result is in (or a BYE decided the match), as the server says. */
   readonly isDecided = computed(() => (this.seasonMatch()?.decidedBy ?? null) !== null);
 
-  private readonly homeTeamID = computed(() => this.seasonMatch()?.homeTeamID ?? null);
-  private readonly awayTeamID = computed(() => this.seasonMatch()?.awayTeamID ?? null);
-  /** Each side's players, from its team page (null while loading). Reloading the match page does not reload them. */
-  private readonly homeLoaded = signal<Roster>({ teamID: null, players: [] });
-  private readonly awayLoaded = signal<Roster>({ teamID: null, players: [] });
-  readonly homeRoster = computed(() => this.homeLoaded().players ?? []);
-  readonly awayRoster = computed(() => this.awayLoaded().players ?? []);
-  /** The page has answered (with a match or without). */
-  readonly pageLoaded = signal(false);
-  /** The match and both rosters are in: the page is shown then, in one go, so the rosters do not
-   * push the score and the rest down as they arrive. */
-  readonly ready = computed(() => this.pageLoaded()
-    && isLoaded(this.homeLoaded(), this.homeTeamID()) && isLoaded(this.awayLoaded(), this.awayTeamID()));
-
-  /** Selected game tab on the scoreboard: 'series' for series totals, or the matchNumber of a specific game. */
-  readonly selectedGameTab = signal<'series' | number>('series');
+  /**
+   * Selected game tab on the scoreboard: 'series' for series totals, or the matchNumber of a specific game. Each time
+   * the match (re)loads: its one game, or the series.
+   */
+  readonly selectedGameTab = linkedSignal<'series' | number>(() => {
+    const games = this.seasonMatch()?.reportedGames;
+    return games?.length === 1 ? games[0].matchNumber : 'series';
+  });
 
   readonly availableTabs = computed(() => {
     const match = this.seasonMatch();
@@ -246,18 +225,6 @@ export class SeasonMatchComponent {
     };
   });
 
-  possibleMatches: WritableSignal<PossibleMatchDto[]> = signal([]);
-  /** Where the search for possible matches is: under way (also while the page is drawn on the
-   * server, which never asks), done (the list, or none), or failed. */
-  readonly possibleMatchesState = signal<'loading' | 'loaded' | 'error'>('loading');
-
-  /** The pull of the players' recent games from Halo Infinite (a job on the worker): where it is, null until known. */
-  readonly pull = signal<OnDemandJobStatusDto | null>(null);
-  /** The pull is queued or running: its button waits, and the page looks again every few seconds. */
-  readonly pulling = computed(() => this.pull()?.state === 'Queued' || this.pull()?.state === 'Running');
-  readonly pullError = signal<string | null>(null);
-  private pullWatch?: Subscription;
-
   public displayedColumns: string[] = ['gamertag', 'score', 'kills', 'deaths'];
 
   columns = [
@@ -295,111 +262,8 @@ export class SeasonMatchComponent {
     // Another match: nothing of the previous one stays (its teams would title this page), and its request is cancelled
     // so a late answer can't land on this one
     effect(onCleanup => {
-      this.seasonMatchID();
-      this.seasonMatch.set(null);
-      const page = this.getPageDto();
-      this.getPossibleMatches();
-      this.getPullStatus();
+      const page = this.store.open(this.seasonMatchID());
       onCleanup(() => page.unsubscribe());
-    })
-    effect(() => this.loadRoster(this.homeTeamID(), this.homeLoaded));
-    effect(() => this.loadRoster(this.awayTeamID(), this.awayLoaded));
-  }
-
-  private loadRoster(teamID: number | null, roster: WritableSignal<Roster>): void {
-    roster.set({ teamID, players: teamID === null ? [] : null });
-    if (teamID === null)
-      return;
-    this.teamService.team({ teamID }).pipe(nullWhenNotFound())
-      .subscribe({
-        next: team => roster.set({ teamID, players: team?.players ?? [] }),
-        error: () => roster.set({ teamID, players: [] }),
-      });
-  }
-
-  /** Loads the match; the subscription ends once it is in (or failed). */
-  getPageDto(): Subscription {
-    return this.seasonMatchService.getSeasonMatchPage({ seasonMatchID: this.seasonMatchID() })
-      .pipe(map(parseSeasonMatchPage))
-      .subscribe({
-        next: result => {
-          this.seasonMatch.set(result);
-          if (result?.reportedGames?.length === 1) {
-            this.selectedGameTab.set(result.reportedGames[0].matchNumber);
-          } else {
-            this.selectedGameTab.set('series');
-          }
-          this.pageLoaded.set(true);
-        },
-        error: () => this.pageLoaded.set(true),
-      });
-  }
-
-  getPossibleMatches(): void {
-    // The games already pulled from Halo Infinite (the pull is a job: getPullStatus, pullMatches). Not while the page
-    // is rendered on the server: the browser asks once it has the page.
-    this.possibleMatchesState.set('loading');
-    if (!this.isBrowser)
-      return;
-    this.seasonMatchService.getPossibleMatches({ seasonMatchID: this.seasonMatchID() })
-      .subscribe({
-        next: result => {
-          this.possibleMatches.set(result ?? []);
-          this.possibleMatchesState.set('loaded');
-        },
-        error: () => {
-          this.possibleMatches.set([]);
-          this.possibleMatchesState.set('error');
-        },
-      });
-  }
-
-  /** Where the pull of the players' recent games is; one queued or running is watched until it's done. */
-  getPullStatus(): void {
-    this.pullWatch?.unsubscribe();
-    this.pull.set(null);
-    this.pullError.set(null);
-    if (!this.isBrowser)
-      return;
-    this.seasonMatchService.getMatchPullStatus({ seasonMatchID: this.seasonMatchID() })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: status => this.showPull(status),
-        error: () => this.pull.set(null),
-      });
-  }
-
-  /**
-   * Queues a pull of the players' recent games from Halo Infinite (organizers): the worker runs it within a few seconds.
-   * `backToSeasonStart`: back through their histories to the start of the match's season, not just their most recent games.
-   */
-  pullMatches(backToSeasonStart = false): void {
-    this.pullError.set(null);
-    this.seasonMatchService.pullMatches({ seasonMatchID: this.seasonMatchID(), backToSeasonStart: backToSeasonStart || undefined })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: status => this.showPull(status),
-        error: (error: HttpErrorResponse) => this.pullError.set(errorText(error, "Couldn't start the pull.")),
-      });
-  }
-
-  private showPull(status: OnDemandJobStatusDto): void {
-    this.pull.set(status);
-    if (status.state === 'Idle')
-      return;
-    // Look again every few seconds until it's done, then read the games it found
-    this.pullWatch?.unsubscribe();
-    this.pullWatch = timer(PULL_POLL_MS, PULL_POLL_MS).pipe(
-      switchMap(() => this.seasonMatchService.getMatchPullStatus({ seasonMatchID: this.seasonMatchID() })),
-      takeWhile(next => next.state !== 'Idle', true),
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe({
-      next: next => {
-        this.pull.set(next);
-        if (next.state === 'Idle')
-          this.getPossibleMatches();
-      },
-      error: () => this.pullError.set("Couldn't tell whether the pull finished. Reload the page to check."),
     });
   }
 
@@ -414,7 +278,7 @@ export class SeasonMatchComponent {
       this.returnFocus = () => opener;
       return;
     }
-    this.send(this.seasonMatchService.reportMatch({ seasonMatchID: this.seasonMatchID(), matchID }));
+    this.send(this.store.report(matchID));
   }
 
   /** Reports the Waypoint game waiting to be placed, where the commissioner said it goes. */
@@ -423,7 +287,7 @@ export class SeasonMatchComponent {
     if (mode.kind !== 'placeReport')
       return;
     const replaces = typeof slot === 'number' ? slot : undefined;
-    this.send(this.seasonMatchService.reportMatch({ seasonMatchID: this.seasonMatchID(), matchID: mode.matchID, replaces }));
+    this.send(this.store.report(mode.matchID, replaces));
   }
 
   /** Asks the commissioner to confirm an action before it is sent; a game waiting to be placed is dropped. */
@@ -450,18 +314,7 @@ export class SeasonMatchComponent {
     const action = this.confirming();
     if (action === null)
       return;
-    this.send(this.actionCall(action));
-  }
-
-  /** The generated service call for a commissioner action, each a POST to the endpoint of the same name. */
-  private actionCall(action: MatchAction): Observable<void> {
-    const seasonMatchID = this.seasonMatchID();
-    switch (action) {
-      case 'HomeForfeit': return this.seasonMatchService.homeForfeit({ seasonMatchID });
-      case 'AwayForfeit': return this.seasonMatchService.awayForfeit({ seasonMatchID });
-      case 'DoubleForfeit': return this.seasonMatchService.doubleForfeit({ seasonMatchID });
-      case 'UndoResult': return this.seasonMatchService.undoResult({ seasonMatchID });
-    }
+    this.send(this.store.act(action));
   }
 
   /**
@@ -477,7 +330,7 @@ export class SeasonMatchComponent {
   /** Manual entry added, changed or unreported a game: nothing the page had waiting still holds, and it reloads. */
   onManualChanged(): void {
     this.dropWaiting();
-    this.getPageDto();
+    this.store.reload();
   }
 
   /** Waits for the commissioner (a Confirm, or a slot choice): manual entry drops whatever it had waiting. */
@@ -502,7 +355,7 @@ export class SeasonMatchComponent {
     call
       .subscribe({
         error: (e: HttpErrorResponse) => this.actionError.set(errorText(e, 'The server could not do that.')),
-      }).add(() => this.getPageDto().add(() => this._mode.set(IDLE)));
+      }).add(() => this.store.reload().add(() => this._mode.set(IDLE)));
   }
 
   /** Where Cancel puts focus back: the control that opened what is waiting, if it is still on the page. */
@@ -522,15 +375,4 @@ export class SeasonMatchComponent {
       },
     }, { injector: this.injector });
   }
-}
-
-/** A side's players and the team they were loaded for; players is null while loading. */
-interface Roster {
-  teamID: number | null,
-  players: TeamPagePlayerDto[] | null,
-}
-
-/** The roster of this team has arrived. */
-function isLoaded(roster: Roster, teamID: number | null): boolean {
-  return roster.teamID === teamID && roster.players !== null;
 }

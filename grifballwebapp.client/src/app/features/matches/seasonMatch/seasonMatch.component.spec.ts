@@ -1,7 +1,8 @@
 import { DateTime } from 'luxon';
 import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describeSeasonMatch, PULL_POLL_MS, SeasonMatchComponent } from './seasonMatch.component';
+import { describeSeasonMatch, SeasonMatchComponent } from './seasonMatch.component';
+import { PULL_POLL_MS } from './seasonMatch.store';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { ActivatedRoute, provideRouter, RouterLink } from '@angular/router';
@@ -81,6 +82,12 @@ function loadPage(httpMock: HttpTestingController, fixture: ComponentFixture<Sea
   httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
   httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
   fixture.detectChanges();
+}
+
+// The page loaded again (as after a report or an action) and answered with `dto`
+function reloadPage(httpMock: HttpTestingController, fixture: ComponentFixture<SeasonMatchComponent>, dto: SeasonMatchPageDto): void {
+  fixture.componentInstance.store.reload();
+  httpMock.expectOne('/api/season-matches/7').flush(dto);
 }
 
 describe('SeasonMatchComponent', () => {
@@ -590,7 +597,7 @@ describe('SeasonMatchComponent reporting', () => {
     fixture.detectChanges();
     httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
     fixture.detectChanges();
-    expect(component.possibleMatchesState()).toBe('error');
+    expect(component.store.possibleMatchesState()).toBe('error');
     expect(text()).toContain('Could not look for games right now.');
     expect(text()).not.toContain('No games found');
   });
@@ -661,8 +668,8 @@ describe('SeasonMatchComponent reporting', () => {
     press('Pull recent games');
     httpMock.expectOne({ method: 'POST', url: '/api/season-matches/7/match-pull' }).flush('Forbidden', { status: 403, statusText: 'Forbidden' });
     fixture.detectChanges();
-    expect(component.pullError()).toBeTruthy();
-    expect(component.pulling()).toBeFalse();
+    expect(component.store.pullError()).toBeTruthy();
+    expect(component.store.pulling()).toBeFalse();
   });
 
   it('offers the pull to organizers only', () => {
@@ -679,13 +686,13 @@ describe('SeasonMatchComponent reporting', () => {
       httpMock.expectOne('/api/season-matches/7/match-pull').flush('no', { status: 500, statusText: 'Server Error' });
       fixture.detectChanges();
       httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
-      expect(component.pull()).toBeNull();
+      expect(component.store.pull()).toBeNull();
 
-      component.pullMatches();
+      component.store.pullMatches();
       httpMock.expectOne('/api/season-matches/7/match-pull').flush({ ...idlePull, state: 'Running' });
       jasmine.clock().tick(PULL_POLL_MS);
       httpMock.expectOne('/api/season-matches/7/match-pull').flush('down', { status: 502, statusText: 'Bad Gateway' });
-      expect(component.pullError()).toContain("Couldn't tell whether the pull finished");
+      expect(component.store.pullError()).toContain("Couldn't tell whether the pull finished");
     } finally {
       jasmine.clock().uninstall();
     }
@@ -695,8 +702,8 @@ describe('SeasonMatchComponent reporting', () => {
     httpMock.expectOne('/api/season-matches/7').flush(page());
     httpMock.expectOne('/api/season-matches/7/possible-matches').flush(null);
     httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
-    expect(component.possibleMatches()).toEqual([]);
-    expect(component.possibleMatchesState()).toBe('loaded');
+    expect(component.store.possibleMatches()).toEqual([]);
+    expect(component.store.possibleMatchesState()).toBe('loaded');
     httpMock.match(r => /^\/api\/teams\/\w+$/.test(r.url)).forEach(r => r.flush(null));
   });
 
@@ -878,7 +885,7 @@ describe('SeasonMatchComponent reporting', () => {
     load(page());
     expect(button('Undo Result')).toBeUndefined();
 
-    component.seasonMatch.set(page({ isPlayoff: true, ...awayBye }));
+    reloadPage(httpMock, fixture, page({ isPlayoff: true, ...awayBye }));
     fixture.detectChanges();
     expect(button('Undo Result')).toBeUndefined();
     expect(text()).toContain('This match has been completed.');
@@ -890,7 +897,7 @@ describe('SeasonMatchComponent reporting', () => {
     expect(button('Undo Result')).toBeUndefined();
     expect(component.isDecided()).toBeFalse();
 
-    component.seasonMatch.set(page({ decidedBy: 'Forfeit', canUndo: true }));
+    reloadPage(httpMock, fixture, page({ decidedBy: 'Forfeit', canUndo: true }));
     fixture.detectChanges();
     expect(component.isDecided()).toBeTrue();
     expect(text()).toContain('This match has been completed.');
@@ -1308,7 +1315,7 @@ describe('SeasonMatchComponent lobby', () => {
     const pageEl = () => el().querySelector('.hud-page')!;
     expect(pageEl().classList).toContain('hud-waiting');
     load(page());
-    expect(fixture.componentInstance.ready()).toBeFalse();
+    expect(fixture.componentInstance.store.ready()).toBeFalse();
     httpMock.expectOne('/api/teams/10').flush(team('Home', 'Grif', 'Simmons'));
     fixture.detectChanges();
     expect(pageEl().classList).toContain('hud-waiting');
@@ -1322,14 +1329,14 @@ describe('SeasonMatchComponent lobby', () => {
     httpMock.expectOne('/api/season-matches/7/possible-matches').flush([]);
     httpMock.expectOne('/api/season-matches/7/match-pull').flush(idlePull);
     fixture.detectChanges();
-    expect(fixture.componentInstance.ready()).toBeTrue();
+    expect(fixture.componentInstance.store.ready()).toBeTrue();
   });
 
   it('does not reload the rosters when the match page is reloaded for the same teams', () => {
     load(page());
     httpMock.expectOne('/api/teams/10').flush(team('Home', 'Grif', 'Simmons'));
     httpMock.expectOne('/api/teams/20').flush(null);
-    fixture.componentInstance.getPageDto();
+    fixture.componentInstance.store.reload();
     httpMock.expectOne('/api/season-matches/7').flush(page({ homeTeamScore: 1, awayTeamScore: 0 }));
     fixture.detectChanges();
 
@@ -1354,7 +1361,7 @@ describe('SeasonMatchComponent lobby', () => {
     expect(el().querySelector('h1')!.textContent).toBe('Pre-game lobby');
     expect(el().querySelector('.lobby-score__value')!.textContent!.replace(/\s+/g, '')).toBe('-:-');
 
-    fixture.componentInstance.seasonMatch.set(page({ homeTeamScore: 2, awayTeamScore: 1, ...wonByGames }));
+    reloadPage(httpMock, fixture, page({ homeTeamScore: 2, awayTeamScore: 1, ...wonByGames }));
     fixture.detectChanges();
     expect(el().querySelector('h1')!.textContent).toBe('Match report');
     expect(el().querySelector('.lobby-score__value')!.textContent!.replace(/\s+/g, '')).toBe('2:1');
@@ -1367,7 +1374,7 @@ describe('SeasonMatchComponent lobby', () => {
     httpMock.match(() => true).forEach(r => r.flush(null));
     const comp = fixture.componentInstance;
 
-    comp.seasonMatch.set(page({
+    reloadPage(httpMock, fixture, page({
       reportedGames: [
         {
           seriesGameID: 1,
@@ -1405,7 +1412,7 @@ describe('SeasonMatchComponent on the server', () => {
     httpMock.expectOne('/api/season-matches/7');
     httpMock.expectNone('/api/season-matches/7/possible-matches');
     // The page drawn on the server says the search is under way; the browser does it
-    expect(fixture.componentInstance.possibleMatchesState()).toBe('loading');
+    expect(fixture.componentInstance.store.possibleMatchesState()).toBe('loading');
     httpMock.verify();
   });
 });
