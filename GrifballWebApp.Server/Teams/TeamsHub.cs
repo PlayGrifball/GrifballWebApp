@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
+using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Teams;
 using TypedSignalR.Client;
 
@@ -9,11 +10,20 @@ namespace GrifballWebApp.Server.Teams;
 public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
 {
     private readonly TeamService _teamService;
+    private readonly SeasonVisibility _visibility;
     //private static ConcurrentDictionary<string, int?> _connections = new ConcurrentDictionary<string, int?>();
 
-    public TeamsHub(TeamService teamService)
+    public TeamsHub(TeamService teamService, SeasonVisibility visibility)
     {
         _teamService = teamService;
+        _visibility = visibility;
+    }
+
+    /// <summary>The draft of a season the caller may not see (not announced yet, to anyone but staff): refused as no such season (#435).</summary>
+    private async Task RequireVisible(int seasonID)
+    {
+        if (await _visibility.IsSeasonHidden(seasonID, SeasonVisibility.For(Context?.User)))
+            throw new HubException(GrifballWebApp.Server.Seasons.SeasonVisibilityFilter.NotFound);
     }
 
     //private IEnumerable<string> GetConnections(int? personID)
@@ -36,14 +46,16 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
         return base.OnDisconnectedAsync(exception);
     }
 
-    public Task<List<TeamResponseDto>> GetTeams(int seasonID)
+    public async Task<List<TeamResponseDto>> GetTeams(int seasonID)
     {
-        return _teamService.GetTeams(seasonID);
+        await RequireVisible(seasonID);
+        return await _teamService.GetTeams(seasonID);
     }
 
-    public Task<List<PlayerDto>> GetPlayerPool(int seasonID)
+    public async Task<List<PlayerDto>> GetPlayerPool(int seasonID)
     {
-        return _teamService.GetPlayerPool(seasonID);
+        await RequireVisible(seasonID);
+        return await _teamService.GetPlayerPool(seasonID);
     }
 
     [Authorize(Roles = "Commissioner")]
@@ -98,9 +110,10 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
         return _teamService.LockCaptains(seasonID, @lock: false, Context.ConnectionId);
     }
 
-    public Task<bool> AreCaptainsLocked(int seasonID)
+    public async Task<bool> AreCaptainsLocked(int seasonID)
     {
-        return _teamService.AreCaptainsLocked(seasonID);
+        await RequireVisible(seasonID);
+        return await _teamService.AreCaptainsLocked(seasonID);
     }
 
     private int? GetUserID()

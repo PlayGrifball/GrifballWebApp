@@ -151,7 +151,12 @@ public class Program
         builder.Services.AddMemoryCache();
         // Scaled out (ConnectionStrings:Redis): what every API pod must show alike (the leaderboards) is cached in Redis
         builder.Services.AddAppDistributedCache(builder.Configuration);
-        builder.Services.AddControllers(options => options.Filters.Add<CookieAntiforgeryFilter>())
+        builder.Services.AddControllers(options =>
+            {
+                options.Filters.Add<CookieAntiforgeryFilter>();
+                // A season not announced yet is staff's alone (#435)
+                options.Filters.Add<GrifballWebApp.Server.Seasons.SeasonVisibilityFilter>();
+            })
             .AddJsonOptions(options => ApiJson.Configure(options.JsonSerializerOptions));
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

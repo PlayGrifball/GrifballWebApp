@@ -67,6 +67,6 @@ public class SeasonController : ControllerBase
     [ProducesResponseType<PaginationResult<SeasonListItemDto>>(StatusCodes.Status200OK)]
     public Task<PaginationResult<SeasonListItemDto>> GetSeasons([FromQuery] SeasonListFilter filter, CancellationToken ct)
     {
-        return _seasonService.GetSeasons(filter, ct);
+        return _seasonService.GetSeasons(filter, SeasonVisibility.For(User), ct);
     }
 }

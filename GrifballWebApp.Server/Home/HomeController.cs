@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using GrifballWebApp.Application.Home;
+using GrifballWebApp.Application.Seasons;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.Seasons;
@@ -18,5 +19,5 @@ public class HomeController : ControllerBase
     [AllowAnonymous]
     [HttpGet("events", Name = "CurrentAndFutureEvents")]
     [ProducesResponseType<Event[]>(StatusCodes.Status200OK)]
-    public Task<Event[]> CurrentAndFutureEvents(CancellationToken ct) => _events.CurrentAndFuture(ct);
+    public Task<Event[]> CurrentAndFutureEvents(CancellationToken ct) => _events.CurrentAndFuture(SeasonVisibility.For(User), ct);
 }

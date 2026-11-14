@@ -21,7 +21,7 @@ public class TeamsHubUnitTests : SqliteGrifballContextFixture
 {
     private TeamsHub Hub(ClaimsPrincipal? user = null)
     {
-        var hub = new TeamsHub(new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()));
+        var hub = new TeamsHub(new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db));
         var context = Substitute.For<HubCallerContext>();
         context.User.Returns(user ?? new ClaimsPrincipal(new ClaimsIdentity()));
         context.ConnectionId.Returns("test-connection");
