@@ -212,14 +212,11 @@ public class UserMergeService : IUserMergeService
     /// </summary>
     private async Task LoadWhatDeletingCascadesTo(int userId, CancellationToken ct)
     {
-        var userType = _context.Model.FindEntityType(typeof(User))!;
-        foreach (var fk in userType.GetReferencingForeignKeys())
+        foreach (var fk in UserReferences.ForeignKeys(_context.Model))
         {
             if (fk.DeleteBehavior is DeleteBehavior.Restrict or DeleteBehavior.NoAction or DeleteBehavior.ClientNoAction)
                 continue;
             var dependent = fk.DeclaringEntityType;
-            if (dependent.IsOwned() || dependent.FindPrimaryKey() is null || dependent.HasSharedClrType || fk.Properties.Count != 1)
-                continue;
             var property = fk.Properties[0];
             var load = (Task)LoadReferencingMethod.MakeGenericMethod(dependent.ClrType)
                 .Invoke(this, [property.Name, property.ClrType == typeof(int?), userId, ct])!;

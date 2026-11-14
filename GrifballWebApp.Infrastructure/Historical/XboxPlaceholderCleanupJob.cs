@@ -1,4 +1,5 @@
 using Quartz;
+using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Infrastructure.Jobs;
 using Microsoft.Extensions.Logging;
 

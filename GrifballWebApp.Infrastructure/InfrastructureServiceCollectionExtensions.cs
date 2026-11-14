@@ -143,8 +143,6 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddTransient<ISeasonMatchPulls, SeasonMatchPulls>();
         // An Xbox account's pull from Halo, queued from its page
         services.AddTransient<IXboxAccountPulls, XboxAccountPulls>();
-        // The cleanup of placeholders that are no league players (XboxPlaceholderCleanupJob)
-        services.AddTransient<XboxPlaceholderCleanup>();
         // Quartz.NET: the recurring jobs (their schedules, kept in the database, and the Jobs page) and the scheduler that runs them
         services.AddJobs(configuration, jobs =>
         {

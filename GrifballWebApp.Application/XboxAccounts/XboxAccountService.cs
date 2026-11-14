@@ -55,7 +55,8 @@ public class XboxAccountService
     /// <summary>The account and a page of its games (from 1); null when the site has no such account.</summary>
     public async Task<XboxAccountDto?> GetAsync(long xboxUserID, int page = 1, CancellationToken ct = default)
     {
-        page = Math.Max(page, 1);
+        // From the query string: clamped so the offset can't overflow (a page past the end is empty)
+        page = Math.Clamp(page, 1, int.MaxValue / PageSize);
         var account = await _context.XboxUsers.AsNoTracking()
             .Where(x => x.XboxUserID == xboxUserID)
             .Select(x => new

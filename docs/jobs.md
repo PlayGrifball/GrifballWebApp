@@ -8,7 +8,7 @@ pauses and run history are shared by every pod and outlive restarts and deploys.
 | Job | Default schedule | Does |
 |---|---|---|
 | `historical-refresh` | Daily, first 10 minutes after a worker first starts with it | Refreshes the historical sources; an import is queued when one changed ([Historical Import](historical-import.md)). Due while a job is queued or running, it tries again 5 minutes later. |
-| `xbox-placeholders` | Hourly | Gives a placeholder user to each Xbox account no user holds that played in a league game (a game reported for a season match: a sub who never signed up). Reporting a game also makes its players' placeholders at once. Someone only in pulled pickup games is no league player and gets none: their account and games stay, on its Xbox page (`/xbox/{xuid}`). |
+| `xbox-placeholders` | Hourly | Gives a placeholder user to each Xbox account no user holds that played in a league game (a game reported for a season match or a Late League match: a sub who never signed up). Reporting a game also makes its players' placeholders at once. Someone only in pulled pickup games is no league player and gets none: their account and games stay, on its Xbox page (`/xbox/{xuid}`). |
 | `active-season-pulls` | Every 30 minutes, first 5 minutes after a worker first starts with it | Pulls the latest custom games (one page of 25) of every player on a team in a season under way from Halo Infinite, so their season matches' possible matches are there when the page opens |
 | `match-variant-backfill` | Hourly, first 10 minutes after a worker first starts with it | Fetches the stats of matches saved before their game variant was kept, 200 a run (`MatchVariantBackfill:BatchSize`), in a random order, and sets only their variant (`UgcGameVariantAssetID`/`VersionID`), never the stats saved before. One that Halo doesn't give is tried again on a later run. Then decodes the custom scores (#217) of the matches not decoded yet and of every match of the variants it filled in (`CustomScoreLayouts`). Once every match has its variant and is decoded, a run is two queries. |
 | `password-reset-link-cleanup` | Daily, first 15 minutes after a worker first starts with it | Deletes expired and used password reset links (the sysadmin's cleanup button still works) |
@@ -25,7 +25,7 @@ shows it as "Run by hand", with no interval, Pause or schedule, and a sysadmin s
 
 | Job | Does |
 |---|---|
-| `xbox-placeholder-cleanup` | Removes the placeholder users made before only league players got one. It removes a placeholder that holds an Xbox account in no league game, and that no row in the database names: every foreign key to a user is checked (stats, teams, signups, claims, merges, championships, roles). The Xbox account and its games stay. It logs each one it removed. |
+| `xbox-placeholder-cleanup` | Removes the placeholder users made before only league players got one. A placeholder goes only when it is a bare Xbox placeholder (a dummy `historical:` user holding an Xbox account, with no Discord link, email, password or region), its account played in no league game (a season match's or a Late League match's reported game), and nothing names it: no foreign key to it (stats, teams, signups, claims, championships, roles) and no key-less user column (merges, duplicate dismissals, audit columns). Each is checked again right before its delete, in a transaction of its own. The Xbox account and its games stay. It logs each one it removed. |
 
 ## On-demand jobs
 
