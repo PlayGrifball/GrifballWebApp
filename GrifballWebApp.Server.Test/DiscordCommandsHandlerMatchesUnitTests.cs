@@ -1,16 +1,16 @@
-using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Tools;
+using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
 using NetCord;
 using NetCord.Rest;
-using NSubstitute;
 using HaloMatch = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Server.Test;
 
 /// <summary>
 /// DiscordCommandsHandler's /recentmatches with games to show, past the refusals DiscordCommandsHandlerUnitTests covers:
-/// on a temp-file SQLite GrifballContext with Halo matches seeded; the Xbox lookup and the Halo pull substituted.
+/// on a temp-file SQLite GrifballContext with Halo matches seeded: the saved games, read through get_recent_games' method.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -18,12 +18,7 @@ namespace GrifballWebApp.Server.Test;
 public class DiscordCommandsHandlerMatchesUnitTests : SqliteGrifballContextFixture
 {
     private static readonly DateTime Played = new(2026, 10, 1, 20, 0, 0, DateTimeKind.Utc);
-    private static readonly long[] TheirXuid = [42];
-
-    private readonly IGetsertXboxUserService _getsert = Substitute.For<IGetsertXboxUserService>();
-    private readonly IDataPullService _dataPull = Substitute.For<IDataPullService>();
-
-    private DiscordCommandsHandler Handler() => new(Db, new RecordingLogger<DiscordCommandsHandler>(), _dataPull, _getsert);
+    private DiscordCommandsHandler Handler() => new(Db, new HaloTools(Db, new XboxAccountService(Db)));
 
     /// <summary>A game the player (Xbox 42) played on team 0, ending <paramref name="outcome"/>, against a team of one (Xbox 43) or of none.</summary>
     private void AddGame(Guid id, int hoursLater, Outcomes outcome, bool opponent = true)
@@ -75,7 +70,6 @@ public class DiscordCommandsHandlerMatchesUnitTests : SqliteGrifballContextFixtu
             }));
             Assert.That(embeds.Select(e => e.Color), Is.EqualTo(new Color?[] { new Color(255, 255, 255), new Color(255, 255, 0), new Color(255, 0, 0), new Color(0, 255, 0) }));
         }
-        await _dataPull.Received(1).DownloadRecentMatchesForPlayers(Arg.Is<List<long>>(x => x.SequenceEqual(TheirXuid)), 0, 0, 5, Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -94,7 +88,6 @@ public class DiscordCommandsHandlerMatchesUnitTests : SqliteGrifballContextFixtu
         Assert.That(fields.Skip(1), Is.EqualTo(new[]
         {
             ("Start Time", $"<t:{new DateTimeOffset(Played).ToUnixTimeSeconds()}>"),
-            ("Duration", "00:12:00"),
             ("Team", "0"), ("Score", "50"), ("Outcome", "Won"), ("Players", "Grifter1"),
             ("**-------------------------**", "\u200B"),
             ("Team", "1"), ("Score", "20"), ("Outcome", "Lost"), ("Players", "Opponent"),

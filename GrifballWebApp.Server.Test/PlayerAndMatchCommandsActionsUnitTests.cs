@@ -32,7 +32,7 @@ public class PlayerAndMatchCommandsActionsUnitTests : SqliteGrifballContextFixtu
         new DeploymentHistoryService(Db),
         new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!),
         new DiscordCommandsHandler(Db, new GrifballWebApp.Application.Tools.HaloTools(Db, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db))),
-        Urls());
+        Urls(), null!);
 
     [Test]
     public async Task History_ListsTheTeamsThePlayerWasOn()

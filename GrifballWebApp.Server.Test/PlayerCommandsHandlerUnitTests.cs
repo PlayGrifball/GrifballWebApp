@@ -19,7 +19,7 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class PlayerCommandsHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private PlayerCommandsHandler Handler() => new(new CommandLookups(Db, null!), new DiscordCaller(Db), null!, null!, null!, null!, null!, Urls());
+    private PlayerCommandsHandler Handler() => new(new CommandLookups(Db, null!), new DiscordCaller(Db), null!, null!, null!, null!, null!, Urls(), null!);
 
     /// <summary>The profile services real too (all IApplicationDbContext-backed); DiscordCommandsHandler (/matches) stays
     /// null, unused by Profile/Stats/Commendations/History/Vods.</summary>
@@ -28,7 +28,7 @@ public class PlayerCommandsHandlerUnitTests : SqliteGrifballContextFixture
         new ProfileCommendationsService(Db),
         new DeploymentHistoryService(Db),
         new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!),
-        null!, Urls());
+        null!, Urls(), null!);
 
     [TestCase(nameof(PlayerCommandsHandler.Profile))]
     [TestCase(nameof(PlayerCommandsHandler.Stats))]
