@@ -34,6 +34,16 @@ public class SeasonService
             .FirstOrDefaultAsync(ct);
     }
 
+    /// <summary>
+    /// The season a page, command or tool means when it names none: the running one, else the latest (between seasons, the
+    /// one that just ended); 0 when there are no seasons.
+    /// </summary>
+    public async Task<int> GetCurrentOrLatestSeasonID(CancellationToken ct = default)
+    {
+        var current = await GetCurrentSeasonID(ct);
+        return current != 0 ? current : await _context.Seasons.OrderByDescending(x => x.SeasonID).Select(x => x.SeasonID).FirstOrDefaultAsync(ct);
+    }
+
     public Task<string?> GetSeasonName(int seasonID, CancellationToken ct = default)
     {
         return _context.Seasons

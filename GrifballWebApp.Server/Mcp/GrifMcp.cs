@@ -21,7 +21,7 @@ public static class GrifMcp
 
     public const string Instructions =
         "Grifball league platform (seasons, teams, players, matches, stats). Tools take IDs: search finds players, teams and "
-        + "seasons by name, list_seasons lists seasons, and a season-scoped tool left without a seasonID uses the running season. "
+        + "seasons by name, list_seasons lists seasons, and a season-scoped tool left without a seasonID uses the running season, else the latest. "
         + "You act as the signed-in user (who_am_i).";
 
     /// <summary>The tools, their access token scheme and the MCP server's services.</summary>

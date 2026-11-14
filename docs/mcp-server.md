@@ -32,10 +32,10 @@ claude mcp add --transport http grifball https://grifball.xyz/api/mcp --header "
 ## Tools
 
 The tools show no more than the site shows signed out (or, for `get_season_match`, shows the caller). All of them only
-read, except `pull_season_match_games`. That one queues the season match page's pull from Halo, a background job that saves
-the games it finds. Only players, commissioners and sysadmins may use it, as on the page (see [Roles](#roles)). It is marked
-as not read-only, so MCP clients ask before calling it. It never changes or deletes anything. Tools take IDs: `search` finds players, teams and seasons by name, and `list_seasons` lists seasons. A season tool
-called without a `seasonID` uses the running season, and a player tool called without a `userID` uses the caller.
+read, except the pull tools (`pull_season_match_games`, `pull_xbox_account_games`). They queue a page's pull from Halo
+(a season match's, an Xbox account's), a background job that saves the games it finds. Only players, commissioners and sysadmins may use them, as on the pages (see [Roles](#roles)). They are marked
+as not read-only, so MCP clients ask before calling them. They never change or delete anything. Tools take IDs: `search` finds players, teams and seasons by name, and `list_seasons` lists seasons. A season tool
+called without a `seasonID` uses the running season, else the latest (as the slash commands do), and a player tool called without a `userID` uses the caller.
 
 | Tool | What it returns |
 | --- | --- |
@@ -63,8 +63,9 @@ called without a `seasonID` uses the running season, and a player tool called wi
 | `get_leaderboards` | The all-time leaderboards |
 | `list_late_league_seasons` | Late League's seasons |
 | `get_late_league_season` | A Late League season's player stats |
-| `get_recent_games` | A player's latest Grifball custom games as the site saved them, each with its Waypoint link |
-| `pull_season_match_games` | Queues the pull of a season match's players' games from Halo (players and staff) |
+| `get_recent_games` | A player's latest Grifball custom games as the site saved them, each with the player's outcome and its Waypoint link (`/matches` shows the same) |
+| `pull_season_match_games` | Queues the pull of a season match's players' games from Halo (players and staff; `/match pull` too) |
+| `pull_xbox_account_games` | Queues the pull of an Xbox account's recent games from Halo (players and staff; `/player pull` too) |
 | `get_current_time` | The time now, in UTC and as Unix seconds |
 
 A refusal the model can act on (no such season, say) is a `ToolException`. The MCP server returns it as a tool error with

@@ -1,5 +1,7 @@
 using GrifballWebApp.Application.Database;
+using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Application.XboxAccounts;
@@ -46,6 +48,37 @@ public class XboxAccountService
     public XboxAccountService(IApplicationDbContext context)
     {
         _context = context;
+    }
+
+    /// <summary>
+    /// The account a gamertag (trimmed) is: one whose gamertag it is now, else one that had it before (its history). Gamertags aren't
+    /// unique (a row keeps the one its account renamed away from until it's looked up again), so of several, the one that
+    /// played last. Text compares case-insensitively on every database (the context's collation).
+    /// </summary>
+    public async Task<(long XboxUserID, string Gamertag)?> FindByGamertagAsync(string gamertag, CancellationToken ct = default)
+    {
+        gamertag = gamertag.Trim();
+        var normalized = XboxGamertagHistory.Normalize(gamertag);
+        var current = _context.XboxUsers.Where(x => x.Gamertag == gamertag).Select(x => x.XboxUserID);
+        var past = _context.XboxUsers.PastGamertags().Where(h => h.NormalizedGamertag == normalized).Select(h => h.XboxUserID);
+        foreach (var xuids in new[] { current, past })
+        {
+            var found = await _context.XboxUsers.AsNoTracking()
+                .Where(x => xuids.Contains(x.XboxUserID))
+                .Select(x => new
+                {
+                    x.XboxUserID,
+                    x.Gamertag,
+                    LastPlayed = _context.Matches.Where(m => m.MatchTeams.Any(t => t.MatchParticipants.Any(p => p.XboxUserID == x.XboxUserID))).Max(m => m.StartTime),
+                })
+                .OrderByDescending(x => x.LastPlayed != null)
+                .ThenByDescending(x => x.LastPlayed)
+                .ThenByDescending(x => x.XboxUserID)
+                .FirstOrDefaultAsync(ct);
+            if (found is not null)
+                return (found.XboxUserID, found.Gamertag);
+        }
+        return null;
     }
 
     /// <summary>Whether the site has the account.</summary>

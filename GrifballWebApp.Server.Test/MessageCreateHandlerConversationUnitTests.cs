@@ -136,8 +136,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
                 (ChatRole.User, "hello"),
             }));
             Assert.That(model.Options!.Instructions, Does.Contain("You are a Discord bot"));
-            // The author has no linked account: every chat tool but the one only some roles may use
-            Assert.That(model.Options!.Tools!.Select(x => x.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => t != "pull_season_match_games")));
+            // The author has no linked account: every chat tool but the pull tools, which only some roles may use
+            Assert.That(model.Options!.Tools!.Select(x => x.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !t.StartsWith("pull_", StringComparison.Ordinal))));
             // The two users were there already: not added again
             Assert.That(await Db.DiscordUsers.CountAsync(), Is.EqualTo(2));
         }
@@ -258,12 +258,12 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         using (Assert.EnterMultipleScope())
         {
             Assert.That(AsJson(now).GetProperty("unixSeconds").GetInt64(), Is.EqualTo(_time.GetUtcNow().ToUnixTimeSeconds()));
-            Assert.That(AsJson(games).GetArrayLength(), Is.Zero);
+            Assert.That(AsJson(games).GetProperty("games").GetArrayLength(), Is.Zero);
             Assert.That(refused?.ToString(), Does.StartWith("Refused: The site has no games saved for the gamertag Nobody"));
             // A small model can't turn the tools' ISO times into Discord's epoch timestamps reliably: it writes them as given
             Assert.That(model.Options!.Instructions, Does.Contain("in UTC, as the tools give them").And.Not.Contain("<t:"));
             // The bot runs tools without asking first, as an MCP client would before one that isn't read-only
-            Assert.That(model.Options!.Instructions, Does.Contain("pull_season_match_games only when the person asks"));
+            Assert.That(model.Options!.Instructions, Does.Contain("pull_xbox_account_games) only when the person asks"));
         }
         // Reading the saved games pulls nothing from Halo
         await _dataPull.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);

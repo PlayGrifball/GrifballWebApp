@@ -58,6 +58,12 @@ public class UrlService
         return $"{_baseUrl}/match/{matchId}";
     }
 
+    /// <summary>An Xbox account's page: its saved games, account or not.</summary>
+    public string XboxAccount(long xboxUserId)
+    {
+        return $"{_baseUrl}/xbox/{xboxUserId}";
+    }
+
     public string RescheduleRequest(int seasonMatchId)
     {
         return $"{_baseUrl}/reschedule-request/{seasonMatchId}";

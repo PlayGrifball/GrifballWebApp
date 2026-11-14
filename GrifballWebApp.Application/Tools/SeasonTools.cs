@@ -12,7 +12,7 @@ namespace GrifballWebApp.Application.Tools;
 /// <summary>A season's schedule: the matches with a time, and those still waiting for one.</summary>
 public sealed record SeasonScheduleDto(List<ScheduledMatchDto> Scheduled, List<UnscheduledMatchDto> Unscheduled);
 
-/// <summary>Seasons: what the season pages show, open to everyone on the site. A season left out is the running one.</summary>
+/// <summary>Seasons: what the season pages show, open to everyone on the site. A season left out is the running one, else the latest.</summary>
 public class SeasonTools
 {
     private const int PageSize = 25;
@@ -35,13 +35,14 @@ public class SeasonTools
         _brackets = brackets;
     }
 
-    /// <summary>The season asked for, or the running one; a <see cref="ToolException"/> when there is none.</summary>
+    /// <summary>The season asked for, or the running one, else the latest; a <see cref="ToolException"/> when there is none.</summary>
     private async Task<int> SeasonOrCurrent(int? seasonID, CancellationToken ct)
     {
         if (seasonID is int id)
             return await _seasons.GetSeasonName(id, ct) is null ? throw new ToolException($"There is no season {id}: list_seasons has their IDs.") : id;
-        var current = await _seasons.GetCurrentSeasonID(ct);
-        return current != 0 ? current : throw new ToolException("No season is running now: pass a seasonID (list_seasons has them).");
+        // The same default as the slash commands: the running season, else the latest
+        var current = await _seasons.GetCurrentOrLatestSeasonID(ct);
+        return current != 0 ? current : throw new ToolException("There are no seasons yet.");
     }
 
     [Description("Lists the league's seasons, 25 to a page: each one's ID, name, league, game, dates and whether it has ended.")]
@@ -49,15 +50,15 @@ public class SeasonTools
         => _seasons.GetSeasons(new SeasonListFilter { PageNumber = page, PageSize = PageSize }, ct);
 
     [Description("A season's summary: its league, format, dates, how many teams, signups and matches it has, and its champions.")]
-    public async Task<SeasonSummaryDto> GetSeason([Description("The season's ID; left out, the running season.")] int? seasonID = null, CancellationToken ct = default)
+    public async Task<SeasonSummaryDto> GetSeason([Description("The season's ID; left out, the running season, else the latest.")] int? seasonID = null, CancellationToken ct = default)
         => (await _seasons.GetSeasonSummary(await SeasonOrCurrent(seasonID, ct), ct))!;
 
     [Description("A season's standings: each team's wins and losses, best first.")]
-    public async Task<TeamStandingDto[]> GetSeasonStandings([Description("The season's ID; left out, the running season.")] int? seasonID = null, CancellationToken ct = default)
+    public async Task<TeamStandingDto[]> GetSeasonStandings([Description("The season's ID; left out, the running season, else the latest.")] int? seasonID = null, CancellationToken ct = default)
         => await _standings.GetTeamStandings(await SeasonOrCurrent(seasonID, ct), ct);
 
     [Description("A season's schedule: its matches with a time (and whether each is complete), and those not scheduled yet.")]
-    public async Task<SeasonScheduleDto> GetSeasonSchedule([Description("The season's ID; left out, the running season.")] int? seasonID = null, CancellationToken ct = default)
+    public async Task<SeasonScheduleDto> GetSeasonSchedule([Description("The season's ID; left out, the running season, else the latest.")] int? seasonID = null, CancellationToken ct = default)
     {
         var id = await SeasonOrCurrent(seasonID, ct);
         return new SeasonScheduleDto(await _matchPlanner.GetScheduledMatches(id, ct), await _matchPlanner.GetUnscheduledMatches(id, ct));
@@ -65,20 +66,20 @@ public class SeasonTools
 
     [Description("Each player's stats in a season (goals, kills, deaths, wins, K/D and more), or one team's players only.")]
     public async Task<List<SeasonPlayerStatDto>> GetSeasonPlayerStats(
-        [Description("The season's ID; left out, the running season.")] int? seasonID = null,
+        [Description("The season's ID; left out, the running season, else the latest.")] int? seasonID = null,
         [Description("Only this team's players; left out, every player.")] int? teamID = null,
         CancellationToken ct = default)
         => await _seasons.GetSeasonPlayerStats(await SeasonOrCurrent(seasonID, ct), teamID, ct);
 
     [Description("A season's player grades: each player's totals, per-minute rates and letter grades.")]
-    public async Task<GradesDto> GetSeasonGrades([Description("The season's ID; left out, the running season.")] int? seasonID = null, CancellationToken ct = default)
+    public async Task<GradesDto> GetSeasonGrades([Description("The season's ID; left out, the running season, else the latest.")] int? seasonID = null, CancellationToken ct = default)
         => await _grades.GetGrades(await SeasonOrCurrent(seasonID, ct), ct);
 
     [Description("Who signed up for a season, and whether each will captain.")]
-    public async Task<List<SignupResponseDto>> GetSeasonSignups([Description("The season's ID; left out, the running season.")] int? seasonID = null, CancellationToken ct = default)
+    public async Task<List<SignupResponseDto>> GetSeasonSignups([Description("The season's ID; left out, the running season, else the latest.")] int? seasonID = null, CancellationToken ct = default)
         => await _signups.GetSignups(await SeasonOrCurrent(seasonID, ct), ct);
 
     [Description("A season's playoff bracket: its winners' and losers' rounds, each match's teams and result, and the grand final.")]
-    public async Task<BracketDto> GetSeasonBracket([Description("The season's ID; left out, the running season.")] int? seasonID = null, CancellationToken ct = default)
+    public async Task<BracketDto> GetSeasonBracket([Description("The season's ID; left out, the running season, else the latest.")] int? seasonID = null, CancellationToken ct = default)
         => await _brackets.GetBracketsAsync(await SeasonOrCurrent(seasonID, ct), ct);
 }

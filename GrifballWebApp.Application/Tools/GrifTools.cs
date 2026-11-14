@@ -82,7 +82,7 @@ public static class GrifTools
     public static readonly string[] Chat =
     [
         "who_am_i", "get_current_time", "search", "get_season", "get_season_standings", "get_season_schedule", "get_team",
-        "get_player", "get_player_rank", "get_season_match", "get_recent_games", "get_leaderboards", "pull_season_match_games",
+        "get_player", "get_player_rank", "get_season_match", "get_recent_games", "get_leaderboards", "pull_season_match_games", "pull_xbox_account_games",
     ];
 
     /// <summary>The roles that may use a tool: its method's [ToolRoles], else its class's; none, anyone may.</summary>

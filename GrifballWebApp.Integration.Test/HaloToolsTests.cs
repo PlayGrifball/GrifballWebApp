@@ -40,8 +40,8 @@ public class HaloToolsTests
         undated.AddParticipant(0, xbox.XboxUserID, new MatchParticipantStats());
         _context.Matches.AddRange(dated, undated);
         await _context.SaveChangesAsync();
-        var recent = await new HaloTools(_context).GetRecentGames("Undated", 1);
+        var recent = await new HaloTools(_context, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context)).GetRecentGames("Undated", 1);
 
-        Assert.That(recent.Single().MatchID, Is.EqualTo(dated.MatchID));
+        Assert.That(recent.Games.Single().MatchID, Is.EqualTo(dated.MatchID));
     }
 }

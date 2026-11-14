@@ -131,7 +131,7 @@ public class McpServerTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(tools.Select(t => t.Name), Is.SupersetOf(SomeTools));
-            Assert.That(tools.Where(t => t.Name != "pull_season_match_games").Select(t => t.ProtocolTool.Annotations?.ReadOnlyHint), Has.All.True, "every tool but pull_season_match_games (its pull saves games) only reads");
+            Assert.That(tools.Where(t => !t.Name.StartsWith("pull_", StringComparison.Ordinal)).Select(t => t.ProtocolTool.Annotations?.ReadOnlyHint), Has.All.True, "every tool but the pull tools (their pulls save games) only reads");
             Assert.That(tools.Select(t => t.Description), Has.None.Null.And.None.Empty);
         }
 
