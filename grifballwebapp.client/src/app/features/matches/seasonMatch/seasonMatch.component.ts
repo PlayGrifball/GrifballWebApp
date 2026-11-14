@@ -21,7 +21,8 @@ import { ToDatePipe } from '@shared/toDate.pipe';
 import { errorText } from '@shared/errorText';
 import { provideDatePickers } from '@shared/datePickers';
 import { VodListComponent } from '@shared/vodList/vodList.component';
-import { GameSlot, ManualGamesComponent, slotChoices } from './manualGames/manualGames.component';
+import { ManualGamesComponent } from './manualGames/manualGames.component';
+import { GameSlot, slotChoices } from './manualGames/manualGameForm';
 import { describePage, pageDate, PageDescription } from '@shared/pageMeta';
 
 export const actionPrompts: Record<MatchAction, string> = {
