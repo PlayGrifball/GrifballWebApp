@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.Database;
+using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,12 +17,14 @@ public class HomeEventsService
         _context = context;
     }
 
-    /// <summary>Current and upcoming signups, drafts and seasons, soonest first.</summary>
-    public async Task<Event[]> CurrentAndFuture(CancellationToken ct = default)
+    /// <summary>Current and upcoming signups, drafts and seasons, soonest first: of the seasons <paramref name="viewer"/> may see
+    /// (<see cref="SeasonVisibility.VisibleTo"/>), so a season not announced yet is staff's alone.</summary>
+    public async Task<Event[]> CurrentAndFuture(SeasonViewer viewer = SeasonViewer.Public, CancellationToken ct = default)
     {
         var now = _time.GetUtcNow().UtcDateTime;
+        var visible = _context.Seasons.Where(SeasonVisibility.VisibleTo(viewer, now));
 
-        var signups = await _context.Seasons.Where(Season.SignupsNotClosedAt(now))
+        var signups = await visible.Where(Season.SignupsNotClosedAt(now))
             .Select(x => new Event()
             {
                 SeasonID = x.SeasonID,
@@ -32,7 +35,7 @@ public class HomeEventsService
             }).ToArrayAsync(ct);
 
         // Need precise end for draft.
-        var drafts = await _context.Seasons.Where(Season.NotStartedAt(now))
+        var drafts = await visible.Where(Season.NotStartedAt(now))
             .Select(x => new Event()
             {
                 SeasonID = x.SeasonID,
@@ -43,7 +46,7 @@ public class HomeEventsService
             }).ToArrayAsync(ct);
 
 
-        var seasons = await _context.Seasons.Where(Season.NotEndedAt(now))
+        var seasons = await visible.Where(Season.NotEndedAt(now))
             .Select(x => new Event()
             {
                 SeasonID = x.SeasonID,

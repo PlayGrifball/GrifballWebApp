@@ -118,7 +118,7 @@ public class CommandLookups
                     .Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct) is int upcoming)
                 return upcoming;
             // The same default as the agents' tools
-            var current = await _seasons.GetCurrentOrLatestSeasonID(ct);
+            var current = await _seasons.GetDefaultSeasonID(SeasonPurpose.Current, SeasonViewer.Public, ct);
             return current != 0 ? current : null;
         }
 

@@ -44,13 +44,13 @@ public class SeasonTools
         if (seasonID is int id)
             return await _seasons.GetSeasonName(id, ct) is null ? throw new ToolException($"There is no season {id}: list_seasons has their IDs.") : id;
         // The same default as the slash commands: the running season, else the latest
-        var current = await _seasons.GetCurrentOrLatestSeasonID(ct);
+        var current = await _seasons.GetDefaultSeasonID(SeasonPurpose.Current, SeasonViewer.Public, ct);
         return current != 0 ? current : throw new ToolException(NoSeasonYet);
     }
 
     [Description("Lists the league's seasons, 25 to a page: each one's ID, name, league, game, dates and whether it has ended.")]
     public Task<PaginationResult<SeasonListItemDto>> ListSeasons([Description("The page, from 1.")] int page = 1, CancellationToken ct = default)
-        => _seasons.GetSeasons(new SeasonListFilter { PageNumber = page, PageSize = PageSize }, ct);
+        => _seasons.GetSeasons(new SeasonListFilter { PageNumber = page, PageSize = PageSize }, ct: ct);
 
     [Description("A season's summary: its league, format, dates, how many teams, signups and matches it has, and its champions.")]
     public async Task<SeasonSummaryDto> GetSeason([Description("The season's ID; left out, the running season, else the latest.")] int? seasonID = null, CancellationToken ct = default)
