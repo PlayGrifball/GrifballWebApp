@@ -253,7 +253,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
     {
         var match = await AMatch();
 
-        var refused = Assert.CatchAsync(() => Commissioners(Commissioner).ReportSeasonMatchGame(match, Guid.Parse("00000000-0000-0000-0000-0000000000c2")));
+        var refused = await Assert.CatchAsync(() => Commissioners(Commissioner).ReportSeasonMatchGame(match, Guid.Parse("00000000-0000-0000-0000-0000000000c2")));
 
         Assert.That(refused!.Message, Is.EqualTo("Match does not exist"));
     }
