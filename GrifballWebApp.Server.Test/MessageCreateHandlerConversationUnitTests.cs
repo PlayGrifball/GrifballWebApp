@@ -262,6 +262,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             Assert.That(refused?.ToString(), Does.StartWith("Refused: The site has no games saved for the gamertag Nobody"));
             // A small model can't turn the tools' ISO times into Discord's epoch timestamps reliably: it writes them as given
             Assert.That(model.Options!.Instructions, Does.Contain("in UTC, as the tools give them").And.Not.Contain("<t:"));
+            // The bot runs tools without asking first, as an MCP client would before one that isn't read-only
+            Assert.That(model.Options!.Instructions, Does.Contain("pull_season_match_games only when the person asks"));
         }
         // Reading the saved games pulls nothing from Halo
         await _dataPull.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);

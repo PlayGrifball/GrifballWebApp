@@ -8,6 +8,7 @@ using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using HaloMatch = GrifballWebApp.Domain.Halo.Match;
 
@@ -75,6 +76,48 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
         var refused = await Assert.ThrowsAsync<ToolException>(() => Tools().GetRecentGames("Nobody"));
 
         Assert.That(refused!.Message, Does.Contain("no games saved for the gamertag Nobody"));
+    }
+
+    [Test]
+    public async Task GetRecentGames_ForAGamertagTwoAccountsHave_IsTheOneThatPlayedLast()
+    {
+        // A stale row still has the gamertag its account renamed away from; the account that played last holds it now
+        Db.XboxUsers.AddRange(XboxUser.FromXbox(80, "Shared"), XboxUser.FromXbox(81, "Shared"));
+        var old = HaloMatch.Seed(Guid.NewGuid(), startTime: new DateTime(2025, 1, 1, 20, 0, 0, DateTimeKind.Utc));
+        old.AddTeam(0, 1, Outcomes.Won);
+        old.AddParticipant(0, 80, new MatchParticipantStats());
+        var recent = HaloMatch.Seed(Guid.NewGuid(), startTime: new DateTime(2026, 10, 1, 20, 0, 0, DateTimeKind.Utc));
+        recent.AddTeam(0, 1, Outcomes.Won);
+        recent.AddParticipant(0, 81, new MatchParticipantStats());
+        Db.Matches.AddRange(old, recent);
+        await Db.SaveChangesAsync();
+
+        var games = await Tools().GetRecentGames("Shared");
+
+        Assert.That(games.Single().MatchID, Is.EqualTo(recent.MatchID));
+    }
+
+    [Test]
+    public async Task GetRecentGames_FindsAPlayerByAPastGamertag()
+    {
+        await AddGames();
+        var renamed = await Db.XboxUsers.SingleAsync(x => x.XboxUserID == 77);
+        renamed.RecordPastGamertag("Old Padre", null, null, GamertagHistorySource.RenameDetected);
+        await Db.SaveChangesAsync();
+
+        var games = await Tools().GetRecentGames("old padre");
+
+        Assert.That(games.Single().MatchID, Is.EqualTo(MatchID));
+    }
+
+    [Test]
+    public void PullSeasonMatchGames_IsForTheRolesTheSitesPullIs()
+    {
+        // One list: the tool's [ToolRoles], its own check and the season match endpoint's [Authorize]
+        var endpoint = typeof(GrifballWebApp.Server.SeasonMatchPage.SeasonMatchController).GetMethod(nameof(GrifballWebApp.Server.SeasonMatchPage.SeasonMatchController.PullMatches))!
+            .GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), false).Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Single().Roles!;
+
+        Assert.That(GrifTools.RolesByName["pull_season_match_games"], Is.EquivalentTo(endpoint.Split(',')));
     }
 
     [TestCase(0)]
