@@ -43,7 +43,9 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
         try
         {
             started = chat.Start(GrifChat.History(request), request.Question, caller, ChatHost.Site,
-                ChatLimits.Asker(caller, ChatLimits.Address(Context.GetHttpContext()?.Connection.RemoteIpAddress)));
+                ChatLimits.Asker(caller, ChatLimits.Address(Context.GetHttpContext()?.Connection.RemoteIpAddress)),
+                // The page's Stop cancels it: the user may ask again at once
+                cancellationToken);
         }
         catch (ChatRefusedException e)
         {

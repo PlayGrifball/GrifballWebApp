@@ -98,7 +98,7 @@ public class HubSessionsUnitTests
         _validator.Now = null;
 
         Assert.That(() => Connect(Connection()), Throws.TypeOf<HubException>().With.Message.EqualTo(HubSessionFilter.SessionEnded));
-        Assert.That(_connections.SignedIn, Is.Empty);
+        Assert.That(_connections.SignedIn(), Is.Empty);
     }
 
     [Test]

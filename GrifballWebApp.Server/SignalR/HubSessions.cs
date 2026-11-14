@@ -70,7 +70,7 @@ public sealed class HubConnections
     public Connection? Find(string connectionId) => _connections.GetValueOrDefault(connectionId);
 
     /// <summary>The connections of a signed-in user.</summary>
-    public IReadOnlyList<Connection> SignedIn => _connections.Values.Where(c => c.User.UserId is not null).ToList();
+    public IReadOnlyList<Connection> SignedIn() => _connections.Values.Where(c => c.User.UserId is not null).ToList();
 
     /// <summary>Closes the connections of <paramref name="userIds"/> here; how many there were.</summary>
     public int End(IReadOnlyCollection<int> userIds)
@@ -112,17 +112,17 @@ public sealed class HubSessionFilter(HubConnections connections) : IHubFilter
         return next(context, exception);
     }
 
-    public async ValueTask<object?> InvokeMethodAsync(HubInvocationContext invocation, Func<HubInvocationContext, ValueTask<object?>> next)
+    public async ValueTask<object?> InvokeMethodAsync(HubInvocationContext invocationContext, Func<HubInvocationContext, ValueTask<object?>> next)
     {
-        var user = await Current(invocation.ServiceProvider, invocation.Context.User);
-        var refusal = Refusal(user, connections.Find(invocation.Context.ConnectionId)?.User, invocation.HubMethod, invocation.Hub.GetType());
+        var user = await Current(invocationContext.ServiceProvider, invocationContext.Context.User);
+        var refusal = Refusal(user, connections.Find(invocationContext.Context.ConnectionId)?.User, invocationContext.HubMethod, invocationContext.Hub.GetType());
         if (refusal is not null)
         {
-            invocation.Context.Abort();
+            invocationContext.Context.Abort();
             throw new HubException(refusal);
         }
-        invocation.ServiceProvider.GetRequiredService<HubUser>().Set(user!);
-        return await next(invocation);
+        invocationContext.ServiceProvider.GetRequiredService<HubUser>().Set(user!);
+        return await next(invocationContext);
     }
 
     private static Task<HubUserState?> Current(IServiceProvider services, ClaimsPrincipal? principal)
@@ -228,7 +228,7 @@ public sealed class HubSessionSweep(HubConnections connections, IServiceScopeFac
     public async Task<int> SweepAsync()
     {
         var ended = 0;
-        foreach (var connection in connections.SignedIn)
+        foreach (var connection in connections.SignedIn())
         {
             await using var scope = scopes.CreateAsyncScope();
             var now = await scope.ServiceProvider.GetRequiredService<HubSessionValidator>().CurrentAsync(connection.Context.User);
