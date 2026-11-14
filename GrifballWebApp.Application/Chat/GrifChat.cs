@@ -5,39 +5,42 @@ using Microsoft.Extensions.AI;
 namespace GrifballWebApp.Application.Chat;
 
 /// <summary>
-/// A host of the chat (the Discord bot, the site): what it tells the model about itself, whether others read its replies,
-/// and how long one may take.
+/// A host of the chat (the Discord bot in a channel or a DM, the site): what it tells the model about itself, whether others
+/// read its replies, and how long one may take. Whether others read them is what sets the rest apart: in public (a Discord
+/// channel) the caller sees seasons as the public does and gets <see cref="GrifTools.Chat"/>; in private (a DM, the site) their
+/// roles decide what they see, and they get <see cref="GrifTools.PrivateChat"/>, staff's tools too, each for its roles.
 /// </summary>
 /// <param name="About">The first line of the model's instructions: what it is, and how it must write.</param>
 /// <param name="More">The last line: what else the host offers.</param>
 /// <param name="InPublic">Others read the replies (a Discord channel): <see cref="ToolCaller.InPublic"/>, whoever asks.</param>
 /// <param name="Timeout">How long a reply may take, its tool calls included, before it is canceled.</param>
-/// <param name="Tools">The names of the tools the model is given, each only to a caller its roles allow (<see cref="GrifTools.AIFunctions"/>).</param>
-public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan Timeout, IReadOnlyCollection<string> Tools)
+public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan Timeout)
 {
     /// <summary>
-    /// The Discord bot: it answers in the channel, where others read it, so it sees seasons as the public does (#435). Its replies
-    /// are never cut short.
+    /// The Discord bot in a channel: others read it there, so it sees seasons as the public does (#435), and gives no staff tools.
+    /// Its replies are never cut short.
     /// </summary>
     public static readonly ChatHost Discord = new(
         "You are a Discord bot, and all messages must stay under the 2000-character limit.",
         "The bot also has slash commands; /help lists them.",
         InPublic: true,
-        Timeout: System.Threading.Timeout.InfiniteTimeSpan,
-        Tools: GrifTools.Chat);
+        Timeout: System.Threading.Timeout.InfiniteTimeSpan);
+
+    /// <summary>The Discord bot in a DM: the author's alone, so in private, as on the site.</summary>
+    public static readonly ChatHost DiscordDirect = Discord with { InPublic = false };
 
     /// <summary>
-    /// The site's chat: its replies are the signed-in user's alone, so staff see what the site shows them (seasons not announced
-    /// yet), and staff get their own tools (<see cref="GrifTools.SiteChat"/>). The page shows plain text, and a reply that takes over two
-    /// minutes is given up.
+    /// The site's chat: its replies are the signed-in user's alone, so in private. The page shows plain text, and a reply that takes
+    /// over two minutes is given up.
     /// </summary>
     public static readonly ChatHost Site = new(
         "You are the chat on the Grifball league's website. Write plain text, not Markdown, and keep answers short.",
-        "The site's pages show more than your tools do (a season's page, a player's profile, the leaderboards): point the person to them when it helps. "
-        + "A tool that changes the league's data (a result, a schedule, a bracket, a claim, a job) is only for when the person asks for that change: say what it did.",
+        "The site's pages show more than your tools do (a season's page, a player's profile, the leaderboards): point the person to them when it helps.",
         InPublic: false,
-        Timeout: TimeSpan.FromMinutes(2),
-        Tools: GrifTools.SiteChat);
+        Timeout: TimeSpan.FromMinutes(2));
+
+    /// <summary>The names of the tools the model is given, each only to a caller its roles allow (<see cref="GrifTools.AIFunctions"/>).</summary>
+    public IReadOnlyCollection<string> Tools => InPublic ? GrifTools.Chat : GrifTools.PrivateChat;
 }
 
 /// <summary>
@@ -67,8 +70,15 @@ public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory sc
         "Use the pull tools (pull_season_match_games, pull_xbox_account_games) only when the person asks for games to be pulled: each starts a pull from Halo that others wait behind.",
     ];
 
-    /// <summary>The model's instructions on <paramref name="host"/>.</summary>
-    public static string Instructions(ChatHost host) => string.Join('\n', Shared.Prepend(host.About).Append(host.More));
+    /// <summary>What a host in private adds: staff's tools that change data are for when they are asked for.</summary>
+    public const string PrivateLine =
+        "A tool that changes the league's data (a result, a schedule, a bracket, a claim, a job) is only for when the person asks for that change: say what it did.";
+
+    private static readonly string[] PrivateLines = [PrivateLine];
+
+    /// <summary>The model's instructions on <paramref name="host"/>: in private, with <see cref="PrivateLine"/>.</summary>
+    public static string Instructions(ChatHost host)
+        => string.Join('\n', Shared.Prepend(host.About).Concat(host.InPublic ? Array.Empty<string>() : PrivateLines).Append(host.More));
 
     /// <summary>
     /// What the model is sent: the last <see cref="HistoryLimit"/> messages of <paramref name="history"/> (oldest first), each cut
