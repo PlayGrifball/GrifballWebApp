@@ -22,13 +22,13 @@ public class SchedulerController : ControllerBase
 {
     private readonly IApplicationDbContext _context;
     private readonly ScheduleRecommendations _recommendations;
-    private readonly OnDemandJobs _jobs;
+    private readonly IScheduleRecommendationRuns _runs;
 
-    public SchedulerController(IApplicationDbContext context, ScheduleRecommendations recommendations, OnDemandJobs jobs)
+    public SchedulerController(IApplicationDbContext context, ScheduleRecommendations recommendations, IScheduleRecommendationRuns runs)
     {
         _context = context;
         _recommendations = recommendations;
-        _jobs = jobs;
+        _runs = runs;
     }
 
     /// <summary>The season's latest recommendation, and where its run is (queued, running with its progress, or idle).</summary>
@@ -37,7 +37,7 @@ public class SchedulerController : ControllerBase
     public async Task<ScheduleRecommendationPageDto> Recommendation([FromRoute] int seasonID, CancellationToken ct)
         => new()
         {
-            Run = await _jobs.Status<ScheduleRecommendationJob>(ScheduleRecommendationJob.RunName(seasonID), ct),
+            Run = await _runs.Status(seasonID, ct),
             Latest = await _recommendations.Latest(seasonID, ct),
         };
 
@@ -49,8 +49,7 @@ public class SchedulerController : ControllerBase
     {
         if (!await _context.Seasons.AnyAsync(s => s.SeasonID == seasonID, ct))
             return this.NotFoundProblem("There is no such season");
-        return Accepted(await _jobs.Enqueue<ScheduleRecommendationJob, RecommendSchedule>(ScheduleRecommendationJob.RunName(seasonID),
-            new RecommendSchedule(seasonID, User?.Identity?.Name, JobUser.IdOf(User)), $"Season {seasonID}", ct: ct));
+        return Accepted(await _runs.Queue(seasonID, User?.Identity?.Name, JobUser.IdOf(User), ct));
     }
 
     /// <summary>

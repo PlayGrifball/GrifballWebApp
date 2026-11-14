@@ -75,6 +75,7 @@ public class CommissionerTools
 
     [Description("Reports a recorded Halo game as one of a season match's games, as the match page does (get_season_match lists the possible "
         + "games). Replacing one of its games: that game's series game ID. Commissioners.")]
+    [ToolReachesHalo]
     [ToolRoles(SiteRoles.Commissioner)]
     public async Task<string> ReportSeasonMatchGame(
         [Description("The season match's ID.")] int seasonMatchID,
@@ -157,6 +158,8 @@ public class CommissionerTools
         _caller.RequireRolesOf();
         if (participants <= 0)
             throw new ToolException("A bracket needs participants.");
+        if (bestOf <= 0)
+            throw new ToolException("Best of must be at least 1.");
         await _brackets.CreateBracket(participants, await Season(seasonID, SeasonPurpose.Active, ct), doubleElimination, bestOf, ct);
         return "The bracket is made.";
     }

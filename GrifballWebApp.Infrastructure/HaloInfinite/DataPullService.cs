@@ -569,7 +569,7 @@ public partial class DataPullService : IDataPullService
     {
         if (await _grifballContext.Medals.AnyAsync())
         {
-            throw new Exception("You already have medals!");
+            throw new HaloPullRefusedException("The medals are downloaded already.");
         }
         var response = await _haloInfiniteClient.Medals();
 

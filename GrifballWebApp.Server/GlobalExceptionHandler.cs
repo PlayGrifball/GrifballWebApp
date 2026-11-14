@@ -75,6 +75,7 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
         RescheduleAlreadyActiveException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
         RescheduleAlreadyProcessedException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
         GrifballWebApp.Application.SeasonMatchPage.SeasonMatchActionNotAllowedException => Refusal(StatusCodes.Status400BadRequest, "Request refused", exception.Message),
+        GrifballWebApp.Application.HaloInfinite.HaloPullRefusedException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
         _ => null,
     };
 

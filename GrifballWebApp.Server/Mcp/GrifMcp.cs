@@ -100,7 +100,7 @@ public static class GrifMcp
                     // Asked again once a pull is done, it pulls again and can save games played since: not idempotent
                     // (asked while one is queued or running, it adds nothing and says where that one is)
                     Idempotent = set.Effect == ToolEffect.ReadsOnly,
-                    OpenWorld = set.Effect == ToolEffect.QueuesHaloPull,
+                    OpenWorld = set.Effect == ToolEffect.QueuesHaloPull || method.IsDefined(typeof(ToolReachesHaloAttribute), false),
                 }));
         });
 }

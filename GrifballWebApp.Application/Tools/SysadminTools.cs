@@ -3,6 +3,7 @@ using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Jobs;
+using GrifballWebApp.Application.MatchDetails;
 
 namespace GrifballWebApp.Application.Tools;
 
@@ -16,10 +17,12 @@ public class SysadminTools
     private readonly ToolCaller _caller;
     private readonly GamertagClaimService _claims;
     private readonly IDataPullService _dataPull;
+    private readonly MatchDetailsService _matchDetails;
     private readonly IJobControl _jobs;
 
-    public SysadminTools(ToolCaller caller, GamertagClaimService claims, IDataPullService dataPull, IJobControl jobs)
+    public SysadminTools(ToolCaller caller, GamertagClaimService claims, IDataPullService dataPull, MatchDetailsService matchDetails, IJobControl jobs)
     {
+        _matchDetails = matchDetails;
         _jobs = jobs;
         _caller = caller;
         _claims = claims;
@@ -42,22 +45,28 @@ public class SysadminTools
         return approve ? "Approved." : "Rejected.";
     }
 
-    [Description("Pulls one Halo game's stats from Halo and saves them, as the admin page does. Sysadmins.")]
+    [Description("Pulls one Halo game's stats from Halo and saves them, as the admin page does (a game saved already stays as it is). "
+        + "Refused when Halo has no such team game. Sysadmins.")]
+    [ToolReachesHalo]
     public async Task<string> PullHaloGame([Description("The game's match ID, a GUID.")] Guid matchID)
     {
         _caller.RequireRolesOf();
         if (matchID == Guid.Empty)
             throw new ToolException("That isn't a game's match ID.");
         await _dataPull.GetAndSaveMatch(matchID);
-        return "Pulled: get_game shows it.";
+        // The pull saves nothing, quietly, for a game Halo hasn't got or one that isn't a team game
+        return await _matchDetails.ExistsAsync(matchID)
+            ? "Pulled: get_game shows it."
+            : throw new ToolException($"Halo has no team game {matchID}: nothing was saved.");
     }
 
-    [Description("Downloads Halo's medals again, as the admin page does. Sysadmins.")]
+    [Description("Downloads Halo's medals, as the admin page does: once, when there are none yet (refused once they're downloaded). Sysadmins.")]
+    [ToolReachesHalo]
     public async Task<string> RefreshMedals()
     {
         _caller.RequireRolesOf();
         await _dataPull.DownloadMedals();
-        return "The medals are refreshed.";
+        return "The medals are downloaded.";
     }
 
     [Description("Runs a background job now, as the jobs page does (list_jobs gives each one's group and name). Refused for one that's off, "

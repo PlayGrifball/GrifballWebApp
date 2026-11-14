@@ -94,14 +94,17 @@ done by someone (a schedule applied, a job paused) is the token's user name (`To
 | `seed_season_bracket` | Commissioner | Seeds the bracket by the standings |
 | `set_captains_locked` | Commissioner | Locks or unlocks the draft's captains |
 | `decide_gamertag_claim` | Sysadmin | Approves or rejects a gamertag claim |
-| `pull_halo_game` | Sysadmin | Pulls one Halo game's stats |
-| `refresh_medals` | Sysadmin | Downloads Halo's medals again |
+| `pull_halo_game` | Sysadmin | Pulls one Halo game's stats; refused when Halo has no such team game |
+| `refresh_medals` | Sysadmin | Downloads Halo's medals, once (refused once they're downloaded) |
 | `get_schedule_recommendation` | Commissioner, Sysadmin | A season's latest schedule recommendation, and whether one is being worked out |
 | `run_schedule_recommendation` | Commissioner, Sysadmin | Starts working one out (a background job) |
 | `apply_schedule_recommendation` | Commissioner, Sysadmin | Schedules the matches as one suggests |
 | `list_jobs` | Sysadmin | The background jobs and their state |
 | `run_job` | Sysadmin | Runs a job now |
 | `set_job_paused` | Sysadmin | Pauses or resumes a job's schedule |
+
+The tools that call Halo themselves (`pull_halo_game`, `refresh_medals`, `report_season_match_game`) carry `[ToolReachesHalo]`, so
+the MCP server marks them open-world, as it does the pulls players queue.
 
 A refusal the model can act on (no such season, say) is a `ToolException`. The MCP server returns it as a tool error with
 its reason, as it does a service's refusal the site answers with a 4xx (`GlobalExceptionHandler.Expected`). The chat hosts return it as the tool's result, `Refused: …`. Any other error's details stay in the server's

@@ -83,6 +83,13 @@ public sealed class ToolRolesAttribute(params string[] roles) : Attribute
 }
 
 /// <summary>
+/// A tool that calls Halo's API itself (a game pulled, the medals downloaded), in a set whose effect doesn't say so: hosts
+/// tell clients it reaches outside the site, as they do for a set that queues Halo pulls.
+/// </summary>
+[AttributeUsage(AttributeTargets.Method)]
+public sealed class ToolReachesHaloAttribute : Attribute;
+
+/// <summary>
 /// The platform's tools for AI agents: one set, for every host (the MCP server, the Discord bot, the site's chat). A tool is a
 /// public method with a [Description] on one of these classes, each parameter described too. Each calls the same services as
 /// the controllers, and shows the caller no more than the site would. A host makes a new instance for each call from its
