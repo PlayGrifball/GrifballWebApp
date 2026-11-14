@@ -14,7 +14,7 @@
     </p>
   }
 
-  @if (overview.hasValue()) {
+  @if (loaded()) {
     <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Jobs"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
       <table class="jb-table">
         <thead>
@@ -85,7 +85,7 @@
         </tbody>
       </table>
     </div>
-  } @else if (overview.status() === 'error') {
+  } @else if (failed()) {
     <p class="hud-empty hud-empty--error" role="alert">The jobs couldn't be loaded.</p>
   }
 
@@ -133,8 +133,8 @@
       }
 
       <h3 class="jb-subheading">Recent runs</h3>
-      @if (history.hasValue()) {
-        @if (history.value().length) {
+      @if (runs(); as jobRuns) {
+        @if (jobRuns.length) {
           <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Recent runs"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
             <table class="jb-table">
               <thead>
@@ -147,7 +147,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (r of history.value(); track $index) {
+                @for (r of jobRuns; track $index) {
                   <tr>
                     <td>{{r.firedAt | date: 'medium'}}</td>
                     <td>{{durationText(r.durationMs)}}</td>
@@ -167,7 +167,7 @@
         } @else {
           <p class="hud-empty">No runs in the last week.</p>
         }
-      } @else if (history.status() === 'error') {
+      } @else if (runsFailed()) {
         <p class="hud-empty hud-empty--error" role="alert">The runs couldn't be loaded.</p>
       }
     </section>

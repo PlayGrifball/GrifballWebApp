@@ -1,33 +1,13 @@
 import { DatePipe } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, type ResourceRef } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Observable, repeat } from 'rxjs';
-import { JobsService } from '@api/services/jobs.service';
 import type { JobDto } from '@api/models';
 import { JobKey, JobState } from '../../api/jobs';
-import { problemText } from '@shared/errorText';
-
-/** How often the jobs (and the chosen job's runs) are read again. */
-export const JOBS_POLL_MS = 10000;
+import { intervalText, JobsStore } from './jobs.store';
 
 export type IntervalUnit = 'seconds' | 'minutes' | 'hours' | 'days';
 
 export const UNIT_SECONDS: Record<IntervalUnit, number> = { seconds: 1, minutes: 60, hours: 3600, days: 86400 };
-
-/** An interval in seconds in words: "10 s", "5 min", "1 h 30 min", "1 day". */
-export function intervalText(seconds: number | null): string {
-  if (seconds === null)
-    return '-';
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const rest = seconds % 60;
-  const parts = [days && `${days} day${days === 1 ? '' : 's'}`, hours && `${hours} h`, minutes && `${minutes} min`, rest && `${rest} s`].filter(Boolean);
-  return parts.length ? parts.join(' ') : '0 s';
-}
 
 /** The largest unit an interval is a whole number of, for the editor: 3600 is 1 hours, 90 is 90 seconds. */
 export function splitInterval(seconds: number): { value: number, unit: IntervalUnit } {
@@ -61,22 +41,20 @@ const STATE_LABELS: Readonly<Record<string, string>> = { Scheduled: 'Scheduled',
   templateUrl: './jobs.component.html',
   styleUrl: './jobs.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [JobsStore],
 })
 export class JobsComponent {
-  private api = inject(JobsService);
-  private snackBar = inject(MatSnackBar);
+  private readonly store = inject(JobsStore);
 
   readonly intervalText = intervalText;
   readonly durationText = durationText;
   readonly stateLabels = STATE_LABELS;
   readonly units: IntervalUnit[] = ['seconds', 'minutes', 'hours', 'days'];
 
-  /** Read every few seconds, and again after each action (keeping what's shown meanwhile). */
-  readonly overview = rxResource({
-    stream: () => this.api.getJobs().pipe(repeat({ delay: JOBS_POLL_MS })),
-  });
-  readonly jobs = computed<JobDto[]>(() => this.overview.hasValue() ? this.overview.value().jobs : []);
-  readonly nodes = computed(() => this.overview.hasValue() ? this.overview.value().nodes : []);
+  readonly jobs = this.store.jobs;
+  readonly nodes = this.store.nodes;
+  readonly loaded = this.store.loaded;
+  readonly failed = this.store.failed;
 
   /** The job whose runs and schedule are shown. */
   readonly selectedKey = signal<JobKey | null>(null);
@@ -84,24 +62,12 @@ export class JobsComponent {
     const key = this.selectedKey();
     return key ? this.jobs().find(j => j.group === key.group && j.name === key.name) ?? null : null;
   });
-  readonly history = rxResource({
-    params: () => this.selectedKey() ?? undefined,
-    stream: ({ params }) => this.api.getJobHistory({ group: params.group, name: params.name, take: 50 }).pipe(repeat({ delay: JOBS_POLL_MS })),
-  });
+  /** The chosen job's last runs; null until they are read. */
+  readonly runs = this.store.runs;
+  readonly runsFailed = this.store.runsFailed;
 
   constructor() {
-    this.readAgainAfterAnError(this.overview);
-    this.readAgainAfterAnError(this.history);
-  }
-
-  /** A failed read ends its polling (repeat only reads again after a success): read again a poll later, so one blip doesn't leave the page stale until it's reloaded. */
-  private readAgainAfterAnError<T>(resource: ResourceRef<T>): void {
-    effect(onCleanup => {
-      if (resource.status() !== 'error')
-        return;
-      const timeout = setTimeout(() => resource.reload(), JOBS_POLL_MS);
-      onCleanup(() => clearTimeout(timeout));
-    });
+    this.store.selectedKey.use(this.selectedKey);
   }
 
   /** The schedule editor's value, for the selected job. */
@@ -110,7 +76,7 @@ export class JobsComponent {
   readonly intervalSeconds = computed(() => Math.round(this.intervalValue() * UNIT_SECONDS[this.intervalUnit()]));
 
   /** An action waiting for its answer: the buttons wait too. */
-  readonly busy = signal(false);
+  readonly busy = this.store.busy;
 
   isSelected(job: JobDto): boolean {
     const key = this.selectedKey();
@@ -137,40 +103,22 @@ export class JobsComponent {
   }
 
   run(job: JobDto): void {
-    this.act(this.api.runJob({ group: job.group, name: job.name }), `${job.displayName} will run in a few seconds.`, "Couldn't run the job.");
+    this.store.run(job);
   }
 
   setPaused(job: JobDto, paused: boolean): void {
-    this.act(this.api.setJobPaused({ group: job.group, name: job.name, body: { paused } }), paused ? `${job.displayName} is paused.` : `${job.displayName} is resumed.`, "Couldn't change the job.");
+    this.store.setPaused(job, paused);
   }
 
   saveInterval(job: JobDto): void {
-    const seconds = this.intervalSeconds();
-    this.act(this.api.setJobInterval({ group: job.group, name: job.name, body: { intervalSeconds: seconds } }), `${job.displayName} runs every ${intervalText(seconds)}.`, "Couldn't change the schedule.");
+    this.store.setInterval(job, this.intervalSeconds());
   }
 
   resetSchedule(job: JobDto): void {
-    this.act(this.api.resetJobSchedule({ group: job.group, name: job.name }), `${job.displayName} is back on its default schedule.`, "Couldn't reset the schedule.", () => this.editInterval(job.defaultIntervalSeconds ?? 60));
+    this.store.resetSchedule(job, () => this.editInterval(job.defaultIntervalSeconds ?? 60));
   }
 
   interrupt(fireInstanceID: string): void {
-    this.act(this.api.interruptJob({ fireInstanceID }), 'Asked the run to stop.', "Couldn't stop the run.");
-  }
-
-  private act(action: Observable<void>, done: string, failed: string, then?: () => void): void {
-    this.busy.set(true);
-    action.subscribe({
-      next: () => {
-        this.busy.set(false);
-        this.snackBar.open(done, 'Close', { duration: 4000 });
-        this.overview.reload();
-        this.history.reload();
-        then?.();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.busy.set(false);
-        this.snackBar.open(problemText(error, failed), 'Close');
-      },
-    });
+    this.store.interrupt(fireInstanceID);
   }
 }

@@ -1,14 +1,8 @@
 import { DatePipe } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { UserMergesService } from '@api/services/user-merges.service';
 import type { UserMergeDto } from '@api/models';
-import { problemText } from '@shared/errorText';
-
-const PAGE_SIZE = 25;
+import { MergesStore } from './merges.store';
 
 /** How each trigger reads in the list. */
 const TRIGGER_LABELS: Record<string, string> = {
@@ -33,55 +27,37 @@ const TRIGGER_LABELS: Record<string, string> = {
   templateUrl: './merges.component.html',
   styleUrl: './merges.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [MergesStore],
 })
 export class MergesComponent {
-  private api = inject(UserMergesService);
-  private snackBar = inject(MatSnackBar);
+  private readonly store = inject(MergesStore);
 
-  readonly page = signal(1);
-  readonly merges = rxResource({
-    params: () => this.page(),
-    stream: ({ params }) => this.api.getUserMerges({ pageNumber: params, pageSize: PAGE_SIZE }),
-  });
-
-  readonly rows = computed<UserMergeDto[]>(() => this.merges.hasValue() ? this.merges.value().results : []);
-  readonly total = computed(() => this.merges.hasValue() ? this.merges.value().totalCount : 0);
-  readonly pages = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
-  readonly failed = computed(() => this.merges.status() === 'error');
-  readonly empty = computed(() => this.merges.status() === 'resolved' && this.rows().length === 0);
+  readonly page = this.store.page;
+  readonly rows = this.store.rows;
+  readonly total = this.store.total;
+  readonly pages = this.store.pages;
+  readonly loading = this.store.loading;
+  readonly failed = this.store.failed;
+  readonly empty = this.store.empty;
 
   /** The merge being undone: its button waits for the answer. */
-  readonly undoing = signal<number | null>(null);
+  readonly undoing = this.store.undoing;
   /** Why the server refused to undo a merge, by merge. */
-  readonly refusals = signal<Record<number, string>>({});
+  readonly refusals = this.store.refusals;
 
   triggerLabel(trigger: string): string {
     return TRIGGER_LABELS[trigger] ?? trigger;
   }
 
   previous(): void {
-    this.page.update(page => Math.max(1, page - 1));
+    this.store.previous();
   }
 
   next(): void {
-    this.page.update(page => Math.min(this.pages(), page + 1));
+    this.store.next();
   }
 
   undo(merge: UserMergeDto): void {
-    this.undoing.set(merge.userMergeID);
-    this.api.undoUserMerge({ mergeID: merge.userMergeID, body: { note: null } }).subscribe({
-      next: () => {
-        this.undoing.set(null);
-        this.refusals.update(refusals => ({ ...refusals, [merge.userMergeID]: '' }));
-        this.snackBar.open(`Undid the merge of ${merge.sourceUserName ?? 'user ' + merge.sourceUserID}.`, 'Close');
-        this.merges.reload();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.undoing.set(null);
-        const reason = problemText(error, "Couldn't undo the merge.");
-        this.refusals.update(refusals => ({ ...refusals, [merge.userMergeID]: reason }));
-        this.snackBar.open(reason, 'Close');
-      },
-    });
+    this.store.undo(merge);
   }
 }

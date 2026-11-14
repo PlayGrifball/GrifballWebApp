@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, input, OnInit, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, OnInit, signal, inject } from '@angular/core';
 import { ExcelFormComponent } from './excelForm/excelForm.component';
-import { ExcelService } from '@api/services/excel.service';
 import type { SheetDto } from '@api/models';
+import { ExcelStore } from './excel.store';
 
 @Component({
   selector: 'app-excel',
@@ -11,32 +11,27 @@ import type { SheetDto } from '@api/models';
   templateUrl: './excel.component.html',
   styleUrl: './excel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [ExcelStore],
 })
 export class ExcelComponent implements OnInit {
-  private excel = inject(ExcelService);
-
+  private readonly store = inject(ExcelStore);
 
   inputSpreadsheetId = input<string>('');
   inputSheetName = input<string>('');
-  
-  sheetInfo = signal<SheetDto[]>([]);
+
+  /** The sheet the inputs name, when they name one; otherwise the default sheets. */
+  private readonly given = signal<SheetDto[] | null>(null);
+  readonly sheetInfo = computed(() => this.given() ?? this.store.defaults());
 
   ngOnInit(): void {
-
     if (this.inputSpreadsheetId() && this.inputSheetName()) {
-      this.sheetInfo.set([{
+      this.given.set([{
         name: '',
         spreadsheetID: this.inputSpreadsheetId(),
         sheetName: this.inputSheetName(),
       }]);
     } else {
-      this.excel.defaultSheetInfo()
-      .subscribe({
-        next: (v) => {
-          this.sheetInfo.set(v);
-        }
-      });
+      this.store.loadDefaults();
     }
   }
-
 }

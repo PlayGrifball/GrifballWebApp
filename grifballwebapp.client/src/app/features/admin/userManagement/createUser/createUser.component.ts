@@ -5,8 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
 import { CreateUserDto } from './createUserDto';
-import { UserManagementService } from '@api/services/user-management.service';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { CreateUserStore } from './createUser.store';
 
 @Component({
     selector: 'app-create-user',
@@ -19,24 +18,15 @@ import { MatSnackBar } from '@angular/material/snack-bar';
     ],
     templateUrl: './createUser.component.html',
     styleUrl: './createUser.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [CreateUserStore],
 })
 export class CreateUserComponent {
-  private api = inject(UserManagementService);
-  private snackbar = inject(MatSnackBar);
+  private readonly store = inject(CreateUserStore);
 
   model: CreateUserDto = {} as CreateUserDto;
 
-
   onSubmit(): void {
-    this.api.createUser({ body: this.model }).subscribe({
-      next: r => {
-        this.snackbar.open('Created User');
-      },
-      error: e => {
-        this.snackbar.open('Failed to create user');
-        console.log(e);
-      },
-    })
+    this.store.create(this.model);
   }
 }

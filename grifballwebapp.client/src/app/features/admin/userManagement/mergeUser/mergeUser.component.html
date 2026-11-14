@@ -9,7 +9,7 @@
     <section class="hud-panel hud-form-group" aria-labelledby="merge-from">
       <h2 id="merge-from" class="hud-kicker">Merge From</h2>
       <app-search-box [(value)]="mergeFromId" type="number" label="User ID" />
-      @if (failedToLoad(mergeFrom.error())) {
+      @if (failedToLoad(mergeFromError())) {
         <p class="merge-error" role="alert">Failed to load user.</p>
       } @else {
         <app-user-detail [user]="mergeFromUser()" />
@@ -18,7 +18,7 @@
     <section class="hud-panel hud-form-group" aria-labelledby="merge-to">
       <h2 id="merge-to" class="hud-kicker">Merge To</h2>
       <app-search-box [(value)]="mergeToId" type="number" label="User ID" />
-      @if (failedToLoad(mergeTo.error())) {
+      @if (failedToLoad(mergeToError())) {
         <p class="merge-error" role="alert">Failed to load user.</p>
       } @else {
         <app-user-detail [user]="mergeToUser()" />

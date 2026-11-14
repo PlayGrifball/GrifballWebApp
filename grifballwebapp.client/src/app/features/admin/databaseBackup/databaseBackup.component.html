@@ -10,15 +10,14 @@
 
   <section class="hud-panel hud-form-group" aria-labelledby="db-download">
     <h2 id="db-download" class="hud-kicker">Backup</h2>
-    @if (info.hasValue()) {
-      @let i = info.value();
+    @if (info(); as i) {
       <dl class="db-info">
         <dt>Database</dt>
         <dd>{{ i.provider }}</dd>
         <dt>Migration</dt>
         <dd>{{ i.latestMigration }}</dd>
       </dl>
-    } @else if (info.error()) {
+    } @else if (infoFailed()) {
       <p class="hud-muted db-note">Couldn't read the database's details.</p>
     }
     <p class="db-note">

@@ -109,12 +109,13 @@ describe('MergesComponent', () => {
     await settle();
   });
 
-  it('says when there are none, or they cannot be loaded', async () => {
+  it('says when there are none', async () => {
     listRequest(1).flush({ totalCount: 0, results: [] });
     await settle();
     expect(el().querySelector('.hud-empty')!.textContent).toContain('No merges yet.');
-    fixture.componentInstance.merges.reload();
-    fixture.detectChanges();
+  });
+
+  it('says when they cannot be loaded', async () => {
     listRequest(1).flush('', { status: 500, statusText: 'down' });
     await settle();
     expect(el().querySelector('[role="alert"]')!.textContent).toContain("couldn't be loaded");

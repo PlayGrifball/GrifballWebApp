@@ -1,16 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { errorText } from '@shared/errorText';
-import { ChangeDetectionStrategy, Component, computed, effect, input, signal, inject } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
-import { map } from 'rxjs';
-import { parseUser } from '../userResponseDto';
+import { ChangeDetectionStrategy, Component, effect, input, signal, inject } from '@angular/core';
 import { SearchBoxComponent } from '@shared/searchBox/searchBox.component';
 import { UserDetailComponent } from './userDetail/userDetail.component';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
-import { UserManagementService } from '@api/services/user-management.service';
 import type { MergeRequest } from '@api/models';
+import { MergeUserStore } from './mergeUser.store';
 
 @Component({
   selector: 'app-merge-user',
@@ -24,31 +20,22 @@ import type { MergeRequest } from '@api/models';
   templateUrl: './mergeUser.component.html',
   styleUrl: './mergeUser.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [MergeUserStore],
 })
 export class MergeUserComponent {
-  private userManagement = inject(UserManagementService);
-
+  private readonly store = inject(MergeUserStore);
 
   fromInput = input<number>(0);
   toInput = input<number>(0);
 
-  // An undefined userID keeps the resource idle, so no request is made until an ID is chosen.
+  /** The users chosen by ID (0: none). */
   mergeFromId = signal<number>(0);
-  mergeFrom = rxResource({
-    params: () => this.mergeFromId() || undefined,
-    stream: ({ params: userID }) => this.userManagement.getUser({ userID }).pipe(map(parseUser)),
-  });
-
   mergeToId = signal<number>(0);
-  mergeTo = rxResource({
-    params: () => this.mergeToId() || undefined,
-    stream: ({ params: userID }) => this.userManagement.getUser({ userID }).pipe(map(parseUser)),
-  });
 
-  // value() throws while a resource is in the error state (Angular 20+), so
-  // the template reads these instead and shows resource.error() separately.
-  mergeFromUser = computed(() => this.mergeFrom.hasValue() ? this.mergeFrom.value() : undefined);
-  mergeToUser = computed(() => this.mergeTo.hasValue() ? this.mergeTo.value() : undefined);
+  mergeFromUser = this.store.fromUser;
+  mergeToUser = this.store.toUser;
+  mergeFromError = this.store.fromError;
+  mergeToError = this.store.toError;
 
   /** A lookup that failed: not a 404, which only says there is no such user (shown as "User not found."). */
   failedToLoad(error: unknown): boolean {
@@ -64,10 +51,12 @@ export class MergeUserComponent {
   deleteMergeFrom = signal(true);
 
   // Disables the button while a merge is in flight, so a double click cannot send a second request.
-  submitting = signal(false);
-  result = signal<{ ok: boolean; text: string } | null>(null);
+  submitting = this.store.submitting;
+  result = this.store.result;
 
   constructor() {
+    this.store.fromID.use(this.mergeFromId);
+    this.store.toID.use(this.mergeToId);
     effect(() => {
       const x = this.fromInput();
       if (x)
@@ -96,19 +85,6 @@ export class MergeUserComponent {
       },
     };
 
-    this.submitting.set(true);
-    this.result.set(null);
-    this.userManagement.mergeUser({ body: dto }).subscribe({
-      next: () => {
-        console.log('Merged user');
-        this.submitting.set(false);
-        this.result.set({ ok: true, text: 'Merged user ' + dto.mergeFromId + ' into ' + dto.mergeToId });
-      },
-      error: (e: HttpErrorResponse) => {
-        console.log(e);
-        this.submitting.set(false);
-        this.result.set({ ok: false, text: errorText(e, 'Merge failed') });
-      },
-    });
+    this.store.merge(dto);
   }
 }

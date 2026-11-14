@@ -9,13 +9,8 @@ import { parseUser, UserResponseDto } from './userResponseDto';
 import type { UserResponseDto as ApiUserResponseDto } from '@api/models';
 import { ToDatePipe } from '@shared/toDate.pipe';
 import { Column, Filter, TableComponent } from '@shared/table/table.component';
-import { PaginationParams } from '@shared/getPaginationResource';
 import { SearchBoxComponent } from '@shared/searchBox/searchBox.component';
-import { AccountService } from '@core/auth/account.service';
-import type { GeneratePasswordResetLinkRequestDto } from '@api/models';
-import { apiSortDirection } from '@shared/apiSort';
-import { errorText } from '@shared/errorText';
-import { UserManagementService } from '@api/services/user-management.service';
+import { UserManagementStore } from './userManagement.store';
 
 @Component({
     selector: 'app-user-management',
@@ -32,20 +27,14 @@ import { UserManagementService } from '@api/services/user-management.service';
     templateUrl: './userManagement.component.html',
     styleUrl: './userManagement.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [UserManagementStore],
 })
 export class UserManagementComponent {
-  private accountService = inject(AccountService);
+  private readonly store = inject(UserManagementStore);
   private snackBar = inject(MatSnackBar);
-  private userManagement = inject(UserManagementService);
 
   public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'actions'];
-  readonly request = (params: PaginationParams) => this.userManagement.getUsers({
-    pageNumber: params.pageNumber,
-    pageSize: params.pageSize,
-    sortDirection: apiSortDirection(params.sortDirection),
-    sortColumn: params.sortColumn,
-    search: params.filters?.find(f => f.column === 'search')?.value?.toString(),
-  });
+  readonly request = this.store.request;
   // Rows of the user list are never null (PaginationResult<UserResponseDto> on the server).
   // A row of the users page (GET /api/users)
   readonly parseUser = (row: ApiUserResponseDto) => parseUser(row)!;
@@ -61,32 +50,20 @@ export class UserManagementComponent {
   });
 
   generatePasswordResetLink(user: UserResponseDto): void {
-    const request: GeneratePasswordResetLinkRequestDto = {
-      username: user.userName
-    };
+    this.store.generatePasswordResetLink(user.userName, response => {
+      const fullUrl = `${window.location.origin}${response.resetLink}`;
 
-    this.accountService.generatePasswordResetLink(request).subscribe({
-      next: (response) => {
-        const fullUrl = `${window.location.origin}${response.resetLink}`;
-        
-        // Copy to clipboard
-        navigator.clipboard.writeText(fullUrl).then(() => {
-          this.snackBar.open(`Password reset link copied to clipboard! Link expires at ${new Date(response.expiresAt).toLocaleString()}`, 'Close', {
-            duration: 10000
-          });
-        }).catch(() => {
-          // Fallback: show the link
-          this.snackBar.open(`Password reset link: ${fullUrl} (Expires: ${new Date(response.expiresAt).toLocaleString()})`, 'Close', {
-            duration: 15000
-          });
+      // Copy to clipboard
+      navigator.clipboard.writeText(fullUrl).then(() => {
+        this.snackBar.open(`Password reset link copied to clipboard! Link expires at ${new Date(response.expiresAt).toLocaleString()}`, 'Close', {
+          duration: 10000
         });
-      },
-      error: (error) => {
-        const errorMessage = errorText(error, 'Failed to generate password reset link');
-        this.snackBar.open(errorMessage, 'Close', {
-          duration: 5000
+      }).catch(() => {
+        // Fallback: show the link
+        this.snackBar.open(`Password reset link: ${fullUrl} (Expires: ${new Date(response.expiresAt).toLocaleString()})`, 'Close', {
+          duration: 15000
         });
-      }
+      });
     });
   }
 

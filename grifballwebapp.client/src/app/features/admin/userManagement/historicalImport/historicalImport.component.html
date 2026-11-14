@@ -13,28 +13,28 @@
 
   <section class="hi-section" aria-labelledby="hi-schedule">
     <h2 id="hi-schedule" class="hi-heading">Schedule</h2>
-    @if (schedule.hasValue()) {
+    @if (scheduleValue(); as schedule) {
       <div class="hi-schedule hud-panel hud-panel--soft">
         <p class="hi-schedule-text">
-          @if (schedule.value().paused) {
+          @if (schedule.paused) {
             <strong>Paused.</strong>
           } @else {
-            Every {{interval(schedule.value().interval)}}; next {{schedule.value().nextRunAt ? (schedule.value().nextRunAt | date: 'short') : 'soon'}}.
+            Every {{interval(schedule.interval)}}; next {{schedule.nextRunAt ? (schedule.nextRunAt | date: 'short') : 'soon'}}.
           }
-          Last run {{schedule.value().lastRunAt ? (schedule.value().lastRunAt | date: 'short') : 'never'}}.
-          @if (schedule.value().lastRunNote) {
-            <span class="hi-note">{{schedule.value().lastRunNote}}</span>
+          Last run {{schedule.lastRunAt ? (schedule.lastRunAt | date: 'short') : 'never'}}.
+          @if (schedule.lastRunNote) {
+            <span class="hi-note">{{schedule.lastRunNote}}</span>
           }
         </p>
-        @if (schedule.value().lastJobID; as lastJobID) {
+        @if (schedule.lastJobID; as lastJobID) {
           <button type="button" class="hud-btn hi-btn" (click)="show(lastJobID)">Last run's job</button>
         }
-        <button type="button" class="hud-btn hi-btn" [disabled]="busy()" (click)="setPaused(!schedule.value().paused)">
-          {{schedule.value().paused ? 'Resume schedule' : 'Pause schedule'}}
+        <button type="button" class="hud-btn hi-btn" [disabled]="busy()" (click)="setPaused(!schedule.paused)">
+          {{schedule.paused ? 'Resume schedule' : 'Pause schedule'}}
         </button>
         <a class="hi-link" routerLink="/usermanagement/jobs">Change how often on the Jobs page</a>
       </div>
-    } @else if (schedule.status() === 'error') {
+    } @else if (scheduleFailed()) {
       <p class="hud-empty hud-empty--error" role="alert">The schedule couldn't be loaded.</p>
     }
   </section>
@@ -125,9 +125,9 @@
 
   <section class="hi-section" aria-labelledby="hi-jobs">
     <h2 id="hi-jobs" class="hi-heading">Jobs</h2>
-    @if (jobs.status() === 'error') {
+    @if (jobsFailed()) {
       <p class="hud-empty hud-empty--error" role="alert">The jobs couldn't be loaded.</p>
-    } @else if (jobs.hasValue() && !jobRows().length) {
+    } @else if (jobsLoaded() && !jobRows().length) {
       <p class="hud-empty">No jobs yet.</p>
     } @else {
       <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Jobs"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
@@ -165,7 +165,7 @@
 
   <section class="hi-section" aria-labelledby="hi-sources">
     <h2 id="hi-sources" class="hi-heading">Sources</h2>
-    @if (sources.status() === 'error') {
+    @if (sourcesFailed()) {
       <p class="hud-empty hud-empty--error" role="alert">The sources couldn't be loaded.</p>
     } @else {
       <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Sources"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->

@@ -10,13 +10,13 @@
     <button type="button" class="hud-btn claims-btn" [disabled]="lookingUp()" (click)="lookUpXuids()">Look up XUIDs</button>
     <p class="hud-muted claims-note">
       Runs in the background.
-      @if (xuidStatus.hasValue()) {
-        {{xuidStatus.value().placeholders}} placeholders ·
-        {{xuidStatus.value().due}} due ·
-        {{xuidStatus.value().found}} found ·
-        {{xuidStatus.value().notFound}} not found ·
-        {{xuidStatus.value().failed}} failed ·
-        last lookup {{xuidStatus.value().lastLookedUpAt ? (xuidStatus.value().lastLookedUpAt | date: 'short') : 'never'}}.
+      @if (xuidStatus(); as lookup) {
+        {{lookup.placeholders}} placeholders ·
+        {{lookup.due}} due ·
+        {{lookup.found}} found ·
+        {{lookup.notFound}} not found ·
+        {{lookup.failed}} failed ·
+        last lookup {{lookup.lastLookedUpAt ? (lookup.lastLookedUpAt | date: 'short') : 'never'}}.
       }
     </p>
   </div>
@@ -139,10 +139,10 @@
   <section class="claims-duplicates" aria-labelledby="claims-duplicates-heading">
     <h2 id="claims-duplicates-heading" class="hud-h2">Possible duplicates</h2>
     <p class="hud-muted">Placeholders whose gamertag is close to another user's (a "#1234" suffix, a typo) and whose seasons don't conflict. Nothing is merged until you choose.</p>
-    <button type="button" class="hud-btn claims-btn" [disabled]="duplicates.isLoading()" (click)="findDuplicates()">Find possible duplicates</button>
+    <button type="button" class="hud-btn claims-btn" [disabled]="duplicatesLoading()" (click)="findDuplicates()">Find possible duplicates</button>
     @if (duplicatesFailed()) {
       <p class="hud-empty hud-empty--error" role="alert">The suggestions couldn't be loaded.</p>
-    } @else if (duplicates.hasValue() && duplicateRows().length === 0) {
+    } @else if (duplicatesLoaded() && duplicateRows().length === 0) {
       <p class="hud-empty">No possible duplicates.</p>
     } @else if (duplicateRows().length) {
       <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Possible duplicates"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
