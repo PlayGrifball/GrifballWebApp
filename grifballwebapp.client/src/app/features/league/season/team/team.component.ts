@@ -1,15 +1,9 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, input, signal, WritableSignal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
-import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatTableModule } from '@angular/material/table';
 import { RouterModule } from '@angular/router';
-import { DateTime } from 'luxon';
-import { map, Observable } from 'rxjs';
-import { TeamService } from '@api/services/team.service';
-import { fromApiDate } from '@shared/apiDates';
-import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
-
 import { ToDatePipe } from '@shared/toDate.pipe';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { BackfilledBannerComponent, DataNoticeComponent } from '@shared/dataNotice/dataNotice.component';
@@ -17,7 +11,7 @@ import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerSta
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import type { TeamDto } from '@api/models';
 import { describePage, PageDescription } from '@shared/pageMeta';
-import type { TeamPageMatchDto } from '@api/models';
+import { TeamStore } from './team.store';
 
 /** The team as search results and link previews show it: its name and season, record, titles and roster. */
 export function describeTeam(team: TeamDto): PageDescription {
@@ -51,20 +45,20 @@ export function describeTeam(team: TeamDto): PageDescription {
     ],
     templateUrl: './team.component.html',
     styleUrl: './team.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [TeamStore],
 })
 export class TeamComponent {
-  private api = inject(TeamService);
-
+  private readonly store = inject(TeamStore);
 
   teamID = input.required<number>();
   seasonID = input.required<number>();
 
-  team: WritableSignal<TeamDto | null> = signal(null);
-  matches: MatTableDataSource<MatchDto> = new MatTableDataSource<MatchDto>();
+  readonly team = this.store.team;
+  readonly matches = this.store.matches;
   /** The matches have loaded: a backfilled or ended season without any says so. */
-  readonly matchesLoaded = signal(false);
-  readonly matchCount = signal(0);
+  readonly matchesLoaded = this.store.matchesLoaded;
+  readonly matchCount = computed(() => this.matches().length);
   /** No matches, and none to come: the team's season was backfilled or is over. */
   readonly noMatches = computed(() => {
     const team = this.team();
@@ -74,59 +68,11 @@ export class TeamComponent {
   displayedColumns: string[] = ['otherTeam', 'score', 'result', 'scheduledTime', 'matchPage'];
 
   constructor() {
+    this.store.teamID.use(this.teamID);
+    this.store.seasonID.use(this.seasonID);
     describePage(() => {
       const team = this.team();
       return team ? describeTeam(team) : null;
     });
-    // Another team: nothing of the previous one stays (its name would title this page), and its requests are cancelled
-    // so a late answer can't land on this one
-    effect(onCleanup => {
-      this.teamID();
-      this.seasonID();
-      this.team.set(null);
-      this.matchesLoaded.set(false);
-      const team = this.getTeam().subscribe({
-        next: (v) => this.team.set(v),
-      });
-
-      const matches = this.getMatches().subscribe({
-        next: (v) => {
-          this.matches.data = v;
-          this.matchCount.set(v.length);
-          this.matchesLoaded.set(true);
-        },
-      });
-      onCleanup(() => {
-        team.unsubscribe();
-        matches.unsubscribe();
-      });
-    })
   }
-
-  getTeam(): Observable<TeamDto | null> {
-    return this.api.team({ teamID: this.teamID() }).pipe(nullWhenNotFound());
-  }
-
-  getMatches(): Observable<MatchDto[]> {
-    return this.api.matches({ teamID: this.teamID() })
-      .pipe(map(matches => matches.map(parseTeamMatch)));
-  }
-}
-
-export interface MatchDto
-{
-  seasonMatchID: number,
-  scheduledTime: DateTime | null, // DateTime? on the server: an unscheduled match has none
-  bestOf: number,
-  score: number | null,
-  result: 'Won' | 'Loss' | 'Forfeit' | 'Bye' | null,
-  otherTeamID: number | null,
-  otherTeamName: string | null,
-  otherScore: number | null,
-  otherResult: 'Won' | 'Loss' | 'Forfeit' | 'Bye' | null,
-}
-
-/** A team match as the API sends it (scheduledTime as an ISO string or null), with a real DateTime. */
-export function parseTeamMatch(raw: TeamPageMatchDto): MatchDto {
-  return { ...raw, scheduledTime: fromApiDate(raw.scheduledTime) };
 }

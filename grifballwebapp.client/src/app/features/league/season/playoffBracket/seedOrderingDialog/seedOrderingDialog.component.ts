@@ -1,14 +1,13 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, linkedSignal } from '@angular/core';
 import { Subject } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { DndModule, DndDropEvent } from 'ngx-drag-drop';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
-import { BracketsService } from '@api/services/brackets.service';
-import { TeamStandingsService } from '@api/services/team-standings.service';
 import type { TeamStandingDto } from '@api/models';
+import { SeedOrderingDialogStore } from './seedOrderingDialog.store';
 
 /** A team's standing, with the seed it is given as the commissioner orders the list (unset until the standings arrive). */
 interface TeamStanding extends TeamStandingDto {
@@ -27,20 +26,20 @@ interface TeamStanding extends TeamStandingDto {
     ],
     templateUrl: './seedOrderingDialog.component.html',
     styleUrl: './seedOrderingDialog.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [SeedOrderingDialogStore],
 })
 export class SeedOrderingDialogComponent implements OnInit {
-  private brackets = inject(BracketsService);
-  private teamStandings = inject(TeamStandingsService);
+  private readonly store = inject(SeedOrderingDialogStore);
   data = inject(MAT_DIALOG_DATA);
-  private snackBar = inject(MatSnackBar);
   private dialogRef = inject<MatDialogRef<SeedOrderingDialogComponent>>(MatDialogRef);
 
   // A Subject rather than an output(): the request can finish after the dialog was closed
   // (Esc, backdrop, Cancel), and an output() stops delivering once the dialog is destroyed.
   readonly seedingOrder = new Subject<void>();
-  readonly teams = signal<TeamStanding[]>([]);
-  readonly loading = signal(true);
+  /** The teams in the order the commissioner gives them, seeded from the standings as they arrive. */
+  readonly teams = linkedSignal<TeamStanding[]>(() => this.store.standings().map((team, index) => ({ ...team, seed: index + 1 })));
+  readonly loading = this.store.loading;
   private readonly seasonID: number = this.data;
 
   ngOnInit(): void {
@@ -48,21 +47,7 @@ export class SeedOrderingDialogComponent implements OnInit {
   }
 
   loadTeamStandings(): void {
-    this.teamStandings.getTeamStandings({ seasonID: this.seasonID })
-      .subscribe({
-        next: (standings) => {
-          this.teams.set(standings.map((team, index) => ({
-            ...team,
-            seed: index + 1
-          })));
-          this.loading.set(false);
-        },
-        error: (e) => {
-          console.log(e);
-          this.snackBar.open("Failed to load team standings", "Close");
-          this.loading.set(false);
-        }
-      });
+    this.store.load(this.seasonID);
   }
 
   onDrop(event: DndDropEvent): void {
@@ -106,18 +91,11 @@ export class SeedOrderingDialogComponent implements OnInit {
       seed: team.seed!
     }));
 
-    this.brackets.setCustomSeeds({ seasonID: this.seasonID, body: customSeeding })
-      .subscribe({
-        next: () => {
-          this.seedingOrder.next();
-          this.seedingOrder.complete();
-          this.dialogRef.close(true);
-        },
-        error: (e) => {
-          console.log(e);
-          this.snackBar.open("Failed to set custom seeds", "Close");
-        }
-      });
+    this.store.setSeeds(this.seasonID, customSeeding, () => {
+      this.seedingOrder.next();
+      this.seedingOrder.complete();
+      this.dialogRef.close(true);
+    });
   }
 
   onCancel(): void {

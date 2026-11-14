@@ -1,12 +1,10 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { DateTime } from 'luxon';
-import { map } from 'rxjs';
-import { MatchPlannerService } from '@api/services/match-planner.service';
-import { parseScheduledMatch, ScheduledMatchDto } from '../scheduleList/scheduledMatchDto';
+import { ScheduledMatchDto } from '../scheduleList/scheduledMatchDto';
 import { ToDatePipe } from '@shared/toDate.pipe';
+import { SeasonThisWeekStore } from './seasonThisWeek.store';
 
 export type WeekMatchStatus = 'final' | 'upcoming' | 'awaiting';
 
@@ -72,19 +70,19 @@ function weekStatus(match: ScheduledMatchDto, now: DateTime): WeekMatchStatus {
     .week-card--final { background: var(--hud-well); border-color: var(--hud-hairline); }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [SeasonThisWeekStore],
 })
 export class SeasonThisWeekComponent {
-  private api = inject(MatchPlannerService);
+  private readonly store = inject(SeasonThisWeekStore);
 
   readonly seasonID = input.required<number>();
   /** When the page was opened. */
   readonly now = signal<DateTime>(DateTime.now());
-  /** The season's scheduled matches (none for 0, or when they can't be read), loaded again for each season: a new one
-   * cancels the request still on its way. */
-  private readonly schedule = rxResource({
-    params: () => this.seasonID() || undefined,
-    stream: ({ params: seasonID }) => this.api.getScheduledMatches({ seasonID }).pipe(map(matches => matches.map(parseScheduledMatch))),
-  });
-  readonly matches = computed<ScheduledMatchDto[]>(() => this.schedule.hasValue() ? this.schedule.value() : []);
+  /** The season's scheduled matches (none for 0, or when they can't be read). */
+  readonly matches = this.store.matches;
   readonly thisWeek = computed(() => pickThisWeek(this.matches(), this.now()));
+
+  constructor() {
+    this.store.seasonID.use(this.seasonID);
+  }
 }

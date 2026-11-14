@@ -6,7 +6,8 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
-import { describeTeam, MatchDto, parseTeamMatch, TeamComponent } from './team.component';
+import { describeTeam, TeamComponent } from './team.component';
+import { MatchDto, parseTeamMatch } from './team.store';
 import type { SeasonInfoDto, TeamDto, TeamPageMatchDto } from '@api/models';
 import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
@@ -226,7 +227,7 @@ describe('TeamComponent', () => {
   it('shows each match time as the date pipe showed the API value', () => {
     load(team, [match({})]);
 
-    expect(component.matches.data[0].scheduledTime instanceof DateTime).toBeTrue();
+    expect(component.matches()[0].scheduledTime instanceof DateTime).toBeTrue();
     expect(rows()[0]).toContain(new DatePipe('en-US', 'UTC').transform('2026-04-01T19:00:00Z', 'short')!);
   });
 

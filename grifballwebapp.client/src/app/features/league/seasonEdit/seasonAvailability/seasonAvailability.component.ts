@@ -1,5 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, input, signal } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Component, OnInit, ChangeDetectionStrategy, inject, input, linkedSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -7,11 +6,10 @@ import { MatFormField, MatInputModule } from '@angular/material/input';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { DateTime } from 'luxon';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { provideDatePickers } from '@shared/datePickers';
 import { RouterLink } from '@angular/router';
-import { AvailabilityService } from '@api/services/availability.service';
-import type { AvailabilityTimeslotDto, DayOfWeek, SeasonAvailabilityDto } from '@api/models';
+import type { DayOfWeek } from '@api/models';
+import { SeasonAvailabilityStore } from './seasonAvailability.store';
 
 
 /** A row of the editor: a timeslot, its day empty until one is picked. */
@@ -34,20 +32,14 @@ export class AvailabilityOption {
     ],
     templateUrl: './seasonAvailability.component.html',
     styleUrl: './seasonAvailability.component.scss',
-    providers: [provideDatePickers()],
+    providers: [provideDatePickers(), SeasonAvailabilityStore],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonAvailabilityComponent implements OnInit {
-  private availability = inject(AvailabilityService);
-  private snackbar = inject(MatSnackBar);
-
+  private readonly store = inject(SeasonAvailabilityStore);
 
   ngOnInit(): void {
-    this.getSeasonAvailability()
-    .subscribe({
-      next: x => this.options.set(x),
-      error: () => this.snackbar.open('Failed to get season availability'),
-    });
+    this.store.load(this.seasonID());
   }
 
   readonly seasonID = input.required<number>();
@@ -92,7 +84,8 @@ export class SeasonAvailabilityComponent implements OnInit {
     return this.checkboxes.map(x => x.name);
   }
 
-  readonly options = signal<AvailabilityOption[]>([]);
+  /** The rows being edited: the season's timeslots once they arrive. */
+  readonly options = linkedSignal<AvailabilityOption[]>(() => this.store.timeslots());
 
   bulkModify(): void {
     const options: AvailabilityOption[] = [];
@@ -115,10 +108,8 @@ export class SeasonAvailabilityComponent implements OnInit {
   }
 
   saveChanges(): void {
-    this.updateSeasonAvailability().subscribe({
-      next: () => this.snackbar.open('Saved'),
-      error: () => this.snackbar.open('Failed to save'),
-    });
+    // A row whose day was never picked goes as it is, and the server refuses the save, as it always has
+    this.store.save(this.seasonID(), this.options().map(o => ({ dayOfWeek: o.dayOfWeek as DayOfWeek, time: o.time })));
   }
 
   /** Row edits replace the option (and the list) rather than mutating them. */
@@ -132,19 +123,6 @@ export class SeasonAvailabilityComponent implements OnInit {
 
   delete(index: number): void {
     this.options.update(options => options.filter((_, i) => i !== index));
-  }
-
-  updateSeasonAvailability() {
-    const body: SeasonAvailabilityDto = {
-      seasonID: this.seasonID(),
-      // A row whose day was never picked goes as it is, and the server refuses the save, as it always has
-      timeslots: this.options().map(o => ({ dayOfWeek: o.dayOfWeek as DayOfWeek, time: o.time })),
-    };
-    return this.availability.updateSeasonAvailability({ seasonID: this.seasonID(), body });
-  }
-
-  getSeasonAvailability(): Observable<AvailabilityTimeslotDto[]> {
-    return this.availability.getSeasonAvailability({ seasonID: this.seasonID() });
   }
 }
 

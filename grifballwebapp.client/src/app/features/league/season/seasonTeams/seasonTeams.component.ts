@@ -1,16 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { catchError, EMPTY, merge, Subject, switchMap, tap } from 'rxjs';
-import { SeasonService } from '@api/services/season.service';
 import { AccountService } from '@core/auth/account.service';
-import { SeasonSummaryService } from '../seasonSummary';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { BackfilledBannerComponent } from '@shared/dataNotice/dataNotice.component';
-import type { SeasonSummaryDto } from '@api/models';
-import type { SeasonTeamDto } from '@api/models';
+import { SeasonTeamsStore } from './seasonTeams.store';
 
 @Component({
   selector: 'app-season-teams',
@@ -23,22 +18,19 @@ import type { SeasonTeamDto } from '@api/models';
     BackfilledBannerComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [SeasonTeamsStore],
 })
 export class SeasonTeamsComponent {
   private route = inject(ActivatedRoute);
-  private api = inject(SeasonService);
-  private summaries = inject(SeasonSummaryService);
+  private readonly store = inject(SeasonTeamsStore);
   readonly accountService = inject(AccountService);
 
-  readonly seasonID = signal<number>(0);
-  readonly summary = signal<SeasonSummaryDto | null>(null);
-  readonly teams = signal<SeasonTeamDto[]>([]);
-  readonly loading = signal<boolean>(true);
-  readonly error = signal<string | null>(null);
+  readonly seasonID = this.store.seasonID;
+  readonly summary = this.store.summary;
+  readonly teams = this.store.teams;
+  readonly loading = this.store.loading;
+  readonly error = this.store.error;
   readonly searchFilter = signal<string>('');
-
-  /** The season to load; switchMap drops the previous season's responses when another one is asked for. */
-  private readonly load = new Subject<number>();
 
   readonly isHistorical = computed(() => this.summary()?.isHistorical ?? false);
 
@@ -76,28 +68,6 @@ export class SeasonTeamsComponent {
   );
 
   constructor() {
-    this.load.pipe(
-      switchMap(seasonID => merge(
-        // The summary only adds the banner and the draft shortcut: the rosters show without it
-        this.summaries.get(seasonID).pipe(
-          tap(s => this.summary.set(s)),
-          catchError(() => EMPTY),
-        ),
-        this.api.getSeasonTeams({ seasonID }).pipe(
-          tap(teams => {
-            this.teams.set(teams);
-            this.loading.set(false);
-          }),
-          catchError((err: HttpErrorResponse) => {
-            this.error.set(err.status === 404 ? 'Season not found' : 'Failed to load season teams');
-            this.loading.set(false);
-            return EMPTY;
-          }),
-        ),
-      )),
-      takeUntilDestroyed(),
-    ).subscribe();
-
     this.route.paramMap.pipe(takeUntilDestroyed()).subscribe(params => {
       const id = Number(params.get('seasonID'));
       if (id > 0) this.loadData(id);
@@ -106,12 +76,7 @@ export class SeasonTeamsComponent {
 
   /** Loads a season, forgetting the one shown before so none of it is left on the new season's page. */
   loadData(seasonID: number): void {
-    this.seasonID.set(seasonID);
-    this.summary.set(null);
-    this.teams.set([]);
-    this.loading.set(true);
-    this.error.set(null);
-    this.load.next(seasonID);
+    this.store.show(seasonID);
   }
 
   clearSearch(): void {

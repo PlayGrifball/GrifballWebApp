@@ -6,8 +6,8 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatchPlannerService } from '@api/services/match-planner.service';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { CreateRegularMatchesDialogStore } from './createRegularMatchesDialog.store';
 
 @Component({
     selector: 'app-create-regular-matches-dialog',
@@ -22,12 +22,12 @@ import { MatchPlannerService } from '@api/services/match-planner.service';
     ],
     templateUrl: './createRegularMatchesDialog.component.html',
     styleUrl: './createRegularMatchesDialog.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [CreateRegularMatchesDialogStore],
 })
 export class CreateRegularMatchesDialogComponent {
-  private matchPlanner = inject(MatchPlannerService);
+  private readonly store = inject(CreateRegularMatchesDialogStore);
   data = inject(MAT_DIALOG_DATA);
-  private snackBar = inject(MatSnackBar);
   private dialogRef = inject(MatDialogRef);
 
   readonly seasonID: number = this.data;
@@ -41,20 +41,9 @@ export class CreateRegularMatchesDialogComponent {
   readonly regularMatchesCreated = new Subject<void>();
 
   onSubmit() {
-    this.matchPlanner.createSeasonMatches({
-      seasonID: this.seasonID,
-      homeMatchesPerTeam: this.homeMatchesPerTeam!,
-      bestOf: this.bestOf!,
-    })
-      .subscribe({
-        next: r => {
-          this.regularMatchesCreated.next();
-          this.dialogRef.close(true);
-        },
-        error: e => {
-          console.log(e);
-          this.snackBar.open("Failed to create regular matches", "Close");
-        },
-      })
+    this.store.create(this.seasonID, this.homeMatchesPerTeam!, this.bestOf!, () => {
+      this.regularMatchesCreated.next();
+      this.dialogRef.close(true);
+    });
   }
 }
