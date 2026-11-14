@@ -171,18 +171,21 @@ public class XboxAccountTests
     public async Task TheCleanup_KeepsAPlaceholderAnythingElseNames_OrThatCarriesMoreThanItsXboxAccount()
     {
         // Each only in pickup games, named by no foreign key: kept for what a key-less column or the row itself holds
-        long[] xuids = [40, 41, 42, 43, 44, 45, 46];
+        long[] xuids = [40, 41, 42, 43, 44, 45, 46, 47];
         foreach (var xuid in xuids)
             _context.XboxUsers.Add(XboxUser.FromXbox(xuid, $"GT{xuid}"));
         await _context.SaveChangesAsync();
-        var plain = User.Seed(userName: "historical:GT40", isDummyUser: true, xboxUserID: 40);
+        // As EnsureXboxPlaceholdersAsync makes one, and the case of its prefix doesn't matter on any database
+        var plain = User.Seed(userName: "HISTORICAL:GT40", displayName: "GT40", isDummyUser: true, xboxUserID: 40);
         var merged = User.Seed(userName: "historical:GT41", isDummyUser: true, xboxUserID: 41);
         var dismissed = User.Seed(userName: "historical:GT42", isDummyUser: true, xboxUserID: 42);
         var discord = User.Seed(userName: "historical:GT43", isDummyUser: true, xboxUserID: 43, discordUser: DiscordUser.FromDiscord(9_300_043, "linked"));
         var signedIn = User.Seed(userName: "historical:GT44", isDummyUser: true, xboxUserID: 44, email: "someone@example.com", passwordHash: "hash");
-        var region = User.Seed(userName: "historical:GT45", isDummyUser: true, xboxUserID: 45, regionID: 1);
+        var region = User.Seed(userName: "historical:GT45", isDummyUser: true, xboxUserID: 45, regionID: 1, regionSource: GrifballWebApp.Domain.Shared.RegionSource.Sysadmin);
         var lateLeague = User.Seed(userName: "historical:GT46", isDummyUser: true, xboxUserID: 46);
-        _context.Users.AddRange(plain, merged, dismissed, discord, signedIn, region, lateLeague);
+        // A sysadmin renamed it on user management: no longer as it was made
+        var renamed = User.Seed(userName: "historical:GT47", displayName: "Renamed By A Sysadmin", isDummyUser: true, xboxUserID: 47);
+        _context.Users.AddRange(plain, merged, dismissed, discord, signedIn, region, lateLeague, renamed);
         await _context.SaveChangesAsync();
         await SeasonMatchTestData.InAPickupGameAsync(_context, xuids);
         await SeasonMatchTestData.InALateLeagueGameAsync(_context, 46);
