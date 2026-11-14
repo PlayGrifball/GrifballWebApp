@@ -7,7 +7,7 @@ the client's version of the backend's architecture tests.
 
 | Folder | What's in it | May import |
 | --- | --- | --- |
-| `app/features/<area>` | One area's pages, components, state and API access (`account`, `admin`, `draft`, `home`, `lateLeague`, `league`, `matches`, `players`) | its own files, `core`, `shared`, the generated clients, and another feature's `index.ts` |
+| `app/features/<area>` | One area's pages, components, state and API access (`account`, `admin`, `chat`, `draft`, `home`, `lateLeague`, `league`, `matches`, `players`) | its own files, `core`, `shared`, the generated clients, and another feature's `index.ts` |
 | `app/core` | What the app runs on, once: auth, HTTP, SignalR, telemetry, layout, server rendering | `core`, `shared`, the generated clients |
 | `app/shared` | Building blocks any area uses: tables, date helpers, page metadata, test helpers | `shared`, the generated clients |
 | `generated` | The API and SignalR clients, generated from the server (`@api/*`, `@signalr/*`) | itself |

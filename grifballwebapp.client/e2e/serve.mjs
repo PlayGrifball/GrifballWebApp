@@ -19,7 +19,7 @@ const apiPort = port + 1;
 const serverEntry = fileURLToPath(new URL('../dist/grifballwebapp.client/server/server.mjs', import.meta.url));
 
 // The backend, as the server reaches it: without the /api prefix. Plus the SignalR hubs
-// (/hub/TeamsHub and /hub/QueueHub, proxied here as /TeamsHub and /QueueHub): their WebSocket upgrades
+// (/hub/TeamsHub, /hub/QueueHub and /hub/ChatHub, proxied here without /hub): their WebSocket upgrades
 // on 'upgrade', after their negotiate (answered here).
 const backend = createServer((req, res) => {
   if (isHubNegotiate(req)) {
