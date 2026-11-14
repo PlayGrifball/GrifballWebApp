@@ -31,6 +31,7 @@ public class SeasonVisibilityHostTests
     private int _seasonID;
     private int _teamID;
     private int _seasonMatchID;
+    private int _publicTeamID;
 
     private sealed class PreviewFactory(Dictionary<string, string?> settings) : WebApplicationFactory<ServerProgram>
     {
@@ -83,7 +84,15 @@ public class SeasonVisibilityHostTests
         var match = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID);
         context.SeasonMatches.Add(match);
         await context.SaveChangesAsync();
-        (_seasonID, _teamID, _seasonMatchID) = (season.SeasonID, home.TeamID, match.SeasonMatchID);
+        // The same franchise in a season that's public: its history mustn't list the hidden season's team
+        var played = Season.Seed(seasonName: "Played Season").WithDates(signupsOpen: now.AddDays(-120), signupsClose: now.AddDays(-110),
+            draftStart: now.AddDays(-100), seasonStart: now.AddDays(-90), seasonEnd: now.AddDays(-30));
+        context.Seasons.Add(played);
+        await context.SaveChangesAsync();
+        var publicTeam = Team.Seed("Hidden Home", seasonID: played.SeasonID);
+        context.Teams.Add(publicTeam);
+        await context.SaveChangesAsync();
+        (_seasonID, _teamID, _seasonMatchID, _publicTeamID) = (season.SeasonID, home.TeamID, match.SeasonMatchID, publicTeam.TeamID);
     }
 
     [OneTimeTearDown]
@@ -106,6 +115,13 @@ public class SeasonVisibilityHostTests
         "/teams/{team}",
         "/season-matches/{match}",
     ];
+
+    /// <summary>The team IDs of the public team's franchise history, as <paramref name="client"/> gets it.</summary>
+    private async Task<int[]> HistoryTeamIDs(HttpClient client)
+    {
+        using var history = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync($"/teams/{_publicTeamID}/history"));
+        return history.RootElement.GetProperty("seasons").EnumerateArray().Select(s => s.GetProperty("teamID").GetInt32()).ToArray();
+    }
 
     private string Path(string page) => page.Replace("{season}", _seasonID.ToString()).Replace("{team}", _teamID.ToString()).Replace("{match}", _seasonMatchID.ToString());
 
@@ -138,6 +154,19 @@ public class SeasonVisibilityHostTests
             Assert.That(missingResponse.StatusCode, Is.EqualTo(hiddenResponse.StatusCode));
             Assert.That(missingProblem!.Detail, Is.EqualTo(hiddenProblem!.Detail));
             Assert.That(missingProblem.Title, Is.EqualTo(hiddenProblem.Title));
+        }
+    }
+
+    [Test]
+    public async Task APublicFranchisesHistory_ListsItsTeamOfASeasonNotAnnouncedYet_ForTheSysadminAlone()
+    {
+        var anonymous = await HistoryTeamIDs(_anonymous);
+        var sysadmin = await HistoryTeamIDs(_sysadmin);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(anonymous, Is.EqualTo(new[] { _publicTeamID }));
+            Assert.That(sysadmin, Is.EquivalentTo(new[] { _publicTeamID, _teamID }));
         }
     }
 
