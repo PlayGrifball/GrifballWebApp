@@ -247,7 +247,7 @@ public class DataPullServiceSaveTests : SqliteContextFixture
     {
         await AddMedalAsync(77);
 
-        Assert.That(async () => await _service.DownloadMedals(), Throws.Exception.With.Message.EqualTo("You already have medals!"));
+        Assert.That(async () => await _service.DownloadMedals(), Throws.TypeOf<HaloPullRefusedException>().With.Message.EqualTo("The medals are downloaded already."));
         await _halo.DidNotReceive().Medals();
     }
 

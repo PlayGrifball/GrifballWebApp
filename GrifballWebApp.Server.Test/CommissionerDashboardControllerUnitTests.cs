@@ -29,7 +29,11 @@ public class CommissionerDashboardControllerUnitTests
 [Parallelizable(ParallelScope.All)]
 public class CommissionerDashboardControllerDatabaseUnitTests : SqliteGrifballContextFixture
 {
-    private CommissionerDashboardController Controller() => new(new RescheduleService(Db, Substitute.For<IOutbox>()), new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(Db));
+    private CommissionerDashboardController Controller()
+    {
+        var reschedules = new RescheduleService(Db, Substitute.For<IOutbox>());
+        return new(new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(reschedules, new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(Db)), reschedules);
+    }
 
     [Test]
     public async Task GetDashboardData_ReturnsEmptySummary_WhenThereIsNothingPendingOrOverdue()

@@ -2,6 +2,7 @@ using DiscordInterface.Generated;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Commissioner;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
@@ -12,7 +13,6 @@ using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Infrastructure.Jobs;
-using GrifballWebApp.Infrastructure.Scheduler;
 using GrifballWebApp.Infrastructure.SeasonMatchPage;
 using Quartz;
 
@@ -38,30 +38,33 @@ public class AdminCommandsHandler
     private readonly DiscordCaller _caller;
     private readonly CommandLookups _lookups;
     private readonly RescheduleService _reschedules;
+    private readonly CommissionerDashboardService _dashboard;
     private readonly SeasonMatchService _seasonMatches;
     private readonly MatchPlannerService _matchPlanner;
     private readonly IBracketService _brackets;
     private readonly TeamService _teams;
     private readonly ScheduleRecommendations _recommendations;
-    private readonly OnDemandJobs _onDemand;
+    private readonly IScheduleRecommendationRuns _runs;
     private readonly JobsService _jobs;
     private readonly GamertagClaimService _claims;
     private readonly IDataPullService _dataPull;
     private readonly UrlService _urls;
 
-    public AdminCommandsHandler(DiscordCaller caller, CommandLookups lookups, RescheduleService reschedules, SeasonMatchService seasonMatches,
+    public AdminCommandsHandler(DiscordCaller caller, CommandLookups lookups, RescheduleService reschedules, CommissionerDashboardService dashboard,
+        SeasonMatchService seasonMatches,
         MatchPlannerService matchPlanner, IBracketService brackets, TeamService teams, ScheduleRecommendations recommendations,
-        OnDemandJobs onDemand, JobsService jobs, GamertagClaimService claims, IDataPullService dataPull, UrlService urls)
+        IScheduleRecommendationRuns runs, JobsService jobs, GamertagClaimService claims, IDataPullService dataPull, UrlService urls)
     {
         _caller = caller;
         _lookups = lookups;
         _reschedules = reschedules;
+        _dashboard = dashboard;
         _seasonMatches = seasonMatches;
         _matchPlanner = matchPlanner;
         _brackets = brackets;
         _teams = teams;
         _recommendations = recommendations;
-        _onDemand = onDemand;
+        _runs = runs;
         _jobs = jobs;
         _claims = claims;
         _dataPull = dataPull;
@@ -87,10 +90,9 @@ public class AdminCommandsHandler
     {
         if (await Staff(context, DiscordCaller.Roles.Staff) is null)
             return;
-        var pending = await _reschedules.GetPendingReschedulesAsync();
-        var overdue = await _reschedules.GetOverdueMatchesAsync();
+        var summary = (await _dashboard.GetAsync()).Summary;
         var embed = CommandReplies.Embed("Commissioner dashboard", _urls.Page("commissioner-dashboard"),
-            $"{pending.Count} pending reschedules · {overdue.Count} overdue matches · {overdue.Count(m => m.HoursOverdue > 72)} over 3 days");
+            $"{summary.PendingRescheduleCount} pending reschedules · {summary.OverdueMatchCount} overdue matches · {summary.CriticalOverdueCount} over 3 days");
         await context.Reply(embed);
     }
 
@@ -226,7 +228,7 @@ public class AdminCommandsHandler
     {
         if (await Staff(context, DiscordCaller.Roles.Staff) is null || await _lookups.SeasonFor(context, season, SeasonPurpose.Active, SeasonViewer.Staff) is not int id)
             return;
-        var run = await _onDemand.Status<ScheduleRecommendationJob>(ScheduleRecommendationJob.RunName(id));
+        var run = await _runs.Status(id);
         var latest = await _recommendations.Latest(id);
         var lines = latest?.Matches
             .OrderBy(x => x.ScheduledTime)
@@ -243,8 +245,7 @@ public class AdminCommandsHandler
     {
         if (await Staff(context, DiscordCaller.Roles.Staff) is not { } caller || await _lookups.SeasonFor(context, season, SeasonPurpose.Active, SeasonViewer.Staff) is not int id)
             return;
-        var status = await _onDemand.Enqueue<ScheduleRecommendationJob, RecommendSchedule>(ScheduleRecommendationJob.RunName(id),
-            new RecommendSchedule(id, caller.Gamertag, caller.UserID), $"Season {id}");
+        var status = await _runs.Queue(id, caller.Gamertag, caller.UserID);
         await context.Reply($"The recommendation is {status.State.ToString().ToLowerInvariant()}. See it with /admin schedule show.");
     }
 
