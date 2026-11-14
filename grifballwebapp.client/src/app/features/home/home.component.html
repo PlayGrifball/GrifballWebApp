@@ -68,7 +68,7 @@
       <a class="home-archive__all" routerLink="/seasons">All seasons</a>
     </div>
     <div class="hud-table-wrap">
-      <table mat-table [dataSource]="pastSeasons" matSort class="home-archive">
+      <table mat-table [dataSource]="pastSeasons()" matSort class="home-archive">
         <ng-container matColumnDef="seasonName">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Season</th>
           <td mat-cell *matCellDef="let row">

@@ -6,7 +6,8 @@ import { provideRouter } from '@angular/router';
 import { HttpTransportType, HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { AuthSession } from '@core/auth/authSession.service';
 import type { QueueStatusDto } from '@api/models';
-import { QUEUE_HUB_URL, LateLeagueQueueComponent } from './lateLeagueQueue.component';
+import { LateLeagueQueueComponent } from './lateLeagueQueue.component';
+import { QUEUE_HUB_URL } from './lateLeagueQueue.store';
 
 describe('LateLeagueQueueComponent', () => {
   let connection: {
@@ -185,7 +186,7 @@ describe('LateLeagueQueueComponent', () => {
   it('keeps the queue shown when a later load fails', () => {
     create();
     show(anonymous);
-    fixture.componentInstance.load();
+    handlerFor('QueueStatusChanged')(undefined);
     statusRequest().flush(null, { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
     expect(text()).toContain('3 players in the queue');
@@ -249,7 +250,7 @@ describe('LateLeagueQueueComponent', () => {
     create();
     show(player);
 
-    fixture.componentInstance.load();
+    handlerFor('QueueStatusChanged')(undefined);
     const stale = statusRequest();
     button()!.click();
     http.expectOne('/api/queue/join').flush({ ...player, count: 4, inQueue: true });
@@ -279,7 +280,7 @@ describe('LateLeagueQueueComponent', () => {
     expect(text()).toContain('Late League is off here');
     expect(button()).toBeNull();
 
-    fixture.componentInstance.load();
+    handlerFor('QueueStatusChanged')(undefined);
     show({ ...player, open: false, inQueue: true });
     expect(button()!.textContent).toContain('Leave the queue');
   });
@@ -287,7 +288,9 @@ describe('LateLeagueQueueComponent', () => {
   it('loads again after a reconnect, and after a sign-in or out', () => {
     create();
     show({ ...player, inQueue: true });
-    fixture.componentInstance.message.set('You have joined the Late League queue');
+    button()!.click();
+    http.expectOne('/api/queue/leave').flush(player);
+    expect(fixture.componentInstance.message()).toBe('You have left the Late League queue');
 
     connection.onreconnected.calls.mostRecent().args[0]();
     statusRequest().flush({ ...player, inQueue: true });
