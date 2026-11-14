@@ -101,7 +101,8 @@ describe('TelemetryStore', () => {
     bare.traceId.use(signal(null));
     TestBed.tick();
     http.expectOne('/api/telemetry/status').flush({ logs: false, metrics: false, traces: true });
-    await settle();
+    // The status lands a microtask later; the traces read it starts keeps the app unstable until answered
+    await Promise.resolve();
     TestBed.tick();
     http.expectNone(r => r.url === '/api/telemetry/metrics' || r.url === '/api/telemetry/logs');
     http.expectOne(r => r.url === '/api/telemetry/traces').flush([]);
