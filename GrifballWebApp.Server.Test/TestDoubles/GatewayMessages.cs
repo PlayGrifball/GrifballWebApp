@@ -6,17 +6,17 @@ namespace GrifballWebApp.Server.Test;
 /// <summary>A gateway message as Discord sends it (its JSON model), for MessageCreateHandler's tests.</summary>
 internal static class GatewayMessages
 {
-    /// <summary>Message 10 in channel 20 of guild 30 (a DM, in no guild, when <paramref name="direct"/>) from <paramref name="authorId"/>, saying "hello",
+    /// <summary>Message 10 in channel 20 of guild 30 (a DM, in no guild, when <paramref name="direct"/>) from <paramref name="authorId"/>, saying <paramref name="content"/> ("hello"),
     /// mentioning <paramref name="mentions"/>; a reply to <paramref name="reference"/> when given. Its replies go through <paramref name="restClient"/>.</summary>
     internal static NetCord.Gateway.Message Build(ulong authorId, ulong[]? mentions = null, (ulong ChannelId, ulong MessageId)? reference = null, RestClient? restClient = null,
-        bool direct = false)
+        bool direct = false, string content = "hello")
     {
         var json = new Dictionary<string, object?>
         {
             ["id"] = 10,
             ["channel_id"] = 20,
             ["author"] = new { id = authorId, username = $"user{authorId}" },
-            ["content"] = "hello",
+            ["content"] = content,
             ["timestamp"] = "2024-01-01T00:00:00+00:00",
             ["mentions"] = (mentions ?? []).Select(id => new { id, username = $"user{id}" }).ToArray(),
             ["mention_roles"] = Array.Empty<ulong>(),

@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using GrifballWebApp.Application.Chat;
@@ -12,20 +13,24 @@ namespace GrifballWebApp.Application.Test;
 
 /// <summary>
 /// The chat the Discord bot and the site share, on a model that answers as it is told (<see cref="FakeModel"/>): its
-/// instructions, the conversation it sends, the tools it gives and calls, and its time limit.
+/// instructions, the conversation it sends, the tools it gives and calls, its limits and its time limit.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class GrifChatUnitTests
 {
     private static readonly string[] Answer = ["It is ", "noon."];
+    private const string Asker = "user:1";
 
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
+    private readonly ChatLimits _limits = new();
+    private readonly IChatClientFactory _clients = Substitute.For<IChatClientFactory>();
     private ServiceProvider _services = null!;
 
     [TearDown]
     public async Task TearDown()
     {
+        _limits.Dispose();
         if (_services is not null)
             await _services.DisposeAsync();
     }
@@ -33,10 +38,9 @@ public class GrifChatUnitTests
     private GrifChat Chat(FakeModel model)
     {
         _services = new ServiceCollection().AddSingleton<TimeProvider>(_time).BuildServiceProvider();
-        var clients = Substitute.For<IChatClientFactory>();
-        clients.Available.Returns(true);
-        clients.Create().Returns(model);
-        return new GrifChat(clients, _services.GetRequiredService<IServiceScopeFactory>());
+        _clients.Available.Returns(true);
+        _clients.Create().Returns(model);
+        return new GrifChat(_clients, _services.GetRequiredService<IServiceScopeFactory>(), _limits);
     }
 
     private static async Task<List<string>> All(IAsyncEnumerable<string> reply)
@@ -47,14 +51,19 @@ public class GrifChatUnitTests
         return texts;
     }
 
-    private static List<ChatMessage> Asked(string question) => GrifChat.Conversation([], question);
+    /// <summary>The whole reply to <paramref name="question"/>, started and streamed as a host does.</summary>
+    private static async Task<List<string>> Ask(GrifChat chat, string question, ToolCaller caller, ChatHost host, string asker = Asker)
+    {
+        using var reply = chat.Start([], question, caller, host, asker);
+        return await All(reply.StreamAsync());
+    }
 
     [Test]
-    public async Task ReplyAsync_StreamsTheModelsReply_WithTheHostsInstructionsAndTheChatToolsTheCallerMayUse()
+    public async Task Start_StreamsTheModelsReply_WithTheHostsInstructionsAndTheChatToolsTheCallerMayUse()
     {
         var model = new FakeModel([Text("It is "), Text("noon.")]);
 
-        var reply = await All(Chat(model).ReplyAsync(Asked("What time is it?"), ToolCaller.Anonymous, ChatHost.Site));
+        var reply = await Ask(Chat(model), "What time is it?", ToolCaller.Anonymous, ChatHost.Site);
 
         using (Assert.EnterMultipleScope())
         {
@@ -67,11 +76,11 @@ public class GrifChatUnitTests
     }
 
     [Test]
-    public async Task ReplyAsync_ACallerWithAPlayersRole_GetsThePullToolsToo()
+    public async Task Start_ACallerWithAPlayersRole_GetsThePullToolsToo()
     {
         var model = new FakeModel([Text("Hi")]);
 
-        await All(Chat(model).ReplyAsync(Asked("Hi"), new ToolCaller(7, ["Player"]), ChatHost.Discord));
+        await Ask(Chat(model), "Hi", new ToolCaller(7, ["Player"]), ChatHost.Discord);
 
         Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat));
     }
@@ -85,11 +94,11 @@ public class GrifChatUnitTests
 
     [TestCase(SiteRoles.Commissioner)]
     [TestCase(SiteRoles.Sysadmin)]
-    public async Task ReplyAsync_OnTheSite_AStaffCallerGetsTheirStaffToolsToo(string role)
+    public async Task Start_OnTheSite_AStaffCallerGetsTheirStaffToolsToo(string role)
     {
         var model = new FakeModel([Text("Hi")]);
 
-        await All(Chat(model).ReplyAsync(Asked("Hi"), new ToolCaller(7, [SiteRoles.Player, role]), ChatHost.Site));
+        await Ask(Chat(model), "Hi", new ToolCaller(7, [SiteRoles.Player, role]), ChatHost.Site);
 
         var expected = StaffToolsFor(SiteRoles.Player, role);
         using (Assert.EnterMultipleScope())
@@ -100,11 +109,11 @@ public class GrifChatUnitTests
     }
 
     [Test]
-    public async Task ReplyAsync_OnTheSite_APlayerGetsNoStaffTools()
+    public async Task Start_OnTheSite_APlayerGetsNoStaffTools()
     {
         var model = new FakeModel([Text("Hi")]);
 
-        await All(Chat(model).ReplyAsync(Asked("Hi"), new ToolCaller(7, [SiteRoles.Player]), ChatHost.Site));
+        await Ask(Chat(model), "Hi", new ToolCaller(7, [SiteRoles.Player]), ChatHost.Site);
 
         using (Assert.EnterMultipleScope())
         {
@@ -114,24 +123,57 @@ public class GrifChatUnitTests
     }
 
     [Test]
-    public async Task ReplyAsync_OnDiscord_StaffGetNoStaffTools()
+    public async Task Start_OnDiscord_StaffGetNoStaffTools()
     {
         var model = new FakeModel([Text("Hi")]);
 
-        await All(Chat(model).ReplyAsync(Asked("Hi"), new ToolCaller(7, [SiteRoles.Commissioner, SiteRoles.Sysadmin]), ChatHost.Discord));
+        await Ask(Chat(model), "Hi", new ToolCaller(7, [SiteRoles.Commissioner, SiteRoles.Sysadmin]), ChatHost.Discord);
 
         Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat));
     }
 
     [Test]
-    public async Task ReplyAsync_CallsTheToolTheModelAsksFor_AndSendsItTheResult_WhateverTheProvider()
+    public void Staff_IsEveryClassOfToolsThatChangeData_AndThePrivateChatHasAllTheirTools()
+    {
+        var changingData = GrifTools.ChangingData.SelectMany(GrifTools.Methods).Select(GrifTools.Name).ToList();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(GrifTools.Staff, Is.SupersetOf(GrifTools.ChangingData));
+            Assert.That(changingData, Is.Not.Empty);
+            Assert.That(GrifTools.PrivateChat, Is.SupersetOf(changingData));
+            Assert.That(GrifTools.Chat.Intersect(changingData), Is.Empty);
+        }
+    }
+
+    /// <summary>The function a reply's tool wraps (DelegatingAIFunction's InnerFunction).</summary>
+    private static object? Inner(AITool tool)
+        => typeof(DelegatingAIFunction).GetProperty("InnerFunction", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)!.GetValue(tool);
+
+    [Test]
+    public void AIFunctions_AreMadeOnce_OnlyTheCallerBoundPerReply()
+    {
+        var scopes = Substitute.For<IServiceScopeFactory>();
+
+        var first = GrifTools.AIFunctions(scopes, ToolCaller.Anonymous, GrifTools.Chat).Single(t => t.Name == "get_current_time");
+        var second = GrifTools.AIFunctions(scopes, new ToolCaller(7, ["Player"]), GrifTools.Chat).Single(t => t.Name == "get_current_time");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(first, Is.Not.SameAs(second), "each reply's own, binding its caller");
+            Assert.That(Inner(first), Is.Not.Null.And.SameAs(Inner(second)), "the function itself made once");
+        }
+    }
+
+    [Test]
+    public async Task Start_CallsTheToolTheModelAsksFor_AndSendsItTheResult_WhateverTheProvider()
     {
         // The factory's model calls no tools itself: GrifChat does it for any provider
         var model = new FakeModel(
             [new ChatResponseUpdate(ChatRole.Assistant, [new FunctionCallContent("call-1", "get_current_time")])],
             [Text("It is "), Text("noon.")]);
 
-        var reply = await All(Chat(model).ReplyAsync(Asked("What time is it?"), ToolCaller.Anonymous, ChatHost.Site));
+        var reply = await Ask(Chat(model), "What time is it?", ToolCaller.Anonymous, ChatHost.Site);
 
         var result = model.Requests[1].SelectMany(m => m.Contents).OfType<FunctionResultContent>().Single();
         var json = result.Result is JsonElement element ? element : JsonSerializer.SerializeToElement(result.Result);
@@ -145,12 +187,116 @@ public class GrifChatUnitTests
     }
 
     [Test]
-    public void ReplyAsync_ModelSlowerThanTheHostsTimeout_IsCanceled()
+    public void Start_ModelSlowerThanTheHostsTimeout_IsTookTooLong()
     {
         var model = new FakeModel { Hang = true };
         var host = ChatHost.Site with { Timeout = TimeSpan.FromMilliseconds(20) };
+        var chat = Chat(model);
 
-        Assert.That(async () => await All(Chat(model).ReplyAsync(Asked("Hi"), ToolCaller.Anonymous, host)), Throws.InstanceOf<OperationCanceledException>());
+        Assert.That(async () => await Ask(chat, "Hi", ToolCaller.Anonymous, host),
+            Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.TookTooLong));
+    }
+
+    [Test]
+    public void Start_TheAskerStoppingWaiting_IsNoTimeout()
+    {
+        var chat = Chat(new FakeModel { Hang = true });
+        using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(20));
+
+        Assert.That(async () =>
+        {
+            using var reply = chat.Start([], "Hi", ToolCaller.Anonymous, ChatHost.Site, Asker);
+            await All(reply.StreamAsync(stop.Token));
+        }, Throws.InstanceOf<OperationCanceledException>());
+    }
+
+    [Test]
+    public void Start_NoModel_IsUnavailable()
+    {
+        var chat = Chat(new FakeModel());
+        _clients.Available.Returns(false);
+
+        Assert.That(() => chat.Start([], "Hi", ToolCaller.Anonymous, ChatHost.Site, Asker),
+            Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.Unavailable));
+        _clients.DidNotReceive().Create();
+    }
+
+    [Test]
+    public void Start_AQuestionOverTheLimit_IsRefusedOnEveryHost([Values] bool discord)
+    {
+        var chat = Chat(new FakeModel());
+
+        Assert.That(() => chat.Start([], new string('a', GrifChat.MaxQuestionLength + 1), ToolCaller.Anonymous, discord ? ChatHost.DiscordDirect : ChatHost.Site, Asker),
+            Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo("Ask in 2000 characters or fewer."));
+    }
+
+    [Test]
+    public void Start_TrimsTheHistoryAndCutsLongMessages_WhateverTheHost()
+    {
+        var history = Enumerable.Range(1, GrifChat.HistoryLimit + 5).Select(i => new ChatMessage(ChatRole.User, i == 30 ? new string('a', 5000) : $"m{i}"));
+
+        using var reply = Chat(new FakeModel()).Start(history, "Next?", ToolCaller.Anonymous, ChatHost.Discord, Asker);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reply.Conversation, Has.Count.EqualTo(GrifChat.HistoryLimit + 1));
+            Assert.That(reply.Conversation[^2].Text, Has.Length.EqualTo(GrifChat.MaxHistoryMessageLength));
+            Assert.That(reply.Conversation[^1].Text, Is.EqualTo("Next?"));
+        }
+    }
+
+    [Test]
+    public void Start_WhileTheAskersLastReplyIsUnderWay_IsBusy_UntilItIsDone()
+    {
+        var chat = Chat(new FakeModel([Text("Hi")]));
+        var first = chat.Start([], "Hi", ToolCaller.Anonymous, ChatHost.DiscordDirect, "discord:5");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(() => chat.Start([], "Again", ToolCaller.Anonymous, ChatHost.DiscordDirect, "discord:5"),
+                Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(ChatLimits.Busy));
+            Assert.That(() => chat.Start([], "Hi", ToolCaller.Anonymous, ChatHost.DiscordDirect, "discord:6").Dispose(), Throws.Nothing, "another asker");
+        }
+        first.Dispose();
+        Assert.That(() => chat.Start([], "Again", ToolCaller.Anonymous, ChatHost.DiscordDirect, "discord:5").Dispose(), Throws.Nothing);
+    }
+
+    [Test]
+    public async Task StreamAsync_TheAskerStopping_FreesTheirSlotAtOnce_NotWhenTheReplyHasWoundDown()
+    {
+        var blocked = new TaskCompletionSource();
+        var model = new FakeModel([Text("Late")]) { Blocked = blocked };
+        var chat = Chat(model);
+        using var stop = new CancellationTokenSource();
+        using var first = chat.Start([], "Hi", ToolCaller.Anonymous, ChatHost.Site, Asker);
+        var streaming = All(first.StreamAsync(stop.Token));
+        await model.Asked.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        await stop.CancelAsync();
+
+        // The model hasn't noticed: the first reply is still under way, yet the asker may ask again
+        Assert.That(() => chat.Start([], "Again", ToolCaller.Anonymous, ChatHost.Site, Asker).Dispose(), Throws.Nothing);
+        blocked.SetResult();
+        try
+        {
+            await streaming;
+        }
+        catch (OperationCanceledException)
+        {
+            // Canceled, as asked
+        }
+    }
+
+    [Test]
+    public async Task StreamAsync_Done_FreesTheSlot_EvenUndisposed()
+    {
+        var chat = Chat(new FakeModel([Text("Hi")]));
+        var reply = chat.Start([], "Hi", ToolCaller.Anonymous, ChatHost.Site, Asker);
+
+        await All(reply.StreamAsync());
+
+        Assert.That(() => chat.Start([], "Again", ToolCaller.Anonymous, ChatHost.Site, Asker).Dispose(), Throws.Nothing);
+        reply.Dispose();
     }
 
     [TestCase(true)]
@@ -160,7 +306,7 @@ public class GrifChatUnitTests
         var clients = Substitute.For<IChatClientFactory>();
         clients.Available.Returns(configured);
 
-        Assert.That(new GrifChat(clients, Substitute.For<IServiceScopeFactory>()).Available, Is.EqualTo(configured));
+        Assert.That(new GrifChat(clients, Substitute.For<IServiceScopeFactory>(), _limits).Available, Is.EqualTo(configured));
     }
 
     [Test]
@@ -185,7 +331,7 @@ public class GrifChatUnitTests
     }
 
     [Test]
-    public void Hosts_ADiscordChannelIsPublic_ADmAndTheSitePrivate_OnlyTheSiteTimed()
+    public void Hosts_ADiscordChannelIsPublic_ADmAndTheSitePrivate_AllTimed()
     {
         using (Assert.EnterMultipleScope())
         {
@@ -195,7 +341,9 @@ public class GrifChatUnitTests
             Assert.That(ChatHost.DiscordDirect.Tools, Is.SameAs(GrifTools.PrivateChat));
             Assert.That(ChatHost.Site.Tools, Is.SameAs(GrifTools.PrivateChat));
             Assert.That(ChatHost.Discord.InPublic, Is.True);
-            Assert.That(ChatHost.Discord.Timeout, Is.EqualTo(Timeout.InfiniteTimeSpan));
+            // One model, one reply at a time: no host may hold it forever
+            Assert.That(ChatHost.Discord.Timeout, Is.EqualTo(TimeSpan.FromMinutes(2)));
+            Assert.That(ChatHost.DiscordDirect.Timeout, Is.EqualTo(TimeSpan.FromMinutes(2)));
             Assert.That(ChatHost.Site.InPublic, Is.False);
             Assert.That(ChatHost.Site.Timeout, Is.EqualTo(TimeSpan.FromMinutes(2)));
         }
@@ -220,7 +368,7 @@ public class GrifChatUnitTests
     }
 
     [Test]
-    public void Conversation_OfARequest_TheBrowsersHistoryInItsRoles()
+    public void History_OfARequest_TheBrowsersHistoryInItsRoles()
     {
         var request = new ChatRequestDto
         {
@@ -228,32 +376,47 @@ public class GrifChatUnitTests
             History = [new ChatTurnDto { FromBot = false, Text = "Hi" }, new ChatTurnDto { FromBot = true, Text = "Hello" }],
         };
 
-        var conversation = GrifChat.Conversation(request);
-
-        Assert.That(conversation.Select(m => (m.Role, m.Text)), Is.EqualTo(new[] { (ChatRole.User, "Hi"), (ChatRole.Assistant, "Hello"), (ChatRole.User, "And now?") }));
+        Assert.That(GrifChat.History(request).Select(m => (m.Role, m.Text)), Is.EqualTo(new[] { (ChatRole.User, "Hi"), (ChatRole.Assistant, "Hello") }));
     }
 
     [TestCase("", "Ask a question.")]
     [TestCase("   ", "Ask a question.")]
+    [TestCase(null, "Ask a question.")]
     [TestCase("Who won?", null)]
-    public void Refusal_OfAQuestion(string question, string? refusal)
-        => Assert.That(GrifChat.Refusal(new ChatRequestDto { Question = question, History = [] }), Is.EqualTo(refusal));
+    public void Refusal_OfAQuestion(string? question, string? refusal)
+        => Assert.That(GrifChat.Refusal(new ChatRequestDto { Question = question!, History = [] }), Is.EqualTo(refusal));
 
     [Test]
     public void Refusal_QuestionOverDiscordsLimit_IsRefused_AtTheLimitIsNot()
     {
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(GrifChat.Refusal(new ChatRequestDto { Question = new string('a', GrifChat.MaxQuestionLength + 1), History = [] }), Is.EqualTo("Ask in 2000 characters or fewer."));
-            Assert.That(GrifChat.Refusal(new ChatRequestDto { Question = new string('a', GrifChat.MaxQuestionLength), History = [] }), Is.Null);
+            Assert.That(GrifChat.Refusal(new string('a', GrifChat.MaxQuestionLength + 1)), Is.EqualTo("Ask in 2000 characters or fewer."));
+            Assert.That(GrifChat.Refusal(new string('a', GrifChat.MaxQuestionLength)), Is.Null);
+        }
+    }
+
+    [Test]
+    public void Refusal_AHistoryTheBrowserSentAsNull_OrWithANullMessage_IsUnreadable_NotAFault()
+    {
+        // JSON's null passes for a required property: what a client sends, not what the types say
+        var noHistory = JsonSerializer.Deserialize<ChatRequestDto>("""{"question":"Hi","history":null}""", JsonSerializerOptions.Web)!;
+        var nullTurn = JsonSerializer.Deserialize<ChatRequestDto>("""{"question":"Hi","history":[null]}""", JsonSerializerOptions.Web)!;
+        var nullText = JsonSerializer.Deserialize<ChatRequestDto>("""{"question":"Hi","history":[{"fromBot":true,"text":null}]}""", JsonSerializerOptions.Web)!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(GrifChat.Refusal(noHistory), Is.EqualTo(GrifChat.Unreadable));
+            Assert.That(GrifChat.Refusal(nullTurn), Is.EqualTo(GrifChat.Unreadable));
+            Assert.That(GrifChat.Refusal(nullText), Is.EqualTo(GrifChat.Unreadable));
         }
     }
 
     private static ChatResponseUpdate Text(string text) => new(ChatRole.Assistant, text);
 
     /// <summary>
-    /// A model that streams each reply it is given in turn, one per request, and records each request; or, with
-    /// <see cref="Hang"/>, never answers until it is canceled.
+    /// A model that streams each reply it is given in turn, one per request, and records each request; with <see cref="Hang"/>,
+    /// never answers until it is canceled; with <see cref="Blocked"/>, waits for it whatever is canceled.
     /// </summary>
     private sealed class FakeModel(params ChatResponseUpdate[][] replies) : IChatClient
     {
@@ -265,6 +428,11 @@ public class GrifChatUnitTests
 
         public bool Hang { get; init; }
 
+        public TaskCompletionSource? Blocked { get; init; }
+
+        /// <summary>Set when the model is first asked.</summary>
+        public TaskCompletionSource Asked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("The chat only streams");
 
@@ -273,8 +441,11 @@ public class GrifChatUnitTests
         {
             Requests.Add(messages.ToList());
             Options.Add(options);
+            Asked.TrySetResult();
             if (Hang)
                 await Task.Delay(Timeout.Infinite, cancellationToken);
+            if (Blocked is not null)
+                await Blocked.Task;
             foreach (var update in _replies.Dequeue())
                 yield return update;
         }

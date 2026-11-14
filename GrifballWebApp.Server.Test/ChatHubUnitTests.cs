@@ -1,10 +1,13 @@
 using System.Net;
 using System.Security.Claims;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Channels;
 using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Infrastructure.Services;
 using GrifballWebApp.Server.Chat;
+using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Connections.Features;
 using Microsoft.AspNetCore.Http.Features;
@@ -16,8 +19,8 @@ using NSubstitute;
 namespace GrifballWebApp.Server.Test;
 
 /// <summary>
-/// The site's chat hub on a scripted model (<see cref="ScriptedChatClient"/>): who it asks as, what it streams back, what it
-/// refuses and how a failure reaches the browser. No host or network.
+/// The site's chat hub on a scripted model (<see cref="ScriptedChatClient"/>): who it asks as (the user as HubSessionFilter found
+/// them, <see cref="HubUser"/>), what it streams back, what it refuses and how a failure reaches the browser. No host or network.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -25,7 +28,6 @@ public class ChatHubUnitTests
 {
     private static readonly string[] HiThere = ["Hi ", "there"];
     private static readonly string[] Hi = ["Hi"];
-    private static readonly string[] PlayerAndCommissioner = ["Player", "Commissioner"];
 
     private readonly IChatClientFactory _clients = Substitute.For<IChatClientFactory>();
     private readonly IAmbientCurrentUser _ambient = Substitute.For<IAmbientCurrentUser>();
@@ -35,7 +37,11 @@ public class ChatHubUnitTests
     [TearDown]
     public void TearDown() => _limits.Dispose();
 
-    private ChatHub Hub(IChatClient model, ClaimsPrincipal? user = null, string connectionId = "connection-1", string address = "203.0.113.9")
+    /// <summary>
+    /// The hub for <paramref name="user"/> as the database has them now (signed out by default), on a connection whose claims are
+    /// <paramref name="claims"/> (signed out by default), from <paramref name="address"/>.
+    /// </summary>
+    private ChatHub Hub(IChatClient model, HubUserState? user = null, ClaimsPrincipal? claims = null, string address = "203.0.113.9")
     {
         _clients.Create().Returns(model);
         _clients.Available.Returns(true);
@@ -44,16 +50,13 @@ public class ChatHubUnitTests
         var features = new FeatureCollection();
         features.Set<IHttpContextFeature>(new HttpContextHolder { HttpContext = http });
         var context = Substitute.For<HubCallerContext>();
-        context.User.Returns(user ?? new ClaimsPrincipal(new ClaimsIdentity()));
-        context.ConnectionId.Returns(connectionId);
+        context.User.Returns(claims ?? new ClaimsPrincipal(new ClaimsIdentity()));
+        context.ConnectionId.Returns("connection-1");
         context.Features.Returns(features);
-        return new ChatHub(new GrifChat(_clients, Substitute.For<IServiceScopeFactory>()), _limits, _ambient, _logger) { Context = context };
+        var now = new HubUser();
+        now.Set(user ?? HubUserState.Anonymous);
+        return new ChatHub(new GrifChat(_clients, Substitute.For<IServiceScopeFactory>(), _limits), now, _ambient, _logger) { Context = context };
     }
-
-    private static ClaimsPrincipal SignedIn(int userId, params string[] roles)
-        => new(new ClaimsIdentity(
-            roles.Select(r => new Claim(ClaimTypes.Role, r)).Prepend(new Claim(ClaimTypes.NameIdentifier, userId.ToString(System.Globalization.CultureInfo.InvariantCulture))),
-            "Cookies"));
 
     private static ChatRequestDto Question(string question = "Who won?", params ChatTurnDto[] history) => new() { Question = question, History = [.. history] };
 
@@ -77,7 +80,7 @@ public class ChatHubUnitTests
     public async Task Ask_SignedIn_AsksAsTheUserWithTheirRoles_InPrivate_AndStreamsTheReply()
     {
         var model = new ScriptedChatClient((TimeSpan.Zero, "Hi "), (TimeSpan.Zero, ""), (TimeSpan.Zero, "there"));
-        var hub = Hub(model, SignedIn(7, "Player"));
+        var hub = Hub(model, new HubUserState(7, ["Player"]));
 
         var (texts, error) = await Read(await hub.Ask(Question("And now?", new ChatTurnDto { FromBot = false, Text = "Hi" }, new ChatTurnDto { FromBot = true, Text = "Hello" }), CancellationToken.None));
 
@@ -103,7 +106,7 @@ public class ChatHubUnitTests
     {
         var model = new ScriptedChatClient((TimeSpan.Zero, "Hi"));
 
-        var (_, error) = await Read(await Hub(model, SignedIn(7, "Player", "Commissioner")).Ask(Question(), CancellationToken.None));
+        var (_, error) = await Read(await Hub(model, new HubUserState(7, ["Player", "Commissioner"])).Ask(Question(), CancellationToken.None));
 
         var tools = model.Options!.Tools!.Select(t => t.Name).ToList();
         using (Assert.EnterMultipleScope())
@@ -113,6 +116,17 @@ public class ChatHubUnitTests
             Assert.That(tools, Does.Contain("get_commissioner_dashboard").And.Contain("report_season_match_game"));
             Assert.That(tools, Does.Not.Contain("list_pending_gamertag_claims").And.Not.Contain("decide_gamertag_claim"));
         }
+    }
+
+    [Test]
+    public async Task Ask_ARoleTheClaimsStillHaveButTheUserLost_GivesNoneOfItsTools()
+    {
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi"));
+        var claims = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "7"), new Claim(ClaimTypes.Role, "Sysadmin")], "Cookies"));
+
+        await Read(await Hub(model, new HubUserState(7, ["Player"]), claims).Ask(Question(), CancellationToken.None));
+
+        Assert.That(model.Options!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat), "the user's roles now, not the connection's claims");
     }
 
     [Test]
@@ -157,34 +171,78 @@ public class ChatHubUnitTests
     }
 
     [Test]
-    public async Task Ask_WhileAReplyIsUnderWayOnTheConnection_IsRefused_AndAllowedOnceItIsDone()
+    public async Task Ask_AHistoryOfNulls_IsRefusedAsUnreadable_NotThrown()
+    {
+        var hub = Hub(new ScriptedChatClient());
+
+        var (_, noHistory) = await Read(await hub.Ask(new ChatRequestDto { Question = "Hi", History = null! }, CancellationToken.None));
+        var (_, nullTurn) = await Read(await hub.Ask(new ChatRequestDto { Question = "Hi", History = [null!] }, CancellationToken.None));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(noHistory, Is.EqualTo(GrifChat.Unreadable));
+            Assert.That(nullTurn, Is.EqualTo(GrifChat.Unreadable));
+            Assert.That(_logger.Entries, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task Ask_WhileTheirLastReplyIsUnderWay_IsRefused_AndAllowedOnceItIsDone()
     {
         var release = new TaskCompletionSource();
         var model = new ScriptedChatClient((TimeSpan.Zero, "Hi")) { BeforeReply = _ => release.Task };
-        var hub = Hub(model);
+        var hub = Hub(model, new HubUserState(7, []));
 
         var first = await hub.Ask(Question(), CancellationToken.None);
         var (_, refused) = await Read(await hub.Ask(Question(), CancellationToken.None));
         release.SetResult();
-        var (firstTexts, _) = await Read(first);
+        await Read(first);
         var (_, third) = await Read(await hub.Ask(Question(), CancellationToken.None));
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(refused, Is.EqualTo(ChatLimits.Busy));
-            Assert.That(firstTexts, Is.EqualTo(Hi));
             Assert.That(third, Is.Null);
         }
     }
 
     [Test]
-    public async Task Ask_SignedOutAddressOverItsQuestionsAMinute_IsRefused()
+    public async Task Ask_RightAfterTheBrowserStopsTheLastReply_IsAnswered_ThoughThatReplyIsStillWindingDown()
+    {
+        var neverEnds = new TaskCompletionSource();
+        var asked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var hub = Hub(new ScriptedChatClient((TimeSpan.Zero, "Late"))
+        {
+            BeforeReply = async _ =>
+            {
+                asked.SetResult();
+                await neverEnds.Task;
+            },
+        });
+        using var stop = new CancellationTokenSource();
+        await hub.Ask(Question(), stop.Token);
+        await asked.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // The page's Stop: SignalR cancels the stream's token
+        await stop.CancelAsync();
+        var (texts, error) = await Read(await Hub(new ScriptedChatClient((TimeSpan.Zero, "Hi"))).Ask(Question(), CancellationToken.None));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(error, Is.Null);
+            Assert.That(texts, Is.EqualTo(Hi));
+        }
+        neverEnds.SetResult();
+    }
+
+    [Test]
+    public async Task Ask_SignedOutAddressOverItsQuestionsAMinute_IsRefused_ItsWholeIPv6Slash64Alike()
     {
         var errors = new List<string?>();
-        for (var i = 0; i <= ChatLimits.SignedOutPerMinute; i++)
-            errors.Add((await Read(await Hub(new ScriptedChatClient((TimeSpan.Zero, "Hi")), connectionId: $"connection-{i}").Ask(Question(), CancellationToken.None))).Error);
+        for (var i = 0; i <= ChatLimits.OthersPerMinute; i++)
+            errors.Add((await Read(await Hub(new ScriptedChatClient((TimeSpan.Zero, "Hi")), address: $"2001:db8:1:2::{i + 1:x}").Ask(Question(), CancellationToken.None))).Error);
 
-        Assert.That(errors, Is.EqualTo(Enumerable.Repeat<string?>(null, ChatLimits.SignedOutPerMinute).Append(ChatLimits.TooMany)));
+        Assert.That(errors, Is.EqualTo(Enumerable.Repeat<string?>(null, ChatLimits.OthersPerMinute).Append(ChatLimits.TooMany)));
     }
 
     [Test]
@@ -192,7 +250,7 @@ public class ChatHubUnitTests
     {
         var model = new ScriptedChatClient { BeforeReply = _ => throw new HttpRequestException("Ollama is down") };
 
-        var (_, error) = await Read(await Hub(model, SignedIn(7)).Ask(Question(), CancellationToken.None));
+        var (_, error) = await Read(await Hub(model, new HubUserState(7, [])).Ask(Question(), CancellationToken.None));
 
         using (Assert.EnterMultipleScope())
         {
@@ -204,15 +262,15 @@ public class ChatHubUnitTests
     }
 
     [Test]
-    public async Task Ask_ReplyCanceledButNotByTheBrowser_IsTheSitesTimeout()
+    public async Task Ask_TheChatEndingTheReply_TellsTheBrowserWhy_AndLogsNothing()
     {
-        var model = new ScriptedChatClient { BeforeReply = _ => throw new OperationCanceledException() };
+        var model = new ScriptedChatClient { BeforeReply = _ => throw new ChatRefusedException(GrifChat.TookTooLong) };
 
         var (_, error) = await Read(await Hub(model).Ask(Question(), CancellationToken.None));
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(error, Is.EqualTo(ChatHub.TookTooLong));
+            Assert.That(error, Is.EqualTo(GrifChat.TookTooLong));
             Assert.That(_logger.Entries, Is.Empty);
         }
     }
@@ -236,43 +294,26 @@ public class ChatHubUnitTests
         }
     }
 
-    [Test]
-    public void Caller_SignedIn_IsTheUserWithTheirRoles_SignedOutHasNoAccount()
+    [TestCase('a')]
+    [TestCase('\u0001')]
+    [TestCase('一')]
+    public void MaximumReceiveMessageSize_TakesAQuestionAndTheHistoryTheServerReads_InAnyCharacters(char character)
     {
-        var signedIn = ChatHub.Caller(SignedIn(7, "Player", "Commissioner"));
-
-        using (Assert.EnterMultipleScope())
+        // The page's largest: the history the server reads, every message and the question at their limits, every character the
+        // costliest JSON has (a control character or, escaped by default, any non-ASCII one: 6 bytes)
+        var request = new ChatRequestDto
         {
-            Assert.That(signedIn.UserID, Is.EqualTo(7));
-            Assert.That(signedIn.Roles, Is.EqualTo(PlayerAndCommissioner));
-            Assert.That(signedIn.InPublic, Is.False);
-            Assert.That(ChatHub.Caller(new ClaimsPrincipal(new ClaimsIdentity())), Is.SameAs(ToolCaller.Anonymous));
-            Assert.That(ChatHub.Caller(null), Is.SameAs(ToolCaller.Anonymous));
-        }
+            Question = new string(character, GrifChat.MaxQuestionLength),
+            History = [.. Enumerable.Range(0, GrifChat.HistoryLimit).Select(i => new ChatTurnDto { FromBot = i % 2 == 1, Text = new string(character, GrifChat.MaxHistoryMessageLength) })],
+        };
+        var invocation = JsonSerializer.Serialize(new { type = 4, invocationId = "1", target = "Ask", arguments = new object[] { request }, streamIds = Array.Empty<string>() },
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)) + "\u001e";
+
+        Assert.That(Encoding.UTF8.GetByteCount(invocation), Is.LessThanOrEqualTo(ChatHub.MaximumReceiveMessageSize));
     }
 
     private sealed class HttpContextHolder : IHttpContextFeature
     {
         public HttpContext? HttpContext { get; set; }
-    }
-
-    [Test]
-    public void Limits_SignedInUser_HasTheirOwnLargerAllowance_ByUserNotAddress()
-    {
-        var partition = ChatLimits.Partition(new ToolCaller(7, []), "203.0.113.9");
-        var refusals = Enumerable.Range(0, ChatLimits.SignedInPerMinute + 1).Select(i =>
-        {
-            var refusal = _limits.TryStart($"connection-{i}", partition);
-            _limits.Finish($"connection-{i}");
-            return refusal;
-        }).ToList();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(partition, Is.EqualTo("user:7"));
-            Assert.That(ChatLimits.Partition(ToolCaller.Anonymous, "203.0.113.9"), Is.EqualTo("address:203.0.113.9"));
-            Assert.That(refusals.Count(r => r is null), Is.EqualTo(ChatLimits.SignedInPerMinute));
-            Assert.That(refusals[^1], Is.EqualTo(ChatLimits.TooMany));
-        }
     }
 }

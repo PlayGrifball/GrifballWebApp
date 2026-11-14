@@ -94,6 +94,7 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         yield return Of(typeof(IDiscordAccountLinkService), typeof(DiscordAccountLinkService), ServiceLifetime.Scoped);
         yield return Of(typeof(RescheduleService), typeof(RescheduleService), ServiceLifetime.Transient);
         yield return Of(typeof(GrifChat), typeof(GrifChat), ServiceLifetime.Transient);
+        yield return Of(typeof(ChatLimits), typeof(ChatLimits), ServiceLifetime.Singleton);
     }
 
     private static IServiceCollection AddApplication(Dictionary<string, string?>? settings = null)

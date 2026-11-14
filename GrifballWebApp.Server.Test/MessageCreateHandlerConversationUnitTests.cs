@@ -48,6 +48,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     private readonly IDataPullService _dataPull = Substitute.For<IDataPullService>();
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
     private bool _modelConfigured = true;
+    private readonly ChatLimits _limits = new();
     private readonly IDiscordRestClient _rest = Substitute.For<IDiscordRestClient>();
     private readonly FakeRestRequestHandler _discord = new() { EchoContent = true, UniqueIds = true };
     private ServiceProvider _services = null!;
@@ -55,6 +56,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     [TearDown]
     public async Task TearDownServices()
     {
+        _limits.Dispose();
         _discord.Dispose();
         if (_services is not null)
             await _services.DisposeAsync();
@@ -90,7 +92,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         chatClients.Available.Returns(_modelConfigured);
         chatClients.Create().Returns(models[0], models[1..]);
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
-        return new MessageCreateHandler(_rest, config, _services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger, chatClients, _time);
+        var scopes = _services.GetRequiredService<IServiceScopeFactory>();
+        return new MessageCreateHandler(_rest, config, scopes, _ambient, _logger, new GrifChat(chatClients, scopes, _limits), _time);
     }
 
     private NetCord.Gateway.Message MessageToTheBot()
@@ -425,6 +428,58 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo(GrifChat.Unavailable));
             Assert.That(model.Options, Is.Null, "the model isn't asked");
             Assert.That(await Db.DiscordMessages.AnyAsync(), Is.False);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_DmsOverTheirQuestionsAMinute_AreRefused_AsOnTheSite()
+    {
+        DmHolds();
+        var models = Enumerable.Range(0, ChatLimits.OthersPerMinute).Select(_ => (IChatClient)new ScriptedChatClient((TimeSpan.Zero, "Hi"))).ToArray();
+        var handler = Handler(models);
+
+        for (var i = 0; i <= ChatLimits.OthersPerMinute; i++)
+            await handler.HandleAsync(DirectMessage());
+
+        AssertNothingLogged();
+        var replies = _discord.SentMessages().Select(m => m.Body.GetProperty("content").GetString()).ToList();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(replies, Has.Count.EqualTo(ChatLimits.OthersPerMinute + 1));
+            Assert.That(replies[..^1], Is.All.EqualTo("Hi"));
+            Assert.That(replies[^1], Is.EqualTo(ChatLimits.TooMany));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AQuestionOverTheChatsLimit_IsRefused_AsOnTheSite()
+    {
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Never"));
+        var question = GatewayMessages.Build(AuthorId, MentionsTheBot, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }),
+            content: new string('a', GrifChat.MaxQuestionLength + 1));
+
+        await Handler(model).HandleAsync(question);
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Ask in 2000 characters or fewer."));
+            Assert.That(model.Options, Is.Null, "the model isn't asked");
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AReplyTheChatCutsShort_SaysWhy()
+    {
+        var model = new ScriptedChatClient { BeforeReply = _ => throw new ChatRefusedException(GrifChat.TookTooLong) };
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo(GrifChat.TookTooLong));
+            Assert.That(await SavedReplies(), Is.Empty, "why is no part of the conversation");
         }
     }
 }
