@@ -1,4 +1,4 @@
-import { provideHttpClient, withXhr } from '@angular/common/http';
+import { HttpRequest, provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -30,6 +30,9 @@ const page = (overrides: Partial<SeasonMatchPageDto> = {}): SeasonMatchPageDto =
   canUndo: false,
   ...overrides,
 });
+
+/** A roster's request (each side's team page). */
+const teamRequest = (request: HttpRequest<unknown>) => request.url.startsWith('/api/teams/');
 
 const team = (name: string) => ({ teamName: name, players: [{ teamPlayerID: 1, userID: 1, gamertag: `${name} captain`, draftCaptainOrder: 1, draftRound: null }] });
 
@@ -74,7 +77,7 @@ describe('SeasonMatchStore', () => {
   it('drops the previous match when another opens, and cancels its request', () => {
     setUp();
     open(page());
-    http.match(/\/api\/teams\//).forEach(r => r.flush(team('x')));
+    http.match(teamRequest).forEach(r => r.flush(team('x')));
 
     const first = store.open(8);
     expect(store.seasonMatch()).toBeNull();
@@ -94,7 +97,7 @@ describe('SeasonMatchStore', () => {
     store.reload();
     http.expectOne('/api/season-matches/7').flush(page({ homeTeamScore: 1 }));
     TestBed.tick();
-    http.expectNone(/\/api\/teams\//);
+    http.expectNone(teamRequest);
     expect(store.seasonMatch()!.homeTeamScore).toBe(1);
 
     store.reload();
@@ -107,7 +110,7 @@ describe('SeasonMatchStore', () => {
   it('sends each commissioner action to its endpoint', () => {
     setUp();
     open(page());
-    http.match(/\/api\/teams\//).forEach(r => r.flush(team('x')));
+    http.match(teamRequest).forEach(r => r.flush(team('x')));
     const endpoints: Record<MatchAction, string> = {
       HomeForfeit: '/api/season-matches/7/forfeit/home',
       AwayForfeit: '/api/season-matches/7/forfeit/away',
@@ -123,7 +126,7 @@ describe('SeasonMatchStore', () => {
   it('reports a Waypoint game as a new game, or in place of one', () => {
     setUp();
     open(page());
-    http.match(/\/api\/teams\//).forEach(r => r.flush(team('x')));
+    http.match(teamRequest).forEach(r => r.flush(team('x')));
 
     store.report('abc').subscribe();
     expect(http.expectOne({ method: 'POST', url: '/api/season-matches/7/games/abc/report' }).request.params.has('replaces')).toBeFalse();
@@ -140,6 +143,6 @@ describe('SeasonMatchStore', () => {
     expect(store.possibleMatchesState()).toBe('loading');
     expect(store.pull()).toBeNull();
     TestBed.tick();
-    http.match(/\/api\/teams\//).forEach(r => r.flush(team('x')));
+    http.match(teamRequest).forEach(r => r.flush(team('x')));
   });
 });
