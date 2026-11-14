@@ -118,7 +118,8 @@ public sealed class NumberEnumSchemaFilter : ISchemaFilter
 {
     public void Apply(IOpenApiSchema schema, SchemaFilterContext context)
     {
-        if (schema is not OpenApiSchema enumSchema || !SentAsNumber(context.Type))
+        // Its own schema only: a property's (the filters see those too, with the property's type) refers to it
+        if (schema is not OpenApiSchema enumSchema || context.MemberInfo is not null || !SentAsNumber(context.Type))
             return;
         enumSchema.Type = JsonSchemaType.Integer;
         enumSchema.Format = "int32";

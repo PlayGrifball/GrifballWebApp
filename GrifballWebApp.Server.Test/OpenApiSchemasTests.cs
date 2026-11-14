@@ -381,6 +381,13 @@ public class OpenApiInclusionTests
 [JsonConverter(typeof(JsonNumberEnumConverter<Level>))]
 public enum Level { Low = 1, High = 5 }
 
+/// <summary>A property of an enum sent as its number, with the converter that sends it so.</summary>
+public sealed class Leveled
+{
+    [JsonConverter(typeof(JsonNumberEnumConverter<Level>))]
+    public Level Level { get; set; }
+}
+
 /// <summary>An enum the API sends as its name (the global JsonStringEnumConverter).</summary>
 public enum Colour { Red, Blue }
 
@@ -430,6 +437,23 @@ public class NumberEnumSchemaFilterTests
             Assert.That(colour.Enum!.Select(v => v.GetValue<string>()), Is.EqualTo(ColourNames));
             Assert.That(text.Type, Is.EqualTo(JsonSchemaType.String));
             Assert.That(text.Enum, Is.Null);
+        }
+    }
+
+    [Test]
+    public void LeavesAPropertysSchema_ToItsReference()
+    {
+        // Swashbuckle runs the filters on a property's schema too, with the property's type: the enum is described once,
+        // in its own schema, which the property's allOf refers to
+        var property = new OpenApiSchema { AllOf = [new OpenApiSchemaReference("Level")] };
+
+        new NumberEnumSchemaFilter().Apply(property, new SchemaFilterContext(typeof(Level), null!, new SchemaRepository(), typeof(Leveled).GetProperty(nameof(Leveled.Level))!, null!));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(property.Type, Is.Null);
+            Assert.That(property.Enum, Is.Null);
+            Assert.That(property.AllOf, Has.Count.EqualTo(1));
         }
     }
 
