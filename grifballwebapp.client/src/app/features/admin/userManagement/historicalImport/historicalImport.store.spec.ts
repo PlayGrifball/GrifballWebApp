@@ -55,10 +55,10 @@ describe('HistoricalImportStore', () => {
   });
 
   it('queues a refresh and shows its job, looked at again until it finishes', async () => {
+    lists();
+    await settle();
     jasmine.clock().install();
     try {
-      lists();
-      await settle();
       store.refresh();
       expect(store.busy()).toBeTrue();
       http.expectOne({ method: 'POST', url: '/api/historical-sources/refresh' }).flush({ jobID: 9 });
@@ -71,24 +71,24 @@ describe('HistoricalImportStore', () => {
       http.expectOne('/api/historical-imports/9').flush(job(9, 'Succeeded'));
       jasmine.clock().tick(JOB_POLL_MS);
       http.expectNone('/api/historical-imports/9');
+      await Promise.resolve();
+      expect(store.selectedJob()!.status).toBe('Succeeded');
     } finally {
       jasmine.clock().uninstall();
     }
-    await settle();
-    expect(store.selectedJob()!.status).toBe('Succeeded');
   });
 
   it('sends each action to its endpoint', async () => {
     lists();
     await settle();
     store.preview();
-    http.expectOne({ method: 'POST', url: '/api/historical-imports/preview' }).flush('x', { status: 409, statusText: 'Conflict' });
+    http.expectOne({ method: 'POST', url: '/api/historical-imports/preview' }).flush(null, { status: 409, statusText: 'Conflict' });
     expect(snackBar.open).toHaveBeenCalledWith("Couldn't start the preview.", 'Close');
 
     store.apply(9);
-    http.expectOne({ method: 'POST', url: '/api/historical-imports/9/apply' }).flush('x', { status: 409, statusText: 'Conflict' });
+    http.expectOne({ method: 'POST', url: '/api/historical-imports/9/apply' }).flush(null, { status: 409, statusText: 'Conflict' });
     store.approve(4);
-    http.expectOne({ method: 'POST', url: '/api/historical-reviews/4/approve' }).flush('x', { status: 409, statusText: 'Conflict' });
+    http.expectOne({ method: 'POST', url: '/api/historical-reviews/4/approve' }).flush(null, { status: 409, statusText: 'Conflict' });
 
     store.skip(4);
     http.expectOne({ method: 'POST', url: '/api/historical-reviews/4/skip' }).flush(null);

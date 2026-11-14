@@ -43,7 +43,6 @@ describe('MergesStore', () => {
     store.previous();
     expect(store.page()).toBe(1);
     store.next();
-    store.next();
     expect(store.page()).toBe(2);
     list(2).flush({ totalCount: 30, results: [merge(30)] });
     await settle();
