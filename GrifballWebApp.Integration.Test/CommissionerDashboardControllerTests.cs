@@ -22,7 +22,7 @@ public class CommissionerDashboardControllerTests
     {
         _context = await TestDatabase.NewGrifballContext();
         var service = new RescheduleService(_context, new ContextOutbox(_context));
-        _controller = new CommissionerDashboardController(service, new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(_context));
+        _controller = new CommissionerDashboardController(new CommissionerDashboardService(service, new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(_context)), service);
     }
 
     [TearDown]

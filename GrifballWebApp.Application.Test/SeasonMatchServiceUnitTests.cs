@@ -512,7 +512,7 @@ internal sealed class SeasonMatchServiceUnitTests : ApplicationDbContextTests
         var seeded = await SeedAsync(Context);
         Context.ChangeTracker.Clear();
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, MatchID(1)));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, MatchID(1)));
 
         Assert.That(ex!.Message, Is.EqualTo("Match does not exist"));
         await _dataPull.Received(1).GetAndSaveMatch(MatchID(1));
@@ -702,7 +702,7 @@ internal sealed class SeasonMatchServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task Forfeit_ASeasonMatchThatIsNotThere_Throws()
     {
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.HomeForfeit(987654));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.HomeForfeit(987654));
 
         Assert.That(ex!.Message, Is.EqualTo("Season match does not exist"));
     }
@@ -713,7 +713,7 @@ internal sealed class SeasonMatchServiceUnitTests : ApplicationDbContextTests
         var seeded = await SeedAsync(Context, withAwayTeam: false);
         Context.ChangeTracker.Clear();
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.AwayForfeit(seeded.SeasonMatch.SeasonMatchID));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.AwayForfeit(seeded.SeasonMatch.SeasonMatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("You cannot report a match for a season match that does not have both teams assigned"));
     }
@@ -726,7 +726,7 @@ internal sealed class SeasonMatchServiceUnitTests : ApplicationDbContextTests
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.DoubleForfeit(seeded.SeasonMatch.SeasonMatchID));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.DoubleForfeit(seeded.SeasonMatch.SeasonMatchID));
 
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
         using (Assert.EnterMultipleScope())
@@ -828,7 +828,7 @@ internal sealed class SeasonMatchServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task UndoResult_ASeasonMatchThatIsNotThere_Throws()
     {
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.UndoResult(987654));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.UndoResult(987654));
 
         Assert.That(ex!.Message, Is.EqualTo("Season match does not exist"));
     }

@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
@@ -143,7 +144,7 @@ public class BracketServiceTests
         await transaction.CommitAsync();
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
+        var exception = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.SetSeeds(seasonID, customSeeds));
         Assert.That(exception.Message, Is.EqualTo("Teams have already been seeded"));
     }
 

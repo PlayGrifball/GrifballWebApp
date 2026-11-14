@@ -1,6 +1,8 @@
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Championships;
+using GrifballWebApp.Application.Commissioner;
+using GrifballWebApp.Application.EventOrganizer;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.MatchPlanner;
@@ -66,12 +68,13 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
         return new AdminCommandsHandler(
             new DiscordCaller(Db), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)),
             new RescheduleService(Db, Substitute.For<IOutbox>()),
+            new CommissionerDashboardService(new RescheduleService(Db, Substitute.For<IOutbox>()), new EventOrganizerService(Db)),
             new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)),
             new MatchPlannerService(Db),
             Substitute.For<IBracketService>(),
             null!,
             new ScheduleRecommendations(Db, time),
-            _quartz?.OnDemand!,
+            _quartz is null ? null! : new ScheduleRecommendationRuns(_quartz.OnDemand),
             new JobsService(_schedulers, history, new RecurringJobs(), time),
             new GamertagClaimService(Db, Substitute.For<IUserMergeService>(), null, time),
             Substitute.For<IDataPullService>(),

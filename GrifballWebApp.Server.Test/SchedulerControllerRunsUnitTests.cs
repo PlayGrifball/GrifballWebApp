@@ -36,7 +36,7 @@ public class SchedulerControllerRunsUnitTests : SqliteGrifballContextFixture
     private async Task<SchedulerController> Controller()
     {
         _quartz = await InMemoryQuartz.Create();
-        return new SchedulerController(Db, new ScheduleRecommendations(Db, _time), _quartz.OnDemand).WithUser("1", "commish");
+        return new SchedulerController(Db, new ScheduleRecommendations(Db, _time), new ScheduleRecommendationRuns(_quartz.OnDemand)).WithUser("1", "commish");
     }
 
     /// <summary>A season with one undecided match, and a recommendation proposing its time.</summary>

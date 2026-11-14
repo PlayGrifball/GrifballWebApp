@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Server.Mcp;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Infrastructure.Preview;
@@ -117,6 +118,10 @@ public class McpServerTests
         return request;
     }
 
+    /// <summary>The tools that change something: the pull tools and staff's actions (<see cref="GrifTools.All"/>'s effects).</summary>
+    private static readonly HashSet<string> Changing = GrifTools.All.Where(s => s.Effect is not ToolEffect.ReadsOnly)
+        .SelectMany(s => GrifTools.Methods(s.Type)).Select(GrifTools.Name).ToHashSet();
+
     private static string Text(CallToolResult result) => string.Join("\n", result.Content.OfType<TextContentBlock>().Select(c => c.Text));
 
     [Test]
@@ -131,7 +136,9 @@ public class McpServerTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(tools.Select(t => t.Name), Is.SupersetOf(SomeTools));
-            Assert.That(tools.Where(t => !t.Name.StartsWith("pull_", StringComparison.Ordinal)).Select(t => t.ProtocolTool.Annotations?.ReadOnlyHint), Has.All.True, "every tool but the pull tools (their pulls save games) only reads");
+            Assert.That(tools.Where(t => !Changing.Contains(t.Name)).Select(t => t.ProtocolTool.Annotations?.ReadOnlyHint), Has.All.True,
+                "every tool but the pull tools (their pulls save games) and staff's actions only reads");
+            Assert.That(tools.Where(t => Changing.Contains(t.Name)).Select(t => t.ProtocolTool.Annotations?.ReadOnlyHint), Has.All.False);
             Assert.That(tools.Select(t => t.Description), Has.None.Null.And.None.Empty);
         }
 
@@ -155,6 +162,22 @@ public class McpServerTests
         {
             Assert.That(result.IsError, Is.True);
             Assert.That(Text(result), Does.Contain("There is no season 987654"));
+        }
+    }
+
+    [Test]
+    public async Task AServicesRefusal_ReachesTheClient_AsTheSitesWouldReachIt()
+    {
+        // The claim service refuses a claim that isn't there with its own exception, which the site answers 400: here its reason
+        var created = await NewAccessToken();
+        await using var mcp = await Connect(created.Token);
+
+        var result = await mcp.CallToolAsync("decide_gamertag_claim", new Dictionary<string, object?> { ["claimID"] = 987654, ["approve"] = true });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.IsError, Is.True);
+            Assert.That(Text(result), Does.Contain("There is no claim 987654"));
         }
     }
 

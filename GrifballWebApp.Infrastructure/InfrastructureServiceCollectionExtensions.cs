@@ -11,6 +11,8 @@ using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Historical;
 using GrifballWebApp.Infrastructure.Historical.Sources;
 using GrifballWebApp.Infrastructure.Jobs;
+using GrifballWebApp.Application.Jobs;
+using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Infrastructure.Matchmaking;
 using GrifballWebApp.Infrastructure.Ollama;
 using GrifballWebApp.Infrastructure.Outbox;
@@ -143,6 +145,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddTransient<ISeasonMatchPulls, SeasonMatchPulls>();
         // An Xbox account's pull from Halo, queued from its page
         services.AddTransient<IXboxAccountPulls, XboxAccountPulls>();
+        // The jobs page's controls and the scheduler's runs, for the agents' staff tools
+        services.AddTransient<IJobControl, JobControl>();
+        services.AddTransient<IScheduleRecommendationRuns, GrifballWebApp.Infrastructure.Scheduler.ScheduleRecommendationRuns>();
         // Quartz.NET: the recurring jobs (their schedules, kept in the database, and the Jobs page) and the scheduler that runs them
         services.AddJobs(configuration, jobs =>
         {
