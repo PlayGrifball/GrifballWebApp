@@ -221,7 +221,7 @@ public class SeasonMatchServiceTests
     {
         // Act & Assert
         const int nonExistentSeasonMatchId = 999;
-        await Assert.ThrowsAsync<Exception>(() => _service.HomeForfeit(nonExistentSeasonMatchId, CancellationToken.None));
+        await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.HomeForfeit(nonExistentSeasonMatchId, CancellationToken.None));
 
         Assert.That(_context.Database.CurrentTransaction, Is.Null);
     }
@@ -318,7 +318,7 @@ public class SeasonMatchServiceTests
     {
         // Act & Assert
         const int nonExistentSeasonMatchId = 999;
-        await Assert.ThrowsAsync<Exception>(() => _service.AwayForfeit(nonExistentSeasonMatchId, CancellationToken.None));
+        await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.AwayForfeit(nonExistentSeasonMatchId, CancellationToken.None));
 
         Assert.That(_context.Database.CurrentTransaction, Is.Null);
     }

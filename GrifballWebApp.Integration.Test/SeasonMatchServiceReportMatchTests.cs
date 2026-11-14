@@ -58,7 +58,7 @@ public class SeasonMatchServiceReportMatchTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var matchID = Guid.NewGuid();
 
-        await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, matchID));
+        await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, matchID));
 
         Assert.That(_context.Database.CurrentTransaction, Is.Null);
     }
