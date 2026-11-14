@@ -48,17 +48,17 @@ public class DiscordCaller
 
     /// <summary>The user linked to this Discord account, with their gamertag and roles; null when none is, or they have no gamertag.</summary>
     public async Task<CallerUser?> Find(ulong discordUserId, CancellationToken ct = default)
-        => await Linked(discordUserId, ct) is { Gamertag: { } gamertag } user ? new CallerUser(user.Id, gamertag, user.Roles) : null;
+        => await Linked(discordUserId, ct) is { Gamertag: { } gamertag } user ? new CallerUser(user.Id, gamertag, user.RoleNames) : null;
 
     /// <summary>
     /// Who the agents' tools run as for this Discord user (the bot's chat): their linked site account with its roles, gamertag or
     /// not, or <see cref="ToolCaller.Anonymous"/> when none is linked.
     /// </summary>
     public async Task<ToolCaller> AsToolCaller(ulong discordUserId, CancellationToken ct = default)
-        => await Linked(discordUserId, ct) is { } user ? new ToolCaller(user.Id, user.Roles) : ToolCaller.Anonymous;
+        => await Linked(discordUserId, ct) is { } user ? new ToolCaller(user.Id, user.RoleNames) : ToolCaller.Anonymous;
 
     /// <summary>The site account linked to a Discord user: its ID, gamertag (if it has one) and roles.</summary>
-    private sealed record LinkedUser(int Id, string? Gamertag, List<string> Roles);
+    private sealed record LinkedUser(int Id, string? Gamertag, List<string> RoleNames);
 
     /// <summary>The site account linked to this Discord user, if any (<see cref="Find"/> and <see cref="AsToolCaller"/> both read it).</summary>
     private Task<LinkedUser?> Linked(ulong discordUserId, CancellationToken ct)
