@@ -33,6 +33,15 @@
     "enableI18nLegacyMessageIdFormat": false,
     "strictInjectionParameters": true,
     "strictInputAccessModifiers": true,
-    "strictTemplates": true
+    "strictTemplates": true,
+    // Host bindings are type-checked too (Angular's default since v20; said here so it stays)
+    "typeCheckHostBindings": true,
+    // Every component, directive and pipe standalone: no NgModule declarations
+    "strictStandalone": true,
+    // Angular's extended template diagnostics (dead ?? and ?., missing () on a signal, a two-way binding to a
+    // non-writable...) fail the build instead of warning
+    "extendedDiagnostics": {
+      "defaultCategory": "error"
+    }
   }
 }
