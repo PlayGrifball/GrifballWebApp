@@ -4,6 +4,7 @@ import type { DeploymentHistoryDto } from '@api/models';
 import { DeploymentHistoryService } from '@api/services/deployment-history.service';
 import { StoreInput } from '@shared/storeInput';
 import { resourceView } from '@shared/resourceView';
+import { map } from 'rxjs';
 
 /** A player's deployment history: loaded for the player shown, and again on a retry. One per panel (the component provides it). */
 @Injectable()
@@ -15,7 +16,8 @@ export class DeploymentHistoryStore {
 
   private readonly resource = resourceView(rxResource({
     params: () => this.userID.value(),
-    stream: ({ params }) => this.api.getDeploymentHistory({ userID: params }),
+    // A null body is no history
+    stream: ({ params }) => this.api.getDeploymentHistory({ userID: params }).pipe(map(history => history ?? [])),
   }), [] as DeploymentHistoryDto[]);
 
   /** Each season the player played, newest first; empty until loaded, or when it failed to. */
