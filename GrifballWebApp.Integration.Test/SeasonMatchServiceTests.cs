@@ -187,7 +187,7 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.HomeForfeit(seasonMatch.SeasonMatchID, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.HomeForfeit(seasonMatch.SeasonMatchID, CancellationToken.None));
         Assert.That(ex!.Message, Does.Contain("does not have both teams assigned"));
     }
 
@@ -284,7 +284,7 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.AwayForfeit(seasonMatch.SeasonMatchID, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.AwayForfeit(seasonMatch.SeasonMatchID, CancellationToken.None));
         Assert.That(ex!.Message, Does.Contain("does not have both teams assigned"));
     }
 

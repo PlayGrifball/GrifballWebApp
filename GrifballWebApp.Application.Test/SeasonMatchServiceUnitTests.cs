@@ -713,7 +713,7 @@ internal sealed class SeasonMatchServiceUnitTests : ApplicationDbContextTests
         var seeded = await SeedAsync(Context, withAwayTeam: false);
         Context.ChangeTracker.Clear();
 
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.AwayForfeit(seeded.SeasonMatch.SeasonMatchID));
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.AwayForfeit(seeded.SeasonMatch.SeasonMatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("You cannot report a match for a season match that does not have both teams assigned"));
     }
