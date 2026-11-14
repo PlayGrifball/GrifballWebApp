@@ -260,7 +260,7 @@ describe('SignupFormComponent', () => {
     tuesday.querySelector<HTMLInputElement>('mat-checkbox input')!.click();
     await fixture.whenStable();
 
-    (component as any).signupForm = () => ({ valid: true });
+    (component as unknown as { signupForm: () => unknown }).signupForm = () => ({ valid: true });
     component.onSubmit();
     const body = httpMock.expectOne('/api/seasons/5/signups/mine').request.body;
     expect(body.timeslots).toEqual([
@@ -323,7 +323,7 @@ describe('SignupFormComponent', () => {
 
   describe('onSubmit', () => {
     // signupForm is a viewChild() signal; swap it for one that returns a stand-in form.
-    const stubForm = (valid: boolean) => (component as any).signupForm = () => ({ valid });
+    const stubForm = (valid: boolean) => (component as unknown as { signupForm: () => unknown }).signupForm = () => ({ valid });
     /** The page on season 5 (the route's), its loads answered: no signup yet. */
     const onSeason5 = () => {
       fixture.componentRef.setInput('seasonID', 5);

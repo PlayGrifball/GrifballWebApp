@@ -1,5 +1,12 @@
+/** What a validator's error says about itself (Angular's minlength/maxlength, and ours). */
+export interface ValidatorDetails {
+    requiredLength?: number,
+    errorMessage?: string,
+    otherControlName?: string,
+}
+
 export class ValidationService {
-    static getValidatorErrorMessage(validatorName: string, validatorValue?: any) {
+    static getValidatorErrorMessage(validatorName: string, validatorValue: ValidatorDetails = {}) {
       let config: Record<string, string> = {
         required: 'Required',
         invalidCreditCard: 'Is invalid credit card number',

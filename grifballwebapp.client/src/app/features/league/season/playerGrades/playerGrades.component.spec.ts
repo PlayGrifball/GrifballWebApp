@@ -368,14 +368,14 @@ describe('PlayerGradesComponent', () => {
     });
 
     it('should return empty string for invalid grade', () => {
-      expect(component.getColor('X' as any)).toBe('');
+      expect(component.getColor('X')).toBe('');
     });
 
     it('should handle all grade variations', () => {
       const grades = ['S+', 'S', 'S-', 'A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'E+', 'E', 'E-', 'F+', 'F', 'F-'];
       
       grades.forEach(grade => {
-        const color = component.getColor(grade as any);
+        const color = component.getColor(grade);
         expect(color).toBeTruthy();
         expect(color.startsWith('#')).toBe(true);
       });

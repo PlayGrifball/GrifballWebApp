@@ -17,6 +17,7 @@ import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerSta
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import type { TeamDto } from '@api/models';
 import { describePage, PageDescription } from '@shared/pageMeta';
+import type { TeamPageMatchDto } from '@api/models';
 
 /** The team as search results and link previews show it: its name and season, record, titles and roster. */
 export function describeTeam(team: TeamDto): PageDescription {
@@ -126,6 +127,6 @@ export interface MatchDto
 }
 
 /** A team match as the API sends it (scheduledTime as an ISO string or null), with a real DateTime. */
-export function parseTeamMatch(raw: any): MatchDto {
+export function parseTeamMatch(raw: TeamPageMatchDto): MatchDto {
   return { ...raw, scheduledTime: fromApiDate(raw.scheduledTime) };
 }

@@ -7,7 +7,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { describeTeam, MatchDto, parseTeamMatch, TeamComponent } from './team.component';
-import type { SeasonInfoDto, TeamDto } from '@api/models';
+import type { SeasonInfoDto, TeamDto, TeamPageMatchDto } from '@api/models';
 import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
@@ -40,7 +40,7 @@ describe('TeamComponent', () => {
 
   const match = (overrides: Partial<MatchDto>): MatchDto => ({
     seasonMatchID: 1,
-    scheduledTime: '2026-04-01T19:00:00Z' as any, // as the API sends it
+    scheduledTime: '2026-04-01T19:00:00Z' as unknown as MatchDto['scheduledTime'], // as the API sends it
     bestOf: 3,
     score: 2,
     result: 'Won',
@@ -278,9 +278,9 @@ describe('parseTeamMatch', () => {
   const UTC = '2026-01-02T03:04:00Z';
 
   it('parseTeamMatch converts scheduledTime, and keeps an unscheduled match null', () => {
-    expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: UTC, bestOf: 3 }).scheduledTime!.toMillis()).toBe(Date.parse(UTC));
-    expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: null, bestOf: 3 }).scheduledTime).toBeNull();
-    expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: null, bestOf: 3 }).bestOf).toBe(3);
+    expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: UTC, bestOf: 3 } as TeamPageMatchDto).scheduledTime!.toMillis()).toBe(Date.parse(UTC));
+    expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: null, bestOf: 3 } as TeamPageMatchDto).scheduledTime).toBeNull();
+    expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: null, bestOf: 3 } as TeamPageMatchDto).bestOf).toBe(3);
   });
 });
 

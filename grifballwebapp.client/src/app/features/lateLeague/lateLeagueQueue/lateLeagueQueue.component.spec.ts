@@ -3,7 +3,7 @@ import { PLATFORM_ID } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { HttpTransportType, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
+import { HttpTransportType, HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { AuthSession } from '@core/auth/authSession.service';
 import type { QueueStatusDto } from '@api/models';
 import { QUEUE_HUB_URL, LateLeagueQueueComponent } from './lateLeagueQueue.component';
@@ -54,7 +54,7 @@ describe('LateLeagueQueueComponent', () => {
       state: HubConnectionState.Disconnected,
     };
     withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();
-    spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as any);
+    spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as unknown as HubConnection);
   });
 
   afterEach(() => http.verify());

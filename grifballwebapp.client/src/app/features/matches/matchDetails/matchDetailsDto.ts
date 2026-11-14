@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import { fromApiDate } from '@shared/apiDates';
+import type { MatchDetailsDto as ApiMatchDetailsDto } from '@api/models';
 
 /** One Halo Infinite match with every stat pulled for it (GET /api/matches/{matchID}). */
 export interface MatchDetailsDto {
@@ -101,7 +102,7 @@ export function formatSeconds(totalSeconds: number): string {
 }
 
 /** The match as the API sends it (ISO dates, TimeSpan strings), with DateTimes and seconds; null stays null. */
-export function parseMatchDetails(raw: any): MatchDetailsDto | null {
+export function parseMatchDetails(raw: ApiMatchDetailsDto | null): MatchDetailsDto | null {
   if (raw == null)
     return null;
   return {
@@ -109,9 +110,9 @@ export function parseMatchDetails(raw: any): MatchDetailsDto | null {
     startTime: fromApiDate(raw.startTime),
     endTime: fromApiDate(raw.endTime),
     duration: fromApiTimeSpan(raw.duration),
-    teams: (raw.teams ?? []).map((team: any) => ({
+    teams: (raw.teams ?? []).map(team => ({
       ...team,
-      players: (team.players ?? []).map((player: any) => ({
+      players: (team.players ?? []).map(player => ({
         ...player,
         averageLife: fromApiTimeSpan(player.averageLife),
         timePlayed: fromApiTimeSpan(player.timePlayed),

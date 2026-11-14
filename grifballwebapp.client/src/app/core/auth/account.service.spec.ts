@@ -292,7 +292,7 @@ describe('AccountService', () => {
 
     it('generates a reset link for a user', () => {
       const request = { username: 'bob' };
-      let response: any;
+      let response: unknown;
       service.generatePasswordResetLink(request).subscribe(r => response = r);
 
       http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });

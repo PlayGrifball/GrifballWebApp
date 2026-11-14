@@ -1,3 +1,4 @@
+import type { SeasonDto } from '@api/models';
 import { parseSeason, SeasonSettings } from './seasonSettings';
 import { DateTime } from 'luxon';
 
@@ -65,7 +66,7 @@ const UTC = '2026-01-02T03:04:00Z';
 
 describe('parseSeason', () => {
   it('parseSeason converts every season date', () => {
-    const season = parseSeason({ seasonID: 4, seasonName: 'S', signupsOpen: UTC, signupsClose: UTC, draftStart: UTC, seasonStart: UTC, seasonEnd: UTC, signupsCount: 2 })!;
+    const season = parseSeason({ seasonID: 4, seasonName: 'S', signupsOpen: UTC, signupsClose: UTC, draftStart: UTC, seasonStart: UTC, seasonEnd: UTC, signupsCount: 2 } as SeasonDto)!;
     for (const field of ['signupsOpen', 'signupsClose', 'draftStart', 'seasonStart', 'seasonEnd'] as const) {
       expect(season[field] instanceof DateTime).withContext(field).toBeTrue();
       expect(season[field].toMillis()).withContext(field).toBe(Date.parse(UTC));

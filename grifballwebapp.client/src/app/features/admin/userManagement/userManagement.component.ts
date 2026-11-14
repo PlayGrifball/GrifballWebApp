@@ -48,7 +48,7 @@ export class UserManagementComponent {
   });
   // Rows of the user list are never null (PaginationResult<UserResponseDto> on the server).
   // A row of the users page (GET /api/users)
-  readonly parseUser = (row: unknown) => parseUser(row as ApiUserResponseDto)!;
+  readonly parseUser = (row: ApiUserResponseDto) => parseUser(row)!;
 
   filter = signal<string>('');
   filters = computed<Filter[]>(() => {

@@ -13,16 +13,15 @@ export interface PaginationParams {
     filters?: Filter[],
 }
 
-export function getPaginationResource<T>(
-    // Takes this page's request and returns the generated service call for it. Its rows are the raw,
-    // pre-parseRow shape (e.g. a generated model with dates as strings), hence any: parseRow below is
-    // what actually turns them into T, same as the raw JSON this used to parse directly.
-    request: (params: PaginationParams) => Observable<PaginationResult<any>>,
+export function getPaginationResource<T, R = T>(
+    // Takes this page's request and returns the generated service call for it. Its rows are R, the raw,
+    // pre-parseRow shape (e.g. a generated model with dates as strings): parseRow below turns them into T.
+    request: (params: PaginationParams) => Observable<PaginationResult<R>>,
     paginationFilter: PaginationFilter,
     additionalFilters?: () => Filter[] | undefined,
     // Turns each row from its JSON form (e.g. dates as strings) into a T; rows are used as
     // they are when it is missing or returns undefined.
-    parseRow?: () => ((row: any) => T) | undefined,
+    parseRow?: () => ((row: R) => T) | undefined,
 ) {
     const resource = rxResource<PaginationResult<T>, PaginationParams>({
         params: () => {
@@ -50,7 +49,8 @@ export function getPaginationResource<T>(
         },
         stream: ({ params }) => request(params).pipe(map(page => {
             const parse = parseRow?.();
-            return parse ? { ...page, results: page.results.map(parse) } : page;
+            // Without a parseRow the rows are already T (R defaults to T)
+            return parse ? { ...page, results: page.results.map(parse) } : page as unknown as PaginationResult<T>;
         })),
         defaultValue: PAGINATION_RESPONSE_DEFAULT,
     });

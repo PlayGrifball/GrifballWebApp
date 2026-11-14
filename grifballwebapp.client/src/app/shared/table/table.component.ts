@@ -24,18 +24,18 @@ import { rowEnterAnimation } from '../rowEnterAnimation';
   styleUrl: './table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TableComponent<T> {
+export class TableComponent<T, R = T> {
   /** The rows' fade-in, once hydration is past (rowEnterAnimation) */
   readonly rowEnter = rowEnterAnimation();
   readonly rowTemplates = contentChildren(TemplateRef);
 
   filters = input<Filter[]>();
   /** Optional: turns each row from its JSON form (e.g. dates as strings) into a T. */
-  parseRow = input<(row: any) => T>();
+  parseRow = input<(row: R) => T>();
   
   displayedColumns = input.required<string[]>();
   /** This page's generated-service call for one page of rows (raw, pre-parseRow: see getPaginationResource). */
-  request = input.required<(params: PaginationParams) => Observable<PaginationResult<any>>>();
+  request = input.required<(params: PaginationParams) => Observable<PaginationResult<R>>>();
   columns = input.required<Column<T>[]>();
   pageSize = signal(10);
   pageNumber = signal(1);
@@ -53,7 +53,7 @@ export class TableComponent<T> {
     this.sort.set(event);
   }
 
-  paginationResource = getPaginationResource<T>(params => this.request()(params), {
+  paginationResource = getPaginationResource<T, R>(params => this.request()(params), {
       pageSize: () => this.pageSize(),
       pageNumber: () => this.pageNumber(),
       sortDirection: () => this.sort()?.direction,

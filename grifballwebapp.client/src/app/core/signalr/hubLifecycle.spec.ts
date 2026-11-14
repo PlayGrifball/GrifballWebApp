@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { EnvironmentInjector, PLATFORM_ID, createEnvironmentInjector, runInInjectionContext } from '@angular/core';
-import { HttpTransportType, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
+import { HttpTransportType, HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { AuthSession } from '../auth/authSession.service';
 import { HUB_RETRY_MS, hubLifecycle } from './hubLifecycle';
 
@@ -48,7 +48,7 @@ describe('hubLifecycle', () => {
     };
     withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();
     withAutomaticReconnect = spyOn(HubConnectionBuilder.prototype, 'withAutomaticReconnect').and.callThrough();
-    spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as any);
+    spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as unknown as HubConnection);
     log = spyOn(console, 'log');
     connected = jasmine.createSpy('connected');
   });

@@ -1,3 +1,4 @@
+import { DndDropEvent } from 'ngx-drag-drop';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SeedOrderingDialogComponent } from './seedOrderingDialog.component';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
@@ -106,23 +107,23 @@ describe('SeedOrderingDialogComponent behaviour', () => {
 
   it('moves a team up and renumbers the seeds', () => {
     loadStandings();
-    component.onDrop({ dropEffect: 'move', data: component.teams()[2], index: 0 } as any);
+    component.onDrop({ dropEffect: 'move', data: component.teams()[2], index: 0 } as DndDropEvent);
 
     expect(names()).toEqual(['1:Charlie', '2:Alpha', '3:Bravo']);
   });
 
   it('moves a team down, accounting for its removal from above the drop point', () => {
     loadStandings();
-    component.onDrop({ dropEffect: 'move', data: component.teams()[0], index: 2 } as any);
+    component.onDrop({ dropEffect: 'move', data: component.teams()[0], index: 2 } as DndDropEvent);
 
     expect(names()).toEqual(['1:Bravo', '2:Alpha', '3:Charlie']);
   });
 
   it('ignores drops that are not moves, have no index, or carry an unknown team', () => {
     loadStandings();
-    component.onDrop({ dropEffect: 'copy', data: component.teams()[2], index: 0 } as any);
-    component.onDrop({ dropEffect: 'move', data: component.teams()[2], index: undefined } as any);
-    component.onDrop({ dropEffect: 'move', data: { teamID: 99 }, index: 0 } as any);
+    component.onDrop({ dropEffect: 'copy', data: component.teams()[2], index: 0 } as DndDropEvent);
+    component.onDrop({ dropEffect: 'move', data: component.teams()[2], index: undefined } as DndDropEvent);
+    component.onDrop({ dropEffect: 'move', data: { teamID: 99 }, index: 0 } as DndDropEvent);
 
     expect(names()).toEqual(['1:Alpha', '2:Bravo', '3:Charlie']);
   });
@@ -147,7 +148,7 @@ describe('SeedOrderingDialogComponent behaviour', () => {
 
   it('submits the custom seeds, emits and closes the dialog with true', () => {
     loadStandings();
-    component.onDrop({ dropEffect: 'move', data: component.teams()[2], index: 0 } as any);
+    component.onDrop({ dropEffect: 'move', data: component.teams()[2], index: 0 } as DndDropEvent);
     const emitted = jasmine.createSpy('seedingOrder');
     component.seedingOrder.subscribe(emitted);
 

@@ -1,22 +1,25 @@
 import { loadBracketsViewer } from './loadBracketsViewer';
 
+/** The window as the specs change it: without the bracket viewer, or with a fake one. */
+type TestWindow = { bracketsViewer?: unknown };
+
 describe('loadBracketsViewer', () => {
   let original: unknown;
   const added = () => Array.from(document.head.querySelectorAll('script[src="brackets-viewer.js"], link[href="brackets-viewer.css"]'));
 
   beforeEach(() => {
-    original = (window as any).bracketsViewer;
-    delete (window as any).bracketsViewer;
+    original = (window as TestWindow).bracketsViewer;
+    delete (window as TestWindow).bracketsViewer;
     added().forEach(el => el.remove());
   });
 
   afterEach(() => {
-    (window as any).bracketsViewer = original;
+    (window as TestWindow).bracketsViewer = original;
     added().forEach(el => el.remove());
   });
 
   it('adds nothing when the viewer is already loaded', async () => {
-    (window as any).bracketsViewer = {};
+    (window as TestWindow).bracketsViewer = {};
     await loadBracketsViewer();
     expect(added()).toEqual([]);
   });

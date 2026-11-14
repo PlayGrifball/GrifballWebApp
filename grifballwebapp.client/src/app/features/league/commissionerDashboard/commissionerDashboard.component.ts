@@ -103,7 +103,7 @@ export class CommissionerDashboardComponent implements OnInit {
   createDiscordThread(reschedule: RescheduleDto): void {
     this.rescheduleService.createDiscordThread({ rescheduleID: reschedule.matchRescheduleID })
     .subscribe({
-      next: (response: any) => {
+      next: () => {
         this.loadDashboardData(); // Refresh to show the thread ID
       },
       error: (error) => {

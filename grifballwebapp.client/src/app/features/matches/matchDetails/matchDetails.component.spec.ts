@@ -3,7 +3,8 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { describeMatch, MatchDetailsComponent, teamName } from './matchDetails.component';
-import { formatSeconds, fromApiTimeSpan, parseMatchDetails } from './matchDetailsDto';
+import { formatSeconds, fromApiTimeSpan, MatchDetailsTeamDto, parseMatchDetails } from './matchDetailsDto';
+import type { MatchDetailsDto as ApiMatchDetailsDto } from '@api/models';
 
 const MATCH_ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
 const URL = '/api/matches/' + MATCH_ID;
@@ -16,7 +17,7 @@ const player = (gamertag: string, overrides: Record<string, unknown> = {}) => ({
   objectivesCompleted: 0, joinedInProgress: false, leftInProgress: false,
   medals: [{ medalID: 1, name: 'Grand Slam', description: 'Score a goal', type: 'Mode', difficulty: 'Normal', count: 2 }],
   ...overrides,
-});
+}) as unknown as ApiMatchDetailsDto;
 
 /** The match as the API sends it. */
 const apiMatch = (overrides: Record<string, unknown> = {}) => ({
@@ -60,11 +61,11 @@ describe('matchDetailsDto', () => {
   });
 
   it('tolerates missing lists', () => {
-    const parsed = parseMatchDetails({ ...apiMatch(), startTime: null, teams: [{ teamID: 0 }], medals: undefined })!;
+    const parsed = parseMatchDetails({ ...apiMatch(), startTime: null, teams: [{ teamID: 0 }], medals: undefined } as unknown as ApiMatchDetailsDto)!;
     expect(parsed.startTime).toBeNull();
     expect(parsed.teams[0].players).toEqual([]);
     expect(parsed.medals).toEqual([]);
-    expect(parseMatchDetails({ ...apiMatch(), teams: undefined })!.teams).toEqual([]);
+    expect(parseMatchDetails({ ...apiMatch(), teams: undefined } as unknown as ApiMatchDetailsDto)!.teams).toEqual([]);
   });
 
   it('describes the match for search results and link previews', () => {
@@ -89,8 +90,8 @@ describe('matchDetailsDto', () => {
   });
 
   it('names a team after its season team, or Infinite\'s side', () => {
-    expect(teamName({ teamID: 0, seasonTeamName: 'Red Rampage' } as any)).toBe('Red Rampage');
-    expect(teamName({ teamID: 1, seasonTeamName: null } as any)).toBe('Team 2');
+    expect(teamName({ teamID: 0, seasonTeamName: 'Red Rampage' } as MatchDetailsTeamDto)).toBe('Red Rampage');
+    expect(teamName({ teamID: 1, seasonTeamName: null } as MatchDetailsTeamDto)).toBe('Team 2');
   });
 });
 

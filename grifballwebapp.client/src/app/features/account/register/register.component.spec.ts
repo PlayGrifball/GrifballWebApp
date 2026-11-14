@@ -62,7 +62,7 @@ describe('RegisterComponent', () => {
 
   describe('onSubmit', () => {
     // registerForm is a viewChild() signal; swap it for one that returns the stand-in form.
-    const stubForm = (form: unknown) => (component as any).registerForm = () => form;
+    const stubForm = (form: unknown) => (component as unknown as { registerForm: () => unknown }).registerForm = () => form;
 
     it('should return early if registerForm is not defined', () => {
       stubForm(undefined);

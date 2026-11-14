@@ -123,7 +123,7 @@ describe('ThemeService', () => {
     });
 
     it('should return empty for unknown themes', () => {
-      service.currentTheme.set('' as any);
+      service.currentTheme.set('');
       
       const result = service.next();
       

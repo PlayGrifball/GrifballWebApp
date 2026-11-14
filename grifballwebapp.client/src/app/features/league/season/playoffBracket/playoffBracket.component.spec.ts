@@ -4,12 +4,16 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter, Router } from '@angular/router';
 import { EventEmitter, PLATFORM_ID, signal, WritableSignal } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import type { ViewerData } from 'brackets-viewer';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '@core/auth/account.service';
 import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
 import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDialog.component';
 import { Subject } from 'rxjs';
+
+/** The window as the specs change it: without the bracket viewer, or with a fake one. */
+type TestWindow = { bracketsViewer?: unknown };
 
 describe('PlayoffBracketComponent', () => {
   let component: PlayoffBracketComponent;
@@ -44,15 +48,15 @@ describe('PlayoffBracketComponent behaviour', () => {
   let originalViewer: unknown;
   let isEventOrganizer: WritableSignal<boolean>;
 
-  const viewerData = (participants: unknown[]) => ({ stages: [], matches: [], matchGames: [], participants } as any);
+  const viewerData = (participants: unknown[]) => ({ stages: [], matches: [], matchGames: [], participants } as unknown as ViewerData);
 
   beforeEach(async () => {
     isEventOrganizer = signal(false);
     dialog = jasmine.createSpyObj('MatDialog', ['open']);
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
-    originalViewer = (window as any).bracketsViewer;
+    originalViewer = (window as TestWindow).bracketsViewer;
     viewer = { addLocale: jasmine.createSpy('addLocale'), render: jasmine.createSpy('render') };
-    (window as any).bracketsViewer = viewer;
+    (window as TestWindow).bracketsViewer = viewer;
 
     await TestBed.configureTestingModule({
       imports: [PlayoffBracketComponent],
@@ -76,7 +80,7 @@ describe('PlayoffBracketComponent behaviour', () => {
 
   afterEach(() => {
     http.verify();
-    (window as any).bracketsViewer = originalViewer;
+    (window as TestWindow).bracketsViewer = originalViewer;
   });
 
   const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
@@ -152,7 +156,7 @@ describe('PlayoffBracketComponent behaviour', () => {
     fixture.componentRef.setInput('seasonID', 7);
     fixture.detectChanges();
     http.expectOne('/api/seasons/7/bracket/viewer-data').flush(viewerData([]));
-    dialog.open.and.returnValue({ componentInstance: { bracketCreated: new Subject<void>(), seedingOrder: new Subject<void>() } } as any);
+    dialog.open.and.returnValue({ componentInstance: { bracketCreated: new Subject<void>(), seedingOrder: new Subject<void>() } } as unknown as MatDialogRef<unknown>);
 
     component.openDialog();
     component.setSeeds();
@@ -193,7 +197,7 @@ describe('PlayoffBracketComponent behaviour', () => {
     fixture.detectChanges();
     http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     const created = new EventEmitter<void>();
-    dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as any);
+    dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as unknown as MatDialogRef<unknown>);
 
     let changed = 0;
     component.bracketChanged.subscribe(() => changed++);
@@ -210,7 +214,7 @@ describe('PlayoffBracketComponent behaviour', () => {
     fixture.detectChanges();
     http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     const created = new Subject<void>();
-    dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as any);
+    dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as unknown as MatDialogRef<unknown>);
     let changed = 0;
     component.bracketChanged.subscribe(() => changed++);
     component.openDialog();
@@ -227,7 +231,7 @@ describe('PlayoffBracketComponent behaviour', () => {
     fixture.detectChanges();
     http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     const seeded = new EventEmitter<void>();
-    dialog.open.and.returnValue({ componentInstance: { seedingOrder: seeded } } as any);
+    dialog.open.and.returnValue({ componentInstance: { seedingOrder: seeded } } as unknown as MatDialogRef<unknown>);
 
     let changed = 0;
     component.bracketChanged.subscribe(() => changed++);
@@ -245,7 +249,7 @@ describe('PlayoffBracketComponent behaviour', () => {
     http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     const created = new EventEmitter<void>();
     const seeded = new EventEmitter<void>();
-    dialog.open.and.returnValues({ componentInstance: { bracketCreated: created } } as any, { componentInstance: { seedingOrder: seeded } } as any);
+    dialog.open.and.returnValues({ componentInstance: { bracketCreated: created } } as unknown as MatDialogRef<unknown>, { componentInstance: { seedingOrder: seeded } } as unknown as MatDialogRef<unknown>);
     component.openDialog();
     component.setSeeds();
     expect(created.observed).toBeTrue();
@@ -341,7 +345,7 @@ describe('PlayoffBracketComponent behaviour', () => {
     fixture.detectChanges();
     http.expectOne('/api/seasons/6/bracket/viewer-data').flush(viewerData([]));
     const created = new Subject<void>();
-    dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as any);
+    dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as unknown as MatDialogRef<unknown>);
     component.openDialog();
 
     let changed = 0;
@@ -357,8 +361,8 @@ describe('PlayoffBracketComponent behaviour', () => {
 
 describe('PlayoffBracketComponent without the viewer library', () => {
   it('says so when the bracket viewer cannot be loaded', async () => {
-    const original = (window as any).bracketsViewer;
-    delete (window as any).bracketsViewer;
+    const original = (window as TestWindow).bracketsViewer;
+    delete (window as TestWindow).bracketsViewer;
     const snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
     await TestBed.configureTestingModule({
       imports: [PlayoffBracketComponent],
@@ -371,21 +375,21 @@ describe('PlayoffBracketComponent without the viewer library', () => {
     }).overrideProvider(MatSnackBar, { useValue: snackBar }).compileComponents();
     const component = TestBed.createComponent(PlayoffBracketComponent).componentInstance;
 
-    const rendering = component.render({ stages: [], matches: [], matchGames: [], participants: [{ id: 1 }] } as any);
+    const rendering = component.render({ stages: [], matches: [], matchGames: [], participants: [{ id: 1 }] } as unknown as ViewerData);
     const script = document.head.querySelector<HTMLScriptElement>('script[src="brackets-viewer.js"]')!;
     script.onerror!(new Event('error'));
     await rendering;
 
     expect(snackBar.open).toHaveBeenCalledWith('Failed to load the bracket viewer', 'Close');
-    (window as any).bracketsViewer = original;
+    (window as TestWindow).bracketsViewer = original;
   });
 });
 
 describe('PlayoffBracketComponent rendered on the server', () => {
   it('leaves the bracket box for the browser to draw in', async () => {
     const viewer = { addLocale: jasmine.createSpy('addLocale'), render: jasmine.createSpy('render') };
-    const original = (window as any).bracketsViewer;
-    (window as any).bracketsViewer = viewer;
+    const original = (window as TestWindow).bracketsViewer;
+    (window as TestWindow).bracketsViewer = viewer;
     await TestBed.configureTestingModule({
       imports: [PlayoffBracketComponent],
       providers: [
@@ -398,11 +402,11 @@ describe('PlayoffBracketComponent rendered on the server', () => {
     }).compileComponents();
     const component = TestBed.createComponent(PlayoffBracketComponent).componentInstance;
 
-    await component.render({ stages: [], matches: [], matchGames: [], participants: [{ id: 1 }] } as any);
+    await component.render({ stages: [], matches: [], matchGames: [], participants: [{ id: 1 }] } as unknown as ViewerData);
 
     expect(component.hasBracket()).toBeTrue();
     expect(viewer.render).not.toHaveBeenCalled();
     expect(component.drawn()).toBeFalse();
-    (window as any).bracketsViewer = original;
+    (window as TestWindow).bracketsViewer = original;
   });
 });

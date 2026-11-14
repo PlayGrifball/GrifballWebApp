@@ -13,6 +13,37 @@ import { BuildService } from '@api/services/build.service';
 import { ThemingService } from './core/layout/theming.service';
 import { noMaterialAnimations } from './shared/testing/noMaterialAnimations';
 
+/** The window as the specs change it: without a ResizeObserver, or with a fake one. */
+type TestWindow = { ResizeObserver?: typeof ResizeObserver };
+
+/** The signed-in organizer the bar is drawn for. */
+const fakeAccount = () => ({
+  isLoggedIn: signal(false),
+  isEventOrganizer: signal(true),
+  isSysAdmin: signal(false),
+  isPlayer: signal(false),
+  personID: signal<number | null>(null),
+  displayName: signal<string | null>(null),
+});
+
+/** The theme the app applies on start. */
+const fakeTheming = () => ({
+  neutral: signal('#111111'),
+  neutralVariant: signal('#222222'),
+  error: signal('#ff0000'),
+  font: signal('Roboto'),
+  primary: signal('#0000ff'),
+  secondary: signal('#00ff00'),
+  tertiary: signal('#ff00ff'),
+  setNeutralShade: jasmine.createSpy('setNeutralShade'),
+  setNeutralVariantShade: jasmine.createSpy('setNeutralVariantShade'),
+  setErrorShade: jasmine.createSpy('setErrorShade'),
+  setFont: jasmine.createSpy('setFont'),
+  setPrimaryShade: jasmine.createSpy('setPrimaryShade'),
+  setSecondaryShade: jasmine.createSpy('setSecondaryShade'),
+  setTertiaryShade: jasmine.createSpy('setTertiaryShade'),
+});
+
 describe('AppComponent', () => {
   let component: AppComponent;
   let fixture: ComponentFixture<AppComponent>;
@@ -98,8 +129,8 @@ describe('AppComponent behaviour', () => {
   let component: AppComponent;
   let api: jasmine.SpyObj<SeasonService>;
   let build: jasmine.SpyObj<BuildService>;
-  let theming: any;
-  let account: any;
+  let theming: ReturnType<typeof fakeTheming>;
+  let account: ReturnType<typeof fakeAccount>;
   let mobile: boolean;
   let toolbarWidth: number;
   let linkWidth: number;
@@ -113,7 +144,7 @@ describe('AppComponent behaviour', () => {
   let resizeObserverDisconnect: jasmine.Spy;
   let realResizeObserver: typeof ResizeObserver;
 
-  afterEach(() => (window as any).ResizeObserver = realResizeObserver);
+  afterEach(() => (window as TestWindow).ResizeObserver = realResizeObserver);
 
   /** The links this user (an organizer, so the bar has more links than fit) may see. */
   const shown = () => component.navLinks().filter(n => n.show()).length;
@@ -129,36 +160,14 @@ describe('AppComponent behaviour', () => {
     linkWidth = 100;
     hiddenMissing = false;
 
-    account = {
-      isLoggedIn: signal(false),
-      isEventOrganizer: signal(true),
-      isSysAdmin: signal(false),
-      isPlayer: signal(false),
-      personID: signal(null),
-      displayName: signal(null)
-    };
+    account = fakeAccount();
     api = jasmine.createSpyObj<SeasonService>('SeasonService', ['getCurrentSeasonId']);
     api.getCurrentSeasonId.and.returnValue(of(0));
     // The footer shows the build.
     build = jasmine.createSpyObj<BuildService>('BuildService', ['getCommitHash', 'getCommitDate']);
     build.getCommitHash.and.returnValue(of(''));
     build.getCommitDate.and.returnValue(of(''));
-    theming = {
-      neutral: signal('#111111'),
-      neutralVariant: signal('#222222'),
-      error: signal('#ff0000'),
-      font: signal('Roboto'),
-      primary: signal('#0000ff'),
-      secondary: signal('#00ff00'),
-      tertiary: signal('#ff00ff'),
-      setNeutralShade: jasmine.createSpy('setNeutralShade'),
-      setNeutralVariantShade: jasmine.createSpy('setNeutralVariantShade'),
-      setErrorShade: jasmine.createSpy('setErrorShade'),
-      setFont: jasmine.createSpy('setFont'),
-      setPrimaryShade: jasmine.createSpy('setPrimaryShade'),
-      setSecondaryShade: jasmine.createSpy('setSecondaryShade'),
-      setTertiaryShade: jasmine.createSpy('setTertiaryShade')
-    };
+    theming = fakeTheming();
 
     mobileListeners = new Map();
     removedMobileListeners = [];
@@ -172,7 +181,7 @@ describe('AppComponent behaviour', () => {
 
     // Resizes are measured once per animation frame; the specs run the queued frames by hand.
     frames = [];
-    spyOn(window, 'requestAnimationFrame').and.callFake(((cb: FrameRequestCallback) => frames.push(cb)) as any);
+    spyOn(window, 'requestAnimationFrame').and.callFake((cb: FrameRequestCallback) => frames.push(cb));
     spyOn(window, 'cancelAnimationFrame');
 
     // The bar's size is watched with a ResizeObserver; the specs call its callback by hand.
@@ -180,33 +189,33 @@ describe('AppComponent behaviour', () => {
     resizeObserverCallback = undefined;
     resizeObserverDisconnect = jasmine.createSpy('disconnect');
     realResizeObserver = window.ResizeObserver;
-    (window as any).ResizeObserver = class {
+    (window as TestWindow).ResizeObserver = class {
       constructor(cb: ResizeObserverCallback) { resizeObserverCallback = cb; }
       observe(el: Element) { resizeObserved.push(el); }
       unobserve() { }
       disconnect() { resizeObserverDisconnect(); }
-    };
+    } as unknown as typeof ResizeObserver;
 
     // Capture the resize handler instead of registering it on the real window, so a real
     // listener cannot leak out of this test.
     resizeHandler = undefined;
     const realAdd = window.addEventListener.bind(window);
-    spyOn(window, "addEventListener").and.callFake(((type: string, fn: any, opts?: any) => {
+    spyOn(window, "addEventListener").and.callFake(((type: string, fn: EventListenerOrEventListenerObject, opts?: boolean | AddEventListenerOptions) => {
       if (type !== "resize")
         return realAdd(type, fn, opts);
-      resizeHandler = fn;
-    }) as any);
+      resizeHandler = fn as () => void;
+    }) as typeof window.addEventListener);
 
     // The layout code measures DOM elements; stub the two lookups so widths are deterministic.
     const realQuery = document.querySelector.bind(document);
     spyOn(document, 'querySelector').and.callFake(((sel: string) =>
-      sel === '.toolbar-links' ? { clientWidth: toolbarWidth } : realQuery(sel)) as any);
+      sel === '.toolbar-links' ? { clientWidth: toolbarWidth } : realQuery(sel)) as unknown as typeof document.querySelector);
     const realById = document.getElementById.bind(document);
     spyOn(document, 'getElementById').and.callFake(((id: string) => {
       if (id !== 'hidden')
         return realById(id);
       return hiddenMissing ? null : { innerText: '', offsetWidth: linkWidth };
-    }) as any);
+    }) as unknown as typeof document.getElementById);
 
     await TestBed.configureTestingModule({
       imports: [AppComponent],
@@ -558,7 +567,7 @@ describe('AppComponent behaviour', () => {
   });
 
   it('still lays out the links, on window resizes, where the browser has no ResizeObserver', () => {
-    (window as any).ResizeObserver = undefined;
+    (window as TestWindow).ResizeObserver = undefined;
     fixture.detectChanges();
     expect(resizeObserved).toEqual([]);
     toolbarWidth = 10000;
