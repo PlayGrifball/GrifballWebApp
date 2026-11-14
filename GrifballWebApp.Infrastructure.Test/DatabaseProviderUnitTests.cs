@@ -166,6 +166,23 @@ public class DatabaseProviderUnitTests
         Assert.That(withoutHistory, Is.EqualTo(new[] { "Discord.Outbox", "Event.HistoricalImportJobs", "Event.HistoricalSourceSnapshots" }));
     }
 
+    // Postgres's index names are one namespace a schema, cut at 63 bytes: each fits, and no two are the same.
+    [Test]
+    public void Postgres_IndexNames_FitAndAreUniqueInTheirSchema()
+    {
+        using var context = Context(DatabaseProvider.Postgres);
+
+        var names = context.GetService<IDesignTimeModel>().Model.GetRelationalModel().Tables
+            .SelectMany(t => t.Indexes.Select(i => (t.Schema, i.Name)))
+            .ToList();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(names.Where(n => n.Name.Length > PostgresHistory.MaxIdentifierLength), Is.Empty);
+            Assert.That(names.GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key), Is.Empty);
+        }
+    }
+
     // The same tables keep history as on Postgres, and each declares its triggers, so EF reads PeriodStart back
     // after a write rather than by RETURNING.
     [Test]
