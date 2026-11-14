@@ -1,9 +1,10 @@
 import { HttpBackend, HttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ApplicationRef, PendingTasks } from '@angular/core';
+import { ApplicationRef, ErrorHandler, PendingTasks } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { appConfig } from './app.config';
 import { config as serverConfig } from './app.config.server';
+import { ReportingErrorHandler } from './core/http/clientErrors';
 import { API_ORIGIN, ServerApiBackend } from './core/server/serverApi.backend';
 import { rowEnterAnimation } from './shared/rowEnterAnimation';
 
@@ -31,6 +32,11 @@ describe('appConfig', () => {
     const name = TestBed.runInInjectionContext(() => rowEnterAnimation());
 
     expect(name()).toBe('row-enter');
+  });
+
+  it('reports the app\'s errors through ReportingErrorHandler', () => {
+    const providers = appConfig.providers as { provide?: unknown; useClass?: unknown }[];
+    expect(providers.find(p => p?.provide === ErrorHandler)?.useClass).toBe(ReportingErrorHandler);
   });
 });
 

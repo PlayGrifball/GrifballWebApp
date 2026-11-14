@@ -7,7 +7,7 @@ import { Event, eventLink, heroKicker, heroLede, HomeComponent, pickFeatured } f
 import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 import type { SeasonChampionDto } from '@api/models';
 import { Component } from '@angular/core';
-import { LateLeagueQueueComponent } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';
+import { LateLeagueQueueComponent } from '../lateLeague';
 import { noMaterialAnimations } from '@shared/testing/noMaterialAnimations';
 
 /** The queue panel has its own specs: here it is left out, with its requests and hub connection. */
