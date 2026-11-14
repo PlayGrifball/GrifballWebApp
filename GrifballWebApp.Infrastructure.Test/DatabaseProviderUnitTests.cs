@@ -150,13 +150,19 @@ public class DatabaseProviderUnitTests
         Assert.That(shared, Is.Empty);
     }
 
-    private static readonly string[] TablesWithoutHistory = ["Discord.Outbox", "Event.HistoricalImportJobs", "Event.HistoricalSourceSnapshots"];
+    private static readonly string[] TablesWithoutHistory =
+    [
+        "Discord.Outbox", "Event.HistoricalImportJobs", "Event.HistoricalSeasonReviews", "Event.HistoricalSourceSnapshots",
+        "Event.HistoricalSources", "Xbox.XuidLookups",
+    ];
 
-    // Every table keeps its rows' history but these three, whose rows churn and would grow it without end: the outbox
-    // (sent messages are deleted after their retention), an import job (its heartbeat rewrites the row every few
-    // seconds) and a source's snapshots (each a whole downloaded file). A new table gets history unless it joins them here.
+    // Every table keeps its rows' history but the background jobs' bookkeeping, whose rows churn and would grow it
+    // without end: the outbox (sent messages deleted after their retention), the historical import's jobs (a heartbeat
+    // every few seconds) and their reviews (deleted with them), its sources (each refresh stamps every one) and their
+    // snapshots (whole downloaded files), and the XUID lookups (a retry queue). A new table gets history unless it joins
+    // them here.
     [Test]
-    public void EveryTable_KeepsHistory_ButTheOutboxImportJobsAndSnapshots()
+    public void EveryTable_KeepsHistory_ButTheBackgroundJobsBookkeeping()
     {
         using var context = Context(DatabaseProvider.SqlServer);
 
@@ -174,13 +180,15 @@ public class DatabaseProviderUnitTests
     {
         using var context = Context(DatabaseProvider.Postgres);
 
-        var names = context.GetService<IDesignTimeModel>().Model.GetRelationalModel().Tables
+        var model = context.GetService<IDesignTimeModel>().Model;
+        var names = model.GetRelationalModel().Tables
             .SelectMany(t => t.Indexes.Select(i => (t.Schema, i.Name)))
             .ToList();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(names.Where(n => n.Name.Length > PostgresHistory.MaxIdentifierLength), Is.Empty);
+            Assert.That(names.Where(n => n.Name.Length > model.GetMaxIdentifierLength()), Is.Empty);
+            Assert.That(model.GetMaxIdentifierLength(), Is.EqualTo(63), "Postgres's NAMEDATALEN - 1");
             Assert.That(names.GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key), Is.Empty);
         }
     }
