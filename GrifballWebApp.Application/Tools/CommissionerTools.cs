@@ -2,7 +2,9 @@ using System.ComponentModel;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.MatchPlanner;
+using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.Reschedule;
+using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Teams;
@@ -25,10 +27,15 @@ public class CommissionerTools
     private readonly MatchPlannerService _matchPlanner;
     private readonly IBracketService _brackets;
     private readonly TeamService _teams;
+    private readonly ScheduleRecommendations _recommendations;
+    private readonly IScheduleRecommendationRuns _runs;
 
     public CommissionerTools(ToolCaller caller, SeasonService seasons, SeasonVisibility visibility, RescheduleService reschedules,
-        SeasonMatchService seasonMatches, MatchPlannerService matchPlanner, IBracketService brackets, TeamService teams)
+        SeasonMatchService seasonMatches, MatchPlannerService matchPlanner, IBracketService brackets, TeamService teams,
+        ScheduleRecommendations recommendations, IScheduleRecommendationRuns runs)
     {
+        _recommendations = recommendations;
+        _runs = runs;
         _caller = caller;
         _seasons = seasons;
         _visibility = visibility;
@@ -39,18 +46,10 @@ public class CommissionerTools
         _teams = teams;
     }
 
-    /// <summary>The season match, if it's there (and the caller may see it); a <see cref="ToolException"/> else.</summary>
-    private async Task<int> SeasonMatch(int seasonMatchID, CancellationToken ct)
-        => await _visibility.CanSeeSeasonMatch(seasonMatchID, _caller.Viewer, ct) ? seasonMatchID : throw new ToolException($"There is no season match {seasonMatchID}.");
+    private Task<int> SeasonMatch(int seasonMatchID, CancellationToken ct) => StaffSeasons.SeasonMatch(_visibility, _caller, seasonMatchID, ct);
 
-    /// <summary>The season asked for, if it's there, else the one <paramref name="purpose"/> means; a <see cref="ToolException"/> when there is none.</summary>
-    private async Task<int> Season(int? seasonID, SeasonPurpose purpose, CancellationToken ct)
-    {
-        if (seasonID is int id)
-            return await _visibility.CanSeeSeason(id, _caller.Viewer, ct) ? id : throw new ToolException($"There is no season {id}: list_seasons has their IDs.");
-        var season = await _seasons.GetDefaultSeasonID(purpose, _caller.Viewer, ct);
-        return season != 0 ? season : throw new ToolException("There is no season to do that to: name one (list_seasons has their IDs).");
-    }
+    private Task<int> Season(int? seasonID, SeasonPurpose purpose, CancellationToken ct)
+        => StaffSeasons.SeasonOrDefault(_seasons, _visibility, _caller, seasonID, purpose, ct);
 
     [Description("Approves or rejects a reschedule request (get_commissioner_dashboard lists the pending ones), as the dashboard does: approved, "
         + "the match moves to the requested time. The notes are the commissioner's, shown with the decision. Commissioners and sysadmins.")]
@@ -184,5 +183,28 @@ public class CommissionerTools
         _caller.RequireRolesOf();
         await _teams.LockCaptains(await Season(seasonID, SeasonPurpose.Upcoming, ct), locked, ct: ct);
         return locked ? "The captains are locked." : "The captains are unlocked.";
+    }
+
+    [Description("Starts working out a season's schedule recommendation (when each unscheduled match could be played, from the teams' "
+        + "availability), as the scheduler page does: a background job, one per season at a time. get_schedule_recommendation shows it when "
+        + "done. Commissioners and sysadmins.")]
+    [ToolRoles(SiteRoles.Commissioner, SiteRoles.Sysadmin)]
+    public async Task<OnDemandJobStatusDto> RunScheduleRecommendation(
+        [Description("The season's ID; left out, the running season, else the next to start.")] int? seasonID = null,
+        CancellationToken ct = default)
+    {
+        _caller.RequireRolesOf();
+        return await _runs.Queue(await Season(seasonID, SeasonPurpose.Active, ct), _caller.Name, _caller.UserID, ct);
+    }
+
+    [Description("Schedules a season's matches as a recommendation suggests (get_schedule_recommendation gives its ID), as the scheduler page "
+        + "does. Commissioners and sysadmins.")]
+    [ToolRoles(SiteRoles.Commissioner, SiteRoles.Sysadmin)]
+    public async Task<string> ApplyScheduleRecommendation([Description("The recommendation's ID.")] int recommendationID, CancellationToken ct = default)
+    {
+        _caller.RequireRolesOf();
+        return await _recommendations.Apply(recommendationID, _caller.Name, ct) is int count
+            ? $"{count} matches are scheduled."
+            : throw new ToolException($"There is no recommendation {recommendationID}, or it was applied already.");
     }
 }

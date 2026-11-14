@@ -16,6 +16,9 @@ public sealed record ToolCaller(int? UserID, IReadOnlyList<string> Roles)
 {
     public static readonly ToolCaller Anonymous = new(null, []);
 
+    /// <summary>The caller's user name, as the site records who did something (a schedule applied, a job paused); null when not known.</summary>
+    public string? Name { get; init; }
+
     /// <summary>
     /// Whether others see the answers: a Discord channel's, where the bot's chat replies. Then the caller sees seasons as the public
     /// does, whatever their roles: a season not announced yet stays out of a reply its players read (#435).

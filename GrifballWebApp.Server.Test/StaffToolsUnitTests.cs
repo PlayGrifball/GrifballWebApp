@@ -6,6 +6,8 @@ using GrifballWebApp.Application.EventOrganizer;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Identity;
+using GrifballWebApp.Application.Jobs;
+using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Application.MatchPlanner;
 using GrifballWebApp.Application.Notifications;
 using GrifballWebApp.Application.Outbox;
@@ -45,24 +47,30 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
     ];
 
     private readonly IDataPullService _dataPull = Substitute.For<IDataPullService>();
+    private readonly IJobControl _jobs = Substitute.For<IJobControl>();
+    private readonly IScheduleRecommendationRuns _runs = Substitute.For<IScheduleRecommendationRuns>();
+
+    private SeasonService Seasons() => new(Db, new SeasonStatsService(Db), Visibility());
+
+    private ScheduleRecommendations Recommendations() => new(Db, TimeProvider.System);
 
     private SeasonVisibility Visibility() => new(Db);
 
     private StaffTools Staff(ToolCaller caller)
     {
         var reschedules = new RescheduleService(Db, Substitute.For<IOutbox>());
-        return new(caller, new CommissionerDashboardService(reschedules, new EventOrganizerService(Db)), Claims());
+        return new(caller, new CommissionerDashboardService(reschedules, new EventOrganizerService(Db)), Claims(), Seasons(), Visibility(), Recommendations(), _runs, _jobs);
     }
 
     private GamertagClaimService Claims() => new(Db, Substitute.For<IUserMergeService>(), null);
 
-    private CommissionerTools Commissioners(ToolCaller caller) => new(caller, new SeasonService(Db, new SeasonStatsService(Db), Visibility()), Visibility(),
+    private CommissionerTools Commissioners(ToolCaller caller) => new(caller, Seasons(), Visibility(),
         new RescheduleService(Db, Substitute.For<IOutbox>()),
         new SeasonMatchService(Db, _dataPull, Substitute.For<IBracketService>(), new ChampionshipService(Db)),
         new MatchPlannerService(Db), Substitute.For<IBracketService>(),
-        new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()));
+        new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()), Recommendations(), _runs);
 
-    private SysadminTools Sysadmins(ToolCaller caller) => new(caller, Claims(), _dataPull);
+    private SysadminTools Sysadmins(ToolCaller caller) => new(caller, Claims(), _dataPull, _jobs);
 
     private async Task<int> AMatch()
     {
@@ -182,5 +190,50 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
         var refused = await Assert.ThrowsAsync<GamertagClaimException>(() => Sysadmins(Sysadmin).DecideGamertagClaim(987654, approve: false, "no"));
 
         Assert.That(refused!.Message, Does.Contain("There is no claim 987654"));
+    }
+
+    [Test]
+    public async Task TheJobs_AreListed_Run_AndPaused_AndAJobThatIsntThere_IsRefused()
+    {
+        _jobs.List(Arg.Any<CancellationToken>()).Returns(new List<JobSummaryDto> { new("Discord", "Outbox", "Scheduled", true) });
+        _jobs.RunNow("Discord", "Outbox", Sysadmin.UserID, Arg.Any<CancellationToken>()).Returns(JobControlResult.Done);
+        _jobs.SetPaused("Discord", "Outbox", true, Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(JobControlResult.Done);
+        _jobs.RunNow("Nope", "Nothing", Arg.Any<int?>(), Arg.Any<CancellationToken>()).Returns(JobControlResult.NotFound);
+        _jobs.SetPaused("Discord", "Busy", false, Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(JobControlResult.Conflict);
+
+        var listed = await Staff(Sysadmin).ListJobs();
+        var ran = await Sysadmins(Sysadmin).RunJob("Discord", "Outbox");
+        var paused = await Sysadmins(Sysadmin).SetJobPaused("Discord", "Outbox", true);
+        var missing = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).RunJob("Nope", "Nothing"));
+        var busy = await Assert.ThrowsAsync<ToolException>(() => Sysadmins(Sysadmin).SetJobPaused("Discord", "Busy", false));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(listed.Single().Name, Is.EqualTo("Outbox"));
+            Assert.That(ran, Is.EqualTo("It's running."));
+            Assert.That(paused, Is.EqualTo("It's paused."));
+            Assert.That(missing!.Message, Does.StartWith("There is no such job"));
+            Assert.That(busy!.Message, Does.StartWith("The job can't do that now"));
+        }
+    }
+
+    [Test]
+    public async Task AScheduleRecommendation_IsShown_Run_AndOneThatIsntThere_IsRefusedToApply()
+    {
+        var season = await AddSeason("Winter");
+        _runs.Status(season.SeasonID, Arg.Any<CancellationToken>()).Returns(new OnDemandJobStatusDto { State = OnDemandJobState.Idle });
+        _runs.Queue(season.SeasonID, Arg.Any<string?>(), Commissioner.UserID, Arg.Any<CancellationToken>()).Returns(new OnDemandJobStatusDto { State = OnDemandJobState.Queued });
+
+        var shown = await Staff(Commissioner).GetScheduleRecommendation(season.SeasonID);
+        var ran = await Commissioners(Commissioner).RunScheduleRecommendation(season.SeasonID);
+        var refused = await Assert.ThrowsAsync<ToolException>(() => Commissioners(Commissioner).ApplyScheduleRecommendation(987654));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(shown.Run.State, Is.EqualTo(OnDemandJobState.Idle));
+            Assert.That(shown.Latest, Is.Null, "none worked out yet");
+            Assert.That(ran.State, Is.EqualTo(OnDemandJobState.Queued));
+            Assert.That(refused!.Message, Is.EqualTo("There is no recommendation 987654, or it was applied already."));
+        }
     }
 }

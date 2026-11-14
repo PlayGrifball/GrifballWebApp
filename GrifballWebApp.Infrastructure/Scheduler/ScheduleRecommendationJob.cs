@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using Quartz;
+using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Infrastructure.Jobs;
 
@@ -49,4 +50,15 @@ public sealed class ScheduleRecommendationJob : IJob<RecommendSchedule>
         var byTime = _options.TimeBudget is { } budget && budget > TimeSpan.Zero ? elapsed / budget : 0;
         return (int)Math.Clamp(Math.Max(byGenerations, byTime) * 100, 0, 99);
     }
+}
+
+/// <summary>A season's schedule recommendation runs (<see cref="IScheduleRecommendationRuns"/>) as runs of <see cref="ScheduleRecommendationJob"/>.</summary>
+public sealed class ScheduleRecommendationRuns(OnDemandJobs jobs) : IScheduleRecommendationRuns
+{
+    public Task<OnDemandJobStatusDto> Status(int seasonID, CancellationToken ct = default)
+        => jobs.Status<ScheduleRecommendationJob>(ScheduleRecommendationJob.RunName(seasonID), ct);
+
+    public Task<OnDemandJobStatusDto> Queue(int seasonID, string? requestedBy, int? requestedByUserID, CancellationToken ct = default)
+        => jobs.Enqueue<ScheduleRecommendationJob, RecommendSchedule>(ScheduleRecommendationJob.RunName(seasonID),
+            new RecommendSchedule(seasonID, requestedBy, requestedByUserID), $"Season {seasonID}", ct: ct);
 }

@@ -77,7 +77,7 @@ public static class GrifMcp
     /// <summary>The caller a request's user is: the user ID and roles the access token signed in.</summary>
     public static ToolCaller Caller(ClaimsPrincipal user)
         => new(int.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!, CultureInfo.InvariantCulture),
-            user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList());
+            user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList()) { Name = user.Identity?.Name };
 
     /// <summary>
     /// An MCP tool for each tool method of <paramref name="sets"/>, named as <see cref="GrifTools.Name"/> says, its annotations

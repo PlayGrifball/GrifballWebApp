@@ -2,6 +2,7 @@ using System.ComponentModel;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Identity;
+using GrifballWebApp.Application.Jobs;
 
 namespace GrifballWebApp.Application.Tools;
 
@@ -15,9 +16,11 @@ public class SysadminTools
     private readonly ToolCaller _caller;
     private readonly GamertagClaimService _claims;
     private readonly IDataPullService _dataPull;
+    private readonly IJobControl _jobs;
 
-    public SysadminTools(ToolCaller caller, GamertagClaimService claims, IDataPullService dataPull)
+    public SysadminTools(ToolCaller caller, GamertagClaimService claims, IDataPullService dataPull, IJobControl jobs)
     {
+        _jobs = jobs;
         _caller = caller;
         _claims = claims;
         _dataPull = dataPull;
@@ -56,4 +59,34 @@ public class SysadminTools
         await _dataPull.DownloadMedals();
         return "The medals are refreshed.";
     }
+
+    [Description("Runs a background job now, as the jobs page does (list_jobs gives each one's group and name). Refused for one that's off, "
+        + "running, or needs its page's input. Sysadmins.")]
+    public async Task<string> RunJob(
+        [Description("The job's group.")] string group,
+        [Description("The job's name.")] string name,
+        CancellationToken ct = default)
+    {
+        _caller.RequireRolesOf();
+        return Done(await _jobs.RunNow(group, name, _caller.UserID, ct), "It's running.");
+    }
+
+    [Description("Pauses or resumes a background job's schedule, as the jobs page does (list_jobs gives each one's group and name). Sysadmins.")]
+    public async Task<string> SetJobPaused(
+        [Description("The job's group.")] string group,
+        [Description("The job's name.")] string name,
+        [Description("True to pause, false to resume.")] bool paused,
+        CancellationToken ct = default)
+    {
+        _caller.RequireRolesOf();
+        return Done(await _jobs.SetPaused(group, name, paused, _caller.Name, ct), paused ? "It's paused." : "It's resumed.");
+    }
+
+    /// <summary>The answer for a job's change: <paramref name="done"/>, else the refusal saying why not.</summary>
+    private static string Done(JobControlResult result, string done) => result switch
+    {
+        JobControlResult.Done => done,
+        JobControlResult.NotFound => throw new ToolException("There is no such job: list_jobs gives each one's group and name."),
+        _ => throw new ToolException("The job can't do that now: it's off, running, or needs its page's input."),
+    };
 }

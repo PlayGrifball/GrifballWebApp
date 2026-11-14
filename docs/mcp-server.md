@@ -76,7 +76,9 @@ the channel, so it uses the public view whoever asks (`ToolCaller.InPublic`, #43
 The MCP server lists these to the roles each names alone, as their pages and `/admin` are; the Discord bot's chat, which
 answers in a public channel, doesn't get them. They call the same services as the pages and `/admin`. The actions are
 marked as changing data (not read-only, destructive), so MCP clients ask before calling them, and a service's refusal
-(a match already reported, a claim decided) is the tool's error, with the reason the site gives.
+(a match already reported, a claim decided) is the tool's error, with the reason the site gives. Jobs and schedule runs
+reach Infrastructure through Application ports (`IJobControl`, `IScheduleRecommendationRuns`); what a staff tool records as
+done by someone (a schedule applied, a job paused) is the token's user name (`ToolCaller.Name`), as the site records it.
 
 | Tool | Roles | What it does |
 | --- | --- | --- |
@@ -94,6 +96,12 @@ marked as changing data (not read-only, destructive), so MCP clients ask before 
 | `decide_gamertag_claim` | Sysadmin | Approves or rejects a gamertag claim |
 | `pull_halo_game` | Sysadmin | Pulls one Halo game's stats |
 | `refresh_medals` | Sysadmin | Downloads Halo's medals again |
+| `get_schedule_recommendation` | Commissioner, Sysadmin | A season's latest schedule recommendation, and whether one is being worked out |
+| `run_schedule_recommendation` | Commissioner, Sysadmin | Starts working one out (a background job) |
+| `apply_schedule_recommendation` | Commissioner, Sysadmin | Schedules the matches as one suggests |
+| `list_jobs` | Sysadmin | The background jobs and their state |
+| `run_job` | Sysadmin | Runs a job now |
+| `set_job_paused` | Sysadmin | Pauses or resumes a job's schedule |
 
 A refusal the model can act on (no such season, say) is a `ToolException`. The MCP server returns it as a tool error with
 its reason, as it does a service's refusal the site answers with a 4xx (`GlobalExceptionHandler.Expected`). The chat hosts return it as the tool's result, `Refused: …`. Any other error's details stay in the server's
