@@ -16,9 +16,9 @@ public class UserMergeConfiguration : IEntityTypeConfiguration<UserMerge>
 
     public void Configure(EntityTypeBuilder<UserMerge> entity)
     {
-        // Not temporal: it is itself the log of merges (and their undos), and the manifest can be large
         entity.ToTable("UserMerges", "Auth", tb =>
         {
+            tb.IsTemporal();
             tb.HasCheckConstraint("CK_Auth_UserMerges_DifferentUsers", DifferentUsers);
             tb.HasCheckConstraint("CK_Auth_UserMerges_UndoOnlyWhenUndone", UndoOnlyWhenUndone);
             tb.HasCheckConstraint("CK_Auth_UserMerges_RowCountsNotNegative", RowCountsNotNegative);

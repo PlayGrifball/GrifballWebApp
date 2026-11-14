@@ -8,9 +8,9 @@ public class ScheduleRecommendationConfiguration : IEntityTypeConfiguration<Sche
 {
     public void Configure(EntityTypeBuilder<ScheduleRecommendation> entity)
     {
-        // Not temporal: a job's output, written once (and stamped when applied); the season matches it sets keep their history
         entity.ToTable("ScheduleRecommendations", "Event", tb =>
         {
+            tb.IsTemporal();
             // The job's fitness (SeasonScheduleEvaluator: 1 / (1 + penalties)) and generations, as Propose refuses others
             tb.HasCheckConstraint("CK_Event_ScheduleRecommendations_FitnessInRange", "Fitness >= 0 AND Fitness <= 1");
             tb.HasCheckConstraint("CK_Event_ScheduleRecommendations_GenerationsNotNegative", "Generations >= 0");
@@ -45,7 +45,7 @@ public class ScheduleRecommendationMatchConfiguration : IEntityTypeConfiguration
 {
     public void Configure(EntityTypeBuilder<ScheduleRecommendationMatch> entity)
     {
-        entity.ToTable("ScheduleRecommendationMatches", "Event");
+        entity.ToTable("ScheduleRecommendationMatches", "Event", tb => tb.IsTemporal());
 
         entity.HasKey(e => e.ScheduleRecommendationMatchID);
         entity.HasIndex(e => new { e.ScheduleRecommendationID, e.SeasonMatchID }).IsUnique();

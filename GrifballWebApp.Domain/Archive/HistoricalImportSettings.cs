@@ -4,7 +4,7 @@ namespace GrifballWebApp.Domain.Archive;
 
 /// <summary>
 /// The scheduled refresh's last run: one row (ID 1, CK_Event_HistoricalImportSettings_Singleton), made when first needed.
-/// Not temporal: the worker writes it on every scheduled run. Its schedule and pause are its Quartz trigger's.
+/// Its schedule and pause are its Quartz trigger's.
 /// </summary>
 [AggregateRoot]
 public class HistoricalImportSettings : AuditableEntity

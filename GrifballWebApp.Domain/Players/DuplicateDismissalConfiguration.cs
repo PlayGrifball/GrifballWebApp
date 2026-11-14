@@ -10,8 +10,11 @@ public class DuplicateDismissalConfiguration : IEntityTypeConfiguration<Duplicat
 
     public void Configure(EntityTypeBuilder<DuplicateDismissal> entity)
     {
-        // Not temporal: a log of sysadmins' decisions, each row written once
-        entity.ToTable("DuplicateDismissals", "Auth", tb => tb.HasCheckConstraint("CK_Auth_DuplicateDismissals_Order", InOrder));
+        entity.ToTable("DuplicateDismissals", "Auth", tb =>
+        {
+            tb.IsTemporal();
+            tb.HasCheckConstraint("CK_Auth_DuplicateDismissals_Order", InOrder);
+        });
 
         // The pair is the key: dismissed once
         entity.HasKey(e => new { e.LowUserID, e.HighUserID });

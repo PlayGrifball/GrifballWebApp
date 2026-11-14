@@ -96,6 +96,8 @@ public class UserMergeAggregateDatabaseTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_UserMergeAggregate"))) - 1]);
 
+        // Through the model of the day: the merges had no history yet
+        await using var old = BeforeHistoryForRemainingTablesContext.On(_context);
         // Rows as the old model's public setters could leave them
         var rows = new Dictionary<string, UserMerge>();
         void Row(string name, Action<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<UserMerge>>? change = null, bool undo = false)
@@ -103,7 +105,7 @@ public class UserMergeAggregateDatabaseTests
             var merge = UserMergeTestData.Merge(source: 100 + rows.Count, target: 200 + rows.Count);
             if (undo)
                 merge.Undo(MergedAt, 9, "wrong person");
-            var entry = _context.UserMerges.Add(merge);
+            var entry = old.UserMerges.Add(merge);
             change?.Invoke(entry);
             rows[name] = merge;
         }
@@ -121,7 +123,7 @@ public class UserMergeAggregateDatabaseTests
             e.Property(m => m.RowsRemoved).CurrentValue = -2;
             e.Property(m => m.RowsAdded).CurrentValue = -3;
         });
-        await _context.SaveChangesAsync();
+        await old.SaveChangesAsync();
 
         await migrator.MigrateAsync();
 

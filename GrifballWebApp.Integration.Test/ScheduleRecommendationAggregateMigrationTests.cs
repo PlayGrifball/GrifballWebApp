@@ -35,10 +35,12 @@ public class ScheduleRecommendationAggregateMigrationTests
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_ScheduleRecommendationAggregate"))) - 1]);
 
         var season = await ScheduleRecommendationDatabaseTestData.AddSeason(_context);
+        // Through the model of the day: the recommendations had no history yet
+        await using var old = BeforeHistoryForRemainingTablesContext.On(_context);
         // As anything but the job and the apply could have written them: past the private setters, as the old model's public ones were
         ScheduleRecommendation Old(double fitness, int generations, DateTime? appliedAt, string? appliedBy)
         {
-            var entry = _context.ScheduleRecommendations.Add(ScheduleRecommendation.Propose(season.SeasonID, "commish", 0.5, 10,
+            var entry = old.ScheduleRecommendations.Add(ScheduleRecommendation.Propose(season.SeasonID, "commish", 0.5, 10,
                 [new ProposedMatchTime(1, At, false, true, true)]));
             entry.Property(r => r.Fitness).CurrentValue = fitness;
             entry.Property(r => r.Generations).CurrentValue = generations;
@@ -51,7 +53,7 @@ public class ScheduleRecommendationAggregateMigrationTests
         var unfit = Old(-0.25, 40, null, null);
         var negative = Old(0.5, -3, null, null);
         var appliedByNobody = Old(0.5, 40, null, "commish");
-        await _context.SaveChangesAsync();
+        await old.SaveChangesAsync();
 
         await migrator.MigrateAsync();
 

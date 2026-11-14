@@ -7,10 +7,12 @@ public class HistoricalImportSettingsConfiguration : IEntityTypeConfiguration<Hi
 {
     public void Configure(EntityTypeBuilder<HistoricalImportSettings> entity)
     {
-        // Not temporal: the scheduler writes it on every run
         // One row: the scheduler's
         entity.ToTable("HistoricalImportSettings", "Event", tb =>
-            tb.HasCheckConstraint("CK_Event_HistoricalImportSettings_Singleton", "HistoricalImportSettingsID = 1"));
+        {
+            tb.IsTemporal();
+            tb.HasCheckConstraint("CK_Event_HistoricalImportSettings_Singleton", "HistoricalImportSettingsID = 1");
+        });
 
         entity.HasKey(e => e.HistoricalImportSettingsID);
         // The single row has a fixed ID

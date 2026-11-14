@@ -7,8 +7,8 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
 {
     public void Configure(EntityTypeBuilder<OutboxMessage> builder)
     {
-        // Not temporal, unlike every other table: its rows are written a few times each and deleted after a week,
-        // so their history would only grow. Not auditable either: the app writes them, not a user.
+        // Not temporal, like the other background jobs' bookkeeping: its rows are written a few times each and deleted
+        // after a week, so their history would only grow. Not auditable either: the app writes them, not a user.
         builder.ToTable("Outbox", "Discord");
 
         builder.HasKey(e => e.Id);

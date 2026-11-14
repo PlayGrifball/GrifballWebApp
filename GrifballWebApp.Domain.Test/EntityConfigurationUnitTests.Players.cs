@@ -102,14 +102,14 @@ public partial class EntityConfigurationUnitTests
     }
 
     [Test]
-    public void UserMergeConfiguration_NotTemporalChecksAndIndexes()
+    public void UserMergeConfiguration_TemporalChecksAndIndexes()
     {
         var entity = Configured(new UserMergeConfiguration());
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(TableOf(entity), Is.EqualTo(("Auth", "UserMerges")));
-            Assert.That(entity.IsTemporal(), Is.False, "It is itself the log of merges");
+            Assert.That(entity.IsTemporal(), Is.True, "A merge undone keeps its record");
             Assert.That(entity.FindCheckConstraint("CK_Auth_UserMerges_DifferentUsers")!.Sql, Is.EqualTo("SourceUserID <> TargetUserID"));
             Assert.That(entity.FindCheckConstraint("CK_Auth_UserMerges_UndoOnlyWhenUndone")!.Sql,
                 Is.EqualTo("UndoneAt IS NOT NULL OR (UndoneByUserID IS NULL AND UndoNote IS NULL)"));
@@ -163,7 +163,7 @@ public partial class EntityConfigurationUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((TableOf(dismissal), TableOf(experience)), Is.EqualTo((("Auth", "DuplicateDismissals"), ("Other", "UserExperiences"))));
-            Assert.That((dismissal.IsTemporal(), experience.IsTemporal()), Is.EqualTo((false, true)));
+            Assert.That((dismissal.IsTemporal(), experience.IsTemporal()), Is.EqualTo((true, true)));
             Assert.That(dismissal.FindCheckConstraint("CK_Auth_DuplicateDismissals_Order")!.Sql, Is.EqualTo("LowUserID < HighUserID"),
                 "A pair is stored one way round");
             Assert.That(KeyOf(dismissal), Is.EqualTo(new List<string> { nameof(DuplicateDismissal.LowUserID), nameof(DuplicateDismissal.HighUserID) }));

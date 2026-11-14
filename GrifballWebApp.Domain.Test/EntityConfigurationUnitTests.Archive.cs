@@ -83,7 +83,7 @@ public partial class EntityConfigurationUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(TableOf(entity), Is.EqualTo(("Event", "HistoricalSources")));
-            Assert.That(entity.IsTemporal(), Is.False, "The worker writes the fetch status on every refresh");
+            Assert.That(entity.IsTemporal(), Is.False, "Each refresh stamps its fetch status");
             Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(HistoricalSource.HistoricalSourceID) }));
             Assert.That(MaxLengths(entity, lengths), Is.EqualTo(lengths));
             Assert.That(new List<string> { nameof(HistoricalSource.Category), nameof(HistoricalSource.Title), nameof(HistoricalSource.Url) }
@@ -123,7 +123,7 @@ public partial class EntityConfigurationUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(TableOf(entity), Is.EqualTo(("Event", "HistoricalSeasonReviews")));
-            Assert.That(entity.IsTemporal(), Is.False, "Bookkeeping of its job");
+            Assert.That(entity.IsTemporal(), Is.False, "Bookkeeping of its job, deleted with it");
             Assert.That(entity.FindCheckConstraint("CK_Event_HistoricalSeasonReviews_DecidedOnceDecided")!.Sql,
                 Is.EqualTo("(Status IN (3, 4) AND DecidedAt IS NOT NULL) OR (Status IN (1, 2) AND DecidedAt IS NULL)"));
             Assert.That(entity.FindCheckConstraint("CK_Event_HistoricalSeasonReviews_ApprovalJobOnlyWhenApproved")!.Sql,
@@ -171,7 +171,7 @@ public partial class EntityConfigurationUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That((TableOf(lookup), TableOf(settings)), Is.EqualTo((("Xbox", "XuidLookups"), ("Event", "HistoricalImportSettings"))));
-            Assert.That((lookup.IsTemporal(), settings.IsTemporal()), Is.EqualTo((false, false)));
+            Assert.That((lookup.IsTemporal(), settings.IsTemporal()), Is.EqualTo((false, true)), "A lookup is a retry queue's");
             Assert.That(KeyOf(lookup), Is.EqualTo(new List<string> { nameof(XuidLookup.UserID) }), "One lookup a user");
             Assert.That(MaxLengthOf(lookup, nameof(XuidLookup.Error)), Is.EqualTo(200));
             var byUser = ForeignKeyOf(lookup, nameof(XuidLookup.User));
