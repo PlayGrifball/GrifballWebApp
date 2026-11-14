@@ -136,7 +136,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
                 (ChatRole.User, "hello"),
             }));
             Assert.That(model.Options!.Instructions, Does.Contain("You are a Discord bot"));
-            Assert.That(model.Options!.Tools!.Select(x => x.Name), Is.EquivalentTo(GrifTools.Chat));
+            // The author has no linked account: every chat tool but the one only some roles may use
+            Assert.That(model.Options!.Tools!.Select(x => x.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => t != "pull_season_match_games")));
             // The two users were there already: not added again
             Assert.That(await Db.DiscordUsers.CountAsync(), Is.EqualTo(2));
         }
@@ -240,8 +241,6 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         var xbox = XboxUser.FromXbox(77, "Grunt Padre");
         Db.XboxUsers.Add(xbox);
         await Db.SaveChangesAsync();
-        _xboxUsers.GetsertXboxUserByGamertag("Grunt Padre", Arg.Any<CancellationToken>()).Returns((xbox, (string?)null));
-        _xboxUsers.GetsertXboxUserByGamertag("Nobody", Arg.Any<CancellationToken>()).Returns(((XboxUser?)null, (string?)"No such gamertag"));
         object? now = null, games = null, refused = null;
         var model = new ScriptedChatClient((TimeSpan.Zero, "Done"))
         {
@@ -259,11 +258,12 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         using (Assert.EnterMultipleScope())
         {
             Assert.That(AsJson(now).GetProperty("unixSeconds").GetInt64(), Is.EqualTo(_time.GetUtcNow().ToUnixTimeSeconds()));
-            Assert.That(AsJson(games).GetProperty("games").GetArrayLength(), Is.Zero);
-            Assert.That(refused, Is.EqualTo("Refused: No such gamertag"));
+            Assert.That(AsJson(games).GetArrayLength(), Is.Zero);
+            Assert.That(refused?.ToString(), Does.StartWith("Refused: The site has no games saved for the gamertag Nobody"));
             // A small model can't turn the tools' ISO times into Discord's epoch timestamps reliably: it writes them as given
             Assert.That(model.Options!.Instructions, Does.Contain("in UTC, as the tools give them").And.Not.Contain("<t:"));
         }
-        await _dataPull.Received(1).DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), 0, 0, 5, Arg.Any<CancellationToken>());
+        // Reading the saved games pulls nothing from Halo
+        await _dataPull.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);
     }
 }

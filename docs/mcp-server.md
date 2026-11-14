@@ -32,8 +32,9 @@ claude mcp add --transport http grifball https://grifball.xyz/api/mcp --header "
 ## Tools
 
 The tools show no more than the site shows signed out (or, for `get_season_match`, shows the caller). All of them only
-read, except `get_recent_games`: it pulls the player's latest games from Halo and saves them first. It is marked as not
-read-only, so MCP clients ask before calling it. It never changes or deletes anything. Tools take IDs: `search` finds players, teams and seasons by name, and `list_seasons` lists seasons. A season tool
+read, except `pull_season_match_games`. That one queues the season match page's pull from Halo, a background job that saves
+the games it finds. Only players, commissioners and sysadmins may use it, as on the page (see [Roles](#roles)). It is marked
+as not read-only, so MCP clients ask before calling it. It never changes or deletes anything. Tools take IDs: `search` finds players, teams and seasons by name, and `list_seasons` lists seasons. A season tool
 called without a `seasonID` uses the running season, and a player tool called without a `userID` uses the caller.
 
 | Tool | What it returns |
@@ -62,7 +63,8 @@ called without a `seasonID` uses the running season, and a player tool called wi
 | `get_leaderboards` | The all-time leaderboards |
 | `list_late_league_seasons` | Late League's seasons |
 | `get_late_league_season` | A Late League season's player stats |
-| `get_recent_games` | A player's latest Grifball custom games, pulled fresh from Halo, each with its Waypoint link |
+| `get_recent_games` | A player's latest Grifball custom games as the site saved them, each with its Waypoint link |
+| `pull_season_match_games` | Queues the pull of a season match's players' games from Halo (players and staff) |
 | `get_current_time` | The time now, in UTC and as Unix seconds |
 
 A refusal the model can act on (no such season, say) is a `ToolException`. The MCP server returns it as a tool error with
@@ -93,8 +95,15 @@ server's clients get every tool.
 A tool is a public method with a `[Description]` on a class in `GrifballWebApp.Application/Tools`, and each of its
 parameters has a `[Description]` too. Its name is the method's name in snake_case. It calls the same service as the
 controller for that page and returns its DTO. A class whose constructor takes a `ToolCaller` gets the signed-in user. A new
-class is listed in `GrifTools.ReadOnly`, or in `GrifTools.FetchingFromHalo` if it pulls from Halo first. A tool that chats
+class is listed in `GrifTools.ReadOnly`, or in `GrifTools.QueuingHaloPulls` if it queues a pull from Halo. A tool that chats
 should have is named in `GrifTools.Chat`. `GrifToolsTests` checks the descriptions and names.
 
-Tools that change things (reporting a match, setting availability) will come with the same role checks as the site's
-endpoints, and will be marked as not read-only, so clients ask before calling them.
+## Roles
+
+A tool only some roles may use has `[ToolRoles(...)]` on its method or class, naming the roles its site endpoint allows. Any one of
+them will do. A caller without one doesn't get the tool:
+- `GrifTools.AIFunctions` leaves it out of a chat's tools, so an anonymous Discord user never sees it.
+- The MCP server leaves it out of the user's tool list, and refuses a call to it anyway.
+- The tool also checks itself (`ToolCaller.Require`), so a host's filtering can't be the only guard.
+
+Tools that change things (reporting a match, setting availability) will come the same way, with the site's role checks.

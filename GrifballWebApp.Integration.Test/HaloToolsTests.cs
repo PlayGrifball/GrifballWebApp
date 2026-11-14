@@ -1,10 +1,7 @@
-using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure;
-using Microsoft.Extensions.Logging.Abstractions;
-using NSubstitute;
 using HaloMatch = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Integration.Test;
@@ -43,14 +40,8 @@ public class HaloToolsTests
         undated.AddParticipant(0, xbox.XboxUserID, new MatchParticipantStats());
         _context.Matches.AddRange(dated, undated);
         await _context.SaveChangesAsync();
-        var xboxUsers = Substitute.For<IGetsertXboxUserService>();
-        xboxUsers.GetsertXboxUserByGamertag("Undated", Arg.Any<CancellationToken>()).Returns((xbox, (string?)null));
-        var dataPull = Substitute.For<IDataPullService>();
-        dataPull.DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(MatchPullResult.Empty);
+        var recent = await new HaloTools(_context).GetRecentGames("Undated", 1);
 
-        var recent = await new HaloTools(_context, xboxUsers, dataPull, NullLogger<HaloTools>.Instance).GetRecentGames("Undated", 1);
-
-        Assert.That(recent.Games.Single().MatchID, Is.EqualTo(dated.MatchID));
+        Assert.That(recent.Single().MatchID, Is.EqualTo(dated.MatchID));
     }
 }

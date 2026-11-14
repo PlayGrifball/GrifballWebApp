@@ -56,6 +56,7 @@ public class GrifToolsTests
 
     private static readonly string[] Alpha = ["Alpha"];
     private static readonly string[] PlayerRole = ["Player"];
+    private static readonly string[] Pullers = ["Player", "Commissioner", "Sysadmin"];
 
     [SetUp]
     public async Task SetUp()
@@ -290,16 +291,16 @@ public class GrifToolsTests
     public void TheMcpServer_HasOneToolPerMethod_MarkedWithWhatItDoes()
     {
         var tools = GrifMcp.Tools(GrifTools.All).ToDictionary(t => t.ProtocolTool.Name, t => t.ProtocolTool.Annotations);
-        var reading = tools.Where(t => t.Key != "get_recent_games").Select(t => t.Value).ToList();
+        var reading = tools.Where(t => t.Key != "pull_season_match_games").Select(t => t.Value).ToList();
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(tools.Keys, Is.EquivalentTo(AllTools().Select(GrifTools.Name)));
             Assert.That(reading.Select(a => a?.ReadOnlyHint), Has.All.True);
             Assert.That(reading.Select(a => a?.OpenWorldHint), Has.All.False);
-            Assert.That(tools["get_recent_games"]?.ReadOnlyHint, Is.False, "it saves the games it pulls: clients ask first");
-            Assert.That(tools["get_recent_games"]?.OpenWorldHint, Is.True, "it reaches Halo");
-            Assert.That(tools["get_recent_games"]?.IdempotentHint, Is.False, "a second call can save games played since");
+            Assert.That(tools["pull_season_match_games"]?.ReadOnlyHint, Is.False, "its pull saves the games it finds: clients ask first");
+            Assert.That(tools["pull_season_match_games"]?.OpenWorldHint, Is.True, "it reaches Halo");
+            Assert.That(tools["pull_season_match_games"]?.IdempotentHint, Is.False, "a second pull can save games played since");
             Assert.That(tools.Values.Select(a => a?.DestructiveHint), Has.All.False, "no tool changes or deletes anything yet");
         }
     }
@@ -377,6 +378,7 @@ public class GrifToolsTests
         await using var services = ChatServices();
         var tools = GrifTools.AIFunctions(services.GetRequiredService<IServiceScopeFactory>(), ToolCaller.Anonymous, GrifTools.Chat);
 
+        Assert.That(tools.Select(t => t.Name), Does.Not.Contain("pull_season_match_games"), "an anonymous caller has no role to pull with");
         var unknown = await Function(tools, "get_season").InvokeAsync(new AIFunctionArguments { ["seasonID"] = 987654 });
         var aboutMe = await Function(tools, "get_player").InvokeAsync(new AIFunctionArguments());
 
@@ -420,6 +422,16 @@ public class GrifToolsTests
         {
             Assert.That(clocks, Has.Count.EqualTo(2), "a scope per call");
             Assert.That(clocks.Select(c => c.Disposed), Has.All.True, "each scope ended with its call");
+        }
+    }
+
+    [Test]
+    public void ARoleTool_IsForItsRoles_AndTheRestForAnyone()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(GrifTools.RolesByName["pull_season_match_games"], Is.EquivalentTo(Pullers));
+            Assert.That(GrifTools.RolesByName.Where(t => t.Key != "pull_season_match_games").Select(t => t.Value), Has.All.Empty);
         }
     }
 }

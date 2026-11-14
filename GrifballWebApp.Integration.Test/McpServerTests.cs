@@ -131,7 +131,7 @@ public class McpServerTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(tools.Select(t => t.Name), Is.SupersetOf(SomeTools));
-            Assert.That(tools.Where(t => t.Name != "get_recent_games").Select(t => t.ProtocolTool.Annotations?.ReadOnlyHint), Has.All.True, "every tool but get_recent_games (it saves what it pulls) only reads");
+            Assert.That(tools.Where(t => t.Name != "pull_season_match_games").Select(t => t.ProtocolTool.Annotations?.ReadOnlyHint), Has.All.True, "every tool but pull_season_match_games (its pull saves games) only reads");
             Assert.That(tools.Select(t => t.Description), Has.None.Null.And.None.Empty);
         }
 
@@ -226,6 +226,39 @@ public class McpServerTests
         using var client = Client(created.Token);
         using var response = await client.SendAsync(ListToolsRequest());
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+    }
+
+    [Test]
+    public async Task ARoleTool_IsHiddenFrom_AndRefusedTo_AUserWithoutTheRole()
+    {
+        // A new account is a Player: taken out of the role, it may not pull
+        var userName = "norole-" + Guid.NewGuid().ToString("N")[..8];
+        using var site = Client();
+        using (var register = await site.PostAsJsonAsync("/identity/register", new { Username = userName, Password }))
+            Assert.That(register.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+            await users.RemoveFromRoleAsync((await users.FindByNameAsync(userName))!, "Player");
+        }
+        using var login = await site.PostAsJsonAsync("/identity/login?useCookies=false", new { Username = userName, Password });
+        using var signedIn = Client((await login.Content.ReadFromJsonAsync<AccessTokenResponse>())!.AccessToken);
+        using var made = await signedIn.PostAsJsonAsync("/identity/access-tokens", new CreateAccessTokenRequest("mine", 30));
+        var created = (await made.Content.ReadFromJsonAsync<CreatedAccessTokenDto>())!;
+        await using var mcp = await Connect(created.Token);
+        await using var staff = await Connect((await NewAccessToken()).Token);
+
+        var theirs = (await mcp.ListToolsAsync()).Select(t => t.Name).ToList();
+        var staffs = (await staff.ListToolsAsync()).Select(t => t.Name).ToList();
+        var refused = await mcp.CallToolAsync("pull_season_match_games", new Dictionary<string, object?> { ["seasonMatchID"] = 1 });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(theirs, Does.Not.Contain("pull_season_match_games").And.Contain("get_recent_games"));
+            Assert.That(staffs, Does.Contain("pull_season_match_games"), "the smoke user is a sysadmin");
+            Assert.That(refused.IsError, Is.True);
+            Assert.That(Text(refused), Does.Contain("Only a player or commissioner or sysadmin"));
+        }
     }
 
     [Test]
