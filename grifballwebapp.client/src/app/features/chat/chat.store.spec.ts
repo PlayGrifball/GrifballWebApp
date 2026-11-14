@@ -85,9 +85,9 @@ describe('ChatStore', () => {
     store.ask('Next?');
 
     const history = asked()[1].history;
-    expect(history.length).toBe(HISTORY_LIMIT);
+    expect(history).toHaveSize(HISTORY_LIMIT);
     expect(history[0].text).toBe('m5');
-    expect(history.at(-1)!.text.length).toBe(MAX_HISTORY_MESSAGE_LENGTH);
+    expect(history.at(-1)!.text).toHaveSize(MAX_HISTORY_MESSAGE_LENGTH);
   });
 
   it("keeps the conversation for the tab's session, and takes it up again", () => {
@@ -157,7 +157,7 @@ describe('ChatStore', () => {
     expect(store.asking()).toBeFalse();
     expect(store.turns()).toEqual([turn(false, 'Who won?'), turn(true, 'The ')]);
     store.stop();
-    expect(store.turns().length).toBe(2);
+    expect(store.turns()).toHaveSize(2);
   });
 
   it('starts a new conversation on request and on a sign-in or out, stopping the answer on its way', () => {
