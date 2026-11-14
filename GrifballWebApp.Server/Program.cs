@@ -13,6 +13,7 @@ using GrifballWebApp.Server.DatabaseBackup;
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Identity;
 using GrifballWebApp.Server.Matchmaking;
+using GrifballWebApp.Server.Mcp;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Server.SignalR;
 using GrifballWebApp.Server.Signups;
@@ -308,6 +309,9 @@ public class Program
             };
         });
 
+        // The MCP server, and the personal access tokens that sign its clients in (on its endpoint only)
+        builder.Services.AddGrifMcp(authentication);
+
         if (!discordOff)
         {
             authentication.AddDiscord(options =>
@@ -409,6 +413,8 @@ public class Program
             // A created or accepted answer's Location as its caller reaches it, under /api
             app.Use(ApiLocations.UsePublicPrefix);
             app.MapControllers();
+            // The MCP server, for AI agents: access tokens only (GrifMcp)
+            app.MapGrifMcp();
 
             // Hubs are not MVC, so CookieAntiforgeryFilter does not see them: refuse cookie sessions from other origins.
             app.Use(BrowserAuth.RefuseForeignHubRequests);

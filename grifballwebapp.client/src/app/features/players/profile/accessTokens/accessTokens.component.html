@@ -1,0 +1,50 @@
+<section aria-labelledby="at-heading">
+  <h2 id="at-heading" class="hud-h2">Access tokens</h2>
+  <p class="hud-muted">
+    For AI agents such as Claude Code, through the MCP server at <code>{{endpoint()}}</code>. A token acts as you, with your roles,
+    and opens nothing but the MCP server.
+  </p>
+
+  <form class="at-form" (submit)="$event.preventDefault(); create()">
+    <div class="at-field">
+      <label class="at-label" for="at-name">Name</label>
+      <input id="at-name" class="at-input" type="text" maxlength="100" autocomplete="off" placeholder="Claude Code" [value]="name()"
+        (input)="name.set($any($event.target).value)">
+    </div>
+    <div class="at-field">
+      <label class="at-label" for="at-days">Lasts</label>
+      <select id="at-days" class="at-input" (change)="days.set(+$any($event.target).value)">
+        @for (d of lifetimes; track d) {
+          <option [value]="d" [selected]="d === days()">{{d}} days</option>
+        }
+      </select>
+    </div>
+    <button type="submit" class="hud-btn at-btn" [disabled]="creating() || !name().trim()">Make a token</button>
+  </form>
+
+  @if (created(); as token) {
+    <div class="at-created" role="status">
+      <p>Your new token, shown only this once:</p>
+      <code class="at-secret">{{token}}</code>
+      <p>To add the server to Claude Code:</p>
+      <code class="at-secret">{{command()}}</code>
+    </div>
+  }
+
+  @if (failed()) {
+    <p class="hud-empty hud-empty--error" role="alert">Your tokens couldn't be loaded.</p>
+  } @else if (tokens.hasValue() && rows().length === 0) {
+    <p class="hud-muted">None yet.</p>
+  } @else {
+    <ul class="at-tokens">
+      @for (t of rows(); track t.id) {
+        <li>
+          <span class="at-token-name">{{t.name}}</span>
+          <span class="hud-muted">made {{t.createdAt | date: 'mediumDate'}}</span>
+          <span [class.at-expired]="isExpired(t)" class="hud-muted">{{isExpired(t) ? 'expired' : 'expires'}} {{t.expiresAt | date: 'mediumDate'}}</span>
+          <button type="button" class="hud-btn at-btn" (click)="revoke(t)">Revoke</button>
+        </li>
+      }
+    </ul>
+  }
+</section>
