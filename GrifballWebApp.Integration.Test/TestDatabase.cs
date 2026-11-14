@@ -229,15 +229,30 @@ internal static class TestDatabase
     /// <summary>SQL Server's "cannot be made at this time": the database is in single-user mode and someone else holds it.</summary>
     private const int SingleUserTaken = 5064;
 
-    /// <summary>SQL Server: the batch that drops <paramref name="name"/>, ending its sessions first when <paramref name="killSessions"/>.</summary>
+    /// <summary>
+    /// SQL Server: the batch that drops <paramref name="name"/>. SET SINGLE_USER WITH ROLLBACK IMMEDIATE ends the
+    /// database's sessions by database, so the first attempt kills nothing. A KILL goes by session ID, and SQL Server gives
+    /// a freed ID to the next new connection at once: a session that leaves after the list of IDs is read (one of the pool
+    /// just cleared, closing) can hand its ID to another test's connection, and the KILL then ends that test's session
+    /// ("transport-level error ... Connection was terminated", #436). So <paramref name="killSessions"/> is only for a
+    /// retry, when a session holds the single-user slot and blocks the ALTER (5064), and each KILL first checks that its
+    /// session is still in this database.
+    /// </summary>
     internal static string SqlServerDropSql(string name, bool ifExists, bool killSessions)
     {
-        return $@"
-            {(ifExists ? $"IF DB_ID('{name}') IS NULL RETURN;" : "")}
+        var kill = killSessions
+            ? $@"
+            DECLARE @db int = DB_ID('{name}');
             DECLARE @kill nvarchar(max) = N'';
-            SELECT @kill += N'BEGIN TRY KILL ' + CAST(session_id AS nvarchar(10)) + N'; END TRY BEGIN CATCH END CATCH;'
-            FROM sys.dm_exec_sessions WHERE database_id = DB_ID('{name}') AND session_id <> @@SPID;
-            EXEC (@kill);
+            SELECT @kill += N'IF EXISTS (SELECT 1 FROM sys.dm_exec_sessions WHERE session_id = ' + s.id
+                + N' AND database_id = ' + CAST(@db AS nvarchar(10))
+                + N') BEGIN BEGIN TRY KILL ' + s.id + N'; END TRY BEGIN CATCH END CATCH; END;'
+            FROM sys.dm_exec_sessions CROSS APPLY (SELECT CAST(session_id AS nvarchar(10)) AS id) s
+            WHERE database_id = @db AND session_id <> @@SPID;
+            EXEC (@kill);"
+            : "";
+        return $@"
+            {(ifExists ? $"IF DB_ID('{name}') IS NULL RETURN;" : "")}{kill}
             ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
             DROP DATABASE [{name}];
             ";
@@ -277,7 +292,8 @@ internal static class TestDatabase
             builder.InitialCatalog = "master";
             // A pooled connection of a host just stopped can still take the one SINGLE_USER slot between the ALTER and the
             // DROP ("currently in use", seen in CI): its pool is cleared first, and a drop that still loses the race is retried.
-            // A connection holding the slot also blocks the retry's ALTER (5064), so every session left on it is killed first.
+            // A connection holding the slot also blocks the retry's ALTER (5064), so a retry kills the sessions still on it
+            // first; the first attempt kills none (SqlServerDropSql says why).
             Microsoft.Data.SqlClient.SqlConnection.ClearPool(new Microsoft.Data.SqlClient.SqlConnection(connectionString));
             for (var attempt = 1; ; attempt++)
             {
