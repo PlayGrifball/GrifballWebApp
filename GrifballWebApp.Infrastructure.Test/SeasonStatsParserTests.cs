@@ -157,4 +157,43 @@ public class SeasonStatsParserTests
 
         Assert.That(playoffs.Players.Select(p => (p.Gamertag, p.GamesPlayed)), Is.EqualTo(new[] { ("Regresser", (decimal?)1) }));
     }
+
+    [Test]
+    public void PerGameWithoutAStatsColumns_LeavesThoseStatsUnrecorded_NotZero()
+    {
+        var playoffs = Playoffs(
+            Row("Team", "Player", "Games", "Goals", "Kills", "Deaths"),
+            Row("Ascended", "Regresser", 1, 2, 30, 10),
+            Row(null, "Regresser", 1, null, 20, 5));
+
+        var regresser = playoffs.Players.Single();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((regresser.GamesPlayed, regresser.Goals, regresser.Kills, regresser.Deaths), Is.EqualTo(((decimal?)2, (decimal?)2, (decimal?)50, (decimal?)15)));
+            Assert.That((regresser.Wins, regresser.Losses, regresser.WinPercent), Is.EqualTo(((decimal?)null, (decimal?)null, (decimal?)null)), "no Wins or Losses column");
+            Assert.That((regresser.CarrierKills, regresser.Sprees, regresser.Assists), Is.EqualTo(((decimal?)null, (decimal?)null, (decimal?)null)), "no Stops, Sprees or Assists column");
+        }
+    }
+
+    [Test]
+    public void SideBySideFinals_PlayerOnATeamAlready_KeepsIt_OverTheOpponentsShortName()
+    {
+        var playoffs = Playoffs(
+            PlayoffHeader,
+            Row("Ascended", "Regresser", 1, 1, null, 2, 30, null, 10),
+            Row("GAME 1"),
+            Row("W vs ApoPo (5-1) host", "Goals", "Kills", "Deaths"),
+            Row("Regresser", 3, 25, 5),
+            Row("L vs ASC (1-5) host", "Goals", "Kills", "Deaths"),
+            Row("TheAlphaTurtle", 1, 32, 36));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(playoffs.Players.Select(p => (p.Gamertag, p.TeamName, p.GamesPlayed)), Is.EquivalentTo(new[]
+            {
+                ("Regresser", (string?)"Ascended", (decimal?)2),
+                ("TheAlphaTurtle", (string?)"ApoPo", (decimal?)1),
+            }), "Regresser's team from the main table, not 'ASC' from the other side's header: one stint, no made-up team");
+        }
+    }
 }

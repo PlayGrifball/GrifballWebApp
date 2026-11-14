@@ -178,6 +178,7 @@ internal sealed class StatLineAndGameTotalsUnitTests
     [TestCase("""{"grabs":"12","battingAverage":null}""", TestName = "SetStored_ExtendedMetricsNotNumbers_LeavesTheMetricsNull")]
     [TestCase("""{"Assassinations":2}""", TestName = "SetStored_ExtendedMetricsWithoutThem_LeavesTheMetricsNull")]
     [TestCase("""{"battingAverage":1e40}""", TestName = "SetStored_ExtendedMetricOutOfDecimalRange_LeavesTheMetricsNull")]
+    [TestCase("""{"grabs":1e12}""", TestName = "SetStored_GrabsOutOfIntRange_LeavesTheMetricsNull")]
     public void SetStored_ExtendedMetricsWithoutUsableValues_LeavesTheMetricsNull(string json)
     {
         var line = StoredWith(json);

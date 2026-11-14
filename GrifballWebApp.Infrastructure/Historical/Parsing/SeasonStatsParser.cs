@@ -153,7 +153,14 @@ public static partial class SeasonStatsParser
         }
 
         if (tab.PerGame && sideBySideStart >= 0)
-            players.AddRange(SideBySideGamePlayers(sheet, sideBySideStart, rosters));
+        {
+            // A finals player keeps the team the tab or a roster has them on; the other side's header names a team by
+            // whatever short name it was written with
+            var teams = new Dictionary<string, string>(rosters, StringComparer.OrdinalIgnoreCase);
+            foreach (var p in players.Where(p => p.TeamName is not null))
+                teams[HistoricalKeys.Normalize(p.Gamertag)] = p.TeamName!;
+            players.AddRange(SideBySideGamePlayers(sheet, sideBySideStart, teams));
+        }
 
         return tab.PerGame ? AggregatePerGame(players) : players;
     }
@@ -215,7 +222,7 @@ public static partial class SeasonStatsParser
 
     private sealed record SideBySideBlock(int NameCol, bool Won, string Opponent, Dictionary<int, (string Key, string Header)> Cols);
 
-    private static List<ArchivePlayer> SideBySideGamePlayers(SheetTable sheet, int startRow, Dictionary<string, string> rosters)
+    private static List<ArchivePlayer> SideBySideGamePlayers(SheetTable sheet, int startRow, Dictionary<string, string> teams)
     {
         var r = startRow + 1;
         while (r < sheet.Rows.Count && ParseSideBySideHeader(sheet.Rows[r]).Count == 0)
@@ -228,7 +235,7 @@ public static partial class SeasonStatsParser
             var inferredTeam = InferOpposingTeamName(teamSections, s);
             var (headers, rows) = teamSections[s];
             foreach (var hdr in headers)
-                AddSideBySideBlockPlayers(hdr, rows, inferredTeam, rosters, result);
+                AddSideBySideBlockPlayers(hdr, rows, inferredTeam, teams, result);
         }
         return result;
     }
@@ -280,7 +287,7 @@ public static partial class SeasonStatsParser
     }
 
     private static void AddSideBySideBlockPlayers(SideBySideBlock hdr, List<string[]> rows, string? inferredTeam,
-        Dictionary<string, string> rosters, List<ArchivePlayer> result)
+        Dictionary<string, string> teams, List<ArchivePlayer> result)
     {
         foreach (var row in rows)
         {
@@ -289,7 +296,7 @@ public static partial class SeasonStatsParser
             var (gamertag, tradeNote, roleNote) = ArchiveCells.Gamertag(row[hdr.NameCol]);
             if (gamertag.Length == 0)
                 continue;
-            var team = inferredTeam ?? rosters.GetValueOrDefault(HistoricalKeys.Normalize(gamertag));
+            var team = teams.GetValueOrDefault(HistoricalKeys.Normalize(gamertag)) ?? inferredTeam;
             var player = Player(row, hdr.Cols, gamertag, team, tradeNote, roleNote, 1);
             result.Add(WithGameOutcome(player, hdr.Won));
         }
@@ -348,12 +355,15 @@ public static partial class SeasonStatsParser
         return result;
     }
 
-    private static Dictionary<int, (string Key, string Header)> ColumnsOfRange(string[] row, int startCol, int endCol)
+    /// <summary>The stats the columns from <paramref name="startCol"/> up to <paramref name="endCol"/> of a header hold, by
+    /// column index.</summary>
+    private static Dictionary<int, (string Key, string Header)> ColumnsOfRange(IReadOnlyList<string> row, int startCol, int endCol)
     {
         var cols = new Dictionary<int, (string Key, string Header)>();
         for (var c = startCol; c < endCol; c++)
         {
             var text = row[c].Trim();
+            // A pivot table's column is its stat's ("SUM of Games Played"), and a database's header has underscores
             var lower = text.ToLowerInvariant().Replace('_', ' ');
             if (Columns.TryGetValue(lower.StartsWith("sum of ") ? lower[7..].Trim() : lower, out var key))
                 cols[c] = (key, text);
@@ -377,8 +387,9 @@ public static partial class SeasonStatsParser
             var stint = stints.GetValueOrDefault(group.Key.Key) + 1;
             stints[group.Key.Key] = stint;
             var games = group.Count();
-            var wins = group.Sum(p => p.Wins ?? 0);
-            var losses = group.Sum(p => p.Losses ?? 0);
+            // A stat no game records stays unrecorded (null), not 0; kills and deaths count toward the ratio either way
+            var wins = SumOpt(group.Select(p => p.Wins));
+            var losses = SumOpt(group.Select(p => p.Losses));
             var kills = group.Sum(p => p.Kills ?? 0);
             var deaths = group.Sum(p => p.Deaths ?? 0);
             var kdRatio = deaths > 0 ? Math.Round(kills / deaths, 3, MidpointRounding.AwayFromZero) : (decimal?)null;
@@ -392,19 +403,19 @@ public static partial class SeasonStatsParser
                 GamesPlayed = games,
                 Wins = wins,
                 Losses = losses,
-                WinPercent = games > 0 ? Math.Round(wins * 100m / games, 2, MidpointRounding.AwayFromZero) : null,
-                Goals = group.Sum(p => p.Goals ?? 0),
+                WinPercent = wins is decimal won ? Math.Round(won * 100m / games, 2, MidpointRounding.AwayFromZero) : null,
+                Goals = SumOpt(group.Select(p => p.Goals)),
                 Kills = kills,
                 Deaths = deaths,
-                Assists = group.Sum(p => p.Assists ?? 0),
+                Assists = SumOpt(group.Select(p => p.Assists)),
                 KdRatio = kdRatio,
                 KdSpread = kills - deaths,
-                CarrierKills = group.Sum(p => p.CarrierKills ?? 0),
+                CarrierKills = SumOpt(group.Select(p => p.CarrierKills)),
                 TotalSecondsPlayed = SumOpt(group.Select(p => p.TotalSecondsPlayed)),
-                Sprees = group.Sum(p => p.Sprees ?? 0),
-                MultiKills = group.Sum(p => p.MultiKills ?? 0),
-                Exterminations = group.Sum(p => p.Exterminations ?? 0),
-                Betrayals = group.Sum(p => p.Betrayals ?? 0),
+                Sprees = SumOpt(group.Select(p => p.Sprees)),
+                MultiKills = SumOpt(group.Select(p => p.MultiKills)),
+                Exterminations = SumOpt(group.Select(p => p.Exterminations)),
+                Betrayals = SumOpt(group.Select(p => p.Betrayals)),
                 HammerKills = SumOpt(group.Select(p => p.HammerKills)),
                 SwordKills = SumOpt(group.Select(p => p.SwordKills)),
                 BallKills = SumOpt(group.Select(p => p.BallKills)),
@@ -444,19 +455,7 @@ public static partial class SeasonStatsParser
 
     /// <summary>The stats a header's columns hold, by column index (a later column of the same stat wins, as the archive's
     /// compiler read them).</summary>
-    internal static Dictionary<int, (string Key, string Header)> ColumnsOf(IReadOnlyList<string> header)
-    {
-        var columns = new Dictionary<int, (string Key, string Header)>();
-        for (var c = 0; c < header.Count; c++)
-        {
-            var text = header[c].Trim();
-            // A pivot table's column is its stat's ("SUM of Games Played")
-            var lower = text.ToLowerInvariant().Replace('_', ' ');
-            if (Columns.TryGetValue(lower.StartsWith("sum of ") ? lower[7..].Trim() : lower, out var key))
-                columns[c] = (key, text);
-        }
-        return columns;
-    }
+    internal static Dictionary<int, (string Key, string Header)> ColumnsOf(IReadOnlyList<string> header) => ColumnsOfRange(header, 0, header.Count);
 
     /// <summary>A player's line from a row of the stat columns.</summary>
     internal static ArchivePlayer Player(string[] row, Dictionary<int, (string Key, string Header)> columns, string gamertag, string? teamName, string? tradeNote, string? roleNote, int stint, System.Text.Json.JsonElement? extendedMetrics = null)

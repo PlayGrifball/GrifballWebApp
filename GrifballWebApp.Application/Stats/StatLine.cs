@@ -115,7 +115,7 @@ public abstract class StatLine
         => root.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Number && prop.TryGetDecimal(out var value) ? value : null;
 
     private static int? IntMetric(JsonElement root, string name)
-        => DecimalMetric(root, name) is decimal d ? (int)Math.Round(d) : null;
+        => DecimalMetric(root, name) is decimal d && Math.Round(d) is var whole && whole >= int.MinValue && whole <= int.MaxValue ? (int)whole : null;
 
     /// <summary>The totals of the player's games (<see cref="GameTotals"/>). A stat no game records is null.</summary>
     public void SetGames(GameTotals t, GameVersion? gameVersion)
