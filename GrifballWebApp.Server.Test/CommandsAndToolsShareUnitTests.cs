@@ -69,6 +69,23 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task BetweenSeasons_ANextSeasonAlreadyMade_IsNotTheDefault_ForACommandOrATool()
+    {
+        var ended = await SeasonEnded("Ended", daysAgo: 10);
+        // Made already (a higher ID), starting in 40 days and announced in 10: nobody signed out sees it yet
+        await SeasonEnded("Next", daysAgo: -100);
+
+        var command = await new CommandLookups(Db, Seasons(), _time).Season(null);
+        var tool = await SeasonTools().GetSeason();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(command, Is.EqualTo(ended.SeasonID));
+            Assert.That(tool.SeasonName, Is.EqualTo("Ended"));
+        }
+    }
+
+    [Test]
     public async Task WithNoSeasons_ACommandFindsNone_AndAToolSaysThereAreNone()
     {
         var command = await new CommandLookups(Db, Seasons(), _time).Season(null);
@@ -77,7 +94,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(command, Is.Null);
-            Assert.That(tool!.Message, Is.EqualTo("There are no seasons yet."));
+            Assert.That(tool!.Message, Is.EqualTo("No season has started yet."));
         }
     }
 

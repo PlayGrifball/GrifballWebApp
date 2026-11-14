@@ -42,7 +42,7 @@ public class SeasonTools
             return await _seasons.GetSeasonName(id, ct) is null ? throw new ToolException($"There is no season {id}: list_seasons has their IDs.") : id;
         // The same default as the slash commands: the running season, else the latest
         var current = await _seasons.GetCurrentOrLatestSeasonID(ct);
-        return current != 0 ? current : throw new ToolException("There are no seasons yet.");
+        return current != 0 ? current : throw new ToolException("No season has started yet.");
     }
 
     [Description("Lists the league's seasons, 25 to a page: each one's ID, name, league, game, dates and whether it has ended.")]
