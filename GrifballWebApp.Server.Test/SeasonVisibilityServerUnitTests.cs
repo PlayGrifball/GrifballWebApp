@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 
@@ -126,7 +127,10 @@ public class SeasonVisibilityServerUnitTests : SqliteGrifballContextFixture
         var staff = Substitute.For<ITeamsHubClient>();
         hub.Clients.Group(TeamsHub.StaffGroup).Returns(staff);
 
-        await new LockChangeHandler(hub, new SeasonVisibility(Db)).Handle(new LockChanged(true, season.SeasonID, null), CancellationToken.None);
+        var scopes = new Microsoft.Extensions.DependencyInjection.ServiceCollection().AddSingleton(new SeasonVisibility(Db)).BuildServiceProvider()
+            .GetRequiredService<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>();
+
+        await new LockChangeHandler(hub, scopes).Handle(new LockChanged(true, season.SeasonID, null), CancellationToken.None);
 
         await staff.Received(1).LockCaptains(season.SeasonID);
         _ = hub.Clients.DidNotReceive().All;

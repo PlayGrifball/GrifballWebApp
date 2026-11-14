@@ -13,6 +13,7 @@ public class TeamsSignalRHandlersTests
     private IHubContext<TeamsHub, ITeamsHubClient> _hub = null!;
     private ITeamsHubClient _others = null!;
     private GrifballWebApp.Application.Seasons.SeasonVisibility _visibility = null!;
+    private Microsoft.Extensions.DependencyInjection.IServiceScopeFactory _scopes = null!;
 
     [SetUp]
     public void SetUp()
@@ -23,6 +24,10 @@ public class TeamsSignalRHandlersTests
         // Every season public unless a test says otherwise
         _visibility = Substitute.For<GrifballWebApp.Application.Seasons.SeasonVisibility>(null!, null);
         _visibility.CanSeeSeason(Arg.Any<int>(), Arg.Any<GrifballWebApp.Application.Seasons.SeasonViewer>(), Arg.Any<CancellationToken>()).Returns(true);
+        // The handlers look the season up in a scope of their own
+        _scopes = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(
+            Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(
+                Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddSingleton(new Microsoft.Extensions.DependencyInjection.ServiceCollection(), _visibility)));
     }
 
     [Test]
@@ -43,7 +48,7 @@ public class TeamsSignalRHandlersTests
     public async Task AddCaptainHandler_Should_BroadcastToOthers()
     {
         var dto = new CaptainAddedDto { SeasonID = 1, PersonID = 2, TeamID = 3, TeamName = "T", CaptainName = "C", OrderNumber = 1 };
-        await new AddCaptainHandler(_hub, _visibility).Handle(Notification.Create("conn-1", dto), CancellationToken.None);
+        await new AddCaptainHandler(_hub, _scopes).Handle(Notification.Create("conn-1", dto), CancellationToken.None);
         await _others.Received(1).AddCaptain(dto);
     }
 
@@ -51,7 +56,7 @@ public class TeamsSignalRHandlersTests
     public async Task ResortCaptainHandler_Should_BroadcastToOthers()
     {
         var dto = new CaptainPlacementDto { SeasonID = 1, PersonID = 2, OrderNumber = 3 };
-        await new ResortCaptainHandler(_hub, _visibility).Handle(Notification.Create("conn-1", dto), CancellationToken.None);
+        await new ResortCaptainHandler(_hub, _scopes).Handle(Notification.Create("conn-1", dto), CancellationToken.None);
         await _others.Received(1).ResortCaptain(dto);
     }
 
@@ -59,7 +64,7 @@ public class TeamsSignalRHandlersTests
     public async Task RemoveCaptainHandler_Should_BroadcastToOthers()
     {
         var dto = new RemoveCaptainDto { SeasonID = 1, PersonID = 2 };
-        await new RemoveCaptainHandler(_hub, _visibility).Handle(Notification.Create("conn-1", dto), CancellationToken.None);
+        await new RemoveCaptainHandler(_hub, _scopes).Handle(Notification.Create("conn-1", dto), CancellationToken.None);
         await _others.Received(1).RemoveCaptain(dto);
     }
 
@@ -67,7 +72,7 @@ public class TeamsSignalRHandlersTests
     public async Task AddPlayerHandler_Should_BroadcastToOthers()
     {
         var dto = new AddPlayerToTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 };
-        await new AddPlayerHandler(_hub, _visibility).Handle(Notification.Create("conn-1", dto), CancellationToken.None);
+        await new AddPlayerHandler(_hub, _scopes).Handle(Notification.Create("conn-1", dto), CancellationToken.None);
         await _others.Received(1).AddPlayerToTeam(dto);
     }
 
@@ -75,7 +80,7 @@ public class TeamsSignalRHandlersTests
     public async Task RemovePlayerHandler_Should_BroadcastToOthers()
     {
         var dto = new RemovePlayerFromTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 };
-        await new RemovePlayerHandler(_hub, _visibility).Handle(Notification.Create("conn-1", dto), CancellationToken.None);
+        await new RemovePlayerHandler(_hub, _scopes).Handle(Notification.Create("conn-1", dto), CancellationToken.None);
         await _others.Received(1).RemovePlayerFromTeam(dto);
     }
 
@@ -83,14 +88,14 @@ public class TeamsSignalRHandlersTests
     public async Task MovePlayerHandler_Should_BroadcastToOthers()
     {
         var dto = new MovePlayerToTeamRequestDto { SeasonID = 1, PreviousCaptainID = 2, NewCaptainID = 3, PersonID = 4, RoundNumber = 1 };
-        await new MovePlayerHandler(_hub, _visibility).Handle(Notification.Create("conn-1", dto), CancellationToken.None);
+        await new MovePlayerHandler(_hub, _scopes).Handle(Notification.Create("conn-1", dto), CancellationToken.None);
         await _others.Received(1).MovePlayerToTeam(dto);
     }
 
     [Test]
     public async Task LockChangeHandler_Should_BroadcastLockOrUnlock()
     {
-        var handler = new LockChangeHandler(_hub, _visibility);
+        var handler = new LockChangeHandler(_hub, _scopes);
         await handler.Handle(new LockChanged(true, 7, "conn-1"), CancellationToken.None);
         await _others.Received(1).LockCaptains(7);
         await _others.DidNotReceive().UnlockCaptains(Arg.Any<int>());
@@ -114,14 +119,14 @@ public class TeamsSignalRHandlersTests
         var removePlayer = new RemovePlayerFromTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 };
         var move = new MovePlayerToTeamRequestDto { SeasonID = 1, PreviousCaptainID = 2, NewCaptainID = 3, PersonID = 4, RoundNumber = 1 };
 
-        await new AddCaptainHandler(_hub, _visibility).Handle(Notification.Create(connectionId, added), CancellationToken.None);
-        await new ResortCaptainHandler(_hub, _visibility).Handle(Notification.Create(connectionId, placed), CancellationToken.None);
-        await new RemoveCaptainHandler(_hub, _visibility).Handle(Notification.Create(connectionId, removed), CancellationToken.None);
-        await new AddPlayerHandler(_hub, _visibility).Handle(Notification.Create(connectionId, addPlayer), CancellationToken.None);
-        await new RemovePlayerHandler(_hub, _visibility).Handle(Notification.Create(connectionId, removePlayer), CancellationToken.None);
-        await new MovePlayerHandler(_hub, _visibility).Handle(Notification.Create(connectionId, move), CancellationToken.None);
-        await new LockChangeHandler(_hub, _visibility).Handle(new LockChanged(true, 7, connectionId), CancellationToken.None);
-        await new LockChangeHandler(_hub, _visibility).Handle(new LockChanged(false, 8, connectionId), CancellationToken.None);
+        await new AddCaptainHandler(_hub, _scopes).Handle(Notification.Create(connectionId, added), CancellationToken.None);
+        await new ResortCaptainHandler(_hub, _scopes).Handle(Notification.Create(connectionId, placed), CancellationToken.None);
+        await new RemoveCaptainHandler(_hub, _scopes).Handle(Notification.Create(connectionId, removed), CancellationToken.None);
+        await new AddPlayerHandler(_hub, _scopes).Handle(Notification.Create(connectionId, addPlayer), CancellationToken.None);
+        await new RemovePlayerHandler(_hub, _scopes).Handle(Notification.Create(connectionId, removePlayer), CancellationToken.None);
+        await new MovePlayerHandler(_hub, _scopes).Handle(Notification.Create(connectionId, move), CancellationToken.None);
+        await new LockChangeHandler(_hub, _scopes).Handle(new LockChanged(true, 7, connectionId), CancellationToken.None);
+        await new LockChangeHandler(_hub, _scopes).Handle(new LockChanged(false, 8, connectionId), CancellationToken.None);
 
         await all.Received(1).AddCaptain(added);
         await all.Received(1).ResortCaptain(placed);
@@ -142,8 +147,8 @@ public class TeamsSignalRHandlersTests
         _visibility.CanSeeSeason(9, GrifballWebApp.Application.Seasons.SeasonViewer.Public, Arg.Any<CancellationToken>()).Returns(false);
         var added = new CaptainAddedDto { SeasonID = 9, PersonID = 2, TeamID = 3, TeamName = "T", CaptainName = "C", OrderNumber = 1 };
 
-        await new AddCaptainHandler(_hub, _visibility).Handle(Notification.Create("conn-1", added), CancellationToken.None);
-        await new LockChangeHandler(_hub, _visibility).Handle(new LockChanged(true, 9, "conn-1"), CancellationToken.None);
+        await new AddCaptainHandler(_hub, _scopes).Handle(Notification.Create("conn-1", added), CancellationToken.None);
+        await new LockChangeHandler(_hub, _scopes).Handle(new LockChanged(true, 9, "conn-1"), CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {

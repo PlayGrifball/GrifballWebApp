@@ -7,7 +7,7 @@ namespace GrifballWebApp.Application.EventOrganizer;
 public class EventOrganizerService
 {
     /// <summary>The refusal for a season still to start that wouldn't be public by its signups (<see cref="Season.IsPublicBySignups"/>).</summary>
-    public const string NotPublicBySignups = "Make the season public (Public at) no later than its signups open: players can't sign up for a season they can't see.";
+    public const string NotPublicBySignups = "Make the season public (Public from) no later than its signups open: players can't sign up for a season they can't see.";
 
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
@@ -101,9 +101,8 @@ public class EventOrganizerService
 
         // Schedule refused an imported season first, so the edit is one the season takes
         season.Edit(dto.SeasonName, dto.LeagueID, dto.GameVersionID ?? season.GameVersionID, dto.Division, dto.Format);
-        season.AnnounceAt(dto.PublicAt);
-        // A season still to start must be public by its signups (#435); one that started is public whatever its PublicAt
-        if (season.SeasonStart > _time.GetUtcNow().UtcDateTime && !season.IsPublicBySignups)
+        // A season still to start must be public by its signups (#435): the season refuses one that wouldn't be
+        if (season.Announce(dto.PublicAt, _time.GetUtcNow().UtcDateTime) is SeasonAnnounceResult.NotPublicBySignups)
             throw new SeasonRefusedException(NotPublicBySignups);
 
         if (dto.CopyFromSeasonID is int copyFromID)

@@ -39,7 +39,7 @@ public class DiscordCaller
         public const string Sysadmin = SiteRoles.Sysadmin;
 
         public static readonly string[] Anyone = [];
-        public static readonly string[] Staff = SiteRoles.Staff;
+        public static readonly IReadOnlyList<string> Staff = SiteRoles.Staff;
         public static readonly string[] CommissionerOnly = [Commissioner];
         public static readonly string[] SysadminOnly = [Sysadmin];
         public static readonly string[] PlayerOrSysadmin = [Player, Sysadmin];

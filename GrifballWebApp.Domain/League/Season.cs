@@ -430,8 +430,26 @@ public class Season : AuditableEntity
         PublicAt = start;
     }
 
-    /// <summary>Makes the season public at <paramref name="publicAt"/> (posted to the events channel then); null: not public.</summary>
-    public void AnnounceAt(DateTime? publicAt) => PublicAt = publicAt;
+    /// <summary>
+    /// Makes the season public at <paramref name="publicAt"/> (posted to the events channel then); null: not public. Refused,
+    /// with nothing changed, for a season still to start at <paramref name="now"/> that wouldn't then be public by the time
+    /// its signups open (<see cref="IsPublicBySignups"/>): players can't sign up for a season they can't see (#435). Schedule
+    /// the season first: the rule reads its signups date.
+    /// </summary>
+    public SeasonAnnounceResult Announce(DateTime? publicAt, DateTime now)
+    {
+        var was = PublicAt;
+        PublicAt = publicAt;
+        if (SeasonStart > now && !IsPublicBySignups(now))
+        {
+            PublicAt = was;
+            return SeasonAnnounceResult.NotPublicBySignups;
+        }
+        return SeasonAnnounceResult.Announced;
+    }
+
+    /// <summary>The public date set as given, no rule checked: test data and seeding (<see cref="Announce"/> is the app's).</summary>
+    internal void AnnounceAt(DateTime? publicAt) => PublicAt = publicAt;
 
     /// <summary>
     /// Where the season is in its life at <paramref name="now"/>: the latest of its dates that has passed decides. Each
@@ -460,11 +478,11 @@ public class Season : AuditableEntity
     public bool IsPublicAsOf(DateTime now) => SeasonStart <= now || PublicAt <= now;
 
     /// <summary>
-    /// Public by the time its signups open: announced (<see cref="PublicAt"/>) no later than <see cref="SignupsOpen"/>. Players
-    /// can't sign up for a season they can't see (one not announced yet is staff's alone, #435), so a season still to start
-    /// must be (<see cref="NotPublicBySignups"/> finds those that aren't).
+    /// Public by the time its signups open: announced (<see cref="PublicAt"/>) no later than <see cref="SignupsOpen"/>, or already
+    /// at <paramref name="now"/> (announced late, but announced). Players can't sign up for a season they can't see (one not
+    /// announced yet is staff's alone, #435), so a season still to start must be (<see cref="NotPublicBySignups"/> finds those that aren't).
     /// </summary>
-    public bool IsPublicBySignups => PublicAt is DateTime publicAt && publicAt <= SignupsOpen;
+    public bool IsPublicBySignups(DateTime now) => PublicAt is DateTime publicAt && (publicAt <= SignupsOpen || publicAt <= now);
 
     // The same rules for queries, which the database runs: alike to the methods above, boundaries included (SeasonPhaseTests)
 
@@ -502,7 +520,8 @@ public class Season : AuditableEntity
     /// Seasons still to start at <paramref name="now"/> that won't be public by the time their signups open
     /// (<see cref="IsPublicBySignups"/> not met): the commissioner dashboard lists them to fix.
     /// </summary>
-    public static Expression<Func<Season, bool>> NotPublicBySignups(DateTime now) => s => now < s.SeasonStart && (s.PublicAt == null || s.PublicAt > s.SignupsOpen);
+    public static Expression<Func<Season, bool>> NotPublicBySignups(DateTime now)
+        => s => now < s.SeasonStart && (s.PublicAt == null || (s.PublicAt > s.SignupsOpen && s.PublicAt > now));
 }
 
 /// <summary>Where a season is in its life at a time (<see cref="Season.PhaseAt"/>), worked out from its dates.</summary>
@@ -529,6 +548,14 @@ public enum SeasonEditResult
 }
 
 /// <summary>What <see cref="Season.Schedule"/> did: scheduled the season, or which order of dates it refused.</summary>
+/// <summary>What <see cref="Season.Announce"/> did.</summary>
+public enum SeasonAnnounceResult
+{
+    Announced = 1,
+    /// <summary>A season still to start wouldn't be public by the time its signups open (<see cref="Season.IsPublicBySignups"/>).</summary>
+    NotPublicBySignups = 2,
+}
+
 public enum SeasonScheduleResult
 {
     Scheduled,

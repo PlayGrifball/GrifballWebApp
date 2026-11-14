@@ -1,10 +1,10 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using GrifballWebApp.Application.Seasons;
+using Microsoft.Extensions.DependencyInjection;
 using GrifballWebApp.Application.Teams.Handlers;
 
 namespace GrifballWebApp.Server.Teams.Handlers;
 
-public class LockChangeHandler(IHubContext<TeamsHub, ITeamsHubClient> hubContext, SeasonVisibility visibility) : SignalRHandler<LockChanged>(hubContext, visibility)
+public class LockChangeHandler(IHubContext<TeamsHub, ITeamsHubClient> hubContext, IServiceScopeFactory scopes) : SignalRHandler<LockChanged>(hubContext, scopes)
 {
     public override async Task Handle(LockChanged request, CancellationToken cancellationToken)
     {

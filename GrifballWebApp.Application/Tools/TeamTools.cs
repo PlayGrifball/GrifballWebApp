@@ -39,8 +39,8 @@ public class TeamTools
     public async Task<TeamDto> GetTeam([Description("The team's ID.")] int teamID, CancellationToken ct = default)
     {
         await RequireVisible(teamID, ct);
-        // There and visible: RequireVisible saw to it
-        return (await _teams.GetAsync(teamID, ct))!;
+        // Gone since the check, as a captain removed mid-draft takes their team: no such team
+        return await _teams.GetAsync(teamID, ct) ?? throw NoSuchTeam(teamID);
     }
 
     [Description("A team's matches in its season, soonest unplayed first: each one's ID, opponent, time, best-of, score and result.")]
@@ -54,7 +54,7 @@ public class TeamTools
     public async Task<TeamHistoryDto> GetTeamHistory([Description("The team's ID (any season's).")] int teamID, CancellationToken ct = default)
     {
         await RequireVisible(teamID, ct);
-        return (await _history.GetAsync(teamID, _caller.Viewer, ct))!;
+        return await _history.GetAsync(teamID, _caller.Viewer, ct) ?? throw NoSuchTeam(teamID);
     }
 
     [Description("Recorded videos (VODs) of a team's matches.")]

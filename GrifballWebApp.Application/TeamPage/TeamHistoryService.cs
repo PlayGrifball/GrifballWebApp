@@ -79,6 +79,10 @@ public class TeamHistoryService
             .ThenByDescending(l => l.Season.SeasonID)
             .ToArray();
 
+        // None the viewer may see (a team of a season not announced yet, alone in its franchise): no such team to them
+        if (lines.Length == 0)
+            return null;
+
         return new TeamHistoryDto
         {
             // The name as the franchise last went by

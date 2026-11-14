@@ -32,6 +32,7 @@ public class SeasonVisibilityHostTests
     private int _teamID;
     private int _seasonMatchID;
     private int _publicTeamID;
+    private int _awayTeamID;
 
     private sealed class PreviewFactory(Dictionary<string, string?> settings) : WebApplicationFactory<ServerProgram>
     {
@@ -92,7 +93,7 @@ public class SeasonVisibilityHostTests
         var publicTeam = Team.Seed("Hidden Home", seasonID: played.SeasonID);
         context.Teams.Add(publicTeam);
         await context.SaveChangesAsync();
-        (_seasonID, _teamID, _seasonMatchID, _publicTeamID) = (season.SeasonID, home.TeamID, match.SeasonMatchID, publicTeam.TeamID);
+        (_seasonID, _teamID, _seasonMatchID, _publicTeamID, _awayTeamID) = (season.SeasonID, home.TeamID, match.SeasonMatchID, publicTeam.TeamID, away.TeamID);
     }
 
     [OneTimeTearDown]
@@ -167,6 +168,22 @@ public class SeasonVisibilityHostTests
         {
             Assert.That(anonymous, Is.EqualTo(new[] { _publicTeamID }));
             Assert.That(sysadmin, Is.EquivalentTo(new[] { _publicTeamID, _teamID }));
+        }
+    }
+
+    [Test]
+    public async Task AHiddenTeamsHistory_AloneInItsFranchise_IsNoneToThePublic_AndItsOwnToStaff()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var history = new GrifballWebApp.Application.TeamPage.TeamHistoryService(scope.ServiceProvider.GetRequiredService<GrifballContext>());
+
+        var everyone = await history.GetAsync(_awayTeamID);
+        var staff = await history.GetAsync(_awayTeamID, GrifballWebApp.Application.Seasons.SeasonViewer.Staff);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(everyone, Is.Null);
+            Assert.That(staff!.Seasons.Select(s => s.TeamID), Is.EqualTo(new[] { _awayTeamID }));
         }
     }
 

@@ -2,11 +2,11 @@
 using GrifballWebApp.Application.Teams.Handlers;
 
 using Microsoft.AspNetCore.SignalR;
-using GrifballWebApp.Application.Seasons;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GrifballWebApp.Server.Teams.Handlers;
 
-public class RemoveCaptainHandler(IHubContext<TeamsHub, ITeamsHubClient> hubContext, SeasonVisibility visibility) : SignalRHandler<Notification<RemoveCaptainDto>>(hubContext, visibility)
+public class RemoveCaptainHandler(IHubContext<TeamsHub, ITeamsHubClient> hubContext, IServiceScopeFactory scopes) : SignalRHandler<Notification<RemoveCaptainDto>>(hubContext, scopes)
 {
     public override async Task Handle(Notification<RemoveCaptainDto> request, CancellationToken cancellationToken)
     {

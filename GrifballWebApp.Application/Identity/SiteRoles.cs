@@ -14,7 +14,7 @@ public static class SiteRoles
     public const string Pullers = Player + "," + Commissioner + "," + Sysadmin;
 
     /// <summary>The league's staff: who run seasons and see one not announced yet (#435).</summary>
-    public static readonly string[] Staff = [Commissioner, Sysadmin];
+    public static readonly IReadOnlyList<string> Staff = [Commissioner, Sysadmin];
 
     /// <summary>Whether <paramref name="held"/> has one of <paramref name="roles"/>; with none named, anyone does.</summary>
     public static bool IsInAnyRole(IReadOnlyCollection<string> held, IReadOnlyCollection<string> roles) => roles.Count == 0 || roles.Any(held.Contains);
