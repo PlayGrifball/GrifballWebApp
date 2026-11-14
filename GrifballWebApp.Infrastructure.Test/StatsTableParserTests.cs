@@ -357,4 +357,45 @@ public class StatsTableParserTests
             Assert.That(Seasons(build).Single().Teams, Is.Empty);
         }
     }
+
+    [Test]
+    public void Standings_OfASeasonSplitIntoDivisions_GoToEachDivisionsSeason()
+    {
+        // grifball.info's catalog entry (season 12 split Pro/Amateur by ispro), with a standings tab added to hr_pstats
+        var json = CatalogConfig().ToJson();
+        var config = HistoricalSourceConfig.FromJson(json.Replace("\"sheet\":\"hr_pstats\",", "\"sheet\":\"hr_pstats\",\"standingsSheet\":\"Standings\","))!;
+        Assert.That(config.Tables.Single(t => t.Sheet == "hr_pstats").StandingsSheet, Is.EqualTo("Standings"), "the test's own config");
+        var workbook = HistoricalXlsx.Build(xlsx =>
+        {
+            using var stream = new MemoryStream(GrifballInfo());
+            using var info = new ClosedXML.Excel.XLWorkbook(stream);
+            foreach (var sheet in info.Worksheets)
+                sheet.CopyTo(xlsx, sheet.Name);
+            Fill(xlsx.Worksheets.Add("Standings"), [
+                Row("season", "team_name", "division", "wins"),
+                Row(12, "Cabs Are Here", "Pro", 5),
+                Row(12, "Downstait", "Amateur", 6),
+                Row(12, "No Division", null, 1),
+            ]);
+        });
+
+        var seasons = Seasons(Build(config, workbook));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasons.Single(s => s.SourceSheet == "hr_pstats#s12_Pro").Teams.Select(t => t.TeamName), Is.EqualTo(new[] { "Cabs Are Here" }));
+            Assert.That(seasons.Single(s => s.SourceSheet == "hr_pstats#s12_Amateur").Teams.Select(t => t.TeamName), Is.EqualTo(new[] { "Downstait" }));
+        }
+    }
+
+    [Test]
+    public void Standings_ANumberBeyondAnInt_IsLeftUnread()
+    {
+        var build = GrifballCom(
+            ("Season_Player_Stats", [GrifballComStatsHeader]),
+            ("Standings", [Row("league_id", "team_name", "wins", "goals_for"), Row(3, "Red Team", 1e10, 30)]));
+
+        var team = Seasons(build).Single().Teams.Single();
+        Assert.That((team.TeamName, team.Wins, team.GoalsFor), Is.EqualTo(("Red Team", (int?)null, (int?)30)));
+    }
 }

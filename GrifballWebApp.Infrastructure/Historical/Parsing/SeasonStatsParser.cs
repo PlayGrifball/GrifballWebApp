@@ -143,8 +143,12 @@ public static partial class SeasonStatsParser
         {
             var row = sheet.Rows[r];
             var firstCell = row.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c))?.Trim();
+            // The side-by-side games start where the main table ends
             if (tab.SideBySideGamesStart is { } sbs && firstCell?.StartsWith(sbs, StringComparison.OrdinalIgnoreCase) == true)
+            {
                 sideBySideStart = r;
+                break;
+            }
             if (tab.StopAt is { } stopAt && firstCell?.StartsWith(stopAt, StringComparison.OrdinalIgnoreCase) == true)
                 break;
 
@@ -187,7 +191,11 @@ public static partial class SeasonStatsParser
             return null;
         }
         if (tab.PerGame && !HasAnyGameStat(row, columns))
+        {
+            // A row that didn't play still names the team of the rows below it
+            ResolveRowTeam(teamName, sides, tab.CarryTeam, gamertag, rosters, ref currentTeam);
             return null;
+        }
 
         var team = ResolveRowTeam(teamName, sides, tab.CarryTeam, gamertag, rosters, ref currentTeam);
         var stint = stints.GetValueOrDefault(gamertag) + 1;

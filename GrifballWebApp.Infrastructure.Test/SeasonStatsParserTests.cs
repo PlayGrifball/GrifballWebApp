@@ -8,6 +8,7 @@ using GrifballWebApp.Infrastructure.Historical.Sources;
 namespace GrifballWebApp.Infrastructure.Test;
 
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class SeasonStatsParserTests
 {
@@ -178,5 +179,41 @@ public class SeasonStatsParserTests
                 ("TheAlphaTurtle", (string?)"ApoPo", (decimal?)1),
             }), "Regresser's team from the main table, not 'ASC' from the other side's header: one stint, no made-up team");
         }
+    }
+
+    [Test]
+    public void PerGame_ARowThatDidNotPlay_StillNamesTheTeamOfTheRowsBelow()
+    {
+        var playoffs = Playoffs(
+            PlayoffHeader,
+            Row("MAB", "ixJaga", 1),
+            Row(null, "godwit1vy", 1, null, 1, null, 74, null, 125));
+
+        Assert.That(playoffs.Players.Select(p => (p.Gamertag, p.TeamName)), Is.EqualTo(new[] { ("godwit1vy", (string?)"MAB") }));
+    }
+
+    [Test]
+    public void SideBySideGamesStart_EndsTheMainTable_WithoutAStopAt()
+    {
+        var json = Fl20Config().ToJson();
+        var config = HistoricalSourceConfig.FromJson(json.Replace("\"stopAt\":\"GAME 1\",", ""))!;
+        Assert.That(config.Tabs.Single(t => t.PerGame).StopAt, Is.Null, "the test's own config");
+        var workbook = SheetWorkbook.Read(Workbook(("Playoff Game Stats", [
+            PlayoffHeader,
+            Row("Ascended", "Regresser", 1, 1, null, 2, 30, null, 10),
+            Row("GAME 1"),
+            Row("W vs ApoPo (5-1) host", "Goals", "Kills", "Deaths"),
+            Row("Regresser", 3, 25, 5),
+            Row("L vs Ascended (1-5) host", "Goals", "Kills", "Deaths"),
+            Row("TheAlphaTurtle", 1, 32, 36),
+        ])))!;
+
+        var playoffs = SeasonStatsParser.Parse("2020-fl20-pc-schedule-stats", config, workbook, []).Single(s => s.IsPlayoffs);
+
+        Assert.That(playoffs.Players.Select(p => (p.Gamertag, p.TeamName, p.GamesPlayed)), Is.EquivalentTo(new[]
+        {
+            ("Regresser", (string?)"Ascended", (decimal?)2),
+            ("TheAlphaTurtle", (string?)"ApoPo", (decimal?)1),
+        }), "the finals' rows read once, as games");
     }
 }

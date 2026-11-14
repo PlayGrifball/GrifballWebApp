@@ -188,7 +188,10 @@ public static class StatsTableParser
             SourceSheet = $"{table.Sheet}#s{key.Season}" + (key.Division is null ? "" : $"_{key.Division}"),
             IsPlayoffs = key.Playoffs,
             Players = lines,
-            Teams = !key.Playoffs && standings.TryGetValue(key.Season, out var seasonTeams) ? seasonTeams : [],
+            // A season split into divisions has each division's teams
+            Teams = !key.Playoffs && standings.TryGetValue(key.Season, out var seasonTeams)
+                ? seasonTeams.Where(t => key.Division is null || string.Equals(t.Division, key.Division, StringComparison.OrdinalIgnoreCase)).ToList()
+                : [],
         };
     }
 
@@ -331,5 +334,7 @@ public static class StatsTableParser
 
     private static decimal? Number(string[] row, int column) => ArchiveCells.Number(Value(row, column));
 
-    private static int? IntValue(string[] row, int column) => Number(row, column) is decimal d ? (int)Math.Round(d) : null;
+    /// <summary>A cell's whole number; null for none, or one beyond an int (a stray value, never a count).</summary>
+    private static int? IntValue(string[] row, int column)
+        => Number(row, column) is decimal d && Math.Round(d) is var whole && whole >= int.MinValue && whole <= int.MaxValue ? (int)whole : null;
 }
