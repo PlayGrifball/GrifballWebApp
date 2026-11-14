@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Infrastructure.Jobs;
@@ -173,7 +174,7 @@ public class SeasonMatchController : ControllerBase
 
     /// <summary>Queues a pull of the players' recent games (back to the season's start, when asked): a 202 with where it is.</summary>
     // Any player may ask, as staff may: one pull per match is queued or running at a time (ISeasonMatchPulls)
-    [Authorize(Roles = "Player,Commissioner,Sysadmin")]
+    [Authorize(Roles = SiteRoles.Pullers)]
     [HttpPost("season-matches/{seasonMatchID:int}/match-pull", Name = "PullMatches")]
     [ProducesResponseType<OnDemandJobStatusDto>(StatusCodes.Status202Accepted)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ProblemJson)]

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Reflection;
 using System.Text;
+using GrifballWebApp.Application.Identity;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,13 +16,13 @@ public sealed record ToolCaller(int? UserID, IReadOnlyList<string> Roles)
     public static readonly ToolCaller Anonymous = new(null, []);
 
     /// <summary>Whether the caller has one of <paramref name="roles"/>; with none given, anyone does.</summary>
-    public bool IsInAnyRole(IReadOnlyCollection<string> roles) => roles.Count == 0 || roles.Any(Roles.Contains);
+    public bool IsInAnyRole(IReadOnlyCollection<string> roles) => SiteRoles.IsInAnyRole(Roles, roles);
 
     /// <summary>Nothing, when the caller has one of <paramref name="roles"/>; a <see cref="ToolException"/> saying who may, else.</summary>
     public void Require(IReadOnlyCollection<string> roles)
     {
         if (!IsInAnyRole(roles))
-            throw new ToolException($"Only a {string.Join(" or ", roles.Select(r => r.ToLowerInvariant()))} can do that.");
+            throw new ToolException(SiteRoles.MissingRole(roles));
     }
 
     /// <summary>The caller's user ID; a <see cref="ToolException"/> for an anonymous caller, who must name the player.</summary>
@@ -89,7 +90,7 @@ public static class GrifTools
         => (method.GetCustomAttribute<ToolRolesAttribute>() ?? method.DeclaringType!.GetCustomAttribute<ToolRolesAttribute>())?.Roles ?? [];
 
     /// <summary>Whether a host gives <paramref name="caller"/> this tool: they have one of its roles, or it needs none.</summary>
-    public static bool Allows(MethodInfo method, ToolCaller caller) => caller.IsInAnyRole(Roles(method).ToList());
+    public static bool Allows(MethodInfo method, ToolCaller caller) => caller.IsInAnyRole(RolesByName[Name(method)]);
 
     /// <summary>Every tool's roles by its name, for a host that knows only the name (the MCP server's filters).</summary>
     public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> RolesByName

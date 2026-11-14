@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.SeasonMatchPage;
 
@@ -8,13 +9,9 @@ namespace GrifballWebApp.Application.Tools;
 /// Pulls from Halo, as the season match page's buttons start them: queued as background jobs, one per season match at a time.
 /// For the roles the page lets pull.
 /// </summary>
-[ToolRoles(Player, Commissioner, Sysadmin)]
+[ToolRoles(SiteRoles.Player, SiteRoles.Commissioner, SiteRoles.Sysadmin)]
 public class HaloPullTools
 {
-    public const string Player = "Player";
-    public const string Commissioner = "Commissioner";
-    public const string Sysadmin = "Sysadmin";
-    private static readonly string[] Pullers = [Player, Commissioner, Sysadmin];
 
     private readonly ToolCaller _caller;
     private readonly SeasonMatchService _seasonMatches;
@@ -35,7 +32,8 @@ public class HaloPullTools
         [Description("Back through each player's history to the season's start, for an old match whose games are past their recent ones.")] bool backToSeasonStart = false,
         CancellationToken ct = default)
     {
-        _caller.Require(Pullers);
+        // The roles its [ToolRoles] names: a host's filtering isn't the only guard
+        _caller.Require(GrifTools.RolesByName["pull_season_match_games"]);
         if (!await _seasonMatches.Exists(seasonMatchID, ct))
             throw new ToolException($"There is no season match {seasonMatchID}.");
         return await _pulls.Queue(seasonMatchID, _caller.UserID, backToSeasonStart, ct);

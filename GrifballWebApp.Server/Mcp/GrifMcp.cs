@@ -46,7 +46,7 @@ public static class GrifMcp
                 {
                     var result = await next(request, ct);
                     var caller = Caller(request.User!);
-                    result.Tools = result.Tools.Where(t => caller.IsInAnyRole(GrifTools.RolesByName.GetValueOrDefault(t.Name, []).ToList())).ToList();
+                    result.Tools = result.Tools.Where(t => caller.IsInAnyRole(GrifTools.RolesByName.GetValueOrDefault(t.Name, []))).ToList();
                     return result;
                 })
                 // ...and is refused if called anyway (the tool checks too)
@@ -54,7 +54,7 @@ public static class GrifMcp
                 {
                     try
                     {
-                        Caller(request.User!).Require(GrifTools.RolesByName.GetValueOrDefault(request.Params?.Name ?? "", []).ToList());
+                        Caller(request.User!).Require(GrifTools.RolesByName.GetValueOrDefault(request.Params?.Name ?? "", []));
                         return await next(request, ct);
                     }
                     catch (ToolException e)
@@ -91,7 +91,8 @@ public static class GrifMcp
                     ReadOnly = set.Effect == ToolEffect.ReadsOnly,
                     // A queued pull from Halo adds games; nothing is changed or deleted
                     Destructive = false,
-                    // A second pull can save games played since the first
+                    // Asked again once a pull is done, it pulls again and can save games played since: not idempotent
+                    // (asked while one is queued or running, it adds nothing and says where that one is)
                     Idempotent = set.Effect == ToolEffect.ReadsOnly,
                     OpenWorld = set.Effect == ToolEffect.QueuesHaloPull,
                 }));

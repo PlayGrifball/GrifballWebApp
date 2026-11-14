@@ -23,7 +23,7 @@ jobs, and run once when a worker is back for the others.
 Some jobs run once per request from a page, with an input of their own (Quartz's one-off jobs, `OnDemandJobs`): the
 page queues a run, named after what it is for, and polls its status (queued, running with its progress, or idle with
 how the last run went). Asking again while one is queued or running for the same thing adds nothing. They show on the
-Jobs page as **On demand**, with their runs, but are started from their page only.
+Jobs page as **On demand**, with their runs, but aren't started from it: from their page, or (`season-match-pull`) by the agents' `pull_season_match_games` tool too, through the MCP server or the Discord bot's chat.
 
 | Job | Started from | Does |
 |---|---|---|

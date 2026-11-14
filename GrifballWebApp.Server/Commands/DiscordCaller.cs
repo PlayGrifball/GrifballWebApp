@@ -1,4 +1,5 @@
 using DiscordInterface.Generated;
+using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Discord;
@@ -12,7 +13,7 @@ namespace GrifballWebApp.Server.Commands;
 public sealed record CallerUser(int UserID, string Gamertag, IReadOnlyList<string> Roles)
 {
     /// <summary>Whether the user has one of <paramref name="roles"/>; with none given, anyone does.</summary>
-    public bool IsInAnyRole(IReadOnlyCollection<string> roles) => roles.Count == 0 || roles.Any(Roles.Contains);
+    public bool IsInAnyRole(IReadOnlyCollection<string> roles) => SiteRoles.IsInAnyRole(Roles, roles);
 }
 
 /// <summary>
@@ -28,9 +29,9 @@ public class DiscordCaller
     /// <summary>The roles the site's controllers name.</summary>
     public static class Roles
     {
-        public const string Player = "Player";
-        public const string Commissioner = "Commissioner";
-        public const string Sysadmin = "Sysadmin";
+        public const string Player = SiteRoles.Player;
+        public const string Commissioner = SiteRoles.Commissioner;
+        public const string Sysadmin = SiteRoles.Sysadmin;
 
         public static readonly string[] Anyone = [];
         public static readonly string[] Staff = [Commissioner, Sysadmin];
@@ -93,5 +94,5 @@ public class DiscordCaller
     }
 
     /// <summary>The reply to a caller without the role: the site would answer 403.</summary>
-    public static string MissingRole(IReadOnlyCollection<string> roles) => $"Only a {string.Join(" or ", roles.Select(r => r.ToLowerInvariant()))} can do that.";
+    public static string MissingRole(IReadOnlyCollection<string> roles) => SiteRoles.MissingRole(roles);
 }
