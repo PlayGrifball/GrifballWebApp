@@ -7,15 +7,15 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
+import { LeaderboardFilter } from '../../models/leaderboard-filter';
 import { LeaderboardsDto } from '../../models/leaderboards-dto';
-import { SeasonFormat } from '../../models/season-format';
 
 export interface GetLeaderboards$Params {
 
 /**
- * Count only the titles of seasons of this format; null: every format.
+ * Count only seasons of this format, or Late League matchmaking; null: all seasons (excluding Late League).
  */
-  format?: SeasonFormat;
+  format?: LeaderboardFilter;
 }
 
 export function getLeaderboards(http: HttpClient, rootUrl: string, params?: GetLeaderboards$Params, context?: HttpContext): Observable<StrictHttpResponse<LeaderboardsDto>> {

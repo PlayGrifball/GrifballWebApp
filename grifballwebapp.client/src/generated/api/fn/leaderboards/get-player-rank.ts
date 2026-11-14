@@ -7,13 +7,13 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
+import { LeaderboardFilter } from '../../models/leaderboard-filter';
 import { PlayerAllTimeRankDto } from '../../models/player-all-time-rank-dto';
-import { SeasonFormat } from '../../models/season-format';
 
 export interface GetPlayerRank$Params {
   query?: string;
   userID?: number;
-  format?: SeasonFormat;
+  format?: LeaderboardFilter;
 }
 
 export function getPlayerRank(http: HttpClient, rootUrl: string, params?: GetPlayerRank$Params, context?: HttpContext): Observable<StrictHttpResponse<PlayerAllTimeRankDto>> {

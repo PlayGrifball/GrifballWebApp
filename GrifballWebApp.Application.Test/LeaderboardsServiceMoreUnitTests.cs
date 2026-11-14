@@ -17,16 +17,16 @@ namespace GrifballWebApp.Application.Test;
 /// <summary>
 /// LeaderboardsService's cache (IDistributedCache, substituted) and the rings board in a player's rank, which
 /// LeaderboardsServiceUnitTests leaves out: boards and careers served from the cache, a cache that can't be read or
-/// written skipped, and titles counted by format. Not covered: GetAsync computing the boards (Compute), whose dynasties
-/// query needs the SQL APPLY operation SQLite lacks (see LeaderboardsServiceUnitTests' note; Integration.Test covers it),
-/// and GetPlayerRankAsync dropping a matched alias that is the player's own name (the toolbar search never labels a
-/// player's current name as a past one).
+/// written skipped, titles counted over every format and career stats over the format asked. Not covered: GetAsync
+/// computing the boards (Compute), whose dynasties query needs the SQL APPLY operation SQLite lacks (see
+/// LeaderboardsServiceUnitTests' note; Integration.Test covers it), and GetPlayerRankAsync dropping a matched alias
+/// that is the player's own name (the toolbar search never labels a player's current name as a past one).
 /// </summary>
 [TestFixture]
 internal sealed class LeaderboardsServiceMoreUnitTests : ApplicationDbContextTests
 {
     private const int HaloInfiniteGameVersionID = 6; // GameVersionConfiguration seeds this through HasData
-    private const string CareersKey = "leaderboards:careers";
+    private const string CareersKey = "leaderboards:careers:all";
     private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
     private static readonly string[] CachedKeys = [CareersKey, "leaderboards:rings:all"];
 
@@ -94,7 +94,7 @@ internal sealed class LeaderboardsServiceMoreUnitTests : ApplicationDbContextTes
     }
 
     [Test]
-    public async Task GetPlayerRankAsync_RanksTheTitlesOfTheFormatAsked()
+    public async Task GetPlayerRankAsync_RanksTitlesOfEveryFormat_AndStatsOfTheFormatAsked()
     {
         await SeedTwoPlayersAndATitle();
 
@@ -106,11 +106,12 @@ internal sealed class LeaderboardsServiceMoreUnitTests : ApplicationDbContextTes
         {
             Assert.That((alice!.Rings.Rank, alice.Rings.TotalRanked, alice.Rings.StatValue, alice.Rings.SecondaryText), Is.EqualTo(((int?)1, 1, 1L, (string?)null)));
             Assert.That((bob!.Rings.Rank, bob.Rings.TotalRanked, bob.Rings.StatValue), Is.EqualTo(((int?)null, 1, 0L)), "no title: not on the board");
-            Assert.That((aliceInTournaments!.Rings.Rank, aliceInTournaments.Rings.TotalRanked, aliceInTournaments.Rings.StatValue), Is.EqualTo(((int?)null, 0, 0L)));
+            Assert.That((aliceInTournaments!.Rings.Rank, aliceInTournaments.Rings.TotalRanked, aliceInTournaments.Rings.StatValue), Is.EqualTo(((int?)1, 1, 1L)), "titles are not filtered by format");
+            Assert.That((aliceInTournaments.Goals.Rank, aliceInTournaments.Goals.StatValue), Is.EqualTo(((int?)null, 0L)), "no tournament games");
             Assert.That((alice.GamesPlayed.StatValue, alice.GamesPlayed.SecondaryText), Is.EqualTo((10L, "1 Season")));
             Assert.That((bob.GamesPlayed.Rank, bob.GamesPlayed.TotalRanked), Is.EqualTo(((int?)2, 2)));
             Assert.That((alice.Goals.Rank, alice.Goals.StatValue), Is.EqualTo(((int?)1, 15L)));
-            Assert.That(alice.Goals.SecondaryText, Does.EndWith("in Halo Infinite"));
+            Assert.That(alice.Goals.SecondaryText, Is.EqualTo("1.5 / G"), "goals summed across games, no game named");
             Assert.That((bob.CarrierStops.Rank, bob.CarrierStops.StatValue), Is.EqualTo(((int?)2, 1L)));
         }
     }

@@ -7,12 +7,15 @@
  */
 export interface SeasonPlayerStatDto {
   assists: number;
+  battingAverage: number | null;
   carrierKills: number;
+  combinedAverage: number | null;
   deaths: number;
   exterminations: number;
   gamertag: string;
   gamesPlayed: number;
   goals: number;
+  grabs: number | null;
   isCombined: boolean;
   isPlayoffs: boolean;
   kdRatio: number | null;
@@ -32,6 +35,7 @@ export interface SeasonPlayerStatDto {
    */
   punches: number | null;
   roleNote: string | null;
+  scoringAverage: number | null;
 
   /**
    * Matches (totalled from the season's games) or Recorded (season totals stored, e.g. a historical sheet's).

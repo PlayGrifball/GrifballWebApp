@@ -1,7 +1,4 @@
-import type { SeasonFormat } from '@api/models';
-
-/** Which competitions the leaderboards filter by: a season format or Late League matchmaking. */
-export type LeaderboardFilter = SeasonFormat | 'LateLeague';
+import type { LeaderboardFilter, SeasonFormat } from '@api/models';
 
 /** The formats in the order the editor and filters offer them, with their labels. */
 export const seasonFormats: { value: SeasonFormat; label: string }[] = [

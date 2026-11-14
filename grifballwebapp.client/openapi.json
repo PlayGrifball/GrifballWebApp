@@ -3938,11 +3938,11 @@
           {
             "name": "format",
             "in": "query",
-            "description": "Count only the titles of seasons of this format; null: every format.",
+            "description": "Count only seasons of this format, or Late League matchmaking; null: all seasons (excluding Late League).",
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/components/schemas/SeasonFormat"
+                  "$ref": "#/components/schemas/LeaderboardFilter"
                 }
               ]
             }
@@ -3991,7 +3991,7 @@
             "schema": {
               "allOf": [
                 {
-                  "$ref": "#/components/schemas/SeasonFormat"
+                  "$ref": "#/components/schemas/LeaderboardFilter"
                 }
               ]
             }
@@ -11326,6 +11326,15 @@
         },
         "additionalProperties": false
       },
+      "LeaderboardFilter": {
+        "enum": [
+          "LeagueSeason",
+          "Tournament",
+          "LateLeague"
+        ],
+        "type": "string",
+        "description": "Which competitions a leaderboard query counts: a season format, Late League matchmaking, or all seasons (null)."
+      },
       "LeaderboardsDto": {
         "required": [
           "carrierStopLeaders",
@@ -13180,7 +13189,9 @@
       "PlayerSeasonStatDetailDto": {
         "required": [
           "assists",
+          "battingAverage",
           "carrierKills",
+          "combinedAverage",
           "damageDealt",
           "damageTaken",
           "deaths",
@@ -13191,6 +13202,7 @@
           "gamertag",
           "gamesPlayed",
           "goals",
+          "grabs",
           "isCombined",
           "isPlayoffs",
           "kdRatio",
@@ -13202,6 +13214,7 @@
           "punches",
           "roleNote",
           "score",
+          "scoringAverage",
           "season",
           "source",
           "sprees",
@@ -13328,6 +13341,26 @@
           "swordKills": {
             "type": "integer",
             "format": "int32",
+            "nullable": true
+          },
+          "grabs": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "battingAverage": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "scoringAverage": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "combinedAverage": {
+            "type": "number",
+            "format": "double",
             "nullable": true
           },
           "season": {
@@ -15057,12 +15090,15 @@
       "SeasonPlayerStatDto": {
         "required": [
           "assists",
+          "battingAverage",
           "carrierKills",
+          "combinedAverage",
           "deaths",
           "exterminations",
           "gamertag",
           "gamesPlayed",
           "goals",
+          "grabs",
           "isCombined",
           "isPlayoffs",
           "kdRatio",
@@ -15073,6 +15109,7 @@
           "playerSeasonStatID",
           "punches",
           "roleNote",
+          "scoringAverage",
           "source",
           "sprees",
           "stintIndex",
@@ -15198,6 +15235,26 @@
           "swordKills": {
             "type": "integer",
             "format": "int32",
+            "nullable": true
+          },
+          "grabs": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "battingAverage": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "scoringAverage": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "combinedAverage": {
+            "type": "number",
+            "format": "double",
             "nullable": true
           }
         },
