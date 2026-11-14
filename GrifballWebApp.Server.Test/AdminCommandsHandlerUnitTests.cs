@@ -36,13 +36,14 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
 
     private AdminCommandsHandler Handler() => new(
         new DiscordCaller(Db), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)),
-        null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, Urls());
+        null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, Urls());
 
     /// <summary>The deeper services real too (IApplicationDbContext-backed ones), where an action goes past the gate
     /// without needing Quartz (OnDemandJobs, JobsService) or a draft channel/locks' real behavior.</summary>
     private AdminCommandsHandler DeepHandler() => new(
         new DiscordCaller(Db), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)),
         new RescheduleService(Db, Substitute.For<IOutbox>()),
+        new GrifballWebApp.Application.Commissioner.CommissionerDashboardService(new RescheduleService(Db, Substitute.For<IOutbox>()), new GrifballWebApp.Application.EventOrganizer.EventOrganizerService(Db)),
         new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)),
         new MatchPlannerService(Db),
         _bracketService,
