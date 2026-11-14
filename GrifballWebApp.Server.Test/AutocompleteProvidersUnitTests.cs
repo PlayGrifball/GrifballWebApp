@@ -19,6 +19,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
     private static readonly string[] GrifsInWinter = ["Grifs (Winter)"];
     private static readonly string[] TheMatchInWinter = ["Grifs vs Rivals (Winter)"];
     private static readonly string[] HoldingGrif = ["Grifter1", "TheGrifter"];
+    private static readonly string[] TheRenamedAccount = ["id:7001"];
     private static readonly string[] TheEuropes = ["North Europe", "South Europe", "Europe", "None (clear it)"];
 
     private static NetCord.ApplicationCommandInteractionDataOption Typed(string value)
@@ -125,7 +126,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(one, Is.Empty, "one character reads no gamertag history");
-            Assert.That(two.Select(c => c.StringValue), Is.EqualTo(new[] { "id:7001" }));
+            Assert.That(two.Select(c => c.StringValue), Is.EqualTo(TheRenamedAccount));
         }
     }
 
