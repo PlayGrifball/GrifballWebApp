@@ -19,6 +19,8 @@ export type { CaptainAddedResponseDto } from './models/captain-added-response-dt
 export type { CaptainDto } from './models/captain-dto';
 export type { CaptainPlacementDto } from './models/captain-placement-dto';
 export type { ChampionPlayerDto } from './models/champion-player-dto';
+export type { ChatRequestDto } from './models/chat-request-dto';
+export type { ChatTurnDto } from './models/chat-turn-dto';
 export type { ClaimPreviewDto } from './models/claim-preview-dto';
 export type { ClientLogDto } from './models/client-log-dto';
 export type { ClientSpanDto } from './models/client-span-dto';
