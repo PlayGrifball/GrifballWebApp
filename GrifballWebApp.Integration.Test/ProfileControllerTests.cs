@@ -166,12 +166,12 @@ public class ProfileControllerTests
             Assert.That(stats.OverallCareer.Wins, Is.EqualTo(8));
             Assert.That(stats.OverallCareer.Losses, Is.EqualTo(2));
             Assert.That(stats.OverallCareer.WinPercent, Is.EqualTo(80.0m));
-            Assert.That(stats.OverallCareer.Goals, Is.Null, "Goals are only totalled per game");
+            Assert.That(stats.OverallCareer.Goals, Is.EqualTo(15), "Goals add up across games");
             Assert.That(stats.OverallCareer.Kills, Is.EqualTo(120));
             Assert.That(stats.OverallCareer.Deaths, Is.EqualTo(60));
             Assert.That(stats.OverallCareer.KdRatio, Is.EqualTo(2.0m));
             Assert.That(stats.OverallCareer.KdSpread, Is.EqualTo(60));
-            Assert.That(stats.OverallCareer.CarrierKills, Is.Null, "Carrier stops are only totalled per game");
+            Assert.That(stats.OverallCareer.CarrierKills, Is.EqualTo(30), "Carrier stops add up across games");
 
             Assert.That(stats.CareerByGame, Has.Count.EqualTo(1));
             Assert.That(stats.CareerByGame[0].GameVersionSlug, Is.EqualTo("halo3"));

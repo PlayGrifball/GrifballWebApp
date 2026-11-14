@@ -51,8 +51,7 @@ public class GameCareerSummaryDto
     public int Wins { get; set; }
     public int Losses { get; set; }
     public decimal? WinPercent { get; set; }
-    /// <summary>Null on the all-games row: goals, carrier stops and medals mean something different in each game, so they
-    /// are only totalled per game.</summary>
+    /// <summary>Goals, added up across games on the all-games row too, as carrier stops are (medals are only totalled per game).</summary>
     public long? Goals { get; set; }
     public decimal? GoalsPerGame { get; set; }
     public int Kills { get; set; }

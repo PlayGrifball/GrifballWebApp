@@ -10023,7 +10023,7 @@
           },
           "goals": {
             "type": "integer",
-            "description": "Null on the all-games row: goals, carrier stops and medals mean something different in each game, so they\n            are only totalled per game.",
+            "description": "Goals, added up across games on the all-games row too, as carrier stops are (medals are only totalled per game).",
             "format": "int64",
             "nullable": true
           },
