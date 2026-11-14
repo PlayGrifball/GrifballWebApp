@@ -27,9 +27,12 @@ export class MatchDetailsStore {
   });
 
   readonly details = computed<MatchDetailsDto | null>(() => this.match.hasValue() ? this.match.value() : null);
-  /** Loading; loaded; no such match (none, a 404, or an ID that isn't one: 400); or the request failed. */
+  /**
+   * Loading (also before the match ID is handed over: nothing is asked for yet); loaded; no such match (none, a 404,
+   * or an ID that isn't one: 400); or the request failed.
+   */
   readonly state = computed<MatchDetailsState>(() => {
-    if (this.match.isLoading())
+    if (this.match.isLoading() || this.match.status() === 'idle')
       return 'loading';
     const error = this.match.error();
     if (error)

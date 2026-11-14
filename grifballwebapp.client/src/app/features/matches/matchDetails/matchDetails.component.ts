@@ -57,7 +57,6 @@ export class MatchDetailsComponent {
   readonly matchID = input.required<string>();
 
   readonly details = this.store.details;
-  /** Loading; loaded; no such match (none, a 404, or an ID that isn't one: 400); or the request failed. */
   readonly state = this.store.state;
 
   /** The two sides for the scoreboard: the first team on the left (red), the second on the right (blue). */
