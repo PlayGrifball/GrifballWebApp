@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, signal, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterModule } from '@angular/router';
@@ -20,7 +20,6 @@ import { UserManagementService } from '@api/services/user-management.service';
 @Component({
     selector: 'app-user-management',
     imports: [
-        CommonModule,
         RouterModule,
         MatButtonModule,
         MatIconModule,
@@ -28,6 +27,7 @@ import { UserManagementService } from '@api/services/user-management.service';
         TableComponent,
         SearchBoxComponent,
         ToDatePipe,
+        DatePipe,
     ],
     templateUrl: './userManagement.component.html',
     styleUrl: './userManagement.component.scss',
@@ -48,7 +48,7 @@ export class UserManagementComponent {
   });
   // Rows of the user list are never null (PaginationResult<UserResponseDto> on the server).
   // A row of the users page (GET /api/users)
-  readonly parseUser = (row: unknown) => parseUser(row as ApiUserResponseDto)!;
+  readonly parseUser = (row: ApiUserResponseDto) => parseUser(row)!;
 
   filter = signal<string>('');
   filters = computed<Filter[]>(() => {

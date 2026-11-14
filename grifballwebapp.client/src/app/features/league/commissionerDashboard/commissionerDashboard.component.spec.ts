@@ -13,7 +13,7 @@ describe('CommissionerDashboardComponent', () => {
   let fixture: ComponentFixture<CommissionerDashboardComponent>;
   let httpTestingController: HttpTestingController;
   let mockDialog: jasmine.SpyObj<MatDialog>;
-  let mockDialogRef: jasmine.SpyObj<MatDialogRef<any>>;
+  let mockDialogRef: jasmine.SpyObj<MatDialogRef<unknown>>;
 
   beforeEach(async () => {
     mockDialogRef = jasmine.createSpyObj('MatDialogRef', ['afterClosed']);

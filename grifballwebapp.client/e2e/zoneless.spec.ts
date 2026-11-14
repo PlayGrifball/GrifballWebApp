@@ -319,7 +319,7 @@ test('the signup form ticks single slots and whole days, and submits the chosen 
     { optionID: 57, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false },
     { optionID: 58, dayOfWeek: 'Tuesday', time: '20:00:00', isChecked: false },
   ];
-  const posted: any[] = [];
+  const posted: Record<string, unknown>[] = [];
   await mockBackend(page, {
     // GET: no signup yet (204 No Content); POST: the signup, saved (204)
     '/api/seasons/5/signups/mine': route => {

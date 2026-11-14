@@ -9,14 +9,15 @@ import { of } from 'rxjs';
 import { PaginationParams } from '../getPaginationResource';
 import { PaginationResult } from '../paginationResult';
 
+interface TestData {
+  id: number;
+  name: string;
+}
+
 describe('TableComponent', () => {
   let component: TableComponent<TestData>;
   let fixture: ComponentFixture<TableComponent<TestData>>;
 
-  interface TestData {
-    id: number;
-    name: string;
-  }
 
   const testColumns: Column<TestData>[] = [
     {
@@ -255,7 +256,7 @@ describe('TableComponent API responses', () => {
   });
 
   it('turns each row through parseRow when one is bound', async () => {
-    fixture.componentRef.setInput('parseRow', (row: any) => ({ ...row, name: row.name.toUpperCase() }));
+    fixture.componentRef.setInput('parseRow', (row: TestData) => ({ ...row, name: row.name.toUpperCase() }));
     pending().flush({ totalCount: 2, results: [{ id: 1, name: 'alpha' }, { id: 2, name: 'beta' }] });
     await fixture.whenStable();
     expect(component.current().results.map(r => r.name)).toEqual(['ALPHA', 'BETA']);

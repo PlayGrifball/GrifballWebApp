@@ -62,13 +62,13 @@ describe('SeasonThisWeekComponent', () => {
 
   const text = () => (fixture.nativeElement as HTMLElement).textContent!.replace(/\s+/g, ' ');
 
-  it('loads the scheduled matches and links each card to its match', () => {
+  it('loads the scheduled matches and links each card to its match', async () => {
     fixture.componentRef.setInput('seasonID', 4);
     fixture.detectChanges();
     http.expectOne('/api/seasons/4/matches/scheduled').flush([
       { seasonMatchID: 31, homeCaptain: 'Grif', awayCaptain: 'Simmons', homeTeam: 'Red Team (Grif)', awayTeam: 'Blue Team (Simmons)', complete: false, time: '2026-03-13T20:00:00Z' },
     ]);
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(text()).toContain('Red Team (Grif)VSBlue Team (Simmons)');
     expect(text()).toContain('Upcoming');
@@ -76,12 +76,22 @@ describe('SeasonThisWeekComponent', () => {
     expect(hrefs).toEqual(['/seasonmatch/31', '/season/4?tab=schedule']);
   });
 
-  it('says so when nothing is scheduled, also when the request fails', () => {
+  it('says so when nothing is scheduled, also when the request fails', async () => {
     fixture.componentRef.setInput('seasonID', 4);
     fixture.detectChanges();
     http.expectOne('/api/seasons/4/matches/scheduled').flush('x', { status: 500, statusText: 'Server Error' });
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(text()).toContain('No matches scheduled yet.');
+  });
+
+  it("cancels the previous season's request, so its matches can't land on the next", () => {
+    fixture.componentRef.setInput('seasonID', 4);
+    fixture.detectChanges();
+    const late = http.expectOne('/api/seasons/4/matches/scheduled');
+    fixture.componentRef.setInput('seasonID', 5);
+    fixture.detectChanges();
+    expect(late.cancelled).toBeTrue();
+    http.expectOne('/api/seasons/5/matches/scheduled');
   });
 
   it('waits for a season before loading anything', () => {

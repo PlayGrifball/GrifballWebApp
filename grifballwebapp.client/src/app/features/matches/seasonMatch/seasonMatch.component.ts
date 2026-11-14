@@ -1,4 +1,4 @@
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { DOCUMENT, NgTemplateOutlet, DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { afterNextRender, Component, computed, effect, ElementRef, Injector, input, linkedSignal, signal, Signal, WritableSignal, ChangeDetectionStrategy, inject, viewChild } from '@angular/core';
 import { RouterModule } from '@angular/router';
@@ -108,7 +108,6 @@ function seasonMatchResult(match: SeasonMatchPageDto, home: string, away: string
 @Component({
     selector: 'app-season-match',
     imports: [
-        CommonModule,
         RouterModule,
         FormsModule,
         MatInputModule,
@@ -122,6 +121,8 @@ function seasonMatchResult(match: SeasonMatchPageDto, home: string, away: string
         VodListComponent,
         BoxScoreComponent,
         ManualGamesComponent,
+        DatePipe,
+        NgTemplateOutlet,
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',

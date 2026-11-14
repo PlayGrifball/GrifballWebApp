@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { PLATFORM_ID } from '@angular/core';
-import { HttpTransportType, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
+import { HttpTransportType, HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { SignalRService } from './signalR.service';
 import { AuthSession } from '../auth/authSession.service';
 import { HUB_RETRY_MS } from './hubLifecycle';
@@ -38,7 +38,7 @@ describe('SignalRService', () => {
       state: HubConnectionState.Disconnected,
     };
     withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();
-    spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as any);
+    spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as unknown as HubConnection);
     spyOn(console, 'log');
 
     service = TestBed.inject(SignalRService);

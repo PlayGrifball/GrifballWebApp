@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import { fromApiDate, fromRequiredApiDate } from "@shared/apiDates";
-import type { SeasonFormat } from "@api/models";
+import type { SeasonDto, SeasonFormat } from "@api/models";
 
 /** A season's settings as the editor holds them: the API's SeasonDto, its dates as Luxon DateTimes. */
 export class SeasonSettings {
@@ -29,7 +29,7 @@ export class SeasonSettings {
 }
 
 /** A season as the API sends it (dates as ISO strings), with real DateTimes; null (no such season) stays null. */
-export function parseSeason(raw: any): SeasonSettings | null {
+export function parseSeason(raw: SeasonDto | null): SeasonSettings | null {
   if (raw == null)
     return null;
   return {

@@ -8,7 +8,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { EventEmitter, signal, WritableSignal } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
 import { DateTime } from 'luxon';
 import { AccountService } from '@core/auth/account.service';
@@ -49,7 +49,7 @@ describe('ScheduleListComponent behaviour', () => {
     seasonMatchID: id, homeCaptain: `Home${id}`, awayCaptain: `Away${id}`, homeTeam: `Home Team${id}`, awayTeam: `Away Team${id}`, complete
   });
   const scheduled = (id: number, iso: string, complete = false) => ({
-    seasonMatchID: id, homeCaptain: `Home${id}`, awayCaptain: `Away${id}`, homeTeam: `Home Team${id}`, awayTeam: `Away Team${id}`, complete, time: iso as any
+    seasonMatchID: id, homeCaptain: `Home${id}`, awayCaptain: `Away${id}`, homeTeam: `Home Team${id}`, awayTeam: `Away Team${id}`, complete, time: iso
   });
 
   beforeEach(async () => {
@@ -77,7 +77,7 @@ describe('ScheduleListComponent behaviour', () => {
 
   afterEach(() => http.verify());
 
-  function load(unsched: any[], sched: any[]): void {
+  function load(unsched: object[], sched: object[]): void {
     fixture.detectChanges();
     http.expectOne('/api/seasons/4/matches/unscheduled').flush(unsched);
     http.expectOne('/api/seasons/4/matches/scheduled').flush(sched);
@@ -208,7 +208,7 @@ describe('ScheduleListComponent behaviour', () => {
   it('reloads each time matches are created again from the same dialog', () => {
     load([], []);
     const created = new Subject<void>();
-    dialog.open.and.returnValue({ componentInstance: { regularMatchesCreated: created } } as any);
+    dialog.open.and.returnValue({ componentInstance: { regularMatchesCreated: created } } as unknown as MatDialogRef<unknown>);
     component.createRegularSeasonMatches();
 
     for (let i = 0; i < 2; i++) {
@@ -223,7 +223,7 @@ describe('ScheduleListComponent behaviour', () => {
   it('opens the create-matches dialog for this season and reloads when matches are created', () => {
     load([], []);
     const created = new EventEmitter<void>();
-    dialog.open.and.returnValue({ componentInstance: { regularMatchesCreated: created } } as any);
+    dialog.open.and.returnValue({ componentInstance: { regularMatchesCreated: created } } as unknown as MatDialogRef<unknown>);
 
     component.createRegularSeasonMatches();
     expect(dialog.open).toHaveBeenCalledWith(CreateRegularMatchesDialogComponent, { data: 4 });
@@ -248,7 +248,7 @@ describe('ScheduleListComponent behaviour', () => {
   it('stops listening to the create-matches dialog once the page is destroyed', () => {
     load([], []);
     const created = new EventEmitter<void>();
-    dialog.open.and.returnValue({ componentInstance: { regularMatchesCreated: created } } as any);
+    dialog.open.and.returnValue({ componentInstance: { regularMatchesCreated: created } } as unknown as MatDialogRef<unknown>);
     component.createRegularSeasonMatches();
     expect(created.observed).toBeTrue();
 
@@ -458,7 +458,7 @@ describe('ScheduleListComponent behaviour', () => {
       fixture.detectChanges();
       http.expectOne('/api/seasons/5/matches/unscheduled').flush([]);
       http.expectOne('/api/seasons/5/matches/scheduled').flush([]);
-      dialog.open.and.returnValue({ componentInstance: { regularMatchesCreated: new EventEmitter<void>() } } as any);
+      dialog.open.and.returnValue({ componentInstance: { regularMatchesCreated: new EventEmitter<void>() } } as unknown as MatDialogRef<unknown>);
 
       component.createRegularSeasonMatches();
       expect(dialog.open.calls.mostRecent().args[1]).toEqual(jasmine.objectContaining({ data: 5 }));

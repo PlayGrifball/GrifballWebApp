@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, input, signal, WritableSignal, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -17,6 +17,7 @@ import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerSta
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import type { TeamDto } from '@api/models';
 import { describePage, PageDescription } from '@shared/pageMeta';
+import type { TeamPageMatchDto } from '@api/models';
 
 /** The team as search results and link previews show it: its name and season, record, titles and roster. */
 export function describeTeam(team: TeamDto): PageDescription {
@@ -36,7 +37,6 @@ export function describeTeam(team: TeamDto): PageDescription {
 @Component({
     selector: 'app-team',
     imports: [
-        CommonModule,
         MatButtonModule,
         SeasonTabsComponent,
         MatTableModule,
@@ -47,6 +47,7 @@ export function describeTeam(team: TeamDto): PageDescription {
         DataNoticeComponent,
         SeasonPlayerStatsComponent,
         VodListComponent,
+        DatePipe,
     ],
     templateUrl: './team.component.html',
     styleUrl: './team.component.scss',
@@ -126,6 +127,6 @@ export interface MatchDto
 }
 
 /** A team match as the API sends it (scheduledTime as an ISO string or null), with a real DateTime. */
-export function parseTeamMatch(raw: any): MatchDto {
+export function parseTeamMatch(raw: TeamPageMatchDto): MatchDto {
   return { ...raw, scheduledTime: fromApiDate(raw.scheduledTime) };
 }

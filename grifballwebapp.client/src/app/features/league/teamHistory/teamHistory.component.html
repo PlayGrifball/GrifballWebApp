@@ -57,7 +57,7 @@
                         <div class="history-season__captain">
                             <span class="hud-label">Captain</span>
                             @for (captain of lineCaptains; track captain.teamPlayerID) {
-                                <a class="hud-text-link" [routerLink]="['/profile', captain.userID]">{{captain.gamertag ?? 'Unknown Spartan'}}</a>
+                                <a class="hud-text-link" [routerLink]="['/profile', captain.userID]">{{captain.gamertag || 'Unknown Spartan'}}</a>
                             }
                         </div>
                     }
@@ -65,7 +65,7 @@
                     @if (line.players.length) {
                         <ul class="history-season__roster" [attr.aria-label]="'Roster of ' + line.season.seasonName">
                             @for (player of line.players; track player.teamPlayerID) {
-                                <li><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag ?? 'Unknown Spartan'}}</a></li>
+                                <li><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag || 'Unknown Spartan'}}</a></li>
                             }
                         </ul>
                     } @else {

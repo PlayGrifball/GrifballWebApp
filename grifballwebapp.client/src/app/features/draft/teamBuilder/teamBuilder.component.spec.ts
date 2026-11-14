@@ -1,4 +1,4 @@
-import type { CaptainAddedResponseDto } from '@api/models';
+import type { AddPlayerToTeamRequestDto, CaptainAddedResponseDto } from '@api/models';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TeamBuilderComponent } from './teamBuilder.component';
 import { provideRouter } from '@angular/router';
@@ -7,16 +7,19 @@ import { TeamsService } from '@api/services/teams.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '@core/auth/account.service';
 import { SignalRService } from '@core/signalr/signalR.service';
-import { HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
+import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { config as rxjsConfig, of, Subject, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import type { TeamResponseDto } from '@api/models';
 import type { TeamsPlayerDto } from '@api/models';
 import type { CaptainDto } from '@api/models';
-import { GrabbedThing } from './personStatus';
+import { GrabbedThing, GrabbedThingTypes } from './personStatus';
 import { DndDropEvent } from 'ngx-drag-drop';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+
+/** The hub connection's id as a test sets it (the real one is read-only). */
+type WritableConnectionID = { connectionId: string | null | undefined };
 
 describe('TeamBuilderComponent', () => {
   let component: TeamBuilderComponent;
@@ -57,7 +60,7 @@ describe('TeamBuilderComponent', () => {
       'connected'
     ]);
 
-    mockSignalR.hubConnection = { connectionId: 'test-connection-id' } as any;
+    mockSignalR.hubConnection = { connectionId: 'test-connection-id' } as HubConnection;
     // Each registration returns its own unregister function, like the real service.
     for (const name of Object.keys(mockSignalR) as (keyof SignalRService)[]) {
       const method = mockSignalR[name] as unknown as jasmine.Spy;
@@ -468,7 +471,7 @@ describe('TeamBuilderComponent', () => {
     const teamNames = () => component.teams().map(t => `${t.captain.order}:${t.captain.personID}`);
     const roster = (captainID: number) => component.teams().find(t => t.captain.personID === captainID)!.players.map(p => `${p.round}:${p.personID}`);
     const pool = () => component.playerPool().map(p => p.personID);
-    const grab = (thing: unknown, kind: GrabbedThing) => component.onDragStart(thing as any, new DragEvent('dragstart'), kind);
+    const grab = (thing: unknown, kind: GrabbedThing) => component.onDragStart(thing as GrabbedThingTypes, new DragEvent('dragstart'), kind);
 
     beforeEach(() => {
       mockDraft.getTeams.and.returnValue(of([
@@ -673,7 +676,7 @@ describe('TeamBuilderComponent', () => {
       rxjsConfig.onUnhandledError = unhandled;
       try {
         // A null AddCaptain answer makes the name lookup throw inside the save's callback.
-        mockDraft.addCaptain.and.returnValue(of(null as any));
+        mockDraft.addCaptain.and.returnValue(of(null as unknown as CaptainAddedResponseDto));
         mockDraft.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { title: 'Request refused', detail: 'No' } })));
         const pending = new Subject<void>();
         mockDraft.addPlayerToTeam.and.returnValue(pending);
@@ -702,7 +705,7 @@ describe('TeamBuilderComponent', () => {
       component.load();
       const loads = mockDraft.getTeams.calls.count();
 
-      const addPlayer = mockSignalR.addPlayerToTeam.calls.mostRecent().args[0] as (dto: any) => void;
+      const addPlayer = mockSignalR.addPlayerToTeam.calls.mostRecent().args[0] as (dto: AddPlayerToTeamRequestDto) => void;
       addPlayer({ seasonID: 5, captainID: 101, personID: 3 });
       loading.next([{ teamID: 1, teamName: 'Alpha', captain: cap(101, 1), players: [player(1, 1), player(2, 2), player(3, 3)] }]);
       loading.complete();
@@ -782,7 +785,7 @@ describe('TeamBuilderComponent', () => {
       const loads = mockDraft.getTeams.calls.count();
 
       // Another user's update names a team this page does not know.
-      const addPlayer = mockSignalR.addPlayerToTeam.calls.mostRecent().args[0] as (dto: any) => void;
+      const addPlayer = mockSignalR.addPlayerToTeam.calls.mostRecent().args[0] as (dto: AddPlayerToTeamRequestDto) => void;
       addPlayer({ seasonID: 5, captainID: 999, personID: 4 });
       expect(mockDraft.getTeams.calls.count()).toBe(loads);
 
@@ -931,7 +934,7 @@ describe('TeamBuilderComponent', () => {
       grab(dragged, GrabbedThing.AvailablePlayer);
 
       // Meanwhile someone drafts Player 3: every list is replaced with new objects.
-      const addPlayer = mockSignalR.addPlayerToTeam.calls.mostRecent().args[0] as (dto: any) => void;
+      const addPlayer = mockSignalR.addPlayerToTeam.calls.mostRecent().args[0] as (dto: AddPlayerToTeamRequestDto) => void;
       addPlayer({ seasonID: 5, captainID: 101, personID: 3 });
 
       component.onDropPickInTeam(drop(dragged), component.teams()[1]);
@@ -996,7 +999,7 @@ describe('TeamBuilderComponent', () => {
     // Each starts over from the describe's fresh Alpha/Bravo teams and pool (its beforeEach), so
     // one drop's result never affects the next: the hub just has not connected for any of them.
     describe('while the hub has not connected yet (no SignalR connection id)', () => {
-      beforeEach(() => (mockSignalR.hubConnection as any).connectionId = null);
+      beforeEach(() => (mockSignalR.hubConnection as unknown as WritableConnectionID).connectionId = null);
 
       it('adding a captain', () => {
         grab(component.playerPool()[1], GrabbedThing.AvailablePlayer);
@@ -1061,7 +1064,9 @@ describe('TeamBuilderComponent', () => {
     const player = (id: number, round: number | null = null): TeamsPlayerDto => ({ name: 'Player ' + id, personID: id, pick: round, round, region: null });
 
     // The callback the component registered with the given SignalRService method.
-    const handler = <T>(spy: jasmine.Spy) => spy.calls.mostRecent().args[0] as (dto: T) => void;
+    /** The callback the page registered with a hub method, typed as that method takes it. */
+    const handler = <T>(register: (callback: (dto: T) => void) => unknown) =>
+      (register as unknown as jasmine.Spy).calls.mostRecent().args[0] as (dto: T) => void;
     const loads = () => mockDraft.getTeams.calls.count();
     const teamNames = () => component.teams().map(t => `${t.captain.order}:${t.teamName}`);
     const pool = () => component.playerPool().map(p => p.personID);
@@ -1093,7 +1098,7 @@ describe('TeamBuilderComponent', () => {
       const alphaPlayers = alpha.players;
       const beforePool = component.playerPool();
 
-      handler<any>(mockSignalR.addPlayerToTeam)({ seasonID: SEASON, captainID: 101, personID: 3 });
+      handler(mockSignalR.addPlayerToTeam)({ seasonID: SEASON, captainID: 101, personID: 3 });
 
       expect(component.teams()).not.toBe(before);
       expect(alpha.players).toBe(alphaPlayers);
@@ -1107,14 +1112,14 @@ describe('TeamBuilderComponent', () => {
       const teams = component.teams();
       const playerPool = component.playerPool();
 
-      handler<any>(mockSignalR.addCaptain)({ seasonID: OTHER, personID: 4, teamName: 'X', captainName: 'X', orderNumber: 1 });
+      handler(mockSignalR.addCaptain)({ seasonID: OTHER, personID: 4, teamID: 0, teamName: 'X', captainName: 'X', orderNumber: 1 });
       expect(component.teams()).toBe(teams);
       expect(component.playerPool()).toBe(playerPool);
 
       // Out of sync: the page reloads instead (the mock returns fresh lists).
       mockDraft.getTeams.and.returnValue(new Subject<TeamResponseDto[]>());
       mockDraft.getPlayerPool.and.returnValue(new Subject<TeamsPlayerDto[]>());
-      handler<any>(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 99, personID: 1, roundNumber: 1 });
+      handler(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 99, personID: 1, roundNumber: 1 });
       expect(component.teams()).toBe(teams);
       expect(component.playerPool()).toBe(playerPool);
     });
@@ -1123,7 +1128,7 @@ describe('TeamBuilderComponent', () => {
       fixture.autoDetectChanges();
       await fixture.whenStable();
 
-      handler<any>(mockSignalR.addCaptain)({ seasonID: SEASON, personID: 4, teamID: 31, teamName: 'Charlie', captainName: 'Player 4', orderNumber: 1 });
+      handler(mockSignalR.addCaptain)({ seasonID: SEASON, personID: 4, teamID: 31, teamName: 'Charlie', captainName: 'Player 4', orderNumber: 1 });
       await fixture.whenStable();
       expect(component.teams()[0].teamID).toBe(31);
 
@@ -1133,46 +1138,46 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('adds a captain at their pick order and takes them out of the pool', () => {
-      handler<any>(mockSignalR.addCaptain)({ seasonID: SEASON, personID: 4, teamName: 'Charlie', captainName: 'Player 4', orderNumber: 2 });
+      handler(mockSignalR.addCaptain)({ seasonID: SEASON, personID: 4, teamID: 0, teamName: 'Charlie', captainName: 'Player 4', orderNumber: 2 });
       expect(teamNames()).toEqual(['1:Alpha', '2:Charlie', '3:Bravo']);
       expect(pool()).toEqual([3, 5]);
     });
 
     it('moves a captain to a new pick order', () => {
-      handler<any>(mockSignalR.resortCaptain)({ seasonID: SEASON, personID: 102, orderNumber: 1 });
+      handler(mockSignalR.resortCaptain)({ seasonID: SEASON, personID: 102, orderNumber: 1 });
       expect(teamNames()).toEqual(['1:Bravo', '2:Alpha']);
     });
 
     it('returns a removed captain and their picks to the pool', () => {
-      handler<any>(mockSignalR.removeCaptain)({ seasonID: SEASON, personID: 101 });
+      handler(mockSignalR.removeCaptain)({ seasonID: SEASON, personID: 101 });
       expect(teamNames()).toEqual(['1:Bravo']);
       expect(pool()).toEqual([2, 1, 101, 3, 4, 5]);
       expect(component.playerPool().every(p => p.round === null && p.pick === null)).toBeTrue();
     });
 
     it('adds a pool player to a team as its next round', () => {
-      handler<any>(mockSignalR.addPlayerToTeam)({ seasonID: SEASON, captainID: 102, personID: 3 });
+      handler(mockSignalR.addPlayerToTeam)({ seasonID: SEASON, captainID: 102, personID: 3 });
       expect(roster(102)).toEqual(['1:3']);
     });
 
     it('moves a player between teams and renumbers both rosters', () => {
-      handler<any>(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 102, personID: 1, roundNumber: 1 });
+      handler(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 102, personID: 1, roundNumber: 1 });
       expect(roster(101)).toEqual(['1:2']);
       expect(roster(102)).toEqual(['1:1']);
     });
 
     it('puts a moved pick at the round the server chose', () => {
-      handler<any>(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 101, personID: 2, roundNumber: 1 });
+      handler(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 101, personID: 2, roundNumber: 1 });
       expect(roster(101)).toEqual(['1:2', '2:1']);
     });
 
     it('moves a player to the end of their own team', () => {
-      handler<any>(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 101, personID: 1, roundNumber: 2 });
+      handler(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 101, personID: 1, roundNumber: 2 });
       expect(roster(101)).toEqual(['1:2', '2:1']);
     });
 
     it('returns a removed player to the front of the pool', () => {
-      handler<any>(mockSignalR.removePlayerFromTeam)({ seasonID: SEASON, captainID: 101, personID: 1 });
+      handler(mockSignalR.removePlayerFromTeam)({ seasonID: SEASON, captainID: 101, personID: 1 });
       expect(roster(101)).toEqual(['1:2']);
       expect(pool()).toEqual([1, 3, 4, 5]);
     });
@@ -1192,12 +1197,12 @@ describe('TeamBuilderComponent', () => {
 
     it('ignores updates for another season', () => {
       const before = { teams: teamNames(), pool: pool(), alpha: roster(101) };
-      handler<any>(mockSignalR.addCaptain)({ seasonID: OTHER, personID: 4, teamName: 'X', captainName: 'X', orderNumber: 1 });
-      handler<any>(mockSignalR.resortCaptain)({ seasonID: OTHER, personID: 102, orderNumber: 1 });
-      handler<any>(mockSignalR.removeCaptain)({ seasonID: OTHER, personID: 101 });
-      handler<any>(mockSignalR.addPlayerToTeam)({ seasonID: OTHER, captainID: 102, personID: 3 });
-      handler<any>(mockSignalR.movePlayerToTeam)({ seasonID: OTHER, previousCaptainID: 101, newCaptainID: 102, personID: 1, roundNumber: 1 });
-      handler<any>(mockSignalR.removePlayerFromTeam)({ seasonID: OTHER, captainID: 101, personID: 1 });
+      handler(mockSignalR.addCaptain)({ seasonID: OTHER, personID: 4, teamID: 0, teamName: 'X', captainName: 'X', orderNumber: 1 });
+      handler(mockSignalR.resortCaptain)({ seasonID: OTHER, personID: 102, orderNumber: 1 });
+      handler(mockSignalR.removeCaptain)({ seasonID: OTHER, personID: 101 });
+      handler(mockSignalR.addPlayerToTeam)({ seasonID: OTHER, captainID: 102, personID: 3 });
+      handler(mockSignalR.movePlayerToTeam)({ seasonID: OTHER, previousCaptainID: 101, newCaptainID: 102, personID: 1, roundNumber: 1 });
+      handler(mockSignalR.removePlayerFromTeam)({ seasonID: OTHER, captainID: 101, personID: 1 });
 
       expect({ teams: teamNames(), pool: pool(), alpha: roster(101) }).toEqual(before);
       expect(loads()).toBe(1);
@@ -1308,7 +1313,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
       'unlockCaptains',
       'connected'
     ]);
-    mockSignalR.hubConnection = { connectionId: 'conn-42' } as any;
+    mockSignalR.hubConnection = { connectionId: 'conn-42' } as HubConnection;
     // Each registration returns its own unregister function, like the real service.
     for (const name of Object.keys(mockSignalR) as (keyof SignalRService)[]) {
       const method = mockSignalR[name] as unknown as jasmine.Spy;
@@ -1370,7 +1375,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
 
   for (const connectionId of ['', null, undefined])
     it(`sends no connection header while the hub has no connection id (${JSON.stringify(connectionId) ?? 'undefined'})`, () => {
-      (mockSignalR.hubConnection as any).connectionId = connectionId;
+      (mockSignalR.hubConnection as unknown as WritableConnectionID).connectionId = connectionId;
       dropTeamInPool(component.teams()[1]);
 
       const req = httpTesting.expectOne('/api/seasons/7/draft/captains/remove');
@@ -1406,7 +1411,7 @@ describe('TeamBuilderComponent hub handler registration (real SignalRService)', 
       off: (name: string, fn: Function) => handlers.set(name, (handlers.get(name) ?? []).filter(h => h !== fn)),
     };
     // The real service (its generated receiver registered in its constructor), on this connection
-    spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(hubConnection as any);
+    spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(hubConnection as unknown as HubConnection);
 
     const api = jasmine.createSpyObj<TeamsService>('TeamsService', ['getTeams', 'getPlayerPool', 'areCaptainsLocked']);
     api.getTeams.and.returnValue(of([]));

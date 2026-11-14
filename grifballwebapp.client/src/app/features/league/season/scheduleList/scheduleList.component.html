@@ -85,7 +85,7 @@
         <span class="hud-label" [class.hud-label--accent]="!match.complete">
           {{match.time | toDate | date:'EEEE'}} {{match.time | toDate | date:'short'}}@if (match.complete) { · Final }
         </span>
-        <span class="sched-match__teams" [ngClass]="match.complete === true ? 'strike': ''">{{match.homeTeamName}} vs {{match.awayTeamName}}</span>
+        <span class="sched-match__teams" [class.strike]="match.complete === true">{{match.homeTeamName}} vs {{match.awayTeamName}}</span>
       </a>
       @if (accountService.isEventOrganizer() && isEditing()) {
       <form #f="ngForm" (ngSubmit)="onSubmit(match, f.value.time)" class="sched-match__form">
@@ -111,7 +111,7 @@
   @for (match of unscheduledMatches(); track match.seasonMatchID) {
   <div class="sched-match">
     <a class="sched-match__link" [routerLink]="['/seasonmatch', match.seasonMatchID]">
-      <span class="sched-match__teams" [ngClass]="match.complete === true ? 'strike': ''">{{match.homeTeam}} vs {{match.awayTeam}}</span>
+      <span class="sched-match__teams" [class.strike]="match.complete === true">{{match.homeTeam}} vs {{match.awayTeam}}</span>
     </a>
     @if (accountService.isEventOrganizer() && isEditing()) {
     <form #f="ngForm" (ngSubmit)="onSubmit(match, f.value.time)" class="sched-match__form">

@@ -173,7 +173,7 @@ export class TeamBuilderComponent implements OnInit {
   }
 
   /** The pool player a drag carries (drag data is a copy made by ngx-drag-drop). */
-  MapToPlayer(data: any, t: GrabbedThing): TeamsPlayerDto {
+  MapToPlayer(data: unknown, t: GrabbedThing): TeamsPlayerDto {
     if (t === GrabbedThing.AvailablePlayer) {
       return { ...(data as TeamsPlayerDto), round: null, pick: null };
     } else {
@@ -183,7 +183,7 @@ export class TeamBuilderComponent implements OnInit {
   }
 
   /** The team a drag carries, or the new team a pool player would captain. */
-  MapToTeam(data: any, t: GrabbedThing): TeamResponseDto {
+  MapToTeam(data: unknown, t: GrabbedThing): TeamResponseDto {
     if (t === GrabbedThing.AvailablePlayer) {
       const player = data as TeamsPlayerDto;
       return { teamID: 0, teamName: player.name + "'s Team", captain: { name: player.name, personID: player.personID, order: null, region: null }, players: [] };

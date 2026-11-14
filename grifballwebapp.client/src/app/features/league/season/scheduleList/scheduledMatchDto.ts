@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import { fromRequiredApiDate } from "@shared/apiDates";
+import type { ScheduledMatchDto as ApiScheduledMatchDto } from '@api/models';
 
 export interface ScheduledMatchDto {
     seasonMatchID: number,
@@ -13,6 +14,6 @@ export interface ScheduledMatchDto {
 }
 
 /** A scheduled match as the API sends it (time as an ISO string), with a real DateTime. */
-export function parseScheduledMatch(raw: any): ScheduledMatchDto {
+export function parseScheduledMatch(raw: ApiScheduledMatchDto): ScheduledMatchDto {
   return { ...raw, time: fromRequiredApiDate(raw.time) };
 }

@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
 import { SeasonService } from '@api/services/season.service';
 import { SignupsService } from '@api/services/signups.service';
@@ -14,11 +14,11 @@ import { whileCurrent } from '@shared/whileCurrent';
 @Component({
     selector: 'app-signups',
     imports: [
-        CommonModule,
         MatTableModule,
         SeasonTabsComponent,
         DataNoticeComponent,
         RouterLink,
+        DatePipe,
     ],
     templateUrl: './signups.component.html',
     styleUrl: './signups.component.scss',

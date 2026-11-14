@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import { fromApiDate } from "@shared/apiDates";
+import type { SeasonMatchPageDto as ApiSeasonMatchPageDto } from '@api/models';
 
 export interface SeasonMatchGameParticipantDto {
   userID: number | null;
@@ -85,7 +86,7 @@ export interface BracketInfoDto {
 }
 
 /** The page as the API sends it (scheduledTime as an ISO string), with a real DateTime; null (no such match) stays null. */
-export function parseSeasonMatchPage(raw: any): SeasonMatchPageDto | null {
+export function parseSeasonMatchPage(raw: ApiSeasonMatchPageDto | null): SeasonMatchPageDto | null {
   if (raw == null)
     return null;
   return { ...raw, scheduledTime: fromApiDate(raw.scheduledTime) };

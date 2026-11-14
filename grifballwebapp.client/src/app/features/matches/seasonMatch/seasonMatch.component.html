@@ -33,8 +33,8 @@
       }
       @for (player of store.homeRoster(); track player.teamPlayerID) {
         <div class="lobby-player">
-          <span class="hud-avatar" aria-hidden="true">{{(player.gamertag ?? '?').charAt(0)}}</span>
-          <span class="lobby-player__name"><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag ?? 'Unknown Spartan'}}</a></span>
+          <span class="hud-avatar" aria-hidden="true">{{(player.gamertag || '?').charAt(0)}}</span>
+          <span class="lobby-player__name"><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag || 'Unknown Spartan'}}</a></span>
           @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
         </div>
       }
@@ -72,8 +72,8 @@
       @for (player of store.awayRoster(); track player.teamPlayerID) {
         <div class="lobby-player">
           @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
-          <span class="lobby-player__name"><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag ?? 'Unknown Spartan'}}</a></span>
-          <span class="hud-avatar" aria-hidden="true">{{(player.gamertag ?? '?').charAt(0)}}</span>
+          <span class="lobby-player__name"><a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag || 'Unknown Spartan'}}</a></span>
+          <span class="hud-avatar" aria-hidden="true">{{(player.gamertag || '?').charAt(0)}}</span>
         </div>
       }
     </div>
@@ -111,13 +111,13 @@
               @if (board.matchID) {
                 <span>Waypoint ID: <a class="lobby-game-meta__id hud-text-link" [routerLink]="['/match', board.matchID]"><code>{{ board.matchID }}</code></a></span>
               } @else if (board.recordedGameID) {
-                @if (board.game?.isManual) {
+                @if (board.game.isManual) {
                   <span class="hud-label">Entered by hand</span>
                 } @else {
                   <span>Recorded Game #{{ board.recordedGameID }}</span>
                 }
                 @if (board.details) { <span>{{ board.details }}</span> }
-                @if (board.game?.playedAt) { <span>{{ board.game?.playedAt | date:'short' }}</span> }
+                @if (board.game.playedAt) { <span>{{ board.game.playedAt | date:'short' }}</span> }
               }
               <!-- Any game can be unreported, at any point; one entered by hand can be edited too -->
               @if (manualGames.canRemove(board.game) && manualGames.idle() && !submitting()) {

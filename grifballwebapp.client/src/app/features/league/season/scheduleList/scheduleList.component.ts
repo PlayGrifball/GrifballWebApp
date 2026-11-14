@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, ChangeDetectionStrategy, effect, inject, input, signal, untracked, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
@@ -26,7 +26,6 @@ import { conflictText, ScheduleListStore } from './scheduleList.store';
     templateUrl: './scheduleList.component.html',
     styleUrl: './scheduleList.component.scss',
     imports: [
-        CommonModule,
         MatCardModule,
         MatDividerModule,
         ErrorMessageComponent,
@@ -38,6 +37,8 @@ import { conflictText, ScheduleListStore } from './scheduleList.store';
         RouterModule,
         MatDialogModule,
         ToDatePipe,
+        DatePipe,
+        DecimalPipe,
     ],
     providers: [provideDatePickers(), ScheduleListStore],
     changeDetection: ChangeDetectionStrategy.OnPush

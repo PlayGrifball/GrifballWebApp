@@ -23,6 +23,13 @@ export default [
     linterOptions: { reportUnusedDisableDirectives: 'error' },
     rules: asErrors,
   },
+  // No `any` in the app, its specs or its end-to-end tests (#387): the API's types are generated, and what isn't known
+  // yet is `unknown`, narrowed where it is read
+  {
+    files: ['**/*.{ts,mts,cts}'],
+    plugins: { '@typescript-eslint': tseslint.plugin },
+    rules: { '@typescript-eslint/no-explicit-any': 'error' },
+  },
   // The app's code with its types: the rules that need them run only here
   {
     files: ['src/**/*.ts'],

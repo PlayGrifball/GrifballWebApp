@@ -1,9 +1,10 @@
-import { Component, ChangeDetectionStrategy, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, input } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
+import { tap } from 'rxjs';
 import { Router, RouterModule } from '@angular/router';
 import { TeamStandingsService } from '@api/services/team-standings.service';
 import { TeamStandingDto } from './teamStandingDto';
 import { MatTableModule } from '@angular/material/table';
-import { whileCurrent } from '@shared/whileCurrent';
 
 @Component({
     selector: 'app-team-standings',
@@ -22,41 +23,15 @@ export class TeamStandingsComponent {
   /** The season page's season (0: none yet). A new one loads its standings in place of the ones shown. */
   readonly seasonID = input.required<number>();
 
-  readonly teamStandings = signal<TeamStandingDto[]>([]);
+  /** The season's standings, loaded again for each season (none for 0): a new one drops the request still on its way. */
+  private readonly standings = rxResource({
+    params: () => this.seasonID() || undefined,
+    stream: ({ params: seasonID }) => this.api.getTeamStandings({ seasonID }).pipe(tap({ error: e => console.log(e) })),
+  });
+  readonly teamStandings = computed<TeamStandingDto[]>(() => this.standings.hasValue() ? this.standings.value() : []);
   /** The standings have loaded (or failed to, or there is no season). */
-  readonly loaded = signal(false);
-  /** Some records are the source spreadsheet's (a backfilled season without matches). */
+  readonly loaded = computed(() => !this.standings.isLoading());
   readonly fromSource = computed(() => this.teamStandings().some(t => t.recordFromSource));
 
   displayedColumns: string[] = ['rank', 'teamName', 'wins', 'losses'];
-
-  constructor() {
-    effect(() => {
-      const seasonID = this.seasonID();
-      untracked(() => this.load(seasonID));
-    });
-  }
-
-  private load(seasonID: number): void {
-    this.teamStandings.set([]);
-    if (seasonID === 0) {
-      this.loaded.set(true);
-      return;
-    }
-    this.loaded.set(false);
-
-    this.api.getTeamStandings({ seasonID })
-      .pipe(whileCurrent(seasonID, this.seasonID))
-      .subscribe(
-        {
-          next: r => {
-            this.teamStandings.set(r);
-            this.loaded.set(true);
-          },
-          error: e => {
-            console.log(e);
-            this.loaded.set(true);
-          }
-        });
-  }
 }

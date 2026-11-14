@@ -1,5 +1,5 @@
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal, DestroyRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { TitleCasePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTableModule } from '@angular/material/table';
@@ -20,7 +20,6 @@ export type { CommissionerDashboardDto, RescheduleDto };
   selector: 'app-commissioner-dashboard',
   standalone: true,
   imports: [
-    CommonModule,
     RouterLink,
     MatTabsModule,
     MatTableModule,
@@ -28,7 +27,8 @@ export type { CommissionerDashboardDto, RescheduleDto };
     MatIconModule,
     MatBadgeModule,
     MatDialogModule,
-    MatTooltipModule
+    MatTooltipModule,
+    TitleCasePipe,
   ],
   templateUrl: './commissionerDashboard.component.html',
   styleUrls: ['./commissionerDashboard.component.scss'],
@@ -103,7 +103,7 @@ export class CommissionerDashboardComponent implements OnInit {
   createDiscordThread(reschedule: RescheduleDto): void {
     this.rescheduleService.createDiscordThread({ rescheduleID: reschedule.matchRescheduleID })
     .subscribe({
-      next: (response: any) => {
+      next: () => {
         this.loadDashboardData(); // Refresh to show the thread ID
       },
       error: (error) => {

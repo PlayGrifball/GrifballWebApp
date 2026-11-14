@@ -33,11 +33,11 @@
             <h2 class="hud-h2">Roster</h2>
             @for (player of team()?.players; track player.teamPlayerID) {
                 <div class="team-player">
-                    <span class="hud-avatar" aria-hidden="true">{{(player.gamertag ?? '?').charAt(0)}}</span>
+                    <span class="hud-avatar" aria-hidden="true">{{(player.gamertag || '?').charAt(0)}}</span>
                     @if (player.userID) {
-                        <a [routerLink]="['/profile', player.userID]" class="team-player__name hud-text-link">{{player.gamertag ?? 'Unknown Spartan'}}</a>
+                        <a [routerLink]="['/profile', player.userID]" class="team-player__name hud-text-link">{{player.gamertag || 'Unknown Spartan'}}</a>
                     } @else {
-                        <span class="team-player__name">{{player.gamertag ?? 'Unknown Spartan'}}</span>
+                        <span class="team-player__name">{{player.gamertag || 'Unknown Spartan'}}</span>
                     }
                     @if (player.region) {
                         <span class="hud-label team-player__region">{{player.region}}</span>

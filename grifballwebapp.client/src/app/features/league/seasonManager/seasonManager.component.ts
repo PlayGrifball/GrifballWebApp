@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonSettingsApiService } from '../api/seasonSettingsApi.service';
@@ -10,11 +10,11 @@ import { ToDatePipe } from '@shared/toDate.pipe';
 @Component({
     selector: 'app-season-manager',
     imports: [
-        CommonModule,
         MatTableModule,
         RouterModule,
         MatButtonModule,
         ToDatePipe,
+        DatePipe,
     ],
     templateUrl: './seasonManager.component.html',
     styleUrl: './seasonManager.component.scss',

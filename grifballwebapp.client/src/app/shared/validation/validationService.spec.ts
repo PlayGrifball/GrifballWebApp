@@ -7,6 +7,10 @@ describe('ValidationService', () => {
       expect(result).toBe('Required');
     });
 
+    it('needs no details for a validator that has none', () => {
+      expect(ValidationService.getValidatorErrorMessage('required')).toBe('Required');
+    });
+
     it('should return credit card message for invalidCreditCard validator', () => {
       const result = ValidationService.getValidatorErrorMessage('invalidCreditCard', {});
       expect(result).toBe('Is invalid credit card number');

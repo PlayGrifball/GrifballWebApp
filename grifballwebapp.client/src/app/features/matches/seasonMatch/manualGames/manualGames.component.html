@@ -76,7 +76,7 @@
       <tbody>
         @for (line of form.players; track line.userID; let i = $index) {
         <tr>
-          <td><mat-checkbox [name]="'played' + i" [(ngModel)]="line.played" [aria-label]="line.gamertag + ' played'"></mat-checkbox></td>
+          <td><mat-checkbox [name]="'played' + i" [(ngModel)]="line.played" [aria-label]="line.gamertag + ' played'" /></td>
           <td>{{line.gamertag}}</td>
           <td>{{line.isHomeTeam ? match()?.homeTeamName : match()?.awayTeamName}}</td>
           <td><input type="number" min="0" [name]="'kills' + i" [(ngModel)]="line.kills" [disabled]="!line.played" [attr.aria-label]="line.gamertag + ' kills'"></td>
