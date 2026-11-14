@@ -33,6 +33,6 @@ export class LateLeagueStore {
   readonly queue = computed(() => this.overview.hasValue() ? this.overview.value().queue : null);
   readonly seasons = computed(() => this.overview.hasValue() ? this.overview.value().seasons : null);
   readonly detail = computed(() => this.season.hasValue() ? this.season.value() : null);
-  /** What the page shows has loaded, or failed to. */
-  readonly loaded = computed(() => !this.season.isLoading() && !this.overview.isLoading());
+  /** What the page shows has loaded, or failed to (not before the page has said which season it shows). */
+  readonly loaded = computed(() => this.seasonID.value() !== undefined && !this.season.isLoading() && !this.overview.isLoading());
 }
