@@ -134,10 +134,11 @@
 }
 
 // The smallest phones: menu, wordmark, search and theme buttons and Login have to share 360px. The icon
-// buttons keep a 44px target.
+// buttons keep a 44px target; the chat is in the menu instead.
 @media (max-width: 400px) {
   .hud-header__bar { gap: 8px; }
   .hud-header__tools { gap: 2px; --mat-icon-button-state-layer-size: 44px; }
   .hud-brand { font-size: 17px; letter-spacing: 0.12em; }
   .hud-header__login { padding: 0 10px; letter-spacing: 0.12em; }
+  .hud-header__chat { display: none; }
 }

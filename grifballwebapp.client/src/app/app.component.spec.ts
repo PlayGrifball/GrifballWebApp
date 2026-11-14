@@ -349,6 +349,12 @@ describe('AppComponent behaviour', () => {
     expect(sidenavLinks).toContain('Current Season');
   });
 
+  it('lists the chat in the menu, for the phones whose bar has no room for its button', () => {
+    fixture.detectChanges();
+    const chat = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('mat-sidenav a')).find(a => a.textContent!.trim() === 'Chat');
+    expect(chat?.getAttribute('href')).toBe('/chat');
+  });
+
   it('shows a Current Season link that arrives after the first render in the toolbar, without a resize', async () => {
     toolbarWidth = 10000;
     const season = new Subject<number>();
