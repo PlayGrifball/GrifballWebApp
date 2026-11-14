@@ -229,6 +229,20 @@ internal static class TestDatabase
     /// <summary>SQL Server's "cannot be made at this time": the database is in single-user mode and someone else holds it.</summary>
     private const int SingleUserTaken = 5064;
 
+    /// <summary>SQL Server: the batch that drops <paramref name="name"/>, ending its sessions first when <paramref name="killSessions"/>.</summary>
+    internal static string SqlServerDropSql(string name, bool ifExists, bool killSessions)
+    {
+        return $@"
+            {(ifExists ? $"IF DB_ID('{name}') IS NULL RETURN;" : "")}
+            DECLARE @kill nvarchar(max) = N'';
+            SELECT @kill += N'BEGIN TRY KILL ' + CAST(session_id AS nvarchar(10)) + N'; END TRY BEGIN CATCH END CATCH;'
+            FROM sys.dm_exec_sessions WHERE database_id = DB_ID('{name}') AND session_id <> @@SPID;
+            EXEC (@kill);
+            ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+            DROP DATABASE [{name}];
+            ";
+    }
+
     /// <summary>
     /// Drops the database behind <paramref name="connectionString"/>, closing its connections; with
     /// <paramref name="ifExists"/>, nothing when there is none.
@@ -272,15 +286,7 @@ internal static class TestDatabase
                     await using var connection = new Microsoft.Data.SqlClient.SqlConnection(builder.ConnectionString);
                     await connection.OpenAsync();
                     await using var command = connection.CreateCommand();
-                    command.CommandText = $@"
-                    {(ifExists ? $"IF DB_ID('{name}') IS NULL RETURN;" : "")}
-                    DECLARE @kill nvarchar(max) = N'';
-                    SELECT @kill += N'BEGIN TRY KILL ' + CAST(session_id AS nvarchar(10)) + N'; END TRY BEGIN CATCH END CATCH;'
-                    FROM sys.dm_exec_sessions WHERE database_id = DB_ID('{name}') AND session_id <> @@SPID;
-                    EXEC (@kill);
-                    ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-                    DROP DATABASE [{name}];
-                    ";
+                    command.CommandText = SqlServerDropSql(name, ifExists, killSessions: attempt > 1);
                     await command.ExecuteNonQueryAsync();
                     return;
                 }
