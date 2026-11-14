@@ -481,6 +481,7 @@ public class DiscordTransportTests
     [TestCase("team info", "team", "Transport")]
     [TestCase("player profile", "player", "Transport")]
     [TestCase("admin match report", "match", "Transport")]
+    [TestCase("admin bracket seed", "season", "Transport")]
     [TestCase("me region", "region", "north")]
     public async Task Autocomplete_OnASubcommandOption_SuggestsChoices(string path, string option, string typed)
     {

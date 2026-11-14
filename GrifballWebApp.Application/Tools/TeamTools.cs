@@ -39,27 +39,28 @@ public class TeamTools
     public async Task<TeamDto> GetTeam([Description("The team's ID.")] int teamID, CancellationToken ct = default)
     {
         await RequireVisible(teamID, ct);
-        return await _teams.GetAsync(teamID, ct) ?? throw NoSuchTeam(teamID);
+        // There and visible: RequireVisible saw to it
+        return (await _teams.GetAsync(teamID, ct))!;
     }
 
     [Description("A team's matches in its season, soonest unplayed first: each one's ID, opponent, time, best-of, score and result.")]
     public async Task<MatchDto[]> GetTeamMatches([Description("The team's ID.")] int teamID, CancellationToken ct = default)
     {
         await RequireVisible(teamID, ct);
-        return await _teams.GetAsync(teamID, ct) is null ? throw NoSuchTeam(teamID) : await _teams.GetMatchesAsync(teamID, ct);
+        return await _teams.GetMatchesAsync(teamID, ct);
     }
 
     [Description("A franchise's history: every season's team of that name in its league, with records, titles and totals.")]
     public async Task<TeamHistoryDto> GetTeamHistory([Description("The team's ID (any season's).")] int teamID, CancellationToken ct = default)
     {
         await RequireVisible(teamID, ct);
-        return await _history.GetAsync(teamID, _caller.Viewer, ct) ?? throw NoSuchTeam(teamID);
+        return (await _history.GetAsync(teamID, _caller.Viewer, ct))!;
     }
 
     [Description("Recorded videos (VODs) of a team's matches.")]
     public async Task<List<VodDto>> GetTeamVods([Description("The team's ID.")] int teamID, CancellationToken ct = default)
     {
         await RequireVisible(teamID, ct);
-        return await _teams.GetAsync(teamID, ct) is null ? throw NoSuchTeam(teamID) : await _vods.ForTeam(teamID, ct);
+        return await _vods.ForTeam(teamID, ct);
     }
 }
