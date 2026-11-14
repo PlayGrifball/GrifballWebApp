@@ -39,7 +39,7 @@ public static class GrifMcp
                 options.ServerInstructions = Instructions;
             })
             .WithHttpTransport(options => options.Stateless = true)
-            .WithTools(Tools(GrifTools.ReadOnly, readOnly: true))
+            .WithTools(Tools(GrifTools.All))
             .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (request, ct) =>
             {
                 try
@@ -64,24 +64,20 @@ public static class GrifMcp
             user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList());
 
     /// <summary>
-    /// An MCP tool for each tool method of <paramref name="types"/>, named as <see cref="GrifTools.Name"/> says. Each call gets a
-    /// new instance from the request's services, given the caller when its constructor takes one.
+    /// An MCP tool for each tool method of <paramref name="sets"/>, named as <see cref="GrifTools.Name"/> says, its annotations
+    /// telling clients what it does (they ask before a tool that isn't read-only). Each call gets a new instance from the
+    /// request's services, as the request's user (<see cref="GrifTools.Create"/>).
     /// </summary>
-    public static IEnumerable<McpServerTool> Tools(IEnumerable<Type> types, bool readOnly)
-        => types.SelectMany(type =>
-        {
-            var takesCaller = type.GetConstructors().Single().GetParameters().Any(p => p.ParameterType == typeof(ToolCaller));
-            return GrifTools.Methods(type).Select(method => McpServerTool.Create(method,
-                request => takesCaller
-                    ? ActivatorUtilities.CreateInstance(request.Services!, type, Caller(request.User!))
-                    : ActivatorUtilities.CreateInstance(request.Services!, type),
-                new McpServerToolCreateOptions
-                {
-                    Name = GrifTools.Name(method),
-                    ReadOnly = readOnly,
-                    Destructive = !readOnly,
-                    Idempotent = readOnly,
-                    OpenWorld = false,
-                }));
-        });
+    public static IEnumerable<McpServerTool> Tools(IEnumerable<(Type Type, ToolEffect Effect)> sets)
+        => sets.SelectMany(set => GrifTools.Methods(set.Type).Select(method => McpServerTool.Create(method,
+            request => GrifTools.Create(set.Type, request.Services!, Caller(request.User!)),
+            new McpServerToolCreateOptions
+            {
+                Name = GrifTools.Name(method),
+                ReadOnly = set.Effect == ToolEffect.ReadsOnly,
+                // Pulling from Halo adds games; nothing is changed or deleted
+                Destructive = false,
+                Idempotent = true,
+                OpenWorld = set.Effect == ToolEffect.FetchesFromHalo,
+            })));
 }

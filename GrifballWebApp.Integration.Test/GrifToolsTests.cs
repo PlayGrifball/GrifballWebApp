@@ -20,6 +20,11 @@ using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Mcp;
+using GrifballWebApp.Application;
+using GrifballWebApp.Application.Database;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -250,7 +255,7 @@ public class GrifToolsTests
         }
     }
 
-    private static IEnumerable<System.Reflection.MethodInfo> AllTools() => GrifTools.ReadOnly.SelectMany(GrifTools.Methods);
+    private static IEnumerable<System.Reflection.MethodInfo> AllTools() => GrifTools.All.SelectMany(set => GrifTools.Methods(set.Type));
 
     [Test]
     public void EveryTool_AndEachOfItsParameters_IsDescribed()
@@ -282,15 +287,106 @@ public class GrifToolsTests
     }
 
     [Test]
-    public void TheMcpServer_HasOneReadOnlyToolPerMethod()
+    public void TheMcpServer_HasOneToolPerMethod_MarkedWithWhatItDoes()
     {
-        var tools = GrifMcp.Tools(GrifTools.ReadOnly, readOnly: true).ToList();
+        var tools = GrifMcp.Tools(GrifTools.All).ToDictionary(t => t.ProtocolTool.Name, t => t.ProtocolTool.Annotations);
+        var reading = tools.Where(t => t.Key != "get_recent_games").Select(t => t.Value).ToList();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(tools.Select(t => t.ProtocolTool.Name), Is.EquivalentTo(AllTools().Select(GrifTools.Name)));
-            Assert.That(tools.Select(t => t.ProtocolTool.Annotations?.ReadOnlyHint), Has.All.True);
-            Assert.That(tools.Select(t => t.ProtocolTool.Annotations?.DestructiveHint), Has.All.False);
+            Assert.That(tools.Keys, Is.EquivalentTo(AllTools().Select(GrifTools.Name)));
+            Assert.That(reading.Select(a => a?.ReadOnlyHint), Has.All.True);
+            Assert.That(reading.Select(a => a?.OpenWorldHint), Has.All.False);
+            Assert.That(tools["get_recent_games"]?.ReadOnlyHint, Is.False, "it saves the games it pulls: clients ask first");
+            Assert.That(tools["get_recent_games"]?.OpenWorldHint, Is.True, "it reaches Halo");
+            Assert.That(tools.Values.Select(a => a?.DestructiveHint), Has.All.False, "no tool changes or deletes anything yet");
         }
     }
+
+    [Test]
+    public void TheChatTools_AreAllTools()
+    {
+        Assert.That(GrifTools.Chat, Is.SubsetOf(AllTools().Select(GrifTools.Name)).And.Unique);
+    }
+
+    [Test]
+    public async Task AnAnonymousCaller_NamesThePlayer_ForEveryToolAboutThem()
+    {
+        var tools = PlayerTools(ToolCaller.Anonymous);
+
+        var me = await tools.WhoAmI();
+        var named = await tools.GetPlayer(_captain.Id);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(me.UserID, Is.Null);
+            Assert.That(me.Roles, Is.Empty);
+            Assert.That(named.UserID, Is.EqualTo(_captain.Id));
+            Assert.That((await Assert.ThrowsAsync<ToolException>(() => tools.GetPlayer()))!.Message, Does.Contain("no site account"));
+            await Assert.ThrowsAsync<ToolException>(() => tools.GetPlayerHistory());
+            await Assert.ThrowsAsync<ToolException>(() => tools.GetPlayerRank());
+        }
+    }
+
+    [Test]
+    public void GetCurrentTime_IsTheClocksTime_InUtcAndUnixSeconds()
+    {
+        var now = new ClockTools(_time).GetCurrentTime();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(now.Utc, Is.EqualTo(_time.GetUtcNow()));
+            Assert.That(now.UnixSeconds, Is.EqualTo(_time.GetUtcNow().ToUnixTimeSeconds()));
+        }
+    }
+
+    /// <summary>The services a chat host's scope has: the Application's, on the test's database and clock.</summary>
+    private ServiceProvider ChatServices()
+        => new ServiceCollection()
+            .AddApplication(new ConfigurationBuilder().Build())
+            .AddLogging()
+            .AddDistributedMemoryCache()
+            .AddSingleton<TimeProvider>(_time)
+            .AddSingleton<IApplicationDbContext>(_context)
+            .AddSingleton(Substitute.For<IDataPullService>())
+            .AddSingleton(Substitute.For<IGetsertXboxUserService>())
+            .AddSingleton(new YouTubeClient(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(HttpStatusCode.NotFound)))))
+            .BuildServiceProvider();
+
+    private static AIFunction Function(IEnumerable<AITool> tools, string name) => tools.OfType<AIFunction>().Single(t => t.Name == name);
+
+    [Test]
+    public async Task AIFunctions_AreTheNamedTools_RunAsTheCaller()
+    {
+        await using var services = ChatServices();
+
+        var tools = GrifTools.AIFunctions(services, new ToolCaller(_captain.Id, PlayerRole), GrifTools.Chat);
+        var me = await Function(tools, "who_am_i").InvokeAsync(new AIFunctionArguments());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(tools.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat));
+            Assert.That(Json(me).GetProperty("userID").GetInt32(), Is.EqualTo(_captain.Id));
+        }
+    }
+
+    [Test]
+    public async Task AIFunctions_GiveARefusal_AsTheToolsResult()
+    {
+        await using var services = ChatServices();
+        var tools = GrifTools.AIFunctions(services, ToolCaller.Anonymous, GrifTools.Chat);
+
+        var unknown = await Function(tools, "get_season").InvokeAsync(new AIFunctionArguments { ["seasonID"] = 987654 });
+        var aboutMe = await Function(tools, "get_player").InvokeAsync(new AIFunctionArguments());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(unknown, Is.EqualTo("Refused: There is no season 987654: list_seasons has their IDs."));
+            Assert.That(aboutMe?.ToString(), Does.StartWith("Refused: You have no site account"));
+        }
+    }
+
+    /// <summary>A function's result as JSON, whether it gave it marshalled or as its own value.</summary>
+    private static System.Text.Json.JsonElement Json(object? result)
+        => result is System.Text.Json.JsonElement json ? json : System.Text.Json.JsonSerializer.SerializeToElement(result, AIJsonUtilities.DefaultOptions);
 }

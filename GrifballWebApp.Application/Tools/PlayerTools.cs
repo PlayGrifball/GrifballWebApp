@@ -6,8 +6,8 @@ using GrifballWebApp.Domain.League;
 
 namespace GrifballWebApp.Application.Tools;
 
-/// <summary>Who the caller is: their user ID, gamertag and site roles.</summary>
-public sealed record WhoAmIDto(int UserID, string? Gamertag, IReadOnlyList<string> Roles);
+/// <summary>Who the caller is: their user ID, gamertag and site roles; no ID for a caller with no linked account.</summary>
+public sealed record WhoAmIDto(int? UserID, string? Gamertag, IReadOnlyList<string> Roles);
 
 /// <summary>Players: what a profile shows, open to everyone on the site. A player left out is the caller.</summary>
 public class PlayerTools
@@ -35,13 +35,13 @@ public class PlayerTools
     /// <summary>The player asked for, or the caller; a <see cref="ToolException"/> when there is none.</summary>
     private async Task<ProfileStatsDto> Profile(int? userID, CancellationToken ct)
     {
-        var id = userID ?? _caller.UserID;
+        var id = userID ?? _caller.Me();
         return await _profiles.GetAsync(id, ct) ?? throw NoSuchPlayer(id);
     }
 
-    [Description("Who you are signed in as: your user ID, gamertag and site roles (Player, Commissioner, Sysadmin).")]
+    [Description("Who you are signed in as: your user ID, gamertag and site roles (Player, Commissioner, Sysadmin). No user ID: you have no site account linked.")]
     public async Task<WhoAmIDto> WhoAmI(CancellationToken ct = default)
-        => new(_caller.UserID, (await _profiles.GetAsync(_caller.UserID, ct))?.Gamertag, _caller.Roles);
+        => new(_caller.UserID, _caller.UserID is int id ? (await _profiles.GetAsync(id, ct))?.Gamertag : null, _caller.Roles);
 
     [Description("A player's profile: gamertag, region, past gamertags, championships, career totals per game, each season's stats, "
         + "Late League stats and Halo Infinite service record.")]
@@ -56,7 +56,7 @@ public class PlayerTools
     public async Task<List<DeploymentHistoryDto>> GetPlayerHistory([Description("The player's user ID; left out, you.")] int? userID = null, CancellationToken ct = default)
     {
         // Null only for a user that doesn't exist
-        var id = userID ?? _caller.UserID;
+        var id = userID ?? _caller.Me();
         return await _history.GetAsync(id, ct) ?? throw NoSuchPlayer(id);
     }
 
@@ -71,7 +71,7 @@ public class PlayerTools
         [Description("Count only titles of this season format; left out, every format.")] SeasonFormat? format = null,
         CancellationToken ct = default)
     {
-        var id = gamertag is null ? userID ?? _caller.UserID : userID;
+        var id = gamertag is null ? userID ?? _caller.Me() : userID;
         return await _leaderboards.GetPlayerRankAsync(gamertag, id, format, ct)
             ?? throw new ToolException(gamertag is null ? $"Player {id} is on no leaderboard." : $"No player has the gamertag {gamertag}.");
     }
