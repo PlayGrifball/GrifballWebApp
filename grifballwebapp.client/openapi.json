@@ -9146,7 +9146,8 @@
               {
                 "$ref": "#/components/schemas/Status"
               }
-            ]
+            ],
+            "description": "A bracket match's or game's state, brackets-model's: sent as its number, as brackets-viewer compares it. The converter\nhere describes it so in the OpenAPI document (NumberEnumSchemaFilter); the one on each property is what sends it so."
           },
           "opponent1": {
             "allOf": [
@@ -12204,7 +12205,8 @@
               {
                 "$ref": "#/components/schemas/Status"
               }
-            ]
+            ],
+            "description": "A bracket match's or game's state, brackets-model's: sent as its number, as brackets-viewer compares it. The converter\nhere describes it so in the OpenAPI document (NumberEnumSchemaFilter); the one on each property is what sends it so."
           },
           "opponent1": {
             "allOf": [
@@ -14280,8 +14282,8 @@
             ]
           },
           "discordThreadID": {
-            "type": "integer",
-            "format": "int64",
+            "type": "string",
+            "description": "The request's Discord thread, as text: a Discord ID (~1.3e18) is past what a JavaScript number holds, so the browser\nwould read it as a number rounded, another thread.",
             "nullable": true
           },
           "whyNotApprovable": {
@@ -16198,14 +16200,16 @@
       },
       "Status": {
         "enum": [
-          "Locked",
-          "Waiting",
-          "Ready",
-          "Running",
-          "Completed",
-          "Archived"
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
         ],
-        "type": "string"
+        "type": "integer",
+        "description": "A bracket match's or game's state, brackets-model's: sent as its number, as brackets-viewer compares it. The converter\nhere describes it so in the OpenAPI document (NumberEnumSchemaFilter); the one on each property is what sends it so.",
+        "format": "int32"
       },
       "SubmitGamertagClaimRequest": {
         "required": [

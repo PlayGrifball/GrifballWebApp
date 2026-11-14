@@ -109,13 +109,9 @@ const scheduled = ([
 // brackets-viewer data (brackets-model): an 8-team single elimination with one BYE and one forfeit.
 const side = (id: number | null, position: number | null = null, extra: Partial<ParticpantResult> = {}): ParticpantResult => ({ id, position, forfeit: false, ...extra });
 const participant = (id: number, name: string): Participant => ({ id, tournament_id: 12, name });
-/**
- * A match's status as the server sends it: brackets-viewer's number (ViewerData.cs gives Status a JsonNumberEnumConverter),
- * though openapi.json, and so the generated Status, says it is the enum's name.
- */
-const status = (value: number) => value as unknown as Status;
-const bracketMatch = (id: number, round: number, number: number, value: number, opponent1: ParticpantResult | null, opponent2: ParticpantResult | null): BracketsMatch =>
-  ({ id, stage_id: 1, group_id: 1, round_id: round, number, child_count: 0, status: status(value), opponent1, opponent2 });
+/** A bracket match: its status brackets-viewer's number, as the server sends it (Status, ViewerData.cs). */
+const bracketMatch = (id: number, round: number, number: number, status: Status, opponent1: ParticpantResult | null, opponent2: ParticpantResult | null): BracketsMatch =>
+  ({ id, stage_id: 1, group_id: 1, round_id: round, number, child_count: 0, status, opponent1, opponent2 });
 const bracket: ViewerDataDto = {
   stages: [{ id: 1, tournament_id: 12, name: 'Autumn Brawl Playoffs', type: 'single_elimination', number: 1,
     settings: { size: 8, seedOrdering: ['inner_outer'], grandFinal: 'none', consolationFinal: false, balanceByes: false, groupCount: 1, manualOrdering: [],
@@ -194,7 +190,7 @@ const commissionerDashboard: CommissionerDashboardDto = {
     canApprove: true, whyNotApprovable: null },
   { matchRescheduleID: 9, seasonMatchID: 34, homeCaptain: 'Red Rampage', awayCaptain: 'Blue Bombers',
     originalScheduledTime: '2026-10-28T01:00:00Z', newScheduledTime: '2026-11-01T01:00:00Z', reason: 'Two of us are travelling',
-    requestedByGamertag: 'Sarge Prime', requestedByUserID: 10, requestedAt: '2026-10-27T18:00:00Z', status: 'Pending', discordThreadID: 1300000000000009,
+    requestedByGamertag: 'Sarge Prime', requestedByUserID: 10, requestedAt: '2026-10-27T18:00:00Z', status: 'Pending', discordThreadID: '1300000000000000009',
     canApprove: false, whyNotApprovable: 'This match already has a result.' }],
   overdueMatches: [{ seasonMatchID: 33, homeCaptain: 'Gravity Wells', awayCaptain: 'Sticky Situation', scheduledTime: '2026-10-27T00:30:00Z', hoursOverdue: 65 }],
   summary: { pendingRescheduleCount: 2, overdueMatchCount: 1, criticalOverdueCount: 1 },

@@ -7,10 +7,10 @@ import { Status } from './status';
  * Each possible value of `Status`
  */
 export const STATUS: Status[] = [
-  'Locked',
-  'Waiting',
-  'Ready',
-  'Running',
-  'Completed',
-  'Archived'
+  0,
+  1,
+  2,
+  3,
+  4,
+  5
 ];

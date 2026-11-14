@@ -79,8 +79,8 @@ export class PlayoffBracketComponent {
       .pipe(whileCurrent(seasonID, this.seasonID))
       .subscribe(
         {
-          // The generated model's string enums (e.g. Status) are brackets-viewer's numeric ones at runtime: the server sends
-          // the same JSON either way, and the viewer only ever compares them to its own enum's values.
+          // brackets-model's data as the server sends it (Status as its number, as the generated Status says too): the two
+          // types are declared apart, brackets-viewer's by brackets-model and this one generated from openapi.json.
           next: r => this.render(r as unknown as ViewerData),
           error: e => {
             // 404: the season does not exist, so there is no bracket to show.
