@@ -49,9 +49,11 @@ public class TeamHistoryService
             .Where(t => FranchiseKey.Of(t.TeamID, leagueID, t.TeamName) == key)
             .Select(t => t.TeamID)
             .ToList();
+        // Of the seasons the viewer may see: a query of its own, which SQLite runs (in the one below it would need an APPLY)
         var visible = _context.Seasons.Where(SeasonVisibility.VisibleTo(viewer, _time.GetUtcNow().UtcDateTime));
+        ids = await _context.Teams.Where(t => ids.Contains(t.TeamID) && visible.Any(s => s.SeasonID == t.SeasonID)).Select(t => t.TeamID).ToListAsync(ct);
         var teams = await _context.Teams.AsNoTracking()
-            .Where(t => ids.Contains(t.TeamID) && visible.Any(s => s.SeasonID == t.SeasonID))
+            .Where(t => ids.Contains(t.TeamID))
             // Counted as the standings count it, in the same query
             .Select(TeamRecord.Select(t => new FranchiseTeam
             {

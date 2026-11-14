@@ -330,7 +330,7 @@ describe('CommissionerDashboardComponent', () => {
     await fixture.whenStable();
 
     const items = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.cd-unannounced li'));
-    expect(items.length).toBe(2);
+    expect(items).toHaveSize(2);
     expect(items[0].querySelector('a')!.getAttribute('href')).toBe('/seasonEdit/5');
     expect(items[0].textContent).toContain('no public date');
     expect(items[1].textContent).toContain('public from');

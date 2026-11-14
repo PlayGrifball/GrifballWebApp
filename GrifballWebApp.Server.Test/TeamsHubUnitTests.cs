@@ -32,7 +32,9 @@ public class TeamsHubUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task GetTeams_ReturnsNone_ForASeasonWithNoTeams()
     {
-        var result = await Hub().GetTeams(1);
+        var season = await AddSeason("Empty");
+
+        var result = await Hub().GetTeams(season.SeasonID);
 
         Assert.That(result, Is.Empty);
     }
@@ -40,9 +42,24 @@ public class TeamsHubUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task GetPlayerPool_ReturnsNone_ForASeasonWithNoSignups()
     {
-        var result = await Hub().GetPlayerPool(1);
+        var season = await AddSeason("Empty");
+
+        var result = await Hub().GetPlayerPool(season.SeasonID);
 
         Assert.That(result, Is.Empty);
+    }
+
+    [Test]
+    public async Task TheDraftsReads_RefuseASeasonThatIsntThere_AsAHiddenOne()
+    {
+        var teams = await Assert.ThrowsAsync<HubException>(() => Hub().GetTeams(999));
+        var pool = await Assert.ThrowsAsync<HubException>(() => Hub().GetPlayerPool(999));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(teams!.Message, Is.EqualTo(GrifballWebApp.Server.Seasons.SeasonVisibilityFilter.NoSuchSeason));
+            Assert.That(pool!.Message, Is.EqualTo(GrifballWebApp.Server.Seasons.SeasonVisibilityFilter.NoSuchSeason));
+        }
     }
 
     [Test]
