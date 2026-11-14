@@ -15,6 +15,7 @@ using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Server.Commands;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 
@@ -40,7 +41,10 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
 
     private SeasonMatchService SeasonMatches() => new(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db));
 
-    private PullToolsFor Pulls() => new(SeasonMatches(), _seasonPulls, new XboxAccountService(Db), _accountPulls);
+    /// <summary>The pull tools made as the commands make them (GrifTools.Factory), from these services.</summary>
+    private PullToolsFor Pulls() => new(new ServiceCollection()
+        .AddSingleton(SeasonMatches()).AddSingleton(_seasonPulls).AddSingleton(new XboxAccountService(Db)).AddSingleton(_accountPulls)
+        .BuildServiceProvider());
 
     private async Task<Season> SeasonEnded(string name, int daysAgo)
     {
@@ -146,7 +150,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(noRole.Content(), Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.Pullers)));
+            Assert.That(noRole.Content(), Is.EqualTo(DiscordCaller.MissingRole(GrifTools.RolesByName["pull_xbox_account_games"])));
             Assert.That(unknown.Content(), Is.EqualTo(CommandLookups.NoSuchXboxAccount));
         }
         await _accountPulls.DidNotReceiveWithAnyArgs().Queue(default, default);

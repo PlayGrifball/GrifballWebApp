@@ -38,8 +38,6 @@ public class DiscordCaller
         public static readonly string[] CommissionerOnly = [Commissioner];
         public static readonly string[] SysadminOnly = [Sysadmin];
         public static readonly string[] PlayerOrSysadmin = [Player, Sysadmin];
-        /// <summary>Who may pull games from Halo: <see cref="SiteRoles.Pullers"/>.</summary>
-        public static readonly string[] Pullers = [Player, Commissioner, Sysadmin];
     }
 
     private readonly GrifballContext _context;

@@ -137,7 +137,7 @@ public class PlayerCommandsHandler
     public async Task Pull(IDiscordInteractionContext context, string? gamertag)
     {
         await context.Defer(ephemeral: true);
-        if (await _caller.Require(context, DiscordCaller.Roles.Pullers) is not { } caller)
+        if (await _caller.Require(context, GrifTools.RolesByName["pull_xbox_account_games"]) is not { } caller)
             return;
         var account = string.IsNullOrWhiteSpace(gamertag)
             ? await _lookups.OwnXboxAccount(context.Interaction.User.Id)

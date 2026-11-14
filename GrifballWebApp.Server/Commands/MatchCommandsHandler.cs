@@ -42,7 +42,7 @@ public class MatchCommandsHandler
     public async Task Pull(IDiscordInteractionContext context, string match, bool backToSeasonStart)
     {
         await context.Defer(ephemeral: true);
-        if (await _caller.Require(context, DiscordCaller.Roles.Pullers) is not { } caller)
+        if (await _caller.Require(context, GrifTools.RolesByName["pull_season_match_games"]) is not { } caller)
             return;
         if (await _lookups.SeasonMatchFor(context, match) is not int id)
             return;
