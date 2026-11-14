@@ -106,9 +106,11 @@ describe('LeaderboardsComponent', () => {
     expect(fixture.componentInstance.metric()!.title).toBe('Kills');
   });
 
-  it('offers the formats on every board, all of them chosen to start, and counts any of them chosen', () => {
+  it('offers the formats on every board, all of them chosen to start, and counts any of them chosen', async () => {
     expectBoards().flush(boards);
     fixture.detectChanges();
+    // The select takes its first value once its options are there
+    await fixture.whenStable();
     expect(el().querySelector('mat-form-field mat-label')!.textContent!.trim()).toBe('Format');
     expect(formatsText()).toBe('All formats');
     choose('Dynasties');
@@ -128,7 +130,7 @@ describe('LeaderboardsComponent', () => {
     expect(formatsText()).toBe('Tournament');
   });
 
-  it('counts every format again once none is chosen, and shows the boards last asked for', () => {
+  it('counts every format again once none is chosen, and shows the boards last asked for', async () => {
     expectBoards().flush(boards);
     fixture.componentInstance.setFormats(['Tournament']);
     const older = expectBoards(['Tournament']);
@@ -136,6 +138,7 @@ describe('LeaderboardsComponent', () => {
     expect(older.cancelled).withContext('the older boards never replace the newer').toBeTrue();
     expectBoards().flush(boards);
     fixture.detectChanges();
+    await fixture.whenStable();
     expect(fixture.componentInstance.formats()).toEqual(['LeagueSeason', 'Tournament', 'LateLeague']);
     expect(formatsText()).toBe('All formats');
   });
