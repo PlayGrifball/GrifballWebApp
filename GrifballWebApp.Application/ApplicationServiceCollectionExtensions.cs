@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using GrifballWebApp.Application.Availability;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Championships;
@@ -34,6 +35,8 @@ public static class ApplicationServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
+        // The clock the services read (and the agents' get_current_time), unless a host or test set one first
+        services.TryAddSingleton(TimeProvider.System);
         services.AddTransient<UrlService>();
         services.AddTransient<IQueueRepository, QueueRepository>();
         // Joining and leaving, from Discord or the site; the queue's size goes to its watchers (IQueueNotifier)
