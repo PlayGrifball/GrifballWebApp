@@ -126,7 +126,7 @@ public class VoteDecidedStatsTests
         // The leaderboards: each per-game figure is over the games with a box score, and the board says how many of the games
         // played were decided by vote, so GP and per game add up
         var boards = await new LeaderboardsService(_context, new SeasonStatsService(_context), stats,
-            new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())), NullLogger<LeaderboardsService>.Instance).GetAsync(LeaderboardFilter.LateLeague);
+            new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())), NullLogger<LeaderboardsService>.Instance).GetAsync([LeaderboardFilter.LateLeague]);
         static (long, int, int, decimal?) Row(MetricLeaderDto l) => (l.StatValue, l.GamesPlayed, l.GamesDecidedByVote, l.PerGame);
         var goals = boards.GoalLeaders.Single(l => l.UserID == users[101]);
         using (Assert.EnterMultipleScope())
