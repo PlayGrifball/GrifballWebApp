@@ -86,6 +86,46 @@ for (const { path, content, data } of PAGES) {
   });
 }
 
+/**
+ * Content the server rendered that the app keeps as it takes the page over: the same elements, never removed and
+ * drawn again (a flash of the page's loading state, and a layout shift). The first five are loaded with rxResource;
+ * the last two with a subscription, as the comparison.
+ */
+const KEPT = [
+  { path: '/match/0f8fad5b-d9cb-469f-a165-70867728950e', content: '.md-player' },
+  { path: '/season/12', content: 'app-team-standings td' },
+  { path: '/season/12', content: '.week-card' },
+  { path: '/late-league', content: 'app-late-league table.board' },
+  { path: '/late-league/3', content: 'app-late-league table.board' },
+  { path: '/seasonmatch/31', content: '.lobby-player' },
+  { path: '/history/team/1', content: '.history-season' },
+] as const;
+
+type Removals = { removedServerContent: string[] };
+
+for (const { path, content } of KEPT) {
+  test(`${path} keeps the server's ${content} as the app takes over`, async ({ page }) => {
+    await watch(page);
+    // Watching from before the page's first byte: anything matching that is taken out of the DOM
+    await page.addInitScript(selector => {
+      const removed: string[] = [];
+      (window as unknown as Removals).removedServerContent = removed;
+      new MutationObserver(mutations => {
+        for (const mutation of mutations)
+          for (const node of Array.from(mutation.removedNodes))
+            if (node instanceof Element && (node.matches(selector) || node.querySelector(selector) !== null))
+              removed.push(node.outerHTML.slice(0, 120));
+      }).observe(document, { childList: true, subtree: true });
+    }, content);
+
+    await page.goto(SITE + path);
+    await expect(page.locator(content).first()).toBeVisible();
+    await page.waitForLoadState('networkidle');
+
+    expect(await page.evaluate(() => (window as unknown as Removals).removedServerContent)).toEqual([]);
+  });
+}
+
 const cookie = (role: 'player' | 'admin') => ({ Cookie: `theme=x; ${SESSION_COOKIE}=${role}` });
 /** The name in the header of a rendered page, or null for a visitor's. */
 const headerName = (html: string) => /class="hud-user__name"[^>]*>([^<]*)</.exec(html)?.[1].trim() ?? null;
