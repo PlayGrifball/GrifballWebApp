@@ -115,7 +115,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(command, Is.Null);
-            Assert.That(tool!.Message, Is.EqualTo(SeasonTools.NoSeasonYet));
+            Assert.That(tool!.Message, Is.EqualTo(GrifballWebApp.Application.Tools.SeasonTools.NoSeasonYet));
         }
     }
 
