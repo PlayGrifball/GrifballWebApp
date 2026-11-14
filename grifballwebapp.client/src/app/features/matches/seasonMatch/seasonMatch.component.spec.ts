@@ -140,7 +140,7 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
         provideRouter([]),
         {
           provide: AccountService,
-          useValue: { isEventOrganizer: signal(false), isPlayer: signal(false) }
+          useValue: { isEventOrganizer: signal(false), isPlayer: signal(false), isSysAdmin: signal(false) }
         }
       ]
     }).overrideComponent(SeasonMatchComponent, withoutVodList).compileComponents();
@@ -280,6 +280,7 @@ describe('SeasonMatchComponent reporting', () => {
   let httpMock: HttpTestingController;
   let isEventOrganizer: ReturnType<typeof signal<boolean>>;
   let isPlayer: ReturnType<typeof signal<boolean>>;
+  let isSysAdmin: ReturnType<typeof signal<boolean>>;
 
   const bracket = (overrides: Partial<BracketInfoDto> = {}): BracketInfoDto => ({
     homeTeamSeed: 1, awayTeamSeed: 4, homeTeamPreviousMatchID: null, awayTeamPreviousMatchID: null,
@@ -299,6 +300,7 @@ describe('SeasonMatchComponent reporting', () => {
   beforeEach(async () => {
     isEventOrganizer = signal(true);
     isPlayer = signal(false);
+    isSysAdmin = signal(false);
     spyOn(console, 'log');
     await TestBed.configureTestingModule({
       imports: [SeasonMatchComponent],
@@ -306,7 +308,7 @@ describe('SeasonMatchComponent reporting', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: AccountService, useValue: { isEventOrganizer, isPlayer } }
+        { provide: AccountService, useValue: { isEventOrganizer, isPlayer, isSysAdmin } }
       ]
     }).overrideComponent(SeasonMatchComponent, withoutVodList).compileComponents();
 
@@ -479,6 +481,26 @@ describe('SeasonMatchComponent reporting', () => {
     expect(text()).not.toContain('Entered by hand');
     expect(button('Edit')).toBeUndefined();
     expect(button('Unreport')).toBeDefined();
+  });
+
+  it('offers the pull buttons to any player, and to a sysadmin, as to an organizer', () => {
+    isEventOrganizer.set(false);
+    isPlayer.set(true);
+    load(page());
+    expect(button('Pull recent games')).toBeDefined();
+    expect(button("Pull back to the season's start")).toBeDefined();
+
+    isPlayer.set(false);
+    isSysAdmin.set(true);
+    fixture.detectChanges();
+    expect(button('Pull recent games')).toBeDefined();
+  });
+
+  it('offers no pull buttons to a visitor', () => {
+    isEventOrganizer.set(false);
+    load(page());
+    expect(button('Pull recent games')).toBeUndefined();
+    expect(button("Pull back to the season's start")).toBeUndefined();
   });
 
   it('offers no Edit or Unreport to a visitor', () => {

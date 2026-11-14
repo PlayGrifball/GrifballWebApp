@@ -307,18 +307,18 @@ public class SeasonMatchControllerTests
         var id = seeded.SeasonMatch.SeasonMatchID;
         await using var jobs = await InMemoryJobs.Create(TimeProvider.System, null);
 
-        var idle = await _controller.MatchPullStatus(id, jobs.OnDemand, CancellationToken.None);
-        var queued = (await _controller.PullMatches(id, jobs.OnDemand, CancellationToken.None)).Accepted();
+        var idle = await _controller.MatchPullStatus(id, new SeasonMatchPulls(jobs.OnDemand), CancellationToken.None);
+        var queued = (await _controller.PullMatches(id, new SeasonMatchPulls(jobs.OnDemand), CancellationToken.None)).Accepted();
         // Asked again, back to the season's start this time: still the one queued pull
-        var again = (await _controller.PullMatches(id, jobs.OnDemand, CancellationToken.None, backToSeasonStart: true)).Accepted();
-        var missing = await _controller.PullMatches(id + 1000, jobs.OnDemand, CancellationToken.None);
+        var again = (await _controller.PullMatches(id, new SeasonMatchPulls(jobs.OnDemand), CancellationToken.None, backToSeasonStart: true)).Accepted();
+        var missing = await _controller.PullMatches(id + 1000, new SeasonMatchPulls(jobs.OnDemand), CancellationToken.None);
 
         var triggers = await jobs.Scheduler.GetTriggersOfJob(OnDemandJobs.JobKeyOf(typeof(SeasonMatchPullJob)));
         using (Assert.EnterMultipleScope())
         {
             Assert.That((idle.State, idle.LastRun), Is.EqualTo((OnDemandJobState.Idle, (OnDemandRunDto?)null)));
             Assert.That((queued!.State, again!.State), Is.EqualTo((OnDemandJobState.Queued, OnDemandJobState.Queued)));
-            Assert.That((await _controller.MatchPullStatus(id, jobs.OnDemand, CancellationToken.None)).State, Is.EqualTo(OnDemandJobState.Queued));
+            Assert.That((await _controller.MatchPullStatus(id, new SeasonMatchPulls(jobs.OnDemand), CancellationToken.None)).State, Is.EqualTo(OnDemandJobState.Queued));
             Assert.That(triggers.Select(t => t.Key), Is.EqualTo(new[] { OnDemandJobs.TriggerKeyOf<SeasonMatchPullJob>(SeasonMatchPullJob.RunName(id)) }), "Asked twice: one pull");
             Assert.That(triggers.Single().ExecutionGroup, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
             missing.AssertProblem(StatusCodes.Status404NotFound);
