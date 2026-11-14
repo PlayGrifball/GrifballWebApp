@@ -113,7 +113,7 @@ public static class GrifTools
             .Concat(QueuingHaloPulls.Select(t => (t, ToolEffect.QueuesHaloPull)))
             .Concat(ChangingData.Select(t => (t, ToolEffect.ChangesData)));
 
-    /// <summary>
+    /// The tools a chat with a small model gets (the Discord bot's; the site's chat, with staff's, <see cref="SiteChat"/>): the questions people ask most. A model picks
     /// The tools a chat with a small model gets (the Discord bot, the site's chat): the questions people ask most. A model picks
     /// worse from a long list, so the rest are left to the MCP server's clients. Staff's tools aren't among them: the Discord bot
     /// answers in a public channel, which mustn't read a dashboard or a claim.
@@ -123,6 +123,15 @@ public static class GrifTools
         "who_am_i", "get_current_time", "search", "get_season", "get_season_standings", "get_season_schedule", "get_team",
         "get_player", "get_player_rank", "get_season_match", "get_recent_games", "get_leaderboards", "pull_season_match_games", "pull_xbox_account_games",
     ];
+
+    /// <summary>The classes of staff's tools, each tool for its roles: the ones that read a dashboard, a claim or a job, and the ones that change data.</summary>
+    public static readonly Type[] Staff = [typeof(StaffTools), typeof(CommissionerTools), typeof(SysadminTools)];
+
+    /// <summary>
+    /// The tools the site's chat gets: <see cref="Chat"/>'s, and staff's (<see cref="Staff"/>). Its replies are the signed-in user's
+    /// alone, so staff get their own tools there, as the MCP server gives them, each for its roles: a player gets none of them.
+    /// </summary>
+    public static readonly string[] SiteChat = [.. Chat, .. Staff.SelectMany(Methods).Select(Name)];
 
     /// <summary>The roles that may use a tool: its method's [ToolRoles], else its class's; none, anyone may.</summary>
     public static IReadOnlyList<string> Roles(MethodInfo method)

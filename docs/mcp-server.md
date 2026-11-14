@@ -140,7 +140,9 @@ server's clients get every tool.
   - The caller is the signed-in user with their roles. Signed out, it is `ToolCaller.Anonymous`, as for a Discord author with
     no linked account.
   - The reply is the user's alone, so it isn't `InPublic`: staff see seasons not announced yet, as the site shows them. It gets
-    the same tools, which have none only staff may use.
+    `GrifTools.SiteChat`: the chat tools and staff's (`GrifTools.Staff`, [Staff's tools](#staffs-tools)), each for its roles
+    as the MCP server gives them, so a player gets none of staff's and a commissioner or sysadmin gets theirs. Its instructions
+    have it use a tool that changes data only when the person asks for that change.
   - The browser keeps the conversation (the tab's `sessionStorage`) and sends it with each question. The server keeps none.
   - A reply that takes over 2 minutes is given up.
   - `ChatLimits`: one reply at a time per connection, and 10 questions a minute per signed-in user, 5 per address signed out
