@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import type { SignupBodyDto } from '../src/generated/api/models';
 import { expect, test } from './fixtures';
 import { createLeague, ensureGamertag, type League } from './league';
 import { LEAGUE_TIME_ZONE } from '../src/app/shared/leagueTimeZone';
@@ -62,7 +63,8 @@ test.describe('signup form', () => {
     const upsert = page.waitForRequest(r => /\/api\/seasons\/\d+\/signups\/mine$/i.test(r.url()) && r.method() === 'POST');
     await page.getByRole('button', { name: 'Submit' }).click();
     const request = await upsert;
-    const sent = request.postDataJSON() as { seasonID?: number; timeslots: TimeslotDto[] };
+    // The signup as the API takes it, and a seasonID it doesn't (the URL carries the season): checked to be absent
+    const sent = request.postDataJSON() as SignupBodyDto & { seasonID?: number };
     await expect(page.getByText('Signup Submitted')).toBeVisible();
 
     // The payload names slots by the season's optionIDs.

@@ -12,7 +12,7 @@ test.describe('Halo Infinite', () => {
     // gateway at all: nothing to test there yet.
     test.skip(!status.apiKeyConfigured, 'This preview has no HaloGateway:ApiKey (not wired to the Halo gateway yet)');
 
-    expect(status.reachable, status.message).toBe(true);
-    expect(status.apiCode, status.message).toBe(200);
+    expect(status.reachable, status.message ?? undefined).toBe(true);
+    expect(status.apiCode, status.message ?? undefined).toBe(200);
   });
 });

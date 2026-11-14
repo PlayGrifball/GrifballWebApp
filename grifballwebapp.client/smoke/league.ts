@@ -129,7 +129,6 @@ async function createPlayer(baseURL: string, admin: Api, username: string, seaso
     await api.relogin(); // Roles are in the token.
     const timeslots = await api.get('getTimeslots', `seasons/${seasonID}/signups/mine/timeslots?offset=0`);
     await api.post('upsertSignup', `seasons/${seasonID}/signups/mine`, {
-      seasonID,
       teamName: captainOf,
       willCaptain: captainOf !== null,
       requiresAssistanceDrafting: false,

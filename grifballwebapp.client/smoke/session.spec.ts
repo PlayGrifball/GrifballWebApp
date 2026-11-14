@@ -13,7 +13,7 @@ const sessionCookie = async (context: BrowserContext) =>
   (await context.cookies()).find(c => c.name === SESSION_COOKIE);
 
 /** What the app shows as this user's name (no display name: the user name). */
-async function shownName(admin: { get<T>(path: string): Promise<T> }, userID: number): Promise<string> {
+async function shownName(admin: Api, userID: number): Promise<string> {
   const user = await admin.get('getUser', `users/${userID}`);
   return user.displayName || user.userName;
 }

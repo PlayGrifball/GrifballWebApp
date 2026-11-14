@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import type { ViewerDataDto } from '../src/generated/api/models';
 import { expect, test } from './fixtures';
 import { createLeague, teamName, type League } from './league';
 
@@ -41,7 +42,7 @@ test.describe('playoff bracket', () => {
 
     // The dialog closes and the page shows the new bracket.
     await expect(dialog).toHaveCount(0);
-    const unseeded = await (await refreshed).json() as ViewerData;
+    const unseeded = await (await refreshed).json() as ViewerDataDto;
     await expect(page.getByText('No bracket created')).toHaveCount(0);
     const viewer = page.locator('.brackets-viewer');
     await expect(viewer).toContainText('Seed 1');
