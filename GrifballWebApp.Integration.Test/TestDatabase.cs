@@ -243,13 +243,14 @@ internal static class TestDatabase
         var kill = killSessions
             ? $@"
             DECLARE @db int = DB_ID('{name}');
-            DECLARE @kill nvarchar(max) = N'';
-            SELECT @kill += N'IF EXISTS (SELECT 1 FROM sys.dm_exec_sessions WHERE session_id = ' + s.id
-                + N' AND database_id = ' + CAST(@db AS nvarchar(10))
-                + N') BEGIN BEGIN TRY KILL ' + s.id + N'; END TRY BEGIN CATCH END CATCH; END;'
-            FROM sys.dm_exec_sessions CROSS APPLY (SELECT CAST(session_id AS nvarchar(10)) AS id) s
-            WHERE database_id = @db AND session_id <> @@SPID;
-            EXEC (@kill);"
+            -- STRING_AGG, not SELECT @kill += (which SQL Server doesn't promise to apply to every row)
+            DECLARE @kill nvarchar(max) = (
+                SELECT STRING_AGG(CAST(N'IF EXISTS (SELECT 1 FROM sys.dm_exec_sessions WHERE session_id = ' AS nvarchar(max)) + s.id
+                    + N' AND database_id = ' + CAST(@db AS nvarchar(10))
+                    + N') BEGIN BEGIN TRY KILL ' + s.id + N'; END TRY BEGIN CATCH END CATCH; END;', N'')
+                FROM sys.dm_exec_sessions CROSS APPLY (SELECT CAST(session_id AS nvarchar(10)) AS id) s
+                WHERE database_id = @db AND session_id <> @@SPID);
+            IF @kill IS NOT NULL EXEC (@kill);"
             : "";
         return $@"
             {(ifExists ? $"IF DB_ID('{name}') IS NULL RETURN;" : "")}{kill}
@@ -306,7 +307,8 @@ internal static class TestDatabase
                     await command.ExecuteNonQueryAsync();
                     return;
                 }
-                catch (Microsoft.Data.SqlClient.SqlException e) when (attempt < 5
+                // Six attempts: the first kills nothing, so five still kill, as every attempt did before #436
+                catch (Microsoft.Data.SqlClient.SqlException e) when (attempt < 6
                     && e.Errors.Cast<Microsoft.Data.SqlClient.SqlError>().Any(x => x.Number is DatabaseInUse or SingleUserTaken))
                 {
                     Microsoft.Data.SqlClient.SqlConnection.ClearPool(new Microsoft.Data.SqlClient.SqlConnection(connectionString));
