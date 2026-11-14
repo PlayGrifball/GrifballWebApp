@@ -79,22 +79,31 @@ public class XboxAccountService
         var past = _context.XboxUsers.PastGamertags().Where(h => h.NormalizedGamertag == normalized).Select(h => h.XboxUserID);
         foreach (var xuids in pastToo ? new[] { current, past } : [current])
         {
-            var found = await _context.XboxUsers.AsNoTracking()
-                .Where(x => xuids.Contains(x.XboxUserID))
-                .Select(x => new
-                {
-                    x.XboxUserID,
-                    x.Gamertag,
-                    LastPlayed = _context.Matches.Where(m => m.MatchTeams.Any(t => t.MatchParticipants.Any(p => p.XboxUserID == x.XboxUserID))).Max(m => m.StartTime),
-                })
-                .OrderByDescending(x => x.LastPlayed != null)
-                .ThenByDescending(x => x.LastPlayed)
-                .ThenByDescending(x => x.XboxUserID)
-                .FirstOrDefaultAsync(ct);
-            if (found is not null)
-                return (found.XboxUserID, found.Gamertag);
+            if (await PlayedLast(xuids, ct) is { } found)
+                return found;
         }
         return null;
+    }
+
+    /// <summary>
+    /// Of <paramref name="xuids"/>, the account that played last (by XUID when none has): which of several accounts sharing a
+    /// gamertag one means, typed (<see cref="FindAsync"/>) or listed (<see cref="OnePerGamertag"/>). Null for none.
+    /// </summary>
+    private async Task<(long XboxUserID, string Gamertag)?> PlayedLast(IQueryable<long> xuids, CancellationToken ct)
+    {
+        var found = await _context.XboxUsers.AsNoTracking()
+            .Where(x => xuids.Contains(x.XboxUserID))
+            .Select(x => new
+            {
+                x.XboxUserID,
+                x.Gamertag,
+                LastPlayed = _context.Matches.Where(m => m.MatchTeams.Any(t => t.MatchParticipants.Any(p => p.XboxUserID == x.XboxUserID))).Max(m => m.StartTime),
+            })
+            .OrderByDescending(x => x.LastPlayed != null)
+            .ThenByDescending(x => x.LastPlayed)
+            .ThenByDescending(x => x.XboxUserID)
+            .FirstOrDefaultAsync(ct);
+        return found is null ? null : (found.XboxUserID, found.Gamertag);
     }
 
     /// <summary>
@@ -109,12 +118,13 @@ public class XboxAccountService
     public async Task<List<XboxAccountChoice>> SearchAsync(string? query, int limit, CancellationToken ct = default)
     {
         var q = (query ?? "").Trim();
-        var current = await OnePerGamertag(await _context.XboxUsers.AsNoTracking()
+        // Twice the rows listed, so that accounts sharing a gamertag at the cutoff are both read, and dropping one still fills the list
+        var current = (await OnePerGamertag(await _context.XboxUsers.AsNoTracking()
             .Where(x => x.Gamertag.Contains(q))
             .OrderBy(x => x.Gamertag.StartsWith(q) ? 0 : 1).ThenBy(x => x.Gamertag).ThenBy(x => x.XboxUserID)
-            .Take(limit)
+            .Take(limit * 2)
             .Select(x => new XboxAccountChoice(x.XboxUserID, x.Gamertag, null))
-            .ToListAsync(ct), ct);
+            .ToListAsync(ct), ct)).Take(limit).ToList();
         if (current.Count >= limit || q.Length < Search.QuickSearchService.MinLength)
             return current;
 
@@ -137,31 +147,20 @@ public class XboxAccountService
     }
 
     /// <summary>
-    /// <paramref name="choices"/> with each current gamertag once (as normalized): of accounts sharing one, the one that played
-    /// last (by XUID when none has), as <see cref="FindAsync"/> picks. The order is kept.
+    /// <paramref name="choices"/> with each current gamertag once (whatever its case, as the database compares them; spacing
+    /// counts, as it does for a typed one): of accounts sharing one, the one <see cref="PlayedLast"/> picks, the account
+    /// <see cref="FindByCurrentGamertagAsync"/> finds for it typed. The order is kept.
     /// </summary>
     private async Task<List<XboxAccountChoice>> OnePerGamertag(List<XboxAccountChoice> choices, CancellationToken ct)
     {
-        var shared = choices.GroupBy(c => XboxGamertagHistory.Normalize(c.Gamertag)).Where(g => g.Count() > 1).ToList();
-        if (shared.Count == 0)
-            return choices;
-        var xuids = shared.SelectMany(g => g.Select(c => c.XboxUserID)).ToList();
-        var lastPlayed = await _context.XboxUsers.AsNoTracking()
-            .Where(x => xuids.Contains(x.XboxUserID))
-            .Select(x => new
-            {
-                x.XboxUserID,
-                LastPlayed = _context.Matches.Where(m => m.MatchTeams.Any(t => t.MatchParticipants.Any(p => p.XboxUserID == x.XboxUserID))).Max(m => m.StartTime),
-            })
-            .ToDictionaryAsync(x => x.XboxUserID, x => x.LastPlayed, ct);
-        var dropped = shared
-            .SelectMany(g => g.OrderByDescending(c => lastPlayed.GetValueOrDefault(c.XboxUserID) != null)
-                .ThenByDescending(c => lastPlayed.GetValueOrDefault(c.XboxUserID))
-                .ThenByDescending(c => c.XboxUserID)
-                .Skip(1))
-            .Select(c => c.XboxUserID)
-            .ToHashSet();
-        return choices.Where(c => !dropped.Contains(c.XboxUserID)).ToList();
+        var dropped = new HashSet<long>();
+        foreach (var shared in choices.GroupBy(c => c.Gamertag, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+        {
+            var xuids = shared.Select(c => c.XboxUserID).ToList();
+            var kept = await PlayedLast(_context.XboxUsers.Where(x => xuids.Contains(x.XboxUserID)).Select(x => x.XboxUserID), ct);
+            dropped.UnionWith(xuids.Where(x => x != kept?.XboxUserID));
+        }
+        return dropped.Count == 0 ? choices : choices.Where(c => !dropped.Contains(c.XboxUserID)).ToList();
     }
 
     /// <summary>Whether the site has the account.</summary>

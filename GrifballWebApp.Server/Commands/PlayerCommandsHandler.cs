@@ -148,7 +148,8 @@ public class PlayerCommandsHandler
             await context.Reply(CommandLookups.NoSuchXboxAccount);
             return;
         }
-        // The caller check and the lookup refuse first, as the tool would: it has nothing left to refuse
+        // The caller check and the lookup refuse first, as the tool would. It refuses only an account removed since the lookup
+        // read it (a merge in that moment): rare enough for the generic error
         var pulled = await _pulls.As(caller).PullXboxAccountGamesOf(found.XboxUserID, found.Gamertag);
         await context.Reply($"The pull of {pulled.Gamertag}'s recent games {PullReplies.State(pulled.Pull)}. /matches and their Xbox page show them: {_urls.XboxAccount(pulled.XboxUserID)}");
     }

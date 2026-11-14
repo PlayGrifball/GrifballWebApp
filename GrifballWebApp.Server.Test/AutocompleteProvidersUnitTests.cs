@@ -20,6 +20,7 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
     private static readonly string[] TheMatchInWinter = ["Grifs vs Rivals (Winter)"];
     private static readonly string[] HoldingGrif = ["Grifter1", "TheGrifter"];
     private static readonly string[] TheRenamedAccount = ["id:7001"];
+    private static readonly string[] BothSpacings = ["id:7151", "id:7152"];
     private static readonly string[] TheEuropes = ["North Europe", "South Europe", "Europe", "None (clear it)"];
 
     private static NetCord.ApplicationCommandInteractionDataOption Typed(string value)
@@ -145,6 +146,41 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
             .GetChoicesAsync(Typed("Shared"), null!))!.ToList();
 
         Assert.That(choices.Select(c => (c.Name, c.StringValue)), Is.EqualTo(new[] { ("Shared Tag", "id:7102") }));
+    }
+
+    [Test]
+    public async Task GamertagAutocomplete_ListsAccountsWhoseGamertagsDifferOnlyInSpacing_Both()
+    {
+        Db.XboxUsers.AddRange(XboxUser.FromXbox(7151, "Space Tag"), XboxUser.FromXbox(7152, "Space  Tag"));
+        await Db.SaveChangesAsync();
+
+        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)))
+            .GetChoicesAsync(Typed("Space"), null!))!.ToList();
+
+        Assert.That(choices.Select(c => c.StringValue), Is.EquivalentTo(BothSpacings), "two gamertags, as typing each finds its own account");
+    }
+
+    [Test]
+    public async Task GamertagAutocomplete_ListsAGamertagSharedAtTheCutoff_Once_AsTheOneThatPlayedLast()
+    {
+        // 24 accounts sort ahead of the shared gamertag, so its two accounts are the 25th and 26th rows
+        for (var i = 1; i <= 24; i++)
+            Db.XboxUsers.Add(XboxUser.FromXbox(7300 + i, $"Aa {i:00}"));
+        Db.XboxUsers.AddRange(XboxUser.FromXbox(7401, "Ab Shared"), XboxUser.FromXbox(7402, "Ab Shared"));
+        var game = GrifballWebApp.Domain.Halo.Match.Seed(Guid.NewGuid(), startTime: new DateTime(2026, 10, 1, 20, 0, 0, DateTimeKind.Utc), duration: TimeSpan.FromMinutes(9));
+        game.AddTeam(0, 50, GrifballWebApp.Domain.Halo.Outcomes.Won);
+        game.AddParticipant(0, 7402, new GrifballWebApp.Domain.Halo.MatchParticipantStats());
+        Db.Matches.Add(game);
+        await Db.SaveChangesAsync();
+
+        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)))
+            .GetChoicesAsync(Typed("A"), null!))!.ToList();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(choices, Has.Count.EqualTo(25));
+            Assert.That(choices.Last().StringValue, Is.EqualTo("id:7402"), "the account that played, not the stale row");
+        }
     }
 
     [Test]

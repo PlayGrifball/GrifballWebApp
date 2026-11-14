@@ -35,16 +35,21 @@ public class SeasonService
     }
 
     /// <summary>
-    /// The season a page, command or tool means when it names none: the running one, else the latest anyone may see
-    /// (<see cref="Season.PublicAsOf"/>, by start): between seasons, the next one once it's announced (its signups, its
-    /// draft), else the one that just ended; never one not announced yet. 0 when none is public.
+    /// The season a page, command or tool means when it names none: the running one; else, between seasons, the next one
+    /// to start once it's announced (<see cref="Season.PublicAsOf"/>: its signups, its draft); else the one that ended
+    /// last. Never one not announced yet. 0 when none is public.
     /// </summary>
     public async Task<int> GetCurrentOrLatestSeasonID(CancellationToken ct = default)
     {
         var current = await GetCurrentSeasonID(ct);
-        return current != 0
-            ? current
-            : await _context.Seasons.Where(Season.PublicAsOf(_time.GetUtcNow().UtcDateTime))
+        if (current != 0)
+            return current;
+        var now = _time.GetUtcNow().UtcDateTime;
+        var upcoming = await _context.Seasons.Where(Season.PublicAsOf(now)).Where(Season.NotStartedAt(now))
+            .OrderBy(x => x.SeasonStart).ThenBy(x => x.SeasonID).Select(x => x.SeasonID).FirstOrDefaultAsync(ct);
+        return upcoming != 0
+            ? upcoming
+            : await _context.Seasons.Where(Season.StartedAt(now))
                 .OrderByDescending(x => x.SeasonStart).ThenByDescending(x => x.SeasonID).Select(x => x.SeasonID).FirstOrDefaultAsync(ct);
     }
 

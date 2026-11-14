@@ -35,8 +35,8 @@ public class SeasonTools
         _brackets = brackets;
     }
 
-    /// <summary>The refusal when no season is named and none is running or announced: a season can still be named.</summary>
-    public const string NoSeasonYet = "No season is running or announced yet: pass a seasonID (list_seasons has their IDs) to ask about one.";
+    /// <summary>The refusal when no season is named and none is running or announced.</summary>
+    public const string NoSeasonYet = "No season is running or announced yet.";
 
     /// <summary>The season asked for, or the running one, else the latest; a <see cref="ToolException"/> when there is none.</summary>
     private async Task<int> SeasonOrCurrent(int? seasonID, CancellationToken ct)

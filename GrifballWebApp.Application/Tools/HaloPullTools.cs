@@ -54,17 +54,23 @@ public class HaloPullTools
         _caller.Require(GrifTools.RolesByName["pull_xbox_account_games"]);
         var account = await _accounts.FindByGamertagAsync(gamertag, ct)
             ?? throw new ToolException($"The site knows no Xbox account with the gamertag {gamertag.Trim()}: search finds the players it knows.");
-        return await PullXboxAccountGamesOf(account.XboxUserID, account.Gamertag, ct);
+        return await Queue(account.XboxUserID, account.Gamertag, ct);
     }
 
-    /// <summary>pull_xbox_account_games for an account already found (by its XUID: /player pull, whose option picks one).</summary>
+    /// <summary>
+    /// pull_xbox_account_games for an account by its XUID (/player pull, whose option picks one): refused for one the site
+    /// doesn't know, as the account page's pull is.
+    /// </summary>
     public async Task<PulledAccountDto> PullXboxAccountGamesOf(long xuid, string gamertag, CancellationToken ct = default)
     {
         _caller.Require(GrifTools.RolesByName["pull_xbox_account_games"]);
         if (!await _accounts.Exists(xuid, ct))
             throw new ToolException($"The site knows no Xbox account {xuid}: search finds the players it knows.");
-        return new PulledAccountDto(xuid, gamertag, await _accountPulls.Queue(xuid, _caller.UserID, ct));
+        return await Queue(xuid, gamertag, ct);
     }
+
+    private async Task<PulledAccountDto> Queue(long xuid, string gamertag, CancellationToken ct)
+        => new(xuid, gamertag, await _accountPulls.Queue(xuid, _caller.UserID, ct));
 }
 
 /// <summary>The account a pull was queued for (its XUID and gamertag), and where the pull is.</summary>

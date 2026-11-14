@@ -107,6 +107,27 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task BetweenSeasons_TwoAnnounced_TheNextToStart_IsTheDefault()
+    {
+        await SeasonEnded("Ended", daysAgo: 10);
+        // Both public: the one starting in 20 days, not the one starting in 120
+        var next = await SeasonEnded("Next", daysAgo: -80);
+        Db.Seasons.Add(Season.Seed(seasonName: "Later").WithDates(publicAt: _time.GetUtcNow().UtcDateTime.AddDays(-1),
+            signupsOpen: _time.GetUtcNow().UtcDateTime.AddDays(90), signupsClose: _time.GetUtcNow().UtcDateTime.AddDays(100),
+            draftStart: _time.GetUtcNow().UtcDateTime.AddDays(110), seasonStart: _time.GetUtcNow().UtcDateTime.AddDays(120), seasonEnd: _time.GetUtcNow().UtcDateTime.AddDays(180)));
+        await Db.SaveChangesAsync();
+
+        var command = await new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time).Season(null);
+        var tool = await SeasonTools().GetSeason();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(command, Is.EqualTo(next.SeasonID));
+            Assert.That(tool.SeasonName, Is.EqualTo("Next"));
+        }
+    }
+
+    [Test]
     public async Task WithNoSeasons_ACommandFindsNone_AndAToolSaysToNameOne()
     {
         var command = await new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time).Season(null);
