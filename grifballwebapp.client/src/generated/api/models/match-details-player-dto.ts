@@ -43,4 +43,9 @@ export interface MatchDetailsPlayerDto {
    * The site's user for the Xbox account, when there is one (their profile).
    */
   userID: number | null;
+
+  /**
+   * The player's Xbox account: its own page has their saved games, account or not.
+   */
+  xboxUserID: number;
 }

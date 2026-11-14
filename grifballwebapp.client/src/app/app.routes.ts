@@ -176,6 +176,12 @@ export const APP_ROUTES: Routes = [
     canActivate: [isSysAdminGuard]
   },
   {
+    // An Xbox account's saved games, whether or not anyone has a site account for it
+    path: 'xbox/:xuid',
+    loadComponent: () => import('./features/players/xboxAccount/xboxAccount.component').then(m => m.XboxAccountComponent),
+    title: 'Xbox Account'
+  },
+  {
     path: 'profile/:userID',
     loadComponent: () => import('./features/players/profile/profile.component').then(m => m.ProfileComponent),
     title: 'User Profile'

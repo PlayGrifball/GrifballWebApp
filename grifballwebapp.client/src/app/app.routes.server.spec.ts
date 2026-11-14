@@ -6,7 +6,7 @@ describe('serverRoutes', () => {
   const modeOf = (path: string) => serverRoutes.find(route => route.path === path)?.renderMode;
 
   it('renders the public pages on the server', () => {
-    for (const path of ['', 'season/:seasonID', 'seasonmatch/:seasonMatchID', 'match/:matchID', 'profile/:userID', 'history/team/:teamID', 'login'])
+    for (const path of ['', 'season/:seasonID', 'seasonmatch/:seasonMatchID', 'match/:matchID', 'profile/:userID', 'xbox/:xuid', 'history/team/:teamID', 'login'])
       expect(modeOf(path)).withContext(path).toBe(RenderMode.Server);
   });
 

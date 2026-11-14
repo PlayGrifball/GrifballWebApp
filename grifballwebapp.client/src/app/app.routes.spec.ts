@@ -30,6 +30,7 @@ import { JobsComponent } from './features/admin/userManagement/jobs/jobs.compone
 import { TelemetryComponent } from './features/admin/userManagement/telemetry/telemetry.component';
 import { MergesComponent } from './features/admin/userManagement/merges/merges.component';
 import { ProfileComponent } from './features/players/profile/profile.component';
+import { XboxAccountComponent } from './features/players/xboxAccount/xboxAccount.component';
 import { TeamHistoryComponent } from './features/league/teamHistory/teamHistory.component';
 import { SeasonsComponent } from './features/league/seasons/seasons.component';
 import { LeaderboardsComponent } from './features/players/leaderboards/leaderboards.component';
@@ -251,6 +252,7 @@ describe('APP_ROUTES lazy loading', () => {
     'usermanagement/jobs': JobsComponent,
     'usermanagement/telemetry': TelemetryComponent,
     'profile/:userID': ProfileComponent,
+    'xbox/:xuid': XboxAccountComponent,
     'history/team/:teamID': TeamHistoryComponent,
     'seasons': SeasonsComponent,
     'leaderboards': LeaderboardsComponent,

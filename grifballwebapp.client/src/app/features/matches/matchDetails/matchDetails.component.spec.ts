@@ -11,7 +11,7 @@ const URL = '/api/matches/' + MATCH_ID;
 
 /** A player line as the API sends it. */
 const player = (gamertag: string, overrides: Record<string, unknown> = {}) => ({
-  userID: 7, gamertag, goals: 3, personalScore: 1200, rank: 1, kills: 12, deaths: 5, assists: 4, kda: 8.333, suicides: 1,
+  userID: 7, xboxUserID: 2535400000000007, gamertag, goals: 3, personalScore: 1200, rank: 1, kills: 12, deaths: 5, assists: 4, kda: 8.333, suicides: 1,
   betrayals: 0, meleeKills: 9, powerWeaponKills: 2, maxKillingSpree: 4, calloutAssists: 1, shotsFired: 30, shotsHit: 15,
   accuracy: 50, damageDealt: 2000, damageTaken: 1500, averageLife: '00:00:45.5000000', timePlayed: '00:10:00', spawns: 6,
   objectivesCompleted: 0, joinedInProgress: false, leftInProgress: false,
@@ -146,9 +146,9 @@ describe('MatchDetailsComponent', () => {
     expect(links).toContain('/season/12/team/1');
     expect(links).toContain('/profile/7');
 
-    // The ringer has no profile to link to
+    // The ringer has no account: their Xbox account's page instead of a profile
     const rows = Array.from(el.querySelectorAll('tbody tr'));
-    expect(rows[1].querySelector('a')).toBeNull();
+    expect(rows[1].querySelector('a')!.getAttribute('href')).toBe('/xbox/2535400000000007');
     expect(rows[1].textContent).toContain('Ringer');
 
     expect(el.querySelectorAll('.md-medal')).toHaveSize(2); // the match's, and Plasma Pete's

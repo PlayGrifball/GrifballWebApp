@@ -218,4 +218,6 @@ export type { VodLinkOptionsDto } from './models/vod-link-options-dto';
 export type { VodLinkSeasonDto } from './models/vod-link-season-dto';
 export type { VodReviewDto } from './models/vod-review-dto';
 export type { VodTeamDto } from './models/vod-team-dto';
+export type { XboxAccountDto } from './models/xbox-account-dto';
+export type { XboxAccountGameDto } from './models/xbox-account-game-dto';
 export type { XuidLookupStatusDto } from './models/xuid-lookup-status-dto';
