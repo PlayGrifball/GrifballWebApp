@@ -1,6 +1,6 @@
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, numberAttribute, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, input, numberAttribute, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { TeamResponseDto } from '@api/models';
 import type { TeamsPlayerDto } from '@api/models';
@@ -32,7 +32,7 @@ import { TeamBuilderStore } from './teamBuilder.store';
     // the server's over (the rest of the page, the header with the user, still is).
     host: { ngSkipHydration: 'true' },
 })
-export class TeamBuilderComponent {
+export class TeamBuilderComponent implements OnInit {
   /** The draft: loaded, kept up to date, and changed a move at a time. */
   readonly store = inject(TeamBuilderStore);
   accountService = inject(AccountService);
@@ -69,7 +69,11 @@ export class TeamBuilderComponent {
       const seasonID = this.seasonID();
       untracked(() => this.store.show(seasonID));
     });
-    // Other users' changes, for as long as the page is open
+  }
+
+  ngOnInit(): void {
+    // Other users' changes, for as long as the page is open: from its first change detection, the pass in which the
+    // effect above sets its season, so a reconnect never loads the draft of season 0
     this.store.listen();
   }
 

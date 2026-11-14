@@ -31,8 +31,9 @@ export class TeamBuilderStore {
 
   /** The season asked for (0: the current season), set by {@link show}. */
   private readonly routeSeasonID = signal(0);
-  /** The season shown: the one asked for, or the current season's ID once known. */
-  readonly shownSeasonID = signal(0);
+  /** The season shown: the one asked for, or the current season's ID once known. Set only by {@link show}, which resets the draft with it. */
+  private readonly _shownSeasonID = signal(0);
+  readonly shownSeasonID = this._shownSeasonID.asReadonly();
   readonly captainLocked = signal(true);
   readonly teams = signal<TeamResponseDto[]>([]);
   readonly playerPool = signal<TeamsPlayerDto[]>([]);
@@ -98,7 +99,7 @@ export class TeamBuilderStore {
   /** Shows a season's draft (0: the current season's). Nothing of the previous one stays: a load of it still on its way is dropped. */
   show(seasonID: number): void {
     this.routeSeasonID.set(seasonID);
-    this.shownSeasonID.set(seasonID);
+    this._shownSeasonID.set(seasonID);
     this.teams.set([]);
     this.playerPool.set([]);
     this.captainLocked.set(true);
@@ -107,7 +108,7 @@ export class TeamBuilderStore {
         .pipe(whileCurrent(seasonID, this.routeSeasonID))
         .subscribe({
           next: (result) => {
-            this.shownSeasonID.set(result);
+            this._shownSeasonID.set(result);
             this.load();
           },
         });
