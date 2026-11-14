@@ -38,6 +38,10 @@ public class PlayerCommands : ApplicationCommandModule<ApplicationCommandContext
     public Task Vods([SlashCommandParameter(Description = PlayerDescription, AutocompleteProviderType = typeof(PlayerAutocomplete))] string? player = null)
         => _handler.Vods(Context.ToDiscordContext(), player);
 
+    [SubSlashCommand("pull", "Pull an Xbox account's recent games from Halo (players and staff)")]
+    public Task Pull([SlashCommandParameter(Description = "The gamertag (default: yours)", AutocompleteProviderType = typeof(GamertagAutocomplete))] string? gamertag = null)
+        => _handler.Pull(Context.ToDiscordContext(), gamertag);
+
     [SubSlashCommand("matches", "A player's recent Halo matches")]
     public Task Matches([SlashCommandParameter(Description = PlayerDescription, AutocompleteProviderType = typeof(PlayerAutocomplete))] string? player = null)
         => _handler.Matches(Context.ToDiscordContext(), player);

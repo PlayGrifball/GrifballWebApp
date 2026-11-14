@@ -48,11 +48,10 @@ public class TeamAndPlayerCommandsTests
         var lookups = new CommandLookups(_context, new SeasonService(_context, new SeasonStatsService(_context)));
         var vods = new VodService(_context, new YouTubeClient(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(HttpStatusCode.NotFound)))),
             Options.Create(new YouTubeOptions()), NullLogger<VodService>.Instance);
-        var recentMatches = new DiscordCommandsHandler(_context, NullLogger<DiscordCommandsHandler>.Instance, Substitute.For<IDataPullService>(),
-            Substitute.For<IGetsertXboxUserService>());
+        var recentMatches = new DiscordCommandsHandler(_context, new GrifballWebApp.Application.Tools.HaloTools(_context, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context)));
         _teams = new TeamCommandsHandler(lookups, new TeamPageService(_context), new TeamHistoryService(_context), vods, urls);
         _players = new PlayerCommandsHandler(lookups, new DiscordCaller(_context), new ProfileStatsService(_context, new SeasonStatsService(_context), new MatchmakingStatsService(_context)), new ProfileCommendationsService(_context),
-            new DeploymentHistoryService(_context), vods, recentMatches, urls);
+            new DeploymentHistoryService(_context), vods, recentMatches, urls, null!);
 
         _season = await _context.AddSeason("Spring");
         _captain = await _context.AddUser("cap", gamertag: "CaptainGT", discordName: "cap");

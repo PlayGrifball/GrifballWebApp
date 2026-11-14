@@ -130,8 +130,6 @@ public class DiscordModuleRegistrationTests
             "/admin match forfeit \"Forfeit the match\" permissions: default, preconditions: 0"
                 + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]"
                 + " [side: ForfeitSide \"Who forfeits\" autocomplete: none, preconditions: 0]",
-            "/admin match pull \"Pull the players' recent Halo games\" permissions: default, preconditions: 0"
-                + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]",
             "/admin match report \"Report a Halo game as one of the match's\" permissions: default, preconditions: 0"
                 + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]"
                 + " [match_id: String \"The game's Halo match ID\" autocomplete: none, preconditions: 0]"
@@ -171,6 +169,9 @@ public class DiscordModuleRegistrationTests
                 + " [match_id: String \"The game's Halo match ID\" autocomplete: none, preconditions: 0]",
             "/match info \"A season match's time, result and games\" permissions: default, preconditions: 0"
                 + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]",
+            "/match pull \"Pull a season match's players' recent games from Halo (players and staff)\" permissions: default, preconditions: 0"
+                + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]"
+                + " [back_to_season_start: Boolean = False \"Back to the season's start, for an old match\" autocomplete: none, preconditions: 0]",
             "/matches \"Get recent matches\" permissions: default, preconditions: 0"
                 + " [gamertag: String = null \"Gamertag to search matches for\" autocomplete: GamertagAutocomplete, preconditions: 0]",
             "/me claim \"Claim a gamertag you played under before\" permissions: default, preconditions: 0"
@@ -187,6 +188,8 @@ public class DiscordModuleRegistrationTests
                 + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
             "/player profile \"A player's region, record and championships\" permissions: default, preconditions: 0"
                 + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
+            "/player pull \"Pull an Xbox account's recent games from Halo (players and staff)\" permissions: default, preconditions: 0"
+                + " [gamertag: String = null \"The gamertag (default: yours)\" autocomplete: GamertagAutocomplete, preconditions: 0]",
             "/player stats \"A player's career stats by game\" permissions: default, preconditions: 0"
                 + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
             "/player vods \"A player's VODs\" permissions: default, preconditions: 0"

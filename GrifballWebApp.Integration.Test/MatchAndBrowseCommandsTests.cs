@@ -48,7 +48,7 @@ public class MatchAndBrowseCommandsTests
         var lateLeague = new MatchmakingStatsService(_context);
         _lookups = new CommandLookups(_context, new SeasonService(_context, stats));
         var seasonMatches = new SeasonMatchService(_context, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(_context));
-        _matches = new MatchCommandsHandler(_lookups, seasonMatches, new MatchDetailsService(_context), urls);
+        _matches = new MatchCommandsHandler(_lookups, seasonMatches, new MatchDetailsService(_context), urls, null!, null!);
         var leaderboards = new LeaderboardsService(_context, stats, lateLeague,
             new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())), NullLogger<LeaderboardsService>.Instance);
         _browse = new BrowseCommandsHandler(leaderboards, lateLeague, new HomeEventsService(_context), new QuickSearchService(_context), _lookups, urls);

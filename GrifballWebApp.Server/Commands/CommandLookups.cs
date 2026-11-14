@@ -70,10 +70,9 @@ public class CommandLookups
                 && await seasons.Where(GrifballWebApp.Domain.League.Season.NotStartedAt(_time.GetUtcNow().UtcDateTime)).OrderBy(x => x.SeasonStart)
                     .Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct) is int upcoming)
                 return upcoming;
-            var current = await _seasons.GetCurrentSeasonID(ct);
-            if (current != 0)
-                return current;
-            return await seasons.OrderByDescending(x => x.SeasonID).Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct);
+            // The same default as the agents' tools
+            var current = await _seasons.GetCurrentOrLatestSeasonID(ct);
+            return current != 0 ? current : null;
         }
 
         var name = input.Trim();

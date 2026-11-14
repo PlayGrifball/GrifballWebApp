@@ -276,7 +276,7 @@ public class DiscordTransportTests
         {
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.DeferredChannelMessage));
             Assert.That(requests[0].Flags, Is.Default);
-            Assert.That(requests[1].Content, Is.EqualTo("You must set your gamertag first, or provide someone else's gamertag to search for"));
+            Assert.That(requests[1].Content, Is.EqualTo(DiscordCommandsHandler.NoGamertag));
         }
     }
 
@@ -373,7 +373,8 @@ public class DiscordTransportTests
         new object[] { "admin match report", new[] { ("match", "Missing"), ("match_id", "not-a-guid"), ("replaces", "2") } },
         new object[] { "admin match forfeit", new[] { ("match", "Missing"), ("side", "0") } },
         new object[] { "admin match undo", new[] { ("match", "Missing") } },
-        new object[] { "admin match pull", new[] { ("match", "Missing") } },
+        new object[] { "match pull", new[] { ("match", "Missing") } },
+        new object[] { "player pull", Array.Empty<(string, string)>() },
         new object[] { "admin match time", new[] { ("match", "Missing"), ("time", "2030-01-01 20:00") } },
         new object[] { "admin season generate", new[] { ("season", "Missing"), ("home_matches", "1"), ("best_of", "3") } },
         new object[] { "admin bracket create", new[] { ("season", "Missing"), ("participants", "4"), ("best_of", "3") } },
@@ -435,7 +436,7 @@ public class DiscordTransportTests
         });
         var season = match.SeasonID.ToString();
 
-        var pull = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin match pull", 6101, ("match", match.SeasonMatchID.ToString())));
+        var pull = await _host.SendAsync(DiscordInteractionJson.SubCommand("match pull", 6101, ("match", match.SeasonMatchID.ToString())));
         var run = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin schedule run", 6101, ("season", season)));
         var show = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin schedule show", 6101, ("season", season)));
         var apply = await _host.SendAsync(DiscordInteractionJson.SubCommand("admin schedule apply", 6101, ("recommendation", recommendation.ToString())));
@@ -449,7 +450,7 @@ public class DiscordTransportTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(pull[^1].Content, Does.StartWith("The pull is "));
+            Assert.That(pull[^1].Content, Does.StartWith("The pull of this match's players' games "));
             Assert.That(run[^1].Content, Does.StartWith("The recommendation is "));
             Assert.That(show[^1].Data.GetProperty("embeds")[0].GetProperty("title").GetString(), Does.StartWith("Schedule ("));
             Assert.That(show[^1].Data.GetProperty("embeds")[0].GetProperty("description").GetString(), Does.StartWith($"Recommendation #{recommendation}, not applied").And.Contain("Jobs Home vs Jobs Away"));

@@ -287,23 +287,6 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
-    public async Task PullGames_QueuesThePull_AsTheCaller()
-    {
-        var match = await AMatch();
-        var (discord, _) = await Caller(DiscordCaller.Roles.Commissioner);
-        var handler = await Handler(queues: true);
-
-        await handler.PullGames(discord.Context, match.SeasonMatchID.ToString());
-
-        var trigger = OnDemandJobs.TriggerKeyOf<SeasonMatchPullJob>(SeasonMatchPullJob.RunName(match.SeasonMatchID));
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(discord.Content(), Is.EqualTo($"The pull is queued. Its games show on [the match page](https://grif.test/seasonmatch/{match.SeasonMatchID})."));
-            Assert.That(await _quartz!.Scheduler.GetTriggerState(trigger), Is.EqualTo(TriggerState.Normal));
-        }
-    }
-
-    [Test]
     public async Task ScheduleRun_QueuesTheRecommendation_AndScheduleShowSaysSo()
     {
         var season = await AddSeason("Winter");

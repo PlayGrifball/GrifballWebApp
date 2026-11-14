@@ -26,14 +26,12 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class PlayerAndMatchCommandsActionsUnitTests : SqliteGrifballContextFixture
 {
-    private readonly IGetsertXboxUserService _xboxUsers = Substitute.For<IGetsertXboxUserService>();
-
     private PlayerCommandsHandler Players() => new(new CommandLookups(Db, null!), new DiscordCaller(Db),
         new ProfileStatsService(Db, new SeasonStatsService(Db), new MatchmakingStatsService(Db)),
         new ProfileCommendationsService(Db),
         new DeploymentHistoryService(Db),
         new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!),
-        new DiscordCommandsHandler(Db, new RecordingLogger<DiscordCommandsHandler>(), Substitute.For<IDataPullService>(), _xboxUsers),
+        new DiscordCommandsHandler(Db, new GrifballWebApp.Application.Tools.HaloTools(Db, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db))),
         Urls());
 
     [Test]
@@ -67,22 +65,19 @@ public class PlayerAndMatchCommandsActionsUnitTests : SqliteGrifballContextFixtu
         using (Assert.EnterMultipleScope())
         {
             Assert.That(discord.DeferredPublicly(), Is.True);
-            Assert.That(discord.Content(), Is.EqualTo("I found no matches for Grifter1"), "Their own gamertag, though they named none");
+            Assert.That(discord.Content(), Is.EqualTo("The site has no games saved for Grifter1."), "Their own gamertag, though they named none");
         }
-        await _xboxUsers.DidNotReceiveWithAnyArgs().GetsertXboxUserByGamertag(default!);
     }
 
     [Test]
     public async Task Matches_OfAPlayerNamed_AreLookedUpByTheirGamertag()
     {
         await AddUser(5, "Grifter1");
-        _xboxUsers.GetsertXboxUserByGamertag("Grifter1", Arg.Any<CancellationToken>()).Returns((XboxUser.FromXbox(5, "Grifter1"), (string?)null));
         var discord = new CommandContextRecorder();
 
         await Players().Matches(discord.Context, "Grifter1");
 
-        Assert.That(discord.Content(), Is.EqualTo("I found no matches for Grifter1"));
-        await _xboxUsers.Received(1).GetsertXboxUserByGamertag("Grifter1", Arg.Any<CancellationToken>());
+        Assert.That(discord.Content(), Is.EqualTo("The site has no games saved for Grifter1."));
     }
 
     [Test]
@@ -98,7 +93,7 @@ public class PlayerAndMatchCommandsActionsUnitTests : SqliteGrifballContextFixtu
         Db.Matches.Add(game);
         await Db.SaveChangesAsync();
         var handler = new MatchCommandsHandler(new CommandLookups(Db, null!),
-            new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)), new MatchDetailsService(Db), Urls());
+            new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)), new MatchDetailsService(Db), Urls(), null!, null!);
         var discord = new CommandContextRecorder();
 
         await handler.Game(discord.Context, matchID.ToString());
@@ -124,7 +119,7 @@ public class PlayerAndMatchCommandsActionsUnitTests : SqliteGrifballContextFixtu
         match.AddGame(game, 1);
         await Db.SaveChangesAsync();
         var handler = new MatchCommandsHandler(new CommandLookups(Db, null!),
-            new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)), new MatchDetailsService(Db), Urls());
+            new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)), new MatchDetailsService(Db), Urls(), null!, null!);
         var discord = new CommandContextRecorder();
 
         await handler.Info(discord.Context, match.SeasonMatchID.ToString());

@@ -90,9 +90,6 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
     public Task UndoResult_Refuses_AnUnknownCaller() => AssertRefusesUnknownCaller((h, d) => h.UndoResult(d.Context, "match"));
 
     [Test]
-    public Task PullGames_Refuses_AnUnknownCaller() => AssertRefusesUnknownCaller((h, d) => h.PullGames(d.Context, "match"));
-
-    [Test]
     public Task SetTime_Refuses_AnUnknownCaller() => AssertRefusesUnknownCaller((h, d) => h.SetTime(d.Context, "match", "2026-11-20 20:00"));
 
     [Test]
@@ -137,7 +134,6 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [TestCase(nameof(AdminCommandsHandler.ReportGame))]
     [TestCase(nameof(AdminCommandsHandler.Forfeit))]
     [TestCase(nameof(AdminCommandsHandler.UndoResult))]
-    [TestCase(nameof(AdminCommandsHandler.PullGames))]
     [TestCase(nameof(AdminCommandsHandler.SetTime))]
     public async Task CommissionerOrStaffActions_ReplyNoSuchMatch_WhenTheMatchIsNotFound(string method)
     {
@@ -149,7 +145,6 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
             nameof(AdminCommandsHandler.ReportGame) => handler.ReportGame(discord.Context, "nonsense", Guid.NewGuid().ToString(), null),
             nameof(AdminCommandsHandler.Forfeit) => handler.Forfeit(discord.Context, "nonsense", ForfeitSide.Home),
             nameof(AdminCommandsHandler.UndoResult) => handler.UndoResult(discord.Context, "nonsense"),
-            nameof(AdminCommandsHandler.PullGames) => handler.PullGames(discord.Context, "nonsense"),
             _ => handler.SetTime(discord.Context, "nonsense", "2026-11-20 20:00"),
         };
         await task;

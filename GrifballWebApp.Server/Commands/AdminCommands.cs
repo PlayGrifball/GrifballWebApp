@@ -58,10 +58,6 @@ public class AdminCommands : ApplicationCommandModule<ApplicationCommandContext>
         public Task Undo([SlashCommandParameter(Description = MatchDescription, AutocompleteProviderType = typeof(SeasonMatchAutocomplete))] string match)
             => _handler.UndoResult(Context.ToDiscordContext(), match);
 
-        [SubSlashCommand("pull", "Pull the players' recent Halo games")]
-        public Task Pull([SlashCommandParameter(Description = MatchDescription, AutocompleteProviderType = typeof(SeasonMatchAutocomplete))] string match)
-            => _handler.PullGames(Context.ToDiscordContext(), match);
-
         [SubSlashCommand("time", "Schedule the match")]
         public Task Time(
             [SlashCommandParameter(Description = MatchDescription, AutocompleteProviderType = typeof(SeasonMatchAutocomplete))] string match,

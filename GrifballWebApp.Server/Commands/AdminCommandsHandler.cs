@@ -166,15 +166,6 @@ public class AdminCommandsHandler
     }
 
     /// <summary>Queues a pull of the match's players' recent games, as the match page does.</summary>
-    public async Task PullGames(IDiscordInteractionContext context, string match)
-    {
-        if (await Staff(context, DiscordCaller.Roles.Staff) is not { } caller || await _lookups.SeasonMatchFor(context, match) is not int id)
-            return;
-        var status = await _onDemand.Enqueue<SeasonMatchPullJob, SeasonMatchPull>(SeasonMatchPullJob.RunName(id), new SeasonMatchPull(id, caller.UserID),
-            $"Season match {id}", JobsServiceCollectionExtensions.HaloMatchPulls);
-        await context.Reply($"The pull is {status.State.ToString().ToLowerInvariant()}. Its games show on {"the match page".LinkMarkdown(_urls.SeasonMatch(id))}.");
-    }
-
     public async Task SetTime(IDiscordInteractionContext context, string match, string time)
     {
         if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonMatchFor(context, match) is not int id)

@@ -373,7 +373,6 @@ public class AdminCommandsTests
     [TestCase("report")]
     [TestCase("forfeit")]
     [TestCase("undo")]
-    [TestCase("pull")]
     [TestCase("time")]
     public async Task MatchActions_Should_SayThereIsNoSuchMatch_ToStaff(string action)
     {
@@ -383,7 +382,6 @@ public class AdminCommandsTests
             "report" => () => _handler.ReportGame(discord.Context, "999999", Guid.NewGuid().ToString(), null),
             "forfeit" => () => _handler.Forfeit(discord.Context, "999999", ForfeitSide.Home),
             "undo" => () => _handler.UndoResult(discord.Context, "999999"),
-            "pull" => () => _handler.PullGames(discord.Context, "999999"),
             _ => () => _handler.SetTime(discord.Context, "999999", "2030-01-01 20:00"),
         };
 
