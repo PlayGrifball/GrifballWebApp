@@ -19,6 +19,8 @@ public class StatsTableParserTests
     private static readonly string[] expected = new[] { "12", "13", "14", "15", "16", "17", "18" };
     private static readonly string[] expectedRedTeamRoster = ["Church", "Tucker", "Caboose"];
     private static readonly string[] expectedUkRoster = ["BritGrif", "Londoner"];
+    private static readonly string[] expectedProTeams = ["Cabs Are Here"];
+    private static readonly string[] expectedAmateurTeams = ["Downstait"];
 
     private static HistoricalSourceConfig CatalogConfig()
         => HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == SourceId).Config!;
@@ -383,8 +385,8 @@ public class StatsTableParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(seasons.Single(s => s.SourceSheet == "hr_pstats#s12_Pro").Teams.Select(t => t.TeamName), Is.EqualTo(new[] { "Cabs Are Here" }));
-            Assert.That(seasons.Single(s => s.SourceSheet == "hr_pstats#s12_Amateur").Teams.Select(t => t.TeamName), Is.EqualTo(new[] { "Downstait" }));
+            Assert.That(seasons.Single(s => s.SourceSheet == "hr_pstats#s12_Pro").Teams.Select(t => t.TeamName), Is.EqualTo(expectedProTeams));
+            Assert.That(seasons.Single(s => s.SourceSheet == "hr_pstats#s12_Amateur").Teams.Select(t => t.TeamName), Is.EqualTo(expectedAmateurTeams));
         }
     }
 
