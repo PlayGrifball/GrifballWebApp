@@ -12,8 +12,7 @@ import { AccountService } from '@core/auth/account.service';
 import { Locale } from 'brackets-viewer/dist/lang';
 import { loadBracketsViewer } from '@shared/loadBracketsViewer';
 import type { SeasonChampionDto } from '@api/models';
-import { whileCurrent } from '@shared/whileCurrent';
-import { BracketsService } from '@api/services/brackets.service';
+import { PlayoffBracketStore } from './playoffBracket.store';
 
 @Component({
     selector: 'app-playoff-bracket',
@@ -25,10 +24,11 @@ import { BracketsService } from '@api/services/brackets.service';
     ],
     templateUrl: './playoffBracket.component.html',
     styleUrl: './playoffBracket.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [PlayoffBracketStore],
 })
 export class PlayoffBracketComponent {
-  private brackets = inject(BracketsService);
+  private readonly store = inject(PlayoffBracketStore);
   private router = inject(Router);
   private dialog = inject(MatDialog);
   private destroyRef = inject(DestroyRef);
@@ -55,48 +55,31 @@ export class PlayoffBracketComponent {
 
   hasBracket = signal(false);
   /** The bracket (or that there is none) is known: until then the page shows neither. */
-  loaded = signal(false);
+  readonly loaded = this.store.loaded;
   /** The viewer has drawn the bracket: the legend goes below it then, not before. */
   drawn = signal(false);
 
   constructor() {
+    this.store.seasonID.use(this.seasonID);
+    // Each bracket that arrives is drawn; none (another season loading, or none at all) clears what was shown
     effect(() => {
-      const seasonID = this.seasonID();
+      const viewerData = this.store.viewerData();
       untracked(() => {
-        // Nothing of the previous season's bracket is shown while the new one loads
+        if (viewerData) {
+          void this.render(viewerData);
+          return;
+        }
         this.hasBracket.set(false);
         this.drawn.set(false);
-        this.loaded.set(seasonID === 0);
-        if (seasonID !== 0)
-          this.getViewerData();
       });
     });
   }
 
   getViewerData(): void {
-    const seasonID = this.seasonID();
-    this.brackets.getViewerData({ seasonID })
-      .pipe(whileCurrent(seasonID, this.seasonID))
-      .subscribe(
-        {
-          // brackets-model's data as the server sends it (Status as its number, as the generated Status says too): the two
-          // types are declared apart, brackets-viewer's by brackets-model and this one generated from openapi.json.
-          next: r => this.render(r as unknown as ViewerData),
-          error: e => {
-            // 404: the season does not exist, so there is no bracket to show.
-            this.loaded.set(true);
-            if (e?.status === 404) {
-              this.hasBracket.set(false);
-              return;
-            }
-            console.log(e);
-            this.snackBar.open("Failed to get viewer data", "Close");
-          }
-        });
+    this.store.reload();
   }
 
   async render(viewerData: ViewerData): Promise<void> {
-    this.loaded.set(true);
     if (viewerData.participants.length === 0) {
       this.hasBracket.set(false);
       return;

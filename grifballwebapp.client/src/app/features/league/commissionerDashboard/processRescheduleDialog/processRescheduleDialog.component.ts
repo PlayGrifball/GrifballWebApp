@@ -7,8 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatIconModule } from '@angular/material/icon';
 import type { ProcessRescheduleDto, RescheduleDto } from '@api/models';
-import { RescheduleService } from '@api/services/reschedule.service';
-import { errorText } from '@shared/errorText';
+import { ProcessRescheduleDialogStore } from './processRescheduleDialog.store';
 
 @Component({
   selector: 'app-process-reschedule-dialog',
@@ -24,20 +23,21 @@ import { errorText } from '@shared/errorText';
   ],
   templateUrl: './processRescheduleDialog.component.html',
   styleUrls: ['./processRescheduleDialog.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [ProcessRescheduleDialogStore],
 })
 export class ProcessRescheduleDialogComponent {
   dialogRef = inject<MatDialogRef<ProcessRescheduleDialogComponent>>(MatDialogRef);
   reschedule = inject<RescheduleDto>(MAT_DIALOG_DATA);
-  private rescheduleService = inject(RescheduleService);
+  private readonly store = inject(ProcessRescheduleDialogStore);
 
   /** False when the match can no longer move: only a rejection is offered, chosen already. */
   readonly canApprove = this.reschedule.canApprove !== false;
   readonly decision = signal<'approve' | 'reject' | null>(this.canApprove ? null : 'reject');
   readonly commissionerNotes = signal('');
-  readonly processing = signal(false);
+  readonly processing = this.store.processing;
   /** Why the server refused the decision; shown in the dialog, which stays open to try again. */
-  readonly error = signal<string | null>(null);
+  readonly error = this.store.error;
 
   formatDateTime(dateStr?: string | null): string {
     if (!dateStr) return 'Not scheduled';
@@ -52,21 +52,7 @@ export class ProcessRescheduleDialogComponent {
       commissionerNotes: this.commissionerNotes().trim() || null
     };
 
-    this.processing.set(true);
-    this.error.set(null);
-
-    this.rescheduleService.processReschedule({ rescheduleID: this.reschedule.matchRescheduleID, body: request })
-    .subscribe({
-      next: () => {
-        this.dialogRef.close(true); // Signal success
-        this.processing.set(false);
-      },
-      error: (error) => {
-        // The server says why (e.g. "This match already has a result."); otherwise a general message
-        this.error.set(errorText(error, 'The request could not be processed. Try again.'));
-        this.processing.set(false);
-      }
-    });
+    this.store.process(this.reschedule.matchRescheduleID, request, () => this.dialogRef.close(true));
   }
 
   onCancel(): void {

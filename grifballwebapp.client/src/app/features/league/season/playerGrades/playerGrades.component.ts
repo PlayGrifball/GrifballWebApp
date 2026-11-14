@@ -1,14 +1,11 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, ChangeDetectionStrategy, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, input, numberAttribute } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { LetterDto } from '@api/models';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { DataNoticeComponent } from '@shared/dataNotice/dataNotice.component';
-import { missing, SeasonSummaryService } from '../seasonSummary';
-import type { SeasonSummaryDto } from '@api/models';
-import { whileCurrent } from '@shared/whileCurrent';
-import { GradesService } from '@api/services/grades.service';
+import { PlayerGradesStore } from './playerGrades.store';
 
 @Component({
     selector: 'app-player-grades',
@@ -18,36 +15,26 @@ import { GradesService } from '@api/services/grades.service';
         DataNoticeComponent,
         RouterLink,
     ],
-    providers: [DecimalPipe],
+    providers: [DecimalPipe, PlayerGradesStore],
     templateUrl: './playerGrades.component.html',
     styleUrl: './playerGrades.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PlayerGradesComponent {
-  private grades = inject(GradesService);
+  private readonly store = inject(PlayerGradesStore);
   private pipe = inject(DecimalPipe);
-  private summaries = inject(SeasonSummaryService);
 
   /** The :seasonID of the route. Angular keeps this page when only it changes, so a new one loads that season's grades. */
   readonly seasonID = input.required({ transform: numberAttribute });
 
-  readonly letters = signal<LetterDto[]>([]);
-  readonly summary = signal<SeasonSummaryDto | null>(null);
-  /** The summary has arrived, or failed (the grades are then shown without it). */
-  private readonly summaryDone = signal(false);
-  /** The grades have arrived, or failed. */
-  readonly gradesDone = signal(false);
-  readonly gradesFailed = signal(false);
-  /**
-   * Grades come from the season's Halo Infinite games: a backfilled or ended season without any says so in place of the
-   * table. No scheduled matches settles it without asking for the grades; a schedule without any Waypoint games pulled
-   * shows up as no grades.
-   */
-  readonly noMatches = computed(() =>
-    missing(this.summary(), s => s.matchCount + s.bracketMatchCount)
-    || (this.gradesDone() && !this.gradesFailed() && missing(this.summary(), () => this.letters().length)));
+  readonly letters = this.store.letters;
+  readonly summary = this.store.summary;
+  readonly gradesDone = this.store.gradesDone;
+  readonly gradesFailed = this.store.gradesFailed;
+  /** A backfilled or ended season without grades says so in place of the table. */
+  readonly noMatches = this.store.noMatches;
   /** Nothing is drawn until the page knows whether it shows the notice or the table, so neither flashes up first. */
-  readonly showTable = computed(() => this.summaryDone() && this.gradesDone() && !this.noMatches());
+  readonly showTable = computed(() => this.store.summaryDone() && this.gradesDone() && !this.noMatches());
 
   public letterDisplayedColumns: string[] = ['gamertag', 'goals', 'kdSpread', 'punches', 'sprees', 'doubleKills', 'tripleKills', 'multiKills', 'xFactor', 'kills', 'gradeAvgMath', 'gradeAvg'];
 
@@ -139,48 +126,7 @@ export class PlayerGradesComponent {
   ];
 
   constructor() {
-    effect(() => {
-      this.seasonID();
-      untracked(() => this.load());
-    });
-  }
-
-  private load(): void {
-    // Nothing of the previous season stays
-    this.letters.set([]);
-    this.summary.set(null);
-    this.summaryDone.set(false);
-    this.gradesDone.set(false);
-    this.gradesFailed.set(false);
-    const seasonID = this.seasonID();
-    this.summaries.get(seasonID).pipe(whileCurrent(seasonID, this.seasonID)).subscribe({
-      next: s => {
-        this.summary.set(s);
-        this.summaryDone.set(true);
-        // A season without any matches only shows the notice: the grouped grades query isn't worth running
-        if (!this.noMatches()) this.getGrades();
-      },
-      error: () => {
-        this.summaryDone.set(true);
-        this.getGrades();
-      },
-    });
-  }
-
-  getGrades(): void {
-    const seasonID = this.seasonID();
-    this.grades.getGrades({ seasonID })
-      .pipe(whileCurrent(seasonID, this.seasonID))
-      .subscribe({
-        next: result => {
-          this.letters.set(result.letters);
-          this.gradesDone.set(true);
-        },
-        error: () => {
-          this.gradesFailed.set(true);
-          this.gradesDone.set(true);
-        },
-      });
+    this.store.seasonID.use(this.seasonID);
   }
 
   getColor(letter: string): string {

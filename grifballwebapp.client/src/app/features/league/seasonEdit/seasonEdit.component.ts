@@ -1,9 +1,6 @@
-import { Component, OnInit, ChangeDetectionStrategy, computed, effect, inject, input, numberAttribute, untracked, viewChild, signal } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, computed, inject, input, linkedSignal, numberAttribute, viewChild } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { EventOrganizerService } from '@api/services/event-organizer.service';
-import { SeasonSettingsApiService } from '../api/seasonSettingsApi.service';
 import { SeasonSettings } from '../api/seasonSettings';
-import type { GameVersionOptionDto, LeagueOptionDto } from '@api/models';
 import { seasonFormats } from '@shared/seasonFormats';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
@@ -14,7 +11,7 @@ import { MtxDatetimepickerModule, } from '@ng-matero/extensions/datetimepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSelectModule } from '@angular/material/select';
 import { provideDatePickers } from '@shared/datePickers';
-import { whileCurrent } from '@shared/whileCurrent';
+import { SeasonEditStore } from './seasonEdit.store';
 
 /** A new season: in the main league, its game still to choose. */
 const newSeason = (): SeasonSettings => ({ leagueID: 1, gameVersionID: null, division: null, format: 'LeagueSeason', copyFromSeasonID: null } as SeasonSettings);
@@ -34,12 +31,11 @@ const newSeason = (): SeasonSettings => ({ leagueID: 1, gameVersionID: null, div
     ],
     templateUrl: './seasonEdit.component.html',
     styleUrl: './seasonEdit.component.scss',
-    providers: [provideDatePickers()],
+    providers: [provideDatePickers(), SeasonEditStore],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonEditComponent implements OnInit {
-  private eventOrganizer = inject(EventOrganizerService);
-  private api = inject(SeasonSettingsApiService);
+  private readonly store = inject(SeasonEditStore);
 
   readonly seasonForm = viewChild.required<NgForm>('seasonForm');
 
@@ -47,17 +43,21 @@ export class SeasonEditComponent implements OnInit {
    * the form to that season. */
   readonly seasonID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });
 
-  readonly model = signal<SeasonSettings>(newSeason());
+  /** The form: the season once it arrives, a new one before (and for 0); empty again for each season of the route. */
+  readonly model = linkedSignal<{ seasonID: number, season: SeasonSettings | null }, SeasonSettings>({
+    source: () => ({ seasonID: this.seasonID(), season: this.store.season() }),
+    computation: ({ season }) => season ?? newSeason(),
+  });
 
   /** The formats a season can have. */
   readonly formats = seasonFormats;
 
   /** The games and leagues a season can have (empty if they fail to load). */
-  readonly gameVersions = signal<GameVersionOptionDto[]>([]);
-  readonly leagues = signal<LeagueOptionDto[]>([]);
+  readonly gameVersions = this.store.gameVersions;
+  readonly leagues = this.store.leagues;
 
   /** Every season, for "Copy from" (chosen by its ID). */
-  private readonly seasons = signal<SeasonSettings[]>([]);
+  private readonly seasons = this.store.seasons;
   /** The seasons this one can copy from: all but itself. */
   readonly copyableSeasons = computed(() => this.seasons().filter(season => season.seasonID !== this.model().seasonID));
   /**
@@ -84,41 +84,11 @@ export class SeasonEditComponent implements OnInit {
   }
 
   constructor() {
-    effect(() => {
-      const seasonID = this.seasonID();
-      untracked(() => this.load(seasonID));
-    });
+    this.store.seasonID.use(this.seasonID);
   }
 
   ngOnInit(): void {
-    // Without these lists their selects are empty; the rest of the form still works.
-    this.eventOrganizer.getGameVersions().subscribe({
-      next: (gameVersions) => this.gameVersions.set(gameVersions),
-      error: (error) => console.error(error),
-    });
-    this.eventOrganizer.getLeagues().subscribe({
-      next: (leagues) => this.leagues.set(leagues),
-      error: (error) => console.error(error),
-    });
-
-    // Without the list, "Copy from" only offers to copy nothing; the form still works.
-    this.api.getSeasons().subscribe({
-      next: (seasons) => this.seasons.set(seasons),
-      error: (error) => console.error(error),
-    });
-  }
-
-  /** The form for this season: empty for a new one, then filled with the season once it arrives. */
-  private load(seasonID: number): void {
-    this.model.set(newSeason());
-    if (seasonID > 0) {
-      this.api.getSeason(seasonID)
-        .pipe(whileCurrent(seasonID, this.seasonID))
-        .subscribe({
-          // No such season: keep the empty form.
-          next: (result) => { if (result) this.model.set(result); },
-        });
-    }
+    this.store.loadOptions();
   }
 
   onSubmit() {
@@ -126,9 +96,6 @@ export class SeasonEditComponent implements OnInit {
       return;
     }
 
-    this.api.upsertSeason(this.model()).subscribe({
-      next: (result) => this.model.update(model => ({ ...model, seasonID: result })),
-      error: (result) => console.log(result),
-      });
+    this.store.save(this.model(), seasonID => this.patch({ seasonID }));
   }
 }

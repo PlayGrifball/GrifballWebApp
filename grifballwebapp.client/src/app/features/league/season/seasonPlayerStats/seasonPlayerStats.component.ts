@@ -1,8 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { SeasonService } from '@api/services/season.service';
-import type { SeasonPlayerStatDto } from '@api/models';
+import { SeasonPlayerStatsStore } from './seasonPlayerStats.store';
 
 export type StatPhase = 'all' | 'regular' | 'playoffs';
 /** The columns the leaderboard sorts by. */
@@ -26,23 +24,18 @@ const UNSORTED = { ariaSort: 'none', arrow: '' };
   templateUrl: './seasonPlayerStats.component.html',
   styleUrl: './seasonPlayerStats.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [SeasonPlayerStatsStore],
 })
 export class SeasonPlayerStatsComponent {
-  private api = inject(SeasonService);
+  private readonly store = inject(SeasonPlayerStatsStore);
 
   readonly seasonID = input.required<number>();
   /** Only this team's players; null or unset for the whole season. */
   readonly teamID = input<number | null>(null);
 
-  // A new season or team starts over (no rows) rather than showing the last one's while it loads.
-  private readonly resource = rxResource({
-    params: () => ({ seasonID: this.seasonID(), teamID: this.teamID() }),
-    stream: ({ params }) => this.api.getSeasonPlayerStats({ seasonID: params.seasonID, teamID: params.teamID ?? undefined }),
-  });
-
   /** The rows as the server sent them (none while loading, or if they could not be loaded). */
-  readonly stats = computed<SeasonPlayerStatDto[]>(() => this.resource.hasValue() ? this.resource.value() : []);
-  readonly loaded = computed(() => !this.resource.isLoading());
+  readonly stats = this.store.stats;
+  readonly loaded = this.store.loaded;
   readonly hasRows = computed(() => this.stats().length > 0);
   /** A team without stats (or while they load) shows nothing; the season's table always shows. */
   readonly visible = computed(() => this.teamID() == null || this.hasRows());
@@ -84,6 +77,11 @@ export class SeasonPlayerStatsComponent {
     const header = (column: StatSortColumn) => sort?.column === column ? SORTED[sort.direction] : UNSORTED;
     return { goals: header('goals'), kills: header('kills'), gamesPlayed: header('gamesPlayed') };
   });
+
+  constructor() {
+    this.store.seasonID.use(this.seasonID);
+    this.store.teamID.use(this.teamID);
+  }
 
   /** Sorts by a column, most first; again flips it. */
   sortBy(column: StatSortColumn): void {

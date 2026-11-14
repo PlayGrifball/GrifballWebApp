@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, signal, DestroyRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
 import { TitleCasePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -10,9 +10,8 @@ import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ProcessRescheduleDialogComponent } from './processRescheduleDialog/processRescheduleDialog.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CommissionerDashboardService } from '@api/services/commissioner-dashboard.service';
-import { RescheduleService } from '@api/services/reschedule.service';
 import type { CommissionerDashboardDto, RescheduleDto } from '@api/models';
+import { CommissionerDashboardStore } from './commissionerDashboard.store';
 
 export type { CommissionerDashboardDto, RescheduleDto };
 
@@ -32,17 +31,17 @@ export type { CommissionerDashboardDto, RescheduleDto };
   ],
   templateUrl: './commissionerDashboard.component.html',
   styleUrls: ['./commissionerDashboard.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [CommissionerDashboardStore],
 })
 export class CommissionerDashboardComponent implements OnInit {
-  private commissionerDashboard = inject(CommissionerDashboardService);
-  private rescheduleService = inject(RescheduleService);
+  private readonly store = inject(CommissionerDashboardStore);
   private dialog = inject(MatDialog);
   private destroyRef = inject(DestroyRef);
 
-  readonly dashboardData = signal<CommissionerDashboardDto | null>(null);
-  readonly loading = signal(true);
-  readonly error = signal<string | null>(null);
+  readonly dashboardData = this.store.dashboardData;
+  readonly loading = this.store.loading;
+  readonly error = this.store.error;
 
   rescheduleDisplayedColumns: string[] = ['match', 'originalTime', 'newTime', 'requestedBy', 'reason', 'requestedAt', 'process', 'thread'];
   overdueDisplayedColumns: string[] = ['match', 'scheduledTime', 'hoursOverdue', 'severity'];
@@ -52,20 +51,7 @@ export class CommissionerDashboardComponent implements OnInit {
   }
 
   loadDashboardData(): void {
-    this.loading.set(true);
-    this.error.set(null);
-    this.commissionerDashboard.getDashboardData()
-      .subscribe({
-        next: (data) => {
-          this.dashboardData.set(data);
-          this.loading.set(false);
-        },
-        error: (err) => {
-          this.error.set('Failed to load dashboard data');
-          console.error('Dashboard load error:', err);
-          this.loading.set(false);
-        }
-      });
+    this.store.load();
   }
 
   formatDateTime(dateStr?: string | null): string {
@@ -101,15 +87,6 @@ export class CommissionerDashboardComponent implements OnInit {
   }
 
   createDiscordThread(reschedule: RescheduleDto): void {
-    this.rescheduleService.createDiscordThread({ rescheduleID: reschedule.matchRescheduleID })
-    .subscribe({
-      next: () => {
-        this.loadDashboardData(); // Refresh to show the thread ID
-      },
-      error: (error) => {
-        this.loadDashboardData(); // Refresh to show the thread ID
-        console.error('Failed to create Discord thread:', error);
-      }
-    });
+    this.store.createDiscordThread(reschedule.matchRescheduleID);
   }
 }

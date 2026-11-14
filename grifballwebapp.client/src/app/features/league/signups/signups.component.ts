@@ -1,15 +1,11 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, numberAttribute, signal, untracked } from '@angular/core';
-import { SeasonService } from '@api/services/season.service';
-import { SignupsService } from '@api/services/signups.service';
-import type { SignupResponseDto } from '@api/models';
+import { ChangeDetectionStrategy, Component, computed, inject, input, numberAttribute } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../season/seasonTabs/seasonTabs.component';
 import { DataNoticeComponent } from '@shared/dataNotice/dataNotice.component';
-import { missing, SeasonSummaryService } from '../season/seasonSummary';
-import type { SeasonSummaryDto } from '@api/models';
-import { whileCurrent } from '@shared/whileCurrent';
+import { missing } from '../season/seasonSummary';
+import { SignupsStore } from './signups.store';
 
 @Component({
     selector: 'app-signups',
@@ -22,15 +18,14 @@ import { whileCurrent } from '@shared/whileCurrent';
     ],
     templateUrl: './signups.component.html',
     styleUrl: './signups.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [SignupsStore],
 })
 export class SignupsComponent {
-  private seasons = inject(SeasonService);
-  private signups = inject(SignupsService);
-  private summaries = inject(SeasonSummaryService);
+  private readonly store = inject(SignupsStore);
 
-  readonly signUps = signal<SignupResponseDto[]>([]);
-  readonly summary = signal<SeasonSummaryDto | null>(null);
+  readonly signUps = this.store.signUps;
+  readonly summary = this.store.summary;
   /** A backfilled or ended season without signups: the page says so instead of an empty table. */
   readonly noSignups = computed(() => missing(this.summary(), s => s.signupCount));
   public displayedColumns: string[] = ['personName', 'timestamp', 'teamName', 'willCaptain', 'requiresAssistanceDrafting'];
@@ -38,38 +33,9 @@ export class SignupsComponent {
    * loads that season's signups in place of the ones shown. */
   readonly seasonID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });
   /** The season shown: the route's, or the current season's ID once known. */
-  readonly shownSeasonID = signal(0);
+  readonly shownSeasonID = this.store.shownSeasonID;
 
   constructor() {
-    effect(() => {
-      const routeSeasonID = this.seasonID();
-      untracked(() => {
-        this.signUps.set([]);
-        this.summary.set(null);
-        this.shownSeasonID.set(routeSeasonID);
-        if (routeSeasonID === 0) {
-          this.seasons.getCurrentSeasonId()
-            .pipe(whileCurrent(routeSeasonID, this.seasonID))
-            .subscribe({
-              next: (result) => {
-                this.shownSeasonID.set(result);
-                this.getSignups();
-              },
-            });
-        }
-        else {
-          this.getSignups();
-        }
-      });
-    });
-  }
-
-  getSignups(): void {
-    const seasonID = this.shownSeasonID();
-    this.summaries.get(seasonID).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({ next: s => this.summary.set(s), error: () => {} });
-    this.signups.getSignups({ seasonID }).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({
-      next: (result) => this.signUps.set(result),
-      error: (error) => console.error(error),
-    });
+    this.store.seasonID.use(this.seasonID);
   }
 }

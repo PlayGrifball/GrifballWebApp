@@ -64,7 +64,7 @@
             } @else {
             <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
             <div class="hud-table-wrap" tabindex="0" role="region" aria-labelledby="team-matches"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
-                <table mat-table [dataSource]="matches">
+                <table mat-table [dataSource]="matches()">
                     <ng-container matColumnDef="otherTeam">
                         <th mat-header-cell *matHeaderCellDef scope="col"> Opposing Team </th>
                         <td mat-cell *matCellDef="let row">

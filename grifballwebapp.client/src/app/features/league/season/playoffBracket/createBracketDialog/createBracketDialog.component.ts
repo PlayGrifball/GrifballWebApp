@@ -7,8 +7,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { BracketsService } from '@api/services/brackets.service';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { CreateBracketDialogStore } from './createBracketDialog.store';
 
 @Component({
     selector: 'app-create-bracket-dialog',
@@ -24,12 +24,12 @@ import { BracketsService } from '@api/services/brackets.service';
     ],
     templateUrl: './createBracketDialog.component.html',
     styleUrl: './createBracketDialog.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [CreateBracketDialogStore],
 })
 export class CreateBracketDialogComponent {
-  private brackets = inject(BracketsService);
+  private readonly store = inject(CreateBracketDialogStore);
   data = inject(MAT_DIALOG_DATA);
-  private snackBar = inject(MatSnackBar);
   private dialogRef = inject(MatDialogRef);
 
   readonly seasonID: number = this.data;
@@ -44,21 +44,10 @@ export class CreateBracketDialogComponent {
   readonly bracketCreated = new Subject<void>();
 
   onSubmit() {
-    this.brackets.createBracket({
-      seasonID: this.seasonID,
-      participantsCount: this.participantsCount!,
-      doubleElimination: this.doubleElimination,
-      bestOf: this.bestOf!,
-    })
-      .subscribe({
-        next: r => {
-          this.bracketCreated.next();
-          this.dialogRef.close(true);
-        },
-        error: e => {
-          console.log(e);
-          this.snackBar.open("Failed to create bracket", "Close");
-        },
-      })
+    const options = { participantsCount: this.participantsCount!, doubleElimination: this.doubleElimination, bestOf: this.bestOf! };
+    this.store.create(this.seasonID, options, () => {
+      this.bracketCreated.next();
+      this.dialogRef.close(true);
+    });
   }
 }

@@ -1,10 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { TeamService } from '@api/services/team.service';
 import type { TeamHistoryDto, TeamHistorySeasonDto, TeamPagePlayerDto } from '@api/models';
-import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { describePage, PageDescription, plural } from '@shared/pageMeta';
+import { TeamHistoryStore } from './teamHistory.store';
 
 /** The franchise as search results and link previews show it: its name, league, seasons, record and titles. */
 export function describeTeamHistory(history: TeamHistoryDto): PageDescription {
@@ -29,23 +27,20 @@ export function describeTeamHistory(history: TeamHistoryDto): PageDescription {
   templateUrl: './teamHistory.component.html',
   styleUrl: './teamHistory.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [TeamHistoryStore],
 })
 export class TeamHistoryComponent {
-  private readonly api = inject(TeamService);
+  private readonly store = inject(TeamHistoryStore);
 
   /** One of the franchise's teams (any season's), as the route gives it: the server finds its name and league. */
   readonly teamID = input.required<number>();
 
-  /** A new team cancels the request before it and clears what it showed. */
-  readonly historyResource = rxResource({
-    params: () => this.teamID(),
-    stream: ({ params: teamID }) => this.api.history({ teamID }).pipe(nullWhenNotFound()),
-  });
-  readonly history = computed(() => this.historyResource.hasValue() ? this.historyResource.value() ?? null : null);
-  readonly loaded = computed(() => !this.historyResource.isLoading());
-  readonly failed = computed(() => this.historyResource.status() === 'error');
+  readonly history = this.store.history;
+  readonly loaded = this.store.loaded;
+  readonly failed = this.store.failed;
 
   constructor() {
+    this.store.teamID.use(this.teamID);
     describePage(() => {
       const history = this.history();
       return history ? describeTeamHistory(history) : null;
