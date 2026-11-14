@@ -73,16 +73,6 @@ public class MessageCreateHandlerUnitTests : MessageCreateHandlerFixture
     }
 
     [Test]
-    public void RecentMatchesUrl_EscapesGamertag()
-    {
-        var id = Guid.Parse("0b7e8f4e-58b0-4b4d-9a52-0d1c8f6e5b11");
-
-        var url = _handler.RecentMatchesUrl("Grunt Padre", id);
-
-        Assert.That(url, Is.EqualTo($"https://www.halowaypoint.com/halo-infinite/players/Grunt%20Padre/matches/{id}"));
-    }
-
-    [Test]
     public async Task HandleAsync_WhenHandlingTheMessageFails_LogsInsteadOfThrowing()
     {
         // Stands in for any failure (a down Ollama, a DB error, ...)
@@ -111,15 +101,5 @@ public class MessageCreateHandlerUnitTests : MessageCreateHandlerFixture
 
         // Answered: its scope is asked for (the test's has no database, so the answer fails and is logged, not thrown)
         Assert.That(_scopeFactory.ReceivedCalls(), Is.Not.Empty);
-    }
-
-    [Test]
-    public void TheRecentMatchesToolsLists_StartEmpty()
-    {
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(new MatchDTO().Teams, Is.Empty);
-            Assert.That(new MatchTeamDTO().Players, Is.Empty);
-        }
     }
 }

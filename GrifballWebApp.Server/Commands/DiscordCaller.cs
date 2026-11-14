@@ -1,4 +1,5 @@
 using DiscordInterface.Generated;
+using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Discord;
 using Microsoft.EntityFrameworkCore;
@@ -59,6 +60,20 @@ public class DiscordCaller
             })
             .FirstOrDefaultAsync(ct);
         return user is null ? null : new CallerUser(user.Id, user.Gamertag, user.Roles);
+    }
+
+    /// <summary>
+    /// Who the agents' tools run as for this Discord user (the bot's chat): their linked site account with its roles, gamertag or
+    /// not, or <see cref="ToolCaller.Anonymous"/> when none is linked.
+    /// </summary>
+    public async Task<ToolCaller> AsToolCaller(ulong discordUserId, CancellationToken ct = default)
+    {
+        var user = await _context.Users
+            .AsNoTracking()
+            .Where(x => x.DiscordUserID == (long)discordUserId)
+            .Select(x => new { x.Id, Roles = x.UserRoles.Select(r => r.Role.Name!).ToList() })
+            .FirstOrDefaultAsync(ct);
+        return user is null ? ToolCaller.Anonymous : new ToolCaller(user.Id, user.Roles);
     }
 
     /// <summary>
