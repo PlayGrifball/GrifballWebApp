@@ -36,6 +36,14 @@ export interface MockRoute {
   body: MockBody;
 }
 
+/**
+ * A test's own JSON answer (page.route in a spec), checked as the mock's are: what `operation` answers in the generated
+ * client. Returns it as it is.
+ */
+export function typed<K extends Operation>(operation: K, body: MockAnswer<AnswerOf<K>>): MockAnswer<AnswerOf<K>> {
+  return body;
+}
+
 /** A route's answer, checked against what `operation` answers in the generated client: a mock can't drift from the API. */
 function answer<K extends Operation>(operation: K, body: MockAnswer<AnswerOf<K>>): MockRoute {
   return { operation, body };

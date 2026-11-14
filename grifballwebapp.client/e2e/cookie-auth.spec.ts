@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { META, mockResponse } from './mockApi.mts';
+import { META, mockResponse, typed } from './mockApi.mts';
 
 // Signing in and out with the session cookie. The backend is mocked with page.route and keeps a
 // session like the API: login "sets the cookie" (the mock's state), Me answers who it belongs to,
@@ -22,9 +22,9 @@ async function mockBackend(page: Page): Promise<Call[]> {
     const json = (body: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
     if (path === '/api/identity/me')
-      return signedIn ? json(META.player) : route.fulfill({ status: 204, body: '' });
+      return signedIn ? json(typed('me', META.player)) : route.fulfill({ status: 204, body: '' });
     if (path === '/api/identity/antiforgery-token')
-      return json({ token: token() });
+      return json(typed('antiforgery', { token: token() }));
     if (request.method() !== 'GET' && headers['x-xsrf-token'] !== token())
       return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
     if (path === '/api/identity/login') {

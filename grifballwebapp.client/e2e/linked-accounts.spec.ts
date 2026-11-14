@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { typed } from './mockApi.mts';
 
 // End-to-end linking of an external login from the profile page (/profile/:userID).
 //
@@ -27,22 +28,22 @@ async function openProfile(page: Page, start: { hasPassword: boolean; logins: Lo
 
     // Signed in (the session cookie the browser would have)
     if (path === '/api/identity/me')
-      return json({ isSysAdmin: false, isCommissioner: false, isPlayer: true, displayName: 'E2E Player', userID: USER_ID });
-    if (path === '/api/identity/antiforgery-token') return json({ token: 'e2e-xsrf' });
+      return json(typed('me', { isSysAdmin: false, isCommissioner: false, isPlayer: true, displayName: 'E2E Player', userID: USER_ID }));
+    if (path === '/api/identity/antiforgery-token') return json(typed('antiforgery', { token: 'e2e-xsrf' }));
     // As the API: every change from a cookie session carries the antiforgery token
     if (request.method() !== 'GET' && request.headers()['x-xsrf-token'] !== 'e2e-xsrf')
       return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
-    if (path === `/api/users/${USER_ID}/gamertag`) return json({ gamertag: 'Sgt Grif' });
-    if (path === `/api/users/${USER_ID}/stats`) return json({ userID: USER_ID, gamertag: 'Sgt Grif', displayName: 'Sgt Grif', isDummyUser: false, pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [] });
+    if (path === `/api/users/${USER_ID}/gamertag`) return json(typed('getGamertag', { gamertag: 'Sgt Grif' }));
+    if (path === `/api/users/${USER_ID}/stats`) return json(typed('getProfileStats', { userID: USER_ID, gamertag: 'Sgt Grif', displayName: 'Sgt Grif', isDummyUser: false, pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [] }));
     if (path === '/api/me/external-logins' && request.method() === 'GET')
-      return json({ ...state, providers: [{ name: 'Discord', displayName: 'Discord' }] });
-    if (path === '/api/me/external-logins/link-token') return json({ token: 'signed-token' });
+      return json(typed('getMyExternalLogins', { ...state, providers: [{ name: 'Discord', displayName: 'Discord' }] }));
+    if (path === '/api/me/external-logins/link-token') return json(typed('startExternalLoginLink', { token: 'signed-token' }));
     if (path === '/api/external-logins/link')
       return route.fulfill({ status: 302, headers: { location: `/profile/${USER_ID}?linkCallback=true` } });
     if (path === '/api/me/external-logins') {
       const login = { loginProvider: 'Discord', providerKey: '555', providerDisplayName: 'Discord' };
       state.logins.push(login);
-      return json(login);
+      return json(typed('externalLoginLinkCallback', login));
     }
     if (path === '/api/me/external-logins/remove') {
       const body = request.postDataJSON() as { providerKey: string };

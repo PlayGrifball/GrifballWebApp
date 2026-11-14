@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { typed } from './mockApi.mts';
 
 // End-to-end drag and drop on the team builder (/season/:seasonID/draft).
 //
@@ -54,15 +55,15 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
 
     // Signed in (the session cookie the browser would have)
     if (path === '/api/identity/me') {
-      return json({ isSysAdmin: false, isCommissioner: true, isPlayer: false, displayName: 'E2E Organizer', userID: 999 });
+      return json(typed('me', { isSysAdmin: false, isCommissioner: true, isPlayer: false, displayName: 'E2E Organizer', userID: 999 }));
     }
-    if (path === '/api/identity/antiforgery-token') return json({ token: 'e2e-xsrf' });
+    if (path === '/api/identity/antiforgery-token') return json(typed('antiforgery', { token: 'e2e-xsrf' }));
     // As the API: every change from a cookie session carries the antiforgery token
     if (request.method() !== 'GET' && request.headers()['x-xsrf-token'] !== 'e2e-xsrf')
       return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
-    if (path === `/api/seasons/${SEASON_ID}/draft/teams`) return json(data.teams);
-    if (path === `/api/seasons/${SEASON_ID}/draft/player-pool`) return json(data.pool);
-    if (path === `/api/seasons/${SEASON_ID}/draft/captains/locked`) return json(opts.captainsLocked ?? true);
+    if (path === `/api/seasons/${SEASON_ID}/draft/teams`) return json(typed('getTeams', data.teams));
+    if (path === `/api/seasons/${SEASON_ID}/draft/player-pool`) return json(typed('getPlayerPool', data.pool));
+    if (path === `/api/seasons/${SEASON_ID}/draft/captains/locked`) return json(typed('areCaptainsLocked', opts.captainsLocked ?? true));
     if (path.startsWith(`/api/seasons/${SEASON_ID}/draft/`) && request.method() === 'POST') {
       const body = request.postDataJSON();
       calls.push({ path, body });
@@ -74,7 +75,7 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
       // response carries that name (CaptainAddedResponseDto).
       if (path === `/api/seasons/${SEASON_ID}/draft/captains`) {
         const captain = data.pool.find(p => p.personID === body.personID)!;
-        return json({ teamName: `${captain.name.replace('Pool ', '')} Crew` });
+        return json(typed('addCaptain', { teamName: `${captain.name.replace('Pool ', '')} Crew` }));
       }
       return json({});
     }

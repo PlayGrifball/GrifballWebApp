@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route, type WebSocketRoute } from '@playwright/test';
 import { RS, negotiateResponse } from './hubMock.mts';
+import { typed } from './mockApi.mts';
 
 // The client runs without zone.js: nothing re-renders a page unless the component tells
 // Angular to (signals, inputs, events). These tests go through the flows where that
@@ -27,15 +28,15 @@ async function mockBackend(page: Page, handlers: Record<string, Handler>): Promi
     requests.push(`${route.request().method()} ${url.pathname}${url.search}`);
     // Signed in (the session cookie the browser would have)
     if (url.pathname === '/api/identity/me') {
-      return json(route, { isSysAdmin: true, isCommissioner: true, isPlayer: false, displayName: 'E2E Admin', userID: 999 });
+      return json(route, typed('me', { isSysAdmin: true, isCommissioner: true, isPlayer: false, displayName: 'E2E Admin', userID: 999 }));
     }
-    if (url.pathname === '/api/identity/antiforgery-token') return json(route, { token: 'e2e-xsrf' });
+    if (url.pathname === '/api/identity/antiforgery-token') return json(route, typed('antiforgery', { token: 'e2e-xsrf' }));
     // As the API: every change from a cookie session carries the antiforgery token
     if (route.request().method() !== 'GET' && route.request().headers()['x-xsrf-token'] !== 'e2e-xsrf')
       return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
     if (url.pathname === '/api/CommitHash') return text(route, 'e2ehash');
     if (url.pathname === '/api/CommitDate') return text(route, '2026-01-02T03:04:05Z');
-    if (url.pathname === '/api/seasons/current') return json(route, 0);
+    if (url.pathname === '/api/seasons/current') return json(route, typed('getCurrentSeasonId', 0));
     const handler = handlers[url.pathname];
     if (handler) return handler(route, url);
     return route.fulfill({ status: 404, body: '' });
@@ -46,13 +47,13 @@ async function mockBackend(page: Page, handlers: Record<string, Handler>): Promi
 
 test('home renders the events and past seasons that load after navigation', async ({ page }) => {
   await mockBackend(page, {
-    '/api/events': route => json(route, [
-      { seasonID: 4, name: 'Spring', start: '2026-03-01T00:00:00Z', end: '2026-05-01T00:00:00Z', eventType: 'Season' },
-    ]),
-    '/api/seasons': route => json(route, {
-      totalCount: 1,
-      results: [{ seasonID: 3, seasonName: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
-    }),
+    '/api/events': route => json(route, typed('currentAndFutureEvents', [
+              { seasonID: 4, name: 'Spring', start: '2026-03-01T00:00:00Z', end: '2026-05-01T00:00:00Z', eventType: 'Season' },
+            ])),
+    '/api/seasons': route => json(route, typed('getSeasonList', {
+          totalCount: 1,
+          results: [{ seasonID: 3, seasonName: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
+        })),
   });
 
   await page.goto('/');
@@ -64,18 +65,18 @@ test('home renders the events and past seasons that load after navigation', asyn
 
 test('a season page reached by an in-app link renders the data it loads', async ({ page }) => {
   await mockBackend(page, {
-    '/api/events': route => json(route, []),
-    '/api/seasons': route => json(route, {
-      totalCount: 1,
-      results: [{ seasonID: 3, seasonName: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
-    }),
-    '/api/seasons/3/summary': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
-    '/api/seasons/3/standings': route => json(route, [{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]),
-    '/api/seasons/3/matches/unscheduled': route => json(route, [
-      { seasonMatchID: 21, homeCaptain: 'Home Cap', awayCaptain: 'Away Cap', homeTeam: 'Home Cap', awayTeam: 'Away Cap', complete: false },
-    ]),
-    '/api/seasons/3/matches/scheduled': route => json(route, []),
-    '/api/seasons/3/bracket/viewer-data': route => json(route, { stages: [], matches: [], matchGames: [], participants: [] }),
+    '/api/events': route => json(route, typed('currentAndFutureEvents', [])),
+    '/api/seasons': route => json(route, typed('getSeasonList', {
+          totalCount: 1,
+          results: [{ seasonID: 3, seasonName: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
+        })),
+    '/api/seasons/3/summary': route => json(route, typed('getSeasonSummary', { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] })),
+    '/api/seasons/3/standings': route => json(route, typed('getTeamStandings', [{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }])),
+    '/api/seasons/3/matches/unscheduled': route => json(route, typed('getUnscheduledMatches', [
+              { seasonMatchID: 21, homeCaptain: 'Home Cap', awayCaptain: 'Away Cap', homeTeam: 'Home Cap', awayTeam: 'Away Cap', complete: false },
+            ])),
+    '/api/seasons/3/matches/scheduled': route => json(route, typed('getScheduledMatches', [])),
+    '/api/seasons/3/bracket/viewer-data': route => json(route, typed('getViewerData', { stages: [], matches: [], matchGames: [], participants: [] })),
   });
 
   await page.goto('/');
@@ -114,11 +115,11 @@ test('a season with a bracket draws it with the bundled viewer and links its mat
   };
 
   await mockBackend(page, {
-    '/api/seasons/3/summary': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
-    '/api/seasons/3/standings': route => json(route, []),
-    '/api/seasons/3/matches/unscheduled': route => json(route, []),
-    '/api/seasons/3/matches/scheduled': route => json(route, []),
-    '/api/seasons/3/bracket/viewer-data': route => json(route, bracket),
+    '/api/seasons/3/summary': route => json(route, typed('getSeasonSummary', { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] })),
+    '/api/seasons/3/standings': route => json(route, typed('getTeamStandings', [])),
+    '/api/seasons/3/matches/unscheduled': route => json(route, typed('getUnscheduledMatches', [])),
+    '/api/seasons/3/matches/scheduled': route => json(route, typed('getScheduledMatches', [])),
+    '/api/seasons/3/bracket/viewer-data': route => json(route, typed('getViewerData', bracket)),
   });
 
   await page.goto('/season/3?tab=bracket');
@@ -163,11 +164,11 @@ test('a double-elimination bracket draws its losers bracket and grand final', as
   };
 
   await mockBackend(page, {
-    '/api/seasons/3/summary': route => json(route, { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] }),
-    '/api/seasons/3/standings': route => json(route, []),
-    '/api/seasons/3/matches/unscheduled': route => json(route, []),
-    '/api/seasons/3/matches/scheduled': route => json(route, []),
-    '/api/seasons/3/bracket/viewer-data': route => json(route, bracket),
+    '/api/seasons/3/summary': route => json(route, typed('getSeasonSummary', { seasonID: 3, seasonName: 'Winter Season', year: 2025, leagueID: 1, leagueName: 'AGLA', isHistorical: false, hasEnded: false, teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] })),
+    '/api/seasons/3/standings': route => json(route, typed('getTeamStandings', [])),
+    '/api/seasons/3/matches/unscheduled': route => json(route, typed('getUnscheduledMatches', [])),
+    '/api/seasons/3/matches/scheduled': route => json(route, typed('getScheduledMatches', [])),
+    '/api/seasons/3/bracket/viewer-data': route => json(route, typed('getViewerData', bracket)),
   });
 
   await page.goto('/season/3?tab=bracket');
@@ -201,14 +202,14 @@ test('processing a reschedule in the dialog refreshes the commissioner dashboard
   };
   let processed = false;
   await mockBackend(page, {
-    '/api/commissioner-dashboard': route => json(route, {
-      pendingReschedules: processed ? [] : [reschedule],
-      overdueMatches: [],
-      summary: { pendingRescheduleCount: processed ? 0 : 1, overdueMatchCount: 0, criticalOverdueCount: 0 },
-    }),
+    '/api/commissioner-dashboard': route => json(route, typed('getDashboardData', {
+          pendingReschedules: processed ? [] : [reschedule],
+          overdueMatches: [],
+          summary: { pendingRescheduleCount: processed ? 0 : 1, overdueMatchCount: 0, criticalOverdueCount: 0 },
+        })),
     '/api/reschedules/8/decision': route => {
       processed = true;
-      return json(route, {});
+      return json(route, typed('processReschedule', {}));
     },
   });
 
@@ -237,7 +238,7 @@ test('the user search box debounces typing and the table shows the filtered user
     '/api/users': (route, url) => {
       const search = url.searchParams.get('search') ?? '';
       const results = users.filter(u => u.userName.includes(search));
-      return json(route, { totalCount: results.length, results });
+      return json(route, typed('getUsers', { totalCount: results.length, results }));
     },
   });
   const searches = () => requests.filter(r => r.startsWith('GET /api/users') && r.includes('search='));
@@ -264,15 +265,15 @@ test('the team builder renders a captain added by another user over SignalR', as
   // hub connection comes up, which may be just after the update arrives.
   let captainAdded = false;
   await mockBackend(page, {
-    [`/api/seasons/${SEASON_ID}/draft/teams`]: route => json(route, [
-      { teamID: 1, teamName: 'Red Team', captain: { name: 'Captain Red', personID: 201, order: 1 }, players: [] },
-      ...(captainAdded ? [{ teamID: 2, teamName: "Blair's Team", captain: { name: 'Pool Blair', personID: 102, order: 2 }, players: [] }] : []),
-    ]),
-    [`/api/seasons/${SEASON_ID}/draft/player-pool`]: route => json(route, [
-      { name: 'Pool Alex', personID: 101, pick: null, round: null },
-      ...(captainAdded ? [] : [{ name: 'Pool Blair', personID: 102, pick: null, round: null }]),
-    ]),
-    [`/api/seasons/${SEASON_ID}/draft/captains/locked`]: route => json(route, true),
+    [`/api/seasons/${SEASON_ID}/draft/teams`]: route => json(route, typed('getTeams', [
+              { teamID: 1, teamName: 'Red Team', captain: { name: 'Captain Red', personID: 201, order: 1 }, players: [] },
+              ...(captainAdded ? [{ teamID: 2, teamName: "Blair's Team", captain: { name: 'Pool Blair', personID: 102, order: 2 }, players: [] }] : []),
+            ])),
+    [`/api/seasons/${SEASON_ID}/draft/player-pool`]: route => json(route, typed('getPlayerPool', [
+              { name: 'Pool Alex', personID: 101, pick: null, round: null },
+              ...(captainAdded ? [] : [{ name: 'Pool Blair', personID: 102, pick: null, round: null }]),
+            ])),
+    [`/api/seasons/${SEASON_ID}/draft/captains/locked`]: route => json(route, typed('areCaptainsLocked', true)),
   });
 
   // A minimal SignalR server: a negotiate offering WebSockets, then the JSON hub protocol over one. RS and
@@ -328,7 +329,7 @@ test('the signup form ticks single slots and whole days, and submits the chosen 
       posted.push(route.request().postDataJSON());
       return route.fulfill({ status: 204, body: '' });
     },
-    '/api/seasons/5/signups/mine/timeslots': route => json(route, timeslots),
+    '/api/seasons/5/signups/mine/timeslots': route => json(route, typed('getTimeslots', timeslots)),
   });
 
   await page.goto('/season/5/signupForm');
@@ -372,8 +373,8 @@ test('the Late League queue panel shows the count the hub sends, and joins from 
   // The status as GET /api/queue sends it (QueueStatusDto): signed in with a gamertag, not in the queue
   const status = { count: 6, open: true, signedIn: true, hasGamertag: true, inQueue: false, inMatch: false };
   await mockBackend(page, {
-    '/api/queue': route => json(route, status),
-    '/api/queue/join': route => json(route, { ...status, count: 10, inQueue: true }),
+    '/api/queue': route => json(route, typed('getQueueStatus', status)),
+    '/api/queue/join': route => json(route, typed('joinQueue', { ...status, count: 10, inQueue: true })),
   });
   // QueueHub, as the team builder's hub above: its negotiate, then a WebSocket with the handshake answered
   await page.route('**/hub/QueueHub/negotiate**', route => route.fulfill({ body: negotiateResponse(), contentType: 'application/json' }));
@@ -426,17 +427,17 @@ test('a commissioner enters a game by hand, and reports a Waypoint game in place
     ({ teamID, score, outcome: score > 3 ? 'Won' : 'Lost', players: [{ xboxUserID: teamID, gamertag, score: 900, kills: 12, deaths: 7, isOnTeam: true }] });
   const posted: unknown[] = [];
   const requests = await mockBackend(page, {
-    [`/api/season-matches/${SEASON_MATCH_ID}`]: route => json(route, matchPage),
-    '/api/teams/1': route => json(route, team(1, 'Reds', 'Sarge')),
-    '/api/teams/2': route => json(route, team(2, 'Blues', 'Tucker')),
-    '/api/game-versions': route => json(route, [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]),
-    [`/api/season-matches/${SEASON_MATCH_ID}/possible-matches`]: route => json(route, [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }]),
-    [`/api/season-matches/${SEASON_MATCH_ID}/match-pull`]: route => json(route, { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null }),
+    [`/api/season-matches/${SEASON_MATCH_ID}`]: route => json(route, typed('getSeasonMatchPage', matchPage)),
+    '/api/teams/1': route => json(route, typed('team', team(1, 'Reds', 'Sarge'))),
+    '/api/teams/2': route => json(route, typed('team', team(2, 'Blues', 'Tucker'))),
+    '/api/game-versions': route => json(route, typed('getGameVersions', [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }])),
+    [`/api/season-matches/${SEASON_MATCH_ID}/possible-matches`]: route => json(route, typed('getPossibleMatches', [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }])),
+    [`/api/season-matches/${SEASON_MATCH_ID}/match-pull`]: route => json(route, typed('getMatchPullStatus', { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null })),
     [`/api/season-matches/${SEASON_MATCH_ID}/manual-games`]: route => {
       posted.push(route.request().postDataJSON());
       return route.fulfill({ status: 200, body: '' });
     },
-    [`/api/season-matches/${SEASON_MATCH_ID}/games/${WAYPOINT_ID}/report`]: route => json(route, 'Reported'),
+    [`/api/season-matches/${SEASON_MATCH_ID}/games/${WAYPOINT_ID}/report`]: route => json(route, typed('reportMatch', 'Reported')),
   });
   const pageLoads = () => requests.filter(r => r === `GET /api/season-matches/${SEASON_MATCH_ID}`).length;
 
@@ -495,16 +496,16 @@ test('the match page does one thing at a time: an action drops a game waiting to
   const possibleTeam = (teamID: number, score: number, gamertag: string) =>
     ({ teamID, score, outcome: score > 3 ? 'Won' : 'Lost', players: [{ xboxUserID: teamID, gamertag, score: 900, kills: 12, deaths: 7, isOnTeam: true }] });
   const requests = await mockBackend(page, {
-    [`/api/season-matches/${SEASON_MATCH_ID}`]: route => json(route, current),
-    '/api/teams/1': route => json(route, team(1, 'Reds', 'Sarge')),
-    '/api/teams/2': route => json(route, team(2, 'Blues', 'Tucker')),
-    '/api/game-versions': route => json(route, [{ gameVersionID: 6, name: 'Halo Infinite' }]),
-    [`/api/season-matches/${SEASON_MATCH_ID}/possible-matches`]: route => json(route, [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }]),
-    [`/api/season-matches/${SEASON_MATCH_ID}/match-pull`]: route => json(route, { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null }),
+    [`/api/season-matches/${SEASON_MATCH_ID}`]: route => json(route, typed('getSeasonMatchPage', current)),
+    '/api/teams/1': route => json(route, typed('team', team(1, 'Reds', 'Sarge'))),
+    '/api/teams/2': route => json(route, typed('team', team(2, 'Blues', 'Tucker'))),
+    '/api/game-versions': route => json(route, typed('getGameVersions', [{ gameVersionID: 6, name: 'Halo Infinite' }])),
+    [`/api/season-matches/${SEASON_MATCH_ID}/possible-matches`]: route => json(route, typed('getPossibleMatches', [{ matchID: WAYPOINT_ID, homeTeam: possibleTeam(1, 5, 'Sarge'), awayTeam: possibleTeam(2, 3, 'Tucker') }])),
+    [`/api/season-matches/${SEASON_MATCH_ID}/match-pull`]: route => json(route, typed('getMatchPullStatus', { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null })),
     [`/api/season-matches/${SEASON_MATCH_ID}/forfeit/home`]: async route => {
       await answered;
       current = forfeited;
-      return json(route, 'Forfeited');
+      return json(route, typed('homeForfeit', 'Forfeited'));
     },
   });
 
