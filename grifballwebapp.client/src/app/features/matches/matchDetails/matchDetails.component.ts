@@ -1,8 +1,9 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterModule } from '@angular/router';
-import { map, Subscription } from 'rxjs';
+import { map } from 'rxjs';
 import { MatchDetailsService } from '@api/services/match-details.service';
 import { ToDatePipe } from '@shared/toDate.pipe';
 import { describePage, pageDate, PageDescription } from '@shared/pageMeta';
@@ -60,8 +61,22 @@ export class MatchDetailsComponent {
   /** The Waypoint match ID (the route's :matchID). */
   readonly matchID = input.required<string>();
 
-  readonly details = signal<MatchDetailsDto | null>(null);
-  readonly state = signal<MatchDetailsState>('loading');
+  /** The match, loaded again for each match ID: a new one cancels the request still on its way (and so does leaving the page). */
+  private readonly match = rxResource({
+    params: () => ({ matchID: this.matchID() }),
+    stream: ({ params }) => this.api.getMatchDetails(params).pipe(map(parseMatchDetails)),
+  });
+
+  readonly details = computed<MatchDetailsDto | null>(() => this.match.hasValue() ? this.match.value() : null);
+  /** Loading; loaded; no such match (none, a 404, or an ID that isn't one: 400); or the request failed. */
+  readonly state = computed<MatchDetailsState>(() => {
+    if (this.match.isLoading())
+      return 'loading';
+    const error = this.match.error();
+    if (error)
+      return error instanceof HttpErrorResponse && (error.status === 404 || error.status === 400) ? 'notFound' : 'error';
+    return this.details() ? 'loaded' : 'notFound';
+  });
 
   /** The two sides for the scoreboard: the first team on the left (red), the second on the right (blue). */
   readonly sides = computed(() => this.details()?.teams ?? []);
@@ -74,25 +89,5 @@ export class MatchDetailsComponent {
       const details = this.details();
       return details ? describeMatch(details) : null;
     });
-    // A new match ID cancels the previous request, and so does leaving the page, so a slow response for the
-    // match we just left can never land on this one.
-    effect(onCleanup => {
-      const request = this.load(this.matchID());
-      onCleanup(() => request.unsubscribe());
-    });
-  }
-
-  private load(matchID: string): Subscription {
-    this.state.set('loading');
-    this.details.set(null);
-    return this.api.getMatchDetails({ matchID })
-      .pipe(map(parseMatchDetails))
-      .subscribe({
-        next: details => {
-          this.details.set(details);
-          this.state.set(details ? 'loaded' : 'notFound');
-        },
-        error: (error: HttpErrorResponse) => this.state.set(error.status === 404 || error.status === 400 ? 'notFound' : 'error'),
-      });
   }
 }

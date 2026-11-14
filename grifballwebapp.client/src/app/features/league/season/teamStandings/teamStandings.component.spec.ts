@@ -38,13 +38,13 @@ describe('TeamStandingsComponent', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No standings yet.');
   });
 
-  it('renders one row per team', () => {
+  it('renders one row per team', async () => {
     fixture.detectChanges();
     http.expectOne('/api/seasons/2/standings').flush([
       { teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 },
       { teamID: 11, teamName: 'Bravo', wins: 2, losses: 3 },
     ]);
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(rows()).toEqual([['1', 'Alpha', '4', '1'], ['2', 'Bravo', '2', '3']]);
     // The leader is marked out.
@@ -54,41 +54,41 @@ describe('TeamStandingsComponent', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('No standings yet.');
   });
 
-  it("says the records are the source spreadsheet's when they are", () => {
+  it("says the records are the source spreadsheet's when they are", async () => {
     fixture.detectChanges();
     http.expectOne('/api/seasons/2/standings').flush([
       { teamID: 10, teamName: 'Alpha', wins: 9, losses: 1, recordFromSource: true },
     ]);
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(rows()).toEqual([['1', 'Alpha', '9', '1']]);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Records from the source spreadsheet');
   });
 
-  it('has no note for records from matches', () => {
+  it('has no note for records from matches', async () => {
     fixture.detectChanges();
     http.expectOne('/api/seasons/2/standings').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Records from the source spreadsheet');
   });
 
-  it('logs and leaves the table empty when the request fails', () => {
+  it('logs and leaves the table empty when the request fails', async () => {
     const log = spyOn(console, 'log');
     fixture.detectChanges();
     // Not "no standings" while they load
     expect(fixture.componentInstance.loaded()).toBeFalse();
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('No standings yet.');
     http.expectOne('/api/seasons/2/standings').flush('x', { status: 500, statusText: 'Server Error' });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(log).toHaveBeenCalled();
     expect(fixture.componentInstance.loaded()).toBeTrue();
     expect(rows()).toEqual([]);
   });
 
-  it("replaces the standings with the new season's when the season changes", () => {
+  it("replaces the standings with the new season's when the season changes", async () => {
     fixture.detectChanges();
     http.expectOne('/api/seasons/2/standings').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     fixture.componentRef.setInput('seasonID', 3);
     fixture.detectChanges();
@@ -97,25 +97,26 @@ describe('TeamStandingsComponent', () => {
     expect(fixture.componentInstance.loaded()).toBeFalse();
 
     http.expectOne('/api/seasons/3/standings').flush([{ teamID: 20, teamName: 'Charlie', wins: 1, losses: 0 }]);
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(rows()).toEqual([['1', 'Charlie', '1', '0']]);
   });
 
-  it("drops the previous season's standings when they arrive late", () => {
+  it("cancels the previous season's request, so its standings can't arrive late", async () => {
     fixture.detectChanges();
     const late = http.expectOne('/api/seasons/2/standings');
     fixture.componentRef.setInput('seasonID', 3);
     fixture.detectChanges();
 
     http.expectOne('/api/seasons/3/standings').flush([{ teamID: 20, teamName: 'Charlie', wins: 1, losses: 0 }]);
-    late.flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
-    fixture.detectChanges();
+    expect(late.cancelled).toBeTrue();
+    await fixture.whenStable();
 
     expect(rows()).toEqual([['1', 'Charlie', '1', '0']]);
   });
 
   it('renders the standings once they arrive, without a manual detectChanges', async () => {
-    await fixture.whenStable();
+    // The first render, scheduled on its own, starts the request (whenStable would wait for the loading standings)
+    await new Promise(resolve => setTimeout(resolve));
     http.expectOne('/api/seasons/2/standings').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
     await fixture.whenStable();
 
