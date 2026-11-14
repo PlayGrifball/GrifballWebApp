@@ -714,7 +714,7 @@ public class ProgramStartupTests
             Assert.That(chat.StatusCode, Is.EqualTo(HttpStatusCode.OK), "The chat's hub is mapped, for anyone");
             Assert.That(factory.Services.GetRequiredService<IOptions<HubOptions<GrifballWebApp.Server.Chat.ChatHub>>>().Value.MaximumReceiveMessageSize,
                 Is.EqualTo(GrifballWebApp.Server.Chat.ChatHub.MaximumReceiveMessageSize));
-            Assert.That(factory.Services.GetRequiredService<GrifballWebApp.Server.Chat.ChatLimits>(), Is.Not.Null);
+            Assert.That(factory.Services.GetRequiredService<GrifballWebApp.Application.Identity.IUserSessions>(), Is.TypeOf<GrifballWebApp.Server.SignalR.HubUserSessions>(), "a change to a user ends their hub connections");
         }
 
         // Swagger outside Development, its "Try it out" calling the API under /api

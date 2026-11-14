@@ -107,7 +107,10 @@ public class SeasonVisibilityServerUnitTests : SqliteGrifballContextFixture
             var context = Substitute.For<HubCallerContext>();
             context.User.Returns(user);
             context.ConnectionId.Returns("conn");
-            var hub = new TeamsHub(null!, new SeasonVisibility(Db)) { Context = context, Groups = groups };
+            // Their roles as HubSessionFilter finds them in the database
+            var now = new GrifballWebApp.Server.SignalR.HubUser();
+            now.Set(new GrifballWebApp.Server.SignalR.HubUserState(1, user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList()));
+            var hub = new TeamsHub(null!, new SeasonVisibility(Db), now) { Context = context, Groups = groups };
             await hub.OnConnectedAsync();
             return groups;
         }
