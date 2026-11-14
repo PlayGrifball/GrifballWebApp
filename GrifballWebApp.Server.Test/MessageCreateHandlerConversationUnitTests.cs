@@ -1,5 +1,5 @@
 using DiscordInterface.Generated;
-using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Tools;
@@ -37,6 +37,9 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     private static readonly ulong[] MentionsTheBot = [BotId];
     private static readonly string[] HiThere = ["Hi there"];
     private static readonly string[] ShownInFull = ["This first chunk is over 25 characters!"];
+    private static readonly string[] ChannelQuestion = ["Channel question"];
+    private static readonly string[] ChannelQuestionThenHello = ["Channel question", "hello"];
+    private static readonly string[] PublicAnswer = ["Public answer"];
 
     private readonly RecordingLogger<MessageCreateHandler> _logger = new();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
@@ -44,6 +47,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     private readonly IGetsertXboxUserService _xboxUsers = Substitute.For<IGetsertXboxUserService>();
     private readonly IDataPullService _dataPull = Substitute.For<IDataPullService>();
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
+    private readonly IDiscordRestClient _rest = Substitute.For<IDiscordRestClient>();
     private readonly FakeRestRequestHandler _discord = new() { EchoContent = true, UniqueIds = true };
     private ServiceProvider _services = null!;
 
@@ -56,8 +60,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     }
 
     /// <summary>The handler, its scopes giving the test's database (as Program.cs's scoped GrifballContext would) and
-    /// <paramref name="model"/> as the chat model.</summary>
-    private MessageCreateHandler Handler(IChatClient model)
+    /// <paramref name="models"/> as the chat model, one per message.</summary>
+    private MessageCreateHandler Handler(params IChatClient[] models)
     {
         _ambient.IsActive.Returns(true);
         _services = new ServiceCollection()
@@ -72,11 +76,19 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             // get_recent_games finds the account by gamertag through it
             .AddTransient<GrifballWebApp.Application.XboxAccounts.XboxAccountService>()
             .AddTransient<GrifballWebApp.Application.Seasons.SeasonVisibility>()
+            // get_season's
+            .AddTransient<GrifballWebApp.Application.Seasons.SeasonService>()
+            .AddTransient<GrifballWebApp.Application.Stats.SeasonStatsService>()
+            .AddTransient<GrifballWebApp.Application.TeamStandings.TeamStandingsService>()
+            .AddTransient<GrifballWebApp.Application.MatchPlanner.MatchPlannerService>()
+            .AddTransient<GrifballWebApp.Application.Grades.GradesService>()
+            .AddTransient<GrifballWebApp.Application.Signups.SignupsService>()
+            .AddSingleton(Substitute.For<GrifballWebApp.Application.Brackets.IBracketService>())
             .BuildServiceProvider();
-        var chatClients = Substitute.For<IBotChatClients>();
-        chatClients.Create().Returns(model);
+        var chatClients = Substitute.For<IChatClientFactory>();
+        chatClients.Create().Returns(models[0], models[1..]);
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
-        return new MessageCreateHandler(Substitute.For<IDiscordRestClient>(), config, _services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger, chatClients, _time);
+        return new MessageCreateHandler(_rest, config, _services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger, chatClients, _time);
     }
 
     private NetCord.Gateway.Message MessageToTheBot()
@@ -270,5 +282,130 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         }
         // Reading the saved games pulls nothing from Halo
         await _dataPull.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);
+    }
+
+    private NetCord.Gateway.Message DirectMessage()
+        => GatewayMessages.Build(AuthorId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }), direct: true);
+
+    /// <summary>What Discord has in the DM's channel (20), newest first as it gives them: the message being answered (10) too.</summary>
+    private void DmHolds(params (ulong Id, ulong AuthorId, string Content)[] earlier)
+    {
+        var messages = earlier.Append((Id: 10ul, AuthorId: AuthorId, Content: "hello")).OrderByDescending(m => m.Id).Select(m =>
+        {
+            var message = Substitute.For<IDiscordRestMessage>();
+            message.Id.Returns(m.Id);
+            message.Author.Id.Returns(m.AuthorId);
+            message.Content.Returns(m.Content);
+            return message;
+        }).ToList();
+        _rest.GetMessagesAsync(20ul, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ => messages.ToAsyncEnumerable());
+    }
+
+    /// <summary>A season starting in 40 days and announced in 10: staff's alone until then (#435).</summary>
+    private async Task<GrifballWebApp.Domain.League.Season> SeasonNotAnnouncedYet()
+    {
+        var now = _time.GetUtcNow().UtcDateTime;
+        var season = GrifballWebApp.Domain.League.Season.Seed(seasonName: "Secret").WithDates(publicAt: now.AddDays(10), signupsOpen: now.AddDays(10),
+            signupsClose: now.AddDays(20), draftStart: now.AddDays(25), seasonStart: now.AddDays(40), seasonEnd: now.AddDays(100));
+        Db.Seasons.Add(season);
+        await Db.SaveChangesAsync();
+        return season;
+    }
+
+    /// <summary>A model that looks up <paramref name="seasonID"/> with get_season before it answers, the result kept in <paramref name="seen"/>.</summary>
+    private static ScriptedChatClient LooksUpSeason(int seasonID, Action<object?> seen) => new((TimeSpan.Zero, "Done"))
+    {
+        BeforeReply = async options => seen(await Tool(options, "get_season").InvokeAsync(new AIFunctionArguments { ["seasonID"] = seasonID })),
+    };
+
+    private static List<string> ToolNames(ScriptedChatClient model) => model.Options!.Tools!.Select(t => t.Name).ToList();
+
+    [Test]
+    public async Task HandleAsync_StaffInADm_GetTheirStaffTools_AndSeeASeasonNotAnnouncedYet()
+    {
+        await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
+        var secret = await SeasonNotAnnouncedYet();
+        DmHolds();
+        object? seen = null;
+        var model = LooksUpSeason(secret.SeasonID, x => seen = x);
+
+        await Handler(model).HandleAsync(DirectMessage());
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ToolNames(model), Does.Contain("get_commissioner_dashboard").And.Contain("report_season_match_game"));
+            Assert.That(ToolNames(model), Does.Not.Contain("list_pending_gamertag_claims"), "a sysadmin's");
+            Assert.That(AsJson(seen).GetProperty("seasonName").GetString(), Is.EqualTo("Secret"));
+            Assert.That(model.Options!.Instructions, Does.Contain(GrifChat.PrivateLine));
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Done"));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_APlayerInADm_GetsNoStaffTools()
+    {
+        await AddUser(AuthorId, "Player1", GrifballWebApp.Application.Identity.SiteRoles.Player);
+        DmHolds();
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi"));
+
+        await Handler(model).HandleAsync(DirectMessage());
+
+        AssertNothingLogged();
+        Assert.That(ToolNames(model), Is.EquivalentTo(GrifTools.Chat));
+    }
+
+    [Test]
+    public async Task HandleAsync_StaffInAChannel_SeeAsThePublicDoes_WithNoStaffTools()
+    {
+        await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner, GrifballWebApp.Application.Identity.SiteRoles.Sysadmin);
+        var secret = await SeasonNotAnnouncedYet();
+        object? seen = null;
+        var model = LooksUpSeason(secret.SeasonID, x => seen = x);
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ToolNames(model), Is.EquivalentTo(GrifTools.Chat));
+            Assert.That(seen?.ToString(), Does.StartWith($"Refused: There is no season {secret.SeasonID}"));
+            Assert.That(model.Options!.Instructions, Does.Not.Contain(GrifChat.PrivateLine));
+        }
+        _ = _rest.DidNotReceive().GetMessagesAsync(Arg.Any<ulong>(), Arg.Any<PaginationProperties<ulong>?>(), Arg.Any<RestRequestProperties?>());
+    }
+
+    [Test]
+    public async Task HandleAsync_ADmsConversation_IsTheDmsOwn_AndNeverFeedsAChannelsReply()
+    {
+        // The channels' conversation so far, kept in DiscordMessages
+        Db.DiscordUsers.AddRange(DiscordUser.FromDiscord((long)AuthorId, "user5"), DiscordUser.FromDiscord((long)BotId, "GrifballWebApp"));
+        Db.DiscordMessages.Add(new DiscordMessage { Id = 1, FromDiscordUserId = (long)AuthorId, ToDiscordUserId = (long)BotId, Content = "Channel question", Timestamp = new DateTime(2014, 12, 31, 0, 0, 0, DateTimeKind.Utc) });
+        await Db.SaveChangesAsync();
+        DmHolds((2, AuthorId, "DM question"), (3, BotId, "DM secret answer"));
+        var inTheDm = new ScriptedChatClient((TimeSpan.Zero, "Another secret"));
+        var inTheChannel = new ScriptedChatClient((TimeSpan.Zero, "Public answer"));
+        var handler = Handler(inTheDm, inTheChannel);
+
+        await handler.HandleAsync(DirectMessage());
+        Db.ChangeTracker.Clear();
+        var keptAfterTheDm = await Db.DiscordMessages.Select(m => m.Content).ToListAsync();
+        await handler.HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            // The DM's own history, from Discord's DM channel: none of the channels'
+            Assert.That(inTheDm.Messages.Select(x => (x.Role, x.Text)), Is.EqualTo(new[]
+            {
+                (ChatRole.User, "DM question"),
+                (ChatRole.Assistant, "DM secret answer"),
+                (ChatRole.User, "hello"),
+            }));
+            // Nothing of the DM kept where a channel's reply reads its history
+            Assert.That(keptAfterTheDm, Is.EqualTo(ChannelQuestion));
+            Assert.That(inTheChannel.Messages.Select(x => x.Text), Is.EqualTo(ChannelQuestionThenHello));
+            Assert.That(await SavedReplies(), Is.EqualTo(PublicAnswer));
+        }
     }
 }

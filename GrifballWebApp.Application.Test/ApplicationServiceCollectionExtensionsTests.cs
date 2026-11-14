@@ -1,6 +1,7 @@
 using GrifballWebApp.Application.Availability;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Championships;
+using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.EventOrganizer;
 using GrifballWebApp.Application.Grades;
@@ -92,6 +93,7 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         yield return Of(typeof(IUserMergeService), typeof(UserMergeService), ServiceLifetime.Transient);
         yield return Of(typeof(IDiscordAccountLinkService), typeof(DiscordAccountLinkService), ServiceLifetime.Scoped);
         yield return Of(typeof(RescheduleService), typeof(RescheduleService), ServiceLifetime.Transient);
+        yield return Of(typeof(GrifChat), typeof(GrifChat), ServiceLifetime.Transient);
     }
 
     private static IServiceCollection AddApplication(Dictionary<string, string?>? settings = null)
@@ -140,6 +142,7 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         services.AddScoped(_ => Substitute.For<IDraftChannel>());
         services.AddScoped(_ => Substitute.For<IDatabaseLocks>());
         services.AddSingleton(_ => Substitute.For<IDistributedCache>());
+        services.AddSingleton(_ => Substitute.For<IChatClientFactory>());
 
         Assert.That(() => services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true }).Dispose(), Throws.Nothing);
     }

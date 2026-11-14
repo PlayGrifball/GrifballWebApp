@@ -36,6 +36,11 @@
             </a>
           }
         }
+        <!-- The chat: a toolbar button where there is room, and here for the smallest phones, where there isn't -->
+        <a class="app-drawer__link" routerLink="/chat" routerLinkActive="app-drawer__link--active" ariaCurrentWhenActive="page"
+           (click)="snav.toggle(false)">
+          Chat
+        </a>
       </nav>
     </mat-sidenav>
 

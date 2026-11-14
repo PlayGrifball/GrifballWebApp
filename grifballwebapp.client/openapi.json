@@ -9327,6 +9327,46 @@
         },
         "additionalProperties": false
       },
+      "ChatRequestDto": {
+        "required": [
+          "history",
+          "question"
+        ],
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "The question, at most GrifballWebApp.Application.Chat.GrifChat.MaxQuestionLength characters."
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatTurnDto"
+            },
+            "description": "The conversation so far, oldest first: only its last GrifballWebApp.Application.Chat.GrifChat.HistoryLimit messages are read."
+          }
+        },
+        "additionalProperties": false,
+        "description": "A question for the site's chat, with the conversation so far: the browser keeps it, for its tab's session."
+      },
+      "ChatTurnDto": {
+        "required": [
+          "fromBot",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "fromBot": {
+            "type": "boolean",
+            "description": "Whether the chat wrote it (else the person did)."
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "description": "One message of a conversation with the site's chat."
+      },
       "ClaimPreviewDto": {
         "required": [
           "gamertag",

@@ -19,6 +19,9 @@
       <button mat-icon-button aria-label="Search" [attr.aria-keyshortcuts]="shortcut.aria" [title]="'Search (' + shortcut.label + ')'" (click)="search()">
         <mat-icon>search</mat-icon>
       </button>
+      <a mat-icon-button class="hud-header__chat" routerLink="/chat" aria-label="Chat" title="Chat">
+        <mat-icon>chat</mat-icon>
+      </a>
       <button mat-icon-button aria-label="Theme icon" (click)="theme()">
         <mat-icon>palette</mat-icon>
       </button>

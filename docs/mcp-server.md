@@ -8,8 +8,8 @@ tools are in `GrifballWebApp.Application/Tools`.
 The tools aren't the MCP server's own. They are one set for every host:
 
 - the MCP server, which serves them all;
-- the Discord bot's chat, which gets `GrifTools.Chat` (see [The chat hosts](#the-chat-hosts));
-- the site's chat, still to be built, which will get the same list.
+- the Discord bot's chat, which gets `GrifTools.Chat` in a channel and `GrifTools.PrivateChat` in a DM (see [The chat hosts](#the-chat-hosts));
+- the site's chat (`ChatHub`), which gets `GrifTools.PrivateChat`: the chat tools and staff's, each for its roles.
 
 ## Signing in
 
@@ -112,11 +112,17 @@ logs.
 
 ## The chat hosts
 
-A chat host builds its tools with `GrifTools.AIFunctions`, the Microsoft.Extensions.AI functions its model calls. It passes
-three things:
-- a scope factory: each call runs in a scope of its own, so a tool never shares a `DbContext` with the host;
-- the caller (`ToolCaller`);
-- the names of the tools to give.
+Both chats run through one service, `GrifChat` (`GrifballWebApp.Application/Chat`), written against Microsoft.Extensions.AI
+alone. A host keeps the conversation, passes the caller and its `ChatHost`, and shows the streamed reply. `GrifChat` does the rest:
+- the instructions: the lines every host shares, between the host's own first and last line;
+- the history: the conversation's last 25 messages (`GrifChat.HistoryLimit`), each cut to 4000 characters;
+- the tools: `GrifTools.AIFunctions` with a scope factory (each call runs in a scope of its own, so a tool never shares a
+  `DbContext` with the host), the caller (`ToolCaller`, `InPublic` as the host says) and `GrifTools.Chat`;
+- the tool calls: it calls the tools the model asks for (`UseFunctionInvocation`) until it answers;
+- the limits: a question of 2000 characters at most (a Discord message's limit), and the host's timeout.
+
+The model is `IChatClientFactory`'s, which Infrastructure registers (`OllamaChatClients`: llama3.1 on Ollama, at
+`Ollama:Url`). It gives only the model, so another provider is another `IChatClientFactory` registered in its place.
 
 A small local model picks worse from a long list, so the chats get `GrifTools.Chat`, the questions people ask most. The MCP
 server's clients get every tool.
@@ -125,9 +131,27 @@ server's clients get every tool.
   (`DiscordCaller.AsToolCaller`).
   - An author with no linked account is `ToolCaller.Anonymous`. They can use every tool that isn't about "you", and those
     that are refuse and ask them to name the player.
+  - In a channel (a mention, or a reply to the bot; `ChatHost.Discord`) it is `InPublic`: the public's view of seasons, and
+    `GrifTools.Chat` with no staff tools. The conversation is kept in `DiscordMessages`.
+  - In a DM (every message, no mention needed; `ChatHost.DiscordDirect`) it is private, as the site's chat is: the author's
+    roles decide which seasons they see, and they get `GrifTools.PrivateChat`, staff's tools too, each for its roles. The
+    conversation is the DM channel's own, read from Discord, and nothing of a DM is kept in `DiscordMessages`, so what staff
+    see in private never reaches a channel's reply.
+  - Its replies have no time limit.
   - The bot's instructions have it write times in UTC, as the tools give them. A small model can't reliably turn ISO times into
     Discord's epoch timestamps.
-- **The site's chat** (still to come): the caller will be the signed-in user.
+- **The site's chat** (`ChatHub` at `hub/ChatHub`, the `/chat` page, `ChatHost.Site`): the reply streams to the browser over
+  SignalR.
+  - The caller is the signed-in user with their roles. Signed out, it is `ToolCaller.Anonymous`, as for a Discord author with
+    no linked account.
+  - The reply is the user's alone, so it isn't `InPublic`: staff see seasons not announced yet, as the site shows them. It gets
+    `GrifTools.PrivateChat`: the chat tools and staff's (`GrifTools.Staff`, [Staff's tools](#staffs-tools)), each for its roles
+    as the MCP server gives them, so a player gets none of staff's and a commissioner or sysadmin gets theirs. Its instructions
+    have it use a tool that changes data only when the person asks for that change.
+  - The browser keeps the conversation (the tab's `sessionStorage`) and sends it with each question. The server keeps none.
+  - A reply that takes over 2 minutes is given up.
+  - `ChatLimits`: one reply at a time per connection, and 10 questions a minute per signed-in user, 5 per address signed out
+    (counted on each API pod).
 
 ## Adding a tool
 
