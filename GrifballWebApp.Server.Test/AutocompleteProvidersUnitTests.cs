@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Server.Commands;
 using NetCord.Rest;
 using System.Text.Json;
@@ -83,9 +84,30 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
     {
         await SeedLeague();
 
-        var choices = await new GamertagAutocomplete(Db).GetChoicesAsync(Typed("Grif"), null!);
+        var choices = await new GamertagAutocomplete(new CommandLookups(Db, null!)).GetChoicesAsync(Typed("Grif"), null!);
 
         Assert.That(Names(choices), Is.EquivalentTo(HoldingGrif));
+    }
+
+    [Test]
+    public async Task GamertagAutocomplete_OffersAPastGamertag_LabelledAsOne_AfterTheCurrentOnes_SentAsTheAccountsXUID()
+    {
+        var renamed = XboxUser.FromXbox(7001, "Brand New");
+        renamed.RecordPastGamertag("Old Grif", null, null, GamertagHistorySource.Manual);
+        // Found by its current gamertag: not listed again by its past one
+        var current = XboxUser.FromXbox(7002, "Grif Case");
+        current.RecordPastGamertag("Grif Older", null, null, GamertagHistorySource.Manual);
+        Db.XboxUsers.AddRange(renamed, current, XboxUser.FromXbox(7003, "Grifter"));
+        await Db.SaveChangesAsync();
+
+        var choices = (await new GamertagAutocomplete(new CommandLookups(Db, null!)).GetChoicesAsync(Typed("Grif"), null!))!.ToList();
+
+        Assert.That(choices.Select(c => (c.Name, c.StringValue)), Is.EqualTo(new[]
+        {
+            ("Grif Case", "id:7002"),
+            ("Grifter", "id:7003"),
+            ("Old Grif (Previous Gamertag) · now Brand New", "id:7001"),
+        }));
     }
 
     [Test]

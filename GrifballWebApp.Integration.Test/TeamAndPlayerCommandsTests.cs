@@ -48,10 +48,9 @@ public class TeamAndPlayerCommandsTests
         var lookups = new CommandLookups(_context, new SeasonService(_context, new SeasonStatsService(_context)));
         var vods = new VodService(_context, new YouTubeClient(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(HttpStatusCode.NotFound)))),
             Options.Create(new YouTubeOptions()), NullLogger<VodService>.Instance);
-        var recentMatches = new DiscordCommandsHandler(_context, new GrifballWebApp.Application.Tools.HaloTools(_context, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context)));
         _teams = new TeamCommandsHandler(lookups, new TeamPageService(_context), new TeamHistoryService(_context), vods, urls);
         _players = new PlayerCommandsHandler(lookups, new DiscordCaller(_context), new ProfileStatsService(_context, new SeasonStatsService(_context), new MatchmakingStatsService(_context)), new ProfileCommendationsService(_context),
-            new DeploymentHistoryService(_context), vods, recentMatches, urls, null!);
+            new DeploymentHistoryService(_context), vods, urls, null!);
 
         _season = await _context.AddSeason("Spring");
         _captain = await _context.AddUser("cap", gamertag: "CaptainGT", discordName: "cap");
@@ -190,16 +189,10 @@ public class TeamAndPlayerCommandsTests
     public async Task PlayerCommands_Should_SayThereIsNoSuchPlayer()
     {
         var profile = new CommandContextRecorder();
-        var matches = new CommandContextRecorder();
 
         await _players.Profile(profile.Context, "nobody-at-all");
-        await _players.Matches(matches.Context, "nobody-at-all");
 
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(profile.Content(), Is.EqualTo(PlayerCommandsHandler.NoSuchPlayer));
-            Assert.That(matches.Content(), Is.EqualTo(PlayerCommandsHandler.NoSuchPlayer));
-        }
+        Assert.That(profile.Content(), Is.EqualTo(PlayerCommandsHandler.NoSuchPlayer));
     }
 
     [Test]
@@ -216,17 +209,6 @@ public class TeamAndPlayerCommandsTests
         await _teams.Matches(discord.Context, _team.TeamID.ToString());
 
         Assert.That(discord.Embed().Description, Does.Contain(" · Won"));
-    }
-
-    [Test]
-    public async Task PlayerMatches_Should_BeTheNamedPlayersRecentMatches()
-    {
-        var discord = new CommandContextRecorder();
-
-        await _players.Matches(discord.Context, "PickGT");
-
-        // /matches by the player's gamertag: it defers, as /matches does
-        Assert.That(discord.DeferredPublicly(), Is.True);
     }
 
     [Test]
@@ -275,16 +257,5 @@ public class TeamAndPlayerCommandsTests
         await _teams.Matches(discord.Context, _team.TeamID.ToString());
 
         Assert.That(discord.Embed().Description, Does.Contain("[vs TBD]"));
-    }
-
-    [Test]
-    public async Task PlayerMatches_Should_BeTheCallersOwn_When_NoPlayerIsNamed()
-    {
-        var discord = new CommandContextRecorder();
-
-        await _players.Matches(discord.Context, null);
-
-        // /matches with no player: the caller's own, found by their Discord account
-        Assert.That(discord.DeferredPublicly(), Is.True);
     }
 }

@@ -54,7 +54,14 @@ public class HaloPullTools
         _caller.Require(GrifTools.RolesByName["pull_xbox_account_games"]);
         var account = await _accounts.FindByGamertagAsync(gamertag, ct)
             ?? throw new ToolException($"The site knows no Xbox account with the gamertag {gamertag.Trim()}: search finds the players it knows.");
-        return new PulledAccountDto(account.XboxUserID, account.Gamertag, await _accountPulls.Queue(account.XboxUserID, _caller.UserID, ct));
+        return await PullXboxAccountGamesOf(account.XboxUserID, account.Gamertag, ct);
+    }
+
+    /// <summary>pull_xbox_account_games for an account already found (by its XUID: /player pull, whose option picks one).</summary>
+    public async Task<PulledAccountDto> PullXboxAccountGamesOf(long xuid, string gamertag, CancellationToken ct = default)
+    {
+        _caller.Require(GrifTools.RolesByName["pull_xbox_account_games"]);
+        return new PulledAccountDto(xuid, gamertag, await _accountPulls.Queue(xuid, _caller.UserID, ct));
     }
 }
 

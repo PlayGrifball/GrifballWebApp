@@ -21,6 +21,10 @@ Seasons, teams, players and season matches autocomplete. A name typed without pi
 exact name, else the only one whose name has it, else (for digits that name nothing) that ID. A typed name that fits
 several is refused, and the caller is asked to pick one, so a staff action never lands on a guess. With no season named,
 the season pages mean the one running now, else the latest (the agents' tools mean the same: `SeasonService.GetCurrentOrLatestSeasonID`), and `/signup`, `/availability show` and `/admin draft` mean the next to start.
+A gamertag option (`/matches`, `/player pull`) is an Xbox account, sent as its XUID when picked. Its list has the accounts
+by current gamertag, then by a past one, shown as `Old Name (Previous Gamertag) · now New Name`, as the site's quick
+search lists a player by a past gamertag. A gamertag typed without picking finds an account by its current gamertag
+only: an old name finds nothing unless it is picked from the list (`CommandLookups.XboxAccount`).
 Discord has no date option, so times are typed in UTC, like `2026-11-20 20:00`.
 
 Every command answers Discord at once (deferred), then looks things up: Discord gives an interaction 3 seconds.
@@ -31,8 +35,8 @@ Every command answers Discord at once (deferred), then looks things up: Discord 
 |---|---|
 | `/season list\|info\|standings\|schedule\|stats\|grades\|signups\|bracket\|draft` | A season's pages; with no season named, the current one |
 | `/team info\|roster\|history\|matches\|vods` | A team's page |
-| `/player profile\|stats\|commendations\|history\|vods\|matches` | A player's profile; with no player named, the caller's own (needs their gamertag) |
-| `/matches` | A gamertag's recent Halo matches as the site saved them (same as `/player matches`, and the agents' `get_recent_games`): it pulls nothing from Halo, `/player pull` does |
+| `/player profile\|stats\|commendations\|history\|vods` | A player's profile; with no player named, the caller's own (needs their gamertag) |
+| `/matches` | An Xbox account's recent Halo matches as the site saved them (the agents' `get_recent_games`); with no gamertag, the caller's own. It pulls nothing from Halo: `/player pull` does |
 | `/match info` | A season match: when, result, games |
 | `/match game` | A Halo game by its match ID |
 | `/leaderboard top\|rank` | The all-time boards |

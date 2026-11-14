@@ -42,7 +42,7 @@ public class DiscordCommandsHandlerTests
     public async Task SetUp()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _handler = new DiscordCommandsHandler(_context, new HaloTools(_context, new XboxAccountService(_context)));
+        _handler = new DiscordCommandsHandler(new GrifballWebApp.Server.Commands.CommandLookups(_context, null!), new HaloTools(_context, new XboxAccountService(_context)));
 
         _discordContext = Substitute.For<IDiscordApplicationCommandContext>();
         _discordContext.User.Id.Returns(DiscordId);
@@ -85,14 +85,14 @@ public class DiscordCommandsHandlerTests
     }
 
     [Test]
-    public async Task RecentMatches_AGamertagTheSiteDoesntKnow_SaysSo_AndLooksNothingUp()
+    public async Task RecentMatches_AGamertagTheSiteDoesntKnow_FindsNoAccount_AndLooksNothingUp()
     {
         await _handler.RecentMatches(_discordContext, "Nobody");
 
         await AssertDeferred();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(ModifiedContent(), Does.StartWith("The site has no games saved for the gamertag Nobody"));
+            Assert.That(ModifiedContent(), Is.EqualTo(GrifballWebApp.Server.Commands.CommandLookups.NoSuchXboxAccount));
             Assert.That(_context.XboxUsers.Any(), Is.False, "no Xbox account is saved for it");
         }
     }

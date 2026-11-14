@@ -13,6 +13,7 @@ using GrifballWebApp.Application.TeamStandings;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Server.Commands;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -105,7 +106,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     {
         var caller = await AddUser(5, "Puller", "Player");
         _accountPulls.Queue(5, caller.Id, Arg.Any<CancellationToken>()).Returns(new OnDemandJobStatusDto { State = OnDemandJobState.Running });
-        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), _time), new DiscordCaller(Db), null!, null!, null!, null!, null!, Urls(), Pulls());
+        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), _time), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
         var discord = new CommandContextRecorder(discordUserId: 5);
 
         await handler.Pull(discord.Context, null);
@@ -119,7 +120,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     {
         await AddUser(5, "NoRole");
         await AddUser(6, "Puller", "Player");
-        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), _time), new DiscordCaller(Db), null!, null!, null!, null!, null!, Urls(), Pulls());
+        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), _time), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
         var noRole = new CommandContextRecorder(discordUserId: 5);
         var unknown = new CommandContextRecorder(discordUserId: 6);
 
@@ -129,8 +130,32 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(noRole.Content(), Is.EqualTo(DiscordCaller.MissingRole(DiscordCaller.Roles.Pullers)));
-            Assert.That(unknown.Content(), Does.Contain("knows no Xbox account with the gamertag Nobody"));
+            Assert.That(unknown.Content(), Is.EqualTo(CommandLookups.NoSuchXboxAccount));
         }
         await _accountPulls.DidNotReceiveWithAnyArgs().Queue(default, default);
+    }
+
+    [Test]
+    public async Task PlayerPull_FindsNoAccount_ByAPastGamertagTyped_ButPullsIt_PickedFromTheList()
+    {
+        var caller = await AddUser(6, "Puller", "Player");
+        var renamed = XboxUser.FromXbox(2001, "New Name");
+        renamed.RecordPastGamertag("Old Name", null, null, GamertagHistorySource.Manual);
+        Db.XboxUsers.Add(renamed);
+        await Db.SaveChangesAsync();
+        _accountPulls.Queue(2001, caller.Id, Arg.Any<CancellationToken>()).Returns(new OnDemandJobStatusDto { State = OnDemandJobState.Queued });
+        var handler = new PlayerCommandsHandler(new CommandLookups(Db, Seasons(), _time), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), Pulls());
+        var typed = new CommandContextRecorder(discordUserId: 6);
+        var picked = new CommandContextRecorder(discordUserId: 6);
+
+        await handler.Pull(typed.Context, "Old Name");
+        await handler.Pull(picked.Context, CommandLookups.ChoiceValue(2001L));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(typed.Content(), Is.EqualTo(CommandLookups.NoSuchXboxAccount));
+            Assert.That(picked.Content(), Does.Contain("The pull of New Name's recent games is queued").And.Contain("https://grif.test/xbox/2001"));
+        }
+        await _accountPulls.Received(1).Queue(2001, caller.Id, Arg.Any<CancellationToken>());
     }
 }

@@ -24,12 +24,11 @@ public class PlayerCommandsHandler
     private readonly ProfileCommendationsService _commendations;
     private readonly DeploymentHistoryService _history;
     private readonly VodService _vods;
-    private readonly DiscordCommandsHandler _recentMatches;
     private readonly UrlService _urls;
     private readonly PullToolsFor _pulls;
 
     public PlayerCommandsHandler(CommandLookups lookups, DiscordCaller caller, ProfileStatsService profiles, ProfileCommendationsService commendations,
-        DeploymentHistoryService history, VodService vods, DiscordCommandsHandler recentMatches, UrlService urls, PullToolsFor pulls)
+        DeploymentHistoryService history, VodService vods, UrlService urls, PullToolsFor pulls)
     {
         _pulls = pulls;
         _lookups = lookups;
@@ -38,7 +37,6 @@ public class PlayerCommandsHandler
         _commendations = commendations;
         _history = history;
         _vods = vods;
-        _recentMatches = recentMatches;
         _urls = urls;
     }
 
@@ -131,36 +129,27 @@ public class PlayerCommandsHandler
         await context.Reply(CommandReplies.Embed($"{Name(p)} VODs", _urls.Profile(p.UserID), TeamCommandsHandler.VodLines(vods)));
     }
 
-    /// <summary>The player's recent Halo matches: /matches, by the player's gamertag.</summary>
-    public async Task Matches(IDiscordApplicationCommandContext context, string? player)
-    {
-        await context.Defer(ephemeral: false);
-        if (player is null)
-        {
-            // The caller's own: /matches finds them by their Discord account
-            await _recentMatches.RecentMatchesDeferred(context, null);
-            return;
-        }
-        if (await _lookups.Player(player) is not int userID)
-        {
-            await context.Reply(NoSuchPlayer);
-            return;
-        }
-        await _recentMatches.RecentMatchesDeferred(context, (await _profiles.GetAsync(userID))!.Gamertag);
-    }
-
     /// <summary>
     /// Queues the pull of an Xbox account's recent games from Halo, as its page's button does: the agents' pull_xbox_account_games,
-    /// as the caller (players and staff). The gamertag given, else the caller's own.
+    /// as the caller (players and staff). The account picked or typed by its current gamertag (<see cref="CommandLookups.XboxAccount"/>),
+    /// else the caller's own.
     /// </summary>
     public async Task Pull(IDiscordInteractionContext context, string? gamertag)
     {
         await context.Defer(ephemeral: true);
         if (await _caller.Require(context, DiscordCaller.Roles.Pullers) is not { } caller)
             return;
+        var account = string.IsNullOrWhiteSpace(gamertag)
+            ? await _lookups.OwnXboxAccount(context.Interaction.User.Id)
+            : await _lookups.XboxAccount(gamertag);
+        if (account is not { } found)
+        {
+            await context.Reply(CommandLookups.NoSuchXboxAccount);
+            return;
+        }
         try
         {
-            var pulled = await _pulls.As(caller).PullXboxAccountGames(string.IsNullOrWhiteSpace(gamertag) ? caller.Gamertag : gamertag);
+            var pulled = await _pulls.As(caller).PullXboxAccountGamesOf(found.XboxUserID, found.Gamertag);
             await context.Reply($"The pull of {pulled.Gamertag}'s recent games {PullReplies.State(pulled.Pull)}. /matches and their Xbox page show them: {_urls.XboxAccount(pulled.XboxUserID)}");
         }
         catch (ToolException e)

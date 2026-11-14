@@ -18,7 +18,7 @@ using HaloMatch = GrifballWebApp.Domain.Halo.Match;
 namespace GrifballWebApp.Server.Test;
 
 /// <summary>
-/// /player history and matches, and /match game, with something to show: on a temp-file SQLite GrifballContext with the
+/// /player history, and /match game, with something to show: on a temp-file SQLite GrifballContext with the
 /// real profile and match services; the Xbox lookup and the Halo pull substituted.
 /// </summary>
 [TestFixture]
@@ -31,7 +31,6 @@ public class PlayerAndMatchCommandsActionsUnitTests : SqliteGrifballContextFixtu
         new ProfileCommendationsService(Db),
         new DeploymentHistoryService(Db),
         new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!),
-        new DiscordCommandsHandler(Db, new GrifballWebApp.Application.Tools.HaloTools(Db, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db))),
         Urls(), null!);
 
     [Test]
@@ -52,32 +51,6 @@ public class PlayerAndMatchCommandsActionsUnitTests : SqliteGrifballContextFixtu
             Assert.That(embed.Title, Is.EqualTo("Grifter1 deployment history"));
             Assert.That(embed.Description, Does.StartWith($"Winter · [Grifs](https://grif.test/season/{season.SeasonID}/team/{team.TeamID}) · 0-0 · "));
         }
-    }
-
-    [Test]
-    public async Task Matches_TheCallersOwn_AreLookedUpByTheirDiscordAccount()
-    {
-        await AddUser(5, "Grifter1");
-        var discord = new CommandContextRecorder(discordUserId: 5);
-
-        await Players().Matches(discord.Context, null);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(discord.DeferredPublicly(), Is.True);
-            Assert.That(discord.Content(), Is.EqualTo("The site has no games saved for Grifter1."), "Their own gamertag, though they named none");
-        }
-    }
-
-    [Test]
-    public async Task Matches_OfAPlayerNamed_AreLookedUpByTheirGamertag()
-    {
-        await AddUser(5, "Grifter1");
-        var discord = new CommandContextRecorder();
-
-        await Players().Matches(discord.Context, "Grifter1");
-
-        Assert.That(discord.Content(), Is.EqualTo("The site has no games saved for Grifter1."));
     }
 
     [Test]

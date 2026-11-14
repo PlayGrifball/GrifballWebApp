@@ -47,12 +47,19 @@ public class HaloTools
         [Description("How many games, 1 to 25; left out, 5.")] int count = 5,
         CancellationToken ct = default)
     {
-        count = Math.Clamp(count, 1, MaxGames);
         var trimmed = gamertag.Trim();
         var xboxUser = await _accounts.FindByGamertagAsync(trimmed, ct)
             ?? throw new ToolException($"The site has no games saved for the gamertag {trimmed}: search finds the players it knows.");
-        var xuid = xboxUser.XboxUserID;
+        return await GetRecentGamesOf(xboxUser.XboxUserID, xboxUser.Gamertag, count, ct);
+    }
 
+    /// <summary>
+    /// get_recent_games for an account already found (by its XUID: /matches, whose option picks one), named by
+    /// <paramref name="gamertag"/>.
+    /// </summary>
+    public async Task<RecentGamesDto> GetRecentGamesOf(long xuid, string gamertag, int count = 5, CancellationToken ct = default)
+    {
+        count = Math.Clamp(count, 1, MaxGames);
         var games = await _context.Matches
             .AsNoTracking()
             .Where(m => m.MatchTeams.Any(t => t.MatchParticipants.Any(p => p.XboxUserID == xuid)))
@@ -68,6 +75,6 @@ public class HaloTools
                 Teams = m.MatchTeams.Select(t => new RecentGameTeamDto(t.TeamID, t.Score, t.Outcome, t.MatchParticipants.Select(p => p.XboxUser.Gamertag).ToList())).ToList(),
             })
             .ToListAsync(ct);
-        return new RecentGamesDto(xboxUser.Gamertag, games.Select(g => new RecentGameDto(g.MatchID, g.StartTime, g.Outcome, WaypointUrl(xboxUser.Gamertag, g.MatchID), g.Teams)).ToList());
+        return new RecentGamesDto(gamertag, games.Select(g => new RecentGameDto(g.MatchID, g.StartTime, g.Outcome, WaypointUrl(gamertag, g.MatchID), g.Teams)).ToList());
     }
 }

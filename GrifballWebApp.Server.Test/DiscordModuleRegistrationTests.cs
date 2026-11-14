@@ -184,8 +184,6 @@ public class DiscordModuleRegistrationTests
                 + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
             "/player history \"A player's seasons and teams\" permissions: default, preconditions: 0"
                 + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
-            "/player matches \"A player's recent Halo matches\" permissions: default, preconditions: 0"
-                + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
             "/player profile \"A player's region, record and championships\" permissions: default, preconditions: 0"
                 + " [player: String = null \"The player (default: you)\" autocomplete: PlayerAutocomplete, preconditions: 0]",
             "/player pull \"Pull an Xbox account's recent games from Halo (players and staff)\" permissions: default, preconditions: 0"

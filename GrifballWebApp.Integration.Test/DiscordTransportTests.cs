@@ -296,7 +296,7 @@ public class DiscordTransportTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.AutocompleteResult));
-            Assert.That(choices, Is.EquivalentTo(new[] { ("AutoTrA", "AutoTrA"), ("AutoTrB", "AutoTrB") }));
+            Assert.That(choices, Is.EquivalentTo(new[] { ("AutoTrA", "id:5801"), ("AutoTrB", "id:5802") }));
         }
     }
 
@@ -343,7 +343,6 @@ public class DiscordTransportTests
         new object[] { "player commendations", Array.Empty<(string, string)>() },
         new object[] { "player history", Array.Empty<(string, string)>() },
         new object[] { "player vods", Array.Empty<(string, string)>() },
-        new object[] { "player matches", new[] { ("player", "Missing") } },
         new object[] { "match info", new[] { ("match", "Missing") } },
         new object[] { "match game", new[] { ("match_id", "not-a-guid") } },
         new object[] { "leaderboard top", Array.Empty<(string, string)>() },

@@ -1,11 +1,10 @@
 using DiscordInterfaces;
-using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Halo;
-using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.Tools;
+using GrifballWebApp.Server.Commands;
 
 namespace GrifballWebApp.Server;
 
@@ -21,53 +20,35 @@ public class DiscordCommandsHandler
 
     public const string NoGamertag = "You must set your gamertag first, or give someone else's gamertag.";
 
-    private readonly GrifballContext _context;
+    private readonly CommandLookups _lookups;
     private readonly HaloTools _halo;
 
-    public DiscordCommandsHandler(GrifballContext context, HaloTools halo)
+    public DiscordCommandsHandler(CommandLookups lookups, HaloTools halo)
     {
-        _context = context;
+        _lookups = lookups;
         _halo = halo;
     }
 
-    /// <summary>The gamertag the command asks about: the one given, else the caller's own (their linked account's); null for none.</summary>
-    private async Task<string?> GamertagFor(IDiscordApplicationCommandContext discordContext, string? gamertag)
-        => !string.IsNullOrWhiteSpace(gamertag)
-            ? gamertag
-            : await _context.DiscordUsers
-                .Where(x => x.DiscordUserID == (long)discordContext.User.Id)
-                .Select(x => x.User!.XboxUser!.Gamertag)
-                .FirstOrDefaultAsync();
-
+    /// <summary>
+    /// /matches: an Xbox account's saved games, as the site has them, through the agents' get_recent_games
+    /// (<see cref="HaloTools.GetRecentGamesOf"/>). The account picked or typed by its current gamertag
+    /// (<see cref="CommandLookups.XboxAccount"/>), else the caller's own. It pulls nothing from Halo: /player pull (or a
+    /// page's button) does.
+    /// </summary>
     public async Task RecentMatches(IDiscordApplicationCommandContext discordContext, string? gamertag)
     {
         await discordContext.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage());
-        await RecentMatchesDeferred(discordContext, gamertag);
-    }
-
-    /// <summary>
-    /// <see cref="RecentMatches"/> once the reply is deferred (/player matches defers before looking the player up): the player's
-    /// saved games, as the site has them, through the agents' get_recent_games (<see cref="HaloTools.GetRecentGames"/>). It
-    /// pulls nothing from Halo: /player pull (or a page's button) does.
-    /// </summary>
-    public async Task RecentMatchesDeferred(IDiscordApplicationCommandContext discordContext, string? gamertag)
-    {
-        if (await GamertagFor(discordContext, gamertag) is not { } tag)
+        var account = string.IsNullOrWhiteSpace(gamertag)
+            ? await _lookups.OwnXboxAccount(discordContext.User.Id)
+            : await _lookups.XboxAccount(gamertag);
+        if (account is not { } found)
         {
-            await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent(NoGamertag));
+            var reply = string.IsNullOrWhiteSpace(gamertag) ? NoGamertag : CommandLookups.NoSuchXboxAccount;
+            await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent(reply));
             return;
         }
 
-        RecentGamesDto recent;
-        try
-        {
-            recent = await _halo.GetRecentGames(tag, 5);
-        }
-        catch (ToolException e)
-        {
-            await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent(e.Message));
-            return;
-        }
+        var recent = await _halo.GetRecentGamesOf(found.XboxUserID, found.Gamertag, 5);
 
         var list = recent.Games.Select(game =>
         {

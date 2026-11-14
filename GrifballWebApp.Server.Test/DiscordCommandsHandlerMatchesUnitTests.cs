@@ -18,7 +18,7 @@ namespace GrifballWebApp.Server.Test;
 public class DiscordCommandsHandlerMatchesUnitTests : SqliteGrifballContextFixture
 {
     private static readonly DateTime Played = new(2026, 10, 1, 20, 0, 0, DateTimeKind.Utc);
-    private DiscordCommandsHandler Handler() => new(Db, new HaloTools(Db, new XboxAccountService(Db)));
+    private DiscordCommandsHandler Handler() => new(new GrifballWebApp.Server.Commands.CommandLookups(Db, null!), new HaloTools(Db, new XboxAccountService(Db)));
 
     /// <summary>A game the player (Xbox 42) played on team 0, ending <paramref name="outcome"/>, against a team of one (Xbox 43) or of none.</summary>
     private void AddGame(Guid id, int hoursLater, Outcomes outcome, bool opponent = true)
@@ -82,7 +82,7 @@ public class DiscordCommandsHandlerMatchesUnitTests : SqliteGrifballContextFixtu
         await Db.SaveChangesAsync();
         var discord = new CommandContextRecorder(discordUserId: 42);
 
-        await Handler().RecentMatchesDeferred(discord.Context, null);
+        await Handler().RecentMatches(discord.Context, null);
 
         var fields = Embeds(discord).Single().Fields!.Select(f => (f.Name, f.Value)).ToList();
         Assert.That(fields.Skip(1), Is.EqualTo(new[]

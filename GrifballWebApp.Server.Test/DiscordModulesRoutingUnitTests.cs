@@ -168,7 +168,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
         var signups = new SignupsService(Db, _time);
         var vods = new VodService(Db, null!, MsOptions.Create(new YouTubeOptions()), null!);
         var leaderboards = new LeaderboardsService(Db, stats, new MatchmakingStatsService(Db), Substitute.For<IDistributedCache>(), new RecordingLogger<LeaderboardsService>());
-        var recentMatches = new DiscordCommandsHandler(Db, new GrifballWebApp.Application.Tools.HaloTools(Db, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)));
+        var recentMatches = new DiscordCommandsHandler(lookups, new GrifballWebApp.Application.Tools.HaloTools(Db, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)));
         _setGamertag.SetGamertag(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
         var admin = new AdminCommandsHandler(caller, lookups, reschedules, seasonMatches, new MatchPlannerService(Db), brackets, teams,
             new ScheduleRecommendations(Db, _time), new OnDemandJobs(schedulers, history),
@@ -184,7 +184,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
             .AddSingleton(new BrowseCommandsHandler(leaderboards, new MatchmakingStatsService(Db), new HomeEventsService(Db, _time), new QuickSearchService(Db, _time), lookups, urls))
             .AddSingleton(new SeasonCommandsHandler(lookups, seasons, new TeamStandingsService(Db), new MatchPlannerService(Db), new GradesService(Db), signups, brackets, urls))
             .AddSingleton(new PlayerCommandsHandler(lookups, caller, new ProfileStatsService(Db, stats, new MatchmakingStatsService(Db)), new ProfileCommendationsService(Db),
-                new DeploymentHistoryService(Db, _time), vods, recentMatches, urls, null!))
+                new DeploymentHistoryService(Db, _time), vods, urls, null!))
             .AddSingleton(new TeamCommandsHandler(lookups, new TeamPageService(Db, _time), new TeamHistoryService(Db, _time), vods, urls))
             .AddSingleton(new MatchCommandsHandler(lookups, seasonMatches, new MatchDetailsService(Db), urls, null!, null!))
             .AddSingleton(recentMatches)

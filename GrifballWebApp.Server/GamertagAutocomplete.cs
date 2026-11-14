@@ -1,28 +1,20 @@
-using GrifballWebApp.Infrastructure;
-using Microsoft.EntityFrameworkCore;
+using GrifballWebApp.Server.Commands;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
 namespace GrifballWebApp.Server;
 
+/// <summary>The choices for a gamertag option (an Xbox account): <see cref="CommandLookups.XboxAccountChoices"/>.</summary>
 public class GamertagAutocomplete : IAutocompleteProvider<AutocompleteInteractionContext>
 {
-    private readonly GrifballContext _context;
-    public GamertagAutocomplete(GrifballContext context)
+    private readonly CommandLookups _lookups;
+    public GamertagAutocomplete(CommandLookups lookups)
     {
-        _context = context;
+        _lookups = lookups;
     }
+
     public async ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(ApplicationCommandInteractionDataOption option,
         AutocompleteInteractionContext context)
-    {
-        var input = option.Value!;
-
-        return await _context.XboxUsers
-            .Select(x => x.Gamertag)
-            .Where(x => x.Contains(input))
-            .Take(25)
-            .Select(x => new ApplicationCommandOptionChoiceProperties(x, x))
-            .ToListAsync();
-    }
+        => await _lookups.XboxAccountChoices(option.Value);
 }

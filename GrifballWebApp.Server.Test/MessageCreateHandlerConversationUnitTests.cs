@@ -69,6 +69,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .AddSingleton(_ambient)
             .AddSingleton(_xboxUsers)
             .AddSingleton(_dataPull)
+            // get_recent_games finds the account by gamertag through it
+            .AddTransient<GrifballWebApp.Application.XboxAccounts.XboxAccountService>()
             .BuildServiceProvider();
         var chatClients = Substitute.For<IBotChatClients>();
         chatClients.Create().Returns(model);
