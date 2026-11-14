@@ -1,52 +1,42 @@
+using GrifballWebApp.Application.Brackets;
+using GrifballWebApp.Application.Championships;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Jobs;
+using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.TeamStandings;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
-using Microsoft.Extensions.Logging;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
 using HaloMatch = GrifballWebApp.Domain.Halo.Match;
 
 namespace GrifballWebApp.Server.Test;
 
 /// <summary>
-/// get_recent_games (<see cref="HaloTools"/>) on a temp-file SQLite database, with Halo's client and the pull substituted: it pulls
-/// the player's latest games, then gives them from the database with their Waypoint links.
+/// The Halo tools on a temp-file SQLite database: get_recent_games (<see cref="HaloTools"/>) reads the saved games, open to
+/// anyone; pull_season_match_games (<see cref="HaloPullTools"/>) queues the season match page's pull, for the roles it allows.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class HaloToolsUnitTests : SqliteGrifballContextFixture
 {
-    private static readonly long[] Xuid77 = [77];
-    private static readonly string[] BothPlayers = ["Grunt Padre", "Other"];
     private static readonly Guid MatchID = Guid.Parse("6f0c1c7e-1a52-4c11-9d7e-3f1c2b9a0a01");
+    private static readonly string[] BothPlayers = ["Grunt Padre", "Other"];
+    private static readonly string[] PlayerRole = ["Player"];
 
-    private readonly RecordingLogger<HaloTools> _logger = new();
-    private readonly IGetsertXboxUserService _xboxUsers = Substitute.For<IGetsertXboxUserService>();
-    private readonly IDataPullService _dataPull = Substitute.For<IDataPullService>();
+    private readonly ISeasonMatchPulls _pulls = Substitute.For<ISeasonMatchPulls>();
 
-    private HaloTools Tools() => new(Db, _xboxUsers, _dataPull, _logger);
+    private HaloTools Tools() => new(Db);
 
-    [SetUp]
-    public void PullsComplete()
-        => _dataPull.DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(MatchPullResult.Empty);
+    private HaloPullTools PullTools(ToolCaller caller) => new(caller,
+        new SeasonMatchService(Db, Substitute.For<IDataPullService>(), new BracketService(Db, new TeamStandingsService(Db), new ChampionshipService(Db)), new ChampionshipService(Db)),
+        _pulls);
 
-    private async Task<XboxUser> AddPlayer()
+    private async Task AddGames()
     {
-        var xbox = XboxUser.FromXbox(77, "Grunt Padre");
-        Db.XboxUsers.Add(xbox);
-        await Db.SaveChangesAsync();
-        _xboxUsers.GetsertXboxUserByGamertag("Grunt Padre", Arg.Any<CancellationToken>()).Returns((xbox, (string?)null));
-        return xbox;
-    }
-
-    [Test]
-    public async Task GetRecentGames_PullsThePlayersGames_AndGivesTheirLatestWithWaypointLinks()
-    {
-        await AddPlayer();
-        Db.XboxUsers.Add(XboxUser.FromXbox(78, "Other"));
+        Db.XboxUsers.AddRange(XboxUser.FromXbox(77, "Grunt Padre"), XboxUser.FromXbox(78, "Other"));
         var match = HaloMatch.Seed(MatchID, startTime: new DateTime(2026, 10, 1, 20, 0, 0, DateTimeKind.Utc));
         match.AddTeam(0, 50, Outcomes.Won);
         match.AddTeam(1, 20, Outcomes.Lost);
@@ -59,15 +49,18 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
         notTheirs.AddParticipant(0, 78, new MatchParticipantStats());
         Db.Matches.Add(notTheirs);
         await Db.SaveChangesAsync();
+    }
 
-        var recent = await Tools().GetRecentGames("Grunt Padre", 3);
+    [Test]
+    public async Task GetRecentGames_GivesThePlayersSavedGames_WithWaypointLinks()
+    {
+        await AddGames();
 
-        await _dataPull.Received(1).DownloadRecentMatchesForPlayers(Arg.Is<List<long>>(x => x.SequenceEqual(Xuid77)), 0, 0, 3, Arg.Any<CancellationToken>());
-        var game = recent.Games.Single();
+        var games = await Tools().GetRecentGames("  Grunt Padre ", 3);
+
+        var game = games.Single();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(_logger.Entries, Is.Empty);
-            Assert.That(recent.PulledFresh, Is.True);
             Assert.That(game.MatchID, Is.EqualTo(MatchID));
             Assert.That(game.WaypointUrl, Is.EqualTo($"https://www.halowaypoint.com/halo-infinite/players/Grunt%20Padre/matches/{MatchID}"));
             Assert.That(game.Teams.SelectMany(t => t.Players), Is.EquivalentTo(BothPlayers));
@@ -76,79 +69,55 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
-    public async Task GetRecentGames_WhenThePullThrows_LogsItAndGivesTheGamesAlreadySaved_NotAsFresh()
+    public async Task GetRecentGames_RefusesAGamertagTheSiteDoesntKnow()
     {
-        await AddPlayer();
-        _dataPull.DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .ThrowsAsync(new HttpRequestException("Halo is down"));
-
-        var recent = await Tools().GetRecentGames("Grunt Padre");
-
-        var entry = _logger.Entries.Single();
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
-            Assert.That(entry.Message, Is.EqualTo("Failed to fetch recent matches for Grunt Padre"));
-            Assert.That(entry.Exception, Is.TypeOf<HttpRequestException>());
-            Assert.That(recent.Games, Is.Empty);
-            Assert.That(recent.PulledFresh, Is.False);
-        }
-    }
-
-    [Test]
-    public async Task GetRecentGames_WhenHaloMissesTheHistory_SaysTheGamesArentFresh()
-    {
-        // The pull reports Halo's failures in its result, not by throwing
-        await AddPlayer();
-        _dataPull.DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(new MatchPullResult(1, ["Grunt Padre"], 0, 0, 0, []));
-
-        var recent = await Tools().GetRecentGames("Grunt Padre");
-
-        var entry = _logger.Entries.Single();
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(recent.PulledFresh, Is.False);
-            Assert.That(entry.Level, Is.EqualTo(LogLevel.Warning));
-            Assert.That(entry.Message, Does.Contain("Grunt Padre"));
-        }
-    }
-
-    [Test]
-    public void GetRecentGames_SaysItIsGrifballCustomGames()
-    {
-        // The pull reads custom games' history and keeps Grifball's: not matchmaking, not other modes
-        var description = typeof(HaloTools).GetMethod(nameof(HaloTools.GetRecentGames))!.GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
-            .Cast<System.ComponentModel.DescriptionAttribute>().Single().Description;
-
-        Assert.That(description, Does.Contain("Grifball").And.Contain("custom").And.Not.Contain("any playlist"));
-    }
-
-    [Test]
-    public async Task GetRecentGames_RefusesAnUnknownGamertag_WithWhyItIsUnknown()
-    {
-        _xboxUsers.GetsertXboxUserByGamertag("Nobody", Arg.Any<CancellationToken>()).Returns(((XboxUser?)null, (string?)"No such gamertag"));
-        _xboxUsers.GetsertXboxUserByGamertag("Silent", Arg.Any<CancellationToken>()).Returns(((XboxUser?)null, (string?)null));
-
+        // Read only: an unknown gamertag isn't looked up in Halo (nor saved)
         var refused = await Assert.ThrowsAsync<ToolException>(() => Tools().GetRecentGames("Nobody"));
-        var silent = await Assert.ThrowsAsync<ToolException>(() => Tools().GetRecentGames("Silent"));
+
+        Assert.That(refused!.Message, Does.Contain("no games saved for the gamertag Nobody"));
+    }
+
+    [TestCase(0)]
+    [TestCase(100)]
+    public async Task GetRecentGames_KeepsTheCountInRange(int asked)
+    {
+        await AddGames();
+
+        Assert.That(await Tools().GetRecentGames("Grunt Padre", asked), Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task PullSeasonMatchGames_QueuesTheMatchesPull_AsThePlayerWhoAsked()
+    {
+        var season = Season.Seed(seasonName: "Spring");
+        Db.Seasons.Add(season);
+        await Db.SaveChangesAsync();
+        var home = Team.Seed(seasonID: season.SeasonID, teamName: "Home");
+        var away = Team.Seed(seasonID: season.SeasonID, teamName: "Away");
+        Db.Teams.AddRange(home, away);
+        await Db.SaveChangesAsync();
+        var match = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID);
+        Db.SeasonMatches.Add(match);
+        await Db.SaveChangesAsync();
+        var queued = new OnDemandJobStatusDto { State = OnDemandJobState.Queued };
+        _pulls.Queue(match.SeasonMatchID, 21, true, Arg.Any<CancellationToken>()).Returns(queued);
+
+        var status = await PullTools(new ToolCaller(21, PlayerRole)).PullSeasonMatchGames(match.SeasonMatchID, backToSeasonStart: true);
+
+        Assert.That(status, Is.SameAs(queued));
+    }
+
+    [Test]
+    public async Task PullSeasonMatchGames_RefusesAnUnknownMatch_AndACallerWithoutTheRole()
+    {
+        var unknown = await Assert.ThrowsAsync<ToolException>(() => PullTools(new ToolCaller(21, PlayerRole)).PullSeasonMatchGames(4242));
+        var anonymous = await Assert.ThrowsAsync<ToolException>(() => PullTools(ToolCaller.Anonymous).PullSeasonMatchGames(4242));
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(refused!.Message, Is.EqualTo("No such gamertag"));
-            Assert.That(silent!.Message, Does.Contain("Silent"));
+            Assert.That(unknown!.Message, Does.Contain("no season match 4242"));
+            Assert.That(anonymous!.Message, Is.EqualTo("Only a player or commissioner or sysadmin can do that."));
         }
-        await _dataPull.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);
-    }
-
-    [TestCase(0, 1)]
-    [TestCase(100, HaloTools.MaxGames)]
-    public async Task GetRecentGames_KeepsTheCountInRange(int asked, int pulled)
-    {
-        await AddPlayer();
-
-        await Tools().GetRecentGames("Grunt Padre", asked);
-
-        await _dataPull.Received(1).DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), 0, 0, pulled, Arg.Any<CancellationToken>());
+        await _pulls.DidNotReceiveWithAnyArgs().Queue(default, default, default);
     }
 }

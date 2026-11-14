@@ -14,6 +14,16 @@ public sealed record ToolCaller(int? UserID, IReadOnlyList<string> Roles)
 {
     public static readonly ToolCaller Anonymous = new(null, []);
 
+    /// <summary>Whether the caller has one of <paramref name="roles"/>; with none given, anyone does.</summary>
+    public bool IsInAnyRole(IReadOnlyCollection<string> roles) => roles.Count == 0 || roles.Any(Roles.Contains);
+
+    /// <summary>Nothing, when the caller has one of <paramref name="roles"/>; a <see cref="ToolException"/> saying who may, else.</summary>
+    public void Require(IReadOnlyCollection<string> roles)
+    {
+        if (!IsInAnyRole(roles))
+            throw new ToolException($"Only a {string.Join(" or ", roles.Select(r => r.ToLowerInvariant()))} can do that.");
+    }
+
     /// <summary>The caller's user ID; a <see cref="ToolException"/> for an anonymous caller, who must name the player.</summary>
     public int Me() => UserID ?? throw new ToolException(
         "You have no site account linked here, so name the player (search finds them by gamertag). On Discord, link your account on the site's profile page.");
@@ -31,8 +41,19 @@ public enum ToolEffect
 {
     /// <summary>Reads what the site shows, and changes nothing.</summary>
     ReadsOnly,
-    /// <summary>Pulls fresh data from Halo and saves it before reading: adds data, never changes or deletes any.</summary>
-    FetchesFromHalo,
+    /// <summary>Queues a pull from Halo, a background job that saves the games it finds: adds data, never changes or deletes any.</summary>
+    QueuesHaloPull,
+}
+
+/// <summary>
+/// The site roles that may use a tool (on its method, or its class for all of them), as its endpoint's
+/// <c>[Authorize(Roles = ...)]</c> names them: any one will do. A host gives a caller without one none of these tools
+/// (<see cref="GrifTools.Allows"/>), and the tool refuses them too (<see cref="ToolCaller.Require"/>). None: anyone may.
+/// </summary>
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+public sealed class ToolRolesAttribute(params string[] roles) : Attribute
+{
+    public IReadOnlyList<string> Roles { get; } = roles;
 }
 
 /// <summary>
@@ -44,14 +65,14 @@ public enum ToolEffect
 public static class GrifTools
 {
     /// <summary>The classes of the tools that only read, open to anyone on the site.</summary>
-    public static readonly Type[] ReadOnly = [typeof(SeasonTools), typeof(TeamTools), typeof(PlayerTools), typeof(MatchTools), typeof(BrowseTools), typeof(ClockTools)];
+    public static readonly Type[] ReadOnly = [typeof(SeasonTools), typeof(TeamTools), typeof(PlayerTools), typeof(MatchTools), typeof(BrowseTools), typeof(ClockTools), typeof(HaloTools)];
 
-    /// <summary>The classes of the tools that pull from Halo first (<see cref="ToolEffect.FetchesFromHalo"/>).</summary>
-    public static readonly Type[] FetchingFromHalo = [typeof(HaloTools)];
+    /// <summary>The classes of the tools that queue a pull from Halo (<see cref="ToolEffect.QueuesHaloPull"/>).</summary>
+    public static readonly Type[] QueuingHaloPulls = [typeof(HaloPullTools)];
 
     /// <summary>Every tool class, with what its tools do.</summary>
     public static IEnumerable<(Type Type, ToolEffect Effect)> All
-        => ReadOnly.Select(t => (t, ToolEffect.ReadsOnly)).Concat(FetchingFromHalo.Select(t => (t, ToolEffect.FetchesFromHalo)));
+        => ReadOnly.Select(t => (t, ToolEffect.ReadsOnly)).Concat(QueuingHaloPulls.Select(t => (t, ToolEffect.QueuesHaloPull)));
 
     /// <summary>
     /// The tools a chat with a small model gets (the Discord bot, the site's chat): the questions people ask most. A model picks
@@ -60,8 +81,19 @@ public static class GrifTools
     public static readonly string[] Chat =
     [
         "who_am_i", "get_current_time", "search", "get_season", "get_season_standings", "get_season_schedule", "get_team",
-        "get_player", "get_player_rank", "get_season_match", "get_recent_games", "get_leaderboards",
+        "get_player", "get_player_rank", "get_season_match", "get_recent_games", "get_leaderboards", "pull_season_match_games",
     ];
+
+    /// <summary>The roles that may use a tool: its method's [ToolRoles], else its class's; none, anyone may.</summary>
+    public static IReadOnlyList<string> Roles(MethodInfo method)
+        => (method.GetCustomAttribute<ToolRolesAttribute>() ?? method.DeclaringType!.GetCustomAttribute<ToolRolesAttribute>())?.Roles ?? [];
+
+    /// <summary>Whether a host gives <paramref name="caller"/> this tool: they have one of its roles, or it needs none.</summary>
+    public static bool Allows(MethodInfo method, ToolCaller caller) => caller.IsInAnyRole(Roles(method).ToList());
+
+    /// <summary>Every tool's roles by its name, for a host that knows only the name (the MCP server's filters).</summary>
+    public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> RolesByName
+        = All.SelectMany(set => Methods(set.Type)).ToDictionary(Name, Roles);
 
     /// <summary>A class's tools: its own public instance methods with a [Description].</summary>
     public static IEnumerable<MethodInfo> Methods(Type type)
@@ -93,8 +125,8 @@ public static class GrifTools
     }
 
     /// <summary>
-    /// The tools named in <paramref name="names"/> as functions a chat model calls (Microsoft.Extensions.AI), run as
-    /// <paramref name="caller"/>. Each call runs in a scope of its own from <paramref name="scopes"/>, so a tool never shares a
+    /// The tools named in <paramref name="names"/> that <paramref name="caller"/> may use (<see cref="Allows"/>: a tool their
+    /// roles don't allow isn't given at all) as functions a chat model calls (Microsoft.Extensions.AI), run as them. Each call runs in a scope of its own from <paramref name="scopes"/>, so a tool never shares a
     /// DbContext with the host (which may be saving meanwhile, as the Discord bot saves its streamed reply). A refusal comes back
     /// as the tool's result, so the model can tell the user why; the chat client's function invocation hides other errors' details.
     /// </summary>
@@ -104,7 +136,7 @@ public static class GrifTools
                 var create = Factory(set.Type);
                 return Methods(set.Type).Select(method => (Method: method, Create: create));
             })
-            .Where(t => names.Contains(Name(t.Method)))
+            .Where(t => names.Contains(Name(t.Method)) && Allows(t.Method, caller))
             .Select(t => (AITool)new InAScopeOfItsOwn(AIFunctionFactory.Create(t.Method, args => t.Create(args.Services!, caller),
                 new AIFunctionFactoryOptions { Name = Name(t.Method) }), scopes))
             .ToList();

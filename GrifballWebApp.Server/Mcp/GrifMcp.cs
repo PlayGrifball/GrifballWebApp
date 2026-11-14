@@ -40,18 +40,29 @@ public static class GrifMcp
             })
             .WithHttpTransport(options => options.Stateless = true)
             .WithTools(Tools(GrifTools.All))
-            .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (request, ct) =>
-            {
-                try
+            .WithRequestFilters(filters => filters
+                // A tool the user's roles don't allow isn't listed for them...
+                .AddListToolsFilter(next => async (request, ct) =>
                 {
-                    return await next(request, ct);
-                }
-                catch (ToolException e)
+                    var result = await next(request, ct);
+                    var caller = Caller(request.User!);
+                    result.Tools = result.Tools.Where(t => caller.IsInAnyRole(GrifTools.RolesByName.GetValueOrDefault(t.Name, []).ToList())).ToList();
+                    return result;
+                })
+                // ...and is refused if called anyway (the tool checks too)
+                .AddCallToolFilter(next => async (request, ct) =>
                 {
-                    // The model sees this message and can act on it; the SDK hides any other exception's
-                    throw new McpException(e.Message, e);
-                }
-            }));
+                    try
+                    {
+                        Caller(request.User!).Require(GrifTools.RolesByName.GetValueOrDefault(request.Params?.Name ?? "", []).ToList());
+                        return await next(request, ct);
+                    }
+                    catch (ToolException e)
+                    {
+                        // The model sees this message and can act on it; the SDK hides any other exception's
+                        throw new McpException(e.Message, e);
+                    }
+                }));
     }
 
     /// <summary>The endpoint, open to access tokens only (not to the browser's cookie or the API's bearer tokens).</summary>
@@ -78,11 +89,11 @@ public static class GrifMcp
                 {
                     Name = GrifTools.Name(method),
                     ReadOnly = set.Effect == ToolEffect.ReadsOnly,
-                    // Pulling from Halo adds games; nothing is changed or deleted
+                    // A queued pull from Halo adds games; nothing is changed or deleted
                     Destructive = false,
                     // A second pull can save games played since the first
                     Idempotent = set.Effect == ToolEffect.ReadsOnly,
-                    OpenWorld = set.Effect == ToolEffect.FetchesFromHalo,
+                    OpenWorld = set.Effect == ToolEffect.QueuesHaloPull,
                 }));
         });
 }
