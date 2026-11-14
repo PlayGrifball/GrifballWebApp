@@ -6,8 +6,8 @@ namespace GrifballWebApp.Domain.Players;
 
 /// <summary>
 /// One user merged into another, and everything the merge changed (<see cref="Manifest"/>), so a sysadmin can see why
-/// an account is gone and undo the merge. It is itself the log: no row history, and no foreign keys to the users (the
-/// source is deleted by the merge, and the record outlives both).
+/// an account is gone and undo the merge. It keeps its row history (an undo is a change), and has no foreign keys
+/// to the users (the source is deleted by the merge, and the record outlives both).
 /// </summary>
 /// <remarks>
 /// Begins as a merge is made (<see cref="Record"/>), and changes once at most: a sysadmin undoes it (<see cref="Undo"/>).

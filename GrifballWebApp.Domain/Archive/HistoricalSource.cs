@@ -7,7 +7,7 @@ namespace GrifballWebApp.Domain.Archive;
 /// A source of the historical archive: a Google Sheets workbook, a page or a channel the worker downloads itself
 /// (HistoricalSourceService). The rows come from the app's own catalog (HistoricalSourceCatalog), inserted and kept up to
 /// date at runtime, so a fresh environment needs no setup; only <see cref="Enabled"/> is a sysadmin's (a dead source is never downloaded, whatever it says).
-/// Who changed Enabled is in the audit columns and the row history.
+/// Not temporal: the worker writes its fetch status on every refresh; who changed Enabled is in the audit columns.
 /// Its snapshots (<see cref="HistoricalSourceSnapshot"/>) are its own: kept by <see cref="Fetched"/>, reached through it.
 /// </summary>
 [AggregateRoot]

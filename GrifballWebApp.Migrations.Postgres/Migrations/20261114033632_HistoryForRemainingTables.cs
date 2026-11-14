@@ -13,25 +13,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
         {
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
-                schema: "Xbox",
-                table: "XuidLookups",
-                type: "timestamp with time zone",
-                nullable: false,
-                defaultValueSql: "'-infinity'::timestamp with time zone");
-
-            migrationBuilder.AlterColumn<DateTime>(
-                name: "PeriodStart",
-                schema: "Xbox",
-                table: "XuidLookups",
-                type: "timestamp with time zone",
-                nullable: false,
-                defaultValueSql: "transaction_timestamp()",
-                oldClrType: typeof(DateTime),
-                oldType: "timestamp with time zone",
-                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodStart",
                 schema: "Auth",
                 table: "UserMerges",
                 type: "timestamp with time zone",
@@ -80,44 +61,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 name: "PeriodStart",
                 schema: "Event",
                 table: "ScheduleRecommendationMatches",
-                type: "timestamp with time zone",
-                nullable: false,
-                defaultValueSql: "transaction_timestamp()",
-                oldClrType: typeof(DateTime),
-                oldType: "timestamp with time zone",
-                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSources",
-                type: "timestamp with time zone",
-                nullable: false,
-                defaultValueSql: "'-infinity'::timestamp with time zone");
-
-            migrationBuilder.AlterColumn<DateTime>(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSources",
-                type: "timestamp with time zone",
-                nullable: false,
-                defaultValueSql: "transaction_timestamp()",
-                oldClrType: typeof(DateTime),
-                oldType: "timestamp with time zone",
-                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSeasonReviews",
-                type: "timestamp with time zone",
-                nullable: false,
-                defaultValueSql: "'-infinity'::timestamp with time zone");
-
-            migrationBuilder.AlterColumn<DateTime>(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSeasonReviews",
                 type: "timestamp with time zone",
                 nullable: false,
                 defaultValueSql: "transaction_timestamp()",
@@ -165,15 +108,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodEnd",
-                schema: "Xbox",
-                table: "XuidLookups",
-                type: "timestamp with time zone",
-                nullable: false,
-                computedColumnSql: "'infinity'::timestamp with time zone",
-                stored: true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodEnd",
                 schema: "Auth",
                 table: "UserMerges",
                 type: "timestamp with time zone",
@@ -194,24 +128,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 name: "PeriodEnd",
                 schema: "Event",
                 table: "ScheduleRecommendationMatches",
-                type: "timestamp with time zone",
-                nullable: false,
-                computedColumnSql: "'infinity'::timestamp with time zone",
-                stored: true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSources",
-                type: "timestamp with time zone",
-                nullable: false,
-                computedColumnSql: "'infinity'::timestamp with time zone",
-                stored: true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSeasonReviews",
                 type: "timestamp with time zone",
                 nullable: false,
                 computedColumnSql: "'infinity'::timestamp with time zone",
@@ -267,70 +183,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     SchedulePaused = table.Column<bool>(type: "boolean", nullable: true)
-                },
-                constraints: table =>
-                {
-                });
-
-            migrationBuilder.CreateTable(
-                name: "HistoricalSeasonReviewsHistory",
-                schema: "Event",
-                columns: table => new
-                {
-                    ApprovalJobID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
-                    DecidedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    HistoricalImportJobID = table.Column<int>(type: "integer", nullable: true),
-                    HistoricalSeasonReviewID = table.Column<int>(type: "integer", nullable: true),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    SeasonKey = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true, collation: "case_insensitive"),
-                    SeasonName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true, collation: "case_insensitive"),
-                    StatsBefore = table.Column<int>(type: "integer", nullable: true),
-                    StatsRemoved = table.Column<int>(type: "integer", nullable: true),
-                    Status = table.Column<int>(type: "integer", nullable: true),
-                    TeamsBefore = table.Column<int>(type: "integer", nullable: true),
-                    TeamsRemoved = table.Column<int>(type: "integer", nullable: true),
-                    TitlesBefore = table.Column<int>(type: "integer", nullable: true),
-                    TitlesRemoved = table.Column<int>(type: "integer", nullable: true)
-                },
-                constraints: table =>
-                {
-                });
-
-            migrationBuilder.CreateTable(
-                name: "HistoricalSourcesHistory",
-                schema: "Event",
-                columns: table => new
-                {
-                    Category = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
-                    Config = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
-                    CsvSheetName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true, collation: "case_insensitive"),
-                    Enabled = table.Column<bool>(type: "boolean", nullable: true),
-                    Format = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true, collation: "case_insensitive"),
-                    GameVersion = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true, collation: "case_insensitive"),
-                    Gid = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true, collation: "case_insensitive"),
-                    HistoricalSourceID = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true, collation: "case_insensitive"),
-                    IsDead = table.Column<bool>(type: "boolean", nullable: true),
-                    Kind = table.Column<int>(type: "integer", nullable: true),
-                    LastChangedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    LastFetchStatus = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true, collation: "case_insensitive"),
-                    LastFetchedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    League = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    SheetKey = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true, collation: "case_insensitive"),
-                    Title = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true, collation: "case_insensitive"),
-                    Url = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true, collation: "case_insensitive"),
-                    WaybackTimestamp = table.Column<string>(type: "character varying(14)", maxLength: 14, nullable: true, collation: "case_insensitive"),
-                    Year = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -406,23 +258,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 {
                 });
 
-            migrationBuilder.CreateTable(
-                name: "XuidLookupsHistory",
-                schema: "Xbox",
-                columns: table => new
-                {
-                    Error = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true, collation: "case_insensitive"),
-                    LookedUpAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Status = table.Column<int>(type: "integer", nullable: true),
-                    UserID = table.Column<int>(type: "integer", nullable: true),
-                    XboxUserID = table.Column<long>(type: "bigint", nullable: true)
-                },
-                constraints: table =>
-                {
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_DuplicateDismissalsHistory_LowUserID_HighUserID_PeriodEnd",
                 schema: "Auth",
@@ -436,31 +271,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "HistoricalImportSettingsID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_HistoricalSeasonReviewsHistory_HistoricalImportJobID_Period~",
-                schema: "Event",
-                table: "HistoricalSeasonReviewsHistory",
-                columns: new[] { "HistoricalImportJobID", "PeriodEnd" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_HistoricalSeasonReviewsHistory_HistoricalSeasonReviewID_Per~",
-                schema: "Event",
-                table: "HistoricalSeasonReviewsHistory",
-                columns: new[] { "HistoricalSeasonReviewID", "PeriodEnd" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_HistoricalSourcesHistory_HistoricalSourceID_PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSourcesHistory",
-                columns: new[] { "HistoricalSourceID", "PeriodEnd" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ScheduleRecommendationMatchesHistory_ScheduleRecomm~903120f7",
+                name: "IX_ScheduleRecommendationMatchesHistory_ScheduleRecomm~91102ea4",
                 schema: "Event",
                 table: "ScheduleRecommendationMatchesHistory",
                 columns: new[] { "ScheduleRecommendationMatchID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_ScheduleRecommendationMatchesHistory_ScheduleRecomm~aa6ada85",
+                name: "IX_ScheduleRecommendationMatchesHistory_ScheduleRecommendation~",
                 schema: "Event",
                 table: "ScheduleRecommendationMatchesHistory",
                 columns: new[] { "ScheduleRecommendationID", "PeriodEnd" });
@@ -483,43 +300,25 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "UserMergesHistory",
                 columns: new[] { "UserMergeID", "PeriodEnd" });
 
-            migrationBuilder.CreateIndex(
-                name: "IX_XuidLookupsHistory_UserID_PeriodEnd",
-                schema: "Xbox",
-                table: "XuidLookupsHistory",
-                columns: new[] { "UserID", "PeriodEnd" });
-
             migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Auth\".\"DuplicateDismissals\"');");
 
             migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"HistoricalImportSettings\"');");
-
-            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"HistoricalSeasonReviews\"');");
-
-            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"HistoricalSources\"');");
 
             migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"ScheduleRecommendationMatches\"');");
 
             migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"ScheduleRecommendations\"');");
 
             migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Auth\".\"UserMerges\"');");
-
-            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Xbox\".\"XuidLookups\"');");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Xbox\".\"XuidLookups\"');");
-
             migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Auth\".\"UserMerges\"');");
 
             migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"ScheduleRecommendations\"');");
 
             migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"ScheduleRecommendationMatches\"');");
-
-            migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"HistoricalSources\"');");
-
-            migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"HistoricalSeasonReviews\"');");
 
             migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"HistoricalImportSettings\"');");
 
@@ -534,14 +333,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 schema: "Event");
 
             migrationBuilder.DropTable(
-                name: "HistoricalSeasonReviewsHistory",
-                schema: "Event");
-
-            migrationBuilder.DropTable(
-                name: "HistoricalSourcesHistory",
-                schema: "Event");
-
-            migrationBuilder.DropTable(
                 name: "ScheduleRecommendationMatchesHistory",
                 schema: "Event");
 
@@ -552,15 +343,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             migrationBuilder.DropTable(
                 name: "UserMergesHistory",
                 schema: "Auth");
-
-            migrationBuilder.DropTable(
-                name: "XuidLookupsHistory",
-                schema: "Xbox");
-
-            migrationBuilder.DropColumn(
-                name: "PeriodEnd",
-                schema: "Xbox",
-                table: "XuidLookups");
 
             migrationBuilder.DropColumn(
                 name: "PeriodEnd",
@@ -576,16 +358,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 name: "PeriodEnd",
                 schema: "Event",
                 table: "ScheduleRecommendationMatches");
-
-            migrationBuilder.DropColumn(
-                name: "PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSources");
-
-            migrationBuilder.DropColumn(
-                name: "PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSeasonReviews");
 
             migrationBuilder.DropColumn(
                 name: "PeriodEnd",
@@ -599,11 +371,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.DropColumn(
                 name: "PeriodStart",
-                schema: "Xbox",
-                table: "XuidLookups");
-
-            migrationBuilder.DropColumn(
-                name: "PeriodStart",
                 schema: "Auth",
                 table: "UserMerges");
 
@@ -616,16 +383,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 name: "PeriodStart",
                 schema: "Event",
                 table: "ScheduleRecommendationMatches");
-
-            migrationBuilder.DropColumn(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSources");
-
-            migrationBuilder.DropColumn(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSeasonReviews");
 
             migrationBuilder.DropColumn(
                 name: "PeriodStart",

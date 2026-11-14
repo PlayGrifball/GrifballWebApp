@@ -12,15 +12,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterTable(
-                name: "XuidLookups",
-                schema: "Xbox")
-                .Annotation("SqlServer:IsTemporal", true)
-                .Annotation("SqlServer:TemporalHistoryTableName", "XuidLookupsHistory")
-                .Annotation("SqlServer:TemporalHistoryTableSchema", "Xbox")
-                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
-                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
-
-            migrationBuilder.AlterTable(
                 name: "UserMerges",
                 schema: "Auth")
                 .Annotation("SqlServer:IsTemporal", true)
@@ -48,24 +39,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
 
             migrationBuilder.AlterTable(
-                name: "HistoricalSources",
-                schema: "Event")
-                .Annotation("SqlServer:IsTemporal", true)
-                .Annotation("SqlServer:TemporalHistoryTableName", "HistoricalSourcesHistory")
-                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
-                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
-                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
-
-            migrationBuilder.AlterTable(
-                name: "HistoricalSeasonReviews",
-                schema: "Event")
-                .Annotation("SqlServer:IsTemporal", true)
-                .Annotation("SqlServer:TemporalHistoryTableName", "HistoricalSeasonReviewsHistory")
-                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
-                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
-                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
-
-            migrationBuilder.AlterTable(
                 name: "HistoricalImportSettings",
                 schema: "Event")
                 .Annotation("SqlServer:IsTemporal", true)
@@ -85,24 +58,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodEnd",
-                schema: "Xbox",
-                table: "XuidLookups",
-                type: "datetime2",
-                nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified))
-                .Annotation("SqlServer:TemporalIsPeriodEndColumn", true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodStart",
-                schema: "Xbox",
-                table: "XuidLookups",
-                type: "datetime2",
-                nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified))
-                .Annotation("SqlServer:TemporalIsPeriodStartColumn", true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodEnd",
                 schema: "Auth",
                 table: "UserMerges",
                 type: "datetime2",
@@ -150,42 +105,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 name: "PeriodStart",
                 schema: "Event",
                 table: "ScheduleRecommendationMatches",
-                type: "datetime2",
-                nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified))
-                .Annotation("SqlServer:TemporalIsPeriodStartColumn", true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSources",
-                type: "datetime2",
-                nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified))
-                .Annotation("SqlServer:TemporalIsPeriodEndColumn", true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSources",
-                type: "datetime2",
-                nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified))
-                .Annotation("SqlServer:TemporalIsPeriodStartColumn", true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSeasonReviews",
-                type: "datetime2",
-                nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified))
-                .Annotation("SqlServer:TemporalIsPeriodEndColumn", true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSeasonReviews",
                 type: "datetime2",
                 nullable: false,
                 defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified))
@@ -233,18 +152,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
         {
             migrationBuilder.DropColumn(
                 name: "PeriodEnd",
-                schema: "Xbox",
-                table: "XuidLookups")
-                .Annotation("SqlServer:TemporalIsPeriodEndColumn", true);
-
-            migrationBuilder.DropColumn(
-                name: "PeriodStart",
-                schema: "Xbox",
-                table: "XuidLookups")
-                .Annotation("SqlServer:TemporalIsPeriodStartColumn", true);
-
-            migrationBuilder.DropColumn(
-                name: "PeriodEnd",
                 schema: "Auth",
                 table: "UserMerges")
                 .Annotation("SqlServer:TemporalIsPeriodEndColumn", true);
@@ -282,30 +189,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
             migrationBuilder.DropColumn(
                 name: "PeriodEnd",
                 schema: "Event",
-                table: "HistoricalSources")
-                .Annotation("SqlServer:TemporalIsPeriodEndColumn", true);
-
-            migrationBuilder.DropColumn(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSources")
-                .Annotation("SqlServer:TemporalIsPeriodStartColumn", true);
-
-            migrationBuilder.DropColumn(
-                name: "PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSeasonReviews")
-                .Annotation("SqlServer:TemporalIsPeriodEndColumn", true);
-
-            migrationBuilder.DropColumn(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSeasonReviews")
-                .Annotation("SqlServer:TemporalIsPeriodStartColumn", true);
-
-            migrationBuilder.DropColumn(
-                name: "PeriodEnd",
-                schema: "Event",
                 table: "HistoricalImportSettings")
                 .Annotation("SqlServer:TemporalIsPeriodEndColumn", true);
 
@@ -326,15 +209,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 schema: "Auth",
                 table: "DuplicateDismissals")
                 .Annotation("SqlServer:TemporalIsPeriodStartColumn", true);
-
-            migrationBuilder.AlterTable(
-                name: "XuidLookups",
-                schema: "Xbox")
-                .OldAnnotation("SqlServer:IsTemporal", true)
-                .OldAnnotation("SqlServer:TemporalHistoryTableName", "XuidLookupsHistory")
-                .OldAnnotation("SqlServer:TemporalHistoryTableSchema", "Xbox")
-                .OldAnnotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
-                .OldAnnotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
 
             migrationBuilder.AlterTable(
                 name: "UserMerges",
@@ -359,24 +233,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 schema: "Event")
                 .OldAnnotation("SqlServer:IsTemporal", true)
                 .OldAnnotation("SqlServer:TemporalHistoryTableName", "ScheduleRecommendationMatchesHistory")
-                .OldAnnotation("SqlServer:TemporalHistoryTableSchema", "Event")
-                .OldAnnotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
-                .OldAnnotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
-
-            migrationBuilder.AlterTable(
-                name: "HistoricalSources",
-                schema: "Event")
-                .OldAnnotation("SqlServer:IsTemporal", true)
-                .OldAnnotation("SqlServer:TemporalHistoryTableName", "HistoricalSourcesHistory")
-                .OldAnnotation("SqlServer:TemporalHistoryTableSchema", "Event")
-                .OldAnnotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
-                .OldAnnotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
-
-            migrationBuilder.AlterTable(
-                name: "HistoricalSeasonReviews",
-                schema: "Event")
-                .OldAnnotation("SqlServer:IsTemporal", true)
-                .OldAnnotation("SqlServer:TemporalHistoryTableName", "HistoricalSeasonReviewsHistory")
                 .OldAnnotation("SqlServer:TemporalHistoryTableSchema", "Event")
                 .OldAnnotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .OldAnnotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");

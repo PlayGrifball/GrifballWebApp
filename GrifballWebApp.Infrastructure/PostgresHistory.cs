@@ -124,45 +124,34 @@ public static class PostgresHistory
                 historyEnd.HasColumnType(periods.ColumnType);
             // A row's versions, and the one in effect at a time; and each foreign key's.
             string[][] indexes = [[.. keyColumns, PeriodEnd], .. ForeignKeyColumns(table, store, keyColumns).Select(fk => fk.Append(PeriodEnd).ToArray())];
-            var names = HistoryIndexNames(table.Key.Table + Suffix, indexes);
-            for (var i = 0; i < indexes.Length; i++)
-            {
-                var index = b.HasIndex(indexes[i]);
-                // Only a name EF's own would clash: the others keep EF's, unannotated, as the snapshots have them.
-                if (names[i] != EFIndexName(table.Key.Table + Suffix, indexes[i]))
-                    index.HasDatabaseName(names[i]);
-            }
+            var built = indexes.Select(columns => b.HasIndex(columns)).ToList();
+            var renames = HistoryIndexRenames(
+                [.. built.Select((index, i) => (index.Metadata.GetDefaultDatabaseName()!, string.Join(',', indexes[i])))],
+                modelBuilder.Model.GetMaxIdentifierLength());
+            // The others keep EF's name, unannotated, as the snapshots have them.
+            for (var i = 0; i < built.Count; i++)
+                if (renames[i] is { } name)
+                    built[i].HasDatabaseName(name);
         });
     }
 
-    /// <summary>Postgres's longest identifier, in bytes (NAMEDATALEN - 1): longer names are cut.</summary>
-    public const int MaxIdentifierLength = 63;
-
-    /// <summary>EF's name for an index (IX_Table_Columns), cut as EF cuts it on Postgres: its start and a ~.</summary>
-    private static string EFIndexName(string historyTable, IEnumerable<string> columns)
-    {
-        var name = $"IX_{historyTable}_{string.Join('_', columns)}";
-        return name.Length <= MaxIdentifierLength ? name : $"{name[..(MaxIdentifierLength - 1)]}~";
-    }
-
     /// <summary>
-    /// A history table's index names: EF's, unless EF's cut gives two of them one name (ScheduleRecommendationMatchesHistory's
-    /// indexes on ScheduleRecommendationMatchID and ScheduleRecommendationID), which the model refuses. Those keep
-    /// their start and end in a hash of the whole name, the same every time.
+    /// The history indexes to rename (null: keep EF's name), given EF's names and each one's columns. EF cuts a name past
+    /// the provider's identifier limit (63 on Postgres) to its start and a ~, which two indexes on long columns that begin
+    /// alike share (ScheduleRecommendationMatchesHistory's, on ScheduleRecommendationMatchID and ScheduleRecommendationID),
+    /// and the model refuses two indexes of one name. Of those, the first by its columns keeps EF's name, so a new index
+    /// that sorts after an existing one leaves it alone; the others keep its start and end in a hash of their columns.
     /// </summary>
-    public static string[] HistoryIndexNames(string historyTable, IReadOnlyList<string[]> indexes)
+    public static string?[] HistoryIndexRenames(IReadOnlyList<(string EFName, string Columns)> indexes, int maxLength)
     {
-        var names = indexes.Select(columns => EFIndexName(historyTable, columns)).ToArray();
-        var clashing = names.GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
-        for (var i = 0; i < names.Length; i++)
-        {
-            if (!clashing.Contains(names[i]))
-                continue;
-            var whole = $"IX_{historyTable}_{string.Join('_', indexes[i])}";
-            var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(whole)))[..8];
-            names[i] = $"{whole[..(MaxIdentifierLength - hash.Length - 1)]}~{hash}";
-        }
-        return names;
+        var renames = new string?[indexes.Count];
+        foreach (var clash in indexes.Select((index, i) => (index, i)).GroupBy(x => x.index.EFName).Where(g => g.Count() > 1))
+            foreach (var (index, i) in clash.OrderBy(x => x.index.Columns, StringComparer.Ordinal).Skip(1))
+            {
+                var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(index.Columns)))[..8];
+                renames[i] = $"{index.EFName[..(maxLength - hash.Length - 1)]}~{hash}";
+            }
+        return renames;
     }
 
     /// <summary>

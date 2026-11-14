@@ -46,11 +46,19 @@ that does. A PR's own new migrations can be regenerated freely: its preview rese
 match ([the chart's README](../charts/grifballwebapp/README.md), "Preview reset").
 
 ## Row history
-Every table keeps the history of its rows except three, whose rows churn and whose history would only grow: the
-Discord outbox (`Discord.Outbox`: sent messages are deleted after their retention), the historical import's jobs
-(`Event.HistoricalImportJobs`: a running import rewrites its row every few seconds) and the sources' downloaded files
-(`Event.HistoricalSourceSnapshots`). A test (`EveryTable_KeepsHistory_ButTheOutboxImportJobsAndSnapshots`) fails for any
-other table without history. This section is about SQL Server and Postgres; SQLite keeps the same history with a few
+Every table keeps the history of its rows except the background jobs' bookkeeping, whose rows churn and whose history
+would only grow:
+
+| Table | Why it has no history |
+| --- | --- |
+| `Discord.Outbox` | Each message is written a few times, then deleted after its retention |
+| `Event.HistoricalImportJobs` | A running import rewrites its row every few seconds |
+| `Event.HistoricalSeasonReviews` | Its job's: deleted with the job after its retention |
+| `Event.HistoricalSources` | Every refresh stamps each source's last fetch |
+| `Event.HistoricalSourceSnapshots` | Whole downloaded files |
+| `Xbox.XuidLookups` | The XUID lookup's retry queue (the claims it makes keep their history) |
+
+A test (`EveryTable_KeepsHistory_ButTheBackgroundJobsBookkeeping`) fails for any other table without history. This section is about SQL Server and Postgres; SQLite keeps the same history with a few
 differences ([sqlite.md](sqlite.md)).
 
 Both databases keep every version of every row in the same place: for each table

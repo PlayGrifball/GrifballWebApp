@@ -322,16 +322,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("PeriodEnd")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodEnd");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodStart");
-
                     b.Property<string>("SeasonKey")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -374,17 +364,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                             t.HasCheckConstraint("CK_Event_HistoricalSeasonReviews_DecidedOnceDecided", "(Status IN (3, 4) AND DecidedAt IS NOT NULL) OR (Status IN (1, 2) AND DecidedAt IS NULL)");
                         });
-
-                    b.ToTable(tb => tb.IsTemporal(ttb =>
-                            {
-                                ttb.UseHistoryTable("HistoricalSeasonReviewsHistory", "Event");
-                                ttb
-                                    .HasPeriodStart("PeriodStart")
-                                    .HasColumnName("PeriodStart");
-                                ttb
-                                    .HasPeriodEnd("PeriodEnd")
-                                    .HasColumnName("PeriodEnd");
-                            }));
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.Archive.HistoricalSource", b =>
@@ -452,16 +431,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("PeriodEnd")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodEnd");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodStart");
-
                     b.Property<string>("SheetKey")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -486,17 +455,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasKey("HistoricalSourceID");
 
                     b.ToTable("HistoricalSources", "Event");
-
-                    b.ToTable(tb => tb.IsTemporal(ttb =>
-                            {
-                                ttb.UseHistoryTable("HistoricalSourcesHistory", "Event");
-                                ttb
-                                    .HasPeriodStart("PeriodStart")
-                                    .HasColumnName("PeriodStart");
-                                ttb
-                                    .HasPeriodEnd("PeriodEnd")
-                                    .HasColumnName("PeriodEnd");
-                            }));
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.Archive.HistoricalSourceSnapshot", b =>
@@ -814,16 +772,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<DateTime>("LookedUpAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime>("PeriodEnd")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodEnd");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodStart");
-
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
@@ -835,17 +783,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("LookedUpAt");
 
                     b.ToTable("XuidLookups", "Xbox");
-
-                    b.ToTable(tb => tb.IsTemporal(ttb =>
-                            {
-                                ttb.UseHistoryTable("XuidLookupsHistory", "Xbox");
-                                ttb
-                                    .HasPeriodStart("PeriodStart")
-                                    .HasColumnName("PeriodStart");
-                                ttb
-                                    .HasPeriodEnd("PeriodEnd")
-                                    .HasColumnName("PeriodEnd");
-                            }));
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.Halo.Match", b =>

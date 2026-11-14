@@ -4,8 +4,8 @@ using System.Linq.Expressions;
 namespace GrifballWebApp.Domain.Players;
 
 /// <summary>
-/// A "possible duplicate" pair a sysadmin dismissed on the claims page: it isn't suggested again. A log of decisions: no row
-/// history and no foreign keys (either user may be merged away later).
+/// A "possible duplicate" pair a sysadmin dismissed on the claims page: it isn't suggested again. A log of decisions, with
+/// row history and no foreign keys (either user may be merged away later).
 /// </summary>
 /// <remarks>
 /// A pair is stored once, in a fixed order: the lower user ID first (<see cref="InOrder"/>), whichever way round it was

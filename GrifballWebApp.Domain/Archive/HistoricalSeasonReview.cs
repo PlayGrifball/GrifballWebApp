@@ -3,7 +3,7 @@ namespace GrifballWebApp.Domain.Archive;
 
 /// <summary>
 /// A season an import would remove rows from: what it would remove, and the sysadmin's decision when the guardrail
-/// stopped it (or the preview of a manual import). Bookkeeping of its job, removed with it.
+/// stopped it (or the preview of a manual import). Bookkeeping of its job, removed with it: not temporal.
 /// Part of its job: made by <see cref="HistoricalImportJob.AddReview"/>, decided by <see cref="HistoricalImportJob.DecideReview"/>.
 /// </summary>
 [AggregatePart(typeof(HistoricalImportJob))]

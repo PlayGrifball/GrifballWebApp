@@ -13,25 +13,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
         {
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
-                schema: "Xbox",
-                table: "XuidLookups",
-                type: "TEXT",
-                nullable: false,
-                defaultValueSql: "'0001-01-01 00:00:00'");
-
-            migrationBuilder.AlterColumn<DateTime>(
-                name: "PeriodStart",
-                schema: "Xbox",
-                table: "XuidLookups",
-                type: "TEXT",
-                nullable: false,
-                defaultValueSql: "rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')",
-                oldClrType: typeof(DateTime),
-                oldType: "TEXT",
-                oldDefaultValueSql: "'0001-01-01 00:00:00'");
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodStart",
                 schema: "Auth",
                 table: "UserMerges",
                 type: "TEXT",
@@ -80,44 +61,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 name: "PeriodStart",
                 schema: "Event",
                 table: "ScheduleRecommendationMatches",
-                type: "TEXT",
-                nullable: false,
-                defaultValueSql: "rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')",
-                oldClrType: typeof(DateTime),
-                oldType: "TEXT",
-                oldDefaultValueSql: "'0001-01-01 00:00:00'");
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSources",
-                type: "TEXT",
-                nullable: false,
-                defaultValueSql: "'0001-01-01 00:00:00'");
-
-            migrationBuilder.AlterColumn<DateTime>(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSources",
-                type: "TEXT",
-                nullable: false,
-                defaultValueSql: "rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')",
-                oldClrType: typeof(DateTime),
-                oldType: "TEXT",
-                oldDefaultValueSql: "'0001-01-01 00:00:00'");
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSeasonReviews",
-                type: "TEXT",
-                nullable: false,
-                defaultValueSql: "'0001-01-01 00:00:00'");
-
-            migrationBuilder.AlterColumn<DateTime>(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSeasonReviews",
                 type: "TEXT",
                 nullable: false,
                 defaultValueSql: "rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')",
@@ -165,15 +108,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodEnd",
-                schema: "Xbox",
-                table: "XuidLookups",
-                type: "TEXT",
-                nullable: false,
-                computedColumnSql: "'9999-12-31 23:59:59.9999999'",
-                stored: false);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodEnd",
                 schema: "Auth",
                 table: "UserMerges",
                 type: "TEXT",
@@ -194,24 +128,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 name: "PeriodEnd",
                 schema: "Event",
                 table: "ScheduleRecommendationMatches",
-                type: "TEXT",
-                nullable: false,
-                computedColumnSql: "'9999-12-31 23:59:59.9999999'",
-                stored: false);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSources",
-                type: "TEXT",
-                nullable: false,
-                computedColumnSql: "'9999-12-31 23:59:59.9999999'",
-                stored: false);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSeasonReviews",
                 type: "TEXT",
                 nullable: false,
                 computedColumnSql: "'9999-12-31 23:59:59.9999999'",
@@ -267,70 +183,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     PeriodEnd = table.Column<DateTime>(type: "TEXT", nullable: false),
                     PeriodStart = table.Column<DateTime>(type: "TEXT", nullable: false),
                     SchedulePaused = table.Column<bool>(type: "INTEGER", nullable: true)
-                },
-                constraints: table =>
-                {
-                });
-
-            migrationBuilder.CreateTable(
-                name: "HistoricalSeasonReviewsHistory",
-                schema: "Event",
-                columns: table => new
-                {
-                    ApprovalJobID = table.Column<int>(type: "INTEGER", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    CreatedByID = table.Column<int>(type: "INTEGER", nullable: true),
-                    DecidedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    HistoricalImportJobID = table.Column<int>(type: "INTEGER", nullable: true),
-                    HistoricalSeasonReviewID = table.Column<int>(type: "INTEGER", nullable: true),
-                    ModifiedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    ModifiedByID = table.Column<int>(type: "INTEGER", nullable: true),
-                    PeriodEnd = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    PeriodStart = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    SeasonKey = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true, collation: "NOCASE"),
-                    SeasonName = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true, collation: "NOCASE"),
-                    StatsBefore = table.Column<int>(type: "INTEGER", nullable: true),
-                    StatsRemoved = table.Column<int>(type: "INTEGER", nullable: true),
-                    Status = table.Column<int>(type: "INTEGER", nullable: true),
-                    TeamsBefore = table.Column<int>(type: "INTEGER", nullable: true),
-                    TeamsRemoved = table.Column<int>(type: "INTEGER", nullable: true),
-                    TitlesBefore = table.Column<int>(type: "INTEGER", nullable: true),
-                    TitlesRemoved = table.Column<int>(type: "INTEGER", nullable: true)
-                },
-                constraints: table =>
-                {
-                });
-
-            migrationBuilder.CreateTable(
-                name: "HistoricalSourcesHistory",
-                schema: "Event",
-                columns: table => new
-                {
-                    Category = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true, collation: "NOCASE"),
-                    Config = table.Column<string>(type: "TEXT", nullable: true, collation: "NOCASE"),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    CreatedByID = table.Column<int>(type: "INTEGER", nullable: true),
-                    CsvSheetName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true, collation: "NOCASE"),
-                    Enabled = table.Column<bool>(type: "INTEGER", nullable: true),
-                    Format = table.Column<string>(type: "TEXT", maxLength: 30, nullable: true, collation: "NOCASE"),
-                    GameVersion = table.Column<string>(type: "TEXT", maxLength: 30, nullable: true, collation: "NOCASE"),
-                    Gid = table.Column<string>(type: "TEXT", maxLength: 30, nullable: true, collation: "NOCASE"),
-                    HistoricalSourceID = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true, collation: "NOCASE"),
-                    IsDead = table.Column<bool>(type: "INTEGER", nullable: true),
-                    Kind = table.Column<int>(type: "INTEGER", nullable: true),
-                    LastChangedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    LastFetchStatus = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
-                    LastFetchedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    League = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true, collation: "NOCASE"),
-                    ModifiedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    ModifiedByID = table.Column<int>(type: "INTEGER", nullable: true),
-                    PeriodEnd = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    PeriodStart = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    SheetKey = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true, collation: "NOCASE"),
-                    Title = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true, collation: "NOCASE"),
-                    Url = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: true, collation: "NOCASE"),
-                    WaybackTimestamp = table.Column<string>(type: "TEXT", maxLength: 14, nullable: true, collation: "NOCASE"),
-                    Year = table.Column<int>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -406,23 +258,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 {
                 });
 
-            migrationBuilder.CreateTable(
-                name: "XuidLookupsHistory",
-                schema: "Xbox",
-                columns: table => new
-                {
-                    Error = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true, collation: "NOCASE"),
-                    LookedUpAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    PeriodEnd = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    PeriodStart = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Status = table.Column<int>(type: "INTEGER", nullable: true),
-                    UserID = table.Column<int>(type: "INTEGER", nullable: true),
-                    XboxUserID = table.Column<long>(type: "INTEGER", nullable: true)
-                },
-                constraints: table =>
-                {
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_DuplicateDismissalsHistory_LowUserID_HighUserID_PeriodEnd",
                 schema: "Auth",
@@ -436,34 +271,16 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 columns: new[] { "HistoricalImportSettingsID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_HistoricalSeasonReviewsHistory_HistoricalImportJobID_PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSeasonReviewsHistory",
-                columns: new[] { "HistoricalImportJobID", "PeriodEnd" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_HistoricalSeasonReviewsHistory_HistoricalSeasonReviewID_PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSeasonReviewsHistory",
-                columns: new[] { "HistoricalSeasonReviewID", "PeriodEnd" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_HistoricalSourcesHistory_HistoricalSourceID_PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSourcesHistory",
-                columns: new[] { "HistoricalSourceID", "PeriodEnd" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ScheduleRecommendationMatchesHistory_ScheduleRecomm~903120f7",
-                schema: "Event",
-                table: "ScheduleRecommendationMatchesHistory",
-                columns: new[] { "ScheduleRecommendationMatchID", "PeriodEnd" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ScheduleRecommendationMatchesHistory_ScheduleRecomm~aa6ada85",
+                name: "IX_ScheduleRecommendationMatchesHistory_ScheduleRecommendationID_PeriodEnd",
                 schema: "Event",
                 table: "ScheduleRecommendationMatchesHistory",
                 columns: new[] { "ScheduleRecommendationID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ScheduleRecommendationMatchesHistory_ScheduleRecommendationMatchID_PeriodEnd",
+                schema: "Event",
+                table: "ScheduleRecommendationMatchesHistory",
+                columns: new[] { "ScheduleRecommendationMatchID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ScheduleRecommendationsHistory_ScheduleRecommendationID_PeriodEnd",
@@ -483,12 +300,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 table: "UserMergesHistory",
                 columns: new[] { "UserMergeID", "PeriodEnd" });
 
-            migrationBuilder.CreateIndex(
-                name: "IX_XuidLookupsHistory_UserID_PeriodEnd",
-                schema: "Xbox",
-                table: "XuidLookupsHistory",
-                columns: new[] { "UserID", "PeriodEnd" });
-
             migrationBuilder.Sql("""
                 CREATE TRIGGER "DuplicateDismissals_History_Update" AFTER UPDATE ON "DuplicateDismissals" FOR EACH ROW BEGIN
                     INSERT INTO "DuplicateDismissalsHistory" ("DismissedAt", "DismissedByUserID", "HighUserID", "LowUserID", "PeriodStart", "PeriodEnd") VALUES (OLD."DismissedAt", OLD."DismissedByUserID", OLD."HighUserID", OLD."LowUserID", OLD."PeriodStart", rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.'));
@@ -506,26 +317,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 END;
                 CREATE TRIGGER "HistoricalImportSettings_History_Delete" AFTER DELETE ON "HistoricalImportSettings" FOR EACH ROW BEGIN
                     INSERT INTO "HistoricalImportSettingsHistory" ("CreatedAt", "CreatedByID", "HistoricalImportSettingsID", "LastScheduledJobID", "LastScheduledRunAt", "LastScheduledRunNote", "ModifiedAt", "ModifiedByID", "PeriodStart", "SchedulePaused", "PeriodEnd") VALUES (OLD."CreatedAt", OLD."CreatedByID", OLD."HistoricalImportSettingsID", OLD."LastScheduledJobID", OLD."LastScheduledRunAt", OLD."LastScheduledRunNote", OLD."ModifiedAt", OLD."ModifiedByID", OLD."PeriodStart", OLD."SchedulePaused", rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.'));
-                END;
-                """);
-
-            migrationBuilder.Sql("""
-                CREATE TRIGGER "HistoricalSeasonReviews_History_Update" AFTER UPDATE ON "HistoricalSeasonReviews" FOR EACH ROW BEGIN
-                    INSERT INTO "HistoricalSeasonReviewsHistory" ("ApprovalJobID", "CreatedAt", "CreatedByID", "DecidedAt", "HistoricalImportJobID", "HistoricalSeasonReviewID", "ModifiedAt", "ModifiedByID", "PeriodStart", "SeasonKey", "SeasonName", "StatsBefore", "StatsRemoved", "Status", "TeamsBefore", "TeamsRemoved", "TitlesBefore", "TitlesRemoved", "PeriodEnd") VALUES (OLD."ApprovalJobID", OLD."CreatedAt", OLD."CreatedByID", OLD."DecidedAt", OLD."HistoricalImportJobID", OLD."HistoricalSeasonReviewID", OLD."ModifiedAt", OLD."ModifiedByID", OLD."PeriodStart", OLD."SeasonKey", OLD."SeasonName", OLD."StatsBefore", OLD."StatsRemoved", OLD."Status", OLD."TeamsBefore", OLD."TeamsRemoved", OLD."TitlesBefore", OLD."TitlesRemoved", rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.'));
-                    UPDATE "HistoricalSeasonReviews" SET "PeriodStart" = rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.') WHERE rowid = NEW.rowid;
-                END;
-                CREATE TRIGGER "HistoricalSeasonReviews_History_Delete" AFTER DELETE ON "HistoricalSeasonReviews" FOR EACH ROW BEGIN
-                    INSERT INTO "HistoricalSeasonReviewsHistory" ("ApprovalJobID", "CreatedAt", "CreatedByID", "DecidedAt", "HistoricalImportJobID", "HistoricalSeasonReviewID", "ModifiedAt", "ModifiedByID", "PeriodStart", "SeasonKey", "SeasonName", "StatsBefore", "StatsRemoved", "Status", "TeamsBefore", "TeamsRemoved", "TitlesBefore", "TitlesRemoved", "PeriodEnd") VALUES (OLD."ApprovalJobID", OLD."CreatedAt", OLD."CreatedByID", OLD."DecidedAt", OLD."HistoricalImportJobID", OLD."HistoricalSeasonReviewID", OLD."ModifiedAt", OLD."ModifiedByID", OLD."PeriodStart", OLD."SeasonKey", OLD."SeasonName", OLD."StatsBefore", OLD."StatsRemoved", OLD."Status", OLD."TeamsBefore", OLD."TeamsRemoved", OLD."TitlesBefore", OLD."TitlesRemoved", rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.'));
-                END;
-                """);
-
-            migrationBuilder.Sql("""
-                CREATE TRIGGER "HistoricalSources_History_Update" AFTER UPDATE ON "HistoricalSources" FOR EACH ROW BEGIN
-                    INSERT INTO "HistoricalSourcesHistory" ("Category", "Config", "CreatedAt", "CreatedByID", "CsvSheetName", "Enabled", "Format", "GameVersion", "Gid", "HistoricalSourceID", "IsDead", "Kind", "LastChangedAt", "LastFetchStatus", "LastFetchedAt", "League", "ModifiedAt", "ModifiedByID", "PeriodStart", "SheetKey", "Title", "Url", "WaybackTimestamp", "Year", "PeriodEnd") VALUES (OLD."Category", OLD."Config", OLD."CreatedAt", OLD."CreatedByID", OLD."CsvSheetName", OLD."Enabled", OLD."Format", OLD."GameVersion", OLD."Gid", OLD."HistoricalSourceID", OLD."IsDead", OLD."Kind", OLD."LastChangedAt", OLD."LastFetchStatus", OLD."LastFetchedAt", OLD."League", OLD."ModifiedAt", OLD."ModifiedByID", OLD."PeriodStart", OLD."SheetKey", OLD."Title", OLD."Url", OLD."WaybackTimestamp", OLD."Year", rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.'));
-                    UPDATE "HistoricalSources" SET "PeriodStart" = rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.') WHERE rowid = NEW.rowid;
-                END;
-                CREATE TRIGGER "HistoricalSources_History_Delete" AFTER DELETE ON "HistoricalSources" FOR EACH ROW BEGIN
-                    INSERT INTO "HistoricalSourcesHistory" ("Category", "Config", "CreatedAt", "CreatedByID", "CsvSheetName", "Enabled", "Format", "GameVersion", "Gid", "HistoricalSourceID", "IsDead", "Kind", "LastChangedAt", "LastFetchStatus", "LastFetchedAt", "League", "ModifiedAt", "ModifiedByID", "PeriodStart", "SheetKey", "Title", "Url", "WaybackTimestamp", "Year", "PeriodEnd") VALUES (OLD."Category", OLD."Config", OLD."CreatedAt", OLD."CreatedByID", OLD."CsvSheetName", OLD."Enabled", OLD."Format", OLD."GameVersion", OLD."Gid", OLD."HistoricalSourceID", OLD."IsDead", OLD."Kind", OLD."LastChangedAt", OLD."LastFetchStatus", OLD."LastFetchedAt", OLD."League", OLD."ModifiedAt", OLD."ModifiedByID", OLD."PeriodStart", OLD."SheetKey", OLD."Title", OLD."Url", OLD."WaybackTimestamp", OLD."Year", rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.'));
                 END;
                 """);
 
@@ -558,16 +349,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     INSERT INTO "UserMergesHistory" ("Manifest", "MergedAt", "PeriodStart", "Reason", "RowsAdded", "RowsMoved", "RowsRemoved", "SourceUserID", "SourceUserName", "TargetUserID", "TargetUserName", "Trigger", "TriggeredByUserID", "UndoNote", "UndoneAt", "UndoneByUserID", "UserMergeID", "PeriodEnd") VALUES (OLD."Manifest", OLD."MergedAt", OLD."PeriodStart", OLD."Reason", OLD."RowsAdded", OLD."RowsMoved", OLD."RowsRemoved", OLD."SourceUserID", OLD."SourceUserName", OLD."TargetUserID", OLD."TargetUserName", OLD."Trigger", OLD."TriggeredByUserID", OLD."UndoNote", OLD."UndoneAt", OLD."UndoneByUserID", OLD."UserMergeID", rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.'));
                 END;
                 """);
-
-            migrationBuilder.Sql("""
-                CREATE TRIGGER "XuidLookups_History_Update" AFTER UPDATE ON "XuidLookups" FOR EACH ROW BEGIN
-                    INSERT INTO "XuidLookupsHistory" ("Error", "LookedUpAt", "PeriodStart", "Status", "UserID", "XboxUserID", "PeriodEnd") VALUES (OLD."Error", OLD."LookedUpAt", OLD."PeriodStart", OLD."Status", OLD."UserID", OLD."XboxUserID", rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.'));
-                    UPDATE "XuidLookups" SET "PeriodStart" = rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.') WHERE rowid = NEW.rowid;
-                END;
-                CREATE TRIGGER "XuidLookups_History_Delete" AFTER DELETE ON "XuidLookups" FOR EACH ROW BEGIN
-                    INSERT INTO "XuidLookupsHistory" ("Error", "LookedUpAt", "PeriodStart", "Status", "UserID", "XboxUserID", "PeriodEnd") VALUES (OLD."Error", OLD."LookedUpAt", OLD."PeriodStart", OLD."Status", OLD."UserID", OLD."XboxUserID", rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.'));
-                END;
-                """);
         }
 
         /// <inheritdoc />
@@ -581,16 +362,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
             migrationBuilder.Sql("""
                 DROP TRIGGER IF EXISTS "HistoricalImportSettings_History_Update";
                 DROP TRIGGER IF EXISTS "HistoricalImportSettings_History_Delete";
-                """);
-
-            migrationBuilder.Sql("""
-                DROP TRIGGER IF EXISTS "HistoricalSeasonReviews_History_Update";
-                DROP TRIGGER IF EXISTS "HistoricalSeasonReviews_History_Delete";
-                """);
-
-            migrationBuilder.Sql("""
-                DROP TRIGGER IF EXISTS "HistoricalSources_History_Update";
-                DROP TRIGGER IF EXISTS "HistoricalSources_History_Delete";
                 """);
 
             migrationBuilder.Sql("""
@@ -608,25 +379,12 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 DROP TRIGGER IF EXISTS "UserMerges_History_Delete";
                 """);
 
-            migrationBuilder.Sql("""
-                DROP TRIGGER IF EXISTS "XuidLookups_History_Update";
-                DROP TRIGGER IF EXISTS "XuidLookups_History_Delete";
-                """);
-
             migrationBuilder.DropTable(
                 name: "DuplicateDismissalsHistory",
                 schema: "Auth");
 
             migrationBuilder.DropTable(
                 name: "HistoricalImportSettingsHistory",
-                schema: "Event");
-
-            migrationBuilder.DropTable(
-                name: "HistoricalSeasonReviewsHistory",
-                schema: "Event");
-
-            migrationBuilder.DropTable(
-                name: "HistoricalSourcesHistory",
                 schema: "Event");
 
             migrationBuilder.DropTable(
@@ -641,15 +399,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 name: "UserMergesHistory",
                 schema: "Auth");
 
-            migrationBuilder.DropTable(
-                name: "XuidLookupsHistory",
-                schema: "Xbox");
-
-            migrationBuilder.DropColumn(
-                name: "PeriodEnd",
-                schema: "Xbox",
-                table: "XuidLookups");
-
             migrationBuilder.DropColumn(
                 name: "PeriodEnd",
                 schema: "Auth",
@@ -664,16 +413,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 name: "PeriodEnd",
                 schema: "Event",
                 table: "ScheduleRecommendationMatches");
-
-            migrationBuilder.DropColumn(
-                name: "PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSources");
-
-            migrationBuilder.DropColumn(
-                name: "PeriodEnd",
-                schema: "Event",
-                table: "HistoricalSeasonReviews");
 
             migrationBuilder.DropColumn(
                 name: "PeriodEnd",
@@ -687,11 +426,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
             migrationBuilder.DropColumn(
                 name: "PeriodStart",
-                schema: "Xbox",
-                table: "XuidLookups");
-
-            migrationBuilder.DropColumn(
-                name: "PeriodStart",
                 schema: "Auth",
                 table: "UserMerges");
 
@@ -704,16 +438,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                 name: "PeriodStart",
                 schema: "Event",
                 table: "ScheduleRecommendationMatches");
-
-            migrationBuilder.DropColumn(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSources");
-
-            migrationBuilder.DropColumn(
-                name: "PeriodStart",
-                schema: "Event",
-                table: "HistoricalSeasonReviews");
 
             migrationBuilder.DropColumn(
                 name: "PeriodStart",

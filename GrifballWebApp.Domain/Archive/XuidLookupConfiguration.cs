@@ -9,7 +9,7 @@ public class XuidLookupConfiguration : IEntityTypeConfiguration<XuidLookup>
     public void Configure(EntityTypeBuilder<XuidLookup> entity)
     {
         // Bookkeeping of a background job (like HistoricalImportJobs): no row history
-        entity.ToTable("XuidLookups", "Xbox", tb => tb.IsTemporal());
+        entity.ToTable("XuidLookups", "Xbox");
 
         entity.HasKey(e => e.UserID);
         entity.Property(e => e.Error).HasMaxLength(200);

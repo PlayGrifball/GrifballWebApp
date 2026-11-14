@@ -485,16 +485,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime>("PeriodEnd")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("TEXT")
-                        .HasComputedColumnSql("'9999-12-31 23:59:59.9999999'", false);
-
-                    b.Property<DateTime>("PeriodStart")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("TEXT")
-                        .HasDefaultValueSql("rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')");
-
                     b.Property<string>("SeasonKey")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -535,106 +525,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                     b.ToTable("HistoricalSeasonReviews", "Event", t =>
                         {
-                            t.HasTrigger("HistoricalSeasonReviews_History_Delete");
-
-                            t.HasTrigger("HistoricalSeasonReviews_History_Update");
-
                             t.HasCheckConstraint("CK_Event_HistoricalSeasonReviews_ApprovalJobOnlyWhenApproved", "ApprovalJobID IS NULL OR Status = 3");
 
                             t.HasCheckConstraint("CK_Event_HistoricalSeasonReviews_DecidedOnceDecided", "(Status IN (3, 4) AND DecidedAt IS NOT NULL) OR (Status IN (1, 2) AND DecidedAt IS NULL)");
                         });
-
-                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
-                });
-
-            modelBuilder.Entity("GrifballWebApp.Domain.Archive.HistoricalSeasonReview.History", b =>
-                {
-                    b.Property<int?>("ApprovalJobID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ApprovalJobID");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("CreatedAt");
-
-                    b.Property<int?>("CreatedByID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("CreatedByID");
-
-                    b.Property<DateTime?>("DecidedAt")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("DecidedAt");
-
-                    b.Property<int?>("HistoricalImportJobID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("HistoricalImportJobID");
-
-                    b.Property<int?>("HistoricalSeasonReviewID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("HistoricalSeasonReviewID");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("ModifiedAt");
-
-                    b.Property<int?>("ModifiedByID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ModifiedByID");
-
-                    b.Property<DateTime>("PeriodEnd")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("PeriodStart");
-
-                    b.Property<string>("SeasonKey")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("SeasonKey")
-                        .UseCollation("NOCASE");
-
-                    b.Property<string>("SeasonName")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("SeasonName")
-                        .UseCollation("NOCASE");
-
-                    b.Property<int?>("StatsBefore")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("StatsBefore");
-
-                    b.Property<int?>("StatsRemoved")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("StatsRemoved");
-
-                    b.Property<int?>("Status")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("Status");
-
-                    b.Property<int?>("TeamsBefore")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("TeamsBefore");
-
-                    b.Property<int?>("TeamsRemoved")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("TeamsRemoved");
-
-                    b.Property<int?>("TitlesBefore")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("TitlesBefore");
-
-                    b.Property<int?>("TitlesRemoved")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("TitlesRemoved");
-
-                    b.HasIndex("HistoricalImportJobID", "PeriodEnd");
-
-                    b.HasIndex("HistoricalSeasonReviewID", "PeriodEnd");
-
-                    b.ToTable("HistoricalSeasonReviewsHistory", "Event");
-
-                    b.HasAnnotation("Grif:HistoryOf", "HistoricalSeasonReviews");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.Archive.HistoricalSource", b =>
@@ -711,16 +605,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime>("PeriodEnd")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("TEXT")
-                        .HasComputedColumnSql("'9999-12-31 23:59:59.9999999'", false);
-
-                    b.Property<DateTime>("PeriodStart")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("TEXT")
-                        .HasDefaultValueSql("rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')");
-
                     b.Property<string>("SheetKey")
                         .HasMaxLength(100)
                         .HasColumnType("TEXT")
@@ -748,147 +632,7 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                     b.HasKey("HistoricalSourceID");
 
-                    b.ToTable("HistoricalSources", "Event", t =>
-                        {
-                            t.HasTrigger("HistoricalSources_History_Delete");
-
-                            t.HasTrigger("HistoricalSources_History_Update");
-                        });
-
-                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
-                });
-
-            modelBuilder.Entity("GrifballWebApp.Domain.Archive.HistoricalSource.History", b =>
-                {
-                    b.Property<string>("Category")
-                        .HasMaxLength(50)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("Category")
-                        .UseCollation("NOCASE");
-
-                    b.Property<string>("Config")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("Config")
-                        .UseCollation("NOCASE");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("CreatedAt");
-
-                    b.Property<int?>("CreatedByID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("CreatedByID");
-
-                    b.Property<string>("CsvSheetName")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("CsvSheetName")
-                        .UseCollation("NOCASE");
-
-                    b.Property<bool?>("Enabled")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("Enabled");
-
-                    b.Property<string>("Format")
-                        .HasMaxLength(30)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("Format")
-                        .UseCollation("NOCASE");
-
-                    b.Property<string>("GameVersion")
-                        .HasMaxLength(30)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("GameVersion")
-                        .UseCollation("NOCASE");
-
-                    b.Property<string>("Gid")
-                        .HasMaxLength(30)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("Gid")
-                        .UseCollation("NOCASE");
-
-                    b.Property<string>("HistoricalSourceID")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("HistoricalSourceID")
-                        .UseCollation("NOCASE");
-
-                    b.Property<bool?>("IsDead")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("IsDead");
-
-                    b.Property<int?>("Kind")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("Kind");
-
-                    b.Property<DateTime?>("LastChangedAt")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("LastChangedAt");
-
-                    b.Property<string>("LastFetchStatus")
-                        .HasMaxLength(300)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("LastFetchStatus")
-                        .UseCollation("NOCASE");
-
-                    b.Property<DateTime?>("LastFetchedAt")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("LastFetchedAt");
-
-                    b.Property<string>("League")
-                        .HasMaxLength(50)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("League")
-                        .UseCollation("NOCASE");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("ModifiedAt");
-
-                    b.Property<int?>("ModifiedByID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("ModifiedByID");
-
-                    b.Property<DateTime>("PeriodEnd")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("PeriodStart");
-
-                    b.Property<string>("SheetKey")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("SheetKey")
-                        .UseCollation("NOCASE");
-
-                    b.Property<string>("Title")
-                        .HasMaxLength(300)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("Title")
-                        .UseCollation("NOCASE");
-
-                    b.Property<string>("Url")
-                        .HasMaxLength(1000)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("Url")
-                        .UseCollation("NOCASE");
-
-                    b.Property<string>("WaybackTimestamp")
-                        .HasMaxLength(14)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("WaybackTimestamp")
-                        .UseCollation("NOCASE");
-
-                    b.Property<int?>("Year")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("Year");
-
-                    b.HasIndex("HistoricalSourceID", "PeriodEnd");
-
-                    b.ToTable("HistoricalSourcesHistory", "Event");
-
-                    b.HasAnnotation("Grif:HistoryOf", "HistoricalSources");
+                    b.ToTable("HistoricalSources", "Event");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.Archive.HistoricalSourceSnapshot", b =>
@@ -1444,16 +1188,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("LookedUpAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("PeriodEnd")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("TEXT")
-                        .HasComputedColumnSql("'9999-12-31 23:59:59.9999999'", false);
-
-                    b.Property<DateTime>("PeriodStart")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("TEXT")
-                        .HasDefaultValueSql("rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')");
-
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
@@ -1464,52 +1198,7 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                     b.HasIndex("LookedUpAt");
 
-                    b.ToTable("XuidLookups", "Xbox", t =>
-                        {
-                            t.HasTrigger("XuidLookups_History_Delete");
-
-                            t.HasTrigger("XuidLookups_History_Update");
-                        });
-
-                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
-                });
-
-            modelBuilder.Entity("GrifballWebApp.Domain.Archive.XuidLookup.History", b =>
-                {
-                    b.Property<string>("Error")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("Error")
-                        .UseCollation("NOCASE");
-
-                    b.Property<DateTime?>("LookedUpAt")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("LookedUpAt");
-
-                    b.Property<DateTime>("PeriodEnd")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("PeriodStart");
-
-                    b.Property<int?>("Status")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("Status");
-
-                    b.Property<int?>("UserID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("UserID");
-
-                    b.Property<long?>("XboxUserID")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("XboxUserID");
-
-                    b.HasIndex("UserID", "PeriodEnd");
-
-                    b.ToTable("XuidLookupsHistory", "Xbox");
-
-                    b.HasAnnotation("Grif:HistoryOf", "XuidLookups");
+                    b.ToTable("XuidLookups", "Xbox");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.Halo.Match", b =>
@@ -4659,11 +4348,9 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("SeasonMatchID");
 
-                    b.HasIndex("ScheduleRecommendationID", "PeriodEnd")
-                        .HasDatabaseName("IX_ScheduleRecommendationMatchesHistory_ScheduleRecomm~aa6ada85");
+                    b.HasIndex("ScheduleRecommendationID", "PeriodEnd");
 
-                    b.HasIndex("ScheduleRecommendationMatchID", "PeriodEnd")
-                        .HasDatabaseName("IX_ScheduleRecommendationMatchesHistory_ScheduleRecomm~903120f7");
+                    b.HasIndex("ScheduleRecommendationMatchID", "PeriodEnd");
 
                     b.ToTable("ScheduleRecommendationMatchesHistory", "Event");
 

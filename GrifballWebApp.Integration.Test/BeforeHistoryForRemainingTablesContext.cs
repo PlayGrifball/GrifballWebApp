@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>
-/// The model as the database had it before HistoryForRemainingTables: the eight tables it gave history have none (no
+/// The model as the database had it before HistoryForRemainingTables: the five tables it gave history have none (no
 /// period columns, no history tables). A migration test that seeds a database migrated to before then writes those
 /// tables through this, as the model of the day did; today's model would write and read back period columns the
 /// tables don't have yet. Its own context type, so its own cached model.
@@ -19,8 +19,8 @@ internal sealed class BeforeHistoryForRemainingTablesContext(DbContextOptions<Gr
 {
     private static readonly Type[] WithoutHistory =
     [
-        typeof(DuplicateDismissal), typeof(UserMerge), typeof(XuidLookup), typeof(HistoricalImportSettings),
-        typeof(HistoricalSeasonReview), typeof(HistoricalSource), typeof(ScheduleRecommendation), typeof(ScheduleRecommendationMatch),
+        typeof(DuplicateDismissal), typeof(UserMerge), typeof(HistoricalImportSettings), typeof(ScheduleRecommendation),
+        typeof(ScheduleRecommendationMatch),
     ];
 
     /// <summary>On the same database as <paramref name="context"/>.</summary>
@@ -33,7 +33,7 @@ internal sealed class BeforeHistoryForRemainingTablesContext(DbContextOptions<Gr
         configurationBuilder.Conventions.Add(_ => new NoHistoryConvention());
     }
 
-    /// <summary>Takes IsTemporal off the eight as their configurations set it: the providers' own conventions then
+    /// <summary>Takes IsTemporal off the five as their configurations set it: the providers' own conventions then
     /// drop the period columns, and OnModelCreating finds them not temporal.</summary>
     private sealed class NoHistoryConvention : IEntityTypeAnnotationChangedConvention
     {
