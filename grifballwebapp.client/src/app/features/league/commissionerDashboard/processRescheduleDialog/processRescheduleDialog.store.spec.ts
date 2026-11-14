@@ -38,7 +38,7 @@ describe('ProcessRescheduleDialogStore', () => {
 
     store.process(55, { approved: false, commissionerNotes: null }, done);
     expect(store.error()).toBeNull();
-    http.expectOne('/api/reschedules/55/decision').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/reschedules/55/decision').flush(null, { status: 500, statusText: 'Server Error' });
     expect(store.error()).toBe('The request could not be processed. Try again.');
   });
 });

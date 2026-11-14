@@ -126,4 +126,9 @@ export class SeasonComponent implements OnInit {
   ngOnInit(): void {
     this.store.loadEvents();
   }
+
+  /** The bracket was made again or reseeded: the server cleared its champion, so the summary is read again. */
+  getSummary(): void {
+    this.store.loadSummary();
+  }
 }

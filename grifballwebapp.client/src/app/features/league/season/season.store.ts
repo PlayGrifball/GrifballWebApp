@@ -75,7 +75,8 @@ export class SeasonStore {
       });
   }
 
-  private loadSummary(): void {
+  /** Loads the summary of the season shown again (its bracket was made again or reseeded, which clears its champion). */
+  loadSummary(): void {
     const seasonID = this.shownSeasonID();
     this.summaries.get(seasonID)
       .pipe(whileCurrent(seasonID, this.shownSeasonID))

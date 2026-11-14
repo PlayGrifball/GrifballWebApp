@@ -66,6 +66,15 @@ describe('SeasonStore', () => {
     expect(store.seasonName()).toBe('Season 5');
   });
 
+  it('loads the summary again on request', () => {
+    store.seasonID.use(signal(4));
+    TestBed.tick();
+    http.expectOne('/api/seasons/4/summary').flush(summary(4));
+    store.loadSummary();
+    http.expectOne('/api/seasons/4/summary').flush({ ...summary(4), seasonName: 'Renamed' });
+    expect(store.seasonName()).toBe('Renamed');
+  });
+
   it('loads the events, and is done with them even when they fail', () => {
     store.loadEvents();
     http.expectOne('/api/events').flush([{ seasonID: 4 }]);
