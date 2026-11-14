@@ -1,10 +1,9 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
-import { VodService } from '@api/services/vod.service';
-import { getVods, isVideoID, vodDuration, type VodScope } from './vods';
+import { isVideoID, vodDuration, type VodScope } from './vods';
+import { VodListStore } from './vodList.store';
 import type { VodDto } from '@api/models';
 
 /** The privacy-enhanced player: no YouTube cookies until the video plays. */
@@ -21,9 +20,10 @@ export const EMBED_ORIGIN = 'https://www.youtube-nocookie.com';
   templateUrl: './vodList.component.html',
   styleUrl: './vodList.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [VodListStore],
 })
 export class VodListComponent {
-  private api = inject(VodService);
+  private readonly store = inject(VodListStore);
   private sanitizer = inject(DomSanitizer);
 
   readonly scope = input.required<VodScope>();
@@ -31,11 +31,7 @@ export class VodListComponent {
 
   readonly duration = vodDuration;
 
-  readonly vodsResource = rxResource({
-    params: () => ({ scope: this.scope(), id: this.id() }),
-    stream: ({ params }) => getVods(this.api, params.scope, params.id),
-  });
-  readonly vods = computed<VodDto[]>(() => this.vodsResource.hasValue() ? this.vodsResource.value() : []);
+  readonly vods = this.store.vods;
   readonly headingID = computed(() => `vods-${this.scope()}-${this.id()}`);
 
   /** The VOD playing in its card, and its player's URL. */
@@ -48,6 +44,11 @@ export class VodListComponent {
       ? this.sanitizer.bypassSecurityTrustResourceUrl(`${EMBED_ORIGIN}/embed/${vod.youTubeVideoID}?autoplay=1&rel=0`) // NOSONAR(S6268): a fixed origin and path, and an ID isVideoID checked
       : null;
   });
+
+  constructor() {
+    this.store.scope.use(this.scope);
+    this.store.id.use(this.id);
+  }
 
   play(vod: VodDto): void {
     this.playing.set(vod);

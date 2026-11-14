@@ -1,8 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { catchError, map, of } from 'rxjs';
-import { BuildService } from '@api/services/build.service';
+import { SiteFooterStore } from './siteFooter.store';
 
 /** The page footer: which build is running, linked to the source. */
 @Component({
@@ -35,12 +33,11 @@ import { BuildService } from '@api/services/build.service';
     .site-footer__build:hover { color: var(--hud-heading); }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [SiteFooterStore],
 })
 export class SiteFooterComponent {
-  private build = inject(BuildService);
+  private readonly store = inject(SiteFooterStore);
 
-  // The build info is decoration: if it cannot be loaded the footer just leaves it out
-  // (a toSignal over a failed observable would throw on every read).
-  readonly commitHash = toSignal(this.build.getCommitHash().pipe(catchError(() => of(null))), { initialValue: null });
-  readonly commitDate = toSignal(this.build.getCommitDate().pipe(map(x => x ? new Date(x) : null), catchError(() => of(null))), { initialValue: null });
+  readonly commitHash = this.store.commitHash;
+  readonly commitDate = this.store.commitDate;
 }
