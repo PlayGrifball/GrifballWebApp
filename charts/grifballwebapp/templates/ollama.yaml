@@ -1,0 +1,169 @@
+{{- $o := .Values.ollama -}}
+{{- if and $o.enabled $o.external.url }}
+{{- fail "ollama: enable the chart's (ollama.enabled) or name an external one (ollama.external.url), not both" }}
+{{- end }}
+{{- if $o.enabled }}
+{{- if not $o.model }}
+{{- fail "ollama.model is required with ollama.enabled: the model the chart's server pulls and the chats use" }}
+{{- end }}
+{{- if not $o.persistence.existingClaim }}
+# The models, kept across restarts: the init container pulls the model once, and finds it here after.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $o.persistence.claimName }}
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ollama
+  {{- with $o.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- toYaml $o.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ $o.persistence.size }}
+  {{- with $o.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+---
+{{- end }}
+# The chats' model: an Ollama server for the site's chat and the Discord bot's (Ollama:Url).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grif-ollama
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grif-ollama
+  # One server on the models' ReadWriteOnce volume at a time.
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: grif-ollama
+        {{- include "grif.podLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ollama
+        {{- with $o.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $o.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $o.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        # The model, pulled onto the volume unless it is there already: a restart downloads nothing. The pull talks
+        # to a server of its own, on localhost, that ends with this container.
+        - name: pull-model
+          image: {{ include "grif.image" $o.image }}
+          imagePullPolicy: {{ $o.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              ollama serve >/dev/null 2>&1 &
+              until ollama list >/dev/null 2>&1; do sleep 1; done
+              if ollama show "$GRIF_OLLAMA_MODEL" >/dev/null 2>&1; then
+                echo "$GRIF_OLLAMA_MODEL is on the volume already"
+              else
+                ollama pull "$GRIF_OLLAMA_MODEL"
+              fi
+          env:
+            {{- include "grif.ollamaEnv" . | nindent 12 }}
+            - name: GRIF_OLLAMA_MODEL
+              value: {{ $o.model | quote }}
+          {{- with $o.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: ollama
+          image: {{ include "grif.image" $o.image }}
+          imagePullPolicy: {{ $o.image.pullPolicy }}
+          args: ["serve"]
+          env:
+            {{- include "grif.ollamaEnv" . | nindent 12 }}
+            # Every pod's address, not only localhost: the backend, the workers and grif-discord (NetworkPolicy).
+            - name: OLLAMA_HOST
+              value: {{ printf "0.0.0.0:%v" $o.port | quote }}
+          ports:
+            - name: ollama
+              containerPort: {{ $o.port }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: ollama
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: ollama
+            periodSeconds: 20
+          {{- with $o.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $o.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ $o.persistence.existingClaim | default $o.persistence.claimName }}
+        - name: tmp
+          emptyDir: {}
+      {{- with $o.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $o.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $o.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grif-ollama
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ollama
+spec:
+  selector:
+    app: grif-ollama
+  ports:
+    - name: ollama
+      port: {{ $o.port }}
+      targetPort: ollama
+{{- end }}

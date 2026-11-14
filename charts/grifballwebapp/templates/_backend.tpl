@@ -169,6 +169,13 @@ spec:
           value: {{ .channelPrefix | quote }}
         {{- end }}
         {{- end }}
+        {{- with include "grif.ollamaUrl" $root }}
+        # The chats' model (ollama): the site's chat and the Discord bot's. None: both say the chat is unavailable.
+        - name: Ollama__Url
+          value: {{ . | quote }}
+        - name: Ollama__Model
+          value: {{ $root.Values.ollama.model | quote }}
+        {{- end }}
         {{- with $b.dataProtection.certificate }}
         {{- if .secretName }}
         - name: DataProtection__Certificate

@@ -561,6 +561,24 @@ Once every environment runs this chart, `worker.strategy: { type: RollingUpdate 
 through a deploy. Check that any `networkPolicy.worker` rules meant for the Discord gateway still apply to
 grif-discord (they do unless `networkPolicy.discord` sets its own).
 
+## Chat model (Ollama)
+
+The site's chat (`/chat`) and the Discord bot's answer with an [Ollama](https://ollama.com) model. The backend, the
+workers and grif-discord get its server (`Ollama:Url`) and model (`Ollama:Model`, `ollama.model`, default
+`llama3.1:latest`) from one of:
+
+- **The chart's own** (`ollama.enabled`): a Deployment (`grif-ollama`, Recreate) and its Service, the image pinned by
+  digest (Renovate updates it), running as user 1000 with a read-only root filesystem. Its models are on a
+  PersistentVolumeClaim (`ollama.persistence`, 20Gi; or `existingClaim`). An init container, `pull-model`, pulls
+  `ollama.model` onto it unless it is there already (`ollama show`), so a restart downloads nothing and a model
+  change pulls only the new one. `ollama.env` sets the server's `OLLAMA_*` settings: by default one model loaded,
+  one reply at a time, kept in memory for an hour. `ollama.resources` defaults to 6Gi requested and 10Gi at most, with 2 CPUs requested,
+  for llama3.1 8B on the CPU. `nodeSelector`, `tolerations` and `affinity` place it.
+- **An existing server** (`ollama.external.url`, e.g. `http://ollama.ai-tools.svc:11434/`). Allow it with
+  `networkPolicy.ollama` (`to`, and `port` when its pods' port isn't the URL's).
+
+Not both. With neither, the pods get no `Ollama:Url`, and both chats answer that the chat is unavailable.
+
 ## Metrics
 
 `sqlExporter.enabled` runs [sql_exporter](https://github.com/burningalchemist/sql_exporter) against the database (the
@@ -584,9 +602,10 @@ what it needs.
 | Pod | In | Out |
 | --- | --- | --- |
 | frontend | port 80 from anyone, or `frontend.from` (required with the IngressRoute's direct routes, `ingressRoute.hubs` and `ingressRoute.api`) | DNS, the backend, the OpenTelemetry endpoint's port (`frontend.telemetry`, `frontend.telemetryTo`) |
-| backend | the frontend; with the IngressRoute's direct routes, `frontend.from` too (the ingress controller), on the backend's port | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo in Direct mode, Google), the OpenTelemetry endpoint's port (and `frontend.telemetry.endpoint`'s with `frontend.telemetry.browser`: the browser's telemetry, passed on), the Halo gateway's port in Gateway mode (`backend.haloGatewayTo`, or the bundled gateway's pods), Redis, the Telemetry page's Loki, Prometheus and Tempo (`backend.telemetry.query`, `backend.telemetryQuery`) |
+| backend | the frontend; with the IngressRoute's direct routes, `frontend.from` too (the ingress controller), on the backend's port | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo in Direct mode, Google), the OpenTelemetry endpoint's port (and `frontend.telemetry.endpoint`'s with `frontend.telemetry.browser`: the browser's telemetry, passed on), the Halo gateway's port in Gateway mode (`backend.haloGatewayTo`, or the bundled gateway's pods), Redis, Ollama (the chart's, or `ollama.external.url` per `networkPolicy.ollama`), the Telemetry page's Loki, Prometheus and Tempo (`backend.telemetry.query`, `backend.telemetryQuery`) |
 | worker (`worker.enabled`) | - (`worker.extraIngress`) | the backend's |
 | Redis (`redis.enabled`) | backend, worker | - |
+| Ollama (`ollama.enabled`) | backend, worker, grif-discord | DNS, HTTPS to pull its model (`networkPolicy.ollama.pullTo`: the internet) |
 | Halo gateway (`halo-gateway.enabled`) | backend, worker (`grif-halo-gateway-ingress`); the ingress controller per its chart | per its chart: DNS, HTTPS to Microsoft, Xbox Live and Halo |
 | SQL Server | backend, worker, migration Job, backup CronJobs, sql-exporter; the LoadBalancer if enabled (`mssql.loadBalancerFrom`) | DNS |
 | PostgreSQL | backend, worker, migration Job, scheduled backup, sql-exporter; the LoadBalancer if enabled (`postgres.loadBalancerFrom`) | DNS |

@@ -463,6 +463,66 @@ redis:
   tolerations: []
   affinity: {}
 
+# The chats' model (off by default): the site's chat and the Discord bot's answer with an Ollama model. Either
+# the chart's own server (enabled), which pulls the model onto its volume, or an existing one (external.url).
+# Either way the backend, the workers and grif-discord get Ollama:Url and Ollama:Model; with neither, they get
+# no URL and both chats say the chat is unavailable.
+ollama:
+  enabled: false
+  # The model both chats use (Ollama:Model), pulled by the chart's server on its first start. llama3.1 (8B,
+  # about 5 GB) calls tools well enough for the chat's.
+  model: llama3.1:latest
+  image:
+    repository: docker.io/ollama/ollama
+    # Pinned by digest; Renovate updates it.
+    tag: 0.40.16@sha256:910d0d8107b538fb0894e63163eb195de0cc7aefcbc666dc62d3b18f71124592
+    digest: ""
+    pullPolicy: IfNotPresent
+  port: 11434
+  # An existing server instead: its URL (http://ollama.ai-tools:11434/). Allow the backend to reach it with
+  # networkPolicy.ollama.
+  external:
+    url: ""
+  # Where the models are kept, so a restart doesn't download them again.
+  persistence:
+    existingClaim: ""
+    claimName: ollama-models-pvc
+    size: 20Gi
+    storageClass: ""
+    accessModes: [ReadWriteOnce]
+    annotations: {}
+  # The server's settings (OLLAMA_*): one model loaded, one reply at a time, kept in memory for an hour, so its
+  # memory stays within the limit below and the next question doesn't wait for it to load.
+  env:
+    OLLAMA_MAX_LOADED_MODELS: "1"
+    OLLAMA_NUM_PARALLEL: "1"
+    OLLAMA_KEEP_ALIVE: 1h
+  # On the CPU: the model's 5 GB and its context, and a few cores (the nodes have 32 GB).
+  resources:
+    requests:
+      memory: 6Gi
+      cpu: "2"
+    limits:
+      memory: 10Gi
+  # The image's own user is root: run as 1000 instead, its home and models on the volume (HOME=/data).
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # Grunt's Halo gateway in this release (off): the halo-gateway chart (PlayGrifball/grunt), a dependency of
 # this one, for running grif with its own gateway instead of a shared one. Everything under this key is the
 # gateway chart's values (see its values.yaml); README "Bundled Halo gateway". Enabled, the backend calls it
@@ -1081,6 +1141,21 @@ networkPolicy:
   redis:
     to: []
     port: 6379
+    extraIngress: []
+  # The chats' model. An external one (ollama.external.url): where it is, on port (null: the URL's port). Empty
+  # to: anywhere on that port. The chart's own (ollama.enabled) is allowed from the backend, the workers and
+  # grif-discord only, and reaches out only to pull its model: HTTPS to pullTo (default: the internet, not
+  # private networks).
+  ollama:
+    to: []
+    port: null
+    pullTo:
+      - ipBlock:
+          cidr: 0.0.0.0/0
+          except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16]
+      - ipBlock:
+          cidr: ::/0
+          except: [fc00::/7, fe80::/10]
     extraIngress: []
   mssql:
     # Who may reach the LoadBalancer (mssql.loadBalancer). Empty: anyone.

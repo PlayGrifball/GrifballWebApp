@@ -121,8 +121,12 @@ alone. A host keeps the conversation, passes the caller and its `ChatHost`, and 
 - the tool calls: it calls the tools the model asks for (`UseFunctionInvocation`) until it answers;
 - the limits: a question of 2000 characters at most (a Discord message's limit), and the host's timeout.
 
-The model is `IChatClientFactory`'s, which Infrastructure registers (`OllamaChatClients`: llama3.1 on Ollama, at
-`Ollama:Url`). It gives only the model, so another provider is another `IChatClientFactory` registered in its place.
+The model is `IChatClientFactory`'s, which Infrastructure registers (`OllamaChatClients`: the server at `Ollama:Url`, the
+model `Ollama:Model`, default `llama3.1:latest`). It gives only the model, so another provider is another
+`IChatClientFactory` registered in its place. With no `Ollama:Url` there is no model: both chats answer that the chat is
+unavailable. The Helm chart sets both, for its own Ollama (`ollama.enabled`) or an existing one (`ollama.external.url`;
+[the chart's README](../charts/grifballwebapp/README.md#chat-model-ollama)). Development's appsettings point at
+Ollama's own port on localhost.
 
 A small local model picks worse from a long list, so the chats get `GrifTools.Chat`, the questions people ask most. The MCP
 server's clients get every tool.

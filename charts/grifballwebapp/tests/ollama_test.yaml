@@ -1,0 +1,173 @@
+suite: the chats' model (ollama)
+templates:
+  - templates/ollama.yaml
+  - templates/backend.yaml
+  - templates/worker.yaml
+  - templates/networkpolicy.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: is off by default, and the backend gets no model, so the chats say they're unavailable
+    asserts:
+      - hasDocuments: { count: 0 }
+        template: templates/ollama.yaml
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: Ollama__Url }, any: true }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: Ollama__Model }, any: true }
+        template: templates/backend.yaml
+        documentIndex: 1
+
+  - it: is either the chart's or an external one
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+      ollama.external.url: http://ollama.example:11434/
+    asserts:
+      - failedTemplate:
+          errorPattern: "not both"
+
+  - it: needs a model to pull
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+      ollama.model: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "ollama.model is required"
+
+  - it: runs a pinned Ollama as a non-root user, read-only, its models on a volume, the model pulled once
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+    asserts:
+      - hasDocuments: { count: 3 }
+      - isKind: { of: PersistentVolumeClaim }
+        documentIndex: 0
+      - equal: { path: spec.resources.requests.storage, value: 20Gi }
+        documentIndex: 0
+      - isKind: { of: Deployment }
+        documentIndex: 1
+      - equal: { path: spec.strategy.type, value: Recreate }
+        documentIndex: 1
+      - matchRegex: { path: "spec.template.spec.containers[0].image", pattern: "^docker.io/ollama/ollama:[0-9.]+@sha256:[0-9a-f]{64}$" }
+        documentIndex: 1
+      - equal: { path: spec.template.spec.securityContext.runAsUser, value: 1000 }
+        documentIndex: 1
+      - equal: { path: "spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem", value: true }
+        documentIndex: 1
+      - equal: { path: "spec.template.spec.containers[0].resources.limits.memory", value: 10Gi }
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OLLAMA_HOST, value: "0.0.0.0:11434" } }
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OLLAMA_MODELS, value: /data/models } }
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OLLAMA_NUM_PARALLEL, value: "1" } }
+        documentIndex: 1
+      - equal: { path: "spec.template.spec.initContainers[0].name", value: pull-model }
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.initContainers[0].env", content: { name: GRIF_OLLAMA_MODEL, value: "llama3.1:latest" } }
+        documentIndex: 1
+      # Pulled only when it isn't on the volume already: a restart downloads nothing
+      - matchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: 'if ollama show "\$GRIF_OLLAMA_MODEL"' }
+        documentIndex: 1
+      - equal: { path: "spec.template.spec.volumes[0].persistentVolumeClaim.claimName", value: ollama-models-pvc }
+        documentIndex: 1
+      - isKind: { of: Service }
+        documentIndex: 2
+      - equal: { path: "spec.ports[0].port", value: 11434 }
+        documentIndex: 2
+
+  - it: uses an existing claim, and places the server where it's told
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+      ollama.persistence.existingClaim: models
+      ollama.nodeSelector: { gpu: "true" }
+      ollama.tolerations: [{ key: gpu, operator: Exists, effect: NoSchedule }]
+    asserts:
+      - hasDocuments: { count: 2 }
+      - equal: { path: "spec.template.spec.volumes[0].persistentVolumeClaim.claimName", value: models }
+        documentIndex: 0
+      - equal: { path: spec.template.spec.nodeSelector, value: { gpu: "true" } }
+        documentIndex: 0
+      - equal: { path: "spec.template.spec.tolerations[0].key", value: gpu }
+        documentIndex: 0
+
+  - it: gives the backend, the worker and grif-discord the chart's Ollama and the model
+    set:
+      worker.enabled: true
+      redis.enabled: true
+      ollama.enabled: true
+      ollama.model: qwen3:8b
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Ollama__Url, value: "http://grif-ollama:11434/" } }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Ollama__Model, value: "qwen3:8b" } }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Ollama__Url, value: "http://grif-ollama:11434/" } }
+        template: templates/worker.yaml
+
+  - it: gives the backend an external Ollama's URL
+    set:
+      ollama.external.url: http://ollama.ai-tools.svc:11434/
+    asserts:
+      - hasDocuments: { count: 0 }
+        template: templates/ollama.yaml
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Ollama__Url, value: "http://ollama.ai-tools.svc:11434/" } }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Ollama__Model, value: "llama3.1:latest" } }
+        template: templates/backend.yaml
+        documentIndex: 1
+
+  - it: lets the backend, the workers and grif-discord reach the chart's Ollama, and it only DNS and HTTPS to pull its model
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: metadata.name, value: grif-ollama }
+    set:
+      worker.enabled: true
+      redis.enabled: true
+      ollama.enabled: true
+    asserts:
+      - equal:
+          path: spec.ingress
+          value:
+            - from: [{ podSelector: { matchLabels: { app: grif-backend } } }, { podSelector: { matchLabels: { app: grif-worker } } }, { podSelector: { matchLabels: { app: grif-discord } } }]
+              ports: [{ protocol: TCP, port: 11434 }]
+      - contains: { path: spec.egress, content: { ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }] } }
+      - equal: { path: "spec.egress[1].ports", value: [{ protocol: TCP, port: 443 }] }
+      - equal: { path: "spec.egress[1].to[0].ipBlock.cidr", value: 0.0.0.0/0 }
+
+  - it: lets the backend reach the chart's Ollama
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: metadata.name, value: grif-backend }
+    set:
+      ollama.enabled: true
+    asserts:
+      - contains:
+          path: spec.egress
+          content: { to: [{ podSelector: { matchLabels: { app: grif-ollama } } }], ports: [{ protocol: TCP, port: 11434 }] }
+
+  - it: lets the backend reach an external Ollama, on its URL's port unless told another, where networkPolicy.ollama says
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: metadata.name, value: grif-backend }
+    set:
+      ollama.external.url: http://ollama.ai-tools.svc:11434/
+      networkPolicy.ollama.to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ai-tools } } }]
+    asserts:
+      - contains:
+          path: spec.egress
+          content: { ports: [{ protocol: TCP, port: 11434 }], to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ai-tools } } }] }
+
+  - it: takes networkPolicy.ollama.port over the external URL's
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: metadata.name, value: grif-backend }
+    set:
+      ollama.external.url: https://ollama.example
+      networkPolicy.ollama.port: 8443
+    asserts:
+      - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 8443 }] } }

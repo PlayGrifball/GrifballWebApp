@@ -96,6 +96,16 @@ migrations:
     - name: notify
       image: docker.io/library/busybox:1.38
       command: ["echo", "deploying to {{ .Release.Namespace }}"]
+# The chats' model: the chart's Ollama, on a node of its own.
+ollama:
+  enabled: true
+  model: llama3.1:latest
+  persistence:
+    storageClass: standard
+  nodeSelector:
+    grifball.example/ollama: "true"
+  tolerations:
+    - { key: grifball.example/ollama, operator: Exists, effect: NoSchedule }
 networkPolicy:
   dns:
     to:
