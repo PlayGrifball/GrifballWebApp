@@ -28,6 +28,7 @@ export const serverRoutes: ServerRoute[] = [
     'leaderboards',
     'late-league',
     'late-league/:matchmakingSeasonID',
+    'chat',
     'login',
     'register',
     'reset-password',

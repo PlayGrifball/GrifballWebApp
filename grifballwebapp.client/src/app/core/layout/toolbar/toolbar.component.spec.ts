@@ -63,6 +63,11 @@ describe('ToolbarComponent', () => {
     expect(el().querySelector('a.hud-brand')!.getAttribute('href')).toBe('/');
   });
 
+  it('links the chat, signed in or out', () => {
+    fixture.detectChanges();
+    expect(el().querySelector('a[aria-label="Chat"]')!.getAttribute('href')).toBe('/chat');
+  });
+
   it('offers a login link to visitors', () => {
     fixture.detectChanges();
     const login = el().querySelector('a[aria-label="Login icon"]')!;

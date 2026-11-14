@@ -1,0 +1,44 @@
+<div class="hud-page hud-page--narrow chat">
+  <div class="hud-page-head">
+    <span class="hud-kicker">&gt; Ask the league</span>
+    <h1 class="hud-title">Chat</h1>
+  </div>
+
+  <p class="chat__intro">
+    Ask about seasons, standings, teams, players and matches: the chat looks them up, as the Discord bot does. It can get
+    things wrong, so check the pages it points you to.
+    @if (!signedIn()) {
+      Signed out, it doesn't know who you are: name the player you mean, or <a routerLink="/login">log in</a>.
+    }
+  </p>
+
+  <section class="chat__log hud-panel" role="log" aria-label="Conversation" [attr.aria-busy]="asking()">
+    @for (turn of turns(); track $index) {
+      <div class="chat__turn" [class.chat__turn--bot]="turn.fromBot">
+        <span class="chat__who">{{ turn.fromBot ? 'Grif' : 'You' }}</span>
+        <p class="chat__text">{{ turn.text }}</p>
+      </div>
+    } @empty {
+      <p class="chat__empty">No questions yet. Try "Who won the last season?"</p>
+    }
+  </section>
+
+  @if (error(); as error) {
+    <p class="chat__error" role="alert">{{ error }}</p>
+  }
+
+  <form class="chat__form" [formGroup]="form" (ngSubmit)="ask()">
+    <mat-form-field appearance="outline" class="app-full-width">
+      <mat-label>Your question</mat-label>
+      <textarea matInput formControlName="question" rows="3" [maxLength]="maxLength" (keydown.enter)="onEnter($event)"></textarea>
+      <mat-hint align="end">{{ form.controls.question.value.length }} / {{ maxLength }}</mat-hint>
+    </mat-form-field>
+    <div class="chat__actions">
+      <button class="hud-btn hud-btn--primary" type="submit" [disabled]="asking() || form.invalid">Ask</button>
+      @if (asking()) {
+        <button class="hud-btn" type="button" (click)="stop()">Stop</button>
+      }
+      <button class="hud-btn" type="button" (click)="clear()" [disabled]="asking() || turns().length === 0">New conversation</button>
+    </div>
+  </form>
+</div>

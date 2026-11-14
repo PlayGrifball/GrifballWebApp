@@ -1,4 +1,4 @@
-// A minimal SignalR server for the hubs the pages listen on (/hub/TeamsHub and /hub/QueueHub, see
+// A minimal SignalR server for the hubs the pages listen on (/hub/TeamsHub, /hub/QueueHub and /hub/ChatHub, see
 // HUBS), for e2e/serve.mjs: the production server (src/server.ts) proxies /hub to the backend
 // (including the WebSocket upgrade), and without an answer there the team builder page
 // (/season/:id/draft) and the home page log a failed connection to the console on every load, which
@@ -26,7 +26,7 @@ const PING_INTERVAL_MS = 10_000;
 
 /** The hubs answered here: the Teams hub, and the queue hub the home page's queue panel listens on
  * (LateLeagueQueueComponent: it too only listens, and without an answer it logs a failed connection). */
-const HUBS = new Set(['/TeamsHub', '/QueueHub']);
+const HUBS = new Set(['/TeamsHub', '/QueueHub', '/ChatHub']);
 
 /** Whether `req` is one of HUBS' WebSocket upgrade, as the mock backend sees it (/hub stripped by the
  * proxy, see src/server.ts's toBackend). */
