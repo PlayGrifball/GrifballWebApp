@@ -1,13 +1,10 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterModule } from '@angular/router';
-import { map } from 'rxjs';
-import { MatchDetailsService } from '@api/services/match-details.service';
 import { ToDatePipe } from '@shared/toDate.pipe';
 import { describePage, pageDate, PageDescription } from '@shared/pageMeta';
-import { formatSeconds, MatchDetailsDto, MatchDetailsTeamDto, parseMatchDetails } from './matchDetailsDto';
+import { formatSeconds, MatchDetailsDto, MatchDetailsTeamDto } from './matchDetailsDto';
+import { MatchDetailsStore } from './matchDetails.store';
 
 /** A team's name on the page: its season team's, or Infinite's side when the game was not reported. */
 export function teamName(team: MatchDetailsTeamDto): string {
@@ -41,9 +38,6 @@ export function describeMatch(match: MatchDetailsDto): PageDescription {
   };
 }
 
-/** What the page shows: loading, the match, no such match pulled, or the request failed. */
-export type MatchDetailsState = 'loading' | 'loaded' | 'notFound' | 'error';
-
 /**
  * One Halo Infinite match by its Waypoint match ID: both teams' scores, every player's full stat line
  * and the medals they earned. Linked from the season match page's reported and possible games.
@@ -54,29 +48,16 @@ export type MatchDetailsState = 'loading' | 'loaded' | 'notFound' | 'error';
   templateUrl: './matchDetails.component.html',
   styleUrl: './matchDetails.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [MatchDetailsStore],
 })
 export class MatchDetailsComponent {
-  private readonly api = inject(MatchDetailsService);
+  private readonly store = inject(MatchDetailsStore);
 
   /** The Waypoint match ID (the route's :matchID). */
   readonly matchID = input.required<string>();
 
-  /** The match, loaded again for each match ID: a new one cancels the request still on its way (and so does leaving the page). */
-  private readonly match = rxResource({
-    params: () => ({ matchID: this.matchID() }),
-    stream: ({ params }) => this.api.getMatchDetails(params).pipe(map(parseMatchDetails)),
-  });
-
-  readonly details = computed<MatchDetailsDto | null>(() => this.match.hasValue() ? this.match.value() : null);
-  /** Loading; loaded; no such match (none, a 404, or an ID that isn't one: 400); or the request failed. */
-  readonly state = computed<MatchDetailsState>(() => {
-    if (this.match.isLoading())
-      return 'loading';
-    const error = this.match.error();
-    if (error)
-      return error instanceof HttpErrorResponse && (error.status === 404 || error.status === 400) ? 'notFound' : 'error';
-    return this.details() ? 'loaded' : 'notFound';
-  });
+  readonly details = this.store.details;
+  readonly state = this.store.state;
 
   /** The two sides for the scoreboard: the first team on the left (red), the second on the right (blue). */
   readonly sides = computed(() => this.details()?.teams ?? []);
@@ -85,6 +66,7 @@ export class MatchDetailsComponent {
   readonly formatSeconds = formatSeconds;
 
   constructor() {
+    this.store.matchID.use(this.matchID);
     describePage(() => {
       const details = this.details();
       return details ? describeMatch(details) : null;
