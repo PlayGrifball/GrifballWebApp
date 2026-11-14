@@ -6,7 +6,8 @@ import { provideRouter } from '@angular/router';
 import { HttpTransportType, HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { AuthSession } from '@core/auth/authSession.service';
 import type { QueueStatusDto } from '@api/models';
-import { QUEUE_HUB_URL, LateLeagueQueueComponent } from './lateLeagueQueue.component';
+import { LateLeagueQueueComponent } from './lateLeagueQueue.component';
+import { QUEUE_HUB_URL } from './lateLeagueQueue.store';
 
 describe('LateLeagueQueueComponent', () => {
   let connection: {

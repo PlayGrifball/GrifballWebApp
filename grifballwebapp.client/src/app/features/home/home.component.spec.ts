@@ -78,209 +78,6 @@ describe('HomeComponent', () => {
 
     expect(component.currentAndFutureEvents()).toEqual(mockEvents);
   });
-
-  describe('getCurrentAndFutureEvents', () => {
-    it('should make GET request to correct endpoint', (done) => {
-      const mockEvents = [
-        { seasonID: 1, name: 'Test Event', start: '2024-01-01', end: '2024-01-31', eventType: 'Signup' as const }
-      ];
-
-      component.getCurrentAndFutureEvents().subscribe({
-        next: (events) => {
-          expect(events).toEqual(mockEvents);
-          done();
-        }
-      });
-
-      const req = httpTestingController.expectOne('/api/events');
-      expect(req.request.method).toBe('GET');
-      req.flush(mockEvents);
-    });
-  });
-
-  describe('getPastSeasons', () => {
-    it('should make GET request with pagination parameters', (done) => {
-      const mockResult = {
-        results: [
-          { ...seasonInfo(3, { seasonName: 'Past Event', start: '2023-01-01', end: '2023-01-31' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] }
-        ],
-        totalCount: 1,
-        pageNumber: 1,
-        pageSize: 10
-      };
-
-      component.getPastSeasons(10, 1, undefined, undefined).subscribe({
-        next: (result) => {
-          expect(result).toEqual(mockResult);
-          expect(component.total()).toBe(1);
-          expect(component.pastSeasons.data).toEqual(mockResult.results);
-          done();
-        }
-      });
-
-      const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/seasons' &&
-        request.params.get('pageSize') === '10' &&
-        request.params.get('pageNumber') === '1'
-      );
-      expect(req.request.method).toBe('GET');
-      req.flush(mockResult);
-    });
-
-    it('should include sort parameters when provided', (done) => {
-      const mockResult = {
-        results: [],
-        totalCount: 0,
-        pageNumber: 1,
-        pageSize: 10
-      };
-
-      component.getPastSeasons(10, 1, 'asc', 'seasonName').subscribe({
-        next: () => done()
-      });
-
-      const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/seasons' &&
-        request.params.get('sortDirection') === 'Asc' &&
-        request.params.get('sortColumn') === 'seasonName'
-      );
-      expect(req.request.method).toBe('GET');
-      req.flush(mockResult);
-    });
-
-    it('should not include sort parameters when not provided', (done) => {
-      const mockResult = {
-        results: [],
-        totalCount: 0,
-        pageNumber: 1,
-        pageSize: 10
-      };
-
-      component.getPastSeasons(10, 1, undefined, undefined).subscribe({
-        next: result => {
-          expect(result).toEqual(mockResult);
-          done();
-        }
-      });
-
-      const req = httpTestingController.expectOne((request) => {
-        return request.url === '/api/seasons' &&
-               !request.params.has('sortDirection') &&
-               !request.params.has('sortColumn');
-      });
-      req.flush(mockResult);
-    });
-
-    it('should update pastSeasons data source', (done) => {
-      const mockEvents = [
-        { ...seasonInfo(4, { seasonName: 'Old Event', start: '2022-01-01', end: '2022-01-31' }), teamCount: 0, playerCount: 0, champions: [], teamNames: [] }
-      ];
-      const mockResult = {
-        results: mockEvents,
-        totalCount: 1,
-        pageNumber: 1,
-        pageSize: 10
-      };
-
-      component.getPastSeasons(10, 1, undefined, undefined).subscribe({
-        next: () => {
-          expect(component.pastSeasons.data).toEqual(mockEvents);
-          done();
-        }
-      });
-
-      const req = httpTestingController.expectOne((request) => request.url === '/api/seasons');
-      req.flush(mockResult);
-    });
-
-    it('should update total count when getting past seasons', (done) => {
-      const mockResult = {
-        results: [],
-        totalCount: 42,
-        pageNumber: 1,
-        pageSize: 10
-      };
-
-      component.getPastSeasons(10, 1, undefined, undefined).subscribe({
-        next: () => {
-          expect(component.total()).toBe(42);
-          done();
-        }
-      });
-
-      const req = httpTestingController.expectOne((request) => request.url === '/api/seasons');
-      req.flush(mockResult);
-    });
-  });
-
-  describe('pagination and sorting', () => {
-    it('should handle page size changes', (done) => {
-      const mockResult = {
-        results: [],
-        totalCount: 0,
-        pageNumber: 1,
-        pageSize: 25
-      };
-
-      component.getPastSeasons(25, 1, undefined, undefined).subscribe({
-        next: result => {
-          expect(result).toEqual(mockResult);
-          done();
-        }
-      });
-
-      const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/seasons' &&
-        request.params.get('pageSize') === '25'
-      );
-      req.flush(mockResult);
-    });
-
-    it('should handle page number changes', (done) => {
-      const mockResult = {
-        results: [],
-        totalCount: 0,
-        pageNumber: 3,
-        pageSize: 10
-      };
-
-      component.getPastSeasons(10, 3, undefined, undefined).subscribe({
-        next: result => {
-          expect(result).toEqual(mockResult);
-          done();
-        }
-      });
-
-      const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/seasons' &&
-        request.params.get('pageNumber') === '3'
-      );
-      req.flush(mockResult);
-    });
-
-    it('should handle descending sort', (done) => {
-      const mockResult = {
-        results: [],
-        totalCount: 0,
-        pageNumber: 1,
-        pageSize: 10
-      };
-
-      component.getPastSeasons(10, 1, 'desc', 'seasonName').subscribe({
-        next: result => {
-          expect(result).toEqual(mockResult);
-          done();
-        }
-      });
-
-      const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/seasons' &&
-        request.params.get('sortDirection') === 'Desc' &&
-        request.params.get('sortColumn') === 'seasonName'
-      );
-      req.flush(mockResult);
-    });
-  });
 });
 
 describe('HomeComponent paginator and sort wiring', () => {
@@ -332,7 +129,7 @@ describe('HomeComponent paginator and sort wiring', () => {
     fixture.detectChanges();
 
     expect(component.total()).toBe(12);
-    expect(component.pastSeasons.data.map(e => e.seasonName)).toEqual(['Season 1', 'Season 2']);
+    expect(component.pastSeasons().map(e => e.seasonName)).toEqual(['Season 1', 'Season 2']);
   });
 
   it('requests the next page when the paginator moves', async () => {
@@ -480,8 +277,10 @@ describe('Home page events', () => {
       expect(Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim())).toEqual(['Watch the draft', 'Season overview']);
       // The draft board, not the read-only rosters page
       expect(el().querySelector('.home-hero__actions a')!.getAttribute('href')).toBe('/season/4/draft');
-      fixture.componentInstance.currentAndFutureEvents.set([later]);
-      fixture.detectChanges();
+    });
+
+    it('offers the season and its schedule when the season is the featured event', () => {
+      load([later]);
       const links = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.getAttribute('href'));
       expect(links).toEqual(['/season/4', '/season/4?tab=schedule']);
     });

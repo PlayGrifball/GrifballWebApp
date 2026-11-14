@@ -2,19 +2,15 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, OnInit, signal, viewChild, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { MatPaginator } from '@angular/material/paginator';
-import { MatSort, MatSortModule, Sort, SortDirection } from '@angular/material/sort';
-import { MatHeaderRow, MatRow, MatTable, MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
+import { MatHeaderRow, MatRow, MatTable, MatTableModule } from '@angular/material/table';
 import { RouterModule } from '@angular/router';
-import { combineLatest, Observable, of, switchMap, tap } from 'rxjs';
-import { PaginationResult } from '@shared/paginationResult';
+import { combineLatest, of, switchMap, tap } from 'rxjs';
 import { eventTitles, isUnderWay, SeasonEvent } from '@shared/seasonEvents';
 import { pageNow } from '@shared/pageNow';
-import type { SeasonListItemDto } from '@api/models';
-import { apiSortDirection } from '@shared/apiSort';
 import { LateLeagueQueueComponent } from '../lateLeague';
 import { rowEnterAnimation } from '@shared/rowEnterAnimation';
-import { HomeService } from '@api/services/home.service';
-import { SeasonService } from '@api/services/season.service';
+import { HomeStore } from './home.store';
 
 @Component({
     selector: 'app-home',
@@ -31,14 +27,13 @@ import { SeasonService } from '@api/services/season.service';
         MatTableModule,
         LateLeagueQueueComponent,
     ],
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [HomeStore],
 })
 export class HomeComponent implements OnInit {
   /** The rows' fade-in, once hydration is past (rowEnterAnimation) */
   readonly rowEnter = rowEnterAnimation();
-  private home = inject(HomeService);
-  private seasonService = inject(SeasonService);
-
+  private readonly store = inject(HomeStore);
 
   private datePipe = new DatePipe('en-US');
 
@@ -48,9 +43,9 @@ export class HomeComponent implements OnInit {
   /** When the page was opened (the server's time while the browser takes over its page, see
    * pageNow): decides which events are under way, and so whether Sign up is offered. */
   readonly now = pageNow();
-  currentAndFutureEvents: WritableSignal<Event[]> = signal([]);
+  readonly currentAndFutureEvents = this.store.events;
   /** The events have loaded (or failed to): the page is shown then, in one go. */
-  readonly eventsLoaded = signal(false);
+  readonly eventsLoaded = this.store.eventsLoaded;
   /** The event the hero panel is about, with its status line and sentence; null without events. */
   readonly hero = computed(() => {
     const event = pickFeatured(this.currentAndFutureEvents(), this.now());
@@ -60,8 +55,8 @@ export class HomeComponent implements OnInit {
       lede: heroLede(event, this.currentAndFutureEvents(), iso => this.datePipe.transform(iso, 'MMM d, h:mm a') ?? ''),
     };
   });
-  total: WritableSignal<number> = signal(0);
-  pastSeasons: MatTableDataSource<SeasonListItemDto> = new MatTableDataSource<SeasonListItemDto>([]);
+  readonly total = this.store.total;
+  readonly pastSeasons = this.store.pastSeasons;
   paginator = viewChild(MatPaginator);
   paginator$ = toObservable(this.paginator);
   pageSize: WritableSignal<number> = signal(10);
@@ -74,14 +69,8 @@ export class HomeComponent implements OnInit {
   s$ = toObservable(this.s);
 
   ngOnInit(): void {
-    this.getCurrentAndFutureEvents().subscribe({
-      next: (result) => {
-        this.currentAndFutureEvents.set(result);
-        this.eventsLoaded.set(true);
-      },
-      error: () => this.eventsLoaded.set(true),
-    });
-    
+    this.store.loadEvents();
+
     this.paginator$
       .pipe(
         switchMap((x) => x?.page ?? of(undefined)),
@@ -106,7 +95,7 @@ export class HomeComponent implements OnInit {
                    sort: this.s$,
                   })
       .pipe(
-        switchMap((x) => this.getPastSeasons(x.pageSize, x.pageNumber, x.sort?.direction, x.sort?.active))
+        switchMap((x) => this.store.loadPastSeasons(x.pageSize, x.pageNumber, x.sort?.direction, x.sort?.active))
       )
       .subscribe()
   }
@@ -114,28 +103,6 @@ export class HomeComponent implements OnInit {
   isActive(event: Event): boolean {
     return isUnderWay(event, this.now());
   }
-
-  getCurrentAndFutureEvents(): Observable<Event[]> {
-    return this.home.currentAndFutureEvents();
-  }
-
-  getPastSeasons(pageSize: number, pageNumber: number, sortDirection: SortDirection | undefined, sortColumn: string | undefined): Observable<PaginationResult<SeasonListItemDto>> {
-    // The season list's seasons that have ended (index.html fetches the first page early, with these parameters in this order)
-    const sorted = !!(sortColumn && sortDirection);
-    return this.seasonService.getSeasonList({
-      ended: true,
-      pageNumber,
-      pageSize,
-      sortDirection: sorted ? apiSortDirection(sortDirection) : undefined,
-      sortColumn: sorted ? sortColumn : undefined,
-    })
-    .pipe(
-      tap((result) => {
-      this.total.set(result.totalCount);
-      this.pastSeasons.data = result.results;
-    }));
-  }
-
 }
 
 /** A current, future or past season event (see shared/seasonEvents.ts). */
