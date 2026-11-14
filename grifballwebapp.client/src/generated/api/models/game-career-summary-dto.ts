@@ -22,8 +22,7 @@ export interface GameCareerSummaryDto {
   gamesPlayed: number;
 
   /**
-   * Null on the all-games row: goals, carrier stops and medals mean something different in each game, so they
-   *             are only totalled per game.
+   * Goals, added up across games on the all-games row too, as carrier stops are (medals are only totalled per game).
    */
   goals: number | null;
   goalsPerGame: number | null;

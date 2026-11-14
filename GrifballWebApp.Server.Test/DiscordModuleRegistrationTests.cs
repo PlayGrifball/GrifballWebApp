@@ -161,10 +161,10 @@ public class DiscordModuleRegistrationTests
             "/lateleague seasons \"The Late League seasons\" permissions: default, preconditions: 0",
             "/leaderboard rank \"A player's all-time ranks\" permissions: default, preconditions: 0"
                 + " [player: String \"The player\" autocomplete: PlayerAutocomplete, preconditions: 0]"
-                + " [format: LeaderboardFormat = All \"Count only one format (default: all)\" autocomplete: none, preconditions: 0]",
+                + " [format: LeaderboardFormat = All \"The formats counted, titles and stats (default: all)\" autocomplete: none, preconditions: 0]",
             "/leaderboard top \"The top players on a board\" permissions: default, preconditions: 0"
                 + " [board: LeaderboardBoard = Rings \"The board\" autocomplete: none, preconditions: 0]"
-                + " [format: LeaderboardFormat = All \"Count only one format (default: all)\" autocomplete: none, preconditions: 0]",
+                + " [format: LeaderboardFormat = All \"The formats counted, titles and stats (default: all)\" autocomplete: none, preconditions: 0]",
             "/match game \"A Halo game's teams and players\" permissions: default, preconditions: 0"
                 + " [match_id: String \"The game's Halo match ID\" autocomplete: none, preconditions: 0]",
             "/match info \"A season match's time, result and games\" permissions: default, preconditions: 0"

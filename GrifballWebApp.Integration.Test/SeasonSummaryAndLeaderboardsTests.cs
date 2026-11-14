@@ -303,7 +303,7 @@ public class SeasonSummaryAndLeaderboardsTests
     }
 
     [Test]
-    public async Task Leaderboards_TitleCounts_FilterByFormat()
+    public async Task Leaderboards_TitleCounts_AreOfTheFormatsChosen()
     {
         var (_, _, _, captain, _, _) = await SeedHistorical();
         var respawn = await AddSeason("Respawn 2012", 2012, historical: false);
@@ -312,11 +312,13 @@ public class SeasonSummaryAndLeaderboardsTests
         var winners = await AddTeam(respawn, "Respawners", null, null, captain);
         await _context.SeedChampionsAsync(respawn.SeasonID, "Open", winners.TeamID, null, null);
         _context.ChangeTracker.Clear();
-        var controller = new LeaderboardsController(new GrifballWebApp.Application.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Application.Leaderboards.LeaderboardsService>.Instance));
+        var controller = NewLeaderboardsController();
 
         var every = await controller.GetLeaderboards(null, CancellationToken.None);
-        var tournaments = await controller.GetLeaderboards(SeasonFormat.Tournament, CancellationToken.None);
-        var leagues = await controller.GetLeaderboards(SeasonFormat.LeagueSeason, CancellationToken.None);
+        var tournaments = await controller.GetLeaderboards([LeaderboardFilter.Tournament], CancellationToken.None);
+        var leagues = await controller.GetLeaderboards([LeaderboardFilter.LeagueSeason], CancellationToken.None);
+        var both = await controller.GetLeaderboards([LeaderboardFilter.Tournament, LeaderboardFilter.LeagueSeason], CancellationToken.None);
+        var lateLeague = await controller.GetLeaderboards([LeaderboardFilter.LateLeague], CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -324,11 +326,13 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(tournaments.RingLeaders.Select(r => (r.UserID, r.RingsCount)), Is.EqualTo(new[] { (captain.Id, 1) }));
             Assert.That(tournaments.Dynasties.Select(d => d.TeamName), Is.EqualTo(expectedArray0));
             Assert.That(leagues.RingLeaders.Single(r => r.UserID == captain.Id).Titles.Select(t => $"{t.SeasonName} ({t.Tier})"), Is.EqualTo(expectedArray1));
+            Assert.That(both.RingLeaders.Select(r => (r.UserID, r.RingsCount)), Is.EqualTo(every.RingLeaders.Select(r => (r.UserID, r.RingsCount))), "Both season formats: every title");
+            Assert.That(lateLeague.RingLeaders.Concat<object>(lateLeague.Dynasties), Is.Empty, "Late League has no titles");
         }
     }
 
     [Test]
-    public async Task Leaderboards_GoalsArePerGame_KillsAndGamesAcrossGames()
+    public async Task Leaderboards_GoalsKillsAndGames_AreAcrossGames()
     {
         var player = await AddUser("Two Games");
         var halo3 = await AddSeason("Halo 3 2010", 2010, historical: true);
@@ -338,13 +342,41 @@ public class SeasonSummaryAndLeaderboardsTests
         _context.PlayerSeasonStats.AddRange(Stat(halo3, player, null, 6), reachStat);
         await _context.SaveChangesAsync();
 
-        var boards = await new LeaderboardsController(new GrifballWebApp.Application.Leaderboards.LeaderboardsService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Application.Leaderboards.LeaderboardsService>.Instance)).GetLeaderboards(null, CancellationToken.None);
+        var boards = await NewLeaderboardsController().GetLeaderboards(null, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(boards.GoalLeaders.Select(g => (g.StatValue, g.GameVersionName)), Is.EqualTo(new[] { (6, (string?)"Halo 3"), (4, (string?)"Halo Reach") }));
+            Assert.That(boards.GoalLeaders.Select(g => (g.StatValue, g.GameVersionName)), Is.EqualTo(new[] { (10, (string?)null) }), "6 + 4 goals, one career");
             Assert.That(boards.KillLeaders.Select(k => (k.StatValue, k.GameVersionName)), Is.EqualTo(new[] { (100, (string?)null) }), "60 + 40 kills, one career");
             Assert.That(boards.GamesPlayedLeaders.Single().StatValue, Is.EqualTo(20));
+        }
+    }
+
+    [Test]
+    public async Task Leaderboards_StatBoards_FilterByFormat()
+    {
+        var player = await AddUser("Format Player");
+        var league = await AddSeason("League 2020", 2020, historical: true);
+        var tournament = await AddSeason("Respawn 2021", 2021, historical: false);
+        tournament.Edited(format: SeasonFormat.Tournament);
+        _context.PlayerSeasonStats.AddRange(Stat(league, player, null, 6), Stat(tournament, player, null, 4));
+        await _context.SaveChangesAsync();
+        var controller = NewLeaderboardsController();
+
+        var all = await controller.GetLeaderboards(null, CancellationToken.None);
+        var leagues = await controller.GetLeaderboards([LeaderboardFilter.LeagueSeason], CancellationToken.None);
+        var tournaments = await controller.GetLeaderboards([LeaderboardFilter.Tournament], CancellationToken.None);
+        var lateLeague = await controller.GetLeaderboards([LeaderboardFilter.LateLeague], CancellationToken.None);
+        var tournamentRank = (await controller.GetPlayerRank(null, player.Id, [LeaderboardFilter.Tournament], CancellationToken.None)).Value!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(all.GoalLeaders.Single().StatValue, Is.EqualTo(10));
+            Assert.That(leagues.GoalLeaders.Single().StatValue, Is.EqualTo(6));
+            Assert.That(tournaments.GoalLeaders.Single().StatValue, Is.EqualTo(4));
+            Assert.That(lateLeague.GoalLeaders, Is.Empty, "No Late League games");
+            Assert.That(tournamentRank.Goals.StatValue, Is.EqualTo(4));
+            Assert.That(tournamentRank.GamesPlayed.StatValue, Is.EqualTo(10));
         }
     }
 
@@ -374,13 +406,13 @@ public class SeasonSummaryAndLeaderboardsTests
         var controller = NewLeaderboardsController();
         var boards = await controller.GetLeaderboards(null, CancellationToken.None);
 
-        var halo3Goals = boards.GoalLeaders.Where(g => g.GameVersionName == "Halo 3").ToList();
+        var goals = boards.GoalLeaders;
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(halo3Goals, Has.Count.EqualTo(3));
-            Assert.That(halo3Goals[0].Rank, Is.EqualTo(1));
-            Assert.That(halo3Goals[1].Rank, Is.EqualTo(1), "Tied for 1st place");
-            Assert.That(halo3Goals[2].Rank, Is.EqualTo(3), "Standard competition ranking skips to 3rd");
+            Assert.That(goals, Has.Count.EqualTo(3));
+            Assert.That(goals[0].Rank, Is.EqualTo(1));
+            Assert.That(goals[1].Rank, Is.EqualTo(1), "Tied for 1st place");
+            Assert.That(goals[2].Rank, Is.EqualTo(3), "Standard competition ranking skips to 3rd");
         }
     }
 
@@ -411,7 +443,7 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(starRank.Goals.TotalRanked, Is.EqualTo(2), "The players with a goal, not every user");
             Assert.That(starRank.Rings.TotalRanked, Is.EqualTo(1), "The players with a title");
             Assert.That(starRank.Kills.TotalRanked, Is.EqualTo(2));
-            Assert.That(starRank.Goals.SecondaryText, Is.EqualTo("1.5 / G in Halo 3"));
+            Assert.That(starRank.Goals.SecondaryText, Is.EqualTo("1.5 / G"));
             Assert.That(starRank.GamesPlayed.SecondaryText, Is.EqualTo("1 Season"), "One season, not \"1 Seasons\"");
             Assert.That(starRank.Rings.StatValue, Is.EqualTo(1));
             Assert.That(starRank.Rings.Rank, Is.EqualTo(1));
@@ -504,7 +536,7 @@ public class SeasonSummaryAndLeaderboardsTests
     }
 
     [Test]
-    public async Task Leaderboards_GetPlayerRank_RanksGoalsAndStopsByBestGame_AsTheBoardsDo()
+    public async Task Leaderboards_GetPlayerRank_RanksGoalsAndStopsAcrossGames_AsTheBoardsDo()
     {
         var halo3 = await AddSeason("Halo 3 2010", 2010, historical: true);
         var reach = await AddSeason("Reach 2011", 2011, historical: true);
@@ -521,13 +553,13 @@ public class SeasonSummaryAndLeaderboardsTests
 
         using (Assert.EnterMultipleScope())
         {
-            var row = boards.GoalLeaders.Single(g => g.UserID == twoGames.Id && g.GameVersionName == "Halo 3");
-            Assert.That((rank.Goals.StatValue, rank.Goals.Rank, rank.Goals.TotalRanked), Is.EqualTo((6L, (int?)row.Rank, boards.GoalLeaders.Count)),
-                "Their best game (6 in Halo 3, not 6 + 4), ranked as its row on the board, of every player's game on it");
-            Assert.That(rank.Goals.Rank, Is.EqualTo(2));
-            Assert.That(rank.Goals.SecondaryText, Is.EqualTo("0.6 / G in Halo 3"));
-            var stops = boards.CarrierStopLeaders.Single(g => g.UserID == twoGames.Id && g.GameVersionName == "Halo 3");
-            Assert.That((rank.CarrierStops.StatValue, rank.CarrierStops.Rank, rank.CarrierStops.SecondaryText), Is.EqualTo((6L, (int?)stops.Rank, (string?)"0.6 / G in Halo 3")));
+            var row = boards.GoalLeaders.Single(g => g.UserID == twoGames.Id);
+            Assert.That((rank.Goals.StatValue, rank.Goals.Rank, rank.Goals.TotalRanked), Is.EqualTo((10L, (int?)row.Rank, boards.GoalLeaders.Count)),
+                "Total across games (6 + 4), ranked as its row on the board");
+            Assert.That(rank.Goals.Rank, Is.EqualTo(1));
+            Assert.That(rank.Goals.SecondaryText, Is.EqualTo("0.5 / G"));
+            var stops = boards.CarrierStopLeaders.Single(g => g.UserID == twoGames.Id);
+            Assert.That((rank.CarrierStops.StatValue, rank.CarrierStops.Rank, rank.CarrierStops.SecondaryText), Is.EqualTo((10L, (int?)stops.Rank, (string?)"0.5 / G")));
             Assert.That((rank.Kills.StatValue, rank.Kills.Rank), Is.EqualTo((100L, (int?)1)), "Kills across games: 60 + 40");
             Assert.That((rank.GamesPlayed.StatValue, rank.GamesPlayed.Rank, rank.GamesPlayed.SecondaryText), Is.EqualTo((20L, (int?)1, (string?)"2 Seasons")));
             Assert.That(boards.GamesPlayedLeaders.Single(g => g.UserID == twoGames.Id).SecondaryStat, Is.EqualTo("2 Seasons"));
@@ -547,8 +579,8 @@ public class SeasonSummaryAndLeaderboardsTests
         var controller = NewLeaderboardsController();
 
         var every = (await controller.GetPlayerRank(null, captain.Id, null, CancellationToken.None)).Value!.Rings;
-        var tournaments = (await controller.GetPlayerRank(null, captain.Id, SeasonFormat.Tournament, CancellationToken.None)).Value!.Rings;
-        var runnerTournaments = (await controller.GetPlayerRank(null, runner.Id, SeasonFormat.Tournament, CancellationToken.None)).Value!.Rings;
+        var tournaments = (await controller.GetPlayerRank(null, captain.Id, [LeaderboardFilter.Tournament], CancellationToken.None)).Value!.Rings;
+        var runnerTournaments = (await controller.GetPlayerRank(null, runner.Id, [LeaderboardFilter.Tournament], CancellationToken.None)).Value!.Rings;
 
         using (Assert.EnterMultipleScope())
         {

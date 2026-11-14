@@ -7,21 +7,21 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
+import { LeaderboardFilter } from '../../models/leaderboard-filter';
 import { LeaderboardsDto } from '../../models/leaderboards-dto';
-import { SeasonFormat } from '../../models/season-format';
 
 export interface GetLeaderboards$Params {
 
 /**
- * Count only the titles of seasons of this format; null: every format.
+ * The formats counted, titles and stats alike (repeat the parameter for several); none: every format.
  */
-  format?: SeasonFormat;
+  formats?: Array<LeaderboardFilter>;
 }
 
 export function getLeaderboards(http: HttpClient, rootUrl: string, params?: GetLeaderboards$Params, context?: HttpContext): Observable<StrictHttpResponse<LeaderboardsDto>> {
   const rb = new RequestBuilder(rootUrl, getLeaderboards.PATH, 'get');
   if (params) {
-    rb.query('format', params.format, {});
+    rb.query('formats', params.formats, {});
   }
 
   return http.request(

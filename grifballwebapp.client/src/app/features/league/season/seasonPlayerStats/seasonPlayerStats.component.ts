@@ -50,6 +50,8 @@ export class SeasonPlayerStatsComponent {
   readonly showTeam = computed(() => this.teamID() == null);
   /** Punches and sword kills, for a season whose games record them (Infinite modes decoded from their score): no empty columns otherwise. */
   readonly showBall = computed(() => this.stats().some(p => p.punches != null || p.swordKills != null));
+  /** Grabs and grifball.com averages, for Halo 3 seasons whose source records them: no empty columns otherwise. */
+  readonly showGrabs = computed(() => this.stats().some(p => p.grabs != null || p.battingAverage != null || p.scoringAverage != null || p.combinedAverage != null));
 
   readonly phase = signal<StatPhase>('all');
   readonly query = signal('');

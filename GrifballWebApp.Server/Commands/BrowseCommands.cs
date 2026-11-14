@@ -10,7 +10,7 @@ namespace GrifballWebApp.Server.Commands;
 [SlashCommand("leaderboard", "The all-time leaderboards")]
 public class LeaderboardCommands : ApplicationCommandModule<ApplicationCommandContext>
 {
-    private const string FormatDescription = "Count only one format (default: all)";
+    private const string FormatDescription = "The formats counted, titles and stats (default: all)";
     private readonly BrowseCommandsHandler _handler;
 
     public LeaderboardCommands(BrowseCommandsHandler handler)

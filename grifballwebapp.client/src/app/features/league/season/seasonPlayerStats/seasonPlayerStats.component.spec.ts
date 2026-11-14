@@ -9,7 +9,8 @@ function stat(id: number, gamertag: string, changes: Partial<SeasonPlayerStatDto
   return {
     playerSeasonStatID: id, userID: id + 100, gamertag, teamID: 40, teamName: 'Relentless', stintIndex: 1, isPlayoffs: false,
     isCombined: false, source: 'Manual', gamesPlayed: 10, wins: 7, losses: 3, goals: 5, kills: 50, deaths: 25, assists: 4,
-    kdRatio: 2, kdSpread: 25, carrierKills: 6, sprees: 1, multiKills: 2, exterminations: 0, punches: null, roleNote: null, swordKills: null, tradeNote: null, winPercent: null, ...changes,
+    kdRatio: 2, kdSpread: 25, carrierKills: 6, sprees: 1, multiKills: 2, exterminations: 0, punches: null, roleNote: null, swordKills: null, tradeNote: null, winPercent: null,
+    grabs: null, battingAverage: null, scoringAverage: null, combinedAverage: null, ...changes,
   };
 }
 
@@ -190,6 +191,25 @@ describe('SeasonPlayerStatsComponent', () => {
       await load(31, [stat(1, 'Classic', { punches: null, swordKills: null })]);
       expect(headers()).not.toContain('Punches');
       expect(headers()).not.toContain('Sword');
+    });
+  });
+
+  describe('grabs and grifball.com averages', () => {
+    it('shows them when recorded, a dash for a row without', async () => {
+      await load(32, [
+        stat(1, 'Grif', { grabs: 30, battingAverage: 60.0, scoringAverage: 73.3, combinedAverage: 61.5 }),
+        stat(2, 'Sub'),
+      ]);
+      expect(headers().slice(-5)).toEqual(['Stops', 'Grabs', 'Bat Avg', 'Score Avg', 'Comb Avg']);
+      const cells = (row: number) => Array.from(el().querySelectorAll('tbody tr')[row].querySelectorAll('td')).slice(-4).map(td => td.textContent!.trim());
+      expect(cells(0)).toEqual(['30', '60', '73.3', '61.5']);
+      expect(cells(1)).toEqual(['-', '-', '-', '-']);
+    });
+
+    it('leaves the columns out when not recorded', async () => {
+      await load(33, [stat(1, 'Classic')]);
+      expect(headers()).not.toContain('Grabs');
+      expect(headers()).not.toContain('Bat Avg');
     });
   });
 });

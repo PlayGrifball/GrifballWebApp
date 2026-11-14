@@ -73,6 +73,7 @@ export type { JobRunDto } from './models/job-run-dto';
 export type { JobRunningDto } from './models/job-running-dto';
 export type { JobsOverviewDto } from './models/jobs-overview-dto';
 export type { JobStatusDto } from './models/job-status-dto';
+export type { LeaderboardFilter } from './models/leaderboard-filter';
 export type { LeaderboardsDto } from './models/leaderboards-dto';
 export type { LeagueOptionDto } from './models/league-option-dto';
 export type { LetterDto } from './models/letter-dto';

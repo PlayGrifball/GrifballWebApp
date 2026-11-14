@@ -157,4 +157,32 @@ internal sealed class StatLineAndGameTotalsUnitTests
             Assert.That(playoffs.Kills, Is.EqualTo(7));
         }
     }
+
+    private static SeasonStatLine StoredWith(string extendedMetricsJson)
+    {
+        var line = NewLine();
+        line.SetStored(PlayerSeasonStat.Seed(new StatSheetTotals { Gamertag = "Chief117", ExtendedMetricsJson = extendedMetricsJson }, gameVersionID: 1), null, null);
+        return line;
+    }
+
+    [Test]
+    public void SetStored_ReadsTheGrifballComMetrics_RoundingGrabs()
+    {
+        var line = StoredWith("""{"grabs":12.6,"battingAverage":0.412,"scoringAverage":0.25,"combinedAverage":0.331}""");
+
+        Assert.That((line.Grabs, line.BattingAverage, line.ScoringAverage, line.CombinedAverage), Is.EqualTo(((int?)13, (decimal?)0.412m, (decimal?)0.25m, (decimal?)0.331m)));
+    }
+
+    [TestCase("[1,2]", TestName = "SetStored_ExtendedMetricsNotAnObject_LeavesTheMetricsNull")]
+    [TestCase("{\"grabs\":", TestName = "SetStored_ExtendedMetricsMalformed_LeavesTheMetricsNull")]
+    [TestCase("""{"grabs":"12","battingAverage":null}""", TestName = "SetStored_ExtendedMetricsNotNumbers_LeavesTheMetricsNull")]
+    [TestCase("""{"Assassinations":2}""", TestName = "SetStored_ExtendedMetricsWithoutThem_LeavesTheMetricsNull")]
+    [TestCase("""{"battingAverage":1e40}""", TestName = "SetStored_ExtendedMetricOutOfDecimalRange_LeavesTheMetricsNull")]
+    [TestCase("""{"grabs":1e12}""", TestName = "SetStored_GrabsOutOfIntRange_LeavesTheMetricsNull")]
+    public void SetStored_ExtendedMetricsWithoutUsableValues_LeavesTheMetricsNull(string json)
+    {
+        var line = StoredWith(json);
+
+        Assert.That((line.Grabs, line.BattingAverage, line.ScoringAverage, line.CombinedAverage), Is.EqualTo(((int?)null, (decimal?)null, (decimal?)null, (decimal?)null)));
+    }
 }

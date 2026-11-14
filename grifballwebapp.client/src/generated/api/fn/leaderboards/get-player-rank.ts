@@ -7,13 +7,25 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
+import { LeaderboardFilter } from '../../models/leaderboard-filter';
 import { PlayerAllTimeRankDto } from '../../models/player-all-time-rank-dto';
-import { SeasonFormat } from '../../models/season-format';
 
 export interface GetPlayerRank$Params {
+
+/**
+ * A gamertag, current or past, looked up when userID is left out.
+ */
   query?: string;
+
+/**
+ * The player's user ID.
+ */
   userID?: number;
-  format?: SeasonFormat;
+
+/**
+ * The formats counted, titles and stats alike (repeat the parameter for several); none: every format.
+ */
+  formats?: Array<LeaderboardFilter>;
 }
 
 export function getPlayerRank(http: HttpClient, rootUrl: string, params?: GetPlayerRank$Params, context?: HttpContext): Observable<StrictHttpResponse<PlayerAllTimeRankDto>> {
@@ -21,7 +33,7 @@ export function getPlayerRank(http: HttpClient, rootUrl: string, params?: GetPla
   if (params) {
     rb.query('query', params.query, {});
     rb.query('userID', params.userID, {});
-    rb.query('format', params.format, {});
+    rb.query('formats', params.formats, {});
   }
 
   return http.request(

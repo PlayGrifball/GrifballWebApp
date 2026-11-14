@@ -7,15 +7,15 @@
   <div class="controls">
     <app-player-search [(query)]="searchQuery" (picked)="selectPlayer($event)" (submitted)="findPlayer($event)" (cleared)="clearSpotlight()" />
 
-    <label class="board-filter">
-      <span class="hud-label">Titles from</span>
-      <select (change)="setFormat($event)">
-        <option value="">All formats</option>
-        @for (f of formats; track f.value) {
-          <option [value]="f.value">{{f.label}}</option>
+    <mat-form-field appearance="outline" class="board-filter" subscriptSizing="dynamic">
+      <mat-label>Format</mat-label>
+      <mat-select multiple [value]="formats()" (selectionChange)="setFormats($event.value)">
+        <mat-select-trigger>{{ formatsLabel() }}</mat-select-trigger>
+        @for (f of formatOptions; track f.value) {
+          <mat-option [value]="f.value">{{ f.label }}</mat-option>
         }
-      </select>
-    </label>
+      </mat-select>
+    </mat-form-field>
   </div>
 
   @if (spotlight(); as s) {
@@ -72,11 +72,10 @@
             <table class="board">
               <thead><tr><th scope="col" class="hud-num">#</th><th scope="col">Player</th><th scope="col" class="hud-num">{{m.title}}</th><th scope="col" class="hud-num">Games</th><th scope="col" class="hud-num">Per game</th><th scope="col" class="hud-num">Seasons</th></tr></thead>
               <tbody>
-                <!-- Goals and carrier stops are a player's totals in one game: a player can be on the board once per game -->
-                @for (p of m.leaders; track p.userID + '/' + (p.gameVersionName ?? '')) {
+                @for (p of m.leaders; track p.userID) {
                   <tr [class.board__row--highlighted]="spotlight()?.userID === p.userID">
                     <td class="hud-num">{{p.rank}}</td>
-                    <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a>@if (p.gameVersionName) {<span class="board__game">{{p.gameVersionName}}</span>}</td>
+                    <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
                     <td class="hud-num">{{p.statValue}}</td>
                     <td class="hud-num">{{p.gamesPlayed}}@if (p.perGame != null && p.gamesDecidedByVote) {<span class="hud-muted"> ({{p.gamesDecidedByVote}} by vote)</span>}</td>
                     <td class="hud-num">{{p.perGameText}}</td>

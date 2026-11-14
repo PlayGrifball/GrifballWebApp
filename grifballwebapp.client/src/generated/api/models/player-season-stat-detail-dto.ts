@@ -9,7 +9,9 @@ import { SeasonInfoDto } from '../models/season-info-dto';
  */
 export interface PlayerSeasonStatDetailDto {
   assists: number;
+  battingAverage: number | null;
   carrierKills: number;
+  combinedAverage: number | null;
   damageDealt: number | null;
   damageTaken: number | null;
   deaths: number;
@@ -24,6 +26,7 @@ export interface PlayerSeasonStatDetailDto {
   gamertag: string;
   gamesPlayed: number;
   goals: number;
+  grabs: number | null;
   isCombined: boolean;
   isPlayoffs: boolean;
   kdRatio: number | null;
@@ -44,6 +47,7 @@ export interface PlayerSeasonStatDetailDto {
   punches: number | null;
   roleNote: string | null;
   score: number | null;
+  scoringAverage: number | null;
 
   /**
    * What a season is, the same on every page that shows one, imported from the historical archive or played in the app

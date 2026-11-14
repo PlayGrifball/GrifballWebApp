@@ -71,6 +71,22 @@ public class ArchiveSeason
     /// <summary>The year its source is filed under (the catalog's), for a season whose name and sheet give no date.</summary>
     public int? SourceYear { get; set; }
     public List<ArchivePlayer> Players { get; init; } = [];
+    /// <summary>The season's teams, their records, captains and rosters when a standings table lists them (e.g. the
+    /// grifball.com archive), including teams with no captured player stat rows.</summary>
+    public List<ArchiveTeam> Teams { get; init; } = [];
+}
+
+public class ArchiveTeam
+{
+    public required string TeamName { get; init; }
+    public string? Division { get; init; }
+    public int? Rank { get; init; }
+    public int? Wins { get; init; }
+    public int? Losses { get; init; }
+    public int? GoalsFor { get; init; }
+    public int? GoalsAgainst { get; init; }
+    public string? Captain { get; init; }
+    public List<string> Roster { get; init; } = [];
 }
 
 public class ArchivePlayer
@@ -285,7 +301,9 @@ public static partial class HistoricalKeys
             || clean.Equals("Sub Pool", StringComparison.OrdinalIgnoreCase)
             || clean.Equals("Subs Pool", StringComparison.OrdinalIgnoreCase)
             || clean.Equals("Free Agent", StringComparison.OrdinalIgnoreCase)
-            || clean.Equals("Free Agents", StringComparison.OrdinalIgnoreCase);
+            || clean.Equals("Free Agents", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("(Deleted Team)", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("Deleted Team", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Trimmed, inner whitespace collapsed to one space: how gamertags are stored on historical rows (the past

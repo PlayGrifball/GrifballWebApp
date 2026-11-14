@@ -66,7 +66,7 @@ internal sealed class LeaderboardsServiceUnitTests : ApplicationDbContextTests
     {
         var (userA, _) = await SeedTwoPlayersWithCareerStats();
 
-        var rank = await _service.GetPlayerRankAsync(query: null, userId: userA.Id, format: null);
+        var rank = await _service.GetPlayerRankAsync(query: null, userId: userA.Id, formats: null);
 
         Assert.That(rank, Is.Not.Null);
         using (Assert.EnterMultipleScope())
@@ -81,7 +81,7 @@ internal sealed class LeaderboardsServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task GetPlayerRankAsync_UnknownUserID_ReturnsNull()
     {
-        var rank = await _service.GetPlayerRankAsync(query: null, userId: 999, format: null);
+        var rank = await _service.GetPlayerRankAsync(query: null, userId: 999, formats: null);
 
         Assert.That(rank, Is.Null);
     }
@@ -89,7 +89,7 @@ internal sealed class LeaderboardsServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task GetPlayerRankAsync_NoUserIdAndBlankQuery_ReturnsNull()
     {
-        var rank = await _service.GetPlayerRankAsync(query: "   ", userId: null, format: null);
+        var rank = await _service.GetPlayerRankAsync(query: "   ", userId: null, formats: null);
 
         Assert.That(rank, Is.Null);
     }
@@ -103,7 +103,7 @@ internal sealed class LeaderboardsServiceUnitTests : ApplicationDbContextTests
         Context.Users.Add(user);
         await Context.SaveChangesAsync();
 
-        var rank = await _service.GetPlayerRankAsync(query: "Chief117", userId: null, format: null);
+        var rank = await _service.GetPlayerRankAsync(query: "Chief117", userId: null, formats: null);
 
         Assert.That(rank, Is.Not.Null);
         using (Assert.EnterMultipleScope())
@@ -116,7 +116,7 @@ internal sealed class LeaderboardsServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task GetPlayerRankAsync_QueryMatchesNobody_ReturnsNull()
     {
-        var rank = await _service.GetPlayerRankAsync(query: "nobody-here", userId: null, format: null);
+        var rank = await _service.GetPlayerRankAsync(query: "nobody-here", userId: null, formats: null);
 
         Assert.That(rank, Is.Null);
     }

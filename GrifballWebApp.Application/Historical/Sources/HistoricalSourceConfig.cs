@@ -47,7 +47,7 @@ public class HistoricalSourceConfig
         [
             .. Tabs.Select(t => t.Name),
             .. Tabs.Select(t => t.DatesSheet),
-            .. Tables.SelectMany(t => new[] { t.Sheet, t.Players?.Sheet, t.Teams?.Sheet }),
+            .. Tables.SelectMany(t => new[] { t.Sheet, t.Players?.Sheet, t.Teams?.Sheet, t.StandingsSheet }),
             .. Waypoint.Select(t => t.Sheet),
             .. Games.Select(t => t.Sheet),
             .. RosterSheets,
@@ -97,6 +97,18 @@ public class StatsTab
     public string? DatesSheet { get; init; }
     /// <summary>The season's year when nothing in the sheets dates it, nor its name: the source's year otherwise.</summary>
     public int? Year { get; init; }
+    /// <summary>Carry a non-empty Team cell down to subsequent player rows in the same block (resetting on totals,
+    /// repeating headers, or non-player separator rows).</summary>
+    public bool CarryTeam { get; init; }
+    /// <summary>Each row with stats is one game of a player's: rows for the same player and team are summed into one
+    /// season line (counting games played).</summary>
+    public bool PerGame { get; init; }
+    /// <summary>Stop reading the main table at a row whose first non-empty cell starts with this prefix (case-insensitive),
+    /// e.g. "GAME 1" before a trailing finals/awards section in a different layout.</summary>
+    public string? StopAt { get; init; }
+    /// <summary>Optional marker (first non-empty cell prefix, case-insensitive) starting a side-by-side per-game box score
+    /// section (e.g. Finals "GAME 1" / "Game 2" blocks), parsed alongside <see cref="PerGame"/>.</summary>
+    public string? SideBySideGamesStart { get; init; }
 }
 
 /// <summary>
@@ -122,6 +134,9 @@ public class StatsTable
     /// <summary>A column of the teams' tab whose value is the team's division in a season that lists divisions
     /// (<see cref="TableSeason.Divisions"/>), e.g. "ispro".</summary>
     public string? DivisionColumn { get; init; }
+    /// <summary>A tab of team standings, captains and rosters by <see cref="SeasonColumn"/> (e.g. Standings in the
+    /// grifball.com archive): fills <see cref="ArchiveSeason.Teams"/> for each season in <see cref="Seasons"/>.</summary>
+    public string? StandingsSheet { get; init; }
     /// <summary>Extra columns kept with a player's line (ExtendedMetrics): column to metric name, e.g. batavg to
     /// battingAverage. A metric whose name ends in "Id" is kept as text, the rest as numbers.</summary>
     public Dictionary<string, string> Extended { get; init; } = [];
@@ -142,6 +157,12 @@ public class TableLookup
 public class TableSeason
 {
     public required string Name { get; init; }
+    /// <summary>The season's division (Pro, Amateur, Open, UK, Aussie, OGBL) when all rows of the season share one.</summary>
+    public string? Division { get; init; }
+    /// <summary>The champions record's name for the season's titles, when it isn't the season's own.</summary>
+    public string? Titles { get; init; }
+    /// <summary>The season's year when its name gives none.</summary>
+    public int? Year { get; init; }
     /// <summary>The season's divisions by the value of the table's DivisionColumn ("1": "Pro", "0": "Amateur"): a season
     /// each, named "{Name} ({division})". Without them the season is one, Open.</summary>
     public Dictionary<string, string>? Divisions { get; init; }

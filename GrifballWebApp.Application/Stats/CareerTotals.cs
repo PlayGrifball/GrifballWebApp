@@ -18,8 +18,8 @@ public static class StatMath
 /// <summary>
 /// Career totals over stat lines, seasons' (<see cref="SeasonStatsService"/>) and Late League's alike, for a profile and the
 /// leaderboards.
-/// Within one game everything is totalled; across games only what every game counts alike (games, wins, kills, deaths,
-/// assists): goals, carrier stops and medals mean something different in each game.
+/// Within one game everything is totalled; across games what every game counts alike (games, wins, kills, deaths, assists)
+/// and goals and carrier stops, a career's whatever the game; medals and the rest mean something different in each game.
 /// </summary>
 public static class CareerTotals
 {
@@ -39,13 +39,6 @@ public static class CareerTotals
         career.GameVersionID = first.GameVersionID;
         career.GameVersionName = first.GameVersionName;
         career.GameVersionSlug = first.GameVersionSlug;
-        career.Goals = lines.Sum(s => s.Goals);
-        // Per game with a box score: a game decided by vote has no goals or stops to count (#296)
-        career.GoalsPerGame = StatMath.PerGame(career.Goals.Value, career.GamesWithStats);
-        career.CarrierKills = lines.Sum(s => s.CarrierKills);
-        // Over the lines that record carrier stops (a game from Waypoint has none), so games without them don't lower it
-        var recording = lines.Where(s => s.RecordsCarrierKills).ToList();
-        career.StopsPerGame = StatMath.PerGame(recording.Sum(s => s.CarrierKills), recording.Sum(s => s.GamesWithStats));
         career.Sprees = lines.Sum(s => s.Sprees);
         career.MultiKills = lines.Sum(s => s.MultiKills);
         career.Exterminations = lines.Sum(s => s.Exterminations);
@@ -60,7 +53,7 @@ public static class CareerTotals
         return career;
     }
 
-    /// <summary>The totals of lines of any games: only what every game counts alike.</summary>
+    /// <summary>The totals of lines of any games: what every game counts alike, and goals and carrier stops.</summary>
     public static GameCareerSummaryDto AcrossGames(IEnumerable<StatLine> lines)
     {
         var list = lines.ToList();
@@ -68,6 +61,9 @@ public static class CareerTotals
         var wins = list.Sum(s => s.Wins);
         var kills = list.Sum(s => s.Kills);
         var deaths = list.Sum(s => s.Deaths);
+        var goals = list.Sum(s => s.Goals);
+        // Over the lines that record carrier stops (a game from Waypoint has none), so games without them don't lower it
+        var recording = list.Where(s => s.RecordsCarrierKills).ToList();
         return new GameCareerSummaryDto
         {
             GameVersionName = "All Games",
@@ -83,6 +79,11 @@ public static class CareerTotals
             Assists = list.Sum(s => s.Assists),
             KdRatio = StatMath.KdRatio(kills, deaths),
             KdSpread = kills - deaths,
+            Goals = goals,
+            // Per game with a box score: a game decided by vote has no goals or stops to count (#296)
+            GoalsPerGame = StatMath.PerGame(goals, list.Sum(s => s.GamesWithStats)),
+            CarrierKills = list.Sum(s => s.CarrierKills),
+            StopsPerGame = StatMath.PerGame(recording.Sum(s => s.CarrierKills), recording.Sum(s => s.GamesWithStats)),
         };
     }
 }

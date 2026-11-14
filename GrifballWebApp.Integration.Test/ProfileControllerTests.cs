@@ -166,12 +166,12 @@ public class ProfileControllerTests
             Assert.That(stats.OverallCareer.Wins, Is.EqualTo(8));
             Assert.That(stats.OverallCareer.Losses, Is.EqualTo(2));
             Assert.That(stats.OverallCareer.WinPercent, Is.EqualTo(80.0m));
-            Assert.That(stats.OverallCareer.Goals, Is.Null, "Goals are only totalled per game");
+            Assert.That(stats.OverallCareer.Goals, Is.EqualTo(15), "Goals add up across games");
             Assert.That(stats.OverallCareer.Kills, Is.EqualTo(120));
             Assert.That(stats.OverallCareer.Deaths, Is.EqualTo(60));
             Assert.That(stats.OverallCareer.KdRatio, Is.EqualTo(2.0m));
             Assert.That(stats.OverallCareer.KdSpread, Is.EqualTo(60));
-            Assert.That(stats.OverallCareer.CarrierKills, Is.Null, "Carrier stops are only totalled per game");
+            Assert.That(stats.OverallCareer.CarrierKills, Is.EqualTo(30), "Carrier stops add up across games");
 
             Assert.That(stats.CareerByGame, Has.Count.EqualTo(1));
             Assert.That(stats.CareerByGame[0].GameVersionSlug, Is.EqualTo("halo3"));
@@ -205,7 +205,8 @@ public class ProfileControllerTests
                 (old.SeasonID, "Recorded", 10, 20, (string?)null),
             }), "The live season from its games, the old one from its totals");
             Assert.That(stats.OverallCareer!.GamesPlayed, Is.EqualTo(11));
-            Assert.That((stats.OverallCareer.GoalsPerGame, stats.OverallCareer.StopsPerGame), Is.EqualTo(((decimal?)null, (decimal?)null)), "Goals and stops are not added up across games");
+            Assert.That((stats.OverallCareer.GoalsPerGame, stats.OverallCareer.StopsPerGame), Is.EqualTo(((decimal?)2.09m, (decimal?)0.5m)),
+                "Goals and stops add up across games: 23 goals in 11 games, 5 stops in the 10 that record them");
             var infinite = stats.CareerByGame.Single(c => c.GameVersionSlug == "infinite");
             var halo3 = stats.CareerByGame.Single(c => c.GameVersionSlug == "halo3");
             Assert.That((infinite.GoalsPerGame, infinite.StopsPerGame), Is.EqualTo(((decimal?)3m, (decimal?)null)), "Waypoint games record no stops");

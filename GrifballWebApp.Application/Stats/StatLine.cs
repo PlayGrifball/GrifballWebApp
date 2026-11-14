@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GrifballWebApp.Domain.Shared;
 
 namespace GrifballWebApp.Application.Stats;
@@ -49,6 +50,10 @@ public abstract class StatLine
     public int? SwordKills { get; set; }
     public int? BallKills { get; set; }
     public int? Punches { get; set; }
+    public int? Grabs { get; set; }
+    public decimal? BattingAverage { get; set; }
+    public decimal? ScoringAverage { get; set; }
+    public decimal? CombinedAverage { get; set; }
     public long? Score { get; set; }
     public int? DamageDealt { get; set; }
     public int? DamageTaken { get; set; }
@@ -83,7 +88,34 @@ public abstract class StatLine
         Score = s.Score;
         DamageDealt = s.DamageDealt;
         DamageTaken = s.DamageTaken;
+        ReadExtendedMetrics(s.ExtendedMetricsJson);
     }
+
+    private void ReadExtendedMetrics(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "{}")
+            return;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                return;
+            Grabs = IntMetric(doc.RootElement, "grabs");
+            BattingAverage = DecimalMetric(doc.RootElement, "battingAverage");
+            ScoringAverage = DecimalMetric(doc.RootElement, "scoringAverage");
+            CombinedAverage = DecimalMetric(doc.RootElement, "combinedAverage");
+        }
+        catch (JsonException)
+        {
+            // Malformed extended JSON leaves optional metrics null
+        }
+    }
+
+    private static decimal? DecimalMetric(JsonElement root, string name)
+        => root.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Number && prop.TryGetDecimal(out var value) ? value : null;
+
+    private static int? IntMetric(JsonElement root, string name)
+        => DecimalMetric(root, name) is decimal d && Math.Round(d) is var whole && whole >= int.MinValue && whole <= int.MaxValue ? (int)whole : null;
 
     /// <summary>The totals of the player's games (<see cref="GameTotals"/>). A stat no game records is null.</summary>
     public void SetGames(GameTotals t, GameVersion? gameVersion)

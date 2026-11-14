@@ -17,16 +17,16 @@ namespace GrifballWebApp.Application.Test;
 /// <summary>
 /// LeaderboardsService's cache (IDistributedCache, substituted) and the rings board in a player's rank, which
 /// LeaderboardsServiceUnitTests leaves out: boards and careers served from the cache, a cache that can't be read or
-/// written skipped, and titles counted by format. Not covered: GetAsync computing the boards (Compute), whose dynasties
-/// query needs the SQL APPLY operation SQLite lacks (see LeaderboardsServiceUnitTests' note; Integration.Test covers it),
-/// and GetPlayerRankAsync dropping a matched alias that is the player's own name (the toolbar search never labels a
-/// player's current name as a past one).
+/// written skipped, titles counted over every format and career stats over the format asked. Not covered: GetAsync
+/// computing the boards (Compute), whose dynasties query needs the SQL APPLY operation SQLite lacks (see
+/// LeaderboardsServiceUnitTests' note; Integration.Test covers it), and GetPlayerRankAsync dropping a matched alias
+/// that is the player's own name (the toolbar search never labels a player's current name as a past one).
 /// </summary>
 [TestFixture]
 internal sealed class LeaderboardsServiceMoreUnitTests : ApplicationDbContextTests
 {
     private const int HaloInfiniteGameVersionID = 6; // GameVersionConfiguration seeds this through HasData
-    private const string CareersKey = "leaderboards:careers";
+    private const string CareersKey = "leaderboards:careers:all";
     private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
     private static readonly string[] CachedKeys = [CareersKey, "leaderboards:rings:all"];
 
@@ -60,8 +60,12 @@ internal sealed class LeaderboardsServiceMoreUnitTests : ApplicationDbContextTes
     }
 
     [TestCase(null, "all")]
-    [TestCase(SeasonFormat.Tournament, "Tournament")]
-    public async Task GetAsync_CachedBoards_AreReadFromTheCache(SeasonFormat? format, string formatKey)
+    [TestCase(new LeaderboardFilter[0], "all")]
+    [TestCase(new[] { LeaderboardFilter.LateLeague, LeaderboardFilter.LeagueSeason, LeaderboardFilter.Tournament }, "all")]
+    [TestCase(new[] { LeaderboardFilter.Tournament }, "Tournament")]
+    [TestCase(new[] { LeaderboardFilter.LateLeague, LeaderboardFilter.LeagueSeason, LeaderboardFilter.LateLeague }, "LeagueSeason+LateLeague")]
+    [TestCase(new[] { (LeaderboardFilter)99, LeaderboardFilter.Tournament }, "Tournament")]
+    public async Task GetAsync_CachedBoards_AreReadFromTheCache_KeyedByTheFormatsInOrder(LeaderboardFilter[]? formats, string formatKey)
     {
         var boards = new LeaderboardsDto
         {
@@ -75,7 +79,7 @@ internal sealed class LeaderboardsServiceMoreUnitTests : ApplicationDbContextTes
         var cached = JsonSerializer.SerializeToUtf8Bytes(boards, WebJson);
         _cache.GetAsync($"leaderboards:boards:{formatKey}", Arg.Any<CancellationToken>()).Returns(cached);
 
-        var result = await _service.GetAsync(format);
+        var result = await _service.GetAsync(formats);
 
         var ringLeader = result.RingLeaders.Single();
         var dynasty = result.Dynasties.Single();
@@ -94,23 +98,24 @@ internal sealed class LeaderboardsServiceMoreUnitTests : ApplicationDbContextTes
     }
 
     [Test]
-    public async Task GetPlayerRankAsync_RanksTheTitlesOfTheFormatAsked()
+    public async Task GetPlayerRankAsync_RanksTitlesAndStatsOfTheFormatsAsked()
     {
         await SeedTwoPlayersAndATitle();
 
-        var alice = await _service.GetPlayerRankAsync(query: null, userId: 1, format: null);
-        var bob = await _service.GetPlayerRankAsync(query: null, userId: 2, format: SeasonFormat.LeagueSeason);
-        var aliceInTournaments = await _service.GetPlayerRankAsync(query: null, userId: 1, format: SeasonFormat.Tournament);
+        var alice = await _service.GetPlayerRankAsync(query: null, userId: 1, formats: null);
+        var bob = await _service.GetPlayerRankAsync(query: null, userId: 2, formats: [LeaderboardFilter.LeagueSeason]);
+        var aliceInTournaments = await _service.GetPlayerRankAsync(query: null, userId: 1, formats: [LeaderboardFilter.Tournament]);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That((alice!.Rings.Rank, alice.Rings.TotalRanked, alice.Rings.StatValue, alice.Rings.SecondaryText), Is.EqualTo(((int?)1, 1, 1L, (string?)null)));
             Assert.That((bob!.Rings.Rank, bob.Rings.TotalRanked, bob.Rings.StatValue), Is.EqualTo(((int?)null, 1, 0L)), "no title: not on the board");
-            Assert.That((aliceInTournaments!.Rings.Rank, aliceInTournaments.Rings.TotalRanked, aliceInTournaments.Rings.StatValue), Is.EqualTo(((int?)null, 0, 0L)));
+            Assert.That((aliceInTournaments!.Rings.Rank, aliceInTournaments.Rings.TotalRanked, aliceInTournaments.Rings.StatValue), Is.EqualTo(((int?)null, 0, 0L)), "no tournament titles");
+            Assert.That((aliceInTournaments.Goals.Rank, aliceInTournaments.Goals.StatValue), Is.EqualTo(((int?)null, 0L)), "no tournament games");
             Assert.That((alice.GamesPlayed.StatValue, alice.GamesPlayed.SecondaryText), Is.EqualTo((10L, "1 Season")));
             Assert.That((bob.GamesPlayed.Rank, bob.GamesPlayed.TotalRanked), Is.EqualTo(((int?)2, 2)));
             Assert.That((alice.Goals.Rank, alice.Goals.StatValue), Is.EqualTo(((int?)1, 15L)));
-            Assert.That(alice.Goals.SecondaryText, Does.EndWith("in Halo Infinite"));
+            Assert.That(alice.Goals.SecondaryText, Is.EqualTo("1.5 / G"), "goals summed across games, no game named");
             Assert.That((bob.CarrierStops.Rank, bob.CarrierStops.StatValue), Is.EqualTo(((int?)2, 1L)));
         }
     }
@@ -121,7 +126,7 @@ internal sealed class LeaderboardsServiceMoreUnitTests : ApplicationDbContextTes
         await SeedTwoPlayersAndATitle();
         _cache.GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("Redis is down"));
 
-        var rank = await _service.GetPlayerRankAsync(query: null, userId: 1, format: null);
+        var rank = await _service.GetPlayerRankAsync(query: null, userId: 1, formats: null);
 
         Assert.That((rank!.Kills.Rank, rank.Kills.StatValue, rank.Rings.StatValue), Is.EqualTo(((int?)1, 100L, 1L)));
         await _cache.Received(1).SetAsync(CareersKey, Arg.Any<byte[]>(), Arg.Is<DistributedCacheEntryOptions>(o => o.AbsoluteExpirationRelativeToNow == TimeSpan.FromMinutes(5)), Arg.Any<CancellationToken>());
@@ -134,7 +139,7 @@ internal sealed class LeaderboardsServiceMoreUnitTests : ApplicationDbContextTes
         _cache.SetAsync(Arg.Any<string>(), Arg.Any<byte[]>(), Arg.Any<DistributedCacheEntryOptions>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("Redis is down"));
 
-        var rank = await _service.GetPlayerRankAsync(query: null, userId: 2, format: null);
+        var rank = await _service.GetPlayerRankAsync(query: null, userId: 2, formats: null);
 
         Assert.That((rank!.Kills.Rank, rank.Kills.StatValue, rank.GamesPlayed.Rank), Is.EqualTo(((int?)2, 20L, (int?)2)));
     }
@@ -148,12 +153,12 @@ internal sealed class LeaderboardsServiceMoreUnitTests : ApplicationDbContextTes
         _cache.When(c => c.SetAsync(Arg.Any<string>(), Arg.Any<byte[]>(), Arg.Any<DistributedCacheEntryOptions>(), Arg.Any<CancellationToken>()))
             .Do(call => stored[call.ArgAt<string>(0)] = call.ArgAt<byte[]>(1));
         _cache.GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(call => stored.GetValueOrDefault(call.ArgAt<string>(0)));
-        var computed = await _service.GetPlayerRankAsync(query: null, userId: 1, format: null);
+        var computed = await _service.GetPlayerRankAsync(query: null, userId: 1, formats: null);
 
         // The database's stats and titles gone: only the cache has them now
         await Context.PlayerSeasonStats.ExecuteDeleteAsync();
         await Context.Set<PlayerChampionship>().ExecuteDeleteAsync();
-        var cached = await _service.GetPlayerRankAsync(query: null, userId: 1, format: null);
+        var cached = await _service.GetPlayerRankAsync(query: null, userId: 1, formats: null);
 
         using (Assert.EnterMultipleScope())
         {
@@ -162,6 +167,38 @@ internal sealed class LeaderboardsServiceMoreUnitTests : ApplicationDbContextTes
             Assert.That((cached.Goals.StatValue, cached.Goals.SecondaryText), Is.EqualTo((computed.Goals.StatValue, computed.Goals.SecondaryText)));
             Assert.That((cached.GamesPlayed.StatValue, cached.GamesPlayed.TotalRanked), Is.EqualTo((10L, 2)));
             Assert.That((cached.Rings.Rank, cached.Rings.StatValue), Is.EqualTo(((int?)1, 1L)));
+        }
+    }
+
+    /// <summary>Alice's 8 Late League games (40 kills, 3 goals), stored totals of a matchmaking season.</summary>
+    private async Task SeedAliceInLateLeague()
+    {
+        var season = GrifballWebApp.Domain.LateLeague.MatchmakingSeason.Seed("MM Season 1", gameVersionID: HaloInfiniteGameVersionID);
+        Context.MatchmakingSeasons.Add(season);
+        await Context.SaveChangesAsync();
+        Context.Add(GrifballWebApp.Domain.LateLeague.MatchmakingPlayerStat.Seed(new StatSheetTotals { Gamertag = "Alice", GamesPlayed = 8, Wins = 5, Losses = 3, Kills = 40, Deaths = 20, Goals = 3 },
+            matchmakingSeasonID: season.MatchmakingSeasonID, userID: 1, gameVersionID: HaloInfiniteGameVersionID));
+        await Context.SaveChangesAsync();
+    }
+
+    [Test]
+    public async Task GetPlayerRankAsync_EveryFormat_CountsLateLeague_AndLateLeagueAloneHasNoTitles()
+    {
+        await SeedTwoPlayersAndATitle();
+        await SeedAliceInLateLeague();
+
+        var every = await _service.GetPlayerRankAsync(query: null, userId: 1, formats: null);
+        var lateLeague = await _service.GetPlayerRankAsync(query: null, userId: 1, formats: [LeaderboardFilter.LateLeague]);
+        var seasons = await _service.GetPlayerRankAsync(query: null, userId: 1, formats: [LeaderboardFilter.LeagueSeason, LeaderboardFilter.Tournament]);
+        var leagueAndLateLeague = await _service.GetPlayerRankAsync(query: null, userId: 1, formats: [LeaderboardFilter.LateLeague, LeaderboardFilter.LeagueSeason]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((every!.GamesPlayed.StatValue, every.Kills.StatValue, every.Goals.StatValue, every.Rings.StatValue), Is.EqualTo((18L, 140L, 18L, 1L)), "the season and Late League");
+            Assert.That((lateLeague!.GamesPlayed.StatValue, lateLeague.Kills.StatValue, lateLeague.Goals.StatValue), Is.EqualTo((8L, 40L, 3L)));
+            Assert.That((lateLeague.Rings.StatValue, lateLeague.Rings.TotalRanked), Is.EqualTo((0L, 0)), "Late League has no titles");
+            Assert.That((seasons!.GamesPlayed.StatValue, seasons.Rings.StatValue), Is.EqualTo((10L, 1L)), "the seasons alone");
+            Assert.That((leagueAndLateLeague!.GamesPlayed.StatValue, leagueAndLateLeague.Rings.StatValue), Is.EqualTo((18L, 1L)));
         }
     }
 }

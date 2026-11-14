@@ -1,3 +1,4 @@
+using System.Reflection;
 using DiscordInterface.Generated;
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Extensions;
@@ -7,6 +8,7 @@ using GrifballWebApp.Application.Leaderboards;
 using GrifballWebApp.Application.Search;
 using GrifballWebApp.Domain.League;
 using NetCord.Rest;
+using NetCord.Services.ApplicationCommands;
 
 namespace GrifballWebApp.Server.Commands;
 
@@ -20,12 +22,19 @@ public enum LeaderboardBoard
     CarrierStops,
 }
 
-/// <summary>Which seasons the all-time boards count: every format, or one (<see cref="SeasonFormat"/>).</summary>
+/// <summary>
+/// The formats the all-time boards count (<see cref="LeaderboardFilter"/>): every format, one, or two of them. A slash
+/// command has no choice of several, so each combination is a choice of its own.
+/// </summary>
 public enum LeaderboardFormat
 {
-    All,
-    LeagueSeason,
-    Tournament,
+    [SlashCommandChoice(Name = "All")] All,
+    [SlashCommandChoice(Name = "League season")] LeagueSeason,
+    [SlashCommandChoice(Name = "Tournament")] Tournament,
+    [SlashCommandChoice(Name = "Late League")] LateLeague,
+    [SlashCommandChoice(Name = "League season + Tournament")] LeagueSeasonAndTournament,
+    [SlashCommandChoice(Name = "League season + Late League")] LeagueSeasonAndLateLeague,
+    [SlashCommandChoice(Name = "Tournament + Late League")] TournamentAndLateLeague,
 }
 
 /// <summary>
@@ -58,7 +67,7 @@ public class BrowseCommandsHandler
     public async Task Leaderboard(IDiscordInteractionContext context, LeaderboardBoard board, LeaderboardFormat format)
     {
         await context.Defer(ephemeral: false);
-        var boards = await _leaderboards.GetAsync(SeasonFormatOf(format));
+        var boards = await _leaderboards.GetAsync(FormatsOf(format));
         List<string> lines = board switch
         {
             LeaderboardBoard.Rings => boards.RingLeaders.Take(Top)
@@ -71,7 +80,7 @@ public class BrowseCommandsHandler
                 _ => boards.GoalLeaders,
             }).Take(Top).Select(x => $"{x.Rank}. {x.Gamertag.LinkMarkdown(_urls.Profile(x.UserID))} · {x.StatValue}").ToList(),
         };
-        var title = $"All-time {board}" + (format is LeaderboardFormat.All ? "" : $" ({format})");
+        var title = $"All-time {board}" + (format is LeaderboardFormat.All ? "" : $" ({FormatLabel(format)})");
         await context.Reply(CommandReplies.Embed(title, _urls.Page("leaderboards"), CommandReplies.Lines(lines, "Nobody is ranked yet.")));
     }
 
@@ -79,7 +88,7 @@ public class BrowseCommandsHandler
     {
         await context.Defer(ephemeral: false);
         var userID = await _lookups.Player(player);
-        if (await _leaderboards.GetPlayerRankAsync(userID is null ? player : null, userID, SeasonFormatOf(format)) is not { } rank)
+        if (await _leaderboards.GetPlayerRankAsync(userID is null ? player : null, userID, FormatsOf(format)) is not { } rank)
         {
             await context.Reply(PlayerCommandsHandler.NoSuchPlayer);
             return;
@@ -97,12 +106,21 @@ public class BrowseCommandsHandler
         await context.Reply(embed);
     }
 
-    private static SeasonFormat? SeasonFormatOf(LeaderboardFormat format) => format switch
+    /// <summary>The formats a choice counts; All: none named, so every format.</summary>
+    public static LeaderboardFilter[] FormatsOf(LeaderboardFormat format) => format switch
     {
-        LeaderboardFormat.LeagueSeason => SeasonFormat.LeagueSeason,
-        LeaderboardFormat.Tournament => SeasonFormat.Tournament,
-        _ => null,
+        LeaderboardFormat.LeagueSeason => [LeaderboardFilter.LeagueSeason],
+        LeaderboardFormat.Tournament => [LeaderboardFilter.Tournament],
+        LeaderboardFormat.LateLeague => [LeaderboardFilter.LateLeague],
+        LeaderboardFormat.LeagueSeasonAndTournament => [LeaderboardFilter.LeagueSeason, LeaderboardFilter.Tournament],
+        LeaderboardFormat.LeagueSeasonAndLateLeague => [LeaderboardFilter.LeagueSeason, LeaderboardFilter.LateLeague],
+        LeaderboardFormat.TournamentAndLateLeague => [LeaderboardFilter.Tournament, LeaderboardFilter.LateLeague],
+        _ => [],
     };
+
+    /// <summary>A choice as Discord shows it ("League season + Tournament").</summary>
+    private static string FormatLabel(LeaderboardFormat format)
+        => typeof(LeaderboardFormat).GetField(format.ToString())?.GetCustomAttribute<SlashCommandChoiceAttribute>()?.Name ?? format.ToString();
 
     private static EmbedFieldProperties RankField(string name, MetricRankDetail detail)
         => new EmbedFieldProperties().WithName(name)

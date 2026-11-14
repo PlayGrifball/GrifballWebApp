@@ -3936,15 +3936,14 @@
         "operationId": "GetLeaderboards",
         "parameters": [
           {
-            "name": "format",
+            "name": "formats",
             "in": "query",
-            "description": "Count only the titles of seasons of this format; null: every format.",
+            "description": "The formats counted, titles and stats alike (repeat the parameter for several); none: every format.",
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/SeasonFormat"
-                }
-              ]
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/LeaderboardFilter"
+              }
             }
           }
         ],
@@ -3973,6 +3972,7 @@
           {
             "name": "query",
             "in": "query",
+            "description": "A gamertag, current or past, looked up when userID is left out.",
             "schema": {
               "type": "string"
             }
@@ -3980,20 +3980,21 @@
           {
             "name": "userID",
             "in": "query",
+            "description": "The player's user ID.",
             "schema": {
               "type": "integer",
               "format": "int32"
             }
           },
           {
-            "name": "format",
+            "name": "formats",
             "in": "query",
+            "description": "The formats counted, titles and stats alike (repeat the parameter for several); none: every format.",
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/SeasonFormat"
-                }
-              ]
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/LeaderboardFilter"
+              }
             }
           }
         ],
@@ -10165,7 +10166,7 @@
           },
           "goals": {
             "type": "integer",
-            "description": "Null on the all-games row: goals, carrier stops and medals mean something different in each game, so they\n            are only totalled per game.",
+            "description": "Goals, added up across games on the all-games row too, as carrier stops are (medals are only totalled per game).",
             "format": "int64",
             "nullable": true
           },
@@ -11468,6 +11469,15 @@
           }
         },
         "additionalProperties": false
+      },
+      "LeaderboardFilter": {
+        "enum": [
+          "LeagueSeason",
+          "Tournament",
+          "LateLeague"
+        ],
+        "type": "string",
+        "description": "A format a leaderboard can count: the seasons of a season format, or Late League matchmaking."
       },
       "LeaderboardsDto": {
         "required": [
@@ -13329,7 +13339,9 @@
       "PlayerSeasonStatDetailDto": {
         "required": [
           "assists",
+          "battingAverage",
           "carrierKills",
+          "combinedAverage",
           "damageDealt",
           "damageTaken",
           "deaths",
@@ -13340,6 +13352,7 @@
           "gamertag",
           "gamesPlayed",
           "goals",
+          "grabs",
           "isCombined",
           "isPlayoffs",
           "kdRatio",
@@ -13351,6 +13364,7 @@
           "punches",
           "roleNote",
           "score",
+          "scoringAverage",
           "season",
           "source",
           "sprees",
@@ -13477,6 +13491,26 @@
           "swordKills": {
             "type": "integer",
             "format": "int32",
+            "nullable": true
+          },
+          "grabs": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "battingAverage": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "scoringAverage": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "combinedAverage": {
+            "type": "number",
+            "format": "double",
             "nullable": true
           },
           "season": {
@@ -15206,12 +15240,15 @@
       "SeasonPlayerStatDto": {
         "required": [
           "assists",
+          "battingAverage",
           "carrierKills",
+          "combinedAverage",
           "deaths",
           "exterminations",
           "gamertag",
           "gamesPlayed",
           "goals",
+          "grabs",
           "isCombined",
           "isPlayoffs",
           "kdRatio",
@@ -15222,6 +15259,7 @@
           "playerSeasonStatID",
           "punches",
           "roleNote",
+          "scoringAverage",
           "source",
           "sprees",
           "stintIndex",
@@ -15347,6 +15385,26 @@
           "swordKills": {
             "type": "integer",
             "format": "int32",
+            "nullable": true
+          },
+          "grabs": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "battingAverage": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "scoringAverage": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "combinedAverage": {
+            "type": "number",
+            "format": "double",
             "nullable": true
           }
         },
