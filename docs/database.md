@@ -46,7 +46,14 @@ that does. A PR's own new migrations can be regenerated freely: its preview rese
 match ([the chart's README](../charts/grifballwebapp/README.md), "Preview reset").
 
 ## Row history
-Both databases keep every version of every row, of every table but `MatchReschedules`, in the same place: for each table
+Every table keeps the history of its rows except three, whose rows churn and whose history would only grow: the
+Discord outbox (`Discord.Outbox`: sent messages are deleted after their retention), the historical import's jobs
+(`Event.HistoricalImportJobs`: a running import rewrites its row every few seconds) and the sources' downloaded files
+(`Event.HistoricalSourceSnapshots`). A test (`EveryTable_KeepsHistory_ButTheOutboxImportJobsAndSnapshots`) fails for any
+other table without history. This section is about SQL Server and Postgres; SQLite keeps the same history with a few
+differences ([sqlite.md](sqlite.md)).
+
+Both databases keep every version of every row in the same place: for each table
 `"Schema"."Table"`, the versions a row had before an update or delete are in `"Schema"."TableHistory"`, each with
 `PeriodStart` and `PeriodEnd`, the UTC times it was current. The table's own `PeriodStart` is when the row got the
 values it has now, and its `PeriodEnd` is always the end of time, `DateTime.MaxValue` (SQL Server's

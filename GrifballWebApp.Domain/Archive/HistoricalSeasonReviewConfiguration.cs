@@ -11,6 +11,7 @@ public class HistoricalSeasonReviewConfiguration : IEntityTypeConfiguration<Hist
         // A decision has its time, and only a decided review has one; only an approval queues an import
         entity.ToTable("HistoricalSeasonReviews", "Event", tb =>
         {
+            tb.IsTemporal();
             tb.HasCheckConstraint("CK_Event_HistoricalSeasonReviews_DecidedOnceDecided",
                 "(Status IN (3, 4) AND DecidedAt IS NOT NULL) OR (Status IN (1, 2) AND DecidedAt IS NULL)");
             tb.HasCheckConstraint("CK_Event_HistoricalSeasonReviews_ApprovalJobOnlyWhenApproved",

@@ -8,8 +8,7 @@ public class HistoricalSourceConfiguration : IEntityTypeConfiguration<Historical
 {
     public void Configure(EntityTypeBuilder<HistoricalSource> entity)
     {
-        // Not temporal: the worker writes the fetch status on every refresh
-        entity.ToTable("HistoricalSources", "Event");
+        entity.ToTable("HistoricalSources", "Event", tb => tb.IsTemporal());
 
         entity.HasKey(e => e.HistoricalSourceID);
         // Computed: the model's rules, for a loaded source

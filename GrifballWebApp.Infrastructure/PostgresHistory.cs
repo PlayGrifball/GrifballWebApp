@@ -122,11 +122,47 @@ public static class PostgresHistory
             var historyEnd = b.IndexerProperty<DateTime>(PeriodEnd);
             if (periods.ColumnType is not null)
                 historyEnd.HasColumnType(periods.ColumnType);
-            // A row's versions, and the one in effect at a time.
-            b.HasIndex([.. keyColumns, PeriodEnd]);
-            foreach (var foreignKey in ForeignKeyColumns(table, store, keyColumns))
-                b.HasIndex([.. foreignKey, PeriodEnd]);
+            // A row's versions, and the one in effect at a time; and each foreign key's.
+            string[][] indexes = [[.. keyColumns, PeriodEnd], .. ForeignKeyColumns(table, store, keyColumns).Select(fk => fk.Append(PeriodEnd).ToArray())];
+            var names = HistoryIndexNames(table.Key.Table + Suffix, indexes);
+            for (var i = 0; i < indexes.Length; i++)
+            {
+                var index = b.HasIndex(indexes[i]);
+                // Only a name EF's own would clash: the others keep EF's, unannotated, as the snapshots have them.
+                if (names[i] != EFIndexName(table.Key.Table + Suffix, indexes[i]))
+                    index.HasDatabaseName(names[i]);
+            }
         });
+    }
+
+    /// <summary>Postgres's longest identifier, in bytes (NAMEDATALEN - 1): longer names are cut.</summary>
+    public const int MaxIdentifierLength = 63;
+
+    /// <summary>EF's name for an index (IX_Table_Columns), cut as EF cuts it on Postgres: its start and a ~.</summary>
+    private static string EFIndexName(string historyTable, IEnumerable<string> columns)
+    {
+        var name = $"IX_{historyTable}_{string.Join('_', columns)}";
+        return name.Length <= MaxIdentifierLength ? name : $"{name[..(MaxIdentifierLength - 1)]}~";
+    }
+
+    /// <summary>
+    /// A history table's index names: EF's, unless EF's cut gives two of them one name (ScheduleRecommendationMatchesHistory's
+    /// indexes on ScheduleRecommendationMatchID and ScheduleRecommendationID), which the model refuses. Those keep
+    /// their start and end in a hash of the whole name, the same every time.
+    /// </summary>
+    public static string[] HistoryIndexNames(string historyTable, IReadOnlyList<string[]> indexes)
+    {
+        var names = indexes.Select(columns => EFIndexName(historyTable, columns)).ToArray();
+        var clashing = names.GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
+        for (var i = 0; i < names.Length; i++)
+        {
+            if (!clashing.Contains(names[i]))
+                continue;
+            var whole = $"IX_{historyTable}_{string.Join('_', indexes[i])}";
+            var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(whole)))[..8];
+            names[i] = $"{whole[..(MaxIdentifierLength - hash.Length - 1)]}~{hash}";
+        }
+        return names;
     }
 
     /// <summary>
