@@ -15,12 +15,11 @@ export class QuickSearchStore {
   /** What is searched for (the typed text, trimmed, once typing pauses): the component's. */
   readonly term = new StoreInput<string>();
 
-  /** Nothing is asked for a term shorter than the server searches. */
+  /** The term is shorter than the server searches: nothing is asked for it. */
+  readonly tooShort = computed(() => (this.term.value() ?? '').length < QUICK_SEARCH_MIN_LENGTH);
+
   private readonly results = rxResource({
-    params: () => {
-      const term = this.term.value();
-      return term !== undefined && term.length >= QUICK_SEARCH_MIN_LENGTH ? term : undefined;
-    },
+    params: () => this.tooShort() ? undefined : this.term.value(),
     stream: ({ params }) => this.search.quickSearch({ q: params }),
   });
 

@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
 import type { QuickSearchDto } from '@api/models';
 import { playerDetail } from './playerDetail';
-import { QUICK_SEARCH_MIN_LENGTH, QuickSearchStore } from './quickSearch.store';
+import { QuickSearchStore } from './quickSearch.store';
 
 /** How long typing pauses before the search runs. */
 export const QUICK_SEARCH_DEBOUNCE_MS = 200;
@@ -98,7 +98,7 @@ export class QuickSearchComponent {
     });
   }
 
-  readonly tooShort = computed(() => this.term().length < QUICK_SEARCH_MIN_LENGTH);
+  readonly tooShort = this.store.tooShort;
 
   readonly loading = this.store.loading;
   readonly failed = this.store.failed;

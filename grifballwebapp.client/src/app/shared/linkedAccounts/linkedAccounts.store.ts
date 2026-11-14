@@ -30,8 +30,11 @@ export class LinkedAccountsStore {
   private readonly _busy = signal(false);
   readonly busy = this._busy.asReadonly();
 
+  /** The logins; nothing until the component has said whose (never the signed-in user's by default). */
   load(): void {
-    const id = this.userID.value() ?? null;
+    const id = this.userID.value();
+    if (id === undefined)
+      return;
     const call = id === null ? this.externalLogins.getMyExternalLogins() : this.externalLogins.getUserExternalLogins({ userID: id });
     call.subscribe({
       next: r => this._data.set({ ...r, providers: r.providers ?? [] }),
@@ -52,7 +55,9 @@ export class LinkedAccountsStore {
   }
 
   unlink(login: ExternalLoginDto): void {
-    const id = this.userID.value() ?? null;
+    const id = this.userID.value();
+    if (id === undefined)
+      return;
     const body = { loginProvider: login.loginProvider, providerKey: login.providerKey };
     const call = id === null ? this.externalLogins.unlinkExternalLogin({ body }) : this.externalLogins.removeUserExternalLogin({ userID: id, body });
     this._busy.set(true);
