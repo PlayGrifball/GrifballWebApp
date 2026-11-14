@@ -1196,7 +1196,7 @@ describe('SeasonMatchComponent with manual entry', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: AccountService, useValue: { isEventOrganizer: signal(true), isPlayer: signal(false) } }
+        { provide: AccountService, useValue: { isEventOrganizer: signal(true), isPlayer: signal(false), isSysAdmin: signal(false) } }
       ]
     }).overrideComponent(SeasonMatchComponent, { remove: { imports: [VodListComponent] }, add: { imports: [StubVodListComponent] } }).compileComponents();
     httpMock = TestBed.inject(HttpTestingController);
@@ -1296,7 +1296,7 @@ describe('SeasonMatchComponent lobby', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: AccountService, useValue: { isEventOrganizer: signal(false), isPlayer: signal(false) } }
+        { provide: AccountService, useValue: { isEventOrganizer: signal(false), isPlayer: signal(false), isSysAdmin: signal(false) } }
       ]
     }).overrideComponent(SeasonMatchComponent, withoutVodList).compileComponents();
     httpMock = TestBed.inject(HttpTestingController);
@@ -1423,7 +1423,7 @@ describe('SeasonMatchComponent on the server', () => {
         provideHttpClientTesting(),
         provideRouter([]),
         { provide: PLATFORM_ID, useValue: 'server' },
-        { provide: AccountService, useValue: { isEventOrganizer: signal(true), isPlayer: signal(false) } },
+        { provide: AccountService, useValue: { isEventOrganizer: signal(true), isPlayer: signal(false), isSysAdmin: signal(false) } },
       ],
     }).overrideComponent(SeasonMatchComponent, withoutVodList).compileComponents();
     const httpMock = TestBed.inject(HttpTestingController);
