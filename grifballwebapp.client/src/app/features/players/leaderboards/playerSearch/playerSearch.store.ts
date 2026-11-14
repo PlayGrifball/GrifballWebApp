@@ -2,7 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { QuickSearchPlayerDto } from '@api/models';
 import { LeaderboardsService } from '@api/services/leaderboards.service';
-import { QUICK_SEARCH_MIN_LENGTH } from '@core/layout/quickSearch/quickSearch.component';
+import { QUICK_SEARCH_MIN_LENGTH } from '@core/layout/quickSearch/quickSearch.store';
 import { catchError, map, of, Subject, switchMap, timer } from 'rxjs';
 
 /** How long typing pauses before the players are searched. */

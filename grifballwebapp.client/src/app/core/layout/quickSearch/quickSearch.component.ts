@@ -1,17 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, linkedSignal, signal, untracked } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
-import { SearchService } from '@api/services/search.service';
 import type { QuickSearchDto } from '@api/models';
 import { playerDetail } from './playerDetail';
+import { QuickSearchStore } from './quickSearch.store';
 
 /** How long typing pauses before the search runs. */
 export const QUICK_SEARCH_DEBOUNCE_MS = 200;
-/** The fewest characters searched for (as the server's QuickSearchService.MinLength). */
-export const QUICK_SEARCH_MIN_LENGTH = 2;
 
 /** One hit: what it is, what it is called, a line about it and where it goes. */
 export interface QuickSearchItem {
@@ -69,9 +66,10 @@ export function toGroups(result: QuickSearchDto): QuickSearchGroup[] {
   templateUrl: './quickSearch.component.html',
   styleUrl: './quickSearch.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [QuickSearchStore],
 })
 export class QuickSearchComponent {
-  private search = inject(SearchService);
+  private readonly store = inject(QuickSearchStore);
   private router = inject(Router);
   /** Null when it is not in a dialog (in a test): then nothing is closed on a jump. */
   readonly dialogRef = inject<MatDialogRef<QuickSearchComponent>>(MatDialogRef, { optional: true });
@@ -86,6 +84,7 @@ export class QuickSearchComponent {
   private readonly goWhenReady = signal(false);
 
   constructor() {
+    this.store.term.use(this.term);
     inject(DestroyRef).onDestroy(() => clearTimeout(this.timer));
     effect(() => {
       if (!this.goWhenReady() || this.loading())
@@ -99,22 +98,18 @@ export class QuickSearchComponent {
     });
   }
 
-  readonly tooShort = computed(() => this.term().length < QUICK_SEARCH_MIN_LENGTH);
+  readonly tooShort = this.store.tooShort;
 
-  readonly results = rxResource({
-    params: () => this.tooShort() ? undefined : this.term(),
-    stream: ({ params }) => this.search.quickSearch({ q: params! }),
-  });
-
-  readonly loading = computed(() => this.results.isLoading());
-  readonly failed = computed(() => this.results.status() === 'error');
+  readonly loading = this.store.loading;
+  readonly failed = this.store.failed;
   /** The hits by group. While the next term's hits load, the last ones stay, so the list does not jump as you type. */
   readonly groups = linkedSignal<QuickSearchGroup[] | null, QuickSearchGroup[]>({
     source: () => {
       if (this.tooShort() || this.failed())
         return [];
       // With a term long enough and no error, the search has its hits or is loading them: null keeps the last shown
-      return this.results.hasValue() ? toGroups(this.results.value()) : null;
+      const hits = this.store.hits();
+      return hits ? toGroups(hits) : null;
     },
     computation: (next, previous) => next ?? previous?.value ?? [],
   });
@@ -182,7 +177,7 @@ export class QuickSearchComponent {
 
   /** Searches again for what was searched for, after that failed, keeping the focus in the input. */
   retry(): void {
-    this.results.reload();
+    this.store.retry();
     document.getElementById('quick-search-input')?.focus();
   }
 
