@@ -391,6 +391,9 @@ public enum Colour { Red, Blue }
 [TestFixture]
 public class NumberEnumSchemaFilterTests
 {
+    private static readonly int[] LevelNumbers = [1, 5];
+    private static readonly string[] ColourNames = ["Red", "Blue"];
+
     private static OpenApiSchema NamesSchema(params string[] names)
         => new() { Type = JsonSchemaType.String, Enum = [.. names.Select(n => (JsonNode)JsonValue.Create(n)!)] };
 
@@ -408,7 +411,7 @@ public class NumberEnumSchemaFilterTests
         {
             Assert.That(schema.Type, Is.EqualTo(JsonSchemaType.Integer));
             Assert.That(schema.Format, Is.EqualTo("int32"));
-            Assert.That(schema.Enum!.Select(v => v.GetValue<int>()), Is.EqualTo(new[] { 1, 5 }));
+            Assert.That(schema.Enum!.Select(v => v.GetValue<int>()), Is.EqualTo(LevelNumbers));
         }
     }
 
@@ -424,7 +427,7 @@ public class NumberEnumSchemaFilterTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(colour.Type, Is.EqualTo(JsonSchemaType.String));
-            Assert.That(colour.Enum!.Select(v => v.GetValue<string>()), Is.EqualTo(new[] { "Red", "Blue" }));
+            Assert.That(colour.Enum!.Select(v => v.GetValue<string>()), Is.EqualTo(ColourNames));
             Assert.That(text.Type, Is.EqualTo(JsonSchemaType.String));
             Assert.That(text.Enum, Is.Null);
         }

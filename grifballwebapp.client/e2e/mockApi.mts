@@ -157,7 +157,7 @@ const medal = (medalID: number, name: string, count: number): MatchDetailsMedalD
 const matchDetailsTeam = (teamID: number, seasonTeamID: number, seasonTeamName: string, score: number, outcome: MatchDetailsTeamDto['outcome'], offset: number): MatchDetailsTeamDto => ({
   teamID, seasonTeamID, seasonTeamName, score, outcome,
   players: roster(seasonTeamID).players.map((p, i) => ({
-    userID: p.userID, gamertag: p.gamertag, goals: Math.max(0, score - i * 2), personalScore: 1400 - offset * 20 - i * 100, rank: i + 1 + (offset ? 4 : 0),
+    userID: p.userID, xboxUserID: 2535400000000000 + p.userID, gamertag: p.gamertag, goals: Math.max(0, score - i * 2), personalScore: 1400 - offset * 20 - i * 100, rank: i + 1 + (offset ? 4 : 0),
     kills: 14 - i, deaths: 6 + i, assists: 3 + i, kda: 9.5 - i, suicides: i % 2, betrayals: 0, meleeKills: 10 - i, powerWeaponKills: 3,
     maxKillingSpree: 5 - i, calloutAssists: i, shotsFired: 40, shotsHit: 22 - i, accuracy: 55 - i * 2.5, damageDealt: 2400 - i * 150,
     damageTaken: 1500 + i * 100, averageLife: '00:00:41.5000000', timePlayed: '00:09:58', spawns: 7 + i, objectivesCompleted: 0,
