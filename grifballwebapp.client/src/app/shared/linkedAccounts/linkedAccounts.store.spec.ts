@@ -36,18 +36,20 @@ describe('LinkedAccountsStore', () => {
 
     userID.set(21);
     store.load();
-    http.expectOne('/api/users/21/external-logins').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/users/21/external-logins').flush(null, { status: 500, statusText: 'Server Error' });
     expect(store.message()).toBe('Failed to load linked accounts');
   });
 
   it("goes to the provider to link a login, with the server's token, and says when it cannot", () => {
     store.link(provider);
     expect(store.busy()).toBeTrue();
-    http.expectOne({ method: 'POST', url: '/api/me/external-logins/link-token' }).flush({ token: 'a b' });
+    const start = http.expectOne(r => r.method === 'POST' && r.url === '/api/me/external-logins/link-token');
+    expect(start.request.params.get('provider')).toBe('Discord');
+    start.flush({ token: 'a b' });
     expect(navigate).toHaveBeenCalledWith('/api/external-logins/link?provider=Discord&token=a%20b');
 
     store.link(provider);
-    http.expectOne('/api/me/external-logins/link-token').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne(r => r.url === '/api/me/external-logins/link-token').flush(null, { status: 500, statusText: 'Server Error' });
     expect(store.busy()).toBeFalse();
     expect(store.message()).toBe('Failed to link Discord');
   });
@@ -74,7 +76,7 @@ describe('LinkedAccountsStore', () => {
     http.expectOne('/api/me/external-logins').flush(logins);
 
     store.finishLink();
-    http.expectOne({ method: 'POST', url: '/api/me/external-logins' }).flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne({ method: 'POST', url: '/api/me/external-logins' }).flush(null, { status: 500, statusText: 'Server Error' });
     expect(store.message()).toBe('Failed to link the account');
     http.expectOne('/api/me/external-logins').flush(logins);
   });
