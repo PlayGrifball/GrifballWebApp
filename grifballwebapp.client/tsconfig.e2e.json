@@ -1,0 +1,25 @@
+/* The end-to-end tests (e2e/), type-checked on their own: Playwright and Node run them with their types stripped, so
+   only this checks them, and with them the mock API against the generated client (src/generated/api). Run by
+   `npm run lint`. */
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    // The tests import the mock as Node runs it: ./mockApi.mts
+    "allowImportingTsExtensions": true,
+    // and import the repo's own .mjs scripts (verify-site.mjs), typed from their code but not checked
+    "allowJs": true,
+    "checkJs": false,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    // The tests' page scripts (page.evaluate, addInitScript) run in the browser
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"]
+  },
+  "include": ["e2e/**/*.ts", "e2e/**/*.mts", "playwright.config.ts"]
+}

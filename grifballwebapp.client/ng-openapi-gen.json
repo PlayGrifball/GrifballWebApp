@@ -9,6 +9,6 @@
   "endOfLineStyle": "lf",
   "silent": true,
   "serviceIndex": false,
-  "functionIndex": false,
+  "functionIndex": "functions",
   "apiService": false
 }

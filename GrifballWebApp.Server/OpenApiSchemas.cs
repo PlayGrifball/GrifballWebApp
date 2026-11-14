@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Globalization;
 using System.Reflection;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace GrifballWebApp.Server;
@@ -103,6 +105,34 @@ public sealed class EveryPropertyRequiredFilter(ISerializerDataContractResolver 
         objectSchema.Required = new SortedSet<string>(
             objectSchema.Properties.Keys.Where(k => !sometimesLeftOut.Contains(k)), StringComparer.Ordinal);
     }
+}
+
+/// <summary>
+/// Describes an enum the API sends as its number as an integer enum (Program.cs): Swashbuckle describes every enum by its
+/// names, as the API's global JsonStringEnumConverter writes them. An enum says it is sent as its number with a
+/// <c>[JsonConverter(typeof(JsonNumberEnumConverter&lt;T&gt;))]</c> of its own (brackets-model's Status, ViewerData.cs);
+/// that one doesn't change what is written (the global converter outranks a type's), so each property of it carries the
+/// same converter, which does (OpenApiSchemasTests holds them to it).
+/// </summary>
+public sealed class NumberEnumSchemaFilter : ISchemaFilter
+{
+    public void Apply(IOpenApiSchema schema, SchemaFilterContext context)
+    {
+        // Its own schema only: a property's (the filters see those too, with the property's type) refers to it
+        if (schema is not OpenApiSchema enumSchema || context.MemberInfo is not null || !SentAsNumber(context.Type))
+            return;
+        enumSchema.Type = JsonSchemaType.Integer;
+        enumSchema.Format = "int32";
+        enumSchema.Enum = [.. Enum.GetValues(context.Type).Cast<object>().Select(v => (JsonNode)JsonValue.Create(Convert.ToInt32(v, CultureInfo.InvariantCulture)))];
+    }
+
+    /// <summary>An enum that says it is sent as its number: a JsonNumberEnumConverter of its own.</summary>
+    public static bool SentAsNumber(Type type)
+        => type.IsEnum && IsNumberEnumConverter(type.GetCustomAttribute<JsonConverterAttribute>()?.ConverterType);
+
+    /// <summary>A <c>JsonNumberEnumConverter&lt;T&gt;</c>.</summary>
+    public static bool IsNumberEnumConverter(Type? converter)
+        => converter is { IsGenericType: true } && converter.GetGenericTypeDefinition() == typeof(JsonNumberEnumConverter<>);
 }
 
 /// <summary>

@@ -83,7 +83,7 @@
                 <mat-header-cell *matHeaderCellDef>Requested By</mat-header-cell>
                 <mat-cell *matCellDef="let reschedule">
                   @if (reschedule.requestedByUserID) {
-                    <a class="hud-text-link" [routerLink]="['/profile', reschedule.requestedByUserID]">{{ reschedule.requestedByGamertag }}</a>
+                    <a class="cd-requester hud-text-link" [routerLink]="['/profile', reschedule.requestedByUserID]">{{ reschedule.requestedByGamertag }}</a>
                   } @else {
                     {{ reschedule.requestedByGamertag }}
                   }

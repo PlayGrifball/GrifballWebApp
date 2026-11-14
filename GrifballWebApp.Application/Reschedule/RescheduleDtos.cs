@@ -29,7 +29,11 @@ public class RescheduleDto
     public int? RequestedByUserID { get; set; }
     public DateTime RequestedAt { get; set; }
     public RescheduleStatus Status { get; set; }
-    public ulong? DiscordThreadID { get; set; }
+    /// <summary>
+    /// The request's Discord thread, as text: a Discord ID (~1.3e18) is past what a JavaScript number holds, so the browser
+    /// would read it as a number rounded, another thread.
+    /// </summary>
+    public string? DiscordThreadID { get; set; }
     /// <summary>
     /// Why the request can only be rejected now (the match has a result since, or lost a team), or null when it can still be
     /// approved: the dashboard then offers only Reject, and says why.

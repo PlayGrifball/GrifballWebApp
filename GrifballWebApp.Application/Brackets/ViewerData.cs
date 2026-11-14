@@ -81,8 +81,9 @@ public enum RoundRobinMode
 public class MatchResults
 {
     // brackets-model's Status is a numeric enum and brackets-viewer compares it as a number.
-    // A converter on the property wins over the API's global JsonStringEnumConverter (one on the
-    // enum type would not), so this stays a number while the other bracket enums are strings.
+    // A converter on the property wins over the API's global JsonStringEnumConverter (the one on the
+    // enum type, which the OpenAPI document reads, would not), so this stays a number while the other
+    // bracket enums are strings.
     [JsonConverter(typeof(JsonNumberEnumConverter<Status>))]
     public Status Status { get; set; }
     public ParticpantResult? Opponent1 { get; set; }
@@ -141,6 +142,11 @@ public class MatchGame : MatchResults
     public int Number { get; set; }
 }
 
+/// <summary>
+/// A bracket match's or game's state, brackets-model's: sent as its number, as brackets-viewer compares it. The converter
+/// here describes it so in the OpenAPI document (NumberEnumSchemaFilter); the one on each property is what sends it so.
+/// </summary>
+[JsonConverter(typeof(JsonNumberEnumConverter<Status>))]
 public enum Status
 {
     // The two matches leading to this one are not completed yet.

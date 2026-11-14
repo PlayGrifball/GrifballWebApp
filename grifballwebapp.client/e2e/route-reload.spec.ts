@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { mockResponse, signIn, type Role } from './mockApi.mts';
+import type { BracketInfoDto } from '../src/generated/api/models';
+import { mockResponse, signIn, typed, type Role } from './mockApi.mts';
 
 // Angular keeps the page when a link only changes the ID in its route (/profile/117 -> /profile/999): each of these
 // pages must then show the new one, not keep the previous one. The backend is mocked (e2e/mockApi.mts); `extra` adds
@@ -54,7 +55,7 @@ test('a link from one season to another shows the other season', async ({ page }
 
 test('Winner Next Match on a playoff match shows the next match', async ({ page }) => {
   const base = JSON.parse(mockResponse('anon', '/api/season-matches/31')!.body);
-  const bracketMatch = (homeTeamID: number, homeTeamName: string, awayTeamID: number, awayTeamName: string, bracketInfo: object) => ({
+  const bracketMatch = (homeTeamID: number, homeTeamName: string, awayTeamID: number, awayTeamName: string, bracketInfo: Partial<BracketInfoDto>) => typed('getSeasonMatchPage', {
     ...base, isPlayoff: true, homeTeamID, homeTeamName, awayTeamID, awayTeamName, homeTeamScore: 0, awayTeamScore: 0,
     homeTeamResult: 'TBD', awayTeamResult: 'TBD', reportedGames: [], seriesTotals: null,
     bracketInfo: { homeTeamSeed: null, awayTeamSeed: null, homeTeamPreviousMatchID: null, awayTeamPreviousMatchID: null,

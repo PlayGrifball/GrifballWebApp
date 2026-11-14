@@ -3,7 +3,9 @@ using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace GrifballWebApp.Server.Test;
@@ -372,5 +374,108 @@ public class OpenApiInclusionTests
             Assert.That(OpenApiInclusion.Includes("v1", Api("signalr-dev/index.html")), Is.False);
             Assert.That(OpenApiInclusion.Includes("v1", new Microsoft.AspNetCore.Mvc.ApiExplorer.ApiDescription()), Is.True, "No route: not the page's");
         }
+    }
+}
+
+/// <summary>An enum the API sends as its number: a converter of its own says so (as brackets-model's Status does).</summary>
+[JsonConverter(typeof(JsonNumberEnumConverter<Level>))]
+public enum Level { Low = 1, High = 5 }
+
+/// <summary>A property of an enum sent as its number, with the converter that sends it so.</summary>
+public sealed class Leveled
+{
+    [JsonConverter(typeof(JsonNumberEnumConverter<Level>))]
+    public Level Level { get; set; }
+}
+
+/// <summary>An enum the API sends as its name (the global JsonStringEnumConverter).</summary>
+public enum Colour { Red, Blue }
+
+/// <summary>
+/// An enum the API sends as its number is described so in the OpenAPI document (NumberEnumSchemaFilter), and every
+/// property of one carries the converter itself, which is what makes it a number at runtime.
+/// </summary>
+[TestFixture]
+public class NumberEnumSchemaFilterTests
+{
+    private static readonly int[] LevelNumbers = [1, 5];
+    private static readonly string[] ColourNames = ["Red", "Blue"];
+
+    private static OpenApiSchema NamesSchema(params string[] names)
+        => new() { Type = JsonSchemaType.String, Enum = [.. names.Select(n => (JsonNode)JsonValue.Create(n)!)] };
+
+    private static SchemaFilterContext Context(Type type)
+        => new(type, null!, new SchemaRepository(), null!, null!);
+
+    [Test]
+    public void DescribesAnEnumSentAsItsNumber_AsItsNumbers()
+    {
+        var schema = NamesSchema("Low", "High");
+
+        new NumberEnumSchemaFilter().Apply(schema, Context(typeof(Level)));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(schema.Type, Is.EqualTo(JsonSchemaType.Integer));
+            Assert.That(schema.Format, Is.EqualTo("int32"));
+            Assert.That(schema.Enum!.Select(v => v.GetValue<int>()), Is.EqualTo(LevelNumbers));
+        }
+    }
+
+    [Test]
+    public void LeavesAnEnumSentAsItsName_AndAnyOtherType()
+    {
+        var colour = NamesSchema("Red", "Blue");
+        var text = new OpenApiSchema { Type = JsonSchemaType.String };
+
+        new NumberEnumSchemaFilter().Apply(colour, Context(typeof(Colour)));
+        new NumberEnumSchemaFilter().Apply(text, Context(typeof(string)));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(colour.Type, Is.EqualTo(JsonSchemaType.String));
+            Assert.That(colour.Enum!.Select(v => v.GetValue<string>()), Is.EqualTo(ColourNames));
+            Assert.That(text.Type, Is.EqualTo(JsonSchemaType.String));
+            Assert.That(text.Enum, Is.Null);
+        }
+    }
+
+    [Test]
+    public void LeavesAPropertysSchema_ToItsReference()
+    {
+        // Swashbuckle runs the filters on a property's schema too, with the property's type: the enum is described once,
+        // in its own schema, which the property's allOf refers to
+        var property = new OpenApiSchema { AllOf = [new OpenApiSchemaReference("Level")] };
+
+        new NumberEnumSchemaFilter().Apply(property, new SchemaFilterContext(typeof(Level), null!, new SchemaRepository(), typeof(Leveled).GetProperty(nameof(Leveled.Level))!, null!));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(property.Type, Is.Null);
+            Assert.That(property.Enum, Is.Null);
+            Assert.That(property.AllOf, Has.Count.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public void BracketStatusIsSentAsItsNumber()
+    {
+        Assert.That(NumberEnumSchemaFilter.SentAsNumber(typeof(GrifballWebApp.Application.Brackets.Status)), Is.True);
+    }
+
+    [Test]
+    public void EveryPropertyOfAnEnumSentAsItsNumber_CarriesTheConverterItself()
+    {
+        // The API's global JsonStringEnumConverter outranks a converter on the enum type: only one on the property makes it
+        // a number, so a property without one would be sent as the name the document doesn't describe
+        var missing = OpenApiSchemaIds.AppAssemblies()
+            .SelectMany(a => a.GetExportedTypes())
+            .SelectMany(t => t.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            .Where(p => NumberEnumSchemaFilter.SentAsNumber(Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType))
+            .Where(p => !NumberEnumSchemaFilter.IsNumberEnumConverter(p.GetCustomAttribute<JsonConverterAttribute>()?.ConverterType))
+            .Select(p => $"{p.DeclaringType!.FullName}.{p.Name}")
+            .ToList();
+
+        Assert.That(missing, Is.Empty);
     }
 }

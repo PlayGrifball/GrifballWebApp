@@ -9,7 +9,12 @@ export interface RescheduleDto {
    * Whether an approval can still move the match (GrifballWebApp.Application.Reschedule.RescheduleDto.WhyNotApprovable is null).
    */
   canApprove: boolean;
-  discordThreadID: number | null;
+
+  /**
+   * The request's Discord thread, as text: a Discord ID (~1.3e18) is past what a JavaScript number holds, so the browser
+   * would read it as a number rounded, another thread.
+   */
+  discordThreadID: string | null;
   homeCaptain: string;
   matchRescheduleID: number;
   newScheduledTime: string | null;

@@ -3,7 +3,8 @@
 // and overlap on every page and every overlay). Keeping the list and the "how do I open this
 // overlay" steps in one place means both specs check the same pages in the same states.
 import { expect, type Locator, type Page } from '@playwright/test';
-import { MOCK_NOW, mockResponse, signIn, type Role } from './mockApi.mts';
+import type { QueueStatusDto, SeasonListItemDto } from '../src/generated/api/models';
+import { MOCK_NOW, mockResponse, signIn, typed, type Role } from './mockApi.mts';
 
 export const SITE = `http://localhost:${process.env.E2E_PORT ?? 4300}`;
 
@@ -178,15 +179,15 @@ export async function cancelPanel(page: Page, panel: Locator): Promise<void> {
 }
 
 /** The queue panel, its status answered with `changes` (the mock's: open, joinable signed in), the page loaded again. */
-async function queueAs(page: Page, changes: Record<string, unknown>): Promise<Locator> {
+async function queueAs(page: Page, changes: Partial<QueueStatusDto>): Promise<Locator> {
   await page.route('**/api/queue', route => route.fulfill({ status: 200, contentType: 'application/json',
-    body: JSON.stringify({ ...QUEUE_STATUS, ...changes }) }));
+    body: JSON.stringify(typed('getQueueStatus', { ...QUEUE_STATUS, ...changes })) }));
   await open(page, page.url().slice(SITE.length));
   return page.locator('app-late-league-queue');
 }
 
 /** The queue as a signed-in player with a gamertag sees it (mockApi.mts's /api/queue). */
-const QUEUE_STATUS = { count: 6, open: true, signedIn: true, hasGamertag: true, inQueue: false, inMatch: false };
+const QUEUE_STATUS: QueueStatusDto = { count: 6, open: true, signedIn: true, hasGamertag: true, inQueue: false, inMatch: false };
 /** The queue panel's count of players, shown in every state but a failed load. */
 const QUEUE_COUNT = '.late-league-queue__count';
 
@@ -329,7 +330,7 @@ export const OVERLAYS: Overlay[] = [
   {
     name: 'quick search, nothing found', role: 'anon', path: '/', sheet: 'home-signed-out',
     setup: async page => {
-      await answerQuickSearch(page, { status: 200, body: JSON.stringify({ players: [], teams: [], seasons: [] }) });
+      await answerQuickSearch(page, { status: 200, body: JSON.stringify(typed('quickSearch', { players: [], teams: [], seasons: [] })) });
       return openQuickSearch(page, 'zzzz');
     },
     close: closeQuickSearch,
@@ -419,9 +420,9 @@ export const OVERLAYS: Overlay[] = [
     setup: async page => {
       // The server filters the list (?gameVersionID=): the mock's seasons of that game
       await page.route('**/api/seasons**', route => {
-        const { results } = JSON.parse(mockResponse('player', '/api/seasons')!.body) as { results: { gameVersionID?: number }[] };
+        const { results } = JSON.parse(mockResponse('player', '/api/seasons')!.body) as { results: SeasonListItemDto[] };
         const halo3 = results.filter(s => s.gameVersionID === 1);
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ totalCount: halo3.length, results: halo3 }) });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(typed('getSeasonList', { totalCount: halo3.length, results: halo3 })) });
       });
       await page.locator('.seasons-filters select').nth(1).selectOption({ label: 'Halo 3' });
       const cards = page.locator('.season-card');
@@ -605,7 +606,7 @@ export const OVERLAYS: Overlay[] = [
     parts: [HEADING, QUEUE_COUNT],
     setup: async page => {
       await page.route('**/api/queue/join', route => route.fulfill({ status: 200, contentType: 'application/json',
-        body: JSON.stringify({ ...QUEUE_STATUS, count: 7, inQueue: true }) }));
+        body: JSON.stringify(typed('joinQueue', { ...QUEUE_STATUS, count: 7, inQueue: true })) }));
       const panel = page.locator('app-late-league-queue');
       await panel.getByRole('button', { name: 'Join the queue' }).click();
       await expect(panel.getByRole('button', { name: 'Leave the queue' })).toBeVisible();

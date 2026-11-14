@@ -1,3 +1,4 @@
+using System.Globalization;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -144,7 +145,7 @@ public class RescheduleService
             RequestedByUserID = mr.RequestedByUser?.Id,
             RequestedAt = mr.RequestedAt,
             Status = mr.Status,
-            DiscordThreadID = mr.DiscordThreadID,
+            DiscordThreadID = mr.DiscordThreadID?.ToString(CultureInfo.InvariantCulture),
             WhyNotApprovable = MatchReschedule.WhyNotReschedulable(mr.SeasonMatch),
         }).ToList();
     }
