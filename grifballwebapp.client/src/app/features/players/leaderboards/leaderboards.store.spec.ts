@@ -1,6 +1,5 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import type { HttpRequest } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import type { LeaderboardsDto, PlayerAllTimeRankDto } from '@api/models';
 import { LeaderboardsStore } from './leaderboards.store';
@@ -20,7 +19,7 @@ describe('LeaderboardsStore', () => {
 
   afterEach(() => http.verify());
 
-  const formats = (r: HttpRequest<unknown>) => r.params.getAll('formats');
+  const formats = (r: TestRequest) => r.request.params.getAll('formats');
   const boardsRequest = () => http.expectOne(r => r.url === '/api/leaderboards');
   const rankRequest = () => http.expectOne(r => r.url === '/api/leaderboards/player-rank');
 
