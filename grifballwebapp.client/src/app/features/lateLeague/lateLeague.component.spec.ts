@@ -39,20 +39,21 @@ describe('LateLeagueComponent', () => {
 
   afterEach(() => http.verify());
 
-  const lists = (queue: MatchmakingQueueDto | null, seasons: MatchmakingSeasonDto[] | null, fail = { queue: false, seasons: false }) => {
+  /** Answers the overview's two requests, then waits for the page (the resource takes its answer a microtask later). */
+  const lists = async (queue: MatchmakingQueueDto | null, seasons: MatchmakingSeasonDto[] | null, fail = { queue: false, seasons: false }) => {
     const error = { status: 500, statusText: 'Server Error' };
     const q = http.expectOne('/api/late-league/queue');
     if (fail.queue) q.flush('no', error); else q.flush(queue);
     const s = http.expectOne('/api/late-league/seasons');
     if (fail.seasons) s.flush('no', error); else s.flush(seasons);
-    fixture.detectChanges();
+    await fixture.whenStable();
   };
   const section = (id: string) => el().querySelector(`[aria-labelledby="${id}"]`)!;
   const sectionRows = (id: string) => Array.from(section(id).querySelectorAll('tbody tr')).map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
 
-  it('leads with the current Late League players, then the archive\'s seasons, each linking to its page', () => {
+  it('leads with the current Late League players, then the archive\'s seasons, each linking to its page', async () => {
     fixture.detectChanges();
-    lists(
+    await lists(
       { gameCount: 25, voteDecidedGameCount: 0, players: [player(3, 'Queue Regular', { matchmakingSeasonID: null, matchmakingSeasonName: null, gameVersionName: 'Halo Infinite' })] },
       [season(8), season(7, { gameVersionName: null, gameCount: 0, playerCount: 9 })]);
 
@@ -67,9 +68,9 @@ describe('LateLeagueComponent', () => {
     expect(section('late-league-seasons').querySelector('tbody a')!.getAttribute('href')).toBe('/late-league/8');
   });
 
-  it('counts games decided by vote, and says they have no box score', () => {
+  it('counts games decided by vote, and says they have no box score', async () => {
     fixture.detectChanges();
-    lists(
+    await lists(
       {
         gameCount: 25, voteDecidedGameCount: 3, players: [
           player(3, 'Queue Regular', { matchmakingSeasonID: null, gamesDecidedByVote: 2 }),
@@ -85,31 +86,31 @@ describe('LateLeagueComponent', () => {
     expect(section('late-league-queue').querySelector('.vote-note')!.textContent).toContain('no box score');
   });
 
-  it('leaves the vote note out when no game was decided by vote', () => {
+  it('leaves the vote note out when no game was decided by vote', async () => {
     fixture.detectChanges();
-    lists({ gameCount: 25, voteDecidedGameCount: 0, players: [player(3, 'Queue Regular', { matchmakingSeasonID: null })] }, []);
+    await lists({ gameCount: 25, voteDecidedGameCount: 0, players: [player(3, 'Queue Regular', { matchmakingSeasonID: null })] }, []);
     expect(section('late-league-queue').querySelector('.vote-note')).toBeNull();
     expect(section('late-league-queue').querySelector('.facts')!.textContent).not.toContain('decided by vote');
   });
 
-  it('shows the Late League queue to join on its own page, without the link back to it', () => {
+  it('shows the Late League queue to join on its own page, without the link back to it', async () => {
     fixture.detectChanges();
-    lists({ gameCount: 0, voteDecidedGameCount: 0, players: [] }, []);
+    await lists({ gameCount: 0, voteDecidedGameCount: 0, players: [] }, []);
     const queue = el().querySelector('app-late-league-queue');
     expect(queue).not.toBeNull();
     expect(fixture.debugElement.query(d => d.name === 'app-late-league-queue').componentInstance.showLink()).toBeFalse();
   });
 
-  it('says when the queue or the archive has nothing yet', () => {
+  it('says when the queue or the archive has nothing yet', async () => {
     fixture.detectChanges();
-    lists({ gameCount: 0, voteDecidedGameCount: 0, players: [] }, []);
+    await lists({ gameCount: 0, voteDecidedGameCount: 0, players: [] }, []);
     expect(section('late-league-queue').textContent).toContain('No Late League games have been reported yet.');
     expect(section('late-league-seasons').textContent).toContain('No Late League seasons from the archive.');
   });
 
-  it('shows what loaded when the other part cannot be', () => {
+  it('shows what loaded when the other part cannot be', async () => {
     fixture.detectChanges();
-    lists(null, [season(8)], { queue: true, seasons: false });
+    await lists(null, [season(8)], { queue: true, seasons: false });
     expect(section('late-league-queue').textContent).toContain('The current Late League stats couldn\'t be loaded.');
     expect(sectionRows('late-league-seasons')).toHaveSize(1);
 
@@ -117,18 +118,18 @@ describe('LateLeagueComponent', () => {
     other.detectChanges();
     http.expectOne('/api/late-league/queue').flush({ gameCount: 0, voteDecidedGameCount: 0, players: [] });
     http.expectOne('/api/late-league/seasons').flush('no', { status: 500, statusText: 'Server Error' });
-    other.detectChanges();
+    await other.whenStable();
     expect((other.nativeElement as HTMLElement).textContent).toContain('The past seasons couldn\'t be loaded.');
   });
 
-  it('shows a season\'s players, linked to their profiles, and where each line comes from', () => {
+  it('shows a season\'s players, linked to their profiles, and where each line comes from', async () => {
     fixture.componentRef.setInput('matchmakingSeasonID', '8');
     fixture.detectChanges();
     http.expectOne('/api/late-league/seasons/8').flush({
       season: season(8),
       players: [player(1, 'Alpha One'), player(2, 'Bravo Two', { source: 'Recorded', winPercent: null, kdRatio: null, kdSpread: -3 })],
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(el().querySelector('h1')!.textContent!.trim()).toBe('Late League Season 8 (Halo 3)');
     expect(el().querySelector('.facts')!.textContent).toContain('40 games');
@@ -141,18 +142,18 @@ describe('LateLeagueComponent', () => {
     expect(el().querySelector('.back')!.getAttribute('href')).toBe('/late-league');
   });
 
-  it('says when a season has no players, or cannot be loaded', () => {
+  it('says when a season has no players, or cannot be loaded', async () => {
     fixture.componentRef.setInput('matchmakingSeasonID', '8');
     fixture.detectChanges();
     http.expectOne('/api/late-league/seasons/8').flush({ season: season(8, { gameVersionName: null, historicalSourceUrl: null }), players: [] });
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(el().textContent).toContain('No player stats were recorded for this season.');
     expect(el().querySelector('.facts a')).toBeNull();
 
     fixture.componentRef.setInput('matchmakingSeasonID', '9');
     fixture.detectChanges();
     http.expectOne('/api/late-league/seasons/9').flush('gone', { status: 404, statusText: 'Not Found' });
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(el().textContent).toContain('That Late League season couldn\'t be loaded.');
   });
 });
