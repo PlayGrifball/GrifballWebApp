@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { SeasonService } from '@api/services/season.service';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { AppStore } from './app.store';
 
 describe('AppStore', () => {
@@ -24,5 +24,15 @@ describe('AppStore', () => {
     seasons.getCurrentSeasonId.and.returnValue(throwError(() => new Error('down')));
     store.loadCurrentSeason(found);
     expect(found).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives nothing once the app is gone', () => {
+    const found = jasmine.createSpy('found');
+    const answer = new Subject<number>();
+    seasons.getCurrentSeasonId.and.returnValue(answer);
+    store.loadCurrentSeason(found);
+    TestBed.resetTestingModule();
+    answer.next(12);
+    expect(found).not.toHaveBeenCalled();
   });
 });

@@ -29,6 +29,15 @@ describe('LinkedAccountsStore', () => {
 
   afterEach(() => http.verify());
 
+  it('asks for nothing, and changes nothing, until it knows whose logins they are', () => {
+    const unset = TestBed.runInInjectionContext(() => new LinkedAccountsStore());
+    unset.load();
+    unset.unlink(discord);
+    http.expectNone(() => true);
+    expect(unset.data()).toBeUndefined();
+    expect(unset.busy()).toBeFalse();
+  });
+
   it("loads the signed-in user's logins, or another user's, and says when it cannot", () => {
     store.load();
     http.expectOne('/api/me/external-logins').flush(logins);

@@ -48,4 +48,18 @@ describe('VodListStore', () => {
     await settle();
     expect(store.vods()).toEqual([]);
   });
+
+  it('loads the VODs again for another id', async () => {
+    const id = signal(7);
+    store.scope.use(signal<VodScope>('season'));
+    store.id.use(id);
+    TestBed.tick();
+    http.expectOne('/api/seasons/7/vods').flush([vod(1)]);
+    await settle();
+    id.set(8);
+    TestBed.tick();
+    http.expectOne('/api/seasons/8/vods').flush([vod(2), vod(3)]);
+    await settle();
+    expect(store.vods()).toHaveSize(2);
+  });
 });

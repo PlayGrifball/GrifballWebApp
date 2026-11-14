@@ -28,12 +28,26 @@ describe('QuickSearchStore', () => {
     return http.expectOne(r => r.url === '/api/search' && r.params.get('q') === q);
   };
 
-  it('searches nothing shorter than the server searches', () => {
+  it('searches nothing shorter than the server searches, and says the term is too short', () => {
     term.set('G');
     TestBed.tick();
     http.expectNone('/api/search');
     expect(store.hits()).toBeNull();
     expect(store.loading()).toBeFalse();
+    expect(store.tooShort()).toBeTrue();
+  });
+
+  it('drops the hits when the term is shortened below the minimum', async () => {
+    term.set('Gr');
+    search('Gr').flush(hits);
+    await settle();
+    expect(store.tooShort()).toBeFalse();
+    expect(store.hits()).not.toBeNull();
+
+    term.set('G');
+    TestBed.tick();
+    expect(store.tooShort()).toBeTrue();
+    expect(store.hits()).toBeNull();
   });
 
   it('searches the term, and again on a retry after it failed', async () => {
