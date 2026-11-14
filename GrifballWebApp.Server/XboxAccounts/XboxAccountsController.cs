@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Infrastructure.Jobs;
@@ -38,7 +39,7 @@ public class XboxAccountsController : ControllerBase
 
     /// <summary>Queues a pull of the account's recent games from Halo Infinite: a 202 with where it is.</summary>
     // Any player may ask, as staff may (as for a season match's pull): one pull per account is queued or running at a time
-    [Authorize(Roles = "Player,Commissioner,Sysadmin")]
+    [Authorize(Roles = SiteRoles.Pullers)]
     [HttpPost("xbox-accounts/{xboxUserID:long}/pull", Name = "PullXboxAccount")]
     [ProducesResponseType<OnDemandJobStatusDto>(StatusCodes.Status202Accepted)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ProblemJson)]
