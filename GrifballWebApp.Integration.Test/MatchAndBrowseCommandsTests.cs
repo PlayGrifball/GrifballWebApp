@@ -51,7 +51,7 @@ public class MatchAndBrowseCommandsTests
         _matches = new MatchCommandsHandler(_lookups, seasonMatches, new MatchDetailsService(_context), urls, null!, null!);
         var leaderboards = new LeaderboardsService(_context, stats, lateLeague,
             new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())), NullLogger<LeaderboardsService>.Instance);
-        _browse = new BrowseCommandsHandler(leaderboards, lateLeague, new HomeEventsService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), new QuickSearchService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), _lookups, urls);
+        _browse = new BrowseCommandsHandler(leaderboards, lateLeague, new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), new QuickSearchService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), _lookups, urls);
     }
 
     [TearDown]

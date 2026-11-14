@@ -21,13 +21,13 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class BrowseCommandsHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private BrowseCommandsHandler Handler() => new(null!, new MatchmakingStatsService(Db), new HomeEventsService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), new QuickSearchService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), null!, Urls());
+    private BrowseCommandsHandler Handler() => new(null!, new MatchmakingStatsService(Db), new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), new QuickSearchService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), null!, Urls());
 
     /// <summary>LeaderboardsService real too (IApplicationDbContext/SeasonStatsService/MatchmakingStatsService-backed;
     /// IDistributedCache substituted, a miss every time), and the player lookup real.</summary>
     private BrowseCommandsHandler DeepHandler() => new(
         new LeaderboardsService(Db, new SeasonStatsService(Db), new MatchmakingStatsService(Db), Substitute.For<IDistributedCache>(), new RecordingLogger<LeaderboardsService>()),
-        new MatchmakingStatsService(Db), new HomeEventsService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), new QuickSearchService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), Urls());
+        new MatchmakingStatsService(Db), new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), new QuickSearchService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), Urls());
 
     [Test]
     public async Task Events_RepliesNothingIsComingUp_ForAnEmptyDatabase()

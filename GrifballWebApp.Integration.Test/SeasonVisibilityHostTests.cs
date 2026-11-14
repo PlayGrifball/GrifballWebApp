@@ -175,7 +175,7 @@ public class SeasonVisibilityHostTests
     public async Task AHiddenTeamsHistory_AloneInItsFranchise_IsNoneToThePublic_AndItsOwnToStaff()
     {
         using var scope = _factory.Services.CreateScope();
-        var history = new GrifballWebApp.Application.TeamPage.TeamHistoryService(scope.ServiceProvider.GetRequiredService<GrifballContext>());
+        var history = new GrifballWebApp.Application.TeamPage.TeamHistoryService(scope.ServiceProvider.GetRequiredService<GrifballContext>(), new GrifballWebApp.Application.Seasons.SeasonVisibility(scope.ServiceProvider.GetRequiredService<GrifballContext>()));
 
         var everyone = await history.GetAsync(_awayTeamID);
         var staff = await history.GetAsync(_awayTeamID, GrifballWebApp.Application.Seasons.SeasonViewer.Staff);

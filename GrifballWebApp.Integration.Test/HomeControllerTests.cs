@@ -22,7 +22,7 @@ public class HomeControllerTests
     public async Task Setup()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _controller = new HomeController(new GrifballWebApp.Application.Home.HomeEventsService(_context));
+        _controller = new HomeController(new GrifballWebApp.Application.Home.HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)));
     }
 
     [TearDown]

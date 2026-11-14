@@ -29,7 +29,7 @@ public class BrowseCommandsHandlerActionsUnitTests : SqliteGrifballContextFixtur
 
     private BrowseCommandsHandler Handler() => new(
         new LeaderboardsService(Db, new SeasonStatsService(Db), new MatchmakingStatsService(Db), Substitute.For<IDistributedCache>(), new RecordingLogger<LeaderboardsService>()),
-        new MatchmakingStatsService(Db), new HomeEventsService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time), new QuickSearchService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), Urls());
+        new MatchmakingStatsService(Db), new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time), new QuickSearchService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), new GrifballWebApp.Application.Seasons.SeasonVisibility(Db)), Urls());
 
     [TestCase(LeaderboardBoard.Kills, LeaderboardFormat.Tournament, "All-time Kills (Tournament)")]
     [TestCase(LeaderboardBoard.Games, LeaderboardFormat.LeagueSeason, "All-time Games (League season)")]

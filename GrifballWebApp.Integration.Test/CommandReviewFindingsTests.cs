@@ -256,7 +256,7 @@ public class CommandReviewFindingsTests
         var lateLeague = new MatchmakingStatsService(_context);
         var browse = new BrowseCommandsHandler(new LeaderboardsService(_context, stats, lateLeague,
                 new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())), NullLogger<LeaderboardsService>.Instance),
-            lateLeague, new HomeEventsService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), new QuickSearchService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), _lookups, _urls);
+            lateLeague, new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), new QuickSearchService(_context, new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)), _lookups, _urls);
         var discord = new CommandContextRecorder();
 
         await browse.Search(discord.Context, new string('q', 300));

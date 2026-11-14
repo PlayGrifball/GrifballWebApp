@@ -188,7 +188,7 @@ public class ReadControllersUnitTests : SqliteGrifballContextFixture
 
         var standings = await new TeamStandingsController(new TeamStandingsService(Db)).GetTeamStandings(season.SeasonID, CancellationToken.None);
         var grades = await new GradesController(new GradesService(Db)).GetGrades(season.SeasonID, CancellationToken.None);
-        var events = await new HomeController(new HomeEventsService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time)).CurrentAndFutureEvents(CancellationToken.None);
+        var events = await new HomeController(new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time)).CurrentAndFutureEvents(CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {

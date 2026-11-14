@@ -191,7 +191,7 @@ public class TeamPageControllerTests
         _context.ChangeTracker.Clear();
 
         var dto = (await _controller.Team(team.TeamID, CancellationToken.None)).Value!;
-        var stats = await new GrifballWebApp.Application.Seasons.SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context)).GetSeasonPlayerStats(season.SeasonID, team.TeamID);
+        var stats = await new GrifballWebApp.Application.Seasons.SeasonService(_context, new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context)).GetSeasonPlayerStats(season.SeasonID, team.TeamID);
 
         using (Assert.EnterMultipleScope())
         {

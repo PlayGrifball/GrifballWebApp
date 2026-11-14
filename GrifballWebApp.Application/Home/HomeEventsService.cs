@@ -1,4 +1,3 @@
-using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
@@ -8,15 +7,14 @@ namespace GrifballWebApp.Application.Home;
 /// <summary>The home page's calendar: current and upcoming signups, drafts and seasons. The site and /events both read it.</summary>
 public class HomeEventsService
 {
-    private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
     private readonly SeasonVisibility _visibility;
 
-    public HomeEventsService(IApplicationDbContext context, SeasonVisibility visibility, TimeProvider? time = null)
+    /// <summary>The calendar of the seasons <paramref name="visibility"/> shows a viewer: it reads them through it alone.</summary>
+    public HomeEventsService(SeasonVisibility visibility, TimeProvider? time = null)
     {
         _visibility = visibility;
         _time = time ?? TimeProvider.System;
-        _context = context;
     }
 
     /// <summary>Current and upcoming signups, drafts and seasons, soonest first: of the seasons <paramref name="viewer"/> may see
