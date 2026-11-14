@@ -34,6 +34,8 @@ public class HistoricalAggregatesMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_HistoricalAggregates"))) - 1]);
 
+        // Through the model of the day: the settings and reviews had no history yet
+        await using var old = BeforeHistoryForRemainingTablesContext.On(_context);
         var modified = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc);
         var finished = modified.AddHours(1);
         // The columns are as they were: only the constraints are new. Past the private setters, as rows written before them could be.
@@ -49,23 +51,23 @@ public class HistoricalAggregatesMigrationTests
         var unknownReview = fine.AddReview("e", null, stopped: true, default);
         var extraSettings = HistoricalImportSettings.Create();
         extraSettings.HistoricalImportSettingsID = 2;
-        _context.HistoricalImportJobs.AddRange(endedWithoutTime, queuedButFinished, refreshWithArchive, unknownStatus, fine);
-        _context.HistoricalImportSettings.AddRange(HistoricalImportSettings.Create(), extraSettings);
-        _context.Entry(endedWithoutTime).Property(j => j.Status).CurrentValue = HistoricalImportJobStatus.Succeeded;
-        _context.Entry(queuedButFinished).Property(j => j.FinishedAt).CurrentValue = finished;
-        _context.Entry(refreshWithArchive).Property(j => j.Payload).CurrentValue = "{}";
+        old.HistoricalImportJobs.AddRange(endedWithoutTime, queuedButFinished, refreshWithArchive, unknownStatus, fine);
+        old.HistoricalImportSettings.AddRange(HistoricalImportSettings.Create(), extraSettings);
+        old.Entry(endedWithoutTime).Property(j => j.Status).CurrentValue = HistoricalImportJobStatus.Succeeded;
+        old.Entry(queuedButFinished).Property(j => j.FinishedAt).CurrentValue = finished;
+        old.Entry(refreshWithArchive).Property(j => j.Payload).CurrentValue = "{}";
         // A status no version of the app wrote: the job counts as failed, the review waits for review
-        _context.Entry(unknownStatus).Property(j => j.Status).CurrentValue = (HistoricalImportJobStatus)99;
-        _context.Entry(unknownReview).Property(r => r.Status).CurrentValue = (HistoricalSeasonReviewStatus)99;
-        _context.Entry(approvedWithoutTime).Property(r => r.Status).CurrentValue = HistoricalSeasonReviewStatus.Approved;
-        _context.Entry(skippedWithImport).Property(r => r.Status).CurrentValue = HistoricalSeasonReviewStatus.Skipped;
-        _context.Entry(skippedWithImport).Property(r => r.DecidedAt).CurrentValue = finished;
-        _context.Entry(skippedWithImport).Property(r => r.ApprovalJobID).CurrentValue = 99;
-        _context.Entry(pendingButDecided).Property(r => r.DecidedAt).CurrentValue = finished;
+        old.Entry(unknownStatus).Property(j => j.Status).CurrentValue = (HistoricalImportJobStatus)99;
+        old.Entry(unknownReview).Property(r => r.Status).CurrentValue = (HistoricalSeasonReviewStatus)99;
+        old.Entry(approvedWithoutTime).Property(r => r.Status).CurrentValue = HistoricalSeasonReviewStatus.Approved;
+        old.Entry(skippedWithImport).Property(r => r.Status).CurrentValue = HistoricalSeasonReviewStatus.Skipped;
+        old.Entry(skippedWithImport).Property(r => r.DecidedAt).CurrentValue = finished;
+        old.Entry(skippedWithImport).Property(r => r.ApprovalJobID).CurrentValue = 99;
+        old.Entry(pendingButDecided).Property(r => r.DecidedAt).CurrentValue = finished;
         // The audit columns as the interceptor would have written them
-        foreach (var entry in _context.ChangeTracker.Entries<AuditableEntity>())
+        foreach (var entry in old.ChangeTracker.Entries<AuditableEntity>())
             entry.Property(e => e.ModifiedAt).CurrentValue = modified;
-        await _context.SaveChangesAsync();
+        await old.SaveChangesAsync();
 
         await migrator.MigrateAsync();
 
