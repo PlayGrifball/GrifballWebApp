@@ -2,11 +2,37 @@
 // (layout.spec.ts, through page.route) and by e2e/serve.mjs as the backend of the app's server
 // (pages rendered on the server, Lighthouse CI), so both run without the .NET server. Plain TypeScript Node can run as is (no enums etc.).
 
+import type { Observable } from 'rxjs';
+import type * as ApiFunctions from '../src/generated/api/functions';
+import type { StrictHttpResponse } from '../src/generated/api/strict-http-response';
+
 export type Role = 'anon' | 'player' | 'admin';
 
 /** A JSON body, or { text } for the endpoints that answer text/plain. null answers 204. */
 // eslint-disable-next-line sonarjs/redundant-type-aliases -- names what a mock answers with, for whoever reads the handlers
 export type MockBody = unknown;
+
+/**
+ * Every call of the API, by the name the generated client gives it (src/generated/api/functions.ts, from openapi.json).
+ * Type-only: Node strips these imports, and tsconfig.e2e.json checks the mock against them.
+ */
+type Api = typeof ApiFunctions;
+export type Operation = { [K in keyof Api]: Api[K] extends (...args: never[]) => Observable<StrictHttpResponse<unknown>> ? K : never }[keyof Api];
+/** What an operation answers, as the generated client reads it. */
+type AnswerOf<K extends Operation> = Api[K] extends (...args: never[]) => Observable<StrictHttpResponse<infer T>> ? T : never;
+/** How the mock gives that answer: nothing as null (204); text as { text }; JSON as itself, or null for no content. */
+type MockAnswer<T> = [T] extends [void] ? null : [T] extends [string] ? { text: string } | null : T | null;
+
+/** A route of the mock: the API call it answers, and its answer. */
+export interface MockRoute {
+  operation: Operation;
+  body: MockBody;
+}
+
+/** A route's answer, checked against what `operation` answers in the generated client: a mock can't drift from the API. */
+function answer<K extends Operation>(operation: K, body: MockAnswer<AnswerOf<K>>): MockRoute {
+  return { operation, body };
+}
 
 /** The fixed "now" the data is written around (a Thursday in week 3 of the Autumn Brawl season). */
 export const MOCK_NOW = '2026-10-29T18:00:00Z';
@@ -573,263 +599,263 @@ function matchPage31(role: Role) {
   };
 }
 
-export function mockRoutes(role: Role): Record<string, MockBody> {
+export function mockRoutes(role: Role): Record<string, MockRoute> {
   return {
     // Who is signed in: a visitor gets 204 No Content
-    '/api/identity/me': role === 'anon' ? null : META[role],
-    '/api/identity/antiforgery-token': { token: `e2e-xsrf-${role}` },
+    '/api/identity/me': answer('me', role === 'anon' ? null : META[role]),
+    '/api/identity/antiforgery-token': answer('antiforgery', { token: `e2e-xsrf-${role}` }),
     // The browser's telemetry batches (a browser not under automation, Lighthouse, may send them): taken
-    '/api/client-telemetry': null,
-    '/api/CommitHash': { text: '9f3c2ab' },
-    '/api/CommitDate': { text: '2026-10-28T21:14:00Z' },
-    '/api/seasons/current': 12,
-    '/api/events': [
-      { seasonID: 13, name: 'Winter Campaign', start: '2026-10-20T00:00:00Z', end: signupsClose, eventType: 'Signup' },
-      { seasonID: 13, name: 'Winter Campaign', start: '2026-11-14T19:00:00Z', end: '2026-11-14T23:00:00Z', eventType: 'Draft' },
-      { seasonID: 12, name: 'Autumn Brawl', start: '2026-09-07T00:00:00Z', end: '2026-11-30T00:00:00Z', eventType: 'Season' },
-      { seasonID: 13, name: 'Winter Campaign', start: '2026-11-20T00:00:00Z', end: '2027-02-15T00:00:00Z', eventType: 'Season' },
-    ],
+    '/api/client-telemetry': answer('reportClientTelemetry', null),
+    '/api/CommitHash': answer('getCommitHash', { text: '9f3c2ab' }),
+    '/api/CommitDate': answer('getCommitDate', { text: '2026-10-28T21:14:00Z' }),
+    '/api/seasons/current': answer('getCurrentSeasonId', 12),
+    '/api/events': answer('currentAndFutureEvents', [
+              { seasonID: 13, name: 'Winter Campaign', start: '2026-10-20T00:00:00Z', end: signupsClose, eventType: 'Signup' },
+              { seasonID: 13, name: 'Winter Campaign', start: '2026-11-14T19:00:00Z', end: '2026-11-14T23:00:00Z', eventType: 'Draft' },
+              { seasonID: 12, name: 'Autumn Brawl', start: '2026-09-07T00:00:00Z', end: '2026-11-30T00:00:00Z', eventType: 'Season' },
+              { seasonID: 13, name: 'Winter Campaign', start: '2026-11-20T00:00:00Z', end: '2027-02-15T00:00:00Z', eventType: 'Season' },
+            ]),
     // The home page's matchmaking queue panel (its live updates come over hub/QueueHub, which hubMock.mts answers)
-    '/api/queue': { count: 6, open: true, signedIn: role !== 'anon', hasGamertag: role !== 'anon', inQueue: false, inMatch: false },
+    '/api/queue': answer('getQueueStatus', { count: 6, open: true, signedIn: role !== 'anon', hasGamertag: role !== 'anon', inQueue: false, inMatch: false }),
     // The season list: the home page's past seasons and the seasons page (the backfilled season 5 among them)
-    '/api/seasons': {
-      totalCount: 7,
-      results: [
-        seasonListItem(12, 'Autumn Brawl', '2026-09-07', '2026-11-30', { hasEnded: false }),
-        ...([['Summer Smash', '2026-06-01', '2026-08-20', 11], ['Spring Showdown', '2026-03-02', '2026-05-18', 10],
-          ['Frostbite Cup', '2025-12-01', '2026-02-15', 9], ['Harvest Hammer', '2025-09-01', '2025-11-20', 8], ['Season 7', '2025-06-02', '2025-08-18', 7]] as [string, string, string, number][])
-          .map(([name, start, end, seasonID]) => seasonListItem(seasonID, name, start, end)),
-        seasonListItem(5, 'Summer League 2010', '2010-01-01', '2010-12-31', {
-          gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true, historicalSourceUrl: HISTORICAL_SOURCE,
-          teamCount: 3, playerCount: 12, teamNames: historicalTeams.map(t => t[1]), champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
-      ],
-    },
-    '/api/leaderboards': {
-      ringLeaders: [{ rank: 1, userID: 501, gamertag: 'Legendary', ringsCount: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1), title(9, 'Frostbite Cup', 'Open', 2)] },
-        { rank: 2, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(12, 'Autumn Brawl', 'Open', 2)] }],
-      dynasties: [{ rank: 1, teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1)] }],
-      goalLeaders: [leader(1, 501, 'Legendary', 120, 4), leader(2, 117, 'MasterChief117', 88, 2.93)],
-      killLeaders: [leader(1, 117, 'MasterChief117', 640, 21.33)],
-      gamesPlayedLeaders: [leader(1, 501, 'Legendary', 30, null)],
-      carrierStopLeaders: [leader(1, 501, 'Legendary', 45, 1.5)],
-    },
+    '/api/seasons': answer('getSeasonList', {
+              totalCount: 7,
+              results: [
+                seasonListItem(12, 'Autumn Brawl', '2026-09-07', '2026-11-30', { hasEnded: false }),
+                ...([['Summer Smash', '2026-06-01', '2026-08-20', 11], ['Spring Showdown', '2026-03-02', '2026-05-18', 10],
+                  ['Frostbite Cup', '2025-12-01', '2026-02-15', 9], ['Harvest Hammer', '2025-09-01', '2025-11-20', 8], ['Season 7', '2025-06-02', '2025-08-18', 7]] as [string, string, string, number][])
+                  .map(([name, start, end, seasonID]) => seasonListItem(seasonID, name, start, end)),
+                seasonListItem(5, 'Summer League 2010', '2010-01-01', '2010-12-31', {
+                  gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true, historicalSourceUrl: HISTORICAL_SOURCE,
+                  teamCount: 3, playerCount: 12, teamNames: historicalTeams.map(t => t[1]), champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
+              ],
+            }),
+    '/api/leaderboards': answer('getLeaderboards', {
+              ringLeaders: [{ rank: 1, userID: 501, gamertag: 'Legendary', ringsCount: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1), title(9, 'Frostbite Cup', 'Open', 2)] },
+                { rank: 2, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(12, 'Autumn Brawl', 'Open', 2)] }],
+              dynasties: [{ rank: 1, teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: [title(5, 'Summer League 2010', 'Pro', 41), title(11, 'Summer Smash', 'Open', 1)] }],
+              goalLeaders: [leader(1, 501, 'Legendary', 120, 4), leader(2, 117, 'MasterChief117', 88, 2.93)],
+              killLeaders: [leader(1, 117, 'MasterChief117', 640, 21.33)],
+              gamesPlayedLeaders: [leader(1, 501, 'Legendary', 30, null)],
+              carrierStopLeaders: [leader(1, 501, 'Legendary', 45, 1.5)],
+            }),
     // Format: Tournament alone: the tournaments' titles and games only
-    '/api/leaderboards?formats=Tournament': {
-      ringLeaders: [{ rank: 1, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(8, 'Harvest Hammer', 'Open', 3)] },
-        { rank: 1, userID: 12, gamertag: 'Banshee Bri', ringsCount: 1, titles: [title(8, 'Harvest Hammer', 'Open', 3)] }],
-      dynasties: [{ rank: 1, teamName: 'Hammer Bros', latestTeamID: 3, latestSeasonID: 12, championshipsCount: 1, seasonsActive: 2, titles: [title(8, 'Harvest Hammer', 'Open', 3)] }],
-      goalLeaders: [leader(1, 12, 'Banshee Bri', 31, 3.1), leader(2, 117, 'MasterChief117', 19, 1.9)],
-      killLeaders: [leader(1, 12, 'Banshee Bri', 140, 14)],
-      gamesPlayedLeaders: [leader(1, 12, 'Banshee Bri', 10, null)],
-      carrierStopLeaders: [leader(1, 117, 'MasterChief117', 12, 1.2)],
-    },
-    '/api/leaderboards/player-rank': {
-      userID: 501,
-      gamertag: 'Legendary',
-      matchedAlias: null,
-      pastGamertags: [],
-      isDummyUser: true,
-      rings: { rank: 1, totalRanked: 10, statValue: 3, secondaryText: null },
-      goals: { rank: 1, totalRanked: 10, statValue: 120, secondaryText: '4.00 / G' },
-      kills: { rank: 2, totalRanked: 10, statValue: 450, secondaryText: '1.80 K/D' },
-      gamesPlayed: { rank: 1, totalRanked: 10, statValue: 30, secondaryText: '3 Seasons' },
-      carrierStops: { rank: 1, totalRanked: 10, statValue: 45, secondaryText: '1.50 / G' },
-    },
+    '/api/leaderboards?formats=Tournament': answer('getLeaderboards', {
+              ringLeaders: [{ rank: 1, userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: [title(8, 'Harvest Hammer', 'Open', 3)] },
+                { rank: 1, userID: 12, gamertag: 'Banshee Bri', ringsCount: 1, titles: [title(8, 'Harvest Hammer', 'Open', 3)] }],
+              dynasties: [{ rank: 1, teamName: 'Hammer Bros', latestTeamID: 3, latestSeasonID: 12, championshipsCount: 1, seasonsActive: 2, titles: [title(8, 'Harvest Hammer', 'Open', 3)] }],
+              goalLeaders: [leader(1, 12, 'Banshee Bri', 31, 3.1), leader(2, 117, 'MasterChief117', 19, 1.9)],
+              killLeaders: [leader(1, 12, 'Banshee Bri', 140, 14)],
+              gamesPlayedLeaders: [leader(1, 12, 'Banshee Bri', 10, null)],
+              carrierStopLeaders: [leader(1, 117, 'MasterChief117', 12, 1.2)],
+            }),
+    '/api/leaderboards/player-rank': answer('getPlayerRank', {
+              userID: 501,
+              gamertag: 'Legendary',
+              matchedAlias: null,
+              pastGamertags: [],
+              isDummyUser: true,
+              rings: { rank: 1, totalRanked: 10, statValue: 3, secondaryText: null },
+              goals: { rank: 1, totalRanked: 10, statValue: 120, secondaryText: '4.00 / G' },
+              kills: { rank: 2, totalRanked: 10, statValue: 450, secondaryText: '1.80 K/D' },
+              gamesPlayed: { rank: 1, totalRanked: 10, statValue: 30, secondaryText: '3 Seasons' },
+              carrierStops: { rank: 1, totalRanked: 10, statValue: 45, secondaryText: '1.50 / G' },
+            }),
     // The leaderboards' player suggestions, whatever is typed: the two Old Timers, and two more of each kind
-    '/api/leaderboards/players': [
-      ...oldTimers,
-      { userID: 501, name: 'Legendary', pastGamertag: null, matchedName: null, kind: 'Archive', years: '2011–2012' },
-      { userID: 117, name: 'MasterChief117', pastGamertag: null, matchedName: null, kind: 'Xbox', years: null },
-    ],
-    ...Object.fromEntries(Object.entries(seasonNames).map(([id, name]) => [`/api/seasons/${id}/name`, { text: name }])),
-    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/summary`, summary(Number(id))])),
-    '/api/seasons/5/summary': {
-      ...historicalSeason, teamCount: 3, signupCount: 0,
-      matchCount: 0, bracketMatchCount: 0, playerStatCount: historicalStats.length,
-      champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [
-        { userID: 501, gamertag: 'Legendary', isCaptain: true }, { userID: 502, gamertag: 'Old Timer', isCaptain: false }] }],
-    },
+    '/api/leaderboards/players': answer('searchPlayers', [
+              ...oldTimers,
+              { userID: 501, name: 'Legendary', pastGamertag: null, matchedName: null, kind: 'Archive', years: '2011–2012' },
+              { userID: 117, name: 'MasterChief117', pastGamertag: null, matchedName: null, kind: 'Xbox', years: null },
+            ]),
+    ...Object.fromEntries(Object.entries(seasonNames).map(([id, name]) => [`/api/seasons/${id}/name`, answer('getSeasonName', { text: name })])),
+    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/summary`, answer('getSeasonSummary', summary(Number(id)))])),
+    '/api/seasons/5/summary': answer('getSeasonSummary', {
+              ...historicalSeason, teamCount: 3, signupCount: 0,
+              matchCount: 0, bracketMatchCount: 0, playerStatCount: historicalStats.length,
+              champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [
+                { userID: 501, gamertag: 'Legendary', isCaptain: true }, { userID: 502, gamertag: 'Old Timer', isCaptain: false }] }],
+            }),
     // The season's stats, and on the team page (?teamID=41) its team's: matched on the path alone, so the same rows
-    '/api/seasons/5/player-stats': historicalStats,
+    '/api/seasons/5/player-stats': answer('getSeasonPlayerStats', historicalStats),
     // Season 12 has no stored stats yet: its team pages show no stats table
-    '/api/seasons/12/player-stats': [],
-    '/api/seasons/5/teams': [
-      {
-        teamID: 41, teamName: 'Relentless', wins: 9, losses: 1, tbd: 0, recordFromSource: true, titles: ['Pro'],
-        players: [
-          { teamPlayerID: 4101, userID: 501, gamertag: 'Legendary', isCaptain: true },
-          { teamPlayerID: 4102, userID: 502, gamertag: 'Old Timer', isCaptain: false },
-        ],
-      },
-    ],
-    '/api/seasons/12/teams': teams.map(([teamID, name], i) => ({
-      teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1, tbd: 0, recordFromSource: false, titles: [],
-      players: [
-        { teamPlayerID: teamID * 10 + 1, userID: teamID * 100 + 1, gamertag: `${name} Captain`, isCaptain: true },
-      ],
-    })),
-    '/api/seasons/5/standings': historicalTeams.map(([teamID, teamName, wins, losses]) => ({ teamID, teamName, wins, losses, recordFromSource: true })),
-    '/api/seasons/5/matches/scheduled': [],
-    '/api/seasons/5/matches/unscheduled': [],
-    '/api/teams/41': {
-      teamName: 'Relentless', season: historicalSeason, recordFromSource: true,
-      wins: 9, losses: 1, tbd: 0, titles: ['Pro'],
-      players: [
-        { teamPlayerID: 4101, userID: 501, gamertag: 'Legendary', draftCaptainOrder: null, draftRound: null, isCaptain: true },
-        { teamPlayerID: 4102, userID: 502, gamertag: 'Old Timer', draftCaptainOrder: null, draftRound: null, isCaptain: false },
-      ],
-    },
-    '/api/teams/41/matches': [],
-    '/api/seasons/12/standings': teams.map(([teamID, name], i) => ({ teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1 })),
-    '/api/seasons/12/matches/scheduled': scheduled,
-    '/api/seasons/12/matches/unscheduled': [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', complete: false }],
+    '/api/seasons/12/player-stats': answer('getSeasonPlayerStats', []),
+    '/api/seasons/5/teams': answer('getSeasonTeams', [
+              {
+                teamID: 41, teamName: 'Relentless', wins: 9, losses: 1, tbd: 0, recordFromSource: true, titles: ['Pro'],
+                players: [
+                  { teamPlayerID: 4101, userID: 501, gamertag: 'Legendary', isCaptain: true },
+                  { teamPlayerID: 4102, userID: 502, gamertag: 'Old Timer', isCaptain: false },
+                ],
+              },
+            ]),
+    '/api/seasons/12/teams': answer('getSeasonTeams', teams.map(([teamID, name], i) => ({
+              teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1, tbd: 0, recordFromSource: false, titles: [],
+              players: [
+                { teamPlayerID: teamID * 10 + 1, userID: teamID * 100 + 1, gamertag: `${name} Captain`, isCaptain: true },
+              ],
+            }))),
+    '/api/seasons/5/standings': answer('getTeamStandings', historicalTeams.map(([teamID, teamName, wins, losses]) => ({ teamID, teamName, wins, losses, recordFromSource: true }))),
+    '/api/seasons/5/matches/scheduled': answer('getScheduledMatches', []),
+    '/api/seasons/5/matches/unscheduled': answer('getUnscheduledMatches', []),
+    '/api/teams/41': answer('team', {
+              teamName: 'Relentless', season: historicalSeason, recordFromSource: true,
+              wins: 9, losses: 1, tbd: 0, titles: ['Pro'],
+              players: [
+                { teamPlayerID: 4101, userID: 501, gamertag: 'Legendary', draftCaptainOrder: null, draftRound: null, isCaptain: true },
+                { teamPlayerID: 4102, userID: 502, gamertag: 'Old Timer', draftCaptainOrder: null, draftRound: null, isCaptain: false },
+              ],
+            }),
+    '/api/teams/41/matches': answer('matches', []),
+    '/api/seasons/12/standings': answer('getTeamStandings', teams.map(([teamID, name], i) => ({ teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1 }))),
+    '/api/seasons/12/matches/scheduled': answer('getScheduledMatches', scheduled),
+    '/api/seasons/12/matches/unscheduled': answer('getUnscheduledMatches', [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', complete: false }]),
     // The season's playoff bracket, for any season
-    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/bracket/viewer-data`, bracket])),
+    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/bracket/viewer-data`, answer('getViewerData', bracket)])),
     // A best of 3 at 1-1 (matchPage31); match 35, the same series once its games decided it, for its Match report and Undo
-    '/api/season-matches/31': matchPage31(role),
-    '/api/season-matches/35': { ...matchPage31(role), homeTeamScore: 2, homeTeamResult: 'Won', awayTeamResult: 'Loss', decidedBy: 'Games', canRequestReschedule: false },
-    '/api/season-matches/35/possible-matches': [],
-    '/api/season-matches/35/match-pull': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null },
-    '/api/season-matches/35/vods': [],
-    '/api/season-matches/31/possible-matches': [{ matchID: '7c9e6679-7425-40de-944b-e07fc1f90ae7', homeTeam: possibleTeam(1, 5, 'Won', 0), awayTeam: possibleTeam(2, 3, 'Lost', 10) }],
-    '/api/season-matches/31/match-pull': { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-30T18:00:00Z', durationMs: 42000, result: 'Succeeded', error: null } },
-    '/api/matches/0f8fad5b-d9cb-469f-a165-70867728950e': matchDetails(),
-    ...Object.fromEntries(teams.map(([id]) => [`/api/teams/${id}`, roster(id)])),
-    '/api/teams/1/matches': [
-      { seasonMatchID: 21, scheduledTime: '2026-10-21T23:00:00Z', bestOf: 3, score: 2, result: 'Won', otherTeamID: 3, otherTeamName: 'Hammer Bros', otherScore: 1, otherResult: 'Loss' },
-      { seasonMatchID: 31, scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3, score: null, result: null, otherTeamID: 2, otherTeamName: 'Blue Bombers', otherScore: null, otherResult: null },
-    ],
-    '/api/users/117/gamertag': { gamertag: 'MasterChief117' },
-    '/api/users/999/gamertag': { gamertag: 'CommanderGrif' },
-    '/api/users/117/stats': profileStats(117, 'MasterChief117'),
-    '/api/users/999/stats': profileStats(999, 'CommanderGrif'),
+    '/api/season-matches/31': answer('getSeasonMatchPage', matchPage31(role)),
+    '/api/season-matches/35': answer('getSeasonMatchPage', { ...matchPage31(role), homeTeamScore: 2, homeTeamResult: 'Won', awayTeamResult: 'Loss', decidedBy: 'Games', canRequestReschedule: false }),
+    '/api/season-matches/35/possible-matches': answer('getPossibleMatches', []),
+    '/api/season-matches/35/match-pull': answer('getMatchPullStatus', { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: null }),
+    '/api/season-matches/35/vods': answer('getSeasonMatchVods', []),
+    '/api/season-matches/31/possible-matches': answer('getPossibleMatches', [{ matchID: '7c9e6679-7425-40de-944b-e07fc1f90ae7', homeTeam: possibleTeam(1, 5, 'Won', 0), awayTeam: possibleTeam(2, 3, 'Lost', 10) }]),
+    '/api/season-matches/31/match-pull': answer('getMatchPullStatus', { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-30T18:00:00Z', durationMs: 42000, result: 'Succeeded', error: null } }),
+    '/api/matches/0f8fad5b-d9cb-469f-a165-70867728950e': answer('getMatchDetails', matchDetails()),
+    ...Object.fromEntries(teams.map(([id]) => [`/api/teams/${id}`, answer('team', roster(id))])),
+    '/api/teams/1/matches': answer('matches', [
+              { seasonMatchID: 21, scheduledTime: '2026-10-21T23:00:00Z', bestOf: 3, score: 2, result: 'Won', otherTeamID: 3, otherTeamName: 'Hammer Bros', otherScore: 1, otherResult: 'Loss' },
+              { seasonMatchID: 31, scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3, score: null, result: null, otherTeamID: 2, otherTeamName: 'Blue Bombers', otherScore: null, otherResult: null },
+            ]),
+    '/api/users/117/gamertag': answer('getGamertag', { gamertag: 'MasterChief117' }),
+    '/api/users/999/gamertag': answer('getGamertag', { gamertag: 'CommanderGrif' }),
+    '/api/users/117/stats': answer('getProfileStats', profileStats(117, 'MasterChief117')),
+    '/api/users/999/stats': answer('getProfileStats', profileStats(999, 'CommanderGrif')),
     // The profile's deployment history: each team the player was on
-    '/api/users/117/deployment-history': [
-      { season: seasonInfo(12, { leagueName: 'Grifball League', leagueSlug: 'gl', division: 'Pro' }), teamID: 2, teamName: 'Blue Bombers', isCaptain: true, wins: 5, losses: 1, recordFromSource: false, finish: 'Champion', championshipTiers: ['Pro'] },
-      { season: historicalSeason, teamID: 41, teamName: 'Relentless', isCaptain: false, wins: 4, losses: 4, recordFromSource: true, finish: 'Playoffs', championshipTiers: [] },
-    ],
-    '/api/users/999/deployment-history': [],
-    '/api/users/117/commendations': commendations(117),
-    '/api/users/999/commendations': commendations(999),
-    '/api/me/external-logins': { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] },
-    '/api/seasons/13/signups/mine': null,
-    '/api/seasons/13/signups/mine/timeslots': timeslots,
-    '/api/seasons/12/signups': players.map((personName, i) => ({ seasonID: 12, userID: i, personName, timestamp: `2026-10-2${i}T18:0${i}:00Z`,
-      teamName: i % 3 === 0 ? `${personName}'s Crew` : null, willCaptain: i % 3 === 0, requiresAssistanceDrafting: i === 3, timeslots: [] })),
-    '/api/seasons/12/grades': { totals: [], perMinutes: [], letters: players.slice(0, 5).map((p, i) => grades(i, p)) },
-    '/api/seasons/settings': [12, 13, 11].map(season),
-    '/api/seasons/12/settings': { ...season(12), copyFromSeasonID: null, copyAvailability: false, copySignups: false, copyTeams: false },
-    '/api/game-versions': [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }],
-    '/api/leagues': [{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'Late League' }],
+    '/api/users/117/deployment-history': answer('getDeploymentHistory', [
+              { season: seasonInfo(12, { leagueName: 'Grifball League', leagueSlug: 'gl', division: 'Pro' }), teamID: 2, teamName: 'Blue Bombers', isCaptain: true, wins: 5, losses: 1, recordFromSource: false, finish: 'Champion', championshipTiers: ['Pro'] },
+              { season: historicalSeason, teamID: 41, teamName: 'Relentless', isCaptain: false, wins: 4, losses: 4, recordFromSource: true, finish: 'Playoffs', championshipTiers: [] },
+            ]),
+    '/api/users/999/deployment-history': answer('getDeploymentHistory', []),
+    '/api/users/117/commendations': answer('getCommendations', commendations(117)),
+    '/api/users/999/commendations': answer('getCommendations', commendations(999)),
+    '/api/me/external-logins': answer('getMyExternalLogins', { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] }),
+    '/api/seasons/13/signups/mine': answer('getSignup', null),
+    '/api/seasons/13/signups/mine/timeslots': answer('getTimeslots', timeslots),
+    '/api/seasons/12/signups': answer('getSignups', players.map((personName, i) => ({ seasonID: 12, userID: i, personName, timestamp: `2026-10-2${i}T18:0${i}:00Z`,
+              teamName: i % 3 === 0 ? `${personName}'s Crew` : null, willCaptain: i % 3 === 0, requiresAssistanceDrafting: i === 3, timeslots: [] }))),
+    '/api/seasons/12/grades': answer('getGrades', { totals: [], perMinutes: [], letters: players.slice(0, 5).map((p, i) => grades(i, p)) }),
+    '/api/seasons/settings': answer('getSeasons', [12, 13, 11].map(season)),
+    '/api/seasons/12/settings': answer('getSeason', { ...season(12), copyFromSeasonID: null, copyAvailability: false, copySignups: false, copyTeams: false }),
+    '/api/game-versions': answer('getGameVersions', [{ gameVersionID: 1, name: 'Halo 3' }, { gameVersionID: 6, name: 'Halo Infinite' }]),
+    '/api/leagues': answer('getLeagues', [{ leagueID: 1, name: 'AGLA' }, { leagueID: 2, name: 'Late League' }]),
     // The times each season offers for signups: weeknights at 7 and 8
-    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/availability`, ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time })))])),
-    '/api/halo/check': { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' },
+    ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/seasons/${id}/availability`, answer('getSeasonAvailability', ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time }))))])),
+    '/api/halo/check': answer('checkStatus', { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' }),
     // The Infinite Client page in the default Gateway mode: the gateway's in-cluster address, plain HTTP as the chart's is
     // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the Halo gateway's in-cluster address: plain HTTP inside the cluster
-    '/api/halo/status': { mode: 'Gateway', gatewayUrl: 'http://halo-gateway.halo-gateway.svc:8080/', gatewayAdminUrl: 'https://grunt.grifball.xyz/admin', apiKeyConfigured: true, reachable: true, accountStatus: 'Healthy', apiCode: 200, healthy: true, message: 'Halo gateway account Healthy; test call: Halo Infinite API answered 200' }, // NOSONAR(S5332): mock data, an in-cluster address
-    '/api/sheets/default': [{ name: 'Autumn Brawl results', spreadsheetID: '1xGrifballAutumnBrawl2026', sheetName: 'Week 3' }],
-    '/api/users': { totalCount: users.length, results: users },
+    '/api/halo/status': answer('haloStatus', { mode: 'Gateway', gatewayUrl: 'http://halo-gateway.halo-gateway.svc:8080/', gatewayAdminUrl: 'https://grunt.grifball.xyz/admin', apiKeyConfigured: true, reachable: true, accountStatus: 'Healthy', apiCode: 200, healthy: true, message: 'Halo gateway account Healthy; test call: Halo Infinite API answered 200' }), // NOSONAR(S5332): mock data, an in-cluster address
+    '/api/sheets/default': answer('defaultSheetInfo', [{ name: 'Autumn Brawl results', spreadsheetID: '1xGrifballAutumnBrawl2026', sheetName: 'Week 3' }]),
+    '/api/users': answer('getUsers', { totalCount: users.length, results: users }),
     // A user's password reset link (POST, the user management page's RESET PASSWORD)
-    '/api/password-reset-links': { resetLink: '/reset-password?token=e2e-reset-token', expiresAt: '2026-10-30T18:00:00Z' },
-    ...Object.fromEntries(users.map(user => [`/api/users/${user.userID}`, userDetail(user)])),
+    '/api/password-reset-links': answer('generatePasswordResetLink', { resetLink: '/reset-password?token=e2e-reset-token', expiresAt: '2026-10-30T18:00:00Z' }),
+    ...Object.fromEntries(users.map(user => [`/api/users/${user.userID}`, answer('getUser', userDetail(user))])),
     // The accounts linked to a user, on their edit page
-    ...Object.fromEntries(users.map(user => [`/api/users/${user.userID}/external-logins`, { hasPassword: user.hasPassword,
-      logins: [{ loginProvider: 'Discord', providerKey: '8123456789012345' + user.userID, providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] }])),
-    '/api/seasons/13/draft/teams': draftTeams,
-    '/api/seasons/13/draft/player-pool': draftPool,
-    '/api/seasons/13/draft/captains/locked': true,
-    '/api/commissioner-dashboard': commissionerDashboard,
+    ...Object.fromEntries(users.map(user => [`/api/users/${user.userID}/external-logins`, answer('getUserExternalLogins', { hasPassword: user.hasPassword,
+      logins: [{ loginProvider: 'Discord', providerKey: '8123456789012345' + user.userID, providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] })])),
+    '/api/seasons/13/draft/teams': answer('getTeams', draftTeams),
+    '/api/seasons/13/draft/player-pool': answer('getPlayerPool', draftPool),
+    '/api/seasons/13/draft/captains/locked': answer('areCaptainsLocked', true),
+    '/api/commissioner-dashboard': answer('getDashboardData', commissionerDashboard),
     // The historical import page (/usermanagement/historicalimport): its sources, jobs, schedule, and a guarded import's job
-    '/api/historical-sources': historicalSources,
-    '/api/historical-imports': historicalJobs,
-    '/api/historical-imports/schedule': { paused: false, interval: '1.00:00:00', lastRunAt: '2026-10-29T06:00:00Z', nextRunAt: '2026-10-30T06:00:00Z', lastJobID: 40, lastRunNote: null },
-    '/api/historical-imports/41': historicalJob,
+    '/api/historical-sources': answer('getHistoricalSources', historicalSources),
+    '/api/historical-imports': answer('getHistoricalImportJobs', historicalJobs),
+    '/api/historical-imports/schedule': answer('getHistoricalImportSchedule', { paused: false, interval: '1.00:00:00', lastRunAt: '2026-10-29T06:00:00Z', nextRunAt: '2026-10-30T06:00:00Z', lastJobID: 40, lastRunNote: null }),
+    '/api/historical-imports/41': answer('getHistoricalImportJob', historicalJob),
     // The Jobs page (/usermanagement/jobs) and each job's runs (?take= is not matched)
-    '/api/jobs': jobsOverview,
-    ...Object.fromEntries(jobsOverview.jobs.map(j => [`/api/jobs/${j.group}/${j.name}/runs`, jobHistory])),
+    '/api/jobs': answer('getJobs', jobsOverview),
+    ...Object.fromEntries(jobsOverview.jobs.map(j => [`/api/jobs/${j.group}/${j.name}/runs`, answer('getJobHistory', jobHistory)])),
     // VODs: the match page's, the seasons', the teams' and the profiles' (through their teams), and the review list
-    '/api/season-matches/31/vods': [matchVod],
-    '/api/seasons/12/vods': [matchVod, castVod],
-    '/api/seasons/5/vods': [archiveVod],
-    '/api/teams/1/vods': [matchVod],
-    '/api/teams/41/vods': [archiveVod],
-    '/api/users/117/vods': [matchVod, archiveVod],
-    '/api/users/999/vods': [],
-    '/api/vods/review': vodReview,
+    '/api/season-matches/31/vods': answer('getSeasonMatchVods', [matchVod]),
+    '/api/seasons/12/vods': answer('getSeasonVods', [matchVod, castVod]),
+    '/api/seasons/5/vods': answer('getSeasonVods', [archiveVod]),
+    '/api/teams/1/vods': answer('getTeamVods', [matchVod]),
+    '/api/teams/41/vods': answer('getTeamVods', [archiveVod]),
+    '/api/users/117/vods': answer('getPlayerVods', [matchVod, archiveVod]),
+    '/api/users/999/vods': answer('getPlayerVods', []),
+    '/api/vods/review': answer('getVodReview', vodReview),
     // The gamertag claims page (/usermanagement/claims): four pending claims (?status=Pending, or no status), and its
     // Approved and Rejected tabs' decided ones
-    '/api/gamertag-claims': gamertagClaims,
-    '/api/gamertag-claims?status=Approved': [
-      { ...gamertagClaims[0], gamertagClaimID: 11, status: 'Approved', createdAt: '2026-10-20T15:20:00Z' },
-      { ...gamertagClaims[2], gamertagClaimID: 13, status: 'Approved', createdAt: '2026-10-21T08:00:00Z' },
-    ],
-    '/api/gamertag-claims?status=Rejected': [
-      { ...gamertagClaims[3], gamertagClaimID: 14, status: 'Rejected', rejectionReason: 'That was someone else: the 2009 roster lists Timer Old on Benchwarmers' },
-    ],
+    '/api/gamertag-claims': answer('getGamertagClaims', gamertagClaims),
+    '/api/gamertag-claims?status=Approved': answer('getGamertagClaims', [
+              { ...gamertagClaims[0], gamertagClaimID: 11, status: 'Approved', createdAt: '2026-10-20T15:20:00Z' },
+              { ...gamertagClaims[2], gamertagClaimID: 13, status: 'Approved', createdAt: '2026-10-21T08:00:00Z' },
+            ]),
+    '/api/gamertag-claims?status=Rejected': answer('getGamertagClaims', [
+              { ...gamertagClaims[3], gamertagClaimID: 14, status: 'Rejected', rejectionReason: 'That was someone else: the 2009 roster lists Timer Old on Benchwarmers' },
+            ]),
     // Its "Find possible duplicates": an archive placeholder that looks like a user, and two placeholders alike
-    '/api/duplicate-suggestions': [
-      { sourceUserID: 503, sourceGamertag: 'Old School', targetUserID: 2, targetGamertag: 'OldSchool #1234', targetIsPlaceholder: false, match: 'Framing', distance: 0,
-        sourceSeasons: [{ seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }], targetSeasons: [{ seasonID: 12, seasonName: 'Autumn Brawl', year: 2026 }] },
-      { sourceUserID: 504, sourceGamertag: 'Timer Old', targetUserID: 502, targetGamertag: 'Old Timer', targetIsPlaceholder: true, match: 'Token', distance: 2,
-        sourceSeasons: [{ seasonID: 4, seasonName: 'Spring League 2010', year: 2010 }], targetSeasons: [{ seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }] },
-    ],
+    '/api/duplicate-suggestions': answer('getDuplicateSuggestions', [
+              { sourceUserID: 503, sourceGamertag: 'Old School', targetUserID: 2, targetGamertag: 'OldSchool #1234', targetIsPlaceholder: false, match: 'Framing', distance: 0,
+                sourceSeasons: [{ seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }], targetSeasons: [{ seasonID: 12, seasonName: 'Autumn Brawl', year: 2026 }] },
+              { sourceUserID: 504, sourceGamertag: 'Timer Old', targetUserID: 502, targetGamertag: 'Old Timer', targetIsPlaceholder: true, match: 'Token', distance: 2,
+                sourceSeasons: [{ seasonID: 4, seasonName: 'Spring League 2010', year: 2010 }], targetSeasons: [{ seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }] },
+            ]),
     // A profile's "Claim a past gamertag", whatever is typed (?gamertag= is not matched): the archive's player of that name
-    '/api/me/gamertag-claims/preview': { gamertag: 'Old Timer', placeholderUserID: 502, placeholderName: 'Old Timer',
-      seasons: [{ seasonID: 4, seasonName: 'Spring League 2010', year: 2010 }, { seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }], refusal: null },
+    '/api/me/gamertag-claims/preview': answer('previewGamertagClaim', { gamertag: 'Old Timer', placeholderUserID: 502, placeholderName: 'Old Timer',
+              seasons: [{ seasonID: 4, seasonName: 'Spring League 2010', year: 2010 }, { seasonID: 5, seasonName: 'Summer League 2010', year: 2010 }], refusal: null }),
     // The schedule's recommended times (organizers, editing the schedule): the last run's, not applied yet, one with a conflict
-    '/api/seasons/12/schedule-recommendation': {
-      run: { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-29T17:00:00Z', durationMs: 5400, result: 'Succeeded', error: null } },
-      latest: {
-        scheduleRecommendationID: 3, createdAt: '2026-10-29T17:00:05Z', requestedBy: 'Commander Grif', fitness: 0.92, generations: 400, appliedAt: null, appliedBy: null,
-        matches: [
-          { seasonMatchID: 31, homeTeam: 'Red Rampage', awayTeam: 'Blue Bombers', scheduledTime: '2026-10-30T23:00:00Z', currentTime: '2026-10-30T23:00:00Z',
-            overlaps: false, homeTeamAvailable: true, awayTeamAvailable: true, decided: false },
-          { seasonMatchID: 41, homeTeam: 'Red Rampage', awayTeam: 'Sword Swallowers', scheduledTime: '2026-11-04T23:00:00Z', currentTime: '2026-11-05T00:00:00Z',
-            overlaps: false, homeTeamAvailable: true, awayTeamAvailable: false, decided: false },
-          { seasonMatchID: 51, homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', scheduledTime: '2026-11-06T00:00:00Z', currentTime: null,
-            overlaps: false, homeTeamAvailable: true, awayTeamAvailable: true, decided: false },
-          { seasonMatchID: 33, homeTeam: 'Gravity Wells', awayTeam: 'Sticky Situation', scheduledTime: '2026-10-27T00:30:00Z', currentTime: '2026-10-27T00:30:00Z',
-            overlaps: false, homeTeamAvailable: true, awayTeamAvailable: true, decided: true },
-        ],
-      },
-    },
+    '/api/seasons/12/schedule-recommendation': answer('getScheduleRecommendation', {
+              run: { state: 'Idle', progress: null, progressMessage: null, startedAt: null, lastRun: { firedAt: '2026-10-29T17:00:00Z', durationMs: 5400, result: 'Succeeded', error: null } },
+              latest: {
+                scheduleRecommendationID: 3, createdAt: '2026-10-29T17:00:05Z', requestedBy: 'Commander Grif', fitness: 0.92, generations: 400, appliedAt: null, appliedBy: null,
+                matches: [
+                  { seasonMatchID: 31, homeTeam: 'Red Rampage', awayTeam: 'Blue Bombers', scheduledTime: '2026-10-30T23:00:00Z', currentTime: '2026-10-30T23:00:00Z',
+                    overlaps: false, homeTeamAvailable: true, awayTeamAvailable: true, decided: false },
+                  { seasonMatchID: 41, homeTeam: 'Red Rampage', awayTeam: 'Sword Swallowers', scheduledTime: '2026-11-04T23:00:00Z', currentTime: '2026-11-05T00:00:00Z',
+                    overlaps: false, homeTeamAvailable: true, awayTeamAvailable: false, decided: false },
+                  { seasonMatchID: 51, homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', scheduledTime: '2026-11-06T00:00:00Z', currentTime: null,
+                    overlaps: false, homeTeamAvailable: true, awayTeamAvailable: true, decided: false },
+                  { seasonMatchID: 33, homeTeam: 'Gravity Wells', awayTeam: 'Sticky Situation', scheduledTime: '2026-10-27T00:30:00Z', currentTime: '2026-10-27T00:30:00Z',
+                    overlaps: false, homeTeamAvailable: true, awayTeamAvailable: true, decided: true },
+                ],
+              },
+            }),
     // Linking a VOD from the review list (the historical import page): the seasons, and the Summer Smash's teams and matches
-    '/api/vods/link-seasons': [12, 11, 5].map(seasonID => ({ seasonID, seasonName: seasonID === 5 ? 'Summer League 2010' : seasonNames[seasonID] })),
-    '/api/seasons/11/vod-link-options': {
-      teams: teams.slice(0, 4).map(([teamID, teamName]) => ({ teamID: teamID + 20, teamName })),
-      matches: [{ seasonMatchID: 201, label: 'Week 1: Red Rampage vs Blue Bombers', teamIDs: [21, 22] }, { seasonMatchID: 202, label: 'Week 1: Hammer Bros vs Sword Swallowers', teamIDs: [23, 24] }],
-    },
-    '/api/user-merges': { totalCount: userMerges.length, results: userMerges },
+    '/api/vods/link-seasons': answer('getVodLinkSeasons', [12, 11, 5].map(seasonID => ({ seasonID, seasonName: seasonID === 5 ? 'Summer League 2010' : seasonNames[seasonID] }))),
+    '/api/seasons/11/vod-link-options': answer('getVodLinkOptions', {
+              teams: teams.slice(0, 4).map(([teamID, teamName]) => ({ teamID: teamID + 20, teamName })),
+              matches: [{ seasonMatchID: 201, label: 'Week 1: Red Rampage vs Blue Bombers', teamIDs: [21, 22] }, { seasonMatchID: 202, label: 'Week 1: Hammer Bros vs Sword Swallowers', teamIDs: [23, 24] }],
+            }),
+    '/api/user-merges': answer('getUserMerges', { totalCount: userMerges.length, results: userMerges }),
     // The signed-in admin's own profile (/profile/999): their claims of past gamertags
-    '/api/me/gamertag-claims': [{ ...gamertagClaims[3], claimantUserID: 999, userID: 999, claimantName: 'Commander Grif', status: 'Rejected', rejectionReason: 'That was someone else' }],
-    '/api/xuid-lookups/status': { placeholders: 12, due: 3, found: 7, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-29T09:00:00Z' },
+    '/api/me/gamertag-claims': answer('getMyGamertagClaims', [{ ...gamertagClaims[3], claimantUserID: 999, userID: 999, claimantName: 'Commander Grif', status: 'Rejected', rejectionReason: 'That was someone else' }]),
+    '/api/xuid-lookups/status': answer('getXuidLookupStatus', { placeholders: 12, due: 3, found: 7, notFound: 1, failed: 1, lastLookedUpAt: '2026-10-29T09:00:00Z' }),
     // A franchise's seasons, from its team of this season (the team page's "Franchise history" link)
-    '/api/teams/1/history': teamHistory,
-    '/api/late-league/queue': { gameCount: 96, players: lateLeaguePlayers(null) },
-    '/api/late-league/seasons': lateLeagueSeasons,
-    '/api/late-league/seasons/3': { season: lateLeagueSeasons[0], players: lateLeaguePlayers(lateLeagueSeasons[0]) },
-    '/api/search': quickSearch,
+    '/api/teams/1/history': answer('history', teamHistory),
+    '/api/late-league/queue': answer('getLateLeagueQueue', { gameCount: 96, players: lateLeaguePlayers(null) }),
+    '/api/late-league/seasons': answer('getLateLeagueSeasons', lateLeagueSeasons),
+    '/api/late-league/seasons/3': answer('getLateLeagueSeason', { season: lateLeagueSeasons[0], players: lateLeaguePlayers(lateLeagueSeasons[0]) }),
+    '/api/search': answer('quickSearch', quickSearch),
     // The database backup page (/databasebackup): a SQLite backup made, and the last export done
-    '/api/backups/info': { provider: 'PostgreSQL', latestMigration: '20261028211400_MatchmakingSeasons', formats: ['sqlite', 'postgres', 'sqlserver', 'dump'] },
-    '/api/backups/sqlite/status': { state: 'Succeeded', format: 'sqlite', started: '2026-10-29T17:40:00Z', finished: '2026-10-29T17:41:12Z',
-      fileName: 'GrifballWebApp-2026-10-29.sqlite', tables: 64, rows: 182340, message: null, size: 41_943_040, runningFormat: null, progress: null, progressMessage: null },
-    '/api/database-exports/status': { state: 'Succeeded', provider: 'SqlServer', started: '2026-10-28T09:00:00Z', finished: '2026-10-28T09:03:10Z', tables: 64, rows: 181902, message: null },
+    '/api/backups/info': answer('backupInfo', { provider: 'PostgreSQL', latestMigration: '20261028211400_MatchmakingSeasons', formats: ['sqlite', 'postgres', 'sqlserver', 'dump'] }),
+    '/api/backups/sqlite/status': answer('backupDownloadStatus', { state: 'Succeeded', format: 'sqlite', started: '2026-10-29T17:40:00Z', finished: '2026-10-29T17:41:12Z',
+              fileName: 'GrifballWebApp-2026-10-29.sqlite', tables: 64, rows: 182340, message: null, size: 41_943_040, runningFormat: null, progress: null, progressMessage: null }),
+    '/api/database-exports/status': answer('backupExportStatus', { state: 'Succeeded', provider: 'SqlServer', started: '2026-10-28T09:00:00Z', finished: '2026-10-28T09:03:10Z', tables: 64, rows: 181902, message: null }),
     // The Telemetry page (/usermanagement/telemetry): every backend set up
-    '/api/telemetry/status': { serviceName: 'grifballwebapp', logs: true, metrics: true, traces: true },
-    '/api/telemetry/metrics': telemetryMetrics,
-    '/api/telemetry/logs': telemetryLogs,
-    '/api/telemetry/traces': telemetryTraces,
-    [`/api/telemetry/traces/${TRACE_ID}`]: telemetryTrace,
+    '/api/telemetry/status': answer('getTelemetryStatus', { serviceName: 'grifballwebapp', logs: true, metrics: true, traces: true }),
+    '/api/telemetry/metrics': answer('getTelemetryMetrics', telemetryMetrics),
+    '/api/telemetry/logs': answer('getTelemetryLogs', telemetryLogs),
+    '/api/telemetry/traces': answer('getTelemetryTraces', telemetryTraces),
+    [`/api/telemetry/traces/${TRACE_ID}`]: answer('getTelemetryTrace', telemetryTrace),
     // The past gamertags page (/usermanagement/pastgamertags?xboxUserID=...): one manually-added row, one detected from a rename
-    '/api/past-gamertags': {
-      xboxUserID: 2535400000000117, currentGamertag: 'MasterChief117', userID: 117,
-      pastGamertags: [
-        { xboxGamertagHistoryID: 1, xboxUserID: 2535400000000117, gamertag: 'Legendary', firstSeen: '2010-01-01T00:00:00Z',
-          lastSeen: '2012-06-01T00:00:00Z', source: 'Manual', note: 'From the Summer League 2010 roster', canRemove: true },
-        { xboxGamertagHistoryID: 2, xboxUserID: 2535400000000117, gamertag: 'MasterChief117', firstSeen: '2012-06-02T00:00:00Z',
-          lastSeen: null, source: 'RenameDetected', note: null, canRemove: false },
-      ],
-    },
+    '/api/past-gamertags': answer('getPastGamertags', {
+              xboxUserID: 2535400000000117, currentGamertag: 'MasterChief117', userID: 117,
+              pastGamertags: [
+                { xboxGamertagHistoryID: 1, xboxUserID: 2535400000000117, gamertag: 'Legendary', firstSeen: '2010-01-01T00:00:00Z',
+                  lastSeen: '2012-06-01T00:00:00Z', source: 'Manual', note: 'From the Summer League 2010 roster', canRemove: true },
+                { xboxGamertagHistoryID: 2, xboxUserID: 2535400000000117, gamertag: 'MasterChief117', firstSeen: '2012-06-02T00:00:00Z',
+                  lastSeen: null, source: 'RenameDetected', note: null, canRemove: false },
+              ],
+            }),
   };
 }
 
@@ -937,7 +963,7 @@ export function mockResponse(role: Role, path: string, query = ''): { status: nu
   const key = query && path + query in routes ? path + query : path;
   if (!(key in routes))
     return undefined;
-  const body = routes[key];
+  const { body } = routes[key];
   if (body === null)
     return { status: 204, contentType: 'application/json', body: '' };
   if (typeof body === 'object' && body !== null && 'text' in body && Object.keys(body).length === 1)
