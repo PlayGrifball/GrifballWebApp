@@ -13,6 +13,9 @@ public sealed record RecentGameTeamDto(int TeamID, int Score, Outcomes Outcome, 
 /// <summary>A recent Halo game: its match ID (get_game has its details), when it started, its Halo Waypoint page and its teams.</summary>
 public sealed record RecentGameDto(Guid MatchID, DateTime? StartTime, string WaypointUrl, List<RecentGameTeamDto> Teams);
 
+/// <summary>A player's recent games, and whether Halo answered the pull (false: these are only the games saved before).</summary>
+public sealed record RecentGamesDto(bool PulledFresh, List<RecentGameDto> Games);
+
 /// <summary>Halo games as they come in: pulled fresh from Halo and saved before they are read (<see cref="ToolEffect.FetchesFromHalo"/>).</summary>
 public class HaloTools
 {
@@ -35,9 +38,10 @@ public class HaloTools
     public static string WaypointUrl(string gamertag, Guid matchID)
         => $"https://www.halowaypoint.com/halo-infinite/players/{Uri.EscapeDataString(gamertag)}/matches/{matchID}";
 
-    [Description("A player's latest Halo Infinite games, any playlist: pulled fresh from Halo, then each one's start time, Halo Waypoint link "
-        + "and teams (score, outcome, players). Newest first.")]
-    public async Task<List<RecentGameDto>> GetRecentGames(
+    [Description("A player's latest Grifball games in Halo Infinite custom games (the league's games: matchmaking and other modes aren't "
+        + "recorded), pulled fresh from Halo first: each one's start time, Halo Waypoint link and teams (score, outcome, players), newest first. "
+        + "pulledFresh false: Halo didn't answer, and these are only the games saved before.")]
+    public async Task<RecentGamesDto> GetRecentGames(
         [Description("The player's Xbox gamertag.")] string gamertag,
         [Description("How many games, 1 to 25; left out, 5.")] int count = 5,
         CancellationToken ct = default)
@@ -47,20 +51,31 @@ public class HaloTools
         if (xboxUser is null)
             throw new ToolException(reason ?? $"There is no Xbox gamertag {gamertag}.");
 
+        // Halo being down still leaves the games saved before. The pull counts what Halo didn't answer in its result, and throws
+        // only for what it doesn't expect
+        var pulledFresh = true;
         try
         {
-            await _dataPull.DownloadRecentMatchesForPlayers([xboxUser.XboxUserID], startPage: 0, endPage: 0, count, ct);
+            var pull = await _dataPull.DownloadRecentMatchesForPlayers([xboxUser.XboxUserID], startPage: 0, endPage: 0, count, ct);
+            if (pull is { Complete: false })
+            {
+                pulledFresh = false;
+                _logger.LogWarning("Halo missed part of the recent matches for {Gamertag}: {FailedHistories} histories, {FailedMatches} games",
+                    xboxUser.Gamertag, pull.FailedHistories.Count, pull.FailedMatches.Count);
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Halo being down still leaves the games saved before
+            pulledFresh = false;
             _logger.LogError(ex, "Failed to fetch recent matches for {Gamertag}", xboxUser.Gamertag);
         }
 
         var games = await _context.Matches
             .AsNoTracking()
             .Where(m => m.MatchTeams.Any(t => t.MatchParticipants.Any(p => p.XboxUserID == xboxUser.XboxUserID)))
-            .OrderByDescending(m => m.StartTime)
+            // Undated games last: Postgres would put NULLs first
+            .OrderBy(m => m.StartTime == null)
+            .ThenByDescending(m => m.StartTime)
             .Take(count)
             .Select(m => new
             {
@@ -69,6 +84,6 @@ public class HaloTools
                 Teams = m.MatchTeams.Select(t => new RecentGameTeamDto(t.TeamID, t.Score, t.Outcome, t.MatchParticipants.Select(p => p.XboxUser.Gamertag).ToList())).ToList(),
             })
             .ToListAsync(ct);
-        return games.Select(g => new RecentGameDto(g.MatchID, g.StartTime, WaypointUrl(xboxUser.Gamertag, g.MatchID), g.Teams)).ToList();
+        return new RecentGamesDto(pulledFresh, games.Select(g => new RecentGameDto(g.MatchID, g.StartTime, WaypointUrl(xboxUser.Gamertag, g.MatchID), g.Teams)).ToList());
     }
 }

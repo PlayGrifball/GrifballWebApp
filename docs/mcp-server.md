@@ -62,7 +62,7 @@ called without a `seasonID` uses the running season, and a player tool called wi
 | `get_leaderboards` | The all-time leaderboards |
 | `list_late_league_seasons` | Late League's seasons |
 | `get_late_league_season` | A Late League season's player stats |
-| `get_recent_games` | A player's latest Halo games, pulled fresh, each with its Waypoint link |
+| `get_recent_games` | A player's latest Grifball custom games, pulled fresh from Halo, each with its Waypoint link |
 | `get_current_time` | The time now, in UTC and as Unix seconds |
 
 A refusal the model can act on (no such season, say) is a `ToolException`. The MCP server returns it as a tool error with
@@ -73,7 +73,7 @@ logs.
 
 A chat host builds its tools with `GrifTools.AIFunctions`, the Microsoft.Extensions.AI functions its model calls. It passes
 three things:
-- its scope's services;
+- a scope factory: each call runs in a scope of its own, so a tool never shares a `DbContext` with the host;
 - the caller (`ToolCaller`);
 - the names of the tools to give.
 
@@ -84,7 +84,8 @@ server's clients get every tool.
   (`DiscordCaller.AsToolCaller`).
   - An author with no linked account is `ToolCaller.Anonymous`. They can use every tool that isn't about "you", and those
     that are refuse and ask them to name the player.
-  - The bot's instructions have it write times as Discord timestamps (`<t:…:f>`), from `get_current_time`.
+  - The bot's instructions have it write times in UTC, as the tools give them. A small model can't reliably turn ISO times into
+    Discord's epoch timestamps.
 - **The site's chat** (still to come): the caller will be the signed-in user.
 
 ## Adding a tool

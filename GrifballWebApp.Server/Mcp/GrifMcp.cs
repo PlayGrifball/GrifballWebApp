@@ -66,18 +66,23 @@ public static class GrifMcp
     /// <summary>
     /// An MCP tool for each tool method of <paramref name="sets"/>, named as <see cref="GrifTools.Name"/> says, its annotations
     /// telling clients what it does (they ask before a tool that isn't read-only). Each call gets a new instance from the
-    /// request's services, as the request's user (<see cref="GrifTools.Create"/>).
+    /// request's services, as the request's user (<see cref="GrifTools.Factory"/>).
     /// </summary>
     public static IEnumerable<McpServerTool> Tools(IEnumerable<(Type Type, ToolEffect Effect)> sets)
-        => sets.SelectMany(set => GrifTools.Methods(set.Type).Select(method => McpServerTool.Create(method,
-            request => GrifTools.Create(set.Type, request.Services!, Caller(request.User!)),
-            new McpServerToolCreateOptions
-            {
-                Name = GrifTools.Name(method),
-                ReadOnly = set.Effect == ToolEffect.ReadsOnly,
-                // Pulling from Halo adds games; nothing is changed or deleted
-                Destructive = false,
-                Idempotent = true,
-                OpenWorld = set.Effect == ToolEffect.FetchesFromHalo,
-            })));
+        => sets.SelectMany(set =>
+        {
+            var create = GrifTools.Factory(set.Type);
+            return GrifTools.Methods(set.Type).Select(method => McpServerTool.Create(method,
+                request => create(request.Services!, Caller(request.User!)),
+                new McpServerToolCreateOptions
+                {
+                    Name = GrifTools.Name(method),
+                    ReadOnly = set.Effect == ToolEffect.ReadsOnly,
+                    // Pulling from Halo adds games; nothing is changed or deleted
+                    Destructive = false,
+                    // A second pull can save games played since the first
+                    Idempotent = set.Effect == ToolEffect.ReadsOnly,
+                    OpenWorld = set.Effect == ToolEffect.FetchesFromHalo,
+                }));
+        });
 }
