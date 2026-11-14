@@ -523,7 +523,7 @@ public class DiscordTransportTests
             context.UserRoles.Add(new UserRole { UserId = player.Id, RoleId = role.Id });
             var now = DateTime.UtcNow;
             var open = Season.Seed(seasonName: "Transport Signups").WithDates(signupsOpen: now.AddDays(-1), signupsClose: now.AddDays(5), draftStart: now.AddDays(6),
-                seasonStart: now.AddDays(7), seasonEnd: now.AddDays(40));
+                seasonStart: now.AddDays(7), seasonEnd: now.AddDays(40), publicAt: now.AddDays(-2));
             context.Seasons.Add(open);
             await context.SaveChangesAsync();
             return open;
