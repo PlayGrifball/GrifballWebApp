@@ -89,7 +89,7 @@ export class TelemetryComponent implements OnInit {
 
   /** Only the open tab reads; each reads again when its inputs change, or on Refresh. */
   readonly metrics = this.store.metrics;
-  private readonly metricsQuery = computed<MetricsQuery | undefined>(() => this.tab() === 'overview' && this.status.hasValue() && this.status.value().metrics ? { minutes: this.minutes() } : undefined);
+  private readonly metricsQuery = computed<MetricsQuery | undefined>(() => this.tab() === 'overview' ? { minutes: this.minutes() } : undefined);
   /** An ISO time as the charts take it, in Unix milliseconds. */
   readonly ms = (iso: string) => Date.parse(iso);
 
@@ -100,7 +100,7 @@ export class TelemetryComponent implements OnInit {
   readonly traceFilter = signal('');
   readonly limit = signal(200);
   readonly logs = this.store.logs;
-  private readonly logsQuery = computed<LogsQuery | undefined>(() => this.tab() === 'logs' && this.status.hasValue() && this.status.value().logs
+  private readonly logsQuery = computed<LogsQuery | undefined>(() => this.tab() === 'logs'
       ? { minutes: this.minutes(), level: this.pickedLevels(), search: this.search().trim() || undefined, traceId: this.traceFilter().trim() || undefined, limit: this.limit() }
       : undefined);
   /** The log line opened to show its properties. */
@@ -110,7 +110,7 @@ export class TelemetryComponent implements OnInit {
   readonly errorsOnly = signal(false);
   readonly minDurationMs = signal<number | null>(null);
   readonly traces = this.store.traces;
-  private readonly tracesQuery = computed<TracesQuery | undefined>(() => this.tab() === 'traces' && this.status.hasValue() && this.status.value().traces
+  private readonly tracesQuery = computed<TracesQuery | undefined>(() => this.tab() === 'traces'
       ? { minutes: this.minutes(), errorsOnly: this.errorsOnly(), minDurationMs: this.minDurationMs() ?? undefined }
       : undefined);
   readonly traceIdDraft = signal('');

@@ -1,11 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
-import { BACKUP_POLL_MS, BackupFormat, DatabaseBackupStore, ExportTarget } from './databaseBackup.store';
+import { BackupFormat, DatabaseBackupStore, ExportTarget } from './databaseBackup.store';
 
 export type { BackupFormat, DownloadStatus, ExportStatus, ExportTarget } from './databaseBackup.store';
 
@@ -39,9 +39,6 @@ export const targetConnectionStrings: Record<ExportTarget, string> = {
 export class DatabaseBackupComponent {
   private readonly store = inject(DatabaseBackupStore);
 
-  /** How often a running export's or backup's status is read again (ms). */
-  static readonly pollInterval = BACKUP_POLL_MS;
-
   readonly info = this.store.infoValue;
   readonly infoFailed = this.store.infoFailed;
   readonly format = signal<BackupFormat>('sqlite');
@@ -49,7 +46,7 @@ export class DatabaseBackupComponent {
   /** Starting or making a backup. */
   readonly making = this.store.making;
   /** The last download's file name, which the restore command reads. */
-  readonly fileName = linkedSignal(() => this.store.fileName());
+  readonly fileName = this.store.fileName;
 
   /** The formats the server can make here; the three it always can until it says. */
   readonly formats = computed(() => {

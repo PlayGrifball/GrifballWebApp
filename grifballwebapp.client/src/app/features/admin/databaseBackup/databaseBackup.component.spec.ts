@@ -3,6 +3,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { BackupFormat, DatabaseBackupComponent, DownloadStatus, ExportStatus } from './databaseBackup.component';
+import { BACKUP_POLL_MS } from './databaseBackup.store';
 
 describe('DatabaseBackupComponent', () => {
   let fixture: ComponentFixture<DatabaseBackupComponent>;
@@ -40,6 +41,12 @@ describe('DatabaseBackupComponent', () => {
     http.expectOne(r => /^\/api\/backups\/\w+\/status$/.test(r.url)).flush({ ...noDownload, ...status });
   const running = (format: BackupFormat): Partial<DownloadStatus> => ({ state: 'Running', format, tables: 0, rows: 0 });
   const made = (format: BackupFormat, fileName: string): Partial<DownloadStatus> => ({ state: 'Succeeded', format, fileName, tables: 40, rows: 12345, size: 1_300_000 });
+  /** The backup of a format made here, so the page has its file name. */
+  const madeHere = (format: BackupFormat, fileName: string) => {
+    component.format.set(format);
+    component.makeBackup();
+    expectStart(format).flush({ ...noDownload, ...made(format, fileName) });
+  };
   const downloadLink = () => el().querySelector('.db-ready a') as HTMLAnchorElement;
 
   /** Renders the page with api/backups/info answered (the formats it can download), and the last export's and backup's status. */
@@ -76,14 +83,13 @@ describe('DatabaseBackupComponent', () => {
 
   it('says how to restore each format, with the file downloaded', async () => {
     await init();
-    component.fileName.set('grifball-backup-1.postgres.sql');
-    component.format.set('postgres');
+    madeHere('postgres', 'grifball-backup-1.postgres.sql');
     expect(component.restore().command).toBe('createdb GrifballWebApp\npsql -v ON_ERROR_STOP=1 -d GrifballWebApp -f grifball-backup-1.postgres.sql');
     component.format.set('sqlserver');
     expect(component.restore().command).toContain('sqlcmd -S <server> -d GrifballWebApp -b -i grifball-backup-1.postgres.sql');
     component.format.set('bak');
     expect(component.restore().command).toBe("RESTORE DATABASE GrifballWebApp FROM DISK = N'/var/opt/mssql/backup/<file>' WITH RECOVERY");
-    component.fileName.set('grifball-backup-1.bak');
+    madeHere('bak', 'grifball-backup-1.bak');
     expect(component.restore().command).toContain("FROM DISK = N'/var/opt/mssql/backup/grifball-backup-1.bak'");
     fixture.detectChanges();
     expect(el().querySelector('.db-restore-note')!.textContent).toContain('Copy the file where SQL Server can read it');
@@ -91,8 +97,7 @@ describe('DatabaseBackupComponent', () => {
 
   it('says how to restore a PostgreSQL dump', async () => {
     await init();
-    component.format.set('dump');
-    component.fileName.set('grifball-backup-1.dump');
+    madeHere('dump', 'grifball-backup-1.dump');
     expect(component.restore().command).toBe('createdb GrifballWebApp\npg_restore --no-owner -d GrifballWebApp grifball-backup-1.dump');
   });
 
@@ -138,12 +143,12 @@ describe('DatabaseBackupComponent', () => {
       expect(button().textContent).toContain('Making the backup');
       expect(el().querySelector('.db-progress')!.textContent).toContain('Waiting to start');
 
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      jasmine.clock().tick(BACKUP_POLL_MS);
       flushDownloadStatus({ ...running('sqlite'), progress: 25, progressMessage: 'Copying Seasons (16 of 64)' });
       fixture.detectChanges();
       expect(el().querySelector('.db-progress')!.textContent).toContain('Copying Seasons (16 of 64)');
       expect((el().querySelector('progress[aria-label="Backup progress"]') as HTMLProgressElement).value).toBe(25);
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      jasmine.clock().tick(BACKUP_POLL_MS);
       flushDownloadStatus(made('sqlite', 'grifball-backup-20261101-120000.sqlite'));
       fixture.detectChanges();
 
@@ -159,7 +164,7 @@ describe('DatabaseBackupComponent', () => {
       expect(ready).toContain('until the next sqlite backup');
       expect(button().disabled).toBeFalse();
       // Done: no more reads.
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
+      jasmine.clock().tick(BACKUP_POLL_MS * 3);
     });
 
     it('shows a server\'s own backup by its size alone: its tables and rows are never counted', async () => {
@@ -167,14 +172,14 @@ describe('DatabaseBackupComponent', () => {
       component.format.set('bak');
       component.makeBackup();
       expectStart('bak').flush(running('bak'), { status: 202, statusText: 'Accepted' });
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      jasmine.clock().tick(BACKUP_POLL_MS);
       flushDownloadStatus({ state: 'Succeeded', format: 'bak', fileName: 'grifball-backup-20261107-054559.bak', tables: null, rows: null, size: 246_693_888 });
       fixture.detectChanges();
 
       const ready = el().querySelector('.db-ready')!.textContent!.replace(/\s+/g, ' ');
       expect(ready).toContain('235.3 MB · kept for an hour');
       expect(ready).not.toContain('tables');
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
+      jasmine.clock().tick(BACKUP_POLL_MS * 3);
     });
 
     it('says why the backup failed while it was being made', async () => {
@@ -182,17 +187,17 @@ describe('DatabaseBackupComponent', () => {
       component.format.set('bak');
       component.makeBackup();
       expectStart('bak').flush(running('bak'), { status: 202, statusText: 'Accepted' });
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      jasmine.clock().tick(BACKUP_POLL_MS);
       flushDownloadStatus({ state: 'Failed', format: 'bak', tables: 0, rows: 0, message: "SQL Server made the backup but wouldn't read it back." });
 
       expect(snackBar.open).toHaveBeenCalledWith("SQL Server made the backup but wouldn't read it back.", 'Close');
       expect(component.making()).toBeFalse();
       fixture.detectChanges();
       expect(el().querySelector('.db-progress')!.textContent).toContain("The backup failed: SQL Server made the backup but wouldn't read it back.");
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      jasmine.clock().tick(BACKUP_POLL_MS);
       component.makeBackup();
       expectStart('bak').flush(running('bak'), { status: 202, statusText: 'Accepted' });
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      jasmine.clock().tick(BACKUP_POLL_MS);
       flushDownloadStatus({ state: 'Failed', format: 'bak', tables: 0, rows: 0 });
       expect(snackBar.open).toHaveBeenCalledWith('The backup failed', 'Close');
     });
@@ -201,7 +206,7 @@ describe('DatabaseBackupComponent', () => {
       await init();
       component.makeBackup();
       expectStart('sqlite').flush(running('sqlite'), { status: 202, statusText: 'Accepted' });
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      jasmine.clock().tick(BACKUP_POLL_MS);
       http.expectOne(r => /^\/api\/backups\/\w+\/status$/.test(r.url)).flush('', { status: 500, statusText: 'Server Error' });
 
       expect(snackBar.open).toHaveBeenCalledWith('The backup failed', 'Close');
@@ -211,7 +216,7 @@ describe('DatabaseBackupComponent', () => {
     it('follows a backup already being made when the page opens, without downloading it, until the page closes', async () => {
       await init(none, undefined, running('sqlite'));
       expect(button().disabled).toBeTrue();
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      jasmine.clock().tick(BACKUP_POLL_MS);
       flushDownloadStatus(made('sqlite', 'grifball-backup-1.sqlite'));
       fixture.detectChanges();
 
@@ -222,7 +227,7 @@ describe('DatabaseBackupComponent', () => {
       http.expectNone(r => r.url.endsWith('/file'));
 
       fixture.destroy();
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
+      jasmine.clock().tick(BACKUP_POLL_MS * 3);
     });
 
     it('shows the backup of the chosen format: one is kept per format, each read when its format is chosen', async () => {
@@ -256,7 +261,7 @@ describe('DatabaseBackupComponent', () => {
       expect(el().textContent).toContain('A postgres backup is being made');
       expect(button().disabled).toBeTrue();
 
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      jasmine.clock().tick(BACKUP_POLL_MS);
       flushDownloadStatus({ state: 'None', format: 'sqlite', tables: 0, rows: 0 });
       fixture.detectChanges();
       expect(el().textContent).not.toContain('being made');
@@ -265,11 +270,11 @@ describe('DatabaseBackupComponent', () => {
 
     it('stops reading the status when the page closes', async () => {
       await init(none, undefined, running('sqlite'));
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      jasmine.clock().tick(BACKUP_POLL_MS);
       flushDownloadStatus(running('sqlite'));
 
       fixture.destroy();
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
+      jasmine.clock().tick(BACKUP_POLL_MS * 3);
       expect(http.match(r => /^\/api\/backups\/\w+\/status$/.test(r.url))).withContext('status reads after closing').toEqual([]);
     });
   });
@@ -326,20 +331,20 @@ describe('DatabaseBackupComponent', () => {
       expect(exportButton().textContent).toContain('Exporting');
       expect(statusText()).toBe('Exporting to SqlServer: waiting to start…');
 
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      jasmine.clock().tick(BACKUP_POLL_MS);
       flushExportStatus({ state: 'Running', tables: 0, rows: 0, progress: 40, progressMessage: 'Copying Matches (26 of 64)' });
       fixture.detectChanges();
       // The job's progress, as its run reports it
       expect(statusText()).toBe('Exporting: Copying Matches (26 of 64)');
       expect((el().querySelector('progress[aria-label="Export progress"]') as HTMLProgressElement).value).toBe(40);
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      jasmine.clock().tick(BACKUP_POLL_MS);
       flushExportStatus({ state: 'Succeeded', provider: 'SqlServer', tables: 40, rows: 12345 });
       fixture.detectChanges();
 
       expect(statusText()).toBe('Exported to SqlServer: 40 tables, 12345 rows, checked.');
       expect(exportButton().textContent).toContain('Export');
       // Done: no more reads.
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
+      jasmine.clock().tick(BACKUP_POLL_MS * 3);
     });
 
     it('shows why the last export failed', async () => {
@@ -350,11 +355,11 @@ describe('DatabaseBackupComponent', () => {
     it('follows an export already running when the page opens, until the page closes', async () => {
       await init({ state: 'Running', provider: 'Postgres', tables: 0, rows: 0 });
       expect(exportButton().disabled).toBeTrue();
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval);
+      jasmine.clock().tick(BACKUP_POLL_MS);
       flushExportStatus({ state: 'Running', provider: 'Postgres', tables: 0, rows: 0 });
 
       fixture.destroy();
-      jasmine.clock().tick(DatabaseBackupComponent.pollInterval * 3);
+      jasmine.clock().tick(BACKUP_POLL_MS * 3);
     });
 
     it("says why the server didn't start it", async () => {

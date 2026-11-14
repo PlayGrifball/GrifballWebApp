@@ -24,9 +24,11 @@ export class TelemetryStore {
   readonly traceId = new StoreInput<string | null>();
 
   private readonly _status = rxResource({ stream: () => this.api.getTelemetryStatus() });
-  private readonly _metrics = rxResource({ params: () => this.metricsQuery.value(), stream: ({ params }) => this.api.getTelemetryMetrics(params) });
-  private readonly _logs = rxResource({ params: () => this.logsQuery.value(), stream: ({ params }) => this.api.getTelemetryLogs(params) });
-  private readonly _traces = rxResource({ params: () => this.tracesQuery.value(), stream: ({ params }) => this.api.getTelemetryTraces(params) });
+  /** Each kind is read only from a backend the server has (the status says which), and only when asked for. */
+  private readonly has = (backend: 'metrics' | 'logs' | 'traces') => this._status.hasValue() && !!this._status.value()[backend];
+  private readonly _metrics = rxResource({ params: () => this.has('metrics') ? this.metricsQuery.value() : undefined, stream: ({ params }) => this.api.getTelemetryMetrics(params) });
+  private readonly _logs = rxResource({ params: () => this.has('logs') ? this.logsQuery.value() : undefined, stream: ({ params }) => this.api.getTelemetryLogs(params) });
+  private readonly _traces = rxResource({ params: () => this.has('traces') ? this.tracesQuery.value() : undefined, stream: ({ params }) => this.api.getTelemetryTraces(params) });
   private readonly _traceDetail = rxResource({
     params: () => this.traceId.value() ?? undefined,
     stream: ({ params }) => this.api.getTelemetryTrace({ traceID: params }),

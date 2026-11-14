@@ -89,7 +89,10 @@ export class DatabaseBackupStore {
 
   /** The chosen format's backup being made, or the last one; again shortly while one is made. */
   loadDownloadStatus(): void {
-    this.backup.backupDownloadStatus({ format: this.format.value()! }).subscribe({
+    const format = this.format.value();
+    if (!format)
+      return;
+    this.backup.backupDownloadStatus({ format }).subscribe({
       next: status => this.followDownload(status),
       error: r => {
         console.log(r);
@@ -104,7 +107,9 @@ export class DatabaseBackupStore {
 
   /** Makes a backup in the chosen format on the server, followed until it's made; downloading it is a second step. */
   makeBackup(): void {
-    const format = this.format.value()!;
+    const format = this.format.value();
+    if (!format)
+      return;
     this._making.set(true);
     this.startedHere = format;
     this.backup.backupStartDownload({ format }).subscribe({
