@@ -18,6 +18,7 @@ using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
@@ -258,8 +259,9 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
         Assert.That(refused!.Message, Is.EqualTo("Match does not exist"));
     }
 
-    [Test]
-    public async Task ARescheduleRequest_IsDecided_AsTheCaller()
+    [TestCase(true, "Approved.", RescheduleStatus.Approved)]
+    [TestCase(false, "Rejected.", RescheduleStatus.Rejected)]
+    public async Task ARescheduleRequest_IsDecided_AsTheCaller(bool approve, string reply, RescheduleStatus status)
     {
         var match = await AMatch();
         var staffer = await AddUser(77, "Staffer", SiteRoles.Commissioner);
@@ -267,13 +269,32 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
         Db.MatchReschedules.Add(request);
         await Db.SaveChangesAsync();
 
-        var answer = await Commissioners(new ToolCaller(staffer.Id, [SiteRoles.Commissioner])).DecideReschedule(request.MatchRescheduleID, approve: true, "Fine by me");
+        var answer = await Commissioners(new ToolCaller(staffer.Id, [SiteRoles.Commissioner])).DecideReschedule(request.MatchRescheduleID, approve, "Fine by me");
+
+        Db.ChangeTracker.Clear();
+        var decided = await Db.MatchReschedules.SingleAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(answer, Is.EqualTo(reply));
+            Assert.That((decided.Status, decided.ApprovedByUserID), Is.EqualTo((status, (int?)staffer.Id)));
+        }
+    }
+
+    [Test]
+    public async Task AClaim_IsRejected_WithItsReason()
+    {
+        var claimant = await AddUser(78, "Claimant");
+        var claim = GamertagClaim.ClaimedByUser(claimantUserID: claimant.Id, gamertag: "Grifter1", normalizedGamertag: "GRIFTER1");
+        Db.GamertagClaims.Add(claim);
+        await Db.SaveChangesAsync();
+
+        var answer = await Sysadmins(Sysadmin).DecideGamertagClaim(claim.GamertagClaimID, approve: false, "Not yours");
 
         Db.ChangeTracker.Clear();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(answer, Is.EqualTo("Approved."));
-            Assert.That((await Db.MatchReschedules.SingleAsync()).ApprovedByUserID, Is.EqualTo(staffer.Id));
+            Assert.That(answer, Is.EqualTo("Rejected."));
+            Assert.That((await Db.GamertagClaims.SingleAsync()).Status, Is.EqualTo(GamertagClaimStatus.Rejected));
         }
     }
 
