@@ -4,7 +4,8 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Location } from '@angular/common';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import { BROWSER_NAVIGATE, LinkedAccountsComponent, LinkedLogins } from './linkedAccounts.component';
+import { LinkedAccountsComponent, LinkedLogins } from './linkedAccounts.component';
+import { BROWSER_NAVIGATE } from './linkedAccounts.store';
 
 describe('LinkedAccountsComponent', () => {
   let fixture: ComponentFixture<LinkedAccountsComponent>;
