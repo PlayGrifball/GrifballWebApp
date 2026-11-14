@@ -66,6 +66,13 @@ describe('TeamBuilderStore', () => {
     expect(store.onDeck()!.name).toBe('Cap');
   });
 
+  it('lets only the store change the season shown', () => {
+    store.show(5);
+    // @ts-expect-error the season shown is set by show(), which resets the draft with it: never from outside
+    expect(store.shownSeasonID.set).toBeUndefined();
+    expect(store.shownSeasonID()).toBe(5);
+  });
+
   it('shows the current season\'s draft for season 0, once it knows which that is', () => {
     seasons.getCurrentSeasonId.and.returnValue(of(9));
     store.show(0);
