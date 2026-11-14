@@ -66,6 +66,22 @@ public class XboxPlaceholderTests
     }
 
     [Test]
+    public async Task AnAccountInAReportedLateLeagueGame_GetsAPlaceholder_ItsALeagueGameToo()
+    {
+        _context.XboxUsers.Add(XboxUser.FromXbox(7, "Late Sub"));
+        await _context.SaveChangesAsync();
+        await SeasonMatchTestData.InALateLeagueGameAsync(_context, 7);
+
+        var made = await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(made, Is.EqualTo(1));
+            Assert.That(await _context.Users.AnyAsync(u => u.IsDummyUser && u.XboxUserID == 7), Is.True);
+        }
+    }
+
+    [Test]
     public async Task OnlyTheGivenAccounts_AndNoneForAnEmptyList()
     {
         _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "Sub One"), XboxUser.FromXbox(2, "Sub Two"));

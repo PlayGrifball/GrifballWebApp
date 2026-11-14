@@ -115,4 +115,22 @@ internal static class SeasonMatchTestData
         context.Matches.Add(match);
         await context.SaveChangesAsync();
     }
+
+    /// <summary>Puts the Xbox accounts (saved already) in a Late League match reported from Halo: a league game too.</summary>
+    public static async Task InALateLeagueGameAsync(GrifballContext context, params long[] xuids)
+    {
+        var home = User.Seed(userName: $"ll-home-{Guid.NewGuid():N}");
+        var away = User.Seed(userName: $"ll-away-{Guid.NewGuid():N}");
+        context.Users.AddRange(home, away);
+        await context.SaveChangesAsync();
+        var match = Match.Seed(Guid.NewGuid(), startTime: DateTime.UtcNow.AddHours(-3));
+        match.AddTeam(0, 5, Outcomes.Won);
+        foreach (var xuid in xuids)
+            match.AddParticipant(0, xuid, new MatchParticipantStats());
+        context.Matches.Add(match);
+        var matched = GrifballWebApp.Domain.LateLeague.MatchedMatch.Start([home.Id], [away.Id]);
+        matched.Report(match.MatchID);
+        context.MatchedMatches.Add(matched);
+        await context.SaveChangesAsync();
+    }
 }

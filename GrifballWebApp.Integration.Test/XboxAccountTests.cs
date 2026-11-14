@@ -5,6 +5,7 @@ using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Infrastructure.Historical;
 using GrifballWebApp.Server.XboxAccounts;
 using Microsoft.AspNetCore.Mvc;
@@ -105,12 +106,15 @@ public class XboxAccountTests
             await Game(new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc).AddHours(i), 4, 1, Outcomes.Won);
 
         var second = (await new XboxAccountService(_context).GetAsync(4, page: 2))!;
+        // A page past the end from the query string: empty, not an overflow the database refuses
+        var far = (await new XboxAccountService(_context).GetAsync(4, page: int.MaxValue))!;
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(second.GameCount, Is.EqualTo(XboxAccountService.PageSize + 2));
             Assert.That(second.Games, Has.Count.EqualTo(2));
             Assert.That(second.Page, Is.EqualTo(2));
+            Assert.That(far.Games, Is.Empty);
         }
     }
 
@@ -161,6 +165,35 @@ public class XboxAccountTests
             Assert.That(await _context.XboxUsers.AnyAsync(x => x.XboxUserID == 10), Is.True, "the account and its games stay");
             Assert.That(await new XboxPlaceholderCleanup(_context).RemoveAsync(), Is.Empty, "nothing left to remove");
         }
+    }
+
+    [Test]
+    public async Task TheCleanup_KeepsAPlaceholderAnythingElseNames_OrThatCarriesMoreThanItsXboxAccount()
+    {
+        // Each only in pickup games, named by no foreign key: kept for what a key-less column or the row itself holds
+        long[] xuids = [40, 41, 42, 43, 44, 45, 46];
+        foreach (var xuid in xuids)
+            _context.XboxUsers.Add(XboxUser.FromXbox(xuid, $"GT{xuid}"));
+        await _context.SaveChangesAsync();
+        var plain = User.Seed(userName: "historical:GT40", isDummyUser: true, xboxUserID: 40);
+        var merged = User.Seed(userName: "historical:GT41", isDummyUser: true, xboxUserID: 41);
+        var dismissed = User.Seed(userName: "historical:GT42", isDummyUser: true, xboxUserID: 42);
+        var discord = User.Seed(userName: "historical:GT43", isDummyUser: true, xboxUserID: 43, discordUser: DiscordUser.FromDiscord(9_300_043, "linked"));
+        var signedIn = User.Seed(userName: "historical:GT44", isDummyUser: true, xboxUserID: 44, email: "someone@example.com", passwordHash: "hash");
+        var region = User.Seed(userName: "historical:GT45", isDummyUser: true, xboxUserID: 45, regionID: 1);
+        var lateLeague = User.Seed(userName: "historical:GT46", isDummyUser: true, xboxUserID: 46);
+        _context.Users.AddRange(plain, merged, dismissed, discord, signedIn, region, lateLeague);
+        await _context.SaveChangesAsync();
+        await SeasonMatchTestData.InAPickupGameAsync(_context, xuids);
+        await SeasonMatchTestData.InALateLeagueGameAsync(_context, 46);
+        _context.UserMerges.Add(UserMerge.Record(DateTime.UtcNow, MergeTrigger.SetGamertag, null, null, 999, "gone", merged.Id, "historical:GT41", "{}", 0, 0, 0));
+        _context.DuplicateDismissals.Add(DuplicateDismissal.Dismiss(dismissed.Id, discord.Id, DateTime.UtcNow, null));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var removed = await new XboxPlaceholderCleanup(_context).RemoveAsync();
+
+        Assert.That(removed.Select(r => r.UserID), Is.EqualTo(new[] { plain.Id }));
     }
 
     [Test]
