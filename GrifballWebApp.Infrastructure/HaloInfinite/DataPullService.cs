@@ -112,8 +112,10 @@ public partial class DataPullService : IDataPullService
 
         // Grab all missing xbox users now in one go to avoid harsh rate limits when pulling one at a time
         await _getsertXboxUserService.GetsertXboxUsersByXuid([.. needToPull], ct);
-        // Subs and opponents nobody signed up as get a placeholder, so their games count in stats; their sign-up merges
-        // it. Not in SaveMatchStats: the historical import pulls through it and ties its own placeholders to the XUIDs.
+        // Players nobody signed up as who are in a league game (a sub in a game already reported, pulled again) get a
+        // placeholder, so their games count in stats; their sign-up merges it. Anyone else in a pulled game gets none: a
+        // game becomes a league game when it's reported, which makes its players' then (SeasonMatchService.ReportMatch).
+        // Not in SaveMatchStats: the historical import pulls through it and ties its own placeholders to the XUIDs.
         await new GrifballWebApp.Application.Historical.GamertagMatching(_grifballContext).EnsureXboxPlaceholdersAsync(xboxUserIds, ct);
 
         // Read once for every match, rather than once a player a match in SaveMatchStats. A query, not the players

@@ -80,4 +80,39 @@ internal static class SeasonMatchTestData
         return match;
     }
 
+    /// <summary>
+    /// Puts the Xbox accounts (saved already) in a game reported for a season match of its own: a league game, whose players
+    /// nobody signed up as get placeholders (GamertagMatching.EnsureXboxPlaceholdersAsync).
+    /// </summary>
+    public static async Task InALeagueGameAsync(GrifballContext context, params long[] xuids)
+    {
+        var season = Season.Seed(seasonName: $"League {Guid.NewGuid():N}");
+        context.Seasons.Add(season);
+        await context.SaveChangesAsync();
+        var home = Team.Seed(seasonID: season.SeasonID, teamName: "Home");
+        var away = Team.Seed(seasonID: season.SeasonID, teamName: "Away");
+        context.Teams.AddRange(home, away);
+        await context.SaveChangesAsync();
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID);
+        context.SeasonMatches.Add(seasonMatch);
+        var match = Match.Seed(Guid.NewGuid(), startTime: DateTime.UtcNow.AddHours(-1));
+        match.AddTeam(0, 5, Outcomes.Won);
+        match.AddTeam(1, 3, Outcomes.Lost);
+        foreach (var xuid in xuids)
+            match.AddParticipant(0, xuid, new MatchParticipantStats());
+        context.Matches.Add(match);
+        seasonMatch.AddGame(match, 1);
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>Puts the Xbox accounts (saved already) in a pulled game reported for no season match: a pickup custom.</summary>
+    public static async Task InAPickupGameAsync(GrifballContext context, params long[] xuids)
+    {
+        var match = Match.Seed(Guid.NewGuid(), startTime: DateTime.UtcNow.AddHours(-2));
+        match.AddTeam(0, 5, Outcomes.Won);
+        foreach (var xuid in xuids)
+            match.AddParticipant(0, xuid, new MatchParticipantStats());
+        context.Matches.Add(match);
+        await context.SaveChangesAsync();
+    }
 }

@@ -227,6 +227,30 @@ internal sealed class GamertagMatchingUnitTests : ApplicationDbContextTests
 
     // ---------- EnsureXboxPlaceholdersAsync ----------
 
+    /// <summary>The Xbox accounts (saved already) in a game: reported for a season match of its own (a league game), or not (a pickup).</summary>
+    private async Task InAGame(bool league, params long[] xuids)
+    {
+        var match = GrifballWebApp.Domain.Halo.Match.Seed(Guid.NewGuid(), startTime: DateTime.UtcNow);
+        match.AddTeam(0, 5, GrifballWebApp.Domain.Halo.Outcomes.Won);
+        foreach (var xuid in xuids)
+            match.AddParticipant(0, xuid, new GrifballWebApp.Domain.Halo.MatchParticipantStats());
+        Context.Matches.Add(match);
+        if (league)
+        {
+            var season = Season.Seed(seasonName: $"League {Guid.NewGuid():N}");
+            Context.Seasons.Add(season);
+            await Context.SaveChangesAsync();
+            var home = Team.Seed(seasonID: season.SeasonID, teamName: "Home");
+            var away = Team.Seed(seasonID: season.SeasonID, teamName: "Away");
+            Context.Teams.AddRange(home, away);
+            await Context.SaveChangesAsync();
+            var seasonMatch = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID);
+            Context.SeasonMatches.Add(seasonMatch);
+            seasonMatch.AddGame(match, 1);
+        }
+        await Context.SaveChangesAsync();
+    }
+
     [Test]
     public async Task EnsureXboxPlaceholdersAsync_NoXuids_MakesNothing()
     {
@@ -246,6 +270,7 @@ internal sealed class GamertagMatchingUnitTests : ApplicationDbContextTests
     {
         await Xbox(1, "Orphan One");
         await Xbox(2, "Orphan Two");
+        await InAGame(league: true, 1, 2);
 
         var made = await _matching.EnsureXboxPlaceholdersAsync(XuidOne, CancellationToken.None);
 
@@ -267,6 +292,7 @@ internal sealed class GamertagMatchingUnitTests : ApplicationDbContextTests
         await Xbox(2, "Held");
         Context.Users.Add(User.Seed(userName: "holder", xboxUserID: 2));
         await Context.SaveChangesAsync();
+        await InAGame(league: true, 1, 2);
 
         var made = await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
         var again = await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
@@ -276,6 +302,22 @@ internal sealed class GamertagMatchingUnitTests : ApplicationDbContextTests
             Assert.That(made, Is.EqualTo(1));
             Assert.That(again, Is.Zero);
             Assert.That(await Context.Users.CountAsync(u => u.IsDummyUser), Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task EnsureXboxPlaceholdersAsync_AnAccountOnlyInPickupGames_GetsNone()
+    {
+        // No league player: their account and games are kept, with no user
+        await Xbox(1, "Pickup Only");
+        await InAGame(league: false, 1);
+
+        var made = await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(made, Is.Zero);
+            Assert.That(await Context.Users.AnyAsync(), Is.False);
         }
     }
 

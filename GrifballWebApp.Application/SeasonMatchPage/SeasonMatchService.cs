@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
@@ -338,6 +339,9 @@ public partial class SeasonMatchService
             await ScoreSeriesAsync(seasonMatch, ct);
             await _context.SaveChangesAsync(ct);
         });
+        // A league game now: its players nobody signed up as (subs) get a placeholder, so their stats in it count
+        await new GamertagMatching(_context).EnsureXboxPlaceholdersAsync(
+            match.MatchTeams.SelectMany(t => t.MatchParticipants).Select(p => p.XboxUserID).Distinct().ToList(), ct);
         await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
     }

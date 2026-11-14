@@ -84,13 +84,17 @@ public class GamertagMatching
     }
 
     /// <summary>
-    /// Gives each Xbox account no user holds (a Waypoint opponent or sub who never signed up) a placeholder, so its games
-    /// count in stats and leaderboards; the player's sign-up merges it later (SetGamertagService). Only the given XUIDs,
-    /// or every such account when null. Idempotent. Returns how many were made.
+    /// Gives each Xbox account no user holds that played in a league game (a game reported for a season match: a sub who
+    /// never signed up, say) a placeholder, so its games count in stats and leaderboards; the player's sign-up merges it
+    /// later (SetGamertagService). Anyone else who was only in a pulled game (a pickup custom's opponent) is no league
+    /// player and gets no user: their Xbox account and games are kept, on its own page. Only the given XUIDs, or every
+    /// such account when null. Idempotent. Returns how many were made.
     /// </summary>
     public async Task<int> EnsureXboxPlaceholdersAsync(IReadOnlyCollection<long>? xuids, CancellationToken ct)
     {
-        var query = _context.XboxUsers.Where(x => !_context.Users.Any(u => u.XboxUserID == x.XboxUserID));
+        var query = _context.XboxUsers
+            .Where(x => !_context.Users.Any(u => u.XboxUserID == x.XboxUserID))
+            .Where(PlayedInALeagueGame(_context));
         if (xuids is not null)
         {
             if (xuids.Count == 0)
@@ -107,6 +111,11 @@ public class GamertagMatching
         }
         return made;
     }
+
+    /// <summary>Xbox accounts in a game reported for a season match (a series game's Halo match): the league's players, subs included.</summary>
+    public static System.Linq.Expressions.Expression<Func<XboxUser, bool>> PlayedInALeagueGame(IApplicationDbContext context)
+        => x => context.SeasonSeriesGames.Any(g => g.Match != null
+            && g.Match.MatchTeams.Any(t => t.MatchParticipants.Any(p => p.XboxUserID == x.XboxUserID)));
 
     /// <summary>
     /// Whether a placeholder's rows can be the account's under that past gamertag: none of their seasons (or Late League
