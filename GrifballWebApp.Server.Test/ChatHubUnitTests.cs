@@ -24,6 +24,8 @@ namespace GrifballWebApp.Server.Test;
 public class ChatHubUnitTests
 {
     private static readonly string[] HiThere = ["Hi ", "there"];
+    private static readonly string[] Hi = ["Hi"];
+    private static readonly string[] PlayerAndCommissioner = ["Player", "Commissioner"];
 
     private readonly IChatClientFactory _clients = Substitute.For<IChatClientFactory>();
     private readonly IAmbientCurrentUser _ambient = Substitute.For<IAmbientCurrentUser>();
@@ -136,7 +138,7 @@ public class ChatHubUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(refused, Is.EqualTo(ChatLimits.Busy));
-            Assert.That(firstTexts, Is.EqualTo(new[] { "Hi" }));
+            Assert.That(firstTexts, Is.EqualTo(Hi));
             Assert.That(third, Is.Null);
         }
     }
@@ -208,7 +210,7 @@ public class ChatHubUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(signedIn.UserID, Is.EqualTo(7));
-            Assert.That(signedIn.Roles, Is.EqualTo(new[] { "Player", "Commissioner" }));
+            Assert.That(signedIn.Roles, Is.EqualTo(PlayerAndCommissioner));
             Assert.That(signedIn.InPublic, Is.False);
             Assert.That(ChatHub.Caller(new ClaimsPrincipal(new ClaimsIdentity())), Is.SameAs(ToolCaller.Anonymous));
             Assert.That(ChatHub.Caller(null), Is.SameAs(ToolCaller.Anonymous));

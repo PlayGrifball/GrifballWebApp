@@ -707,6 +707,15 @@ public class ProgramStartupTests
         await AssertOk(client, "/health/live");
         using var hub = await client.PostAsync("/TeamsHub/negotiate?negotiateVersion=1", null);
         Assert.That(hub.StatusCode, Is.EqualTo(HttpStatusCode.OK), "The hub is mapped");
+        // The site's chat: open signed out too, its questions coming with their conversation
+        using var chat = await client.PostAsync("/" + GrifballWebApp.Server.Chat.ChatHub.Path + "/negotiate?negotiateVersion=1", null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(chat.StatusCode, Is.EqualTo(HttpStatusCode.OK), "The chat's hub is mapped, for anyone");
+            Assert.That(factory.Services.GetRequiredService<IOptions<HubOptions<GrifballWebApp.Server.Chat.ChatHub>>>().Value.MaximumReceiveMessageSize,
+                Is.EqualTo(GrifballWebApp.Server.Chat.ChatHub.MaximumReceiveMessageSize));
+            Assert.That(factory.Services.GetRequiredService<GrifballWebApp.Server.Chat.ChatLimits>(), Is.Not.Null);
+        }
 
         // Swagger outside Development, its "Try it out" calling the API under /api
         await AssertOk(client, "/swagger/index.html");
