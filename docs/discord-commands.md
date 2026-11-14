@@ -22,7 +22,7 @@ exact name, else the only one whose name has it, else (for digits that name noth
 several is refused, and the caller is asked to pick one, so a staff action never lands on a guess. With no season named,
 the season pages mean the one running now, else the latest to have started, never one still to come (the agents' tools mean the same: `SeasonService.GetCurrentOrLatestSeasonID`), and `/signup`, `/availability show` and `/admin draft` mean the next to start.
 A gamertag option (`/matches`, `/player pull`) is an Xbox account, sent as its XUID when picked. Its list has the accounts
-by current gamertag, then by a past one, shown as `Old Name (Previous Gamertag) · now New Name`, as the site's quick
+by current gamertag, then (from two characters typed) by a past one, shown as `Old Name (Previous Gamertag) · now New Name`, as the site's quick
 search lists a player by a past gamertag. A gamertag typed without picking finds an account by its current gamertag
 only: an old name finds nothing unless it is picked from the list (`CommandLookups.XboxAccount`).
 Discord has no date option, so times are typed in UTC, like `2026-11-20 20:00`.

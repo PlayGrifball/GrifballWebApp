@@ -46,6 +46,9 @@ public class XboxAccountService
 {
     public const int PageSize = 25;
 
+    /// <summary>The most past-gamertag rows <see cref="SearchAsync"/> reads: room for the accounts it lists, a renamer's few aliases each.</summary>
+    public const int MaxPastRows = 100;
+
     private readonly IApplicationDbContext _context;
 
     public XboxAccountService(IApplicationDbContext context)
@@ -97,7 +100,9 @@ public class XboxAccountService
     /// <summary>
     /// The accounts a slash command's gamertag option lists for what was typed: those whose current gamertag holds it, then
     /// those with a past gamertag holding it (one per account, none already listed by its current gamertag), each group
-    /// with the gamertags starting with it first. At most <paramref name="limit"/>; with nothing typed, no past gamertags.
+    /// with the gamertags starting with it first. At most <paramref name="limit"/>. Past gamertags are searched from
+    /// <see cref="Search.QuickSearchService.MinLength"/> characters, as the site's quick search does, reading at most
+    /// <see cref="MaxPastRows"/> of them: Discord asks on every keystroke.
     /// </summary>
     public async Task<List<XboxAccountChoice>> SearchAsync(string? query, int limit, CancellationToken ct = default)
     {
@@ -108,11 +113,13 @@ public class XboxAccountService
             .Take(limit)
             .Select(x => new XboxAccountChoice(x.XboxUserID, x.Gamertag, null))
             .ToListAsync(ct);
-        if (current.Count >= limit || q.Length == 0)
+        if (current.Count >= limit || q.Length < Search.QuickSearchService.MinLength)
             return current;
 
         var pastRows = await _context.XboxUsers.PastGamertags()
             .Where(h => h.Gamertag.Contains(q) && !h.XboxUser.Gamertag.Contains(q))
+            .OrderBy(h => h.Gamertag.StartsWith(q) ? 0 : 1).ThenBy(h => h.Gamertag).ThenBy(h => h.XboxUserID)
+            .Take(MaxPastRows)
             .Select(h => new { h.XboxUserID, Current = h.XboxUser.Gamertag, h.Gamertag, h.NormalizedGamertag, Rank = h.Gamertag.StartsWith(q) ? 0 : 1 })
             .ToListAsync(ct);
         var past = pastRows

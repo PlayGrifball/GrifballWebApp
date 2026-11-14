@@ -111,6 +111,25 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task GamertagAutocomplete_SearchesPastGamertags_OnlyFromTwoCharactersTyped()
+    {
+        var renamed = XboxUser.FromXbox(7001, "Brand New");
+        renamed.RecordPastGamertag("Old Grif", null, null, GamertagHistorySource.Manual);
+        Db.XboxUsers.Add(renamed);
+        await Db.SaveChangesAsync();
+        var autocomplete = new GamertagAutocomplete(new CommandLookups(Db, null!));
+
+        var one = (await autocomplete.GetChoicesAsync(Typed("G"), null!))!.ToList();
+        var two = (await autocomplete.GetChoicesAsync(Typed("Gr"), null!))!.ToList();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(one, Is.Empty, "one character reads no gamertag history");
+            Assert.That(two.Select(c => c.StringValue), Is.EqualTo(new[] { "id:7001" }));
+        }
+    }
+
+    [Test]
     public async Task RegionAutocomplete_OffersTheRegionsNamed_AndClearingIt()
     {
         var choices = await new RegionAutocomplete(new GrifballWebApp.Application.Profile.RegionService(Db)).GetChoicesAsync(Typed("europe"), null!);
