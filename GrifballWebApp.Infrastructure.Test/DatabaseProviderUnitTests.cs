@@ -150,6 +150,22 @@ public class DatabaseProviderUnitTests
         Assert.That(shared, Is.Empty);
     }
 
+    // Every table keeps its rows' history but these three, whose rows churn and would grow it without end: the outbox
+    // (sent messages are deleted after their retention), an import job (its heartbeat rewrites the row every few
+    // seconds) and a source's snapshots (each a whole downloaded file). A new table gets history unless it joins them here.
+    [Test]
+    public void EveryTable_KeepsHistory_ButTheOutboxImportJobsAndSnapshots()
+    {
+        using var context = Context(DatabaseProvider.SqlServer);
+
+        var withoutHistory = context.GetService<IDesignTimeModel>().Model.GetEntityTypes()
+            .Where(e => e.BaseType is null && e.GetTableName() is not null && !e.IsTemporal())
+            .Select(e => $"{e.GetSchema()}.{e.GetTableName()}")
+            .Order(StringComparer.Ordinal);
+
+        Assert.That(withoutHistory, Is.EqualTo(new[] { "Discord.Outbox", "Event.HistoricalImportJobs", "Event.HistoricalSourceSnapshots" }));
+    }
+
     // The same tables keep history as on Postgres, and each declares its triggers, so EF reads PeriodStart back
     // after a write rather than by RETURNING.
     [Test]

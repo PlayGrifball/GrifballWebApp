@@ -293,7 +293,7 @@ public partial class EntityConfigurationUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(TableOf(entity), Is.EqualTo(("Event", "ScheduleRecommendations")));
-            Assert.That(entity.IsTemporal(), Is.False, "A job's output, written once");
+            Assert.That(entity.IsTemporal(), Is.True, "Applying one is a change worth keeping");
             Assert.That(entity.FindCheckConstraint("CK_Event_ScheduleRecommendations_FitnessInRange")!.Sql, Is.EqualTo("Fitness >= 0 AND Fitness <= 1"));
             Assert.That(entity.FindCheckConstraint("CK_Event_ScheduleRecommendations_GenerationsNotNegative")!.Sql, Is.EqualTo("Generations >= 0"));
             Assert.That(entity.FindCheckConstraint("CK_Event_ScheduleRecommendations_AppliedByOnlyWhenApplied")!.Sql, Is.EqualTo("AppliedAt IS NOT NULL OR AppliedBy IS NULL"));
@@ -306,6 +306,7 @@ public partial class EntityConfigurationUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(TableOf(matchEntity), Is.EqualTo(("Event", "ScheduleRecommendationMatches")));
+            Assert.That(matchEntity.IsTemporal(), Is.True);
             Assert.That(IsIgnored(matchEntity, nameof(ScheduleRecommendationMatch.HasConflict)), Is.True, "Worked out from its flags");
             Assert.That(IndexIsUnique(matchEntity, "ScheduleRecommendationID", "SeasonMatchID"), Is.True);
             Assert.That(matchEntity.GetIndexes().ToList(), Has.Count.EqualTo(1), "Its only index");
