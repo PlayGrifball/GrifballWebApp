@@ -387,9 +387,8 @@ public static partial class SeasonStatsParser
             var stint = stints.GetValueOrDefault(group.Key.Key) + 1;
             stints[group.Key.Key] = stint;
             var games = group.Count();
-            // A stat no game records stays unrecorded (null), not 0; kills and deaths count toward the ratio either way
-            var wins = SumOpt(group.Select(p => p.Wins));
-            var losses = SumOpt(group.Select(p => p.Losses));
+            var wins = group.Sum(p => p.Wins ?? 0);
+            var losses = group.Sum(p => p.Losses ?? 0);
             var kills = group.Sum(p => p.Kills ?? 0);
             var deaths = group.Sum(p => p.Deaths ?? 0);
             var kdRatio = deaths > 0 ? Math.Round(kills / deaths, 3, MidpointRounding.AwayFromZero) : (decimal?)null;
@@ -403,19 +402,19 @@ public static partial class SeasonStatsParser
                 GamesPlayed = games,
                 Wins = wins,
                 Losses = losses,
-                WinPercent = wins is decimal won ? Math.Round(won * 100m / games, 2, MidpointRounding.AwayFromZero) : null,
-                Goals = SumOpt(group.Select(p => p.Goals)),
+                WinPercent = Math.Round(wins * 100m / games, 2, MidpointRounding.AwayFromZero),
+                Goals = group.Sum(p => p.Goals ?? 0),
                 Kills = kills,
                 Deaths = deaths,
-                Assists = SumOpt(group.Select(p => p.Assists)),
+                Assists = group.Sum(p => p.Assists ?? 0),
                 KdRatio = kdRatio,
                 KdSpread = kills - deaths,
-                CarrierKills = SumOpt(group.Select(p => p.CarrierKills)),
+                CarrierKills = group.Sum(p => p.CarrierKills ?? 0),
                 TotalSecondsPlayed = SumOpt(group.Select(p => p.TotalSecondsPlayed)),
-                Sprees = SumOpt(group.Select(p => p.Sprees)),
-                MultiKills = SumOpt(group.Select(p => p.MultiKills)),
-                Exterminations = SumOpt(group.Select(p => p.Exterminations)),
-                Betrayals = SumOpt(group.Select(p => p.Betrayals)),
+                Sprees = group.Sum(p => p.Sprees ?? 0),
+                MultiKills = group.Sum(p => p.MultiKills ?? 0),
+                Exterminations = group.Sum(p => p.Exterminations ?? 0),
+                Betrayals = group.Sum(p => p.Betrayals ?? 0),
                 HammerKills = SumOpt(group.Select(p => p.HammerKills)),
                 SwordKills = SumOpt(group.Select(p => p.SwordKills)),
                 BallKills = SumOpt(group.Select(p => p.BallKills)),

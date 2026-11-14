@@ -159,23 +159,6 @@ public class SeasonStatsParserTests
     }
 
     [Test]
-    public void PerGameWithoutAStatsColumns_LeavesThoseStatsUnrecorded_NotZero()
-    {
-        var playoffs = Playoffs(
-            Row("Team", "Player", "Games", "Goals", "Kills", "Deaths"),
-            Row("Ascended", "Regresser", 1, 2, 30, 10),
-            Row(null, "Regresser", 1, null, 20, 5));
-
-        var regresser = playoffs.Players.Single();
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That((regresser.GamesPlayed, regresser.Goals, regresser.Kills, regresser.Deaths), Is.EqualTo(((decimal?)2, (decimal?)2, (decimal?)50, (decimal?)15)));
-            Assert.That((regresser.Wins, regresser.Losses, regresser.WinPercent), Is.EqualTo(((decimal?)null, (decimal?)null, (decimal?)null)), "no Wins or Losses column");
-            Assert.That((regresser.CarrierKills, regresser.Sprees, regresser.Assists), Is.EqualTo(((decimal?)null, (decimal?)null, (decimal?)null)), "no Stops, Sprees or Assists column");
-        }
-    }
-
-    [Test]
     public void SideBySideFinals_PlayerOnATeamAlready_KeepsIt_OverTheOpponentsShortName()
     {
         var playoffs = Playoffs(
