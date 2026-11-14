@@ -1,10 +1,11 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatchDetailsService } from '@api/services/match-details.service';
+import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
+import { resourceView } from '@shared/resourceView';
 import { StoreInput } from '@shared/storeInput';
 import { map } from 'rxjs';
-import { MatchDetailsDto, parseMatchDetails } from './matchDetailsDto';
+import { parseMatchDetails } from './matchDetailsDto';
 
 /** What the page shows: loading, the match, no such match pulled, or the request failed. */
 export type MatchDetailsState = 'loading' | 'loaded' | 'notFound' | 'error';
@@ -18,15 +19,16 @@ export class MatchDetailsStore {
   readonly matchID = new StoreInput<string>();
 
   /** The match, loaded again for each match ID: a new one cancels the request still on its way (and so does leaving the page). */
-  private readonly match = rxResource({
+  private readonly match = resourceView(rxResource({
     params: () => {
       const matchID = this.matchID.value();
       return matchID === undefined ? undefined : { matchID };
     },
-    stream: ({ params }) => this.api.getMatchDetails(params).pipe(map(parseMatchDetails)),
-  });
+    // No such match: a 404, or an ID that isn't one (400)
+    stream: ({ params }) => this.api.getMatchDetails(params).pipe(nullWhenNotFound({ badRequest: true }), map(parseMatchDetails)),
+  }), null);
 
-  readonly details = computed<MatchDetailsDto | null>(() => this.match.hasValue() ? this.match.value() : null);
+  readonly details = this.match.value;
   /**
    * Loading (also before the match ID is handed over: nothing is asked for yet); loaded; no such match (none, a 404,
    * or an ID that isn't one: 400); or the request failed.
@@ -34,9 +36,8 @@ export class MatchDetailsStore {
   readonly state = computed<MatchDetailsState>(() => {
     if (this.match.isLoading() || this.match.status() === 'idle')
       return 'loading';
-    const error = this.match.error();
-    if (error)
-      return error instanceof HttpErrorResponse && (error.status === 404 || error.status === 400) ? 'notFound' : 'error';
+    if (this.match.failed())
+      return 'error';
     return this.details() ? 'loaded' : 'notFound';
   });
 }

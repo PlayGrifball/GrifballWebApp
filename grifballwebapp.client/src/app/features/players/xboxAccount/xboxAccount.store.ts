@@ -3,6 +3,7 @@ import { computed, DestroyRef, effect, inject, Injectable, signal } from '@angul
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { OnDemandJobStatusDto, XboxAccountDto } from '@api/models';
 import { XboxAccountsService } from '@api/services/xbox-accounts.service';
+import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { errorText } from '@shared/errorText';
 import { StoreInput } from '@shared/storeInput';
 import { Subscription, switchMap, takeWhile, timer } from 'rxjs';
@@ -129,14 +130,15 @@ export class XboxAccountStore {
 
   private load(xuid: string, page: number): Subscription {
     this._state.set('loading');
-    return this.api.getXboxAccount({ xboxUserID: Number(xuid), page }).subscribe({
+    // No such account: a 404, or an XUID that isn't one (400)
+    return this.api.getXboxAccount({ xboxUserID: Number(xuid), page }).pipe(nullWhenNotFound({ badRequest: true })).subscribe({
       next: account => {
         this._account.set(account);
-        this._state.set('loaded');
+        this._state.set(account ? 'loaded' : 'notFound');
       },
-      error: (error: HttpErrorResponse) => {
+      error: () => {
         this._account.set(null);
-        this._state.set(error.status === 404 || error.status === 400 ? 'notFound' : 'error');
+        this._state.set('error');
       },
     });
   }

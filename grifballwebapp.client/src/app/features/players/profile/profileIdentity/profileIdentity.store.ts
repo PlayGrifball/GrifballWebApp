@@ -1,10 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { SubmitGamertagClaimRequest, ClaimPreviewDto, GamertagClaimDto } from '@api/models';
 import { MyProfileService } from '@api/services/my-profile.service';
 import { problemText } from '@shared/errorText';
+import { resourceView } from '@shared/resourceView';
 
 /**
  * The signed-in user's identity settings: saving their region, and their gamertag claims (looking a gamertag up,
@@ -75,11 +76,11 @@ export class ProfileIdentityStore {
     });
   }
 
-  private readonly claims = rxResource({
+  private readonly claims = resourceView(rxResource({
     params: () => true,
     stream: () => this.api.getMyGamertagClaims(),
-  });
-  readonly claimsLoaded = computed(() => this.claims.hasValue());
-  readonly claimRows = computed<GamertagClaimDto[]>(() => this.claims.hasValue() ? this.claims.value() : []);
-  readonly claimsFailed = computed(() => this.claims.status() === 'error');
+  }), [] as GamertagClaimDto[]);
+  readonly claimsLoaded = this.claims.hasValue;
+  readonly claimRows = this.claims.value;
+  readonly claimsFailed = this.claims.failed;
 }

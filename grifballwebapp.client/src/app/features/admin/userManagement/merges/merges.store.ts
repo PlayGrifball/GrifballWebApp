@@ -5,6 +5,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import type { UserMergeDto } from '@api/models';
 import { UserMergesService } from '@api/services/user-merges.service';
 import { problemText } from '@shared/errorText';
+import { resourceView } from '@shared/resourceView';
 
 export const PAGE_SIZE = 25;
 
@@ -16,17 +17,17 @@ export class MergesStore {
 
   private readonly _page = signal(1);
   readonly page = this._page.asReadonly();
-  private readonly merges = rxResource({
+  private readonly merges = resourceView(rxResource({
     params: () => this.page(),
     stream: ({ params }) => this.api.getUserMerges({ pageNumber: params, pageSize: PAGE_SIZE }),
-  });
+  }), null);
 
-  readonly rows = computed<UserMergeDto[]>(() => this.merges.hasValue() ? this.merges.value().results : []);
-  readonly total = computed(() => this.merges.hasValue() ? this.merges.value().totalCount : 0);
+  readonly rows = computed<UserMergeDto[]>(() => this.merges.value()?.results ?? []);
+  readonly total = computed(() => this.merges.value()?.totalCount ?? 0);
   readonly pages = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
-  readonly loading = computed(() => this.merges.isLoading());
-  readonly failed = computed(() => this.merges.status() === 'error');
-  readonly empty = computed(() => this.merges.status() === 'resolved' && this.rows().length === 0);
+  readonly loading = this.merges.isLoading;
+  readonly failed = this.merges.failed;
+  readonly empty = computed(() => this.merges.resolved() && this.rows().length === 0);
 
   /** The merge being undone: its button waits for the answer. */
   private readonly _undoing = signal<number | null>(null);

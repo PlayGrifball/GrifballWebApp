@@ -72,6 +72,15 @@ describe('XboxAccountStore', () => {
     request(1).flush(account({ gameCount: 30 }));
   });
 
+  it('has no such account for an XUID that is not one (400)', () => {
+    store.xuid.use(signal(XUID));
+    TestBed.tick();
+    pullStatus().flush('x', { status: 400, statusText: 'Bad Request' });
+    request().flush(null, { status: 400, statusText: 'Bad Request' });
+    expect(store.state()).toBe('notFound');
+    expect(store.account()).toBeNull();
+  });
+
   it('tells no such account from a failed request', () => {
     store.xuid.use(signal(XUID));
     TestBed.tick();

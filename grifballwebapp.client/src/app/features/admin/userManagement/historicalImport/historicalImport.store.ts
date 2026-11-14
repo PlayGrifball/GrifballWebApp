@@ -1,11 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { HistoricalImportJobDto, HistoricalImportJobSummaryDto, HistoricalImportQueued, HistoricalImportScheduleDto, HistoricalSourceDto } from '@api/models';
+import type { HistoricalImportJobSummaryDto, HistoricalImportQueued, HistoricalSourceDto } from '@api/models';
 import { HistoricalImportService } from '@api/services/historical-import.service';
 import { problemText } from '@shared/errorText';
 import { EMPTY, expand, Observable, switchMap, timer } from 'rxjs';
+import { resourceView } from '@shared/resourceView';
 
 /** How often a queued or running job is looked at again. */
 export const JOB_POLL_MS = 5000;
@@ -24,27 +25,27 @@ export class HistoricalImportStore {
   private readonly api = inject(HistoricalImportService);
   private readonly snackBar = inject(MatSnackBar);
 
-  private readonly sources = rxResource({ params: () => true, stream: () => this.api.getHistoricalSources() });
-  readonly sourceRows = computed<HistoricalSourceDto[]>(() => this.sources.hasValue() ? this.sources.value() : []);
-  readonly sourcesFailed = computed(() => this.sources.status() === 'error');
-  private readonly jobs = rxResource({ params: () => true, stream: () => this.api.getHistoricalImportJobs() });
-  readonly jobRows = computed<HistoricalImportJobSummaryDto[]>(() => this.jobs.hasValue() ? this.jobs.value() : []);
-  readonly jobsLoaded = computed(() => this.jobs.hasValue());
-  readonly jobsFailed = computed(() => this.jobs.status() === 'error');
-  private readonly schedule = rxResource({ params: () => true, stream: () => this.api.getHistoricalImportSchedule() });
-  readonly scheduleValue = computed<HistoricalImportScheduleDto | null>(() => this.schedule.hasValue() ? this.schedule.value() : null);
-  readonly scheduleFailed = computed(() => this.schedule.status() === 'error');
+  private readonly sources = resourceView(rxResource({ params: () => true, stream: () => this.api.getHistoricalSources() }), [] as HistoricalSourceDto[]);
+  readonly sourceRows = this.sources.value;
+  readonly sourcesFailed = this.sources.failed;
+  private readonly jobs = resourceView(rxResource({ params: () => true, stream: () => this.api.getHistoricalImportJobs() }), [] as HistoricalImportJobSummaryDto[]);
+  readonly jobRows = this.jobs.value;
+  readonly jobsLoaded = this.jobs.hasValue;
+  readonly jobsFailed = this.jobs.failed;
+  private readonly schedule = resourceView(rxResource({ params: () => true, stream: () => this.api.getHistoricalImportSchedule() }), null);
+  readonly scheduleValue = this.schedule.value;
+  readonly scheduleFailed = this.schedule.failed;
 
   /** The job shown: looked at again every few seconds until it finishes. */
   private readonly _selectedJobID = signal<number | null>(null);
   readonly selectedJobID = this._selectedJobID.asReadonly();
-  private readonly job = rxResource({
+  private readonly job = resourceView(rxResource({
     params: () => this.selectedJobID() ?? undefined,
     stream: ({ params }) => this.api.getHistoricalImportJob({ jobID: params }).pipe(
       expand(job => isActive(job) ? timer(JOB_POLL_MS).pipe(switchMap(() => this.api.getHistoricalImportJob({ jobID: params }))) : EMPTY),
     ),
-  });
-  readonly selectedJob = computed<HistoricalImportJobDto | null>(() => this.job.hasValue() ? this.job.value() : null);
+  }), null);
+  readonly selectedJob = this.job.value;
 
   /** An action waiting for its answer: the buttons wait too. */
   private readonly _busy = signal(false);

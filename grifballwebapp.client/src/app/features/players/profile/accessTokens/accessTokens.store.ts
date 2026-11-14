@@ -1,10 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { AccessTokenDto } from '@api/models';
 import { AccessTokensService } from '@api/services/access-tokens.service';
 import { problemText } from '@shared/errorText';
+import { resourceView } from '@shared/resourceView';
 
 /** The signed-in user's access tokens: the list, making one (shown once) and revoking one. One per panel (the component provides it). */
 @Injectable()
@@ -12,13 +13,13 @@ export class AccessTokensStore {
   private readonly api = inject(AccessTokensService);
   private readonly snackBar = inject(MatSnackBar);
 
-  private readonly tokens = rxResource({
+  private readonly tokens = resourceView(rxResource({
     params: () => true,
     stream: () => this.api.getAccessTokens(),
-  });
-  readonly loaded = computed(() => this.tokens.hasValue());
-  readonly rows = computed<AccessTokenDto[]>(() => this.tokens.hasValue() ? this.tokens.value() : []);
-  readonly failed = computed(() => this.tokens.status() === 'error');
+  }), [] as AccessTokenDto[]);
+  readonly loaded = this.tokens.hasValue;
+  readonly rows = this.tokens.value;
+  readonly failed = this.tokens.failed;
 
   private readonly _creating = signal(false);
   readonly creating = this._creating.asReadonly();

@@ -2,11 +2,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { DuplicateSuggestionDto, GamertagClaimDto, GamertagClaimStatus, XuidLookupStatusDto } from '@api/models';
+import type { DuplicateSuggestionDto, GamertagClaimDto, GamertagClaimStatus } from '@api/models';
 import { GamertagClaimsService } from '@api/services/gamertag-claims.service';
 import { problemText } from '@shared/errorText';
 import { StoreInput } from '@shared/storeInput';
 import { Observable } from 'rxjs';
+import { resourceView } from '@shared/resourceView';
 
 type Decision = 'approve' | 'reject';
 
@@ -33,36 +34,36 @@ export class GamertagClaimsStore {
   /** The claims' status shown: the component's tab. */
   readonly status = new StoreInput<GamertagClaimStatus>();
 
-  private readonly claims = rxResource({
+  private readonly claims = resourceView(rxResource({
     params: () => this.status.value(),
     stream: ({ params }) => this.api.getGamertagClaims({ status: params }),
-  });
+  }), [] as GamertagClaimDto[]);
   /** The claims with the chosen status (none while they load, or if they could not be loaded). */
-  readonly rows = computed<GamertagClaimDto[]>(() => this.claims.hasValue() ? this.claims.value() : []);
-  readonly failed = computed(() => this.claims.status() === 'error');
+  readonly rows = this.claims.value;
+  readonly failed = this.claims.failed;
   /** The first load of a status (a reload after a decision keeps the list shown). */
   readonly waiting = computed(() => this.claims.status() === 'loading');
-  readonly empty = computed(() => this.claims.status() === 'resolved' && this.rows().length === 0);
+  readonly empty = computed(() => this.claims.resolved() && this.rows().length === 0);
   /** The claim being approved or rejected: its buttons wait for the answer. */
   private readonly _acting = signal<number | null>(null);
   readonly acting = this._acting.asReadonly();
 
   /** How the background lookup of placeholders' current Xbox gamertags is going (loaded once; reloaded after a lookup). */
-  private readonly xuidStatus = rxResource({ params: () => true, stream: () => this.api.getXuidLookupStatus() });
-  readonly xuidStatusValue = computed<XuidLookupStatusDto | null>(() => this.xuidStatus.hasValue() ? this.xuidStatus.value() : null);
+  private readonly xuidStatus = resourceView(rxResource({ params: () => true, stream: () => this.api.getXuidLookupStatus() }), null);
+  readonly xuidStatusValue = this.xuidStatus.value;
   private readonly _lookingUp = signal(false);
   readonly lookingUp = this._lookingUp.asReadonly();
 
   /** Possible duplicates: computed on demand (it compares every placeholder's gamertag), never merged on their own. */
   private readonly duplicatesShown = signal(false);
-  private readonly duplicates = rxResource({
+  private readonly duplicates = resourceView(rxResource({
     params: () => this.duplicatesShown() || undefined,
     stream: () => this.api.getDuplicateSuggestions(),
-  });
-  readonly duplicateRows = computed<DuplicateSuggestionDto[]>(() => this.duplicates.hasValue() ? this.duplicates.value() : []);
-  readonly duplicatesLoaded = computed(() => this.duplicates.hasValue());
-  readonly duplicatesLoading = computed(() => this.duplicates.isLoading());
-  readonly duplicatesFailed = computed(() => this.duplicates.status() === 'error');
+  }), [] as DuplicateSuggestionDto[]);
+  readonly duplicateRows = this.duplicates.value;
+  readonly duplicatesLoaded = this.duplicates.hasValue;
+  readonly duplicatesLoading = this.duplicates.isLoading;
+  readonly duplicatesFailed = this.duplicates.failed;
   /** The pair being merged or dismissed: its buttons wait for the answer. */
   private readonly _actingPair = signal<string | null>(null);
   readonly actingPair = this._actingPair.asReadonly();
