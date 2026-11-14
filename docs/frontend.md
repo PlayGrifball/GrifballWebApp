@@ -59,6 +59,12 @@ store. `profileCommendations` is the smallest example, `xboxAccount` one with pa
   `this.store.userID.use(this.userID);`. The store then follows the input, with no effect copying it across.
 - **What the component does after a call** (clear the form, emit an output) it passes as a callback:
   `this.store.create(name, days, () => this.name.set(''));`.
+- **A form filled from the server** is a `linkedSignal` of the store's copy: `readonly model = linkedSignal(() =>
+  this.store.season() ?? newSeason());`. The store keeps what the server sent; edits change only the form, which starts
+  over whenever the store's copy is replaced. So a store never replaces that copy while the user may be editing it:
+  not to refresh it after a save. What a save answers (a new ID, say) goes into the form through the save's callback.
+- **Drawing with a library that doesn't read signals** (the playoff bracket's viewer) stays in the component: one
+  effect on the store's data draws it, or clears it when there is none. The store doesn't touch the page.
 - **Each store has its own spec** (`<name>.store.spec.ts`), which injects it with `HttpTestingController` and tests
   its calls, answers and failures without a template. The component's spec stays as it was: rendering and the user's
   actions, through the real store. A resource's value comes a microtask after the answer, so a spec waits for
