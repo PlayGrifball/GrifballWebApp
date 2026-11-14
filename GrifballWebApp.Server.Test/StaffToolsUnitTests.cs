@@ -18,6 +18,7 @@ using GrifballWebApp.Application.Stats;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Application.Profile;
+using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
@@ -49,6 +50,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
     private readonly IDataPullService _dataPull = Substitute.For<IDataPullService>();
     private readonly IJobControl _jobs = Substitute.For<IJobControl>();
     private readonly IScheduleRecommendationRuns _runs = Substitute.For<IScheduleRecommendationRuns>();
+    private readonly IBracketService _brackets = Substitute.For<IBracketService>();
 
     private SeasonService Seasons() => new(Db, new SeasonStatsService(Db), Visibility());
 
@@ -67,7 +69,7 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
     private CommissionerTools Commissioners(ToolCaller caller) => new(caller, Seasons(), Visibility(),
         new RescheduleService(Db, Substitute.For<IOutbox>()),
         new SeasonMatchService(Db, _dataPull, Substitute.For<IBracketService>(), new ChampionshipService(Db)),
-        new MatchPlannerService(Db), Substitute.For<IBracketService>(),
+        new MatchPlannerService(Db), _brackets,
         new TeamService(Db, Substitute.For<IPublisher>(), Substitute.For<IDraftChannel>(), Substitute.For<IDatabaseLocks>()), Recommendations(), _runs);
 
     private SysadminTools Sysadmins(ToolCaller caller) => new(caller, Claims(), _dataPull, _jobs);
@@ -235,5 +237,107 @@ public class StaffToolsUnitTests : SqliteGrifballContextFixture
             Assert.That(ran.State, Is.EqualTo(OnDemandJobState.Queued));
             Assert.That(refused!.Message, Is.EqualTo("There is no recommendation 987654, or it was applied already."));
         }
+    }
+
+    [TestCase("away", "Forfeited (away).")]
+    [TestCase("BOTH", "Forfeited (both).")]
+    public async Task EitherSide_OrBoth_CanForfeit(string side, string answer)
+    {
+        var match = await AMatch();
+
+        Assert.That(await Commissioners(Commissioner).ForfeitSeasonMatch(match, side), Is.EqualTo(answer));
+    }
+
+    [Test]
+    public async Task AGameThatIsntThere_IsTheMatchServicesRefusal()
+    {
+        var match = await AMatch();
+
+        var refused = Assert.CatchAsync(() => Commissioners(Commissioner).ReportSeasonMatchGame(match, Guid.Parse("00000000-0000-0000-0000-0000000000c2")));
+
+        Assert.That(refused!.Message, Is.EqualTo("Match does not exist"));
+    }
+
+    [Test]
+    public async Task ARescheduleRequest_IsDecided_AsTheCaller()
+    {
+        var match = await AMatch();
+        var staffer = await AddUser(77, "Staffer", SiteRoles.Commissioner);
+        var request = MatchReschedule.Request(match, null, null, "Away all week", staffer.Id, new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc));
+        Db.MatchReschedules.Add(request);
+        await Db.SaveChangesAsync();
+
+        var answer = await Commissioners(new ToolCaller(staffer.Id, [SiteRoles.Commissioner])).DecideReschedule(request.MatchRescheduleID, approve: true, "Fine by me");
+
+        Db.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(answer, Is.EqualTo("Approved."));
+            Assert.That((await Db.MatchReschedules.SingleAsync()).ApprovedByUserID, Is.EqualTo(staffer.Id));
+        }
+    }
+
+    [Test]
+    public async Task ALocalTime_IsTakenAsUtc()
+    {
+        var match = await AMatch();
+        var local = new DateTime(2026, 11, 20, 20, 0, 0, DateTimeKind.Local);
+
+        await Commissioners(Commissioner).SetSeasonMatchTime(match, local);
+
+        Assert.That((await Db.SeasonMatches.AsNoTracking().SingleAsync(m => m.SeasonMatchID == match)).ScheduledTime, Is.EqualTo(local.ToUniversalTime()));
+    }
+
+    [Test]
+    public async Task ASeasonLeftOut_IsTheOneItsPurposeMeans()
+    {
+        var match = await AMatch();
+        var season = (await Db.SeasonMatches.AsNoTracking().SingleAsync(m => m.SeasonMatchID == match)).SeasonID;
+        var tools = Commissioners(Commissioner);
+
+        var generated = await tools.GenerateSeasonMatches(1, 3);
+        var bracket = await tools.CreateSeasonBracket(2, doubleElimination: true, 3);
+        var seeded = await tools.SeedSeasonBracket();
+        var unlocked = await tools.SetCaptainsLocked(false);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(generated, Is.EqualTo("The matches are made."));
+            Assert.That(await Db.SeasonMatches.CountAsync(m => m.SeasonID == season), Is.EqualTo(2), "each team at home once");
+            Assert.That(bracket, Is.EqualTo("The bracket is made."));
+            Assert.That(seeded, Is.EqualTo("The bracket is seeded by the standings."));
+            Assert.That(unlocked, Is.EqualTo("The captains are unlocked."));
+        }
+        await _brackets.Received(1).CreateBracket(2, season, true, 3, Arg.Any<CancellationToken>());
+        await _brackets.Received(1).SetSeeds(season, ct: Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task NoSeasonAtAll_IsRefused_ForASeasonLeftOut()
+    {
+        var refused = await Assert.ThrowsAsync<ToolException>(() => Commissioners(Commissioner).SeedSeasonBracket());
+
+        Assert.That(refused!.Message, Is.EqualTo("There is no season to do that to: name one (list_seasons has their IDs)."));
+    }
+
+    [Test]
+    public async Task ARecommendation_IsApplied()
+    {
+        var season = await AddSeason("Winter");
+        var match = await AddSeasonMatch(season, await AddTeam(season, "Home"), await AddTeam(season, "Away"));
+        var recommendation = ScheduleRecommendation.Propose(season.SeasonID, "commish", 0.75, 10,
+            [new ProposedMatchTime(match.SeasonMatchID, new DateTime(2026, 11, 20, 20, 0, 0, DateTimeKind.Utc), false, true, true)]);
+        Db.ScheduleRecommendations.Add(recommendation);
+        await Db.SaveChangesAsync();
+
+        Assert.That(await Commissioners(Commissioner).ApplyScheduleRecommendation(recommendation.ScheduleRecommendationID), Is.EqualTo("1 matches are scheduled."));
+    }
+
+    [Test]
+    public async Task ApprovingAClaimThatIsntThere_IsTheClaimServicesRefusal()
+    {
+        var refused = await Assert.ThrowsAsync<GamertagClaimException>(() => Sysadmins(Sysadmin).DecideGamertagClaim(987654, approve: true));
+
+        Assert.That(refused!.Message, Does.Contain("There is no claim 987654"));
     }
 }

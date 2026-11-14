@@ -80,7 +80,7 @@ public static class GrifMcp
             user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList()) { Name = user.Identity?.Name };
 
     /// <summary>
-    /// An MCP tool for each tool method of <paramref name="sets"/>, named as <see cref="GrifTools.Name"/> says, its annotations
+    /// An MCP tool for each tool method of <paramref name="sets"/>, named as <see cref="GrifTools.Name(System.Reflection.MethodInfo)"/> says, its annotations
     /// telling clients what it does (they ask before a tool that isn't read-only). Each call gets a new instance from the
     /// request's services, as the request's user (<see cref="GrifTools.Factory"/>).
     /// </summary>
