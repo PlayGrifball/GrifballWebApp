@@ -170,6 +170,7 @@ public class Program
             // A property that refers to another schema can be null too (allOf around the $ref: OpenAPI 3.0 has no other way)
             option.UseAllOfToExtendReferenceSchemas();
             option.SchemaFilter<EveryPropertyRequiredFilter>();
+            option.SchemaFilter<NumberEnumSchemaFilter>();
             option.OperationFilter<JsonOnlyOperationFilter>();
             option.OperationFilter<JsonNamedQueryParametersFilter>();
             option.DocumentFilter<HubSchemasDocumentFilter>();
