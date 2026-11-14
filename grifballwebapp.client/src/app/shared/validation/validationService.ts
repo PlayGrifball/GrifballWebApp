@@ -1,6 +1,7 @@
 /** What a validator's error says about itself (Angular's minlength/maxlength, and ours). */
 export interface ValidatorDetails {
     requiredLength?: number,
+    actualLength?: number,
     errorMessage?: string,
     otherControlName?: string,
 }

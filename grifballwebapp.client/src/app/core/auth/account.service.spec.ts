@@ -292,7 +292,7 @@ describe('AccountService', () => {
 
     it('generates a reset link for a user', () => {
       const request = { username: 'bob' };
-      let response: unknown;
+      let response: { resetLink?: string | null } | undefined;
       service.generatePasswordResetLink(request).subscribe(r => response = r);
 
       http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
@@ -300,7 +300,7 @@ describe('AccountService', () => {
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toBe(request);
       req.flush({ resetLink: 'https://example/reset?t=abc', expiresAt: '2026-01-01T00:00:00Z' });
-      expect(response.resetLink).toBe('https://example/reset?t=abc');
+      expect(response?.resetLink).toBe('https://example/reset?t=abc');
     });
 
     it('resets a password and returns the plain-text message', () => {

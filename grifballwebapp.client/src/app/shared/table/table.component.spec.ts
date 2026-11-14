@@ -9,14 +9,15 @@ import { of } from 'rxjs';
 import { PaginationParams } from '../getPaginationResource';
 import { PaginationResult } from '../paginationResult';
 
+interface TestData {
+  id: number;
+  name: string;
+}
+
 describe('TableComponent', () => {
   let component: TableComponent<TestData>;
   let fixture: ComponentFixture<TableComponent<TestData>>;
 
-  interface TestData {
-    id: number;
-    name: string;
-  }
 
   const testColumns: Column<TestData>[] = [
     {

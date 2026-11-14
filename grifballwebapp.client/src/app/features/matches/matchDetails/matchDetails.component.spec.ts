@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { describeMatch, MatchDetailsComponent, teamName } from './matchDetails.component';
 import { formatSeconds, fromApiTimeSpan, MatchDetailsTeamDto, parseMatchDetails } from './matchDetailsDto';
-import type { MatchDetailsDto as ApiMatchDetailsDto } from '@api/models';
+import type { MatchDetailsDto as ApiMatchDetailsDto, MatchDetailsPlayerDto as ApiMatchDetailsPlayerDto } from '@api/models';
 
 const MATCH_ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
 const URL = '/api/matches/' + MATCH_ID;
@@ -17,7 +17,7 @@ const player = (gamertag: string, overrides: Record<string, unknown> = {}) => ({
   objectivesCompleted: 0, joinedInProgress: false, leftInProgress: false,
   medals: [{ medalID: 1, name: 'Grand Slam', description: 'Score a goal', type: 'Mode', difficulty: 'Normal', count: 2 }],
   ...overrides,
-}) as unknown as ApiMatchDetailsDto;
+}) as unknown as ApiMatchDetailsPlayerDto;
 
 /** The match as the API sends it. */
 const apiMatch = (overrides: Record<string, unknown> = {}) => ({
@@ -32,7 +32,7 @@ const apiMatch = (overrides: Record<string, unknown> = {}) => ({
   ],
   medals: [{ medalID: 1, name: 'Grand Slam', description: 'Score a goal', type: 'Mode', difficulty: 'Normal', count: 2 }],
   ...overrides,
-});
+}) as unknown as ApiMatchDetailsDto;
 
 describe('matchDetailsDto', () => {
   it('reads a TimeSpan as seconds', () => {
