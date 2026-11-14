@@ -46,6 +46,8 @@ public record MatchDetailsPlayerDto
 {
     /// <summary>The site's user for the Xbox account, when there is one (their profile).</summary>
     public required int? UserID { get; set; }
+    /// <summary>The player's Xbox account: its own page has their saved games, account or not.</summary>
+    public required long XboxUserID { get; set; }
     public required string Gamertag { get; set; }
     /// <summary>Grifball goals as <see cref="GrifballWebApp.Application.Stats.GrifballGoals"/> reads them (a custom mode's decoded, #217);
     /// null when they can't be read yet.</summary>

@@ -79,6 +79,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<ChampionshipService>();
         services.AddTransient<SeasonMatchService>();
         services.AddTransient<MatchDetailsService>();
+        services.AddTransient<XboxAccounts.XboxAccountService>();
         services.AddTransient<TeamStandingsService>();
         services.AddTransient<ISetGamertagService, SetGamertagService>();
         services.AddTransient<GradesService>();
