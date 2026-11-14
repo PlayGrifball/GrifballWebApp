@@ -503,7 +503,7 @@ public class RescheduleServiceWorkflowTests
             Assert.That(dto.RequestedByGamertag, Is.EqualTo("GT_requester"));
             Assert.That(dto.Reason, Is.EqualTo("Cannot make it"));
             Assert.That(dto.Status, Is.EqualTo(RescheduleStatus.Pending));
-            Assert.That(dto.DiscordThreadID, Is.EqualTo(99UL));
+            Assert.That(dto.DiscordThreadID, Is.EqualTo("99"), "as text: a Discord ID is past what a JavaScript number holds");
             Assert.That(dto.OriginalScheduledTime, Is.EqualTo(t0.AddDays(1)));
             Assert.That(dto.NewScheduledTime, Is.EqualTo(t0.AddDays(5)));
             Assert.That(dto.RequestedAt, Is.EqualTo(t0.AddHours(2)));
