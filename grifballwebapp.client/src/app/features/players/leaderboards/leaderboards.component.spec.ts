@@ -7,7 +7,8 @@ import { LeaderboardsComponent } from './leaderboards.component';
 import { By } from '@angular/platform-browser';
 import type { LeaderboardsDto } from '@api/models';
 import type { LeaderboardFilter, PlayerAllTimeRankDto } from '@api/models';
-import { PlayerSearchComponent, SEARCH_DEBOUNCE_MS } from './playerSearch/playerSearch.component';
+import { PlayerSearchComponent } from './playerSearch/playerSearch.component';
+import { SEARCH_DEBOUNCE_MS } from './playerSearch/playerSearch.store';
 
 describe('LeaderboardsComponent', () => {
   let fixture: ComponentFixture<LeaderboardsComponent>;

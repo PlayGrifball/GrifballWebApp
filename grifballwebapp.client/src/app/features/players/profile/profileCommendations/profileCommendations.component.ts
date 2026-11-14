@@ -1,8 +1,7 @@
 import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
-import { ProfileService } from '@api/services/profile.service';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import type { CommendationDto, ProfileCommendationsDto } from '@api/models';
+import { ProfileCommendationsStore } from './profileCommendations.store';
 
 // Re-exported for this page's own spec, which imports them from here (kept, to not churn an unrelated import).
 export type { CommendationDto, ProfileCommendationsDto };
@@ -22,19 +21,20 @@ export function tierProgress(c: CommendationDto): number {
   templateUrl: './profileCommendations.component.html',
   styleUrl: './profileCommendations.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [ProfileCommendationsStore],
 })
 export class ProfileCommendationsComponent {
-  private api = inject(ProfileService);
+  private readonly store = inject(ProfileCommendationsStore);
 
   readonly userID = input.required<number>();
 
-  readonly commendations = rxResource({
-    params: () => this.userID(),
-    stream: ({ params }) => this.api.getCommendations({ userID: params }),
-  });
-
-  readonly data = computed<ProfileCommendationsDto | null>(() => this.commendations.hasValue() ? this.commendations.value() : null);
-  readonly failed = computed(() => this.commendations.status() === 'error');
+  readonly loading = this.store.loading;
+  readonly data = this.store.data;
+  readonly failed = this.store.failed;
 
   readonly progress = tierProgress;
+
+  constructor() {
+    this.store.userID.use(this.userID);
+  }
 }

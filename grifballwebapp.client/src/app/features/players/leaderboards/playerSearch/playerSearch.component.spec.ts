@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
-import { onlyMatch, PlayerSearchComponent, sameIgnoringCase, SEARCH_DEBOUNCE_MS } from './playerSearch.component';
+import { onlyMatch, PlayerSearchComponent, sameIgnoringCase } from './playerSearch.component';
+import { SEARCH_DEBOUNCE_MS } from './playerSearch.store';
 import type { QuickSearchPlayerDto } from '@api/models';
 
 describe('PlayerSearchComponent', () => {

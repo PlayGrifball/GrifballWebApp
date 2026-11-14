@@ -54,13 +54,13 @@ describe('AccessTokensComponent', () => {
     expect(rows[1].querySelector('.at-expired')!.textContent).toContain('expired');
   });
 
-  it('says when there are none, and when they cannot be loaded', async () => {
+  it('says when there are none', async () => {
     http.expectOne(listUrl).flush([]);
     await settle();
     expect(el().textContent).toContain('None yet.');
+  });
 
-    fixture.componentInstance.tokens.reload();
-    fixture.detectChanges();
+  it('says when they cannot be loaded', async () => {
     http.expectOne(listUrl).flush('down', { status: 500, statusText: 'Server Error' });
     await settle();
     expect(el().querySelector('[role="alert"]')!.textContent).toContain("couldn't be loaded");

@@ -3,7 +3,7 @@
   <h2 id="commendations-heading" class="hud-h2">Commendations</h2>
 </div>
 
-@if (commendations.isLoading()) {
+@if (loading()) {
   <p class="hud-muted empty-state">Loading commendations&hellip;</p>
 } @else if (failed()) {
   <p class="hud-muted empty-state">Couldn't load commendations.</p>

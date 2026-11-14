@@ -4,7 +4,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { signal, WritableSignal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { AccountService } from '@core/auth/account.service';
-import { PULL_POLL_MS, XboxAccountComponent } from './xboxAccount.component';
+import { XboxAccountComponent } from './xboxAccount.component';
+import { PULL_POLL_MS } from './xboxAccount.store';
 import type { OnDemandJobStatusDto, XboxAccountDto, XboxAccountGameDto } from '@api/models';
 
 const XUID = '2535400000000042';
