@@ -75,6 +75,13 @@
   color: var(--hud-heading);
 }
 
+// The requester's profile: a full tap target too, as their name may wrap in the narrow column
+.cd-requester {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
 .cd-reason { overflow-wrap: anywhere; }
 
 // A request whose match can no longer move: Reject only, with the reason under it.
