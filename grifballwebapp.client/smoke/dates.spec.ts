@@ -1,6 +1,5 @@
 import { expect, hydrated, test } from './fixtures';
 import { createLeague, createLockedOutUser, type League } from './league';
-import type { UserResponseDto } from './api';
 
 // Dates through the date pickers: the season editor shows the season's dates, and saving a user
 // with a permanent lockout (DateTimeOffset.MaxValue) without touching it keeps it.
@@ -63,7 +62,7 @@ test.describe('dates', () => {
     await page.getByRole('button', { name: 'Update User' }).click();
     expect((await saved).status()).toBe(204);
 
-    const after = await admin.get<UserResponseDto>(`users/${user.userID}`);
+    const after = await admin.get('getUser', `users/${user.userID}`);
     expect(after.displayName).toBe(displayName);
     expect(after.lockoutEnd).toBe(user.lockoutEnd);
   });

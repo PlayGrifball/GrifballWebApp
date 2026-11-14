@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import type { TimeslotDto } from './api';
+import type { SignupBodyDto } from '../src/generated/api/models';
 import { expect, test } from './fixtures';
 import { createLeague, ensureGamertag, type League } from './league';
 import { LEAGUE_TIME_ZONE } from '../src/app/shared/leagueTimeZone';
@@ -63,11 +63,12 @@ test.describe('signup form', () => {
     const upsert = page.waitForRequest(r => /\/api\/seasons\/\d+\/signups\/mine$/i.test(r.url()) && r.method() === 'POST');
     await page.getByRole('button', { name: 'Submit' }).click();
     const request = await upsert;
-    const sent = request.postDataJSON() as { seasonID?: number; timeslots: TimeslotDto[] };
+    // The signup as the API takes it, and a seasonID it doesn't (the URL carries the season): checked to be absent
+    const sent = request.postDataJSON() as SignupBodyDto & { seasonID?: number };
     await expect(page.getByText('Signup Submitted')).toBeVisible();
 
     // The payload names slots by the season's optionIDs.
-    const options = await admin.get<TimeslotDto[]>(`seasons/${league.seasonID}/signups/mine/timeslots?offset=0`);
+    const options = await admin.get('getTimeslots', `seasons/${league.seasonID}/signups/mine/timeslots?offset=0`);
     const optionID = new Map(options.map(o => [key(o), o.optionID]));
     const wanted = ['Monday 19:00:00', 'Monday 21:00:00', 'Tuesday 21:00:00',
       'Wednesday 19:00:00', 'Wednesday 20:00:00', 'Wednesday 21:00:00', 'Wednesday 22:00:00'];
@@ -79,7 +80,7 @@ test.describe('signup form', () => {
     expect(sentTicked.map(key).sort()).toEqual([...wanted].sort());
 
     // The server kept exactly those, and the form shows them again after a reload.
-    const saved = await admin.get<{ timeslots: TimeslotDto[] }>(`seasons/${league.seasonID}/signups/mine?offset=0`);
+    const saved = await admin.get('getSignup', `seasons/${league.seasonID}/signups/mine?offset=0`);
     expect(saved.timeslots.filter(t => t.isChecked).map(key).sort()).toEqual([...wanted].sort());
 
     await page.reload();

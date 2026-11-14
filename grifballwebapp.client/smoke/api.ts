@@ -1,4 +1,5 @@
 import { request, type APIRequestContext, type APIResponse } from '@playwright/test';
+import { wrongCall, type AnswerOf, type BodyOf, type Operation } from '../e2e/apiOperations.mts';
 import type { Credentials } from './env';
 
 /**
@@ -40,16 +41,23 @@ export class Api {
     this.token = await Api.token(this.http, this.credentials);
   }
 
-  async get<T>(path: string): Promise<T> {
+  /**
+   * GET /api/`path`, the API's `operation` (its name in the generated client): answered as that operation answers, and
+   * refused before it is sent when `path` isn't that operation's (the call the test means has moved or never was).
+   */
+  async get<K extends Operation>(operation: K, path: string): Promise<AnswerOf<K>> {
+    checkCall(operation, 'GET', path);
     const res = await this.http.get(`/api/${path}`, { headers: this.headers() });
     await ok(res, `GET ${path}`);
-    return body<T>(res);
+    return body<AnswerOf<K>>(res);
   }
 
-  async post<T = unknown>(path: string, data?: unknown): Promise<T> {
+  /** POST /api/`path`, the API's `operation`, with the request body it takes: as get(). */
+  async post<K extends Operation>(operation: K, path: string, data?: BodyOf<K>): Promise<AnswerOf<K>> {
+    checkCall(operation, 'POST', path);
     const res = await this.http.post(`/api/${path}`, { headers: this.headers(), data });
     await ok(res, `POST ${path}`);
-    return body<T>(res);
+    return body<AnswerOf<K>>(res);
   }
 
   async dispose(): Promise<void> {
@@ -71,6 +79,13 @@ export async function register(baseURL: string, credentials: Credentials): Promi
   }
 }
 
+/** A call to the operation the test names, or an error saying what the operation is instead. */
+function checkCall(operation: Operation, method: string, path: string): void {
+  const wrong = wrongCall(operation, method, '/api/' + path);
+  if (wrong)
+    throw new Error(wrong);
+}
+
 async function ok(res: APIResponse, what: string): Promise<void> {
   if (!res.ok()) {
     throw new Error(`${what}: HTTP ${res.status()} ${(await res.text()).slice(0, 500)}`);
@@ -80,44 +95,4 @@ async function ok(res: APIResponse, what: string): Promise<void> {
 async function body<T>(res: APIResponse): Promise<T> {
   const text = await res.text();
   return (text ? JSON.parse(text) : undefined) as T;
-}
-
-// Shapes of the server's DTOs, only the fields the suite uses.
-
-export interface SeasonDto {
-  seasonID: number;
-  seasonName: string;
-  signupsOpen: string;
-  signupsClose: string;
-  draftStart: string;
-  seasonStart: string;
-  seasonEnd: string;
-  /** The game the season is played on: the server requires it for a new season (6 is Halo Infinite). */
-  gameVersionID?: number | null;
-}
-
-export interface TimeslotDto {
-  optionID: number;
-  dayOfWeek: string;
-  time: string;
-  isChecked: boolean;
-}
-
-export interface RoleDto { roleName: string; hasRole: boolean }
-
-export interface UserResponseDto {
-  userID: number;
-  userName: string;
-  displayName: string | null;
-  lockoutEnd: string | null;
-  lockoutEnabled: boolean;
-  roles: RoleDto[];
-  [key: string]: unknown;
-}
-
-export interface TeamResponseDto {
-  teamID: number;
-  teamName: string;
-  captain: { name: string; personID: number; order: number };
-  players: { name: string; personID: number; round: number | null }[];
 }

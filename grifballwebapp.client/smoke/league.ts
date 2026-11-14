@@ -1,4 +1,5 @@
-import { Api, register, type SeasonDto, type TimeslotDto, type UserResponseDto } from './api';
+import type { DayOfWeek, SeasonDto, UserResponseDto } from '../src/generated/api/models';
+import { Api, register } from './api';
 import { randomBytes } from 'node:crypto';
 import { smokeRunId, type Credentials } from './env';
 
@@ -12,7 +13,10 @@ import { smokeRunId, type Credentials } from './env';
 // it out of the home page's open signups and current/upcoming events. Leftovers are harmless:
 // a closed season and players with random passwords nobody knows.
 
-export const DAYS = ['Monday', 'Tuesday', 'Wednesday'];
+/** The default league's ID (League.DefaultLeagueID): the app's own seasons are its. */
+const DEFAULT_LEAGUE_ID = 1;
+
+export const DAYS: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday'];
 export const TIMES = ['19:00:00', '20:00:00', '21:00:00', '22:00:00'];
 
 /** Far-future season dates: never the current season, and easy to recognise in a date picker. */
@@ -65,12 +69,23 @@ export async function createLeague(baseURL: string, admin: Api, label: string,
     seasonID: 0,
     seasonName: name,
     gameVersionID: 6,
+    // What the server takes when they're left out (SeasonDto.cs): the default league, a league season, public now,
+    // nothing copied from another season
+    leagueID: DEFAULT_LEAGUE_ID,
+    format: 'LeagueSeason',
+    division: null,
+    publicAt: null,
+    signupsCount: 0,
+    copyFromSeasonID: null,
+    copyAvailability: false,
+    copySignups: false,
+    copyTeams: false,
     signupsOpen: new Date(now - day).toISOString(),
     signupsClose: new Date(now + 7 * day).toISOString(),
     ...FUTURE,
   };
-  const seasonID = await admin.post<number>('seasons/settings', season);
-  await admin.post(`seasons/${seasonID}/availability`, {
+  const seasonID = await admin.post('upsertSeason', 'seasons/settings', season);
+  await admin.post('updateSeasonAvailability', `seasons/${seasonID}/availability`, {
     seasonID,
     timeslots: DAYS.flatMap(dayOfWeek => TIMES.map(time => ({ dayOfWeek, time }))),
   });
@@ -87,7 +102,7 @@ export async function createLeague(baseURL: string, admin: Api, label: string,
 
   const captains = players.slice(0, captainCount);
   for (const [i, captain] of captains.entries()) {
-    await admin.post(`seasons/${seasonID}/draft/captains`, { seasonID, personID: captain.userID, orderNumber: i + 1 });
+    await admin.post('addCaptain', `seasons/${seasonID}/draft/captains`, { seasonID, personID: captain.userID, orderNumber: i + 1 });
   }
 
   return {
@@ -106,15 +121,14 @@ async function createPlayer(baseURL: string, admin: Api, username: string, seaso
   const { credentials, user, api } = await newUser(baseURL, admin, username);
   try {
     // Signing up takes a gamertag: the user name, which a preview makes up (PreviewSmokeXboxUsers) rather than look up
-    await admin.post(`users/${user.userID}`, {
+    await admin.post('editUser', `users/${user.userID}`, {
       ...user,
       gamertag: username,
       roles: user.roles.map(r => ({ ...r, hasRole: r.hasRole || r.roleName === 'Player' })),
     });
     await api.relogin(); // Roles are in the token.
-    const timeslots = await api.get<TimeslotDto[]>(`seasons/${seasonID}/signups/mine/timeslots?offset=0`);
-    await api.post(`seasons/${seasonID}/signups/mine`, {
-      seasonID,
+    const timeslots = await api.get('getTimeslots', `seasons/${seasonID}/signups/mine/timeslots?offset=0`);
+    await api.post('upsertSignup', `seasons/${seasonID}/signups/mine`, {
       teamName: captainOf,
       willCaptain: captainOf !== null,
       requiresAssistanceDrafting: false,
@@ -132,16 +146,16 @@ async function createPlayer(baseURL: string, admin: Api, username: string, seaso
  * gamertag. A preview makes up any gamertag starting "smoke-" (PreviewSmokeXboxUsers), and the smoke users' names do.
  */
 export async function ensureGamertag(admin: Api, userID: number): Promise<void> {
-  const user = await admin.get<UserResponseDto>(`users/${userID}`);
-  if (!user['gamertag'])
-    await admin.post(`users/${userID}`, { ...user, gamertag: user.userName });
+  const user = await admin.get('getUser', `users/${userID}`);
+  if (!user.gamertag)
+    await admin.post('editUser', `users/${userID}`, { ...user, gamertag: user.userName });
 }
 
 export async function createLockedOutUser(baseURL: string, admin: Api): Promise<UserResponseDto> {
   const { user, api } = await newUser(baseURL, admin, `smoke-${smokeTag()}-lock`);
   await api.dispose();
-  await admin.post(`users/${user.userID}`, { ...user, lockoutEnd: '9999-12-31T23:59:59.9999999+00:00' });
-  return admin.get<UserResponseDto>(`users/${user.userID}`);
+  await admin.post('editUser', `users/${user.userID}`, { ...user, lockoutEnd: '9999-12-31T23:59:59.9999999+00:00' });
+  return admin.get('getUser', `users/${user.userID}`);
 }
 
 /**
@@ -153,7 +167,7 @@ export async function newUser(baseURL: string, admin: Api, username: string):
   const credentials = { username, password: randomPassword() };
   await register(baseURL, credentials);
   const api = await Api.login(baseURL, credentials);
-  const user = await admin.get<UserResponseDto>(`users/${api.userID}`);
+  const user = await admin.get('getUser', `users/${api.userID}`);
   return { credentials, user, api };
 }
 
@@ -161,7 +175,7 @@ export async function newUser(baseURL: string, admin: Api, username: string):
 async function closeSeason(admin: Api, season: SeasonDto): Promise<void> {
   try {
     await admin.relogin(); // A long run outlives the 15-minute token.
-    await admin.post('seasons/settings', {
+    await admin.post('upsertSeason', 'seasons/settings', {
       ...season,
       signupsOpen: '2001-01-01T00:00:00Z',
       signupsClose: '2001-01-02T00:00:00Z',
