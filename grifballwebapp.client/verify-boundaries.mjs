@@ -7,42 +7,53 @@ import { ESLint } from 'eslint';
 // Any of the plugin's rules: boundaries/dependencies, or no-unknown-dependencies for an import that resolves to nothing
 const PLUGIN = 'boundaries/';
 
-// [the file importing, the import, whether the boundaries allow it]
-const cases = [
-  // A feature: its own files, core, shared, the generated clients, packages
-  ['src/app/features/league/season/team/team.component.ts', "import { X } from '../seasonTabs/seasonTabs.component';", true],
-  ['src/app/features/home/home.component.ts', "import { X } from '@shared/pageMeta';", true],
-  ['src/app/features/home/home.component.ts', "import { X } from '../../shared/pageMeta';", true],
-  ['src/app/features/home/home.component.ts', "import { X } from '@core/auth/account.service';", true],
-  ['src/app/features/home/home.component.ts', "import { X } from '@api/models';", true],
-  ['src/app/features/home/home.component.ts', "import { X } from '@angular/core';", true],
-  // ...another feature only through its index.ts
-  ['src/app/features/home/home.component.ts', "import { X } from '../lateLeague';", true],
-  ['src/app/features/home/home.component.ts', "import { X } from '../lateLeague/lateLeagueQueue/lateLeagueQueue.component';", false],
-  ['src/app/features/home/home.component.ts', "const x = () => import('../lateLeague/lateLeagueQueue/lateLeagueQueue.component');", false],
-  ['src/app/features/draft/teamBuilder/teamBuilder.component.ts', "import { X } from '../../league/season/seasonTabs/seasonTabs.component';", false],
-  // ...and never the app's root files, nor a file that isn't there
-  ['src/app/features/home/home.component.ts', "import { X } from '../../app.config';", false],
-  ['src/app/features/home/home.component.ts', "import { X } from '../nothing/here';", false],
-  // Core: core, shared, the generated clients; no feature, not even its index.ts, nor the root
-  ['src/app/core/auth/account.service.ts', "import { X } from '@shared/notifier.service';", true],
-  ['src/app/core/auth/account.service.ts', "import { X } from '../http/redactUrl';", true],
-  ['src/app/core/auth/account.service.ts', "import { X } from '@api/models';", true],
-  ['src/app/core/auth/account.service.ts', "import { X } from '../../features/lateLeague';", false],
-  ['src/app/core/auth/account.service.ts', "import { X } from '../../app.config';", false],
-  // Shared: shared and the generated clients; not core or a feature
-  ['src/app/shared/pageMeta.ts', "import { X } from './apiDates';", true],
-  ['src/app/shared/pageMeta.ts', "import { X } from '@api/models';", true],
-  ['src/app/shared/pageMeta.ts', "import { X } from '@core/auth/account.service';", false],
-  ['src/app/shared/pageMeta.ts', "import { X } from '../features/league';", false],
-  ['src/app/shared/pageMeta.ts', "import { X } from '../features/league/season/seasonTabs/seasonTabs.component';", false],
-  // The root (routes, config): anything
-  ['src/app/app.routes.ts', "import { X } from './features/lateLeague/lateLeagueQueue/lateLeagueQueue.component';", true],
-  ['src/app/app.routes.ts', "const x = () => import('./features/league/season/season.component');", true],
-  ['src/app/app.config.ts', "import { X } from './core/auth/auth.interceptor';", true],
-  ['src/main.ts', "import { X } from './app/app.config';", true],
-  ['src/server.ts', "import { X } from './app/core/server/afterFirstPaint';", true],
-];
+// One case a line: allow or deny, the file importing (under src/app, or ../ for src), what it imports, and "lazy" for a
+// lazy import() instead of an import statement. # starts a comment.
+const CASES = `
+# A feature: its own files, core, shared, the generated clients, packages
+allow  features/league/season/team/team.component.ts  ../seasonTabs/seasonTabs.component
+allow  features/home/home.component.ts  @shared/pageMeta
+allow  features/home/home.component.ts  ../../shared/pageMeta
+allow  features/home/home.component.ts  @core/auth/account.service
+allow  features/home/home.component.ts  @api/models
+allow  features/home/home.component.ts  @angular/core
+# ...another feature only through its index.ts
+allow  features/home/home.component.ts  ../lateLeague
+deny   features/home/home.component.ts  ../lateLeague/lateLeagueQueue/lateLeagueQueue.component
+deny   features/home/home.component.ts  ../lateLeague/lateLeagueQueue/lateLeagueQueue.component  lazy
+deny   features/draft/teamBuilder/teamBuilder.component.ts  ../../league/season/seasonTabs/seasonTabs.component
+# ...and never the app's root files, nor a file that isn't there
+deny   features/home/home.component.ts  ../../app.config
+deny   features/home/home.component.ts  ../nothing/here
+# Core: core, shared, the generated clients; no feature, not even its index.ts, nor the root
+allow  core/auth/account.service.ts  @shared/notifier.service
+allow  core/auth/account.service.ts  ../http/redactUrl
+allow  core/auth/account.service.ts  @api/models
+deny   core/auth/account.service.ts  ../../features/lateLeague
+deny   core/auth/account.service.ts  ../../app.config
+# Shared: shared and the generated clients; not core or a feature
+allow  shared/pageMeta.ts  ./apiDates
+allow  shared/pageMeta.ts  @api/models
+deny   shared/pageMeta.ts  @core/auth/account.service
+deny   shared/pageMeta.ts  ../features/league
+deny   shared/pageMeta.ts  ../features/league/season/seasonTabs/seasonTabs.component
+# The root (routes, config, main, server): anything
+allow  app.routes.ts  ./features/lateLeague/lateLeagueQueue/lateLeagueQueue.component
+allow  app.routes.ts  ./features/league/season/season.component  lazy
+allow  app.config.ts  ./core/auth/auth.interceptor
+allow  ../main.ts  ./app/app.config
+allow  ../server.ts  ./app/core/server/afterFirstPaint
+`;
+const cases = CASES.split('\n')
+  .map(line => line.trim())
+  .filter(line => line && !line.startsWith('#'))
+  .map(line => {
+    const [verdict, file, from, lazy] = line.split(/\s+/);
+    if (!['allow', 'deny'].includes(verdict) || !from || ![undefined, 'lazy'].includes(lazy))
+      throw new Error(`not a case: ${line}`);
+    const code = lazy === 'lazy' ? `const x = () => import('${from}');` : `import { X } from '${from}';`;
+    return [`src/app/${file}`.replace('app/../', ''), code, verdict === 'allow'];
+  });
 
 // Only the plugin's rules, on the import alone: the rest (sonarjs's type-aware ones) aren't what's checked here, and can
 // fail on a file's text swapped for one line
