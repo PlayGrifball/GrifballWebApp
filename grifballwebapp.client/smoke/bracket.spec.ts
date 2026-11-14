@@ -5,10 +5,6 @@ import { createLeague, teamName, type League } from './league';
 // The playoff bracket on the season page: making one, how an unseeded and a seeded bracket show,
 // and a season that doesn't exist.
 
-interface ViewerData {
-  matches: { id: number; status: unknown; opponent1: { id: number | null } | null; opponent2: { id: number | null } | null }[];
-}
-
 const viewerData = (page: Page) => page.waitForResponse(r => /\/api\/seasons\/\d+\/bracket\/viewer-data/i.test(r.url()) && r.request().method() === 'GET');
 
 test.describe('playoff bracket', () => {
@@ -60,10 +56,10 @@ test.describe('playoff bracket', () => {
     }
 
     // Seeding by standings puts the teams in the first round.
-    await admin.post(`seasons/${league.seasonID}/bracket/seeds/default`);
+    await admin.post('setSeeds', `seasons/${league.seasonID}/bracket/seeds/default`);
     // The reloaded page is drawn on the server, which fetches the bracket itself (the browser then
     // makes no request for it): the data straight from the API, then the page.
-    const data = await admin.get<ViewerData>(`seasons/${league.seasonID}/bracket/viewer-data`);
+    const data = await admin.get('getViewerData', `seasons/${league.seasonID}/bracket/viewer-data`);
     await page.reload();
     for (const match of data.matches) {
       expect(typeof match.status).toBe('number');

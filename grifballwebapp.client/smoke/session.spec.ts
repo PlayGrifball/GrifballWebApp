@@ -1,5 +1,5 @@
 import type { BrowserContext } from '@playwright/test';
-import { Api, type UserResponseDto } from './api';
+import { Api } from './api';
 import { expect, headerName, hydrated, login, secondBrowser, test, withoutScripts } from './fixtures';
 import { createLeague, newUser, smokeTag, type League } from './league';
 
@@ -14,7 +14,7 @@ const sessionCookie = async (context: BrowserContext) =>
 
 /** What the app shows as this user's name (no display name: the user name). */
 async function shownName(admin: { get<T>(path: string): Promise<T> }, userID: number): Promise<string> {
-  const user = await admin.get<UserResponseDto>(`users/${userID}`);
+  const user = await admin.get('getUser', `users/${userID}`);
   return user.displayName || user.userName;
 }
 
@@ -25,8 +25,8 @@ test.describe('session', () => {
   test.beforeAll(async ({ baseUrl, admin }) => {
     // Two teams, one match between them
     league = await createLeague(baseUrl, admin, 'session', { players: 2, captains: 2 });
-    await admin.post(`seasons/${league.seasonID}/matches/generate?homeMatchesPerTeam=1&bestOf=1`);
-    const matches = await admin.get<{ seasonMatchID: number }[]>(`seasons/${league.seasonID}/matches/unscheduled`);
+    await admin.post('createSeasonMatches', `seasons/${league.seasonID}/matches/generate?homeMatchesPerTeam=1&bestOf=1`);
+    const matches = await admin.get('getUnscheduledMatches', `seasons/${league.seasonID}/matches/unscheduled`);
     expect(matches.length).toBeGreaterThan(0);
     seasonMatchID = matches[0].seasonMatchID;
   });
@@ -148,13 +148,13 @@ test.describe('session', () => {
     const request = await sent;
     expect((await request.allHeaders())['x-xsrf-token'], 'X-XSRF-TOKEN').toBeTruthy();
     expect((await request.response())?.status()).toBe(204);
-    const saved = await admin.get<UserResponseDto>(`users/${user.userID}`);
+    const saved = await admin.get('getUser', `users/${user.userID}`);
     expect(saved.displayName).toBe(displayName);
 
     // The same change with the browser's cookies (session and antiforgery) but no token
     const forged = await page.request.post(`/api/users/${user.userID}`, { data: { ...saved, displayName: `${user.userName} bad` } });
     expect([400, 403]).toContain(forged.status());
-    const after = await admin.get<UserResponseDto>(`users/${user.userID}`);
+    const after = await admin.get('getUser', `users/${user.userID}`);
     expect(after.displayName).toBe(displayName);
   });
 

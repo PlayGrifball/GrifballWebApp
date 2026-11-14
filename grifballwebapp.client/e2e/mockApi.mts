@@ -3,9 +3,7 @@
 // (pages rendered on the server, Lighthouse CI), so both run without the .NET server. Plain TypeScript Node can run as is (no enums etc.).
 
 import type { BrowserContext } from '@playwright/test';
-import type { Observable } from 'rxjs';
-import type * as ApiFunctions from '../src/generated/api/functions';
-import type { StrictHttpResponse } from '../src/generated/api/strict-http-response';
+import type { AnswerOf, Operation } from './apiOperations.mts';
 import type {
   BracketsMatch, CommissionerDashboardDto, DayOfWeek, GamertagClaimDto, HistoricalImportJobDto, LetterDto, MatchDetailsDto, MatchDetailsMedalDto,
   MatchDetailsTeamDto, MatchmakingPlayerStatDto, MatchmakingSeasonDto, MetricLeaderDto, Outcomes, ParticpantResult, Participant, PossibleTeamDto,
@@ -19,16 +17,10 @@ export type Role = 'anon' | 'player' | 'admin';
 // eslint-disable-next-line sonarjs/redundant-type-aliases -- names what a mock answers with, for whoever reads the handlers
 export type MockBody = unknown;
 
-/**
- * Every call of the API, by the name the generated client gives it (src/generated/api/functions.ts, from openapi.json).
- * Type-only: Node strips these imports, and tsconfig.e2e.json checks the mock against them.
- */
-type Api = typeof ApiFunctions;
-export type Operation = { [K in keyof Api]: Api[K] extends (...args: never[]) => Observable<StrictHttpResponse<unknown>> ? K : never }[keyof Api];
-/** What an operation answers, as the generated client reads it. */
-type AnswerOf<K extends Operation> = Api[K] extends (...args: never[]) => Observable<StrictHttpResponse<infer T>> ? T : never;
 /** How the mock gives that answer: nothing as null (204); text as { text }; JSON as itself, or null for no content. */
 type MockAnswer<T> = [T] extends [void] ? null : [T] extends [string] ? { text: string } | null : T | null;
+
+export type { Operation } from './apiOperations.mts';
 
 /** A route of the mock: the API call it answers, and its answer. */
 export interface MockRoute {
