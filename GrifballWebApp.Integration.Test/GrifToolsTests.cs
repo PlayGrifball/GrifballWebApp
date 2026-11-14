@@ -57,6 +57,10 @@ public class GrifToolsTests
     private static readonly string[] Alpha = ["Alpha"];
     private static readonly string[] PlayerRole = ["Player"];
     private static readonly string[] Pullers = ["Player", "Commissioner", "Sysadmin"];
+    private static readonly string[] Staff = ["Commissioner", "Sysadmin"];
+    private static readonly string[] CommissionerOnly = ["Commissioner"];
+    private static readonly string[] SysadminOnly = ["Sysadmin"];
+    private static readonly string[] StaffReachingHalo = ["pull_halo_game", "refresh_medals", "report_season_match_game"];
 
     [SetUp]
     public async Task SetUp()
@@ -292,7 +296,9 @@ public class GrifToolsTests
     public void TheMcpServer_HasOneToolPerMethod_MarkedWithWhatItDoes()
     {
         var tools = GrifMcp.Tools(GrifTools.All).ToDictionary(t => t.ProtocolTool.Name, t => t.ProtocolTool.Annotations);
-        var reading = tools.Where(t => !t.Key.StartsWith("pull_", StringComparison.Ordinal)).Select(t => t.Value).ToList();
+        var names = GrifTools.All.SelectMany(s => GrifTools.Methods(s.Type).Select(m => (Name: GrifTools.Name(m), s.Effect))).ToList();
+        var reading = names.Where(n => n.Effect is ToolEffect.ReadsOnly).Select(n => tools[n.Name]).ToList();
+        var changing = names.Where(n => n.Effect is ToolEffect.ChangesData).Select(n => tools[n.Name]).ToList();
 
         using (Assert.EnterMultipleScope())
         {
@@ -304,7 +310,11 @@ public class GrifToolsTests
             Assert.That(tools["pull_season_match_games"]?.IdempotentHint, Is.False, "a second pull can save games played since");
             Assert.That(tools["pull_xbox_account_games"]?.ReadOnlyHint, Is.False);
             Assert.That(tools["pull_xbox_account_games"]?.OpenWorldHint, Is.True);
-            Assert.That(tools.Values.Select(a => a?.DestructiveHint), Has.All.False, "no tool changes or deletes anything yet");
+            Assert.That(changing, Is.Not.Empty);
+            Assert.That(changing.Select(a => a?.ReadOnlyHint), Has.All.False, "staff's actions change data: clients ask first");
+            Assert.That(changing.Select(a => a?.DestructiveHint), Has.All.True, "a result undone, a claim decided");
+            Assert.That(names.Where(n => n.Effect is ToolEffect.ChangesData && tools[n.Name]?.OpenWorldHint == true).Select(n => n.Name), Is.EquivalentTo(StaffReachingHalo), "they call Halo's API");
+            Assert.That(names.Where(n => n.Effect is not ToolEffect.ChangesData).Select(n => tools[n.Name]?.DestructiveHint), Has.All.False, "reads and pulls change or delete nothing");
         }
     }
 
@@ -435,7 +445,14 @@ public class GrifToolsTests
         {
             Assert.That(GrifTools.RolesByName["pull_season_match_games"], Is.EquivalentTo(Pullers));
             Assert.That(GrifTools.RolesByName["pull_xbox_account_games"], Is.EquivalentTo(Pullers));
-            Assert.That(GrifTools.RolesByName.Where(t => !t.Key.StartsWith("pull_", StringComparison.Ordinal)).Select(t => t.Value), Has.All.Empty);
+            Assert.That(GrifTools.RolesByName["get_commissioner_dashboard"], Is.EquivalentTo(Staff));
+            Assert.That(GrifTools.RolesByName["decide_reschedule"], Is.EquivalentTo(Staff));
+            Assert.That(GrifTools.RolesByName["forfeit_season_match"], Is.EquivalentTo(CommissionerOnly));
+            Assert.That(GrifTools.RolesByName["decide_gamertag_claim"], Is.EquivalentTo(SysadminOnly));
+            Assert.That(GrifTools.RolesByName["list_pending_gamertag_claims"], Is.EquivalentTo(SysadminOnly));
+            Assert.That(GrifTools.Methods(typeof(SeasonTools)).Concat(GrifTools.Methods(typeof(TeamTools))).Select(m => GrifTools.RolesByName[GrifTools.Name(m)]), Has.All.Empty, "the site's public pages' tools are for anyone");
+            Assert.That(GrifTools.Methods(typeof(StaffTools)).Concat(GrifTools.Methods(typeof(CommissionerTools))).Concat(GrifTools.Methods(typeof(SysadminTools)))
+                .Select(m => GrifTools.RolesByName[GrifTools.Name(m)]), Has.None.Empty, "every staff tool names its roles");
         }
     }
 }

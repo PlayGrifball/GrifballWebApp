@@ -167,7 +167,7 @@ public class ScheduleServiceTests
 
     private SchedulerController Controller(InMemoryJobs jobs, string? user = "commish")
     {
-        var controller = new SchedulerController(_context, Recommendations(), jobs.OnDemand);
+        var controller = new SchedulerController(_context, Recommendations(), new ScheduleRecommendationRuns(jobs.OnDemand));
         if (user is not null)
             controller.WithUser("1", user);
         return controller;

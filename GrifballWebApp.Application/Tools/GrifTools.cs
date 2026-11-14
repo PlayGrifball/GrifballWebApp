@@ -16,6 +16,9 @@ public sealed record ToolCaller(int? UserID, IReadOnlyList<string> Roles)
 {
     public static readonly ToolCaller Anonymous = new(null, []);
 
+    /// <summary>The caller's user name, as the site records who did something (a schedule applied, a job paused); null when not known.</summary>
+    public string? Name { get; init; }
+
     /// <summary>
     /// Whether others see the answers: a Discord channel's, where the bot's chat replies. Then the caller sees seasons as the public
     /// does, whatever their roles: a season not announced yet stays out of a reply its players read (#435).
@@ -34,6 +37,13 @@ public sealed record ToolCaller(int? UserID, IReadOnlyList<string> Roles)
         if (!IsInAnyRole(roles))
             throw new ToolException(SiteRoles.MissingRole(roles));
     }
+
+    /// <summary>
+    /// Nothing, when the caller has one of the roles the tool <paramref name="tool"/> (a tool class's method, by its own name:
+    /// left out, the calling one) names in its [ToolRoles]; a <see cref="ToolException"/> saying who may, else. A host's
+    /// filtering isn't the only guard.
+    /// </summary>
+    public void RequireRolesOf([System.Runtime.CompilerServices.CallerMemberName] string tool = "") => Require(GrifTools.RolesByName[GrifTools.Name(tool)]);
 
     /// <summary>The caller's user ID; a <see cref="ToolException"/> for an anonymous caller, who must name the player.</summary>
     public int Me() => UserID ?? throw new ToolException(
@@ -54,6 +64,11 @@ public enum ToolEffect
     ReadsOnly,
     /// <summary>Queues a pull from Halo, a background job that saves the games it finds: adds data, never changes or deletes any.</summary>
     QueuesHaloPull,
+    /// <summary>
+    /// Changes the league's data as staff's pages do (a result, a schedule, a bracket, a claim, a job): commissioners' and sysadmins'
+    /// actions, which an MCP client asks the user about before it calls them.
+    /// </summary>
+    ChangesData,
 }
 
 /// <summary>
@@ -68,6 +83,13 @@ public sealed class ToolRolesAttribute(params string[] roles) : Attribute
 }
 
 /// <summary>
+/// A tool that calls Halo's API itself (a game pulled, the medals downloaded), in a set whose effect doesn't say so: hosts
+/// tell clients it reaches outside the site, as they do for a set that queues Halo pulls.
+/// </summary>
+[AttributeUsage(AttributeTargets.Method)]
+public sealed class ToolReachesHaloAttribute : Attribute;
+
+/// <summary>
 /// The platform's tools for AI agents: one set, for every host (the MCP server, the Discord bot, the site's chat). A tool is a
 /// public method with a [Description] on one of these classes, each parameter described too. Each calls the same services as
 /// the controllers, and shows the caller no more than the site would. A host makes a new instance for each call from its
@@ -75,19 +97,26 @@ public sealed class ToolRolesAttribute(params string[] roles) : Attribute
 /// </summary>
 public static class GrifTools
 {
-    /// <summary>The classes of the tools that only read, open to anyone on the site.</summary>
-    public static readonly Type[] ReadOnly = [typeof(SeasonTools), typeof(TeamTools), typeof(PlayerTools), typeof(MatchTools), typeof(BrowseTools), typeof(ClockTools), typeof(HaloTools)];
+    /// <summary>The classes of the tools that only read: open to anyone on the site, but staff's (<see cref="StaffTools"/>), each for its roles.</summary>
+    public static readonly Type[] ReadOnly =
+        [typeof(SeasonTools), typeof(TeamTools), typeof(PlayerTools), typeof(MatchTools), typeof(BrowseTools), typeof(ClockTools), typeof(HaloTools), typeof(StaffTools)];
 
     /// <summary>The classes of the tools that queue a pull from Halo (<see cref="ToolEffect.QueuesHaloPull"/>).</summary>
     public static readonly Type[] QueuingHaloPulls = [typeof(HaloPullTools)];
 
+    /// <summary>The classes of staff's tools that change the league's data (<see cref="ToolEffect.ChangesData"/>), each tool for its roles.</summary>
+    public static readonly Type[] ChangingData = [typeof(CommissionerTools), typeof(SysadminTools)];
+
     /// <summary>Every tool class, with what its tools do.</summary>
     public static IEnumerable<(Type Type, ToolEffect Effect)> All
-        => ReadOnly.Select(t => (t, ToolEffect.ReadsOnly)).Concat(QueuingHaloPulls.Select(t => (t, ToolEffect.QueuesHaloPull)));
+        => ReadOnly.Select(t => (t, ToolEffect.ReadsOnly))
+            .Concat(QueuingHaloPulls.Select(t => (t, ToolEffect.QueuesHaloPull)))
+            .Concat(ChangingData.Select(t => (t, ToolEffect.ChangesData)));
 
     /// <summary>
     /// The tools a chat with a small model gets (the Discord bot, the site's chat): the questions people ask most. A model picks
-    /// worse from a long list, so the rest are left to the MCP server's clients.
+    /// worse from a long list, so the rest are left to the MCP server's clients. Staff's tools aren't among them: the Discord bot
+    /// answers in a public channel, which mustn't read a dashboard or a claim.
     /// </summary>
     public static readonly string[] Chat =
     [
@@ -112,10 +141,13 @@ public static class GrifTools
             .Where(m => m.GetCustomAttribute<DescriptionAttribute>() is not null);
 
     /// <summary>A tool's name: its method's, in snake_case (GetSeasonStandings: get_season_standings).</summary>
-    public static string Name(MethodInfo method)
+    public static string Name(MethodInfo method) => Name(method.Name);
+
+    /// <summary>The tool name of a method named <paramref name="methodName"/>: in snake_case.</summary>
+    public static string Name(string methodName)
     {
         var name = new StringBuilder();
-        foreach (var c in method.Name)
+        foreach (var c in methodName)
         {
             if (char.IsUpper(c) && name.Length > 0)
                 name.Append('_');

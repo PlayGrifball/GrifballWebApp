@@ -310,7 +310,7 @@ public partial class SeasonMatchService
             .FirstOrDefaultAsync(ct);
 
         if (match is null)
-            throw new Exception("Match does not exist");
+            throw new SeasonMatchActionNotAllowedException("Match does not exist");
 
         if (match.SeriesGame is not null)
             throw new SeasonMatchActionNotAllowedException("Match is already associated with a season match");
@@ -608,14 +608,14 @@ public partial class SeasonMatchService
         var seasonMatch = await GetSeasonMatch(seasonMatchID, ct);
 
         if (seasonMatch is null)
-            throw new Exception("Season match does not exist");
+            throw new SeasonMatchActionNotAllowedException("Season match does not exist");
 
         switch (seasonMatch.Forfeit(forfeiter))
         {
             case ForfeitResult.TeamsMissing:
-                throw new Exception("You cannot report a match for a season match that does not have both teams assigned");
+                throw new SeasonMatchActionNotAllowedException("You cannot report a match for a season match that does not have both teams assigned");
             case ForfeitResult.AlreadyDecided:
-                throw new Exception("Results for this match have already been decided");
+                throw new SeasonMatchActionNotAllowedException("Results for this match have already been decided");
             case ForfeitResult.GrandFinal:
                 throw new SeasonMatchActionNotAllowedException("The grand final cannot be forfeited, report its games instead");
         }
@@ -648,7 +648,7 @@ public partial class SeasonMatchService
         var seasonMatch = await GetSeasonMatch(seasonMatchID, ct);
 
         if (seasonMatch is null)
-            throw new Exception("Season match does not exist");
+            throw new SeasonMatchActionNotAllowedException("Season match does not exist");
 
         if (!seasonMatch.CanReopen)
             throw new SeasonMatchActionNotAllowedException("This match has a BYE, so its result is decided by the bracket and cannot be undone");

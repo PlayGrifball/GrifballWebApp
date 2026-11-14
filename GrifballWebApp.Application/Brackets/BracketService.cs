@@ -669,7 +669,7 @@ public class BracketService : IBracketService
             .ToListAsync(ct);
 
         if (playoffMatches.Any(x => x.HomeTeamID is not null || x.AwayTeamID is not null))
-            throw new Exception("Teams have already been seeded");
+            throw new SeasonMatchActionNotAllowedException("Teams have already been seeded");
 
         foreach (var match in playoffMatches)
         {

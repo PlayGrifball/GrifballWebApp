@@ -75,6 +75,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<DeploymentHistoryService>();
         services.AddTransient<ProfileCommendationsService>();
         services.AddTransient<SeasonService>();
+        services.AddTransient<Commissioner.CommissionerDashboardService>();
         services.AddTransient<SeasonVisibility>();
         services.AddTransient<Home.HomeEventsService>();
         services.AddTransient<RegionService>();

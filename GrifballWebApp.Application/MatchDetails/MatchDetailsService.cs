@@ -18,6 +18,9 @@ public class MatchDetailsService
         _context = context;
     }
 
+    /// <summary>Whether the match has been pulled.</summary>
+    public Task<bool> ExistsAsync(Guid matchID, CancellationToken ct = default) => _context.Matches.AnyAsync(m => m.MatchID == matchID, ct);
+
     /// <summary>The match, or null when it has not been pulled.</summary>
     public async Task<MatchDetailsDto?> GetAsync(Guid matchID, CancellationToken ct = default)
     {

@@ -62,6 +62,11 @@ public static class GrifMcp
                         // The model sees this message and can act on it; the SDK hides any other exception's
                         throw new McpException(e.Message, e);
                     }
+                    catch (Exception e) when (GlobalExceptionHandler.Expected(e) is { Detail: { } refusal })
+                    {
+                        // A service's refusal the site answers with a 4xx (a match already reported, a claim decided): its reason
+                        throw new McpException(refusal, e);
+                    }
                 }));
     }
 
@@ -72,10 +77,10 @@ public static class GrifMcp
     /// <summary>The caller a request's user is: the user ID and roles the access token signed in.</summary>
     public static ToolCaller Caller(ClaimsPrincipal user)
         => new(int.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!, CultureInfo.InvariantCulture),
-            user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList());
+            user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList()) { Name = user.Identity?.Name };
 
     /// <summary>
-    /// An MCP tool for each tool method of <paramref name="sets"/>, named as <see cref="GrifTools.Name"/> says, its annotations
+    /// An MCP tool for each tool method of <paramref name="sets"/>, named as <see cref="GrifTools.Name(System.Reflection.MethodInfo)"/> says, its annotations
     /// telling clients what it does (they ask before a tool that isn't read-only). Each call gets a new instance from the
     /// request's services, as the request's user (<see cref="GrifTools.Factory"/>).
     /// </summary>
@@ -89,12 +94,13 @@ public static class GrifMcp
                 {
                     Name = GrifTools.Name(method),
                     ReadOnly = set.Effect == ToolEffect.ReadsOnly,
-                    // A queued pull from Halo adds games; nothing is changed or deleted
-                    Destructive = false,
+                    // A queued pull from Halo adds games, changing or deleting nothing; staff's actions change results,
+                    // schedules, brackets and claims
+                    Destructive = set.Effect == ToolEffect.ChangesData,
                     // Asked again once a pull is done, it pulls again and can save games played since: not idempotent
                     // (asked while one is queued or running, it adds nothing and says where that one is)
                     Idempotent = set.Effect == ToolEffect.ReadsOnly,
-                    OpenWorld = set.Effect == ToolEffect.QueuesHaloPull,
+                    OpenWorld = set.Effect == ToolEffect.QueuesHaloPull || method.IsDefined(typeof(ToolReachesHaloAttribute), false),
                 }));
         });
 }

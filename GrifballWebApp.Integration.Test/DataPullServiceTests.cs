@@ -185,7 +185,7 @@ public class DataPullServiceTests
         _context.MedalTypes.Add(Domain.Halo.MedalType.Imported(1, "Test"));
         _context.Medals.Add(Domain.Halo.Medal.Imported(1, "Test", "desc", 0, 0, 1, 1, 0));
         await _context.SaveChangesAsync();
-        await Assert.ThrowsAsync<Exception>(async () => await _service.DownloadMedals());
+        await Assert.ThrowsAsync<HaloPullRefusedException>(async () => await _service.DownloadMedals());
     }
 
     [Test]
