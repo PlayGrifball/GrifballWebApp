@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Commissioner;
-using GrifballWebApp.Application.EventOrganizer;
 using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Server.Commissioner;
@@ -12,13 +11,13 @@ namespace GrifballWebApp.Server.Commissioner;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
 public class CommissionerDashboardController : ControllerBase
 {
+    private readonly CommissionerDashboardService _dashboard;
     private readonly RescheduleService _rescheduleService;
-    private readonly EventOrganizerService _seasons;
 
-    public CommissionerDashboardController(RescheduleService rescheduleService, EventOrganizerService seasons)
+    public CommissionerDashboardController(CommissionerDashboardService dashboard, RescheduleService rescheduleService)
     {
+        _dashboard = dashboard;
         _rescheduleService = rescheduleService;
-        _seasons = seasons;
     }
 
     /// <summary>
@@ -27,28 +26,7 @@ public class CommissionerDashboardController : ControllerBase
     /// </summary>
     [HttpGet("commissioner-dashboard", Name = "GetDashboardData")]
     [ProducesResponseType<CommissionerDashboardDto>(StatusCodes.Status200OK)]
-    public async Task<CommissionerDashboardDto> GetDashboardData(CancellationToken ct)
-    {
-        var pendingReschedules = await _rescheduleService.GetPendingReschedulesAsync(ct);
-        var overdueMatches = await _rescheduleService.GetOverdueMatchesAsync(ct);
-        var notPublic = await _seasons.GetSeasonsNotPublicBySignups(ct);
-
-        var dashboardData = new CommissionerDashboardDto
-        {
-            PendingReschedules = pendingReschedules,
-            OverdueMatches = overdueMatches,
-            SeasonsNotPublicBySignups = notPublic,
-            Summary = new DashboardSummaryDto
-            {
-                PendingRescheduleCount = pendingReschedules.Count,
-                OverdueMatchCount = overdueMatches.Count,
-                CriticalOverdueCount = overdueMatches.Count(m => m.HoursOverdue > 72), // More than 3 days overdue
-                SeasonsNotPublicBySignupsCount = notPublic.Count,
-            }
-        };
-
-        return dashboardData;
-    }
+    public Task<CommissionerDashboardDto> GetDashboardData(CancellationToken ct) => _dashboard.GetAsync(ct);
 
     /// <summary>Matches overdue for rescheduling. Commissioners and sysadmins only.</summary>
     [HttpGet("season-matches/overdue", Name = "GetOverdueMatches")]
