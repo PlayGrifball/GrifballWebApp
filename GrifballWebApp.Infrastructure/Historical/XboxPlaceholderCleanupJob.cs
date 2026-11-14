@@ -34,10 +34,14 @@ public sealed partial class XboxPlaceholderCleanupJob : IJob
     public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         var removed = await _cleanup.RemoveAsync(cancellationToken);
-        if (_logger.IsEnabled(LogLevel.Information))
-            LogRemoved(_logger, removed.Count, string.Join(", ", removed.Select(r => $"{r.Gamertag} ({r.UserID})")));
+        foreach (var placeholder in removed)
+            LogRemovedOne(_logger, placeholder.Gamertag, placeholder.UserID);
+        LogRemoved(_logger, removed.Count);
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Removed {Count} placeholders of Xbox accounts that are no league players: {Removed}")]
-    private static partial void LogRemoved(ILogger logger, int count, string removed);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Removed the placeholder of {Gamertag} (user {UserID}): no league player")]
+    private static partial void LogRemovedOne(ILogger logger, string gamertag, int userID);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Removed {Count} placeholders of Xbox accounts that are no league players")]
+    private static partial void LogRemoved(ILogger logger, int count);
 }

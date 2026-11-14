@@ -16,6 +16,7 @@ using GrifballWebApp.Infrastructure.Ollama;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Infrastructure.Preview;
 using GrifballWebApp.Application.SeasonMatchPage;
+using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Infrastructure.SeasonMatchPage;
 using GrifballWebApp.Infrastructure.Scheduler;
 using GrifballWebApp.Infrastructure.Services;
@@ -140,6 +141,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddHostedService<XuidLookupWorker>();
         // A season match's pull from Halo, queued from its page and the agents' tools
         services.AddTransient<ISeasonMatchPulls, SeasonMatchPulls>();
+        // An Xbox account's pull from Halo, queued from its page
+        services.AddTransient<IXboxAccountPulls, XboxAccountPulls>();
         // The cleanup of placeholders that are no league players (XboxPlaceholderCleanupJob)
         services.AddTransient<XboxPlaceholderCleanup>();
         // Quartz.NET: the recurring jobs (their schedules, kept in the database, and the Jobs page) and the scheduler that runs them
@@ -157,6 +160,7 @@ public static class InfrastructureServiceCollectionExtensions
             jobs.Add<SeasonEventsJob>(SeasonEventsJob.Definition(enabled: !discordOff));
             // Started from a page, with an input (OnDemandJobs)
             jobs.AddOnDemand<SeasonMatchPullJob>("season-match-pull", SeasonMatchPullJob.Description);
+            jobs.AddOnDemand<XboxAccountPullJob>("xbox-account-pull", XboxAccountPullJob.Description);
             jobs.AddOnDemand<ScheduleRecommendationJob>("schedule-recommendation", ScheduleRecommendationJob.Description);
             jobs.AddOnDemand<SheetExportJob>("sheet-export", SheetExportJob.Description);
             jobs.AddOnDemand<DatabaseBackupJob>("database-backup", DatabaseBackupJob.Description);

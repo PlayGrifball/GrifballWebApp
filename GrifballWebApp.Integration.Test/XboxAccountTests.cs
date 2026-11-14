@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.MatchDetails;
 using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Domain.Halo;
@@ -174,5 +175,53 @@ public class XboxAccountTests
             .Execute(Substitute.For<Quartz.IJobExecutionContext>());
 
         Assert.That(await _context.Users.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task ThePullButton_QueuesTheAccountsPull_AsTheUser_ForPlayersAndStaff()
+    {
+        _context.XboxUsers.Add(XboxUser.FromXbox(30, "Pull Me"));
+        await _context.SaveChangesAsync();
+        var pulls = Substitute.For<IXboxAccountPulls>();
+        var queued = new OnDemandJobStatusDto { State = OnDemandJobState.Queued };
+        pulls.Queue(30, 21, Arg.Any<CancellationToken>()).Returns(queued);
+        var controller = new XboxAccountsController(new XboxAccountService(_context))
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+                        [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "21")], "test")),
+                },
+            },
+        };
+
+        var pulled = await controller.PullXboxAccount(30, pulls, CancellationToken.None);
+        var unknown = await controller.PullXboxAccount(31, pulls, CancellationToken.None);
+        var roles = typeof(XboxAccountsController).GetMethod(nameof(XboxAccountsController.PullXboxAccount))!
+            .GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), false).Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Single().Roles;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(pulled.Result, Is.InstanceOf<AcceptedResult>().With.Property(nameof(AcceptedResult.Value)).SameAs(queued));
+            Assert.That(unknown.Result, Is.InstanceOf<ObjectResult>().With.Property(nameof(ObjectResult.StatusCode)).EqualTo(404));
+            Assert.That(roles, Is.EqualTo("Player,Commissioner,Sysadmin"));
+        }
+        await pulls.Received(1).Queue(30, 21, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task ThePullJob_PullsTheAccountsRecentGames_AndSaysHowItWent()
+    {
+        var dataPull = Substitute.For<GrifballWebApp.Application.HaloInfinite.IDataPullService>();
+        dataPull.DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new GrifballWebApp.Application.HaloInfinite.MatchPullResult(1, [], 3, 1, 2, []));
+        var context = Substitute.For<Quartz.IJobExecutionContext>();
+
+        await new GrifballWebApp.Infrastructure.HaloInfinite.XboxAccountPullJob(dataPull).Execute(context, new GrifballWebApp.Infrastructure.HaloInfinite.XboxAccountPull(30));
+
+        await dataPull.Received(1).DownloadRecentMatchesForPlayers(Arg.Is<List<long>>(ids => ids.Count == 1 && ids[0] == 30), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+        Assert.That(((Quartz.JobRunReport)context.Result!).Result, Is.EqualTo(Quartz.JobRunResult.Succeeded));
     }
 }

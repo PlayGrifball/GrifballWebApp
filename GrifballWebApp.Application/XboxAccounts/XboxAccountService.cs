@@ -48,6 +48,10 @@ public class XboxAccountService
         _context = context;
     }
 
+    /// <summary>Whether the site has the account.</summary>
+    public Task<bool> Exists(long xboxUserID, CancellationToken ct = default)
+        => _context.XboxUsers.AnyAsync(x => x.XboxUserID == xboxUserID, ct);
+
     /// <summary>The account and a page of its games (from 1); null when the site has no such account.</summary>
     public async Task<XboxAccountDto?> GetAsync(long xboxUserID, int page = 1, CancellationToken ct = default)
     {
