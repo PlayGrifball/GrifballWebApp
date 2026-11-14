@@ -80,3 +80,34 @@ in `GrifballWebApp.Integration.Test`. See [ci-cd/dotnet-tests.md](ci-cd/dotnet-t
 
 The Angular client has its own boundaries (feature folders, `core`, `shared`), enforced by lint: see
 [frontend.md](frontend.md).
+
+## SignalR hubs and sessions
+
+The hubs (`TeamsHub`, `QueueHub`, `ChatHub`) never trust a connection's claims beyond the moment they're checked. A connection
+keeps the `ClaimsPrincipal` it was made with, so the server checks it against the database (`GrifballWebApp.Server/SignalR/HubSessions.cs`):
+
+- **On every call and on connecting** (`HubSessionFilter`, registered first for every hub), `HubSessionValidator` asks
+  Identity whether the user is still signed in and allowed:
+  - the claims' security stamp is still the user's;
+  - they aren't locked out;
+  - their roles now.
+
+  A call is refused (`HubException`) and its connection closed when:
+  - the session has ended;
+  - the roles changed since the connection was made: its groups, such as TeamsHub's staff group, were the old roles';
+  - the method's `[Authorize(Roles = ...)]` doesn't allow the roles now.
+
+  The user found is the call's `HubUser` (scoped). The hubs read roles there, never `Context.User`: ChatHub's tools and TeamsHub's
+  staff group follow the roles now.
+- **Proactively**, when a save changes a user's sign-in or roles, their connections are closed on every pod.
+  - `UserSessionsInterceptor` (Infrastructure, on every context) spots these saves: a new security stamp (a sign-out, a new
+    password), a lockout, a deleted user, a role added or removed.
+  - Once the save is committed, it calls `IUserSessions.EndAsync`.
+  - `HubUserSessions` closes this process's connections, then publishes the users on Redis (`user-sessions-ended`, under the
+    SignalR prefix) when scaled out.
+  - `HubUserSessionsListener` closes them on the other pods.
+  - A closed connection connects again as the user is now. A connection that only listens stops getting pushes meant for the
+    old roles.
+- **As a backstop**, `HubSessionSweep` checks this process's signed-in connections every 30 seconds and closes those whose user
+  changed. This catches a change no save announced: SQL run by hand, or a lost Redis message.
+- **At the cookie's expiry**, every hub is mapped with `CloseOnAuthenticationExpiration`, so the connection closes.

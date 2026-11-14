@@ -41,6 +41,8 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<UrlService>();
         // The chat the Discord bot and the site share (its model is Infrastructure's IChatClientFactory)
         services.AddTransient<GrifChat>();
+        // Every host's askers, counted once per process
+        services.AddSingleton<ChatLimits>();
         services.AddTransient<IQueueRepository, QueueRepository>();
         // Joining and leaving, from Discord or the site; the queue's size goes to its watchers (IQueueNotifier)
         services.AddTransient<QueueMembership>();

@@ -18,13 +18,13 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
 {
     /// <summary>
     /// The Discord bot in a channel: others read it there, so it sees seasons as the public does (#435), and gives no staff tools.
-    /// Its replies are never cut short.
+    /// A reply that takes over two minutes is given up, as on the site: the one model mustn't be held.
     /// </summary>
     public static readonly ChatHost Discord = new(
         "You are a Discord bot, and all messages must stay under the 2000-character limit.",
         "The bot also has slash commands; /help lists them.",
         InPublic: true,
-        Timeout: System.Threading.Timeout.InfiniteTimeSpan);
+        Timeout: TimeSpan.FromMinutes(2));
 
     /// <summary>The Discord bot in a DM: the author's alone, so in private, as on the site.</summary>
     public static readonly ChatHost DiscordDirect = Discord with { InPublic = false };
@@ -45,12 +45,12 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
 
 /// <summary>
 /// The chat with the league's model, the same for every host (the Discord bot's <c>MessageCreateHandler</c>, the site's
-/// <c>ChatHub</c>): its instructions, the conversation it is sent (the last <see cref="HistoryLimit"/> messages), the host's
-/// tools (<see cref="ChatHost.Tools"/>) as the caller, called for the model until it answers, and the time a reply may
-/// take. All of it on Microsoft.Extensions.AI: the provider is <see cref="IChatClientFactory"/>'s registration's alone. A host
-/// keeps the conversation and shows the reply.
+/// <c>ChatHub</c>), on Microsoft.Extensions.AI: the provider is <see cref="IChatClientFactory"/>'s registration's alone. A host keeps
+/// the conversation, <see cref="Start"/>s a reply and shows it; all the rest is here, so no host can skip it: the question's and
+/// the history's limits, the asker's (<see cref="ChatLimits"/>), the instructions, the host's tools as the caller, called for the
+/// model until it answers, and the time a reply may take.
 /// </summary>
-public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory scopes)
+public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory scopes, ChatLimits limits)
 {
     /// <summary>How many of the conversation's earlier messages the model is sent with a new one.</summary>
     public const int HistoryLimit = 25;
@@ -64,8 +64,18 @@ public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory sc
     /// <summary>What a host says when no model is configured (<see cref="Available"/>), in place of a reply.</summary>
     public const string Unavailable = "The chat isn't available right now: it has no model to answer with.";
 
+    /// <summary>What a host says when a reply took longer than its <see cref="ChatHost.Timeout"/>.</summary>
+    public const string TookTooLong = "That took too long to answer: ask again, or ask something simpler.";
+
+    /// <summary>What a host says for a conversation it can't read (a message missing).</summary>
+    public const string Unreadable = "That conversation can't be read: start a new one.";
+
     /// <summary>Whether there is a model to ask: none configured, and a host says <see cref="Unavailable"/> instead.</summary>
-    public bool Available => clients.Available;
+    public bool Available => Clients.Available;
+
+    private IChatClientFactory Clients { get; } = clients;
+
+    private IServiceScopeFactory Scopes { get; } = scopes;
 
     /// <summary>What every host tells the model, between its own first and last lines.</summary>
     private static readonly string[] Shared =
@@ -97,35 +107,126 @@ public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory sc
             .Append(new ChatMessage(ChatRole.User, question))
             .ToList();
 
-    /// <summary>What the model is sent for a question to the site's chat, its history as the browser kept it (<see cref="Conversation(IEnumerable{ChatMessage}, string)"/>).</summary>
-    public static List<ChatMessage> Conversation(ChatRequestDto request)
-        => Conversation(request.History.Select(t => new ChatMessage(t.FromBot ? ChatRole.Assistant : ChatRole.User, t.Text)), request.Question);
+    /// <summary>The conversation so far as the browser kept it (<see cref="Refusal(ChatRequestDto)"/> found it readable).</summary>
+    public static List<ChatMessage> History(ChatRequestDto request)
+        => request.History.Select(t => new ChatMessage(t.FromBot ? ChatRole.Assistant : ChatRole.User, t.Text)).ToList();
 
     /// <summary>Why a question can't be asked (none, or over <see cref="MaxQuestionLength"/> characters), or null when it can.</summary>
-    public static string? Refusal(ChatRequestDto request)
+    public static string? Refusal(string? question)
     {
-        if (string.IsNullOrWhiteSpace(request.Question))
+        if (string.IsNullOrWhiteSpace(question))
             return "Ask a question.";
-        if (request.Question.Length > MaxQuestionLength)
+        if (question.Length > MaxQuestionLength)
             return $"Ask in {MaxQuestionLength} characters or fewer.";
         return null;
     }
 
     /// <summary>
-    /// The model's reply to <paramref name="conversation"/> on <paramref name="host"/>, as it streams in. It is given the host's tools
-    /// <paramref name="caller"/> may use (<see cref="GrifTools.AIFunctions"/>: each call in a scope of its own, a refusal its result),
-    /// and they are called for it until it answers. Canceled after the host's <see cref="ChatHost.Timeout"/>.
+    /// Why a question to the site's chat can't be asked: its question's <see cref="Refusal(string)"/>, or a history it can't read
+    /// (none, or a message missing: JSON's null passes for a required property); null when it can.
     /// </summary>
-    public async IAsyncEnumerable<string> ReplyAsync(IList<ChatMessage> conversation, ToolCaller caller, ChatHost host,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public static string? Refusal(ChatRequestDto request)
     {
-        var tools = GrifTools.AIFunctions(scopes, caller with { InPublic = host.InPublic }, host.Tools);
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(host.Timeout);
-        // The tool calls are ours, not the provider's: any model the factory gives gets them
-        using var client = new ChatClientBuilder(clients.Create()).UseFunctionInvocation().Build();
-        var options = new ChatOptions { Instructions = Instructions(host), Tools = tools };
-        await foreach (var update in client.GetStreamingResponseAsync(conversation, options, timeout.Token))
-            yield return update.Text;
+        // The browser's JSON can hold nulls the types don't allow
+        IEnumerable<ChatTurnDto?>? history = request.History;
+        if (history is null || history.Any(t => t?.Text is null))
+            return Unreadable;
+        return Refusal(request.Question);
+    }
+
+    /// <summary>
+    /// A reply to <paramref name="question"/>, after <paramref name="history"/>, on <paramref name="host"/>, for
+    /// <paramref name="asker"/> (<see cref="ChatLimits.Asker"/>): its slot taken now, held until the reply is done or disposed, or the
+    /// asker stops waiting (<paramref name="cancellationToken"/>: freed that moment, so they may ask again at once, however long the
+    /// reply takes to wind down). A <see cref="ChatRefusedException"/>, saying why, when there is no model, the question can't be
+    /// asked, or the asker's limits are reached.
+    /// </summary>
+    public ChatReply Start(IEnumerable<ChatMessage> history, string question, ToolCaller caller, ChatHost host, string asker,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Available)
+            throw new ChatRefusedException(Unavailable);
+        if (Refusal(question) is { } refused)
+            throw new ChatRefusedException(refused);
+        var (slot, limited) = limits.TryStart(asker);
+        if (slot is null)
+            throw new ChatRefusedException(limited!);
+        return new ChatReply(Clients, Scopes, Conversation(history, question), caller with { InPublic = host.InPublic }, host, slot, cancellationToken);
     }
 }
+
+/// <summary>A reply <see cref="GrifChat.Start"/>ed: <see cref="StreamAsync"/> it, then dispose it to free the asker's slot.</summary>
+public sealed class ChatReply : IDisposable
+{
+    private readonly IChatClientFactory _clients;
+    private readonly IServiceScopeFactory _scopes;
+    private readonly List<ChatMessage> _conversation;
+    private readonly ToolCaller _caller;
+    private readonly ChatHost _host;
+    private readonly IDisposable _slot;
+    private readonly CancellationTokenRegistration _freedWhenStopped;
+
+    internal ChatReply(IChatClientFactory clients, IServiceScopeFactory scopes, List<ChatMessage> conversation, ToolCaller caller, ChatHost host, IDisposable slot,
+        CancellationToken stopped)
+    {
+        _clients = clients;
+        _scopes = scopes;
+        _conversation = conversation;
+        _caller = caller;
+        _host = host;
+        _slot = slot;
+        _freedWhenStopped = stopped.Register(slot.Dispose);
+    }
+
+    /// <summary>What the model is sent: the history's last messages, cut to their limit, then the question.</summary>
+    public IReadOnlyList<ChatMessage> Conversation => _conversation;
+
+    /// <summary>
+    /// The model's reply, as it streams in. It is given the host's tools the caller may use (<see cref="GrifTools.AIFunctions"/>:
+    /// each call in a scope of its own, a refusal its result), and they are called for it until it answers. Past the host's
+    /// <see cref="ChatHost.Timeout"/>, a <see cref="ChatRefusedException"/> (<see cref="GrifChat.TookTooLong"/>). Canceled by
+    /// <paramref name="cancellationToken"/> (the asker stopped waiting), the slot is freed at once, not once the reply has wound down.
+    /// </summary>
+    public async IAsyncEnumerable<string> StreamAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        using var freed = cancellationToken.Register(_slot.Dispose);
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(_host.Timeout);
+            // The tool calls are ours, not the provider's: any model the factory gives gets them. The model is shared: not disposed.
+            var client = new ChatClientBuilder(_clients.Create()).UseFunctionInvocation().Build();
+            var options = new ChatOptions { Instructions = GrifChat.Instructions(_host), Tools = GrifTools.AIFunctions(_scopes, _caller, _host.Tools) };
+            await using var updates = client.GetStreamingResponseAsync(_conversation, options, timeout.Token).GetAsyncEnumerator(timeout.Token);
+            while (await NextAsync(updates, timeout, cancellationToken))
+                yield return updates.Current.Text;
+        }
+        finally
+        {
+            // Done, failed or abandoned: the asker may ask again
+            _slot.Dispose();
+        }
+    }
+
+    /// <summary>The next update, if any; the host's timeout as <see cref="GrifChat.TookTooLong"/>.</summary>
+    private static async Task<bool> NextAsync(IAsyncEnumerator<ChatResponseUpdate> updates, CancellationTokenSource timeout, CancellationToken asker)
+    {
+        try
+        {
+            return await updates.MoveNextAsync();
+        }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested && !asker.IsCancellationRequested)
+        {
+            throw new ChatRefusedException(GrifChat.TookTooLong);
+        }
+    }
+
+    public void Dispose()
+    {
+        _freedWhenStopped.Dispose();
+        _slot.Dispose();
+    }
+}
+
+/// <summary>Why the chat gives no (whole) answer, for the host to show: no model, a question it can't take, a limit, the time.</summary>
+public sealed class ChatRefusedException(string message) : Exception(message);

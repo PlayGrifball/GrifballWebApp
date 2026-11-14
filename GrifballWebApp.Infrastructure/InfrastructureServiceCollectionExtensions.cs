@@ -1,7 +1,7 @@
-using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Historical.Vods;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Domain.Shared;
@@ -27,6 +27,7 @@ using GrifballWebApp.Infrastructure.Teams;
 using GrifballWebApp.Infrastructure.UserManagement;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace GrifballWebApp.Infrastructure;
@@ -44,12 +45,16 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IAmbientCurrentUser, AmbientCurrentUser>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<AuditInterceptor>();
+        // A change to a user's sign-in or roles ends their live sessions: the web host's, else none
+        services.TryAddSingleton<IUserSessions, NoUserSessions>();
+        services.AddScoped<UserSessionsInterceptor>();
 
         services.AddDbContext<GrifballContext>((provider, options) =>
         {
             options.UseGrifballDatabase(provider.GetRequiredService<IConfiguration>())
                 .AddInterceptors(provider.GetRequiredService<AuditInterceptor>(),
-                    provider.GetRequiredService<OutboxSignalInterceptor>());
+                    provider.GetRequiredService<OutboxSignalInterceptor>(),
+                    provider.GetRequiredService<UserSessionsInterceptor>());
         });
 
         // Its own IDbContextFactory<GrifballContext>: the default one conflicts with the scoped context
@@ -184,7 +189,7 @@ public static class InfrastructureServiceCollectionExtensions
         else
             services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
         // The chats' model (GrifChat): Ollama. Another provider is another IChatClientFactory here, and nothing else changes
-        services.AddSingleton<IChatClientFactory, OllamaChatClients>();
+        services.AddOllamaChat();
         return services;
     }
 

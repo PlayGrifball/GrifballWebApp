@@ -1,47 +1,57 @@
-using System.Security.Claims;
 using System.Threading.Channels;
 using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Infrastructure.Services;
-using GrifballWebApp.Server.Mcp;
+using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.AI;
 using TypedSignalR.Client;
 
 namespace GrifballWebApp.Server.Chat;
 
 /// <summary>
 /// The site's chat: the Discord bot's (<see cref="GrifChat"/>, on <see cref="ChatHost.Site"/>), its reply streamed to the browser as
-/// it is written. A signed-in user asks as themselves, with their roles; signed out, as a Discord user with no linked account
-/// does (<see cref="ToolCaller.Anonymous"/>). The browser keeps the conversation (its tab's session) and sends it with each
-/// question: the server keeps none. Limits: <see cref="ChatLimits"/>, and <see cref="GrifChat"/>'s.
+/// it is written. A signed-in user asks as themselves, with their roles as they are now (<see cref="HubUser"/>, checked for every
+/// call: a role lost is a staff tool lost); signed out, as a Discord user with no linked account does
+/// (<see cref="ToolCaller.Anonymous"/>). The browser keeps the conversation (its tab's session) and sends it with each question:
+/// the server keeps none. Limits: <see cref="GrifChat"/>'s, for the user, else for their address (<see cref="ChatLimits"/>).
 /// </summary>
-public class ChatHub(GrifChat chat, ChatLimits limits, IAmbientCurrentUser ambientCurrentUser, ILogger<ChatHub> logger) : Hub<IChatHubClient>, IChatHubServer
+public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCurrentUser, ILogger<ChatHub> logger) : Hub<IChatHubClient>, IChatHubServer
 {
     /// <summary>Where it is mapped (the browser reaches it at hub/ChatHub).</summary>
     public const string Path = "ChatHub";
 
-    /// <summary>The largest message a browser may send it: a question with its history, every message at its limit.</summary>
-    public const long MaximumReceiveMessageSize = 256 * 1024;
+    /// <summary>The most bytes a character can take in a question's JSON: a control character, escaped (\u0001).</summary>
+    public const int MaxBytesPerCharacter = 6;
 
-    public const string TookTooLong = "That took too long to answer: ask again, or ask something simpler.";
+    /// <summary>
+    /// The largest message a browser may send it: a question and the history the server reads, every message at its limit and every
+    /// character at its largest in JSON (<see cref="MaxBytesPerCharacter"/>), and room for the rest of the message. The page sends no
+    /// more (it trims as the server does), so a conversation however long is answered, never the connection dropped.
+    /// </summary>
+    public const long MaximumReceiveMessageSize =
+        (GrifChat.HistoryLimit * (long)GrifChat.MaxHistoryMessageLength + GrifChat.MaxQuestionLength) * MaxBytesPerCharacter + 64 * 1024;
+
     public const string Failed = "The chat couldn't answer just now: try again later.";
 
     public Task<ChannelReader<string>> Ask(ChatRequestDto request, CancellationToken cancellationToken)
     {
         var reply = Channel.CreateUnbounded<string>();
-        if (!chat.Available)
-            return Refuse(reply, GrifChat.Unavailable);
         if (GrifChat.Refusal(request) is { } refused)
             return Refuse(reply, refused);
-        var conversation = GrifChat.Conversation(request);
-        var caller = Caller(Context.User);
-        var connectionId = Context.ConnectionId;
-        if (limits.TryStart(connectionId, ChatLimits.Partition(caller, Context.GetHttpContext()?.Connection.RemoteIpAddress?.ToString())) is { } limited)
-            return Refuse(reply, limited);
+        var caller = user.AsToolCaller();
+        ChatReply started;
+        try
+        {
+            started = chat.Start(GrifChat.History(request), request.Question, caller, ChatHost.Site,
+                ChatLimits.Asker(caller, ChatLimits.Address(Context.GetHttpContext()?.Connection.RemoteIpAddress)));
+        }
+        catch (ChatRefusedException e)
+        {
+            return Refuse(reply, e.Message);
+        }
 
         // On its own: the reply streams after this returns, and the ambient user is set for it alone
-        _ = Task.Run(() => ReplyAsync(reply.Writer, conversation, caller, connectionId, cancellationToken), CancellationToken.None);
+        _ = Task.Run(() => ReplyAsync(reply.Writer, started, caller, cancellationToken), CancellationToken.None);
         return Task.FromResult(reply.Reader);
     }
 
@@ -55,15 +65,11 @@ public class ChatHub(GrifChat chat, ChatLimits limits, IAmbientCurrentUser ambie
         return Task.FromResult(reply.Reader);
     }
 
-    /// <summary>The caller a connection's user is: the signed-in user with their roles, else no account.</summary>
-    public static ToolCaller Caller(ClaimsPrincipal? user)
-        => user?.Identity?.IsAuthenticated == true ? GrifMcp.Caller(user) : ToolCaller.Anonymous;
-
     /// <summary>
     /// The model's reply, written to <paramref name="reply"/> as it comes, then completed: with a <see cref="HubException"/> the
     /// browser shows when it took too long or failed (the failure logged), with nothing when the browser stopped reading.
     /// </summary>
-    private async Task ReplyAsync(ChannelWriter<string> reply, List<ChatMessage> conversation, ToolCaller caller, string connectionId, CancellationToken cancellationToken)
+    private async Task ReplyAsync(ChannelWriter<string> reply, ChatReply started, ToolCaller caller, CancellationToken cancellationToken)
     {
         // The caller is the ambient user, for the tools' own scopes (a queued pull is theirs), as the Discord bot sets the author
         ambientCurrentUser.Begin();
@@ -71,7 +77,7 @@ public class ChatHub(GrifChat chat, ChatLimits limits, IAmbientCurrentUser ambie
         try
         {
             ambientCurrentUser.UserId = caller.UserID;
-            await foreach (var text in chat.ReplyAsync(conversation, caller, ChatHost.Site, cancellationToken))
+            await foreach (var text in started.StreamAsync(cancellationToken))
             {
                 if (text.Length > 0)
                     await reply.WriteAsync(text, cancellationToken);
@@ -81,9 +87,9 @@ public class ChatHub(GrifChat chat, ChatLimits limits, IAmbientCurrentUser ambie
         {
             // The browser stopped reading (asked to stop, or went): no one to tell
         }
-        catch (OperationCanceledException)
+        catch (ChatRefusedException e)
         {
-            error = new HubException(TookTooLong);
+            error = new HubException(e.Message);
         }
         catch (Exception e)
         {
@@ -94,7 +100,7 @@ public class ChatHub(GrifChat chat, ChatLimits limits, IAmbientCurrentUser ambie
         {
             ambientCurrentUser.End();
             // Free first: the browser may ask again the moment the reply ends
-            limits.Finish(connectionId);
+            started.Dispose();
             reply.TryComplete(error);
         }
     }
@@ -106,7 +112,8 @@ public interface IChatHubServer
 {
     /// <summary>
     /// The chat's answer to a question, streamed as it is written. Refused (a HubException saying why) when there is no model, the
-    /// question is empty or too long, a reply is already under way on this connection, or the user has asked too many this minute.
+    /// question is empty or too long, the conversation can't be read, a reply is already under way for the user, or they have asked too
+    /// many this minute.
     /// </summary>
     Task<ChannelReader<string>> Ask(ChatRequestDto request, CancellationToken cancellationToken);
 }

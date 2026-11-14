@@ -119,11 +119,21 @@ alone. A host keeps the conversation, passes the caller and its `ChatHost`, and 
 - the tools: `GrifTools.AIFunctions` with a scope factory (each call runs in a scope of its own, so a tool never shares a
   `DbContext` with the host), the caller (`ToolCaller`, `InPublic` as the host says) and `GrifTools.Chat`;
 - the tool calls: it calls the tools the model asks for (`UseFunctionInvocation`) until it answers;
-- the limits: a question of 2000 characters at most (a Discord message's limit), and the host's timeout.
+- the limits, for every host: `GrifChat.Start` takes the history and the question and builds the conversation itself, so no
+  host can skip them:
+  - a question of 2000 characters at most (a Discord message's limit);
+  - `ChatLimits`, per asker (`ChatLimits.Asker`: the site user when there is one, so their questions count alike on the site
+    and in Discord; else a Discord account, or a signed-out address, an IPv6 one by its /64):
+    - one reply at a time; the slot is freed the moment the asker stops waiting, however long the reply takes to wind down;
+    - 10 questions a minute for a site user, 5 for anyone else;
+    - counted on each process;
+  - each host's timeout, 2 minutes for all of them: the one model, answering one reply at a time, can't be held.
+  A refusal is a `ChatRefusedException` the host shows.
 
 The model is `IChatClientFactory`'s, which Infrastructure registers (`OllamaChatClients`: the server at `Ollama:Url`, the
 model `Ollama:Model`, default `llama3.1:latest`). It gives only the model, so another provider is another
-`IChatClientFactory` registered in its place. With no `Ollama:Url` there is no model: both chats answer that the chat is
+`IChatClientFactory` registered in its place. Ollama's is one client for the process, over an HTTP client with no timeout of
+its own (a cold model on the CPU can take minutes to start answering): the host's timeout decides. With no `Ollama:Url` there is no model: both chats answer that the chat is
 unavailable. The Helm chart sets both, for its own Ollama (`ollama.enabled`) or an existing one (`ollama.external.url`;
 [the chart's README](../charts/grifballwebapp/README.md#chat-model-ollama)). Development's appsettings point at
 Ollama's own port on localhost.
@@ -141,7 +151,6 @@ server's clients get every tool.
     roles decide which seasons they see, and they get `GrifTools.PrivateChat`, staff's tools too, each for its roles. The
     conversation is the DM channel's own, read from Discord, and nothing of a DM is kept in `DiscordMessages`, so what staff
     see in private never reaches a channel's reply.
-  - Its replies have no time limit.
   - The bot's instructions have it write times in UTC, as the tools give them. A small model can't reliably turn ISO times into
     Discord's epoch timestamps.
 - **The site's chat** (`ChatHub` at `hub/ChatHub`, the `/chat` page, `ChatHost.Site`): the reply streams to the browser over
@@ -153,9 +162,10 @@ server's clients get every tool.
     as the MCP server gives them, so a player gets none of staff's and a commissioner or sysadmin gets theirs. Its instructions
     have it use a tool that changes data only when the person asks for that change.
   - The browser keeps the conversation (the tab's `sessionStorage`) and sends it with each question. The server keeps none.
-  - A reply that takes over 2 minutes is given up.
-  - `ChatLimits`: one reply at a time per connection, and 10 questions a minute per signed-in user, 5 per address signed out
-    (counted on each API pod).
+  - The roles are the user's now, checked for every call (`HubUser`, [architecture.md](architecture.md#signalr-hubs-and-sessions)):
+    a role lost is a tool lost at once.
+  - The hub takes a message of up to `ChatHub.MaximumReceiveMessageSize`: a question and the history the server reads, every
+    character at its costliest in JSON (6 bytes). The page sends no more, so a long conversation is answered, never dropped.
 
 ## Adding a tool
 

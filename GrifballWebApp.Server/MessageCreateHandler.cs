@@ -15,11 +15,8 @@ using GrifballWebApp.Server.Commands;
 namespace GrifballWebApp.Server;
 
 public class MessageCreateHandler(IDiscordRestClient discordClient, IConfiguration configuration, IServiceScopeFactory scopeFactory, IAmbientCurrentUser ambientCurrentUser, ILogger<MessageCreateHandler> logger,
-    IChatClientFactory chatClients, TimeProvider? time = null) : IMessageCreateGatewayHandler
+    GrifChat chat, TimeProvider? time = null) : IMessageCreateGatewayHandler
 {
-    /// <summary>The chat, as the site's has it too: its instructions, history, tools and model (<see cref="ChatHost.Discord"/>).</summary>
-    private GrifChat Chat { get; } = new(chatClients, scopeFactory);
-
     private ulong BotId { get; } = ulong.Parse(configuration["Discord:ClientId"] ?? "0");
 
     /// <summary>The clock the streamed reply is paced by (the system's, unless a test gives one).</summary>
@@ -75,7 +72,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     private async ValueTask HandleResponseCore(Message message)
     {
         // No model configured (no Ollama:Url): say so, rather than fail on each message
-        if (!Chat.Available)
+        if (!chat.Available)
         {
             await message.ReplyAsync(GrifChat.Unavailable);
             return;
@@ -96,12 +93,36 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         var direct = message.GuildId is null;
         var host = direct ? ChatHost.DiscordDirect : ChatHost.Discord;
         var saveTo = direct ? null : context;
-        var chatHistory = direct ? await DirectHistoryAsync(message) : await ChatHistoryAsync(context, message, UserId, BotID);
+        var history = direct ? await DirectHistoryAsync(message) : await ChatHistoryAsync(context, message, UserId, BotID);
 
         // The tools, as the author: their linked site account and its roles, or no account (every tool not about "you").
         // Each tool call runs in a scope of its own: this scope's context saves the streamed reply meanwhile
         var caller = await new DiscordCaller(context).AsToolCaller(message.Author.Id);
 
+        // The chat's limits, as on the site: the question's length, the history's, and the author's (their site account's when
+        // linked, so they count alike here and on the site; else their Discord account's)
+        ChatReply reply;
+        try
+        {
+            reply = chat.Start(history, message.Content, caller, host, ChatLimits.Asker(caller, ChatLimits.Discord(message.Author.Id)));
+        }
+        catch (ChatRefusedException refused)
+        {
+            await message.ReplyAsync(refused.Message);
+            return;
+        }
+        using (reply)
+        {
+            await AnswerAsync(message, reply, saveTo, UserId, BotID);
+        }
+    }
+
+    /// <summary>
+    /// The reply shown as it streams in, then whole, and saved (to <paramref name="saveTo"/>, a channel's; none from a DM). A reply cut
+    /// short (it took too long) is followed by why.
+    /// </summary>
+    private async Task AnswerAsync(Message message, ChatReply reply, GrifballContext? saveTo, long UserId, long BotID)
+    {
         // Each chunk with when it arrived: the reply is paced by the stream, not by when the background task gets to it
         var channel = Channel.CreateUnbounded<(string Text, long ArrivedAt)>();
         var responseBuilder = new StringBuilder();
@@ -110,10 +131,15 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         var started = Time.GetTimestamp();
         var updateTask = Task.Run(() => StreamReplyAsync(channel.Reader, responseBuilder, message, saveTo, UserId, BotID, Time, started));
 
+        string? cutShort = null;
         try
         {
-            await foreach (var text in Chat.ReplyAsync(chatHistory, caller, host))
+            await foreach (var text in reply.StreamAsync())
                 await channel.Writer.WriteAsync((text, Time.GetTimestamp()));
+        }
+        catch (ChatRefusedException refused)
+        {
+            cutShort = refused.Message;
         }
         finally
         {
@@ -123,6 +149,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         var restMessage = await updateTask;
 
         await FinishReplyAsync(message, restMessage, responseBuilder, saveTo, UserId, BotID);
+        if (cutShort is not null)
+            await message.ReplyAsync(cutShort);
     }
 
     /// <summary>The author and the bot, as Discord users in the database (a message is between two of them).</summary>
@@ -142,7 +170,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         }
     }
 
-    /// <summary>The conversation so far (its last <see cref="GrifChat.HistoryLimit"/> messages), oldest first, the new message saved and last.</summary>
+    /// <summary>The conversation before the new message (its last <see cref="GrifChat.HistoryLimit"/> messages), oldest first; the new message saved.</summary>
     private static async Task<List<ChatMessage>> ChatHistoryAsync(GrifballContext context, Message message, long UserId, long BotID)
     {
         var messages = await context.DiscordMessages
@@ -164,7 +192,6 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         await context.SaveChangesAsync();
 
         return messages
-            .Append(newMessage) // Add the new message to the history
             .OrderBy(x => x.Timestamp) // Order oldest to newest
             .Select(x => new ChatMessage(x.FromDiscordUserId == BotID ? ChatRole.Assistant : ChatRole.User, x.Content))
             .ToList();
@@ -172,7 +199,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 
     /// <summary>
     /// A DM's conversation so far, as Discord keeps it in the DM channel: its last <see cref="GrifChat.HistoryLimit"/> messages before
-    /// this one, oldest first, the new message last. Never from DiscordMessages, the channels' conversation, which keeps none of a DM.
+    /// this one, oldest first. Never from DiscordMessages, the channels' conversation, which keeps none of a DM.
     /// </summary>
     private async Task<List<ChatMessage>> DirectHistoryAsync(Message message)
     {
@@ -183,7 +210,6 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         return earlier
             .OrderBy(m => m.Id)
             .Select(m => new ChatMessage(m.Author.Id == BotId ? ChatRole.Assistant : ChatRole.User, m.Content))
-            .Append(new ChatMessage(ChatRole.User, message.Content))
             .ToList();
     }
 

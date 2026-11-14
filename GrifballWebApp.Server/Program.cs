@@ -141,6 +141,8 @@ public class Program
 
         builder.Services.AddSignalR(options =>
         {
+            // First: every call and connection checked against the database's user, a refusal no fault to the error log
+            options.AddFilter<HubSessionFilter>();
             options.AddFilter<ExceptionLogHubFilter>();
             options.AddFilter<UserContextHubFilter>();
         })
@@ -148,8 +150,14 @@ public class Program
         .AddHubOptions<ChatHub>(options => options.MaximumReceiveMessageSize = ChatHub.MaximumReceiveMessageSize)
         // Scaled out (ConnectionStrings:Redis): every process's hub messages reach every API pod's browsers.
         .AddAppBackplane(builder.Configuration);
-        // The site's chat: how much of the model each person may have (ChatHub)
-        builder.Services.AddSingleton<ChatLimits>();
+        // The hubs' users as they are now, and their connections ended on every pod when their sign-in or roles change
+        // (HubSessions.cs): before AddGrifballDatabase, whose interceptor calls IUserSessions
+        builder.Services.AddScoped<HubUser>();
+        builder.Services.AddScoped<HubSessionValidator>();
+        builder.Services.AddSingleton<HubConnections>();
+        builder.Services.AddSingleton<GrifballWebApp.Application.Identity.IUserSessions, HubUserSessions>();
+        builder.Services.AddHostedService<HubUserSessionsListener>();
+        builder.Services.AddHostedService<HubSessionSweep>();
 
         // Cookie sessions must send the antiforgery token with every change (CookieAntiforgeryFilter).
         builder.Services.AddAntiforgery(BrowserAuth.ConfigureAntiforgery);
@@ -433,9 +441,9 @@ public class Program
 
             app.MapHub<TeamsHub>("TeamsHub", options => { options.CloseOnAuthenticationExpiration = true; });
             // Anonymous and read-only: the matchmaking queue's size, for the home page
-            app.MapHub<QueueHub>("QueueHub");
+            app.MapHub<QueueHub>("QueueHub", options => { options.CloseOnAuthenticationExpiration = true; });
             // The site's chat, signed in or out: the Discord bot's, its replies streamed (GrifChat)
-            app.MapHub<ChatHub>(ChatHub.Path);
+            app.MapHub<ChatHub>(ChatHub.Path, options => { options.CloseOnAuthenticationExpiration = true; });
 
             // The hubs' page (/signalr-dev), what /swagger is to the API: in every environment, to sysadmins only
             // (SignalRHubsPage). Its own hub connections negotiate first (ours skip it): with several API pods, as during a
