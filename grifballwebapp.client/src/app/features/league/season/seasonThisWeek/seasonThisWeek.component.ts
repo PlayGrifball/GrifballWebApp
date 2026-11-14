@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { DateTime } from 'luxon';
 import { map } from 'rxjs';
@@ -78,20 +79,12 @@ export class SeasonThisWeekComponent {
   readonly seasonID = input.required<number>();
   /** When the page was opened. */
   readonly now = signal<DateTime>(DateTime.now());
-  readonly matches = signal<ScheduledMatchDto[]>([]);
+  /** The season's scheduled matches (none for 0, or when they can't be read), loaded again for each season: a new one
+   * cancels the request still on its way. */
+  private readonly schedule = rxResource({
+    params: () => this.seasonID() || undefined,
+    stream: ({ params: seasonID }) => this.api.getScheduledMatches({ seasonID }).pipe(map(matches => matches.map(parseScheduledMatch))),
+  });
+  readonly matches = computed<ScheduledMatchDto[]>(() => this.schedule.hasValue() ? this.schedule.value() : []);
   readonly thisWeek = computed(() => pickThisWeek(this.matches(), this.now()));
-
-  constructor() {
-    effect(() => {
-      const seasonID = this.seasonID();
-      if (seasonID === 0)
-        return;
-      this.api.getScheduledMatches({ seasonID })
-        .pipe(map(matches => matches.map(parseScheduledMatch)))
-        .subscribe({
-          next: matches => this.matches.set(matches),
-          error: () => this.matches.set([]),
-        });
-    });
-  }
 }
