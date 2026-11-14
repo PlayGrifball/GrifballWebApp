@@ -39,7 +39,7 @@ public enum ToolEffect
 /// The platform's tools for AI agents: one set, for every host (the MCP server, the Discord bot, the site's chat). A tool is a
 /// public method with a [Description] on one of these classes, each parameter described too. Each calls the same services as
 /// the controllers, and shows the caller no more than the site would. A host makes a new instance for each call from its
-/// request's services (<see cref="Create"/>).
+/// request's services (<see cref="Factory"/>).
 /// </summary>
 public static class GrifTools
 {
@@ -81,29 +81,41 @@ public static class GrifTools
         return name.ToString();
     }
 
-    /// <summary>A tool class's instance for one call, from <paramref name="services"/>, given the caller when its constructor takes one.</summary>
-    public static object Create(Type type, IServiceProvider services, ToolCaller caller)
-        => type.GetConstructors().Single().GetParameters().Any(p => p.ParameterType == typeof(ToolCaller))
-            ? ActivatorUtilities.CreateInstance(services, type, caller)
-            : ActivatorUtilities.CreateInstance(services, type);
+    /// <summary>
+    /// How a host makes a tool class's instance for one call: from that call's services, given the caller when its constructor
+    /// takes one. Worked out once per class.
+    /// </summary>
+    public static Func<IServiceProvider, ToolCaller, object> Factory(Type type)
+    {
+        var takesCaller = type.GetConstructors().Single().GetParameters().Any(p => p.ParameterType == typeof(ToolCaller));
+        var factory = ActivatorUtilities.CreateFactory(type, takesCaller ? [typeof(ToolCaller)] : []);
+        return takesCaller ? (services, caller) => factory(services, [caller]) : (services, _) => factory(services, null);
+    }
 
     /// <summary>
     /// The tools named in <paramref name="names"/> as functions a chat model calls (Microsoft.Extensions.AI), run as
-    /// <paramref name="caller"/> with <paramref name="services"/> (the host's scope). A refusal comes back as the tool's
-    /// result, so the model can tell the user why; the chat client's function invocation hides other errors' details.
+    /// <paramref name="caller"/>. Each call runs in a scope of its own from <paramref name="scopes"/>, so a tool never shares a
+    /// DbContext with the host (which may be saving meanwhile, as the Discord bot saves its streamed reply). A refusal comes back
+    /// as the tool's result, so the model can tell the user why; the chat client's function invocation hides other errors' details.
     /// </summary>
-    public static List<AITool> AIFunctions(IServiceProvider services, ToolCaller caller, IReadOnlyCollection<string> names)
-        => All.SelectMany(set => Methods(set.Type).Select(method => (set.Type, Method: method)))
+    public static List<AITool> AIFunctions(IServiceScopeFactory scopes, ToolCaller caller, IReadOnlyCollection<string> names)
+        => All.SelectMany(set =>
+            {
+                var create = Factory(set.Type);
+                return Methods(set.Type).Select(method => (Method: method, Create: create));
+            })
             .Where(t => names.Contains(Name(t.Method)))
-            .Select(t => (AITool)new RefusalsAsResults(AIFunctionFactory.Create(t.Method, _ => Create(t.Type, services, caller),
-                new AIFunctionFactoryOptions { Name = Name(t.Method) })))
+            .Select(t => (AITool)new InAScopeOfItsOwn(AIFunctionFactory.Create(t.Method, args => t.Create(args.Services!, caller),
+                new AIFunctionFactoryOptions { Name = Name(t.Method) }), scopes))
             .ToList();
 
-    /// <summary>A function whose <see cref="ToolException"/> is its result, told as a refusal.</summary>
-    private sealed class RefusalsAsResults(AIFunction inner) : DelegatingAIFunction(inner)
+    /// <summary>A function run in a new scope per call, whose <see cref="ToolException"/> is its result, told as a refusal.</summary>
+    private sealed class InAScopeOfItsOwn(AIFunction inner, IServiceScopeFactory scopes) : DelegatingAIFunction(inner)
     {
         protected override async ValueTask<object?> InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)
         {
+            await using var scope = scopes.CreateAsyncScope();
+            arguments.Services = scope.ServiceProvider;
             try
             {
                 return await base.InvokeCoreAsync(arguments, cancellationToken);

@@ -48,33 +48,25 @@ public class DiscordCaller
 
     /// <summary>The user linked to this Discord account, with their gamertag and roles; null when none is, or they have no gamertag.</summary>
     public async Task<CallerUser?> Find(ulong discordUserId, CancellationToken ct = default)
-    {
-        var user = await _context.Users
-            .AsNoTracking()
-            .Where(x => x.DiscordUserID == (long)discordUserId && x.XboxUser != null)
-            .Select(x => new
-            {
-                x.Id,
-                x.XboxUser!.Gamertag,
-                Roles = x.UserRoles.Select(r => r.Role.Name!).ToList(),
-            })
-            .FirstOrDefaultAsync(ct);
-        return user is null ? null : new CallerUser(user.Id, user.Gamertag, user.Roles);
-    }
+        => await Linked(discordUserId, ct) is { Gamertag: { } gamertag } user ? new CallerUser(user.Id, gamertag, user.Roles) : null;
 
     /// <summary>
     /// Who the agents' tools run as for this Discord user (the bot's chat): their linked site account with its roles, gamertag or
     /// not, or <see cref="ToolCaller.Anonymous"/> when none is linked.
     /// </summary>
     public async Task<ToolCaller> AsToolCaller(ulong discordUserId, CancellationToken ct = default)
-    {
-        var user = await _context.Users
+        => await Linked(discordUserId, ct) is { } user ? new ToolCaller(user.Id, user.Roles) : ToolCaller.Anonymous;
+
+    /// <summary>The site account linked to a Discord user: its ID, gamertag (if it has one) and roles.</summary>
+    private sealed record LinkedUser(int Id, string? Gamertag, List<string> Roles);
+
+    /// <summary>The site account linked to this Discord user, if any (<see cref="Find"/> and <see cref="AsToolCaller"/> both read it).</summary>
+    private Task<LinkedUser?> Linked(ulong discordUserId, CancellationToken ct)
+        => _context.Users
             .AsNoTracking()
             .Where(x => x.DiscordUserID == (long)discordUserId)
-            .Select(x => new { x.Id, Roles = x.UserRoles.Select(r => r.Role.Name!).ToList() })
+            .Select(x => new LinkedUser(x.Id, x.XboxUser != null ? x.XboxUser.Gamertag : null, x.UserRoles.Select(r => r.Role.Name!).ToList()))
             .FirstOrDefaultAsync(ct);
-        return user is null ? ToolCaller.Anonymous : new ToolCaller(user.Id, user.Roles);
-    }
 
     /// <summary>
     /// The caller, when they have an account with a gamertag and one of <paramref name="roles"/> (none: any account will do).

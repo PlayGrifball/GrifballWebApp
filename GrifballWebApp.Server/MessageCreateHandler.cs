@@ -52,7 +52,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     private async ValueTask HandleResponse(Message message)
     {
         // A fresh ambient user slot per message, filled in with the author in HandleResponseCore, for contexts with no scope of
-        // their own (IDbContextFactory) and other scopes (RecentMatches)
+        // their own (IDbContextFactory) and other scopes (each tool call's, GrifTools.AIFunctions)
         ambientCurrentUser.Begin();
         try
         {
@@ -88,12 +88,13 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 You are a Discord bot, and all messages must stay under the 2000-character limit.
 Your primary purpose is to provide stats and information about Grifball, which your tools look up.
 Tools take IDs: search finds players, teams and seasons by name. A season tool with no season uses the running one, and a player tool with no player uses the person you are talking to.
-Write a time as a Discord timestamp, <t:UNIX_SECONDS:f>, so each reader sees it in their own time zone (get_current_time gives the time now in Unix seconds).
+Write times in UTC, as the tools give them, and say they are UTC.
 The bot also has slash commands; /help lists them.
 ";
         // The tools, as the author: their linked site account and its roles, or no account (every tool not about ""you"")
         var caller = await new DiscordCaller(context).AsToolCaller(message.Author.Id);
-        var tools = GrifTools.AIFunctions(scope.ServiceProvider, caller, GrifTools.Chat);
+        // Each tool call in a scope of its own: this scope's context saves the streamed reply meanwhile
+        var tools = GrifTools.AIFunctions(scopeFactory, caller, GrifTools.Chat);
 
         // Each chunk with when it arrived: the reply is paced by the stream, not by when the background task gets to it
         var channel = Channel.CreateUnbounded<(string Text, long ArrivedAt)>();
