@@ -33,11 +33,24 @@ async function draft(page: Page): Promise<{ titles: string[]; rosters: string[][
 
 /**
  * Resolves once the page's Teams hub is connected: the server's answer to SignalR's handshake ("{}" and the record
- * separator) on the hub's WebSocket. The app logs nothing when it connects.
+ * separator) on a WebSocket of the hub. Any of them: the app makes its connection again as the signed-in user once the
+ * session is known (hubLifecycle), which on a preview behind Cloudflare can close the first socket before its handshake
+ * is answered. The app logs nothing when it connects.
  */
 async function hubConnected(page: Page, timeout: number): Promise<void> {
-  const socket = await page.waitForEvent('websocket', { predicate: ws => /\/hub\/TeamsHub/i.test(ws.url()), timeout });
-  await socket.waitForEvent('framereceived', { predicate: frame => frame.payload === '{}\u001e', timeout });
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`No Teams hub handshake within ${timeout} ms`)), timeout);
+    page.on('websocket', ws => {
+      if (!/\/hub\/TeamsHub/i.test(ws.url()))
+        return;
+      ws.on('framereceived', frame => {
+        if (frame.payload === '{}\u001e') {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+    });
+  });
 }
 
 /** Opens the team builder; `hub: false` for a page whose Teams hub is cut off on purpose. */
