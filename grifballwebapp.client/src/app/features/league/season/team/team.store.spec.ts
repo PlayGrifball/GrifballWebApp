@@ -6,7 +6,7 @@ import type { TeamDto, TeamPageMatchDto } from '@api/models';
 import { DateTime } from 'luxon';
 import { TeamStore } from './team.store';
 
-const team = { teamID: 7, teamName: 'Red Team' } as TeamDto;
+const team = { teamID: 7, teamName: 'Red Team' } as unknown as TeamDto;
 const match = { seasonMatchID: 1, scheduledTime: '2026-04-01T19:00:00Z' } as TeamPageMatchDto;
 
 describe('TeamStore', () => {

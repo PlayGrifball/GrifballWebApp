@@ -3,10 +3,11 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import type { SignupsTimeslotDto } from '@api/models';
 import { AvailabilityService } from '../availability.service';
 import { emptySignup, SignupFormStore } from './signupForm.store';
 
-const timeslots = [{ optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }];
+const timeslots: SignupsTimeslotDto[] = [{ optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }];
 
 describe('SignupFormStore', () => {
   let store: SignupFormStore;

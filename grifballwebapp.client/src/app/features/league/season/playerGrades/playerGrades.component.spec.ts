@@ -352,12 +352,11 @@ describe('PlayerGradesComponent', () => {
 
 
   describe('integration tests', () => {
-    it('should call getGrades on initialization', () => {
-      spyOn(component, 'getGrades');
-
+    it('asks for the grades on initialization', () => {
       fixture.detectChanges();
 
-      expect(component.getGrades).toHaveBeenCalled();
+      httpTestingController.expectOne('/api/seasons/7/grades').flush(empty);
+      expect(component.gradesDone()).toBeTrue();
     });
 
     it('should handle API with both perMinutes and letters', () => {
@@ -370,7 +369,7 @@ describe('PlayerGradesComponent', () => {
         ]
       };
 
-      component.getGrades();
+      fixture.detectChanges();
 
       const req = httpTestingController.expectOne((request) => 
         /^\/api\/seasons\/\d+\/grades$/.test(request.url)
