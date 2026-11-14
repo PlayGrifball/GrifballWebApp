@@ -30,6 +30,8 @@
     <!-- The chats (GrifChat): Microsoft.Extensions.AI and its tool calls, with no provider (IChatClientFactory's, in Infrastructure) -->
     <PackageReference Include="Microsoft.Extensions.AI" Version="10.11.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.14" />
+    <!-- The chats' askers' questions a minute (Chat/ChatLimits) -->
+    <PackageReference Include="System.Threading.RateLimiting" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />

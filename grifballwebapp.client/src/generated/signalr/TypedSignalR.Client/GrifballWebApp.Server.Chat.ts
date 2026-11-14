@@ -11,7 +11,8 @@ import type { ChatRequestDto } from '../GrifballWebApp.Application.Chat';
 export type IChatHubServer = {
     /**
     * The chat's answer to a question, streamed as it is written. Refused (a HubException saying why) when there is no model, the
-    * question is empty or too long, a reply is already under way on this connection, or the user has asked too many this minute.
+    * question is empty or too long, the conversation can't be read, a reply is already under way for the user, or they have asked too
+    * many this minute.
     * @param request Transpiled from GrifballWebApp.Application.Chat.ChatRequestDto
     * @param cancellationToken Transpiled from System.Threading.CancellationToken
     * @returns Transpiled from System.Threading.Tasks.Task<System.Threading.Channels.ChannelReader<string>>
