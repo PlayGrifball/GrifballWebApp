@@ -26,9 +26,9 @@ agents' tools use too):
 
 | Purpose | Commands | Season |
 |---|---|---|
-| Current | `/season info\|standings\|schedule\|stats\|grades\|bracket` | The running one, else the one that ended last, else the next to start |
+| Current | `/season info\|standings\|schedule\|stats\|grades\|bracket`, `/admin bracket seed` | The running one, else the one that ended last, else the next to start |
 | Upcoming | `/season signups\|draft`, `/signup`, `/availability show`, `/admin draft` | The next to start, else the running one, else the one that ended last |
-| Active | `/admin schedule show\|run`, `/admin bracket seed` | The running one, else the next to start, else the one that ended last |
+| Active | `/admin schedule show\|run` | The running one, else the next to start, else the one that ended last |
 
 **A season not announced yet** (it hasn't started and its `PublicAt` hasn't passed) is a commissioner's and sysadmin's
 alone, as on the site (#435):

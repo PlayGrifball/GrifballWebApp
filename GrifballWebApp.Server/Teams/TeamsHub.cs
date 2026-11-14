@@ -9,6 +9,9 @@ namespace GrifballWebApp.Server.Teams;
 
 public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
 {
+    /// <summary>Staff's connections (commissioners, sysadmins): the drafts of seasons not announced yet go to them alone (#435).</summary>
+    public const string StaffGroup = "season-staff";
+
     private readonly TeamService _teamService;
     private readonly SeasonVisibility _visibility;
     //private static ConcurrentDictionary<string, int?> _connections = new ConcurrentDictionary<string, int?>();
@@ -22,8 +25,8 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
     /// <summary>The draft of a season the caller may not see (not announced yet, to anyone but staff): refused as no such season (#435).</summary>
     private async Task RequireVisible(int seasonID)
     {
-        if (await _visibility.IsSeasonHidden(seasonID, SeasonVisibility.For(Context?.User)))
-            throw new HubException(GrifballWebApp.Server.Seasons.SeasonVisibilityFilter.NotFound);
+        if (!await _visibility.CanSeeSeason(seasonID, SeasonVisibility.For(Context?.User)))
+            throw new HubException(GrifballWebApp.Server.Seasons.SeasonVisibilityFilter.NoSuchSeason);
     }
 
     //private IEnumerable<string> GetConnections(int? personID)
@@ -31,12 +34,11 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
     //    return _connections.Where(x => x.Value == personID).Select(x => x.Key);
     //}
 
-    public override Task OnConnectedAsync()
+    public override async Task OnConnectedAsync()
     {
-        //var isAuth = Context.User?.Identity?.IsAuthenticated ?? false;
-        //var personID = GetPersonID();
-        //var added = _connections.TryAdd(Context.ConnectionId, personID);
-        return base.OnConnectedAsync();
+        if (SeasonVisibility.For(Context.User) is SeasonViewer.Staff)
+            await Groups.AddToGroupAsync(Context.ConnectionId, StaffGroup);
+        await base.OnConnectedAsync();
     }
 
     public override Task OnDisconnectedAsync(Exception? exception)

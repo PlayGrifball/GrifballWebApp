@@ -43,7 +43,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
 
     /// <summary>The pull tools made as the commands make them (GrifTools.Factory), from these services.</summary>
     private PullToolsFor Pulls() => new(new ServiceCollection()
-        .AddSingleton(SeasonMatches()).AddSingleton(_seasonPulls).AddSingleton(new XboxAccountService(Db)).AddSingleton(_accountPulls)
+        .AddSingleton(new SeasonVisibility(Db, _time)).AddSingleton(_seasonPulls).AddSingleton(new XboxAccountService(Db)).AddSingleton(_accountPulls)
         .BuildServiceProvider());
 
     private async Task<Season> SeasonEnded(string name, int daysAgo)

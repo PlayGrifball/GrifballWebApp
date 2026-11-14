@@ -243,7 +243,7 @@ public class GrifToolsTests
     [Test]
     public async Task BrowseTools_Search_AndRefuseAnUnknownLateLeagueSeason()
     {
-        var tools = new BrowseTools(new QuickSearchService(_context, _time), Leaderboards(), new MatchmakingStatsService(_context));
+        var tools = new BrowseTools(ToolCaller.Anonymous, new QuickSearchService(_context, _time), Leaderboards(), new MatchmakingStatsService(_context));
 
         var hits = await tools.Search("Captain");
         var leaderboards = await tools.GetLeaderboards();

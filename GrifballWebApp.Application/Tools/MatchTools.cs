@@ -27,7 +27,7 @@ public class MatchTools
         CancellationToken ct = default)
     {
         // One of a season not announced yet is no match to anyone but staff
-        var page = await _visibility.IsSeasonMatchHidden(seasonMatchID, _caller.Viewer, ct) ? null : await _seasonMatches.GetSeasonMatchPage(seasonMatchID, _caller.UserID, ct);
+        var page = await _visibility.CanSeeSeasonMatch(seasonMatchID, _caller.Viewer, ct) ? await _seasonMatches.GetSeasonMatchPage(seasonMatchID, _caller.UserID, ct) : null;
         return page ?? throw new ToolException($"There is no season match {seasonMatchID}.");
     }
 

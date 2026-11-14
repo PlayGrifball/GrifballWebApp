@@ -17,6 +17,8 @@ internal sealed class SeasonVisibilityUnitTests : ApplicationDbContextTests
     private static readonly DateTime Now = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly int[] PublicSeasons = [1, 2];
     private static readonly int[] AllSeasons = [1, 2, 3];
+    private static readonly int[] PlayedTeam = [11];
+    private static readonly int[] BothTeams = [11, 12];
     private FakeTimeProvider _time = null!;
 
     [SetUp]
@@ -57,17 +59,17 @@ internal sealed class SeasonVisibilityUnitTests : ApplicationDbContextTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await visibility.IsSeasonHidden(secret.SeasonID, SeasonViewer.Public), Is.True);
-            Assert.That(await visibility.IsTeamHidden(team.TeamID, SeasonViewer.Public), Is.True);
-            Assert.That(await visibility.IsSeasonMatchHidden(match.SeasonMatchID, SeasonViewer.Public), Is.True);
-            Assert.That(await visibility.IsSeasonHidden(secret.SeasonID, SeasonViewer.Staff), Is.False);
-            Assert.That(await visibility.IsTeamHidden(team.TeamID, SeasonViewer.Staff), Is.False);
-            Assert.That(await visibility.IsSeasonMatchHidden(match.SeasonMatchID, SeasonViewer.Staff), Is.False);
+            Assert.That(await visibility.CanSeeSeason(secret.SeasonID, SeasonViewer.Public), Is.False);
+            Assert.That(await visibility.CanSeeTeam(team.TeamID, SeasonViewer.Public), Is.False);
+            Assert.That(await visibility.CanSeeSeasonMatch(match.SeasonMatchID, SeasonViewer.Public), Is.False);
+            Assert.That(await visibility.CanSeeSeason(secret.SeasonID, SeasonViewer.Staff), Is.True);
+            Assert.That(await visibility.CanSeeTeam(team.TeamID, SeasonViewer.Staff), Is.True);
+            Assert.That(await visibility.CanSeeSeasonMatch(match.SeasonMatchID, SeasonViewer.Staff), Is.True);
         }
     }
 
     [Test]
-    public async Task AnAnnouncedOrStartedSeason_AndOneThatDoesntExist_AreNotHidden()
+    public async Task AnAnnouncedOrStartedSeason_IsSeen_AndOneThatDoesntExist_AnswersAsAHiddenOneDoes()
     {
         var announced = await AddSeason(1, "Announced", startsInDays: 40, announcedInDays: -1);
         var started = await AddSeason(2, "Started", startsInDays: -5, announcedInDays: null);
@@ -75,9 +77,29 @@ internal sealed class SeasonVisibilityUnitTests : ApplicationDbContextTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await visibility.IsSeasonHidden(announced.SeasonID, SeasonViewer.Public), Is.False);
-            Assert.That(await visibility.IsSeasonHidden(started.SeasonID, SeasonViewer.Public), Is.False);
-            Assert.That(await visibility.IsSeasonHidden(999, SeasonViewer.Public), Is.False, "its own lookup says there's none");
+            Assert.That(await visibility.CanSeeSeason(announced.SeasonID, SeasonViewer.Public), Is.True);
+            Assert.That(await visibility.CanSeeSeason(started.SeasonID, SeasonViewer.Public), Is.True);
+            Assert.That(await visibility.CanSeeSeason(999, SeasonViewer.Public), Is.False, "no such season: the same answer as a hidden one");
+            Assert.That(await visibility.CanSeeTeam(999, SeasonViewer.Staff), Is.False);
+        }
+    }
+
+    [Test]
+    public async Task AFranchisesHistory_LeavesOutItsTeamOfASeasonNotAnnouncedYet_ButNotForStaff()
+    {
+        var played = await AddSeason(1, "Played", startsInDays: -100, announcedInDays: null);
+        var secret = await AddSeason(2, "Secret", startsInDays: 40, announcedInDays: 10);
+        Context.Teams.AddRange(Team.Seed("Grifs", seasonID: played.SeasonID, teamID: 11), Team.Seed("Grifs", seasonID: secret.SeasonID, teamID: 12));
+        await Context.SaveChangesAsync();
+        var history = new GrifballWebApp.Application.TeamPage.TeamHistoryService(Context, _time);
+
+        var everyone = (await history.GetAsync(11))!.Seasons.Select(s => s.TeamID);
+        var staff = (await history.GetAsync(11, SeasonViewer.Staff))!.Seasons.Select(s => s.TeamID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(everyone, Is.EquivalentTo(PlayedTeam));
+            Assert.That(staff, Is.EquivalentTo(BothTeams));
         }
     }
 

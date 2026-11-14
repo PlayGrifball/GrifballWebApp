@@ -28,12 +28,12 @@ public enum SeasonPurpose
     Active,
 }
 
-/// <summary>Which seasons a <see cref="SeasonViewer"/> may see, and checks that a season, team or season match isn't hidden from them.</summary>
+/// <summary>
+/// Which seasons a <see cref="SeasonViewer"/> may see, and whether a season, team or season match is one they may: there and
+/// visible. A hidden one and one that doesn't exist answer alike, so a caller can't tell them apart by trying IDs.
+/// </summary>
 public class SeasonVisibility
 {
-    /// <summary>The roles that see seasons not announced yet.</summary>
-    public static readonly string[] StaffRoles = [SiteRoles.Commissioner, SiteRoles.Sysadmin];
-
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _time;
 
@@ -43,42 +43,35 @@ public class SeasonVisibility
         _time = time ?? TimeProvider.System;
     }
 
-    /// <summary>The viewer a caller with <paramref name="roles"/> is: staff for a commissioner or sysadmin.</summary>
-    public static SeasonViewer For(IReadOnlyCollection<string> roles) => roles.Any(StaffRoles.Contains) ? SeasonViewer.Staff : SeasonViewer.Public;
+    /// <summary>The viewer a caller with <paramref name="roles"/> is: staff for a commissioner or sysadmin (<see cref="SiteRoles.Staff"/>).</summary>
+    public static SeasonViewer For(IReadOnlyCollection<string> roles) => SiteRoles.IsInAnyRole(roles, SiteRoles.Staff) ? SeasonViewer.Staff : SeasonViewer.Public;
 
     /// <summary>The viewer a site request's user is (none signed in: the public).</summary>
     public static SeasonViewer For(System.Security.Claims.ClaimsPrincipal? user)
-        => user is not null && StaffRoles.Any(user.IsInRole) ? SeasonViewer.Staff : SeasonViewer.Public;
+        => user is not null && SiteRoles.Staff.Any(user.IsInRole) ? SeasonViewer.Staff : SeasonViewer.Public;
 
     /// <summary>The seasons <paramref name="viewer"/> may see at <paramref name="now"/>.</summary>
     public static Expression<Func<Season, bool>> VisibleTo(SeasonViewer viewer, DateTime now)
         => viewer is SeasonViewer.Staff ? _ => true : Season.PublicAsOf(now);
 
-    /// <summary>
-    /// Whether the season is one <paramref name="viewer"/> may not see. False for one that doesn't exist: the caller's own
-    /// lookup says so, as it did.
-    /// </summary>
-    public Task<bool> IsSeasonHidden(int seasonID, SeasonViewer viewer, CancellationToken ct = default)
-        => viewer is SeasonViewer.Staff
-            ? Task.FromResult(false)
-            : _context.Seasons.Where(s => s.SeasonID == seasonID).AnyAsync(Hidden(), ct);
+    /// <summary>Whether the season exists and <paramref name="viewer"/> may see it.</summary>
+    public virtual Task<bool> CanSeeSeason(int seasonID, SeasonViewer viewer, CancellationToken ct = default)
+        => Visible(viewer).AnyAsync(s => s.SeasonID == seasonID, ct);
 
-    /// <summary>Whether the team is of a season <paramref name="viewer"/> may not see (false for no such team).</summary>
-    public Task<bool> IsTeamHidden(int teamID, SeasonViewer viewer, CancellationToken ct = default)
-        => viewer is SeasonViewer.Staff
-            ? Task.FromResult(false)
-            : _context.Teams.Where(t => t.TeamID == teamID).Select(t => t.Season).AnyAsync(Hidden(), ct);
-
-    /// <summary>Whether the season match is of a season <paramref name="viewer"/> may not see (false for no such match).</summary>
-    public Task<bool> IsSeasonMatchHidden(int seasonMatchID, SeasonViewer viewer, CancellationToken ct = default)
-        => viewer is SeasonViewer.Staff
-            ? Task.FromResult(false)
-            : _context.SeasonMatches.Where(m => m.SeasonMatchID == seasonMatchID).Select(m => m.Season).AnyAsync(Hidden(), ct);
-
-    /// <summary>The seasons anyone may not see now: <see cref="Season.PublicAsOf"/> negated.</summary>
-    private Expression<Func<Season, bool>> Hidden()
+    /// <summary>Whether the team exists and is of a season <paramref name="viewer"/> may see.</summary>
+    public Task<bool> CanSeeTeam(int teamID, SeasonViewer viewer, CancellationToken ct = default)
     {
-        var visible = Season.PublicAsOf(_time.GetUtcNow().UtcDateTime);
-        return Expression.Lambda<Func<Season, bool>>(Expression.Not(visible.Body), visible.Parameters);
+        var seasons = Visible(viewer);
+        return _context.Teams.AnyAsync(t => t.TeamID == teamID && seasons.Any(s => s.SeasonID == t.SeasonID), ct);
     }
+
+    /// <summary>Whether the season match exists and is of a season <paramref name="viewer"/> may see.</summary>
+    public Task<bool> CanSeeSeasonMatch(int seasonMatchID, SeasonViewer viewer, CancellationToken ct = default)
+    {
+        var seasons = Visible(viewer);
+        return _context.SeasonMatches.AnyAsync(m => m.SeasonMatchID == seasonMatchID && seasons.Any(s => s.SeasonID == m.SeasonID), ct);
+    }
+
+    /// <summary>The seasons <paramref name="viewer"/> may see now.</summary>
+    public IQueryable<Season> Visible(SeasonViewer viewer) => _context.Seasons.Where(VisibleTo(viewer, _time.GetUtcNow().UtcDateTime));
 }

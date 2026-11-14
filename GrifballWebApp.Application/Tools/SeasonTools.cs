@@ -53,9 +53,7 @@ public class SeasonTools
     private async Task<int> SeasonOrDefault(int? seasonID, SeasonPurpose purpose, CancellationToken ct)
     {
         if (seasonID is int id)
-            return await _seasons.GetSeasonName(id, ct) is null || await _visibility.IsSeasonHidden(id, _caller.Viewer, ct)
-                ? throw new ToolException($"There is no season {id}: list_seasons has their IDs.")
-                : id;
+            return await _visibility.CanSeeSeason(id, _caller.Viewer, ct) ? id : throw new ToolException($"There is no season {id}: list_seasons has their IDs.");
         var season = await _seasons.GetDefaultSeasonID(purpose, _caller.Viewer, ct);
         return season != 0 ? season : throw new ToolException(NoSeasonYet);
     }

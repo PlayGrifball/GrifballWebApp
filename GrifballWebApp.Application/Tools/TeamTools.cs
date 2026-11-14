@@ -31,7 +31,7 @@ public class TeamTools
     /// <summary>Nothing, for a team the caller may see; <see cref="NoSuchTeam"/> for one of a season not announced yet to them.</summary>
     private async Task RequireVisible(int teamID, CancellationToken ct)
     {
-        if (await _visibility.IsTeamHidden(teamID, _caller.Viewer, ct))
+        if (!await _visibility.CanSeeTeam(teamID, _caller.Viewer, ct))
             throw NoSuchTeam(teamID);
     }
 
@@ -53,7 +53,7 @@ public class TeamTools
     public async Task<TeamHistoryDto> GetTeamHistory([Description("The team's ID (any season's).")] int teamID, CancellationToken ct = default)
     {
         await RequireVisible(teamID, ct);
-        return await _history.GetAsync(teamID, ct) ?? throw NoSuchTeam(teamID);
+        return await _history.GetAsync(teamID, _caller.Viewer, ct) ?? throw NoSuchTeam(teamID);
     }
 
     [Description("Recorded videos (VODs) of a team's matches.")]

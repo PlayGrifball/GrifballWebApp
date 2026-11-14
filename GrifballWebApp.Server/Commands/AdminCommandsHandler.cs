@@ -207,7 +207,7 @@ public class AdminCommandsHandler
 
     public async Task SeedBracket(IDiscordInteractionContext context, string? season)
     {
-        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonFor(context, season, SeasonPurpose.Active, SeasonViewer.Staff) is not int id)
+        if (await Staff(context, DiscordCaller.Roles.CommissionerOnly) is null || await _lookups.SeasonFor(context, season, SeasonPurpose.Current, SeasonViewer.Staff) is not int id)
             return;
         await _brackets.SetSeeds(id);
         await context.Reply("The bracket is seeded by the standings.");

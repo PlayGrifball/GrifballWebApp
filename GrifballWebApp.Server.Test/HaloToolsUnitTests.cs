@@ -34,8 +34,7 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
 
     private HaloTools Tools() => new(Db, new XboxAccountService(Db));
 
-    private HaloPullTools PullTools(ToolCaller caller) => new(caller,
-        new SeasonMatchService(Db, Substitute.For<IDataPullService>(), new BracketService(Db, new TeamStandingsService(Db), new ChampionshipService(Db)), new ChampionshipService(Db)),
+    private HaloPullTools PullTools(ToolCaller caller) => new(caller, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db),
         _pulls, new XboxAccountService(Db), _accountPulls);
 
     private async Task AddGames()

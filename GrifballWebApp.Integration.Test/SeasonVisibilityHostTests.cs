@@ -122,6 +122,25 @@ public class SeasonVisibilityHostTests
         }
     }
 
+    [TestCase("/seasons/{season}/summary", "/seasons/999999/summary")]
+    [TestCase("/seasons/{season}/signups", "/seasons/999999/signups")]
+    [TestCase("/teams/{team}", "/teams/999999")]
+    [TestCase("/season-matches/{match}", "/season-matches/999999")]
+    public async Task AHiddenSeasonsPage_AnswersAsOneThatDoesntExist(string hidden, string missing)
+    {
+        using var hiddenResponse = await _anonymous.GetAsync(Path(hidden));
+        using var missingResponse = await _anonymous.GetAsync(missing);
+        var hiddenProblem = await hiddenResponse.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>();
+        var missingProblem = await missingResponse.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(missingResponse.StatusCode, Is.EqualTo(hiddenResponse.StatusCode));
+            Assert.That(missingProblem!.Detail, Is.EqualTo(hiddenProblem!.Detail));
+            Assert.That(missingProblem.Title, Is.EqualTo(hiddenProblem.Title));
+        }
+    }
+
     [Test]
     public async Task TheSeasonListAndTheCalendar_HaveASeasonNotAnnouncedYet_ForTheSysadminAlone()
     {
