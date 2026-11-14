@@ -277,4 +277,62 @@ public class StatsTableParserTests
             Assert.That(uk09.Teams.Single().Roster, Is.EqualTo(expectedUkRoster));
         }
     }
+
+    private static HistoricalArchiveBuild GrifballCom(params (string Name, object?[][] Rows)[] sheets)
+    {
+        const string grifballComId = "history-grifball-com-db";
+        var config = HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == grifballComId).Config!;
+        return HistoricalArchiveBuilder.Build([new HistoricalSourceContent(
+            HistoricalTestData.Source(grifballComId, "https://example.org/grifball-com", config.ToJson()), 1, Workbook(sheets))]);
+    }
+
+    private static readonly object?[] GrifballComStatsHeader = Row("league_id", "gamertag", "team_name", "games_played", "wins", "losses", "goals", "kills", "deaths");
+
+    [Test]
+    public void GrifballComStandings_SheetMissing_WarnsAndKeepsThePlayers()
+    {
+        var build = GrifballCom(("Season_Player_Stats", [GrifballComStatsHeader, Row(3, "Church", "Red Team", 8, 7, 1, 10, 120, 100)]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Warnings, Has.Some.Contains("no sheet 'Standings', or it is empty"));
+            Assert.That(Seasons(build).Single().Players.Single().Gamertag, Is.EqualTo("Church"));
+            Assert.That(Seasons(build).Single().Teams, Is.Empty);
+        }
+    }
+
+    [Test]
+    public void GrifballComStandings_NoTeamColumn_WarnsAndReadsNoTeams()
+    {
+        var build = GrifballCom(
+            ("Season_Player_Stats", [GrifballComStatsHeader, Row(3, "Church", "Red Team", 8, 7, 1, 10, 120, 100)]),
+            ("Standings", [Row("league_id", "rank", "wins"), Row(3, 1, 8)]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Warnings, Has.Some.Contains("Standings has no 'league_id' or 'team_name' column"));
+            Assert.That(Seasons(build).Single().Teams, Is.Empty);
+        }
+    }
+
+    [Test]
+    public void GrifballComStandings_OnlyStandings_ReadsTheTeams_BlankRosterAndNonNumbersNull()
+    {
+        var build = GrifballCom(
+            ("Season_Player_Stats", [GrifballComStatsHeader]),
+            ("Standings", [
+                Row("league_id", "team_name", "rank", "wins", "losses", "roster"),
+                Row(3, "Red Team", "n/a", 8, 1, ""),
+                Row(99, "Unknown League", 1, 1, 1, "Nobody"),
+                Row(3, "", 2, 1, 1, "Nobody"),
+            ]));
+
+        var team = Seasons(build).Single().Teams.Single();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Warnings, Has.None.Contains("no sheet 'Season_Player_Stats'"), "a header-only stats sheet is fine when there are standings");
+            Assert.That((team.TeamName, team.Rank, team.Wins, team.Losses, team.Division, team.Captain), Is.EqualTo(("Red Team", (int?)null, (int?)8, (int?)1, (string?)null, (string?)null)));
+            Assert.That(team.Roster, Is.Empty);
+        }
+    }
 }

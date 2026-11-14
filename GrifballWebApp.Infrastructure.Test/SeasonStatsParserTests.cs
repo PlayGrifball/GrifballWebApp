@@ -1,4 +1,5 @@
 using static GrifballWebApp.Infrastructure.Test.HistoricalXlsx;
+using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Historical.Sources;
 using GrifballWebApp.Infrastructure.Excel;
 using GrifballWebApp.Infrastructure.Historical.Parsing;
@@ -91,6 +92,58 @@ public class SeasonStatsParserTests
             var alpha = playoffs.Players.Single(p => p.Gamertag == "TheAlphaTurtle");
             Assert.That((alpha.TeamName, alpha.GamesPlayed, alpha.Wins, alpha.Losses, alpha.Goals, alpha.Kills, alpha.Assists, alpha.Deaths),
                 Is.EqualTo(("ApoPo", (decimal?)2, (decimal?)0, (decimal?)2, (decimal?)3, (decimal?)78, (decimal?)1, (decimal?)89)));
+        }
+    }
+
+    private static readonly object?[] PlayoffHeader = Row("Team", "Player", "Games", "Wins", "Losses", "Goals", "Kills", "Assists", "Deaths");
+
+    private static ArchiveSeason Playoffs(params object?[][] rows)
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Playoff Game Stats", rows)))!;
+        return SeasonStatsParser.Parse("2020-fl20-pc-schedule-stats", Fl20Config(), workbook, []).Single(s => s.IsPlayoffs);
+    }
+
+    [Test]
+    public void PerGameWithoutSideBySideGames_AggregatesTheRows_KdRatioNullWithoutDeaths()
+    {
+        var playoffs = Playoffs(
+            PlayoffHeader,
+            Row("Ascended", "Regresser", 1, 1, null, 2, 30, null, 10),
+            Row(null, "Regresser", 1, null, 1, 1, 20, null, 0),
+            Row("Ascended", "Sabasauros Rex", 1, 1, null, null, 15, null, 0));
+
+        var regresser = playoffs.Players.Single(p => p.Gamertag == "Regresser");
+        var sab = playoffs.Players.Single(p => p.Gamertag == "Sabasauros Rex");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((regresser.TeamName, regresser.GamesPlayed, regresser.Wins, regresser.Losses, regresser.Goals, regresser.Kills, regresser.Deaths, regresser.KdRatio),
+                Is.EqualTo(("Ascended", (decimal?)2, (decimal?)1, (decimal?)1, (decimal?)3, (decimal?)50, (decimal?)10, (decimal?)5)));
+            Assert.That((sab.Deaths, sab.KdRatio), Is.EqualTo(((decimal?)0, (decimal?)null)), "no deaths: no ratio");
+        }
+    }
+
+    [Test]
+    public void PerGameOneSideBySideSection_TeamFromNoOpponent_ReadsSumOfHeaders_AndSkipsBlankRowsAndStatlessBlocks()
+    {
+        var playoffs = Playoffs(
+            PlayoffHeader,
+            Row(" "),
+            Row("GAME 1"),
+            Row("Played on a Sunday"),
+            Row("W vs Ascended (5-1) host", "Goals", "Sum of Kills", "Deaths", "Score", null, "L vs Nobody (0-5)", "Notes"),
+            Row("Lone Wolf", 3, 25, 0, 900),
+            Row(" "),
+            Row("Pack Rat", null, 12, 4));
+
+        var wolf = playoffs.Players.Single(p => p.Gamertag == "Lone Wolf");
+        var rat = playoffs.Players.Single(p => p.Gamertag == "Pack Rat");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(playoffs.Players, Has.Count.EqualTo(2), "the Notes block has no stat columns: no players of its own");
+            Assert.That((wolf.TeamName, wolf.GamesPlayed, wolf.Wins, wolf.Losses, wolf.Goals, wolf.Kills, wolf.Deaths, wolf.KdRatio, wolf.Score),
+                Is.EqualTo(((string?)null, (decimal?)1, (decimal?)1, (decimal?)0, (decimal?)3, (decimal?)25, (decimal?)0, (decimal?)null, (decimal?)900)),
+                "one section: no other side to name the team after, and no roster");
+            Assert.That((rat.Kills, rat.Deaths, rat.KdRatio, rat.Score), Is.EqualTo(((decimal?)12, (decimal?)4, (decimal?)3, (decimal?)null)));
         }
     }
 }
