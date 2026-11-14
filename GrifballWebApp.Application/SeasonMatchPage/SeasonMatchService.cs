@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
@@ -340,6 +341,19 @@ public partial class SeasonMatchService
         });
         await AwardChampionship(seasonMatch, ct);
         await transaction.CommitAsync(ct);
+
+        // A league game now: its players nobody signed up as (subs) get a placeholder, so their stats in it count. After the
+        // report, not in it: two reports sharing a sub would both insert its placeholder, and the second report would roll
+        // back. Here the second finds the first's, or, racing it, fails alone and leaves it to the hourly job.
+        try
+        {
+            await new GamertagMatching(_context).EnsureXboxPlaceholdersAsync(
+                match.MatchTeams.SelectMany(t => t.MatchParticipants).Select(p => p.XboxUserID).Distinct().ToList(), ct);
+        }
+        catch (DbUpdateException)
+        {
+            // The other report's insert won: the sub has their placeholder
+        }
     }
 
     private void HandleSettingNextMatchesInBracket(SeasonMatch seasonMatch)

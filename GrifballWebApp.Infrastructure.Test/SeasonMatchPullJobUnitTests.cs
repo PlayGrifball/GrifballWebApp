@@ -30,12 +30,14 @@ public class SeasonMatchPullJobUnitTests
     }
 
     [Test]
-    public void BothPulls_DeclareTheHaloGroup_SoAManualRunCountsAgainstIt()
+    public void EveryPull_DeclaresTheHaloGroup_SoAManualRunCountsAgainstIt()
     {
         using (Assert.EnterMultipleScope())
         {
             Assert.That(typeof(ActiveSeasonPullJob).GetCustomAttribute<ExecutionGroupAttribute>()?.Template, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
             Assert.That(typeof(SeasonMatchPullJob).GetCustomAttribute<ExecutionGroupAttribute>()?.Template, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
+            Assert.That(typeof(XboxAccountPullJob).GetCustomAttribute<ExecutionGroupAttribute>()?.Template, Is.EqualTo(JobsServiceCollectionExtensions.HaloMatchPulls));
+            Assert.That(XboxAccountPullJob.RunName(2535400000000042), Is.EqualTo("xbox-account-2535400000000042"));
         }
     }
 }

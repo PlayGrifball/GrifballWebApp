@@ -25,6 +25,12 @@ public sealed class RecurringJob
     /// </summary>
     public bool Enabled { get; init; } = true;
 
+    /// <summary>
+    /// Run from the Jobs page only (a cleanup a sysadmin starts when they choose): the worker gives it no trigger, so it never
+    /// runs on a schedule, can't be given one, and can't be paused. Its <see cref="DefaultSchedule"/> isn't used.
+    /// </summary>
+    public bool ManualOnly { get; init; }
+
     /// <summary>Runs once, in a scope of its own, when the seeder has just made the trigger.</summary>
     public Func<IScheduler, IServiceProvider, CancellationToken, Task>? OnCreated { get; init; }
 

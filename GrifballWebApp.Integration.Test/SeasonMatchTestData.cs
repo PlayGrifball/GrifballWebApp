@@ -80,4 +80,57 @@ internal static class SeasonMatchTestData
         return match;
     }
 
+    /// <summary>
+    /// Puts the Xbox accounts (saved already) in a game reported for a season match of its own: a league game, whose players
+    /// nobody signed up as get placeholders (GamertagMatching.EnsureXboxPlaceholdersAsync).
+    /// </summary>
+    public static async Task InALeagueGameAsync(GrifballContext context, params long[] xuids)
+    {
+        var season = Season.Seed(seasonName: $"League {Guid.NewGuid():N}");
+        context.Seasons.Add(season);
+        await context.SaveChangesAsync();
+        var home = Team.Seed(seasonID: season.SeasonID, teamName: "Home");
+        var away = Team.Seed(seasonID: season.SeasonID, teamName: "Away");
+        context.Teams.AddRange(home, away);
+        await context.SaveChangesAsync();
+        var seasonMatch = SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID);
+        context.SeasonMatches.Add(seasonMatch);
+        var match = Match.Seed(Guid.NewGuid(), startTime: DateTime.UtcNow.AddHours(-1));
+        match.AddTeam(0, 5, Outcomes.Won);
+        match.AddTeam(1, 3, Outcomes.Lost);
+        foreach (var xuid in xuids)
+            match.AddParticipant(0, xuid, new MatchParticipantStats());
+        context.Matches.Add(match);
+        seasonMatch.AddGame(match, 1);
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>Puts the Xbox accounts (saved already) in a pulled game reported for no season match: a pickup custom.</summary>
+    public static async Task InAPickupGameAsync(GrifballContext context, params long[] xuids)
+    {
+        var match = Match.Seed(Guid.NewGuid(), startTime: DateTime.UtcNow.AddHours(-2));
+        match.AddTeam(0, 5, Outcomes.Won);
+        foreach (var xuid in xuids)
+            match.AddParticipant(0, xuid, new MatchParticipantStats());
+        context.Matches.Add(match);
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>Puts the Xbox accounts (saved already) in a Late League match reported from Halo: a league game too.</summary>
+    public static async Task InALateLeagueGameAsync(GrifballContext context, params long[] xuids)
+    {
+        var home = User.Seed(userName: $"ll-home-{Guid.NewGuid():N}");
+        var away = User.Seed(userName: $"ll-away-{Guid.NewGuid():N}");
+        context.Users.AddRange(home, away);
+        await context.SaveChangesAsync();
+        var match = Match.Seed(Guid.NewGuid(), startTime: DateTime.UtcNow.AddHours(-3));
+        match.AddTeam(0, 5, Outcomes.Won);
+        foreach (var xuid in xuids)
+            match.AddParticipant(0, xuid, new MatchParticipantStats());
+        context.Matches.Add(match);
+        var matched = GrifballWebApp.Domain.LateLeague.MatchedMatch.Start([home.Id], [away.Id]);
+        matched.Report(match.MatchID);
+        context.MatchedMatches.Add(matched);
+        await context.SaveChangesAsync();
+    }
 }

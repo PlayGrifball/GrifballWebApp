@@ -18,8 +18,9 @@ using GrifballWebApp.Infrastructure.Historical;
 namespace GrifballWebApp.Integration.Test;
 
 /// <summary>
-/// Waypoint subs and opponents who never signed up have an Xbox account and no user: each gets a placeholder (the
-/// import's kind), so their games count in stats and leaderboards, and their sign-up merges it (audited).
+/// League players who never signed up (a sub in a game reported for a season match) have an Xbox account and no user: each
+/// gets a placeholder (the import's kind), so their games count in stats and leaderboards, and their sign-up merges it
+/// (audited). Someone only ever in a pulled pickup game is no league player: they get none.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -41,11 +42,13 @@ public class XboxPlaceholderTests
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
     [Test]
-    public async Task EveryXboxAccountWithNoUser_GetsAPlaceholder_Once()
+    public async Task EveryLeagueGamesAccountWithNoUser_GetsAPlaceholder_Once_AndAPickupGamesNone()
     {
-        _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "Sub One"), XboxUser.FromXbox(2, "Sub Two"));
+        _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "Sub One"), XboxUser.FromXbox(2, "Sub Two"), XboxUser.FromXbox(4, "Pickup"));
         _context.Users.Add(User.Seed(userName: "taken", xboxUser: XboxUser.FromXbox(3, "Has A User")));
         await _context.SaveChangesAsync();
+        await SeasonMatchTestData.InALeagueGameAsync(_context, 1, 2, 3);
+        await SeasonMatchTestData.InAPickupGameAsync(_context, 4, 1);
 
         var first = await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
         var second = await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
@@ -63,10 +66,27 @@ public class XboxPlaceholderTests
     }
 
     [Test]
+    public async Task AnAccountInAReportedLateLeagueGame_GetsAPlaceholder_ItsALeagueGameToo()
+    {
+        _context.XboxUsers.Add(XboxUser.FromXbox(7, "Late Sub"));
+        await _context.SaveChangesAsync();
+        await SeasonMatchTestData.InALateLeagueGameAsync(_context, 7);
+
+        var made = await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(made, Is.EqualTo(1));
+            Assert.That(await _context.Users.AnyAsync(u => u.IsDummyUser && u.XboxUserID == 7), Is.True);
+        }
+    }
+
+    [Test]
     public async Task OnlyTheGivenAccounts_AndNoneForAnEmptyList()
     {
         _context.XboxUsers.AddRange(XboxUser.FromXbox(1, "Sub One"), XboxUser.FromXbox(2, "Sub Two"));
         await _context.SaveChangesAsync();
+        await SeasonMatchTestData.InALeagueGameAsync(_context, 1, 2);
 
         using (Assert.EnterMultipleScope())
         {
@@ -83,6 +103,7 @@ public class XboxPlaceholderTests
         _context.Users.Add(User.Seed(userName: "historical:Sub One", normalizedUserName: "HISTORICAL:SUB ONE", isDummyUser: true));
         _context.XboxUsers.Add(XboxUser.FromXbox(1, "Sub One"));
         await _context.SaveChangesAsync();
+        await SeasonMatchTestData.InALeagueGameAsync(_context, 1);
 
         await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
 
@@ -95,6 +116,7 @@ public class XboxPlaceholderTests
     {
         _context.XboxUsers.Add(XboxUser.FromXbox(1, "Sub One"));
         await _context.SaveChangesAsync();
+        await SeasonMatchTestData.InALeagueGameAsync(_context, 1);
         var job = new XboxPlaceholderJob(new GamertagMatching(_context), NullLogger<XboxPlaceholderJob>.Instance);
 
         await job.Execute(Substitute.For<Quartz.IJobExecutionContext>());
@@ -104,7 +126,7 @@ public class XboxPlaceholderTests
     }
 
     [Test]
-    public async Task ALiveGameWithASub_CountsTheSubInSeasonStatsAndLeaderboards()
+    public async Task ReportingAGameWithASub_GivesThemAPlaceholder_ThatCountsInSeasonStatsAndLeaderboards()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
         // 301 has an Xbox account and no user: a sub for the away team
@@ -115,8 +137,7 @@ public class XboxPlaceholderTests
         await new SeasonMatchService(_context, Substitute.For<IDataPullService>(), bracketService, new GrifballWebApp.Application.Championships.ChampionshipService(_context)).ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
         _context.ChangeTracker.Clear();
 
-        await new GamertagMatching(_context).EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
-
+        // Reporting the game made it (no job run): the sub is in a league game now
         var sub = await _context.Users.SingleAsync(u => u.XboxUserID == 301);
         var stats = await new SeasonStatsService(_context).GetAsync(seasonID: seeded.Season.SeasonID);
         var boards = await new LeaderboardsController(new GrifballWebApp.Application.Leaderboards.LeaderboardsService(_context, new SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context), new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())), Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Application.Leaderboards.LeaderboardsService>.Instance)).GetLeaderboards(null, CancellationToken.None);
@@ -135,6 +156,7 @@ public class XboxPlaceholderTests
         var person = User.Seed(userName: "person");
         _context.Users.Add(person);
         await _context.SaveChangesAsync();
+        await SeasonMatchTestData.InALeagueGameAsync(_context, 301);
         await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
         var placeholder = await _context.Users.SingleAsync(u => u.XboxUserID == 301);
         var getsert = Substitute.For<IGetsertXboxUserService>();
@@ -162,6 +184,7 @@ public class XboxPlaceholderTests
         var historical = User.Seed(userName: "historical:Old Tag", normalizedUserName: "HISTORICAL:OLD TAG", displayName: "Old Tag", isDummyUser: true);
         _context.Users.Add(historical);
         await _context.SaveChangesAsync();
+        await SeasonMatchTestData.InALeagueGameAsync(_context, 50);
         await _matching.EnsureXboxPlaceholdersAsync(null, CancellationToken.None);
         var claim = GamertagClaim.FromXuidLookup(50, "Old Tag", "OLD TAG", historical.Id, "Now Tag", new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         _context.GamertagClaims.Add(claim);

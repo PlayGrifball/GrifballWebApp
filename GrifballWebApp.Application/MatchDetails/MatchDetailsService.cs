@@ -119,6 +119,7 @@ public class MatchDetailsService
     private static MatchDetailsPlayerDto ToPlayer(MatchParticipant p) => new()
     {
         UserID = p.XboxUser.User?.Id,
+        XboxUserID = p.XboxUserID,
         Gamertag = p.XboxUser.Gamertag,
         Goals = GrifballGoals.Infinite(p),
         // As PlayerGameStatsQuery: a mode that packs its counts into the scores (#217) has no points to show

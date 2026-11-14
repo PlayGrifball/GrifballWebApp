@@ -38,6 +38,8 @@ export interface MatchDetailsTeamDto {
 
 export interface MatchDetailsPlayerDto {
   userID: number | null,
+  /** The player's Xbox account: its own page has their saved games, account or not. */
+  xboxUserID: number,
   gamertag: string,
   /** Grifball goals (a custom mode's decoded, #217); null when they can't be read yet. */
   goals: number | null,

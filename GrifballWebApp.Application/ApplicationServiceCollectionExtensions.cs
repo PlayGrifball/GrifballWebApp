@@ -49,6 +49,8 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<HistoricalImportJobs>();
         services.AddTransient<GamertagClaimService>();
         services.AddTransient<GamertagMatching>();
+        // The cleanup of placeholders that are no league players (Infrastructure's XboxPlaceholderCleanupJob)
+        services.AddTransient<XboxPlaceholderCleanup>();
         services.AddSingleton<HistoricalImportSignal>();
         services.AddOptions<HistoricalGuardrailOptions>().Bind(configuration.GetSection("HistoricalImport:Guardrail"));
         // VODs: found by the refresh jobs (no scheduler of their own), shown on the pages, reviewed by sysadmins
@@ -79,6 +81,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<ChampionshipService>();
         services.AddTransient<SeasonMatchService>();
         services.AddTransient<MatchDetailsService>();
+        services.AddTransient<XboxAccounts.XboxAccountService>();
         services.AddTransient<TeamStandingsService>();
         services.AddTransient<ISetGamertagService, SetGamertagService>();
         services.AddTransient<GradesService>();

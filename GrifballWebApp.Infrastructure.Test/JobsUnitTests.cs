@@ -68,7 +68,7 @@ internal static class JobsTestData
 {
     internal static readonly JobKey Key = new("counting", RecurringJobs.Group);
 
-    internal static RecurringJob Job(TimeSpan every, TimeSpan? startIn = null, bool enabled = true) => new()
+    internal static RecurringJob Job(TimeSpan every, TimeSpan? startIn = null, bool enabled = true, bool manualOnly = false) => new()
     {
         Key = Key,
         Description = "Counts its runs",
@@ -76,5 +76,6 @@ internal static class JobsTestData
             .StartAt(now + (startIn ?? TimeSpan.Zero))
             .WithSimpleSchedule(s => s.WithInterval(every).RepeatForever()),
         Enabled = enabled,
+        ManualOnly = manualOnly,
     };
 }

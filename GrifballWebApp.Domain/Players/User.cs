@@ -134,6 +134,17 @@ public class User : IdentityUser<int>, IAuditStamp
 #pragma warning disable CA1862
     public static readonly Expression<Func<User, bool>> IsImportPlaceholderExpression = u =>
         u.IsDummyUser && u.XboxUserID == null && u.UserName != null && u.UserName.ToUpper().StartsWith(UpperImportPlaceholderPrefix);
+
+    /// <summary>
+    /// An Xbox placeholder as it was made (GamertagMatching.EnsureXboxPlaceholdersAsync) and left alone since: a dummy user
+    /// named with <see cref="ImportPlaceholderPrefix"/> (any case), holding an Xbox account, shown by that account's gamertag,
+    /// with no Discord link, email, password, region or lockout, and never edited (<see cref="ModifiedByID"/> unset). Anything
+    /// more (an archive or merge link, a sign-in, a sysadmin's rename or edit) makes it someone's. For queries.
+    /// </summary>
+    public static readonly Expression<Func<User, bool>> IsUntouchedXboxPlaceholderExpression = u =>
+        u.IsDummyUser && u.XboxUserID != null && u.UserName != null && u.UserName.ToUpper().StartsWith(UpperImportPlaceholderPrefix)
+        && u.DiscordUserID == null && u.Email == null && u.PasswordHash == null && u.RegionID == null && u.LockoutEnd == null
+        && u.ModifiedByID == null && (u.DisplayName == null || u.DisplayName == u.XboxUser!.Gamertag);
 #pragma warning restore CA1862
 
     /// <summary>An import placeholder not yet tied to an Xbox account: the one definition, for a loaded user. Inside a

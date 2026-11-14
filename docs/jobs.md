@@ -8,7 +8,7 @@ pauses and run history are shared by every pod and outlive restarts and deploys.
 | Job | Default schedule | Does |
 |---|---|---|
 | `historical-refresh` | Daily, first 10 minutes after a worker first starts with it | Refreshes the historical sources; an import is queued when one changed ([Historical Import](historical-import.md)). Due while a job is queued or running, it tries again 5 minutes later. |
-| `xbox-placeholders` | Hourly | Gives Xbox accounts no user holds a placeholder user |
+| `xbox-placeholders` | Hourly | Gives a placeholder user to each Xbox account no user holds that played in a league game (a game reported for a season match or a Late League match: a sub who never signed up). Reporting a game also makes its players' placeholders at once. Someone only in pulled pickup games is no league player and gets none: their account and games stay, on its Xbox page (`/xbox/{xuid}`). |
 | `active-season-pulls` | Every 30 minutes, first 5 minutes after a worker first starts with it | Pulls the latest custom games (one page of 25) of every player on a team in a season under way from Halo Infinite, so their season matches' possible matches are there when the page opens |
 | `match-variant-backfill` | Hourly, first 10 minutes after a worker first starts with it | Fetches the stats of matches saved before their game variant was kept, 200 a run (`MatchVariantBackfill:BatchSize`), in a random order, and sets only their variant (`UgcGameVariantAssetID`/`VersionID`), never the stats saved before. One that Halo doesn't give is tried again on a later run. Then decodes the custom scores (#217) of the matches not decoded yet and of every match of the variants it filled in (`CustomScoreLayouts`). Once every match has its variant and is decoded, a run is two queries. |
 | `password-reset-link-cleanup` | Daily, first 15 minutes after a worker first starts with it | Deletes expired and used password reset links (the sysadmin's cleanup button still works) |
@@ -17,6 +17,15 @@ pauses and run history are shared by every pod and outlive restarts and deploys.
 
 Each runs one at a time, on every pod together. A tick missed while no worker was up is skipped for the 10-second
 jobs, and run once when a worker is back for the others.
+
+## Manual-only jobs
+
+A recurring job with `ManualOnly` has no trigger. The worker never makes one, so it never runs on a schedule. The Jobs page
+shows it as "Run by hand", with no interval, Pause or schedule, and a sysadmin starts it with Run now.
+
+| Job | Does |
+|---|---|
+| `xbox-placeholder-cleanup` | Removes the placeholder users made before only league players got one. A placeholder goes only when it is untouched since it was made (a dummy `historical:` user holding an Xbox account, shown by its gamertag, with no Discord link, email, password, region or lockout, never renamed or edited), its account played in no league game (a season match's or a Late League match's reported game), and nothing names it: no foreign key to it (stats, teams, signups, claims, championships, roles) and no key-less user column (merges, duplicate dismissals, audit columns). It checks and deletes 200 at a time, each batch in a serializable transaction, so nothing written meanwhile slips between the check and the delete. Any failure stops the run and fails it on the Jobs page; the batches done stay done, and running it again carries on. The Xbox account and its games stay. It logs each one it removed. |
 
 ## On-demand jobs
 
@@ -28,6 +37,7 @@ Jobs page as **On demand**, with their runs, but aren't started from it: from th
 | Job | Started from | Does |
 |---|---|---|
 | `season-match-pull` (`SeasonMatchPullJob`) | Season match page, "Pull recent games" (players, commissioners and sysadmins) | Pulls both teams' players' recent custom games (11 pages of 25) from Halo Infinite; or, from "Pull back to the season's start", the games they played during the match's season (a day before it to a week after it), however far back: each history is searched for the season's pages (pages 1, 2, 4, 8…, then halving the gap) and only those are read, up to 100 Halo calls a player (one that needs more is reported). The page's possible matches only read the database: the newest 200 of the season's games (a day before it to a week after it) with players of both teams. |
+| `xbox-account-pull` (`XboxAccountPullJob`) | Xbox account page (`/xbox/{xuid}`), "Pull recent games" (players, commissioners and sysadmins) | Pulls the account's recent custom games (11 pages of 25) from Halo Infinite, as the season match page's pull does for its players. One run an account at a time, and one Halo pull at a time across them all. |
 | `schedule-recommendation` (`ScheduleRecommendationJob`) | Season schedule, editing: "Recommend times" (commissioners) | Runs the genetic algorithm for the season's regular matches (`ScheduleService.Recommend`): up to 2000 generations or 2 minutes (`ScheduleRecommendations:MaxGenerations`, `:TimeBudget`), sooner at a perfect schedule, reporting its generation and best fitness. Keeps its best schedule (`ScheduleRecommendations` table), which the schedule shows with each match's conflicts and a commissioner applies: every match without a result gets its time. |
 | `sheet-export` (`SheetExportJob`) | Excel page, "Export all matches" (commissioners) | Writes every match in the copy sheet to the sheet (`ExcelService.ExportAll`), downloading the ones the database doesn't have. One export at a time. |
 | `database-backup` (`DatabaseBackupJob`) | Database Backup page, a download (sysadmins) | Makes the database as a file (SQLite, a script for PostgreSQL or SQL Server, or a native `.bak`/`.dump`, on the scratch server when it's the other kind) and keeps it on the pod that ran it for an hour, or until the next one of its format: one backup a format (`BackupFiles`, each format its own run, `database-backup-<format>`). The page downloads it from there: on one pod, from its disk; on an API pod with workers, streamed from the worker that made it (its pod address, `DatabaseBackup:NodeUrl`, recorded with the run), at `/internal/backups/{id}`, with a five-minute token only the app's pods can make (`BackupDownloads`, Data Protection). |

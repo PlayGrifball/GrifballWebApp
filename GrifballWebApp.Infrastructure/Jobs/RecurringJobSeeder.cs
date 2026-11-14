@@ -40,7 +40,8 @@ public sealed partial class RecurringJobSeeder : IHostedService
     /// <summary>Makes <paramref name="job"/>'s trigger when it has none (or removes it, turned off). Returns whether it made one.</summary>
     public async Task<bool> SeedAsync(IScheduler scheduler, RecurringJob job, CancellationToken ct)
     {
-        if (!job.Enabled)
+        // Off, or run from the Jobs page only: no trigger (one made before it was either is removed)
+        if (!job.Enabled || job.ManualOnly)
         {
             if (await scheduler.UnscheduleJob(job.TriggerKey, ct))
                 LogTriggerRemoved(_logger, job.Key);
@@ -60,7 +61,7 @@ public sealed partial class RecurringJobSeeder : IHostedService
         return true;
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Recurring job {Job} is off: its trigger was removed")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Recurring job {Job} is off or manual only: its trigger was removed")]
     private static partial void LogTriggerRemoved(ILogger logger, JobKey job);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Recurring job {Job} scheduled from its default, first at {Next}")]

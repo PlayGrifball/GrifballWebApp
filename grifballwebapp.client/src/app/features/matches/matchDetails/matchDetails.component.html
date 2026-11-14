@@ -85,7 +85,8 @@
                         @if (player.userID != null) {
                           <a class="hud-text-link" [routerLink]="['/profile', player.userID]">{{player.gamertag}}</a>
                         } @else {
-                          {{player.gamertag}}
+                          <!-- No account: their Xbox account's own page, with their saved games -->
+                          <a class="hud-text-link" [routerLink]="['/xbox', player.xboxUserID]">{{player.gamertag}}</a>
                         }
                         @if (player.joinedInProgress) { <span class="md-note">Joined late</span> }
                         @if (player.leftInProgress) { <span class="md-note">Left early</span> }

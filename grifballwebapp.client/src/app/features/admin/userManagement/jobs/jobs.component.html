@@ -37,7 +37,7 @@
                   <span class="jb-note">{{job.description}}</span>
                 }
               </td>
-              <td>{{job.state === 'Off' || job.state === 'OnDemand' ? '-' : intervalText(job.intervalSeconds)}}</td>
+              <td>{{job.state === 'Off' || job.state === 'OnDemand' || job.state === 'Manual' ? '-' : intervalText(job.intervalSeconds)}}</td>
               <td>
                 <span [class]="'jb-state jb-state--' + job.state.toLowerCase()">{{stateLabels[job.state]}}</span>
                 @if (job.running.length && job.state !== 'Blocked') {
@@ -74,7 +74,7 @@
                 @if (job.state === 'Paused') {
                   <button type="button" class="hud-btn jb-btn" [disabled]="busy()" (click)="setPaused(job, false)" [attr.aria-label]="'Resume ' + job.displayName">Resume</button>
                 } @else {
-                  <button type="button" class="hud-btn jb-btn" [disabled]="busy() || job.state === 'Off' || job.state === 'OnDemand'" (click)="setPaused(job, true)" [attr.aria-label]="'Pause ' + job.displayName">Pause</button>
+                  <button type="button" class="hud-btn jb-btn" [disabled]="busy() || job.state === 'Off' || job.state === 'OnDemand' || job.state === 'Manual'" (click)="setPaused(job, true)" [attr.aria-label]="'Pause ' + job.displayName">Pause</button>
                 }
                 <button type="button" class="hud-btn jb-btn" (click)="select(job)" [attr.aria-label]="'Details of ' + job.displayName" [attr.aria-pressed]="isSelected(job)">Details</button>
               </td>
@@ -114,7 +114,7 @@
         </ul>
       }
 
-      @if (job.recurring && job.enabled) {
+      @if (job.recurring && job.enabled && job.state !== 'Manual') {
         <h3 class="jb-subheading">Schedule</h3>
         <div class="jb-schedule">
           <label class="jb-field">

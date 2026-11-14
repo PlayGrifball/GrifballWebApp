@@ -128,9 +128,25 @@ public class WiringPartsTests : SqliteContextFixture
     }
 
     [Test]
-    public async Task XboxPlaceholders_AnAccountNobodyHolds_GetsAPlaceholderUser()
+    public async Task XboxPlaceholders_AnAccountNobodyHoldsInALeagueGame_GetsAPlaceholderUser()
     {
         Context.XboxUsers.Add(XboxUser.FromXbox(4242, "Loner"));
+        await Context.SaveChangesAsync();
+        // A sub in a game reported for a season match: a league player
+        var season = GrifballWebApp.Domain.League.Season.Seed(seasonName: "League");
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
+        var home = GrifballWebApp.Domain.League.Team.Seed(seasonID: season.SeasonID, teamName: "Home");
+        var away = GrifballWebApp.Domain.League.Team.Seed(seasonID: season.SeasonID, teamName: "Away");
+        Context.Teams.AddRange(home, away);
+        await Context.SaveChangesAsync();
+        var seasonMatch = GrifballWebApp.Domain.League.SeasonMatch.Seed(season.SeasonID, home.TeamID, away.TeamID);
+        Context.SeasonMatches.Add(seasonMatch);
+        var game = GrifballWebApp.Domain.Halo.Match.Seed(Guid.NewGuid(), startTime: DateTime.UtcNow);
+        game.AddTeam(0, 5, GrifballWebApp.Domain.Halo.Outcomes.Won);
+        game.AddParticipant(0, 4242, new GrifballWebApp.Domain.Halo.MatchParticipantStats());
+        Context.Matches.Add(game);
+        seasonMatch.AddGame(game, 1);
         await Context.SaveChangesAsync();
         Context.ChangeTracker.Clear();
 

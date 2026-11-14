@@ -1,0 +1,52 @@
+:host { display: block; }
+
+.xa-id {
+  color: var(--hud-muted);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.xa-account {
+  margin: 0 0 16px;
+
+  // A block, not a link in running text: a 44px tap target
+  a { display: inline-flex; align-items: center; min-height: 44px; }
+}
+
+.xa-pull {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+
+  p { margin: 0; }
+}
+
+.xa-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th, td {
+    padding: 8px 12px;
+    text-align: left;
+    border-top: 1px solid var(--hud-hairline);
+    white-space: nowrap;
+  }
+
+  thead th { border-top: 0; color: var(--hud-muted); font-weight: 600; }
+  .hud-num { text-align: right; }
+}
+
+.xa-pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.xa-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+}

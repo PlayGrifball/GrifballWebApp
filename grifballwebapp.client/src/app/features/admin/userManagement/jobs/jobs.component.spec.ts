@@ -159,6 +159,19 @@ describe('JobsComponent', () => {
     expect(snackBar.open).toHaveBeenCalledWith('historical-refresh is paused.', 'Close', { duration: 4000 });
   });
 
+  it('shows a manual-only job run by hand: no interval, no pause and no schedule, but Run now', async () => {
+    await load([job('xbox-placeholder-cleanup', { state: 'Manual', intervalSeconds: null, defaultIntervalSeconds: null, nextRunAt: null })]);
+
+    const cells = Array.from(rows()[0].querySelectorAll('td')).map(text);
+    expect(cells[1]).toBe('-');
+    expect(cells[2]).toBe('Run by hand');
+    expect(button('Pause xbox-placeholder-cleanup').disabled).toBeTrue();
+    expect(button('Run now xbox-placeholder-cleanup').disabled).toBeFalse();
+
+    await details('xbox-placeholder-cleanup');
+    expect(el().querySelector('.jb-detail .jb-schedule')).toBeNull();
+  });
+
   it('resumes a paused job', async () => {
     await load([job('xbox-placeholders', { state: 'Paused' })]);
     button('Resume xbox-placeholders').click();

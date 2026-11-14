@@ -1,0 +1,96 @@
+@let a = account();
+<div class="hud-page">
+
+  <div class="hud-page-head">
+    <span class="hud-kicker">&gt; Xbox account</span>
+    <h1 class="hud-title hud-title--md">{{a?.gamertag ?? 'Xbox account'}}</h1>
+    <span class="xa-id">XUID {{xuid()}}</span>
+  </div>
+
+  @switch (state()) {
+    @case ('notFound') {
+      <p class="hud-empty">The site has no such Xbox account.</p>
+    }
+    @case ('error') {
+      <p class="hud-empty hud-empty--error" role="alert">Could not load the account right now.</p>
+    }
+    @default {
+      @if (a) {
+        <p class="xa-account">
+          @if (a.userID != null) {
+            <a class="hud-text-link" [routerLink]="['/profile', a.userID]">Profile</a>
+          } @else {
+            <span class="hud-muted">No account created</span>
+          }
+        </p>
+
+        <div class="xa-pull">
+          <p class="hud-muted" role="status">
+            @switch (pull()?.state) {
+              @case ('Queued') { Pulling the account's recent games from Halo Infinite: waiting for the worker… }
+              @case ('Running') { Pulling the account's recent games from Halo Infinite… }
+              @default {
+                @if (pull()?.lastRun; as last) {
+                  @if (last.result === 'Failed') { The last pull failed ({{last.firedAt | date: 'short'}}). }
+                  @else { Recent games last pulled {{last.firedAt | date: 'short'}}. }
+                }
+              }
+            }
+          </p>
+          @if (canPull()) {
+            <button type="button" class="hud-btn xa-btn" (click)="pullGames()" [disabled]="pulling()">Pull recent games</button>
+          }
+          @if (pullError(); as error) {
+            <p class="hud-muted" role="alert">{{error}}</p>
+          }
+        </div>
+
+        <section class="hud-section" aria-labelledby="xa-games-heading">
+          <h2 class="hud-h2" id="xa-games-heading">Games · {{a.gameCount}}</h2>
+          @if (a.games.length === 0) {
+            <p class="hud-empty">The site has saved no games for this account.</p>
+          } @else {
+            <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
+            <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Games"> <!-- //NOSONAR(S6845): a scrollable region, focusable so a keyboard can scroll it -->
+              <table class="xa-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Played</th>
+                    <th scope="col">Result</th>
+                    <th scope="col" class="hud-num">Score</th>
+                    <th scope="col" class="hud-num">Kills</th>
+                    <th scope="col" class="hud-num">Deaths</th>
+                    <th scope="col" class="hud-num">Assists</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (game of a.games; track game.matchID) {
+                    <tr>
+                      <th scope="row">
+                        <a class="hud-text-link" [routerLink]="['/match', game.matchID]">{{game.startTime ? (game.startTime | date: 'medium') : 'Unknown time'}}</a>
+                      </th>
+                      <td>{{game.outcome === 'DidNotFinish' ? 'Did not finish' : game.outcome}}</td>
+                      <td class="hud-num">{{game.score}}@if (game.otherScore != null) {–{{game.otherScore}}}</td>
+                      <td class="hud-num">{{game.kills}}</td>
+                      <td class="hud-num">{{game.deaths}}</td>
+                      <td class="hud-num">{{game.assists}}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            @if (hasNewer() || hasOlder()) {
+              <div class="xa-pager">
+                <button type="button" class="hud-btn xa-btn" [disabled]="!hasNewer() || state() === 'loading'" (click)="newer()">Newer</button>
+                <span class="hud-muted">Page {{a.page}}</span>
+                <button type="button" class="hud-btn xa-btn" [disabled]="!hasOlder() || state() === 'loading'" (click)="older()">Older</button>
+              </div>
+            }
+          }
+        </section>
+      } @else {
+        <p class="hud-muted" role="status">Loading the account…</p>
+      }
+    }
+  }
+</div>

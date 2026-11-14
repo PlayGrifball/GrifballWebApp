@@ -8567,6 +8567,149 @@
           }
         }
       }
+    },
+    "/xbox-accounts/{xboxUserID}": {
+      "get": {
+        "tags": [
+          "XboxAccounts"
+        ],
+        "summary": "An Xbox account and a page of the Halo games the site saved that it played in, newest first; 404 for an account the site doesn't know.",
+        "operationId": "GetXboxAccount",
+        "parameters": [
+          {
+            "name": "xboxUserID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/XboxAccountDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/xbox-accounts/{xboxUserID}/pull": {
+      "get": {
+        "tags": [
+          "XboxAccounts"
+        ],
+        "summary": "Where the pull of the account's recent games is: queued, running with its progress, or idle with its last run.",
+        "operationId": "GetXboxAccountPullStatus",
+        "parameters": [
+          {
+            "name": "xboxUserID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnDemandJobStatusDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "XboxAccounts"
+        ],
+        "summary": "Queues a pull of the account's recent games from Halo Infinite: a 202 with where it is.",
+        "operationId": "PullXboxAccount",
+        "parameters": [
+          {
+            "name": "xboxUserID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnDemandJobStatusDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -11829,7 +11972,8 @@
           "spawns",
           "suicides",
           "timePlayed",
-          "userID"
+          "userID",
+          "xboxUserID"
         ],
         "type": "object",
         "properties": {
@@ -11838,6 +11982,11 @@
             "description": "The site's user for the Xbox account, when there is one (their profile).",
             "format": "int32",
             "nullable": true
+          },
+          "xboxUserID": {
+            "type": "integer",
+            "description": "The player's Xbox account: its own page has their saved games, account or not.",
+            "format": "int64"
           },
           "gamertag": {
             "type": "string"
@@ -17198,6 +17347,110 @@
         },
         "additionalProperties": false
       },
+      "XboxAccountDto": {
+        "required": [
+          "gameCount",
+          "gamertag",
+          "games",
+          "page",
+          "pageSize",
+          "userID",
+          "xboxUserID"
+        ],
+        "type": "object",
+        "properties": {
+          "xboxUserID": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "gamertag": {
+            "type": "string"
+          },
+          "userID": {
+            "type": "integer",
+            "description": "The site user who holds the account (their profile); null when nobody does: no account was created for it.",
+            "format": "int32",
+            "nullable": true
+          },
+          "gameCount": {
+            "type": "integer",
+            "description": "How many games the site has saved for the account, every page.",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "games": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/XboxAccountGameDto"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "An Xbox account and a page of its saved Halo games, newest first: Halo's data only, nothing of the league."
+      },
+      "XboxAccountGameDto": {
+        "required": [
+          "assists",
+          "deaths",
+          "kills",
+          "matchID",
+          "otherScore",
+          "outcome",
+          "score",
+          "startTime"
+        ],
+        "type": "object",
+        "properties": {
+          "matchID": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "score": {
+            "type": "integer",
+            "description": "The score of the account's team.",
+            "format": "int32"
+          },
+          "otherScore": {
+            "type": "integer",
+            "description": "The other team's score; null when the game had no other team.",
+            "format": "int32",
+            "nullable": true
+          },
+          "outcome": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Outcomes"
+              }
+            ]
+          },
+          "kills": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "deaths": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "assists": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false,
+        "description": "One of an Xbox account's saved Halo games: its result for the account's team, and the account's own line."
+      },
       "XuidLookupStatusDto": {
         "required": [
           "due",
@@ -17367,6 +17620,9 @@
     },
     {
       "name": "Vod"
+    },
+    {
+      "name": "XboxAccounts"
     }
   ]
 }
