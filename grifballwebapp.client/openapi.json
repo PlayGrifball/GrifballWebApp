@@ -3936,15 +3936,14 @@
         "operationId": "GetLeaderboards",
         "parameters": [
           {
-            "name": "format",
+            "name": "formats",
             "in": "query",
-            "description": "Count only seasons of this format, or Late League matchmaking; null: all seasons (excluding Late League).",
+            "description": "The formats counted, titles and stats alike (repeat the parameter for several); none: every format.",
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/LeaderboardFilter"
-                }
-              ]
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/LeaderboardFilter"
+              }
             }
           }
         ],
@@ -3973,6 +3972,7 @@
           {
             "name": "query",
             "in": "query",
+            "description": "A gamertag, current or past, looked up when userID is left out.",
             "schema": {
               "type": "string"
             }
@@ -3980,20 +3980,21 @@
           {
             "name": "userID",
             "in": "query",
+            "description": "The player's user ID.",
             "schema": {
               "type": "integer",
               "format": "int32"
             }
           },
           {
-            "name": "format",
+            "name": "formats",
             "in": "query",
+            "description": "The formats counted, titles and stats alike (repeat the parameter for several); none: every format.",
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/LeaderboardFilter"
-                }
-              ]
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/LeaderboardFilter"
+              }
             }
           }
         ],
@@ -11333,7 +11334,7 @@
           "LateLeague"
         ],
         "type": "string",
-        "description": "Which competitions a leaderboard query counts: a season format, Late League matchmaking, or all seasons (null)."
+        "description": "A format a leaderboard can count: the seasons of a season format, or Late League matchmaking."
       },
       "LeaderboardsDto": {
         "required": [

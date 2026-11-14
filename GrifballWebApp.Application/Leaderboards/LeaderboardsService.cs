@@ -16,7 +16,7 @@ using GrifballWebApp.Application.TeamPage;
 
 namespace GrifballWebApp.Application.Leaderboards;
 
-/// <summary>Which competitions a leaderboard query counts: a season format, Late League matchmaking, or all seasons (null).</summary>
+/// <summary>A format a leaderboard can count: the seasons of a season format, or Late League matchmaking.</summary>
 public enum LeaderboardFilter
 {
     LeagueSeason = 1,
@@ -24,14 +24,16 @@ public enum LeaderboardFilter
     LateLeague = 3,
 }
 
-/// <summary>All-time leaderboards over every season, imported from the historical archive or played in the app alike. The
-/// career boards count Late League (matchmaking) games too; it has no titles.</summary>
+/// <summary>All-time leaderboards over every season, imported from the historical archive or played in the app alike, and
+/// Late League (matchmaking), which has no titles. Every board counts the formats asked for: any of them, none asked for
+/// all of them.</summary>
 public class LeaderboardsService
 {
     private const int PlayersShown = 100;
     private const int TeamsShown = 100;
     private const string CacheKey = "leaderboards";
     private static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(5);
+    private static readonly LeaderboardFilter[] AllFormats = [LeaderboardFilter.LeagueSeason, LeaderboardFilter.Tournament, LeaderboardFilter.LateLeague];
 
     private readonly IApplicationDbContext _context;
     private readonly SeasonStatsService _stats;
@@ -50,12 +52,13 @@ public class LeaderboardsService
         _search = new QuickSearchService(context);
     }
 
-    /// <param name="format">Count only seasons of this format, or Late League matchmaking; null: all seasons (excluding Late League).</param>
+    /// <param name="formats">The formats counted, titles and stats alike; null or none: every format.</param>
     /// <param name="ct">Cancels the read, and a computation for the cache.</param>
-    public async Task<LeaderboardsDto> GetAsync(LeaderboardFilter? format, CancellationToken ct = default)
+    public async Task<LeaderboardsDto> GetAsync(IReadOnlyCollection<LeaderboardFilter>? formats, CancellationToken ct = default)
     {
+        var scope = Scope(formats);
         // Every season's titles and stats change only when a result is reported or an import runs: a few minutes stale is fine
-        return await Cached($"{CacheKey}:boards:{FormatKey(format)}", () => Compute(format, ct), ct);
+        return await Cached($"{CacheKey}:boards:{ScopeKey(scope)}", () => Compute(scope, ct), ct);
     }
 
     /// <summary>
@@ -94,21 +97,33 @@ public class LeaderboardsService
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    private static string FormatKey(LeaderboardFilter? format) => format?.ToString() ?? "all";
-
-    private static SeasonFormat? ToSeasonFormat(LeaderboardFilter? format) => format switch
+    /// <summary>The formats asked for, each once and in order (an unknown one ignored); none: every format.</summary>
+    private static LeaderboardFilter[] Scope(IEnumerable<LeaderboardFilter>? formats)
     {
-        LeaderboardFilter.LeagueSeason => SeasonFormat.LeagueSeason,
-        LeaderboardFilter.Tournament => SeasonFormat.Tournament,
-        _ => null,
-    };
+        var chosen = formats?.Where(AllFormats.Contains).Distinct().Order().ToArray() ?? [];
+        return chosen.Length == 0 ? AllFormats : chosen;
+    }
+
+    /// <summary>The cache key of a scope: "all", or its formats ("LeagueSeason+LateLeague").</summary>
+    private static string ScopeKey(LeaderboardFilter[] scope) => scope.Length == AllFormats.Length ? "all" : string.Join('+', scope);
+
+    /// <summary>The season formats of a scope, whose seasons' titles and stats it counts.</summary>
+    private static List<SeasonFormat> SeasonFormats(LeaderboardFilter[] scope) => scope
+        .Select(f => f switch
+        {
+            LeaderboardFilter.LeagueSeason => SeasonFormat.LeagueSeason,
+            LeaderboardFilter.Tournament => SeasonFormat.Tournament,
+            _ => (SeasonFormat?)null,
+        })
+        .OfType<SeasonFormat>()
+        .ToList();
 
     /// <summary>A player's rank on every board: the user with this ID, or else the player a gamertag (current or past) is of.</summary>
     /// <param name="query">A gamertag, current or past, looked up when <paramref name="userId"/> is null.</param>
     /// <param name="userId">The player's user ID; null: the player <paramref name="query"/> names.</param>
-    /// <param name="format">Count only seasons of this format, or Late League matchmaking; null: all seasons (excluding Late League).</param>
+    /// <param name="formats">The formats counted, titles and stats alike; null or none: every format.</param>
     /// <param name="ct">Cancels the reads, and a computation for the cache.</param>
-    public async Task<PlayerAllTimeRankDto?> GetPlayerRankAsync(string? query, int? userId, LeaderboardFilter? format, CancellationToken ct = default)
+    public async Task<PlayerAllTimeRankDto?> GetPlayerRankAsync(string? query, int? userId, IReadOnlyCollection<LeaderboardFilter>? formats, CancellationToken ct = default)
     {
         int? targetUserId = userId;
         string? matchedAlias = null;
@@ -155,9 +170,9 @@ public class LeaderboardsService
                 .Distinct()
                 .ToListAsync(ct);
 
-        // Championships/Dynasties are not filtered by format; stat boards are
-        var careers = await GetCareersAsync(format, ct);
-        var rings = await GetRingCountsAsync(ct);
+        var scope = Scope(formats);
+        var careers = await GetCareersAsync(scope, ct);
+        var rings = await GetRingCountsAsync(scope, ct);
         var career = careers.ByUser.GetValueOrDefault(targetId);
         var kills = career?.Kills ?? 0;
         var playerRings = rings.Counts.GetValueOrDefault(targetId);
@@ -197,13 +212,11 @@ public class LeaderboardsService
     public Task<QuickSearchPlayerDto[]> SearchPlayersAsync(string query, CancellationToken ct = default)
         => _search.SearchPlayersAsync(query, ct);
 
-    /// <summary>
-    /// Every player's career totals across games, filtered to <paramref name="format"/> when specified (null includes all
-    /// season formats, excluding Late League matchmaking).
-    /// </summary>
-    private async Task<Careers> GetCareersAsync(LeaderboardFilter? format, CancellationToken ct)
+    /// <summary>Every player's career totals across games, of the scope's formats: its season formats' seasons, and Late
+    /// League's games when it has Late League.</summary>
+    private async Task<Careers> GetCareersAsync(LeaderboardFilter[] scope, CancellationToken ct)
     {
-        var data = await Cached($"{CacheKey}:careers:{FormatKey(format)}", async () =>
+        var data = await Cached($"{CacheKey}:careers:{ScopeKey(scope)}", async () =>
         {
             // The names the app shows for users (gamertag, Discord name, display name)
             var names = (await _context.Users.AsNoTracking()
@@ -211,32 +224,20 @@ public class LeaderboardsService
                 .ToListAsync(ct))
                 .ToDictionary(u => u.Id, u => (string?)UserNames.Pick(u.Gamertag, u.Discord, u.DisplayName, u.UserName));
 
-            IEnumerable<StatLine> stats;
-            if (format == LeaderboardFilter.LateLeague)
-            {
-                stats = await _matchmaking.GetAsync(ct: ct);
-            }
-            else
-            {
-                var seasonStats = await _stats.GetAsync(ct: ct);
-                var seasonFormat = ToSeasonFormat(format);
-                stats = seasonFormat is null ? seasonStats : seasonStats.Where(s => s.Season.Format == seasonFormat);
-            }
+            // Each season's stats, from its games or its stored totals (never both for a player's phase of a season), and Late
+            // League's, as a profile totals them
+            var seasonFormats = SeasonFormats(scope);
+            var stats = new List<StatLine>();
+            if (seasonFormats.Count > 0)
+                stats.AddRange((await _stats.GetAsync(ct: ct)).Where(s => seasonFormats.Contains(s.Season.Format)));
+            if (scope.Contains(LeaderboardFilter.LateLeague))
+                stats.AddRange(await _matchmaking.GetAsync(ct: ct));
 
             var careers = new List<PlayerCareer>();
             foreach (var player in stats.GroupBy(s => s.UserID))
             {
-                var lines = player.ToList();
-                var name = names.GetValueOrDefault(player.Key) ?? lines[0].Gamertag;
-                var total = CareerTotals.AcrossGames(lines);
-                var goals = lines.Sum(s => s.Goals);
-                var carrierKills = lines.Sum(s => s.CarrierKills);
-                var recording = lines.Where(s => s.RecordsCarrierKills).ToList();
-                total.Goals = goals;
-                total.GoalsPerGame = StatMath.PerGame(goals, total.GamesWithStats);
-                total.CarrierKills = carrierKills;
-                total.StopsPerGame = StatMath.PerGame(recording.Sum(s => s.CarrierKills), recording.Sum(s => s.GamesWithStats));
-                careers.Add(new PlayerCareer(player.Key, name, total));
+                var name = names.GetValueOrDefault(player.Key) ?? player.First().Gamertag;
+                careers.Add(new PlayerCareer(player.Key, name, CareerTotals.AcrossGames(player)));
             }
 
             return new CareersData(names, careers);
@@ -244,12 +245,14 @@ public class LeaderboardsService
         return new Careers(data.Names, data.AcrossGames);
     }
 
-    /// <summary>How many titles each player holds across all seasons.</summary>
-    private async Task<RingCounts> GetRingCountsAsync(CancellationToken ct)
+    /// <summary>How many titles each player holds, of seasons of the scope's season formats.</summary>
+    private async Task<RingCounts> GetRingCountsAsync(LeaderboardFilter[] scope, CancellationToken ct)
     {
-        return await Cached($"{CacheKey}:rings:all", async () =>
+        var seasonFormats = SeasonFormats(scope);
+        return await Cached($"{CacheKey}:rings:{ScopeKey(scope)}", async () =>
         {
             var counts = await _context.Seasons.Championships()
+                .Where(c => seasonFormats.Contains(c.Season.Format))
                 .GroupBy(c => c.UserID)
                 .Select(g => new { UserID = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(g => g.UserID, g => g.Count, ct);
@@ -278,12 +281,13 @@ public class LeaderboardsService
     /// <summary>The values on a board, most first: only a value above zero is on it.</summary>
     private static List<long> RankedDescending(IEnumerable<long> values) => values.Where(v => v > 0).OrderByDescending(v => v).ToList();
 
-    private async Task<LeaderboardsDto> Compute(LeaderboardFilter? format, CancellationToken ct)
+    private async Task<LeaderboardsDto> Compute(LeaderboardFilter[] scope, CancellationToken ct)
     {
-        var careers = await GetCareersAsync(format, ct);
+        var careers = await GetCareersAsync(scope, ct);
 
-        // The titles counted: across all seasons (not filtered by format)
-        var titles = _context.Seasons.Championships();
+        // The titles counted: of the scope's season formats (Late League has none)
+        var seasonFormats = SeasonFormats(scope);
+        var titles = _context.Seasons.Championships().Where(c => seasonFormats.Contains(c.Season.Format));
 
         // Who holds the most titles: counted in the database, the top players' titles then loaded
         var top = await titles
@@ -318,7 +322,7 @@ public class LeaderboardsService
         // one league that carried a name from season to season; a placeholder name is its season's team alone). Only
         // title-winning teams are loaded.
         var champions = await _context.Teams.AsNoTracking()
-            .Where(t => t.PlayerChampionships.Any())
+            .Where(t => seasonFormats.Contains(t.Season.Format) && t.PlayerChampionships.Any())
             .Select(t => new
             {
                 t.TeamID,

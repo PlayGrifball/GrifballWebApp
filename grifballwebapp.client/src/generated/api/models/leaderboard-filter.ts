@@ -3,7 +3,7 @@
 
 
 /**
- * Which competitions a leaderboard query counts: a season format, Late League matchmaking, or all seasons (null).
+ * A format a leaderboard can count: the seasons of a season format, or Late League matchmaking.
  */
 export type LeaderboardFilter = 'LeagueSeason' | 'Tournament' | 'LateLeague';
 

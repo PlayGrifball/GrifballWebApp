@@ -1,6 +1,8 @@
 import { formatNumber } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, LOCALE_ID, OnInit, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 import { catchError, EMPTY, map, of, Subject, switchMap, tap } from 'rxjs';
 import { LeaderboardsService } from '@api/services/leaderboards.service';
@@ -15,6 +17,8 @@ import { PlayerSearchComponent } from './playerSearch/playerSearch.component';
 import { PlayerSpotlightComponent } from './playerSpotlight/playerSpotlight.component';
 
 type MetricBoard = Exclude<Board, 'rings' | 'dynasties'>;
+
+const ALL_FORMATS: LeaderboardFilter[] = leaderboardFormats.map(f => f.value);
 
 const METRICS: Record<MetricBoard, { title: string, list: (l: LeaderboardsDto) => MetricLeaderDto[] }> = {
   goals: { title: 'Goals', list: l => l.goalLeaders },
@@ -31,7 +35,7 @@ interface Lookup { query: string, userId: number | null }
 /** The all-time leaderboards over every season: titles, dynasties and career totals, and a player's standing on each. */
 @Component({
   selector: 'app-leaderboards',
-  imports: [RouterLink, PlayerSearchComponent, PlayerSpotlightComponent],
+  imports: [MatFormFieldModule, MatSelectModule, RouterLink, PlayerSearchComponent, PlayerSpotlightComponent],
   templateUrl: './leaderboards.component.html',
   styleUrl: './leaderboards.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -43,9 +47,14 @@ export class LeaderboardsComponent implements OnInit {
   readonly boards = signal<LeaderboardsDto | null>(null);
   readonly loaded = signal(false);
   readonly board = signal<Board>('rings');
-  /** Which format's competitions the stat boards count: one season format or Late League. */
-  readonly format = signal<LeaderboardFilter>('LeagueSeason');
-  readonly formats = leaderboardFormats;
+  readonly formatOptions = leaderboardFormats;
+  /** The formats every board counts, titles and stats alike: any of them, all of them to start with. */
+  readonly formats = signal<LeaderboardFilter[]>(ALL_FORMATS);
+  /** The select's text: "All formats", or the formats chosen ("League season, Late League"). */
+  readonly formatsLabel = computed(() => {
+    const chosen = this.formats();
+    return chosen.length === ALL_FORMATS.length ? 'All formats' : leaderboardFormats.filter(f => chosen.includes(f.value)).map(f => f.label).join(', ');
+  });
 
   /** The text in the player search. */
   readonly searchQuery = signal('');
@@ -60,6 +69,8 @@ export class LeaderboardsComponent implements OnInit {
 
   /** Each lookup (or null: none) cancels the one in flight, so an older player's standing never replaces a newer one. */
   private readonly lookups = new Subject<Lookup | null>();
+  /** Each load cancels the one in flight, so the boards shown are always the formats chosen last. */
+  private readonly loads = new Subject<LeaderboardFilter[] | undefined>();
 
   readonly tabs: { id: Board, title: string }[] = [
     { id: 'rings', title: 'Championships' },
@@ -95,7 +106,7 @@ export class LeaderboardsComponent implements OnInit {
         this.spotlightLoading.set(lookup != null);
         if (!lookup) this.spotlight.set(null);
       }),
-      switchMap(lookup => !lookup ? EMPTY : this.leaderboards.getPlayerRank({ query: lookup.query || undefined, userID: lookup.userId ?? undefined, format: this.format() })
+      switchMap(lookup => !lookup ? EMPTY : this.leaderboards.getPlayerRank({ query: lookup.query || undefined, userID: lookup.userId ?? undefined, formats: this.formatsAsked() })
         .pipe(
         nullWhenNotFound(), // 404: no player matches
         map(rank => ({ lookup, rank, failed: false })),
@@ -108,19 +119,34 @@ export class LeaderboardsComponent implements OnInit {
       if (!rank)
         this.spotlightError.set(failed ? `Failed to load ranking for "${lookup.query}".` : `No player found matching "${lookup.query}".`);
     });
+
+    this.loads.pipe(
+      switchMap(formats => this.leaderboards.getLeaderboards({ formats }).pipe(catchError(() => of(null)))),
+      takeUntilDestroyed(),
+    ).subscribe(boards => {
+      if (boards)
+        this.boards.set(boards);
+      this.loaded.set(true);
+    });
   }
 
   ngOnInit(): void {
     this.load();
   }
 
-  setFormat(event: Event): void {
-    const value = (event.target as HTMLSelectElement).value as LeaderboardFilter;
-    this.format.set(value);
+  /** Counts the formats chosen, in the select's order; none chosen counts them all again. */
+  setFormats(chosen: LeaderboardFilter[]): void {
+    this.formats.set(chosen.length === 0 ? ALL_FORMATS : ALL_FORMATS.filter(f => chosen.includes(f)));
     this.load();
-    // The standing's titles count the format too: the player last asked for, even while their standing is loading
+    // The standing counts the formats too: the player last asked for, even while their standing is loading
     if (this.requested)
       this.lookUp(this.requested);
+  }
+
+  /** The formats asked of the server: none named when every one is (its default). */
+  private formatsAsked(): LeaderboardFilter[] | undefined {
+    const chosen = this.formats();
+    return chosen.length === ALL_FORMATS.length ? undefined : chosen;
   }
 
   selectPlayer(player: QuickSearchPlayerDto): void {
@@ -143,12 +169,6 @@ export class LeaderboardsComponent implements OnInit {
   }
 
   private load(): void {
-    this.leaderboards.getLeaderboards({ format: this.format() }).subscribe({
-      next: boards => {
-        this.boards.set(boards);
-        this.loaded.set(true);
-      },
-      error: () => this.loaded.set(true),
-    });
+    this.loads.next(this.formatsAsked());
   }
 }

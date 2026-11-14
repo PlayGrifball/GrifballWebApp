@@ -32,7 +32,9 @@ public class BrowseCommandsHandlerActionsUnitTests : SqliteGrifballContextFixtur
         new MatchmakingStatsService(Db), new HomeEventsService(Db, _time), new QuickSearchService(Db, _time), new CommandLookups(Db, null!), Urls());
 
     [TestCase(LeaderboardBoard.Kills, LeaderboardFormat.Tournament, "All-time Kills (Tournament)")]
-    [TestCase(LeaderboardBoard.Games, LeaderboardFormat.LeagueSeason, "All-time Games (LeagueSeason)")]
+    [TestCase(LeaderboardBoard.Games, LeaderboardFormat.LeagueSeason, "All-time Games (League season)")]
+    [TestCase(LeaderboardBoard.Goals, LeaderboardFormat.LateLeague, "All-time Goals (Late League)")]
+    [TestCase(LeaderboardBoard.Rings, LeaderboardFormat.LeagueSeasonAndTournament, "All-time Rings (League season + Tournament)")]
     [TestCase(LeaderboardBoard.CarrierStops, LeaderboardFormat.All, "All-time CarrierStops")]
     public async Task Leaderboard_EachBoard_IsTitledForItsFormat(LeaderboardBoard board, LeaderboardFormat format, string title)
     {
@@ -47,6 +49,16 @@ public class BrowseCommandsHandlerActionsUnitTests : SqliteGrifballContextFixtur
             Assert.That(embed.Description, Is.EqualTo("Nobody is ranked yet."));
         }
     }
+
+    [TestCase(LeaderboardFormat.All, new LeaderboardFilter[0])]
+    [TestCase(LeaderboardFormat.LeagueSeason, new[] { LeaderboardFilter.LeagueSeason })]
+    [TestCase(LeaderboardFormat.Tournament, new[] { LeaderboardFilter.Tournament })]
+    [TestCase(LeaderboardFormat.LateLeague, new[] { LeaderboardFilter.LateLeague })]
+    [TestCase(LeaderboardFormat.LeagueSeasonAndTournament, new[] { LeaderboardFilter.LeagueSeason, LeaderboardFilter.Tournament })]
+    [TestCase(LeaderboardFormat.LeagueSeasonAndLateLeague, new[] { LeaderboardFilter.LeagueSeason, LeaderboardFilter.LateLeague })]
+    [TestCase(LeaderboardFormat.TournamentAndLateLeague, new[] { LeaderboardFilter.Tournament, LeaderboardFilter.LateLeague })]
+    public void FormatsOf_EachChoice_IsItsFormats(LeaderboardFormat choice, LeaderboardFilter[] formats)
+        => Assert.That(BrowseCommandsHandler.FormatsOf(choice), Is.EqualTo(formats));
 
     [Test]
     public async Task Rank_APlayerWithNoGames_IsUnrankedOnEveryBoard()

@@ -13,15 +13,15 @@ import { LeaderboardsDto } from '../../models/leaderboards-dto';
 export interface GetLeaderboards$Params {
 
 /**
- * Count only seasons of this format, or Late League matchmaking; null: all seasons (excluding Late League).
+ * The formats counted, titles and stats alike (repeat the parameter for several); none: every format.
  */
-  format?: LeaderboardFilter;
+  formats?: Array<LeaderboardFilter>;
 }
 
 export function getLeaderboards(http: HttpClient, rootUrl: string, params?: GetLeaderboards$Params, context?: HttpContext): Observable<StrictHttpResponse<LeaderboardsDto>> {
   const rb = new RequestBuilder(rootUrl, getLeaderboards.PATH, 'get');
   if (params) {
-    rb.query('format', params.format, {});
+    rb.query('formats', params.formats, {});
   }
 
   return http.request(

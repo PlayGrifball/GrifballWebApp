@@ -359,7 +359,12 @@ export const OVERLAYS: Overlay[] = [
     parts: [HEADING, TABS, 'app-leaderboards .hud-table-wrap'],
     setup: async page => {
       const table = await showBoard(page, 'Goals', 'Goals');
-      await page.locator('app-leaderboards .board-filter select').selectOption('Tournament');
+      // Every format is chosen to start: leave Tournament alone
+      await page.getByRole('combobox', { name: 'Format' }).click();
+      await page.getByRole('option', { name: 'League season' }).click();
+      await page.getByRole('option', { name: 'Late League' }).click();
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('option')).toHaveCount(0);
       await expect(table).toContainText('Banshee Bri');
       return table;
     },

@@ -205,7 +205,8 @@ public class ProfileControllerTests
                 (old.SeasonID, "Recorded", 10, 20, (string?)null),
             }), "The live season from its games, the old one from its totals");
             Assert.That(stats.OverallCareer!.GamesPlayed, Is.EqualTo(11));
-            Assert.That((stats.OverallCareer.GoalsPerGame, stats.OverallCareer.StopsPerGame), Is.EqualTo(((decimal?)null, (decimal?)null)), "Goals and stops are not added up across games");
+            Assert.That((stats.OverallCareer.GoalsPerGame, stats.OverallCareer.StopsPerGame), Is.EqualTo(((decimal?)2.09m, (decimal?)0.5m)),
+                "Goals and stops add up across games: 23 goals in 11 games, 5 stops in the 10 that record them");
             var infinite = stats.CareerByGame.Single(c => c.GameVersionSlug == "infinite");
             var halo3 = stats.CareerByGame.Single(c => c.GameVersionSlug == "halo3");
             Assert.That((infinite.GoalsPerGame, infinite.StopsPerGame), Is.EqualTo(((decimal?)3m, (decimal?)null)), "Waypoint games record no stops");

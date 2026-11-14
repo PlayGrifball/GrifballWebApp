@@ -46,22 +46,7 @@
 }
 
 .board-filter {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 4px;
+  width: 260px;
+  max-width: 100%;
 }
 
-.board-filter select {
-  min-height: 48px;
-  padding: 8px 10px;
-  border: 1px solid var(--hud-control-outline);
-  background: var(--hud-input);
-  color: var(--hud-text);
-  font-size: 14px;
-}
-
-.board__game {
-  margin-left: 8px;
-  color: var(--hud-muted);
-  font-size: 12px;
-}

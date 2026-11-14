@@ -64,16 +64,18 @@ public class CareerTotalsTests
     }
 
     [Test]
-    public void AcrossGames_TotalsOnlyWhatEveryGameCountsAlike()
+    public void AcrossGames_TotalsWhatEveryGameCountsAlike_AndGoalsAndStops()
     {
-        var career = CareerTotals.AcrossGames([Line(1, 1, 10, 6, 50, 25, goals: 8), Line(3, 6, 5, 5, 40, 20, goals: 9)]);
+        var career = CareerTotals.AcrossGames([Line(1, 1, 10, 6, 50, 25, goals: 8, stops: 4), Line(3, 6, 5, 5, 40, 20, goals: 9, stops: 3, recordsStops: false)]);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That((career.GameVersionID, career.GameVersionSlug, career.SeasonsCount), Is.EqualTo(((int?)null, "all", 2)));
             Assert.That((career.GamesPlayed, career.Wins, career.Losses, career.Kills, career.Deaths), Is.EqualTo((15, 11, 4, 90, 45)));
             Assert.That((career.KdRatio, career.WinPercent), Is.EqualTo(((decimal?)2m, (decimal?)73.3m)));
-            Assert.That((career.Goals, career.CarrierKills), Is.EqualTo(((int?)null, (int?)null)), "Goals and stops are per game");
+            Assert.That((career.Goals, career.GoalsPerGame), Is.EqualTo(((long?)17, (decimal?)1.13m)), "17 goals over 15 games, whatever the game");
+            Assert.That((career.CarrierKills, career.StopsPerGame), Is.EqualTo(((int?)7, (decimal?)0.4m)), "4 stops over the 10 games that record them");
+            Assert.That((career.Sprees, career.HammerKills), Is.EqualTo(((int?)null, (int?)null)), "Medals stay per game");
         }
     }
 

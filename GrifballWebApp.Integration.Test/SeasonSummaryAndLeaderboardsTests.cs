@@ -303,7 +303,7 @@ public class SeasonSummaryAndLeaderboardsTests
     }
 
     [Test]
-    public async Task Leaderboards_TitleCounts_AreNotFilteredByFormat()
+    public async Task Leaderboards_TitleCounts_AreOfTheFormatsChosen()
     {
         var (_, _, _, captain, _, _) = await SeedHistorical();
         var respawn = await AddSeason("Respawn 2012", 2012, historical: false);
@@ -315,15 +315,19 @@ public class SeasonSummaryAndLeaderboardsTests
         var controller = NewLeaderboardsController();
 
         var every = await controller.GetLeaderboards(null, CancellationToken.None);
-        var tournaments = await controller.GetLeaderboards(LeaderboardFilter.Tournament, CancellationToken.None);
-        var leagues = await controller.GetLeaderboards(LeaderboardFilter.LeagueSeason, CancellationToken.None);
+        var tournaments = await controller.GetLeaderboards([LeaderboardFilter.Tournament], CancellationToken.None);
+        var leagues = await controller.GetLeaderboards([LeaderboardFilter.LeagueSeason], CancellationToken.None);
+        var both = await controller.GetLeaderboards([LeaderboardFilter.Tournament, LeaderboardFilter.LeagueSeason], CancellationToken.None);
+        var lateLeague = await controller.GetLeaderboards([LeaderboardFilter.LateLeague], CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(every.RingLeaders.Single(r => r.UserID == captain.Id).RingsCount, Is.EqualTo(2), "Pro 2010 and Respawn");
-            Assert.That(tournaments.RingLeaders.Single(r => r.UserID == captain.Id).RingsCount, Is.EqualTo(2));
-            Assert.That(leagues.RingLeaders.Single(r => r.UserID == captain.Id).RingsCount, Is.EqualTo(2));
-            Assert.That(tournaments.Dynasties.Select(d => d.TeamName), Is.EqualTo(every.Dynasties.Select(d => d.TeamName)));
+            Assert.That(tournaments.RingLeaders.Select(r => (r.UserID, r.RingsCount)), Is.EqualTo(new[] { (captain.Id, 1) }));
+            Assert.That(tournaments.Dynasties.Select(d => d.TeamName), Is.EqualTo(expectedArray0));
+            Assert.That(leagues.RingLeaders.Single(r => r.UserID == captain.Id).Titles.Select(t => $"{t.SeasonName} ({t.Tier})"), Is.EqualTo(expectedArray1));
+            Assert.That(both.RingLeaders.Select(r => (r.UserID, r.RingsCount)), Is.EqualTo(every.RingLeaders.Select(r => (r.UserID, r.RingsCount))), "Both season formats: every title");
+            Assert.That(lateLeague.RingLeaders.Concat<object>(lateLeague.Dynasties), Is.Empty, "Late League has no titles");
         }
     }
 
@@ -360,15 +364,17 @@ public class SeasonSummaryAndLeaderboardsTests
         var controller = NewLeaderboardsController();
 
         var all = await controller.GetLeaderboards(null, CancellationToken.None);
-        var leagues = await controller.GetLeaderboards(LeaderboardFilter.LeagueSeason, CancellationToken.None);
-        var tournaments = await controller.GetLeaderboards(LeaderboardFilter.Tournament, CancellationToken.None);
-        var tournamentRank = (await controller.GetPlayerRank(null, player.Id, LeaderboardFilter.Tournament, CancellationToken.None)).Value!;
+        var leagues = await controller.GetLeaderboards([LeaderboardFilter.LeagueSeason], CancellationToken.None);
+        var tournaments = await controller.GetLeaderboards([LeaderboardFilter.Tournament], CancellationToken.None);
+        var lateLeague = await controller.GetLeaderboards([LeaderboardFilter.LateLeague], CancellationToken.None);
+        var tournamentRank = (await controller.GetPlayerRank(null, player.Id, [LeaderboardFilter.Tournament], CancellationToken.None)).Value!;
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(all.GoalLeaders.Single().StatValue, Is.EqualTo(10));
             Assert.That(leagues.GoalLeaders.Single().StatValue, Is.EqualTo(6));
             Assert.That(tournaments.GoalLeaders.Single().StatValue, Is.EqualTo(4));
+            Assert.That(lateLeague.GoalLeaders, Is.Empty, "No Late League games");
             Assert.That(tournamentRank.Goals.StatValue, Is.EqualTo(4));
             Assert.That(tournamentRank.GamesPlayed.StatValue, Is.EqualTo(10));
         }
@@ -573,14 +579,14 @@ public class SeasonSummaryAndLeaderboardsTests
         var controller = NewLeaderboardsController();
 
         var every = (await controller.GetPlayerRank(null, captain.Id, null, CancellationToken.None)).Value!.Rings;
-        var tournaments = (await controller.GetPlayerRank(null, captain.Id, LeaderboardFilter.Tournament, CancellationToken.None)).Value!.Rings;
-        var runnerTournaments = (await controller.GetPlayerRank(null, runner.Id, LeaderboardFilter.Tournament, CancellationToken.None)).Value!.Rings;
+        var tournaments = (await controller.GetPlayerRank(null, captain.Id, [LeaderboardFilter.Tournament], CancellationToken.None)).Value!.Rings;
+        var runnerTournaments = (await controller.GetPlayerRank(null, runner.Id, [LeaderboardFilter.Tournament], CancellationToken.None)).Value!.Rings;
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That((every.StatValue, every.Rank, every.TotalRanked, every.SecondaryText), Is.EqualTo((2L, (int?)1, 2, (string?)null)), "The tile shows the count: nothing to add");
-            Assert.That((tournaments.StatValue, tournaments.Rank, tournaments.TotalRanked), Is.EqualTo((2L, (int?)1, 2)), "Titles are not filtered by format");
-            Assert.That((runnerTournaments.StatValue, runnerTournaments.Rank), Is.EqualTo((1L, (int?)2)));
+            Assert.That((tournaments.StatValue, tournaments.Rank, tournaments.TotalRanked), Is.EqualTo((1L, (int?)1, 1)), "Only the tournament's title holder");
+            Assert.That((runnerTournaments.StatValue, runnerTournaments.Rank), Is.EqualTo((0L, (int?)null)));
         }
     }
 

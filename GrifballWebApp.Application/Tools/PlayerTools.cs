@@ -67,11 +67,11 @@ public class PlayerTools
     public async Task<PlayerAllTimeRankDto> GetPlayerRank(
         [Description("The player's user ID; left out with no gamertag, you.")] int? userID = null,
         [Description("A gamertag, current or past, instead of a user ID.")] string? gamertag = null,
-        [Description("Count only seasons of this format, or Late League matchmaking; left out, all seasons (excluding Late League).")] LeaderboardFilter? format = null,
+        [Description("The formats counted, titles and stats alike: any of LeagueSeason, Tournament and LateLeague (Late League has no titles); left out, every format.")] LeaderboardFilter[]? formats = null,
         CancellationToken ct = default)
     {
         var id = gamertag is null ? userID ?? _caller.Me() : userID;
-        return await _leaderboards.GetPlayerRankAsync(gamertag, id, format, ct)
+        return await _leaderboards.GetPlayerRankAsync(gamertag, id, formats, ct)
             ?? throw new ToolException(gamertag is null ? $"Player {id} is on no leaderboard." : $"No player has the gamertag {gamertag}.");
     }
 }

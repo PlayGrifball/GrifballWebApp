@@ -26,9 +26,9 @@ public class BrowseTools
         => _search.SearchAsync(query, ct);
 
     [Description("The all-time leaderboards: most titles (ring leaders), dynasties, and the goal, kill, carrier-stop and games-played leaders.")]
-    public Task<LeaderboardsDto> GetLeaderboards([Description("Count only seasons of this format, or Late League matchmaking; left out, all seasons (excluding Late League).")] LeaderboardFilter? format = null,
+    public Task<LeaderboardsDto> GetLeaderboards([Description("The formats counted, titles and stats alike: any of LeagueSeason, Tournament and LateLeague (Late League has no titles); left out, every format.")] LeaderboardFilter[]? formats = null,
         CancellationToken ct = default)
-        => _leaderboards.GetAsync(format, ct);
+        => _leaderboards.GetAsync(formats, ct);
 
     [Description("Lists Late League's seasons (matchmaking, not drafted teams): each one's ID, name, dates and how many games and players it had.")]
     public Task<List<MatchmakingSeasonDto>> ListLateLeagueSeasons(CancellationToken ct = default)
