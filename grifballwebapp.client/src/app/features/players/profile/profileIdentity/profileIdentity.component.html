@@ -45,7 +45,7 @@
   <h3 class="pi-subheading">Your claims</h3>
   @if (claimsFailed()) {
     <p class="hud-empty hud-empty--error" role="alert">Your claims couldn't be loaded.</p>
-  } @else if (claims.hasValue() && claimRows().length === 0) {
+  } @else if (claimsLoaded() && claimRows().length === 0) {
     <p class="hud-muted">None yet.</p>
   } @else {
     <ul class="pi-claims">

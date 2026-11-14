@@ -40,3 +40,33 @@ changes the client. It fails on:
 After ESLint, `npm run lint` runs `verify-boundaries.mjs`, which lints a set of known good and bad imports and fails if
 any comes out the other way, so a change to the config, the plugin or its resolver can't switch the check off quietly.
 A new rule above gets a case there.
+
+## Components and stores
+
+A component that talks to the server does it through its store: an `@Injectable()` class next to it
+(`<name>.store.ts`) that the component lists in its `providers`, so each instance of the component has its own, made
+and destroyed with it. The store holds what came from the server and what is in flight (signals, read-only from
+outside), and makes the calls: loads (`rxResource`, or a `Subject` with `switchMap` when each request should cancel the
+last), saves, polling, and the snackbar or error text when one fails. The component is the view: its inputs, outputs and
+form fields, what the page shows computed from the store's signals, and methods that hand the user's actions to the
+store. `profileCommendations` is the smallest example, `xboxAccount` one with paging and polling.
+
+- **The component keeps the store's signals under its own names** (`readonly rows = this.store.rows;`), so its template
+  reads `rows()` either way.
+- **Inputs reach the store as a `StoreInput`** (`@shared/storeInput`). The store declares
+  `readonly userID = new StoreInput<number>();` and reads `this.userID.value()` (undefined until the component hands
+  its input over, so a resource keyed on it stays idle), and the component hands it over once, in its constructor:
+  `this.store.userID.use(this.userID);`. The store then follows the input, with no effect copying it across.
+- **What the component does after a call** (clear the form, emit an output) it passes as a callback:
+  `this.store.create(name, days, () => this.name.set(''));`.
+- **A form filled from the server** is a `linkedSignal` of the store's copy: `readonly model = linkedSignal(() =>
+  this.store.season() ?? newSeason());`. The store keeps what the server sent; edits change only the form, which starts
+  over whenever the store's copy is replaced. So a store never replaces that copy while the user may be editing it:
+  not to refresh it after a save. What a save answers (a new ID, say) goes into the form through the save's callback.
+- **Drawing with a library that doesn't read signals** (the playoff bracket's viewer) stays in the component: one
+  effect on the store's data draws it, or clears it when there is none. The store doesn't touch the page.
+- **Each store has its own spec** (`<name>.store.spec.ts`), which injects it with `HttpTestingController` and tests
+  its calls, answers and failures without a template. The component's spec stays as it was: rendering and the user's
+  actions, through the real store. A resource's value comes a microtask after the answer, so a spec waits for
+  `ApplicationRef.whenStable()` (or the fixture's) before reading it; it waits only after answering, since a resource
+  still loading keeps the app unstable.

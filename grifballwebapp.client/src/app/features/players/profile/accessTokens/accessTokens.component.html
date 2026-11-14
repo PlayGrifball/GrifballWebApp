@@ -33,7 +33,7 @@
 
   @if (failed()) {
     <p class="hud-empty hud-empty--error" role="alert">Your tokens couldn't be loaded.</p>
-  } @else if (tokens.hasValue() && rows().length === 0) {
+  } @else if (loaded() && rows().length === 0) {
     <p class="hud-muted">None yet.</p>
   } @else {
     <ul class="at-tokens">
