@@ -47,6 +47,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     private readonly IGetsertXboxUserService _xboxUsers = Substitute.For<IGetsertXboxUserService>();
     private readonly IDataPullService _dataPull = Substitute.For<IDataPullService>();
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
+    private bool _modelConfigured = true;
     private readonly IDiscordRestClient _rest = Substitute.For<IDiscordRestClient>();
     private readonly FakeRestRequestHandler _discord = new() { EchoContent = true, UniqueIds = true };
     private ServiceProvider _services = null!;
@@ -86,6 +87,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .AddSingleton(Substitute.For<GrifballWebApp.Application.Brackets.IBracketService>())
             .BuildServiceProvider();
         var chatClients = Substitute.For<IChatClientFactory>();
+        chatClients.Available.Returns(_modelConfigured);
         chatClients.Create().Returns(models[0], models[1..]);
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
         return new MessageCreateHandler(_rest, config, _services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger, chatClients, _time);
@@ -406,6 +408,23 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             Assert.That(keptAfterTheDm, Is.EqualTo(ChannelQuestion));
             Assert.That(inTheChannel.Messages.Select(x => x.Text), Is.EqualTo(ChannelQuestionThenHello));
             Assert.That(await SavedReplies(), Is.EqualTo(PublicAnswer));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_NoModelConfigured_SaysTheChatIsUnavailable_AndAsksNoModel()
+    {
+        _modelConfigured = false;
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Never"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo(GrifChat.Unavailable));
+            Assert.That(model.Options, Is.Null, "the model isn't asked");
+            Assert.That(await Db.DiscordMessages.AnyAsync(), Is.False);
         }
     }
 }

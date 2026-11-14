@@ -29,7 +29,8 @@ public abstract class MessageCreateHandlerFixture
         _logger = new RecordingLogger<MessageCreateHandler>();
         _ambient = Substitute.For<IAmbientCurrentUser>();
         _ambient.IsActive.Returns(true);
-        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
+        // A model configured (nothing listens there: these tests never get as far as asking it)
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString(), ["Ollama:Url"] = "http://127.0.0.1:9/" }).Build();
         _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, new AmbientCurrentUser(), _logger, new OllamaChatClients(config));
     }
 

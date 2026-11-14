@@ -74,6 +74,13 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 
     private async ValueTask HandleResponseCore(Message message)
     {
+        // No model configured (no Ollama:Url): say so, rather than fail on each message
+        if (!Chat.Available)
+        {
+            await message.ReplyAsync(GrifChat.Unavailable);
+            return;
+        }
+
         var UserId = (long)message.Author.Id;
         var BotID = (long)BotId;
         // The author's linked app user, if any, is the audit user for this scope's writes and the ambient user.

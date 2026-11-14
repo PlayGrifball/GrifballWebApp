@@ -30,6 +30,8 @@ public class ChatHub(GrifChat chat, ChatLimits limits, IAmbientCurrentUser ambie
     public Task<ChannelReader<string>> Ask(ChatRequestDto request, CancellationToken cancellationToken)
     {
         var reply = Channel.CreateUnbounded<string>();
+        if (!chat.Available)
+            return Refuse(reply, GrifChat.Unavailable);
         if (GrifChat.Refusal(request) is { } refused)
             return Refuse(reply, refused);
         var conversation = GrifChat.Conversation(request);
@@ -103,8 +105,8 @@ public class ChatHub(GrifChat chat, ChatLimits limits, IAmbientCurrentUser ambie
 public interface IChatHubServer
 {
     /// <summary>
-    /// The chat's answer to a question, streamed as it is written. Refused (a HubException saying why) when the question is empty or
-    /// too long, a reply is already under way on this connection, or the user has asked too many this minute.
+    /// The chat's answer to a question, streamed as it is written. Refused (a HubException saying why) when there is no model, the
+    /// question is empty or too long, a reply is already under way on this connection, or the user has asked too many this minute.
     /// </summary>
     Task<ChannelReader<string>> Ask(ChatRequestDto request, CancellationToken cancellationToken);
 }

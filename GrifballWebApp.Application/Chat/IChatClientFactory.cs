@@ -8,5 +8,8 @@ namespace GrifballWebApp.Application.Chat;
 /// </summary>
 public interface IChatClientFactory
 {
+    /// <summary>Whether a model is configured: none, and the hosts say the chat is unavailable rather than ask one.</summary>
+    bool Available { get; }
+
     IChatClient Create();
 }

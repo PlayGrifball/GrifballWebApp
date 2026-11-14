@@ -83,15 +83,38 @@ public class WiringPartsTests : SqliteContextFixture
     [Test]
     public void ChatClient_IsTheConfiguredOllama_WithNoToolCallsOfItsOwn()
     {
-        using var client = new OllamaChatClients(Configuration(("Ollama:Url", "http://ollama.test:11434/"))).Create();
+        var clients = new OllamaChatClients(Configuration(("Ollama:Url", "http://ollama.test:11434/")));
+        using var client = clients.Create();
 
         using (Assert.EnterMultipleScope())
         {
+            Assert.That(clients.Available, Is.True);
             // GrifChat calls the tools, whatever the provider
             Assert.That(client, Is.TypeOf<OllamaApiClient>());
             Assert.That(client.GetService<FunctionInvokingChatClient>(), Is.Null);
             Assert.That(client.GetService<OllamaApiClient>()?.Uri, Is.EqualTo(new Uri("http://ollama.test:11434/")));
-            Assert.That(client.GetService<OllamaApiClient>()?.SelectedModel, Is.EqualTo(OllamaChatClients.Model));
+            Assert.That(client.GetService<OllamaApiClient>()?.SelectedModel, Is.EqualTo(OllamaChatClients.DefaultModel));
+        }
+    }
+
+    [Test]
+    public void ChatClient_OllamaModel_IsTheModelAsked()
+    {
+        using var client = new OllamaChatClients(Configuration(("Ollama:Url", "http://ollama.test:11434/"), ("Ollama:Model", "qwen3:8b"))).Create();
+
+        Assert.That(client.GetService<OllamaApiClient>()?.SelectedModel, Is.EqualTo("qwen3:8b"));
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    public void ChatClient_NoOllamaUrl_IsNoModel_NotOllamasDefaultPort(string? url)
+    {
+        var clients = new OllamaChatClients(Configuration(("Ollama:Url", url)));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(clients.Available, Is.False);
+            Assert.That(() => clients.Create(), Throws.InvalidOperationException.With.Message.Contains("Ollama:Url"));
         }
     }
 

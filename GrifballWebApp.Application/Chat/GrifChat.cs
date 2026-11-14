@@ -61,6 +61,12 @@ public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory sc
     /// <summary>The longest earlier message the model is sent again: a longer one is cut there.</summary>
     public const int MaxHistoryMessageLength = 4000;
 
+    /// <summary>What a host says when no model is configured (<see cref="Available"/>), in place of a reply.</summary>
+    public const string Unavailable = "The chat isn't available right now: it has no model to answer with.";
+
+    /// <summary>Whether there is a model to ask: none configured, and a host says <see cref="Unavailable"/> instead.</summary>
+    public bool Available => clients.Available;
+
     /// <summary>What every host tells the model, between its own first and last lines.</summary>
     private static readonly string[] Shared =
     [

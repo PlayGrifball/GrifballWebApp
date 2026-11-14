@@ -34,6 +34,7 @@ public class GrifChatUnitTests
     {
         _services = new ServiceCollection().AddSingleton<TimeProvider>(_time).BuildServiceProvider();
         var clients = Substitute.For<IChatClientFactory>();
+        clients.Available.Returns(true);
         clients.Create().Returns(model);
         return new GrifChat(clients, _services.GetRequiredService<IServiceScopeFactory>());
     }
@@ -150,6 +151,16 @@ public class GrifChatUnitTests
         var host = ChatHost.Site with { Timeout = TimeSpan.FromMilliseconds(20) };
 
         Assert.That(async () => await All(Chat(model).ReplyAsync(Asked("Hi"), ToolCaller.Anonymous, host)), Throws.InstanceOf<OperationCanceledException>());
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void Available_WhenTheFactoryHasAModel(bool configured)
+    {
+        var clients = Substitute.For<IChatClientFactory>();
+        clients.Available.Returns(configured);
+
+        Assert.That(new GrifChat(clients, Substitute.For<IServiceScopeFactory>()).Available, Is.EqualTo(configured));
     }
 
     [Test]

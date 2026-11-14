@@ -38,6 +38,7 @@ public class ChatHubUnitTests
     private ChatHub Hub(IChatClient model, ClaimsPrincipal? user = null, string connectionId = "connection-1", string address = "203.0.113.9")
     {
         _clients.Create().Returns(model);
+        _clients.Available.Returns(true);
         var http = new DefaultHttpContext();
         http.Connection.RemoteIpAddress = IPAddress.Parse(address);
         var features = new FeatureCollection();
@@ -127,6 +128,22 @@ public class ChatHubUnitTests
             Assert.That(model.Options!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Where(t => !t.StartsWith("pull_", StringComparison.Ordinal))));
         }
         _ambient.Received(1).UserId = null;
+    }
+
+    [Test]
+    public async Task Ask_NoModelConfigured_SaysTheChatIsUnavailable()
+    {
+        var hub = Hub(new ScriptedChatClient((TimeSpan.Zero, "Never")));
+        _clients.Available.Returns(false);
+
+        var (texts, error) = await Read(await hub.Ask(Question(), CancellationToken.None));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(error, Is.EqualTo(GrifChat.Unavailable));
+            Assert.That(texts, Is.Empty);
+        }
+        _clients.DidNotReceive().Create();
     }
 
     [TestCase("")]
