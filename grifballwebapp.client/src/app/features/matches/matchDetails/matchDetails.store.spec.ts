@@ -21,10 +21,12 @@ describe('MatchDetailsStore', () => {
   /** Lets an answered resource take its value (a microtask after the answer). */
   const settle = () => TestBed.inject(ApplicationRef).whenStable();
 
-  it('asks for nothing until it has the match ID', () => {
+  it('asks for nothing until it has the match ID, and says it is loading meanwhile', () => {
     TestBed.tick();
     http.expectNone(() => true);
     expect(store.details()).toBeNull();
+    // Not "no such match": nothing has been asked for yet
+    expect(store.state()).toBe('loading');
   });
 
   it('loads the match, and another in its place, cancelling the first', async () => {
