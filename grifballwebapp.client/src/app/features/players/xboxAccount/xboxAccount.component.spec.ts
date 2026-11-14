@@ -163,4 +163,44 @@ describe('XboxAccountComponent', () => {
 
     expect(el().querySelector('.xa-pull [role="alert"]')!.textContent).toContain('Not allowed');
   });
+  it('shows the page without the pull\'s status when it cannot be read', () => {
+    pullStatus().flush('down', { status: 500, statusText: 'Server Error' });
+    request().flush(account());
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.pull()).toBeNull();
+    expect(el().querySelector('h1')!.textContent).toBe('Pickup Pete');
+  });
+
+  it('goes back to the newest games when a pull finishes on a later page, and says when it can\'t follow the pull', () => {
+    jasmine.clock().install();
+    try {
+      isPlayer.set(true);
+      pullStatus().flush(idle);
+      request().flush(account({ gameCount: 30 }));
+      fixture.detectChanges();
+      button('Older')!.click();
+      fixture.detectChanges();
+      request(2).flush(account({ gameCount: 30, page: 2, games: [game('m-26')] }));
+      fixture.detectChanges();
+
+      button('Pull recent games')!.click();
+      http.expectOne(r => r.method === 'POST').flush({ ...idle, state: 'Queued' });
+      jasmine.clock().tick(PULL_POLL_MS);
+      pullStatus().flush({ ...idle, lastRun: { firedAt: '2026-11-14T03:00:00Z', durationMs: 900, result: 'Succeeded', error: null } });
+      fixture.detectChanges();
+      request(1).flush(account({ gameCount: 31 }));
+      fixture.detectChanges();
+      expect(fixture.componentInstance.page()).toBe(1);
+
+      button('Pull recent games')!.click();
+      http.expectOne(r => r.method === 'POST').flush({ ...idle, state: 'Running' });
+      jasmine.clock().tick(PULL_POLL_MS);
+      pullStatus().flush('down', { status: 500, statusText: 'Server Error' });
+      fixture.detectChanges();
+      expect(el().querySelector('.xa-pull [role="alert"]')!.textContent).toContain("Couldn't tell whether the pull finished");
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
 });
