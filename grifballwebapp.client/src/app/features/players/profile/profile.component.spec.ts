@@ -592,11 +592,12 @@ describe('ProfileComponent linked accounts', () => {
     const totals = { gamesPlayed: 3, wins: 2, losses: 1, winPercent: 66.7, kills: 6, deaths: 4, kdRatio: 1.5, bombScores: 2, uncountedBombScoreGames: 0 };
     fixture.detectChanges();
     http.expectOne('/api/users/21/gamertag').flush({ gamertag: 'MasterChief' });
-    http.expectOne('/api/users/21/stats').flush({
+    const stats = {
       userID: 21, gamertag: 'MasterChief', displayName: 'MasterChief', isDummyUser: false,
       pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [], lateLeague: [],
       serviceRecord: { mmr: 1100, all: totals, league: totals, matchmaking: totals },
-    });
+    };
+    http.expectOne('/api/users/21/stats').flush(stats);
     fixture.detectChanges();
 
     const el = fixture.nativeElement as HTMLElement;
@@ -604,7 +605,9 @@ describe('ProfileComponent linked accounts', () => {
     expect(main.firstElementChild!.querySelector('app-service-record .sr-strip')).not.toBeNull();
     expect(el.querySelector('app-service-record .sr-val')!.textContent!.trim()).toBe('1.50');
 
-    fixture.componentInstance.profileStats.set({ ...fixture.componentInstance.profileStats()!, serviceRecord: null });
+    // The stats again (as after setting a gamertag), now without one
+    fixture.componentInstance.store.loadStats();
+    http.expectOne('/api/users/21/stats').flush({ ...stats, serviceRecord: null });
     fixture.detectChanges();
     expect(el.querySelector('app-service-record')).toBeNull();
   });

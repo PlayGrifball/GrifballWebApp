@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { DateTime } from 'luxon';
-import { gameSource, INFINITE_GAME_VERSION_ID, ManualGameForm, ManualGamesComponent, toLocalInput, toRequest } from './manualGames.component';
+import { ManualGamesComponent } from './manualGames.component';
+import { INFINITE_GAME_VERSION_ID, toLocalInput } from './manualGameForm';
 import { ReportedGameDto, SeasonMatchPageDto } from '../seasonMatchPageDto';
 import type { TeamPagePlayerDto } from '@api/models';
 
@@ -408,45 +408,5 @@ describe('ManualGamesComponent', () => {
     httpMock.expectOne('/api/game-versions').flush(null, { status: 500, statusText: 'Server Error' });
     component.startAdd();
     expect(component.form.gameVersionID).toBe(INFINITE_GAME_VERSION_ID);
-  });
-});
-
-describe('manual game helpers', () => {
-  it('says where a game came from: Waypoint (a match ID) first, else by hand, else recorded', () => {
-    const from = (matchID: string | null, isManual: boolean) => gameSource({ matchID, isManual } as ReportedGameDto);
-    expect(from('a1b2', false)).toBe('from Waypoint');
-    expect(from('a1b2', true)).toBe('from Waypoint');
-    expect(from(null, true)).toBe('entered by hand');
-    expect(from(null, false)).toBe('recorded');
-  });
-
-  const form = (overrides: Partial<ManualGameForm> = {}): ManualGameForm => ({
-    gameVersionID: 1, map: '', gametype: ' Grifball ', playedAt: '', homeTeamScore: 5, awayTeamScore: 3, players: [], slot: null, ...overrides,
-  });
-
-  it('turns a local time into UTC, and leaves out a bad one', () => {
-    const local = '2026-01-10T20:30';
-    expect(toRequest(form({ playedAt: local })).playedAt).toBe(DateTime.fromISO(local).toUTC().toISO());
-    expect(toRequest(form({ playedAt: 'not a time' })).playedAt).toBeNull();
-    expect(toRequest(form()).gametype).toBe('Grifball');
-  });
-
-  it('fills blank stats with zero and a blank score with none', () => {
-    const blank = null as unknown as number;
-    const line = { userID: 1, gamertag: 'Grif', isHomeTeam: true, played: true, kills: blank, deaths: 2, assists: blank, goals: blank, score: null };
-    const other = { userID: 2, gamertag: 'Tucker', isHomeTeam: false, played: true, kills: 4, deaths: blank, assists: 1, goals: 1, score: 3 };
-    expect(toRequest(form({ homeTeamScore: null, awayTeamScore: null, players: [line, other] }))).toEqual(jasmine.objectContaining({
-      homeTeamScore: 0,
-      awayTeamScore: 0,
-      players: [
-        { userID: 1, isHomeTeam: true, kills: 0, deaths: 2, assists: 0, goals: 0, score: null },
-        { userID: 2, isHomeTeam: false, kills: 4, deaths: 0, assists: 1, goals: 1, score: 3 },
-      ],
-    }));
-  });
-
-  it('shows no time for none or a bad one', () => {
-    expect(toLocalInput(null)).toBe('');
-    expect(toLocalInput('garbage')).toBe('');
   });
 });

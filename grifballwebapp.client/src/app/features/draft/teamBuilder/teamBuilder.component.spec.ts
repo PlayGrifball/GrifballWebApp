@@ -92,6 +92,16 @@ describe('TeamBuilderComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('follows the hub only once the page initialises, in the pass that sets its season', () => {
+    // Created but not yet drawn: a reconnect now would load season 0 (the season isn't set yet)
+    expect(mockSignalR.connected).not.toHaveBeenCalled();
+    expect(mockSignalR.addCaptain).not.toHaveBeenCalled();
+
+    fixture.detectChanges();
+    expect(mockSignalR.connected).toHaveBeenCalledTimes(1);
+    expect(mockDraft.getTeams).not.toHaveBeenCalledWith({ seasonID: 0 });
+  });
+
   it('should load teams and player pool on init when seasonID is provided', () => {
     fixture.detectChanges();
 

@@ -60,7 +60,7 @@
       </section>
 
       <section class="hud-section hud-panel hud-panel--soft">
-        <app-profile-identity [regionID]="profileStats()?.regionID ?? null" (changed)="getProfileStats()" />
+        <app-profile-identity [regionID]="profileStats()?.regionID ?? null" (changed)="store.loadStats()" />
       </section>
 
       <section class="hud-section hud-panel hud-panel--soft">
