@@ -5,7 +5,7 @@ import { MatTableModule } from '@angular/material/table';
 import { getPaginationResource, PaginationParams } from '../getPaginationResource';
 import { PaginationResult } from '../paginationResult';
 import { Observable } from 'rxjs';
-import { CommonModule } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { rowEnterAnimation } from '../rowEnterAnimation';
@@ -16,9 +16,9 @@ import { rowEnterAnimation } from '../rowEnterAnimation';
     MatTableModule,
     MatPaginator,
     MatSortModule,
-    CommonModule,
     RouterModule,
     MatButtonModule,
+    NgTemplateOutlet,
   ],
   templateUrl: './table.component.html',
   styleUrl: './table.component.scss',

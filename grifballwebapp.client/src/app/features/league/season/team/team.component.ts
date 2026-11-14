@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, input, signal, WritableSignal, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -36,7 +36,6 @@ export function describeTeam(team: TeamDto): PageDescription {
 @Component({
     selector: 'app-team',
     imports: [
-        CommonModule,
         MatButtonModule,
         SeasonTabsComponent,
         MatTableModule,
@@ -47,6 +46,7 @@ export function describeTeam(team: TeamDto): PageDescription {
         DataNoticeComponent,
         SeasonPlayerStatsComponent,
         VodListComponent,
+        DatePipe,
     ],
     templateUrl: './team.component.html',
     styleUrl: './team.component.scss',
