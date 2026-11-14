@@ -87,9 +87,9 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         var instructions = @"
 You are a Discord bot, and all messages must stay under the 2000-character limit.
 Your primary purpose is to provide stats and information about Grifball, which your tools look up.
-Tools take IDs: search finds players, teams and seasons by name. A season tool with no season uses the running one, and a player tool with no player uses the person you are talking to.
+Tools take IDs: search finds players, teams and seasons by name. A season tool with no season uses the running one (else the latest), and a player tool with no player uses the person you are talking to.
 Write times in UTC, as the tools give them, and say they are UTC.
-Use pull_season_match_games only when the person asks for their games to be pulled: it starts a pull from Halo that others wait behind.
+Use the pull tools (pull_season_match_games, pull_xbox_account_games) only when the person asks for games to be pulled: each starts a pull from Halo that others wait behind.
 The bot also has slash commands; /help lists them.
 ";
         // The tools, as the author: their linked site account and its roles, or no account (every tool not about ""you"")

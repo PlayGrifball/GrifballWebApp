@@ -5,6 +5,7 @@ using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Application.TeamStandings;
 using GrifballWebApp.Application.Tools;
+using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -29,11 +30,13 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
 
     private readonly ISeasonMatchPulls _pulls = Substitute.For<ISeasonMatchPulls>();
 
-    private HaloTools Tools() => new(Db);
+    private readonly IXboxAccountPulls _accountPulls = Substitute.For<IXboxAccountPulls>();
+
+    private HaloTools Tools() => new(Db, new XboxAccountService(Db));
 
     private HaloPullTools PullTools(ToolCaller caller) => new(caller,
         new SeasonMatchService(Db, Substitute.For<IDataPullService>(), new BracketService(Db, new TeamStandingsService(Db), new ChampionshipService(Db)), new ChampionshipService(Db)),
-        _pulls);
+        _pulls, new XboxAccountService(Db), _accountPulls);
 
     private async Task AddGames()
     {
@@ -57,12 +60,14 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
     {
         await AddGames();
 
-        var games = await Tools().GetRecentGames("  Grunt Padre ", 3);
+        var recent = await Tools().GetRecentGames("  Grunt Padre ", 3);
 
-        var game = games.Single();
+        var game = recent.Games.Single();
         using (Assert.EnterMultipleScope())
         {
+            Assert.That(recent.Gamertag, Is.EqualTo("Grunt Padre"));
             Assert.That(game.MatchID, Is.EqualTo(MatchID));
+            Assert.That(game.Outcome, Is.EqualTo(Outcomes.Won), "the player's own team's");
             Assert.That(game.WaypointUrl, Is.EqualTo($"https://www.halowaypoint.com/halo-infinite/players/Grunt%20Padre/matches/{MatchID}"));
             Assert.That(game.Teams.SelectMany(t => t.Players), Is.EquivalentTo(BothPlayers));
             Assert.That(game.Teams.Single(t => t.TeamID == 0).Outcome, Is.EqualTo(Outcomes.Won));
@@ -94,7 +99,7 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
 
         var games = await Tools().GetRecentGames("Shared");
 
-        Assert.That(games.Single().MatchID, Is.EqualTo(recent.MatchID));
+        Assert.That(games.Games.Single().MatchID, Is.EqualTo(recent.MatchID));
     }
 
     [Test]
@@ -107,7 +112,11 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
 
         var games = await Tools().GetRecentGames("old padre");
 
-        Assert.That(games.Single().MatchID, Is.EqualTo(MatchID));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games.Games.Single().MatchID, Is.EqualTo(MatchID));
+            Assert.That(games.Gamertag, Is.EqualTo("Grunt Padre"), "the account's gamertag now");
+        }
     }
 
     [Test]
@@ -126,7 +135,7 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
     {
         await AddGames();
 
-        Assert.That(await Tools().GetRecentGames("Grunt Padre", asked), Has.Count.EqualTo(1));
+        Assert.That((await Tools().GetRecentGames("Grunt Padre", asked)).Games, Has.Count.EqualTo(1));
     }
 
     [Test]
@@ -162,5 +171,34 @@ public class HaloToolsUnitTests : SqliteGrifballContextFixture
             Assert.That(anonymous!.Message, Is.EqualTo("Only a player or commissioner or sysadmin can do that."));
         }
         await _pulls.DidNotReceiveWithAnyArgs().Queue(default, default, default);
+    }
+
+    [Test]
+    public async Task PullXboxAccountGames_QueuesTheAccountsPull_AsThePlayerWhoAsked_ByAPastGamertagToo()
+    {
+        await AddGames();
+        var renamed = await Db.XboxUsers.SingleAsync(x => x.XboxUserID == 77);
+        renamed.RecordPastGamertag("Old Padre", null, null, GamertagHistorySource.RenameDetected);
+        await Db.SaveChangesAsync();
+        var queued = new OnDemandJobStatusDto { State = OnDemandJobState.Queued };
+        _accountPulls.Queue(77, 21, Arg.Any<CancellationToken>()).Returns(queued);
+
+        var pulled = await PullTools(new ToolCaller(21, PlayerRole)).PullXboxAccountGames("old padre");
+
+        Assert.That(pulled, Is.EqualTo(new PulledAccountDto(77, "Grunt Padre", queued)));
+    }
+
+    [Test]
+    public async Task PullXboxAccountGames_RefusesAnAccountTheSiteDoesntKnow_AndACallerWithoutTheRole()
+    {
+        var unknown = await Assert.ThrowsAsync<ToolException>(() => PullTools(new ToolCaller(21, PlayerRole)).PullXboxAccountGames("Nobody"));
+        var anonymous = await Assert.ThrowsAsync<ToolException>(() => PullTools(ToolCaller.Anonymous).PullXboxAccountGames("Nobody"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(unknown!.Message, Does.Contain("knows no Xbox account with the gamertag Nobody"));
+            Assert.That(anonymous!.Message, Is.EqualTo("Only a player or commissioner or sysadmin can do that."));
+        }
+        await _accountPulls.DidNotReceiveWithAnyArgs().Queue(default, default);
     }
 }

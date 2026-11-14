@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.Tools;
 using DiscordInterface.Generated;
 using GrifballWebApp.Application;
 using GrifballWebApp.Application.Extensions;
@@ -20,13 +21,34 @@ public class MatchCommandsHandler
     private readonly SeasonMatchService _seasonMatches;
     private readonly MatchDetailsService _matchDetails;
     private readonly UrlService _urls;
+    private readonly DiscordCaller _caller;
+    private readonly PullToolsFor _pulls;
 
-    public MatchCommandsHandler(CommandLookups lookups, SeasonMatchService seasonMatches, MatchDetailsService matchDetails, UrlService urls)
+    public MatchCommandsHandler(CommandLookups lookups, SeasonMatchService seasonMatches, MatchDetailsService matchDetails, UrlService urls,
+        DiscordCaller caller, PullToolsFor pulls)
     {
         _lookups = lookups;
         _seasonMatches = seasonMatches;
         _matchDetails = matchDetails;
         _urls = urls;
+        _caller = caller;
+        _pulls = pulls;
+    }
+
+    /// <summary>
+    /// Queues the pull of a season match's players' recent games from Halo, as the match page's button does: the agents'
+    /// pull_season_match_games, as the caller (players and staff).
+    /// </summary>
+    public async Task Pull(IDiscordInteractionContext context, string match, bool backToSeasonStart)
+    {
+        await context.Defer(ephemeral: true);
+        if (await _caller.Require(context, GrifTools.RolesByName["pull_season_match_games"]) is not { } caller)
+            return;
+        if (await _lookups.SeasonMatchFor(context, match) is not int id)
+            return;
+        // The caller check and the lookup refuse first, as the tool would: it has nothing left to refuse
+        var status = await _pulls.As(caller).PullSeasonMatchGames(id, backToSeasonStart);
+        await context.Reply($"The pull of this match's players' games {PullReplies.State(status)}. The match page shows the games it finds: {_urls.SeasonMatch(id)}");
     }
 
     public async Task Info(IDiscordInteractionContext context, string match)

@@ -1,12 +1,10 @@
 using DiscordInterfaces;
-using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Halo;
-using GrifballWebApp.Domain.Players;
-using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
 using GrifballWebApp.Application.Extensions;
-using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Tools;
+using GrifballWebApp.Server.Commands;
 
 namespace GrifballWebApp.Server;
 
@@ -20,130 +18,73 @@ public class DiscordCommandsHandler
     /// <summary>Discord rejects an embed field with no value (400): a zero-width space stands in for "nothing".</summary>
     internal const string EmptyFieldValue = "\u200B";
 
-    private readonly GrifballContext _context;
-    private readonly ILogger<DiscordCommandsHandler> _logger;
-    private readonly IDataPullService _dataPullService;
-    private readonly IGetsertXboxUserService _getsertXboxUserService;
-    public DiscordCommandsHandler(GrifballContext context,
-        ILogger<DiscordCommandsHandler> logger,
-        IDataPullService dataPullService,
-        IGetsertXboxUserService getsertXboxUserService)
+    public const string NoGamertag = "You must set your gamertag first, or give someone else's gamertag.";
+
+    private readonly CommandLookups _lookups;
+    private readonly HaloTools _halo;
+
+    public DiscordCommandsHandler(CommandLookups lookups, HaloTools halo)
     {
-        _context = context;
-        _logger = logger;
-        _dataPullService = dataPullService;
-        _getsertXboxUserService = getsertXboxUserService;
+        _lookups = lookups;
+        _halo = halo;
     }
 
-    /// <summary>The Xbox account the command asks about: the gamertag's, else the caller's own. Null, the caller told why, for none.</summary>
-    private async Task<XboxUser?> XboxUserFor(IDiscordApplicationCommandContext discordContext, string? gamertag)
-    {
-        if (!string.IsNullOrWhiteSpace(gamertag))
-        {
-            var (xboxUser, msg) = await _getsertXboxUserService.GetsertXboxUserByGamertag(gamertag);
-            if (xboxUser is null)
-            {
-                // NetCord takes a null content too; the generated IDiscordMessageOptions just lost the annotation
-                await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent(msg!));
-            }
-            return xboxUser;
-        }
-
-        var own = await _context.DiscordUsers
-            .Where(x => x.DiscordUserID == (long)discordContext.User.Id)
-            .Select(x => x.User!.XboxUser)
-            .FirstOrDefaultAsync();
-        if (own == null)
-        {
-            await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent("You must set your gamertag first, or provide someone else's gamertag to search for"));
-        }
-        return own;
-    }
-
+    /// <summary>
+    /// /matches: an Xbox account's saved games, as the site has them, through the agents' get_recent_games
+    /// (<see cref="HaloTools.GetRecentGamesOf"/>). The account picked or typed by its current gamertag
+    /// (<see cref="CommandLookups.XboxAccount"/>), else the caller's own. It pulls nothing from Halo: /player pull (or a
+    /// page's button) does.
+    /// </summary>
     public async Task RecentMatches(IDiscordApplicationCommandContext discordContext, string? gamertag)
     {
         await discordContext.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage());
-        await RecentMatchesDeferred(discordContext, gamertag);
-    }
-
-    /// <summary><see cref="RecentMatches"/> once the reply is deferred (/player matches defers before looking the player up).</summary>
-    public async Task RecentMatchesDeferred(IDiscordApplicationCommandContext discordContext, string? gamertag)
-    {
-
-        if (await XboxUserFor(discordContext, gamertag) is not { } xboxUser)
-            return;
-
-        try
+        var account = string.IsNullOrWhiteSpace(gamertag)
+            ? await _lookups.OwnXboxAccount(discordContext.User.Id)
+            : await _lookups.XboxAccount(gamertag);
+        if (account is not { } found)
         {
-            await _dataPullService.DownloadRecentMatchesForPlayers([xboxUser.XboxUserID], startPage: 0, endPage: 0, 5);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to fetch recent matches for {Gamertag}", xboxUser.Gamertag);
-            await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent("Failed to fetch recent matches, if this continues to occur contact sysadmin"));
+            var reply = string.IsNullOrWhiteSpace(gamertag) ? NoGamertag : CommandLookups.NoSuchXboxAccount;
+            await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent(reply));
             return;
         }
 
-        var matches = await _context.Matches
-            .Include(x => x.MatchTeams)
-                .ThenInclude(x => x.MatchParticipants)
-                    .ThenInclude(x => x.XboxUser)
-                        .ThenInclude(x => x.User)
-            .Where(x => x.MatchTeams.Any(x => x.MatchParticipants.Any(x => x.XboxUserID == xboxUser.XboxUserID)))
-            .OrderByDescending(x => x.StartTime)
-            .Take(5)
-            .AsNoTracking()
-            .ToListAsync();
+        var recent = await _halo.GetRecentGamesOf(found.XboxUserID, found.Gamertag, 5);
 
-        var list = new List<EmbedProperties>();
-
-        foreach (var match in matches)
+        var list = recent.Games.Select(game =>
         {
-            var outcome = match.MatchTeams.Where(x => x.MatchParticipants.Any(x => x.XboxUserID == xboxUser.XboxUserID)).Select(x => x.Outcome).FirstOrDefault();
-            var color = outcome switch
-            {
-                Outcomes.Won => new Color(0, 255, 0), // Green for win
-                Outcomes.Lost => new Color(255, 0, 0), // Red for loss
-                Outcomes.Tie => new Color(255, 255, 0), // Yellow for tie
-                _ => new Color(255, 255, 255) // Default to white for unknown
-            };
-
-            var url = $"https://www.halowaypoint.com/halo-infinite/players/{Uri.EscapeDataString(xboxUser.Gamertag)}/matches/{match.MatchID}";
-            var emded = new EmbedProperties()
+            var embed = new EmbedProperties
             {
                 Title = "Halo Infinite Match",
-                Fields = [
-                    new EmbedFieldProperties().WithName("Match ID").WithValue(match.MatchID.ToString().LinkMarkdown(url)).WithInline(true),
-                    new EmbedFieldProperties().WithName("Start Time").WithValue(match.StartTime?.DiscordTimeEmbed()).WithInline(true),
-                    new EmbedFieldProperties().WithName("Duration").WithValue(match.Duration.ToString()).WithInline(true),
-                    ],
-                Color = color,
-            };
-
-            foreach (var (team, index) in match.MatchTeams.Select((team, index) => (team, index)))
-            {
-                // Add team information to the embed
-                emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("Team").WithValue(team.TeamID.ToString()).WithInline(true));
-                emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("Score").WithValue(team.Score.ToString()).WithInline(true));
-                emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("Outcome").WithValue(team.Outcome.ToString()).WithInline(true));
-                var gts = string.Join(", ", team.MatchParticipants.Select(x => x.XboxUser.Gamertag));
-                emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("Players").WithValue(string.IsNullOrEmpty(gts) ? EmptyFieldValue : gts).WithInline(false));
-                if (index != match.MatchTeams.Count - 1)
+                Color = game.Outcome switch
                 {
-                    emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("**-------------------------**").WithValue(EmptyFieldValue).WithInline(false));
-                }
+                    Outcomes.Won => new Color(0, 255, 0), // Green for win
+                    Outcomes.Lost => new Color(255, 0, 0), // Red for loss
+                    Outcomes.Tie => new Color(255, 255, 0), // Yellow for tie
+                    _ => new Color(255, 255, 255), // White for anything else
+                },
+                Fields =
+                [
+                    new EmbedFieldProperties().WithName("Match ID").WithValue(game.MatchID.ToString().LinkMarkdown(game.WaypointUrl)).WithInline(true),
+                    new EmbedFieldProperties().WithName("Start Time").WithValue(game.StartTime?.DiscordTimeEmbed() ?? "Unknown").WithInline(true),
+                    new EmbedFieldProperties().WithName("Duration").WithValue(game.Duration.ToString()).WithInline(true),
+                ],
+            };
+            foreach (var (team, index) in game.Teams.Select((team, index) => (team, index)))
+            {
+                embed.Fields = embed.Fields.Append(new EmbedFieldProperties().WithName("Team").WithValue(team.TeamID.ToString()).WithInline(true));
+                embed.Fields = embed.Fields.Append(new EmbedFieldProperties().WithName("Score").WithValue(team.Score.ToString()).WithInline(true));
+                embed.Fields = embed.Fields.Append(new EmbedFieldProperties().WithName("Outcome").WithValue(team.Outcome.ToString()).WithInline(true));
+                var gamertags = string.Join(", ", team.Players);
+                embed.Fields = embed.Fields.Append(new EmbedFieldProperties().WithName("Players").WithValue(string.IsNullOrEmpty(gamertags) ? EmptyFieldValue : gamertags).WithInline(false));
+                if (index != game.Teams.Count - 1)
+                    embed.Fields = embed.Fields.Append(new EmbedFieldProperties().WithName("**-------------------------**").WithValue(EmptyFieldValue).WithInline(false));
             }
-
-            list.Add(emded);
-        }
+            return embed;
+        }).ToList();
 
         if (list.Count > 0)
-        {
             await discordContext.Interaction.ModifyResponseAsync(x => x.WithEmbeds(list));
-        }
         else
-        {
-            await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent($"I found no matches for {xboxUser.Gamertag}"));
-        }
+            await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent($"The site has no games saved for {recent.Gamertag}."));
     }
 }

@@ -19,16 +19,16 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class PlayerCommandsHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private PlayerCommandsHandler Handler() => new(new CommandLookups(Db, null!), new DiscordCaller(Db), null!, null!, null!, null!, null!, Urls());
+    private PlayerCommandsHandler Handler() => new(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), new DiscordCaller(Db), null!, null!, null!, null!, Urls(), null!);
 
-    /// <summary>The profile services real too (all IApplicationDbContext-backed); DiscordCommandsHandler (/matches) stays
-    /// null, unused by Profile/Stats/Commendations/History/Vods.</summary>
-    private PlayerCommandsHandler DeepHandler() => new(new CommandLookups(Db, null!), new DiscordCaller(Db),
+    /// <summary>The profile services real too (all IApplicationDbContext-backed); the pull tools stay null, unused by
+    /// Profile/Stats/Commendations/History/Vods.</summary>
+    private PlayerCommandsHandler DeepHandler() => new(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), new DiscordCaller(Db),
         new ProfileStatsService(Db, new SeasonStatsService(Db), new MatchmakingStatsService(Db)),
         new ProfileCommendationsService(Db),
         new DeploymentHistoryService(Db),
         new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!),
-        null!, Urls());
+        Urls(), null!);
 
     [TestCase(nameof(PlayerCommandsHandler.Profile))]
     [TestCase(nameof(PlayerCommandsHandler.Stats))]
@@ -61,16 +61,6 @@ public class PlayerCommandsHandlerUnitTests : SqliteGrifballContextFixture
         await Handler().Profile(discord.Context, null);
 
         Assert.That(discord.Content(), Is.EqualTo(DiscordCaller.NoGamertag));
-    }
-
-    [Test]
-    public async Task Matches_RepliesNoSuchPlayer_WhenTheNamedPlayerIsNotFound()
-    {
-        var discord = new CommandContextRecorder();
-
-        await Handler().Matches(discord.Context, "nonsense");
-
-        Assert.That(discord.Content(), Is.EqualTo(PlayerCommandsHandler.NoSuchPlayer));
     }
 
     [Test]

@@ -4,17 +4,19 @@ using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server;
 using GrifballWebApp.Domain.Halo;
 using GrifballWebApp.Domain.Players;
-using Microsoft.Extensions.Logging;
 using NetCord;
 using NetCord.Rest;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
 using User = GrifballWebApp.Domain.Players.User;
-using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Tools;
+using GrifballWebApp.Application.XboxAccounts;
 
 namespace GrifballWebApp.Integration.Test;
 
-/// <summary>Tests for /matches (<see cref="DiscordCommandsHandler.RecentMatches"/>), called with a substitute context.</summary>
+/// <summary>
+/// /matches (<see cref="DiscordCommandsHandler.RecentMatches"/>), called with a substitute context: the player's saved games, as
+/// the site and the agents' get_recent_games have them. It pulls nothing from Halo and saves no Xbox account.
+/// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
@@ -23,9 +25,6 @@ public class DiscordCommandsHandlerTests
     private const ulong DiscordId = 31337;
     private const long MyXboxId = 555;
     private GrifballContext _context = null!;
-    private IDataPullService _dataPullService = null!;
-    private IGetsertXboxUserService _getsertXboxUserService = null!;
-    private RecordingLogger<DiscordCommandsHandler> _logger = null!;
     private DiscordCommandsHandler _handler = null!;
     private IDiscordApplicationCommandContext _discordContext = null!;
     private readonly List<IDiscordMessageOptions> _modifications = [];
@@ -43,10 +42,7 @@ public class DiscordCommandsHandlerTests
     public async Task SetUp()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _dataPullService = Substitute.For<IDataPullService>();
-        _getsertXboxUserService = Substitute.For<IGetsertXboxUserService>();
-        _logger = new RecordingLogger<DiscordCommandsHandler>();
-        _handler = new DiscordCommandsHandler(_context, _logger, _dataPullService, _getsertXboxUserService);
+        _handler = new DiscordCommandsHandler(new GrifballWebApp.Server.Commands.CommandLookups(_context, null!, new XboxAccountService(_context)), new HaloTools(_context, new XboxAccountService(_context)));
 
         _discordContext = Substitute.For<IDiscordApplicationCommandContext>();
         _discordContext.User.Id.Returns(DiscordId);
@@ -89,16 +85,16 @@ public class DiscordCommandsHandlerTests
     }
 
     [Test]
-    public async Task RecentMatches_UnknownGamertag_RepliesWithTheLookupMessage()
+    public async Task RecentMatches_AGamertagTheSiteDoesntKnow_FindsNoAccount_AndLooksNothingUp()
     {
-        _getsertXboxUserService.GetsertXboxUserByGamertag("Nobody", Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<(XboxUser?, string?)>((null, "Gamertag not found")));
-
         await _handler.RecentMatches(_discordContext, "Nobody");
 
         await AssertDeferred();
-        Assert.That(ModifiedContent(), Is.EqualTo("Gamertag not found"));
-        await _dataPullService.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ModifiedContent(), Is.EqualTo(GrifballWebApp.Server.Commands.CommandLookups.NoSuchXboxAccount));
+            Assert.That(_context.XboxUsers.Any(), Is.False, "no Xbox account is saved for it");
+        }
     }
 
     [Test]
@@ -107,41 +103,19 @@ public class DiscordCommandsHandlerTests
         await _handler.RecentMatches(_discordContext, null);
 
         await AssertDeferred();
-        Assert.That(ModifiedContent(), Is.EqualTo("You must set your gamertag first, or provide someone else's gamertag to search for"));
-        await _getsertXboxUserService.DidNotReceiveWithAnyArgs().GetsertXboxUserByGamertag(default!);
-        await _dataPullService.DidNotReceiveWithAnyArgs().DownloadRecentMatchesForPlayers(default!);
+        Assert.That(ModifiedContent(), Is.EqualTo(DiscordCommandsHandler.NoGamertag));
     }
 
     [Test]
-    public async Task RecentMatches_DataPullFails_LogsAndReplies()
+    public async Task RecentMatches_NoSavedGames_SaysSo()
     {
-        await LinkMe();
-        _dataPullService.DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .ThrowsAsync(new InvalidOperationException("boom"));
+        _context.XboxUsers.Add(XboxUser.FromXbox(777, "Someone"));
+        await _context.SaveChangesAsync();
 
-        await _handler.RecentMatches(_discordContext, null);
-
-        Assert.That(ModifiedContent(), Is.EqualTo("Failed to fetch recent matches, if this continues to occur contact sysadmin"));
-        var entry = _logger.Entries.Single();
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
-            Assert.That(entry.Exception, Is.TypeOf<InvalidOperationException>());
-            Assert.That(entry.Message, Does.Contain("MyGT"));
-        }
-    }
-
-    [Test]
-    public async Task RecentMatches_NoMatches_SaysSo()
-    {
-        _getsertXboxUserService.GetsertXboxUserByGamertag("Someone", Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<(XboxUser?, string?)>((XboxUser.FromXbox(777, "Someone"), null)));
-
-        await _handler.RecentMatches(_discordContext, "Someone");
+        await _handler.RecentMatches(_discordContext, "someone");
 
         await AssertDeferred();
-        await _dataPullService.Received(1).DownloadRecentMatchesForPlayers(Arg.Is<List<long>>(x => x.SequenceEqual(new long[] { 777 })), 0, 0, 5, Arg.Any<CancellationToken>());
-        Assert.That(ModifiedContent(), Is.EqualTo("I found no matches for Someone"));
+        Assert.That(ModifiedContent(), Is.EqualTo("The site has no games saved for Someone."));
     }
 
     [Test]
@@ -167,7 +141,6 @@ public class DiscordCommandsHandlerTests
         await _handler.RecentMatches(_discordContext, null);
 
         await AssertDeferred();
-        await _dataPullService.Received(1).DownloadRecentMatchesForPlayers(Arg.Is<List<long>>(x => x.SequenceEqual(new long[] { MyXboxId })), 0, 0, 5, Arg.Any<CancellationToken>());
         var embeds = ModifiedEmbeds();
         Assert.That(embeds, Has.Count.EqualTo(4));
         Assert.That(embeds.Select(e => e.Color), Is.EqualTo(new[]

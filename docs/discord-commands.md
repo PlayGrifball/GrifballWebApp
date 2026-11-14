@@ -20,19 +20,24 @@ command's subcommands. The handlers are in `GrifballWebApp.Server/Commands`.
 Seasons, teams, players and season matches autocomplete. A name typed without picking a choice is looked up too: the
 exact name, else the only one whose name has it, else (for digits that name nothing) that ID. A typed name that fits
 several is refused, and the caller is asked to pick one, so a staff action never lands on a guess. With no season named,
-the season pages mean the one running now, and `/signup`, `/availability show` and `/admin draft` mean the next to start.
+the season pages mean the one running now, else the latest announced (between seasons, the next one once it is announced, else the one that just ended; never one not announced yet) (the agents' tools mean the same: `SeasonService.GetCurrentOrLatestSeasonID`), and `/signup`, `/availability show` and `/admin draft` mean the next to start.
+A gamertag option (`/matches`, `/player pull`) is an Xbox account, sent as its XUID when picked. Its list has the accounts
+by current gamertag, then (from two characters typed) by a past one, shown as `Old Name (Previous Gamertag) · now New Name`, as the site's quick
+search lists a player by a past gamertag. A gamertag typed without picking finds an account by its current gamertag
+only: an old name finds nothing unless it is picked from the list (`CommandLookups.XboxAccount`).
 Discord has no date option, so times are typed in UTC, like `2026-11-20 20:00`.
 
-Every command answers Discord at once (deferred), then looks things up: Discord gives an interaction 3 seconds.
+Every command answers Discord at once (deferred), then looks things up: Discord gives an interaction 3 seconds. A transport
+test sends every registered command and fails one whose first answer isn't a deferral (`DiscordTransportTests`).
 
 ## Anyone
 
 | Command | What it shows |
 |---|---|
-| `/season list\|info\|standings\|schedule\|stats\|grades\|signups\|bracket\|draft` | A season's pages; with no season named, the current one |
+| `/season list\|info\|standings\|schedule\|stats\|grades\|signups\|bracket\|draft` | A season's pages; with no season named, the running one, else the latest announced |
 | `/team info\|roster\|history\|matches\|vods` | A team's page |
-| `/player profile\|stats\|commendations\|history\|vods\|matches` | A player's profile; with no player named, the caller's own (needs their gamertag) |
-| `/matches` | A gamertag's recent Halo matches (same as `/player matches`) |
+| `/player profile\|stats\|commendations\|history\|vods` | A player's profile; with no player named, the caller's own (needs their gamertag) |
+| `/matches` | An Xbox account's recent Halo matches as the site saved them (the agents' `get_recent_games`); with no gamertag, the caller's own. It pulls nothing from Halo: `/player pull` does |
 | `/match info` | A season match: when, result, games |
 | `/match game` | A Halo game by its match ID |
 | `/leaderboard top\|rank` | The all-time boards |
@@ -54,6 +59,8 @@ Every command answers Discord at once (deferred), then looks things up: Discord 
 | `/me logins` | A link to the profile page: linking a sign-in runs in a browser |
 | `/signup` | The signup form, minus the times you can play (kept, set on the form). What isn't given keeps its value. Player or Sysadmin |
 | `/reschedule request` | The reschedule request form. The service decides who may (a player on either team, or a commissioner) |
+| `/match pull` | A season match page's Pull buttons: queues the pull of its players' recent games from Halo (back to the season's start, when asked). The agents' `pull_season_match_games`. Player, Commissioner or Sysadmin |
+| `/player pull` | An Xbox account page's Pull button: queues the pull of the account's recent games (yours when no gamertag is given). The agents' `pull_xbox_account_games`. Player, Commissioner or Sysadmin |
 
 ## Staff
 
@@ -61,7 +68,6 @@ Every command answers Discord at once (deferred), then looks things up: Discord 
 |---|---|
 | `/admin dashboard\|overdue`, `/reschedule pending\|decide` | Commissioner or Sysadmin |
 | `/admin match report\|forfeit\|undo\|time` | Commissioner |
-| `/admin match pull` | Commissioner or Sysadmin |
 | `/admin season generate`, `/admin bracket create\|seed`, `/admin draft lock\|unlock` | Commissioner. Generate and create name their season and are refused once a match is played (on the site too): they replace the matches |
 | `/admin schedule show\|run\|apply` | Commissioner or Sysadmin |
 | `/admin halo pull`, `/admin medals`, `/admin jobs list\|run\|pause`, `/admin claims list\|approve\|reject` | Sysadmin |

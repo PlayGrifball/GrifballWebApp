@@ -22,7 +22,7 @@ public class MatchCommandsHandlerUnitTests : SqliteGrifballContextFixture
     {
         var seasonMatches = new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db));
         var matchDetails = new MatchDetailsService(Db);
-        return new MatchCommandsHandler(new CommandLookups(Db, null!), seasonMatches, matchDetails, Urls());
+        return new MatchCommandsHandler(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), seasonMatches, matchDetails, Urls(), null!, null!);
     }
 
     [Test]

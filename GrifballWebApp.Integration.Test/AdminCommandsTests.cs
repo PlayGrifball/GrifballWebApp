@@ -49,7 +49,7 @@ public class AdminCommandsTests
         _dataPull = Substitute.For<IDataPullService>();
         var brackets = new BracketService(_context, new TeamStandingsService(_context), new ChampionshipService(_context));
         var teams = new TeamService(_context, Substitute.For<IPublisher>(), new OutboxDraftChannel(_context, new ContextOutbox(_context)), new ContextDatabaseLocks(_context));
-        _handler = new AdminCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons), new RescheduleService(_context, new ContextOutbox(_context)),
+        _handler = new AdminCommandsHandler(new DiscordCaller(_context), new CommandLookups(_context, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(_context)), new RescheduleService(_context, new ContextOutbox(_context)),
             new SeasonMatchService(_context, _dataPull, brackets, new ChampionshipService(_context)), new MatchPlannerService(_context), brackets, teams,
             new ScheduleRecommendations(_context, TimeProvider.System), onDemand: null!, jobs: null!, new GamertagClaimService(_context, new UserMergeService(_context)),
             _dataPull, urls);
@@ -373,7 +373,6 @@ public class AdminCommandsTests
     [TestCase("report")]
     [TestCase("forfeit")]
     [TestCase("undo")]
-    [TestCase("pull")]
     [TestCase("time")]
     public async Task MatchActions_Should_SayThereIsNoSuchMatch_ToStaff(string action)
     {
@@ -383,7 +382,6 @@ public class AdminCommandsTests
             "report" => () => _handler.ReportGame(discord.Context, "999999", Guid.NewGuid().ToString(), null),
             "forfeit" => () => _handler.Forfeit(discord.Context, "999999", ForfeitSide.Home),
             "undo" => () => _handler.UndoResult(discord.Context, "999999"),
-            "pull" => () => _handler.PullGames(discord.Context, "999999"),
             _ => () => _handler.SetTime(discord.Context, "999999", "2030-01-01 20:00"),
         };
 

@@ -20,7 +20,7 @@ public class TeamCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
 
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(Now));
 
-    private TeamCommandsHandler Handler() => new(new CommandLookups(Db, null!), new TeamPageService(Db, _time), new TeamHistoryService(Db, _time),
+    private TeamCommandsHandler Handler() => new(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), new TeamPageService(Db, _time), new TeamHistoryService(Db, _time),
         new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!), Urls());
 
     private async Task<(Season Season, Team Home, Team Away, SeasonMatch Match)> ASeason()

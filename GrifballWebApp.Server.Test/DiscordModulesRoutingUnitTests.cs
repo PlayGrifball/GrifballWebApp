@@ -151,7 +151,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
         var urls = Urls();
         var stats = new SeasonStatsService(Db);
         var seasons = new SeasonService(Db, stats, _time);
-        var lookups = new CommandLookups(Db, seasons);
+        var lookups = new CommandLookups(Db, seasons, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db));
         var caller = new DiscordCaller(Db);
         var queue = Substitute.For<IQueueRepository>();
         // In the queue already: /queue join and its button are refused; /queue leave too, as nothing is removed
@@ -168,7 +168,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
         var signups = new SignupsService(Db, _time);
         var vods = new VodService(Db, null!, MsOptions.Create(new YouTubeOptions()), null!);
         var leaderboards = new LeaderboardsService(Db, stats, new MatchmakingStatsService(Db), Substitute.For<IDistributedCache>(), new RecordingLogger<LeaderboardsService>());
-        var recentMatches = new DiscordCommandsHandler(Db, new RecordingLogger<DiscordCommandsHandler>(), dataPull, Substitute.For<IGetsertXboxUserService>());
+        var recentMatches = new DiscordCommandsHandler(lookups, new GrifballWebApp.Application.Tools.HaloTools(Db, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)));
         _setGamertag.SetGamertag(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
         var admin = new AdminCommandsHandler(caller, lookups, reschedules, seasonMatches, new MatchPlannerService(Db), brackets, teams,
             new ScheduleRecommendations(Db, _time), new OnDemandJobs(schedulers, history),
@@ -184,9 +184,9 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
             .AddSingleton(new BrowseCommandsHandler(leaderboards, new MatchmakingStatsService(Db), new HomeEventsService(Db, _time), new QuickSearchService(Db, _time), lookups, urls))
             .AddSingleton(new SeasonCommandsHandler(lookups, seasons, new TeamStandingsService(Db), new MatchPlannerService(Db), new GradesService(Db), signups, brackets, urls))
             .AddSingleton(new PlayerCommandsHandler(lookups, caller, new ProfileStatsService(Db, stats, new MatchmakingStatsService(Db)), new ProfileCommendationsService(Db),
-                new DeploymentHistoryService(Db, _time), vods, recentMatches, urls))
+                new DeploymentHistoryService(Db, _time), vods, urls, null!))
             .AddSingleton(new TeamCommandsHandler(lookups, new TeamPageService(Db, _time), new TeamHistoryService(Db, _time), vods, urls))
-            .AddSingleton(new MatchCommandsHandler(lookups, seasonMatches, new MatchDetailsService(Db), urls))
+            .AddSingleton(new MatchCommandsHandler(lookups, seasonMatches, new MatchDetailsService(Db), urls, null!, null!))
             .AddSingleton(recentMatches)
             .AddSingleton(new DiscordSetGamertag(Db, Substitute.For<UserManager<User>>(Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null), _setGamertag))
             .AddSingleton(new MatchmakingButtonHandler(membership, Substitute.For<IServiceScopeFactory>(), Db, null!, null!, new RecordingLogger<MatchmakingButtonHandler>()))
@@ -259,7 +259,6 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
     [TestCase("admin match report", "match={match}|match_id=not-a-guid|replaces=2", MatchCommandsHandler.NoSuchGame)]
     [TestCase("admin match forfeit", "match={match}|side=1", "Forfeited (away).")]
     [TestCase("admin match undo", "match={match}", "!This match has no result to undo")]
-    [TestCase("admin match pull", "match={match}", "The pull is queued. Its games show on [the match page](https://grif.test/seasonmatch/{match}).")]
     [TestCase("admin match time", "match={match}|time=2026-11-20 20:00", "The match is set for <t:1795204800>.")]
     [TestCase("admin season generate", "season=Winter|home_matches=1|best_of=3", "The matches are made. Schedule them on [the season page](https://grif.test/season/{season}).")]
     [TestCase("admin bracket create", "season=Winter|participants=8|best_of=3|double_elimination=true", "The bracket is made. Seed it with /admin bracket seed, or set custom seeds on the site.")]
@@ -316,7 +315,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
     [TestCase("team vods", "team=Grifs", "Grifs VODs")]
     [TestCase("match info", "match={match}", "Grifs vs Rivals")]
     [TestCase("match game", "match_id=not-a-guid", MatchCommandsHandler.NoSuchGame)]
-    [TestCase("matches", "", "I found no matches for Staffer")]
+    [TestCase("matches", "", "The site has no games saved for Staffer.")]
     [TestCase("help", "", "Commands")]
     public async Task ACommand_ReachesItsHandlerMethod_WithItsOptions(string path, string options, string expected)
     {

@@ -64,7 +64,7 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
         history.QueryJobRunStatuses(Arg.Any<JobRunStatusQuery>(), Arg.Any<CancellationToken>()).Returns(new PagedResult<JobRunStatus>([], false));
         var time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero));
         return new AdminCommandsHandler(
-            new DiscordCaller(Db), new CommandLookups(Db, null!),
+            new DiscordCaller(Db), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)),
             new RescheduleService(Db, Substitute.For<IOutbox>()),
             new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)),
             new MatchPlannerService(Db),
@@ -283,23 +283,6 @@ public class AdminCommandsHandlerActionsUnitTests : SqliteGrifballContextFixture
         {
             Assert.That(discord.Content(), Is.EqualTo($"The match is set for <t:{new DateTimeOffset(when).ToUnixTimeSeconds()}>."));
             Assert.That(scheduled.ScheduledTime, Is.EqualTo(when));
-        }
-    }
-
-    [Test]
-    public async Task PullGames_QueuesThePull_AsTheCaller()
-    {
-        var match = await AMatch();
-        var (discord, _) = await Caller(DiscordCaller.Roles.Commissioner);
-        var handler = await Handler(queues: true);
-
-        await handler.PullGames(discord.Context, match.SeasonMatchID.ToString());
-
-        var trigger = OnDemandJobs.TriggerKeyOf<SeasonMatchPullJob>(SeasonMatchPullJob.RunName(match.SeasonMatchID));
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(discord.Content(), Is.EqualTo($"The pull is queued. Its games show on [the match page](https://grif.test/seasonmatch/{match.SeasonMatchID})."));
-            Assert.That(await _quartz!.Scheduler.GetTriggerState(trigger), Is.EqualTo(TriggerState.Normal));
         }
     }
 

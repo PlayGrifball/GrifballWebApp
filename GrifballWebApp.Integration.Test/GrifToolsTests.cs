@@ -106,18 +106,19 @@ public class GrifToolsTests
     }
 
     [Test]
-    public async Task ASeasonTool_RefusesAnUnknownSeason_AndNoSeasonWhenNoneIsRunning()
+    public async Task ASeasonTool_RefusesAnUnknownSeason_AndBetweenSeasonsUsesTheLatest()
     {
         var unknown = await Assert.ThrowsAsync<ToolException>(() => SeasonTools().GetSeasonSchedule(_season.SeasonID + 1000));
         Assert.That(unknown!.Message, Does.Contain($"no season {_season.SeasonID + 1000}").And.Contain("list_seasons"));
 
         _time.SetUtcNow(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
-        var none = await Assert.ThrowsAsync<ToolException>(() => SeasonTools().GetSeasonStandings());
+        // Between seasons: the latest, as the slash commands and the season pages show
+        var latest = await SeasonTools().GetSeasonStandings();
         var byID = await SeasonTools().GetSeasonStandings(_season.SeasonID);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(none!.Message, Does.Contain("No season is running"));
+            Assert.That(latest.Select(s => s.TeamName), Is.EqualTo(Alpha));
             Assert.That(byID.Select(s => s.TeamName), Is.EqualTo(Alpha), "a season given by ID still answers");
         }
     }
@@ -291,7 +292,7 @@ public class GrifToolsTests
     public void TheMcpServer_HasOneToolPerMethod_MarkedWithWhatItDoes()
     {
         var tools = GrifMcp.Tools(GrifTools.All).ToDictionary(t => t.ProtocolTool.Name, t => t.ProtocolTool.Annotations);
-        var reading = tools.Where(t => t.Key != "pull_season_match_games").Select(t => t.Value).ToList();
+        var reading = tools.Where(t => !t.Key.StartsWith("pull_", StringComparison.Ordinal)).Select(t => t.Value).ToList();
 
         using (Assert.EnterMultipleScope())
         {
@@ -301,6 +302,8 @@ public class GrifToolsTests
             Assert.That(tools["pull_season_match_games"]?.ReadOnlyHint, Is.False, "its pull saves the games it finds: clients ask first");
             Assert.That(tools["pull_season_match_games"]?.OpenWorldHint, Is.True, "it reaches Halo");
             Assert.That(tools["pull_season_match_games"]?.IdempotentHint, Is.False, "a second pull can save games played since");
+            Assert.That(tools["pull_xbox_account_games"]?.ReadOnlyHint, Is.False);
+            Assert.That(tools["pull_xbox_account_games"]?.OpenWorldHint, Is.True);
             Assert.That(tools.Values.Select(a => a?.DestructiveHint), Has.All.False, "no tool changes or deletes anything yet");
         }
     }
@@ -378,7 +381,7 @@ public class GrifToolsTests
         await using var services = ChatServices();
         var tools = GrifTools.AIFunctions(services.GetRequiredService<IServiceScopeFactory>(), ToolCaller.Anonymous, GrifTools.Chat);
 
-        Assert.That(tools.Select(t => t.Name), Does.Not.Contain("pull_season_match_games"), "an anonymous caller has no role to pull with");
+        Assert.That(tools.Select(t => t.Name), Does.Not.Contain("pull_season_match_games").And.Not.Contain("pull_xbox_account_games"), "an anonymous caller has no role to pull with");
         var unknown = await Function(tools, "get_season").InvokeAsync(new AIFunctionArguments { ["seasonID"] = 987654 });
         var aboutMe = await Function(tools, "get_player").InvokeAsync(new AIFunctionArguments());
 
@@ -431,7 +434,8 @@ public class GrifToolsTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(GrifTools.RolesByName["pull_season_match_games"], Is.EquivalentTo(Pullers));
-            Assert.That(GrifTools.RolesByName.Where(t => t.Key != "pull_season_match_games").Select(t => t.Value), Has.All.Empty);
+            Assert.That(GrifTools.RolesByName["pull_xbox_account_games"], Is.EquivalentTo(Pullers));
+            Assert.That(GrifTools.RolesByName.Where(t => !t.Key.StartsWith("pull_", StringComparison.Ordinal)).Select(t => t.Value), Has.All.Empty);
         }
     }
 }

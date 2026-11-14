@@ -35,13 +35,13 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
     private readonly IBracketService _bracketService = Substitute.For<IBracketService>();
 
     private AdminCommandsHandler Handler() => new(
-        new DiscordCaller(Db), new CommandLookups(Db, null!),
+        new DiscordCaller(Db), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)),
         null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, Urls());
 
     /// <summary>The deeper services real too (IApplicationDbContext-backed ones), where an action goes past the gate
     /// without needing Quartz (OnDemandJobs, JobsService) or a draft channel/locks' real behavior.</summary>
     private AdminCommandsHandler DeepHandler() => new(
-        new DiscordCaller(Db), new CommandLookups(Db, null!),
+        new DiscordCaller(Db), new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)),
         new RescheduleService(Db, Substitute.For<IOutbox>()),
         new SeasonMatchService(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db)),
         new MatchPlannerService(Db),
@@ -90,9 +90,6 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
     public Task UndoResult_Refuses_AnUnknownCaller() => AssertRefusesUnknownCaller((h, d) => h.UndoResult(d.Context, "match"));
 
     [Test]
-    public Task PullGames_Refuses_AnUnknownCaller() => AssertRefusesUnknownCaller((h, d) => h.PullGames(d.Context, "match"));
-
-    [Test]
     public Task SetTime_Refuses_AnUnknownCaller() => AssertRefusesUnknownCaller((h, d) => h.SetTime(d.Context, "match", "2026-11-20 20:00"));
 
     [Test]
@@ -137,7 +134,6 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
     [TestCase(nameof(AdminCommandsHandler.ReportGame))]
     [TestCase(nameof(AdminCommandsHandler.Forfeit))]
     [TestCase(nameof(AdminCommandsHandler.UndoResult))]
-    [TestCase(nameof(AdminCommandsHandler.PullGames))]
     [TestCase(nameof(AdminCommandsHandler.SetTime))]
     public async Task CommissionerOrStaffActions_ReplyNoSuchMatch_WhenTheMatchIsNotFound(string method)
     {
@@ -149,7 +145,6 @@ public class AdminCommandsHandlerUnitTests : SqliteGrifballContextFixture
             nameof(AdminCommandsHandler.ReportGame) => handler.ReportGame(discord.Context, "nonsense", Guid.NewGuid().ToString(), null),
             nameof(AdminCommandsHandler.Forfeit) => handler.Forfeit(discord.Context, "nonsense", ForfeitSide.Home),
             nameof(AdminCommandsHandler.UndoResult) => handler.UndoResult(discord.Context, "nonsense"),
-            nameof(AdminCommandsHandler.PullGames) => handler.PullGames(discord.Context, "nonsense"),
             _ => handler.SetTime(discord.Context, "nonsense", "2026-11-20 20:00"),
         };
         await task;

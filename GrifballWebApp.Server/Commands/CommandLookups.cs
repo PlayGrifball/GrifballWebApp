@@ -1,5 +1,6 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Application.Seasons;
+using GrifballWebApp.Application.XboxAccounts;
 using GrifballWebApp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
@@ -19,7 +20,7 @@ public enum SeasonDefault
 
 /// <summary>
 /// The season, team, player and season match a command names. A choice picked from the autocomplete is sent as its ID
-/// (<see cref="ChoiceValue"/>: "id:12"); anything else is what was typed, looked up by name: the exact name (a team's or
+/// (<see cref="ChoiceValue(int)"/>: "id:12"); anything else is what was typed, looked up by name: the exact name (a team's or
 /// season's newest), else the only one whose name has it, else, for digits that name nothing, the ID they are. A typed name
 /// that fits several is none: the caller is told to pick one, so an action never lands on a guess.
 /// String options, not integer ones: Discord lets only digits be typed into an integer option, so names couldn't be searched.
@@ -36,22 +37,68 @@ public class CommandLookups
     /// <summary>Discord shows at most 25 choices.</summary>
     private const int MaxChoices = 25;
 
+    public const string NoSuchXboxAccount = "I found no Xbox account with that gamertag: pick one from the list (past gamertags are on it too).";
+
+    /// <summary>What a past gamertag's choice says after it (<see cref="XboxAccountChoices"/>).</summary>
+    public const string PreviousGamertag = "(Previous Gamertag)";
+
     private readonly GrifballContext _context;
     private readonly SeasonService _seasons;
+    private readonly XboxAccountService _accounts;
     private readonly TimeProvider _time;
 
-    public CommandLookups(GrifballContext context, SeasonService seasons, TimeProvider? time = null)
+    public CommandLookups(GrifballContext context, SeasonService seasons, XboxAccountService accounts, TimeProvider? time = null)
     {
         _context = context;
         _seasons = seasons;
+        _accounts = accounts;
         _time = time ?? TimeProvider.System;
     }
 
     /// <summary>A choice's value: the ID, marked as picked so that a name of digits is still a name.</summary>
     public static string ChoiceValue(int id) => ChoicePrefix + id;
 
+    /// <summary>An Xbox account choice's value: its XUID, marked as picked.</summary>
+    public static string ChoiceValue(long xuid) => ChoicePrefix + xuid;
+
     private static int? Picked(string input)
         => input.StartsWith(ChoicePrefix, StringComparison.Ordinal) && int.TryParse(input[ChoicePrefix.Length..], out var id) ? id : null;
+
+    /// <summary>
+    /// The Xbox account picked (its XUID, which may have been listed by a past gamertag), else the one whose current gamertag
+    /// was typed: a typed past gamertag finds nothing, so an account is never found by an old name it isn't shown under.
+    /// Null when there is none.
+    /// </summary>
+    public async Task<(long XboxUserID, string Gamertag)?> XboxAccount(string input, CancellationToken ct = default)
+    {
+        var typed = input.Trim();
+        if (typed.StartsWith(ChoicePrefix, StringComparison.Ordinal) && long.TryParse(typed[ChoicePrefix.Length..], out var xuid))
+        {
+            var gamertag = await _context.XboxUsers.AsNoTracking().Where(x => x.XboxUserID == xuid).Select(x => x.Gamertag).FirstOrDefaultAsync(ct);
+            return gamertag is null ? null : (xuid, gamertag);
+        }
+        return await _accounts.FindByCurrentGamertagAsync(typed, ct);
+    }
+
+    /// <summary>The Xbox account of the user linked to this Discord account; null when none is linked, or it has no Xbox account.</summary>
+    public async Task<(long XboxUserID, string Gamertag)?> OwnXboxAccount(ulong discordUserID, CancellationToken ct = default)
+    {
+        var own = await _context.Users.AsNoTracking()
+            .Where(x => x.DiscordUserID == (long)discordUserID && x.XboxUser != null)
+            .Select(x => new { x.XboxUser!.XboxUserID, x.XboxUser.Gamertag })
+            .FirstOrDefaultAsync(ct);
+        return own is null ? null : (own.XboxUserID, own.Gamertag);
+    }
+
+    /// <summary>
+    /// The Xbox accounts a gamertag option lists (<see cref="XboxAccountService.SearchAsync"/>), each sent as its XUID: by
+    /// current gamertag, then by a past one, shown as "Old (Previous Gamertag) · now Current".
+    /// </summary>
+    public async Task<List<ApplicationCommandOptionChoiceProperties>> XboxAccountChoices(string? input, CancellationToken ct = default)
+        => (await _accounts.SearchAsync(input, MaxChoices, ct))
+            .Select(x => new ApplicationCommandOptionChoiceProperties(
+                ChoiceName(x.PastGamertag is null ? x.Gamertag : $"{x.PastGamertag} {PreviousGamertag} · now {x.Gamertag}"), ChoiceValue(x.XboxUserID)))
+            .ToList();
 
     /// <summary>The only one of <paramref name="ids"/>, or null when there are none or several.</summary>
     private static async Task<int?> OnlyOne(IQueryable<int> ids, CancellationToken ct)
@@ -70,10 +117,9 @@ public class CommandLookups
                 && await seasons.Where(GrifballWebApp.Domain.League.Season.NotStartedAt(_time.GetUtcNow().UtcDateTime)).OrderBy(x => x.SeasonStart)
                     .Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct) is int upcoming)
                 return upcoming;
-            var current = await _seasons.GetCurrentSeasonID(ct);
-            if (current != 0)
-                return current;
-            return await seasons.OrderByDescending(x => x.SeasonID).Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct);
+            // The same default as the agents' tools
+            var current = await _seasons.GetCurrentOrLatestSeasonID(ct);
+            return current != 0 ? current : null;
         }
 
         var name = input.Trim();

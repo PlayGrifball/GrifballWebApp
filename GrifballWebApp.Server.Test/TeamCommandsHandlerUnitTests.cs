@@ -16,10 +16,10 @@ namespace GrifballWebApp.Server.Test;
 [Parallelizable(ParallelScope.All)]
 public class TeamCommandsHandlerUnitTests : SqliteGrifballContextFixture
 {
-    private TeamCommandsHandler Handler() => new(new CommandLookups(Db, null!), null!, null!, null!, Urls());
+    private TeamCommandsHandler Handler() => new(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)), null!, null!, null!, Urls());
 
     /// <summary>The team page services real too (all IApplicationDbContext-backed).</summary>
-    private TeamCommandsHandler DeepHandler() => new(new CommandLookups(Db, null!),
+    private TeamCommandsHandler DeepHandler() => new(new CommandLookups(Db, null!, new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db)),
         new TeamPageService(Db), new TeamHistoryService(Db),
         new VodService(Db, null!, Options.Create(new YouTubeOptions()), null!), Urls());
 
