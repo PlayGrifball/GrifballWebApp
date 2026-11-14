@@ -48,6 +48,15 @@ public class MessageCreateHandlerUnitTests : MessageCreateHandlerFixture
     }
 
     [Test]
+    public async Task HandleAsync_ADirectMessage_IsAnswered_WithNoMention()
+    {
+        await _handler.HandleAsync(GatewayMessages.Build(5, direct: true));
+
+        // Answered: its scope is asked for (the test's has no database, so the answer fails and is logged, not thrown)
+        Assert.That(_scopeFactory.ReceivedCalls(), Is.Not.Empty);
+    }
+
+    [Test]
     public async Task HandleAsync_ReplyToNonBotMessage_DoesNothing()
     {
         var referenced = Substitute.For<IDiscordRestMessage>();

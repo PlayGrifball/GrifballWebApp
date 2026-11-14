@@ -157,23 +157,32 @@ public class GrifChatUnitTests
     {
         var discord = GrifChat.Instructions(ChatHost.Discord).Split('\n');
         var site = GrifChat.Instructions(ChatHost.Site).Split('\n');
+        var direct = GrifChat.Instructions(ChatHost.DiscordDirect).Split('\n');
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(discord[0], Is.EqualTo("You are a Discord bot, and all messages must stay under the 2000-character limit."));
             Assert.That(discord[^1], Is.EqualTo("The bot also has slash commands; /help lists them."));
             Assert.That(site[0], Does.StartWith("You are the chat on the Grifball league's website"));
-            Assert.That(site[1..^1], Is.EqualTo(discord[1..^1]));
+            // In private, the line about the tools that change data too
+            Assert.That(site[1..^1], Is.EqualTo(discord[1..^1].Append(GrifChat.PrivateLine)));
+            Assert.That(direct, Is.EqualTo(discord[..^1].Append(GrifChat.PrivateLine).Append(discord[^1])));
+            Assert.That(discord, Has.None.EqualTo(GrifChat.PrivateLine));
             Assert.That(site, Has.Some.Contains("in UTC, as the tools give them"));
             Assert.That(string.Join('\n', site), Does.Not.Contain("Discord").And.Not.Contain("/help"));
         }
     }
 
     [Test]
-    public void Hosts_DiscordAnswersInPublicAndIsNeverCutShort_TheSiteIsPrivateAndTimed()
+    public void Hosts_ADiscordChannelIsPublic_ADmAndTheSitePrivate_OnlyTheSiteTimed()
     {
         using (Assert.EnterMultipleScope())
         {
+            Assert.That(ChatHost.DiscordDirect.InPublic, Is.False);
+            Assert.That(ChatHost.DiscordDirect with { InPublic = true }, Is.EqualTo(ChatHost.Discord));
+            Assert.That(ChatHost.Discord.Tools, Is.SameAs(GrifTools.Chat));
+            Assert.That(ChatHost.DiscordDirect.Tools, Is.SameAs(GrifTools.PrivateChat));
+            Assert.That(ChatHost.Site.Tools, Is.SameAs(GrifTools.PrivateChat));
             Assert.That(ChatHost.Discord.InPublic, Is.True);
             Assert.That(ChatHost.Discord.Timeout, Is.EqualTo(Timeout.InfiniteTimeSpan));
             Assert.That(ChatHost.Site.InPublic, Is.False);

@@ -30,7 +30,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         if (arg.Author.Id == BotId)
             return;
 
-        if (arg.MentionedUsers.Any(x => x.Id == BotId))
+        // A DM is to the bot alone: it answers every one, no mention needed
+        if (arg.GuildId is null || arg.MentionedUsers.Any(x => x.Id == BotId))
         {
             await HandleResponse(arg);
             return;
@@ -81,10 +82,16 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
 
         await EnsureDiscordUsersAsync(context, UserId, message.Author.Username, BotID);
-        var chatHistory = await ChatHistoryAsync(context, message, UserId, BotID);
+        // A DM is the author's alone: in private, as the site's chat (their roles decide which seasons they see, and staff get their
+        // tools), its history Discord's DM channel itself, and nothing of it kept in DiscordMessages, whose history a channel's reply
+        // reads: what staff see in private never reaches a public reply. In a channel, in public: the channel reads the reply, so a
+        // season not announced yet stays out of it whoever asks (#435), and no staff tools.
+        var direct = message.GuildId is null;
+        var host = direct ? ChatHost.DiscordDirect : ChatHost.Discord;
+        var saveTo = direct ? null : context;
+        var chatHistory = direct ? await DirectHistoryAsync(message) : await ChatHistoryAsync(context, message, UserId, BotID);
 
-        // The tools, as the author: their linked site account and its roles, or no account (every tool not about "you"). In
-        // public (ChatHost.Discord): the channel reads the reply, so a season not announced yet stays out of it whoever asks (#435).
+        // The tools, as the author: their linked site account and its roles, or no account (every tool not about "you").
         // Each tool call runs in a scope of its own: this scope's context saves the streamed reply meanwhile
         var caller = await new DiscordCaller(context).AsToolCaller(message.Author.Id);
 
@@ -94,11 +101,11 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 
         // Background task for incremental updates
         var started = Time.GetTimestamp();
-        var updateTask = Task.Run(() => StreamReplyAsync(channel.Reader, responseBuilder, message, context, UserId, BotID, Time, started));
+        var updateTask = Task.Run(() => StreamReplyAsync(channel.Reader, responseBuilder, message, saveTo, UserId, BotID, Time, started));
 
         try
         {
-            await foreach (var text in Chat.ReplyAsync(chatHistory, caller, ChatHost.Discord))
+            await foreach (var text in Chat.ReplyAsync(chatHistory, caller, host))
                 await channel.Writer.WriteAsync((text, Time.GetTimestamp()));
         }
         finally
@@ -108,7 +115,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         }
         var restMessage = await updateTask;
 
-        await FinishReplyAsync(message, restMessage, responseBuilder, context, UserId, BotID);
+        await FinishReplyAsync(message, restMessage, responseBuilder, saveTo, UserId, BotID);
     }
 
     /// <summary>The author and the bot, as Discord users in the database (a message is between two of them).</summary>
@@ -157,11 +164,28 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     }
 
     /// <summary>
+    /// A DM's conversation so far, as Discord keeps it in the DM channel: its last <see cref="GrifChat.HistoryLimit"/> messages before
+    /// this one, oldest first, the new message last. Never from DiscordMessages, the channels' conversation, which keeps none of a DM.
+    /// </summary>
+    private async Task<List<ChatMessage>> DirectHistoryAsync(Message message)
+    {
+        var earlier = await discordClient.GetMessagesAsync(message.ChannelId, new NetCord.Rest.PaginationProperties<ulong> { BatchSize = GrifChat.HistoryLimit + 1 })
+            .Where(m => m.Id < message.Id)
+            .Take(GrifChat.HistoryLimit)
+            .ToListAsync();
+        return earlier
+            .OrderBy(m => m.Id)
+            .Select(m => new ChatMessage(m.Author.Id == BotId ? ChatRole.Assistant : ChatRole.User, m.Content))
+            .Append(new ChatMessage(ChatRole.User, message.Content))
+            .ToList();
+    }
+
+    /// <summary>
     /// Shows the reply as it streams in (<paramref name="chunks"/>, each with when it arrived): every 25 characters at most once a second, each full
     /// 2000 characters as a message of its own (saved). Returns the message still being written, if any.
     /// </summary>
     private static async Task<NetCord.Rest.RestMessage?> StreamReplyAsync(ChannelReader<(string Text, long ArrivedAt)> chunks, StringBuilder responseBuilder, Message message,
-        GrifballContext context, long UserId, long BotID, TimeProvider time, long started)
+        GrifballContext? context, long UserId, long BotID, TimeProvider time, long started)
     {
         NetCord.Rest.RestMessage? restMessage = null;
         var timeThreshold = TimeSpan.FromSeconds(1);
@@ -199,7 +223,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 
     /// <summary>The whole reply shown (in messages of 2000 characters at most) and saved, once it has streamed in.</summary>
     private static async Task FinishReplyAsync(Message message, NetCord.Rest.RestMessage? restMessage, StringBuilder responseBuilder,
-        GrifballContext context, long UserId, long BotID)
+        GrifballContext? context, long UserId, long BotID)
     {
         // Final update to ensure the full response is shown
         var finalResponse = responseBuilder.ToString();
@@ -253,8 +277,11 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         }
     }
 
-    private static async Task SaveMessageToDb(long UserId, long BotID, GrifballContext context, NetCord.Rest.RestMessage restMessage)
+    /// <summary>The bot's message, kept for the channel's conversation; none is kept from a DM (no <paramref name="context"/>).</summary>
+    private static async Task SaveMessageToDb(long UserId, long BotID, GrifballContext? context, NetCord.Rest.RestMessage restMessage)
     {
+        if (context is null)
+            return;
         var newMessage = new DiscordMessage()
         {
             Id = (long)restMessage.Id,
