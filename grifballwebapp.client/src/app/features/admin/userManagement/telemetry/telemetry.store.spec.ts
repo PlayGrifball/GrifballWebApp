@@ -92,4 +92,21 @@ describe('TelemetryStore', () => {
     http.expectOne('/api/telemetry/traces/abc').flush({ traceId: 'abc', durationMs: 5, spans: [] });
     await settle();
   });
+
+  it('reads nothing from a backend the server has not got', async () => {
+    const bare = TestBed.runInInjectionContext(() => new TelemetryStore());
+    bare.metricsQuery.use(signal({ minutes: 60 }));
+    bare.logsQuery.use(signal({ minutes: 60, limit: 200 }));
+    bare.tracesQuery.use(signal({ minutes: 60 }));
+    bare.traceId.use(signal(null));
+    TestBed.tick();
+    http.expectOne('/api/telemetry/status').flush({ logs: false, metrics: false, traces: true });
+    await settle();
+    TestBed.tick();
+    http.expectNone(r => r.url === '/api/telemetry/metrics' || r.url === '/api/telemetry/logs');
+    http.expectOne(r => r.url === '/api/telemetry/traces').flush([]);
+    await settle();
+    expect(bare.metrics.hasValue()).toBeFalse();
+    expect(bare.traces.hasValue()).toBeTrue();
+  });
 });

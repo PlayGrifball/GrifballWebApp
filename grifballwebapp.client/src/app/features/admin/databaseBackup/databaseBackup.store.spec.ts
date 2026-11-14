@@ -33,6 +33,14 @@ describe('DatabaseBackupStore', () => {
     http.verify();
   });
 
+  it('asks for no backup until it has the format', () => {
+    const fresh = TestBed.runInInjectionContext(() => new DatabaseBackupStore());
+    fresh.loadDownloadStatus();
+    fresh.makeBackup();
+    http.expectNone(r => r.url.startsWith('/api/backups/') && r.url !== '/api/backups/info');
+    expect(fresh.making()).toBeFalse();
+  });
+
   it("reads the database's details, and says when it cannot", async () => {
     TestBed.tick();
     http.expectOne('/api/backups/info').flush('x', { status: 500, statusText: 'Server Error' });

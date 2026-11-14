@@ -72,4 +72,24 @@ describe('ExcelFormStore', () => {
       jasmine.clock().uninstall();
     }
   });
+
+  it('starts one export at a time, and follows only the latest', () => {
+    jasmine.clock().install();
+    try {
+      store.exportAll(sheet);
+      store.exportAll(sheet);
+      http.expectOne({ method: 'POST', url: '/api/sheets/export' }).flush({ ...idle, state: 'Running' });
+
+      store.exportAll(sheet);
+      http.expectOne({ method: 'POST', url: '/api/sheets/export' }).flush({ ...idle, state: 'Running' });
+      jasmine.clock().tick(EXPORT_POLL_MS);
+      // One status read: the first export's watch was dropped for the second's
+      http.expectOne({ method: 'GET', url: '/api/sheets/export' }).flush(idle);
+      expect(store.exporting()).toBeFalse();
+      jasmine.clock().tick(EXPORT_POLL_MS);
+      http.expectNone('/api/sheets/export');
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
 });
