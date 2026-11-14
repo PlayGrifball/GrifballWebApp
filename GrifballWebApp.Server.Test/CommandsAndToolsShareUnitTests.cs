@@ -232,6 +232,19 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
+    public async Task MatchPull_SaysSo_ForAMatchItCantFind()
+    {
+        await AddUser(5, "Puller", "Player");
+        var handler = new MatchCommandsHandler(new CommandLookups(Db, Seasons(), new XboxAccountService(Db), _time), SeasonMatches(), new MatchDetailsService(Db), Urls(), new DiscordCaller(Db), Pulls());
+        var discord = new CommandContextRecorder(discordUserId: 5);
+
+        await handler.Pull(discord.Context, "Nobody", backToSeasonStart: false);
+
+        Assert.That(discord.Content(), Is.EqualTo(CommandLookups.NoSuchMatch));
+        await _seasonPulls.DidNotReceiveWithAnyArgs().Queue(default, default, default);
+    }
+
+    [Test]
     public async Task PlayerPull_RefusesAPickedAccountTheSiteDoesntKnow()
     {
         await AddUser(6, "Puller", "Player");
