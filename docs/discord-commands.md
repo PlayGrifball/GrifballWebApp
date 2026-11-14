@@ -19,8 +19,23 @@ command's subcommands. The handlers are in `GrifballWebApp.Server/Commands`.
 
 Seasons, teams, players and season matches autocomplete. A name typed without picking a choice is looked up too: the
 exact name, else the only one whose name has it, else (for digits that name nothing) that ID. A typed name that fits
-several is refused, and the caller is asked to pick one, so a staff action never lands on a guess. With no season named,
-the season pages mean the one running now, else the latest announced (between seasons, the next one once it is announced, else the one that just ended; never one not announced yet) (the agents' tools mean the same: `SeasonService.GetCurrentOrLatestSeasonID`), and `/signup`, `/availability show` and `/admin draft` mean the next to start.
+several is refused, and the caller is asked to pick one, so a staff action never lands on a guess.
+
+With no season named, a command means the one that fits what it's for (`SeasonService.GetDefaultSeasonID`, which the
+agents' tools use too):
+
+| Purpose | Commands | Season |
+|---|---|---|
+| Current | `/season info\|standings\|schedule\|stats\|grades\|bracket` | The running one, else the one that ended last, else the next to start |
+| Upcoming | `/season signups\|draft`, `/signup`, `/availability show`, `/admin draft` | The next to start, else the running one, else the one that ended last |
+| Active | `/admin schedule show\|run`, `/admin bracket seed` | The running one, else the next to start, else the one that ended last |
+
+**A season not announced yet** (it hasn't started and its `PublicAt` hasn't passed) is a commissioner's and sysadmin's
+alone, as on the site (#435):
+- Replies the channel sees use the public view, whoever asks: a hidden season, its teams and its matches are no such
+  thing, by default, by name or by ID, and aren't in the autocomplete.
+- `/admin` replies are only the caller's, so its options list and find the seasons and matches the caller may see
+  (`StaffSeasonAutocomplete`, `StaffSeasonMatchAutocomplete`).
 A gamertag option (`/matches`, `/player pull`) is an Xbox account, sent as its XUID when picked. Its list has the accounts
 by current gamertag, then (from two characters typed) by a past one, shown as `Old Name (Previous Gamertag) · now New Name`, as the site's quick
 search lists a player by a past gamertag. A gamertag typed without picking finds an account by its current gamertag
@@ -34,7 +49,7 @@ test sends every registered command and fails one whose first answer isn't a def
 
 | Command | What it shows |
 |---|---|
-| `/season list\|info\|standings\|schedule\|stats\|grades\|signups\|bracket\|draft` | A season's pages; with no season named, the running one, else the latest announced |
+| `/season list\|info\|standings\|schedule\|stats\|grades\|signups\|bracket\|draft` | A season's pages; with no season named, the one its purpose means (see above) |
 | `/team info\|roster\|history\|matches\|vods` | A team's page |
 | `/player profile\|stats\|commendations\|history\|vods` | A player's profile; with no player named, the caller's own (needs their gamertag) |
 | `/matches` | An Xbox account's recent Halo matches as the site saved them (the agents' `get_recent_games`); with no gamertag, the caller's own. It pulls nothing from Halo: `/player pull` does |

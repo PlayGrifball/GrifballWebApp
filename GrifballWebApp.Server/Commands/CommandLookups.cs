@@ -9,15 +9,6 @@ using NetCord.Services.ApplicationCommands;
 
 namespace GrifballWebApp.Server.Commands;
 
-/// <summary>Which season a command means when none is named.</summary>
-public enum SeasonDefault
-{
-    /// <summary>The season running now, else the latest: what the season pages show.</summary>
-    Current,
-    /// <summary>The next season to start (signing up, drafting), else the current one: for /signup, the draft and availability.</summary>
-    Upcoming,
-}
-
 /// <summary>
 /// The season, team, player and season match a command names. A choice picked from the autocomplete is sent as its ID
 /// (<see cref="ChoiceValue(int)"/>: "id:12"); anything else is what was typed, looked up by name: the exact name (a team's or
@@ -25,6 +16,8 @@ public enum SeasonDefault
 /// that fits several is none: the caller is told to pick one, so an action never lands on a guess.
 /// String options, not integer ones: Discord lets only digits be typed into an integer option, so names couldn't be searched.
 /// Names match whatever their case: the database compares text case-insensitively (CaseInsensitiveTextTests).
+/// Seasons, teams and season matches are those the <see cref="SeasonViewer"/> may see: a season not announced yet, its teams
+/// and matches are no such thing to anyone but staff (#435). A reply the channel reads is <see cref="SeasonViewer.Public"/>.
 /// </summary>
 public class CommandLookups
 {
@@ -107,19 +100,22 @@ public class CommandLookups
         return two.Count == 1 ? two[0] : null;
     }
 
-    /// <summary>The season named or picked; with none given, the <paramref name="default"/>. Null when there is no single such season.</summary>
-    public async Task<int?> Season(string? input, SeasonDefault @default = SeasonDefault.Current, CancellationToken ct = default)
+    /// <summary>The seasons <paramref name="viewer"/> may see (<see cref="SeasonVisibility.VisibleTo"/>).</summary>
+    private IQueryable<GrifballWebApp.Domain.League.Season> Visible(SeasonViewer viewer)
+        => _context.Seasons.AsNoTracking().Where(SeasonVisibility.VisibleTo(viewer, _time.GetUtcNow().UtcDateTime));
+
+    /// <summary>
+    /// The season named or picked, of those <paramref name="viewer"/> may see; with none given, the one <paramref name="purpose"/>
+    /// means (<see cref="SeasonService.GetDefaultSeasonID"/>, the agents' tools' default too). Null when there is no single such season.
+    /// </summary>
+    public async Task<int?> Season(string? input, SeasonPurpose purpose = SeasonPurpose.Current, SeasonViewer viewer = SeasonViewer.Public,
+        CancellationToken ct = default)
     {
-        var seasons = _context.Seasons.AsNoTracking();
+        var seasons = Visible(viewer);
         if (string.IsNullOrWhiteSpace(input))
         {
-            if (@default is SeasonDefault.Upcoming
-                && await seasons.Where(GrifballWebApp.Domain.League.Season.NotStartedAt(_time.GetUtcNow().UtcDateTime)).OrderBy(x => x.SeasonStart)
-                    .Select(x => (int?)x.SeasonID).FirstOrDefaultAsync(ct) is int upcoming)
-                return upcoming;
-            // The same default as the agents' tools
-            var current = await _seasons.GetDefaultSeasonID(SeasonPurpose.Current, SeasonViewer.Public, ct);
-            return current != 0 ? current : null;
+            var meant = await _seasons.GetDefaultSeasonID(purpose, viewer, ct);
+            return meant != 0 ? meant : null;
         }
 
         var name = input.Trim();
@@ -138,18 +134,20 @@ public class CommandLookups
     }
 
     /// <summary>The season named or picked, or null with the caller told there is no single one (call after deferring).</summary>
-    public async Task<int?> SeasonFor(IDiscordInteractionContext context, string? input, SeasonDefault @default = SeasonDefault.Current)
+    public async Task<int?> SeasonFor(IDiscordInteractionContext context, string? input, SeasonPurpose purpose = SeasonPurpose.Current,
+        SeasonViewer viewer = SeasonViewer.Public)
     {
-        if (await Season(input, @default) is int id)
+        if (await Season(input, purpose, viewer) is int id)
             return id;
         await context.Reply(NoSuchSeason);
         return null;
     }
 
     /// <summary>The team named (its newest season's) or picked. Null when there is no single such team.</summary>
-    public async Task<(int SeasonID, int TeamID)?> Team(string input, CancellationToken ct = default)
+    public async Task<(int SeasonID, int TeamID)?> Team(string input, SeasonViewer viewer = SeasonViewer.Public, CancellationToken ct = default)
     {
-        var teams = _context.Teams.AsNoTracking();
+        var seasons = Visible(viewer);
+        var teams = _context.Teams.AsNoTracking().Where(t => seasons.Any(s => s.SeasonID == t.SeasonID));
         var name = input.Trim();
         var id = Picked(name)
             ?? await teams.Where(x => x.TeamName == name).OrderByDescending(x => x.SeasonID).Select(x => (int?)x.TeamID).FirstOrDefaultAsync(ct)
@@ -175,9 +173,10 @@ public class CommandLookups
     /// The season match picked, or the only one of a team typed by name (exactly, else in part). Null when there is no single
     /// such match: a team plays many, and a guess could forfeit the wrong one.
     /// </summary>
-    public async Task<int?> SeasonMatch(string input, CancellationToken ct = default)
+    public async Task<int?> SeasonMatch(string input, SeasonViewer viewer = SeasonViewer.Public, CancellationToken ct = default)
     {
-        var matches = _context.SeasonMatches.AsNoTracking();
+        var seasons = Visible(viewer);
+        var matches = _context.SeasonMatches.AsNoTracking().Where(m => seasons.Any(s => s.SeasonID == m.SeasonID));
         var name = input.Trim();
         var id = Picked(name)
             ?? await OnlyOne(matches.Where(x => x.HomeTeam!.TeamName == name || x.AwayTeam!.TeamName == name).Select(x => x.SeasonMatchID), ct)
@@ -187,19 +186,20 @@ public class CommandLookups
     }
 
     /// <summary>The season match named or picked, or null with the caller told there is no single one (call after deferring).</summary>
-    public async Task<int?> SeasonMatchFor(IDiscordInteractionContext context, string input)
+    public async Task<int?> SeasonMatchFor(IDiscordInteractionContext context, string input, SeasonViewer viewer = SeasonViewer.Public)
     {
-        if (await SeasonMatch(input) is int id)
+        if (await SeasonMatch(input, viewer) is int id)
             return id;
         await context.Reply(NoSuchMatch);
         return null;
     }
 
     /// <summary>Seasons whose name has <paramref name="input"/>, newest first: a season option's choices.</summary>
-    public async Task<List<ApplicationCommandOptionChoiceProperties>> SeasonChoices(string? input, CancellationToken ct = default)
+    public async Task<List<ApplicationCommandOptionChoiceProperties>> SeasonChoices(string? input, SeasonViewer viewer = SeasonViewer.Public,
+        CancellationToken ct = default)
     {
         var name = (input ?? "").Trim();
-        var seasons = await _context.Seasons
+        var seasons = await Visible(viewer)
             .Where(x => x.SeasonName.Contains(name))
             .OrderByDescending(x => x.SeasonID)
             .Take(MaxChoices)
@@ -209,11 +209,13 @@ public class CommandLookups
     }
 
     /// <summary>Teams whose name has <paramref name="input"/>, labelled with their season, newest season first.</summary>
-    public async Task<List<ApplicationCommandOptionChoiceProperties>> TeamChoices(string? input, CancellationToken ct = default)
+    public async Task<List<ApplicationCommandOptionChoiceProperties>> TeamChoices(string? input, SeasonViewer viewer = SeasonViewer.Public,
+        CancellationToken ct = default)
     {
         var name = (input ?? "").Trim();
+        var seasons = Visible(viewer);
         var teams = await _context.Teams
-            .Where(x => x.TeamName.Contains(name))
+            .Where(x => x.TeamName.Contains(name) && seasons.Any(s => s.SeasonID == x.SeasonID))
             .OrderByDescending(x => x.SeasonID)
             .ThenBy(x => x.TeamName)
             .Take(MaxChoices)
@@ -236,11 +238,13 @@ public class CommandLookups
     }
 
     /// <summary>Season matches with a team whose name has <paramref name="input"/>, latest season first.</summary>
-    public async Task<List<ApplicationCommandOptionChoiceProperties>> SeasonMatchChoices(string? input, CancellationToken ct = default)
+    public async Task<List<ApplicationCommandOptionChoiceProperties>> SeasonMatchChoices(string? input, SeasonViewer viewer = SeasonViewer.Public,
+        CancellationToken ct = default)
     {
         var name = (input ?? "").Trim();
+        var seasons = Visible(viewer);
         var matches = await _context.SeasonMatches
-            .Where(x => x.HomeTeam!.TeamName.Contains(name) || x.AwayTeam!.TeamName.Contains(name))
+            .Where(x => (x.HomeTeam!.TeamName.Contains(name) || x.AwayTeam!.TeamName.Contains(name)) && seasons.Any(s => s.SeasonID == x.SeasonID))
             .OrderByDescending(x => x.SeasonID)
             .ThenBy(x => x.ScheduledTime)
             .Take(MaxChoices)
@@ -312,4 +316,39 @@ public class SeasonMatchAutocomplete : IAutocompleteProvider<AutocompleteInterac
     public async ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(ApplicationCommandInteractionDataOption option,
         AutocompleteInteractionContext context)
         => await _lookups.SeasonMatchChoices(option.Value);
+}
+
+/// <summary>
+/// The choices for a staff command's season option (/admin): <see cref="CommandLookups.SeasonChoices"/> as the caller sees them,
+/// a season not announced yet among them for a commissioner or sysadmin alone (the reply is only theirs).
+/// </summary>
+public class StaffSeasonAutocomplete : IAutocompleteProvider<AutocompleteInteractionContext>
+{
+    private readonly CommandLookups _lookups;
+    private readonly DiscordCaller _caller;
+    public StaffSeasonAutocomplete(CommandLookups lookups, DiscordCaller caller)
+    {
+        _lookups = lookups;
+        _caller = caller;
+    }
+
+    public async ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(ApplicationCommandInteractionDataOption option,
+        AutocompleteInteractionContext context)
+        => await _lookups.SeasonChoices(option.Value, await _caller.Viewer(context.User.Id));
+}
+
+/// <summary>The choices for a staff command's season match option (/admin): <see cref="CommandLookups.SeasonMatchChoices"/> as the caller sees them.</summary>
+public class StaffSeasonMatchAutocomplete : IAutocompleteProvider<AutocompleteInteractionContext>
+{
+    private readonly CommandLookups _lookups;
+    private readonly DiscordCaller _caller;
+    public StaffSeasonMatchAutocomplete(CommandLookups lookups, DiscordCaller caller)
+    {
+        _lookups = lookups;
+        _caller = caller;
+    }
+
+    public async ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(ApplicationCommandInteractionDataOption option,
+        AutocompleteInteractionContext context)
+        => await _lookups.SeasonMatchChoices(option.Value, await _caller.Viewer(context.User.Id));
 }

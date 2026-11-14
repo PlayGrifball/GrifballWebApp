@@ -1,5 +1,6 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Application.Identity;
+using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Discord;
@@ -61,6 +62,13 @@ public class DiscordCaller
     /// </summary>
     public async Task<ToolCaller> AsToolCaller(ulong discordUserId, CancellationToken ct = default)
         => await Linked(discordUserId, ct) is { } user ? new ToolCaller(user.Id, user.RoleNames) : ToolCaller.Anonymous;
+
+    /// <summary>
+    /// Which seasons this Discord user sees in a reply only they read (<see cref="SeasonVisibility.For(IReadOnlyCollection{string})"/>):
+    /// their linked account's roles; the public's with none linked.
+    /// </summary>
+    public async Task<SeasonViewer> Viewer(ulong discordUserId, CancellationToken ct = default)
+        => SeasonVisibility.For((IReadOnlyCollection<string>?)(await Linked(discordUserId, ct))?.RoleNames ?? []);
 
     /// <summary>The site account linked to a Discord user: its ID, Xbox account (if it has one) and roles.</summary>
     private sealed record LinkedUser(int Id, long? XboxUserID, string? Gamertag, List<string> RoleNames);

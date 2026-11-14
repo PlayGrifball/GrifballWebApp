@@ -36,7 +36,7 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
 
     private SeasonService Seasons() => new(Db, new SeasonStatsService(Db), _time);
 
-    private SeasonTools SeasonTools() => new(Seasons(), new TeamStandingsService(Db), new MatchPlannerService(Db), new GradesService(Db),
+    private SeasonTools SeasonTools() => new(ToolCaller.Anonymous, Seasons(), new SeasonVisibility(Db, _time), new TeamStandingsService(Db), new MatchPlannerService(Db), new GradesService(Db),
         new SignupsService(Db, _time), Substitute.For<IBracketService>());
 
     private SeasonMatchService SeasonMatches() => new(Db, Substitute.For<IDataPullService>(), Substitute.For<IBracketService>(), new ChampionshipService(Db));
@@ -90,40 +90,49 @@ public class CommandsAndToolsShareUnitTests : SqliteGrifballContextFixture
     }
 
     [Test]
-    public async Task BetweenSeasons_ANextSeasonAnnounced_IsTheDefault_ForACommandOrATool()
+    public async Task BetweenSeasons_WithTheNextAnnounced_TheCurrentDefaultIsTheEndedOne_AndTheUpcomingDefaultTheNext()
     {
         await SeasonEnded("Ended", daysAgo: 10);
-        // Starts in 20 days, announced 10 days ago: public, its signups open
-        var next = await SeasonEnded("Next", daysAgo: -80);
-
-        var command = await new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time).Season(null);
-        var tool = await SeasonTools().GetSeason();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(command, Is.EqualTo(next.SeasonID));
-            Assert.That(tool.SeasonName, Is.EqualTo("Next"));
-        }
-    }
-
-    [Test]
-    public async Task BetweenSeasons_TwoAnnounced_TheNextToStart_IsTheDefault()
-    {
-        await SeasonEnded("Ended", daysAgo: 10);
-        // Both public: the one starting in 20 days, not the one starting in 120
+        // Starts in 20 days, announced 10 days ago: public, its signups open; a later one, announced too, starts in 120
         var next = await SeasonEnded("Next", daysAgo: -80);
         Db.Seasons.Add(Season.Seed(seasonName: "Later").WithDates(publicAt: _time.GetUtcNow().UtcDateTime.AddDays(-1),
             signupsOpen: _time.GetUtcNow().UtcDateTime.AddDays(90), signupsClose: _time.GetUtcNow().UtcDateTime.AddDays(100),
             draftStart: _time.GetUtcNow().UtcDateTime.AddDays(110), seasonStart: _time.GetUtcNow().UtcDateTime.AddDays(120), seasonEnd: _time.GetUtcNow().UtcDateTime.AddDays(180)));
         await Db.SaveChangesAsync();
+        var lookups = new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time);
 
-        var command = await new CommandLookups(Db, Seasons(), new GrifballWebApp.Application.XboxAccounts.XboxAccountService(Db), _time).Season(null);
+        var current = await lookups.Season(null);
+        var upcoming = await lookups.Season(null, SeasonPurpose.Upcoming);
         var tool = await SeasonTools().GetSeason();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(command, Is.EqualTo(next.SeasonID));
-            Assert.That(tool.SeasonName, Is.EqualTo("Next"));
+            Assert.That(current, Is.Not.EqualTo(next.SeasonID), "standings and stats: the season that ended");
+            Assert.That(tool.SeasonName, Is.EqualTo("Ended"));
+            Assert.That(upcoming, Is.EqualTo(next.SeasonID), "signups and the draft: the next to start, not the later one");
+        }
+    }
+
+    [Test]
+    public async Task ASeasonNotAnnouncedYet_IsNoSeasonToATool_ButToStaff_UnlessTheyAskInPublic()
+    {
+        // Starts in 40 days, announced in 10
+        var secret = await SeasonEnded("Secret", daysAgo: -100);
+        SeasonTools As(ToolCaller caller) => new(caller, Seasons(), new SeasonVisibility(Db, _time), new TeamStandingsService(Db), new MatchPlannerService(Db),
+            new GradesService(Db), new SignupsService(Db, _time), Substitute.For<IBracketService>());
+        var staff = new ToolCaller(1, [GrifballWebApp.Application.Identity.SiteRoles.Commissioner]);
+
+        var anonymous = await Assert.ThrowsAsync<ToolException>(() => As(ToolCaller.Anonymous).GetSeason(secret.SeasonID));
+        var inPublic = await Assert.ThrowsAsync<ToolException>(() => As(staff with { InPublic = true }).GetSeason(secret.SeasonID));
+        var staffs = await As(staff).GetSeason(secret.SeasonID);
+        var listed = (await As(ToolCaller.Anonymous).ListSeasons()).Results.Select(s => s.SeasonID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(anonymous!.Message, Does.StartWith($"There is no season {secret.SeasonID}"));
+            Assert.That(inPublic!.Message, Does.StartWith($"There is no season {secret.SeasonID}"), "the Discord chat answers in the channel");
+            Assert.That(staffs.SeasonName, Is.EqualTo("Secret"));
+            Assert.That(listed, Does.Not.Contain(secret.SeasonID));
         }
     }
 

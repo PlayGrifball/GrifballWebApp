@@ -81,6 +81,8 @@ public class ProgramStartupTests
         "GrifballWebApp.Server.Commands.SeasonCommands",
         "GrifballWebApp.Server.Commands.SeasonMatchAutocomplete",
         "GrifballWebApp.Server.Commands.SignupCommands",
+        "GrifballWebApp.Server.Commands.StaffSeasonAutocomplete",
+        "GrifballWebApp.Server.Commands.StaffSeasonMatchAutocomplete",
         "GrifballWebApp.Server.Commands.TeamAutocomplete",
         "GrifballWebApp.Server.Commands.TeamCommands",
         "GrifballWebApp.Server.DiscordCommands",
