@@ -3,6 +3,7 @@ using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Quartz;
 using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Application.SeasonMatchPage;
 using GrifballWebApp.Infrastructure.Jobs;
@@ -13,6 +14,17 @@ namespace GrifballWebApp.Infrastructure.SeasonMatchPage;
 /// <param name="BackToSeasonStart">The games each player played during the match's season, however far back in their history
 /// (<see cref="IDataPullService.DownloadMatchesBetween"/>), rather than their most recent 11 pages.</param>
 public sealed record SeasonMatchPull(int SeasonMatchID, int? RequestedByUserID = null, bool BackToSeasonStart = false) : IRequestedByUser;
+
+/// <summary>The season match pulls (<see cref="ISeasonMatchPulls"/>) as runs of <see cref="SeasonMatchPullJob"/>, one per match at a time.</summary>
+public sealed class SeasonMatchPulls(OnDemandJobs jobs) : ISeasonMatchPulls
+{
+    public Task<OnDemandJobStatusDto> Queue(int seasonMatchID, int? requestedByUserID, bool backToSeasonStart, CancellationToken ct = default)
+        => jobs.Enqueue<SeasonMatchPullJob, SeasonMatchPull>(SeasonMatchPullJob.RunName(seasonMatchID), new SeasonMatchPull(seasonMatchID, requestedByUserID, backToSeasonStart),
+            backToSeasonStart ? $"Season match {seasonMatchID}, back to its season's start" : $"Season match {seasonMatchID}", JobsServiceCollectionExtensions.HaloMatchPulls, ct);
+
+    public Task<OnDemandJobStatusDto> Status(int seasonMatchID, CancellationToken ct = default)
+        => jobs.Status<SeasonMatchPullJob>(SeasonMatchPullJob.RunName(seasonMatchID), ct);
+}
 
 /// <summary>
 /// Pulls the recent custom games of a season match's players from Halo Infinite (up to 11 pages of 25 each; or, asked to,

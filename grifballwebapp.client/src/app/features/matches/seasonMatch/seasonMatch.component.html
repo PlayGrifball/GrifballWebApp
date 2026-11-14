@@ -254,7 +254,7 @@
         }
         }
       </p>
-      @if (accountService.isEventOrganizer()) {
+      @if (canPull()) {
       <button mat-stroked-button type="button" (click)="store.pullMatches()" [disabled]="store.pulling()">Pull recent games</button>
       <!-- Back through the players' histories to the season's start: for an old match, whose games are past their recent ones -->
       <button mat-stroked-button type="button" (click)="store.pullMatches(true)" [disabled]="store.pulling()">Pull back to the season's start</button>

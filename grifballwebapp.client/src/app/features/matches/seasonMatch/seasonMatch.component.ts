@@ -161,6 +161,9 @@ export class SeasonMatchComponent {
   /** Why the server turned the last action down. */
   actionError: WritableSignal<string | null> = signal(null);
 
+  /** Whether the user may pull the players' games from Halo: any player, as staff may (the server allows the same). */
+  readonly canPull = computed(() => this.accountService.isPlayer() || this.accountService.isEventOrganizer() || this.accountService.isSysAdmin());
+
   /** A result or reported games to clear, as the server says (a match with a BYE is decided by the bracket). */
   readonly canUndo = computed(() => this.seasonMatch()?.canUndo ?? false);
 
