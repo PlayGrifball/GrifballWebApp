@@ -25,7 +25,7 @@ shows it as "Run by hand", with no interval, Pause or schedule, and a sysadmin s
 
 | Job | Does |
 |---|---|
-| `xbox-placeholder-cleanup` | Removes the placeholder users made before only league players got one. A placeholder goes only when it is a bare Xbox placeholder (a dummy `historical:` user holding an Xbox account, with no Discord link, email, password or region), its account played in no league game (a season match's or a Late League match's reported game), and nothing names it: no foreign key to it (stats, teams, signups, claims, championships, roles) and no key-less user column (merges, duplicate dismissals, audit columns). Each is checked again right before its delete, in a transaction of its own. The Xbox account and its games stay. It logs each one it removed. |
+| `xbox-placeholder-cleanup` | Removes the placeholder users made before only league players got one. A placeholder goes only when it is untouched since it was made (a dummy `historical:` user holding an Xbox account, shown by its gamertag, with no Discord link, email, password, region or lockout, never renamed or edited), its account played in no league game (a season match's or a Late League match's reported game), and nothing names it: no foreign key to it (stats, teams, signups, claims, championships, roles) and no key-less user column (merges, duplicate dismissals, audit columns). It checks and deletes 200 at a time, each batch in a serializable transaction, so nothing written meanwhile slips between the check and the delete. Any failure stops the run and fails it on the Jobs page; the batches done stay done, and running it again carries on. The Xbox account and its games stay. It logs each one it removed. |
 
 ## On-demand jobs
 

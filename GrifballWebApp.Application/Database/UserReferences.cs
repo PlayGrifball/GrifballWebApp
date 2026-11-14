@@ -17,13 +17,13 @@ public static class UserReferences
 
     /// <summary>
     /// The columns that hold a user's ID with no foreign key: a merge's and a dismissal's users (<c>…UserID</c>), and every
-    /// row's audit columns (<c>CreatedByID</c>, <c>ModifiedByID</c>).
+    /// row's audit columns (<c>CreatedByID</c>, <c>ModifiedByID</c>). A key's columns too: a dismissal's pair of users is its key.
     /// </summary>
     public static IEnumerable<IProperty> KeylessColumns(IModel model)
         => model.GetEntityTypes()
             .Where(OwnSet)
             .SelectMany(e => e.GetDeclaredProperties())
-            .Where(p => (p.ClrType == typeof(int) || p.ClrType == typeof(int?)) && !p.IsForeignKey() && !p.IsPrimaryKey()
+            .Where(p => (p.ClrType == typeof(int) || p.ClrType == typeof(int?)) && !p.IsForeignKey()
                 && (p.Name.EndsWith("UserID", StringComparison.Ordinal) || p.Name is "CreatedByID" or "ModifiedByID"));
 
     /// <summary>Which of <paramref name="ids"/> the column names, in any row of its entity.</summary>
