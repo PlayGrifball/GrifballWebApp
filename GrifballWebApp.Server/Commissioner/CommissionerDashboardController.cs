@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Commissioner;
+using GrifballWebApp.Application.EventOrganizer;
 using GrifballWebApp.Application.Reschedule;
 
 namespace GrifballWebApp.Server.Commissioner;
@@ -12,29 +13,37 @@ namespace GrifballWebApp.Server.Commissioner;
 public class CommissionerDashboardController : ControllerBase
 {
     private readonly RescheduleService _rescheduleService;
+    private readonly EventOrganizerService _seasons;
 
-    public CommissionerDashboardController(RescheduleService rescheduleService)
+    public CommissionerDashboardController(RescheduleService rescheduleService, EventOrganizerService seasons)
     {
         _rescheduleService = rescheduleService;
+        _seasons = seasons;
     }
 
-    /// <summary>The commissioner dashboard: pending reschedules, overdue matches, and their counts. Commissioners and sysadmins only.</summary>
+    /// <summary>
+    /// The commissioner dashboard: pending reschedules, overdue matches, seasons that won't be public by their signups, and
+    /// their counts. Commissioners and sysadmins only.
+    /// </summary>
     [HttpGet("commissioner-dashboard", Name = "GetDashboardData")]
     [ProducesResponseType<CommissionerDashboardDto>(StatusCodes.Status200OK)]
     public async Task<CommissionerDashboardDto> GetDashboardData(CancellationToken ct)
     {
         var pendingReschedules = await _rescheduleService.GetPendingReschedulesAsync(ct);
         var overdueMatches = await _rescheduleService.GetOverdueMatchesAsync(ct);
+        var notPublic = await _seasons.GetSeasonsNotPublicBySignups(ct);
 
         var dashboardData = new CommissionerDashboardDto
         {
             PendingReschedules = pendingReschedules,
             OverdueMatches = overdueMatches,
+            SeasonsNotPublicBySignups = notPublic,
             Summary = new DashboardSummaryDto
             {
                 PendingRescheduleCount = pendingReschedules.Count,
                 OverdueMatchCount = overdueMatches.Count,
-                CriticalOverdueCount = overdueMatches.Count(m => m.HoursOverdue > 72) // More than 3 days overdue
+                CriticalOverdueCount = overdueMatches.Count(m => m.HoursOverdue > 72), // More than 3 days overdue
+                SeasonsNotPublicBySignupsCount = notPublic.Count,
             }
         };
 

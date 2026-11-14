@@ -112,6 +112,7 @@ public class EventOrganizerServiceTests
             SeasonStart = now.AddDays(10),
             SeasonEnd = now.AddDays(40),
             SignupsOpen = now.AddDays(-5),
+            PublicAt = now.AddDays(-5),
             SignupsClose = now.AddDays(5),
             DraftStart = now.AddDays(7)
         };
@@ -144,6 +145,7 @@ public class EventOrganizerServiceTests
             SeasonStart = now.AddDays(10),
             SeasonEnd = now.AddDays(40),
             SignupsOpen = now.AddDays(-5),
+            PublicAt = now.AddDays(-5),
             SignupsClose = now.AddDays(5),
             DraftStart = now.AddDays(7)
         };
@@ -170,6 +172,7 @@ public class EventOrganizerServiceTests
             SeasonStart = now.AddDays(10),
             SeasonEnd = now.AddDays(40),
             SignupsOpen = now.AddDays(-5),
+            PublicAt = now.AddDays(-5),
             SignupsClose = now.AddDays(5),
             DraftStart = now.AddDays(7)
         };
@@ -201,6 +204,37 @@ public class EventOrganizerServiceTests
         // Assert
         Assert.That(result, Has.Count.EqualTo(1));
         Assert.That(result[0].SignupsCount, Is.EqualTo(1));
+    }
+
+    [TestCase(null, Description = "no Public at")]
+    [TestCase(1, Description = "announced a day after signups open")]
+    public async Task UpsertSeason_ASeasonStillToStart_IsRefused_UnlessPublicByItsSignups(int? announcedDaysAfterSignups)
+    {
+        var now = DateTime.UtcNow;
+        var dto = new SeasonDto { GameVersionID = 6, SeasonName = "Unannounced", SeasonStart = now.AddDays(30), SeasonEnd = now.AddDays(60),
+            SignupsOpen = now.AddDays(5), SignupsClose = now.AddDays(10), DraftStart = now.AddDays(20),
+            PublicAt = announcedDaysAfterSignups is int days ? now.AddDays(5 + days) : null };
+
+        var refused = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(dto, CancellationToken.None));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(refused!.Message, Is.EqualTo(EventOrganizerService.NotPublicBySignups));
+            Assert.That(await _context.Seasons.AnyAsync(s => s.SeasonName == "Unannounced"), Is.False, "nothing saved");
+        }
+    }
+
+    [Test]
+    public async Task UpsertSeason_ASeasonStillToStart_IsSaved_WhenPublicNoLaterThanItsSignups()
+    {
+        var now = DateTime.UtcNow;
+        var dto = new SeasonDto { GameVersionID = 6, SeasonName = "Announced", SeasonStart = now.AddDays(30), SeasonEnd = now.AddDays(60),
+            SignupsOpen = now.AddDays(5), SignupsClose = now.AddDays(10), DraftStart = now.AddDays(20), PublicAt = now.AddDays(5) };
+
+        var id = await _service.UpsertSeason(dto, CancellationToken.None);
+
+        // Within a millisecond: Postgres keeps microseconds
+        Assert.That((await _service.GetSeason(id, CancellationToken.None))!.PublicAt, Is.EqualTo(dto.PublicAt).Within(TimeSpan.FromMilliseconds(1)));
     }
 
     [Test]
@@ -251,7 +285,7 @@ public class EventOrganizerServiceTests
     private static SeasonDto Dto(string name, int seasonId = 0)
     {
         var now = DateTime.UtcNow;
-        return new SeasonDto { GameVersionID = 6, SeasonID = seasonId, SeasonName = name, SeasonStart = now.AddDays(10), SeasonEnd = now.AddDays(40), SignupsOpen = now, SignupsClose = now.AddDays(5), DraftStart = now.AddDays(7) };
+        return new SeasonDto { GameVersionID = 6, SeasonID = seasonId, SeasonName = name, SeasonStart = now.AddDays(10), SeasonEnd = now.AddDays(40), SignupsOpen = now, PublicAt = now, SignupsClose = now.AddDays(5), DraftStart = now.AddDays(7) };
     }
 
     [Test]

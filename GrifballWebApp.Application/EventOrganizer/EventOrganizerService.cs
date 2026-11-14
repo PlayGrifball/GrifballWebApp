@@ -6,11 +6,33 @@ namespace GrifballWebApp.Application.EventOrganizer;
 
 public class EventOrganizerService
 {
+    /// <summary>The refusal for a season still to start that wouldn't be public by its signups (<see cref="Season.IsPublicBySignups"/>).</summary>
+    public const string NotPublicBySignups = "Make the season public (Public at) no later than its signups open: players can't sign up for a season they can't see.";
+
     private readonly IApplicationDbContext _context;
-    public EventOrganizerService(IApplicationDbContext context)
+    private readonly TimeProvider _time;
+    public EventOrganizerService(IApplicationDbContext context, TimeProvider? time = null)
     {
         _context = context;
+        _time = time ?? TimeProvider.System;
     }
+
+    /// <summary>
+    /// Seasons still to start that won't be public by the time their signups open (<see cref="Season.NotPublicBySignups"/>),
+    /// soonest signups first: the commissioner dashboard lists them to fix (#435).
+    /// </summary>
+    public Task<List<GrifballWebApp.Application.Commissioner.SeasonNotPublicBySignupsDto>> GetSeasonsNotPublicBySignups(CancellationToken ct = default)
+        => _context.Seasons.AsNoTracking()
+            .Where(Season.NotPublicBySignups(_time.GetUtcNow().UtcDateTime))
+            .OrderBy(s => s.SignupsOpen).ThenBy(s => s.SeasonID)
+            .Select(s => new GrifballWebApp.Application.Commissioner.SeasonNotPublicBySignupsDto
+            {
+                SeasonID = s.SeasonID,
+                SeasonName = s.SeasonName,
+                SignupsOpen = s.SignupsOpen,
+                PublicAt = s.PublicAt,
+            })
+            .ToListAsync(ct);
 
     public Task<List<SeasonDto>> GetSeasons(CancellationToken ct = default)
     {
@@ -80,6 +102,9 @@ public class EventOrganizerService
         // Schedule refused an imported season first, so the edit is one the season takes
         season.Edit(dto.SeasonName, dto.LeagueID, dto.GameVersionID ?? season.GameVersionID, dto.Division, dto.Format);
         season.AnnounceAt(dto.PublicAt);
+        // A season still to start must be public by its signups (#435); one that started is public whatever its PublicAt
+        if (season.SeasonStart > _time.GetUtcNow().UtcDateTime && !season.IsPublicBySignups)
+            throw new SeasonRefusedException(NotPublicBySignups);
 
         if (dto.CopyFromSeasonID is int copyFromID)
             await CopyFrom(season, dto, copyFromID, ct);

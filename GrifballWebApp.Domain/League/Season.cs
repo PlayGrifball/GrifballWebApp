@@ -459,6 +459,13 @@ public class Season : AuditableEntity
     /// <summary>Anyone may see it at <paramref name="now"/> (<see cref="PublicAsOf"/> for queries).</summary>
     public bool IsPublicAsOf(DateTime now) => SeasonStart <= now || PublicAt <= now;
 
+    /// <summary>
+    /// Public by the time its signups open: announced (<see cref="PublicAt"/>) no later than <see cref="SignupsOpen"/>. Players
+    /// can't sign up for a season they can't see (one not announced yet is staff's alone, #435), so a season still to start
+    /// must be (<see cref="NotPublicBySignups"/> finds those that aren't).
+    /// </summary>
+    public bool IsPublicBySignups => PublicAt is DateTime publicAt && publicAt <= SignupsOpen;
+
     // The same rules for queries, which the database runs: alike to the methods above, boundaries included (SeasonPhaseTests)
 
     /// <summary>Signups are open at <paramref name="now"/> (<see cref="SignupsAreOpenAt"/>).</summary>
@@ -487,10 +494,15 @@ public class Season : AuditableEntity
 
     /// <summary>
     /// The seasons anyone may see at <paramref name="now"/> (<see cref="IsPublicAsOf"/>): started, or announced, whose pages
-    /// the quick search links to. (The season list shows only started seasons, and the Discord events post only announced
-    /// ones not yet over: narrower questions.)
+    /// the quick search links to. (The Discord events post only announced ones not yet over: a narrower question.)
     /// </summary>
     public static Expression<Func<Season, bool>> PublicAsOf(DateTime now) => s => s.SeasonStart <= now || (s.PublicAt != null && s.PublicAt <= now);
+
+    /// <summary>
+    /// Seasons still to start at <paramref name="now"/> that won't be public by the time their signups open
+    /// (<see cref="IsPublicBySignups"/> not met): the commissioner dashboard lists them to fix.
+    /// </summary>
+    public static Expression<Func<Season, bool>> NotPublicBySignups(DateTime now) => s => now < s.SeasonStart && (s.PublicAt == null || s.PublicAt > s.SignupsOpen);
 }
 
 /// <summary>Where a season is in its life at a time (<see cref="Season.PhaseAt"/>), worked out from its dates.</summary>

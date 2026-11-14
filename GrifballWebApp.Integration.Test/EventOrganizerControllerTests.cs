@@ -34,6 +34,7 @@ public class EventOrganizerControllerTests
         SeasonName = name,
         GameVersionID = 6,
         SignupsOpen = new DateTime(2030, 1, 1),
+        PublicAt = new DateTime(2030, 1, 1),
         SignupsClose = new DateTime(2030, 1, 10),
         DraftStart = new DateTime(2030, 1, 12),
         SeasonStart = new DateTime(2030, 1, 15),
