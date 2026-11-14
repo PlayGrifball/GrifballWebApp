@@ -98,6 +98,23 @@ public class ChatHubUnitTests
     }
 
     [Test]
+    public async Task Ask_SignedInStaff_GetTheirStaffTools_AsTheirRolesAllow()
+    {
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi"));
+
+        var (_, error) = await Read(await Hub(model, SignedIn(7, "Player", "Commissioner")).Ask(Question(), CancellationToken.None));
+
+        var tools = model.Options!.Tools!.Select(t => t.Name).ToList();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(error, Is.Null);
+            // A commissioner's dashboard and a match's result, but not a sysadmin's claims
+            Assert.That(tools, Does.Contain("get_commissioner_dashboard").And.Contain("report_season_match_game"));
+            Assert.That(tools, Does.Not.Contain("list_pending_gamertag_claims").And.Not.Contain("decide_gamertag_claim"));
+        }
+    }
+
+    [Test]
     public async Task Ask_SignedOut_AsksWithNoAccount_AsAnUnlinkedDiscordUser()
     {
         var model = new ScriptedChatClient((TimeSpan.Zero, "Hi"));

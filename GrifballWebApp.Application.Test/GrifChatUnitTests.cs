@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using GrifballWebApp.Application.Chat;
+using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Tools;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,6 +71,53 @@ public class GrifChatUnitTests
         var model = new FakeModel([Text("Hi")]);
 
         await All(Chat(model).ReplyAsync(Asked("Hi"), new ToolCaller(7, ["Player"]), ChatHost.Discord));
+
+        Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat));
+    }
+
+    /// <summary>The staff tools (<see cref="GrifTools.Staff"/>) <paramref name="roles"/> allow.</summary>
+    private static List<string> StaffToolsFor(params string[] roles)
+        => GrifTools.Staff.SelectMany(GrifTools.Methods)
+            .Where(m => SiteRoles.IsInAnyRole(roles, GrifTools.Roles(m)))
+            .Select(GrifTools.Name)
+            .ToList();
+
+    [TestCase(SiteRoles.Commissioner)]
+    [TestCase(SiteRoles.Sysadmin)]
+    public async Task ReplyAsync_OnTheSite_AStaffCallerGetsTheirStaffToolsToo(string role)
+    {
+        var model = new FakeModel([Text("Hi")]);
+
+        await All(Chat(model).ReplyAsync(Asked("Hi"), new ToolCaller(7, [SiteRoles.Player, role]), ChatHost.Site));
+
+        var expected = StaffToolsFor(SiteRoles.Player, role);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(expected, Is.Not.Empty);
+            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat.Concat(expected)));
+        }
+    }
+
+    [Test]
+    public async Task ReplyAsync_OnTheSite_APlayerGetsNoStaffTools()
+    {
+        var model = new FakeModel([Text("Hi")]);
+
+        await All(Chat(model).ReplyAsync(Asked("Hi"), new ToolCaller(7, [SiteRoles.Player]), ChatHost.Site));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(StaffToolsFor(SiteRoles.Player), Is.Empty);
+            Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat));
+        }
+    }
+
+    [Test]
+    public async Task ReplyAsync_OnDiscord_StaffGetNoStaffTools()
+    {
+        var model = new FakeModel([Text("Hi")]);
+
+        await All(Chat(model).ReplyAsync(Asked("Hi"), new ToolCaller(7, [SiteRoles.Commissioner, SiteRoles.Sysadmin]), ChatHost.Discord));
 
         Assert.That(model.Options.Single()!.Tools!.Select(t => t.Name), Is.EquivalentTo(GrifTools.Chat));
     }

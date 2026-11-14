@@ -12,7 +12,8 @@ namespace GrifballWebApp.Application.Chat;
 /// <param name="More">The last line: what else the host offers.</param>
 /// <param name="InPublic">Others read the replies (a Discord channel): <see cref="ToolCaller.InPublic"/>, whoever asks.</param>
 /// <param name="Timeout">How long a reply may take, its tool calls included, before it is canceled.</param>
-public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan Timeout)
+/// <param name="Tools">The names of the tools the model is given, each only to a caller its roles allow (<see cref="GrifTools.AIFunctions"/>).</param>
+public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan Timeout, IReadOnlyCollection<string> Tools)
 {
     /// <summary>
     /// The Discord bot: it answers in the channel, where others read it, so it sees seasons as the public does (#435). Its replies
@@ -22,23 +23,27 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
         "You are a Discord bot, and all messages must stay under the 2000-character limit.",
         "The bot also has slash commands; /help lists them.",
         InPublic: true,
-        Timeout: System.Threading.Timeout.InfiniteTimeSpan);
+        Timeout: System.Threading.Timeout.InfiniteTimeSpan,
+        Tools: GrifTools.Chat);
 
     /// <summary>
     /// The site's chat: its replies are the signed-in user's alone, so staff see what the site shows them (seasons not announced
-    /// yet). The page shows plain text, and a reply that takes over two minutes is given up.
+    /// yet), and staff get their own tools (<see cref="GrifTools.SiteChat"/>). The page shows plain text, and a reply that takes over two
+    /// minutes is given up.
     /// </summary>
     public static readonly ChatHost Site = new(
         "You are the chat on the Grifball league's website. Write plain text, not Markdown, and keep answers short.",
-        "The site's pages show more than your tools do (a season's page, a player's profile, the leaderboards): point the person to them when it helps.",
+        "The site's pages show more than your tools do (a season's page, a player's profile, the leaderboards): point the person to them when it helps. "
+        + "A tool that changes the league's data (a result, a schedule, a bracket, a claim, a job) is only for when the person asks for that change: say what it did.",
         InPublic: false,
-        Timeout: TimeSpan.FromMinutes(2));
+        Timeout: TimeSpan.FromMinutes(2),
+        Tools: GrifTools.SiteChat);
 }
 
 /// <summary>
 /// The chat with the league's model, the same for every host (the Discord bot's <c>MessageCreateHandler</c>, the site's
-/// <c>ChatHub</c>): its instructions, the conversation it is sent (the last <see cref="HistoryLimit"/> messages), the chat
-/// tools (<see cref="GrifTools.Chat"/>) as the caller, called for the model until it answers, and the time a reply may
+/// <c>ChatHub</c>): its instructions, the conversation it is sent (the last <see cref="HistoryLimit"/> messages), the host's
+/// tools (<see cref="ChatHost.Tools"/>) as the caller, called for the model until it answers, and the time a reply may
 /// take. All of it on Microsoft.Extensions.AI: the provider is <see cref="IChatClientFactory"/>'s registration's alone. A host
 /// keeps the conversation and shows the reply.
 /// </summary>
@@ -91,14 +96,14 @@ public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory sc
     }
 
     /// <summary>
-    /// The model's reply to <paramref name="conversation"/> on <paramref name="host"/>, as it streams in. It is given the chat tools
+    /// The model's reply to <paramref name="conversation"/> on <paramref name="host"/>, as it streams in. It is given the host's tools
     /// <paramref name="caller"/> may use (<see cref="GrifTools.AIFunctions"/>: each call in a scope of its own, a refusal its result),
     /// and they are called for it until it answers. Canceled after the host's <see cref="ChatHost.Timeout"/>.
     /// </summary>
     public async IAsyncEnumerable<string> ReplyAsync(IList<ChatMessage> conversation, ToolCaller caller, ChatHost host,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var tools = GrifTools.AIFunctions(scopes, caller with { InPublic = host.InPublic }, GrifTools.Chat);
+        var tools = GrifTools.AIFunctions(scopes, caller with { InPublic = host.InPublic }, host.Tools);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(host.Timeout);
         // The tool calls are ours, not the provider's: any model the factory gives gets them
