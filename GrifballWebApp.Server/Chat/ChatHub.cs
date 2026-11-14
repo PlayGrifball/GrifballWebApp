@@ -16,7 +16,7 @@ namespace GrifballWebApp.Server.Chat;
 /// does (<see cref="ToolCaller.Anonymous"/>). The browser keeps the conversation (its tab's session) and sends it with each
 /// question: the server keeps none. Limits: <see cref="ChatLimits"/>, and <see cref="GrifChat"/>'s.
 /// </summary>
-public class ChatHub(GrifChat chat, ChatLimits limits, IAmbientCurrentUser ambientCurrentUser, ILogger<ChatHub> logger) : Hub, IChatHubServer
+public class ChatHub(GrifChat chat, ChatLimits limits, IAmbientCurrentUser ambientCurrentUser, ILogger<ChatHub> logger) : Hub<IChatHubClient>, IChatHubServer
 {
     /// <summary>Where it is mapped (the browser reaches it at hub/ChatHub).</summary>
     public const string Path = "ChatHub";
@@ -108,3 +108,10 @@ public interface IChatHubServer
     /// </summary>
     Task<ChannelReader<string>> Ask(ChatRequestDto request, CancellationToken cancellationToken);
 }
+
+// S4023: empty on purpose, the hub sends nothing but its streams; the typed client and the SignalR page need it to know the hub
+#pragma warning disable S4023
+/// <summary>Methods <see cref="ChatHub"/> invokes on the browser: none (each answer is the stream its question returns).</summary>
+[Receiver]
+public interface IChatHubClient;
+#pragma warning restore S4023
