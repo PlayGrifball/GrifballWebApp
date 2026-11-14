@@ -335,4 +335,26 @@ public class StatsTableParserTests
             Assert.That(team.Roster, Is.Empty);
         }
     }
+
+    [Test]
+    public void TableSheetOnlyAHeader_WithoutStandings_WarnsItIsEmpty()
+    {
+        var build = Build(workbook: Workbook(("hr_pstats", [Row("season", "gamertag", "kills")])));
+
+        Assert.That(build.Warnings, Has.Some.Contains("no sheet 'hr_pstats', or it is empty"));
+    }
+
+    [Test]
+    public void GrifballComStandings_NoSeasonColumn_WarnsAndReadsNoTeams()
+    {
+        var build = GrifballCom(
+            ("Season_Player_Stats", [GrifballComStatsHeader, Row(3, "Church", "Red Team", 8, 7, 1, 10, 120, 100)]),
+            ("Standings", [Row("team_name", "rank", "wins"), Row("Red Team", 1, 8)]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Warnings, Has.Some.Contains("Standings has no 'league_id' or 'team_name' column"));
+            Assert.That(Seasons(build).Single().Teams, Is.Empty);
+        }
+    }
 }

@@ -146,4 +146,15 @@ public class SeasonStatsParserTests
             Assert.That((rat.Kills, rat.Deaths, rat.KdRatio, rat.Score), Is.EqualTo(((decimal?)12, (decimal?)4, (decimal?)3, (decimal?)null)));
         }
     }
+
+    [Test]
+    public void PerGameSideBySideStartLast_AddsNoGames()
+    {
+        var playoffs = Playoffs(
+            PlayoffHeader,
+            Row("Ascended", "Regresser", 1, 1, null, 2, 30, null, 10),
+            Row("GAME 1"));
+
+        Assert.That(playoffs.Players.Select(p => (p.Gamertag, p.GamesPlayed)), Is.EqualTo(new[] { ("Regresser", (decimal?)1) }));
+    }
 }
