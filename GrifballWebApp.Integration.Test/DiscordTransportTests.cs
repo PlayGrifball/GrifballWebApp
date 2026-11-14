@@ -6,6 +6,7 @@ using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using NetCord;
 using Team = GrifballWebApp.Domain.League.Team;
 using User = GrifballWebApp.Domain.Players.User;
@@ -390,22 +391,36 @@ public class DiscordTransportTests
         new object[] { "admin claims list", Array.Empty<(string, string)>() },
         new object[] { "admin claims approve", new[] { ("claim", "1") } },
         new object[] { "admin claims reject", new[] { ("claim", "1") } },
+        new object[] { "matches", Array.Empty<(string, string)>() },
     ];
 
+    /// <summary>Commands run by their own tests rather than <see cref="Commands"/>: /setgamertag needs a gamertag the site
+    /// knows (<see cref="SlashCommand_SetGamertag_ReadsTheOptionAndSetsIt"/>).</summary>
+    private static readonly string[] TestedOnTheirOwn = ["setgamertag"];
+
     [TestCaseSource(nameof(Commands))]
-    public async Task SlashCommand_ReachesItsHandler(string path, (string Name, string Value)[] options)
+    public async Task SlashCommand_ReachesItsHandler_AndDefersFirst(string path, (string Name, string Value)[] options)
     {
         var requests = await _host.SendAsync(DiscordInteractionJson.SubCommand(path, 6001, options));
 
-        // Reached the handler: it deferred, or answered privately itself; NetCord's own failures (an unknown subcommand, an
-        // option it can't read) answer in the channel, and an exception gets the generic error
+        // Reached the handler, which deferred before anything else (Discord gives an interaction 3 seconds): NetCord's own
+        // failures (an unknown subcommand, an option it can't read) answer in the channel, and an exception gets the generic error
         using (Assert.EnterMultipleScope())
         {
             Assert.That(requests, Is.Not.Empty);
-            Assert.That(requests[0].CallbackType == DiscordRequest.DeferredChannelMessage || requests[0].Flags.HasFlag(MessageFlags.Ephemeral),
-                $"{path}: {requests[0].Body}");
+            Assert.That(requests[0].CallbackType, Is.EqualTo(DiscordRequest.DeferredChannelMessage), $"{path}: {requests[0].Body}");
             Assert.That(requests.Select(r => r.Content), Has.None.EqualTo(DiscordInteractionPipeline.GenericErrorMessage), path);
         }
+    }
+
+    [Test]
+    public void EveryRegisteredCommand_IsSentByTheDeferTest()
+    {
+        using var scope = _host.Services.CreateScope();
+        var registered = scope.ServiceProvider.GetRequiredService<HelpCommandsHandler>().Commands().Select(x => x.Path.TrimStart('/'));
+        var sent = Commands.Cast<object[]>().Select(x => (string)x[0]).Concat(TestedOnTheirOwn);
+
+        Assert.That(registered.Except(sent), Is.Empty, "add each to Commands with its required options");
     }
 
     [Test]

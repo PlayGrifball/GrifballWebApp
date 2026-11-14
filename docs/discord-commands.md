@@ -27,7 +27,8 @@ search lists a player by a past gamertag. A gamertag typed without picking finds
 only: an old name finds nothing unless it is picked from the list (`CommandLookups.XboxAccount`).
 Discord has no date option, so times are typed in UTC, like `2026-11-20 20:00`.
 
-Every command answers Discord at once (deferred), then looks things up: Discord gives an interaction 3 seconds.
+Every command answers Discord at once (deferred), then looks things up: Discord gives an interaction 3 seconds. A transport
+test sends every registered command and fails one whose first answer isn't a deferral (`DiscordTransportTests`).
 
 ## Anyone
 
