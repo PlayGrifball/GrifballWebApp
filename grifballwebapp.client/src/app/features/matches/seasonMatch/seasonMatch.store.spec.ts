@@ -117,10 +117,14 @@ describe('SeasonMatchStore', () => {
       DoubleForfeit: '/api/season-matches/7/forfeit/double',
       UndoResult: '/api/season-matches/7/result/undo',
     };
+    const sent: string[] = [];
     for (const [action, url] of Object.entries(endpoints)) {
       store.act(action as MatchAction).subscribe();
-      http.expectOne({ method: 'POST', url }).flush(null);
+      const request = http.expectOne(url);
+      sent.push(`${request.request.method} ${request.request.url}`);
+      request.flush(null);
     }
+    expect(sent).toEqual(Object.values(endpoints).map(url => `POST ${url}`));
   });
 
   it('reports a Waypoint game as a new game, or in place of one', () => {
