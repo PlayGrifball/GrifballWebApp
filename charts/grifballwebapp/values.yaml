@@ -205,7 +205,7 @@ backend:
   # ClientConfiguration:RedirectUrl: InfiniteRedirectUrl
   # BaseUrl: { secretName: grif-urls, key: BaseUrl }
 
-  # Halo Infinite (the app's readme, "Halo Infinite"). Gateway: every Halo call goes through the Halo
+  # Halo Infinite (docs/development-setup.md, "Halo Infinite"). Gateway: every Halo call goes through the Halo
   # gateway (PlayGrifball/grunt), which holds the one signed-in Halo account, with this release's API key.
   # Direct: the app signs in to Halo itself, with ClientConfiguration:* in secretConfig (above) and its
   # tokens on the state volume (persistence); its Infinite Client page sets it up. Each value here becomes

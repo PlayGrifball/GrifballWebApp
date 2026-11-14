@@ -72,7 +72,7 @@ encrypted. values.yaml has the openssl line that makes one.
 
 ## Halo Infinite
 
-`backend.halo.mode` picks how the backend reaches Halo Infinite (the app's readme, "Halo Infinite"):
+`backend.halo.mode` picks how the backend reaches Halo Infinite ([docs/development-setup.md](../../docs/development-setup.md#halo-infinite), "Halo Infinite"):
 
 - **`Gateway`** (the default): through the Halo gateway (PlayGrifball/grunt's `halo-gateway` chart), which
   holds the one signed-in Halo account. The backend gets `HaloGateway:BaseUrl` from

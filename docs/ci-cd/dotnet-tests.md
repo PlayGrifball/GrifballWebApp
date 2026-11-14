@@ -14,7 +14,7 @@ Automatically runs unit tests on every pull request and push to the master branc
 ### Environment
 - **Runner**: `ubuntu-latest`
 - **Timeout**: 30 minutes (prevents hung tests)
-- **.NET Version**: 9.0.x (latest patch version)
+- **.NET Version**: 10.0.x (latest patch version)
 
 ### Test Framework Stack
 - **Test Framework**: NUnit 4.x
@@ -25,7 +25,7 @@ Automatically runs unit tests on every pull request and push to the master branc
 ### Workflow Steps
 
 1. **Checkout**: Downloads repository source code
-2. **Setup .NET**: Installs .NET 9.0 SDK
+2. **Setup .NET**: Installs the .NET 10.0 SDK
 3. **Restore**: Downloads NuGet packages (`dotnet restore`)
 4. **Build**: Compiles solution in Release mode
 5. **Test**: Runs tests with coverage collection
@@ -125,7 +125,7 @@ dotnet test GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.cspr
 
 ### Common Issues
 1. **Docker not available**: Ensure Docker daemon is running for Testcontainers
-2. **.NET version mismatch**: Workflow uses .NET 9.0, ensure local environment matches
+2. **.NET version mismatch**: Workflow uses .NET 10.0, ensure local environment matches
 3. **Test timeouts**: Individual tests should complete within reasonable time
 
 ### Debugging Failed Tests

@@ -1,33 +1,33 @@
-# GrifballWebApp Documentation
+# GrifballWebApp documentation
 
-This directory contains all project documentation organized by topic. 
+## Getting started
 
-## Documentation Structure
-
-- **api/**: API documentation and endpoint specifications
-- **architecture/**: Technical architecture documentation and design decisions  
-- **deployment/**: Deployment guides and infrastructure setup
-- **development/**: Development setup, workflow guides, and contribution guidelines
-- **user/**: End-user documentation and user guides
-
-## Quick Links
-
-- [GitHub Copilot Instructions](../.github/copilot-instructions.md) - Complete development setup for AI agents
-- [Project README](../readme.md) - Main project overview
+- [Developer setup](development-setup.md) - Tools, configuration, Halo Infinite modes, running the app and the tests
+- [Architecture](architecture.md) - The backend's Clean Architecture layers and domain-driven design, and what enforces them
+- [Database](database.md) - Providers, migrations, row history and temporal queries, converting between SQL Server and PostgreSQL
 - [Frontend structure](frontend.md) - The client's feature folders, core and shared, and the lint check on what may import what
-- [Code Coverage](code-coverage.md) - Running tests with code coverage and testing guidelines
-- [Historical Import](historical-import.md) - How the app downloads, snapshots and imports the historical archive
+- [Agent guide](../AGENTS.md) - The rules for AI agents (Claude Code reads it through [CLAUDE.md](../CLAUDE.md), Copilot through [copilot-instructions.md](../.github/copilot-instructions.md))
+
+## Testing and CI
+
+- [.NET tests](ci-cd/dotnet-tests.md) - The test projects, where each kind of test goes, and the CI workflow
+- [Frontend testing](frontend-testing.md) - Karma and Jasmine, coverage, and writing client tests
+- [Code coverage](code-coverage.md) - Running the tests with coverage
+- [Reproducible builds](reproducible-builds.md) - Rebuilding the images byte for byte, their attestations, and checking the live site against the build
+
+## Features
+
 - [Background jobs](jobs.md) - The Quartz jobs, where they run, and the Jobs page
 - [Discord commands](discord-commands.md) - The bot's slash commands, who may run each, and adding one
 - [MCP server](mcp-server.md) - The MCP server for AI agents, its access tokens and its tools
 - [Telemetry page](telemetry-page.md) - The sysadmins' view of the app's own logs, metrics and traces, and its settings
+- [Historical import](historical-import.md) - How the app downloads, snapshots and imports the historical archive
+- [Password reset](PasswordReset.md) - Sysadmin-made, time-limited reset links for users who sign in with a password
 - [SQLite](sqlite.md) - Running on a SQLite file instead of SQL Server or PostgreSQL, and its limits
-- [Reproducible builds](reproducible-builds.md) - Rebuilding the images byte for byte, their attestations, and checking the live site against the build
 
-## Contributing to Documentation
+## Deployment
 
-When adding new documentation:
-1. Choose the appropriate subdirectory based on the content type
-2. Use clear, descriptive filenames 
-3. Update this README with links to new documentation
-4. Keep documentation synchronized with code changes
+- [Helm chart](../charts/grifballwebapp/README.md) - Every environment's deployment: values, migrations Job, backups, previews
+- [Retired workflows](../.github/retired-workflows/README.md) - How the app was deployed from GitHub Actions before the homelab's Argo CD
+
+New docs go in this folder (never the repository root), with a line here.
