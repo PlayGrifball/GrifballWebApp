@@ -9,15 +9,17 @@ using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
 using System.Text;
 using System.Threading.Channels;
-using GrifballWebApp.Application.Discord;
-using GrifballWebApp.Application.Tools;
+using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Server.Commands;
 
 namespace GrifballWebApp.Server;
 
 public class MessageCreateHandler(IDiscordRestClient discordClient, IConfiguration configuration, IServiceScopeFactory scopeFactory, IAmbientCurrentUser ambientCurrentUser, ILogger<MessageCreateHandler> logger,
-    IBotChatClients chatClients, TimeProvider? time = null) : IMessageCreateGatewayHandler
+    IChatClientFactory chatClients, TimeProvider? time = null) : IMessageCreateGatewayHandler
 {
+    /// <summary>The chat, as the site's has it too: its instructions, history, tools and model (<see cref="ChatHost.Discord"/>).</summary>
+    private GrifChat Chat { get; } = new(chatClients, scopeFactory);
+
     private ulong BotId { get; } = ulong.Parse(configuration["Discord:ClientId"] ?? "0");
 
     /// <summary>The clock the streamed reply is paced by (the system's, unless a test gives one).</summary>
@@ -71,9 +73,6 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 
     private async ValueTask HandleResponseCore(Message message)
     {
-        var chatClient = chatClients.Create();
-
-
         var UserId = (long)message.Author.Id;
         var BotID = (long)BotId;
         // The author's linked app user, if any, is the audit user for this scope's writes and the ambient user.
@@ -84,19 +83,10 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         await EnsureDiscordUsersAsync(context, UserId, message.Author.Username, BotID);
         var chatHistory = await ChatHistoryAsync(context, message, UserId, BotID);
 
-        var instructions = @"
-You are a Discord bot, and all messages must stay under the 2000-character limit.
-Your primary purpose is to provide stats and information about Grifball, which your tools look up.
-Tools take IDs: search finds players, teams and seasons by name. A season tool with no season uses the running one (else the one that ended last; for signups, the next to start), and a player tool with no player uses the person you are talking to.
-Write times in UTC, as the tools give them, and say they are UTC.
-Use the pull tools (pull_season_match_games, pull_xbox_account_games) only when the person asks for games to be pulled: each starts a pull from Halo that others wait behind.
-The bot also has slash commands; /help lists them.
-";
-        // The tools, as the author: their linked site account and its roles, or no account (every tool not about ""you""). In
-        // public: the channel reads the reply, so a season not announced yet stays out of it whoever asks (#435)
-        var caller = await new DiscordCaller(context).AsToolCaller(message.Author.Id) with { InPublic = true };
-        // Each tool call in a scope of its own: this scope's context saves the streamed reply meanwhile
-        var tools = GrifTools.AIFunctions(scopeFactory, caller, GrifTools.Chat);
+        // The tools, as the author: their linked site account and its roles, or no account (every tool not about "you"). In
+        // public (ChatHost.Discord): the channel reads the reply, so a season not announced yet stays out of it whoever asks (#435).
+        // Each tool call runs in a scope of its own: this scope's context saves the streamed reply meanwhile
+        var caller = await new DiscordCaller(context).AsToolCaller(message.Author.Id);
 
         // Each chunk with when it arrived: the reply is paced by the stream, not by when the background task gets to it
         var channel = Channel.CreateUnbounded<(string Text, long ArrivedAt)>();
@@ -108,15 +98,8 @@ The bot also has slash commands; /help lists them.
 
         try
         {
-            await foreach (ChatResponseUpdate item in chatClient.GetStreamingResponseAsync(chatHistory, new ChatOptions()
-            {
-                Instructions = instructions,
-
-                Tools = tools,
-            }))
-            {
-                await channel.Writer.WriteAsync((item.Text, Time.GetTimestamp()));
-            }
+            await foreach (var text in Chat.ReplyAsync(chatHistory, caller, ChatHost.Discord))
+                await channel.Writer.WriteAsync((text, Time.GetTimestamp()));
         }
         finally
         {
@@ -145,14 +128,14 @@ The bot also has slash commands; /help lists them.
         }
     }
 
-    /// <summary>The conversation so far (its last 25 messages), oldest first, the new message saved and last.</summary>
+    /// <summary>The conversation so far (its last <see cref="GrifChat.HistoryLimit"/> messages), oldest first, the new message saved and last.</summary>
     private static async Task<List<ChatMessage>> ChatHistoryAsync(GrifballContext context, Message message, long UserId, long BotID)
     {
         var messages = await context.DiscordMessages
             .Where(x => (x.ToDiscordUserId == UserId && x.FromDiscordUserId == BotID) ||
                         (x.ToDiscordUserId == BotID && x.FromDiscordUserId == UserId))
             .OrderByDescending(x => x.Timestamp)
-            .Take(25)
+            .Take(GrifChat.HistoryLimit)
             .ToListAsync();
 
         var newMessage = new DiscordMessage()

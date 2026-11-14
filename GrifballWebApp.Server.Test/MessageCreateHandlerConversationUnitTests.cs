@@ -1,5 +1,5 @@
 using DiscordInterface.Generated;
-using GrifballWebApp.Application.Discord;
+using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Tools;
@@ -73,7 +73,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .AddTransient<GrifballWebApp.Application.XboxAccounts.XboxAccountService>()
             .AddTransient<GrifballWebApp.Application.Seasons.SeasonVisibility>()
             .BuildServiceProvider();
-        var chatClients = Substitute.For<IBotChatClients>();
+        var chatClients = Substitute.For<IChatClientFactory>();
         chatClients.Create().Returns(model);
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
         return new MessageCreateHandler(Substitute.For<IDiscordRestClient>(), config, _services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger, chatClients, _time);

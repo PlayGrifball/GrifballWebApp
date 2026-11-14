@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.HaloInfinite;
@@ -182,7 +183,8 @@ public static class InfrastructureServiceCollectionExtensions
             services.AddTransient<IGetsertXboxUserService, PreviewSmokeXboxUsers>();
         else
             services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
-        services.AddSingleton<IBotChatClients, OllamaChatClients>();
+        // The chats' model (GrifChat): Ollama. Another provider is another IChatClientFactory here, and nothing else changes
+        services.AddSingleton<IChatClientFactory, OllamaChatClients>();
         return services;
     }
 

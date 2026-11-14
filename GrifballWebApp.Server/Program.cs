@@ -8,6 +8,7 @@ using GrifballWebApp.Infrastructure.DatabaseBackup;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Preview;
 using GrifballWebApp.Infrastructure.Redis;
+using GrifballWebApp.Server.Chat;
 using GrifballWebApp.Server.Commands;
 using GrifballWebApp.Server.DatabaseBackup;
 using GrifballWebApp.Server.Hosting;
@@ -143,8 +144,12 @@ public class Program
             options.AddFilter<ExceptionLogHubFilter>();
             options.AddFilter<UserContextHubFilter>();
         })
+        // The chat's question comes with its conversation, past the default 32 KB a message
+        .AddHubOptions<ChatHub>(options => options.MaximumReceiveMessageSize = ChatHub.MaximumReceiveMessageSize)
         // Scaled out (ConnectionStrings:Redis): every process's hub messages reach every API pod's browsers.
         .AddAppBackplane(builder.Configuration);
+        // The site's chat: how much of the model each person may have (ChatHub)
+        builder.Services.AddSingleton<ChatLimits>();
 
         // Cookie sessions must send the antiforgery token with every change (CookieAntiforgeryFilter).
         builder.Services.AddAntiforgery(BrowserAuth.ConfigureAntiforgery);
@@ -429,6 +434,8 @@ public class Program
             app.MapHub<TeamsHub>("TeamsHub", options => { options.CloseOnAuthenticationExpiration = true; });
             // Anonymous and read-only: the matchmaking queue's size, for the home page
             app.MapHub<QueueHub>("QueueHub");
+            // The site's chat, signed in or out: the Discord bot's, its replies streamed (GrifChat)
+            app.MapHub<ChatHub>(ChatHub.Path);
 
             // The hubs' page (/signalr-dev), what /swagger is to the API: in every environment, to sysadmins only
             // (SignalRHubsPage). Its own hub connections negotiate first (ours skip it): with several API pods, as during a
