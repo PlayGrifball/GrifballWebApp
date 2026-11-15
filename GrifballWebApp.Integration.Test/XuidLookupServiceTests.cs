@@ -105,6 +105,44 @@ public class XuidLookupServiceTests
         }
     }
 
+    [TestCase("Bowdery(1)(G)")]
+    [TestCase("FatalLeeScotGuest(2)")]
+    [TestCase("Dr:Who")]
+    public async Task NotAGamertag_IsNeverAskedAbout_AndIsRecordedAsNotFound(string name)
+    {
+        var placeholder = await Placeholder(name);
+        var real = await Placeholder("Old Tag");
+        Holds("Old Tag", "456");
+
+        var report = await Service().RunBatchAsync();
+
+        _context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.LookedUp, report.Found, report.NotGamertags, report.NotFound), Is.EqualTo((1, 1, 1, 0)),
+                "NotFound counts Halo's answers only");
+            Assert.That(_delays, Is.Empty, "no wait for a name never asked about");
+            var lookup = await _context.XuidLookups.SingleAsync(l => l.UserID == placeholder.Id);
+            Assert.That((lookup.Status, lookup.Error, lookup.LookedUpAt),
+                Is.EqualTo((XuidLookupStatus.NotFound, XuidLookupService.NotAGamertagError, _time.GetUtcNow().UtcDateTime)));
+            Assert.That(await _context.XuidLookups.Where(l => l.UserID == real.Id).Select(l => l.Status).SingleAsync(), Is.EqualTo(XuidLookupStatus.Found));
+        }
+        await _halo.DidNotReceive().UserByGamertag(name);
+        await _halo.Received(1).UserByGamertag("Old Tag");
+    }
+
+    [Test]
+    public async Task NotAGamertag_IsNotDueAgainOnTheNextRun()
+    {
+        await Placeholder("Blubun(G)");
+
+        await Service().RunBatchAsync();
+        var again = await Service().RunBatchAsync();
+
+        Assert.That((again.LookedUp, again.NotGamertags), Is.EqualTo((0, 0)));
+        await _halo.DidNotReceiveWithAnyArgs().UserByGamertag(default!);
+    }
+
     [Test]
     public async Task RunningAgain_DoesNotDuplicate_EvenAfterTheWindow()
     {

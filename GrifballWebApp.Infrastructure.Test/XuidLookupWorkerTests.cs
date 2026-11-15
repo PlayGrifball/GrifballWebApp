@@ -30,6 +30,7 @@ public class XuidLookupWorkerTests : SqliteContextFixture
     private ServiceProvider _provider = null!;
     private readonly FakeLogger<XuidLookupWorker> _log = new();
     private static readonly string[] BatchLines = ["XUID lookups: 2 found, 0 not found, 0 failed, 2 claims", "XUID lookups: 1 found, 0 not found, 0 failed, 1 claims"];
+    private static readonly string[] SkippedThenFoundLines = ["XUID lookups: 2 names that can't be gamertags skipped", "XUID lookups: 1 found, 0 not found, 0 failed, 1 claims"];
 
     private XuidLookupWorker Worker(int batchSize, int lookupsPerMinute = 6000, bool enabled = true)
     {
@@ -129,5 +130,23 @@ public class XuidLookupWorkerTests : SqliteContextFixture
             Assert.That(looked, Is.EqualTo(2));
             Assert.That(_waits, Is.Empty, "one lookup a batch: nothing to wait between");
         }
+    }
+
+    [Test]
+    public async Task RunUntilDone_ABatchOfNamesThatAreNotGamertags_GoesOnToTheNextBatch()
+    {
+        // Ordered by id: the first batch is both names that can't be gamertags, the real one comes after
+        await AddPlaceholdersAsync("Bowdery(1)(G)", "Blubun(G)", "Alpha");
+        using var worker = Worker(batchSize: 2);
+
+        var looked = await worker.RunUntilDoneAsync(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(looked, Is.EqualTo(1), "only Alpha was asked about");
+            Assert.That(_log.At(Microsoft.Extensions.Logging.LogLevel.Information), Is.EqualTo(SkippedThenFoundLines));
+        }
+        await _halo.Received(1).UserByGamertag("Alpha");
+        await _halo.DidNotReceive().UserByGamertag("Bowdery(1)(G)");
     }
 }
