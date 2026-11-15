@@ -109,6 +109,35 @@ public class XuidLookupWorkerTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task RunUntilDone_Throttled_StopsAtOnce_AndPausesForTheRetryAfter()
+    {
+        await AddPlaceholdersAsync("Alpha", "Bravo", "Charlie");
+        _halo.UserByGamertag("Bravo").Returns(new HaloApiResultContainer<GruntUser, HaloApiErrorContainer>(null!,
+            new HaloApiErrorContainer { Code = 429, RetryAfter = TimeSpan.FromMinutes(5) }));
+        using var worker = Worker(batchSize: 2);
+
+        var looked = await worker.RunUntilDoneAsync(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(looked, Is.EqualTo(1), "Alpha; Bravo was turned away and nothing after it asked");
+            Assert.That(worker.PausedFor, Is.EqualTo(TimeSpan.FromMinutes(5)));
+        }
+        await _halo.DidNotReceive().UserByGamertag("Charlie");
+    }
+
+    [Test]
+    public async Task RunUntilDone_NotThrottled_DoesNotPause()
+    {
+        await AddPlaceholdersAsync("Alpha");
+        using var worker = Worker(batchSize: 2);
+
+        await worker.RunUntilDoneAsync(CancellationToken.None);
+
+        Assert.That(worker.PausedFor, Is.Null);
+    }
+
+    [Test]
     public async Task RunUntilDone_NothingDue_LooksUpNothing()
     {
         using var worker = Worker(batchSize: 2);

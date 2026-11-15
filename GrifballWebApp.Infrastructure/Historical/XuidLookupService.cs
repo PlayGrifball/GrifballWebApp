@@ -47,6 +47,11 @@ public class XuidLookupReport
     public int ClaimsCreated { get; set; }
     /// <summary>Placeholders whose name can't be a gamertag (<see cref="XboxUser.IsPossibleGamertag"/>): recorded as not found, never asked.</summary>
     public int NotGamertags { get; set; }
+    /// <summary>
+    /// Set when Halo, or the gateway's budget for it, answered 429: the batch stopped there, that placeholder left due, and
+    /// this is how long to wait before asking again (its Retry-After; a minute without one).
+    /// </summary>
+    public TimeSpan? ThrottledFor { get; set; }
 }
 
 /// <summary>The XUID lookups of placeholders, by outcome, and how many are due.</summary>
@@ -127,15 +132,18 @@ public class XuidLookupService
                 report.LookedUp++;
             }
             var lookup = await LookupRowAsync(placeholder.Id, ct);
-            if (possible)
-            {
-                await LookUpAsync(lookup, placeholder.Id, gamertag, report, ct);
-            }
-            else
+            if (!possible)
             {
                 lookup.Status = XuidLookupStatus.NotFound;
                 lookup.Error = NotAGamertagError;
                 report.NotGamertags++;
+            }
+            else if (await LookUpAsync(lookup, placeholder.Id, gamertag, report, ct))
+            {
+                // Throttled: nothing learned, so nothing recorded (it stays due), and no more asking until ThrottledFor has passed
+                report.LookedUp--;
+                _context.ChangeTracker.Clear();
+                break;
             }
             await _context.SaveChangesAsync(ct);
         }
@@ -158,16 +166,23 @@ public class XuidLookupService
     }
 
     /// <summary>
-    /// Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>. An
-    /// error code with no result is a failed lookup, tried again after RetryFailedAfter (<see cref="IsFailure"/>: 429 throttled,
-    /// 400 bad request, 5xx, 401/403, and 0, which the gateway sends when Halo gave no answer), except Halo's 404 (the gamertag
-    /// isn't there). That 404, or a success naming no user, is not found, for LookAgainAfter.
+    /// Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>. A 429
+    /// (Halo throttling, or the gateway's budget for it turning the call away) says nothing about the gamertag: nothing is
+    /// written, <see cref="XuidLookupReport.ThrottledFor"/> is set and true returned, so the batch stops. Any other error code
+    /// with no result is a failed lookup, tried again after RetryFailedAfter (<see cref="IsFailure"/>: 400 bad request, 5xx,
+    /// 401/403, and 0, which the gateway sends when Halo gave no answer), except Halo's 404 (the gamertag isn't there). That
+    /// 404, or a success naming no user, is not found, for LookAgainAfter.
     /// </summary>
-    private async Task LookUpAsync(XuidLookup lookup, int placeholderId, string gamertag, XuidLookupReport report, CancellationToken ct)
+    private async Task<bool> LookUpAsync(XuidLookup lookup, int placeholderId, string gamertag, XuidLookupReport report, CancellationToken ct)
     {
         try
         {
             var response = await _halo.UserByGamertag(gamertag);
+            if (response?.Result is null && response?.Error is { Code: 429 } throttled)
+            {
+                report.ThrottledFor = throttled.RetryAfter is { } wait && wait > TimeSpan.Zero ? wait : TimeSpan.FromMinutes(1);
+                return true;
+            }
             if (response?.Result is null && response?.Error is { } error && IsFailure(error.Code))
             {
                 lookup.Status = XuidLookupStatus.Failed;
@@ -200,6 +215,7 @@ public class XuidLookupService
             lookup.Error = ex.Message.Length > 200 ? ex.Message[..200] : ex.Message;
             report.Failed++;
         }
+        return false;
     }
 
     /// <summary>A Halo code that isn't an answer about the gamertag: anything but success and 404 (it isn't there).</summary>
@@ -277,14 +293,24 @@ public sealed partial class XuidLookupWorker : BackgroundService
             {
                 _logger.LogError(ex, "XUID lookups failed; trying again later");
             }
-            await _signal.WaitAsync(_options.Value.PollInterval, stoppingToken);
+            // Throttled: not before Halo's (or the gateway budget's) Retry-After, even if woken sooner
+            var wait = PausedFor is { } paused && paused > _options.Value.PollInterval ? paused : _options.Value.PollInterval;
+            if (PausedFor is not null)
+                await Task.Delay(wait, stoppingToken);
+            else
+                await _signal.WaitAsync(wait, stoppingToken);
         }
     }
 
-    /// <summary>Batches until none is due. Returns the lookups made; none while <see cref="XuidLookupOptions.Enabled"/> is false.</summary>
+    /// <summary>When the last run was throttled (a 429): how long it asked to wait before the next. Null otherwise.</summary>
+    public TimeSpan? PausedFor { get; private set; }
+
+    /// <summary>Batches until none is due, or a 429 stops them (<see cref="PausedFor"/>). Returns the lookups made; none while
+    /// <see cref="XuidLookupOptions.Enabled"/> is false.</summary>
     public async Task<int> RunUntilDoneAsync(CancellationToken ct)
     {
         var total = 0;
+        PausedFor = null;
         while (true)
         {
             if (!_options.Value.Enabled)
@@ -296,6 +322,12 @@ public sealed partial class XuidLookupWorker : BackgroundService
                 LogLookups(_logger, report.Found, report.NotFound, report.Failed, report.ClaimsCreated);
             if (report.NotGamertags > 0)
                 LogNotGamertags(_logger, report.NotGamertags);
+            if (report.ThrottledFor is { } throttled)
+            {
+                PausedFor = throttled;
+                LogThrottled(_logger, throttled);
+                return total;
+            }
             // A batch of names that aren't gamertags is a full batch too: more may be due after it
             if (report.LookedUp + report.NotGamertags < Math.Max(1, _options.Value.BatchSize) || ct.IsCancellationRequested)
                 return total;
@@ -307,4 +339,7 @@ public sealed partial class XuidLookupWorker : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "XUID lookups: {Count} names that can't be gamertags skipped")]
     private static partial void LogNotGamertags(ILogger logger, int count);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "XUID lookups: Halo is throttling gamertag lookups; next batch in {Wait}")]
+    private static partial void LogThrottled(ILogger logger, TimeSpan wait);
 }
