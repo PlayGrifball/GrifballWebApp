@@ -8,7 +8,7 @@ describe('AppLog', () => {
   let telemetry: jasmine.SpyObj<BrowserTelemetry>;
 
   beforeEach(() => {
-    telemetry = jasmine.createSpyObj<BrowserTelemetry>('BrowserTelemetry', ['log', 'active']);
+    telemetry = jasmine.createSpyObj<BrowserTelemetry>('BrowserTelemetry', ['log', 'active'], { enabled: true });
     TestBed.configureTestingModule({ providers: [{ provide: BrowserTelemetry, useValue: telemetry }] });
     log = TestBed.inject(AppLog);
   });
@@ -56,13 +56,36 @@ describe('AppLog', () => {
     expect(telemetry.log).toHaveBeenCalledTimes(2);
   });
 
-  it(`sends at most ${MAX_LOGS} lines a page`, () => {
+  it('tells lines apart by their attributes too', () => {
     spyOn(console, 'info');
+
+    log.info('Saved', undefined, { 'season.id': 4 });
+    log.info('Saved', undefined, { 'season.id': 5 });
+
+    expect(telemetry.log).toHaveBeenCalledTimes(2);
+  });
+
+  it(`sends at most ${MAX_LOGS} lines a page of each level, so info can't crowd out an error`, () => {
+    spyOn(console, 'info');
+    spyOn(console, 'error');
 
     for (let i = 0; i < MAX_LOGS + 5; i++)
       log.info(`Step ${i}`);
+    log.error('Failed to save');
 
-    expect(telemetry.log).toHaveBeenCalledTimes(MAX_LOGS);
+    expect(telemetry.log).toHaveBeenCalledTimes(MAX_LOGS + 1);
+    expect(telemetry.log).toHaveBeenCalledWith('error', 'Failed to save', {}, undefined);
+  });
+
+  it('sends nothing while the telemetry is off, and writes the console as ever', () => {
+    const warn = spyOn(console, 'warn');
+    (Object.getOwnPropertyDescriptor(telemetry, 'enabled')!.get as jasmine.Spy).and.returnValue(false);
+
+    log.warn('Retrying', new Error('down'));
+
+    expect(warn).toHaveBeenCalled();
+    expect(telemetry.log).not.toHaveBeenCalled();
+    expect(telemetry.active).not.toHaveBeenCalled();
   });
 
   it("puts the line in the trace of what the user is doing", () => {

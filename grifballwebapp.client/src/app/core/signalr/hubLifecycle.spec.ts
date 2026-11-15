@@ -50,6 +50,7 @@ describe('hubLifecycle', () => {
     withAutomaticReconnect = spyOn(HubConnectionBuilder.prototype, 'withAutomaticReconnect').and.callThrough();
     spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as unknown as HubConnection);
     log = spyOn(console, 'warn');
+    spyOn(console, 'debug');
     connected = jasmine.createSpy('connected');
   });
 
@@ -256,8 +257,8 @@ describe('hubLifecycle', () => {
       jasmine.clock().tick(HUB_RETRY_MS[HUB_RETRY_MS.length - 1]);
       await settled();
       expect(connection.start).toHaveBeenCalledTimes(1);
-      // Nothing will try again, so the log doesn't say it will
-      expect(log).toHaveBeenCalledOnceWith("Couldn't start the Test hub connection", new Error('refused'));
+      // Leaving the page stops a start under way: nothing to warn about
+      expect(log).not.toHaveBeenCalled();
     });
   });
 
