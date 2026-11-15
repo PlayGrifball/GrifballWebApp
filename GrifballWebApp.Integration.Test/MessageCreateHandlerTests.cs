@@ -10,6 +10,7 @@ using NSubstitute;
 using System.Text.Json;
 using GrifballWebApp.Infrastructure.Ollama;
 using GrifballWebApp.Application.Chat;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -54,7 +55,7 @@ public class MessageCreateHandlerTests : MessageCreateHandlerFixture
         // The chats' model as Program.cs has it: Ollama, at Ollama:Url
         var model = new ServiceCollection().AddSingleton<IConfiguration>(config).AddOllamaChat().BuildServiceProvider().GetRequiredService<IChatClientFactory>();
         return new MessageCreateHandler(_discordClient, config, services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger,
-            new GrifChat(model, services.GetRequiredService<IServiceScopeFactory>(), new ChatLimits()));
+            new GrifChat(new ChatModel(model, NullLoggerFactory.Instance), services.GetRequiredService<IServiceScopeFactory>(), new ChatLimits()));
     }
 
     [Test]

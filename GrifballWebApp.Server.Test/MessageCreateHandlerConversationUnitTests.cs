@@ -93,7 +93,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         chatClients.Create().Returns(models[0], models[1..]);
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
         var scopes = _services.GetRequiredService<IServiceScopeFactory>();
-        return new MessageCreateHandler(_rest, config, scopes, _ambient, _logger, new GrifChat(chatClients, scopes, _limits), _time);
+        return new MessageCreateHandler(_rest, config, scopes, _ambient, _logger, new GrifChat(new ChatModel(chatClients, NullLoggerFactory.Instance), scopes, _limits), _time);
     }
 
     private NetCord.Gateway.Message MessageToTheBot()
@@ -131,6 +131,30 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             Assert.That((asked.FromDiscordUserId, asked.ToDiscordUserId, asked.Content), Is.EqualTo(((long)AuthorId, (long)BotId, "hello")));
             Assert.That(await SavedReplies(), Is.EqualTo(HiThere));
             Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Hi there"));
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task HandleAsync_TracesTheMessage_TheRepliesSpansInItsTrace(bool direct)
+    {
+        using var spans = new ChatSpans();
+        System.Diagnostics.Activity? modelCall = null;
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi there")) { BeforeReply = _ => { modelCall = System.Diagnostics.Activity.Current; return Task.CompletedTask; } };
+        if (direct)
+            DmHolds();
+
+        await Handler(model).HandleAsync(direct ? DirectMessage() : MessageToTheBot());
+
+        AssertNothingLogged();
+
+        var message = modelCall is null ? null : ChatSpans.Ancestors(modelCall).LastOrDefault();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(modelCall?.Source.Name, Is.EqualTo(ChatModel.SourceName), "the model's call is traced");
+            Assert.That(message?.Source.Name, Is.EqualTo(MessageCreateHandler.ActivitySourceName), "under the message's span, the trace's root");
+            Assert.That(message?.OperationName, Is.EqualTo(MessageCreateHandler.MessageSpanName));
+            Assert.That(message?.GetTagItem("discord.direct"), Is.EqualTo(direct));
         }
     }
 

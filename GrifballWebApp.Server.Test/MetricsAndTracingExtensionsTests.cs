@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Infrastructure.Redis;
 using GrifballWebApp.Server.Telemetry;
 using Microsoft.Extensions.Configuration;
@@ -77,6 +78,28 @@ public class MetricsAndTracingExtensionsTests
     public void SignalRServerSource_IsAspNetCores()
     {
         Assert.That(MetricsAndTracingExtensions.SignalRServerSource, Is.EqualTo("Microsoft.AspNetCore.SignalR.Server"));
+    }
+
+    [Test]
+    public void TheChatsAndTheDiscordBotsSpans_AreTraced()
+    {
+        using var provider = Build(new() { ["OTEL_EXPORTER_OTLP_ENDPOINT"] = null });
+        Assert.That(provider.GetService<TracerProvider>(), Is.Not.Null);
+        using var chat = new System.Diagnostics.ActivitySource(ChatModel.SourceName);
+        using var discord = new System.Diagnostics.ActivitySource(MessageCreateHandler.ActivitySourceName);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(chat.HasListeners(), Is.True);
+            Assert.That(discord.HasListeners(), Is.True);
+        }
+    }
+
+    /// <summary>The chat's model calls: gen_ai.client.token.usage, gen_ai.client.operation.duration and the stream's chunk times.</summary>
+    [Test]
+    public void AdditionalMeters_IncludeTheChats()
+    {
+        Assert.That(MetricsAndTracingExtensions.AdditionalMeters, Does.Contain(ChatModel.SourceName));
     }
 
     [Test]

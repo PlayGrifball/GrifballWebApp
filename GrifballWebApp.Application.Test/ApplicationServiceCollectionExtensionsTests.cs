@@ -162,6 +162,24 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         }
     }
 
+    [TestCase(null, false)]
+    [TestCase("false", false)]
+    [TestCase("true", true)]
+    public void AddApplication_TheChatsModel_OneProcessWide_WhatPeopleWroteInItsTelemetryOnlyWhenSwitchedOn(string? setting, bool sensitiveData)
+    {
+        var services = AddApplication(new() { [ChatModel.SensitiveDataKey] = setting });
+        services.AddSingleton(_ => Substitute.For<IChatClientFactory>());
+        using var provider = services.BuildServiceProvider();
+
+        var model = provider.GetRequiredService<ChatModel>();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(model.SensitiveData, Is.EqualTo(sensitiveData));
+            Assert.That(provider.GetRequiredService<ChatModel>(), Is.SameAs(model));
+        }
+    }
+
     [Test]
     public void AddApplication_ReturnsTheSameCollection()
     {

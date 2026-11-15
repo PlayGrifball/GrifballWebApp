@@ -1,3 +1,7 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
+using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -6,6 +10,9 @@ using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Tools;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 
@@ -13,7 +20,8 @@ namespace GrifballWebApp.Application.Test;
 
 /// <summary>
 /// The chat the Discord bot and the site share, on a model that answers as it is told (<see cref="FakeModel"/>): its
-/// instructions, the conversation it sends, the tools it gives and calls, its limits and its time limit.
+/// instructions, the conversation it sends, the tools it gives and calls, its limits and its time limit, and its telemetry (the
+/// spans, metrics and logs of its model and tool calls, without what people wrote unless that is switched on).
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -35,12 +43,14 @@ public class GrifChatUnitTests
             await _services.DisposeAsync();
     }
 
-    private GrifChat Chat(FakeModel model)
+    /// <summary>The chat on <paramref name="model"/>, its tools reading <paramref name="clock"/> (else the test's), its logs collected.</summary>
+    private GrifChat Chat(FakeModel model, bool sensitiveData = false, TimeProvider? clock = null)
     {
-        _services = new ServiceCollection().AddSingleton<TimeProvider>(_time).BuildServiceProvider();
+        _services = new ServiceCollection().AddSingleton(clock ?? _time).AddFakeLogging().BuildServiceProvider();
         _clients.Available.Returns(true);
         _clients.Create().Returns(model);
-        return new GrifChat(_clients, _services.GetRequiredService<IServiceScopeFactory>(), _limits);
+        var traced = new ChatModel(_clients, _services.GetRequiredService<ILoggerFactory>(), sensitiveData);
+        return new GrifChat(traced, _services.GetRequiredService<IServiceScopeFactory>(), _limits);
     }
 
     private static async Task<List<string>> All(IAsyncEnumerable<string> reply)
@@ -317,7 +327,7 @@ public class GrifChatUnitTests
         var clients = Substitute.For<IChatClientFactory>();
         clients.Available.Returns(configured);
 
-        Assert.That(new GrifChat(clients, Substitute.For<IServiceScopeFactory>(), _limits).Available, Is.EqualTo(configured));
+        Assert.That(new GrifChat(new ChatModel(clients, NullLoggerFactory.Instance), Substitute.For<IServiceScopeFactory>(), _limits).Available, Is.EqualTo(configured));
     }
 
     [Test]
@@ -453,6 +463,220 @@ public class GrifChatUnitTests
         }
     }
 
+    /// <summary>
+    /// The whole reply, streamed on its own once the host's span has ended, as the site's hub streams it (a task of its own, after
+    /// the hub call returns): the host's trace.
+    /// </summary>
+    private static async Task<ActivityTraceId> AskUnderAHostsSpan(GrifChat chat, string question)
+    {
+        ChatReply reply;
+        ActivityTraceId trace;
+        Task<List<string>> streaming;
+        using (var host = Spans.Test.StartActivity("host call")!)
+        {
+            trace = host.TraceId;
+            reply = chat.Start([], question, ToolCaller.Anonymous, ChatHost.Site, Asker);
+            streaming = Task.Run(() => All(reply.StreamAsync()));
+        }
+        using (reply)
+            await streaming;
+        return trace;
+    }
+
+    [Test]
+    public async Task StreamAsync_TracesASpanPerModelCallAndPerToolCall_InTheHostsTrace()
+    {
+        using var spans = new Spans();
+        var model = new FakeModel([Call("get_current_time")], [Text("It is noon."), Usage(12, 5)]);
+
+        var trace = await AskUnderAHostsSpan(Chat(model), "What time is it?");
+
+        var traced = spans.Of(trace);
+        var host = traced.Single(a => a.Source == Spans.Test);
+        var orchestrate = traced.Single(a => a.OperationName == "orchestrate_tools");
+        var calls = traced.Where(a => Operation(a) == "chat").OrderBy(a => a.StartTimeUtc).ToList();
+        var tool = traced.Single(a => Operation(a) == "execute_tool");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(orchestrate.ParentSpanId, Is.EqualTo(host.SpanId), "the reply's spans are in the host's trace, though it streamed after the host's span ended");
+            Assert.That(orchestrate.Source.Name, Is.EqualTo(ChatModel.SourceName));
+            Assert.That(calls, Has.Count.EqualTo(2), "asked, then asked again with the tool's result");
+            Assert.That(calls.Select(a => a.ParentSpanId), Is.All.EqualTo(orchestrate.SpanId));
+            Assert.That(calls.Select(a => a.GetTagItem("gen_ai.request.model")), Is.All.EqualTo(model.ModelId));
+            Assert.That(calls[1].GetTagItem("gen_ai.usage.input_tokens"), Is.EqualTo(12));
+            Assert.That(calls[1].GetTagItem("gen_ai.usage.output_tokens"), Is.EqualTo(5));
+            Assert.That(tool.ParentSpanId, Is.EqualTo(orchestrate.SpanId));
+            Assert.That(tool.GetTagItem("gen_ai.tool.name"), Is.EqualTo("get_current_time"));
+            Assert.That(tool.GetTagItem(GrifTools.OutcomeTag), Is.EqualTo("ok"));
+            Assert.That(tool.Status, Is.Not.EqualTo(ActivityStatusCode.Error));
+        }
+    }
+
+    [Test]
+    public async Task StreamAsync_MeasuresTheModelsTokensAndTime_PerCall()
+    {
+        using var measured = new Measurements();
+        var model = new FakeModel([Text("Hi"), Usage(12, 5)]);
+
+        await Ask(Chat(model), "Hi", ToolCaller.Anonymous, ChatHost.Site);
+
+        var ours = measured.Of(model.ModelId);
+        var tokens = ours.Where(m => m.Instrument == "gen_ai.client.token.usage").Select(m => (m.Tags["gen_ai.token.type"], m.Value));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(tokens, Is.EquivalentTo(new[] { ((object?)"input", 12.0), ((object?)"output", 5.0) }));
+            Assert.That(ours.Count(m => m.Instrument == "gen_ai.client.operation.duration"), Is.EqualTo(1));
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task StreamAsync_WhatPeopleWroteAndWhatToolsGave_IsInTheTelemetry_OnlyWhenSwitchedOn(bool sensitiveData)
+    {
+        using var spans = new Spans();
+        var model = new FakeModel([Call("get_current_time")], [Text("The secret answer.")]);
+        var chat = Chat(model, sensitiveData);
+
+        var trace = await AskUnderAHostsSpan(chat, "The secret question?");
+
+        var told = string.Join('\n', spans.Of(trace)
+                .SelectMany(a => a.TagObjects.Select(t => t.Value?.ToString()).Concat(a.Events.SelectMany(e => e.Tags.Select(t => t.Value?.ToString())))))
+            + string.Join('\n', _services.GetFakeLogCollector().GetSnapshot().Select(r => r.ToString()));
+        var toolResult = _time.GetUtcNow().ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(told.Contains("The secret question?", StringComparison.Ordinal), Is.EqualTo(sensitiveData));
+            Assert.That(told.Contains("The secret answer.", StringComparison.Ordinal), Is.EqualTo(sensitiveData));
+            Assert.That(told.Contains(toolResult, StringComparison.Ordinal), Is.EqualTo(sensitiveData));
+        }
+    }
+
+    [Test]
+    public void ChatModel_SensitiveData_IsOffUnlessSwitchedOn_WhateverTheEnvironmentSays()
+    {
+        _clients.Create().Returns(new FakeModel());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(new ChatModel(_clients, NullLoggerFactory.Instance).Create().GetService<OpenTelemetryChatClient>()!.EnableSensitiveData, Is.False);
+            Assert.That(new ChatModel(_clients, NullLoggerFactory.Instance, sensitiveData: true).Create().GetService<OpenTelemetryChatClient>()!.EnableSensitiveData, Is.True);
+        }
+    }
+
+    [Test]
+    public void ChatModel_WrapsAModelOnce_NotOnceAReply()
+    {
+        _clients.Create().Returns(new FakeModel());
+        var model = new ChatModel(_clients, NullLoggerFactory.Instance);
+
+        Assert.That(model.Create(), Is.SameAs(model.Create()), "each wrapper makes a Meter of its own");
+    }
+
+    [TestCase(null, "ok")]
+    [TestCase(typeof(ToolException), "refused")]
+    [TestCase(typeof(InvalidOperationException), "failed")]
+    public async Task StreamAsync_LogsEachToolCall_ItsNameOutcomeAndTime_AndTagsItsSpan(Type? thrown, string outcome)
+    {
+        using var spans = new Spans();
+        var model = new FakeModel([Call("get_current_time")], [Text("Done.")]);
+        TimeProvider clock = thrown is null ? _time : new ThrowingClock((Exception)Activator.CreateInstance(thrown, "The clock broke")!);
+        var chat = Chat(model, clock: clock);
+
+        var trace = await AskUnderAHostsSpan(chat, "What time is it?");
+
+        var logged = _services.GetFakeLogCollector().GetSnapshot().Where(r => r.Category == typeof(GrifTools).FullName).ToList();
+        var tool = spans.Of(trace).Single(a => Operation(a) == "execute_tool");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(logged, Has.Count.EqualTo(1));
+            Assert.That(logged[0].Level, Is.EqualTo(LogLevel.Information));
+            Assert.That(logged[0].GetStructuredStateValue("Tool"), Is.EqualTo("get_current_time"));
+            Assert.That(logged[0].GetStructuredStateValue("Outcome"), Is.EqualTo(outcome));
+            Assert.That(double.Parse(logged[0].GetStructuredStateValue("ElapsedMs")!, CultureInfo.InvariantCulture), Is.GreaterThanOrEqualTo(0));
+            Assert.That(logged[0].Message, Does.Not.Contain("The clock broke"), "a failure's details are in the function invocation's error log");
+            Assert.That(tool.GetTagItem(GrifTools.OutcomeTag), Is.EqualTo(outcome));
+            Assert.That(tool.Status == ActivityStatusCode.Error, Is.EqualTo(outcome == "failed"), "a refusal is the tool's answer, not an error");
+        }
+    }
+
+    [Test]
+    public async Task StreamAsync_AToolsFailure_IsLoggedAsAnError_WithItsException()
+    {
+        var model = new FakeModel([Call("get_current_time")], [Text("Done.")]);
+        var chat = Chat(model, clock: new ThrowingClock(new InvalidOperationException("The clock broke")));
+
+        await Ask(chat, "What time is it?", ToolCaller.Anonymous, ChatHost.Site);
+
+        var errors = _services.GetFakeLogCollector().GetSnapshot().Where(r => r.Level == LogLevel.Error).ToList();
+        Assert.That(errors.Select(r => r.Exception?.Message), Is.EqualTo(new[] { "The clock broke" }));
+    }
+
+    private static string? Operation(Activity activity) => activity.GetTagItem("gen_ai.operation.name") as string;
+
+    private static ChatResponseUpdate Call(string tool) => new(ChatRole.Assistant, [new FunctionCallContent("call-1", tool)]);
+
+    private static ChatResponseUpdate Usage(int input, int output)
+        => new(ChatRole.Assistant, [new UsageContent(new UsageDetails { InputTokenCount = input, OutputTokenCount = output, TotalTokenCount = input + output })]);
+
+    /// <summary>A clock that throws <paramref name="error"/>: a tool that refuses (a <see cref="ToolException"/>) or fails.</summary>
+    private sealed class ThrowingClock(Exception error) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => throw error;
+    }
+
+    /// <summary>The spans the chat (<see cref="ChatModel.SourceName"/>) and the test's host (<see cref="Test"/>) end while it listens.</summary>
+    private sealed class Spans : IDisposable
+    {
+        public static readonly ActivitySource Test = new("GrifballWebApp.Application.Test.ChatHost");
+
+        private readonly ConcurrentQueue<Activity> _ended = new();
+        private readonly ActivityListener _listener;
+
+        public Spans()
+        {
+            _listener = new ActivityListener
+            {
+                ShouldListenTo = source => source.Name == ChatModel.SourceName || source == Test,
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+                ActivityStopped = _ended.Enqueue,
+            };
+            ActivitySource.AddActivityListener(_listener);
+        }
+
+        /// <summary>The spans of one trace: other tests' are in others.</summary>
+        public List<Activity> Of(ActivityTraceId trace) => _ended.Where(a => a.TraceId == trace).ToList();
+
+        public void Dispose() => _listener.Dispose();
+    }
+
+    /// <summary>What the chat's meter (<see cref="ChatModel.SourceName"/>) records while it listens.</summary>
+    private sealed class Measurements : IDisposable
+    {
+        private readonly ConcurrentQueue<(string Instrument, double Value, Dictionary<string, object?> Tags)> _recorded = new();
+        private readonly MeterListener _listener = new();
+
+        public Measurements()
+        {
+            _listener.InstrumentPublished = (instrument, listener) =>
+            {
+                if (instrument.Meter.Name == ChatModel.SourceName)
+                    listener.EnableMeasurementEvents(instrument);
+            };
+            _listener.SetMeasurementEventCallback<int>((instrument, value, tags, _) => Record(instrument, value, tags));
+            _listener.SetMeasurementEventCallback<double>((instrument, value, tags, _) => Record(instrument, value, tags));
+            _listener.Start();
+        }
+
+        private void Record(Instrument instrument, double value, ReadOnlySpan<KeyValuePair<string, object?>> tags)
+            => _recorded.Enqueue((instrument.Name, value, tags.ToArray().ToDictionary(t => t.Key, t => t.Value)));
+
+        /// <summary>The measurements of the calls to <paramref name="model"/>: other tests' are others'.</summary>
+        public List<(string Instrument, double Value, Dictionary<string, object?> Tags)> Of(string model)
+            => _recorded.Where(m => m.Tags.TryGetValue("gen_ai.request.model", out var asked) && Equals(asked, model)).ToList();
+
+        public void Dispose() => _listener.Dispose();
+    }
+
     private static ChatResponseUpdate Text(string text) => new(ChatRole.Assistant, text);
 
     /// <summary>
@@ -468,6 +692,9 @@ public class GrifChatUnitTests
         public List<ChatOptions?> Options { get; } = [];
 
         public bool Hang { get; init; }
+
+        /// <summary>The model it says it is (its <see cref="ChatClientMetadata"/>): its own, so its telemetry is told from other tests'.</summary>
+        public string ModelId { get; } = $"fake-{Guid.NewGuid():N}";
 
         public TaskCompletionSource? Blocked { get; init; }
 
@@ -499,7 +726,8 @@ public class GrifChatUnitTests
                 yield return update;
         }
 
-        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+        public object? GetService(Type serviceType, object? serviceKey = null)
+            => serviceType == typeof(ChatClientMetadata) ? new ChatClientMetadata("fake", null, ModelId) : null;
 
         public void Dispose()
         {
