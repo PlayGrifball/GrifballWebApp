@@ -255,4 +255,21 @@ public class UserSessionsInterceptorTests : SqliteContextFixture
 
         Assert.That(attempts, Is.EqualTo(LockedOutOnTheFifth), "Identity's default: locked out on the fifth");
     }
+
+    [Test]
+    public async Task AFailedSaveInATransaction_KeepsItsEarlierSaves_ForTheCommit()
+    {
+        var user = await NewUser();
+
+        await using (var transaction = await Context.Database.BeginTransactionAsync())
+        {
+            await Users.UpdateSecurityStampAsync(user);
+            Context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = 999_999 });
+            Assert.That(async () => await Context.SaveChangesAsync(), Throws.InstanceOf<DbUpdateException>());
+            Context.ChangeTracker.Entries<UserRole>().Single().State = EntityState.Detached;
+            await transaction.CommitAsync();
+        }
+
+        Assert.That(_sessions.Ended, Is.EqualTo(new[] { new[] { user.Id } }), "the stamp, committed");
+    }
 }

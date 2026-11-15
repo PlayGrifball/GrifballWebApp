@@ -200,9 +200,8 @@ public sealed class HubSessionFilter(HubConnections connections) : IHubFilter
         var data = hub.GetCustomAttributes(true).OfType<IAuthorizeData>().Concat(method.GetCustomAttributes(true).OfType<IAuthorizeData>()).ToList();
         if (data.Count == 0)
             return true;
-        var policy = await AuthorizationPolicy.CombineAsync(services.GetRequiredService<IAuthorizationPolicyProvider>(), data);
-        if (policy is null)
-            return true;
+        // Some authorize data: a policy, never none
+        var policy = (await AuthorizationPolicy.CombineAsync(services.GetRequiredService<IAuthorizationPolicyProvider>(), data))!;
         var result = await services.GetRequiredService<IAuthorizationService>().AuthorizeAsync(AsNow(claims, user), policy);
         return result.Succeeded;
     }

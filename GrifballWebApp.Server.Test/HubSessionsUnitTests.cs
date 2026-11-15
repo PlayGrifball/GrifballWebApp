@@ -425,4 +425,27 @@ public class HubSessionsUnitTests
 
         connection.Received(1).Abort();
     }
+
+    [Test]
+    public async Task Sweep_NoConnections_ChecksNothing()
+    {
+        _validator.Fails = true;
+        var scopes = new ServiceCollection().AddSingleton<HubSessionValidator>(_validator).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+
+        var ended = await new HubSessionSweep(_connections, scopes, new FakeTimeProvider(), NullLogger<HubSessionSweep>.Instance).SweepAsync();
+
+        Assert.That(ended, Is.Zero);
+    }
+
+    [Test]
+    public async Task End_NoUsers_PublishesNothing()
+    {
+        // Never connected: Redis is only reached by a publication
+        await using var redis = new GrifballWebApp.Infrastructure.Redis.AppRedis("127.0.0.1:9", "grif-test");
+        var sessions = new HubUserSessions(_connections, NullLogger<HubUserSessions>.Instance, redis);
+
+        sessions.End([]);
+
+        Assert.That(sessions.Published, Is.SameAs(Task.CompletedTask));
+    }
 }
