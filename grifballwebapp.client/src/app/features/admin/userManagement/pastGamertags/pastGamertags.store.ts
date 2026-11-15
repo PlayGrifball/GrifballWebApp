@@ -7,6 +7,7 @@ import { GamertagClaimsService } from '@api/services/gamertag-claims.service';
 import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { problemText } from '@shared/errorText';
 import { StoreInput } from '@shared/storeInput';
+import { resourceView } from '@shared/resourceView';
 
 /** Which account to look up: by its XUID, or a user's ID. */
 export interface PastGamertagsQuery {
@@ -23,17 +24,17 @@ export class PastGamertagsStore {
   /** The account to look up (undefined: none yet): the component's lookup fields. */
   readonly query = new StoreInput<PastGamertagsQuery | undefined>();
 
-  private readonly past = rxResource({
+  private readonly past = resourceView(rxResource({
     params: () => this.query.value(),
     // 404: no such Xbox account (by that XUID or user ID).
     stream: ({ params }) => this.api.getPastGamertags(params).pipe(nullWhenNotFound()),
-  });
+  }), null);
 
-  readonly loading = computed(() => this.past.isLoading());
-  readonly failed = computed(() => this.past.status() === 'error');
+  readonly loading = this.past.isLoading;
+  readonly failed = this.past.failed;
   /** The account (none while loading, or if it could not be loaded). */
-  readonly account = computed(() => this.past.hasValue() ? this.past.value() : null);
-  readonly notFound = computed(() => this.past.status() === 'resolved' && this.account() === null);
+  readonly account = this.past.value;
+  readonly notFound = computed(() => this.past.resolved() && this.account() === null);
   readonly rows = computed<PastGamertagDto[]>(() => this.account()?.pastGamertags ?? []);
 
   /** The row being removed: its button (and every other Remove button) waits for the answer. */

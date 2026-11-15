@@ -44,7 +44,7 @@ describe('MatchDetailsStore', () => {
     expect(store.details()!.matchID).toBe('m-2');
   });
 
-  it('tells no such match (none, 404 or 400) from a failed request', async () => {
+  it('tells no such match (none, or a 404: a malformed ID misses the route too) from a failed request (a 400 too)', async () => {
     const matchID = signal('m-1');
     store.matchID.use(matchID);
     TestBed.tick();
@@ -52,7 +52,7 @@ describe('MatchDetailsStore', () => {
     await settle();
     expect(store.state()).toBe('notFound');
 
-    for (const [id, status, state] of [['m-2', 404, 'notFound'], ['m-3', 400, 'notFound'], ['m-4', 500, 'error']] as const) {
+    for (const [id, status, state] of [['m-2', 404, 'notFound'], ['m-3', 400, 'error'], ['m-4', 500, 'error']] as const) {
       matchID.set(id);
       TestBed.tick();
       http.expectOne(`/api/matches/${id}`).flush('x', { status, statusText: 'Refused' });

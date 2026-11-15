@@ -6,6 +6,7 @@ import type { BackupDownloadStatus, BackupExportStatus, BackupInfoDto } from '@a
 import { BackupService } from '@api/services/backup.service';
 import { errorText } from '@shared/errorText';
 import { StoreInput } from '@shared/storeInput';
+import { resourceView } from '@shared/resourceView';
 
 export type BackupFormat = 'sqlite' | 'postgres' | 'sqlserver' | 'bak' | 'dump';
 export type ExportTarget = 'Postgres' | 'SqlServer';
@@ -35,10 +36,10 @@ export class DatabaseBackupStore {
   /** The format chosen: the component's select. */
   readonly format = new StoreInput<BackupFormat>();
 
-  private readonly info = rxResource<BackupInfoDto, void>({ stream: () => this.backup.backupInfo() });
+  private readonly info = resourceView(rxResource<BackupInfoDto, void>({ stream: () => this.backup.backupInfo() }), null);
   /** The database's details; null until they arrive. */
-  readonly infoValue = computed(() => this.info.hasValue() ? this.info.value() : null);
-  readonly infoFailed = computed(() => !!this.info.error());
+  readonly infoValue = this.info.value;
+  readonly infoFailed = this.info.failed;
 
   private readonly _downloadStatus = signal<DownloadStatus | null>(null);
   readonly downloadStatus = this._downloadStatus.asReadonly();

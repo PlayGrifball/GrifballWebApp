@@ -20,4 +20,10 @@ describe('nullWhenNotFound', () => {
     throwError(() => new HttpErrorResponse({ status: 500 })).pipe(nullWhenNotFound<string>()).subscribe({ error: e => failed = e });
     expect((failed as HttpErrorResponse).status).toBe(500);
   });
+
+  it('passes a 400 on: a bad request is a failure, not "none"', () => {
+    let failed: unknown;
+    throwError(() => new HttpErrorResponse({ status: 400 })).pipe(nullWhenNotFound<string>()).subscribe({ error: e => failed = e });
+    expect((failed as HttpErrorResponse).status).toBe(400);
+  });
 });

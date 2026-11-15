@@ -1,13 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, effect, inject, Injectable, signal, type ResourceRef } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { JobDto, JobRunDto } from '@api/models';
+import type { JobDto } from '@api/models';
 import { JobsService } from '@api/services/jobs.service';
 import { problemText } from '@shared/errorText';
 import { StoreInput } from '@shared/storeInput';
 import { Observable, repeat } from 'rxjs';
 import { JobKey } from '../../api/jobs';
+import { resourceView, ResourceView } from '@shared/resourceView';
 
 /** How often the jobs (and the chosen job's runs) are read again. */
 export const JOBS_POLL_MS = 10000;
@@ -37,21 +38,21 @@ export class JobsStore {
   readonly selectedKey = new StoreInput<JobKey | null>();
 
   /** Read every few seconds, and again after each action (keeping what's shown meanwhile). */
-  private readonly overview = rxResource({
+  private readonly overview = resourceView(rxResource({
     stream: () => this.api.getJobs().pipe(repeat({ delay: JOBS_POLL_MS })),
-  });
-  readonly jobs = computed<JobDto[]>(() => this.overview.hasValue() ? this.overview.value().jobs : []);
-  readonly nodes = computed(() => this.overview.hasValue() ? this.overview.value().nodes : []);
-  readonly loaded = computed(() => this.overview.hasValue());
-  readonly failed = computed(() => this.overview.status() === 'error');
+  }), null);
+  readonly jobs = computed<JobDto[]>(() => this.overview.value()?.jobs ?? []);
+  readonly nodes = computed(() => this.overview.value()?.nodes ?? []);
+  readonly loaded = this.overview.hasValue;
+  readonly failed = this.overview.failed;
 
-  private readonly history = rxResource({
+  private readonly history = resourceView(rxResource({
     params: () => this.selectedKey.value() ?? undefined,
     stream: ({ params }) => this.api.getJobHistory({ group: params.group, name: params.name, take: 50 }).pipe(repeat({ delay: JOBS_POLL_MS })),
-  });
+  }), null);
   /** The chosen job's last runs; null until they are read. */
-  readonly runs = computed<JobRunDto[] | null>(() => this.history.hasValue() ? this.history.value() : null);
-  readonly runsFailed = computed(() => this.history.status() === 'error');
+  readonly runs = this.history.value;
+  readonly runsFailed = this.history.failed;
 
   /** An action waiting for its answer: the buttons wait too. */
   private readonly _busy = signal(false);
@@ -84,9 +85,9 @@ export class JobsStore {
   }
 
   /** A failed read ends its polling (repeat only reads again after a success): read again a poll later, so one blip doesn't leave the page stale until it's reloaded. */
-  private readAgainAfterAnError<T>(resource: ResourceRef<T>): void {
+  private readAgainAfterAnError<T>(resource: ResourceView<T>): void {
     effect(onCleanup => {
-      if (resource.status() !== 'error')
+      if (!resource.failed())
         return;
       const timeout = setTimeout(() => resource.reload(), JOBS_POLL_MS);
       onCleanup(() => clearTimeout(timeout));

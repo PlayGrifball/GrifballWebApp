@@ -51,6 +51,12 @@ last), saves, polling, and the snackbar or error text when one fails. The compon
 form fields, what the page shows computed from the store's signals, and methods that hand the user's actions to the
 store. `profileCommendations` is the smallest example, `xboxAccount` one with paging and polling.
 
+- **A load is a `resourceView`** (`@shared/resourceView`):
+  `private readonly claims = resourceView(rxResource({ … }), [] as GamertagClaimDto[]);`. It gives the load's signals
+  (`value` with the fallback until there is one, `hasValue`, `isLoading`, `failed`, `error`, `resolved`, `status`) and
+  `reload()`, so the store hands them out as they are (`readonly rows = this.claims.value;`) instead of repeating
+  `hasValue() ? value() : []` and `status() === 'error'`. Its `value` never throws (a resource's own `value()` does
+  after an error). A read where "no such thing" is an answer pipes `nullWhenNotFound()` and treats `null` as none.
 - **The component keeps the store's signals under its own names** (`readonly rows = this.store.rows;`), so its template
   reads `rows()` either way.
 - **Inputs reach the store as a `StoreInput`** (`@shared/storeInput`). The store declares
@@ -69,7 +75,8 @@ store. `profileCommendations` is the smallest example, `xboxAccount` one with pa
   effect on the store's data draws it, or clears it when there is none. The store doesn't touch the page.
 - **A template that reads several states of one load** (its value, error and loading, as the Telemetry page's tabs do)
   can read the store's resource itself: the store gives it as a read-only `Resource<T>` (no `reload()`), and reloads
-  it through its own methods.
+  it through its own methods. Its template narrows with `@if (x.hasValue())` before `x.value()`, which a
+  `resourceView`'s separate signals can't do; every other store uses `resourceView`.
 - **Each store has its own spec** (`<name>.store.spec.ts`), which injects it with `HttpTestingController` and tests
   its calls, answers and failures without a template. The component's spec stays as it was: rendering and the user's
   actions, through the real store. A resource's value comes a microtask after the answer, so a spec waits for

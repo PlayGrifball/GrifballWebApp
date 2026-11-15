@@ -1,12 +1,13 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { LinkVodRequest, VodLinkOptionsDto, VodLinkSeasonDto, VodReviewDto } from '@api/models';
+import type { LinkVodRequest } from '@api/models';
 import { VodService } from '@api/services/vod.service';
 import { problemText } from '@shared/errorText';
 import { StoreInput } from '@shared/storeInput';
 import { Observable } from 'rxjs';
+import { resourceView } from '@shared/resourceView';
 
 /**
  * The VODs the matcher wasn't sure of, what one can be linked to (the seasons, and a season's matches and teams), and
@@ -22,15 +23,15 @@ export class VodReviewStore {
   /** The season chosen in the editor (null: none): the component's. */
   readonly seasonID = new StoreInput<number | null>();
 
-  private readonly review = rxResource({ params: () => true, stream: () => this.api.getVodReview() });
-  readonly rows = computed<VodReviewDto[]>(() => this.review.hasValue() ? this.review.value() : []);
-  readonly loaded = computed(() => this.review.hasValue());
-  readonly failed = computed(() => this.review.status() === 'error');
+  private readonly review = resourceView(rxResource({ params: () => true, stream: () => this.api.getVodReview() }), []);
+  readonly rows = this.review.value;
+  readonly loaded = this.review.hasValue;
+  readonly failed = this.review.failed;
 
-  private readonly seasons = rxResource({ params: () => this.editing.value() ? true : undefined, stream: () => this.api.getVodLinkSeasons() });
-  readonly seasonRows = computed<VodLinkSeasonDto[]>(() => this.seasons.hasValue() ? this.seasons.value() : []);
-  private readonly options = rxResource({ params: () => this.seasonID.value() ?? undefined, stream: ({ params }) => this.api.getVodLinkOptions({ seasonID: params }) });
-  readonly optionsValue = computed<VodLinkOptionsDto | null>(() => this.options.hasValue() ? this.options.value() : null);
+  private readonly seasons = resourceView(rxResource({ params: () => this.editing.value() ? true : undefined, stream: () => this.api.getVodLinkSeasons() }), []);
+  readonly seasonRows = this.seasons.value;
+  private readonly options = resourceView(rxResource({ params: () => this.seasonID.value() ?? undefined, stream: ({ params }) => this.api.getVodLinkOptions({ seasonID: params }) }), null);
+  readonly optionsValue = this.options.value;
 
   /** An action waiting for its answer: the buttons wait too. */
   private readonly _busy = signal(false);
