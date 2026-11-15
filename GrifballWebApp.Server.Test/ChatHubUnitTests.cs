@@ -295,6 +295,21 @@ public class ChatHubUnitTests
         }
     }
 
+    [Test]
+    public async Task Ask_WithNoHttpContext_CountsTheSignedOutAsker_UnderNoAddress()
+    {
+        var hub = Hub(new ScriptedChatClient((TimeSpan.Zero, "Hi")));
+        hub.Context.Features.Returns(new FeatureCollection());
+
+        var (texts, error) = await Read(await hub.Ask(Question(), CancellationToken.None));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(error, Is.Null);
+            Assert.That(texts, Is.EqualTo(Hi));
+        }
+    }
+
     [TestCase('a')]
     [TestCase('\u0001')]
     [TestCase('一')]

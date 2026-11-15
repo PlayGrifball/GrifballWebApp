@@ -31,26 +31,26 @@ public sealed class UserSessionsInterceptor(IUserSessions sessions) : SaveChange
 
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
-        Note(eventData.Context);
+        Note(eventData.Context!);
         return result;
     }
 
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
     {
-        Note(eventData.Context);
+        Note(eventData.Context!);
         return ValueTask.FromResult(result);
     }
 
     public override int SavedChanges(SaveChangesCompletedEventData eventData, int result)
     {
-        if (eventData.Context?.Database.CurrentTransaction is null)
+        if (eventData.Context!.Database.CurrentTransaction is null)
             _ = EndAsync(CancellationToken.None);
         return result;
     }
 
     public override async ValueTask<int> SavedChangesAsync(SaveChangesCompletedEventData eventData, int result, CancellationToken cancellationToken = default)
     {
-        if (eventData.Context?.Database.CurrentTransaction is null)
+        if (eventData.Context!.Database.CurrentTransaction is null)
             await EndAsync(cancellationToken);
         return result;
     }
@@ -58,7 +58,7 @@ public sealed class UserSessionsInterceptor(IUserSessions sessions) : SaveChange
     public override void SaveChangesFailed(DbContextErrorEventData eventData)
     {
         // Nothing of a failed save happened; a transaction's earlier saves are kept for its commit or rollback
-        if (eventData.Context?.Database.CurrentTransaction is null)
+        if (eventData.Context!.Database.CurrentTransaction is null)
             _pending.Clear();
     }
 
@@ -68,11 +68,7 @@ public sealed class UserSessionsInterceptor(IUserSessions sessions) : SaveChange
         return Task.CompletedTask;
     }
 
-    private void Note(DbContext? context)
-    {
-        if (context is not null)
-            _pending.UnionWith(Changed(context));
-    }
+    private void Note(DbContext context) => _pending.UnionWith(Changed(context));
 
     private Task EndAsync(CancellationToken ct)
     {

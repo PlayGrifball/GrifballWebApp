@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using GrifballWebApp.Application.Tools;
+using GrifballWebApp.Domain.Players;
+using Microsoft.AspNetCore.Identity;
 using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -32,7 +34,10 @@ public class HubSessionsUnitTests
     {
         public HubUserState? Now { get; set; } = Commissioner;
 
-        public override Task<HubUserState?> CurrentAsync(ClaimsPrincipal? principal) => Task.FromResult(Now);
+        public bool Fails { get; set; }
+
+        public override Task<HubUserState?> CurrentAsync(ClaimsPrincipal? principal)
+            => Fails ? throw new InvalidOperationException("The database is down") : Task.FromResult(Now);
     }
 
     private sealed class TestHub : Microsoft.AspNetCore.SignalR.Hub
@@ -199,6 +204,7 @@ public class HubSessionsUnitTests
             Assert.That(user.Roles, Is.EquivalentTo(Commissioner.Roles));
             Assert.That(new HubUserState(7, ["Commissioner", "Player"]).SameAs(Commissioner), Is.True, "in any order");
             Assert.That(Player.SameAs(Commissioner), Is.False);
+            Assert.That(new HubUserState(8, Player.Roles).SameAs(Player), Is.False, "another user");
         }
     }
 
@@ -207,14 +213,82 @@ public class HubSessionsUnitTests
     {
         var mine = Connection("mine");
         var theirs = Connection("theirs");
+        var signedOut = Connection("signed-out");
         await Connect(mine);
         _validator.Now = new HubUserState(8, []);
         await Connect(theirs);
+        _validator.Now = HubUserState.Anonymous;
+        await Connect(signedOut);
 
         await new HubUserSessions(_connections, NullLogger<HubUserSessions>.Instance).EndAsync([7]);
 
         mine.Received(1).Abort();
         theirs.DidNotReceive().Abort();
+        signedOut.DidNotReceive().Abort();
+    }
+
+    [Test]
+    public async Task Invoke_AConnectionThisProcessDoesntKnow_IsCheckedAgainstTheDatabaseAlone()
+    {
+        var (ran, refusal) = await Invoke(Connection("unknown"), nameof(TestHub.Staff));
+
+        Assert.That((ran, refusal), Is.EqualTo((true, (string?)null)));
+    }
+
+    [Test]
+    public async Task Sweep_RunsEveryInterval_AndLogsAFailedCheck_WithoutStopping()
+    {
+        var connection = Connection();
+        await Connect(connection);
+        var aborted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        connection.When(c => c.Abort()).Do(_ => aborted.TrySetResult());
+        var scopes = new ServiceCollection().AddSingleton<HubSessionValidator>(_validator).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+        var time = new FakeTimeProvider();
+        var logger = new RecordingLogger<HubSessionSweep>();
+        using var sweep = new HubSessionSweep(_connections, scopes, time, logger);
+        await sweep.StartAsync(CancellationToken.None);
+
+        _validator.Fails = true;
+        time.Advance(HubSessionSweep.Interval);
+        var logged = await logger.WaitForEntries(1, TimeSpan.FromSeconds(10));
+        _validator.Fails = false;
+        _validator.Now = null;
+        time.Advance(HubSessionSweep.Interval);
+        await aborted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await sweep.StopAsync(CancellationToken.None);
+
+        Assert.That(logged, Is.True);
+        Assert.That(logger.Entries[0].Exception, Is.TypeOf<InvalidOperationException>());
+    }
+
+    [Test]
+    public async Task Validator_AsksIdentity_TheStampTheLockoutAndTheRolesNow()
+    {
+        var users = Substitute.For<UserManager<User>>(Substitute.For<IUserStore<User>>(), null!, null!, null!, null!, null!, new IdentityErrorDescriber(), null!, null!);
+        var signIn = Substitute.For<SignInManager<User>>(users, Substitute.For<Microsoft.AspNetCore.Http.IHttpContextAccessor>(), Substitute.For<IUserClaimsPrincipalFactory<User>>(),
+            Microsoft.Extensions.Options.Options.Create(new IdentityOptions()), NullLogger<SignInManager<User>>.Instance,
+            Substitute.For<Microsoft.AspNetCore.Authentication.IAuthenticationSchemeProvider>(), Substitute.For<IUserConfirmation<User>>());
+        var validator = new HubSessionValidator(signIn);
+        var principal = Connection().User;
+        var user = User.Register("staffer");
+        user.Id = 7;
+
+        signIn.ValidateSecurityStampAsync(principal).Returns(user);
+        users.GetRolesAsync(user).Returns(new List<string> { "Commissioner" });
+        var current = await validator.CurrentAsync(principal);
+        users.IsLockedOutAsync(user).Returns(true);
+        var locked = await validator.CurrentAsync(principal);
+        signIn.ValidateSecurityStampAsync(principal).Returns((User?)null);
+        var signedOut = await validator.CurrentAsync(principal);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await validator.CurrentAsync(new ClaimsPrincipal(new ClaimsIdentity())), Is.SameAs(HubUserState.Anonymous));
+            Assert.That(await validator.CurrentAsync(null), Is.SameAs(HubUserState.Anonymous));
+            Assert.That(current?.SameAs(new HubUserState(7, ["Commissioner"])), Is.True);
+            Assert.That(locked, Is.Null, "locked out");
+            Assert.That(signedOut, Is.Null, "a stamp that is no longer theirs");
+        }
     }
 
     [Test]

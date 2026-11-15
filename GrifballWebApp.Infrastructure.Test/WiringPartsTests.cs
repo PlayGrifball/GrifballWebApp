@@ -128,14 +128,15 @@ public class WiringPartsTests : SqliteContextFixture
         Assert.That(http.Timeout, Is.EqualTo(Timeout.InfiniteTimeSpan));
     }
 
-    [Test]
-    public void ChatClient_OllamaModel_IsTheModelAsked()
+    [TestCase("qwen3:8b", "qwen3:8b")]
+    [TestCase("", OllamaChatClients.DefaultModel)]
+    public void ChatClient_OllamaModel_IsTheModelAsked_ElseTheDefault(string model, string asked)
     {
-        using var services = Ollama(("Ollama:Url", "http://ollama.test:11434/"), ("Ollama:Model", "qwen3:8b"));
+        using var services = Ollama(("Ollama:Url", "http://ollama.test:11434/"), ("Ollama:Model", model));
 
         var client = services.GetRequiredService<IChatClientFactory>().Create();
 
-        Assert.That(client.GetService<OllamaApiClient>()?.SelectedModel, Is.EqualTo("qwen3:8b"));
+        Assert.That(client.GetService<OllamaApiClient>()?.SelectedModel, Is.EqualTo(asked));
     }
 
     [TestCase(null)]

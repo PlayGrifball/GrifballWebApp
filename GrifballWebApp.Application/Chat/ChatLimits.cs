@@ -52,10 +52,10 @@ public sealed class ChatLimits : IDisposable
         if (address.IsIPv4MappedToIPv6)
             address = address.MapToIPv4();
         if (address.AddressFamily != AddressFamily.InterNetworkV6)
-            return "address:" + address;
+            return $"address:{address}";
         var bytes = address.GetAddressBytes();
         Array.Clear(bytes, 8, 8);
-        return "address:" + new IPAddress(bytes) + "/64";
+        return $"address:{new IPAddress(bytes)}/64";
     }
 
     /// <summary>

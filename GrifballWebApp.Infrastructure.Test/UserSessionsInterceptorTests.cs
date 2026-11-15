@@ -177,4 +177,8 @@ public class UserSessionsInterceptorTests : SqliteContextFixture
 
         Assert.That(_sessions.Ended, Is.Empty);
     }
+
+    [Test]
+    public void NoUserSessions_EndsNothing_ForTheHostsWithoutHubs()
+        => Assert.That(new NoUserSessions().EndAsync([1]).IsCompletedSuccessfully, Is.True);
 }
