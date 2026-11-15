@@ -3,7 +3,7 @@
 /* tslint:disable */
 // @ts-nocheck
 import type { IStreamResult, Subject } from '@microsoft/signalr';
-import type { ChatRequestDto } from '../GrifballWebApp.Application.Chat';
+import type { ChatRequestDto, ChatModelsDto } from '../GrifballWebApp.Application.Chat';
 
 /**
 * What the browser calls on  (the typed client's hub proxy).
@@ -12,12 +12,23 @@ export type IChatHubServer = {
     /**
     * The chat's answer to a question, streamed as it is written. Refused (a HubException saying why) when there is no model, the
     * question is empty or too long, the conversation can't be read, a reply is already under way for the user, or they have asked too
-    * many this minute.
+    * many this minute, or the model asked for isn't theirs, or a paid model's monthly limit is reached.
     * @param request Transpiled from GrifballWebApp.Application.Chat.ChatRequestDto
     * @param cancellationToken Transpiled from System.Threading.CancellationToken
     * @returns Transpiled from System.Threading.Tasks.Task<System.Threading.Channels.ChannelReader<string>>
     */
     ask(request: ChatRequestDto): IStreamResult<string>;
+    /**
+    * The models the user may use, the one their questions go to, and their spend on paid ones this month.
+    * @returns Transpiled from System.Threading.Tasks.Task<GrifballWebApp.Application.Chat.ChatModelsDto>
+    */
+    models(): Promise<ChatModelsDto>;
+    /**
+    * The user chose a model for their questions (here and in a Discord DM); refused when they may not use it.
+    * @param model Transpiled from string
+    * @returns Transpiled from System.Threading.Tasks.Task<GrifballWebApp.Application.Chat.ChatModelsDto>
+    */
+    choose(model: string): Promise<ChatModelsDto>;
 }
 
 /**

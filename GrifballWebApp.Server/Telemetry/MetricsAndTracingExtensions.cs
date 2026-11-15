@@ -15,6 +15,9 @@ public static class MetricsAndTracingExtensions
     /// <summary>SignalR's hub method calls (ASP.NET Core 9 and later).</summary>
     public const string SignalRServerSource = "Microsoft.AspNetCore.SignalR.Server";
 
+    /// <summary>Anthropic's SDK: a span per call to its API (the chats' Claude models), without the messages' content.</summary>
+    public const string AnthropicSource = "com.anthropic.sdk.csharp";
+
     /// <summary>Meters beyond the instrumentation packages' own.</summary>
     public static readonly string[] AdditionalMeters =
     [
@@ -90,6 +93,8 @@ public static class MetricsAndTracingExtensions
                     // orchestrate_tools; with the hub call's span, or the Discord message's (MessageCreateHandler), as their parent
                     .AddSource(ChatModel.SourceName)
                     .AddSource(MessageCreateHandler.ActivitySourceName)
+                    // The chats' calls to Claude, under the reply's trace
+                    .AddSource(AnthropicSource)
                     // Drops the scheduler loop's own spans and rootless Redis spans (SchedulerLoopSampler)
                     .SetSampler(new SchedulerLoopSampler());
 

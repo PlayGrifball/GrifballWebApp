@@ -13,10 +13,21 @@ namespace GrifballWebApp.Application.Chat;
 /// Discord user with no linked account, an address signed out). An asker is the site user when there is one, so their questions
 /// count alike on the site and in Discord (<see cref="Asker"/>). And at most <see cref="MaxReplies"/> replies under way at all
 /// (Chat:MaxReplies, 1 by default: the model answers one at a time, OLLAMA_NUM_PARALLEL): a question beyond them is refused at once
-/// (<see cref="Full"/>), rather than wait behind the others until its time is up. Each process counts its own.
+/// (<see cref="Full"/>), rather than wait behind the others until its time is up. Each process counts its own. And a user's spend on
+/// paid models a month (UTC) at most <see cref="MonthlyLimit"/> US dollars (Chat:MonthlyLimit, 10 by default; the database counts it,
+/// every process alike): reached, they are refused those models (<see cref="MonthlyLimitReached"/>) until the next month.
 /// </summary>
-public sealed class ChatLimits(int maxReplies = 1) : IDisposable
+public sealed class ChatLimits(int maxReplies = 1, decimal monthlyLimit = ChatLimits.DefaultMonthlyLimit) : IDisposable
 {
+    /// <summary>The setting for <see cref="MonthlyLimit"/>.</summary>
+    public const string MonthlyLimitKey = "Chat:MonthlyLimit";
+    public const decimal DefaultMonthlyLimit = 10m;
+
+    public const string MonthlyLimitReached = "You've used this month's limit on the paid models: choose another model, or wait until next month.";
+
+    /// <summary>The most a user may spend on paid models a month, in US dollars.</summary>
+    public decimal MonthlyLimit { get; } = Math.Max(0m, monthlyLimit);
+
     /// <summary>The setting for <see cref="MaxReplies"/>.</summary>
     public const string MaxRepliesKey = "Chat:MaxReplies";
     public const int SignedInPerMinute = 10;

@@ -149,13 +149,22 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         ChatReply reply;
         try
         {
-            reply = chat.Start(history, message.Content, caller, host, ChatLimits.Asker(caller, ChatLimits.Discord(message.Author.Id)));
+            // The model: in a DM, the one the author chose on the site (else their default); in a channel, the one anyone may use
+            reply = await chat.StartAsync(history, message.Content, caller, host, ChatLimits.Asker(caller, ChatLimits.Discord(message.Author.Id)));
         }
         catch (ChatRefusedException refused)
         {
             // Neither the question nor why is kept: the model never had it (a DM's are left out of its history, GrifChat.WithoutRefusals)
             await message.ReplyAsync(refused.Message);
             return null;
+        }
+        catch (Exception e)
+        {
+            // The database failed as the reply started (the author's choice, their month): they are told, not left with no answer
+            logger.LogError(e, "The chat failed to start answering Discord message {MessageId} from Discord user {DiscordUserId}", message.Id, message.Author.Id);
+            await message.ReplyAsync(Chat.ChatHub.Failed);
+            // Its type: its message may quote a user
+            return e.GetType().Name;
         }
         using (reply)
         {

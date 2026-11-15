@@ -11,6 +11,9 @@ public sealed record ChatRequestDto
 
     /// <summary>The conversation so far, oldest first: only its last <see cref="GrifChat.HistoryLimit"/> messages are read.</summary>
     public required List<ChatTurnDto> History { get; init; }
+
+    /// <summary>The model to answer (its ID); null: the user's choice, else their default.</summary>
+    public string? Model { get; init; }
 }
 
 /// <summary>One message of a conversation with the site's chat.</summary>

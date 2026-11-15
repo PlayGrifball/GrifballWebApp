@@ -51,6 +51,7 @@ would only grow:
 
 | Table | Why it has no history |
 | --- | --- |
+| `Auth.ChatMonths` | Each user's spend on the chat's paid models a month: every paid reply adds to its row |
 | `Discord.Outbox` | Each message is written a few times, then deleted after its retention |
 | `Event.HistoricalImportJobs` | A running import rewrites its row every few seconds |
 | `Event.HistoricalSeasonReviews` | Its job's: deleted with the job after its retention |

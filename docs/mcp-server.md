@@ -136,17 +136,25 @@ alone. A host keeps the conversation, passes the caller and its `ChatHost`, and 
   - `GrifChat.WithoutRefusals` leaves the chat's refusals and the questions they refused out of any history (a DM's is the
     channel itself).
 
-The model is `IChatClientFactory`'s, which Infrastructure registers (`OllamaChatClients`: the server at `Ollama:Url`, the
-model `Ollama:Model`, default `llama3.1:latest`). It gives only the model, so another provider is another
-`IChatClientFactory` registered in its place. Ollama's is one client for the process, over an HTTP client with no timeout of
-its own (a cold model on the CPU can take minutes to start answering): the host's timeout decides. With no `Ollama:Url` there is no model: both chats answer that the chat is
-unavailable. The Helm chart sets both, for its own Ollama (`ollama.enabled`) or an existing one (`ollama.external.url`;
+The models are `IChatClientFactory`'s, which Infrastructure registers (`ChatClients`): `Chat:Models` when it lists any
+(each one's ID, name, provider, model, roles and price), else Claude Haiku, Sonnet and Opus 5.5 for sysadmins with
+`Anthropic:ApiKey` set, then the Ollama model (`Ollama:Model`, default `llama3.1:latest`, at `Ollama:Url`) for anyone.
+`GrifChat` chooses one per question: the one asked for, else the user's choice (`ChatChoice`, kept from the site's picker
+for their Discord DMs too), else the first their roles allow; a Discord channel always uses the first anyone may. A paid
+model's reply is priced from its usage and added to the user's month (`ChatMonth`); past `Chat:MonthlyLimit` (10 US dollars)
+the paid models refuse them until the next month. The limit can be overshot by a bounded amount: each process (a
+backend replica, the Discord bot) reads what is left as a reply starts, so replies started at the same moment in several
+processes can each spend up to it, and a reply makes at most `ChatModel.MaxModelCalls` calls of at most its model's
+`MaxOutputTokens`, stopping once its own cost reaches what was left (reserving spend across processes would take a
+database reservation per reply). Each model is one client for the process, over an HTTP client with no
+timeout of its own (a cold model on the CPU can take minutes to start answering): the host's timeout decides. With no
+model configured both chats answer that the chat is unavailable. The Helm chart sets both, for its own Ollama (`ollama.enabled`) or an existing one (`ollama.external.url`;
 [the chart's README](../charts/grifballwebapp/README.md#chat-model-ollama)). Development's appsettings point at
 Ollama's own port on localhost.
 
 ### The chats' telemetry
 
-`ChatModel` builds the chats' client once for the process: the factory's model, under Microsoft.Extensions.AI's OpenTelemetry
+`ChatModel` builds each model's client once for the process: the factory's client for it, under Microsoft.Extensions.AI's OpenTelemetry
 (the GenAI semantic conventions), under the function invocation that calls the tools. Its ActivitySource and Meter are
 `GrifballWebApp.Chat` (`ChatModel.SourceName`), which the app's tracing and metrics export:
 

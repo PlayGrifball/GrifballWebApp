@@ -9327,9 +9327,63 @@
         },
         "additionalProperties": false
       },
+      "ChatModelDto": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A model for the site's picker: its ID and the name people see."
+      },
+      "ChatModelsDto": {
+        "required": [
+          "limit",
+          "models",
+          "selected",
+          "spent"
+        ],
+        "type": "object",
+        "properties": {
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatModelDto"
+            }
+          },
+          "selected": {
+            "type": "string",
+            "description": "The model a question without one goes to: the user's choice, else their default. Null when there is none.",
+            "nullable": true
+          },
+          "spent": {
+            "type": "number",
+            "description": "This month's spend on paid models; null when none of theirs is paid.",
+            "format": "double",
+            "nullable": true
+          },
+          "limit": {
+            "type": "number",
+            "description": "The monthly limit on it; null when none of theirs is paid.",
+            "format": "double",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "The site's chat models for the signed-in user: the ones they may use, the one their questions go to, and, when any of theirs is\npaid, this month's spend on them and its limit (US dollars)."
+      },
       "ChatRequestDto": {
         "required": [
           "history",
+          "model",
           "question"
         ],
         "type": "object",
@@ -9344,6 +9398,11 @@
               "$ref": "#/components/schemas/ChatTurnDto"
             },
             "description": "The conversation so far, oldest first: only its last GrifballWebApp.Application.Chat.GrifChat.HistoryLimit messages are read."
+          },
+          "model": {
+            "type": "string",
+            "description": "The model to answer (its ID); null: the user's choice, else their default.",
+            "nullable": true
           }
         },
         "additionalProperties": false,

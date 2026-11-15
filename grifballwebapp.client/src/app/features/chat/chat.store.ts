@@ -2,7 +2,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { DestroyRef, Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HubConnectionState, type HubConnection, type ISubscription } from '@microsoft/signalr';
-import type { ChatTurnDto } from '@api/models';
+import type { ChatModelsDto, ChatTurnDto } from '@api/models';
 import { AuthSession } from '@core/auth/authSession.service';
 import { hubLifecycle } from '@core/signalr/hubLifecycle';
 import { AppLog } from '@core/telemetry/appLog';
@@ -20,7 +20,13 @@ export const MAX_QUESTION_LENGTH = 2000;
 /** Where the tab keeps its conversation: the server keeps none, and it goes with the tab or a sign-in or out. */
 export const CHAT_STORAGE_KEY = 'grif-chat';
 
-export const NOT_CONNECTED = 'The chat is still connecting: try again in a moment.';
+/**
+ * How long after a stop the spend is loaded again: the server saves a stopped paid answer's cost only once its stream has
+ * wound down, a moment after the stop.
+ */
+export const STOP_SPEND_RELOAD_MS = 2000;
+
+export const NOT_CONNECTED ='The chat is still connecting: try again in a moment.';
 export const FAILED = "The chat couldn't answer just now: try again later.";
 
 /** What SignalR puts before a HubException's message, the reason the server gives the browser. */
@@ -69,8 +75,16 @@ function save(turns: ChatTurnDto[]): void {
 export class ChatStore {
   private readonly log = inject(AppLog);
   private readonly connection: HubConnection | null = isPlatformBrowser(inject(PLATFORM_ID))
-    ? hubLifecycle(CHAT_HUB_URL, { name: 'Chat hub' })
+    // Each time it comes up (as whoever is signed in now): the models they may use
+    ? hubLifecycle(CHAT_HUB_URL, { name: 'Chat hub', connected: () => void this.loadModels(this.connection!) })
     : null;
+
+  private readonly modelsState = signal<ChatModelsDto | null>(null);
+  /**
+   * The models the user may use, the one their questions go to, and their spend on paid ones this month: null until the
+   * connection is up.
+   */
+  readonly models = this.modelsState.asReadonly();
 
   private readonly turnsState = signal<ChatTurnDto[]>(this.connection ? load() : []);
   /** The conversation, oldest first; while an answer streams in, its last message is that answer so far. */
@@ -85,11 +99,16 @@ export class ChatStore {
   readonly error = this.errorState.asReadonly();
 
   private answer: ISubscription<string> | null = null;
+  /** The spend's reload after a stop, waiting for the server to save the stopped answer's cost. */
+  private spendReload: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     // Another user's conversation isn't theirs to see or continue
     inject(AuthSession).changed$.pipe(takeUntilDestroyed()).subscribe(() => this.clear());
-    inject(DestroyRef).onDestroy(() => this.answer?.dispose());
+    inject(DestroyRef).onDestroy(() => {
+      this.answer?.dispose();
+      clearTimeout(this.spendReload);
+    });
   }
 
   /**
@@ -104,11 +123,14 @@ export class ChatStore {
       this.errorState.set(NOT_CONNECTED);
       return false;
     }
+    const connection = this.connection;
+    // The model the picker shows: the server would choose the same, unless the user chose another elsewhere meanwhile
+    const model = this.models()?.selected;
     const history = this.turns().slice(-HISTORY_LIMIT).map(turn => ({ fromBot: turn.fromBot, text: turn.text.slice(0, MAX_HISTORY_MESSAGE_LENGTH) }));
     this.errorState.set(null);
     this.askingState.set(true);
     this.change(turns => [...turns, { fromBot: false, text }, { fromBot: true, text: '' }]);
-    this.answer = getHubProxyFactory('IChatHubServer').createHubProxy(this.connection).ask({ question: text, history }).subscribe({
+    this.answer = getHubProxyFactory('IChatHubServer').createHubProxy(connection).ask({ question: text, history, model: model ?? null }).subscribe({
       next: chunk => this.change(turns => [...turns.slice(0, -1), { fromBot: true, text: turns.at(-1)!.text + chunk }]),
       error: (error: unknown) => {
         const text = chatErrorText(error);
@@ -117,10 +139,46 @@ export class ChatStore {
           this.log.error('Chat: the answer failed', error);
         this.errorState.set(text);
         this.done();
+        // A paid answer is charged whether it was whole or not
+        this.loadSpend(connection);
       },
-      complete: () => this.done(),
+      complete: () => {
+        this.done();
+        this.loadSpend(connection);
+      },
     });
     return true;
+  }
+
+  /**
+   * The user chose `model` (its ID) for their questions, here and in a Discord DM: the server keeps it. Refused (a model
+   * they may not use), the error says why.
+   */
+  async choose(model: string): Promise<void> {
+    if (!this.connection || model === this.models()?.selected)
+      return;
+    try {
+      this.modelsState.set(await getHubProxyFactory('IChatHubServer').createHubProxy(this.connection).choose(model));
+    } catch (error: unknown) {
+      this.errorState.set(chatErrorText(error));
+      // The picker already shows the refused model: the user's models again, a new value, put it back
+      await this.loadModels(this.connection);
+    }
+  }
+
+  /** What the last answer cost, when the user has a paid model: their spend this month again. */
+  private loadSpend(connection: HubConnection): void {
+    if (this.models()?.spent != null)
+      void this.loadModels(connection);
+  }
+
+  /** The user's models from the server; left as they were when it can't say. */
+  private async loadModels(connection: HubConnection): Promise<void> {
+    try {
+      this.modelsState.set(await getHubProxyFactory('IChatHubServer').createHubProxy(connection).models());
+    } catch (error: unknown) {
+      this.log.error('Chat: the models failed to load', error);
+    }
   }
 
   /** Stops the answer on its way (the server stops writing it), keeping what came of it. */
@@ -129,6 +187,10 @@ export class ChatStore {
       return;
     this.answer?.dispose();
     this.done();
+    // A paid answer stopped is charged what it used so far, saved once it has wound down: its spend, a moment later
+    const connection = this.connection!;
+    clearTimeout(this.spendReload);
+    this.spendReload = setTimeout(() => this.loadSpend(connection), STOP_SPEND_RELOAD_MS);
   }
 
   /** A new conversation: the answer on its way stopped, and the questions and answers so far gone. */

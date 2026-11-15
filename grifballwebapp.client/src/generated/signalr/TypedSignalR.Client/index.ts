@@ -6,7 +6,7 @@ import type { HubConnection, IStreamResult, Subject } from '@microsoft/signalr';
 import type { IChatHubServer, IChatHubClient } from './GrifballWebApp.Server.Chat';
 import type { IQueueHubServer, IQueueHubClient } from './GrifballWebApp.Server.Matchmaking';
 import type { ITeamsHubServer, ITeamsHubClient } from './GrifballWebApp.Server.Teams';
-import type { ChatRequestDto } from '../GrifballWebApp.Application.Chat';
+import type { ChatRequestDto, ChatModelsDto } from '../GrifballWebApp.Application.Chat';
 import type { TeamResponseDto, PlayerDto, CaptainPlacementDto, RemoveCaptainDto, RemovePlayerFromTeamRequestDto, MovePlayerToTeamRequestDto, AddPlayerToTeamRequestDto, CaptainAddedDto } from '../GrifballWebApp.Application.Teams';
 
 
@@ -101,6 +101,14 @@ class IChatHubServer_HubProxy implements IChatHubServer {
 
     public readonly ask = (request: ChatRequestDto): IStreamResult<string> => {
         return this.connection.stream("Ask", request);
+    }
+
+    public readonly models = async (): Promise<ChatModelsDto> => {
+        return await this.connection.invoke("Models");
+    }
+
+    public readonly choose = async (model: string): Promise<ChatModelsDto> => {
+        return await this.connection.invoke("Choose", model);
     }
 }
 

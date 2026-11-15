@@ -152,14 +152,14 @@ public class DatabaseProviderUnitTests
 
     private static readonly string[] TablesWithoutHistory =
     [
-        "Discord.Outbox", "Event.HistoricalImportJobs", "Event.HistoricalSeasonReviews", "Event.HistoricalSourceSnapshots",
+        "Auth.ChatMonths", "Discord.Outbox", "Event.HistoricalImportJobs", "Event.HistoricalSeasonReviews", "Event.HistoricalSourceSnapshots",
         "Event.HistoricalSources", "Xbox.XuidLookups",
     ];
 
     // Every table keeps its rows' history but the background jobs' bookkeeping, whose rows churn and would grow it
     // without end: the outbox (sent messages deleted after their retention), the historical import's jobs (a heartbeat
     // every few seconds) and their reviews (deleted with them), its sources (each refresh stamps every one) and their
-    // snapshots (whole downloaded files), and the XUID lookups (a retry queue). A new table gets history unless it joins
+    // snapshots (whole downloaded files), and the XUID lookups (a retry queue), and the chat's monthly spend (every paid reply adds to it). A new table gets history unless it joins
     // them here.
     [Test]
     public void EveryTable_KeepsHistory_ButTheBackgroundJobsBookkeeping()

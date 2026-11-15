@@ -135,6 +135,8 @@ public class UserMergeService : IUserMergeService
             await LoadWhatDeletingCascadesTo(mergeFromId, ct);
             _context.Users.Remove(mergeFrom);
             await _recorder.SaveChangesAsync(ct);
+            // Not recorded: saved with the audit record, after the manifest is done
+            await TransferChat(mergeToId, mergeFromId, ct);
         }
 
         // The audit record, in the same transaction: every path to a merge writes one
@@ -420,6 +422,37 @@ public class UserMergeService : IUserMergeService
         var queued = await _context.QueuedPlayer.FirstOrDefaultAsync(QueuedPlayer.Of(mergeFrom.Id), ct);
         if (queued is not null)
             _context.QueuedPlayer.Remove(queued);
+    }
+
+    /// <summary>
+    /// A deleted source's chat spend joins the target's, month by month (<see cref="ChatMonth.TakeFrom"/>), so the target's monthly limit
+    /// counts it; the source's chosen model is the target's when the target chose none. Only when the source is deleted (they have no
+    /// foreign key, so it would leave them behind): a source kept keeps its own month and choice. Kept out of the merge's manifest
+    /// (saved with the audit record, not through the recorder): the target's month and choice change with every paid reply and pick,
+    /// and an undo refuses rows changed since, so they would soon block it. An undo therefore leaves the moved spend (and choice) with
+    /// the target: the restored source starts the month again at none spent.
+    /// </summary>
+    private async Task TransferChat(int mergeToId, int mergeFromId, CancellationToken ct)
+    {
+        var months = await _context.ChatMonths.Where(m => m.UserID == mergeFromId || m.UserID == mergeToId).ToListAsync(ct);
+        foreach (var from in months.Where(m => m.UserID == mergeFromId))
+        {
+            var to = months.FirstOrDefault(m => m.UserID == mergeToId && m.Month == from.Month);
+            if (to is null)
+            {
+                to = ChatMonth.Begin(mergeToId, from.Month);
+                _context.ChatMonths.Add(to);
+            }
+            to.TakeFrom(from);
+            _context.ChatMonths.Remove(from);
+        }
+
+        var choices = await _context.ChatChoices.Where(c => c.UserID == mergeFromId || c.UserID == mergeToId).ToListAsync(ct);
+        if (choices.FirstOrDefault(c => c.UserID == mergeFromId) is not { } chosen)
+            return;
+        if (choices.All(c => c.UserID != mergeToId))
+            _context.ChatChoices.Add(ChatChoice.Make(mergeToId, chosen.Model));
+        _context.ChatChoices.Remove(chosen);
     }
 
     /// <summary>Reschedule requests the source made or decided are the target's (both foreign keys are restricted).</summary>

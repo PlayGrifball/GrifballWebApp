@@ -15,7 +15,7 @@ using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Infrastructure.Matchmaking;
-using GrifballWebApp.Infrastructure.Ollama;
+using GrifballWebApp.Infrastructure.Chat;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Infrastructure.Preview;
 using GrifballWebApp.Application.SeasonMatchPage;
@@ -188,8 +188,9 @@ public static class InfrastructureServiceCollectionExtensions
             services.AddTransient<IGetsertXboxUserService, PreviewSmokeXboxUsers>();
         else
             services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
-        // The chats' model (GrifChat): Ollama. Another provider is another IChatClientFactory here, and nothing else changes
-        services.AddOllamaChat();
+        // The chats' models (GrifChat): Ollama's and Claude's, one factory for both (ChatClients). Another provider is another
+        // ChatProvider there, not another IChatClientFactory here: a second registration would replace it
+        services.AddChatModels(configuration);
         return services;
     }
 

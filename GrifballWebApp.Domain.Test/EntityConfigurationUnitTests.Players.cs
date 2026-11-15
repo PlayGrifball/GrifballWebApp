@@ -54,6 +54,39 @@ public partial class EntityConfigurationUnitTests
     }
 
     [Test]
+    public void ChatChoiceConfiguration_OneAUser()
+    {
+        var entity = Configured(new ChatChoiceConfiguration());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TableOf(entity), Is.EqualTo(("Auth", "ChatChoices")));
+            Assert.That(entity.IsTemporal(), Is.True);
+            Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(ChatChoice.UserID) }));
+            Assert.That(ValueGeneratedOf(entity, nameof(ChatChoice.UserID)), Is.EqualTo(ValueGenerated.Never), "The user's ID");
+            Assert.That((NullableOf(entity, nameof(ChatChoice.Model)), MaxLengthOf(entity, nameof(ChatChoice.Model))),
+                Is.EqualTo(((bool?)false, (int?)ChatChoice.ModelMaxLength)));
+            Assert.That(entity.GetForeignKeys(), Is.Empty);
+        }
+    }
+
+    [Test]
+    public void ChatMonthConfiguration_KeyChecksAndConcurrency()
+    {
+        var entity = Configured(new ChatMonthConfiguration());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TableOf(entity), Is.EqualTo(("Auth", "ChatMonths")));
+            Assert.That(entity.IsTemporal(), Is.False, "Every paid reply adds to its row: its history would grow without end");
+            Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(ChatMonth.UserID), nameof(ChatMonth.Month) }), "One row a user a month");
+            Assert.That(entity.FindCheckConstraint("CK_Auth_ChatMonths_NotNegative")!.Sql, Is.EqualTo(ChatMonthConfiguration.NotNegative));
+            Assert.That(Property(entity, nameof(ChatMonth.Version)).IsConcurrencyToken, Is.True, "Two replies saved at once can't both add to one total");
+            Assert.That(entity.GetForeignKeys(), Is.Empty, "No foreign key: a month's spend stays, whatever becomes of its user");
+        }
+    }
+
+    [Test]
     public void XboxGamertagHistoryConfiguration_ChecksLengthsAndIndexes()
     {
         var entity = Configured(new XboxGamertagHistoryConfiguration());

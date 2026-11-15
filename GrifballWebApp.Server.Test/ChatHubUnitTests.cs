@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
@@ -46,7 +47,8 @@ public class ChatHubUnitTests
     /// </summary>
     private ChatHub Hub(IChatClient model, HubUserState? user = null, ClaimsPrincipal? claims = null, string address = "203.0.113.9")
     {
-        _clients.Create().Returns(model);
+        _clients.Models.Returns([new ChatModelOption("ollama", "llama3.2:3b", ChatProvider.Ollama, "llama3.2:3b")]);
+        _clients.Create(Arg.Any<ChatModelOption>()).Returns(model);
         _clients.Available.Returns(true);
         var http = new DefaultHttpContext();
         http.Connection.RemoteIpAddress = IPAddress.Parse(address);
@@ -58,7 +60,7 @@ public class ChatHubUnitTests
         context.Features.Returns(features);
         var now = new HubUser();
         now.Set(user ?? HubUserState.Anonymous);
-        return new ChatHub(new GrifChat(new ChatModel(_clients, NullLoggerFactory.Instance), Substitute.For<IServiceScopeFactory>(), _limits), now, _ambient, _logger) { Context = context };
+        return new ChatHub(new GrifChat(new ChatModel(_clients, NullLoggerFactory.Instance), Substitute.For<IServiceScopeFactory>(), _limits, new ChatAccounts(Substitute.For<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ChatAccounts>.Instance)), now, _ambient, _logger) { Context = context };
     }
 
     private static ChatRequestDto Question(string question = "Who won?", params ChatTurnDto[] history) => new() { Question = question, History = [.. history] };
@@ -172,6 +174,35 @@ public class ChatHubUnitTests
     }
 
     [Test]
+    public async Task Models_SignedOut_TheModelAnyoneMayUse_WithNoSpend()
+    {
+        var models = await Hub(new ScriptedChatClient()).Models();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(models.Models.Select(m => (m.Id, m.Name)), Is.EqualTo(new[] { ("ollama", "llama3.2:3b") }));
+            Assert.That((models.Selected, models.Spent, models.Limit), Is.EqualTo(("ollama", (decimal?)null, (decimal?)null)));
+        }
+    }
+
+    [Test]
+    public void Choose_SignedOut_IsRefused_ToTheBrowser()
+    {
+        var hub = Hub(new ScriptedChatClient());
+
+        Assert.That(async () => await hub.Choose("ollama"), Throws.TypeOf<HubException>().With.Message.EqualTo(GrifChat.NotYours));
+    }
+
+    [Test]
+    public async Task Ask_AModelNotTheirs_IsRefused_ToTheBrowser()
+    {
+        var (_, error) = await Read(await Hub(new ScriptedChatClient()).Ask(Question() with { Model = "claude-opus" }, CancellationToken.None));
+
+        Assert.That(error, Is.EqualTo(GrifChat.NotYours));
+        _clients.DidNotReceive().Create(Arg.Any<ChatModelOption>());
+    }
+
+    [Test]
     public async Task Ask_NoModelConfigured_SaysTheChatIsUnavailable()
     {
         var hub = Hub(new ScriptedChatClient((TimeSpan.Zero, "Never")));
@@ -184,7 +215,7 @@ public class ChatHubUnitTests
             Assert.That(error, Is.EqualTo(GrifChat.Unavailable));
             Assert.That(texts, Is.Empty);
         }
-        _clients.DidNotReceive().Create();
+        _clients.DidNotReceive().Create(Arg.Any<ChatModelOption>());
     }
 
     [TestCase("")]
@@ -194,7 +225,7 @@ public class ChatHubUnitTests
         var (_, error) = await Read(await Hub(new ScriptedChatClient()).Ask(Question(question), CancellationToken.None));
 
         Assert.That(error, Is.EqualTo("Ask a question."));
-        _clients.DidNotReceive().Create();
+        _clients.DidNotReceive().Create(Arg.Any<ChatModelOption>());
     }
 
     [Test]
@@ -301,6 +332,47 @@ public class ChatHubUnitTests
         {
             Assert.That(error, Is.EqualTo(GrifChat.TookTooLong));
             Assert.That(_logger.Entries, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task Ask_StartingTheReplyFails_TellsTheBrowserItCouldNotAnswer_AndLogsWhy()
+    {
+        var hub = Hub(new ScriptedChatClient((TimeSpan.Zero, "Never")), new HubUserState(7, []));
+        // The models read as the reply starts (as the user's choice and month are, from the database): it fails
+        _clients.Models.Returns(_ => throw new InvalidOperationException("The database is down"));
+
+        var (texts, error) = await Read(await hub.Ask(Question(), CancellationToken.None));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(error, Is.EqualTo(ChatHub.Failed));
+            Assert.That(texts, Is.Empty);
+            Assert.That(_logger.Entries.Single().Exception, Is.TypeOf<InvalidOperationException>());
+            Assert.That(_logger.Entries.Single().Level, Is.EqualTo(LogLevel.Error));
+            Assert.That(_logger.Entries.Single().Message, Does.Contain("user 7"));
+        }
+    }
+
+    [Test]
+    public async Task Ask_StoppedWhileTheReplyStarts_EndsTheStreamQuietly()
+    {
+        using var browser = new CancellationTokenSource();
+        var hub = Hub(new ScriptedChatClient((TimeSpan.Zero, "Never")));
+        // The user presses Stop while the reply's start reads the database
+        _clients.Models.Returns(_ =>
+        {
+            browser.Cancel();
+            throw new OperationCanceledException(browser.Token);
+        });
+
+        var (texts, error) = await Read(await hub.Ask(Question(), browser.Token));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(error, Is.Null, "No error for a question the user stopped");
+            Assert.That(texts, Is.Empty);
+            Assert.That(_logger.Entries, Is.Empty, "A stop is no failure");
         }
     }
 

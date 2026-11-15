@@ -45,13 +45,16 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
 
 /// <summary>
 /// The chat with the league's model, the same for every host (the Discord bot's <c>MessageCreateHandler</c>, the site's
-/// <c>ChatHub</c>), on Microsoft.Extensions.AI: the provider is <see cref="IChatClientFactory"/>'s registration's alone, traced as <see cref="ChatModel"/> says. A host keeps
-/// the conversation, <see cref="Start"/>s a reply and shows it; all the rest is here, so no host can skip it: the question's and
-/// the history's limits, the asker's (<see cref="ChatLimits"/>), the instructions, the host's tools as the caller, called for the
-/// model until it answers, and the time a reply may take.
+/// <c>ChatHub</c>), on Microsoft.Extensions.AI: the providers are <see cref="IChatClientFactory"/>'s registration's alone, each model traced
+/// as <see cref="ChatModel"/> says. A host keeps the conversation, <see cref="StartAsync"/>s a reply and shows it; all the rest is here,
+/// so no host can skip it: the question's and the history's limits, the model (the ones the caller's roles allow, their choice, their
+/// monthly spend on paid ones), the asker's limits (<see cref="ChatLimits"/>), the instructions, the host's tools as the caller, called
+/// for the model until it answers, the time a reply may take, and what a paid reply cost.
 /// </summary>
-public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatLimits limits)
+public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatLimits limits, ChatAccounts accounts)
 {
+    private ChatAccounts Accounts { get; } = accounts;
+
     /// <summary>How many of the conversation's earlier messages the model is sent with a new one.</summary>
     public const int HistoryLimit = 25;
 
@@ -76,8 +79,11 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
     /// <summary>What a host says for a question over <see cref="MaxQuestionLength"/>.</summary>
     public static readonly string TooLong = $"Ask in {MaxQuestionLength} characters or fewer.";
 
+    /// <summary>What a host says for a model the caller may not use there (or that isn't configured).</summary>
+    public const string NotYours = "That model isn't one you can use here: choose another.";
+
     /// <summary>What the chat says in place of an answer to a question it never asked the model.</summary>
-    private static readonly string[] Refused = [Unavailable, Unreadable, NoQuestion, TooLong, ChatLimits.Busy, ChatLimits.TooMany, ChatLimits.Full];
+    private static readonly string[] Refused = [Unavailable, Unreadable, NoQuestion, TooLong, NotYours, ChatLimits.Busy, ChatLimits.TooMany, ChatLimits.Full, ChatLimits.MonthlyLimitReached];
 
     /// <summary>Whether <paramref name="text"/> is a refusal the chat gave in place of an answer, or of the rest of one.</summary>
     public static bool IsRefusal(string text) => text == TookTooLong || Refused.Contains(text);
@@ -170,30 +176,114 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
     }
 
     /// <summary>
-    /// A reply to <paramref name="question"/>, after <paramref name="history"/>, on <paramref name="host"/>, for
-    /// <paramref name="asker"/> (<see cref="ChatLimits.Asker"/>): its slot taken now, held until the reply is done or disposed, or the
-    /// asker stops waiting (<paramref name="cancellationToken"/>: freed that moment, so they may ask again at once, however long the
-    /// reply takes to wind down). A <see cref="ChatRefusedException"/>, saying why, when there is no model, the question can't be
-    /// asked, or the asker's limits are reached.
+    /// The models <paramref name="caller"/> may use on <paramref name="host"/>, in their configured order (the first is their default):
+    /// in private, each their roles allow; in public (a Discord channel), only the first anyone may use, whoever asks.
     /// </summary>
-    public ChatReply Start(IEnumerable<ChatMessage> history, string question, ToolCaller caller, ChatHost host, string asker,
-        CancellationToken cancellationToken = default)
+    public IReadOnlyList<ChatModelOption> Allowed(ToolCaller caller, ChatHost host)
+        => host.InPublic
+            ? Model.Models.Where(m => m.IsOpen).Take(1).ToList()
+            : Model.Models.Where(m => m.AllowsRoles(caller.Roles)).ToList();
+
+    /// <summary>
+    /// The model a question from <paramref name="caller"/> on <paramref name="host"/> goes to: <paramref name="requested"/> (a model's ID),
+    /// else the one they chose (<see cref="ChatAccounts.ChoiceAsync"/>, while they may still use it), else their default. A
+    /// <see cref="ChatRefusedException"/> when they may use none (<see cref="Unavailable"/>) or not the one requested (<see cref="NotYours"/>).
+    /// </summary>
+    public async Task<ChatModelOption> ModelForAsync(ToolCaller caller, ChatHost host, string? requested = null, CancellationToken ct = default)
+    {
+        var allowed = Allowed(caller, host);
+        if (allowed.Count == 0)
+            throw new ChatRefusedException(Unavailable);
+        if (requested is not null)
+            return allowed.FirstOrDefault(m => m.Id == requested) ?? throw new ChatRefusedException(NotYours);
+        // A choice only matters among several: with one model, none is read
+        if (allowed.Count > 1 && caller.UserID is { } userId && await Accounts.ChoiceAsync(userId, ct) is { } chosen
+            && allowed.FirstOrDefault(m => m.Id == chosen) is { } model)
+            return model;
+        return allowed[0];
+    }
+
+    /// <summary>
+    /// The site's models for <paramref name="caller"/> (<see cref="Allowed"/>), the one their questions go to, and, when any is paid, this
+    /// month's spend and its limit.
+    /// </summary>
+    public async Task<ChatModelsDto> ModelsAsync(ToolCaller caller, CancellationToken ct = default)
+    {
+        var allowed = Allowed(caller, ChatHost.Site);
+        var selected = allowed.Count == 0 ? null : await ModelForAsync(caller, ChatHost.Site, ct: ct);
+        var paid = caller.UserID is not null && allowed.Any(m => m.Price is not null);
+        return new ChatModelsDto
+        {
+            Models = allowed.Select(m => new ChatModelDto { Id = m.Id, Name = m.Name }).ToList(),
+            Selected = selected?.Id,
+            Spent = paid ? (await Accounts.MonthAsync(caller.UserID!.Value, ct)).Spent : null,
+            Limit = paid ? limits.MonthlyLimit : null,
+        };
+    }
+
+    /// <summary>
+    /// <paramref name="caller"/> chose <paramref name="model"/> (its ID) for their questions, on the site and in a Discord DM. A
+    /// <see cref="ChatRefusedException"/> (<see cref="NotYours"/>) when they aren't signed in, or may not use it.
+    /// </summary>
+    public async Task ChooseAsync(ToolCaller caller, string model, CancellationToken ct = default)
+    {
+        if (caller.UserID is not { } userId || Allowed(caller, ChatHost.Site).All(m => m.Id != model))
+            throw new ChatRefusedException(NotYours);
+        await Accounts.ChooseAsync(userId, model, ct);
+    }
+
+    /// <summary>
+    /// A reply to <paramref name="question"/>, after <paramref name="history"/>, on <paramref name="host"/>, for
+    /// <paramref name="asker"/> (<see cref="ChatLimits.Asker"/>), from <paramref name="model"/> (a model's ID; null: the caller's,
+    /// <see cref="ModelForAsync"/>): its slot taken now, held until the reply is done or disposed, or the asker stops waiting
+    /// (<paramref name="cancellationToken"/>: freed that moment, so they may ask again at once, however long the reply takes to wind
+    /// down). A <see cref="ChatRefusedException"/>, saying why, when there is no model, the question can't be asked, the model isn't
+    /// theirs, a paid one's monthly limit is reached (<see cref="ChatLimits.MonthlyLimit"/>), or the asker's limits are.
+    /// </summary>
+    public async Task<ChatReply> StartAsync(IEnumerable<ChatMessage> history, string question, ToolCaller caller, ChatHost host, string asker,
+        string? model = null, CancellationToken cancellationToken = default)
     {
         if (!Available)
             throw new ChatRefusedException(Unavailable);
         if (Refusal(question) is { } refused)
             throw new ChatRefusedException(refused);
+        // The asker's limits first, in memory: a question they may not ask now costs no database read
         var (slot, limited) = limits.TryStart(asker);
         if (slot is null)
             throw new ChatRefusedException(limited!);
-        return new ChatReply(Model, Scopes, Conversation(history, question), caller with { InPublic = host.InPublic }, host, slot, cancellationToken);
+        ChatModelOption answering;
+        decimal? budget = null;
+        try
+        {
+            answering = await ModelForAsync(caller, host, model, cancellationToken);
+            if (answering.Price is not null)
+            {
+                // A paid model is for a signed-in user's roles: they pay for it from their month, and the reply may spend what is left
+                if (caller.UserID is not { } userId)
+                    throw new ChatRefusedException(NotYours);
+                var month = await Accounts.MonthAsync(userId, cancellationToken);
+                if (month.Reached(limits.MonthlyLimit))
+                    throw new ChatRefusedException(ChatLimits.MonthlyLimitReached);
+                // Read once a reply: replies started at once in other processes (replicas, the Discord bot) each see the same, so the
+                // month can go over by at most one reply's calls a process (ChatModel.MaxModelCalls, each MaxOutputTokens at most)
+                budget = month.Remaining(limits.MonthlyLimit);
+            }
+        }
+        catch
+        {
+            // Refused after all (or failed): the asker may ask again at once
+            slot.Dispose();
+            throw;
+        }
+        return new ChatReply(Model, Scopes, Conversation(history, question), caller with { InPublic = host.InPublic }, host, slot, answering, Accounts,
+            budget, cancellationToken);
     }
 }
 
-/// <summary>A reply <see cref="GrifChat.Start"/>ed: <see cref="StreamAsync"/> it, then dispose it to free the asker's slot.</summary>
+/// <summary>A reply <see cref="GrifChat.StartAsync"/>ed: <see cref="StreamAsync"/> it, then dispose it to free the asker's slot.</summary>
 public sealed class ChatReply : IDisposable
 {
-    private readonly ChatModel _model;
+    private readonly ChatModel _pipelines;
     private readonly IServiceScopeFactory _scopes;
     private readonly List<ChatMessage> _conversation;
     private readonly ToolCaller _caller;
@@ -201,30 +291,49 @@ public sealed class ChatReply : IDisposable
     private readonly IDisposable _slot;
     private readonly CancellationTokenRegistration _freedWhenStopped;
 
-    internal ChatReply(ChatModel model, IServiceScopeFactory scopes, List<ChatMessage> conversation, ToolCaller caller, ChatHost host, IDisposable slot,
-        CancellationToken stopped)
+    /// <summary>What is left of the caller's month for a paid reply (US dollars); null for a free one.</summary>
+    private readonly decimal? _budget;
+
+    internal ChatReply(ChatModel pipelines, IServiceScopeFactory scopes, List<ChatMessage> conversation, ToolCaller caller, ChatHost host, IDisposable slot,
+        ChatModelOption model, ChatAccounts accounts, decimal? budget, CancellationToken stopped)
     {
-        _model = model;
+        _pipelines = pipelines;
+        Model = model;
+        Accounts = accounts;
+        _budget = budget;
         _scopes = scopes;
         _conversation = conversation;
         _caller = caller;
         _host = host;
         _slot = slot;
-        _freedWhenStopped = stopped.Register(slot.Dispose);
+        // A paid reply frees it only once its cost is saved: the next question's limit sees it
+        _freedWhenStopped = model.Price is null ? stopped.Register(slot.Dispose) : default;
     }
 
     /// <summary>What the model is sent: the history's last messages, cut to their limit, then the question.</summary>
     public IReadOnlyList<ChatMessage> Conversation => _conversation;
+
+    /// <summary>The model that answers.</summary>
+    public ChatModelOption Model { get; }
+
+    /// <summary>Where a paid reply's cost goes (the caller's month).</summary>
+    private ChatAccounts Accounts { get; }
 
     /// <summary>
     /// The model's reply, as it streams in. It is given the host's tools the caller may use (<see cref="GrifTools.AIFunctions"/>:
     /// each call in a scope of its own, a refusal its result), and they are called for it until it answers. Past the host's
     /// <see cref="ChatHost.Timeout"/>, a <see cref="ChatRefusedException"/> (<see cref="GrifChat.TookTooLong"/>). Canceled by
     /// <paramref name="cancellationToken"/> (the asker stopped waiting), the slot is freed at once, not once the reply has wound down.
+    /// A paid model's reply, whole or not, has its cost added to the caller's month (<see cref="ChatPrice.CostMicros"/> of every model
+    /// call's usage, the tool calls' rounds included) before the slot is freed, so their next question sees it. A call cut short before
+    /// the provider said what it used (the asker stopped, the time ran out: Anthropic's client reports a call's usage as it ends) is
+    /// charged an estimate, <see cref="CharactersPerToken"/>: what was sent and what it wrote so far. A cost that fails to save is
+    /// logged, and the reply stands as it was.
     /// </summary>
     public async IAsyncEnumerable<string> StreamAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        using var freed = cancellationToken.Register(_slot.Dispose);
+        using var freed = Model.Price is null ? cancellationToken.Register(_slot.Dispose) : default;
+        var spent = new Spending(this);
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -232,21 +341,124 @@ public sealed class ChatReply : IDisposable
             // The tool calls are ours, not the provider's (ChatModel's function invocation): any model the factory gives gets them. The
             // model is shared: not disposed. Its spans are in the trace current where the reply streams (the hub call's, flowing into
             // its task; the Discord message's)
-            var client = _model.Create();
-            var tools = GrifTools.AIFunctions(_scopes, _caller, _host.Tools, _model.ToolLog, _model.SensitiveData);
-            var options = new ChatOptions { Instructions = GrifChat.Instructions(_host), Tools = tools };
+            var client = _pipelines.Create(Model);
+            var tools = GrifTools.AIFunctions(_scopes, _caller, _host.Tools, _pipelines.ToolLog, _pipelines.SensitiveData);
+            var options = new ChatOptions { Instructions = GrifChat.Instructions(_host), Tools = tools, MaxOutputTokens = Model.MaxOutputTokens };
             await using var updates = client.GetStreamingResponseAsync(_conversation, options, timeout.Token).GetAsyncEnumerator(timeout.Token);
             while (await NextAsync(updates, timeout, cancellationToken))
+            {
+                // The month's limit reached within the reply: no next call
+                if (spent.Add(updates.Current))
+                    throw new ChatRefusedException(ChatLimits.MonthlyLimitReached);
                 yield return updates.Current.Text;
+            }
             // A provider may end its stream quietly when canceled: past the timeout, that is no whole answer either
             if (timeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
                 throw new ChatRefusedException(GrifChat.TookTooLong);
         }
         finally
         {
-            // Done, failed or abandoned: the asker may ask again
-            _slot.Dispose();
+            try
+            {
+                // What it cost so far, whether it finished or not: not canceled with the asker, it was spent all the same
+                if (Model.Price is { } price && _caller.UserID is { } payer && spent.Total() is { } usage && price.CostMicros(usage) > 0)
+                {
+                    await Accounts.TryRecordAsync(payer, price.CostMicros(usage), usage.InputTokenCount ?? 0, usage.OutputTokenCount ?? 0);
+                }
+            }
+            finally
+            {
+                // Done, failed or abandoned: the asker may ask again
+                _slot.Dispose();
+            }
         }
+    }
+
+    /// <summary>The characters a token is taken to hold when a call's usage must be estimated: fewer than most text has, so not too little.</summary>
+    public const int CharactersPerToken = 3;
+
+    /// <summary>
+    /// What a reply's calls used, as their usage comes in (Anthropic's as each call ends), and whether the latest call is still under
+    /// way without it: then <see cref="Total"/> adds an estimate for it.
+    /// </summary>
+    private sealed class Spending(ChatReply reply)
+    {
+        private readonly UsageDetails _usage = new();
+        private bool _pending;
+        private long _lastInput;
+        private long _written;
+        private bool _spentUp;
+
+        /// <summary>
+        /// The update's usage, or what its call wrote; true when the model starts another call though the reply's calls already cost what
+        /// was left of the month (an answer that ends there is whole: no reason to refuse it).
+        /// </summary>
+        public bool Add(ChatResponseUpdate update)
+        {
+            var used = update.Contents.OfType<UsageContent>().ToList();
+            if (used.Count == 0)
+            {
+                // The model's own (a tool's result is ours, before the next call): its call is under way, and billed even when the
+                // month's limit stops it here (the provider already has what it was sent): counted before it is stopped
+                if (update.Contents.Any(c => c is not FunctionResultContent))
+                {
+                    _pending = true;
+                    _written += Written(update.Contents);
+                    return _spentUp;
+                }
+                return false;
+            }
+            foreach (var call in used)
+            {
+                _usage.Add(call.Details);
+                _lastInput = call.Details.InputTokenCount ?? _lastInput;
+            }
+            _pending = false;
+            _written = 0;
+            _spentUp = reply.Model.Price is { } price && reply._budget is { } budget && price.CostMicros(_usage) >= budget * 1_000_000m;
+            return false;
+        }
+
+        /// <summary>
+        /// All the calls' usage, with a call the provider never said the use of estimated (<see cref="CharactersPerToken"/>): in, the
+        /// instructions and the conversation sent (or the last call's input, the larger: it grows with each tool round), out, what it
+        /// wrote so far.
+        /// </summary>
+        public UsageDetails Total()
+        {
+            if (!_pending)
+                return _usage;
+            var sent = (GrifChat.Instructions(reply._host).Length + reply._conversation.Sum(m => (long)m.Text.Length)) / CharactersPerToken;
+            _usage.Add(new UsageDetails { InputTokenCount = Math.Max(sent, _lastInput), OutputTokenCount = _written / CharactersPerToken });
+            _pending = false;
+            return _usage;
+        }
+    }
+
+    /// <summary>The characters a model wrote in <paramref name="contents"/>: its text, its thinking and its tool calls' arguments.</summary>
+    internal static long Written(IEnumerable<AIContent> contents)
+    {
+        long written = 0;
+        foreach (var content in contents)
+        {
+            written += content switch
+            {
+                TextContent text => text.Text.Length,
+                TextReasoningContent thinking => thinking.Text.Length,
+                FunctionCallContent call => call.Name.Length + Written(call.Arguments),
+                _ => 0,
+            };
+        }
+        return written;
+    }
+
+    /// <summary>A tool call's arguments' characters, names and values.</summary>
+    private static long Written(IDictionary<string, object?>? arguments)
+    {
+        long written = 0;
+        foreach (var (name, value) in arguments ?? new Dictionary<string, object?>())
+            written += name.Length + (value?.ToString()?.Length ?? 0);
+        return written;
     }
 
     /// <summary>The next update, if any; the host's timeout as <see cref="GrifChat.TookTooLong"/>.</summary>

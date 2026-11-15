@@ -27,6 +27,24 @@
     <p class="chat__error" role="alert">{{ error }}</p>
   }
 
+  @if (picker() || spend()) {
+    <div class="chat__model">
+      @if (picker(); as models) {
+        <mat-form-field appearance="outline">
+          <mat-label>Model</mat-label>
+          <mat-select [value]="models.selected" (selectionChange)="choose($event.value)" [disabled]="asking()">
+            @for (model of models.models; track model.id) {
+              <mat-option [value]="model.id">{{ model.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
+      @if (spend(); as cost) {
+        <span class="chat__spend">{{ cost.spent | currency: 'USD' }} of {{ cost.limit | currency: 'USD' }} this month</span>
+      }
+    </div>
+  }
+
   <form class="chat__form" [formGroup]="form" (ngSubmit)="ask()">
     <mat-form-field appearance="outline" class="app-full-width">
       <mat-label>Your question</mat-label>

@@ -5585,6 +5585,90 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasAnnotation("Grif:HistoryOf", "VodTeams");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.ChatChoice", b =>
+                {
+                    b.Property<int>("UserID")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
+                    b.HasKey("UserID");
+
+                    b.ToTable("ChatChoices", "Auth");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.ChatChoice.History", b =>
+                {
+                    b.Property<string>("Model")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("Model")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("UserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserID");
+
+                    b.HasIndex("UserID", "PeriodEnd");
+
+                    b.ToTable("ChatChoicesHistory", "Auth");
+
+                    b.HasAnnotation("Grif:HistoryOf", "ChatChoices");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.ChatMonth", b =>
+                {
+                    b.Property<int>("UserID")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<long>("CostMicros")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("InputTokens")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("OutputTokens")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Replies")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("UserID", "Month");
+
+                    b.ToTable("ChatMonths", "Auth", t =>
+                        {
+                            t.HasCheckConstraint("CK_Auth_ChatMonths_NotNegative", "\"CostMicros\" >= 0 AND \"InputTokens\" >= 0 AND \"OutputTokens\" >= 0 AND \"Replies\" >= 0");
+                        });
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.Players.DiscordUser", b =>
                 {
                     b.Property<long>("DiscordUserID")

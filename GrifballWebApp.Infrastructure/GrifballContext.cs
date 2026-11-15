@@ -49,6 +49,8 @@ public class GrifballContext :
     public virtual DbSet<HistoricalImportSettings> HistoricalImportSettings { get; set; }
     public virtual DbSet<UserMerge> UserMerges { get; set; }
     public virtual DbSet<DuplicateDismissal> DuplicateDismissals { get; set; }
+    public virtual DbSet<ChatMonth> ChatMonths { get; set; }
+    public virtual DbSet<ChatChoice> ChatChoices { get; set; }
     public virtual DbSet<Vod> Vods { get; set; }
     public virtual DbSet<SeasonMatch> SeasonMatches { get; set; }
     public virtual DbSet<SeasonSignup> SeasonSignups { get; set; }
@@ -157,6 +159,8 @@ public class GrifballContext :
         builder.ApplyConfiguration(new HistoricalSeasonReviewConfiguration());
         builder.ApplyConfiguration(new UserMergeConfiguration());
         builder.ApplyConfiguration(new DuplicateDismissalConfiguration());
+        builder.ApplyConfiguration(new ChatMonthConfiguration());
+        builder.ApplyConfiguration(new ChatChoiceConfiguration());
         builder.ApplyConfiguration(new VodConfiguration());
         builder.ApplyConfiguration(new VodTeamConfiguration());
         builder.ApplyConfiguration(new SeasonAvailabilityConfiguration());

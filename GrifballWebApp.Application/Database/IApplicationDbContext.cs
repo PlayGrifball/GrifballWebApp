@@ -38,6 +38,8 @@ public interface IApplicationDbContext
     DbSet<HistoricalImportSettings> HistoricalImportSettings { get; }
     DbSet<UserMerge> UserMerges { get; }
     DbSet<DuplicateDismissal> DuplicateDismissals { get; }
+    DbSet<ChatMonth> ChatMonths { get; }
+    DbSet<ChatChoice> ChatChoices { get; }
     DbSet<Vod> Vods { get; }
     DbSet<SeasonMatch> SeasonMatches { get; }
     DbSet<SeasonSignup> SeasonSignups { get; }

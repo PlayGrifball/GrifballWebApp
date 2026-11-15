@@ -33,7 +33,7 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
 
     public const string Failed = "The chat couldn't answer just now: try again later.";
 
-    public Task<ChannelReader<string>> Ask(ChatRequestDto request, CancellationToken cancellationToken)
+    public async Task<ChannelReader<string>> Ask(ChatRequestDto request, CancellationToken cancellationToken)
     {
         var reply = Channel.CreateUnbounded<string>();
         if (GrifChat.Refusal(request) is { } refused)
@@ -42,8 +42,8 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
         ChatReply started;
         try
         {
-            started = chat.Start(GrifChat.History(request), request.Question, caller, ChatHost.Site,
-                ChatLimits.Asker(caller, ChatLimits.Address(Context.GetHttpContext()?.Connection.RemoteIpAddress)),
+            started = await chat.StartAsync(GrifChat.History(request), request.Question, caller, ChatHost.Site,
+                ChatLimits.Asker(caller, ChatLimits.Address(Context.GetHttpContext()?.Connection.RemoteIpAddress)), request.Model,
                 // The page's Stop cancels it: the user may ask again at once
                 cancellationToken);
         }
@@ -51,20 +51,53 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
         {
             return Refuse(reply, e.Message);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Stopped while the reply started (reading the user's choice and month): no one to tell, nothing failed
+            reply.Writer.TryComplete();
+            return reply.Reader;
+        }
+        catch (Exception e)
+        {
+            // The database failed as the reply started: the browser is told, as for a reply that fails, not given SignalR's own error
+            logger.LogError(e, "The site's chat failed to start answering user {UserId}", caller.UserID);
+            return Refuse(reply, Failed);
+        }
 
         // On its own: the reply streams after this returns, and the ambient user is set for it alone
         _ = Task.Run(() => ReplyAsync(reply.Writer, started, caller, cancellationToken), CancellationToken.None);
-        return Task.FromResult(reply.Reader);
+        return reply.Reader;
+    }
+
+    /// <summary>The models the user may use here, the one their questions go to, and their spend this month (<see cref="GrifChat.ModelsAsync"/>).</summary>
+    public Task<ChatModelsDto> Models() => chat.ModelsAsync(user.AsToolCaller(), Context.ConnectionAborted);
+
+    /// <summary>
+    /// The user chose <paramref name="model"/> for their questions, here and in a Discord DM: their models then, as <see cref="Models"/>.
+    /// Refused (a HubException) when they aren't signed in, or may not use it.
+    /// </summary>
+    public async Task<ChatModelsDto> Choose(string model)
+    {
+        var caller = user.AsToolCaller();
+        try
+        {
+            await chat.ChooseAsync(caller, model, Context.ConnectionAborted);
+        }
+        catch (ChatRefusedException e)
+        {
+            throw new HubException(e.Message);
+        }
+        return await chat.ModelsAsync(caller, Context.ConnectionAborted);
     }
 
     /// <summary>
     /// A refusal, as the stream's error the browser shows: not thrown, so the hubs' error log (ExceptionLogHubFilter) doesn't take
     /// a question asked too often for a fault.
     /// </summary>
-    private static Task<ChannelReader<string>> Refuse(Channel<string> reply, string why)
+    private static ChannelReader<string> Refuse(Channel<string> reply, string why)
     {
         reply.Writer.TryComplete(new HubException(why));
-        return Task.FromResult(reply.Reader);
+        return reply.Reader;
     }
 
     /// <summary>
@@ -115,9 +148,15 @@ public interface IChatHubServer
     /// <summary>
     /// The chat's answer to a question, streamed as it is written. Refused (a HubException saying why) when there is no model, the
     /// question is empty or too long, the conversation can't be read, a reply is already under way for the user, or they have asked too
-    /// many this minute.
+    /// many this minute, or the model asked for isn't theirs, or a paid model's monthly limit is reached.
     /// </summary>
     Task<ChannelReader<string>> Ask(ChatRequestDto request, CancellationToken cancellationToken);
+
+    /// <summary>The models the user may use, the one their questions go to, and their spend on paid ones this month.</summary>
+    Task<ChatModelsDto> Models();
+
+    /// <summary>The user chose a model for their questions (here and in a Discord DM); refused when they may not use it.</summary>
+    Task<ChatModelsDto> Choose(string model);
 }
 
 // S4023: empty on purpose, the hub sends nothing but its streams; the typed client and the SignalR page need it to know the hub

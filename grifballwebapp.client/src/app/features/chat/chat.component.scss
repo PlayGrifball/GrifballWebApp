@@ -62,3 +62,14 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+.chat__model {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 1rem;
+}
+
+.chat__spend {
+  opacity: 0.8;
+}
