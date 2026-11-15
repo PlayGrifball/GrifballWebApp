@@ -263,14 +263,29 @@ describe('ChatStore', () => {
       expect(connection.invoke).not.toHaveBeenCalled();
     });
 
-    it("shows why the server refused a choice", async () => {
+    it("shows why the server refused a choice, and the user's models again, so the picker shows the one their questions go to", async () => {
       const store = await connected();
-      connection.invoke.and.returnValue(Promise.reject(new Error("HubException: That model isn't one you can use here: choose another.")));
+      const before = store.models();
+      connection.invoke.and.callFake((method: string) => method === 'Choose'
+        ? Promise.reject(new Error("HubException: That model isn't one you can use here: choose another."))
+        : Promise.resolve(models));
 
       await store.choose('claude-opus');
+      await new Promise(resolve => setTimeout(resolve));
 
       expect(store.error()).toBe("That model isn't one you can use here: choose another.");
       expect(store.models()?.selected).toBe('claude-haiku');
+      expect(store.models()).withContext('a new value: the select is set back').not.toBe(before);
+    });
+
+    it("loads the spend again when a paid model's answer fails", async () => {
+      const store = await connected();
+      connection.invoke.calls.reset();
+
+      store.ask('Who won?');
+      answer().subscriber.error(new Error('HubException: That took too long to answer: ask again, or ask something simpler.'));
+
+      expect(connection.invoke).toHaveBeenCalledWith('Models');
     });
 
     it('keeps no models when they fail to load', async () => {
