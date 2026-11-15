@@ -12,7 +12,7 @@ namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>
 /// The chats' models as configuration gives them (<see cref="ChatModels"/>) and their clients (<see cref="ChatClients"/>): Ollama's for
-/// anyone, Claude's for sysadmins, one client a model, no tool calls of their own.
+/// anyone, Claude's for sysadmins, over one HTTP client and one Anthropic client for all models, no tool calls of their own.
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -23,6 +23,7 @@ public class ChatClientsUnitTests
     private static readonly string[] DefaultIds = ["claude-haiku", "claude-sonnet", "claude-opus", "ollama"];
     private static readonly string[] ClaudeModels = ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"];
     private static readonly string[] Commissioners = ["Commissioner"];
+    private static readonly string[] OllamaModels = ["qwen3:4b", "qwen3:8b"];
 
     private static IConfiguration Configuration(params (string Key, string? Value)[] values)
         => new ConfigurationBuilder().AddInMemoryCollection(values.Select(v => new KeyValuePair<string, string?>(v.Key, v.Value))).Build();
@@ -129,22 +130,41 @@ public class ChatClientsUnitTests
     }
 
     [Test]
-    public void OneClientAModel_ForEveryReply_OverOneHttpClient()
+    public void OneHttpClientAndAnthropicClient_ForAllModels()
     {
+        var configuration = Configuration((ChatModels.OllamaUrlKey, OllamaUrl), (ChatModels.AnthropicApiKeyKey, "sk-test"),
+            ("Chat:Models:0:Id", "a"), ("Chat:Models:0:Provider", "Ollama"), ("Chat:Models:0:Model", "qwen3:4b"),
+            ("Chat:Models:1:Id", "b"), ("Chat:Models:1:Provider", "Ollama"), ("Chat:Models:1:Model", "qwen3:8b"),
+            ("Chat:Models:2:Id", "c"), ("Chat:Models:2:Provider", "Anthropic"), ("Chat:Models:2:Model", "claude-haiku-5-5"),
+            ("Chat:Models:3:Id", "d"), ("Chat:Models:3:Provider", "Anthropic"), ("Chat:Models:3:Model", "claude-opus-5-5"));
         var http = Substitute.For<IHttpClientFactory>();
-        http.CreateClient(ChatClients.OllamaHttpClient).Returns(_ => new HttpClient());
-        var clients = new ChatClients(Configuration((ChatModels.OllamaUrlKey, OllamaUrl)), http);
-        var model = clients.Models.Single();
+        http.CreateClient(Arg.Any<string>()).Returns(_ => new HttpClient());
+        // The test's HTTP clients, in place of AddChatModels' own
+        using var services = new ServiceCollection().AddSingleton(configuration).AddChatModels(configuration).AddSingleton(http).BuildServiceProvider();
+        var clients = services.GetRequiredService<IChatClientFactory>();
 
-        var first = clients.Create(model);
-        var second = clients.Create(model);
+        var created = clients.Models.Select(clients.Create).ToList();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(first, Is.SameAs(second));
+            Assert.That(created.Take(2).Select(c => c.GetService<OllamaApiClient>()?.SelectedModel), Is.EqualTo(OllamaModels));
+            Assert.That(created.Skip(2).Select(c => c.GetService<IAnthropicClient>()), Is.All.Not.Null);
             http.Received(1).CreateClient(ChatClients.OllamaHttpClient);
-            Assert.That(() => clients.Create(model with { Id = "other" }), Throws.ArgumentException, "Only a configured model");
+            http.Received(1).CreateClient(ChatClients.AnthropicHttpClient);
+            Assert.That(() => clients.Create(clients.Models[0] with { Id = "other" }), Throws.ArgumentException, "Only a configured model");
         }
+    }
+
+    [Test]
+    public void AddChatModels_ServesTheModelsItChecked_NotAListReadAgain()
+    {
+        var configuration = Configuration((ChatModels.OllamaUrlKey, OllamaUrl));
+        using var services = new ServiceCollection().AddSingleton(configuration).AddChatModels(configuration).BuildServiceProvider();
+
+        // Read once, as the app starts: a later change is no other list than the one checked
+        configuration[ChatModels.OllamaModelKey] = "unchecked:1b";
+
+        Assert.That(services.GetRequiredService<IChatClientFactory>().Models.Single().Model, Is.EqualTo(ChatClients.DefaultOllamaModel));
     }
 
     [TestCase(ChatClients.OllamaHttpClient)]

@@ -171,6 +171,13 @@ describe('ChatComponent', () => {
     expect(text()).not.toContain('this month');
   });
 
+  it("shows this month's spend with only one model to use, a paid one, though no picker", async () => {
+    await withModels({ models: [{ id: 'claude-haiku', name: 'Claude Haiku 5.5' }], selected: 'claude-haiku', spent: 2.25, limit: 10 });
+
+    expect(el().querySelector('mat-select')).toBeNull();
+    expect(text()).toContain('$2.25 of $10.00 this month');
+  });
+
   it("shows the models the user may use, the selected one, and this month's spend on paid ones", async () => {
     await withModels({
       models: [{ id: 'claude-haiku', name: 'Claude Haiku 5.5' }, { id: 'ollama', name: 'llama3.2:3b' }],

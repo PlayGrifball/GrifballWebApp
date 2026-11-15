@@ -48,6 +48,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
     private readonly IDataPullService _dataPull = Substitute.For<IDataPullService>();
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
     private bool _modelConfigured = true;
+    /// <summary>What reading the models throws as a reply starts (as the author's choice and month, read from the database, may).</summary>
+    private Exception? _modelsFail;
     private readonly ChatLimits _limits = new();
     private readonly IDiscordRestClient _rest = Substitute.For<IDiscordRestClient>();
     private readonly FakeRestRequestHandler _discord = new() { EchoContent = true, UniqueIds = true };
@@ -91,6 +93,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         var chatClients = Substitute.For<IChatClientFactory>();
         chatClients.Available.Returns(_modelConfigured);
         chatClients.Models.Returns([new ChatModelOption("ollama", "llama3.2:3b", ChatProvider.Ollama, "llama3.2:3b")]);
+        if (_modelsFail is { } fail)
+            chatClients.Models.Returns(_ => throw fail);
         chatClients.Create(Arg.Any<ChatModelOption>()).Returns(models.Length == 1 ? models[0] : new ChatClientSequence(models));
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
         var scopes = _services.GetRequiredService<IServiceScopeFactory>();
@@ -525,6 +529,24 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         {
             Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo(GrifChat.TookTooLong));
             Assert.That(await SavedReplies(), Is.Empty, "why is no part of the conversation");
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AReplyThatFailsToStart_SaysTheChatCouldntAnswer_AndLogsWhy()
+    {
+        _modelsFail = new InvalidOperationException("The database is down");
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Never"));
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo(GrifballWebApp.Server.Chat.ChatHub.Failed),
+                "The author is told, not left with no answer");
+            Assert.That(_logger.Entries.Single().Exception, Is.TypeOf<InvalidOperationException>());
+            Assert.That(_logger.Entries.Single().Level, Is.EqualTo(LogLevel.Error));
+            Assert.That(model.Options, Is.Null, "the model isn't asked");
         }
     }
 

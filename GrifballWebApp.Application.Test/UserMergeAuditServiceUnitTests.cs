@@ -212,6 +212,37 @@ internal sealed class UserMergeAuditServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task Undo_AfterTheTargetSpentOnTheChatAndChoseAModel_StillWorks_AndTheMovedSpendStaysWithTheTarget()
+    {
+        var november = new DateOnly(2026, 11, 1);
+        var spent = ChatMonth.Begin(_placeholder.Id, november);
+        spent.Record(2_000_000, 20, 2);
+        Context.ChatMonths.Add(spent);
+        Context.ChatChoices.Add(ChatChoice.Make(_placeholder.Id, "claude-opus"));
+        await Context.SaveChangesAsync();
+        var before = await Snapshot();
+        await _merges.Merge(_real.Id, _placeholder.Id);
+        var mergeId = (await Context.UserMerges.SingleAsync()).UserMergeID;
+        // The target asks a paid model, and picks another, as a later request would
+        Context.ChangeTracker.Clear();
+        (await Context.ChatMonths.SingleAsync()).Record(500_000, 5, 1);
+        (await Context.ChatChoices.SingleAsync()).Choose("ollama");
+        await Context.SaveChangesAsync();
+
+        await _audit.Undo(mergeId, "wrong person");
+
+        var after = await Snapshot();
+        var months = await Context.ChatMonths.Select(m => new { m.UserID, m.CostMicros }).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(after, Is.EqualTo(before), "Undone, whatever the chat did since");
+            Assert.That(MergeManifest.Parse((await Context.UserMerges.SingleAsync()).Manifest).Entries.Select(e => e.Table),
+                Has.None.Contains("Chat"), "No chat rows in the manifest");
+            Assert.That(months, Is.EqualTo(new[] { new { UserID = _real.Id, CostMicros = 2_500_000L } }), "The moved spend stays with the target");
+        }
+    }
+
+    [Test]
     public async Task Undo_OfAClaimApproval_BringsTheClaimsBack()
     {
         Context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(_season.SeasonID, _placeholder.Id, 1, new StatSheetTotals { Gamertag = "Old Tag", Kills = 7 }));

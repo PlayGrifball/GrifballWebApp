@@ -128,6 +128,28 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task Merge_KeepingTheSource_LeavesItsChatSpendAndChoiceAlone()
+    {
+        var (to, from) = await TwoUsers();
+        var sourceMonth = ChatMonth.Begin(from.Id, new DateOnly(2026, 11, 1));
+        sourceMonth.Record(9_900_000, 99, 9);
+        Context.ChatMonths.Add(sourceMonth);
+        Context.ChatChoices.Add(ChatChoice.Make(from.Id, "claude-opus"));
+        await Context.SaveChangesAsync();
+
+        await _service.Merge(to.Id, from.Id, new MergeOptions { DeleteMergeFrom = false });
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.ChatMonths.Select(m => new { m.UserID, m.CostMicros }).ToListAsync(),
+                Is.EqualTo(new[] { new { UserID = from.Id, CostMicros = 9_900_000L } }), "The source still active: its month's spend stays its own");
+            Assert.That(await Context.ChatChoices.Select(c => new { c.UserID, c.Model }).ToListAsync(),
+                Is.EqualTo(new[] { new { UserID = from.Id, Model = "claude-opus" } }));
+        }
+    }
+
+    [Test]
     public async Task Merge_KeepsTheTargetsChosenModel()
     {
         var (to, from) = await TwoUsers();

@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
@@ -331,6 +332,47 @@ public class ChatHubUnitTests
         {
             Assert.That(error, Is.EqualTo(GrifChat.TookTooLong));
             Assert.That(_logger.Entries, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task Ask_StartingTheReplyFails_TellsTheBrowserItCouldNotAnswer_AndLogsWhy()
+    {
+        var hub = Hub(new ScriptedChatClient((TimeSpan.Zero, "Never")), new HubUserState(7, []));
+        // The models read as the reply starts (as the user's choice and month are, from the database): it fails
+        _clients.Models.Returns(_ => throw new InvalidOperationException("The database is down"));
+
+        var (texts, error) = await Read(await hub.Ask(Question(), CancellationToken.None));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(error, Is.EqualTo(ChatHub.Failed));
+            Assert.That(texts, Is.Empty);
+            Assert.That(_logger.Entries.Single().Exception, Is.TypeOf<InvalidOperationException>());
+            Assert.That(_logger.Entries.Single().Level, Is.EqualTo(LogLevel.Error));
+            Assert.That(_logger.Entries.Single().Message, Does.Contain("user 7"));
+        }
+    }
+
+    [Test]
+    public async Task Ask_StoppedWhileTheReplyStarts_EndsTheStreamQuietly()
+    {
+        using var browser = new CancellationTokenSource();
+        var hub = Hub(new ScriptedChatClient((TimeSpan.Zero, "Never")));
+        // The user presses Stop while the reply's start reads the database
+        _clients.Models.Returns(_ =>
+        {
+            browser.Cancel();
+            throw new OperationCanceledException(browser.Token);
+        });
+
+        var (texts, error) = await Read(await hub.Ask(Question(), browser.Token));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(error, Is.Null, "No error for a question the user stopped");
+            Assert.That(texts, Is.Empty);
+            Assert.That(_logger.Entries, Is.Empty, "A stop is no failure");
         }
     }
 

@@ -4,7 +4,7 @@ import { HubConnectionBuilder, HubConnectionState, type HubConnection, type IStr
 import type { ChatModelsDto, ChatRequestDto, ChatTurnDto } from '@api/models';
 import { AuthSession } from '@core/auth/authSession.service';
 import {
-  CHAT_HUB_URL, CHAT_STORAGE_KEY, ChatStore, FAILED, HISTORY_LIMIT, MAX_HISTORY_MESSAGE_LENGTH, NOT_CONNECTED, chatErrorText,
+  CHAT_HUB_URL, CHAT_STORAGE_KEY, ChatStore, FAILED, HISTORY_LIMIT, MAX_HISTORY_MESSAGE_LENGTH, NOT_CONNECTED, STOP_SPEND_RELOAD_MS, chatErrorText,
 } from './chat.store';
 
 describe('ChatStore', () => {
@@ -278,14 +278,34 @@ describe('ChatStore', () => {
       expect(store.models()).withContext('a new value: the select is set back').not.toBe(before);
     });
 
-    it("loads the spend again when the user stops a paid model's answer", async () => {
-      const store = await connected();
-      connection.invoke.calls.reset();
+    describe('stopped', () => {
+      afterEach(() => jasmine.clock().uninstall());
 
-      store.ask('Who won?');
-      store.stop();
+      it("loads the spend again shortly after the user stops a paid model's answer, once the server has saved its cost", async () => {
+        const store = await connected();
+        connection.invoke.calls.reset();
+        jasmine.clock().install();
 
-      expect(connection.invoke).toHaveBeenCalledWith('Models');
+        store.ask('Who won?');
+        store.stop();
+
+        expect(connection.invoke).withContext('the server is still saving it').not.toHaveBeenCalled();
+        jasmine.clock().tick(STOP_SPEND_RELOAD_MS);
+        expect(connection.invoke).toHaveBeenCalledWith('Models');
+      });
+
+      it('loads nothing after a stop once the page has gone', async () => {
+        const store = await connected();
+        connection.invoke.calls.reset();
+        jasmine.clock().install();
+
+        store.ask('Who won?');
+        store.stop();
+        TestBed.resetTestingModule();
+        jasmine.clock().tick(STOP_SPEND_RELOAD_MS);
+
+        expect(connection.invoke).not.toHaveBeenCalled();
+      });
     });
 
     it("loads the spend again when a paid model's answer fails", async () => {

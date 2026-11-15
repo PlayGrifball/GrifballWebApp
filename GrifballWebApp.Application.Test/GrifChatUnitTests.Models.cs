@@ -376,7 +376,30 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(texts, Does.Not.Contain("second"));
-            Assert.That((await _db.ChatMonths.AsNoTracking().SingleAsync()).CostMicros, Is.EqualTo(12_500));
+            Assert.That((await _db.ChatMonths.AsNoTracking().SingleAsync()).CostMicros, Is.GreaterThan(12_500),
+                "The call it stopped had begun: charged an estimate too");
+        }
+    }
+
+    [Test]
+    public async Task StreamAsync_AFurtherCallTheMonthlyLimitStops_IsChargedAnEstimate_ForWhatItWasSentAndWrote()
+    {
+        using var limits = new ChatLimits(maxReplies: 3, monthlyLimit: 0.01m);
+        // The first call's usage reaches the limit; the next call (already sent, and answering) is stopped at its first words
+        var chat = ChatWithModels(new FakeModel([Text("First "), Used(input: 0, output: 2500), Text(new string('a', 300))]), limits);
+
+        using (var reply = await chat.StartAsync([], new string('q', 1500), Sysadmin, ChatHost.Site, Asker))
+        {
+            Assert.That(async () => await All(reply.StreamAsync()),
+                Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(ChatLimits.MonthlyLimitReached));
+        }
+
+        var month = await _db.ChatMonths.AsNoTracking().SingleAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            // The first call's 2500 out, and the stopped call's 300 characters: 100 more
+            Assert.That(month.OutputTokens, Is.EqualTo(2500 + 300 / ChatReply.CharactersPerToken));
+            Assert.That(month.InputTokens, Is.GreaterThanOrEqualTo(1500 / ChatReply.CharactersPerToken), "What the stopped call was sent");
         }
     }
 
@@ -398,13 +421,25 @@ public partial class GrifChatUnitTests
     }
 
     [Test]
-    public void ChatModel_LetsAReplyCallTheModelAtMostMaxModelCallsTimes()
+    public void ChatModel_LetsAPaidModelsReplyCallTheModelAtMostMaxModelCallsTimes()
     {
         _clients.Create(Arg.Any<ChatModelOption>()).Returns(new FakeModel());
 
-        var client = new ChatModel(_clients, NullLoggerFactory.Instance).Create(Free);
+        var client = new ChatModel(_clients, NullLoggerFactory.Instance).Create(Haiku);
 
         Assert.That(client.GetService<FunctionInvokingChatClient>()!.MaximumIterationsPerRequest, Is.EqualTo(ChatModel.MaxModelCalls));
+    }
+
+    [Test]
+    public void ChatModel_AFreeModelsReply_KeepsTheLibrarysDefaultCalls()
+    {
+        _clients.Create(Arg.Any<ChatModelOption>()).Returns(new FakeModel());
+        using var library = new FunctionInvokingChatClient(new FakeModel());
+
+        var client = new ChatModel(_clients, NullLoggerFactory.Instance).Create(Free);
+
+        Assert.That(client.GetService<FunctionInvokingChatClient>()!.MaximumIterationsPerRequest,
+            Is.EqualTo(library.MaximumIterationsPerRequest).And.GreaterThan(ChatModel.MaxModelCalls), "A free reply's tool rounds cost nothing: not cut short");
     }
 
     [Test]
