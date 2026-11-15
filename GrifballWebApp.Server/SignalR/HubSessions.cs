@@ -62,7 +62,7 @@ public class HubSessionValidator(SignInManager<User> signIn, GrifballContext con
     /// What <see cref="CurrentAsync(ClaimsPrincipal?)"/> finds for each of <paramref name="principals"/>, in order, read in two
     /// queries for all their users together (the sweep's): the stamp, the lockout and the roles, as Identity checks them.
     /// </summary>
-    public virtual async Task<IReadOnlyList<HubUserState?>> CurrentAsync(IReadOnlyList<ClaimsPrincipal> principals)
+    public virtual async Task<IReadOnlyList<HubUserState?>> CurrentAllAsync(IReadOnlyList<ClaimsPrincipal> principals)
     {
         var ids = principals.Select(UserIdOf).OfType<int>().Distinct().ToList();
         var users = await context.Users.AsNoTracking()
@@ -309,7 +309,7 @@ public sealed class HubSessionSweep(HubConnections connections, IServiceScopeFac
             return 0;
         await using var scope = scopes.CreateAsyncScope();
         // Every connection's user at once: two queries, however many connections
-        var now = await scope.ServiceProvider.GetRequiredService<HubSessionValidator>().CurrentAsync(signedIn.Select(c => c.Context.User!).ToList());
+        var now = await scope.ServiceProvider.GetRequiredService<HubSessionValidator>().CurrentAllAsync(signedIn.Select(c => c.Context.User!).ToList());
         var ended = 0;
         foreach (var (connection, user) in signedIn.Zip(now))
         {

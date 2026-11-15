@@ -39,7 +39,7 @@ public class HubSessionsUnitTests
         public override Task<HubUserState?> CurrentAsync(ClaimsPrincipal? principal)
             => Fails ? throw new InvalidOperationException("The database is down") : Task.FromResult(Now);
 
-        public override Task<IReadOnlyList<HubUserState?>> CurrentAsync(IReadOnlyList<ClaimsPrincipal> principals)
+        public override Task<IReadOnlyList<HubUserState?>> CurrentAllAsync(IReadOnlyList<ClaimsPrincipal> principals)
             => Fails ? throw new InvalidOperationException("The database is down") : Task.FromResult<IReadOnlyList<HubUserState?>>([.. principals.Select(_ => Now)]);
     }
 

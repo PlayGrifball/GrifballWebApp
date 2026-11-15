@@ -39,7 +39,7 @@ public class HubSessionValidatorUnitTests : SqliteGrifballContextFixture
         signedOut.SecurityStamp = "new-stamp";
         await Db.SaveChangesAsync();
 
-        var now = await Validator().CurrentAsync([
+        var now = await Validator().CurrentAllAsync([
             Claims(staff.Id, "staff-stamp"),
             Claims(locked.Id, "locked-stamp"),
             Claims(signedOut.Id, "old-stamp"),
@@ -69,7 +69,7 @@ public class HubSessionValidatorUnitTests : SqliteGrifballContextFixture
         user.LockoutEnd = _time.GetUtcNow().AddMinutes(-1);
         await Db.SaveChangesAsync();
 
-        var now = await Validator().CurrentAsync([Claims(user.Id, "stamp")]);
+        var now = await Validator().CurrentAllAsync([Claims(user.Id, "stamp")]);
 
         Assert.That(now.Single()?.UserId, Is.EqualTo(user.Id));
     }
