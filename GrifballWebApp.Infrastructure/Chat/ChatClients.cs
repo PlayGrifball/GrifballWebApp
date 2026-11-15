@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Anthropic;
 using Anthropic.Core;
 using GrifballWebApp.Application.Chat;
@@ -11,10 +10,11 @@ using OllamaSharp;
 namespace GrifballWebApp.Infrastructure.Chat;
 
 /// <summary>
-/// The chats' models (<see cref="ChatModels"/>) and a client for each: an Ollama server's (Ollama:Url, OllamaSharp) or Anthropic's API
-/// (Anthropic:ApiKey, Anthropic's own SDK), one per model for the process. Each over an HTTP client that never times out itself: the
-/// host's <see cref="ChatHost.Timeout"/> decides, as a cold model on the CPU can take minutes to start answering. Only the models:
-/// GrifChat chooses one and calls the tools for it.
+/// The chats' models (<see cref="ChatModels"/>, as <see cref="ChatClientsExtensions.AddChatModels"/> checked them) and a client for
+/// each: an Ollama server's (Ollama:Url, OllamaSharp) or Anthropic's API (Anthropic:ApiKey, Anthropic's own SDK), over one HTTP client
+/// a provider (and one Anthropic client) for the process. A new client each time one is asked for: ChatModel keeps the one it builds
+/// for each model. Each HTTP client never times out itself: the host's <see cref="ChatHost.Timeout"/> decides, as a cold model on the
+/// CPU can take minutes to start answering. Only the models: GrifChat chooses one and calls the tools for it.
 /// </summary>
 public sealed class ChatClients : IChatClientFactory
 {
@@ -27,27 +27,25 @@ public sealed class ChatClients : IChatClientFactory
     /// <summary>The HTTP client Anthropic's API is called through.</summary>
     public const string AnthropicHttpClient = "Anthropic";
 
-    private readonly IConfiguration _configuration;
-    private readonly IHttpClientFactory _http;
-    private readonly ConcurrentDictionary<string, IChatClient> _clients = new(StringComparer.Ordinal);
     private readonly Lazy<HttpClient> _ollama;
     private readonly Lazy<AnthropicClient> _anthropic;
 
-    public ChatClients(IConfiguration configuration, IHttpClientFactory httpClients)
+    /// <param name="models">The models, checked (<see cref="ChatModels.From"/>).</param>
+    /// <param name="configuration">Where the providers are: Ollama:Url, Anthropic:ApiKey.</param>
+    /// <param name="httpClients">The providers' HTTP clients (<see cref="OllamaHttpClient"/>, <see cref="AnthropicHttpClient"/>).</param>
+    public ChatClients(IReadOnlyList<ChatModelOption> models, IConfiguration configuration, IHttpClientFactory httpClients)
     {
-        _configuration = configuration;
-        _http = httpClients;
-        Models = ChatModels.From(configuration);
+        Models = models;
         _ollama = new(() =>
         {
-            var http = _http.CreateClient(OllamaHttpClient);
-            http.BaseAddress = new Uri(_configuration[ChatModels.OllamaUrlKey]!);
+            var http = httpClients.CreateClient(OllamaHttpClient);
+            http.BaseAddress = new Uri(configuration[ChatModels.OllamaUrlKey]!);
             return http;
         });
         _anthropic = new(() => new AnthropicClient(new ClientOptions
         {
-            ApiKey = _configuration[ChatModels.AnthropicApiKeyKey],
-            HttpClient = _http.CreateClient(AnthropicHttpClient),
+            ApiKey = configuration[ChatModels.AnthropicApiKeyKey],
+            HttpClient = httpClients.CreateClient(AnthropicHttpClient),
             // The host's timeout decides, not the SDK's own ten minutes
             Timeout = System.Threading.Timeout.InfiniteTimeSpan,
         }));
@@ -62,9 +60,9 @@ public sealed class ChatClients : IChatClientFactory
         ArgumentNullException.ThrowIfNull(model);
         if (!Models.Contains(model))
             throw new ArgumentException($"{model.Id} is not one of the configured chat models", nameof(model));
-        return _clients.GetOrAdd(model.Id, _ => model.Provider == ChatProvider.Anthropic
+        return model.Provider == ChatProvider.Anthropic
             ? _anthropic.Value.AsIChatClient(model.Model)
-            : new OllamaApiClient(_ollama.Value, model.Model));
+            : new OllamaApiClient(_ollama.Value, model.Model);
     }
 }
 
@@ -169,18 +167,19 @@ public static class ChatClientsExtensions
 {
     /// <summary>
     /// The chats' models (<see cref="ChatClients"/>), and their HTTP clients: no timeout of their own (the hosts' decide), their
-    /// connections renewed every few minutes so a moved server is found again. The models are checked here, as the app starts
-    /// (<see cref="ChatModels.From"/>): a mistake in them stops it, rather than every chat, and the Discord bot, when first asked.
+    /// connections renewed every few minutes so a moved server is found again. The models are read and checked here, once, as the app
+    /// starts (<see cref="ChatModels.From"/>): a mistake in them stops it, rather than every chat, and the Discord bot, when first asked;
+    /// the list checked is the one served.
     /// </summary>
     public static IServiceCollection AddChatModels(this IServiceCollection services, IConfiguration configuration)
     {
-        ChatModels.From(configuration);
+        var models = ChatModels.From(configuration);
         foreach (var name in new[] { ChatClients.OllamaHttpClient, ChatClients.AnthropicHttpClient })
         {
             services.AddHttpClient(name, client => client.Timeout = System.Threading.Timeout.InfiniteTimeSpan)
                 .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) });
         }
-        services.AddSingleton<IChatClientFactory, ChatClients>();
+        services.AddSingleton<IChatClientFactory>(provider => new ChatClients(models, configuration, provider.GetRequiredService<IHttpClientFactory>()));
         return services;
     }
 }
