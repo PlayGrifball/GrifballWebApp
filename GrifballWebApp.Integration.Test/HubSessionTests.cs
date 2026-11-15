@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Preview;
@@ -145,6 +146,22 @@ public class HubSessionTests
         return (connection, closed.Task);
     }
 
+    /// <summary>
+    /// Once the hub has finished connecting the TeamsHub connection (its groups joined): StartAsync returns at the handshake, before
+    /// OnConnectedAsync has run, and the hub takes a call only after it.
+    /// </summary>
+    private static async Task Joined(HubConnection connection)
+    {
+        try
+        {
+            await connection.InvokeAsync<List<TeamResponseDto>>("GetTeams", 0);
+        }
+        catch (HubException)
+        {
+            // No such season: answered, which is all this waits for
+        }
+    }
+
     /// <summary>Whether <paramref name="closed"/> happens within <see cref="Wait"/>.</summary>
     private static async Task<bool> ClosesSoon(Task closed) => await Task.WhenAny(closed, Task.Delay(Wait)) == closed;
 
@@ -210,6 +227,7 @@ public class HubSessionTests
         var (staff, closed) = await Connect("TeamsHub", cookie);
         var pushed = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         staff.On<int>(nameof(ITeamsHubClient.LockCaptains), seasonID => pushed.TrySetResult(seasonID));
+        await Joined(staff);
         await hub.Clients.Group(TeamsHub.StaffGroup).LockCaptains(41);
         Assert.That(await pushed.Task.WaitAsync(Wait), Is.EqualTo(41), "staff get the staff group's pushes");
 
@@ -227,6 +245,7 @@ public class HubSessionTests
         again.On<int>(nameof(ITeamsHubClient.LockCaptains), seasonID => pushedAgain.TrySetResult(seasonID));
         var everyone = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         again.On<int>(nameof(ITeamsHubClient.UnlockCaptains), seasonID => everyone.TrySetResult(seasonID));
+        await Joined(again);
         await hub.Clients.Group(TeamsHub.StaffGroup).LockCaptains(42);
         // Sent after the staff group's: by the time it arrives, the staff group's would have
         await hub.Clients.All.UnlockCaptains(44);
