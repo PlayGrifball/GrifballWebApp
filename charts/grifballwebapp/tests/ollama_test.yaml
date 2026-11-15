@@ -64,6 +64,11 @@ tests:
       # every container limited (homelab's require-cpu-limits) sees this one limited too
       - equal: { path: "spec.template.spec.initContainers[0].resources.limits.memory", value: 10Gi }
         documentIndex: 1
+      # Limited by default, CPU too, so the release never runs an unbounded model server
+      - equal: { path: "spec.template.spec.containers[0].resources.limits.cpu", value: "4" }
+        documentIndex: 1
+      - equal: { path: "spec.template.spec.initContainers[0].resources.limits.cpu", value: "4" }
+        documentIndex: 1
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: OLLAMA_HOST, value: "0.0.0.0:11434" } }
         documentIndex: 1
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: OLLAMA_MODELS, value: /data/models } }
