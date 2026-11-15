@@ -28,6 +28,7 @@ namespace GrifballWebApp.Application.Test;
 public class GrifChatUnitTests
 {
     private static readonly string[] Answer = ["It is ", "noon."];
+    private static readonly string[] ClockBroke = ["The clock broke"];
     private const string Asker = "user:1";
 
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
@@ -569,7 +570,9 @@ public class GrifChatUnitTests
         _clients.Create().Returns(new FakeModel());
         var model = new ChatModel(_clients, NullLoggerFactory.Instance);
 
-        Assert.That(model.Create(), Is.SameAs(model.Create()), "each wrapper makes a Meter of its own");
+        var first = model.Create();
+
+        Assert.That(model.Create(), Is.SameAs(first), "each wrapper makes a Meter of its own");
     }
 
     [TestCase(null, "ok")]
@@ -608,7 +611,7 @@ public class GrifChatUnitTests
         await Ask(chat, "What time is it?", ToolCaller.Anonymous, ChatHost.Site);
 
         var errors = _services.GetFakeLogCollector().GetSnapshot().Where(r => r.Level == LogLevel.Error).ToList();
-        Assert.That(errors.Select(r => r.Exception?.Message), Is.EqualTo(new[] { "The clock broke" }));
+        Assert.That(errors.Select(r => r.Exception?.Message), Is.EqualTo(ClockBroke));
     }
 
     private static string? Operation(Activity activity) => activity.GetTagItem("gen_ai.operation.name") as string;
