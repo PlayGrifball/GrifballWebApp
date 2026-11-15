@@ -28,7 +28,7 @@ namespace GrifballWebApp.Application.Test;
 public class GrifChatUnitTests
 {
     private static readonly string[] Answer = ["It is ", "noon."];
-    private static readonly string[] ClockBroke = ["The clock broke"];
+    private static readonly string[] Ok = ["ok"];
     private const string Asker = "user:1";
 
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
@@ -577,19 +577,67 @@ public class GrifChatUnitTests
     }
 
     [Test]
-    public void ChatModel_WrapsAModelOnce_NotOnceAReply()
+    public void ChatModel_IsTheWholePipeline_BuiltOnce_WhateverTheFactoryGivesLater()
     {
-        _clients.Create().Returns(new FakeModel());
+        _clients.Create().Returns(new FakeModel(), new FakeModel());
         var model = new ChatModel(_clients, NullLoggerFactory.Instance);
 
         var first = model.Create();
 
-        Assert.That(model.Create(), Is.SameAs(first), "each wrapper makes a Meter of its own");
+        using (Assert.EnterMultipleScope())
+        {
+            // Each wrapper makes a Meter and an ActivitySource of its own: one, never replaced, so none is left undisposed
+            Assert.That(model.Create(), Is.SameAs(first));
+            _clients.Received(1).Create();
+            // The tools called over the traced model: an execute_tool span per call, on its source
+            Assert.That(first, Is.InstanceOf<FunctionInvokingChatClient>());
+            Assert.That(first.GetService<OpenTelemetryChatClient>(), Is.Not.Null);
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task StreamAsync_AFailingToolsMessage_IsInTheTelemetry_OnlyWhenSwitchedOn(bool sensitiveData)
+    {
+        using var spans = new Spans();
+        var model = new FakeModel([Call("get_current_time")], [Text("Done.")]);
+        // A failure's message may quote what the model passed, which is what someone asked
+        var chat = Chat(model, sensitiveData, new ThrowingClock(new InvalidOperationException("No player SecretGamertag")));
+
+        var trace = await AskUnderAHostsSpan(chat, "What time is it?");
+
+        var traced = spans.Of(trace);
+        var errors = _services.GetFakeLogCollector().GetSnapshot().Where(r => r.Level == LogLevel.Error).ToList();
+        var told = string.Join('\n', traced.SelectMany(a => a.TagObjects.Select(t => t.Value?.ToString()).Append(a.StatusDescription)))
+            + string.Join('\n', _services.GetFakeLogCollector().GetSnapshot().Select(r => r + "\n" + r.Exception));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(told.Contains("SecretGamertag", StringComparison.Ordinal), Is.EqualTo(sensitiveData));
+            // Its type and where it was thrown stay, whatever the switch says
+            Assert.That(errors, Has.Count.EqualTo(1));
+            Assert.That(errors[0].Exception?.ToString(), Does.Contain("System.InvalidOperationException").And.Contain(nameof(ThrowingClock)));
+            Assert.That(traced.Single(a => Operation(a) == "execute_tool").Status, Is.EqualTo(ActivityStatusCode.Error));
+        }
+    }
+
+    [Test]
+    public async Task AIFunctions_LogEachCall_ToTheLoggerTheyAreGiven_NotOneFromTheCallsScope()
+    {
+        // No logging in the tools' services: the log is the chat's, not the scope's
+        await using var services = new ServiceCollection().AddSingleton<TimeProvider>(_time).BuildServiceProvider();
+        var log = new FakeLogger();
+        var tool = (AIFunction)GrifTools.AIFunctions(services.GetRequiredService<IServiceScopeFactory>(), ToolCaller.Anonymous, GrifTools.Chat, log)
+            .Single(t => t.Name == "get_current_time");
+
+        await tool.InvokeAsync(new AIFunctionArguments());
+
+        Assert.That(log.Collector.GetSnapshot().Select(r => r.GetStructuredStateValue("Outcome")), Is.EqualTo(Ok));
     }
 
     [TestCase(null, "ok")]
     [TestCase(typeof(ToolException), "refused")]
     [TestCase(typeof(InvalidOperationException), "failed")]
+    [TestCase(typeof(OperationCanceledException), "canceled")]
     public async Task StreamAsync_LogsEachToolCall_ItsNameOutcomeAndTime_AndTagsItsSpan(Type? thrown, string outcome)
     {
         using var spans = new Spans();
@@ -610,20 +658,8 @@ public class GrifChatUnitTests
             Assert.That(double.Parse(logged[0].GetStructuredStateValue("ElapsedMs")!, CultureInfo.InvariantCulture), Is.GreaterThanOrEqualTo(0));
             Assert.That(logged[0].Message, Does.Not.Contain("The clock broke"), "a failure's details are in the function invocation's error log");
             Assert.That(tool.GetTagItem(GrifTools.OutcomeTag), Is.EqualTo(outcome));
-            Assert.That(tool.Status == ActivityStatusCode.Error, Is.EqualTo(outcome == "failed"), "a refusal is the tool's answer, not an error");
+            Assert.That(tool.Status == ActivityStatusCode.Error, Is.EqualTo(outcome != "ok" && outcome != "refused"), "a refusal is the tool's answer, not an error");
         }
-    }
-
-    [Test]
-    public async Task StreamAsync_AToolsFailure_IsLoggedAsAnError_WithItsException()
-    {
-        var model = new FakeModel([Call("get_current_time")], [Text("Done.")]);
-        var chat = Chat(model, clock: new ThrowingClock(new InvalidOperationException("The clock broke")));
-
-        await Ask(chat, "What time is it?", ToolCaller.Anonymous, ChatHost.Site);
-
-        var errors = _services.GetFakeLogCollector().GetSnapshot().Where(r => r.Level == LogLevel.Error).ToList();
-        Assert.That(errors.Select(r => r.Exception?.Message), Is.EqualTo(ClockBroke));
     }
 
     private static string? Operation(Activity activity) => activity.GetTagItem("gen_ai.operation.name") as string;

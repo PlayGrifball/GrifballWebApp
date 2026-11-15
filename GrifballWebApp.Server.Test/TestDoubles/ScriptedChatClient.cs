@@ -46,3 +46,26 @@ internal sealed class ScriptedChatClient(params (TimeSpan Delay, string Text)[] 
         // Nothing held
     }
 }
+
+/// <summary>
+/// One chat model that is <paramref name="models"/> in turn, one per reply: for a test of several messages, as the chats' model is one
+/// client for the process (ChatModel wraps it once).
+/// </summary>
+internal sealed class ChatClientSequence(params IChatClient[] models) : IChatClient
+{
+    private int _next;
+
+    public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("The bot only streams");
+
+    public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+        CancellationToken cancellationToken = default)
+        => models[Interlocked.Increment(ref _next) - 1].GetStreamingResponseAsync(messages, options, cancellationToken);
+
+    public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+    public void Dispose()
+    {
+        // The models are the test's
+    }
+}

@@ -90,7 +90,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .BuildServiceProvider();
         var chatClients = Substitute.For<IChatClientFactory>();
         chatClients.Available.Returns(_modelConfigured);
-        chatClients.Create().Returns(models[0], models[1..]);
+        chatClients.Create().Returns(models.Length == 1 ? models[0] : new ChatClientSequence(models));
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
         var scopes = _services.GetRequiredService<IServiceScopeFactory>();
         return new MessageCreateHandler(_rest, config, scopes, _ambient, _logger, new GrifChat(new ChatModel(chatClients, NullLoggerFactory.Instance), scopes, _limits), _time);
@@ -523,6 +523,31 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         {
             Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo(GrifChat.TookTooLong));
             Assert.That(await SavedReplies(), Is.Empty, "why is no part of the conversation");
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AReplyTheChatCutsShort_IsAnErrorOnTheMessagesSpan()
+    {
+        using var spans = new ChatSpans();
+        System.Diagnostics.Activity? modelCall = null;
+        var model = new ScriptedChatClient
+        {
+            BeforeReply = _ =>
+            {
+                modelCall = System.Diagnostics.Activity.Current;
+                throw new ChatRefusedException(GrifChat.TookTooLong);
+            },
+        };
+
+        await Handler(model).HandleAsync(MessageToTheBot());
+
+        var message = modelCall is null ? null : ChatSpans.Ancestors(modelCall).LastOrDefault();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(message?.OperationName, Is.EqualTo(MessageCreateHandler.MessageSpanName));
+            Assert.That(message?.Status, Is.EqualTo(System.Diagnostics.ActivityStatusCode.Error), "a slow reply is found by its status");
+            Assert.That(message?.StatusDescription, Is.EqualTo(GrifChat.TookTooLong));
         }
     }
 }

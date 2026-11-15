@@ -36,6 +36,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 
@@ -162,21 +163,28 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         }
     }
 
-    [TestCase(null, false)]
-    [TestCase("false", false)]
-    [TestCase("true", true)]
-    public void AddApplication_TheChatsModel_OneProcessWide_WhatPeopleWroteInItsTelemetryOnlyWhenSwitchedOn(string? setting, bool sensitiveData)
+    [TestCase(null, false, false)]
+    [TestCase("false", false, false)]
+    [TestCase("true", true, false)]
+    [TestCase("True", true, false)]
+    // Not a boolean: off, with a warning, not a chat that can't start
+    [TestCase("1", false, true)]
+    [TestCase("yes", false, true)]
+    public void AddApplication_TheChatsModel_OneProcessWide_WhatPeopleWroteInItsTelemetryOnlyWhenSwitchedOn(string? setting, bool sensitiveData, bool warned)
     {
         var services = AddApplication(new() { [ChatModel.SensitiveDataKey] = setting });
-        services.AddLogging().AddSingleton(_ => Substitute.For<IChatClientFactory>());
+        services.AddFakeLogging().AddSingleton(_ => Substitute.For<IChatClientFactory>());
         using var provider = services.BuildServiceProvider();
 
         var model = provider.GetRequiredService<ChatModel>();
 
+        var warnings = provider.GetFakeLogCollector().GetSnapshot().Where(r => r.Level == LogLevel.Warning).ToList();
         using (Assert.EnterMultipleScope())
         {
             Assert.That(model.SensitiveData, Is.EqualTo(sensitiveData));
             Assert.That(provider.GetRequiredService<ChatModel>(), Is.SameAs(model));
+            Assert.That(warnings, Has.Count.EqualTo(warned ? 1 : 0));
+            Assert.That(warnings.Select(r => r.Message), Has.All.Contains(ChatModel.SensitiveDataKey));
         }
     }
 

@@ -69,6 +69,31 @@ public class MessageCreateHandlerUnitTests : MessageCreateHandlerFixture
         AssertNoResponse();
     }
 
+    [TestCase(99ul, false)]
+    [TestCase(BotId, true)]
+    public async Task HandleAsync_AReply_LooksUpWhatItRepliesTo_InTheMessagesSpan(ulong repliedTo, bool answered)
+    {
+        using var spans = new ChatSpans();
+        System.Diagnostics.Activity? lookup = null;
+        var referenced = Substitute.For<IDiscordRestMessage>();
+        referenced.Author.Id.Returns(repliedTo);
+        _discordClient.GetMessageAsync(40ul, 30ul, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            lookup = System.Diagnostics.Activity.Current;
+            return referenced;
+        });
+
+        await _handler.HandleAsync(Message(5, reference: (40, 30)));
+
+        using (Assert.EnterMultipleScope())
+        {
+            // The lookup's own call is in the message's trace, not one of its own
+            Assert.That(lookup?.OperationName, Is.EqualTo(MessageCreateHandler.MessageSpanName));
+            Assert.That(lookup?.Parent, Is.Null, "the trace's root");
+            Assert.That(lookup?.GetTagItem("discord.answered"), Is.EqualTo(answered));
+        }
+    }
+
     [Test]
     public async Task HandleAsync_ReplyWhereReferencedMessageIsMissing_DoesNothing()
     {
