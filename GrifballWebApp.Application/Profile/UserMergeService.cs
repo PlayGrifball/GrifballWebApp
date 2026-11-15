@@ -104,8 +104,6 @@ public class UserMergeService : IUserMergeService
         // matched players (and their votes) with it, or fail on the reschedules' restricted foreign keys.
         await TransferMatchmaking(mergeTo, mergeFrom, ct);
         await TransferReschedules(mergeToId, mergeFromId, ct);
-        // The chat's spend and chosen model always move: they have no foreign key, so deleting the source would leave them behind
-        await TransferChat(mergeToId, mergeFromId, ct);
         // Recorded games are what the player played, whichever account: they always move (their user key is restricted)
         foreach (var game in await _context.RecordedGames.Where(g => g.Participants.Any(p => p.UserID == mergeFromId)).Include(g => g.Participants).ToListAsync(ct))
             game.ReassignPlayer(mergeFromId, mergeToId);
@@ -137,6 +135,8 @@ public class UserMergeService : IUserMergeService
             await LoadWhatDeletingCascadesTo(mergeFromId, ct);
             _context.Users.Remove(mergeFrom);
             await _recorder.SaveChangesAsync(ct);
+            // Not recorded: saved with the audit record, after the manifest is done
+            await TransferChat(mergeToId, mergeFromId, ct);
         }
 
         // The audit record, in the same transaction: every path to a merge writes one
@@ -425,8 +425,12 @@ public class UserMergeService : IUserMergeService
     }
 
     /// <summary>
-    /// The source's chat spend joins the target's, month by month (<see cref="ChatMonth.TakeFrom"/>), so the target's monthly limit
-    /// counts it; the source's chosen model is the target's when the target chose none.
+    /// A deleted source's chat spend joins the target's, month by month (<see cref="ChatMonth.TakeFrom"/>), so the target's monthly limit
+    /// counts it; the source's chosen model is the target's when the target chose none. Only when the source is deleted (they have no
+    /// foreign key, so it would leave them behind): a source kept keeps its own month and choice. Kept out of the merge's manifest
+    /// (saved with the audit record, not through the recorder): the target's month and choice change with every paid reply and pick,
+    /// and an undo refuses rows changed since, so they would soon block it. An undo therefore leaves the moved spend (and choice) with
+    /// the target: the restored source starts the month again at none spent.
     /// </summary>
     private async Task TransferChat(int mergeToId, int mergeFromId, CancellationToken ct)
     {
