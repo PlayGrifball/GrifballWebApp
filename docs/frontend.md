@@ -86,7 +86,12 @@ store. `profileCommendations` is the smallest example, `xboxAccount` one with pa
 ## Logging
 
 Log through `AppLog` (`@core/telemetry/appLog`), not `console`: `this.log.error('Failed to save the season', error)`.
-It writes to the console as before (that's how the server render's logs reach the pod's logs) and sends the same line
-to telemetry at its level (`debug`, `info`, `warn`, `error`), with the cause's status, path or error message as
-attributes. The message says what failed in words someone reading the logs understands; the cause goes second, not
-into the message. Only `main.ts` uses `console` itself: a failed bootstrap has no injector to ask.
+Every line goes to the console as before (that's how the server render's logs reach the pod's logs). Lines at `info`,
+`warn` and `error` also go to telemetry, in the trace of what the user is doing, with the cause's message and stack
+redacted as the error reports redact them. Each line goes once a page, and at most `MAX_LOGS`. `debug` stays in the
+console. A failed API call (an `HttpErrorResponse` cause) stays in the console too: `clientErrorsInterceptor` already
+reports the ones worth reporting (no answer, or a 5xx) in the call's own trace, and a 4xx is the app working. The
+message says what failed in words someone reading the logs understands; the cause goes second, not into the message.
+Don't log and then throw: the thrown error is reported. Only `main.ts` uses `console` itself: a failed bootstrap has
+no injector to ask. `shared` can't import `core`, so a shared component that has something to report hands it to its
+caller.

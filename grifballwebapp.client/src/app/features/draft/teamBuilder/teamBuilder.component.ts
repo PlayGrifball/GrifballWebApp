@@ -179,7 +179,7 @@ export class TeamBuilderComponent implements OnInit {
     if (t === GrabbedThing.AvailablePlayer) {
       return { ...(data as TeamsPlayerDto), round: null, pick: null };
     } else {
-      this.log.warn('Draft: the dragged item is not a player', data);
+      this.log.debug('Draft: the dragged item is not a player', data);
       throw new Error('Unable to map to player');
     }
   }
@@ -192,7 +192,7 @@ export class TeamBuilderComponent implements OnInit {
     } else if (t === GrabbedThing.Team) {
       return data as TeamResponseDto;
     } else {
-      this.log.warn('Draft: the dragged item is not a team', data);
+      this.log.debug('Draft: the dragged item is not a team', data);
       throw new Error('Unable to map to team');
     }
   }

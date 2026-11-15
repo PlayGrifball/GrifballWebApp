@@ -36,7 +36,7 @@ export class ExcelFormStore {
     this._submittingMatch.set(true);
     this.excel.appendMatch({ matchID, body: sheet })
       .subscribe({
-        next: result => this.log.info('Excel: match appended to the sheet', result),
+        next: () => this.log.info('Excel: match appended to the sheet'),
         error: result => this.log.error('Excel: failed to append the match', result),
       }).add(() => this._submittingMatch.set(false));
   }

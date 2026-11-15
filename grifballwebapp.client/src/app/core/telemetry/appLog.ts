@@ -1,52 +1,35 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Attributes, BrowserLogLevel, BrowserTelemetry } from './browserTelemetry';
+import { describeError, pageTraceparent } from '../http/clientErrors';
+import { Attributes, BrowserLogLevel, BrowserTelemetry, parseTraceparent } from './browserTelemetry';
 
-/** The most of a cause that goes in a log line's attributes (a body can be large). */
-export const MAX_CAUSE = 1000;
+/** The most lines a page sends to the telemetry: a loop that logs (a hub that can't connect) sends no more. */
+export const MAX_LOGS = 50;
 
 /**
- * What a log line says about what went wrong: an HTTP answer's status and path, an error's type and message, or
- * anything else as text.
+ * What a log line says about its cause, as the error reports say it (clientErrors.ts): an error's message and stack, or
+ * anything else as text, sensitive query values redacted.
  */
 export function causeAttributes(cause: unknown): Attributes {
   if (cause === undefined)
     return {};
-  if (cause instanceof HttpErrorResponse)
-    return { 'http.response.status_code': cause.status, 'url.path': urlPath(cause.url), 'error.message': cause.message };
-  if (cause instanceof Error)
-    return { 'exception.type': cause.name, 'exception.message': cause.message.slice(0, MAX_CAUSE) };
-  return { 'error.detail': text(cause).slice(0, MAX_CAUSE) };
-}
-
-function urlPath(url: string | null): string | undefined {
-  if (!url)
-    return undefined;
-  try {
-    return new URL(url, 'http://localhost').pathname;
-  } catch {
-    return undefined;
-  }
-}
-
-function text(value: unknown): string {
-  if (typeof value === 'string')
-    return value;
-  try {
-    return JSON.stringify(value) ?? String(value);
-  } catch {
-    return String(value);
-  }
+  const { message, stack } = describeError(cause);
+  return cause instanceof Error
+    ? { 'exception.message': message, 'exception.stacktrace': stack }
+    : { 'error.detail': message };
 }
 
 /**
- * The app's log: each line goes to the console, as it always has (on the server that is the pod's log), and to the
- * browser's telemetry (BrowserTelemetry, when it is on), with the cause's details as attributes, in the trace of what
- * the user is doing. Use it instead of console.* (docs/frontend.md).
+ * The app's log: each line goes to the console, as it always has (on the server that is the pod's log), and, at info
+ * and above, to the browser's telemetry (BrowserTelemetry, when it is on) with its cause's details, in the trace of what
+ * the user is doing. A failed API call goes to the console only: the call reports (clientErrorsInterceptor) send those
+ * worth sending (no answer, or a 5xx) in the call's own trace, and a 4xx is the app working. The telemetry gets each
+ * line once a page, and at most MAX_LOGS. Use it instead of console.* (docs/frontend.md).
  */
 @Injectable({ providedIn: 'root' })
 export class AppLog {
   private readonly telemetry = inject(BrowserTelemetry);
+  private readonly sent = new Set<string>();
 
   /** Something failed (a request the user's action needed, a callback that threw). */
   error(message: string, cause?: unknown, attributes?: Attributes): void {
@@ -63,7 +46,7 @@ export class AppLog {
     this.write('info', message, cause, attributes);
   }
 
-  /** Detail for following a flow while debugging. */
+  /** Detail for following a flow while debugging: the console only. */
   debug(message: string, cause?: unknown, attributes?: Attributes): void {
     this.write('debug', message, cause, attributes);
   }
@@ -73,6 +56,13 @@ export class AppLog {
       console[level](message);
     else
       console[level](message, cause);
-    this.telemetry.log(level, message, { ...causeAttributes(cause), ...attributes });
+    if (level === 'debug' || cause instanceof HttpErrorResponse || this.sent.size >= MAX_LOGS)
+      return;
+    const lineAttributes = { ...causeAttributes(cause), ...attributes };
+    const key = `${level}|${message}|${JSON.stringify(lineAttributes['exception.message'] ?? lineAttributes['error.detail'] ?? '')}`;
+    if (this.sent.has(key))
+      return;
+    this.sent.add(key);
+    this.telemetry.log(level, message, lineAttributes, this.telemetry.active() ?? parseTraceparent(pageTraceparent()));
   }
 }

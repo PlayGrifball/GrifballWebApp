@@ -81,9 +81,12 @@ export function hubLifecycle(url: string, options: HubLifecycleOptions): HubConn
         connected();
       })
       .catch(err => {
+        if (stopped) {
+          log.warn(`Couldn't start the ${options.name} connection`, err);
+          return;
+        }
         log.warn(`Couldn't start the ${options.name} connection; trying again`, err);
-        if (!stopped)
-          later();
+        later();
       });
   };
 

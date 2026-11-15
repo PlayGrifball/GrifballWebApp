@@ -240,7 +240,7 @@ export class TeamBuilderStore {
       this.reloadIfSettled();
     })).subscribe({
       next: r => {
-        this.log.debug('Draft: change saved', r);
+        this.log.debug('Draft: change saved');
         if (saved && !this.destroyed)
           saved(r);
       },
