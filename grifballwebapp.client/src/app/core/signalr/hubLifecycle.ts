@@ -3,6 +3,7 @@ import { DestroyRef, PLATFORM_ID, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpTransportType, HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 import { AuthSession } from '../auth/authSession.service';
+import { AppLog } from '../telemetry/appLog';
 
 /**
  * SignalR's own way: a negotiate request, then WebSockets, or server-sent events and then long polling where
@@ -45,6 +46,7 @@ export interface HubLifecycleOptions {
  */
 export function hubLifecycle(url: string, options: HubLifecycleOptions): HubConnection {
   const browser = isPlatformBrowser(inject(PLATFORM_ID));
+  const log = inject(AppLog);
   const connection = new HubConnectionBuilder()
     .withUrl(browser ? url : `http://localhost/${url}`, HUB_CONNECTION_OPTIONS)
     .withAutomaticReconnect()
@@ -79,9 +81,13 @@ export function hubLifecycle(url: string, options: HubLifecycleOptions): HubConn
         connected();
       })
       .catch(err => {
-        console.log(`Error while starting the ${options.name} connection: ${err}`);
-        if (!stopped)
-          later();
+        // Leaving the page stops a start under way: nothing went wrong
+        if (stopped) {
+          log.debug(`The ${options.name} connection stopped while starting`, err);
+          return;
+        }
+        log.warn(`Couldn't start the ${options.name} connection; trying again`, err);
+        later();
       });
   };
 
@@ -112,7 +118,7 @@ export function hubLifecycle(url: string, options: HubLifecycleOptions): HubConn
         })
         .catch(err => {
           restarting = false;
-          console.log(`Error while restarting the ${options.name} connection: ${err}`);
+          log.warn(`Couldn't restart the ${options.name} connection`, err);
         });
     });
   });

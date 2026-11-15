@@ -65,10 +65,10 @@ describe('EditUserComponent', () => {
 
   it('does not fetch anything for user id 0', () => {
     fixture.componentRef.setInput('userID', '0');
-    const log = spyOn(console, 'log');
+    const log = spyOn(console, 'warn');
     fixture.detectChanges();
     http.expectNone(() => true);
-    expect(log).toHaveBeenCalledWith('Invalid user ID');
+    expect(log).toHaveBeenCalledWith('Edit user: no user ID in the route');
   });
 
   it('loads the user and renders a checkbox per role', async () => {
@@ -81,7 +81,7 @@ describe('EditUserComponent', () => {
   });
 
   it('logs a failed load', () => {
-    const log = spyOn(console, 'log');
+    const log = spyOn(console, 'error');
     fixture.detectChanges();
     http.expectOne('/api/users/15').flush('x', { status: 404, statusText: 'Not Found' });
     expect(log).toHaveBeenCalled();
@@ -89,7 +89,7 @@ describe('EditUserComponent', () => {
 
   it('posts the edited user, including role changes', async () => {
     await load();
-    spyOn(console, 'log');
+    spyOn(console, 'info');
     const before = component.model();
     // Edit through the form: tick the Sysadmin role and change the display name.
     Array.from(el().querySelectorAll('mat-checkbox')).find(c => c.textContent!.trim() === 'Sysadmin')!.querySelector('input')!.click();
@@ -109,16 +109,17 @@ describe('EditUserComponent', () => {
     expect(req.request.body.displayName).toBe('Private Grif');
     expect(req.request.body.roles).toEqual([{ roleName: 'Sysadmin', hasRole: true }, { roleName: 'Commissioner', hasRole: true }]);
     req.flush({});
-    expect(console.log).toHaveBeenCalledWith('Updated user');
+    expect(console.info).toHaveBeenCalledWith('Updated user 15');
   });
 
   it('logs a failed update', async () => {
     await load();
-    const log = spyOn(console, 'log');
+    const info = spyOn(console, 'info');
+    const log = spyOn(console, 'error');
     component.onSubmit();
     http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url)).flush('x', { status: 400, statusText: 'Bad Request' });
-    expect(log).toHaveBeenCalled();
-    expect(log).not.toHaveBeenCalledWith('Updated user');
+    expect(log).toHaveBeenCalledWith('Failed to update the user', jasmine.anything());
+    expect(info).not.toHaveBeenCalled();
   });
 
   it("lists the user's external logins and removes one", async () => {
@@ -193,7 +194,7 @@ describe('EditUserComponent', () => {
     await fixture.whenStable();
     expect(component.model().lockoutEnd instanceof DateTime).toBeTrue();
 
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     component.onSubmit();
     const req = http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url));
     expect(req.request.body.lockoutEnd).toBe('2026-03-04T05:06:00+00:00');
@@ -208,7 +209,7 @@ describe('EditUserComponent', () => {
     await fixture.whenStable();
     component.patch({ displayName: 'Renamed' });
 
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     component.onSubmit();
     const body = http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url)).request.body;
     expect(body.lockoutEnd).toBe(permanent);
@@ -222,7 +223,7 @@ describe('EditUserComponent', () => {
     // A new DateTime for the same instant, in another zone, as a picker might hand back.
     component.patch({ lockoutEnd: component.model().lockoutEnd!.setZone('Europe/Berlin') });
 
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     component.onSubmit();
     expect(http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url)).request.body.lockoutEnd).toBe('2026-03-04T05:06:07.1234567+00:00');
   });
@@ -233,7 +234,7 @@ describe('EditUserComponent', () => {
     await fixture.whenStable();
     component.patch({ lockoutEnd: DateTime.fromISO('2026-05-06T07:08:00+02:00') });
 
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     component.onSubmit();
     expect(http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url)).request.body.lockoutEnd).toBe('2026-05-06T05:08:00.000Z');
   });
@@ -244,7 +245,7 @@ describe('EditUserComponent', () => {
     await fixture.whenStable();
     component.patch({ lockoutEnd: null });
 
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     component.onSubmit();
     expect(http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url)).request.body.lockoutEnd).toBeNull();
   });
@@ -268,7 +269,7 @@ describe('EditUserComponent', () => {
     select.dispatchEvent(new Event("change"));
     expect(component.model().regionID).toBeNull();
     component.setRegion("3");
-    spyOn(console, "log");
+    spyOn(console, 'error');
     component.onSubmit();
     const req = http.expectOne(r => r.method === 'POST' && /^\/api\/users\/\d+$/.test(r.url));
     expect(req.request.body.regionID).toBe(3);

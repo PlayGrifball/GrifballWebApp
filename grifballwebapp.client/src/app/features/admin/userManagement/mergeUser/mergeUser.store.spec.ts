@@ -13,7 +13,8 @@ describe('MergeUserStore', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
-    spyOn(console, 'log');
+    spyOn(console, 'info');
+    spyOn(console, 'error');
     TestBed.configureTestingModule({ providers: [MergeUserStore, provideHttpClient(withXhr()), provideHttpClientTesting()] });
     store = TestBed.inject(MergeUserStore);
     http = TestBed.inject(HttpTestingController);

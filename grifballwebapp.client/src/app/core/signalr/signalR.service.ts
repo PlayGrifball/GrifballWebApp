@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import type {
   AddPlayerToTeamRequestDto, CaptainAddedDto, CaptainPlacementDto, MovePlayerToTeamRequestDto, RemoveCaptainDto, RemovePlayerFromTeamRequestDto,
 } from '@api/models';
@@ -6,6 +6,7 @@ import { getReceiverRegister } from '@signalr/TypedSignalR.Client';
 import type { ITeamsHubClient } from '@signalr/TypedSignalR.Client/GrifballWebApp.Server.Teams';
 import { HubConnection } from '@microsoft/signalr';
 import { hubLifecycle } from './hubLifecycle';
+import { AppLog } from '../telemetry/appLog';
 
 /** A message the Teams hub sends, by its receiver method's name. */
 type Message = keyof ITeamsHubClient;
@@ -35,6 +36,7 @@ function notifyAll<T>(listeners: Set<T> | undefined, invoke: (listener: T) => vo
   providedIn: 'root'
 })
 export class SignalRService {
+  private readonly log = inject(AppLog);
   /**
    * The Teams hub. The browser's session cookie goes with the connection (same origin), so the hub
    * knows the user. Started, retried, and made again on a sign-in or out by hubLifecycle; only in
@@ -60,7 +62,7 @@ export class SignalRService {
   }
 
   private notifyConnected(): void {
-    notifyAll(this.connectedListeners, listener => listener(), error => console.error('Teams hub: a connected callback failed', error));
+    notifyAll(this.connectedListeners, listener => listener(), error => this.log.error('Teams hub: a connected callback failed', error));
   }
 
   /** Each hub message's callbacks, by its receiver method. */
@@ -89,7 +91,7 @@ export class SignalRService {
       // earlier one is skipped), each on its own: one that throws doesn't keep the message from the rest, as
       // SignalR's own handlers are kept apart
       notifyAll(this.listeners.get(message), listener => (listener as (value: Payload<M>) => void).call(this, value),
-        error => console.error(`Teams hub: a ${message} callback failed`, error));
+        error => this.log.error(`Teams hub: a ${message} callback failed`, error));
       return Promise.resolve();
     };
   }

@@ -2,6 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { HaloInfiniteMode, HaloStatusDto } from '@api/models';
 import { AdminService } from '@api/services/admin.service';
+import { AppLog } from '@core/telemetry/appLog';
 
 /**
  * The server's Halo Infinite client: which mode is active, the gateway's status (Gateway mode) or the app's own
@@ -9,6 +10,7 @@ import { AdminService } from '@api/services/admin.service';
  */
 @Injectable()
 export class InfiniteClientStore {
+  private readonly log = inject(AppLog);
   private readonly admin = inject(AdminService);
   private readonly snackbar = inject(MatSnackBar);
 
@@ -41,7 +43,7 @@ export class InfiniteClientStore {
         }
       },
       error: r => {
-        console.log(r);
+        this.log.error('Halo client: failed to read the status', r);
         this._checking.set(false);
         if (this.mode() === 'Gateway') {
           this.snackbar.open('Failed to check the Halo gateway', 'Close');
@@ -59,7 +61,7 @@ export class InfiniteClientStore {
     this.admin.setCode({ body: { code } }).subscribe({
       next: () => this.snackbar.open('Success', 'Close'),
       error: r => {
-        console.log(r);
+        this.log.error('Halo client: failed to set the sign-in code', r);
         this.snackbar.open('Failed to set code', 'Close');
       },
     });
@@ -69,7 +71,7 @@ export class InfiniteClientStore {
     this.admin.checkStatus().subscribe({
       next: r => this._status.set(r),
       error: r => {
-        console.log(r);
+        this.log.error('Halo client: failed to check the sign-in', r);
         this._status.set('Failed to check status');
         this.snackbar.open('Failed to check status', 'Close');
       },
@@ -80,7 +82,7 @@ export class InfiniteClientStore {
     this.admin.deleteTokens().subscribe({
       next: () => this.snackbar.open('Success', 'Close'),
       error: r => {
-        console.log(r);
+        this.log.error('Halo client: failed to delete the tokens', r);
         this.snackbar.open('Failed to delete tokens', 'Close');
       },
     });

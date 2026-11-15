@@ -12,7 +12,8 @@ describe('EditUserStore', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
-    spyOn(console, 'log');
+    spyOn(console, 'info');
+    spyOn(console, 'error');
     TestBed.configureTestingModule({ providers: [EditUserStore, provideHttpClient(withXhr()), provideHttpClientTesting()] });
     store = TestBed.inject(EditUserStore);
     http = TestBed.inject(HttpTestingController);
@@ -61,10 +62,10 @@ describe('EditUserStore', () => {
     const save = http.expectOne({ method: 'POST', url: '/api/users/5' });
     expect(save.request.body).toEqual(user(5));
     save.flush(null);
-    expect(console.log).toHaveBeenCalledWith('Updated user');
+    expect(console.info).toHaveBeenCalledWith('Updated user 5');
 
     store.save(5, user(5));
     http.expectOne('/api/users/5').flush('x', { status: 400, statusText: 'Bad Request' });
-    expect(console.log).toHaveBeenCalledTimes(2);
+    expect(console.error).toHaveBeenCalledWith('Failed to update the user', jasmine.anything());
   });
 });

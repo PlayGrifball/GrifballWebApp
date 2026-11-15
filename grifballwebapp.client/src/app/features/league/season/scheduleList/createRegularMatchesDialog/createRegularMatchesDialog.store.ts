@@ -1,10 +1,12 @@
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatchPlannerService } from '@api/services/match-planner.service';
+import { AppLog } from '@core/telemetry/appLog';
 
 /** Making a season's regular matches. One per dialog (the component provides it). */
 @Injectable()
 export class CreateRegularMatchesDialogStore {
+  private readonly log = inject(AppLog);
   private readonly matchPlanner = inject(MatchPlannerService);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -13,7 +15,7 @@ export class CreateRegularMatchesDialogStore {
     this.matchPlanner.createSeasonMatches({ seasonID, homeMatchesPerTeam, bestOf }).subscribe({
       next: () => created(),
       error: e => {
-        console.log(e);
+        this.log.error('Failed to create the regular matches', e);
         this.snackBar.open('Failed to create regular matches', 'Close');
       },
     });

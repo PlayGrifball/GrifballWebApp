@@ -22,7 +22,7 @@ describe('CreateUserStore', () => {
   afterEach(() => http.verify());
 
   it('makes the user, and says how it went', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     const user = { userName: 'grif' } as unknown as CreateUserDto;
     store.create(user);
     const create = http.expectOne({ method: 'POST', url: '/api/users' });

@@ -29,7 +29,7 @@ describe('CreateBracketDialogStore', () => {
   });
 
   it('says when it could not be made', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     const created = jasmine.createSpy('created');
     store.create(3, { participantsCount: 4, doubleElimination: false, bestOf: 5 }, created);
     http.expectOne(r => r.url === '/api/seasons/3/bracket').flush('x', { status: 400, statusText: 'Bad Request' });

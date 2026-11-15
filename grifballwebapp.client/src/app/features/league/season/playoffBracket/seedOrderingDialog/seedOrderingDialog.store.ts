@@ -3,6 +3,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import type { TeamStandingDto } from '@api/models';
 import { BracketsService } from '@api/services/brackets.service';
 import { TeamStandingsService } from '@api/services/team-standings.service';
+import { AppLog } from '@core/telemetry/appLog';
 
 /** A team's seed in the bracket. */
 export interface CustomSeed {
@@ -13,6 +14,7 @@ export interface CustomSeed {
 /** The season's standings to seed the bracket from, and setting the seeds. One per dialog (the component provides it). */
 @Injectable()
 export class SeedOrderingDialogStore {
+  private readonly log = inject(AppLog);
   private readonly brackets = inject(BracketsService);
   private readonly teamStandings = inject(TeamStandingsService);
   private readonly snackBar = inject(MatSnackBar);
@@ -30,7 +32,7 @@ export class SeedOrderingDialogStore {
         this._loading.set(false);
       },
       error: e => {
-        console.log(e);
+        this.log.error('Failed to load the standings to seed from', e);
         this.snackBar.open('Failed to load team standings', 'Close');
         this._loading.set(false);
       },
@@ -42,7 +44,7 @@ export class SeedOrderingDialogStore {
     this.brackets.setCustomSeeds({ seasonID, body: seeds }).subscribe({
       next: () => done(),
       error: e => {
-        console.log(e);
+        this.log.error('Failed to set the seeds', e);
         this.snackBar.open('Failed to set custom seeds', 'Close');
       },
     });

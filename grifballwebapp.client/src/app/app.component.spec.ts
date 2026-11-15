@@ -328,10 +328,10 @@ describe('AppComponent behaviour', () => {
 
   it('logs and treats links as zero width when the measuring element is missing', () => {
     hiddenMissing = true;
-    const err = spyOn(console, 'error');
+    const warn = spyOn(console, 'warn');
     fixture.detectChanges();
 
-    expect(err).toHaveBeenCalledWith('Hidden link element not found!');
+    expect(warn).toHaveBeenCalledWith('Toolbar: the hidden link used to measure links is missing');
     expect(component.visibleNavLinks()).toHaveSize(shown());
   });
 

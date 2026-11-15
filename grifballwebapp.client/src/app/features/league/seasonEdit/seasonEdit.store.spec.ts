@@ -60,19 +60,19 @@ describe('SeasonEditStore', () => {
     expect(store.gameVersions()).toHaveSize(1);
     expect(store.leagues()).toHaveSize(1);
     expect(store.seasons()).toEqual([]);
-    expect(error).toHaveBeenCalledWith('down');
+    expect(error).toHaveBeenCalledWith('Failed to load the seasons to copy from', 'down');
 
     eventOrganizer.getGameVersions.and.returnValue(throwError(() => 'games down'));
     eventOrganizer.getLeagues.and.returnValue(throwError(() => 'leagues down'));
     api.getSeasons.and.returnValue(of([season(3)]));
     store.loadOptions();
     expect(store.seasons()).toHaveSize(1);
-    expect(error).toHaveBeenCalledWith('games down');
-    expect(error).toHaveBeenCalledWith('leagues down');
+    expect(error).toHaveBeenCalledWith('Failed to load the game versions', 'games down');
+    expect(error).toHaveBeenCalledWith('Failed to load the leagues', 'leagues down');
   });
 
   it('saves the season and gives its ID, and logs a failed save', () => {
-    const log = spyOn(console, 'log');
+    const log = spyOn(console, 'error');
     const saved = jasmine.createSpy('saved');
     api.upsertSeason.and.returnValue(of(12));
     store.save(season(0), saved);
@@ -82,6 +82,6 @@ describe('SeasonEditStore', () => {
     api.upsertSeason.and.returnValue(throwError(() => 'nope'));
     store.save(season(0), saved);
     expect(saved).toHaveBeenCalledTimes(1);
-    expect(log).toHaveBeenCalledWith('nope');
+    expect(log).toHaveBeenCalledWith('Failed to save the season', 'nope');
   });
 });

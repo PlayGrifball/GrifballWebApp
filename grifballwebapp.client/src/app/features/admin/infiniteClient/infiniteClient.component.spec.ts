@@ -82,7 +82,7 @@ describe('InfiniteClientComponent', () => {
     });
 
     it('shows a failure status when the check fails', () => {
-      spyOn(console, 'log');
+      spyOn(console, 'error');
       fixture.detectChanges();
       http.expectOne('/api/halo/status').flush({ mode: 'Direct' });
       http.expectOne('/api/halo/check').flush('x', { status: 500, statusText: 'Server Error' });
@@ -137,7 +137,7 @@ describe('InfiniteClientComponent', () => {
 
     it('reports a failure to set the code', () => {
       init('ok');
-      spyOn(console, 'log');
+      spyOn(console, 'error');
       component.code = 'xyz';
       component.setCode();
       http.expectOne({ method: 'POST', url: '/api/halo/auth-code' }).flush('x', { status: 400, statusText: 'Bad Request' });
@@ -150,7 +150,7 @@ describe('InfiniteClientComponent', () => {
       http.expectOne({ method: 'POST', url: '/api/halo/tokens/delete' }).flush({});
       expect(snackBar.open).toHaveBeenCalledWith('Success', 'Close');
 
-      spyOn(console, 'log');
+      spyOn(console, 'error');
       component.deleteTokens();
       http.expectOne({ method: 'POST', url: '/api/halo/tokens/delete' }).flush('x', { status: 500, statusText: 'Server Error' });
       expect(snackBar.open).toHaveBeenCalledWith('Failed to delete tokens', 'Close');
@@ -253,7 +253,7 @@ describe('InfiniteClientComponent', () => {
 
     it('reports a failed re-check and keeps the last status', () => {
       init();
-      spyOn(console, 'log');
+      spyOn(console, 'error');
       component.loadStatus();
       http.expectOne('/api/halo/status').flush('x', { status: 500, statusText: 'Server Error' });
       fixture.detectChanges();
@@ -266,7 +266,7 @@ describe('InfiniteClientComponent', () => {
   });
 
   it('falls back to the direct page when the server cannot say its mode', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     fixture.detectChanges();
     http.expectOne('/api/halo/status').flush('x', { status: 404, statusText: 'Not Found' });
     http.expectOne('/api/halo/check').flush('Good');

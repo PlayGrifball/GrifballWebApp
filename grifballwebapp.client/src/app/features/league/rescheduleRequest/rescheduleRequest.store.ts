@@ -3,10 +3,12 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import type { RescheduleRequestDto } from '@api/models';
 import { RescheduleService } from '@api/services/reschedule.service';
 import { errorText } from '@shared/errorText';
+import { AppLog } from '@core/telemetry/appLog';
 
 /** Asking for a match to be rescheduled. One per page (the component provides it). */
 @Injectable()
 export class RescheduleRequestStore {
+  private readonly log = inject(AppLog);
   private readonly api = inject(RescheduleService);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -23,7 +25,7 @@ export class RescheduleRequestStore {
         this._submitting.set(false);
       },
       error: error => {
-        console.error('Failed to submit reschedule request:', error);
+        this.log.error('Failed to send the reschedule request', error);
         // The server's reason when it gave one (one already active, a match with a result, not on either team)
         this.snackBar.open(errorText(error, 'Failed to submit reschedule request. Please try again.'), 'Close', { duration: 5000 });
         this._submitting.set(false);

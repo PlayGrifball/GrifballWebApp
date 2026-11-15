@@ -7,6 +7,7 @@ import { AccountService } from '@core/auth/account.service';
 import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { errorText } from '@shared/errorText';
 import { whileCurrent } from '@shared/whileCurrent';
+import { AppLog } from '@core/telemetry/appLog';
 
 /**
  * A player's profile: their gamertag (and, on your own profile without one, the prompt to set it) and their stats, and
@@ -14,6 +15,7 @@ import { whileCurrent } from '@shared/whileCurrent';
  */
 @Injectable()
 export class ProfileStore {
+  private readonly log = inject(AppLog);
   private readonly profile = inject(ProfileService);
   private readonly accountService = inject(AccountService);
   private readonly snackbar = inject(MatSnackBar);
@@ -51,7 +53,7 @@ export class ProfileStore {
           this._settingGamertag.set(this.accountService.personID() == userID && this.gamertag() === null);
         },
         error: e => {
-          console.log(e);
+          this.log.error('Failed to load the gamertag', e);
           this.snackbar.open("Failed get gamertag", "Close");
         }
       });
@@ -87,7 +89,7 @@ export class ProfileStore {
           this.loadStats();
         },
         error: (e: HttpErrorResponse) => {
-          console.log(e);
+          this.log.error('Failed to set the gamertag', e);
           this.snackbar.open(errorText(e, "Failed set gamertag"), "Close");
         }
       });

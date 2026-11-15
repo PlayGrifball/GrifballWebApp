@@ -101,7 +101,7 @@ describe('CreateBracketDialogComponent', () => {
   });
 
   it('reports a failure and does not emit', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     const created = jasmine.createSpy('bracketCreated');
     component.bracketCreated.subscribe(created);
 

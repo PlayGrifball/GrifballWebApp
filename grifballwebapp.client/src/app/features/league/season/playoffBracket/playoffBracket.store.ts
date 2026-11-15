@@ -4,10 +4,12 @@ import { BracketsService } from '@api/services/brackets.service';
 import { StoreInput } from '@shared/storeInput';
 import { whileCurrent } from '@shared/whileCurrent';
 import type { ViewerData } from 'brackets-viewer';
+import { AppLog } from '@core/telemetry/appLog';
 
 /** A season's playoff bracket, as brackets-viewer draws it. One per bracket (the component provides it). */
 @Injectable()
 export class PlayoffBracketStore {
+  private readonly log = inject(AppLog);
   private readonly brackets = inject(BracketsService);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -53,7 +55,7 @@ export class PlayoffBracketStore {
           // 404: the season does not exist, so there is no bracket to show.
           if (e?.status === 404)
             return;
-          console.log(e);
+          this.log.error('Failed to load the bracket', e);
           this.snackBar.open('Failed to get viewer data', 'Close');
         },
       });

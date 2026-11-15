@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { OnDemandJobStatusDto, SheetDto } from '@api/models';
 import { ExcelService } from '@api/services/excel.service';
 import { Subscription, switchMap, takeWhile, timer } from 'rxjs';
+import { AppLog } from '@core/telemetry/appLog';
 
 /** How often a queued or running export of every match is looked at again. */
 export const EXPORT_POLL_MS = 3000;
@@ -13,6 +14,7 @@ export const EXPORT_POLL_MS = 3000;
  */
 @Injectable()
 export class ExcelFormStore {
+  private readonly log = inject(AppLog);
   private readonly excel = inject(ExcelService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -34,8 +36,8 @@ export class ExcelFormStore {
     this._submittingMatch.set(true);
     this.excel.appendMatch({ matchID, body: sheet })
       .subscribe({
-        next: result => console.log(result),
-        error: result => console.log(result),
+        next: () => this.log.info('Excel: match appended to the sheet'),
+        error: result => this.log.error('Excel: failed to append the match', result),
       }).add(() => this._submittingMatch.set(false));
   }
 

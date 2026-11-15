@@ -136,11 +136,11 @@ describe('ThemingService', () => {
 
   it('should handle missing root element when setting shade', async () => {
     spyOn(document, 'querySelector').and.returnValue(null);
-    spyOn(console, 'log');
+    spyOn(console, 'warn');
 
     await service.setPrimaryShade('#ABCDEF');
 
-    expect(console.log).toHaveBeenCalledWith('root missing');
+    expect(console.warn).toHaveBeenCalledWith('Theme: no <html> element to set the shade on');
   });
 
   it('should set font properties when root exists', () => {

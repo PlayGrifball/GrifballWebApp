@@ -84,4 +84,11 @@ export default [
       }],
     },
   },
+  // The app logs through AppLog, which also sends to the telemetry (docs/frontend.md): only it and main.ts (no injector
+  // yet) write the console themselves. Specs spy on the console to see what was logged.
+  {
+    files: ['src/**/*.ts'],
+    ignores: ['src/**/*.spec.ts', 'src/app/core/telemetry/appLog.ts', 'src/main.ts'],
+    rules: { 'no-console': 'error' },
+  },
 ];

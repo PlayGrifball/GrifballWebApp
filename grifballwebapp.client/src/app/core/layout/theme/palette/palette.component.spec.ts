@@ -11,7 +11,7 @@ describe('PaletteComponent', () => {
     html.style.setProperty('--secondary', '#8e0003');
     await TestBed.configureTestingModule({ imports: [PaletteComponent] }).compileComponents();
     theming = TestBed.inject(ThemingService);
-    spyOn(console, 'log');
+    spyOn(console, 'debug');
   });
 
   afterEach(() => html.style.removeProperty('--secondary'));

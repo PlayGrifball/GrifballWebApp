@@ -82,3 +82,16 @@ store. `profileCommendations` is the smallest example, `xboxAccount` one with pa
   actions, through the real store. A resource's value comes a microtask after the answer, so a spec waits for
   `ApplicationRef.whenStable()` (or the fixture's) before reading it; it waits only after answering, since a resource
   still loading keeps the app unstable.
+
+## Logging
+
+Log through `AppLog` (`@core/telemetry/appLog`), not `console`: `this.log.error('Failed to save the season', error)`.
+Every line goes to the console as before (that's how the server render's logs reach the pod's logs). Lines at `info`,
+`warn` and `error` also go to telemetry, in the trace of what the user is doing, with the cause's message and stack
+redacted as the error reports redact them. Each line goes once a page, and at most `MAX_LOGS` of each level, so info lines can't crowd out an error. `debug` stays in the
+console. A failed API call (an `HttpErrorResponse` cause) stays in the console too: `clientErrorsInterceptor` already
+reports the ones worth reporting (no answer, or a 5xx) in the call's own trace, and a 4xx is the app working. The
+message says what failed in words someone reading the logs understands; the cause goes second, not into the message.
+Don't log and then throw: the thrown error is reported. Only `main.ts` uses `console` itself: a failed bootstrap has
+no injector to ask. Lint (`no-console`) holds the rest of `src` to it. `shared` can't import `core`, so a shared component that has something to report hands it to its
+caller.

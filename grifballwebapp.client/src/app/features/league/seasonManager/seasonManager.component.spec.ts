@@ -52,7 +52,7 @@ describe('SeasonManagerComponent', () => {
     api.getSeasons.and.returnValue(throwError(() => 'boom'));
     fixture.detectChanges();
 
-    expect(err).toHaveBeenCalledWith('boom');
+    expect(err).toHaveBeenCalledWith('Failed to load the seasons', 'boom');
     expect(el().querySelectorAll('tr.mat-mdc-row')).toHaveSize(0);
     expect(el().querySelector('[role="alert"]')!.textContent).toContain('Could not load the seasons');
   });

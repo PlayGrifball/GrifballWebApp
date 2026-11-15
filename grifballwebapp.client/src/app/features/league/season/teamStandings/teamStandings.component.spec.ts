@@ -72,7 +72,7 @@ describe('TeamStandingsComponent', () => {
   });
 
   it('logs and leaves the table empty when the request fails', async () => {
-    const log = spyOn(console, 'log');
+    const log = spyOn(console, 'error');
     fixture.detectChanges();
     // Not "no standings" while they load
     expect(fixture.componentInstance.loaded()).toBeFalse();
@@ -80,7 +80,7 @@ describe('TeamStandingsComponent', () => {
     http.expectOne('/api/seasons/2/standings').flush('x', { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
 
-    expect(log).toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith('Failed to load the standings', jasmine.anything());
     expect(fixture.componentInstance.loaded()).toBeTrue();
     expect(rows()).toEqual([]);
   });

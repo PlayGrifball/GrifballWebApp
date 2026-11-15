@@ -65,7 +65,8 @@ describe('ExcelFormComponent', () => {
   });
 
   it('appends the match to the sheet and shows a spinner while submitting', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'info');
+    spyOn(console, 'error');
     component.sheetName = 'Week 2';
     component.onSubmit(guid);
     fixture.detectChanges();
@@ -85,7 +86,8 @@ describe('ExcelFormComponent', () => {
   });
 
   it('clears the submitting state after a failure too', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'info');
+    spyOn(console, 'error');
     component.onSubmit(guid);
     http.expectOne(r => /^\/api\/matches\/[^/]+\/append-to-sheet$/.test(r.url)).flush('x', { status: 500, statusText: 'Server Error' });
 

@@ -12,7 +12,8 @@ describe('ExcelFormStore', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
-    spyOn(console, 'log');
+    spyOn(console, 'info');
+    spyOn(console, 'error');
     TestBed.configureTestingModule({ providers: [ExcelFormStore, provideHttpClient(withXhr()), provideHttpClientTesting()] });
     store = TestBed.inject(ExcelFormStore);
     http = TestBed.inject(HttpTestingController);

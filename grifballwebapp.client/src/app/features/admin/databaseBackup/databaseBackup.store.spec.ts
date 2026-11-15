@@ -16,7 +16,7 @@ describe('DatabaseBackupStore', () => {
   let format: WritableSignal<BackupFormat>;
 
   beforeEach(() => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
     TestBed.configureTestingModule({
       providers: [DatabaseBackupStore, provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: MatSnackBar, useValue: snackBar }],

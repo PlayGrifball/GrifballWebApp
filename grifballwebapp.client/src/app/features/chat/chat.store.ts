@@ -5,6 +5,7 @@ import { HubConnectionState, type HubConnection, type ISubscription } from '@mic
 import type { ChatTurnDto } from '@api/models';
 import { AuthSession } from '@core/auth/authSession.service';
 import { hubLifecycle } from '@core/signalr/hubLifecycle';
+import { AppLog } from '@core/telemetry/appLog';
 import { getHubProxyFactory } from '@signalr/TypedSignalR.Client';
 
 /** The chat's hub (ChatHub): it streams each answer as the model writes it. */
@@ -66,6 +67,7 @@ function save(turns: ChatTurnDto[]): void {
  */
 @Injectable()
 export class ChatStore {
+  private readonly log = inject(AppLog);
   private readonly connection: HubConnection | null = isPlatformBrowser(inject(PLATFORM_ID))
     ? hubLifecycle(CHAT_HUB_URL, { name: 'Chat hub' })
     : null;
@@ -109,7 +111,11 @@ export class ChatStore {
     this.answer = getHubProxyFactory('IChatHubServer').createHubProxy(this.connection).ask({ question: text, history }).subscribe({
       next: chunk => this.change(turns => [...turns.slice(0, -1), { fromBot: true, text: turns.at(-1)!.text + chunk }]),
       error: (error: unknown) => {
-        this.errorState.set(chatErrorText(error));
+        const text = chatErrorText(error);
+        // A refusal with the server's reason is the server's to log
+        if (text === FAILED)
+          this.log.error('Chat: the answer failed', error);
+        this.errorState.set(text);
         this.done();
       },
       complete: () => this.done(),

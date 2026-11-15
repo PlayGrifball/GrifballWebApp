@@ -153,7 +153,7 @@ describe('SignupsComponent', () => {
     api.getSignups.and.returnValue(throwError(() => 'boom'));
     fixture.detectChanges();
 
-    expect(err).toHaveBeenCalledWith('boom');
+    expect(err).toHaveBeenCalledWith('Failed to load the signups', 'boom');
     expect(rows()).toEqual([]);
   });
 

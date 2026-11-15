@@ -1,6 +1,7 @@
 import { FetchBackend, HttpErrorResponse, HttpEvent, HttpRequest } from '@angular/common/http';
 import { Injectable, InjectionToken, REQUEST, inject } from '@angular/core';
 import { Observable, TimeoutError, catchError, throwError, timeout } from 'rxjs';
+import { AppLog } from '../telemetry/appLog';
 
 /** Where the backend answers on the server, without the /api prefix (ex. http://grifballwebapp-server:5295). */
 export const API_ORIGIN = new InjectionToken<string>('API_ORIGIN');
@@ -35,12 +36,13 @@ export const FORWARDED_HEADERS = ['cookie', 'x-real-ip', 'x-forwarded-for', 'tra
  */
 @Injectable()
 export class ServerApiBackend extends FetchBackend {
+  private readonly log = inject(AppLog);
   private readonly apiOrigin = inject(API_ORIGIN);
   private readonly pageRequest = inject(REQUEST, { optional: true });
 
   override handle(req: HttpRequest<unknown>): Observable<HttpEvent<unknown>> {
     if (!SERVER_SAFE_METHODS.has(req.method)) {
-      console.error(`Refused ${req.method} ${req.url} while rendering on the server: only the browser makes changes`);
+      this.log.error(`Refused ${req.method} ${req.url} while rendering on the server: only the browser makes changes`);
       return throwError(() => new HttpErrorResponse({ status: 405, statusText: 'Method Not Allowed', url: req.url }));
     }
     const url = new URL(req.url);

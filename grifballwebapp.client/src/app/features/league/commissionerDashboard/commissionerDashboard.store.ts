@@ -2,10 +2,12 @@ import { inject, Injectable, signal } from '@angular/core';
 import type { CommissionerDashboardDto } from '@api/models';
 import { CommissionerDashboardService } from '@api/services/commissioner-dashboard.service';
 import { RescheduleService } from '@api/services/reschedule.service';
+import { AppLog } from '@core/telemetry/appLog';
 
 /** The commissioner dashboard's data (reschedule requests, overdue matches), and making a request's Discord thread. One per page (the component provides it). */
 @Injectable()
 export class CommissionerDashboardStore {
+  private readonly log = inject(AppLog);
   private readonly dashboard = inject(CommissionerDashboardService);
   private readonly reschedules = inject(RescheduleService);
 
@@ -26,7 +28,7 @@ export class CommissionerDashboardStore {
       },
       error: err => {
         this._error.set('Failed to load dashboard data');
-        console.error('Dashboard load error:', err);
+        this.log.error('Failed to load the commissioner dashboard', err);
         this._loading.set(false);
       },
     });
@@ -38,7 +40,7 @@ export class CommissionerDashboardStore {
       next: () => this.load(),
       error: error => {
         this.load();
-        console.error('Failed to create Discord thread:', error);
+        this.log.error('Failed to create the Discord thread', error);
       },
     });
   }
