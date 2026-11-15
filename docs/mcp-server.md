@@ -152,11 +152,13 @@ Ollama's own port on localhost.
 
 - spans: `orchestrate_tools` per reply, under it `chat {model}` per call to the model (its token counts in
   `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens`, its errors) and `execute_tool {tool}` per tool call (its time,
-  an exception's type, and `grif.tool.outcome`: `ok`, `refused`, `canceled` or `failed`). They are in the trace the reply
-  started in: the hub call's on the site (though the reply streams after the call returns), or the `Discord message` span
-  (`GrifballWebApp.Discord`) the bot starts for each message it may answer: a DM, a mention, or a reply, whose lookup of the
-  message it replies to is in it too (`discord.answered` says whether it was the bot's). A reply cut short (it took too long)
-  makes that span an error. The HTTP client's span of the call to Ollama is under its `chat` span;
+  an exception's type, `grif.tool.outcome`: `ok`, `refused`, `canceled` (the reply was: the asker stopped waiting, or it took
+  too long) or `failed` (any other exception, a tool's own timeout too), and for a failure `grif.tool.error.type`, its own
+  type). They are in the trace the reply started in: the hub call's on the site (though the reply streams after the call
+  returns), or the `Discord message` span (`GrifballWebApp.Discord`) for a message the bot answers. A reply's span starts
+  before the lookup of the message it replies to, so it covers it, but is only recorded once that message is known to be the
+  bot's (`discord.answered`): a reply between others exports nothing, nor does the lookup's call. A failed lookup, or a reply
+  cut short (it took too long), makes the span an error. The HTTP client's span of the call to Ollama is under its `chat` span;
 - metrics: `gen_ai.client.token.usage` and `gen_ai.client.operation.duration` per call to the model, and
   `gen_ai.client.operation.time_to_first_chunk` and `time_per_output_chunk` for the streamed replies;
 - logs: a line per tool call (`GrifTools`: the tool, its outcome, its time and the user ID), and a failing tool's exception

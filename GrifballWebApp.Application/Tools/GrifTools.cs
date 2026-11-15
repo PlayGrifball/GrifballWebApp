@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text;
-using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Seasons;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -188,7 +187,7 @@ public static class GrifTools
     /// DbContext with the host (which may be saving meanwhile, as the Discord bot saves its streamed reply). A refusal comes back
     /// as the tool's result, so the model can tell the user why; the chat client's function invocation hides other errors' details.
     /// Each call is logged to <paramref name="log"/>; a failure's message, which may quote what the model passed, reaches the function
-    /// invocation's log and span only with <paramref name="sensitiveData"/> (<see cref="ChatModel.SensitiveDataKey"/>).
+    /// invocation's log and span only with <paramref name="sensitiveData"/> (Chat:Telemetry:SensitiveData).
     /// </summary>
     public static List<AITool> AIFunctions(IServiceScopeFactory scopes, ToolCaller caller, IReadOnlyCollection<string> names, ILogger? log = null,
         bool sensitiveData = false)
@@ -212,9 +211,16 @@ public static class GrifTools
 
     /// <summary>
     /// The tag on a chat tool call's <c>execute_tool</c> span that says how it went: <c>ok</c>, <c>refused</c> (a
-    /// <see cref="ToolException"/>, its result: no error), <c>canceled</c> or <c>failed</c> (any other exception).
+    /// <see cref="ToolException"/>, its result: no error), <c>canceled</c> (the reply was: the asker stopped waiting, or it took too
+    /// long) or <c>failed</c> (any other exception, a tool's own timeout too).
     /// </summary>
     public const string OutcomeTag = "grif.tool.outcome";
+
+    /// <summary>
+    /// The tag on a failed chat tool call's <c>execute_tool</c> span that names the failure's own type: its <c>error.type</c> is
+    /// <see cref="ToolFailedException"/>'s when the failure's message is left out of the telemetry.
+    /// </summary>
+    public const string ErrorTypeTag = "grif.tool.error.type";
 
     /// <summary>
     /// A function run as <paramref name="caller"/>, in a new scope per call, whose <see cref="ToolException"/> is its result, told as a
@@ -238,6 +244,7 @@ public static class GrifTools
             arguments.Context[typeof(ToolCaller)] = caller;
             var started = Stopwatch.GetTimestamp();
             var outcome = Failed;
+            string? failure = null;
             try
             {
                 var result = await base.InvokeCoreAsync(arguments, cancellationToken);
@@ -249,36 +256,43 @@ public static class GrifTools
                 outcome = Refused;
                 return $"Refused: {e.Message}";
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                // The reply's, not the tool's own (an HTTP client's timeout is a failure)
                 outcome = Canceled;
                 throw;
             }
-            catch (Exception e) when (!sensitiveData)
+            catch (Exception e)
             {
+                failure = e.GetType().FullName;
+                if (sensitiveData)
+                    throw;
                 throw new ToolFailedException(e);
             }
             finally
             {
                 // The span's own duration isn't known until it ends, after this: the log's is measured here
-                Record(outcome, Stopwatch.GetElapsedTime(started));
+                Record(outcome, failure, Stopwatch.GetElapsedTime(started));
             }
         }
 
-        private void Record(string outcome, TimeSpan elapsed)
+        private void Record(string outcome, string? failure, TimeSpan elapsed)
         {
             // The function invocation's execute_tool span for this call, when the chat is traced (else the span the reply runs
             // under, which isn't this call's)
-            if (Activity.Current is { } span && span.Source.Name == ChatModel.SourceName)
+            if (Activity.Current is { } span && Equals(span.GetTagItem("gen_ai.operation.name"), "execute_tool"))
+            {
                 span.SetTag(OutcomeTag, outcome);
-            ChatLog.ToolCalled(log, Name, outcome, elapsed.TotalMilliseconds, caller.UserID);
+                span.SetTag(ErrorTypeTag, failure);
+            }
+            ToolCallLog.Called(log, Name, outcome, elapsed.TotalMilliseconds, caller.UserID);
         }
     }
 }
 
 /// <summary>
-/// A chat tool's failure, as the telemetry is told it when what people wrote is left out of it (<see cref="ChatModel.SensitiveDataKey"/>):
-/// the failure's type and where it was thrown, not its message, which may quote the tool's arguments.
+/// A chat tool's failure, as the telemetry is told it when what people wrote is left out of it (Chat:Telemetry:SensitiveData): the
+/// failure's type and where it was thrown, not its message, which may quote the tool's arguments.
 /// </summary>
 public sealed class ToolFailedException(Exception failed) : Exception(failed.GetType().FullName)
 {
@@ -286,12 +300,9 @@ public sealed class ToolFailedException(Exception failed) : Exception(failed.Get
     public override string? StackTrace => failed.StackTrace;
 }
 
-/// <summary>The chats' log lines: a tool call (<see cref="GrifTools.AIFunctions"/>), a telemetry switch that isn't one (<see cref="ChatModel"/>).</summary>
-internal static partial class ChatLog
+/// <summary>A chat tool call's log line (<see cref="GrifTools.AIFunctions"/>): its tool, outcome and time, and who called it.</summary>
+internal static partial class ToolCallLog
 {
     [LoggerMessage(Level = LogLevel.Information, Message = "Chat tool {Tool}: {Outcome} in {ElapsedMs} ms, for user {UserID}")]
-    public static partial void ToolCalled(ILogger logger, string tool, string outcome, double elapsedMs, int? userID);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "{Key} is neither true nor false: the chats' telemetry leaves out what people wrote")]
-    public static partial void NotABoolean(ILogger logger, string key);
+    public static partial void Called(ILogger logger, string tool, string outcome, double elapsedMs, int? userID);
 }

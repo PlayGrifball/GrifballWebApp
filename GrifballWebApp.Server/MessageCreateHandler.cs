@@ -41,18 +41,50 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         if (!toTheBot && arg.MessageReference is null)
             return;
 
-        // A trace per message the bot may answer (a gateway event is no request to sit under): the lookup of what it replies to,
+        // A trace per message the bot answers (a gateway event is no request to sit under): the lookup of what a reply replies to,
         // then its reply's spans (the chat's model and tool calls), the database's and Discord's calls in it
         using var span = Tracing.StartActivity(MessageSpanName);
         span?.SetTag("discord.direct", arg.GuildId is null);
         if (!toTheBot)
         {
-            var replyToMessage = await discordClient.GetMessageAsync(arg.MessageReference!.ChannelId, arg.MessageReference.MessageId);
-            toTheBot = replyToMessage is not null && replyToMessage.Author.Id == BotId;
+            // Not recorded until the bot is known to answer, so a reply between others leaves no trace, nor does the lookup's call
+            // (its child, made meanwhile: not recorded either). The span still covers the lookup's time.
+            var recorded = span?.Recorded == true;
+            Unrecord(span);
+            try
+            {
+                var replyToMessage = await discordClient.GetMessageAsync(arg.MessageReference!.ChannelId, arg.MessageReference.MessageId);
+                toTheBot = replyToMessage is not null && replyToMessage.Author.Id == BotId;
+            }
+            catch (Exception ex)
+            {
+                // A message deleted, or one the bot can't read: one failing message must not fault the gateway handler
+                logger.LogError(ex, "Failed to look up the message Discord message {MessageId} replies to", arg.Id);
+                Record(span, recorded);
+                // Its type: its message may name what a user can't see
+                span?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
+                return;
+            }
+            if (toTheBot)
+                Record(span, recorded);
         }
         span?.SetTag("discord.answered", toTheBot);
         if (toTheBot)
             await HandleResponse(arg, span);
+    }
+
+    /// <summary><paramref name="span"/> not recorded (not exported when it ends), nor its children made meanwhile.</summary>
+    private static void Unrecord(System.Diagnostics.Activity? span)
+    {
+        if (span is not null)
+            span.ActivityTraceFlags &= ~ActivityTraceFlags.Recorded;
+    }
+
+    /// <summary>Records <paramref name="span"/> again, as it was sampled: exported when it ends.</summary>
+    private static void Record(System.Diagnostics.Activity? span, bool recorded)
+    {
+        if (span is not null && recorded)
+            span.ActivityTraceFlags |= ActivityTraceFlags.Recorded;
     }
 
     private async ValueTask HandleResponse(Message message, System.Diagnostics.Activity? span)
