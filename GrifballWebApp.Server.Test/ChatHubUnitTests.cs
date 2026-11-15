@@ -177,11 +177,13 @@ public class ChatHubUnitTests
         var hub = Hub(new ScriptedChatClient());
 
         var (_, noHistory) = await Read(await hub.Ask(new ChatRequestDto { Question = "Hi", History = null! }, CancellationToken.None));
+        var (_, noRequest) = await Read(await hub.Ask(null!, CancellationToken.None));
         var (_, nullTurn) = await Read(await hub.Ask(new ChatRequestDto { Question = "Hi", History = [null!] }, CancellationToken.None));
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(noHistory, Is.EqualTo(GrifChat.Unreadable));
+            Assert.That(noRequest, Is.EqualTo(GrifChat.Unreadable));
             Assert.That(nullTurn, Is.EqualTo(GrifChat.Unreadable));
             Assert.That(_logger.Entries, Is.Empty);
         }

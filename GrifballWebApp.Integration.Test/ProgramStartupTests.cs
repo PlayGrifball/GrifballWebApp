@@ -684,6 +684,8 @@ public class ProgramStartupTests
             Assert.That(factory.Services.GetRequiredService<AppRole>().Kind, Is.EqualTo(AppRoleKind.Api));
             Assert.That(scratchScalerRegistered, Is.True, "Program.cs registers the scratch scaler");
             Assert.That(hostedTypes, Does.Contain(typeof(ScratchScaleDown)));
+            Assert.That(hostedTypes, Does.Contain(typeof(GrifballWebApp.Server.SignalR.HubSessionSweep)).And.Contain(typeof(GrifballWebApp.Server.SignalR.HubUserSessionsListener)), "the hubs' pods");
+            Assert.That(factory.Services.GetServices<GrifballWebApp.Application.Identity.IUserSessions>().Count(), Is.EqualTo(1), "registered once");
             Assert.That(factory.GatewayClientRegistered, Is.False, "No Discord gateway in the API role");
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty);
             foreach (var workerOnly in AppRole.WorkerHostedServices)
@@ -786,6 +788,9 @@ public class ProgramStartupTests
             foreach (var workerOnly in AppRole.WorkerHostedServices)
                 Assert.That(hostedTypes, Does.Contain(workerOnly));
             Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Infrastructure.Historical.XuidLookupWorker)), "One per deployment: grif-discord's");
+            // No hubs here: no connections to sweep or end, but its saves still end the API pods' (one IUserSessions)
+            Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Server.SignalR.HubSessionSweep)).And.Not.Contain(typeof(GrifballWebApp.Server.SignalR.HubUserSessionsListener)));
+            Assert.That(factory.Services.GetServices<GrifballWebApp.Application.Identity.IUserSessions>().Select(s => s.GetType()), Is.EqualTo(new[] { typeof(GrifballWebApp.Server.SignalR.HubUserSessions) }));
             // No ConnectionStrings:Redis: no backplane.
             Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
                 Is.InstanceOf<DefaultHubLifetimeManager<TeamsHub>>());

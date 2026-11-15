@@ -23,7 +23,7 @@ public class GrifChatUnitTests
     private const string Asker = "user:1";
 
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
-    private readonly ChatLimits _limits = new();
+    private readonly ChatLimits _limits = new(maxReplies: 3);
     private readonly IChatClientFactory _clients = Substitute.For<IChatClientFactory>();
     private ServiceProvider _services = null!;
 
@@ -190,6 +190,17 @@ public class GrifChatUnitTests
     public void Start_ModelSlowerThanTheHostsTimeout_IsTookTooLong()
     {
         var model = new FakeModel { Hang = true };
+        var host = ChatHost.Site with { Timeout = TimeSpan.FromMilliseconds(20) };
+        var chat = Chat(model);
+
+        Assert.That(async () => await Ask(chat, "Hi", ToolCaller.Anonymous, host),
+            Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.TookTooLong));
+    }
+
+    [Test]
+    public void Start_AProviderThatEndsQuietlyWhenTimedOut_IsTookTooLongStill()
+    {
+        var model = new FakeModel { Quiet = true };
         var host = ChatHost.Site with { Timeout = TimeSpan.FromMilliseconds(20) };
         var chat = Chat(model);
 
@@ -368,6 +379,36 @@ public class GrifChatUnitTests
     }
 
     [Test]
+    public void Conversation_LeavesOutTheChatsRefusals_AndTheQuestionsItRefused_ButKeepsAnAnswerCutShort()
+    {
+        ChatMessage User(string text) => new(ChatRole.User, text);
+        ChatMessage Bot(string text) => new(ChatRole.Assistant, text);
+        var history = new[]
+        {
+            User("Who won?"), Bot("The Grifs."),
+            User(new string('a', 4000)), Bot(GrifChat.TooLong),
+            User("Again?"), Bot(ChatLimits.TooMany),
+            User("And now?"), Bot(ChatLimits.Full),
+            User("Slow one"), Bot("Part of it"), Bot(GrifChat.TookTooLong),
+            // Only what the chat says counts: a person may say anything
+            User(ChatLimits.Busy),
+        };
+
+        var conversation = GrifChat.Conversation(history, "Next?");
+
+        Assert.That(conversation.Select(m => (m.Role, m.Text)), Is.EqualTo(new[]
+        {
+            (ChatRole.User, "Who won?"), (ChatRole.Assistant, "The Grifs."),
+            (ChatRole.User, "Slow one"), (ChatRole.Assistant, "Part of it"),
+            (ChatRole.User, ChatLimits.Busy), (ChatRole.User, "Next?"),
+        }));
+    }
+
+    [Test]
+    public void Refusal_NoRequestAtAll_IsUnreadable()
+        => Assert.That(GrifChat.Refusal((ChatRequestDto?)null), Is.EqualTo(GrifChat.Unreadable));
+
+    [Test]
     public void History_OfARequest_TheBrowsersHistoryInItsRoles()
     {
         var request = new ChatRequestDto
@@ -430,6 +471,9 @@ public class GrifChatUnitTests
 
         public TaskCompletionSource? Blocked { get; init; }
 
+        /// <summary>Waits until canceled, then ends the stream quietly, as a provider may.</summary>
+        public bool Quiet { get; init; }
+
         /// <summary>Set when the model is first asked.</summary>
         public TaskCompletionSource Asked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -444,6 +488,11 @@ public class GrifChatUnitTests
             Asked.TrySetResult();
             if (Hang)
                 await Task.Delay(Timeout.Infinite, cancellationToken);
+            if (Quiet)
+            {
+                await Task.WhenAny(Task.Delay(Timeout.Infinite, cancellationToken));
+                yield break;
+            }
             if (Blocked is not null)
                 await Blocked.Task;
             foreach (var update in _replies.Dequeue())

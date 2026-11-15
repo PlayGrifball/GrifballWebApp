@@ -9,7 +9,7 @@ namespace GrifballWebApp.Application.Test;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class ChatLimitsUnitTests
 {
-    private readonly ChatLimits _limits = new();
+    private readonly ChatLimits _limits = new(maxReplies: 3);
 
     [TearDown]
     public void TearDown() => _limits.Dispose();
@@ -79,5 +79,35 @@ public class ChatLimitsUnitTests
             Assert.That(Ask("discord:5", ChatLimits.OthersPerMinute + 1), Is.EqualTo(Enumerable.Repeat<string?>(null, ChatLimits.OthersPerMinute).Append(ChatLimits.TooMany)));
             Assert.That(Ask("address:2001:db8::/64", ChatLimits.OthersPerMinute + 1)[^1], Is.EqualTo(ChatLimits.TooMany));
         }
+    }
+
+    [Test]
+    public void TryStart_BeyondTheRepliesUnderWayAtOnce_IsRefusedAtOnce_UntilOneIsDone_UsingNoneOfTheAskersQuestions()
+    {
+        using var limits = new ChatLimits();
+        var (first, _) = limits.TryStart("user:1");
+
+        var (second, full) = limits.TryStart("user:2");
+        var refusedAgain = Enumerable.Range(0, ChatLimits.SignedInPerMinute).Select(_ => limits.TryStart("user:2").Refusal).ToList();
+        first!.Dispose();
+        var (third, _) = limits.TryStart("user:2");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(limits.MaxReplies, Is.EqualTo(1), "the model answers one at a time");
+            Assert.That((second, full), Is.EqualTo(((IDisposable?)null, ChatLimits.Full)));
+            Assert.That(refusedAgain, Is.All.EqualTo(ChatLimits.Full));
+            Assert.That(third, Is.Not.Null, "and none of their questions used by those refusals");
+        }
+        third!.Dispose();
+    }
+
+    [TestCase(0, 1)]
+    [TestCase(2, 2)]
+    public void MaxReplies_AtLeastOne(int setting, int replies)
+    {
+        using var limits = new ChatLimits(setting);
+
+        Assert.That(limits.MaxReplies, Is.EqualTo(replies));
     }
 }

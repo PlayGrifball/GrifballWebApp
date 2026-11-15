@@ -91,8 +91,8 @@ public class SignalRBackplaneTests
         await first.ConnectAsync();
         await new GrifballWebApp.Server.SignalR.HubUserSessionsListener(firstsConnections, first).StartAsync(CancellationToken.None);
 
-        await new GrifballWebApp.Server.SignalR.HubUserSessions(new GrifballWebApp.Server.SignalR.HubConnections(),
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Server.SignalR.HubUserSessions>.Instance, second).EndAsync([7]);
+        new GrifballWebApp.Server.SignalR.HubUserSessions(new GrifballWebApp.Server.SignalR.HubConnections(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Server.SignalR.HubUserSessions>.Instance, second).End([7]);
 
         Assert.That(async () => await aborted.Task.WaitAsync(TimeSpan.FromSeconds(30)), Throws.Nothing, "the first pod closed it");
     }
@@ -107,9 +107,13 @@ public class SignalRBackplaneTests
         connections.Add(connection, new GrifballWebApp.Server.SignalR.HubUserState(7, []));
         var logger = new GrifballWebApp.Server.Test.RecordingLogger<GrifballWebApp.Server.SignalR.HubUserSessions>();
 
-        await new GrifballWebApp.Server.SignalR.HubUserSessions(connections, logger, down).EndAsync([7]);
+        var sessions = new GrifballWebApp.Server.SignalR.HubUserSessions(connections, logger, down);
 
+        sessions.End([7]);
+
+        // Closed at once, before Redis is even tried: a save never waits on it
         connection.Received(1).Abort();
+        await sessions.Published;
         Assert.That(logger.Entries, Has.Count.EqualTo(1), "the other pods not told: logged, not thrown");
     }
 }

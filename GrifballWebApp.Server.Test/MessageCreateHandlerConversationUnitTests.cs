@@ -465,7 +465,26 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         {
             Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Ask in 2000 characters or fewer."));
             Assert.That(model.Options, Is.Null, "the model isn't asked");
+            Assert.That(await Db.DiscordMessages.AnyAsync(), Is.False, "a question refused is kept for no later conversation");
         }
+    }
+
+    [Test]
+    public async Task HandleAsync_ADmsRefusals_AndTheQuestionsTheyRefused_AreNoPartOfItsHistory()
+    {
+        // The DM channel holds everything said there: the bot's refusals too
+        DmHolds((2, AuthorId, "Too much at once"), (3, BotId, ChatLimits.TooMany), (4, AuthorId, "Who won?"), (5, BotId, "The Grifs."));
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi"));
+
+        await Handler(model).HandleAsync(DirectMessage());
+
+        AssertNothingLogged();
+        Assert.That(model.Messages.Select(x => (x.Role, x.Text)), Is.EqualTo(new[]
+        {
+            (ChatRole.User, "Who won?"),
+            (ChatRole.Assistant, "The Grifs."),
+            (ChatRole.User, "hello"),
+        }));
     }
 
     [Test]

@@ -94,7 +94,6 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         yield return Of(typeof(IDiscordAccountLinkService), typeof(DiscordAccountLinkService), ServiceLifetime.Scoped);
         yield return Of(typeof(RescheduleService), typeof(RescheduleService), ServiceLifetime.Transient);
         yield return Of(typeof(GrifChat), typeof(GrifChat), ServiceLifetime.Transient);
-        yield return Of(typeof(ChatLimits), typeof(ChatLimits), ServiceLifetime.Singleton);
     }
 
     private static IServiceCollection AddApplication(Dictionary<string, string?>? settings = null)
@@ -146,6 +145,21 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         services.AddSingleton(_ => Substitute.For<IChatClientFactory>());
 
         Assert.That(() => services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true }).Dispose(), Throws.Nothing);
+    }
+
+    [TestCase(null, 1)]
+    [TestCase("3", 3)]
+    public void AddApplication_TheChatsLimits_OneProcessWide_AsManyRepliesAtOnceAsChatMaxRepliesSays(string? setting, int replies)
+    {
+        using var provider = AddApplication(new() { [ChatLimits.MaxRepliesKey] = setting }).BuildServiceProvider();
+
+        var limits = provider.GetRequiredService<ChatLimits>();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(limits.MaxReplies, Is.EqualTo(replies));
+            Assert.That(provider.GetRequiredService<ChatLimits>(), Is.SameAs(limits));
+        }
     }
 
     [Test]

@@ -30,7 +30,7 @@ public class HubSessionsUnitTests
     private readonly FakeValidator _validator = new();
 
     /// <summary>The database's answer for every principal: <see cref="Now"/>.</summary>
-    private sealed class FakeValidator() : HubSessionValidator(null!)
+    private sealed class FakeValidator() : HubSessionValidator(null!, null!, null!, null!)
     {
         public HubUserState? Now { get; set; } = Commissioner;
 
@@ -38,6 +38,9 @@ public class HubSessionsUnitTests
 
         public override Task<HubUserState?> CurrentAsync(ClaimsPrincipal? principal)
             => Fails ? throw new InvalidOperationException("The database is down") : Task.FromResult(Now);
+
+        public override Task<IReadOnlyList<HubUserState?>> CurrentAsync(IReadOnlyList<ClaimsPrincipal> principals)
+            => Fails ? throw new InvalidOperationException("The database is down") : Task.FromResult<IReadOnlyList<HubUserState?>>([.. principals.Select(_ => Now)]);
     }
 
     private sealed class TestHub : Microsoft.AspNetCore.SignalR.Hub
@@ -52,9 +55,33 @@ public class HubSessionsUnitTests
         [Authorize]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "A hub method is an instance method")]
         public void SignedIn() { }
+
+        [Authorize(Policy = StaffPolicy)]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "A hub method is an instance method")]
+        public void ByPolicy() { }
     }
 
-    private IServiceProvider Services() => new ServiceCollection().AddSingleton<HubSessionValidator>(_validator).AddScoped<HubUser>().BuildServiceProvider().CreateScope().ServiceProvider;
+    /// <summary>A hub only signed-in users may use, but for one method anyone may.</summary>
+    [Authorize]
+    private sealed class SignedInHub : Microsoft.AspNetCore.SignalR.Hub
+    {
+        [AllowAnonymous]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "A hub method is an instance method")]
+        public void Open() { }
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "A hub method is an instance method")]
+        public void Closed() { }
+    }
+
+    private const string StaffPolicy = "Staff";
+
+    /// <summary>A call's services: the validator, the call's user, and authorization as the site has it (a policy of staff's too).</summary>
+    private IServiceProvider Services() => new ServiceCollection()
+        .AddSingleton<HubSessionValidator>(_validator)
+        .AddScoped<HubUser>()
+        .AddLogging()
+        .AddAuthorization(options => options.AddPolicy(StaffPolicy, policy => policy.RequireRole("Commissioner", "Sysadmin")))
+        .BuildServiceProvider().CreateScope().ServiceProvider;
 
     private static HubCallerContext Connection(string id = "connection-1")
     {
@@ -176,17 +203,69 @@ public class HubSessionsUnitTests
         connection.Received(1).Abort();
     }
 
+    /// <summary>Whether <paramref name="user"/> may call <paramref name="hub"/>'s <paramref name="method"/> as the site authorizes it.</summary>
+    private Task<bool> Allows(Type hub, string method, HubUserState user)
+        => HubSessionFilter.AllowsAsync(Services(), hub.GetMethod(method)!, hub, Connection().User, user);
+
     [Test]
-    public void Allows_TheMethodsAuthorize_WithTheRolesNow()
+    public async Task AllowsAsync_TheMethodsAuthorize_WithTheRolesNow_ThroughTheSitesAuthorization()
     {
         var hub = typeof(TestHub);
+        var sysadmin = new HubUserState(7, ["Sysadmin"]);
+
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(HubSessionFilter.Allows(hub.GetMethod(nameof(TestHub.Anyone))!, hub, HubUserState.Anonymous), Is.True);
-            Assert.That(HubSessionFilter.Allows(hub.GetMethod(nameof(TestHub.SignedIn))!, hub, HubUserState.Anonymous), Is.False);
-            Assert.That(HubSessionFilter.Allows(hub.GetMethod(nameof(TestHub.SignedIn))!, hub, Player), Is.True);
-            Assert.That(HubSessionFilter.Allows(hub.GetMethod(nameof(TestHub.Staff))!, hub, Player), Is.False);
-            Assert.That(HubSessionFilter.Allows(hub.GetMethod(nameof(TestHub.Staff))!, hub, new HubUserState(7, ["Sysadmin"])), Is.True);
+            Assert.That(await Allows(hub, nameof(TestHub.Anyone), HubUserState.Anonymous), Is.True);
+            Assert.That(await Allows(hub, nameof(TestHub.SignedIn), HubUserState.Anonymous), Is.False);
+            Assert.That(await Allows(hub, nameof(TestHub.SignedIn), Player), Is.True);
+            Assert.That(await Allows(hub, nameof(TestHub.Staff), Player), Is.False);
+            Assert.That(await Allows(hub, nameof(TestHub.Staff), sysadmin), Is.True);
+            Assert.That(await Allows(hub, nameof(TestHub.ByPolicy), Player), Is.False, "a policy, with the roles now");
+            Assert.That(await Allows(hub, nameof(TestHub.ByPolicy), sysadmin), Is.True);
+        }
+    }
+
+    [Test]
+    public async Task AllowsAsync_AllowAnonymous_UnderAHubsAuthorize_LetsAnyoneCallIt_AndOnlyIt()
+    {
+        var hub = typeof(SignedInHub);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Allows(hub, nameof(SignedInHub.Open), HubUserState.Anonymous), Is.True);
+            Assert.That(await Allows(hub, nameof(SignedInHub.Closed), HubUserState.Anonymous), Is.False);
+            Assert.That(await Allows(hub, nameof(SignedInHub.Closed), Player), Is.True);
+        }
+    }
+
+    [Test]
+    public void AsNow_KeepsTheClaims_ButTheRolesAreTheDatabases()
+    {
+        var claims = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "7"), new Claim(ClaimTypes.Role, "Sysadmin")], "Cookies"));
+
+        var now = HubSessionFilter.AsNow(claims, Player);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(now.FindFirstValue(ClaimTypes.NameIdentifier), Is.EqualTo("7"));
+            Assert.That(now.IsInRole("Sysadmin"), Is.False);
+            Assert.That(now.IsInRole("Player"), Is.True);
+            Assert.That(now.Identity?.IsAuthenticated, Is.True);
+            Assert.That(HubSessionFilter.AsNow(claims, HubUserState.Anonymous).Identity?.IsAuthenticated, Is.False);
+            Assert.That(HubSessionFilter.AsNow(null, Player).Identity?.IsAuthenticated, Is.False);
+        }
+    }
+
+    [Test]
+    public void OnConnected_TheHubRefusing_LeavesNoConnectionKept()
+    {
+        var connection = Connection();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(() => new HubSessionFilter(_connections).OnConnectedAsync(new HubLifetimeContext(connection, Services(), new TestHub()),
+                _ => throw new HubException("No")), Throws.TypeOf<HubException>());
+            Assert.That(_connections.Find("connection-1"), Is.Null);
         }
     }
 
@@ -209,7 +288,7 @@ public class HubSessionsUnitTests
     }
 
     [Test]
-    public async Task EndAsync_ClosesTheUsersConnectionsHere_AndNoOneElses()
+    public async Task End_ClosesTheUsersConnectionsHere_AndNoOneElses()
     {
         var mine = Connection("mine");
         var theirs = Connection("theirs");
@@ -220,7 +299,7 @@ public class HubSessionsUnitTests
         _validator.Now = HubUserState.Anonymous;
         await Connect(signedOut);
 
-        await new HubUserSessions(_connections, NullLogger<HubUserSessions>.Instance).EndAsync([7]);
+        new HubUserSessions(_connections, NullLogger<HubUserSessions>.Instance).End([7]);
 
         mine.Received(1).Abort();
         theirs.DidNotReceive().Abort();
@@ -282,7 +361,7 @@ public class HubSessionsUnitTests
         var signIn = Substitute.For<SignInManager<User>>(users, Substitute.For<Microsoft.AspNetCore.Http.IHttpContextAccessor>(), Substitute.For<IUserClaimsPrincipalFactory<User>>(),
             Microsoft.Extensions.Options.Options.Create(new IdentityOptions()), NullLogger<SignInManager<User>>.Instance,
             Substitute.For<Microsoft.AspNetCore.Authentication.IAuthenticationSchemeProvider>(), Substitute.For<IUserConfirmation<User>>());
-        var validator = new HubSessionValidator(signIn);
+        var validator = new HubSessionValidator(signIn, null!, Microsoft.Extensions.Options.Options.Create(new IdentityOptions()), TimeProvider.System);
         var principal = Connection().User;
         var user = User.Register("staffer");
         user.Id = 7;
