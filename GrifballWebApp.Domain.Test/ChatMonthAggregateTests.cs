@@ -7,6 +7,7 @@ namespace GrifballWebApp.Domain.Test;
 /// tokens added (<see cref="ChatMonth.Record"/>), and its total measured against a limit (<see cref="ChatMonth.Reached"/>).
 /// </summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class ChatMonthAggregateTests
 {
@@ -76,8 +77,27 @@ public class ChatMonthAggregateTests
             Assert.That(month.Reached(10m), Is.False);
             month.Record(1, 0, 0);
             Assert.That(month.Reached(10m), Is.True, "At the limit: no more");
-            Assert.That(month.Remaining(10m), Is.Zero);
-            Assert.That(ChatMonth.Begin(7, new DateOnly(2026, 11, 1)).Remaining(10m), Is.EqualTo(10m));
+        }
+    }
+
+    [Test]
+    public void TakeFrom_AddsAnotherAccountsSameMonth_AsAMergeDoes()
+    {
+        var target = ChatMonth.Begin(7, new DateOnly(2026, 11, 15));
+        target.Record(1_000_000, 100, 10);
+        var source = ChatMonth.Begin(8, new DateOnly(2026, 11, 2));
+        source.Record(2_500_000, 300, 30);
+        source.Record(500_000, 50, 5);
+        var version = target.Version;
+
+        target.TakeFrom(source);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((target.UserID, target.CostMicros, target.InputTokens, target.OutputTokens, target.Replies),
+                Is.EqualTo((7, 4_000_000L, 450L, 45L, 3)));
+            Assert.That(target.Version, Is.Not.EqualTo(version));
+            Assert.That(() => target.TakeFrom(ChatMonth.Begin(8, new DateOnly(2026, 12, 1))), Throws.ArgumentException, "Another month");
         }
     }
 }

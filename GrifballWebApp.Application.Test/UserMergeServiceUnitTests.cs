@@ -97,6 +97,51 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task Merge_CombinesTheChatsMonths_AndKeepsAChosenModel()
+    {
+        var (to, from) = await TwoUsers();
+        var november = new DateOnly(2026, 11, 1);
+        var targetMonth = ChatMonth.Begin(to.Id, november);
+        targetMonth.Record(1_000_000, 10, 1);
+        var sourceMonth = ChatMonth.Begin(from.Id, november);
+        sourceMonth.Record(2_000_000, 20, 2);
+        var sourceOctober = ChatMonth.Begin(from.Id, new DateOnly(2026, 10, 1));
+        sourceOctober.Record(500_000, 5, 1);
+        Context.ChatMonths.AddRange(targetMonth, sourceMonth, sourceOctober);
+        Context.ChatChoices.Add(ChatChoice.Make(from.Id, "claude-opus"));
+        await Context.SaveChangesAsync();
+
+        await _service.Merge(to.Id, from.Id);
+
+        Context.ChangeTracker.Clear();
+        var months = await Context.ChatMonths.OrderBy(m => m.Month).Select(m => new { m.UserID, m.Month, m.CostMicros }).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(months.Select(m => (m.UserID, m.Month, m.CostMicros)), Is.EqualTo(new[]
+            {
+                (to.Id, new DateOnly(2026, 10, 1), 500_000L),
+                (to.Id, november, 3_000_000L),
+            }), "The source's spend is the target's: its limit counts it");
+            Assert.That(await Context.ChatChoices.Select(c => new { c.UserID, c.Model }).ToListAsync(),
+                Is.EqualTo(new[] { new { UserID = to.Id, Model = "claude-opus" } }), "The target chose none: the source's choice is theirs");
+        }
+    }
+
+    [Test]
+    public async Task Merge_KeepsTheTargetsChosenModel()
+    {
+        var (to, from) = await TwoUsers();
+        Context.ChatChoices.AddRange(ChatChoice.Make(to.Id, "ollama"), ChatChoice.Make(from.Id, "claude-opus"));
+        await Context.SaveChangesAsync();
+
+        await _service.Merge(to.Id, from.Id);
+
+        Context.ChangeTracker.Clear();
+        Assert.That(await Context.ChatChoices.Select(c => new { c.UserID, c.Model }).ToListAsync(),
+            Is.EqualTo(new[] { new { UserID = to.Id, Model = "ollama" } }));
+    }
+
+    [Test]
     public async Task Merge_Should_TransferXboxID_When_TransferXboxIsTrue()
     {
         var xboxUser = XboxUser.FromXbox(12345, "TestGamer");

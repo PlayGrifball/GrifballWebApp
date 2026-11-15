@@ -29,7 +29,10 @@ public class ChatClientsUnitTests
 
     /// <summary>The chats' models as AddChatModels registers them, with <paramref name="settings"/>.</summary>
     private static ServiceProvider Services(params (string Key, string? Value)[] settings)
-        => new ServiceCollection().AddSingleton(Configuration(settings)).AddChatModels().BuildServiceProvider();
+    {
+        var configuration = Configuration(settings);
+        return new ServiceCollection().AddSingleton(configuration).AddChatModels(configuration).BuildServiceProvider();
+    }
 
     [Test]
     public void Ollama_IsTheConfiguredServer_ForAnyone_WithNoToolCallsOfItsOwn()
@@ -167,5 +170,26 @@ public class ChatClientsUnitTests
             Assert.That(clients.Available, Is.False);
             Assert.That(clients.Models, Is.Empty);
         }
+    }
+
+    [Test]
+    public void ChatModels_RefusesANegativePrice_OrNoProvider()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(() => ChatModels.From(Configuration((ChatModels.AnthropicApiKeyKey, "sk-test"),
+                    ("Chat:Models:0:Id", "h"), ("Chat:Models:0:Provider", "Anthropic"), ("Chat:Models:0:Model", "m"), ("Chat:Models:0:Price:Output", "-1"))),
+                Throws.InvalidOperationException.With.Message.Contains("negative"), "A negative cost would never be saved: no limit");
+            Assert.That(() => ChatModels.From(Configuration((ChatModels.OllamaUrlKey, OllamaUrl), ("Chat:Models:0:Id", "o"), ("Chat:Models:0:Model", "m"))),
+                Throws.InvalidOperationException.With.Message.Contains("Provider"), "Not Ollama by default: an Anthropic model sent there");
+        }
+    }
+
+    [Test]
+    public void AddChatModels_ChecksTheModelsAsTheAppStarts_NotWhenAChatFirstNeedsThem()
+    {
+        var configuration = Configuration(("Chat:Models:0:Id", "h"), ("Chat:Models:0:Provider", "Anthropic"), ("Chat:Models:0:Model", "m"));
+
+        Assert.That(() => new ServiceCollection().AddChatModels(configuration), Throws.InvalidOperationException.With.Message.Contains(ChatModels.AnthropicApiKeyKey));
     }
 }

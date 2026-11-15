@@ -4,6 +4,7 @@ namespace GrifballWebApp.Domain.Test;
 
 /// <summary>The chat model a user chose (<see cref="ChatChoice"/>): on the site and in a Discord DM, until they choose another.</summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class ChatChoiceAggregateTests
 {

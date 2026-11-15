@@ -278,6 +278,16 @@ describe('ChatStore', () => {
       expect(store.models()).withContext('a new value: the select is set back').not.toBe(before);
     });
 
+    it("loads the spend again when the user stops a paid model's answer", async () => {
+      const store = await connected();
+      connection.invoke.calls.reset();
+
+      store.ask('Who won?');
+      store.stop();
+
+      expect(connection.invoke).toHaveBeenCalledWith('Models');
+    });
+
     it("loads the spend again when a paid model's answer fails", async () => {
       const store = await connected();
       connection.invoke.calls.reset();

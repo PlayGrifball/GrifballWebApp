@@ -338,4 +338,72 @@ public partial class GrifChatUnitTests
         Assert.That(async () => await chat.StartAsync([], "Again", Sysadmin, ChatHost.Site, Asker),
             Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(ChatLimits.Busy));
     }
+
+    [Test]
+    public async Task StreamAsync_APaidCallThatNeverStreamed_ChargesNothing()
+    {
+        // The provider failed or was stopped before its first update: it bills nothing
+        var chat = ChatWithModels(new FakeModel { Hang = true });
+        using var stop = new CancellationTokenSource();
+
+        using (var reply = await chat.StartAsync([], "Hi", Sysadmin, ChatHost.Site, Asker))
+        {
+            var streaming = All(reply.StreamAsync(stop.Token));
+            await stop.CancelAsync();
+            Assert.That(async () => await streaming, Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        Assert.That(await _db.ChatMonths.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task StreamAsync_APaidReplyThatReachesTheMonthlyLimit_StopsThere()
+    {
+        using var limits = new ChatLimits(maxReplies: 3, monthlyLimit: 0.01m);
+        // Its first call's usage ($0.0125: 2500 output tokens at $5 a million) reaches the limit: no next call's words
+        var chat = ChatWithModels(new FakeModel([Text("First "), Used(input: 0, output: 2500), Text("second")]), limits);
+        var texts = new List<string>();
+
+        using (var reply = await chat.StartAsync([], "Hi", Sysadmin, ChatHost.Site, Asker))
+        {
+            Assert.That(async () =>
+            {
+                await foreach (var text in reply.StreamAsync())
+                    texts.Add(text);
+            }, Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(ChatLimits.MonthlyLimitReached));
+        }
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(texts, Does.Not.Contain("second"));
+            Assert.That((await _db.ChatMonths.AsNoTracking().SingleAsync()).CostMicros, Is.EqualTo(12_500));
+        }
+    }
+
+    [Test]
+    public async Task StreamAsync_ACutShortCallsEstimate_CountsItsThinkingAndToolCalls_NotOnlyItsText()
+    {
+        var thinking = new ChatResponseUpdate(ChatRole.Assistant, [new TextReasoningContent(new string('r', 3000))]);
+        var chat = ChatWithModels(new FakeModel([thinking]) { ThenHang = true });
+        using var stop = new CancellationTokenSource();
+
+        using (var reply = await chat.StartAsync([], "Hi", Sysadmin, ChatHost.Site, Asker))
+        {
+            var streaming = All(reply.StreamAsync(stop.Token));
+            await stop.CancelAsync();
+            Assert.That(async () => await streaming, Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        Assert.That((await _db.ChatMonths.AsNoTracking().SingleAsync()).OutputTokens, Is.EqualTo(3000 / ChatReply.CharactersPerToken));
+    }
+
+    [Test]
+    public void ChatModel_LetsAReplyCallTheModelAtMostMaxModelCallsTimes()
+    {
+        _clients.Create(Arg.Any<ChatModelOption>()).Returns(new FakeModel());
+
+        var client = new ChatModel(_clients, NullLoggerFactory.Instance).Create(Free);
+
+        Assert.That(client.GetService<FunctionInvokingChatClient>()!.MaximumIterationsPerRequest, Is.EqualTo(ChatModel.MaxModelCalls));
+    }
 }
