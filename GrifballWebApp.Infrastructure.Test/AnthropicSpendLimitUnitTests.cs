@@ -38,14 +38,14 @@ public class AnthropicSpendLimitUnitTests
     private static readonly AnthropicApiException BadRequest = new AnthropicBadRequestException { StatusCode = HttpStatusCode.BadRequest, ResponseBody = Body("invalid_request_error",
         "messages: at least one message is required") };
 
-    public static IEnumerable<TestCaseData> SpendLimits()
+    private static IEnumerable<TestCaseData> SpendLimits()
     {
         yield return new TestCaseData(WorkspaceLimit).SetName("A workspace's spend limit");
         yield return new TestCaseData(OrganizationLimit).SetName("The organization's spend limit");
         yield return new TestCaseData(TierCap).SetName("The usage tier's cap");
     }
 
-    public static IEnumerable<TestCaseData> OtherErrors()
+    private static IEnumerable<TestCaseData> OtherErrors()
     {
         yield return new TestCaseData(RateLimit).SetName("A rate limit");
         yield return new TestCaseData(BadRequest).SetName("A bad request");
