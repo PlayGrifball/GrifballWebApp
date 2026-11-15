@@ -27,18 +27,20 @@
     <p class="chat__error" role="alert">{{ error }}</p>
   }
 
-  @if (picker(); as models) {
+  @if (picker() || spend()) {
     <div class="chat__model">
-      <mat-form-field appearance="outline">
-        <mat-label>Model</mat-label>
-        <mat-select [value]="models.selected" (selectionChange)="choose($event.value)" [disabled]="asking()">
-          @for (model of models.models; track model.id) {
-            <mat-option [value]="model.id">{{ model.name }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-      @if (models.spent != null && models.limit != null) {
-        <span class="chat__spend">{{ models.spent | currency: 'USD' }} of {{ models.limit | currency: 'USD' }} this month</span>
+      @if (picker(); as models) {
+        <mat-form-field appearance="outline">
+          <mat-label>Model</mat-label>
+          <mat-select [value]="models.selected" (selectionChange)="choose($event.value)" [disabled]="asking()">
+            @for (model of models.models; track model.id) {
+              <mat-option [value]="model.id">{{ model.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
+      @if (spend(); as cost) {
+        <span class="chat__spend">{{ cost.spent | currency: 'USD' }} of {{ cost.limit | currency: 'USD' }} this month</span>
       }
     </div>
   }

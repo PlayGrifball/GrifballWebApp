@@ -33,6 +33,11 @@ export class ChatComponent {
     const models = this.store.models();
     return models && models.models.length > 1 ? models : null;
   });
+  /** The user's spend on paid models this month and its limit, when they have a paid model: with a picker or without. */
+  readonly spend = computed(() => {
+    const models = this.store.models();
+    return models?.spent != null && models.limit != null ? { spent: models.spent, limit: models.limit } : null;
+  });
 
   readonly maxLength = MAX_QUESTION_LENGTH;
   readonly form = new FormGroup({

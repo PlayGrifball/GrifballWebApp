@@ -20,7 +20,13 @@ export const MAX_QUESTION_LENGTH = 2000;
 /** Where the tab keeps its conversation: the server keeps none, and it goes with the tab or a sign-in or out. */
 export const CHAT_STORAGE_KEY = 'grif-chat';
 
-export const NOT_CONNECTED = 'The chat is still connecting: try again in a moment.';
+/**
+ * How long after a stop the spend is loaded again: the server saves a stopped paid answer's cost only once its stream has
+ * wound down, a moment after the stop.
+ */
+export const STOP_SPEND_RELOAD_MS = 2000;
+
+export const NOT_CONNECTED ='The chat is still connecting: try again in a moment.';
 export const FAILED = "The chat couldn't answer just now: try again later.";
 
 /** What SignalR puts before a HubException's message, the reason the server gives the browser. */
@@ -93,11 +99,16 @@ export class ChatStore {
   readonly error = this.errorState.asReadonly();
 
   private answer: ISubscription<string> | null = null;
+  /** The spend's reload after a stop, waiting for the server to save the stopped answer's cost. */
+  private spendReload: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     // Another user's conversation isn't theirs to see or continue
     inject(AuthSession).changed$.pipe(takeUntilDestroyed()).subscribe(() => this.clear());
-    inject(DestroyRef).onDestroy(() => this.answer?.dispose());
+    inject(DestroyRef).onDestroy(() => {
+      this.answer?.dispose();
+      clearTimeout(this.spendReload);
+    });
   }
 
   /**
@@ -176,8 +187,10 @@ export class ChatStore {
       return;
     this.answer?.dispose();
     this.done();
-    // A paid answer stopped is charged what it used so far: its spend, as the server has it by now
-    this.loadSpend(this.connection!);
+    // A paid answer stopped is charged what it used so far, saved once it has wound down: its spend, a moment later
+    const connection = this.connection!;
+    clearTimeout(this.spendReload);
+    this.spendReload = setTimeout(() => this.loadSpend(connection), STOP_SPEND_RELOAD_MS);
   }
 
   /** A new conversation: the answer on its way stopped, and the questions and answers so far gone. */
