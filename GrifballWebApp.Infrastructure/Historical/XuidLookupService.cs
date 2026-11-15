@@ -39,6 +39,8 @@ public class XuidLookupReport
     public int NotFound { get; set; }
     public int Failed { get; set; }
     public int ClaimsCreated { get; set; }
+    /// <summary>Placeholders whose name can't be a gamertag (<see cref="XboxUser.IsPossibleGamertag"/>): recorded as not found, never asked.</summary>
+    public int NotGamertags { get; set; }
 }
 
 /// <summary>The XUID lookups of placeholders, by outcome, and how many are due.</summary>
@@ -95,7 +97,11 @@ public class XuidLookupService
 
     private IQueryable<User> PlaceholderUsers() => _context.Users.Where(User.IsImportPlaceholderExpression);
 
-    /// <summary>Looks up one batch of due placeholders. Returns what it did; LookedUp 0 when none was due.</summary>
+    /// <summary>Error of a placeholder whose name can't be a gamertag: recorded as not found without asking Halo.</summary>
+    public const string NotAGamertagError = "Not a possible gamertag: not looked up";
+
+    /// <summary>Looks up one batch of due placeholders. Returns what it did; LookedUp and NotGamertags 0 when none was due.
+    /// A name that can't be a gamertag (<see cref="XboxUser.IsPossibleGamertag"/>) is never asked about: no Halo call, no wait.</summary>
     public async Task<XuidLookupReport> RunBatchAsync(CancellationToken ct = default)
     {
         var report = new XuidLookupReport();
@@ -104,25 +110,45 @@ public class XuidLookupService
         var gap = TimeSpan.FromMinutes(1) / Math.Max(1, _options.LookupsPerMinute);
         foreach (var placeholder in due)
         {
-            if (report.LookedUp > 0)
-                await Delay(gap, ct);
-            // The Halo call's turn, shared with the pulls and every other pod's calls on the key
-            await _pacer.WaitAsync(ct);
-            report.LookedUp++;
             var gamertag = User.PlaceholderGamertagOf(placeholder.UserName)!;
-            var lookup = await _context.XuidLookups.FirstOrDefaultAsync(l => l.UserID == placeholder.Id, ct);
-            if (lookup is null)
+            var possible = XboxUser.IsPossibleGamertag(gamertag);
+            if (possible)
             {
-                lookup = new XuidLookup { UserID = placeholder.Id };
-                _context.XuidLookups.Add(lookup);
+                if (report.LookedUp > 0)
+                    await Delay(gap, ct);
+                // The Halo call's turn, shared with the pulls and every other pod's calls on the key
+                await _pacer.WaitAsync(ct);
+                report.LookedUp++;
             }
-            lookup.LookedUpAt = _time.GetUtcNow().UtcDateTime;
-            lookup.XboxUserID = null;
-            lookup.Error = null;
-            await LookUpAsync(lookup, placeholder.Id, gamertag, report, ct);
+            var lookup = await LookupRowAsync(placeholder.Id, ct);
+            if (possible)
+            {
+                await LookUpAsync(lookup, placeholder.Id, gamertag, report, ct);
+            }
+            else
+            {
+                lookup.Status = XuidLookupStatus.NotFound;
+                lookup.Error = NotAGamertagError;
+                report.NotGamertags++;
+            }
             await _context.SaveChangesAsync(ct);
         }
         return report;
+    }
+
+    /// <summary>The placeholder's lookup row (made if it has none), reset for a lookup now.</summary>
+    private async Task<XuidLookup> LookupRowAsync(int placeholderId, CancellationToken ct)
+    {
+        var lookup = await _context.XuidLookups.FirstOrDefaultAsync(l => l.UserID == placeholderId, ct);
+        if (lookup is null)
+        {
+            lookup = new XuidLookup { UserID = placeholderId };
+            _context.XuidLookups.Add(lookup);
+        }
+        lookup.LookedUpAt = _time.GetUtcNow().UtcDateTime;
+        lookup.XboxUserID = null;
+        lookup.Error = null;
+        return lookup;
     }
 
     /// <summary>Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>.</summary>
@@ -246,11 +272,17 @@ public sealed partial class XuidLookupWorker : BackgroundService
             total += report.LookedUp;
             if (report.LookedUp > 0)
                 LogLookups(_logger, report.Found, report.NotFound, report.Failed, report.ClaimsCreated);
-            if (report.LookedUp < Math.Max(1, _options.Value.BatchSize) || ct.IsCancellationRequested)
+            if (report.NotGamertags > 0)
+                LogNotGamertags(_logger, report.NotGamertags);
+            // A batch of names that aren't gamertags is a full batch too: more may be due after it
+            if (report.LookedUp + report.NotGamertags < Math.Max(1, _options.Value.BatchSize) || ct.IsCancellationRequested)
                 return total;
         }
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "XUID lookups: {Found} found, {NotFound} not found, {Failed} failed, {Claims} claims")]
     private static partial void LogLookups(ILogger logger, int found, int notFound, int failed, int claims);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "XUID lookups: {Count} names that can't be gamertags skipped")]
+    private static partial void LogNotGamertags(ILogger logger, int count);
 }

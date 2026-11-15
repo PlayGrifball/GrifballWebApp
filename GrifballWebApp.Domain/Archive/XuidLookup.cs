@@ -14,7 +14,8 @@ public class XuidLookup
     public XuidLookupStatus Status { get; set; }
     /// <summary>The XUID found (Status Found).</summary>
     public long? XboxUserID { get; set; }
-    /// <summary>Why it failed (Status Failed), to try again later.</summary>
+    /// <summary>Why it failed (Status Failed), to try again later; or, with Status NotFound, that the name can't be a gamertag
+    /// so Halo wasn't asked (XuidLookupService.NotAGamertagError).</summary>
     public string Error { get; set; }
 
     public virtual User User { get; set; }
