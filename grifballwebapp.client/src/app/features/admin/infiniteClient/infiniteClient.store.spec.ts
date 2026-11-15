@@ -14,7 +14,7 @@ describe('InfiniteClientStore', () => {
   let snackBar: jasmine.SpyObj<MatSnackBar>;
 
   beforeEach(() => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
     TestBed.configureTestingModule({
       providers: [InfiniteClientStore, provideHttpClient(withXhr()), provideHttpClientTesting(), { provide: MatSnackBar, useValue: snackBar }],

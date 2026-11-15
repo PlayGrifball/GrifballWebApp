@@ -8,7 +8,7 @@ describe('ThemeComponent', () => {
   let theming: ThemingService;
 
   beforeEach(async () => {
-    spyOn(console, 'log');
+    spyOn(console, 'debug');
     await TestBed.configureTestingModule({ imports: [ThemeComponent] }).compileComponents();
     theming = TestBed.inject(ThemingService);
     theming.font.set('sans-serif');
@@ -59,7 +59,7 @@ describe('ThemeComponent in the dialog', () => {
   let dialogRef: jasmine.SpyObj<MatDialogRef<ThemeComponent>>;
 
   beforeEach(async () => {
-    spyOn(console, 'log');
+    spyOn(console, 'debug');
     dialogRef = jasmine.createSpyObj('MatDialogRef', ['close']);
     await TestBed.configureTestingModule({
       imports: [ThemeComponent],

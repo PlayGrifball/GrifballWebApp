@@ -360,7 +360,7 @@ describe('SignupFormComponent', () => {
     it('reports a failed submission', () => {
       stubForm(true);
       onSeason5();
-      spyOn(console, 'log');
+      spyOn(console, 'error');
       component.onSubmit();
 
       httpMock.expectOne('/api/seasons/5/signups/mine').flush({ status: 400, title: 'Request refused', detail: 'Signups are closed' }, { status: 400, statusText: 'Bad Request' });

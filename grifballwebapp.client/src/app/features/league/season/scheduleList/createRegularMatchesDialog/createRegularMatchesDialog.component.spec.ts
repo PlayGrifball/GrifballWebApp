@@ -96,7 +96,7 @@ describe('CreateRegularMatchesDialogComponent', () => {
   });
 
   it('reports a failure and does not emit', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     const created = jasmine.createSpy('regularMatchesCreated');
     component.regularMatchesCreated.subscribe(created);
 

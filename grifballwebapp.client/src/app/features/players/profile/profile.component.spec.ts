@@ -236,7 +236,7 @@ describe('ProfileComponent', () => {
   });
 
   it('reports a failure to load the gamertag', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     fixture.detectChanges();
     http.expectOne('/api/users/21/gamertag').flush('x', { status: 500, statusText: 'Server Error' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed get gamertag', 'Close');
@@ -289,7 +289,7 @@ describe('ProfileComponent', () => {
   });
 
   it('stays in edit mode when saving fails', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     personID.set(21);
     load({ gamertag: null });
     component.gamertag.set('NewTag');
@@ -301,7 +301,7 @@ describe('ProfileComponent', () => {
   });
 
   it("shows the server's error message when saving fails", () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     personID.set(21);
     load({ gamertag: null });
     component.gamertag.set('NewTag');

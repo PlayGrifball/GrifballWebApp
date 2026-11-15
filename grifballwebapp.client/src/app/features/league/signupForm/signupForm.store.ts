@@ -11,6 +11,7 @@ import { SeasonEvent } from '@shared/seasonEvents';
 import { StoreInput } from '@shared/storeInput';
 import { whileCurrent } from '@shared/whileCurrent';
 import { AvailabilityService } from '../availability.service';
+import { AppLog } from '@core/telemetry/appLog';
 
 /** A signup with nothing filled in. */
 export function emptySignup(): SignupBodyDto {
@@ -29,6 +30,7 @@ function signupBody(signup: SignupResponseDto): SignupBodyDto {
  */
 @Injectable()
 export class SignupFormStore {
+  private readonly log = inject(AppLog);
   private readonly signups = inject(SignupsService);
   private readonly seasons = inject(SeasonService);
   private readonly home = inject(HomeService);
@@ -62,7 +64,7 @@ export class SignupFormStore {
     this.signups.upsertSignup({ seasonID, body }).subscribe({
       next: () => this.snackBar.open('Signup Submitted', 'OK'),
       error: (result: HttpErrorResponse) => {
-        console.log(result);
+        this.log.error('Failed to save the signup', result);
         this.snackBar.open('Error Occurred: ' + errorText(result, 'The signup could not be saved'), 'OK');
       },
     });

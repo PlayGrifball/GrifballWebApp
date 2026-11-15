@@ -5,6 +5,7 @@ import { StoreInput } from '@shared/storeInput';
 import { whileCurrent } from '@shared/whileCurrent';
 import type { SeasonSettings } from '../api/seasonSettings';
 import { SeasonSettingsApiService } from '../api/seasonSettingsApi.service';
+import { AppLog } from '@core/telemetry/appLog';
 
 /**
  * The season editor's data: the season being edited (none for a new one), the games, leagues and seasons its selects
@@ -12,6 +13,7 @@ import { SeasonSettingsApiService } from '../api/seasonSettingsApi.service';
  */
 @Injectable()
 export class SeasonEditStore {
+  private readonly log = inject(AppLog);
   private readonly eventOrganizer = inject(EventOrganizerService);
   private readonly api = inject(SeasonSettingsApiService);
 
@@ -43,15 +45,15 @@ export class SeasonEditStore {
   loadOptions(): void {
     this.eventOrganizer.getGameVersions().subscribe({
       next: gameVersions => this._gameVersions.set(gameVersions),
-      error: error => console.error(error),
+      error: error => this.log.error('Failed to load the game versions', error),
     });
     this.eventOrganizer.getLeagues().subscribe({
       next: leagues => this._leagues.set(leagues),
-      error: error => console.error(error),
+      error: error => this.log.error('Failed to load the leagues', error),
     });
     this.api.getSeasons().subscribe({
       next: seasons => this._seasons.set(seasons),
-      error: error => console.error(error),
+      error: error => this.log.error('Failed to load the seasons to copy from', error),
     });
   }
 
@@ -59,7 +61,7 @@ export class SeasonEditStore {
   save(season: SeasonSettings, saved: (seasonID: number) => void): void {
     this.api.upsertSeason(season).subscribe({
       next: seasonID => saved(seasonID),
-      error: result => console.log(result),
+      error: result => this.log.error('Failed to save the season', result),
     });
   }
 

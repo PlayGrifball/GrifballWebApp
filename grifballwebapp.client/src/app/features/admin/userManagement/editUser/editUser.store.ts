@@ -4,6 +4,7 @@ import { UserManagementService } from '@api/services/user-management.service';
 import { StoreInput } from '@shared/storeInput';
 import { whileCurrent } from '@shared/whileCurrent';
 import { parseUser, UserResponseDto } from '../userResponseDto';
+import { AppLog } from '@core/telemetry/appLog';
 
 /** A user as loaded, and their lockout end exactly as the API sent it. */
 export interface LoadedUser {
@@ -14,6 +15,7 @@ export interface LoadedUser {
 /** The user being edited: loading them and saving them. One per page (the component provides it). */
 @Injectable()
 export class EditUserStore {
+  private readonly log = inject(AppLog);
   private readonly userManagement = inject(UserManagementService);
 
   /** The route's user (0: none): the component's input. */
@@ -34,8 +36,8 @@ export class EditUserStore {
   /** Saves the user; the answer, or the failure, is logged. */
   save(userID: number, body: ApiUserResponseDto): void {
     this.userManagement.editUser({ userID, body }).subscribe({
-      next: () => console.log('Updated user'),
-      error: result => console.log(result),
+      next: () => this.log.info('Updated user ' + userID),
+      error: result => this.log.error('Failed to update the user', result),
     });
   }
 
@@ -43,7 +45,7 @@ export class EditUserStore {
     // Nothing of the previous user stays
     this._loaded.set(null);
     if (userID === 0) {
-      console.log('Invalid user ID');
+      this.log.warn('Edit user: no user ID in the route');
       return;
     }
     this.userManagement.getUser({ userID })
@@ -54,7 +56,7 @@ export class EditUserStore {
           if (user)
             this._loaded.set({ user, rawLockoutEnd: raw.lockoutEnd ?? null });
         },
-        error: error => console.log(error),
+        error: error => this.log.error('Failed to load the user', error),
       });
   }
 }

@@ -10,6 +10,7 @@ import { errorText } from '@shared/errorText';
 import { whileCurrent } from '@shared/whileCurrent';
 import { catchError, finalize, forkJoin, map, Observable, of, Subject, switchMap } from 'rxjs';
 import { addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTeam, movePoolPlayer, removeCaptain, removePlayerFromTeam, renameTeam, resortCaptain } from './draft';
+import { AppLog } from '@core/telemetry/appLog';
 
 /**
  * A season's draft as the team builder shows and changes it: the teams, the player pool and whether captains are locked,
@@ -18,6 +19,7 @@ import { addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTea
  */
 @Injectable()
 export class TeamBuilderStore {
+  private readonly log = inject(AppLog);
   private readonly draft = inject(TeamsService);
   private readonly seasons = inject(SeasonService);
   private readonly snackBarService = inject(MatSnackBar);
@@ -166,7 +168,7 @@ export class TeamBuilderStore {
     const current: Draft = { teams: this.teams(), pool: this.playerPool() };
     const next = change(current);
     if (next === null) {
-      console.log('Detected out of sync');
+      this.log.info('Draft: out of sync with the server; loading it again');
       this.reloadAfterSaves = true;
       this.reloadIfSettled();
       return null;
@@ -238,7 +240,7 @@ export class TeamBuilderStore {
       this.reloadIfSettled();
     })).subscribe({
       next: r => {
-        console.log(r);
+        this.log.debug('Draft: change saved', r);
         if (saved && !this.destroyed)
           saved(r);
       },
@@ -275,7 +277,7 @@ export class TeamBuilderStore {
     const dto: CaptainPlacementDto = { seasonID: this.shownSeasonID(), personID: added.captain.personID, orderNumber: added.captain.order! };
     this.save(this.draft.addCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.connectionID, body: dto }),
       saved => this.applyDraft(draft => renameTeam(draft, player.personID, saved.teamName, saved.teamID)));
-    console.log('Added new captain ' + added.captain.name + ' with pick order ' + added.captain.order);
+    this.log.debug('Draft: added captain ' + added.captain.name + ' with pick order ' + added.captain.order);
   }
 
   /** A team moves to `index` in pick order. */
@@ -287,7 +289,7 @@ export class TeamBuilderStore {
     // Order must not be null
     const dto: CaptainPlacementDto = { seasonID: this.shownSeasonID(), personID: moved.captain.personID, orderNumber: moved.captain.order! };
     this.save(this.draft.resortCaptain({ seasonID: dto.seasonID, signalRConnectionID: this.connectionID, body: dto }));
-    console.log('Resorted captains ' + moved.captain.name + ' now has pick order ' + moved.captain.order);
+    this.log.debug('Draft: resorted captains; ' + moved.captain.name + ' now has pick order ' + moved.captain.order);
   }
 
   /** A pool player moves to `index` in the pool: only the order changes, which the server does not keep. */
@@ -329,7 +331,7 @@ export class TeamBuilderStore {
       signalRConnectionID: this.connectionID,
       body: { seasonID, previousCaptainID, newCaptainID: captainID, personID, roundNumber: player.round! }, // MUST NOT BE NULL :(
     }));
-    console.log(teamName + '\'s ' + player.round + ' pick is ' + player.name);
+    this.log.debug('Draft: ' + teamName + '\'s ' + player.round + ' pick is ' + player.name);
   }
 
   /** A pool player is picked by a team. The server always adds a pick as the team's last round. */
@@ -344,6 +346,6 @@ export class TeamBuilderStore {
       signalRConnectionID: this.connectionID,
       body: { seasonID, captainID, personID },
     }));
-    console.log(teamName + '\'s ' + player.round + ' pick is ' + player.name);
+    this.log.debug('Draft: ' + teamName + '\'s ' + player.round + ' pick is ' + player.name);
   }
 }

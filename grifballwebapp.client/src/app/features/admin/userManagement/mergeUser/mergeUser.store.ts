@@ -9,10 +9,12 @@ import { nullWhenNotFound } from '@core/http/nullWhenNotFound';
 import { map } from 'rxjs';
 import { parseUser } from '../userResponseDto';
 import { resourceView } from '@shared/resourceView';
+import { AppLog } from '@core/telemetry/appLog';
 
 /** The two users of a merge, looked up by ID, and merging them. One per page (the component provides it). */
 @Injectable()
 export class MergeUserStore {
+  private readonly log = inject(AppLog);
   private readonly userManagement = inject(UserManagementService);
 
   /** The user merged away, and the one kept (0: none chosen): the component's fields. */
@@ -48,12 +50,12 @@ export class MergeUserStore {
     this._result.set(null);
     this.userManagement.mergeUser({ body: request }).subscribe({
       next: () => {
-        console.log('Merged user');
+        this.log.info('Merged user ' + request.mergeFromId + ' into ' + request.mergeToId);
         this._submitting.set(false);
         this._result.set({ ok: true, text: 'Merged user ' + request.mergeFromId + ' into ' + request.mergeToId });
       },
       error: (e: HttpErrorResponse) => {
-        console.log(e);
+        this.log.error('Failed to merge the users', e);
         this._submitting.set(false);
         this._result.set({ ok: false, text: errorText(e, 'Merge failed') });
       },

@@ -82,7 +82,7 @@ describe('SignupFormStore', () => {
   });
 
   it('saves the signup, and says how it went', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     store.submit(5, emptySignup());
     const save = http.expectOne({ method: 'POST', url: '/api/seasons/5/signups/mine' });
     expect(save.request.body).toEqual(emptySignup());

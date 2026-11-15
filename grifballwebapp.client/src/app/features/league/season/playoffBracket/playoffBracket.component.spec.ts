@@ -175,7 +175,7 @@ describe('PlayoffBracketComponent behaviour', () => {
   });
 
   it('reports a failure to load the bracket', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     fixture.detectChanges();
     http.expectOne('/api/seasons/6/bracket/viewer-data').flush('x', { status: 500, statusText: 'Server Error' });
 

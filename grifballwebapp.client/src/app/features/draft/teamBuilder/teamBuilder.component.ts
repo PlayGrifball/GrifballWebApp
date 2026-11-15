@@ -11,6 +11,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { SeasonTabsComponent } from '../../league';
 import { TeamBuilderStore } from './teamBuilder.store';
+import { AppLog } from '@core/telemetry/appLog';
 
 @Component({
     selector: 'app-team-builder',
@@ -33,6 +34,7 @@ import { TeamBuilderStore } from './teamBuilder.store';
     host: { ngSkipHydration: 'true' },
 })
 export class TeamBuilderComponent implements OnInit {
+  private readonly log = inject(AppLog);
   /** The draft: loaded, kept up to date, and changed a move at a time. */
   readonly store = inject(TeamBuilderStore);
   accountService = inject(AccountService);
@@ -149,7 +151,7 @@ export class TeamBuilderComponent implements OnInit {
       this.store.disband(team.captain.personID, index);
     }
     else {
-      console.log('Unexpected type placed in draft pool: ' + this.grabbedThing);
+      this.log.warn('Draft: unexpected item dropped in the pool: ' + this.grabbedThing);
     }
   }
 
@@ -177,7 +179,7 @@ export class TeamBuilderComponent implements OnInit {
     if (t === GrabbedThing.AvailablePlayer) {
       return { ...(data as TeamsPlayerDto), round: null, pick: null };
     } else {
-      console.log(data);
+      this.log.warn('Draft: the dragged item is not a player', data);
       throw new Error('Unable to map to player');
     }
   }
@@ -190,7 +192,7 @@ export class TeamBuilderComponent implements OnInit {
     } else if (t === GrabbedThing.Team) {
       return data as TeamResponseDto;
     } else {
-      console.log(data);
+      this.log.warn('Draft: the dragged item is not a team', data);
       throw new Error('Unable to map to team');
     }
   }

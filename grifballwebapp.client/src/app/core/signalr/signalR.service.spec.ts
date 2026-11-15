@@ -39,7 +39,7 @@ describe('SignalRService', () => {
     };
     withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();
     spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as unknown as HubConnection);
-    spyOn(console, 'log');
+    spyOn(console, 'warn');
 
     service = TestBed.inject(SignalRService);
   });
@@ -121,7 +121,7 @@ describe('SignalRService', () => {
       service.connected(listener);
       await flush();
       expect(listener).not.toHaveBeenCalled();
-      expect(console.log).toHaveBeenCalledWith('Error while starting the Teams hub connection: offline');
+      expect(console.warn).toHaveBeenCalledWith("Couldn't start the Teams hub connection; trying again", 'offline');
     });
 
     it('tells every listener even when one throws, each on its own', async () => {

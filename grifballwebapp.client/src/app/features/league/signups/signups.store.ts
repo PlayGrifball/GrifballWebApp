@@ -5,6 +5,7 @@ import { SignupsService } from '@api/services/signups.service';
 import { StoreInput } from '@shared/storeInput';
 import { whileCurrent } from '@shared/whileCurrent';
 import { SeasonSummaryService } from '../season/seasonSummary';
+import { AppLog } from '@core/telemetry/appLog';
 
 /**
  * A season's signups and summary: the route's season, or the current one when it names none (0). A new season drops
@@ -12,6 +13,7 @@ import { SeasonSummaryService } from '../season/seasonSummary';
  */
 @Injectable()
 export class SignupsStore {
+  private readonly log = inject(AppLog);
   private readonly seasons = inject(SeasonService);
   private readonly signups = inject(SignupsService);
   private readonly summaries = inject(SeasonSummaryService);
@@ -59,7 +61,7 @@ export class SignupsStore {
     this.summaries.get(seasonID).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({ next: s => this._summary.set(s), error: () => {} });
     this.signups.getSignups({ seasonID }).pipe(whileCurrent(seasonID, this.shownSeasonID)).subscribe({
       next: result => this._signUps.set(result),
-      error: error => console.error(error),
+      error: error => this.log.error('Failed to load the signups', error),
     });
   }
 }

@@ -6,6 +6,7 @@ import { MatFormFieldModule, MatLabel } from '@angular/material/form-field';
 import { ThemingService } from '../../theming.service';
 import { MatInput } from '@angular/material/input';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { AppLog } from '../../../telemetry/appLog';
 
 @Component({
     selector: 'app-palette',
@@ -23,6 +24,7 @@ import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PaletteComponent implements OnInit {
+  private readonly log = inject(AppLog);
   private themingService = inject(ThemingService);
   // The page's (the server's, rendering it: no colours set there yet)
   private document = inject(DOCUMENT);
@@ -49,7 +51,7 @@ export class PaletteComponent implements OnInit {
 
     this.color.valueChanges.subscribe({
       next: newColor => {
-        console.log('setting color');
+        this.log.debug(`Theme: setting ${this.paletteName()}`);
         const signal = this.getSignal(this.paletteName());
         signal?.set(newColor);
       },

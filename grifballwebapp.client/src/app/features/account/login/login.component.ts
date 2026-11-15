@@ -10,6 +10,7 @@ import { RouterLink } from '@angular/router';
 import { ErrorMessageComponent } from '@shared/validation/errorMessage.component';
 import { AccountService, appRelativePath } from '@core/auth/account.service';
 import { MatCardModule } from '@angular/material/card';
+import { AppLog } from '@core/telemetry/appLog';
 
 @Component({
     selector: 'app-login',
@@ -28,6 +29,7 @@ import { MatCardModule } from '@angular/material/card';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LoginComponent implements OnInit {
+  private readonly log = inject(AppLog);
   accountService = inject(AccountService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
@@ -50,7 +52,7 @@ export class LoginComponent implements OnInit {
       return;
     if (this.callback() === 'true') {
       // We are returning from a login, validate that it worked
-      console.log('Returned from backend ExternalLoginCallback');
+      this.log.info('Sign-in: back from the external login');
       this.accountService.loginExternal(this.followUp());
     } else { // Just loading the page... still check for a follow-up
       if (appRelativePath(this.followUp()) !== null) {
@@ -58,10 +60,10 @@ export class LoginComponent implements OnInit {
         this.accountService.whenKnown().subscribe(() => {
           if (this.accountService.isLoggedIn()) {
             // Go right to the follow-up
-            console.log('Already logged in, redirecting to follow-up');
+            this.log.info('Sign-in: already signed in, going to the follow-up');
             this.accountService.goToFollowUp(this.followUp());
           } else {
-            console.log('Not logged in, must log in before going to follow-up');
+            this.log.info('Sign-in: not signed in, signing in before the follow-up');
             this.leaveFor(this.discordUrl());
           }
         });

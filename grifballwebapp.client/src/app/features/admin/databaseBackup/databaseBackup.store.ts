@@ -7,6 +7,7 @@ import { BackupService } from '@api/services/backup.service';
 import { errorText } from '@shared/errorText';
 import { StoreInput } from '@shared/storeInput';
 import { resourceView } from '@shared/resourceView';
+import { AppLog } from '@core/telemetry/appLog';
 
 export type BackupFormat = 'sqlite' | 'postgres' | 'sqlserver' | 'bak' | 'dump';
 export type ExportTarget = 'Postgres' | 'SqlServer';
@@ -26,6 +27,7 @@ export const BACKUP_POLL_MS = 2000;
  */
 @Injectable()
 export class DatabaseBackupStore {
+  private readonly log = inject(AppLog);
   private readonly backup = inject(BackupService);
   private readonly snackbar = inject(MatSnackBar);
   private pollTimer: ReturnType<typeof setTimeout> | undefined;
@@ -67,7 +69,7 @@ export class DatabaseBackupStore {
   loadExportStatus(): void {
     this.backup.backupExportStatus().subscribe({
       next: status => this.followExport(status),
-      error: r => console.log(r),
+      error: r => this.log.error('Database backup: failed to read the export status', r),
     });
   }
 
@@ -81,7 +83,7 @@ export class DatabaseBackupStore {
         this.followExport(status);
       },
       error: r => {
-        console.log(r);
+        this.log.error('Database backup: failed to start the export', r);
         this._starting.set(false);
         this.snackbar.open(errorText(r, 'The export failed to start'), 'Close');
       },
@@ -96,7 +98,7 @@ export class DatabaseBackupStore {
     this.backup.backupDownloadStatus({ format }).subscribe({
       next: status => this.followDownload(status),
       error: r => {
-        console.log(r);
+        this.log.error('Database backup: failed to read the backup status', r);
         if (this.startedHere) {
           this.startedHere = null;
           this._making.set(false);
@@ -116,7 +118,7 @@ export class DatabaseBackupStore {
     this.backup.backupStartDownload({ format }).subscribe({
       next: status => this.followDownload(status),
       error: (r: HttpErrorResponse) => {
-        console.log(r);
+        this.log.error('Database backup: failed to start the backup', r);
         this.startedHere = null;
         this._making.set(false);
         // 409: another is running, or the native backup can't be made here: the reason.

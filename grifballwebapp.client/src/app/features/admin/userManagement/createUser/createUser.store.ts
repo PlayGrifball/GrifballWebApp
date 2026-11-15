@@ -2,10 +2,12 @@ import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { UserManagementService } from '@api/services/user-management.service';
 import { CreateUserDto } from './createUserDto';
+import { AppLog } from '@core/telemetry/appLog';
 
 /** Making a user. One per form (the component provides it). */
 @Injectable()
 export class CreateUserStore {
+  private readonly log = inject(AppLog);
   private readonly api = inject(UserManagementService);
   private readonly snackbar = inject(MatSnackBar);
 
@@ -15,7 +17,7 @@ export class CreateUserStore {
       next: () => this.snackbar.open('Created User'),
       error: e => {
         this.snackbar.open('Failed to create user');
-        console.log(e);
+        this.log.error('Failed to create the user', e);
       },
     });
   }

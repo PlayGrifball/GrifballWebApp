@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
+import { AppLog } from '../telemetry/appLog';
 
 type Theme = {
   name: string;
@@ -32,6 +33,7 @@ export type ShadeApplied = {
   providedIn: 'root',
 })
 export class ThemingService {
+  private readonly log = inject(AppLog);
   // Spartan HUD is the default theme. The picker edits these seed colours: the accent
   // (primary), gold (tertiary) and team red (error) of the HUD follow them, see styles/_hud-tokens.scss.
   font = signal<string>(SPARTAN_HUD.font);
@@ -136,7 +138,7 @@ export class ThemingService {
     const root = document.querySelector('html');
     if (!root)
     {
-      console.log('root missing');
+      this.log.warn('Theme: no <html> element to set the shade on');
       return;
     }
 

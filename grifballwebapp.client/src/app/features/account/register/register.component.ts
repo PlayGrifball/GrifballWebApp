@@ -13,6 +13,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '@core/auth/account.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { errorText } from '@shared/errorText';
+import { AppLog } from '@core/telemetry/appLog';
 
 @Component({
     selector: 'app-register',
@@ -32,6 +33,7 @@ import { errorText } from '@shared/errorText';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RegisterComponent {
+  private readonly log = inject(AppLog);
   private apiClient = inject(AccountService);
   private snackBar = inject(MatSnackBar);
 
@@ -57,7 +59,7 @@ export class RegisterComponent {
     this.apiClient.register(this.model).subscribe(
       {
         error: (e: HttpErrorResponse) => {
-          console.log(e);
+          this.log.error('Registration failed', e);
           this.snackBar.open(`Registration failed: ${errorText(e, 'the server refused it')}`, "Close");
         },
         next: (e) => this.snackBar.open("Registration Success", "Close"),

@@ -49,7 +49,7 @@ describe('hubLifecycle', () => {
     withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();
     withAutomaticReconnect = spyOn(HubConnectionBuilder.prototype, 'withAutomaticReconnect').and.callThrough();
     spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as unknown as HubConnection);
-    log = spyOn(console, 'log');
+    log = spyOn(console, 'warn');
     connected = jasmine.createSpy('connected');
   });
 
@@ -81,7 +81,7 @@ describe('hubLifecycle', () => {
     it('logs it, and tries again with a growing backoff that the last delay caps', async () => {
       create();
       await settled();
-      expect(log).toHaveBeenCalledWith('Error while starting the Test hub connection: Error: refused');
+      expect(log).toHaveBeenCalledWith("Couldn't start the Test hub connection; trying again", new Error('refused'));
       expect(connected).not.toHaveBeenCalled();
 
       for (const [attempt, delay] of [...HUB_RETRY_MS, HUB_RETRY_MS[HUB_RETRY_MS.length - 1]].entries()) {
@@ -224,7 +224,7 @@ describe('hubLifecycle', () => {
 
       TestBed.inject(AuthSession).signedInOrOut();
       await settled();
-      expect(log).toHaveBeenCalledWith('Error while restarting the Test hub connection: stuck');
+      expect(log).toHaveBeenCalledWith("Couldn't restart the Test hub connection", 'stuck');
     });
   });
 

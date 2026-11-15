@@ -96,7 +96,8 @@ describe('MergeUserComponent merging', () => {
   const mergeButton = () => (fixture.nativeElement as HTMLElement).querySelector('button[mat-flat-button]') as HTMLButtonElement;
 
   beforeEach(async () => {
-    spyOn(console, 'log');
+    spyOn(console, 'info');
+    spyOn(console, 'error');
     TestBed.configureTestingModule({
       imports: [MergeUserComponent],
       providers: [noMaterialAnimations, provideHttpClient(withXhr()), provideHttpClientTesting()],
@@ -147,13 +148,14 @@ describe('MergeUserComponent merging', () => {
       },
     });
     req.flush({});
-    expect(console.log).toHaveBeenCalledWith('Merged user');
+    expect(console.info).toHaveBeenCalledWith(jasmine.stringMatching(/^Merged user /));
   });
 
   it('logs a failed merge', () => {
     component.submit();
     httpMock.expectOne('/api/user-merges').flush('x', { status: 400, statusText: 'Bad Request' });
-    expect(console.log).not.toHaveBeenCalledWith('Merged user');
+    expect(console.info).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith('Failed to merge the users', jasmine.anything());
   });
 
   it('disables the button while the merge is in flight, so a double click sends one request', async () => {

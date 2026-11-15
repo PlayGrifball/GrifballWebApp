@@ -43,7 +43,7 @@ describe('TeamStandingsStore', () => {
   });
 
   it('is loaded with none when they fail', async () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     store.seasonID.use(signal(2));
     TestBed.tick();
     http.expectOne('/api/seasons/2/standings').flush('x', { status: 500, statusText: 'Server Error' });

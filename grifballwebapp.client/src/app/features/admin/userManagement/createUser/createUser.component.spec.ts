@@ -74,7 +74,7 @@ describe('CreateUserComponent', () => {
   });
 
   it('reports a failure to create the user', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     component.onSubmit();
     http.expectOne('/api/users').flush('dup', { status: 409, statusText: 'Conflict' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed to create user');

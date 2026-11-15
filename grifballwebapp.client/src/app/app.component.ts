@@ -11,6 +11,7 @@ import { ThemingService } from './core/layout/theming.service';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { SiteFooterComponent } from './core/layout/siteFooter/siteFooter.component';
+import { AppLog } from '@core/telemetry/appLog';
 
 /** Room taken in the toolbar by the menu button (with its gap) when it is shown. */
 export const MENU_BUTTON_WIDTH = 48;
@@ -36,6 +37,7 @@ export const NAV_LINK_GAP = 4;
     providers: [AppStore],
 })
 export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
+  private readonly log = inject(AppLog);
   accountService = inject(AccountService);
   private readonly store = inject(AppStore);
   private themingService = inject(ThemingService);
@@ -191,7 +193,7 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
   private getLinkWidth(title: string): number {
     const hiddenLink = document.getElementById('hidden');
     if (!hiddenLink) {
-      console.error("Hidden link element not found!");
+      this.log.warn('Toolbar: the hidden link used to measure links is missing');
       return 0;
     }
     hiddenLink.innerText = title;

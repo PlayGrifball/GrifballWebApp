@@ -7,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ThemingService } from '../theming.service';
+import { AppLog } from '../../telemetry/appLog';
 
 @Component({
     selector: 'app-theme',
@@ -25,6 +26,7 @@ import { ThemingService } from '../theming.service';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ThemeComponent implements OnInit {
+  private readonly log = inject(AppLog);
   private themingService = inject(ThemingService);
   /** Set when shown as the header's dialog (not on the /theme page): it then has Close and Done. */
   readonly dialogRef = inject(MatDialogRef<ThemeComponent>, { optional: true });
@@ -42,7 +44,7 @@ export class ThemeComponent implements OnInit {
 
     this.font.valueChanges.subscribe({
       next: newFont => {
-        console.log('setting font');
+        this.log.debug('Theme: setting the font');
         this.themingService.font.set(newFont);
       },
     })

@@ -61,7 +61,7 @@ describe('PlayoffBracketStore', () => {
   });
 
   it('has none for a season that does not exist, and says when it fails', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     store.seasonID.use(signal(6));
     TestBed.tick();
     request(6).flush('x', { status: 404, statusText: 'Not Found' });

@@ -29,7 +29,7 @@ describe('CreateRegularMatchesDialogStore', () => {
   });
 
   it('says when they could not be made', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     const created = jasmine.createSpy('created');
     store.create(11, 2, 3, created);
     http.expectOne(r => r.url === '/api/seasons/11/matches/generate').flush('x', { status: 500, statusText: 'Server Error' });

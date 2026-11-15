@@ -7,6 +7,7 @@ import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 
 import { ToDatePipe } from '@shared/toDate.pipe';
+import { AppLog } from '@core/telemetry/appLog';
 @Component({
     selector: 'app-season-manager',
     imports: [
@@ -21,6 +22,7 @@ import { ToDatePipe } from '@shared/toDate.pipe';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonManagerComponent implements OnInit {
+  private readonly log = inject(AppLog);
   private api = inject(SeasonSettingsApiService);
 
   /** The seasons; undefined while they load. */
@@ -37,7 +39,7 @@ export class SeasonManagerComponent implements OnInit {
     this.api.getSeasons().subscribe({
       next: (result) => this.seasons.set(result),
       error: (error) => {
-        console.error(error);
+        this.log.error('Failed to load the seasons', error);
         this.error.set(true);
       },
     });

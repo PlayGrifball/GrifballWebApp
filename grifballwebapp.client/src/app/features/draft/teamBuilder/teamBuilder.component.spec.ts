@@ -482,7 +482,8 @@ describe('TeamBuilderComponent', () => {
       for (const m of ['addCaptain', 'resortCaptain', 'removeCaptain', 'addPlayerToTeam', 'movePlayerToTeam', 'removePlayerFromTeam'] as const) {
         (mockDraft[m] as jasmine.Spy).and.returnValue(of(m === 'addCaptain' ? { teamName: 'Named', teamID: 9 } : {}));
       }
-      spyOn(console, 'log');
+      spyOn(console, 'debug');
+      spyOn(console, 'warn');
       fixture.detectChanges();
     });
 
@@ -905,7 +906,7 @@ describe('TeamBuilderComponent', () => {
     it('logs an unexpected drag type dropped in the pool', () => {
       grab({}, 'Mystery' as GrabbedThing);
       component.onDropInPool(drop({}, 0));
-      expect(console.log).toHaveBeenCalledWith('Unexpected type placed in draft pool: Mystery');
+      expect(console.warn).toHaveBeenCalledWith('Draft: unexpected item dropped in the pool: Mystery');
     });
 
     it('ignores drops that are not a copy or move, and pick drops without a team', () => {
@@ -1108,7 +1109,8 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('keeps the same signal values when an update changes nothing', () => {
-      spyOn(console, 'log');
+      spyOn(console, 'debug');
+      spyOn(console, 'warn');
       const teams = component.teams();
       const playerPool = component.playerPool();
 
@@ -1225,10 +1227,10 @@ describe('TeamBuilderComponent', () => {
     ];
     for (const [name, spy, dto] of outOfSync) {
       it(`reloads when out of sync (${name})`, () => {
-        spyOn(console, 'log');
+        spyOn(console, 'info');
         handler<unknown>(spy())(dto);
         expect(loads()).toBe(2);
-        expect(console.log).toHaveBeenCalledWith('Detected out of sync');
+        expect(console.info).toHaveBeenCalledWith('Draft: out of sync with the server; loading it again');
       });
     }
   });

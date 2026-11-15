@@ -183,6 +183,7 @@ function useFakeHub(offered?: ConstructorParameters<typeof FakeTeamsHub>[0]): { 
     // The service's and the client's logging.
     spyOn(console, 'log');
     spyOn(console, 'info');
+    spyOn(console, 'warn');
     spyOn(console, 'error');
 
     current.hub = hub;

@@ -125,11 +125,11 @@ describe('SeasonEditComponent', () => {
 
   it('logs a failed save', async () => {
     await render();
-    const log = spyOn(console, 'log');
+    const log = spyOn(console, 'error');
     api.upsertSeason.and.returnValue(throwError(() => 'nope'));
 
     component.onSubmit();
-    expect(log).toHaveBeenCalledWith('nope');
+    expect(log).toHaveBeenCalledWith('Failed to save the season', 'nope');
     expect(component.model().seasonID).toBe(4);
   });
 
@@ -192,7 +192,7 @@ describe('SeasonEditComponent', () => {
     const err = spyOn(console, 'error');
     api.getSeasons.and.returnValue(throwError(() => 'down'));
     await render();
-    expect(err).toHaveBeenCalledWith('down');
+    expect(err).toHaveBeenCalledWith('Failed to load the seasons to copy from', 'down');
     expect(component.copyableSeasons()).toEqual([]);
     expect(saveButton().disabled).toBeFalse();
   });
@@ -330,8 +330,8 @@ describe('SeasonEditComponent', () => {
       eventOrganizer.getGameVersions.and.returnValue(throwError(() => 'no games'));
       eventOrganizer.getLeagues.and.returnValue(throwError(() => 'no leagues'));
       await render();
-      expect(err).toHaveBeenCalledWith('no games');
-      expect(err).toHaveBeenCalledWith('no leagues');
+      expect(err).toHaveBeenCalledWith('Failed to load the game versions', 'no games');
+      expect(err).toHaveBeenCalledWith('Failed to load the leagues', 'no leagues');
       expect(component.gameVersions()).toEqual([]);
       expect(saveButton().disabled).toBeFalse();
     });

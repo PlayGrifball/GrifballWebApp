@@ -97,7 +97,7 @@ describe('SeedOrderingDialogComponent behaviour', () => {
   });
 
   it('reports a failure to load standings', () => {
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     http.expectOne('/api/seasons/9/standings').flush('x', { status: 500, statusText: 'Server Error' });
 
     expect(component.loading()).toBeFalse();
@@ -180,7 +180,7 @@ describe('SeedOrderingDialogComponent behaviour', () => {
 
   it('keeps the dialog open and reports when saving the seeds fails', () => {
     loadStandings();
-    spyOn(console, 'log');
+    spyOn(console, 'error');
     const emitted = jasmine.createSpy('seedingOrder');
     component.seedingOrder.subscribe(emitted);
     component.onSubmit();

@@ -82,3 +82,11 @@ store. `profileCommendations` is the smallest example, `xboxAccount` one with pa
   actions, through the real store. A resource's value comes a microtask after the answer, so a spec waits for
   `ApplicationRef.whenStable()` (or the fixture's) before reading it; it waits only after answering, since a resource
   still loading keeps the app unstable.
+
+## Logging
+
+Log through `AppLog` (`@core/telemetry/appLog`), not `console`: `this.log.error('Failed to save the season', error)`.
+It writes to the console as before (that's how the server render's logs reach the pod's logs) and sends the same line
+to telemetry at its level (`debug`, `info`, `warn`, `error`), with the cause's status, path or error message as
+attributes. The message says what failed in words someone reading the logs understands; the cause goes second, not
+into the message. Only `main.ts` uses `console` itself: a failed bootstrap has no injector to ask.
