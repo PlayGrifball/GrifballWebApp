@@ -6,6 +6,9 @@
 {{- if not $o.model }}
 {{- fail "ollama.model is required with ollama.enabled: the model the chart's server pulls and the chats use" }}
 {{- end }}
+{{- if and $o.gpu.enabled (not $o.gpu.resources) }}
+{{- fail "ollama.gpu.resources is required with ollama.gpu.enabled: the GPU resource the cluster offers (squat.ai/dri: 1, amd.com/gpu: 1, nvidia.com/gpu: 1)" }}
+{{- end }}
 {{- if not $o.persistence.existingClaim }}
 # The models, kept across restarts: the init container pulls the model once, and finds it here after.
 apiVersion: v1
@@ -65,7 +68,11 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with $o.podSecurityContext }}
+      {{- $podSecurity := deepCopy ($o.podSecurityContext | default dict) }}
+      {{- if and $o.gpu.enabled $o.gpu.supplementalGroups }}
+      {{- $_ := set $podSecurity "supplementalGroups" $o.gpu.supplementalGroups }}
+      {{- end }}
+      {{- with $podSecurity }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -113,6 +120,12 @@ spec:
             # Every pod's address, not only localhost: the backend, the workers and grif-discord (NetworkPolicy).
             - name: OLLAMA_HOST
               value: {{ printf "0.0.0.0:%v" $o.port | quote }}
+            {{- if $o.gpu.enabled }}
+            {{- range $name, $value := $o.gpu.env }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
           ports:
             - name: ollama
               containerPort: {{ $o.port }}
@@ -125,7 +138,13 @@ spec:
             tcpSocket:
               port: ollama
             periodSeconds: 20
-          {{- with $o.resources }}
+          # With a GPU: its resource beside the CPU and memory ones (the pull above needs none)
+          {{- $resources := deepCopy ($o.resources | default dict) }}
+          {{- if $o.gpu.enabled }}
+          {{- $limits := merge (deepCopy ($resources.limits | default dict)) $o.gpu.resources }}
+          {{- $_ := set $resources "limits" $limits }}
+          {{- end }}
+          {{- with $resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}

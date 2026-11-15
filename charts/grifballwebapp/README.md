@@ -572,8 +572,13 @@ workers and grif-discord get its server (`Ollama:Url`) and model (`Ollama:Model`
   PersistentVolumeClaim (`ollama.persistence`, 20Gi; or `existingClaim`). An init container, `pull-model`, pulls
   `ollama.model` onto it unless it is there already (`ollama show`), so a restart downloads nothing and a model
   change pulls only the new one. `ollama.env` sets the server's `OLLAMA_*` settings: by default one model loaded,
-  one reply at a time, kept in memory for an hour. `ollama.resources` defaults to 6Gi requested and 10Gi at most, with 2 CPUs requested,
-  for llama3.1 8B on the CPU. `nodeSelector`, `tolerations` and `affinity` place it.
+  one reply at a time, kept in memory for an hour. `ollama.resources` defaults to 6Gi requested and 10Gi at most, with 2 CPUs requested and 4 at most,
+  for llama3.1 8B on the CPU; the init container gets the same. `nodeSelector`, `tolerations` and `affinity` place it.
+- **On a GPU** (`ollama.gpu.enabled`): the server, not the pull, also requests `ollama.gpu.resources`, the GPU
+  resource the cluster's device plugin offers (`squat.ai/dri: 1`, `amd.com/gpu: 1`, `nvidia.com/gpu: 1`; required), with
+  `ollama.gpu.supplementalGroups` (the device's group, so user 1000 can open it) and `ollama.gpu.env`. The image's
+  Vulkan backend uses the GPU by itself once the container can open its render device; AMD's ROCm needs
+  `ollama.image.tag` `rocm` and `/dev/kfd` as well.
 - **An existing server** (`ollama.external.url`, e.g. `http://ollama.ai-tools.svc:11434/`). Allow it with
   `networkPolicy.ollama` (`to`, and `port` when its pods' port isn't the URL's).
 
