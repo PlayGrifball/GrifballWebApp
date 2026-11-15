@@ -14,6 +14,11 @@ export interface ChatRequestDto {
   history: Array<ChatTurnDto>;
 
   /**
+   * The model to answer (its ID); null: the user's choice, else their default.
+   */
+  model: string | null;
+
+  /**
    * The question, at most GrifballWebApp.Application.Chat.GrifChat.MaxQuestionLength characters.
    */
   question: string;

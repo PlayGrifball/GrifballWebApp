@@ -10,6 +10,9 @@ describe('ChatComponent', () => {
   let fixture: ComponentFixture<ChatComponent>;
   let stream: jasmine.Spy;
   let answers: { subscriber: IStreamSubscriber<string>; disposed: boolean }[];
+  let invoke: jasmine.Spy;
+  /** The connection coming back up: the store loads the user's models again. */
+  let reconnected: () => void;
   const isLoggedIn = signal(false);
 
   const el = () => fixture.nativeElement as HTMLElement;
@@ -36,6 +39,7 @@ describe('ChatComponent', () => {
     sessionStorage.removeItem(CHAT_STORAGE_KEY);
     isLoggedIn.set(false);
     answers = [];
+    invoke = jasmine.createSpy('invoke').and.returnValue(Promise.resolve({ models: [{ id: 'ollama', name: 'llama3.2:3b' }], selected: 'ollama' }));
     stream = jasmine.createSpy('stream').and.callFake(() => ({
       subscribe: (subscriber: IStreamSubscriber<string>) => {
         const entry = { subscriber, disposed: false };
@@ -44,8 +48,9 @@ describe('ChatComponent', () => {
       },
     }));
     const connection = {
-      start: () => Promise.resolve(), stop: () => Promise.resolve(), on: () => undefined, onreconnected: () => undefined,
-      onclose: () => undefined, stream, state: HubConnectionState.Connected,
+      start: () => Promise.resolve(), stop: () => Promise.resolve(), on: () => undefined,
+      onreconnected: (callback: () => void) => { reconnected = callback; }, onclose: () => undefined, stream, invoke,
+      state: HubConnectionState.Connected,
     };
     spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as unknown as HubConnection);
     TestBed.configureTestingModule({
@@ -75,7 +80,7 @@ describe('ChatComponent', () => {
     button('Ask')!.click();
     fixture.detectChanges();
 
-    expect(stream).toHaveBeenCalledOnceWith('Ask', { question: 'Who won?', history: [] });
+    expect(stream).toHaveBeenCalledOnceWith('Ask', { question: 'Who won?', history: [], model: null });
     expect(textarea().value).toBe('');
     expect(button('Ask')!.disabled).toBeTrue();
     expect(el().querySelector('[role="log"]')!.getAttribute('aria-busy')).toBe('true');
@@ -145,5 +150,45 @@ describe('ChatComponent', () => {
     fixture.detectChanges();
     expect(turns()).toEqual([]);
     expect(text()).toContain('No questions yet');
+  });
+  /** The connection comes up again as a user with `models`: the page shows them. */
+  async function withModels(models: object): Promise<void> {
+    invoke.and.returnValue(Promise.resolve(models));
+    reconnected();
+    await new Promise(resolve => setTimeout(resolve));
+    fixture.detectChanges();
+    // The select shows its selected option's name once its options are in
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  it('shows no model picker with only one model to use', async () => {
+    expect(el().querySelector('mat-select')).withContext('none before the models are known').toBeNull();
+
+    await withModels({ models: [{ id: 'ollama', name: 'llama3.2:3b' }], selected: 'ollama' });
+
+    expect(el().querySelector('mat-select')).toBeNull();
+    expect(text()).not.toContain('this month');
+  });
+
+  it("shows the models the user may use, the selected one, and this month's spend on paid ones", async () => {
+    await withModels({
+      models: [{ id: 'claude-haiku', name: 'Claude Haiku 5.5' }, { id: 'ollama', name: 'llama3.2:3b' }],
+      selected: 'claude-haiku', spent: 1.5, limit: 10,
+    });
+
+    expect(el().querySelector('mat-select')?.textContent).toContain('Claude Haiku 5.5');
+    expect(text()).toContain('$1.50 of $10.00 this month');
+  });
+
+  it('keeps the model the user chooses on the server', async () => {
+    await withModels({
+      models: [{ id: 'claude-haiku', name: 'Claude Haiku 5.5' }, { id: 'ollama', name: 'llama3.2:3b' }],
+      selected: 'claude-haiku', spent: 0, limit: 10,
+    });
+
+    fixture.componentInstance.choose('ollama');
+
+    expect(invoke).toHaveBeenCalledWith('Choose', 'ollama');
   });
 });

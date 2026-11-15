@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { PLATFORM_ID } from '@angular/core';
 import { HubConnectionBuilder, HubConnectionState, type HubConnection, type IStreamSubscriber } from '@microsoft/signalr';
-import type { ChatRequestDto, ChatTurnDto } from '@api/models';
+import type { ChatModelsDto, ChatRequestDto, ChatTurnDto } from '@api/models';
 import { AuthSession } from '@core/auth/authSession.service';
 import {
   CHAT_HUB_URL, CHAT_STORAGE_KEY, ChatStore, FAILED, HISTORY_LIMIT, MAX_HISTORY_MESSAGE_LENGTH, NOT_CONNECTED, chatErrorText,
@@ -10,7 +10,7 @@ import {
 describe('ChatStore', () => {
   /** The hub connection: Connected unless a spec says otherwise, each stream it is asked for recorded. */
   let connection: {
-    start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy; onreconnected: jasmine.Spy; onclose: jasmine.Spy; stream: jasmine.Spy;
+    start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy; onreconnected: jasmine.Spy; onclose: jasmine.Spy; stream: jasmine.Spy; invoke: jasmine.Spy;
     state: HubConnectionState;
   };
   let withUrl: jasmine.Spy;
@@ -18,6 +18,13 @@ describe('ChatStore', () => {
   let answers: { subscriber: IStreamSubscriber<string>; disposed: boolean }[];
 
   const turn = (fromBot: boolean, text: string): ChatTurnDto => ({ fromBot, text });
+  /** A sysadmin's models: Claude first (their default), then the league's own, and their spend this month. */
+  const models: ChatModelsDto = {
+    models: [{ id: 'claude-haiku', name: 'Claude Haiku 5.5' }, { id: 'ollama', name: 'llama3.2:3b' }],
+    selected: 'claude-haiku',
+    spent: 1.5,
+    limit: 10,
+  };
 
   function create(platform = 'browser'): ChatStore {
     TestBed.configureTestingModule({ providers: [ChatStore, { provide: PLATFORM_ID, useValue: platform }] });
@@ -44,6 +51,7 @@ describe('ChatStore', () => {
           return { dispose: () => { entry.disposed = true; } };
         },
       })),
+      invoke: jasmine.createSpy('invoke').and.callFake((method: string, model?: string) => Promise.resolve(method === 'Choose' ? { ...models, selected: model } : models)),
       state: HubConnectionState.Connected,
     };
     withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();
@@ -62,7 +70,7 @@ describe('ChatStore', () => {
     const store = create();
 
     expect(store.ask('  Who won?  ')).toBeTrue();
-    expect(asked()).toEqual(['Ask', { question: 'Who won?', history: [] }]);
+    expect(asked()).toEqual(['Ask', { question: 'Who won?', history: [], model: null }]);
     expect(store.asking()).toBeTrue();
     expect(store.turns()).toEqual([turn(false, 'Who won?'), turn(true, '')]);
 
@@ -73,7 +81,7 @@ describe('ChatStore', () => {
     expect(store.asking()).toBeFalse();
 
     store.ask('And before?');
-    expect(asked()[1]).toEqual({ question: 'And before?', history: [turn(false, 'Who won?'), turn(true, 'The Grifs.')] });
+    expect(asked()[1]).toEqual({ question: 'And before?', history: [turn(false, 'Who won?'), turn(true, 'The Grifs.')], model: null });
   });
 
   it('sends only as much history as the server reads', () => {
@@ -207,5 +215,88 @@ describe('ChatStore', () => {
     expect(chatErrorText(new Error('HubException: '))).toBe(FAILED);
     expect(chatErrorText(new Error('WebSocket closed'))).toBe(FAILED);
     expect(chatErrorText('nope')).toBe(FAILED);
+  });
+
+  describe('models', () => {
+    /** The store with its connection come up, as the user the server says: their models loaded. */
+    async function connected(): Promise<ChatStore> {
+      const store = create();
+      // The connection comes up (again): the store asks for the user's models
+      (connection.onreconnected.calls.mostRecent().args[0] as () => void)();
+      await new Promise(resolve => setTimeout(resolve));
+      return store;
+    }
+
+    it('loads the models the user may use once the connection is up, and asks the selected one', async () => {
+      const store = await connected();
+
+      expect(connection.invoke).toHaveBeenCalledWith('Models');
+      expect(store.models()).toEqual(models);
+      store.ask('Who won?');
+      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: 'claude-haiku' });
+    });
+
+    it('asks with no model before the models are known: the server chooses', () => {
+      const store = create();
+
+      store.ask('Who won?');
+      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: null });
+    });
+
+    it('keeps the choice on the server, and asks the chosen model after', async () => {
+      const store = await connected();
+
+      await store.choose('ollama');
+
+      expect(connection.invoke).toHaveBeenCalledWith('Choose', 'ollama');
+      expect(store.models()?.selected).toBe('ollama');
+      store.ask('Who won?');
+      expect(asked()[1].model).toBe('ollama');
+    });
+
+    it("doesn't ask the server for the model already selected", async () => {
+      const store = await connected();
+      connection.invoke.calls.reset();
+
+      await store.choose('claude-haiku');
+
+      expect(connection.invoke).not.toHaveBeenCalled();
+    });
+
+    it("shows why the server refused a choice", async () => {
+      const store = await connected();
+      connection.invoke.and.returnValue(Promise.reject(new Error("HubException: That model isn't one you can use here: choose another.")));
+
+      await store.choose('claude-opus');
+
+      expect(store.error()).toBe("That model isn't one you can use here: choose another.");
+      expect(store.models()?.selected).toBe('claude-haiku');
+    });
+
+    it('keeps no models when they fail to load', async () => {
+      connection.invoke.and.returnValue(Promise.reject(new Error('down')));
+
+      const store = await connected();
+
+      expect(store.models()).toBeNull();
+    });
+
+    it('chooses nothing where there is no connection (the server\'s render)', async () => {
+      const store = create('server');
+
+      await store.choose('ollama');
+
+      expect(connection.invoke).not.toHaveBeenCalled();
+    });
+
+    it("loads the spend again once a paid model's answer is done", async () => {
+      const store = await connected();
+      connection.invoke.calls.reset();
+
+      store.ask('Who won?');
+      answer().subscriber.complete();
+
+      expect(connection.invoke).toHaveBeenCalledWith('Models');
+    });
   });
 });
