@@ -227,3 +227,69 @@ tests:
       ollama.gpu.enabled: true
     asserts:
       - failedTemplate: { errorPattern: "ollama.gpu.resources" }
+
+  - it: gives the model's pull a time limit, the local server's start and the download, 30 minutes by default
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+    documentIndex: 1
+    asserts:
+      - contains: { path: "spec.template.spec.initContainers[0].env", content: { name: GRIF_OLLAMA_PULL_TIMEOUT, value: "1800" } }
+      # The server's start gives up at the deadline, and the download gets what's left of it
+      - matchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: 'deadline=\$\(\( \$\(date \+%s\) \+ GRIF_OLLAMA_PULL_TIMEOUT \)\)' }
+      - matchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: 'didn''t start within' }
+      - matchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: 'timeout "\$remaining" ollama pull "\$GRIF_OLLAMA_MODEL"' }
+
+  - it: takes a longer time limit for a bigger model
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+      ollama.pull.timeoutSeconds: 7200
+    documentIndex: 1
+    asserts:
+      - contains: { path: "spec.template.spec.initContainers[0].env", content: { name: GRIF_OLLAMA_PULL_TIMEOUT, value: "7200" } }
+
+  - it: refuses a time limit under a second
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+      ollama.pull.timeoutSeconds: 0
+    asserts:
+      - failedTemplate: { errorPattern: "timeoutSeconds" }
+
+  - it: needs an existing volume with the model on it when told not to pull
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+      ollama.pull.enabled: false
+    asserts:
+      - failedTemplate: { errorPattern: "ollama.persistence.existingClaim is required with ollama.pull.enabled false" }
+
+  - it: downloads nothing when told not to pull, and only checks the model is on the existing volume
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+      ollama.pull.enabled: false
+      ollama.persistence.existingClaim: models
+    asserts:
+      # No claim of its own: the Deployment and the Service
+      - hasDocuments: { count: 2 }
+      - equal: { path: "spec.template.spec.volumes[0].persistentVolumeClaim.claimName", value: models }
+        documentIndex: 0
+      - equal: { path: "spec.template.spec.initContainers[0].name", value: check-model }
+        documentIndex: 0
+      - notMatchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: 'ollama pull' }
+        documentIndex: 0
+      - matchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: 'isn''t on the volume' }
+        documentIndex: 0
+
+  - it: gives the chart's Ollama no way out but DNS when it pulls nothing
+    template: templates/networkpolicy.yaml
+    documentSelector: { path: metadata.name, value: grif-ollama }
+    set:
+      ollama.enabled: true
+      ollama.pull.enabled: false
+      ollama.persistence.existingClaim: models
+    asserts:
+      - lengthEqual: { path: spec.egress, count: 1 }
+      - contains: { path: spec.egress, content: { ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }] } }

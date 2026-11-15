@@ -100,6 +100,8 @@ migrations:
 ollama:
   enabled: true
   model: llama3.1:latest
+  pull:
+    timeoutSeconds: 3600
   persistence:
     storageClass: standard
   nodeSelector:

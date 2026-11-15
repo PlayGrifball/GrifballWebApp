@@ -375,6 +375,14 @@
           "properties": { "url": { "type": "string", "pattern": "^(https?://.+)?$" } }
         },
         "persistence": { "$ref": "#/definitions/persistence" },
+        "pull": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "timeoutSeconds": { "type": "integer", "minimum": 1 }
+          }
+        },
         "env": { "$ref": "#/definitions/stringMap" },
         "resources": { "$ref": "#/definitions/k8sObject" },
         "gpu": {
