@@ -593,7 +593,8 @@ Not both. With neither, the pods get no `Ollama:Url`, and both chats answer that
 and Opus 5.5, to sysadmins only, before the Ollama model (so Haiku is a sysadmin's default). A user picks a model on the
 chat page, and their choice holds in their Discord DMs too; a Discord channel always uses the model anyone may use. Each
 user's spend on Claude is counted a month and stopped at `Chat:MonthlyLimit` (`backend.config`, 10 US dollars by
-default). `Chat:Models` (`backend.config`) replaces the list: each model's `Id`, `Name`, `Provider` (`Ollama` or
+default); replies started at the same moment in different pods (backend replicas, the Discord bot) can each spend what
+is left, so the limit can be overshot by at most one reply a pod (ten model calls of at most 16,000 output tokens each). `Chat:Models` (`backend.config`) replaces the list: each model's `Id`, `Name`, `Provider` (`Ollama` or
 `Anthropic`), `Model`, `Roles` (none: anyone) and `Price` (US dollars per million tokens: `Input`, `Output`, `CacheWrite`,
 `CacheRead`; none: free), in order. The backend's HTTPS egress (`networkPolicy.backend.httpsTo`) already reaches
 Anthropic's API.

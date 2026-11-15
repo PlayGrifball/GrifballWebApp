@@ -142,7 +142,11 @@ The models are `IChatClientFactory`'s, which Infrastructure registers (`ChatClie
 `GrifChat` chooses one per question: the one asked for, else the user's choice (`ChatChoice`, kept from the site's picker
 for their Discord DMs too), else the first their roles allow; a Discord channel always uses the first anyone may. A paid
 model's reply is priced from its usage and added to the user's month (`ChatMonth`); past `Chat:MonthlyLimit` (10 US dollars)
-the paid models refuse them until the next month. Each model is one client for the process, over an HTTP client with no
+the paid models refuse them until the next month. The limit can be overshot by a bounded amount: each process (a
+backend replica, the Discord bot) reads what is left as a reply starts, so replies started at the same moment in several
+processes can each spend up to it, and a reply makes at most `ChatModel.MaxModelCalls` calls of at most its model's
+`MaxOutputTokens`, stopping once its own cost reaches what was left (reserving spend across processes would take a
+database reservation per reply). Each model is one client for the process, over an HTTP client with no
 timeout of its own (a cold model on the CPU can take minutes to start answering): the host's timeout decides. With no
 model configured both chats answer that the chat is unavailable. The Helm chart sets both, for its own Ollama (`ollama.enabled`) or an existing one (`ollama.external.url`;
 [the chart's README](../charts/grifballwebapp/README.md#chat-model-ollama)). Development's appsettings point at
