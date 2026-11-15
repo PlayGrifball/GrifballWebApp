@@ -250,8 +250,9 @@ public static class GrifTools
 
         private void Record(IServiceProvider services, string outcome, TimeSpan elapsed)
         {
-            // The function invocation's span for this call, when traced (else the reply's caller's, which isn't this call's)
-            if (Activity.Current is { } span && span.Source.Name == ChatModel.SourceName && Equals(span.GetTagItem("gen_ai.tool.name"), Name))
+            // The function invocation's execute_tool span for this call, when the chat is traced (else the span the reply runs
+            // under, which isn't this call's)
+            if (Activity.Current is { } span && span.Source.Name == ChatModel.SourceName)
                 span.SetTag(OutcomeTag, outcome);
             if (services.GetService<ILoggerFactory>()?.CreateLogger(typeof(GrifTools).FullName!) is { } logger)
                 ChatToolLog.Called(logger, Name, outcome, elapsed.TotalMilliseconds, caller.UserID);

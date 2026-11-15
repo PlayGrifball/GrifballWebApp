@@ -514,6 +514,18 @@ public class GrifChatUnitTests
     }
 
     [Test]
+    public async Task StreamAsync_TheChatUntraced_TagsNoOtherSpanWithAToolsOutcome()
+    {
+        using var spans = new Spans(chat: false);
+        var model = new FakeModel([Call("get_current_time")], [Text("Done.")]);
+
+        var trace = await AskUnderAHostsSpan(Chat(model), "What time is it?");
+
+        // The tool ran under the host's span, the current one then: not its own
+        Assert.That(spans.Of(trace).Single().GetTagItem(GrifTools.OutcomeTag), Is.Null);
+    }
+
+    [Test]
     public async Task StreamAsync_MeasuresTheModelsTokensAndTime_PerCall()
     {
         using var measured = new Measurements();
@@ -637,12 +649,13 @@ public class GrifChatUnitTests
         private readonly ConcurrentQueue<Activity> _ended = new();
         private readonly ActivityListener _listener;
 
-        public Spans()
+        /// <param name="chat">Whether the chat is traced too, else only the host.</param>
+        public Spans(bool chat = true)
         {
             _listener = new ActivityListener
             {
                 // By name: the static source may be made only as the listener is added, and so be missed
-                ShouldListenTo = source => source.Name is ChatModel.SourceName or TestName,
+                ShouldListenTo = source => source.Name == TestName || (chat && source.Name == ChatModel.SourceName),
                 Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
                 ActivityStopped = _ended.Enqueue,
             };

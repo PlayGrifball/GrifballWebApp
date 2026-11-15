@@ -100,6 +100,27 @@ public class MessageCreateHandlerUnitTests : MessageCreateHandlerFixture
     }
 
     [Test]
+    public async Task HandleAsync_WhenHandlingTheMessageFails_ItsSpanIsAnError()
+    {
+        using var spans = new ChatSpans();
+        System.Diagnostics.Activity? span = null;
+        _scopeFactory.CreateScope().Returns(_ =>
+        {
+            span = System.Diagnostics.Activity.Current;
+            throw new InvalidOperationException("boom");
+        });
+
+        await _handler.HandleAsync(Message(5, [BotId]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(span?.OperationName, Is.EqualTo(MessageCreateHandler.MessageSpanName));
+            Assert.That(span?.Status, Is.EqualTo(System.Diagnostics.ActivityStatusCode.Error));
+            Assert.That(span?.StatusDescription, Is.EqualTo(nameof(InvalidOperationException)), "the exception's type: its message may quote a user");
+        }
+    }
+
+    [Test]
     public async Task HandleAsync_ReplyToTheBotsMessage_IsAnswered()
     {
         var referenced = Substitute.For<IDiscordRestMessage>();

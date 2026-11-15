@@ -168,7 +168,7 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
     public void AddApplication_TheChatsModel_OneProcessWide_WhatPeopleWroteInItsTelemetryOnlyWhenSwitchedOn(string? setting, bool sensitiveData)
     {
         var services = AddApplication(new() { [ChatModel.SensitiveDataKey] = setting });
-        services.AddSingleton(_ => Substitute.For<IChatClientFactory>());
+        services.AddLogging().AddSingleton(_ => Substitute.For<IChatClientFactory>());
         using var provider = services.BuildServiceProvider();
 
         var model = provider.GetRequiredService<ChatModel>();
