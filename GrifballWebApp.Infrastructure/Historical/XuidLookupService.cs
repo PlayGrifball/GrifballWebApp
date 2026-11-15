@@ -12,6 +12,11 @@ namespace GrifballWebApp.Infrastructure.Historical;
 
 public class XuidLookupOptions
 {
+    /// <summary>
+    /// Whether the worker looks anything up. False stops its Halo calls (e.g. to measure Halo's limits without it): the
+    /// placeholders stay due, and are looked up once it is true again.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
     /// <summary>Placeholders looked up per batch; the worker runs batches until none is due.</summary>
     public int BatchSize { get; set; } = 50;
     /// <summary>
@@ -248,12 +253,14 @@ public sealed partial class XuidLookupWorker : BackgroundService
         }
     }
 
-    /// <summary>Batches until none is due. Returns the lookups made.</summary>
+    /// <summary>Batches until none is due. Returns the lookups made; none while <see cref="XuidLookupOptions.Enabled"/> is false.</summary>
     public async Task<int> RunUntilDoneAsync(CancellationToken ct)
     {
         var total = 0;
         while (true)
         {
+            if (!_options.Value.Enabled)
+                return total;
             await using var scope = _scopes.CreateAsyncScope();
             var report = await scope.ServiceProvider.GetRequiredService<XuidLookupService>().RunBatchAsync(ct);
             total += report.LookedUp;

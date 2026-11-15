@@ -31,9 +31,9 @@ public class XuidLookupWorkerTests : SqliteContextFixture
     private readonly FakeLogger<XuidLookupWorker> _log = new();
     private static readonly string[] BatchLines = ["XUID lookups: 2 found, 0 not found, 0 failed, 2 claims", "XUID lookups: 1 found, 0 not found, 0 failed, 1 claims"];
 
-    private XuidLookupWorker Worker(int batchSize, int lookupsPerMinute = 6000)
+    private XuidLookupWorker Worker(int batchSize, int lookupsPerMinute = 6000, bool enabled = true)
     {
-        var options = Options.Create(new XuidLookupOptions { BatchSize = batchSize, LookupsPerMinute = lookupsPerMinute });
+        var options = Options.Create(new XuidLookupOptions { BatchSize = batchSize, LookupsPerMinute = lookupsPerMinute, Enabled = enabled });
         var services = new ServiceCollection();
         services.AddDbContext<GrifballContext>(o => o.UseGrifballDatabase(DatabaseProvider.Sqlite, ConnectionString));
         services.AddScoped(sp => new XuidLookupService(sp.GetRequiredService<GrifballContext>(), _halo, new GamertagMatching(sp.GetRequiredService<GrifballContext>()),
@@ -88,6 +88,23 @@ public class XuidLookupWorkerTests : SqliteContextFixture
                 Is.EqualTo(BatchLines), "a line a batch");
         }
         await _halo.Received(3).UserByGamertag(Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task RunUntilDone_Disabled_LooksUpNothing_AndLeavesThemDue()
+    {
+        await AddPlaceholdersAsync("Alpha", "Bravo");
+        using var worker = Worker(batchSize: 2, enabled: false);
+
+        var looked = await worker.RunUntilDoneAsync(CancellationToken.None);
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(looked, Is.Zero);
+            Assert.That(await Context.XuidLookups.AnyAsync(), Is.False, "nothing recorded: still due when enabled again");
+        }
+        await _halo.DidNotReceiveWithAnyArgs().UserByGamertag(default!);
     }
 
     [Test]
