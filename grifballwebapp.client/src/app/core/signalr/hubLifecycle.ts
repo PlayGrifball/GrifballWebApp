@@ -81,8 +81,9 @@ export function hubLifecycle(url: string, options: HubLifecycleOptions): HubConn
         connected();
       })
       .catch(err => {
+        // Leaving the page stops a start under way: nothing went wrong
         if (stopped) {
-          log.warn(`Couldn't start the ${options.name} connection`, err);
+          log.debug(`The ${options.name} connection stopped while starting`, err);
           return;
         }
         log.warn(`Couldn't start the ${options.name} connection; trying again`, err);

@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { describeError, pageTraceparent } from '../http/clientErrors';
 import { Attributes, BrowserLogLevel, BrowserTelemetry, parseTraceparent } from './browserTelemetry';
 
-/** The most lines a page sends to the telemetry: a loop that logs (a hub that can't connect) sends no more. */
+/** The most lines of each level a page sends to the telemetry: a loop that logs sends no more, and info can't crowd out an error. */
 export const MAX_LOGS = 50;
 
 /**
@@ -24,12 +24,13 @@ export function causeAttributes(cause: unknown): Attributes {
  * and above, to the browser's telemetry (BrowserTelemetry, when it is on) with its cause's details, in the trace of what
  * the user is doing. A failed API call goes to the console only: the call reports (clientErrorsInterceptor) send those
  * worth sending (no answer, or a 5xx) in the call's own trace, and a 4xx is the app working. The telemetry gets each
- * line once a page, and at most MAX_LOGS. Use it instead of console.* (docs/frontend.md).
+ * line once a page, and at most MAX_LOGS of each level. Use it instead of console.* (docs/frontend.md).
  */
 @Injectable({ providedIn: 'root' })
 export class AppLog {
   private readonly telemetry = inject(BrowserTelemetry);
   private readonly sent = new Set<string>();
+  private readonly sentOf: Record<BrowserLogLevel, number> = { debug: 0, info: 0, warn: 0, error: 0 };
 
   /** Something failed (a request the user's action needed, a callback that threw). */
   error(message: string, cause?: unknown, attributes?: Attributes): void {
@@ -56,13 +57,15 @@ export class AppLog {
       console[level](message);
     else
       console[level](message, cause);
-    if (level === 'debug' || cause instanceof HttpErrorResponse || this.sent.size >= MAX_LOGS)
+    if (level === 'debug' || cause instanceof HttpErrorResponse || !this.telemetry.enabled || this.sentOf[level] >= MAX_LOGS)
       return;
     const lineAttributes = { ...causeAttributes(cause), ...attributes };
-    const key = `${level}|${message}|${JSON.stringify(lineAttributes['exception.message'] ?? lineAttributes['error.detail'] ?? '')}`;
+    // Not the stack: the same failure from another call site is the same line
+    const key = JSON.stringify([level, message, { ...lineAttributes, 'exception.stacktrace': undefined }]);
     if (this.sent.has(key))
       return;
     this.sent.add(key);
+    this.sentOf[level]++;
     this.telemetry.log(level, message, lineAttributes, this.telemetry.active() ?? parseTraceparent(pageTraceparent()));
   }
 }
