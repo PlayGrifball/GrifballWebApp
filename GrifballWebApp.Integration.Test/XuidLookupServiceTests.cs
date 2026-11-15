@@ -368,8 +368,12 @@ public class XuidLookupServiceTests
 
         var report = await Service().RunBatchAsync();
 
-        Assert.That((report.NotFound, report.Failed), Is.EqualTo((1, 0)));
-        Assert.That(await _context.XuidLookups.Select(l => l.Status).SingleAsync(), Is.EqualTo(XuidLookupStatus.NotFound));
+        var status = await _context.XuidLookups.Select(l => l.Status).SingleAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.NotFound, report.Failed), Is.EqualTo((1, 0)));
+            Assert.That(status, Is.EqualTo(XuidLookupStatus.NotFound));
+        }
     }
 
     [Test]

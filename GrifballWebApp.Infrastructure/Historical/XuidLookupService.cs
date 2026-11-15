@@ -14,7 +14,8 @@ public class XuidLookupOptions
 {
     /// <summary>
     /// Whether the worker looks anything up. False stops its Halo calls (e.g. to measure Halo's limits without it): the
-    /// placeholders stay due, and are looked up once it is true again.
+    /// placeholders stay due, and are looked up once it is true again. Read at startup (IOptions): a change applies when the
+    /// pod restarts, as it does when the environment variable (XuidLookup__Enabled) changes.
     /// </summary>
     public bool Enabled { get; set; } = true;
     /// <summary>Placeholders looked up per batch; the worker runs batches until none is due.</summary>
@@ -131,9 +132,10 @@ public class XuidLookupService
     }
 
     /// <summary>
-    /// Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>. Only
-    /// Halo's 404 (the gamertag isn't there) is not found, for LookAgainAfter; any other code with no result (429 throttled,
-    /// 400 bad request, 5xx, 401/403, 0 no answer; <see cref="IsFailure"/>) is a failed lookup, tried again after RetryFailedAfter.
+    /// Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>. An
+    /// error code with no result is a failed lookup, tried again after RetryFailedAfter (<see cref="IsFailure"/>: 429 throttled,
+    /// 400 bad request, 5xx, 401/403, and 0, which the gateway sends when Halo gave no answer), except Halo's 404 (the gamertag
+    /// isn't there). That 404, or a success naming no user, is not found, for LookAgainAfter.
     /// </summary>
     private async Task LookUpAsync(XuidLookup lookup, int placeholderId, string gamertag, XuidLookupReport report, CancellationToken ct)
     {
