@@ -24,14 +24,14 @@ export class MatchDetailsStore {
       const matchID = this.matchID.value();
       return matchID === undefined ? undefined : { matchID };
     },
-    // No such match: a 404, or an ID that isn't one (400)
-    stream: ({ params }) => this.api.getMatchDetails(params).pipe(nullWhenNotFound({ badRequest: true }), map(parseMatchDetails)),
+    // No such match: a 404 (a malformed ID misses the route's guid constraint, so it is one too)
+    stream: ({ params }) => this.api.getMatchDetails(params).pipe(nullWhenNotFound(), map(parseMatchDetails)),
   }), null);
 
   readonly details = this.match.value;
   /**
-   * Loading (also before the match ID is handed over: nothing is asked for yet); loaded; no such match (none, a 404,
-   * or an ID that isn't one: 400); or the request failed.
+   * Loading (also before the match ID is handed over: nothing is asked for yet); loaded; no such match (none, or a
+   * 404); or the request failed.
    */
   readonly state = computed<MatchDetailsState>(() => {
     if (this.match.isLoading() || this.match.status() === 'idle')

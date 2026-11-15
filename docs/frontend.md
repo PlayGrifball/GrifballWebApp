@@ -56,8 +56,7 @@ store. `profileCommendations` is the smallest example, `xboxAccount` one with pa
   (`value` with the fallback until there is one, `hasValue`, `isLoading`, `failed`, `error`, `resolved`, `status`) and
   `reload()`, so the store hands them out as they are (`readonly rows = this.claims.value;`) instead of repeating
   `hasValue() ? value() : []` and `status() === 'error'`. Its `value` never throws (a resource's own `value()` does
-  after an error). A read where "no such thing" is an answer pipes `nullWhenNotFound()` (`{ badRequest: true }` when
-  a malformed ID answers 400) and treats `null` as none.
+  after an error). A read where "no such thing" is an answer pipes `nullWhenNotFound()` and treats `null` as none.
 - **The component keeps the store's signals under its own names** (`readonly rows = this.store.rows;`), so its template
   reads `rows()` either way.
 - **Inputs reach the store as a `StoreInput`** (`@shared/storeInput`). The store declares

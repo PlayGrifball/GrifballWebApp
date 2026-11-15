@@ -130,8 +130,8 @@ export class XboxAccountStore {
 
   private load(xuid: string, page: number): Subscription {
     this._state.set('loading');
-    // No such account: a 404, or an XUID that isn't one (400)
-    return this.api.getXboxAccount({ xboxUserID: Number(xuid), page }).pipe(nullWhenNotFound({ badRequest: true })).subscribe({
+    // No such account: a 404 (a malformed XUID misses the route's long constraint, so it is one too)
+    return this.api.getXboxAccount({ xboxUserID: Number(xuid), page }).pipe(nullWhenNotFound()).subscribe({
       next: account => {
         this._account.set(account);
         this._state.set(account ? 'loaded' : 'notFound');

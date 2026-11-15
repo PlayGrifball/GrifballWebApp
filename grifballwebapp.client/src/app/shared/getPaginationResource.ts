@@ -3,7 +3,6 @@ import { rxResource } from "@angular/core/rxjs-interop";
 import { PaginationResult } from "./paginationResult";
 import { linkedSignal, ResourceRef } from "@angular/core";
 import { Filter } from "./table/table.component";
-import { resourceView } from "./resourceView";
 
 /** One page's request, built from the table's own filter and whatever extra column filters it has. */
 export interface PaginationParams {
@@ -56,7 +55,6 @@ export function getPaginationResource<T, R = T>(
         defaultValue: PAGINATION_RESPONSE_DEFAULT,
     });
 
-    const page = resourceView(resource, PAGINATION_RESPONSE_DEFAULT);
     const current = linkedSignal<
     ResourceRef<PaginationResult<T>>,
     PaginationResult<T>
@@ -67,8 +65,10 @@ export function getPaginationResource<T, R = T>(
             if (res.isLoading() && prevValue) {
                 return prevValue.value;
             }
-            // An empty page until one loads, and after a failure (callers render resource.error() to explain why)
-            return page.value();
+            // value() throws while the resource is in the error state (Angular 20+),
+            // so only read it when hasValue() is true and fall back to an empty page.
+            // Callers render resource.error() to explain why the table is empty.
+            return res.hasValue() ? res.value() : PAGINATION_RESPONSE_DEFAULT;
         },
     });
 
