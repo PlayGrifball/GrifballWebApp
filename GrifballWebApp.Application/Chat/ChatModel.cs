@@ -22,8 +22,8 @@ public sealed class ChatModel
     public const string SensitiveDataKey = "Chat:Telemetry:SensitiveData";
 
     /// <summary>
-    /// The most calls to the model one reply makes (its tool rounds and its answer): each resends the conversation so far, so a paid
-    /// model's reply that keeps calling tools mustn't run on (Microsoft.Extensions.AI's own default is 40).
+    /// The most calls to the model a paid model's reply makes (its tool rounds and its answer): each resends the conversation so far, so
+    /// one that keeps calling tools mustn't run on. A free model's keeps Microsoft.Extensions.AI's own default (40): its calls cost nothing.
     /// </summary>
     public const int MaxModelCalls = 10;
 
@@ -63,7 +63,11 @@ public sealed class ChatModel
     }
 
     private IChatClient Build(ChatModelOption model) => _clients.Create(model).AsBuilder()
-        .UseFunctionInvocation(_loggers, invocation => invocation.MaximumIterationsPerRequest = MaxModelCalls)
+        .UseFunctionInvocation(_loggers, invocation =>
+        {
+            if (model.Price is not null)
+                invocation.MaximumIterationsPerRequest = MaxModelCalls;
+        })
         .UseOpenTelemetry(_loggers, SourceName, client => client.EnableSensitiveData = SensitiveData)
         .Build();
 
