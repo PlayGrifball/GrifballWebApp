@@ -126,16 +126,16 @@ public class XuidLookupService
     }
 
     /// <summary>
-    /// Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>. No
-    /// result because Halo was throttling, broken or unreachable (<see cref="IsNoVerdict"/>) is a failed lookup, tried again after
-    /// RetryFailedAfter; only an answer that the gamertag isn't there is not found (for LookAgainAfter).
+    /// Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>. Only
+    /// Halo's 404 (the gamertag isn't there) is not found, for LookAgainAfter; any other code with no result (429 throttled,
+    /// 400 bad request, 5xx, 401/403, 0 no answer; <see cref="IsFailure"/>) is a failed lookup, tried again after RetryFailedAfter.
     /// </summary>
     private async Task LookUpAsync(XuidLookup lookup, int placeholderId, string gamertag, XuidLookupReport report, CancellationToken ct)
     {
         try
         {
             var response = await _halo.UserByGamertag(gamertag);
-            if (response?.Result is null && response?.Error is { } error && IsNoVerdict(error.Code))
+            if (response?.Result is null && response?.Error is { } error && IsFailure(error.Code))
             {
                 lookup.Status = XuidLookupStatus.Failed;
                 lookup.Error = error.Code == 0 ? "Halo gave no answer" : $"Halo answered {error.Code}";
@@ -169,9 +169,8 @@ public class XuidLookupService
         }
     }
 
-    /// <summary>A Halo code that says nothing about the gamertag: 0 (no answer), 401/403 (the gateway's own sign-in), 408,
-    /// 429 (throttled) and 5xx. 404 and 400 are answers: it isn't there, or can't be.</summary>
-    private static bool IsNoVerdict(int code) => code is 0 or 401 or 403 or 408 or 429 or >= 500;
+    /// <summary>A Halo code that isn't an answer about the gamertag: anything but success and 404 (it isn't there).</summary>
+    private static bool IsFailure(int code) => code is not 404 and not (>= 200 and < 300);
 
     /// <summary>A pending claim pairing the placeholder with the XUID, unless the pair was claimed before (pending,
     /// approved or rejected: a rejected pair isn't suggested again). The Xbox account is stored if the app doesn't know it.</summary>

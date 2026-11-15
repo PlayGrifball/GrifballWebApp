@@ -340,8 +340,9 @@ public class XuidLookupServiceTests
     [TestCase(500, "Halo answered 500")]
     [TestCase(503, "Halo answered 503")]
     [TestCase(401, "Halo answered 401")]
+    [TestCase(400, "Halo answered 400")]
     [TestCase(0, "Halo gave no answer")]
-    public async Task ThrottledOrBrokenAnswer_IsAFailedLookup_RetriedLater_NotNotFound(int code, string error)
+    public async Task AnyErrorButNotFound_IsAFailedLookup_RetriedLater_NotNotFound(int code, string error)
     {
         await Placeholder("Busy Tag");
         _halo.UserByGamertag("Busy Tag").Returns(Task.FromResult(HaloResults.Of<HaloUser>(null, new HaloApiErrorContainer { Code = code })));
@@ -359,12 +360,11 @@ public class XuidLookupServiceTests
         }
     }
 
-    [TestCase(404)]
-    [TestCase(400)]
-    public async Task AnAnswerThatTheGamertagIsNotThere_IsStillNotFound(int code)
+    [Test]
+    public async Task Halos404_IsStillNotFound()
     {
         await Placeholder("Gone Tag");
-        _halo.UserByGamertag("Gone Tag").Returns(Task.FromResult(HaloResults.Of<HaloUser>(null, new HaloApiErrorContainer { Code = code })));
+        _halo.UserByGamertag("Gone Tag").Returns(Task.FromResult(HaloResults.Of<HaloUser>(null, new HaloApiErrorContainer { Code = 404 })));
 
         var report = await Service().RunBatchAsync();
 
