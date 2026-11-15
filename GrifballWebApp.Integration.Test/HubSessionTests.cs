@@ -225,10 +225,10 @@ public class HubSessionTests
         var (again, _) = await Connect("TeamsHub", cookie);
         var pushedAgain = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         again.On<int>(nameof(ITeamsHubClient.LockCaptains), seasonID => pushedAgain.TrySetResult(seasonID));
-        await hub.Clients.Group(TeamsHub.StaffGroup).LockCaptains(42);
-        await hub.Clients.All.UnlockCaptains(43);
         var everyone = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         again.On<int>(nameof(ITeamsHubClient.UnlockCaptains), seasonID => everyone.TrySetResult(seasonID));
+        await hub.Clients.Group(TeamsHub.StaffGroup).LockCaptains(42);
+        // Sent after the staff group's: by the time it arrives, the staff group's would have
         await hub.Clients.All.UnlockCaptains(44);
 
         var everyonesPush = await everyone.Task.WaitAsync(Wait);
