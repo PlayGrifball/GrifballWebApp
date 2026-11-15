@@ -491,6 +491,13 @@ ollama:
     storageClass: ""
     accessModes: [ReadWriteOnce]
     annotations: {}
+  # The model's pull (an init container), onto the volume unless it is there already. timeoutSeconds bounds the
+  # local server's start and the download together: raise it for a bigger model or a slower link. enabled false
+  # downloads nothing (and the NetworkPolicy lets the server out to DNS only): the model must be on
+  # persistence.existingClaim already, under models/ (an Ollama home's layout), or the pod doesn't start.
+  pull:
+    enabled: true
+    timeoutSeconds: 1800
   # The server's settings (OLLAMA_*): one model loaded, one reply at a time, kept in memory for an hour, so its
   # memory stays within the limit below and the next question doesn't wait for it to load.
   env:

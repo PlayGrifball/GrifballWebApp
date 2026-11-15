@@ -273,6 +273,7 @@ spec:
     {{- end }}
   egress:
     {{- toYaml (list $dns) | nindent 4 }}
+    {{- if .Values.ollama.pull.enabled }}
     # The model's pull (ollama.com's registry and its storage).
     - ports:
         - protocol: TCP
@@ -281,6 +282,7 @@ spec:
       to:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+    {{- end }}
 ---
 {{- end }}
 {{- if and .Values.mssql.enabled (not $pg) }}

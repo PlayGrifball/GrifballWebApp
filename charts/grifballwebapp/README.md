@@ -571,7 +571,12 @@ workers and grif-discord get its server (`Ollama:Url`) and model (`Ollama:Model`
   digest (Renovate updates it), running as user 1000 with a read-only root filesystem. Its models are on a
   PersistentVolumeClaim (`ollama.persistence`, 20Gi; or `existingClaim`). An init container, `pull-model`, pulls
   `ollama.model` onto it unless it is there already (`ollama show`), so a restart downloads nothing and a model
-  change pulls only the new one. `ollama.env` sets the server's `OLLAMA_*` settings: by default one model loaded,
+  change pulls only the new one. The pull has `ollama.pull.timeoutSeconds` (30 minutes by default) for the local
+  server's start and the download together; past it the init container fails, and Kubernetes retries it, instead of
+  the pod sitting in Init. Raise it for a bigger model. A model on a volume already: `ollama.pull.enabled` `false`
+  with `persistence.existingClaim` (required then), the model under `models/` on it (an Ollama home's layout). The
+  init container, `check-model`, then only checks it is there, failing the pod if it isn't, and the server's
+  NetworkPolicy allows only DNS out. `ollama.env` sets the server's `OLLAMA_*` settings: by default one model loaded,
   one reply at a time, kept in memory for an hour. `ollama.resources` defaults to 6Gi requested and 10Gi at most, with 2 CPUs requested and 4 at most,
   for llama3.1 8B on the CPU; the init container gets the same. `nodeSelector`, `tolerations` and `affinity` place it.
 - **On a GPU** (`ollama.gpu.enabled`): the server, not the pull, also requests `ollama.gpu.resources`, the GPU

@@ -6,6 +6,9 @@
 {{- if not $o.model }}
 {{- fail "ollama.model is required with ollama.enabled: the model the chart's server pulls and the chats use" }}
 {{- end }}
+{{- if and (not $o.pull.enabled) (not $o.persistence.existingClaim) }}
+{{- fail "ollama.persistence.existingClaim is required with ollama.pull.enabled false: the volume the model is on already" }}
+{{- end }}
 {{- if and $o.gpu.enabled (not $o.gpu.resources) }}
 {{- fail "ollama.gpu.resources is required with ollama.gpu.enabled: the GPU resource the cluster offers (squat.ai/dri: 1, amd.com/gpu: 1, nvidia.com/gpu: 1)" }}
 {{- end }}
@@ -78,24 +81,48 @@ spec:
       {{- end }}
       initContainers:
         # The model, pulled onto the volume unless it is there already: a restart downloads nothing. The pull talks
-        # to a server of its own, on localhost, that ends with this container.
-        - name: pull-model
+        # to a server of its own, on localhost, that ends with this container. Within ollama.pull.timeoutSeconds,
+        # the server's start and the download together, so a server that never starts or a stalled download fails
+        # the pod instead of leaving it in Init. With ollama.pull.enabled false it downloads nothing, and only checks
+        # the model is on the existing volume.
+        - name: {{ ternary "pull-model" "check-model" $o.pull.enabled }}
           image: {{ include "grif.image" $o.image }}
           imagePullPolicy: {{ $o.image.pullPolicy }}
           command: ["/bin/sh", "-c"]
           args:
             - |
+              deadline=$(( $(date +%s) + GRIF_OLLAMA_PULL_TIMEOUT ))
               ollama serve >/dev/null 2>&1 &
-              until ollama list >/dev/null 2>&1; do sleep 1; done
+              until ollama list >/dev/null 2>&1; do
+                if [ "$(date +%s)" -ge "$deadline" ]; then
+                  echo "the local Ollama server didn't start within ${GRIF_OLLAMA_PULL_TIMEOUT}s (ollama.pull.timeoutSeconds)" >&2
+                  exit 1
+                fi
+                sleep 1
+              done
               if ollama show "$GRIF_OLLAMA_MODEL" >/dev/null 2>&1; then
                 echo "$GRIF_OLLAMA_MODEL is on the volume already"
-              else
-                ollama pull "$GRIF_OLLAMA_MODEL"
+                exit 0
               fi
+              {{- if $o.pull.enabled }}
+              remaining=$(( deadline - $(date +%s) ))
+              [ "$remaining" -gt 0 ] || remaining=1
+              timeout "$remaining" ollama pull "$GRIF_OLLAMA_MODEL"
+              status=$?
+              if [ "$status" -eq 124 ]; then
+                echo "$GRIF_OLLAMA_MODEL wasn't pulled within ${GRIF_OLLAMA_PULL_TIMEOUT}s (ollama.pull.timeoutSeconds)" >&2
+              fi
+              exit "$status"
+              {{- else }}
+              echo "$GRIF_OLLAMA_MODEL isn't on the volume, and ollama.pull.enabled is false" >&2
+              exit 1
+              {{- end }}
           env:
             {{- include "grif.ollamaEnv" . | nindent 12 }}
             - name: GRIF_OLLAMA_MODEL
               value: {{ $o.model | quote }}
+            - name: GRIF_OLLAMA_PULL_TIMEOUT
+              value: {{ $o.pull.timeoutSeconds | quote }}
           # Alone before the server starts, so the same resources: limited like every other container
           {{- with $o.resources }}
           resources:
