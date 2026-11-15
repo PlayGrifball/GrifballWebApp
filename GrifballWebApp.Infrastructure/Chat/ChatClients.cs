@@ -144,9 +144,9 @@ public static class ChatModels
             if (Id.Length > Domain.Players.ChatChoice.ModelMaxLength)
                 throw new InvalidOperationException($"{ModelsKey}: {Id} is longer than {Domain.Players.ChatChoice.ModelMaxLength} characters");
             if (Provider is not { } provider)
-                throw new InvalidOperationException(: {Id} needs a Provider (Ollama or Anthropic)");
+                throw new InvalidOperationException($"{ModelsKey}: {Id} needs a Provider (Ollama or Anthropic)");
             if (Price is { } p && (p.Input < 0 || p.Output < 0 || p.CacheWrite < 0 || p.CacheRead < 0))
-                throw new InvalidOperationException(: {Id} has a negative price");
+                throw new InvalidOperationException($"{ModelsKey}: {Id} has a negative price");
             return new(Id, string.IsNullOrWhiteSpace(Name) ? Model : Name, provider, Model)
             {
                 Roles = Roles,
