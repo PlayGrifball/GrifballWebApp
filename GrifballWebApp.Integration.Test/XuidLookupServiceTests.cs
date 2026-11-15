@@ -374,6 +374,46 @@ public class XuidLookupServiceTests
         Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.False);
     }
 
+    [TestCase(429, "Halo answered 429")]
+    [TestCase(500, "Halo answered 500")]
+    [TestCase(503, "Halo answered 503")]
+    [TestCase(401, "Halo answered 401")]
+    [TestCase(400, "Halo answered 400")]
+    [TestCase(0, "Halo gave no answer")]
+    public async Task AnyErrorButNotFound_IsAFailedLookup_RetriedLater_NotNotFound(int code, string error)
+    {
+        await Placeholder("Busy Tag");
+        _halo.UserByGamertag("Busy Tag").Returns(Task.FromResult(HaloResults.Of<HaloUser>(null, new HaloApiErrorContainer { Code = code })));
+
+        var report = await Service().RunBatchAsync();
+        _time.Advance(_options.RetryFailedAfter + TimeSpan.FromMinutes(1));
+        var retried = await Service().RunBatchAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.Failed, report.NotFound), Is.EqualTo((1, 0)));
+            Assert.That(retried.LookedUp, Is.EqualTo(1), "due again after RetryFailedAfter, not LookAgainAfter");
+            var lookup = await _context.XuidLookups.SingleAsync();
+            Assert.That((lookup.Status, lookup.Error), Is.EqualTo((XuidLookupStatus.Failed, error)));
+        }
+    }
+
+    [Test]
+    public async Task Halos404_IsStillNotFound()
+    {
+        await Placeholder("Gone Tag");
+        _halo.UserByGamertag("Gone Tag").Returns(Task.FromResult(HaloResults.Of<HaloUser>(null, new HaloApiErrorContainer { Code = 404 })));
+
+        var report = await Service().RunBatchAsync();
+
+        var status = await _context.XuidLookups.Select(l => l.Status).SingleAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.NotFound, report.Failed), Is.EqualTo((1, 0)));
+            Assert.That(status, Is.EqualTo(XuidLookupStatus.NotFound));
+        }
+    }
+
     [Test]
     public async Task Rejection_SuppressesThePair()
     {

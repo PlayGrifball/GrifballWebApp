@@ -12,6 +12,12 @@ namespace GrifballWebApp.Infrastructure.Historical;
 
 public class XuidLookupOptions
 {
+    /// <summary>
+    /// Whether the worker looks anything up. False stops its Halo calls (e.g. to measure Halo's limits without it): the
+    /// placeholders stay due, and are looked up once it is true again. Read at startup (IOptions): a change applies when the
+    /// pod restarts, as it does when the environment variable (XuidLookup__Enabled) changes.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
     /// <summary>Placeholders looked up per batch; the worker runs batches until none is due.</summary>
     public int BatchSize { get; set; } = 50;
     /// <summary>
@@ -151,13 +157,24 @@ public class XuidLookupService
         return lookup;
     }
 
-    /// <summary>Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>.</summary>
+    /// <summary>
+    /// Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>. An
+    /// error code with no result is a failed lookup, tried again after RetryFailedAfter (<see cref="IsFailure"/>: 429 throttled,
+    /// 400 bad request, 5xx, 401/403, and 0, which the gateway sends when Halo gave no answer), except Halo's 404 (the gamertag
+    /// isn't there). That 404, or a success naming no user, is not found, for LookAgainAfter.
+    /// </summary>
     private async Task LookUpAsync(XuidLookup lookup, int placeholderId, string gamertag, XuidLookupReport report, CancellationToken ct)
     {
         try
         {
             var response = await _halo.UserByGamertag(gamertag);
-            if (response?.Result is null || string.IsNullOrEmpty(response.Result.gamertag))
+            if (response?.Result is null && response?.Error is { } error && IsFailure(error.Code))
+            {
+                lookup.Status = XuidLookupStatus.Failed;
+                lookup.Error = error.Code == 0 ? "Halo gave no answer" : $"Halo answered {error.Code}";
+                report.Failed++;
+            }
+            else if (response?.Result is null || string.IsNullOrEmpty(response.Result.gamertag))
             {
                 lookup.Status = XuidLookupStatus.NotFound;
                 report.NotFound++;
@@ -184,6 +201,9 @@ public class XuidLookupService
             report.Failed++;
         }
     }
+
+    /// <summary>A Halo code that isn't an answer about the gamertag: anything but success and 404 (it isn't there).</summary>
+    private static bool IsFailure(int code) => code is not 404 and not (>= 200 and < 300);
 
     /// <summary>A pending claim pairing the placeholder with the XUID, unless the pair was claimed before (pending,
     /// approved or rejected: a rejected pair isn't suggested again). The Xbox account is stored if the app doesn't know it.</summary>
@@ -261,12 +281,14 @@ public sealed partial class XuidLookupWorker : BackgroundService
         }
     }
 
-    /// <summary>Batches until none is due. Returns the lookups made.</summary>
+    /// <summary>Batches until none is due. Returns the lookups made; none while <see cref="XuidLookupOptions.Enabled"/> is false.</summary>
     public async Task<int> RunUntilDoneAsync(CancellationToken ct)
     {
         var total = 0;
         while (true)
         {
+            if (!_options.Value.Enabled)
+                return total;
             await using var scope = _scopes.CreateAsyncScope();
             var report = await scope.ServiceProvider.GetRequiredService<XuidLookupService>().RunBatchAsync(ct);
             total += report.LookedUp;
