@@ -18,7 +18,7 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
     private readonly HubUser _user;
     //private static ConcurrentDictionary<string, int?> _connections = new ConcurrentDictionary<string, int?>();
 
-    /// <param name="user">The caller with their roles now (HubSessionFilter), not as the connection's claims had them.</param>
+    // user: the caller with their roles now (HubSessionFilter), not as the connection's claims had them
     public TeamsHub(TeamService teamService, SeasonVisibility visibility, HubUser user)
     {
         _user = user;

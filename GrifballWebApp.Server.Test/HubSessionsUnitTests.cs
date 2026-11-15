@@ -248,19 +248,30 @@ public class HubSessionsUnitTests
         using var sweep = new HubSessionSweep(_connections, scopes, time, logger);
         await sweep.StartAsync(CancellationToken.None);
 
+        // The service starts its timer on its own thread: tick until it has run, whenever that is
+        async Task<bool> TickUntil(Func<Task<bool>> done)
+        {
+            for (var i = 0; i < 100; i++)
+            {
+                time.Advance(HubSessionSweep.Interval);
+                if (await done())
+                    return true;
+            }
+            return false;
+        }
+
         _validator.Fails = true;
-        time.Advance(HubSessionSweep.Interval);
-        var logged = await logger.WaitForEntries(1, TimeSpan.FromSeconds(10));
+        var logged = await TickUntil(() => logger.WaitForEntries(1, TimeSpan.FromMilliseconds(100)));
         _validator.Fails = false;
         _validator.Now = null;
-        time.Advance(HubSessionSweep.Interval);
-        await aborted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var closed = await TickUntil(async () => await Task.WhenAny(aborted.Task, Task.Delay(100)) == aborted.Task);
         await sweep.StopAsync(CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(logged, Is.True);
             Assert.That(logger.Entries[0].Exception, Is.TypeOf<InvalidOperationException>());
+            Assert.That(closed, Is.True, "still sweeping after the failure");
         }
     }
 
