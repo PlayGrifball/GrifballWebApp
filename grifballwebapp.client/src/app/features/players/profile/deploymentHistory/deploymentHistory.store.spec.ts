@@ -36,6 +36,8 @@ describe('DeploymentHistoryStore', () => {
 
     store.reload();
     TestBed.tick();
+    // Still failed while the retry is on its way: the page keeps its error and Retry up until it answers
+    expect(store.failed()).toBeTrue();
     http.expectOne('/api/users/21/deployment-history').flush([]);
     await settle();
     expect(store.failed()).toBeFalse();

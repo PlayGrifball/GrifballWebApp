@@ -75,4 +75,30 @@ describe('resourceView', () => {
     await settle();
     expect(view.value()).toEqual([1, 3]);
   });
+
+  it('keeps the last value while reloading it, and the last error while retrying after one', async () => {
+    const { params, view, answers } = setUp();
+    params.set(1);
+    TestBed.tick();
+    answers[0].error(new Error('down'));
+    await settle();
+    view.reload();
+    TestBed.tick();
+    // Angular's reloading: no longer "error", but the error it had is still there until the retry answers
+    expect(view.failed()).toBeFalse();
+    expect(view.error()!.message).toBe('down');
+    answers[1].next([5]);
+    answers[1].complete();
+    await settle();
+    expect(view.error()).toBeUndefined();
+
+    view.reload();
+    TestBed.tick();
+    expect(view.isLoading()).toBeTrue();
+    expect(view.hasValue()).toBeTrue();
+    expect(view.value()).toEqual([5]);
+    answers[2].next([6]);
+    answers[2].complete();
+    await settle();
+  });
 });

@@ -1,4 +1,4 @@
-import { HttpErrorResponse, provideHttpClient, withXhr } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -41,16 +41,17 @@ describe('MergeUserStore', () => {
     http.expectOne('/api/users/6').flush('x', { status: 404, statusText: 'Not Found' });
     await settle();
     expect(store.fromUser()!.userID).toBe(5);
-    expect(store.toUser()).toBeUndefined();
-    expect((store.toError() as HttpErrorResponse).status).toBe(404);
-    expect(store.fromError()).toBeUndefined();
+    // No such user (404) is an answer, not a failure: null, shown as "User not found."
+    expect(store.toUser()).toBeNull();
+    expect(store.toFailed()).toBeFalse();
+    expect(store.fromFailed()).toBeFalse();
 
     fromID.set(7);
     TestBed.tick();
     http.expectOne('/api/users/7').flush('x', { status: 500, statusText: 'Server Error' });
     await settle();
     expect(store.fromUser()).toBeUndefined();
-    expect((store.fromError() as HttpErrorResponse).status).toBe(500);
+    expect(store.fromFailed()).toBeTrue();
   });
 
   it('merges the users, and says how it went', () => {
