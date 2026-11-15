@@ -169,8 +169,12 @@ public class HubSessionTests
         logout.Headers.Add("Sec-Fetch-Site", "same-origin");
         using var response = await browser.SendAsync(logout);
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
-        Assert.That(await ClosesSoon(closed), Is.True, "the logout's new security stamp ends the session");
+        var closes = await ClosesSoon(closed);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            Assert.That(closes, Is.True, "the logout's new security stamp ends the session");
+        }
     }
 
     [Test]
@@ -227,8 +231,12 @@ public class HubSessionTests
         again.On<int>(nameof(ITeamsHubClient.UnlockCaptains), seasonID => everyone.TrySetResult(seasonID));
         await hub.Clients.All.UnlockCaptains(44);
 
-        Assert.That(await everyone.Task.WaitAsync(Wait), Is.EqualTo(44), "connected, and gets everyone's pushes");
-        Assert.That(pushedAgain.Task.IsCompleted, Is.False, "not the staff group's");
+        var everyonesPush = await everyone.Task.WaitAsync(Wait);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(everyonesPush, Is.EqualTo(44), "connected, and gets everyone's pushes");
+            Assert.That(pushedAgain.Task.IsCompleted, Is.False, "not the staff group's");
+        }
     }
 
     [TestCase("TeamsHub")]
