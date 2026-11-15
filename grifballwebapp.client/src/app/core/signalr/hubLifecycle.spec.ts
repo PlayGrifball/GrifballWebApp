@@ -256,6 +256,8 @@ describe('hubLifecycle', () => {
       jasmine.clock().tick(HUB_RETRY_MS[HUB_RETRY_MS.length - 1]);
       await settled();
       expect(connection.start).toHaveBeenCalledTimes(1);
+      // Nothing will try again, so the log doesn't say it will
+      expect(log).toHaveBeenCalledOnceWith("Couldn't start the Test hub connection", new Error('refused'));
     });
   });
 

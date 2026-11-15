@@ -401,7 +401,11 @@ describe('TeamBuilderComponent', () => {
 
 
     it('should throw error for invalid type', () => {
+      const warn = spyOn(console, 'warn');
+      spyOn(console, 'debug');
       expect(() => component.MapToPlayer({}, GrabbedThing.Team)).toThrowError('Unable to map to player');
+      // The thrown error is reported; a warning too would be a second line
+      expect(warn).not.toHaveBeenCalled();
     });
   });
 
@@ -433,7 +437,11 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('should throw error for invalid type', () => {
+      const warn = spyOn(console, 'warn');
+      spyOn(console, 'debug');
       expect(() => component.MapToTeam({}, GrabbedThing.Player)).toThrowError('Unable to map to team');
+      // The thrown error is reported; a warning too would be a second line
+      expect(warn).not.toHaveBeenCalled();
     });
   });
 
