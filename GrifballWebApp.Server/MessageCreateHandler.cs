@@ -149,7 +149,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         ChatReply reply;
         try
         {
-            reply = chat.Start(history, message.Content, caller, host, ChatLimits.Asker(caller, ChatLimits.Discord(message.Author.Id)));
+            // The model: in a DM, the one the author chose on the site (else their default); in a channel, the one anyone may use
+            reply = await chat.StartAsync(history, message.Content, caller, host, ChatLimits.Asker(caller, ChatLimits.Discord(message.Author.Id)));
         }
         catch (ChatRefusedException refused)
         {

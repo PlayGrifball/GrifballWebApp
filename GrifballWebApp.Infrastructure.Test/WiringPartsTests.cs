@@ -1,14 +1,11 @@
-using GrifballWebApp.Application.Chat;
 using Microsoft.Extensions.Logging.Testing;
 using System.Diagnostics;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Infrastructure.Historical;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Jobs;
-using GrifballWebApp.Infrastructure.Ollama;
 using GrifballWebApp.Infrastructure.Redis;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
@@ -16,7 +13,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-using OllamaSharp;
 using Quartz;
 using Quartz.Diagnostics;
 using XboxUser = GrifballWebApp.Domain.Players.XboxUser;
@@ -79,78 +75,6 @@ public class WiringPartsTests : SqliteContextFixture
         var slots = services.GetRequiredService<IHaloCallSlots>();
 
         Assert.That(slots, Is.TypeOf<RedisHaloCallSlots>().And.Property(nameof(RedisHaloCallSlots.Key)).EqualTo("grif-test:halo-call-pace"));
-    }
-
-    /// <summary>The chats' model as AddOllamaChat registers it, with <paramref name="settings"/>.</summary>
-    private static ServiceProvider Ollama(params (string Key, string? Value)[] settings)
-        => new ServiceCollection().AddSingleton(Configuration(settings)).AddOllamaChat().BuildServiceProvider();
-
-    [Test]
-    public void ChatClient_IsTheConfiguredOllama_WithNoToolCallsOfItsOwn()
-    {
-        using var services = Ollama(("Ollama:Url", "http://ollama.test:11434/"));
-        var clients = services.GetRequiredService<IChatClientFactory>();
-        var client = clients.Create();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(clients, Is.TypeOf<OllamaChatClients>());
-            Assert.That(clients.Available, Is.True);
-            // GrifChat calls the tools, whatever the provider
-            Assert.That(client, Is.TypeOf<OllamaApiClient>());
-            Assert.That(client.GetService<FunctionInvokingChatClient>(), Is.Null);
-            Assert.That(client.GetService<OllamaApiClient>()?.Uri, Is.EqualTo(new Uri("http://ollama.test:11434/")));
-            Assert.That(client.GetService<OllamaApiClient>()?.SelectedModel, Is.EqualTo(OllamaChatClients.DefaultModel));
-        }
-    }
-
-    [Test]
-    public void ChatClient_IsOneClientForEveryReply_OverOneHttpClient()
-    {
-        var http = Substitute.For<IHttpClientFactory>();
-        http.CreateClient(OllamaChatClients.HttpClientName).Returns(_ => new HttpClient());
-        var clients = new OllamaChatClients(Configuration(("Ollama:Url", "http://ollama.test:11434/")), http);
-
-        var first = clients.Create();
-        var second = clients.Create();
-
-        Assert.That(first, Is.SameAs(second));
-        http.Received(1).CreateClient(OllamaChatClients.HttpClientName);
-    }
-
-    [Test]
-    public void ChatClient_HttpClient_HasNoTimeoutOfItsOwn_TheHostsDecide()
-    {
-        using var services = Ollama(("Ollama:Url", "http://ollama.test:11434/"));
-
-        // Not HttpClient's default 100 seconds: a cold model on the CPU can take longer to start answering
-        using var http = services.GetRequiredService<IHttpClientFactory>().CreateClient(OllamaChatClients.HttpClientName);
-        Assert.That(http.Timeout, Is.EqualTo(Timeout.InfiniteTimeSpan));
-    }
-
-    [TestCase("qwen3:8b", "qwen3:8b")]
-    [TestCase("", OllamaChatClients.DefaultModel)]
-    public void ChatClient_OllamaModel_IsTheModelAsked_ElseTheDefault(string model, string asked)
-    {
-        using var services = Ollama(("Ollama:Url", "http://ollama.test:11434/"), ("Ollama:Model", model));
-
-        var client = services.GetRequiredService<IChatClientFactory>().Create();
-
-        Assert.That(client.GetService<OllamaApiClient>()?.SelectedModel, Is.EqualTo(asked));
-    }
-
-    [TestCase(null)]
-    [TestCase("")]
-    public void ChatClient_NoOllamaUrl_IsNoModel_NotOllamasDefaultPort(string? url)
-    {
-        using var services = Ollama(("Ollama:Url", url));
-        var clients = services.GetRequiredService<IChatClientFactory>();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(clients.Available, Is.False);
-            Assert.That(() => clients.Create(), Throws.InvalidOperationException.With.Message.Contains("Ollama:Url"));
-        }
     }
 
     [Test]

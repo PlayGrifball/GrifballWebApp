@@ -34,6 +34,7 @@ public abstract class MessageCreateHandlerFixture
         // A model configured (never asked: these tests never get as far)
         var model = Substitute.For<IChatClientFactory>();
         model.Available.Returns(true);
+        model.Models.Returns([new ChatModelOption("ollama", "llama3.2:3b", ChatProvider.Ollama, "llama3.2:3b")]);
         _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, new AmbientCurrentUser(), _logger, new GrifChat(new ChatModel(model, NullLoggerFactory.Instance), _scopeFactory, new ChatLimits()));
     }
 

@@ -15,7 +15,7 @@ using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Infrastructure.Matchmaking;
-using GrifballWebApp.Infrastructure.Ollama;
+using GrifballWebApp.Infrastructure.Chat;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Infrastructure.Preview;
 using GrifballWebApp.Application.SeasonMatchPage;
@@ -189,7 +189,7 @@ public static class InfrastructureServiceCollectionExtensions
         else
             services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
         // The chats' model (GrifChat): Ollama. Another provider is another IChatClientFactory here, and nothing else changes
-        services.AddOllamaChat();
+        services.AddChatModels();
         return services;
     }
 

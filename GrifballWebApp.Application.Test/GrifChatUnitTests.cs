@@ -25,7 +25,7 @@ namespace GrifballWebApp.Application.Test;
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
-public class GrifChatUnitTests
+public partial class GrifChatUnitTests
 {
     private static readonly string[] Answer = ["It is ", "noon."];
     private static readonly string[] Ok = ["ok"];
@@ -34,6 +34,9 @@ public class GrifChatUnitTests
 
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
     private readonly ChatLimits _limits = new(maxReplies: 3);
+    /// <summary>A model anyone may use, free: the league's own.</summary>
+    private static readonly ChatModelOption Free = new("ollama", "llama3.2:3b", ChatProvider.Ollama, "llama3.2:3b");
+
     private readonly IChatClientFactory _clients = Substitute.For<IChatClientFactory>();
     private ServiceProvider _services = null!;
 
@@ -50,7 +53,8 @@ public class GrifChatUnitTests
     {
         _services = new ServiceCollection().AddSingleton(clock ?? _time).AddFakeLogging().BuildServiceProvider();
         _clients.Available.Returns(true);
-        _clients.Create().Returns(model);
+        _clients.Models.Returns([Free]);
+        _clients.Create(Arg.Any<ChatModelOption>()).Returns(model);
         var traced = new ChatModel(_clients, _services.GetRequiredService<ILoggerFactory>(), sensitiveData);
         return new GrifChat(traced, _services.GetRequiredService<IServiceScopeFactory>(), _limits);
     }
@@ -66,7 +70,7 @@ public class GrifChatUnitTests
     /// <summary>The whole reply to <paramref name="question"/>, started and streamed as a host does.</summary>
     private static async Task<List<string>> Ask(GrifChat chat, string question, ToolCaller caller, ChatHost host, string asker = Asker)
     {
-        using var reply = chat.Start([], question, caller, host, asker);
+        using var reply = await chat.StartAsync([], question, caller, host, asker);
         return await All(reply.StreamAsync());
     }
 
@@ -228,7 +232,7 @@ public class GrifChatUnitTests
 
         Assert.That(async () =>
         {
-            using var reply = chat.Start([], "Hi", ToolCaller.Anonymous, ChatHost.Site, Asker);
+            using var reply = await chat.StartAsync([], "Hi", ToolCaller.Anonymous, ChatHost.Site, Asker);
             await All(reply.StreamAsync(stop.Token));
         }, Throws.InstanceOf<OperationCanceledException>());
     }
@@ -239,9 +243,9 @@ public class GrifChatUnitTests
         var chat = Chat(new FakeModel());
         _clients.Available.Returns(false);
 
-        Assert.That(() => chat.Start([], "Hi", ToolCaller.Anonymous, ChatHost.Site, Asker),
+        Assert.That(async () => await chat.StartAsync([], "Hi", ToolCaller.Anonymous, ChatHost.Site, Asker),
             Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.Unavailable));
-        _clients.DidNotReceive().Create();
+        _clients.DidNotReceive().Create(Arg.Any<ChatModelOption>());
     }
 
     [Test]
@@ -249,16 +253,16 @@ public class GrifChatUnitTests
     {
         var chat = Chat(new FakeModel());
 
-        Assert.That(() => chat.Start([], new string('a', GrifChat.MaxQuestionLength + 1), ToolCaller.Anonymous, discord ? ChatHost.DiscordDirect : ChatHost.Site, Asker),
+        Assert.That(async () => await chat.StartAsync([], new string('a', GrifChat.MaxQuestionLength + 1), ToolCaller.Anonymous, discord ? ChatHost.DiscordDirect : ChatHost.Site, Asker),
             Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo("Ask in 2000 characters or fewer."));
     }
 
     [Test]
-    public void Start_TrimsTheHistoryAndCutsLongMessages_WhateverTheHost()
+    public async Task Start_TrimsTheHistoryAndCutsLongMessages_WhateverTheHost()
     {
         var history = Enumerable.Range(1, GrifChat.HistoryLimit + 5).Select(i => new ChatMessage(ChatRole.User, i == 30 ? new string('a', 5000) : $"m{i}"));
 
-        using var reply = Chat(new FakeModel()).Start(history, "Next?", ToolCaller.Anonymous, ChatHost.Discord, Asker);
+        using var reply = await Chat(new FakeModel()).StartAsync(history, "Next?", ToolCaller.Anonymous, ChatHost.Discord, Asker);
 
         using (Assert.EnterMultipleScope())
         {
@@ -269,19 +273,19 @@ public class GrifChatUnitTests
     }
 
     [Test]
-    public void Start_WhileTheAskersLastReplyIsUnderWay_IsBusy_UntilItIsDone()
+    public async Task Start_WhileTheAskersLastReplyIsUnderWay_IsBusy_UntilItIsDone()
     {
         var chat = Chat(new FakeModel([Text("Hi")]));
-        var first = chat.Start([], "Hi", ToolCaller.Anonymous, ChatHost.DiscordDirect, "discord:5");
+        var first = await chat.StartAsync([], "Hi", ToolCaller.Anonymous, ChatHost.DiscordDirect, "discord:5");
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(() => chat.Start([], "Again", ToolCaller.Anonymous, ChatHost.DiscordDirect, "discord:5"),
+            Assert.That(async () => await chat.StartAsync([], "Again", ToolCaller.Anonymous, ChatHost.DiscordDirect, "discord:5"),
                 Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(ChatLimits.Busy));
-            Assert.That(() => chat.Start([], "Hi", ToolCaller.Anonymous, ChatHost.DiscordDirect, "discord:6").Dispose(), Throws.Nothing, "another asker");
+            Assert.That(async () => (await chat.StartAsync([], "Hi", ToolCaller.Anonymous, ChatHost.DiscordDirect, "discord:6")).Dispose(), Throws.Nothing, "another asker");
         }
         first.Dispose();
-        Assert.That(() => chat.Start([], "Again", ToolCaller.Anonymous, ChatHost.DiscordDirect, "discord:5").Dispose(), Throws.Nothing);
+        Assert.That(async () => (await chat.StartAsync([], "Again", ToolCaller.Anonymous, ChatHost.DiscordDirect, "discord:5")).Dispose(), Throws.Nothing);
     }
 
     [Test]
@@ -291,14 +295,14 @@ public class GrifChatUnitTests
         var model = new FakeModel([Text("Late")]) { Blocked = blocked };
         var chat = Chat(model);
         using var stop = new CancellationTokenSource();
-        using var first = chat.Start([], "Hi", ToolCaller.Anonymous, ChatHost.Site, Asker);
+        using var first = await chat.StartAsync([], "Hi", ToolCaller.Anonymous, ChatHost.Site, Asker);
         var streaming = All(first.StreamAsync(stop.Token));
         await model.Asked.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
         await stop.CancelAsync();
 
         // The model hasn't noticed: the first reply is still under way, yet the asker may ask again
-        Assert.That(() => chat.Start([], "Again", ToolCaller.Anonymous, ChatHost.Site, Asker).Dispose(), Throws.Nothing);
+        Assert.That(async () => (await chat.StartAsync([], "Again", ToolCaller.Anonymous, ChatHost.Site, Asker)).Dispose(), Throws.Nothing);
         blocked.SetResult();
         try
         {
@@ -314,11 +318,11 @@ public class GrifChatUnitTests
     public async Task StreamAsync_Done_FreesTheSlot_EvenUndisposed()
     {
         var chat = Chat(new FakeModel([Text("Hi")]));
-        var reply = chat.Start([], "Hi", ToolCaller.Anonymous, ChatHost.Site, Asker);
+        var reply = await chat.StartAsync([], "Hi", ToolCaller.Anonymous, ChatHost.Site, Asker);
 
         await All(reply.StreamAsync());
 
-        Assert.That(() => chat.Start([], "Again", ToolCaller.Anonymous, ChatHost.Site, Asker).Dispose(), Throws.Nothing);
+        Assert.That(async () => (await chat.StartAsync([], "Again", ToolCaller.Anonymous, ChatHost.Site, Asker)).Dispose(), Throws.Nothing);
         reply.Dispose();
     }
 
@@ -477,7 +481,7 @@ public class GrifChatUnitTests
         using (var host = Spans.Test.StartActivity("host call")!)
         {
             trace = host.TraceId;
-            reply = chat.Start([], question, ToolCaller.Anonymous, ChatHost.Site, Asker);
+            reply = await chat.StartAsync([], question, ToolCaller.Anonymous, ChatHost.Site, Asker);
             streaming = Task.Run(() => All(reply.StreamAsync()));
         }
         using (reply)
@@ -568,28 +572,32 @@ public class GrifChatUnitTests
     [Test]
     public void ChatModel_SensitiveData_IsOffUnlessSwitchedOn_WhateverTheEnvironmentSays()
     {
-        _clients.Create().Returns(new FakeModel());
+        _clients.Create(Arg.Any<ChatModelOption>()).Returns(new FakeModel());
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(new ChatModel(_clients, NullLoggerFactory.Instance).Create().GetService<OpenTelemetryChatClient>()!.EnableSensitiveData, Is.False);
-            Assert.That(new ChatModel(_clients, NullLoggerFactory.Instance, sensitiveData: true).Create().GetService<OpenTelemetryChatClient>()!.EnableSensitiveData, Is.True);
+            Assert.That(new ChatModel(_clients, NullLoggerFactory.Instance).Create(Free).GetService<OpenTelemetryChatClient>()!.EnableSensitiveData, Is.False);
+            Assert.That(new ChatModel(_clients, NullLoggerFactory.Instance, sensitiveData: true).Create(Free).GetService<OpenTelemetryChatClient>()!.EnableSensitiveData, Is.True);
         }
     }
 
     [Test]
-    public void ChatModel_IsTheWholePipeline_BuiltOnce_WhateverTheFactoryGivesLater()
+    public void ChatModel_IsEachModelsWholePipeline_BuiltOnce_WhateverTheFactoryGivesLater()
     {
-        _clients.Create().Returns(new FakeModel(), new FakeModel());
+        _clients.Create(Arg.Any<ChatModelOption>()).Returns(new FakeModel(), new FakeModel(), new FakeModel());
         var model = new ChatModel(_clients, NullLoggerFactory.Instance);
+        var other = Free with { Id = "other" };
 
-        var first = model.Create();
+        var first = model.Create(Free);
 
         using (Assert.EnterMultipleScope())
         {
             // Each wrapper makes a Meter and an ActivitySource of its own: one, never replaced, so none is left undisposed
-            Assert.That(model.Create(), Is.SameAs(first));
-            _clients.Received(1).Create();
+            Assert.That(model.Create(Free), Is.SameAs(first));
+            _clients.Received(1).Create(Free);
+            var second = model.Create(other);
+            Assert.That(second, Is.Not.SameAs(first), "Each model its own");
+            Assert.That(model.Create(other), Is.SameAs(second));
             // The tools called over the traced model: an execute_tool span per call, on its source
             Assert.That(first, Is.InstanceOf<FunctionInvokingChatClient>());
             Assert.That(first.GetService<OpenTelemetryChatClient>(), Is.Not.Null);
@@ -679,7 +687,7 @@ public class GrifChatUnitTests
         using (var host = Spans.Test.StartActivity("host call")!)
         {
             trace = host.TraceId;
-            using var reply = chat.Start([], "What time is it?", ToolCaller.Anonymous, ChatHost.Site, Asker);
+            using var reply = await chat.StartAsync([], "What time is it?", ToolCaller.Anonymous, ChatHost.Site, Asker);
             Assert.That(async () => await All(reply.StreamAsync(stop.Token)), Throws.InstanceOf<OperationCanceledException>());
         }
 

@@ -50,7 +50,10 @@ public static class ApplicationServiceCollectionExtensions
             return new ChatModel(provider.GetRequiredService<IChatClientFactory>(), loggers, sensitiveData);
         });
         // Every host's askers, counted once per process
-        services.AddSingleton(_ => new ChatLimits(configuration.GetValue(ChatLimits.MaxRepliesKey, 1)));
+        services.AddSingleton(_ => new ChatLimits(configuration.GetValue(ChatLimits.MaxRepliesKey, 1),
+            configuration.GetValue(ChatLimits.MonthlyLimitKey, ChatLimits.DefaultMonthlyLimit)));
+        // What the chat keeps of a user: their chosen model and their monthly spend
+        services.AddTransient<ChatAccounts>();
         services.AddTransient<IQueueRepository, QueueRepository>();
         // Joining and leaving, from Discord or the site; the queue's size goes to its watchers (IQueueNotifier)
         services.AddTransient<QueueMembership>();

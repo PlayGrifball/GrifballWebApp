@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NetCord.Rest;
 using NSubstitute;
 using System.Text.Json;
-using GrifballWebApp.Infrastructure.Ollama;
+using GrifballWebApp.Infrastructure.Chat;
 using GrifballWebApp.Application.Chat;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -53,7 +53,7 @@ public class MessageCreateHandlerTests : MessageCreateHandlerFixture
             ["Ollama:Url"] = ollamaUrl, // by default refused at once
         }).Build();
         // The chats' model as Program.cs has it: Ollama, at Ollama:Url
-        var model = new ServiceCollection().AddSingleton<IConfiguration>(config).AddOllamaChat().BuildServiceProvider().GetRequiredService<IChatClientFactory>();
+        var model = new ServiceCollection().AddSingleton<IConfiguration>(config).AddChatModels().BuildServiceProvider().GetRequiredService<IChatClientFactory>();
         return new MessageCreateHandler(_discordClient, config, services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger,
             new GrifChat(new ChatModel(model, NullLoggerFactory.Instance), services.GetRequiredService<IServiceScopeFactory>(), new ChatLimits()));
     }

@@ -3,14 +3,18 @@ using Microsoft.Extensions.AI;
 namespace GrifballWebApp.Application.Chat;
 
 /// <summary>
-/// The chats' model (the Discord bot's, the site's): a Microsoft.Extensions.AI client, shared by every reply (not disposed by them).
-/// Which provider it is (Infrastructure's OllamaChatClients) is its registration's choice alone; <see cref="GrifChat"/> calls the tools
-/// for it.
+/// The chats' models (the Discord bot's, the site's) and a Microsoft.Extensions.AI client for each, shared by every reply (not disposed
+/// by them). Which providers there are (Infrastructure's ChatClients: Ollama, Anthropic) is its registration's choice alone;
+/// <see cref="GrifChat"/> chooses the model and calls the tools for it.
 /// </summary>
 public interface IChatClientFactory
 {
-    /// <summary>Whether a model is configured: none, and the hosts say the chat is unavailable rather than ask one.</summary>
+    /// <summary>The configured models, in order (<see cref="ChatModelOption"/>): none, and the hosts say the chat is unavailable.</summary>
+    IReadOnlyList<ChatModelOption> Models { get; }
+
+    /// <summary>Whether any model is configured.</summary>
     bool Available { get; }
 
-    IChatClient Create();
+    /// <summary>The client for <paramref name="model"/>, one of <see cref="Models"/>.</summary>
+    IChatClient Create(ChatModelOption model);
 }

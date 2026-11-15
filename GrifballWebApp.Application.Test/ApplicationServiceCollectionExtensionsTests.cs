@@ -95,6 +95,7 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         yield return Of(typeof(IDiscordAccountLinkService), typeof(DiscordAccountLinkService), ServiceLifetime.Scoped);
         yield return Of(typeof(RescheduleService), typeof(RescheduleService), ServiceLifetime.Transient);
         yield return Of(typeof(GrifChat), typeof(GrifChat), ServiceLifetime.Transient);
+        yield return Of(typeof(ChatAccounts), typeof(ChatAccounts), ServiceLifetime.Transient);
     }
 
     private static IServiceCollection AddApplication(Dictionary<string, string?>? settings = null)
@@ -146,6 +147,15 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         services.AddSingleton(_ => Substitute.For<IChatClientFactory>());
 
         Assert.That(() => services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true }).Dispose(), Throws.Nothing);
+    }
+
+    [TestCase(null, 10)]
+    [TestCase("2.5", 2.5)]
+    public void AddApplication_TheChatsMonthlyLimit_IsChatMonthlyLimit(string? setting, decimal limit)
+    {
+        using var provider = AddApplication(new() { [ChatLimits.MonthlyLimitKey] = setting }).BuildServiceProvider();
+
+        Assert.That(provider.GetRequiredService<ChatLimits>().MonthlyLimit, Is.EqualTo(limit));
     }
 
     [TestCase(null, 1)]

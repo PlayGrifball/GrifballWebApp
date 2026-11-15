@@ -46,7 +46,8 @@ public class ChatHubUnitTests
     /// </summary>
     private ChatHub Hub(IChatClient model, HubUserState? user = null, ClaimsPrincipal? claims = null, string address = "203.0.113.9")
     {
-        _clients.Create().Returns(model);
+        _clients.Models.Returns([new ChatModelOption("ollama", "llama3.2:3b", ChatProvider.Ollama, "llama3.2:3b")]);
+        _clients.Create(Arg.Any<ChatModelOption>()).Returns(model);
         _clients.Available.Returns(true);
         var http = new DefaultHttpContext();
         http.Connection.RemoteIpAddress = IPAddress.Parse(address);
@@ -172,6 +173,35 @@ public class ChatHubUnitTests
     }
 
     [Test]
+    public async Task Models_SignedOut_TheModelAnyoneMayUse_WithNoSpend()
+    {
+        var models = await Hub(new ScriptedChatClient()).Models();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(models.Models.Select(m => (m.Id, m.Name)), Is.EqualTo(new[] { ("ollama", "llama3.2:3b") }));
+            Assert.That((models.Selected, models.Spent, models.Limit), Is.EqualTo(("ollama", (decimal?)null, (decimal?)null)));
+        }
+    }
+
+    [Test]
+    public void Choose_SignedOut_IsRefused_ToTheBrowser()
+    {
+        var hub = Hub(new ScriptedChatClient());
+
+        Assert.That(async () => await hub.Choose("ollama"), Throws.TypeOf<HubException>().With.Message.EqualTo(GrifChat.NotYours));
+    }
+
+    [Test]
+    public async Task Ask_AModelNotTheirs_IsRefused_ToTheBrowser()
+    {
+        var (_, error) = await Read(await Hub(new ScriptedChatClient()).Ask(Question() with { Model = "claude-opus" }, CancellationToken.None));
+
+        Assert.That(error, Is.EqualTo(GrifChat.NotYours));
+        _clients.DidNotReceive().Create(Arg.Any<ChatModelOption>());
+    }
+
+    [Test]
     public async Task Ask_NoModelConfigured_SaysTheChatIsUnavailable()
     {
         var hub = Hub(new ScriptedChatClient((TimeSpan.Zero, "Never")));
@@ -184,7 +214,7 @@ public class ChatHubUnitTests
             Assert.That(error, Is.EqualTo(GrifChat.Unavailable));
             Assert.That(texts, Is.Empty);
         }
-        _clients.DidNotReceive().Create();
+        _clients.DidNotReceive().Create(Arg.Any<ChatModelOption>());
     }
 
     [TestCase("")]
@@ -194,7 +224,7 @@ public class ChatHubUnitTests
         var (_, error) = await Read(await Hub(new ScriptedChatClient()).Ask(Question(question), CancellationToken.None));
 
         Assert.That(error, Is.EqualTo("Ask a question."));
-        _clients.DidNotReceive().Create();
+        _clients.DidNotReceive().Create(Arg.Any<ChatModelOption>());
     }
 
     [Test]
