@@ -29,6 +29,7 @@ public class GrifChatUnitTests
 {
     private static readonly string[] Answer = ["It is ", "noon."];
     private static readonly string[] Ok = ["ok"];
+    private static readonly string[] Canceled = ["canceled"];
     private const string Asker = "user:1";
 
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
@@ -637,7 +638,8 @@ public class GrifChatUnitTests
     [TestCase(null, "ok")]
     [TestCase(typeof(ToolException), "refused")]
     [TestCase(typeof(InvalidOperationException), "failed")]
-    [TestCase(typeof(OperationCanceledException), "canceled")]
+    // A tool's own timeout (an HTTP client's), the reply still under way: a failure, its message left out as any other's
+    [TestCase(typeof(TaskCanceledException), "failed")]
     public async Task StreamAsync_LogsEachToolCall_ItsNameOutcomeAndTime_AndTagsItsSpan(Type? thrown, string outcome)
     {
         using var spans = new Spans();
@@ -658,9 +660,42 @@ public class GrifChatUnitTests
             Assert.That(double.Parse(logged[0].GetStructuredStateValue("ElapsedMs")!, CultureInfo.InvariantCulture), Is.GreaterThanOrEqualTo(0));
             Assert.That(logged[0].Message, Does.Not.Contain("The clock broke"), "a failure's details are in the function invocation's error log");
             Assert.That(tool.GetTagItem(GrifTools.OutcomeTag), Is.EqualTo(outcome));
-            Assert.That(tool.Status == ActivityStatusCode.Error, Is.EqualTo(outcome != "ok" && outcome != "refused"), "a refusal is the tool's answer, not an error");
+            Assert.That(tool.Status == ActivityStatusCode.Error, Is.EqualTo(outcome == "failed"), "a refusal is the tool's answer, not an error");
+            Assert.That(tool.StatusDescription ?? "", Does.Not.Contain("The clock broke"));
+            // The failure's own type, which error.type (the redacted failure's) no longer tells
+            Assert.That(tool.GetTagItem(GrifTools.ErrorTypeTag), Is.EqualTo(outcome == "failed" ? thrown!.FullName : null));
         }
     }
+
+    [Test]
+    public async Task StreamAsync_TheAskerStoppingWaitingDuringATool_IsCanceled_NotAFailure()
+    {
+        using var spans = new Spans();
+        using var stop = new CancellationTokenSource();
+        var model = new FakeModel([Call("get_current_time")], [Text("Done.")]);
+        var chat = Chat(model, clock: new StoppingClock(stop));
+        ActivityTraceId trace;
+
+        using (var host = Spans.Test.StartActivity("host call")!)
+        {
+            trace = host.TraceId;
+            using var reply = chat.Start([], "What time is it?", ToolCaller.Anonymous, ChatHost.Site, Asker);
+            Assert.That(async () => await All(reply.StreamAsync(stop.Token)), Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        var logged = _services.GetFakeLogCollector().GetSnapshot().Where(r => r.Category == typeof(GrifTools).FullName).ToList();
+        var tool = spans.Of(trace).Single(a => Operation(a) == "execute_tool");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(logged.Select(r => r.GetStructuredStateValue("Outcome")), Is.EqualTo(Canceled));
+            Assert.That(tool.GetTagItem(GrifTools.OutcomeTag), Is.EqualTo("canceled"));
+            Assert.That(tool.GetTagItem(GrifTools.ErrorTypeTag), Is.Null);
+        }
+    }
+
+    [Test]
+    public void ChatLog_IsTheChatsOwn_NotTheTools()
+        => Assert.That(typeof(ChatLog).Namespace, Is.EqualTo(typeof(ChatModel).Namespace));
 
     private static string? Operation(Activity activity) => activity.GetTagItem("gen_ai.operation.name") as string;
 
@@ -673,6 +708,17 @@ public class GrifChatUnitTests
     private sealed class ThrowingClock(Exception error) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => throw error;
+    }
+
+    /// <summary>A clock read as the asker stops waiting (<paramref name="stop"/>): the tool is canceled as it runs.</summary>
+    private sealed class StoppingClock(CancellationTokenSource stop) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow()
+        {
+            stop.Cancel();
+            stop.Token.ThrowIfCancellationRequested();
+            return default;
+        }
     }
 
     /// <summary>The spans the chat (<see cref="ChatModel.SourceName"/>) and the test's host (<see cref="Test"/>) end while it listens.</summary>
