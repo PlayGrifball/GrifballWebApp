@@ -10,11 +10,14 @@ namespace GrifballWebApp.Server.Test;
 /// </summary>
 internal sealed class ChatSpans : IDisposable
 {
-    public static readonly ActivitySource Host = new("GrifballWebApp.Server.Test.Host");
+    private const string HostName = "GrifballWebApp.Server.Test.Host";
+
+    public static readonly ActivitySource Host = new(HostName);
 
     private readonly ActivityListener _listener = new()
     {
-        ShouldListenTo = source => source == Host || source.Name is ChatModel.SourceName or MessageCreateHandler.ActivitySourceName,
+        // By name: the static source may be made only as the listener is added, and so be missed
+        ShouldListenTo = source => source.Name is HostName or ChatModel.SourceName or MessageCreateHandler.ActivitySourceName,
         Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
     };
 

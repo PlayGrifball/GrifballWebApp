@@ -630,7 +630,9 @@ public class GrifChatUnitTests
     /// <summary>The spans the chat (<see cref="ChatModel.SourceName"/>) and the test's host (<see cref="Test"/>) end while it listens.</summary>
     private sealed class Spans : IDisposable
     {
-        public static readonly ActivitySource Test = new("GrifballWebApp.Application.Test.ChatHost");
+        private const string TestName = "GrifballWebApp.Application.Test.ChatHost";
+
+        public static readonly ActivitySource Test = new(TestName);
 
         private readonly ConcurrentQueue<Activity> _ended = new();
         private readonly ActivityListener _listener;
@@ -639,7 +641,8 @@ public class GrifChatUnitTests
         {
             _listener = new ActivityListener
             {
-                ShouldListenTo = source => source.Name == ChatModel.SourceName || source == Test,
+                // By name: the static source may be made only as the listener is added, and so be missed
+                ShouldListenTo = source => source.Name is ChatModel.SourceName or TestName,
                 Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
                 ActivityStopped = _ended.Enqueue,
             };
