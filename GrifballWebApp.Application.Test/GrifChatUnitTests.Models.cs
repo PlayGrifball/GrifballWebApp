@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Testing;
 using NSubstitute;
 
 namespace GrifballWebApp.Application.Test;
@@ -20,6 +21,8 @@ public partial class GrifChatUnitTests
 {
     private static readonly ChatModelOption Haiku = new("claude-haiku", "Claude Haiku", ChatProvider.Anthropic, "claude-haiku-5-5")
         { Roles = [SiteRoles.Sysadmin], Price = new(Input: 1m, Output: 5m, CacheWrite: 1.25m, CacheRead: 0.10m) };
+
+    private static readonly ChatModelOption HaikuCapped = Haiku with { MaxOutputTokens = 8192 };
 
     private static readonly ChatModelOption Opus = new("claude-opus", "Claude Opus", ChatProvider.Anthropic, "claude-opus-5-5")
         { Roles = [SiteRoles.Sysadmin], Price = new(Input: 4m, Output: 20m, CacheWrite: 5m, CacheRead: 0.20m) };
@@ -34,23 +37,24 @@ public partial class GrifChatUnitTests
     private static readonly string[] OnlyFree = ["ollama"];
 
     private FakeApplicationDbContext _db = null!;
+    private readonly FakeLogger<ChatAccounts> _accountsLog = new();
 
     [TearDown]
     public void DisposeDatabase() => _db?.Dispose();
 
     /// <summary>A chat over Haiku, Opus and the free model, in that order, each answered by <paramref name="model"/>, its accounts in a database.</summary>
-    private GrifChat ChatWithModels(FakeModel model, ChatLimits? limits = null)
+    private GrifChat ChatWithModels(FakeModel model, ChatLimits? limits = null, bool refuseSaves = false)
     {
         _db = new FakeApplicationDbContext();
         _services = new ServiceCollection()
             .AddSingleton<TimeProvider>(_time)
-            .AddScoped<IApplicationDbContext>(_ => _db.NewContextLike())
+            .AddScoped<IApplicationDbContext>(_ => refuseSaves ? _db.NewContextLike(new RefusingSaves(_ => true)) : _db.NewContextLike())
             .BuildServiceProvider();
         _clients.Available.Returns(true);
         _clients.Models.Returns([Haiku, Opus, Free]);
         _clients.Create(Arg.Any<ChatModelOption>()).Returns(model);
         var scopes = _services.GetRequiredService<IServiceScopeFactory>();
-        return new GrifChat(new ChatModel(_clients, NullLoggerFactory.Instance), scopes, limits ?? _limits, new ChatAccounts(scopes, _time));
+        return new GrifChat(new ChatModel(_clients, NullLoggerFactory.Instance), scopes, limits ?? _limits, new ChatAccounts(scopes, _time, _accountsLog));
     }
 
     private static ChatResponseUpdate Used(long input, long output) => new(ChatRole.Assistant, [new UsageContent(new UsageDetails
@@ -266,5 +270,71 @@ public partial class GrifChatUnitTests
         var usage = new UsageDetails { InputTokenCount = 10, AdditionalCounts = new() { ["WebFetchRequests"] = 3 } };
 
         Assert.That(new ChatPrice(1m, 0m, 100m, 0m).CostMicros(usage), Is.EqualTo(10));
+    }
+
+    [Test]
+    public async Task StreamAsync_AsksForTheModelsOutputLimit()
+    {
+        var model = new FakeModel([Text("Hi")]);
+        var chat = ChatWithModels(model);
+        _clients.Models.Returns([HaikuCapped, Free]);
+
+        using (var reply = await chat.StartAsync([], "Hi", Sysadmin, ChatHost.Site, Asker))
+            await All(reply.StreamAsync());
+
+        Assert.That(model.Options.Single()!.MaxOutputTokens, Is.EqualTo(8192), "Not the provider's own default (Anthropic's client: 1024)");
+    }
+
+    [Test]
+    public async Task StreamAsync_APaidReplyStoppedBeforeItsUsage_IsChargedAnEstimate_NotNothing()
+    {
+        var chat = ChatWithModels(new FakeModel([Text(new string('a', 3000))]) { ThenHang = true });
+        using var stop = new CancellationTokenSource();
+
+        using (var reply = await chat.StartAsync([], new string('q', 1500), Sysadmin, ChatHost.Site, Asker))
+        {
+            var streaming = All(reply.StreamAsync(stop.Token));
+            await stop.CancelAsync();
+            Assert.That(async () => await streaming, Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        var month = await _db.ChatMonths.AsNoTracking().SingleAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            // The model never said what it used: at least the question's tokens in, and the answer's so far out
+            Assert.That(month.InputTokens, Is.GreaterThanOrEqualTo(1500 / ChatReply.CharactersPerToken));
+            Assert.That(month.OutputTokens, Is.EqualTo(3000 / ChatReply.CharactersPerToken));
+            Assert.That(month.CostMicros, Is.Positive);
+        }
+    }
+
+    [Test]
+    public async Task StreamAsync_ASpendThatFailsToSave_IsLogged_AndTheWholeAnswerStands()
+    {
+        var chat = ChatWithModels(new FakeModel([Text("Noon."), Used(input: 1000, output: 100)]), refuseSaves: true);
+
+        List<string> answer;
+        using (var reply = await chat.StartAsync([], "What time is it?", Sysadmin, ChatHost.Site, Asker))
+            answer = await All(reply.StreamAsync());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(answer, Does.Contain("Noon."));
+            Assert.That(_accountsLog.Collector.GetSnapshot().Select(r => r.Level), Does.Contain(LogLevel.Error));
+            Assert.That(async () => (await chat.StartAsync([], "Again", Sysadmin, ChatHost.Site, Asker)).Dispose(), Throws.Nothing,
+                "Its slot freed all the same");
+        }
+    }
+
+    [Test]
+    public async Task StartAsync_AnAskerAlreadyAnswered_IsRefusedBeforeAnyDatabaseRead()
+    {
+        var chat = ChatWithModels(new FakeModel([Text("Hi")]));
+        using var first = await chat.StartAsync([], "Hi", Sysadmin, ChatHost.Site, Asker);
+        // Any read now fails: the refusal must come first
+        await _db.DisposeAsync();
+
+        Assert.That(async () => await chat.StartAsync([], "Again", Sysadmin, ChatHost.Site, Asker),
+            Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(ChatLimits.Busy));
     }
 }

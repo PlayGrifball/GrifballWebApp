@@ -4,6 +4,7 @@ using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 
 namespace GrifballWebApp.Application.Test;
@@ -32,7 +33,7 @@ public class ChatAccountsUnitTests
         _services = new ServiceCollection()
             .AddScoped<IApplicationDbContext>(_ => Interlocked.Increment(ref made) == 1 ? _db.NewContextLike(first) : _db.NewContextLike())
             .BuildServiceProvider();
-        return new ChatAccounts(_services.GetRequiredService<IServiceScopeFactory>(), _time);
+        return new ChatAccounts(_services.GetRequiredService<IServiceScopeFactory>(), _time, NullLogger<ChatAccounts>.Instance);
     }
 
     /// <summary>Another reply's cost saved to <paramref name="userId"/>'s month, on a context of its own.</summary>
@@ -74,17 +75,19 @@ public class ChatAccountsUnitTests
     }
 
     [Test]
-    public async Task SpentAsync_ThisMonthsOnly()
+    public async Task MonthAsync_ThisMonthsOnly()
     {
         var accounts = Accounts(new BeforeFirstSave(_ => Task.CompletedTask));
         await accounts.RecordAsync(7, 1_500_000, 0, 0);
 
+        var november = await accounts.MonthAsync(7);
         _time.Advance(TimeSpan.FromDays(20));
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await accounts.SpentAsync(7), Is.Zero, "December: November's spend is past");
-            Assert.That(await accounts.SpentAsync(8), Is.Zero);
+            Assert.That(november?.Spent, Is.EqualTo(1.5m));
+            Assert.That(await accounts.MonthAsync(7), Is.Null, "December: November's spend is past");
+            Assert.That(await accounts.MonthAsync(8), Is.Null);
         }
     }
 }

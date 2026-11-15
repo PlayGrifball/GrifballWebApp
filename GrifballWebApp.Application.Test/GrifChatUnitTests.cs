@@ -802,6 +802,9 @@ public partial class GrifChatUnitTests
 
         public bool Hang { get; init; }
 
+        /// <summary>Streams its reply, then waits until canceled: a reply cut short before the provider says what it used.</summary>
+        public bool ThenHang { get; init; }
+
         /// <summary>The model it says it is (its <see cref="ChatClientMetadata"/>): its own, so its telemetry is told from other tests'.</summary>
         public string ModelId { get; } = $"fake-{Guid.NewGuid():N}";
 
@@ -833,6 +836,8 @@ public partial class GrifChatUnitTests
                 await Blocked.Task;
             foreach (var update in _replies.Dequeue())
                 yield return update;
+            if (ThenHang)
+                await Task.Delay(Timeout.Infinite, cancellationToken);
         }
 
         public object? GetService(Type serviceType, object? serviceKey = null)
