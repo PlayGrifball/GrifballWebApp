@@ -122,9 +122,6 @@ public static class InfrastructureServiceCollectionExtensions
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration, bool discordOff)
     {
         services.AddTransient<IDataPullService, DataPullService>();
-        // One for the app: every pull shares the gateway key's quota (HaloGateway:PermitsPerMinute), and scaled out
-        // (ConnectionStrings:Redis) every pod's pulls share it, through Redis
-        services.AddHaloCallPacer(configuration);
         services.AddHostedService<HistoricalImportWorker>();
         // The archive's sources: downloaded and snapshotted by the worker (manual refresh jobs and the schedule), parsed in .NET
         services.AddHttpClient<HistoricalSourceFetcher>(client =>

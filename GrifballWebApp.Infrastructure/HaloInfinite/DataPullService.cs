@@ -18,25 +18,22 @@ public partial class DataPullService : IDataPullService
     private readonly GrifballContext _grifballContext;
     private readonly IGetsertXboxUserService _getsertXboxUserService;
 
-    private readonly HaloCallPacer _pacer;
     // Decodes each match saved; reads a game variant's layout once for every match of it the pull saves
     private readonly CustomScoreLayouts _scoreLayouts;
 
-    public DataPullService(ILogger<DataPullService> logger, IHaloInfiniteClient haloInfiniteClient, GrifballContext grifballContext, IGetsertXboxUserService getsertXboxUserService,
-        HaloCallPacer? pacer = null)
+    public DataPullService(ILogger<DataPullService> logger, IHaloInfiniteClient haloInfiniteClient, GrifballContext grifballContext, IGetsertXboxUserService getsertXboxUserService)
     {
         _logger = logger;
         _haloInfiniteClient = haloInfiniteClient;
         _grifballContext = grifballContext;
         _getsertXboxUserService = getsertXboxUserService;
-        _pacer = pacer ?? new HaloCallPacer(0);
         _scoreLayouts = new CustomScoreLayouts(grifballContext);
     }
 
     /// <summary>
     /// Pulls the players' recent custom games (pages <paramref name="startPage"/> to <paramref name="endPage"/> of their
     /// match histories, <paramref name="perPage"/> each), fetches the Grifball ones not saved yet, and saves them. Its Halo
-    /// calls are paced to the gateway's quota (<see cref="HaloCallPacer"/>). A player's pages are read two at a time: an
+    /// calls are kept within Halo's limits by the gateway (its budgets). A player's pages are read two at a time: an
     /// empty page ends the history, so the pages after it are skipped, never the ones before it (they're kept). Returns
     /// what it found and saved, and what it couldn't fetch.
     /// </summary>
@@ -170,8 +167,7 @@ public partial class DataPullService : IDataPullService
 
         await Parallel.ForAsync(startPage, endPage + 1, innerParallelOptions, async (page, innerCt) =>
         {
-            // Decided once its turn comes: an earlier page may have ended the history meanwhile
-            await _pacer.WaitAsync(innerCt);
+            // An earlier page may have ended the history meanwhile
             if (page > Volatile.Read(ref lastPage))
                 return;
 
@@ -218,7 +214,6 @@ public partial class DataPullService : IDataPullService
 
         await Parallel.ForEachAsync(matchIDs, parallelOptions, async (matchID, matchCt) =>
         {
-            await _pacer.WaitAsync(matchCt);
             MatchStats? matchStats;
             try
             {
@@ -364,7 +359,6 @@ public partial class DataPullService : IDataPullService
                 return null;
             }
             _calls++;
-            await service._pacer.WaitAsync(ct);
             var records = await service.HistoryPageAsync(player, page, page * HistoryPageSize, HistoryPageSize, ct);
             if (records is null)
                 Failed = true;
@@ -599,7 +593,7 @@ public partial class DataPullService : IDataPullService
 
     /// <summary>
     /// Fetches the stats of up to <paramref name="batchSize"/> saved matches that have no game variant yet, through the
-    /// same paced Halo calls as the pulls (<see cref="HaloCallPacer"/>), and sets their variant: only
+    /// same Halo calls as the pulls, and sets their variant: only
     /// <see cref="Match.UgcGameVariantAssetID"/> and <see cref="Match.UgcGameVariantVersionID"/>, never the stats saved
     /// before. Idempotent and resumable: a match that has its variant is never asked for again, and one Halo didn't give
     /// stays without it for the next run. Matches are taken in a random order, so the same few failing ones can't
@@ -626,7 +620,6 @@ public partial class DataPullService : IDataPullService
             var fetched = new ConcurrentDictionary<Guid, MatchStats?>();
             await Parallel.ForEachAsync(chunk, parallelOptions, async (matchID, matchCt) =>
             {
-                await _pacer.WaitAsync(matchCt);
                 try
                 {
                     fetched[matchID] = await GetMatch(matchID);

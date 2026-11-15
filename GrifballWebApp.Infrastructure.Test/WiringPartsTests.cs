@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging.Testing;
 using System.Diagnostics;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Infrastructure.Historical;
-using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.Redis;
 using Microsoft.EntityFrameworkCore;
@@ -64,17 +63,6 @@ public class WiringPartsTests : SqliteContextFixture
             Assert.That(options.InstanceName, Is.EqualTo("grif-test:"));
             Assert.That(services.GetRequiredService<IDistributedCache>(), Is.InstanceOf<RedisCache>());
         }
-    }
-
-    [Test]
-    public async Task HaloCallPacer_WithRedis_SharesItsPaceThere_UnderTheAppsPrefix()
-    {
-        var configuration = Configuration(("ConnectionStrings:Redis", "redis.test:6379,abortConnect=false"), (AppRedisExtensions.ChannelPrefixKey, "grif-test"));
-        await using var services = new ServiceCollection().AddLogging().AddHaloCallPacer(configuration).BuildServiceProvider();
-
-        var slots = services.GetRequiredService<IHaloCallSlots>();
-
-        Assert.That(slots, Is.TypeOf<RedisHaloCallSlots>().And.Property(nameof(RedisHaloCallSlots.Key)).EqualTo("grif-test:halo-call-pace"));
     }
 
     [Test]
