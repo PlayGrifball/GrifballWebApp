@@ -60,6 +60,10 @@ tests:
         documentIndex: 1
       - equal: { path: "spec.template.spec.containers[0].resources.limits.memory", value: 10Gi }
         documentIndex: 1
+      # The pull runs a server of its own, alone before the server starts: the same resources, so a policy that wants
+      # every container limited (homelab's require-cpu-limits) sees this one limited too
+      - equal: { path: "spec.template.spec.initContainers[0].resources.limits.memory", value: 10Gi }
+        documentIndex: 1
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: OLLAMA_HOST, value: "0.0.0.0:11434" } }
         documentIndex: 1
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: OLLAMA_MODELS, value: /data/models } }
@@ -171,3 +175,13 @@ tests:
       networkPolicy.ollama.port: 8443
     asserts:
       - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 8443 }] } }
+
+  - it: gives the model's pull the server's resources, a CPU limit included
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+      ollama.resources.limits.cpu: "2"
+    documentIndex: 1
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[0].resources.limits.cpu", value: "2" }
+      - equal: { path: "spec.template.spec.initContainers[0].resources", value: { requests: { memory: 6Gi, cpu: "2" }, limits: { memory: 10Gi, cpu: "2" } } }
