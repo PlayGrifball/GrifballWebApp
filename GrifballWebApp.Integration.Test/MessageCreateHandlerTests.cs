@@ -9,6 +9,7 @@ using NetCord.Rest;
 using NSubstitute;
 using System.Text.Json;
 using GrifballWebApp.Infrastructure.Ollama;
+using GrifballWebApp.Application.Chat;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -50,7 +51,10 @@ public class MessageCreateHandlerTests : MessageCreateHandlerFixture
             ["Discord:ClientId"] = BotId.ToString(),
             ["Ollama:Url"] = ollamaUrl, // by default refused at once
         }).Build();
-        return new MessageCreateHandler(_discordClient, config, services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger, new OllamaChatClients(config));
+        // The chats' model as Program.cs has it: Ollama, at Ollama:Url
+        var model = new ServiceCollection().AddSingleton<IConfiguration>(config).AddOllamaChat().BuildServiceProvider().GetRequiredService<IChatClientFactory>();
+        return new MessageCreateHandler(_discordClient, config, services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger,
+            new GrifChat(model, services.GetRequiredService<IServiceScopeFactory>(), new ChatLimits()));
     }
 
     [Test]

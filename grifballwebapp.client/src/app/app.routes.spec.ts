@@ -34,6 +34,7 @@ import { XboxAccountComponent } from './features/players/xboxAccount/xboxAccount
 import { TeamHistoryComponent } from './features/league/teamHistory/teamHistory.component';
 import { SeasonsComponent } from './features/league/seasons/seasons.component';
 import { LeaderboardsComponent } from './features/players/leaderboards/leaderboards.component';
+import { ChatComponent } from './features/chat/chat.component';
 import { LateLeagueComponent } from './features/lateLeague/lateLeague.component';
 import { ExcelComponent } from './features/admin/excel/excel.component';
 import { CommissionerDashboardComponent } from './features/league/commissionerDashboard/commissionerDashboard.component';
@@ -258,6 +259,7 @@ describe('APP_ROUTES lazy loading', () => {
     'leaderboards': LeaderboardsComponent,
     'late-league': LateLeagueComponent,
     'late-league/:matchmakingSeasonID': LateLeagueComponent,
+    'chat': ChatComponent,
     'excel': ExcelComponent,
     'excel/:inputSpreadsheetId/:inputSheetName': ExcelComponent,
     'commissioner-dashboard': CommissionerDashboardComponent,

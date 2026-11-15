@@ -213,6 +213,11 @@ export const APP_ROUTES: Routes = [
     title: 'Late League'
   },
   {
+    path: 'chat',
+    loadComponent: () => import('./features/chat/chat.component').then(m => m.ChatComponent),
+    title: 'Chat'
+  },
+  {
     path: 'excel',
     loadComponent: () => import('./features/admin/excel/excel.component').then(m => m.ExcelComponent),
     title: 'Excel Exporter',

@@ -80,3 +80,40 @@ in `GrifballWebApp.Integration.Test`. See [ci-cd/dotnet-tests.md](ci-cd/dotnet-t
 
 The Angular client has its own boundaries (feature folders, `core`, `shared`), enforced by lint: see
 [frontend.md](frontend.md).
+
+## SignalR hubs and sessions
+
+The hubs (`TeamsHub`, `QueueHub`, `ChatHub`) never trust a connection's claims beyond the moment they're checked. A connection
+keeps the `ClaimsPrincipal` it was made with, so the server checks it against the database (`GrifballWebApp.Server/SignalR/HubSessions.cs`):
+
+- **On every call and on connecting** (`HubSessionFilter`, registered first for every hub), `HubSessionValidator` asks
+  Identity whether the user is still signed in and allowed:
+  - the claims' security stamp is still the user's;
+  - they aren't locked out;
+  - their roles now.
+
+  A call is refused (`HubException`) and its connection closed when:
+  - the session has ended;
+  - the roles changed since the connection was made: its groups, such as TeamsHub's staff group, were the old roles';
+  - the method's and the hub's `[Authorize]` (roles, policies, `[AllowAnonymous]`) refuse the user as they are now. ASP.NET Core's own
+    `IAuthorizationService` decides this, on the connection's claims with the roles the database has now.
+
+  The user found is the call's `HubUser` (scoped). The hubs read roles there, never `Context.User`: ChatHub's tools and TeamsHub's
+  staff group follow the roles now.
+- **Proactively**, when a save changes a user's sign-in or roles, their connections are closed on every pod.
+  - `UserSessionsInterceptor` (Infrastructure, on every context) spots these saves: a new security stamp (a sign-out, a new
+    password), a lockout, a deleted user, a role added or removed. It compares each property's original and current values.
+    Identity's `UpdateAsync` marks every property modified, so a failed sign-in, which only counts the failure, ends nothing.
+  - Once the save is committed, it calls `IUserSessions.EndAsync`.
+  - `HubUserSessions` closes this process's connections at once. When scaled out, it then publishes the users on Redis
+    (`user-sessions-ended`, under the SignalR prefix) in the background, logging a failure; the save never waits on Redis.
+  - `HubUserSessionsListener` closes them on the other pods.
+  - A closed connection connects again as the user is now. A connection that only listens stops getting pushes meant for the
+    old roles.
+- **As a backstop**, `HubSessionSweep` checks this process's signed-in connections every 30 seconds and closes those whose user
+  changed. It checks every user in two queries, however many connections. This catches a change no save announced: SQL run by
+  hand, or a lost Redis message. The sweep and the Redis listener run only where the hubs are (the API role).
+- **At the cookie's expiry**, every hub is mapped with `CloseOnAuthenticationExpiration`, so the connection closes.
+- **Message size**: SignalR's `MaximumReceiveMessageSize` is per hub, not per connection. ChatHub's (about 660 KB, for a whole
+  conversation at its limits) applies to signed-out connections too. A message is read whole before the hub sees it, and nothing
+  in SignalR checks who sent it first.

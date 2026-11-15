@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NetCord.Rest;
 using NSubstitute;
-using GrifballWebApp.Infrastructure.Ollama;
+using GrifballWebApp.Application.Chat;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -30,7 +30,10 @@ public abstract class MessageCreateHandlerFixture
         _ambient = Substitute.For<IAmbientCurrentUser>();
         _ambient.IsActive.Returns(true);
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
-        _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, new AmbientCurrentUser(), _logger, new OllamaChatClients(config));
+        // A model configured (never asked: these tests never get as far)
+        var model = Substitute.For<IChatClientFactory>();
+        model.Available.Returns(true);
+        _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, new AmbientCurrentUser(), _logger, new GrifChat(model, _scopeFactory, new ChatLimits()));
     }
 
     protected static NetCord.Gateway.Message Message(ulong authorId, ulong[]? mentions = null, (ulong ChannelId, ulong MessageId)? reference = null, RestClient? restClient = null)

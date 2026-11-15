@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Application.Teams;
+using GrifballWebApp.Server.SignalR;
 using TypedSignalR.Client;
 
 namespace GrifballWebApp.Server.Teams;
@@ -14,10 +15,13 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
 
     private readonly TeamService _teamService;
     private readonly SeasonVisibility _visibility;
+    private readonly HubUser _user;
     //private static ConcurrentDictionary<string, int?> _connections = new ConcurrentDictionary<string, int?>();
 
-    public TeamsHub(TeamService teamService, SeasonVisibility visibility)
+    // user: the caller with their roles now (HubSessionFilter), not as the connection's claims had them
+    public TeamsHub(TeamService teamService, SeasonVisibility visibility, HubUser user)
     {
+        _user = user;
         _teamService = teamService;
         _visibility = visibility;
     }
@@ -25,7 +29,7 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
     /// <summary>The draft of a season the caller may not see (not announced yet, to anyone but staff): refused as no such season (#435).</summary>
     private async Task RequireVisible(int seasonID)
     {
-        if (!await _visibility.CanSeeSeason(seasonID, SeasonVisibility.For(Context?.User)))
+        if (!await _visibility.CanSeeSeason(seasonID, SeasonVisibility.For(_user.Roles)))
             throw new HubException(GrifballWebApp.Server.Seasons.SeasonVisibilityFilter.NoSuchSeason);
     }
 
@@ -36,7 +40,9 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
 
     public override async Task OnConnectedAsync()
     {
-        if (SeasonVisibility.For(Context.User) is SeasonViewer.Staff)
+        // Staff now, not as the claims had it: a role removed since the cookie was made puts no one in the staff group (and a
+        // change of roles closes the connection, HubSessionFilter, so it never outlives the role)
+        if (SeasonVisibility.For(_user.Roles) is SeasonViewer.Staff)
             await Groups.AddToGroupAsync(Context.ConnectionId, StaffGroup);
         await base.OnConnectedAsync();
     }

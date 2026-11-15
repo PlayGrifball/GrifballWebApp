@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.StackExchangeRedis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using NSubstitute;
 using StackExchange.Redis;
 using static GrifballWebApp.Server.Test.SignalRBackplaneTestData;
 
@@ -72,5 +73,47 @@ public class SignalRBackplaneTests
 
         var channel = await received.Task.WaitAsync(TimeSpan.FromSeconds(30));
         Assert.That(channel, Is.EqualTo($"grif-backplane-test{typeof(TeamsHub).FullName}:all"));
+    }
+
+    [Test]
+    public async Task EndingAUsersSessionsOnOneProcess_ClosesTheirConnectionsOnTheOthers()
+    {
+        // Two API pods on one Redis: a connection of user 7's on the first, their roles changed through the second
+        await using var first = new AppRedis(_connectionString, "grif-sessions-test");
+        await using var second = new AppRedis(_connectionString, "grif-sessions-test");
+        var firstsConnections = new GrifballWebApp.Server.SignalR.HubConnections();
+        var connection = NSubstitute.Substitute.For<HubCallerContext>();
+        connection.ConnectionId.Returns("on-the-first-pod");
+        var aborted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        connection.When(c => c.Abort()).Do(_ => aborted.TrySetResult());
+        firstsConnections.Add(connection, new GrifballWebApp.Server.SignalR.HubUserState(7, ["Commissioner"]));
+        // Connected first: the listener subscribes at once
+        await first.ConnectAsync();
+        await new GrifballWebApp.Server.SignalR.HubUserSessionsListener(firstsConnections, first).StartAsync(CancellationToken.None);
+
+        new GrifballWebApp.Server.SignalR.HubUserSessions(new GrifballWebApp.Server.SignalR.HubConnections(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Server.SignalR.HubUserSessions>.Instance, second).End([7]);
+
+        Assert.That(async () => await aborted.Task.WaitAsync(TimeSpan.FromSeconds(30)), Throws.Nothing, "the first pod closed it");
+    }
+
+    [Test]
+    public async Task EndingAUsersSessions_WithRedisDown_StillClosesThisProcesssConnections()
+    {
+        await using var down = new AppRedis("127.0.0.1:9,abortConnect=true,connectTimeout=500", "grif-sessions-test");
+        var connections = new GrifballWebApp.Server.SignalR.HubConnections();
+        var connection = NSubstitute.Substitute.For<HubCallerContext>();
+        connection.ConnectionId.Returns("here");
+        connections.Add(connection, new GrifballWebApp.Server.SignalR.HubUserState(7, []));
+        var logger = new GrifballWebApp.Server.Test.RecordingLogger<GrifballWebApp.Server.SignalR.HubUserSessions>();
+
+        var sessions = new GrifballWebApp.Server.SignalR.HubUserSessions(connections, logger, down);
+
+        sessions.End([7]);
+
+        // Closed at once, before Redis is even tried: a save never waits on it
+        connection.Received(1).Abort();
+        await sessions.Published;
+        Assert.That(logger.Entries, Has.Count.EqualTo(1), "the other pods not told: logged, not thrown");
     }
 }

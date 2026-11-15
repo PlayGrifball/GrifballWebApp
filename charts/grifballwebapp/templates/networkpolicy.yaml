@@ -235,6 +235,54 @@ spec:
     {{- end }}
 ---
 {{- end }}
+{{- if .Values.ollama.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-ollama
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ollama
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-ollama
+  # In: the backend, the workers and grif-discord. Out: DNS, and HTTPS to pull the model.
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grif-backend
+        {{- if .Values.worker.enabled }}
+        - podSelector:
+            matchLabels:
+              app: grif-worker
+        - podSelector:
+            matchLabels:
+              app: grif-discord
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.ollama.port }}
+    {{- with $np.ollama.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    # The model's pull (ollama.com's registry and its storage).
+    - ports:
+        - protocol: TCP
+          port: 443
+      {{- with $np.ollama.pullTo }}
+      to:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+{{- end }}
 {{- if and .Values.mssql.enabled (not $pg) }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -601,6 +649,27 @@ spec:
     - protocol: TCP
       port: {{ $np.redis.port }}
   {{- with $np.redis.to }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- with .root.Values.ollama }}
+{{- if .enabled }}
+# The chats' model (the chart's Ollama).
+- to:
+    - podSelector:
+        matchLabels:
+          app: grif-ollama
+  ports:
+    - protocol: TCP
+      port: {{ .port }}
+{{- else if .external.url }}
+# The chats' model (an external Ollama, ollama.external.url).
+- ports:
+    - protocol: TCP
+      port: {{ $np.ollama.port | default (include "grif.urlPort" .external.url) | int }}
+  {{- with $np.ollama.to }}
   to:
     {{- toYaml . | nindent 4 }}
   {{- end }}

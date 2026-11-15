@@ -1,0 +1,22 @@
+# The chats' model on an existing Ollama server (ollama.external.url) in another namespace, reached through the
+# network policy's own egress for it. Rendered and schema-checked by the Helm chart workflow.
+mssql:
+  acceptEula: true
+backend:
+  config:
+    BaseUrl: https://grifball.example.com
+    Discord:
+      DraftChannel: "123456789012345678"
+  secretConfig:
+    Discord:ClientId: DiscordClientId
+    Discord:ClientSecret: DiscordClientSecret
+    Discord:Token: DiscordToken
+ollama:
+  external:
+    url: http://ollama.ai-tools.svc:11434/
+  model: qwen3:8b
+networkPolicy:
+  ollama:
+    to:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ai-tools } }
+        podSelector: { matchLabels: { app: ollama } }

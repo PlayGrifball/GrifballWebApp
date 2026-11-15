@@ -466,3 +466,20 @@ Secret (secretName/secretKey), so both read the one Secret. Empty secretName: no
 {{- $u := urlParse . -}}
 {{- trimPrefix ":" (regexFind ":[0-9]+$" $u.host) | default (ternary "443" "80" (eq $u.scheme "https")) -}}
 {{- end }}
+
+{{/* The chats' model's server (Ollama:Url): the chart's Ollama, else an external one, else none (no chat model). */}}
+{{- define "grif.ollamaUrl" -}}
+{{- if .Values.ollama.enabled }}{{ printf "http://grif-ollama:%v/" .Values.ollama.port }}{{ else }}{{ .Values.ollama.external.url }}{{ end -}}
+{{- end }}
+
+{{/* The chart's Ollama's environment, its server's and its pull's: its home and models on the volume, and ollama.env. */}}
+{{- define "grif.ollamaEnv" -}}
+- name: HOME
+  value: /data
+- name: OLLAMA_MODELS
+  value: /data/models
+{{- range $name, $value := .Values.ollama.env }}
+- name: {{ $name }}
+  value: {{ $value | quote }}
+{{- end }}
+{{- end }}

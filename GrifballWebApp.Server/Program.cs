@@ -8,6 +8,7 @@ using GrifballWebApp.Infrastructure.DatabaseBackup;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Preview;
 using GrifballWebApp.Infrastructure.Redis;
+using GrifballWebApp.Server.Chat;
 using GrifballWebApp.Server.Commands;
 using GrifballWebApp.Server.DatabaseBackup;
 using GrifballWebApp.Server.Hosting;
@@ -140,11 +141,28 @@ public class Program
 
         builder.Services.AddSignalR(options =>
         {
+            // First: every call and connection checked against the database's user, a refusal no fault to the error log
+            options.AddFilter<HubSessionFilter>();
             options.AddFilter<ExceptionLogHubFilter>();
             options.AddFilter<UserContextHubFilter>();
         })
+        // The chat's question comes with its conversation, past the default 32 KB a message
+        .AddHubOptions<ChatHub>(options => options.MaximumReceiveMessageSize = ChatHub.MaximumReceiveMessageSize)
         // Scaled out (ConnectionStrings:Redis): every process's hub messages reach every API pod's browsers.
         .AddAppBackplane(builder.Configuration);
+        // The hubs' users as they are now, and their connections ended on every pod when their sign-in or roles change
+        // (HubSessions.cs). IUserSessions once, here, for every role: a worker's save tells the API pods too. AddGrifballDatabase
+        // only adds its own (none) when nothing has (TryAdd), and runs after this.
+        builder.Services.AddScoped<HubUser>();
+        builder.Services.AddScoped<HubSessionValidator>();
+        builder.Services.AddSingleton<HubConnections>();
+        builder.Services.AddSingleton<GrifballWebApp.Application.Identity.IUserSessions, HubUserSessions>();
+        // Where the hubs are: the API role's processes alone hold connections to end
+        if (role.ServesApi)
+        {
+            builder.Services.AddHostedService<HubUserSessionsListener>();
+            builder.Services.AddHostedService<HubSessionSweep>();
+        }
 
         // Cookie sessions must send the antiforgery token with every change (CookieAntiforgeryFilter).
         builder.Services.AddAntiforgery(BrowserAuth.ConfigureAntiforgery);
@@ -428,7 +446,9 @@ public class Program
 
             app.MapHub<TeamsHub>("TeamsHub", options => { options.CloseOnAuthenticationExpiration = true; });
             // Anonymous and read-only: the matchmaking queue's size, for the home page
-            app.MapHub<QueueHub>("QueueHub");
+            app.MapHub<QueueHub>("QueueHub", options => { options.CloseOnAuthenticationExpiration = true; });
+            // The site's chat, signed in or out: the Discord bot's, its replies streamed (GrifChat)
+            app.MapHub<ChatHub>(ChatHub.Path, options => { options.CloseOnAuthenticationExpiration = true; });
 
             // The hubs' page (/signalr-dev), what /swagger is to the API: in every environment, to sysadmins only
             // (SignalRHubsPage). Its own hub connections negotiate first (ours skip it): with several API pods, as during a

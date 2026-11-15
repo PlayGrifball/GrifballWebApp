@@ -684,6 +684,8 @@ public class ProgramStartupTests
             Assert.That(factory.Services.GetRequiredService<AppRole>().Kind, Is.EqualTo(AppRoleKind.Api));
             Assert.That(scratchScalerRegistered, Is.True, "Program.cs registers the scratch scaler");
             Assert.That(hostedTypes, Does.Contain(typeof(ScratchScaleDown)));
+            Assert.That(hostedTypes, Does.Contain(typeof(GrifballWebApp.Server.SignalR.HubSessionSweep)).And.Contain(typeof(GrifballWebApp.Server.SignalR.HubUserSessionsListener)), "the hubs' pods");
+            Assert.That(factory.Services.GetServices<GrifballWebApp.Application.Identity.IUserSessions>().Count(), Is.EqualTo(1), "registered once");
             Assert.That(factory.GatewayClientRegistered, Is.False, "No Discord gateway in the API role");
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty);
             foreach (var workerOnly in AppRole.WorkerHostedServices)
@@ -707,6 +709,15 @@ public class ProgramStartupTests
         await AssertOk(client, "/health/live");
         using var hub = await client.PostAsync("/TeamsHub/negotiate?negotiateVersion=1", null);
         Assert.That(hub.StatusCode, Is.EqualTo(HttpStatusCode.OK), "The hub is mapped");
+        // The site's chat: open signed out too, its questions coming with their conversation
+        using var chat = await client.PostAsync("/" + GrifballWebApp.Server.Chat.ChatHub.Path + "/negotiate?negotiateVersion=1", null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(chat.StatusCode, Is.EqualTo(HttpStatusCode.OK), "The chat's hub is mapped, for anyone");
+            Assert.That(factory.Services.GetRequiredService<IOptions<HubOptions<GrifballWebApp.Server.Chat.ChatHub>>>().Value.MaximumReceiveMessageSize,
+                Is.EqualTo(GrifballWebApp.Server.Chat.ChatHub.MaximumReceiveMessageSize));
+            Assert.That(factory.Services.GetRequiredService<GrifballWebApp.Application.Identity.IUserSessions>(), Is.TypeOf<GrifballWebApp.Server.SignalR.HubUserSessions>(), "a change to a user ends their hub connections");
+        }
 
         // Swagger outside Development, its "Try it out" calling the API under /api
         await AssertOk(client, "/swagger/index.html");
@@ -777,6 +788,9 @@ public class ProgramStartupTests
             foreach (var workerOnly in AppRole.WorkerHostedServices)
                 Assert.That(hostedTypes, Does.Contain(workerOnly));
             Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Infrastructure.Historical.XuidLookupWorker)), "One per deployment: grif-discord's");
+            // No hubs here: no connections to sweep or end, but its saves still end the API pods' (one IUserSessions)
+            Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Server.SignalR.HubSessionSweep)).And.Not.Contain(typeof(GrifballWebApp.Server.SignalR.HubUserSessionsListener)));
+            Assert.That(factory.Services.GetServices<GrifballWebApp.Application.Identity.IUserSessions>().Select(s => s.GetType()), Is.EqualTo(new[] { typeof(GrifballWebApp.Server.SignalR.HubUserSessions) }));
             // No ConnectionStrings:Redis: no backplane.
             Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
                 Is.InstanceOf<DefaultHubLifetimeManager<TeamsHub>>());

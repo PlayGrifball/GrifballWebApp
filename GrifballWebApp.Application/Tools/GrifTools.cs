@@ -114,7 +114,7 @@ public static class GrifTools
             .Concat(ChangingData.Select(t => (t, ToolEffect.ChangesData)));
 
     /// <summary>
-    /// The tools a chat with a small model gets (the Discord bot, the site's chat): the questions people ask most. A model picks
+    /// The tools a chat with a small model gets in public (the Discord bot in a channel): the questions people ask most. A model picks
     /// worse from a long list, so the rest are left to the MCP server's clients. Staff's tools aren't among them: the Discord bot
     /// answers in a public channel, which mustn't read a dashboard or a claim.
     /// </summary>
@@ -123,6 +123,18 @@ public static class GrifTools
         "who_am_i", "get_current_time", "search", "get_season", "get_season_standings", "get_season_schedule", "get_team",
         "get_player", "get_player_rank", "get_season_match", "get_recent_games", "get_leaderboards", "pull_season_match_games", "pull_xbox_account_games",
     ];
+
+    /// <summary>
+    /// The classes of staff's tools, each tool for its roles: the ones that read a dashboard, a claim or a job, and every class of the ones
+    /// that change data (<see cref="ChangingData"/>), so a new one is never left out of <see cref="PrivateChat"/>.
+    /// </summary>
+    public static readonly Type[] Staff = [typeof(StaffTools), .. ChangingData];
+
+    /// <summary>
+    /// The tools a chat gets in private (the site's, a Discord DM): <see cref="Chat"/>'s, and staff's (<see cref="Staff"/>). Its replies are
+    /// the caller's alone, so staff get their own tools there, as the MCP server gives them, each for its roles: a player gets none of them.
+    /// </summary>
+    public static readonly string[] PrivateChat = [.. Chat, .. Staff.SelectMany(Methods).Select(Name)];
 
     /// <summary>The roles that may use a tool: its method's [ToolRoles], else its class's; none, anyone may.</summary>
     public static IReadOnlyList<string> Roles(MethodInfo method)
@@ -174,23 +186,36 @@ public static class GrifTools
     /// as the tool's result, so the model can tell the user why; the chat client's function invocation hides other errors' details.
     /// </summary>
     public static List<AITool> AIFunctions(IServiceScopeFactory scopes, ToolCaller caller, IReadOnlyCollection<string> names)
-        => All.SelectMany(set =>
-            {
-                var create = Factory(set.Type);
-                return Methods(set.Type).Select(method => (Method: method, Create: create));
-            })
-            .Where(t => names.Contains(Name(t.Method)) && Allows(t.Method, caller))
-            .Select(t => (AITool)new InAScopeOfItsOwn(AIFunctionFactory.Create(t.Method, args => t.Create(args.Services!, caller),
-                new AIFunctionFactoryOptions { Name = Name(t.Method) }), scopes))
+        => Functions
+            .Where(t => names.Contains(t.Function.Name) && Allows(t.Method, caller))
+            .Select(t => (AITool)new InAScopeOfItsOwn(t.Function, scopes, caller))
             .ToList();
 
-    /// <summary>A function run in a new scope per call, whose <see cref="ToolException"/> is its result, told as a refusal.</summary>
-    private sealed class InAScopeOfItsOwn(AIFunction inner, IServiceScopeFactory scopes) : DelegatingAIFunction(inner)
+    /// <summary>
+    /// Every tool as a chat model's function, made once (its schema read from the method, its class's factory worked out): each call
+    /// runs as the caller its arguments carry (<see cref="InAScopeOfItsOwn"/> binds it), so a reply only binds its caller.
+    /// </summary>
+    private static readonly (MethodInfo Method, AIFunction Function)[] Functions = All.SelectMany(set =>
+        {
+            var create = Factory(set.Type);
+            return Methods(set.Type).Select(method => (method, (AIFunction)AIFunctionFactory.Create(method,
+                args => create(args.Services!, (ToolCaller)args.Context![typeof(ToolCaller)]!),
+                new AIFunctionFactoryOptions { Name = Name(method) })));
+        })
+        .ToArray();
+
+    /// <summary>
+    /// A function run as <paramref name="caller"/>, in a new scope per call, whose <see cref="ToolException"/> is its result, told as a
+    /// refusal.
+    /// </summary>
+    private sealed class InAScopeOfItsOwn(AIFunction inner, IServiceScopeFactory scopes, ToolCaller caller) : DelegatingAIFunction(inner)
     {
         protected override async ValueTask<object?> InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)
         {
             await using var scope = scopes.CreateAsyncScope();
             arguments.Services = scope.ServiceProvider;
+            arguments.Context ??= new Dictionary<object, object?>();
+            arguments.Context[typeof(ToolCaller)] = caller;
             try
             {
                 return await base.InvokeCoreAsync(arguments, cancellationToken);

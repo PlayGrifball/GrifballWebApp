@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using GrifballWebApp.Application.Availability;
 using GrifballWebApp.Application.Brackets;
 using GrifballWebApp.Application.Championships;
+using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Application.EventOrganizer;
 using GrifballWebApp.Application.Grades;
 using GrifballWebApp.Application.Historical;
@@ -38,6 +39,10 @@ public static class ApplicationServiceCollectionExtensions
         // The clock the services read (and the agents' get_current_time), unless a host or test set one first
         services.TryAddSingleton(TimeProvider.System);
         services.AddTransient<UrlService>();
+        // The chat the Discord bot and the site share (its model is Infrastructure's IChatClientFactory)
+        services.AddTransient<GrifChat>();
+        // Every host's askers, counted once per process
+        services.AddSingleton(_ => new ChatLimits(configuration.GetValue(ChatLimits.MaxRepliesKey, 1)));
         services.AddTransient<IQueueRepository, QueueRepository>();
         // Joining and leaving, from Discord or the site; the queue's size goes to its watchers (IQueueNotifier)
         services.AddTransient<QueueMembership>();

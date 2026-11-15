@@ -67,6 +67,8 @@ const publicPages = [
   // Late League: the Discord queue and the archive's seasons, and one of those
   '/late-league',
   '/late-league/3',
+  // The chat (its hub answered by e2e/hubMock.mts)
+  '/chat',
   // The page for any other address (answered with a 404)
   notFoundPage,
 ];

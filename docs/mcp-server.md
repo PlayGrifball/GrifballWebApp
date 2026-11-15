@@ -8,8 +8,8 @@ tools are in `GrifballWebApp.Application/Tools`.
 The tools aren't the MCP server's own. They are one set for every host:
 
 - the MCP server, which serves them all;
-- the Discord bot's chat, which gets `GrifTools.Chat` (see [The chat hosts](#the-chat-hosts));
-- the site's chat, still to be built, which will get the same list.
+- the Discord bot's chat, which gets `GrifTools.Chat` in a channel and `GrifTools.PrivateChat` in a DM (see [The chat hosts](#the-chat-hosts));
+- the site's chat (`ChatHub`), which gets `GrifTools.PrivateChat`: the chat tools and staff's, each for its roles.
 
 ## Signing in
 
@@ -112,11 +112,37 @@ logs.
 
 ## The chat hosts
 
-A chat host builds its tools with `GrifTools.AIFunctions`, the Microsoft.Extensions.AI functions its model calls. It passes
-three things:
-- a scope factory: each call runs in a scope of its own, so a tool never shares a `DbContext` with the host;
-- the caller (`ToolCaller`);
-- the names of the tools to give.
+Both chats run through one service, `GrifChat` (`GrifballWebApp.Application/Chat`), written against Microsoft.Extensions.AI
+alone. A host keeps the conversation, passes the caller and its `ChatHost`, and shows the streamed reply. `GrifChat` does the rest:
+- the instructions: the lines every host shares, between the host's own first and last line;
+- the history: the conversation's last 25 messages (`GrifChat.HistoryLimit`), each cut to 4000 characters;
+- the tools: `GrifTools.AIFunctions` with a scope factory (each call runs in a scope of its own, so a tool never shares a
+  `DbContext` with the host), the caller (`ToolCaller`, `InPublic` as the host says) and `GrifTools.Chat`;
+- the tool calls: it calls the tools the model asks for (`UseFunctionInvocation`) until it answers;
+- the limits, for every host: `GrifChat.Start` takes the history and the question and builds the conversation itself, so no
+  host can skip them:
+  - a question of 2000 characters at most (a Discord message's limit);
+  - `ChatLimits`, per asker (`ChatLimits.Asker`: the site user when there is one, so their questions count alike on the site
+    and in Discord; else a Discord account, or a signed-out address, an IPv6 one by its /64):
+    - one reply at a time; the slot is freed the moment the asker stops waiting, however long the reply takes to wind down;
+    - 10 questions a minute for a site user, 5 for anyone else;
+    - at most `Chat:MaxReplies` replies under way at once, every asker's together. The default is 1, as the model answers
+      one at a time (`OLLAMA_NUM_PARALLEL=1`). A question beyond it is refused at once ("busy, try again shortly"), not left
+      to wait out its timeout;
+    - counted on each process;
+  - each host's timeout, 2 minutes for all of them: the one model, answering one reply at a time, can't be held.
+  A refusal is a `ChatRefusedException` the host shows. Refused questions never reach the model's history:
+  - Discord keeps no refused question;
+  - `GrifChat.WithoutRefusals` leaves the chat's refusals and the questions they refused out of any history (a DM's is the
+    channel itself).
+
+The model is `IChatClientFactory`'s, which Infrastructure registers (`OllamaChatClients`: the server at `Ollama:Url`, the
+model `Ollama:Model`, default `llama3.1:latest`). It gives only the model, so another provider is another
+`IChatClientFactory` registered in its place. Ollama's is one client for the process, over an HTTP client with no timeout of
+its own (a cold model on the CPU can take minutes to start answering): the host's timeout decides. With no `Ollama:Url` there is no model: both chats answer that the chat is
+unavailable. The Helm chart sets both, for its own Ollama (`ollama.enabled`) or an existing one (`ollama.external.url`;
+[the chart's README](../charts/grifballwebapp/README.md#chat-model-ollama)). Development's appsettings point at
+Ollama's own port on localhost.
 
 A small local model picks worse from a long list, so the chats get `GrifTools.Chat`, the questions people ask most. The MCP
 server's clients get every tool.
@@ -125,9 +151,27 @@ server's clients get every tool.
   (`DiscordCaller.AsToolCaller`).
   - An author with no linked account is `ToolCaller.Anonymous`. They can use every tool that isn't about "you", and those
     that are refuse and ask them to name the player.
+  - In a channel (a mention, or a reply to the bot; `ChatHost.Discord`) it is `InPublic`: the public's view of seasons, and
+    `GrifTools.Chat` with no staff tools. The conversation is kept in `DiscordMessages`.
+  - In a DM (every message, no mention needed; `ChatHost.DiscordDirect`) it is private, as the site's chat is: the author's
+    roles decide which seasons they see, and they get `GrifTools.PrivateChat`, staff's tools too, each for its roles. The
+    conversation is the DM channel's own, read from Discord, and nothing of a DM is kept in `DiscordMessages`, so what staff
+    see in private never reaches a channel's reply.
   - The bot's instructions have it write times in UTC, as the tools give them. A small model can't reliably turn ISO times into
     Discord's epoch timestamps.
-- **The site's chat** (still to come): the caller will be the signed-in user.
+- **The site's chat** (`ChatHub` at `hub/ChatHub`, the `/chat` page, `ChatHost.Site`): the reply streams to the browser over
+  SignalR.
+  - The caller is the signed-in user with their roles. Signed out, it is `ToolCaller.Anonymous`, as for a Discord author with
+    no linked account.
+  - The reply is the user's alone, so it isn't `InPublic`: staff see seasons not announced yet, as the site shows them. It gets
+    `GrifTools.PrivateChat`: the chat tools and staff's (`GrifTools.Staff`, [Staff's tools](#staffs-tools)), each for its roles
+    as the MCP server gives them, so a player gets none of staff's and a commissioner or sysadmin gets theirs. Its instructions
+    have it use a tool that changes data only when the person asks for that change.
+  - The browser keeps the conversation (the tab's `sessionStorage`) and sends it with each question. The server keeps none.
+  - The roles are the user's now, checked for every call (`HubUser`, [architecture.md](architecture.md#signalr-hubs-and-sessions)):
+    a role lost is a tool lost at once.
+  - The hub takes a message of up to `ChatHub.MaximumReceiveMessageSize`: a question and the history the server reads, every
+    character at its costliest in JSON (6 bytes). The page sends no more, so a long conversation is answered, never dropped.
 
 ## Adding a tool
 
