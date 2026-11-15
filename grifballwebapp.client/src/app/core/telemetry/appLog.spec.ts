@@ -50,6 +50,10 @@ describe('causeAttributes', () => {
     expect(causeAttributes(new HttpErrorResponse({ status: 0 }))['url.path']).toBeUndefined();
   });
 
+  it('leaves the path out of an answer whose URL does not parse', () => {
+    expect(causeAttributes(new HttpErrorResponse({ status: 502, url: 'http://[' }))['url.path']).toBeUndefined();
+  });
+
   it('gives an error\'s type and message, cut to the limit', () => {
     expect(causeAttributes(new TypeError('x'.repeat(MAX_CAUSE + 5)))).toEqual({ 'exception.type': 'TypeError', 'exception.message': 'x'.repeat(MAX_CAUSE) });
   });
