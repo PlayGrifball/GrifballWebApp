@@ -257,8 +257,11 @@ public class HubSessionsUnitTests
         await aborted.Task.WaitAsync(TimeSpan.FromSeconds(10));
         await sweep.StopAsync(CancellationToken.None);
 
-        Assert.That(logged, Is.True);
-        Assert.That(logger.Entries[0].Exception, Is.TypeOf<InvalidOperationException>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(logged, Is.True);
+            Assert.That(logger.Entries[0].Exception, Is.TypeOf<InvalidOperationException>());
+        }
     }
 
     [Test]
