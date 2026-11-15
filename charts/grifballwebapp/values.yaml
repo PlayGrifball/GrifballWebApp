@@ -497,13 +497,27 @@ ollama:
     OLLAMA_MAX_LOADED_MODELS: "1"
     OLLAMA_NUM_PARALLEL: "1"
     OLLAMA_KEEP_ALIVE: 1h
-  # On the CPU: the model's 5 GB and its context, and a few cores (the nodes have 32 GB).
+  # On the CPU: the model's 5 GB and its context, and a few cores (the nodes have 32 GB). Limited, CPU too, so the
+  # server never takes a whole node; the model's pull (an init container) gets the same.
   resources:
     requests:
       memory: 6Gi
       cpu: "2"
     limits:
       memory: 10Gi
+      cpu: "4"
+  # A GPU for the server (the model's pull needs none), off: the CPU. The image has Vulkan, which Ollama uses by
+  # itself once the container can open the GPU's render device: request the resource the cluster's device plugin
+  # offers for it, and add that device's group so user 1000 can open it. AMD's ROCm instead needs
+  # ollama.image.tag rocm and /dev/kfd too.
+  gpu:
+    enabled: false
+    # Added to the server's limits: squat.ai/dri: 1 (generic-device-plugin), amd.com/gpu: 1, nvidia.com/gpu: 1.
+    resources: {}
+    # The device's group, beside podSecurityContext (the render group on the node).
+    supplementalGroups: []
+    # Extra settings for the server on a GPU: GGML_VK_VISIBLE_DEVICES, HSA_OVERRIDE_GFX_VERSION (ROCm).
+    env: {}
   # The image's own user is root: run as 1000 instead, its home and models on the volume (HOME=/data).
   podSecurityContext:
     seccompProfile:

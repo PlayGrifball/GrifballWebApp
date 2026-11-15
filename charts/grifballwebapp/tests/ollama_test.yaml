@@ -60,6 +60,15 @@ tests:
         documentIndex: 1
       - equal: { path: "spec.template.spec.containers[0].resources.limits.memory", value: 10Gi }
         documentIndex: 1
+      # The pull runs a server of its own, alone before the server starts: the same resources, so a policy that wants
+      # every container limited sees this one limited too
+      - equal: { path: "spec.template.spec.initContainers[0].resources.limits.memory", value: 10Gi }
+        documentIndex: 1
+      # Limited by default, CPU too, so the release never runs an unbounded model server
+      - equal: { path: "spec.template.spec.containers[0].resources.limits.cpu", value: "4" }
+        documentIndex: 1
+      - equal: { path: "spec.template.spec.initContainers[0].resources.limits.cpu", value: "4" }
+        documentIndex: 1
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: OLLAMA_HOST, value: "0.0.0.0:11434" } }
         documentIndex: 1
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: OLLAMA_MODELS, value: /data/models } }
@@ -171,3 +180,50 @@ tests:
       networkPolicy.ollama.port: 8443
     asserts:
       - contains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 8443 }] } }
+
+  - it: gives the model's pull the server's resources, a CPU limit included
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+      ollama.resources.limits.cpu: "2"
+    documentIndex: 1
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[0].resources.limits.cpu", value: "2" }
+      - equal: { path: "spec.template.spec.initContainers[0].resources", value: { requests: { memory: 6Gi, cpu: "2" }, limits: { memory: 10Gi, cpu: "2" } } }
+
+  - it: runs on the CPU unless told to use a GPU
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+    documentIndex: 1
+    asserts:
+      - notExists: { path: "spec.template.spec.containers[0].resources.limits[\"squat.ai/dri\"]" }
+      - notExists: { path: spec.template.spec.securityContext.supplementalGroups }
+
+  - it: gives the server, and only the server, the GPU it's told to, with the device's group and its settings
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+      ollama.gpu.enabled: true
+      ollama.gpu.resources: { "squat.ai/dri": 1 }
+      ollama.gpu.supplementalGroups: [992]
+      ollama.gpu.env: { GGML_VK_VISIBLE_DEVICES: "0" }
+    documentIndex: 1
+    asserts:
+      - equal: { path: "spec.template.spec.containers[0].resources.limits[\"squat.ai/dri\"]", value: 1 }
+      # The CPU and memory limits stay
+      - equal: { path: "spec.template.spec.containers[0].resources.limits.memory", value: 10Gi }
+      - equal: { path: "spec.template.spec.containers[0].resources.limits.cpu", value: "4" }
+      - notExists: { path: "spec.template.spec.initContainers[0].resources.limits[\"squat.ai/dri\"]" }
+      - equal: { path: spec.template.spec.securityContext.supplementalGroups, value: [992] }
+      - equal: { path: spec.template.spec.securityContext.runAsUser, value: 1000 }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: GGML_VK_VISIBLE_DEVICES, value: "0" } }
+      - notContains: { path: "spec.template.spec.initContainers[0].env", content: { name: GGML_VK_VISIBLE_DEVICES, value: "0" } }
+
+  - it: needs a GPU resource to request when told to use a GPU
+    template: templates/ollama.yaml
+    set:
+      ollama.enabled: true
+      ollama.gpu.enabled: true
+    asserts:
+      - failedTemplate: { errorPattern: "ollama.gpu.resources" }

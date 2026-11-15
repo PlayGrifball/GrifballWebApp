@@ -377,6 +377,16 @@
         "persistence": { "$ref": "#/definitions/persistence" },
         "env": { "$ref": "#/definitions/stringMap" },
         "resources": { "$ref": "#/definitions/k8sObject" },
+        "gpu": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "resources": { "type": "object", "additionalProperties": { "type": ["integer", "string"] } },
+            "supplementalGroups": { "type": "array", "items": { "type": "integer" } },
+            "env": { "$ref": "#/definitions/stringMap" }
+          }
+        },
         "podSecurityContext": { "$ref": "#/definitions/k8sObject" },
         "securityContext": { "$ref": "#/definitions/k8sObject" },
         "podAnnotations": { "$ref": "#/definitions/stringMap" },
