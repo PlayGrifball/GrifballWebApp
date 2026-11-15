@@ -84,14 +84,17 @@ public static class ChatModels
     /// Claude, for sysadmins, at Anthropic's prices (US dollars per million tokens: input, output, cache writes for five minutes,
     /// cache reads); Haiku's are for prompts up to 100,000 tokens, as a chat's are.
     /// </summary>
+    /// <summary>The most a call to Claude may write, its thinking included: room for a long answer after thinking, at most a few cents.</summary>
+    public const int ClaudeMaxOutputTokens = 16_000;
+
     public static readonly IReadOnlyList<ChatModelOption> Claude =
     [
         new("claude-haiku", "Claude Haiku 5.5", ChatProvider.Anthropic, "claude-haiku-5-5")
-            { Roles = [SiteRoles.Sysadmin], Price = new(Input: 0.10m, Output: 0.50m, CacheWrite: 0.125m, CacheRead: 0.01m) },
+            { Roles = [SiteRoles.Sysadmin], MaxOutputTokens = ClaudeMaxOutputTokens, Price = new(Input: 0.10m, Output: 0.50m, CacheWrite: 0.125m, CacheRead: 0.01m) },
         new("claude-sonnet", "Claude Sonnet 5.5", ChatProvider.Anthropic, "claude-sonnet-5-5")
-            { Roles = [SiteRoles.Sysadmin], Price = new(Input: 2m, Output: 10m, CacheWrite: 2.50m, CacheRead: 0.10m) },
+            { Roles = [SiteRoles.Sysadmin], MaxOutputTokens = ClaudeMaxOutputTokens, Price = new(Input: 2m, Output: 10m, CacheWrite: 2.50m, CacheRead: 0.10m) },
         new("claude-opus", "Claude Opus 5.5", ChatProvider.Anthropic, "claude-opus-5-5")
-            { Roles = [SiteRoles.Sysadmin], Price = new(Input: 4m, Output: 20m, CacheWrite: 5m, CacheRead: 0.20m) },
+            { Roles = [SiteRoles.Sysadmin], MaxOutputTokens = ClaudeMaxOutputTokens, Price = new(Input: 4m, Output: 20m, CacheWrite: 5m, CacheRead: 0.20m) },
     ];
 
     public static IReadOnlyList<ChatModelOption> From(IConfiguration configuration)
@@ -131,6 +134,7 @@ public static class ChatModels
         public string Model { get; set; } = "";
         public List<string> Roles { get; set; } = [];
         public PriceSettings? Price { get; set; }
+        public int? MaxOutputTokens { get; set; }
 
         public ChatModelOption ToModel()
         {
@@ -141,6 +145,7 @@ public static class ChatModels
             return new(Id, string.IsNullOrWhiteSpace(Name) ? Model : Name, Provider, Model)
             {
                 Roles = Roles,
+                MaxOutputTokens = MaxOutputTokens,
                 Price = Price is null ? null : new(Price.Input, Price.Output, Price.CacheWrite, Price.CacheRead),
             };
         }

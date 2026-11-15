@@ -43,7 +43,7 @@ public class ChatHubModelsUnitTests : SqliteGrifballContextFixture
         now.Set(user);
         var context = Substitute.For<HubCallerContext>();
         context.ConnectionAborted.Returns(CancellationToken.None);
-        return new ChatHub(new GrifChat(new ChatModel(clients, NullLoggerFactory.Instance), scopes, _limits, new ChatAccounts(scopes, new FakeTimeProvider())), now,
+        return new ChatHub(new GrifChat(new ChatModel(clients, NullLoggerFactory.Instance), scopes, _limits, new ChatAccounts(scopes, new FakeTimeProvider(), NullLogger<ChatAccounts>.Instance)), now,
             Substitute.For<IAmbientCurrentUser>(), new RecordingLogger<ChatHub>()) { Context = context };
     }
 

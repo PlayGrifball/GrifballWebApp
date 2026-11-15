@@ -26,6 +26,12 @@ public sealed record ChatModelOption(string Id, string Name, ChatProvider Provid
     /// <summary>What its tokens cost; null: nothing (the chat counts no spend for it).</summary>
     public ChatPrice? Price { get; init; }
 
+    /// <summary>
+    /// The most tokens a call to it may write (its thinking included, on a model that thinks); null: the provider's own default
+    /// (Anthropic's client's is 1,024, too few for a model that thinks first).
+    /// </summary>
+    public int? MaxOutputTokens { get; init; }
+
     /// <summary>Anyone may use it: no roles.</summary>
     public bool IsOpen => Roles.Count == 0;
 

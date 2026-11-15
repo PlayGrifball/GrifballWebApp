@@ -9,7 +9,7 @@ namespace GrifballWebApp.Application.Chat;
 /// What the chat keeps of a user (in scopes of its own, as a reply outlives its host's): the model they chose (<see cref="ChatChoice"/>)
 /// and their spend on paid models this month (<see cref="ChatMonth"/>).
 /// </summary>
-public sealed class ChatAccounts(IServiceScopeFactory scopes, TimeProvider time)
+public sealed class ChatAccounts(IServiceScopeFactory scopes, TimeProvider time, ILogger<ChatAccounts> log)
 {
     /// <summary>How many times a reply's spend is saved again when another reply changed the month's row meanwhile.</summary>
     public const int SaveAttempts = 3;
@@ -35,15 +35,14 @@ public sealed class ChatAccounts(IServiceScopeFactory scopes, TimeProvider time)
         await context.SaveChangesAsync(ct);
     }
 
-    /// <summary><paramref name="userId"/>'s spend on paid models this month (UTC), in US dollars.</summary>
-    public async Task<decimal> SpentAsync(int userId, CancellationToken ct = default)
+    /// <summary><paramref name="userId"/>'s month (UTC) so far, read only: nothing spent yet when they have no row for it.</summary>
+    public async Task<ChatMonth> MonthAsync(int userId, CancellationToken ct = default)
     {
         using var scope = scopes.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         var month = ChatMonth.MonthOf(time.GetUtcNow().UtcDateTime);
-        var spent = await context.ChatMonths.AsNoTracking().Where(m => m.UserID == userId && m.Month == month)
-            .Select(m => (long?)m.CostMicros).SingleOrDefaultAsync(ct);
-        return (spent ?? 0) / 1_000_000m;
+        return await context.ChatMonths.AsNoTracking().SingleOrDefaultAsync(m => m.UserID == userId && m.Month == month, ct)
+            ?? ChatMonth.Begin(userId, month);
     }
 
     /// <summary>
@@ -73,6 +72,22 @@ public sealed class ChatAccounts(IServiceScopeFactory scopes, TimeProvider time)
             catch (DbUpdateException) when (attempt < SaveAttempts)
             {
             }
+        }
+    }
+
+    /// <summary>
+    /// <see cref="RecordAsync"/>, its failure logged rather than thrown: the reply it is for has been given already, whole or not, and
+    /// must stand as it was.
+    /// </summary>
+    public async Task TryRecordAsync(int userId, long costMicros, long inputTokens, long outputTokens)
+    {
+        try
+        {
+            await RecordAsync(userId, costMicros, inputTokens, outputTokens);
+        }
+        catch (Exception e)
+        {
+            ChatLog.SpendNotSaved(log, e, userId, costMicros);
         }
     }
 }

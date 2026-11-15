@@ -94,7 +94,8 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         chatClients.Create(Arg.Any<ChatModelOption>()).Returns(models.Length == 1 ? models[0] : new ChatClientSequence(models));
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
         var scopes = _services.GetRequiredService<IServiceScopeFactory>();
-        return new MessageCreateHandler(_rest, config, scopes, _ambient, _logger, new GrifChat(new ChatModel(chatClients, NullLoggerFactory.Instance), scopes, _limits), _time);
+        return new MessageCreateHandler(_rest, config, scopes, _ambient, _logger, new GrifChat(new ChatModel(chatClients, NullLoggerFactory.Instance), scopes, _limits,
+            new ChatAccounts(scopes, _time, NullLogger<ChatAccounts>.Instance)), _time);
     }
 
     private NetCord.Gateway.Message MessageToTheBot()

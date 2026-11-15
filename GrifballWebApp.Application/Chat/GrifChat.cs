@@ -51,9 +51,9 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
 /// monthly spend on paid ones), the asker's limits (<see cref="ChatLimits"/>), the instructions, the host's tools as the caller, called
 /// for the model until it answers, the time a reply may take, and what a paid reply cost.
 /// </summary>
-public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatLimits limits, ChatAccounts? accounts = null)
+public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatLimits limits, ChatAccounts accounts)
 {
-    private ChatAccounts Accounts { get; } = accounts ?? new ChatAccounts(scopes, TimeProvider.System);
+    private ChatAccounts Accounts { get; } = accounts;
 
     /// <summary>How many of the conversation's earlier messages the model is sent with a new one.</summary>
     public const int HistoryLimit = 25;
@@ -216,7 +216,7 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
         {
             Models = allowed.Select(m => new ChatModelDto { Id = m.Id, Name = m.Name }).ToList(),
             Selected = selected?.Id,
-            Spent = paid ? await Accounts.SpentAsync(caller.UserID!.Value, ct) : null,
+            Spent = paid ? (await Accounts.MonthAsync(caller.UserID!.Value, ct)).Spent : null,
             Limit = paid ? limits.MonthlyLimit : null,
         };
     }
@@ -247,18 +247,29 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
             throw new ChatRefusedException(Unavailable);
         if (Refusal(question) is { } refused)
             throw new ChatRefusedException(refused);
-        var answering = await ModelForAsync(caller, host, model, cancellationToken);
-        if (answering.Price is not null)
-        {
-            // A paid model is for a signed-in user's roles: they pay for it from their month
-            if (caller.UserID is not { } userId)
-                throw new ChatRefusedException(NotYours);
-            if (await Accounts.SpentAsync(userId, cancellationToken) >= limits.MonthlyLimit)
-                throw new ChatRefusedException(ChatLimits.MonthlyLimitReached);
-        }
+        // The asker's limits first, in memory: a question they may not ask now costs no database read
         var (slot, limited) = limits.TryStart(asker);
         if (slot is null)
             throw new ChatRefusedException(limited!);
+        ChatModelOption answering;
+        try
+        {
+            answering = await ModelForAsync(caller, host, model, cancellationToken);
+            if (answering.Price is not null)
+            {
+                // A paid model is for a signed-in user's roles: they pay for it from their month
+                if (caller.UserID is not { } userId)
+                    throw new ChatRefusedException(NotYours);
+                if ((await Accounts.MonthAsync(userId, cancellationToken)).Reached(limits.MonthlyLimit))
+                    throw new ChatRefusedException(ChatLimits.MonthlyLimitReached);
+            }
+        }
+        catch
+        {
+            // Refused after all (or failed): the asker may ask again at once
+            slot.Dispose();
+            throw;
+        }
         return new ChatReply(Model, Scopes, Conversation(history, question), caller with { InPublic = host.InPublic }, host, slot, answering, Accounts,
             cancellationToken);
     }
@@ -304,12 +315,19 @@ public sealed class ChatReply : IDisposable
     /// <see cref="ChatHost.Timeout"/>, a <see cref="ChatRefusedException"/> (<see cref="GrifChat.TookTooLong"/>). Canceled by
     /// <paramref name="cancellationToken"/> (the asker stopped waiting), the slot is freed at once, not once the reply has wound down.
     /// A paid model's reply, whole or not, has its cost added to the caller's month (<see cref="ChatPrice.CostMicros"/> of every model
-    /// call's usage, the tool calls' rounds included) before the slot is freed, so their next question sees it.
+    /// call's usage, the tool calls' rounds included) before the slot is freed, so their next question sees it. A call cut short before
+    /// the provider said what it used (the asker stopped, the time ran out: Anthropic's client reports a call's usage as it ends) is
+    /// charged an estimate, <see cref="CharactersPerToken"/>: what was sent and what it wrote so far. A cost that fails to save is
+    /// logged, and the reply stands as it was.
     /// </summary>
     public async IAsyncEnumerable<string> StreamAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         using var freed = cancellationToken.Register(_slot.Dispose);
         var usage = new UsageDetails();
+        // Whether the latest call's usage is in (Anthropic's comes as the call ends), and what was written since
+        var reported = false;
+        long lastInput = 0;
+        long writtenSince = 0;
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -319,12 +337,27 @@ public sealed class ChatReply : IDisposable
             // its task; the Discord message's)
             var client = _pipelines.Create(Model);
             var tools = GrifTools.AIFunctions(_scopes, _caller, _host.Tools, _pipelines.ToolLog, _pipelines.SensitiveData);
-            var options = new ChatOptions { Instructions = GrifChat.Instructions(_host), Tools = tools };
+            var options = new ChatOptions { Instructions = GrifChat.Instructions(_host), Tools = tools, MaxOutputTokens = Model.MaxOutputTokens };
             await using var updates = client.GetStreamingResponseAsync(_conversation, options, timeout.Token).GetAsyncEnumerator(timeout.Token);
             while (await NextAsync(updates, timeout, cancellationToken))
             {
-                foreach (var used in updates.Current.Contents.OfType<UsageContent>())
-                    usage.Add(used.Details);
+                var used = updates.Current.Contents.OfType<UsageContent>().ToList();
+                foreach (var call in used)
+                {
+                    usage.Add(call.Details);
+                    lastInput = call.Details.InputTokenCount ?? lastInput;
+                }
+                if (used.Count > 0)
+                {
+                    reported = true;
+                    writtenSince = 0;
+                }
+                else if (updates.Current.Contents.Count > 0)
+                {
+                    // Anything else is the latest call's (or a tool's result, before the next call): not reported yet
+                    reported = false;
+                    writtenSince += updates.Current.Text.Length;
+                }
                 yield return updates.Current.Text;
             }
             // A provider may end its stream quietly when canceled: past the timeout, that is no whole answer either
@@ -333,12 +366,35 @@ public sealed class ChatReply : IDisposable
         }
         finally
         {
-            // What it cost so far, whether it finished or not: not canceled with the asker, it was spent all the same
-            if (Model.Price is { } price && _caller.UserID is { } payer)
-                await Accounts.RecordAsync(payer, price.CostMicros(usage), usage.InputTokenCount ?? 0, usage.OutputTokenCount ?? 0, CancellationToken.None);
-            // Done, failed or abandoned: the asker may ask again
-            _slot.Dispose();
+            try
+            {
+                // What it cost so far, whether it finished or not: not canceled with the asker, it was spent all the same
+                if (Model.Price is { } price && _caller.UserID is { } payer)
+                {
+                    if (!reported)
+                        usage.Add(Estimate(lastInput, writtenSince));
+                    await Accounts.TryRecordAsync(payer, price.CostMicros(usage), usage.InputTokenCount ?? 0, usage.OutputTokenCount ?? 0);
+                }
+            }
+            finally
+            {
+                // Done, failed or abandoned: the asker may ask again
+                _slot.Dispose();
+            }
         }
+    }
+
+    /// <summary>The characters a token is taken to hold when a call's usage must be estimated: fewer than most text has, so not too little.</summary>
+    public const int CharactersPerToken = 3;
+
+    /// <summary>
+    /// A call the provider never said the use of: in, the instructions and the conversation sent (or the last call's input, the larger: it
+    /// grows with each tool round), out, what it wrote so far.
+    /// </summary>
+    private UsageDetails Estimate(long lastInput, long written)
+    {
+        var sent = (GrifChat.Instructions(_host).Length + _conversation.Sum(m => (long)m.Text.Length)) / CharactersPerToken;
+        return new UsageDetails { InputTokenCount = Math.Max(sent, lastInput), OutputTokenCount = written / CharactersPerToken };
     }
 
     /// <summary>The next update, if any; the host's timeout as <see cref="GrifChat.TookTooLong"/>.</summary>

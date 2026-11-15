@@ -56,7 +56,8 @@ public partial class GrifChatUnitTests
         _clients.Models.Returns([Free]);
         _clients.Create(Arg.Any<ChatModelOption>()).Returns(model);
         var traced = new ChatModel(_clients, _services.GetRequiredService<ILoggerFactory>(), sensitiveData);
-        return new GrifChat(traced, _services.GetRequiredService<IServiceScopeFactory>(), _limits);
+        var scopes = _services.GetRequiredService<IServiceScopeFactory>();
+        return new GrifChat(traced, scopes, _limits, new ChatAccounts(scopes, _time, NullLogger<ChatAccounts>.Instance));
     }
 
     private static async Task<List<string>> All(IAsyncEnumerable<string> reply)
@@ -333,7 +334,7 @@ public partial class GrifChatUnitTests
         var clients = Substitute.For<IChatClientFactory>();
         clients.Available.Returns(configured);
 
-        Assert.That(new GrifChat(new ChatModel(clients, NullLoggerFactory.Instance), Substitute.For<IServiceScopeFactory>(), _limits).Available, Is.EqualTo(configured));
+        Assert.That(new GrifChat(new ChatModel(clients, NullLoggerFactory.Instance), Substitute.For<IServiceScopeFactory>(), _limits, new ChatAccounts(Substitute.For<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ChatAccounts>.Instance)).Available, Is.EqualTo(configured));
     }
 
     [Test]

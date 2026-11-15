@@ -55,7 +55,8 @@ public class MessageCreateHandlerTests : MessageCreateHandlerFixture
         // The chats' model as Program.cs has it: Ollama, at Ollama:Url
         var model = new ServiceCollection().AddSingleton<IConfiguration>(config).AddChatModels().BuildServiceProvider().GetRequiredService<IChatClientFactory>();
         return new MessageCreateHandler(_discordClient, config, services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger,
-            new GrifChat(new ChatModel(model, NullLoggerFactory.Instance), services.GetRequiredService<IServiceScopeFactory>(), new ChatLimits()));
+            new GrifChat(new ChatModel(model, NullLoggerFactory.Instance), services.GetRequiredService<IServiceScopeFactory>(), new ChatLimits(),
+                new ChatAccounts(services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ChatAccounts>.Instance)));
     }
 
     [Test]

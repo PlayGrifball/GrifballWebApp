@@ -85,9 +85,9 @@ public class ChatAccountsUnitTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(november?.Spent, Is.EqualTo(1.5m));
-            Assert.That(await accounts.MonthAsync(7), Is.Null, "December: November's spend is past");
-            Assert.That(await accounts.MonthAsync(8), Is.Null);
+            Assert.That(november.Spent, Is.EqualTo(1.5m));
+            Assert.That((await accounts.MonthAsync(7)).Spent, Is.Zero, "December: November's spend is past");
+            Assert.That((await accounts.MonthAsync(8)).Spent, Is.Zero);
         }
     }
 }
