@@ -1,6 +1,5 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import type { SeasonPlayerStatDto } from '@api/models';
 import { SeasonService } from '@api/services/season.service';
 import { StoreInput } from '@shared/storeInput';
 import { resourceView } from '@shared/resourceView';
@@ -22,7 +21,7 @@ export class SeasonPlayerStatsStore {
       return seasonID === undefined ? undefined : { seasonID, teamID: this.teamID.value() ?? undefined };
     },
     stream: ({ params }) => this.api.getSeasonPlayerStats(params),
-  }), [] as SeasonPlayerStatDto[]);
+  }), []);
 
   /** The rows as the server sent them (none while loading, or if they could not be loaded). */
   readonly stats = this.resource.value;

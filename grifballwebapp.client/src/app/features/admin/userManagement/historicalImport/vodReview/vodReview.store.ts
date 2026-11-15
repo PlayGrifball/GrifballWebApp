@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { LinkVodRequest, VodLinkSeasonDto, VodReviewDto } from '@api/models';
+import type { LinkVodRequest } from '@api/models';
 import { VodService } from '@api/services/vod.service';
 import { problemText } from '@shared/errorText';
 import { StoreInput } from '@shared/storeInput';
@@ -23,12 +23,12 @@ export class VodReviewStore {
   /** The season chosen in the editor (null: none): the component's. */
   readonly seasonID = new StoreInput<number | null>();
 
-  private readonly review = resourceView(rxResource({ params: () => true, stream: () => this.api.getVodReview() }), [] as VodReviewDto[]);
+  private readonly review = resourceView(rxResource({ params: () => true, stream: () => this.api.getVodReview() }), []);
   readonly rows = this.review.value;
   readonly loaded = this.review.hasValue;
   readonly failed = this.review.failed;
 
-  private readonly seasons = resourceView(rxResource({ params: () => this.editing.value() ? true : undefined, stream: () => this.api.getVodLinkSeasons() }), [] as VodLinkSeasonDto[]);
+  private readonly seasons = resourceView(rxResource({ params: () => this.editing.value() ? true : undefined, stream: () => this.api.getVodLinkSeasons() }), []);
   readonly seasonRows = this.seasons.value;
   private readonly options = resourceView(rxResource({ params: () => this.seasonID.value() ?? undefined, stream: ({ params }) => this.api.getVodLinkOptions({ seasonID: params }) }), null);
   readonly optionsValue = this.options.value;

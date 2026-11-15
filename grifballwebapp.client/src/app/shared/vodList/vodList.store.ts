@@ -1,6 +1,5 @@
 import { inject, Injectable } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import type { VodDto } from '@api/models';
 import { VodService } from '@api/services/vod.service';
 import { StoreInput } from '../storeInput';
 import { getVods, type VodScope } from './vods';
@@ -22,7 +21,7 @@ export class VodListStore {
       return scope === undefined || id === undefined ? undefined : { scope, id };
     },
     stream: ({ params }) => getVods(this.api, params.scope, params.id),
-  }), [] as VodDto[]);
+  }), []);
   /** The VODs, newest first; none while they load, or when they could not be. */
   readonly vods = this.resource.value;
 }

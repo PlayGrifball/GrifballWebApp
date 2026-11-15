@@ -3,7 +3,6 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { TeamStandingsService } from '@api/services/team-standings.service';
 import { StoreInput } from '@shared/storeInput';
 import { tap } from 'rxjs';
-import { TeamStandingDto } from './teamStandingDto';
 import { resourceView } from '@shared/resourceView';
 
 /** A season's standings, loaded again for each season (none for 0). One per table (the component provides it). */
@@ -18,7 +17,7 @@ export class TeamStandingsStore {
   private readonly standings = resourceView(rxResource({
     params: () => this.seasonID.value() || undefined,
     stream: ({ params: seasonID }) => this.api.getTeamStandings({ seasonID }).pipe(tap({ error: e => console.log(e) })),
-  }), [] as TeamStandingDto[]);
+  }), []);
   readonly teamStandings = this.standings.value;
   /** The standings have loaded (or failed to, or there is no season). */
   readonly loaded = computed(() => !this.standings.isLoading());

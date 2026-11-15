@@ -1,6 +1,5 @@
-import { inject, Injectable } from '@angular/core';
+import { computed, inject, Injectable } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import type { DeploymentHistoryDto } from '@api/models';
 import { DeploymentHistoryService } from '@api/services/deployment-history.service';
 import { StoreInput } from '@shared/storeInput';
 import { resourceView } from '@shared/resourceView';
@@ -18,11 +17,12 @@ export class DeploymentHistoryStore {
     params: () => this.userID.value(),
     // A null body is no history
     stream: ({ params }) => this.api.getDeploymentHistory({ userID: params }).pipe(map(history => history ?? [])),
-  }), [] as DeploymentHistoryDto[]);
+  }), []);
 
   /** Each season the player played, newest first; empty until loaded, or when it failed to. */
   readonly deployments = this.resource.value;
-  readonly failed = this.resource.failed;
+  /** The last load failed, also while a retry is on its way: the error and its Retry stay up until it answers. */
+  readonly failed = computed(() => this.resource.error() !== undefined);
 
   /** Loads the history again (after it failed to). */
   reload(): void {

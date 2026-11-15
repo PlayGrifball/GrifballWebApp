@@ -16,7 +16,7 @@ export class AccessTokensStore {
   private readonly tokens = resourceView(rxResource({
     params: () => true,
     stream: () => this.api.getAccessTokens(),
-  }), [] as AccessTokenDto[]);
+  }), []);
   readonly loaded = this.tokens.hasValue;
   readonly rows = this.tokens.value;
   readonly failed = this.tokens.failed;

@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { SubmitGamertagClaimRequest, ClaimPreviewDto, GamertagClaimDto } from '@api/models';
+import type { SubmitGamertagClaimRequest, ClaimPreviewDto } from '@api/models';
 import { MyProfileService } from '@api/services/my-profile.service';
 import { problemText } from '@shared/errorText';
 import { resourceView } from '@shared/resourceView';
@@ -79,7 +79,7 @@ export class ProfileIdentityStore {
   private readonly claims = resourceView(rxResource({
     params: () => true,
     stream: () => this.api.getMyGamertagClaims(),
-  }), [] as GamertagClaimDto[]);
+  }), []);
   readonly claimsLoaded = this.claims.hasValue;
   readonly claimRows = this.claims.value;
   readonly claimsFailed = this.claims.failed;

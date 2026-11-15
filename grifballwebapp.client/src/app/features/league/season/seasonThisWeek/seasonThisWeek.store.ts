@@ -3,7 +3,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatchPlannerService } from '@api/services/match-planner.service';
 import { StoreInput } from '@shared/storeInput';
 import { map } from 'rxjs';
-import { parseScheduledMatch, ScheduledMatchDto } from '../scheduleList/scheduledMatchDto';
+import { parseScheduledMatch } from '../scheduleList/scheduledMatchDto';
 import { resourceView } from '@shared/resourceView';
 
 /** A season's scheduled matches, for its "This week" cards. One per panel (the component provides it). */
@@ -18,7 +18,7 @@ export class SeasonThisWeekStore {
   private readonly schedule = resourceView(rxResource({
     params: () => this.seasonID.value() || undefined,
     stream: ({ params: seasonID }) => this.api.getScheduledMatches({ seasonID }).pipe(map(matches => matches.map(parseScheduledMatch))),
-  }), [] as ScheduledMatchDto[]);
+  }), []);
   /** The season's scheduled matches; none for 0, or when they can't be read. */
   readonly matches = this.schedule.value;
 }

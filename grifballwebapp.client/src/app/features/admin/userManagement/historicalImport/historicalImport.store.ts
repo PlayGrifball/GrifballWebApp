@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { HistoricalImportJobSummaryDto, HistoricalImportQueued, HistoricalSourceDto } from '@api/models';
+import type { HistoricalImportQueued, HistoricalSourceDto } from '@api/models';
 import { HistoricalImportService } from '@api/services/historical-import.service';
 import { problemText } from '@shared/errorText';
 import { EMPTY, expand, Observable, switchMap, timer } from 'rxjs';
@@ -25,10 +25,10 @@ export class HistoricalImportStore {
   private readonly api = inject(HistoricalImportService);
   private readonly snackBar = inject(MatSnackBar);
 
-  private readonly sources = resourceView(rxResource({ params: () => true, stream: () => this.api.getHistoricalSources() }), [] as HistoricalSourceDto[]);
+  private readonly sources = resourceView(rxResource({ params: () => true, stream: () => this.api.getHistoricalSources() }), []);
   readonly sourceRows = this.sources.value;
   readonly sourcesFailed = this.sources.failed;
-  private readonly jobs = resourceView(rxResource({ params: () => true, stream: () => this.api.getHistoricalImportJobs() }), [] as HistoricalImportJobSummaryDto[]);
+  private readonly jobs = resourceView(rxResource({ params: () => true, stream: () => this.api.getHistoricalImportJobs() }), []);
   readonly jobRows = this.jobs.value;
   readonly jobsLoaded = this.jobs.hasValue;
   readonly jobsFailed = this.jobs.failed;

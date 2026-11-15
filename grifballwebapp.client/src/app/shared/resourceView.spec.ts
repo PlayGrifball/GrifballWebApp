@@ -16,7 +16,7 @@ describe('resourceView', () => {
         answers.push(answer);
         return answer;
       },
-    }), [] as number[]));
+    }), []));
     return { params, answers, view };
   }
   const settle = () => TestBed.inject(ApplicationRef).whenStable();

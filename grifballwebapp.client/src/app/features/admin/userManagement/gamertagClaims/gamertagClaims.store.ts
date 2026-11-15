@@ -37,7 +37,7 @@ export class GamertagClaimsStore {
   private readonly claims = resourceView(rxResource({
     params: () => this.status.value(),
     stream: ({ params }) => this.api.getGamertagClaims({ status: params }),
-  }), [] as GamertagClaimDto[]);
+  }), []);
   /** The claims with the chosen status (none while they load, or if they could not be loaded). */
   readonly rows = this.claims.value;
   readonly failed = this.claims.failed;
@@ -59,7 +59,7 @@ export class GamertagClaimsStore {
   private readonly duplicates = resourceView(rxResource({
     params: () => this.duplicatesShown() || undefined,
     stream: () => this.api.getDuplicateSuggestions(),
-  }), [] as DuplicateSuggestionDto[]);
+  }), []);
   readonly duplicateRows = this.duplicates.value;
   readonly duplicatesLoaded = this.duplicates.hasValue;
   readonly duplicatesLoading = this.duplicates.isLoading;
