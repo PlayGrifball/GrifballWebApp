@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NetCord.Rest;
 using NSubstitute;
 using GrifballWebApp.Application.Chat;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -33,7 +34,7 @@ public abstract class MessageCreateHandlerFixture
         // A model configured (never asked: these tests never get as far)
         var model = Substitute.For<IChatClientFactory>();
         model.Available.Returns(true);
-        _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, new AmbientCurrentUser(), _logger, new GrifChat(model, _scopeFactory, new ChatLimits()));
+        _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, new AmbientCurrentUser(), _logger, new GrifChat(new ChatModel(model, NullLoggerFactory.Instance), _scopeFactory, new ChatLimits()));
     }
 
     protected static NetCord.Gateway.Message Message(ulong authorId, ulong[]? mentions = null, (ulong ChannelId, ulong MessageId)? reference = null, RestClient? restClient = null)

@@ -15,6 +15,8 @@ namespace GrifballWebApp.Server.Test;
 [TestFixture]
 public class MessageCreateHandlerUnitTests : MessageCreateHandlerFixture
 {
+    private static readonly string[] AnsweredSpans = [MessageCreateHandler.MessageSpanName];
+
     [Test]
     public void Message_IsBuiltFromJsonModel()
     {
@@ -69,6 +71,61 @@ public class MessageCreateHandlerUnitTests : MessageCreateHandlerFixture
         AssertNoResponse();
     }
 
+    [TestCase(99ul, false)]
+    [TestCase(BotId, true)]
+    public async Task HandleAsync_AReply_IsExportedOnlyWhenTheBotAnswers_ItsLookupWithinItsSpan(ulong repliedTo, bool answered)
+    {
+        using var exported = new ExportedSpans();
+        System.Diagnostics.Activity? message = null;
+        var referenced = Substitute.For<IDiscordRestMessage>();
+        referenced.Author.Id.Returns(repliedTo);
+        _discordClient.GetMessageAsync(40ul, 30ul, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            message = System.Diagnostics.Activity.Current;
+            // The lookup's own call (the HTTP client's span)
+            ExportedSpans.Call.StartActivity("GET message")?.Dispose();
+            return referenced;
+        });
+
+        await _handler.HandleAsync(Message(5, reference: (40, 30)));
+
+        List<System.Diagnostics.Activity> spans = message is null ? [] : exported.Of(message.TraceId);
+        using (Assert.EnterMultipleScope())
+        {
+            // The lookup is within the message's span, the trace's root, which covers its time
+            Assert.That(message?.OperationName, Is.EqualTo(MessageCreateHandler.MessageSpanName));
+            Assert.That(message?.Parent, Is.Null);
+            Assert.That(message?.GetTagItem("discord.answered"), Is.EqualTo(answered));
+            // A reply between others, which the bot never answers, leaves nothing; the lookup's call, made before it was known
+            // whether the bot answers, is never exported
+            Assert.That(spans.Select(s => s.OperationName), Is.EqualTo(answered ? AnsweredSpans : Array.Empty<string>()));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AReplyWhoseLookupFails_IsLogged_AndItsSpanExportedAsAnError()
+    {
+        using var exported = new ExportedSpans();
+        System.Diagnostics.Activity? message = null;
+        _discordClient.GetMessageAsync(40ul, 30ul, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns<IDiscordRestMessage>(_ =>
+        {
+            message = System.Diagnostics.Activity.Current;
+            // As Discord's REST client fails for a message deleted, or one the bot can't read
+            throw new InvalidOperationException("Missing Access to SecretChannel");
+        });
+
+        Assert.That(async () => await _handler.HandleAsync(Message(5, reference: (40, 30))), Throws.Nothing,
+            "one failing message mustn't fault the gateway handler");
+
+        var span = message is null ? null : exported.Of(message.TraceId).SingleOrDefault();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(span?.Status, Is.EqualTo(System.Diagnostics.ActivityStatusCode.Error));
+            Assert.That(span?.StatusDescription, Is.EqualTo(nameof(InvalidOperationException)), "the exception's type: its message may name what a user can't see");
+            Assert.That(_logger.Entries.Single().Exception, Is.TypeOf<InvalidOperationException>());
+        }
+    }
+
     [Test]
     public async Task HandleAsync_ReplyWhereReferencedMessageIsMissing_DoesNothing()
     {
@@ -96,6 +153,27 @@ public class MessageCreateHandlerUnitTests : MessageCreateHandlerFixture
             Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
             Assert.That(entry.Exception, Is.TypeOf<InvalidOperationException>());
             Assert.That(entry.Message, Does.Contain("Failed to handle message").And.Contain(message.Author.Id.ToString()));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_WhenHandlingTheMessageFails_ItsSpanIsAnError()
+    {
+        using var spans = new ChatSpans();
+        System.Diagnostics.Activity? span = null;
+        _scopeFactory.CreateScope().Returns(_ =>
+        {
+            span = System.Diagnostics.Activity.Current;
+            throw new InvalidOperationException("boom");
+        });
+
+        await _handler.HandleAsync(Message(5, [BotId]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(span?.OperationName, Is.EqualTo(MessageCreateHandler.MessageSpanName));
+            Assert.That(span?.Status, Is.EqualTo(System.Diagnostics.ActivityStatusCode.Error));
+            Assert.That(span?.StatusDescription, Is.EqualTo(nameof(InvalidOperationException)), "the exception's type: its message may quote a user");
         }
     }
 

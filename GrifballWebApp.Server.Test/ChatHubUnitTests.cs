@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Security.Claims;
 using System.Text;
@@ -14,6 +15,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace GrifballWebApp.Server.Test;
@@ -56,7 +58,7 @@ public class ChatHubUnitTests
         context.Features.Returns(features);
         var now = new HubUser();
         now.Set(user ?? HubUserState.Anonymous);
-        return new ChatHub(new GrifChat(_clients, Substitute.For<IServiceScopeFactory>(), _limits), now, _ambient, _logger) { Context = context };
+        return new ChatHub(new GrifChat(new ChatModel(_clients, NullLoggerFactory.Instance), Substitute.For<IServiceScopeFactory>(), _limits), now, _ambient, _logger) { Context = context };
     }
 
     private static ChatRequestDto Question(string question = "Who won?", params ChatTurnDto[] history) => new() { Question = question, History = [.. history] };
@@ -100,6 +102,30 @@ public class ChatHubUnitTests
             _ambient.UserId = 7;
             _ambient.End();
         });
+    }
+
+    [Test]
+    public async Task Ask_TheRepliesSpans_AreInTheHubCallsTrace_ThoughItStreamsAfterTheCallReturns()
+    {
+        using var spans = new ChatSpans();
+        Activity? modelCall = null;
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi")) { BeforeReply = _ => { modelCall = Activity.Current; return Task.CompletedTask; } };
+        var hub = Hub(model);
+        ChannelReader<string> reply;
+        Activity hubCall;
+
+        // SignalR's span for the hub call ends when Ask returns; the reply streams on after it
+        using (hubCall = ChatSpans.Host.StartActivity("ChatHub/Ask")!)
+            reply = await hub.Ask(Question(), CancellationToken.None);
+        var (_, error) = await Read(reply);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(error, Is.Null);
+            Assert.That(modelCall?.Source.Name, Is.EqualTo(ChatModel.SourceName), "the model's call is traced");
+            Assert.That(modelCall?.TraceId, Is.EqualTo(hubCall.TraceId));
+            Assert.That(ChatSpans.Ancestors(modelCall!), Does.Contain(hubCall));
+        }
     }
 
     [Test]

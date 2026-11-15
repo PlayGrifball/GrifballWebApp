@@ -41,6 +41,14 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<UrlService>();
         // The chat the Discord bot and the site share (its model is Infrastructure's IChatClientFactory)
         services.AddTransient<GrifChat>();
+        // Its model, traced once for the process (a wrapper makes its own ActivitySource and Meter), what people wrote left out
+        // unless Chat:Telemetry:SensitiveData is true (anything else is off, with a warning)
+        services.AddSingleton(provider =>
+        {
+            var loggers = provider.GetRequiredService<ILoggerFactory>();
+            var sensitiveData = ChatModel.SensitiveDataFrom(configuration, loggers.CreateLogger<ChatModel>());
+            return new ChatModel(provider.GetRequiredService<IChatClientFactory>(), loggers, sensitiveData);
+        });
         // Every host's askers, counted once per process
         services.AddSingleton(_ => new ChatLimits(configuration.GetValue(ChatLimits.MaxRepliesKey, 1)));
         services.AddTransient<IQueueRepository, QueueRepository>();

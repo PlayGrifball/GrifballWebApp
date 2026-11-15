@@ -144,6 +144,33 @@ unavailable. The Helm chart sets both, for its own Ollama (`ollama.enabled`) or 
 [the chart's README](../charts/grifballwebapp/README.md#chat-model-ollama)). Development's appsettings point at
 Ollama's own port on localhost.
 
+### The chats' telemetry
+
+`ChatModel` builds the chats' client once for the process: the factory's model, under Microsoft.Extensions.AI's OpenTelemetry
+(the GenAI semantic conventions), under the function invocation that calls the tools. Its ActivitySource and Meter are
+`GrifballWebApp.Chat` (`ChatModel.SourceName`), which the app's tracing and metrics export:
+
+- spans: `orchestrate_tools` per reply, under it `chat {model}` per call to the model (its token counts in
+  `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens`, its errors) and `execute_tool {tool}` per tool call (its time,
+  an exception's type, `grif.tool.outcome`: `ok`, `refused`, `canceled` (the reply was: the asker stopped waiting, or it took
+  too long) or `failed` (any other exception, a tool's own timeout too), and for a failure `grif.tool.error.type`, its own
+  type). They are in the trace the reply started in: the hub call's on the site (though the reply streams after the call
+  returns), or the `Discord message` span (`GrifballWebApp.Discord`) for a message the bot answers. A reply's span starts
+  before the lookup of the message it replies to, so it covers it, but is only recorded once that message is known to be the
+  bot's (`discord.answered`): a reply between others exports nothing, nor does the lookup's call. A failed lookup, or a reply
+  cut short (it took too long), makes the span an error. The HTTP client's span of the call to Ollama is under its `chat` span;
+- metrics: `gen_ai.client.token.usage` and `gen_ai.client.operation.duration` per call to the model, and
+  `gen_ai.client.operation.time_to_first_chunk` and `time_per_output_chunk` for the streamed replies;
+- logs: a line per tool call (`GrifTools`: the tool, its outcome, its time and the user ID), and a failing tool's exception
+  (the function invocation's error log).
+
+What people wrote (questions, answers, the instructions, tools' arguments and results, and a failing tool's message, which
+may quote its arguments: the span and the error log get a `ToolFailedException`, the failure's type and stack alone) is left
+out of all of them. Set `Chat:Telemetry:SensitiveData` to `true` to put it in for debugging; the default, false, wins over
+`OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`, and any other value is false, with a warning. Neither Ollama's server nor
+OllamaSharp has telemetry of its own: OllamaSharp reports the token counts Ollama returns (`prompt_eval_count`, `eval_count`) as
+the reply's usage, which the spans and metrics read.
+
 A small local model picks worse from a long list, so the chats get `GrifTools.Chat`, the questions people ask most. The MCP
 server's clients get every tool.
 

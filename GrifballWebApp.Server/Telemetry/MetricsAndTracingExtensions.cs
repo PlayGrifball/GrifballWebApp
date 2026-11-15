@@ -6,6 +6,7 @@ using OpenTelemetry.Trace;
 using GrifballWebApp.Server.Telemetry.Browser;
 using Quartz.Diagnostics;
 using GrifballWebApp.Infrastructure.Redis;
+using GrifballWebApp.Application.Chat;
 
 namespace GrifballWebApp.Server.Telemetry;
 
@@ -26,6 +27,8 @@ public static class MetricsAndTracingExtensions
         "Microsoft.AspNetCore.Identity",
         // grif.browser.*: the browser's Web Vitals (Browser/BrowserMetrics)
         BrowserMetrics.MeterName,
+        // The chats' model calls (ChatModel): gen_ai.client.token.usage, gen_ai.client.operation.duration and the stream's chunk times
+        ChatModel.SourceName,
     ];
 
     /// <summary>
@@ -83,6 +86,10 @@ public static class MetricsAndTracingExtensions
                     .AddSource(SignalRServerSource)
                     // A trace per job run (JobTracing), without the scheduler loop's own store calls
                     .AddSource(QuartzInstrumentation.ActivitySourceName)
+                    // The chats' AI calls (ChatModel): a chat span per model call, an execute_tool span per tool call, under
+                    // orchestrate_tools; with the hub call's span, or the Discord message's (MessageCreateHandler), as their parent
+                    .AddSource(ChatModel.SourceName)
+                    .AddSource(MessageCreateHandler.ActivitySourceName)
                     // Drops the scheduler loop's own spans and rootless Redis spans (SchedulerLoopSampler)
                     .SetSampler(new SchedulerLoopSampler());
 

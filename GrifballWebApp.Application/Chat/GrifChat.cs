@@ -45,12 +45,12 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
 
 /// <summary>
 /// The chat with the league's model, the same for every host (the Discord bot's <c>MessageCreateHandler</c>, the site's
-/// <c>ChatHub</c>), on Microsoft.Extensions.AI: the provider is <see cref="IChatClientFactory"/>'s registration's alone. A host keeps
+/// <c>ChatHub</c>), on Microsoft.Extensions.AI: the provider is <see cref="IChatClientFactory"/>'s registration's alone, traced as <see cref="ChatModel"/> says. A host keeps
 /// the conversation, <see cref="Start"/>s a reply and shows it; all the rest is here, so no host can skip it: the question's and
 /// the history's limits, the asker's (<see cref="ChatLimits"/>), the instructions, the host's tools as the caller, called for the
 /// model until it answers, and the time a reply may take.
 /// </summary>
-public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory scopes, ChatLimits limits)
+public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatLimits limits)
 {
     /// <summary>How many of the conversation's earlier messages the model is sent with a new one.</summary>
     public const int HistoryLimit = 25;
@@ -104,9 +104,9 @@ public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory sc
     }
 
     /// <summary>Whether there is a model to ask: none configured, and a host says <see cref="Unavailable"/> instead.</summary>
-    public bool Available => Clients.Available;
+    public bool Available => Model.Available;
 
-    private IChatClientFactory Clients { get; } = clients;
+    private ChatModel Model { get; } = model;
 
     private IServiceScopeFactory Scopes { get; } = scopes;
 
@@ -186,14 +186,14 @@ public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory sc
         var (slot, limited) = limits.TryStart(asker);
         if (slot is null)
             throw new ChatRefusedException(limited!);
-        return new ChatReply(Clients, Scopes, Conversation(history, question), caller with { InPublic = host.InPublic }, host, slot, cancellationToken);
+        return new ChatReply(Model, Scopes, Conversation(history, question), caller with { InPublic = host.InPublic }, host, slot, cancellationToken);
     }
 }
 
 /// <summary>A reply <see cref="GrifChat.Start"/>ed: <see cref="StreamAsync"/> it, then dispose it to free the asker's slot.</summary>
 public sealed class ChatReply : IDisposable
 {
-    private readonly IChatClientFactory _clients;
+    private readonly ChatModel _model;
     private readonly IServiceScopeFactory _scopes;
     private readonly List<ChatMessage> _conversation;
     private readonly ToolCaller _caller;
@@ -201,10 +201,10 @@ public sealed class ChatReply : IDisposable
     private readonly IDisposable _slot;
     private readonly CancellationTokenRegistration _freedWhenStopped;
 
-    internal ChatReply(IChatClientFactory clients, IServiceScopeFactory scopes, List<ChatMessage> conversation, ToolCaller caller, ChatHost host, IDisposable slot,
+    internal ChatReply(ChatModel model, IServiceScopeFactory scopes, List<ChatMessage> conversation, ToolCaller caller, ChatHost host, IDisposable slot,
         CancellationToken stopped)
     {
-        _clients = clients;
+        _model = model;
         _scopes = scopes;
         _conversation = conversation;
         _caller = caller;
@@ -229,9 +229,12 @@ public sealed class ChatReply : IDisposable
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(_host.Timeout);
-            // The tool calls are ours, not the provider's: any model the factory gives gets them. The model is shared: not disposed.
-            var client = new ChatClientBuilder(_clients.Create()).UseFunctionInvocation().Build();
-            var options = new ChatOptions { Instructions = GrifChat.Instructions(_host), Tools = GrifTools.AIFunctions(_scopes, _caller, _host.Tools) };
+            // The tool calls are ours, not the provider's (ChatModel's function invocation): any model the factory gives gets them. The
+            // model is shared: not disposed. Its spans are in the trace current where the reply streams (the hub call's, flowing into
+            // its task; the Discord message's)
+            var client = _model.Create();
+            var tools = GrifTools.AIFunctions(_scopes, _caller, _host.Tools, _model.ToolLog, _model.SensitiveData);
+            var options = new ChatOptions { Instructions = GrifChat.Instructions(_host), Tools = tools };
             await using var updates = client.GetStreamingResponseAsync(_conversation, options, timeout.Token).GetAsyncEnumerator(timeout.Token);
             while (await NextAsync(updates, timeout, cancellationToken))
                 yield return updates.Current.Text;
