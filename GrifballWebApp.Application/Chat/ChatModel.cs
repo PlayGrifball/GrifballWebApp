@@ -11,7 +11,9 @@ namespace GrifballWebApp.Application.Chat;
 /// one a reply: each makes an ActivitySource and a Meter of its own. What people wrote (questions, answers, tools' arguments and
 /// results) is left out unless <see cref="SensitiveDataKey"/> says otherwise, whatever OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT says.
 /// </summary>
+/// <param name="clients">The chats' model, whichever provider's.</param>
 /// <param name="loggers">For the telemetry's and the function invocation's logs (a tool's failure, with its exception).</param>
+/// <param name="sensitiveData">Whether the telemetry carries what people wrote (<see cref="SensitiveDataKey"/>).</param>
 public sealed class ChatModel(IChatClientFactory clients, ILoggerFactory loggers, bool sensitiveData = false)
 {
     /// <summary>The chats' ActivitySource and Meter.</summary>
