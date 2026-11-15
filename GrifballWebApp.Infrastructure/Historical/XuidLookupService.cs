@@ -125,13 +125,23 @@ public class XuidLookupService
         return report;
     }
 
-    /// <summary>Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>.</summary>
+    /// <summary>
+    /// Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>. No
+    /// result because Halo was throttling, broken or unreachable (<see cref="IsNoVerdict"/>) is a failed lookup, tried again after
+    /// RetryFailedAfter; only an answer that the gamertag isn't there is not found (for LookAgainAfter).
+    /// </summary>
     private async Task LookUpAsync(XuidLookup lookup, int placeholderId, string gamertag, XuidLookupReport report, CancellationToken ct)
     {
         try
         {
             var response = await _halo.UserByGamertag(gamertag);
-            if (response?.Result is null || string.IsNullOrEmpty(response.Result.gamertag))
+            if (response?.Result is null && response?.Error is { } error && IsNoVerdict(error.Code))
+            {
+                lookup.Status = XuidLookupStatus.Failed;
+                lookup.Error = error.Code == 0 ? "Halo gave no answer" : $"Halo answered {error.Code}";
+                report.Failed++;
+            }
+            else if (response?.Result is null || string.IsNullOrEmpty(response.Result.gamertag))
             {
                 lookup.Status = XuidLookupStatus.NotFound;
                 report.NotFound++;
@@ -158,6 +168,10 @@ public class XuidLookupService
             report.Failed++;
         }
     }
+
+    /// <summary>A Halo code that says nothing about the gamertag: 0 (no answer), 401/403 (the gateway's own sign-in), 408,
+    /// 429 (throttled) and 5xx. 404 and 400 are answers: it isn't there, or can't be.</summary>
+    private static bool IsNoVerdict(int code) => code is 0 or 401 or 403 or 408 or 429 or >= 500;
 
     /// <summary>A pending claim pairing the placeholder with the XUID, unless the pair was claimed before (pending,
     /// approved or rejected: a rejected pair isn't suggested again). The Xbox account is stored if the app doesn't know it.</summary>
