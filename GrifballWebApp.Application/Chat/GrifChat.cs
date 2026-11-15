@@ -264,6 +264,8 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
                 var month = await Accounts.MonthAsync(userId, cancellationToken);
                 if (month.Reached(limits.MonthlyLimit))
                     throw new ChatRefusedException(ChatLimits.MonthlyLimitReached);
+                // Read once a reply: replies started at once in other processes (replicas, the Discord bot) each see the same, so the
+                // month can go over by at most one reply's calls a process (ChatModel.MaxModelCalls, each MaxOutputTokens at most)
                 budget = month.Remaining(limits.MonthlyLimit);
             }
         }
@@ -396,13 +398,13 @@ public sealed class ChatReply : IDisposable
             var used = update.Contents.OfType<UsageContent>().ToList();
             if (used.Count == 0)
             {
-                // The model's own (a tool's result is ours, before the next call): its call is under way
+                // The model's own (a tool's result is ours, before the next call): its call is under way, and billed even when the
+                // month's limit stops it here (the provider already has what it was sent): counted before it is stopped
                 if (update.Contents.Any(c => c is not FunctionResultContent))
                 {
-                    if (_spentUp)
-                        return true;
                     _pending = true;
                     _written += Written(update.Contents);
+                    return _spentUp;
                 }
                 return false;
             }
