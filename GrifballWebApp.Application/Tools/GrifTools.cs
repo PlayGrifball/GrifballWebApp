@@ -253,8 +253,15 @@ public static class GrifTools
             // The function invocation's span for this call, when traced (else the reply's caller's, which isn't this call's)
             if (Activity.Current is { } span && span.Source.Name == ChatModel.SourceName && Equals(span.GetTagItem("gen_ai.tool.name"), Name))
                 span.SetTag(OutcomeTag, outcome);
-            services.GetService<ILoggerFactory>()?.CreateLogger(typeof(GrifTools).FullName!)
-                .LogInformation("Chat tool {Tool}: {Outcome} in {ElapsedMs} ms, for user {UserID}", Name, outcome, elapsed.TotalMilliseconds, caller.UserID);
+            if (services.GetService<ILoggerFactory>()?.CreateLogger(typeof(GrifTools).FullName!) is { } logger)
+                ChatToolLog.Called(logger, Name, outcome, elapsed.TotalMilliseconds, caller.UserID);
         }
     }
+}
+
+/// <summary>A chat tool call's log line (<see cref="GrifTools.AIFunctions"/>): its tool, outcome and time, and who called it.</summary>
+internal static partial class ChatToolLog
+{
+    [LoggerMessage(Level = LogLevel.Information, Message = "Chat tool {Tool}: {Outcome} in {ElapsedMs} ms, for user {UserID}")]
+    public static partial void Called(ILogger logger, string tool, string outcome, double elapsedMs, int? userID);
 }
