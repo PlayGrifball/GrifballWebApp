@@ -434,7 +434,7 @@ public sealed class ChatReply : IDisposable
     }
 
     /// <summary>The characters a model wrote in <paramref name="contents"/>: its text, its thinking and its tool calls' arguments.</summary>
-    private static long Written(IEnumerable<AIContent> contents)
+    internal static long Written(IEnumerable<AIContent> contents)
     {
         long written = 0;
         foreach (var content in contents)

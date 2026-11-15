@@ -408,16 +408,10 @@ public partial class GrifChatUnitTests
     }
 
     [Test]
-    public async Task StreamAsync_ACutShortCallsEstimate_CountsAToolCallsNameAndArguments_AndNothingElse()
+    public async Task StreamAsync_AUsageWithNoInputCount_KeepsTheLastCallsInput_ForTheEstimate()
     {
         var noInput = new ChatResponseUpdate(ChatRole.Assistant, [new UsageContent(new UsageDetails { OutputTokenCount = 0 })]);
-        // 6 + 1 + 4 + 1 characters written: the tool's name, each argument's name and value (none for a null one)
-        var call = new ChatResponseUpdate(ChatRole.Assistant,
-        [
-            new FunctionCallContent("c1", "lookup", new Dictionary<string, object?> { ["a"] = "abcd", ["b"] = null }),
-            new ErrorContent("not the model's writing"),
-        ]);
-        var chat = ChatWithModels(new FakeModel([noInput, call]) { ThenHang = true });
+        var chat = ChatWithModels(new FakeModel([noInput, Text(new string('a', 30))]) { ThenHang = true });
         using var stop = new CancellationTokenSource();
 
         using (var reply = await chat.StartAsync([], "Hi", Sysadmin, ChatHost.Site, Asker))
@@ -427,6 +421,22 @@ public partial class GrifChatUnitTests
             Assert.That(async () => await streaming, Throws.InstanceOf<OperationCanceledException>());
         }
 
-        Assert.That((await _db.ChatMonths.AsNoTracking().SingleAsync()).OutputTokens, Is.EqualTo(12 / ChatReply.CharactersPerToken));
+        Assert.That((await _db.ChatMonths.AsNoTracking().SingleAsync()).OutputTokens, Is.EqualTo(30 / ChatReply.CharactersPerToken));
+    }
+
+    [Test]
+    public void Written_CountsText_Thinking_AndAToolCallsNameAndArguments_AndNothingElse()
+    {
+        AIContent[] contents =
+        [
+            new TextContent("ab"),
+            new TextReasoningContent("cde"),
+            // 6 + 1 + 4 + 1: the tool's name, each argument's name and value (none for a null one)
+            new FunctionCallContent("c1", "lookup", new Dictionary<string, object?> { ["a"] = "abcd", ["b"] = null }),
+            new FunctionCallContent("c2", "now"),
+            new ErrorContent("not the model's writing"),
+        ];
+
+        Assert.That(ChatReply.Written(contents), Is.EqualTo(2 + 3 + 12 + 3));
     }
 }
