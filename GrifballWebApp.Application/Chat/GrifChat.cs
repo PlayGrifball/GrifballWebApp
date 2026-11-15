@@ -359,9 +359,8 @@ public sealed class ChatReply : IDisposable
             try
             {
                 // What it cost so far, whether it finished or not: not canceled with the asker, it was spent all the same
-                if (Model.Price is { } price && _caller.UserID is { } payer)
+                if (Model.Price is { } price && _caller.UserID is { } payer && spent.Total() is { } usage && price.CostMicros(usage) > 0)
                 {
-                    var usage = spent.Total();
                     await Accounts.TryRecordAsync(payer, price.CostMicros(usage), usage.InputTokenCount ?? 0, usage.OutputTokenCount ?? 0);
                 }
             }
@@ -386,8 +385,12 @@ public sealed class ChatReply : IDisposable
         private bool _pending;
         private long _lastInput;
         private long _written;
+        private bool _spentUp;
 
-        /// <summary>The update's usage, or what its call wrote; true once the reply's calls cost what was left of the month.</summary>
+        /// <summary>
+        /// The update's usage, or what its call wrote; true when the model starts another call though the reply's calls already cost what
+        /// was left of the month (an answer that ends there is whole: no reason to refuse it).
+        /// </summary>
         public bool Add(ChatResponseUpdate update)
         {
             var used = update.Contents.OfType<UsageContent>().ToList();
@@ -396,6 +399,8 @@ public sealed class ChatReply : IDisposable
                 // The model's own (a tool's result is ours, before the next call): its call is under way
                 if (update.Contents.Any(c => c is not FunctionResultContent))
                 {
+                    if (_spentUp)
+                        return true;
                     _pending = true;
                     _written += Written(update.Contents);
                 }
@@ -408,7 +413,8 @@ public sealed class ChatReply : IDisposable
             }
             _pending = false;
             _written = 0;
-            return reply.Model.Price is { } price && reply._budget is { } budget && price.CostMicros(_usage) >= budget * 1_000_000m;
+            _spentUp = reply.Model.Price is { } price && reply._budget is { } budget && price.CostMicros(_usage) >= budget * 1_000_000m;
+            return false;
         }
 
         /// <summary>
@@ -428,13 +434,30 @@ public sealed class ChatReply : IDisposable
     }
 
     /// <summary>The characters a model wrote in <paramref name="contents"/>: its text, its thinking and its tool calls' arguments.</summary>
-    private static long Written(IEnumerable<AIContent> contents) => contents.Sum(c => c switch
+    private static long Written(IEnumerable<AIContent> contents)
     {
-        TextContent text => (long)text.Text.Length,
-        TextReasoningContent thinking => thinking.Text.Length,
-        FunctionCallContent call => call.Name.Length + (call.Arguments?.Sum(a => a.Key.Length + (a.Value?.ToString()?.Length ?? 0)) ?? 0),
-        _ => 0,
-    });
+        long written = 0;
+        foreach (var content in contents)
+        {
+            written += content switch
+            {
+                TextContent text => text.Text.Length,
+                TextReasoningContent thinking => thinking.Text.Length,
+                FunctionCallContent call => call.Name.Length + Written(call.Arguments),
+                _ => 0,
+            };
+        }
+        return written;
+    }
+
+    /// <summary>A tool call's arguments' characters, names and values.</summary>
+    private static long Written(IDictionary<string, object?>? arguments)
+    {
+        long written = 0;
+        foreach (var (name, value) in arguments ?? new Dictionary<string, object?>())
+            written += name.Length + (value?.ToString()?.Length ?? 0);
+        return written;
+    }
 
     /// <summary>The next update, if any; the host's timeout as <see cref="GrifChat.TookTooLong"/>.</summary>
     private static async Task<bool> NextAsync(IAsyncEnumerator<ChatResponseUpdate> updates, CancellationTokenSource timeout, CancellationToken asker)
