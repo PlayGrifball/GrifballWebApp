@@ -158,6 +158,14 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
             await message.ReplyAsync(refused.Message);
             return null;
         }
+        catch (Exception e)
+        {
+            // The database failed as the reply started (the author's choice, their month): they are told, not left with no answer
+            logger.LogError(e, "The chat failed to start answering Discord message {MessageId} from Discord user {DiscordUserId}", message.Id, message.Author.Id);
+            await message.ReplyAsync(Chat.ChatHub.Failed);
+            // Its type: its message may quote a user
+            return e.GetType().Name;
+        }
         using (reply)
         {
             if (saveTo is not null)

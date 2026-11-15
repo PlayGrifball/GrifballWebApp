@@ -51,6 +51,18 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
         {
             return Refuse(reply, e.Message);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Stopped while the reply started (reading the user's choice and month): no one to tell, nothing failed
+            reply.Writer.TryComplete();
+            return reply.Reader;
+        }
+        catch (Exception e)
+        {
+            // The database failed as the reply started: the browser is told, as for a reply that fails, not given SignalR's own error
+            logger.LogError(e, "The site's chat failed to start answering user {UserId}", caller.UserID);
+            return Refuse(reply, Failed);
+        }
 
         // On its own: the reply streams after this returns, and the ambient user is set for it alone
         _ = Task.Run(() => ReplyAsync(reply.Writer, started, caller, cancellationToken), CancellationToken.None);
