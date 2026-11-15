@@ -128,12 +128,12 @@ export class ChatStore {
           this.log.error('Chat: the answer failed', error);
         this.errorState.set(text);
         this.done();
+        // A paid answer is charged whether it was whole or not
+        this.loadSpend(connection);
       },
       complete: () => {
         this.done();
-        // What it cost, when it was a paid model's
-        if (this.models()?.spent != null)
-          void this.loadModels(connection);
+        this.loadSpend(connection);
       },
     });
     return true;
@@ -150,7 +150,15 @@ export class ChatStore {
       this.modelsState.set(await getHubProxyFactory('IChatHubServer').createHubProxy(this.connection).choose(model));
     } catch (error: unknown) {
       this.errorState.set(chatErrorText(error));
+      // The picker already shows the refused model: the user's models again, a new value, put it back
+      await this.loadModels(this.connection);
     }
+  }
+
+  /** What the last answer cost, when the user has a paid model: their spend this month again. */
+  private loadSpend(connection: HubConnection): void {
+    if (this.models()?.spent != null)
+      void this.loadModels(connection);
   }
 
   /** The user's models from the server; left as they were when it can't say. */
