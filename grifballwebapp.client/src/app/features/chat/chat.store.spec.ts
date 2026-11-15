@@ -110,6 +110,7 @@ describe('ChatStore', () => {
   });
 
   it("shows the server's reason for a refusal, and leaves no empty answer", () => {
+    const error = spyOn(console, 'error');
     const store = create();
     store.ask('Who won?');
 
@@ -118,9 +119,12 @@ describe('ChatStore', () => {
     expect(store.error()).toBe('Wait for the answer to your last question first.');
     expect(store.asking()).toBeFalse();
     expect(store.turns()).toEqual([turn(false, 'Who won?')]);
+    // The server logged its own refusal
+    expect(error).not.toHaveBeenCalled();
   });
 
-  it('keeps what came of an answer that failed part way', () => {
+  it('keeps what came of an answer that failed part way, and logs the failure', () => {
+    const error = spyOn(console, 'error');
     const store = create();
     store.ask('Who won?');
     answer().subscriber.next('The ');
@@ -129,6 +133,7 @@ describe('ChatStore', () => {
 
     expect(store.error()).toBe(FAILED);
     expect(store.turns()).toEqual([turn(false, 'Who won?'), turn(true, 'The ')]);
+    expect(error).toHaveBeenCalledOnceWith('Chat: the answer failed', jasmine.objectContaining({ message: 'Connection lost' }));
   });
 
   it('asks nothing while an answer is on its way, for no question, or before it has connected', () => {
