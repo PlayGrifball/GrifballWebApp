@@ -268,7 +268,7 @@ describe('ChatStore', () => {
       const before = store.models();
       connection.invoke.and.callFake((method: string) => method === 'Choose'
         ? Promise.reject(new Error("HubException: That model isn't one you can use here: choose another."))
-        : Promise.resolve(models));
+        : Promise.resolve({ ...models }));
 
       await store.choose('claude-opus');
       await new Promise(resolve => setTimeout(resolve));
