@@ -71,7 +71,8 @@ public sealed class ChatClients : IChatClientFactory
 /// <summary>
 /// The chats' models from configuration: Chat:Models, in order, when it lists any; else the defaults, Claude Haiku, Sonnet and Opus
 /// for sysadmins with Anthropic:ApiKey set (Haiku first: their default), then the Ollama model (Ollama:Model) for anyone with
-/// Ollama:Url set. A model whose provider isn't configured, or an ID twice, is refused at startup.
+/// Ollama:Url set. A model whose provider isn't configured or named, a negative price, or an ID twice, is refused as the app starts
+/// (<see cref="ChatClientsExtensions.AddChatModels"/>).
 /// </summary>
 public static class ChatModels
 {
@@ -80,13 +81,13 @@ public static class ChatModels
     public const string OllamaModelKey = "Ollama:Model";
     public const string AnthropicApiKeyKey = "Anthropic:ApiKey";
 
+    /// <summary>The most a call to Claude may write, its thinking included: room for a long answer after thinking, at most a few cents.</summary>
+    public const int ClaudeMaxOutputTokens = 16_000;
+
     /// <summary>
     /// Claude, for sysadmins, at Anthropic's prices (US dollars per million tokens: input, output, cache writes for five minutes,
     /// cache reads); Haiku's are for prompts up to 100,000 tokens, as a chat's are.
     /// </summary>
-    /// <summary>The most a call to Claude may write, its thinking included: room for a long answer after thinking, at most a few cents.</summary>
-    public const int ClaudeMaxOutputTokens = 16_000;
-
     public static readonly IReadOnlyList<ChatModelOption> Claude =
     [
         new("claude-haiku", "Claude Haiku 5.5", ChatProvider.Anthropic, "claude-haiku-5-5")
@@ -130,7 +131,7 @@ public static class ChatModels
     {
         public string Id { get; set; } = "";
         public string? Name { get; set; }
-        public ChatProvider Provider { get; set; }
+        public ChatProvider? Provider { get; set; }
         public string Model { get; set; } = "";
         public List<string> Roles { get; set; } = [];
         public PriceSettings? Price { get; set; }
@@ -142,7 +143,11 @@ public static class ChatModels
                 throw new InvalidOperationException($"Each of {ModelsKey} needs an Id and a Model");
             if (Id.Length > Domain.Players.ChatChoice.ModelMaxLength)
                 throw new InvalidOperationException($"{ModelsKey}: {Id} is longer than {Domain.Players.ChatChoice.ModelMaxLength} characters");
-            return new(Id, string.IsNullOrWhiteSpace(Name) ? Model : Name, Provider, Model)
+            if (Provider is not { } provider)
+                throw new InvalidOperationException(: {Id} needs a Provider (Ollama or Anthropic)");
+            if (Price is { } p && (p.Input < 0 || p.Output < 0 || p.CacheWrite < 0 || p.CacheRead < 0))
+                throw new InvalidOperationException(: {Id} has a negative price");
+            return new(Id, string.IsNullOrWhiteSpace(Name) ? Model : Name, provider, Model)
             {
                 Roles = Roles,
                 MaxOutputTokens = MaxOutputTokens,
@@ -164,10 +169,12 @@ public static class ChatClientsExtensions
 {
     /// <summary>
     /// The chats' models (<see cref="ChatClients"/>), and their HTTP clients: no timeout of their own (the hosts' decide), their
-    /// connections renewed every few minutes so a moved server is found again.
+    /// connections renewed every few minutes so a moved server is found again. The models are checked here, as the app starts
+    /// (<see cref="ChatModels.From"/>): a mistake in them stops it, rather than every chat, and the Discord bot, when first asked.
     /// </summary>
-    public static IServiceCollection AddChatModels(this IServiceCollection services)
+    public static IServiceCollection AddChatModels(this IServiceCollection services, IConfiguration configuration)
     {
+        ChatModels.From(configuration);
         foreach (var name in new[] { ChatClients.OllamaHttpClient, ChatClients.AnthropicHttpClient })
         {
             services.AddHttpClient(name, client => client.Timeout = System.Threading.Timeout.InfiniteTimeSpan)

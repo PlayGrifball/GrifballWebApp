@@ -104,6 +104,8 @@ public class UserMergeService : IUserMergeService
         // matched players (and their votes) with it, or fail on the reschedules' restricted foreign keys.
         await TransferMatchmaking(mergeTo, mergeFrom, ct);
         await TransferReschedules(mergeToId, mergeFromId, ct);
+        // The chat's spend and chosen model always move: they have no foreign key, so deleting the source would leave them behind
+        await TransferChat(mergeToId, mergeFromId, ct);
         // Recorded games are what the player played, whichever account: they always move (their user key is restricted)
         foreach (var game in await _context.RecordedGames.Where(g => g.Participants.Any(p => p.UserID == mergeFromId)).Include(g => g.Participants).ToListAsync(ct))
             game.ReassignPlayer(mergeFromId, mergeToId);
@@ -420,6 +422,33 @@ public class UserMergeService : IUserMergeService
         var queued = await _context.QueuedPlayer.FirstOrDefaultAsync(QueuedPlayer.Of(mergeFrom.Id), ct);
         if (queued is not null)
             _context.QueuedPlayer.Remove(queued);
+    }
+
+    /// <summary>
+    /// The source's chat spend joins the target's, month by month (<see cref="ChatMonth.TakeFrom"/>), so the target's monthly limit
+    /// counts it; the source's chosen model is the target's when the target chose none.
+    /// </summary>
+    private async Task TransferChat(int mergeToId, int mergeFromId, CancellationToken ct)
+    {
+        var months = await _context.ChatMonths.Where(m => m.UserID == mergeFromId || m.UserID == mergeToId).ToListAsync(ct);
+        foreach (var from in months.Where(m => m.UserID == mergeFromId))
+        {
+            var to = months.FirstOrDefault(m => m.UserID == mergeToId && m.Month == from.Month);
+            if (to is null)
+            {
+                to = ChatMonth.Begin(mergeToId, from.Month);
+                _context.ChatMonths.Add(to);
+            }
+            to.TakeFrom(from);
+            _context.ChatMonths.Remove(from);
+        }
+
+        var choices = await _context.ChatChoices.Where(c => c.UserID == mergeFromId || c.UserID == mergeToId).ToListAsync(ct);
+        if (choices.FirstOrDefault(c => c.UserID == mergeFromId) is not { } chosen)
+            return;
+        if (choices.All(c => c.UserID != mergeToId))
+            _context.ChatChoices.Add(ChatChoice.Make(mergeToId, chosen.Model));
+        _context.ChatChoices.Remove(chosen);
     }
 
     /// <summary>Reschedule requests the source made or decided are the target's (both foreign keys are restricted).</summary>

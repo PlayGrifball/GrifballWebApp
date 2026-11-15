@@ -252,16 +252,19 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
         if (slot is null)
             throw new ChatRefusedException(limited!);
         ChatModelOption answering;
+        decimal? budget = null;
         try
         {
             answering = await ModelForAsync(caller, host, model, cancellationToken);
             if (answering.Price is not null)
             {
-                // A paid model is for a signed-in user's roles: they pay for it from their month
+                // A paid model is for a signed-in user's roles: they pay for it from their month, and the reply may spend what is left
                 if (caller.UserID is not { } userId)
                     throw new ChatRefusedException(NotYours);
-                if ((await Accounts.MonthAsync(userId, cancellationToken)).Reached(limits.MonthlyLimit))
+                var month = await Accounts.MonthAsync(userId, cancellationToken);
+                if (month.Reached(limits.MonthlyLimit))
                     throw new ChatRefusedException(ChatLimits.MonthlyLimitReached);
+                budget = month.Remaining(limits.MonthlyLimit);
             }
         }
         catch
@@ -271,7 +274,7 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
             throw;
         }
         return new ChatReply(Model, Scopes, Conversation(history, question), caller with { InPublic = host.InPublic }, host, slot, answering, Accounts,
-            cancellationToken);
+            budget, cancellationToken);
     }
 }
 
@@ -286,18 +289,23 @@ public sealed class ChatReply : IDisposable
     private readonly IDisposable _slot;
     private readonly CancellationTokenRegistration _freedWhenStopped;
 
+    /// <summary>What is left of the caller's month for a paid reply (US dollars); null for a free one.</summary>
+    private readonly decimal? _budget;
+
     internal ChatReply(ChatModel pipelines, IServiceScopeFactory scopes, List<ChatMessage> conversation, ToolCaller caller, ChatHost host, IDisposable slot,
-        ChatModelOption model, ChatAccounts accounts, CancellationToken stopped)
+        ChatModelOption model, ChatAccounts accounts, decimal? budget, CancellationToken stopped)
     {
         _pipelines = pipelines;
         Model = model;
         Accounts = accounts;
+        _budget = budget;
         _scopes = scopes;
         _conversation = conversation;
         _caller = caller;
         _host = host;
         _slot = slot;
-        _freedWhenStopped = stopped.Register(slot.Dispose);
+        // A paid reply frees it only once its cost is saved: the next question's limit sees it
+        _freedWhenStopped = model.Price is null ? stopped.Register(slot.Dispose) : default;
     }
 
     /// <summary>What the model is sent: the history's last messages, cut to their limit, then the question.</summary>
@@ -322,10 +330,10 @@ public sealed class ChatReply : IDisposable
     /// </summary>
     public async IAsyncEnumerable<string> StreamAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        using var freed = cancellationToken.Register(_slot.Dispose);
+        using var freed = Model.Price is null ? cancellationToken.Register(_slot.Dispose) : default;
         var usage = new UsageDetails();
-        // Whether the latest call's usage is in (Anthropic's comes as the call ends), and what was written since
-        var reported = false;
+        // Whether a call is under way whose usage isn't in yet (Anthropic's comes as the call ends), and what it wrote so far
+        var pending = false;
         long lastInput = 0;
         long writtenSince = 0;
         try
@@ -349,14 +357,17 @@ public sealed class ChatReply : IDisposable
                 }
                 if (used.Count > 0)
                 {
-                    reported = true;
+                    pending = false;
                     writtenSince = 0;
+                    // The month's limit reached within the reply: no next call
+                    if (Model.Price is { } price && _budget is { } budget && price.CostMicros(usage) >= budget * 1_000_000m)
+                        throw new ChatRefusedException(ChatLimits.MonthlyLimitReached);
                 }
-                else if (updates.Current.Contents.Count > 0)
+                else if (updates.Current.Contents.Any(c => c is not FunctionResultContent))
                 {
-                    // Anything else is the latest call's (or a tool's result, before the next call): not reported yet
-                    reported = false;
-                    writtenSince += updates.Current.Text.Length;
+                    // The model's own (a tool's result is ours, before the next call): its call is under way
+                    pending = true;
+                    writtenSince += Written(updates.Current.Contents);
                 }
                 yield return updates.Current.Text;
             }
@@ -371,7 +382,7 @@ public sealed class ChatReply : IDisposable
                 // What it cost so far, whether it finished or not: not canceled with the asker, it was spent all the same
                 if (Model.Price is { } price && _caller.UserID is { } payer)
                 {
-                    if (!reported)
+                    if (pending)
                         usage.Add(Estimate(lastInput, writtenSince));
                     await Accounts.TryRecordAsync(payer, price.CostMicros(usage), usage.InputTokenCount ?? 0, usage.OutputTokenCount ?? 0);
                 }
@@ -396,6 +407,15 @@ public sealed class ChatReply : IDisposable
         var sent = (GrifChat.Instructions(_host).Length + _conversation.Sum(m => (long)m.Text.Length)) / CharactersPerToken;
         return new UsageDetails { InputTokenCount = Math.Max(sent, lastInput), OutputTokenCount = written / CharactersPerToken };
     }
+
+    /// <summary>The characters a model wrote in <paramref name="contents"/>: its text, its thinking and its tool calls' arguments.</summary>
+    private static long Written(IEnumerable<AIContent> contents) => contents.Sum(c => c switch
+    {
+        TextContent text => (long)text.Text.Length,
+        TextReasoningContent thinking => thinking.Text.Length,
+        FunctionCallContent call => call.Name.Length + (call.Arguments?.Sum(a => a.Key.Length + (a.Value?.ToString()?.Length ?? 0)) ?? 0),
+        _ => 0,
+    });
 
     /// <summary>The next update, if any; the host's timeout as <see cref="GrifChat.TookTooLong"/>.</summary>
     private static async Task<bool> NextAsync(IAsyncEnumerator<ChatResponseUpdate> updates, CancellationTokenSource timeout, CancellationToken asker)

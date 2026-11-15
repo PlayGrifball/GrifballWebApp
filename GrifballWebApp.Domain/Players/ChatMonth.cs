@@ -53,6 +53,22 @@ public class ChatMonth
         Version++;
     }
 
+    /// <summary>
+    /// Another account's spend in the same month added to this one's (a merge: the target's limit counts what the source spent).
+    /// Refuses another month.
+    /// </summary>
+    public void TakeFrom(ChatMonth other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        if (other.Month != Month)
+            throw new ArgumentException($"{other.Month} is not {Month}", nameof(other));
+        CostMicros += other.CostMicros;
+        InputTokens += other.InputTokens;
+        OutputTokens += other.OutputTokens;
+        Replies += other.Replies;
+        Version++;
+    }
+
     /// <summary>Whether the month's spend is at <paramref name="limit"/> (US dollars) or over: no more paid replies this month.</summary>
     public bool Reached(decimal limit) => Spent >= limit;
 

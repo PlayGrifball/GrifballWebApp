@@ -77,6 +77,8 @@ public class ChatMonthAggregateTests
             Assert.That(month.Reached(10m), Is.False);
             month.Record(1, 0, 0);
             Assert.That(month.Reached(10m), Is.True, "At the limit: no more");
+            Assert.That(month.Remaining(10m), Is.Zero);
+            Assert.That(ChatMonth.Begin(7, new DateOnly(2026, 11, 1)).Remaining(10m), Is.EqualTo(10m));
         }
     }
 

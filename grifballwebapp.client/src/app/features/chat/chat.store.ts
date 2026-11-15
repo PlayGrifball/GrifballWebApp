@@ -176,6 +176,8 @@ export class ChatStore {
       return;
     this.answer?.dispose();
     this.done();
+    // A paid answer stopped is charged what it used so far: its spend, as the server has it by now
+    this.loadSpend(this.connection!);
   }
 
   /** A new conversation: the answer on its way stopped, and the questions and answers so far gone. */

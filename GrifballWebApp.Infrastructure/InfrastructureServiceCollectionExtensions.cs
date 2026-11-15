@@ -190,7 +190,7 @@ public static class InfrastructureServiceCollectionExtensions
             services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
         // The chats' models (GrifChat): Ollama's and Claude's, one factory for both (ChatClients). Another provider is another
         // ChatProvider there, not another IChatClientFactory here: a second registration would replace it
-        services.AddChatModels();
+        services.AddChatModels(configuration);
         return services;
     }
 
