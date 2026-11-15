@@ -204,6 +204,9 @@ backend:
   # ClientConfiguration:ClientSecret: InfiniteClientSecret
   # ClientConfiguration:RedirectUrl: InfiniteRedirectUrl
   # BaseUrl: { secretName: grif-urls, key: BaseUrl }
+  # Claude for the chats (sysadmins only, Chat:Models' defaults), with an Anthropic API key. The backend's HTTPS
+  # egress (networkPolicy.backend.httpsTo) already reaches Anthropic's API.
+  # Anthropic:ApiKey: { secretName: grif-anthropic, key: api-key }
 
   # Halo Infinite (docs/development-setup.md, "Halo Infinite"). Gateway: every Halo call goes through the Halo
   # gateway (PlayGrifball/grunt), which holds the one signed-in Halo account, with this release's API key.

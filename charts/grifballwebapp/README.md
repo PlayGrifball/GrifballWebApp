@@ -589,6 +589,15 @@ workers and grif-discord get its server (`Ollama:Url`) and model (`Ollama:Model`
 
 Not both. With neither, the pods get no `Ollama:Url`, and both chats answer that the chat is unavailable.
 
+**Claude** (`backend.secretConfig` `Anthropic:ApiKey`, from a Secret): with a key, the chats also offer Claude Haiku, Sonnet
+and Opus 5.5, to sysadmins only, before the Ollama model (so Haiku is a sysadmin's default). A user picks a model on the
+chat page, and their choice holds in their Discord DMs too; a Discord channel always uses the model anyone may use. Each
+user's spend on Claude is counted a month and stopped at `Chat:MonthlyLimit` (`backend.config`, 10 US dollars by
+default). `Chat:Models` (`backend.config`) replaces the list: each model's `Id`, `Name`, `Provider` (`Ollama` or
+`Anthropic`), `Model`, `Roles` (none: anyone) and `Price` (US dollars per million tokens: `Input`, `Output`, `CacheWrite`,
+`CacheRead`; none: free), in order. The backend's HTTPS egress (`networkPolicy.backend.httpsTo`) already reaches
+Anthropic's API.
+
 ## Metrics
 
 `sqlExporter.enabled` runs [sql_exporter](https://github.com/burningalchemist/sql_exporter) against the database (the
