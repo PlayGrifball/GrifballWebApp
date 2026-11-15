@@ -80,6 +80,7 @@ public class ChatClientsUnitTests
                 Is.All.EqualTo((ChatProvider.Anthropic, SiteRoles.Sysadmin, true)));
             Assert.That(clients.Models.Take(3).Select(m => m.Model), Is.EqualTo(ClaudeModels));
             Assert.That(clients.Create(clients.Models[0]).GetService<IAnthropicClient>(), Is.Not.Null, "Anthropic's own client");
+            Assert.That(clients.Create(clients.Models[0]).GetService<AnthropicSpendLimit>(), Is.Not.Null, "Its spend limits said as the chat's refusal");
             Assert.That(clients.Create(clients.Models[0]).GetService<FunctionInvokingChatClient>(), Is.Null);
         }
     }
