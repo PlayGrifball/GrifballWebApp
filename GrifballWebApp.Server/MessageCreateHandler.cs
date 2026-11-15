@@ -93,7 +93,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         var direct = message.GuildId is null;
         var host = direct ? ChatHost.DiscordDirect : ChatHost.Discord;
         var saveTo = direct ? null : context;
-        var history = direct ? await DirectHistoryAsync(message) : await ChatHistoryAsync(context, message, UserId, BotID);
+        var history = direct ? await DirectHistoryAsync(message) : await ChatHistoryAsync(context, UserId, BotID);
 
         // The tools, as the author: their linked site account and its roles, or no account (every tool not about "you").
         // Each tool call runs in a scope of its own: this scope's context saves the streamed reply meanwhile
@@ -108,11 +108,14 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         }
         catch (ChatRefusedException refused)
         {
+            // Neither the question nor why is kept: the model never had it (a DM's are left out of its history, GrifChat.WithoutRefusals)
             await message.ReplyAsync(refused.Message);
             return;
         }
         using (reply)
         {
+            if (saveTo is not null)
+                await SaveQuestionAsync(saveTo, message, UserId, BotID);
             await AnswerAsync(message, reply, saveTo, UserId, BotID);
         }
     }
@@ -170,8 +173,8 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         }
     }
 
-    /// <summary>The conversation before the new message (its last <see cref="GrifChat.HistoryLimit"/> messages), oldest first; the new message saved.</summary>
-    private static async Task<List<ChatMessage>> ChatHistoryAsync(GrifballContext context, Message message, long UserId, long BotID)
+    /// <summary>The channels' conversation before the new message (its last <see cref="GrifChat.HistoryLimit"/> messages), oldest first.</summary>
+    private static async Task<List<ChatMessage>> ChatHistoryAsync(GrifballContext context, long UserId, long BotID)
     {
         var messages = await context.DiscordMessages
             .Where(x => (x.ToDiscordUserId == UserId && x.FromDiscordUserId == BotID) ||
@@ -180,6 +183,15 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
             .Take(GrifChat.HistoryLimit)
             .ToListAsync();
 
+        return messages
+            .OrderBy(x => x.Timestamp) // Order oldest to newest
+            .Select(x => new ChatMessage(x.FromDiscordUserId == BotID ? ChatRole.Assistant : ChatRole.User, x.Content))
+            .ToList();
+    }
+
+    /// <summary>A question the chat took, kept for the channels' conversation.</summary>
+    private static async Task SaveQuestionAsync(GrifballContext context, Message message, long UserId, long BotID)
+    {
         var newMessage = new DiscordMessage()
         {
             Id = (long)message.Id,
@@ -190,11 +202,6 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         };
         context.DiscordMessages.Add(newMessage);
         await context.SaveChangesAsync();
-
-        return messages
-            .OrderBy(x => x.Timestamp) // Order oldest to newest
-            .Select(x => new ChatMessage(x.FromDiscordUserId == BotID ? ChatRole.Assistant : ChatRole.User, x.Content))
-            .ToList();
     }
 
     /// <summary>

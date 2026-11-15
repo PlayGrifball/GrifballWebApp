@@ -11,15 +11,26 @@ namespace GrifballWebApp.Application.Chat;
 /// How much of the one model each asker may have, whatever the host (the site, a Discord channel or DM): one reply at a time,
 /// and <see cref="SignedInPerMinute"/> questions a minute for a site user, <see cref="OthersPerMinute"/> for anyone else (a
 /// Discord user with no linked account, an address signed out). An asker is the site user when there is one, so their questions
-/// count alike on the site and in Discord (<see cref="Asker"/>). Each process counts its own.
+/// count alike on the site and in Discord (<see cref="Asker"/>). And at most <see cref="MaxReplies"/> replies under way at all
+/// (Chat:MaxReplies, 1 by default: the model answers one at a time, OLLAMA_NUM_PARALLEL): a question beyond them is refused at once
+/// (<see cref="Full"/>), rather than wait behind the others until its time is up. Each process counts its own.
 /// </summary>
-public sealed class ChatLimits : IDisposable
+public sealed class ChatLimits(int maxReplies = 1) : IDisposable
 {
+    /// <summary>The setting for <see cref="MaxReplies"/>.</summary>
+    public const string MaxRepliesKey = "Chat:MaxReplies";
     public const int SignedInPerMinute = 10;
     public const int OthersPerMinute = 5;
 
     public const string Busy = "Wait for the answer to your last question first.";
     public const string TooMany = "That's a lot of questions: wait a minute, then ask again.";
+    public const string Full = "The chat is busy answering someone else: try again shortly.";
+
+    /// <summary>How many replies may be under way at once, every asker's together.</summary>
+    public int MaxReplies { get; } = Math.Max(1, maxReplies);
+
+    /// <summary>The replies under way.</summary>
+    private int _replies;
 
     private const string UserPrefix = "user:";
 
@@ -59,14 +70,19 @@ public sealed class ChatLimits : IDisposable
     }
 
     /// <summary>
-    /// A reply for <paramref name="asker"/>: its slot, held until disposed, or why not (a reply already under way for them, or their
-    /// questions this minute used up).
+    /// A reply for <paramref name="asker"/>: its slot, held until disposed, or why not (a reply already under way for them, the
+    /// replies under way at their most, or their questions this minute used up: a question refused for the others uses none).
     /// </summary>
     public (IDisposable? Slot, string? Refusal) TryStart(string asker)
     {
         var slot = new Slot(this, asker);
         if (!_replying.TryAdd(asker, slot))
             return (null, Busy);
+        if (Interlocked.Increment(ref _replies) > MaxReplies)
+        {
+            slot.Dispose();
+            return (null, Full);
+        }
         using var lease = _questions.AttemptAcquire(asker);
         if (lease.IsAcquired)
             return (slot, null);
@@ -76,9 +92,20 @@ public sealed class ChatLimits : IDisposable
 
     public void Dispose() => _questions.Dispose();
 
-    /// <summary>A reply's hold on its asker's one slot: disposed (more than once is fine), it frees that slot and no later one.</summary>
+    /// <summary>
+    /// A reply's hold on its asker's one slot and on one of the replies under way (taken as soon as the slot is): disposed (more than
+    /// once is fine), it frees both, and no later reply's.
+    /// </summary>
     private sealed class Slot(ChatLimits limits, string asker) : IDisposable
     {
-        public void Dispose() => limits._replying.TryRemove(KeyValuePair.Create(asker, this));
+        private int _disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 1)
+                return;
+            limits._replying.TryRemove(KeyValuePair.Create(asker, this));
+            Interlocked.Decrement(ref limits._replies);
+        }
     }
 }

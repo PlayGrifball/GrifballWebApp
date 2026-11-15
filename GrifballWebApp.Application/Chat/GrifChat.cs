@@ -70,6 +70,39 @@ public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory sc
     /// <summary>What a host says for a conversation it can't read (a message missing).</summary>
     public const string Unreadable = "That conversation can't be read: start a new one.";
 
+    /// <summary>What a host says for no question.</summary>
+    public const string NoQuestion = "Ask a question.";
+
+    /// <summary>What a host says for a question over <see cref="MaxQuestionLength"/>.</summary>
+    public static readonly string TooLong = $"Ask in {MaxQuestionLength} characters or fewer.";
+
+    /// <summary>What the chat says in place of an answer to a question it never asked the model.</summary>
+    private static readonly string[] Refused = [Unavailable, Unreadable, NoQuestion, TooLong, ChatLimits.Busy, ChatLimits.TooMany, ChatLimits.Full];
+
+    /// <summary>Whether <paramref name="text"/> is a refusal the chat gave in place of an answer, or of the rest of one.</summary>
+    public static bool IsRefusal(string text) => text == TookTooLong || Refused.Contains(text);
+
+    /// <summary>
+    /// <paramref name="history"/> without what the chat said in place of answers (where a host keeps them: a Discord DM is the channel
+    /// itself), nor the questions it refused: neither is any part of the conversation the model had.
+    /// </summary>
+    public static List<ChatMessage> WithoutRefusals(IEnumerable<ChatMessage> history)
+    {
+        var kept = new List<ChatMessage>();
+        foreach (var message in history)
+        {
+            if (message.Role != ChatRole.Assistant || !IsRefusal(message.Text))
+            {
+                kept.Add(message);
+                continue;
+            }
+            // A question refused never reached the model; one that took too long did, and its answer so far stays
+            if (message.Text != TookTooLong && kept.Count > 0 && kept[^1].Role == ChatRole.User)
+                kept.RemoveAt(kept.Count - 1);
+        }
+        return kept;
+    }
+
     /// <summary>Whether there is a model to ask: none configured, and a host says <see cref="Unavailable"/> instead.</summary>
     public bool Available => Clients.Available;
 
@@ -97,11 +130,11 @@ public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory sc
         => string.Join('\n', Shared.Prepend(host.About).Concat(host.InPublic ? Array.Empty<string>() : PrivateLines).Append(host.More));
 
     /// <summary>
-    /// What the model is sent: the last <see cref="HistoryLimit"/> messages of <paramref name="history"/> (oldest first), each cut
-    /// to <see cref="MaxHistoryMessageLength"/>, then <paramref name="question"/>.
+    /// What the model is sent: the last <see cref="HistoryLimit"/> messages of <paramref name="history"/> (oldest first,
+    /// <see cref="WithoutRefusals"/>), each cut to <see cref="MaxHistoryMessageLength"/>, then <paramref name="question"/>.
     /// </summary>
     public static List<ChatMessage> Conversation(IEnumerable<ChatMessage> history, string question)
-        => history
+        => WithoutRefusals(history)
             .TakeLast(HistoryLimit)
             .Select(m => m.Text.Length > MaxHistoryMessageLength ? new ChatMessage(m.Role, m.Text[..MaxHistoryMessageLength]) : m)
             .Append(new ChatMessage(ChatRole.User, question))
@@ -115,9 +148,9 @@ public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory sc
     public static string? Refusal(string? question)
     {
         if (string.IsNullOrWhiteSpace(question))
-            return "Ask a question.";
+            return NoQuestion;
         if (question.Length > MaxQuestionLength)
-            return $"Ask in {MaxQuestionLength} characters or fewer.";
+            return TooLong;
         return null;
     }
 
@@ -125,8 +158,10 @@ public sealed class GrifChat(IChatClientFactory clients, IServiceScopeFactory sc
     /// Why a question to the site's chat can't be asked: its question's <see cref="Refusal(string)"/>, or a history it can't read
     /// (none, or a message missing: JSON's null passes for a required property); null when it can.
     /// </summary>
-    public static string? Refusal(ChatRequestDto request)
+    public static string? Refusal(ChatRequestDto? request)
     {
+        if (request is null)
+            return Unreadable;
         // The browser's JSON can hold nulls the types don't allow
         IEnumerable<ChatTurnDto?>? history = request.History;
         if (history is null || history.Any(t => t?.Text is null))
@@ -200,6 +235,9 @@ public sealed class ChatReply : IDisposable
             await using var updates = client.GetStreamingResponseAsync(_conversation, options, timeout.Token).GetAsyncEnumerator(timeout.Token);
             while (await NextAsync(updates, timeout, cancellationToken))
                 yield return updates.Current.Text;
+            // A provider may end its stream quietly when canceled: past the timeout, that is no whole answer either
+            if (timeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                throw new ChatRefusedException(GrifChat.TookTooLong);
         }
         finally
         {

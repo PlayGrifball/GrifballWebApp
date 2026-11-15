@@ -7,6 +7,9 @@ namespace GrifballWebApp.Application.Identity;
 /// </summary>
 public interface IUserSessions
 {
-    /// <summary>Closes every live connection of <paramref name="userIds"/>, wherever it is: they connect again as they are now.</summary>
-    Task EndAsync(IReadOnlyCollection<int> userIds, CancellationToken ct = default);
+    /// <summary>
+    /// Closes every live connection of <paramref name="userIds"/>, wherever it is: they connect again as they are now. Never waits on
+    /// anything but this process (a save calls it): the other processes are told in the background.
+    /// </summary>
+    void End(IReadOnlyCollection<int> userIds);
 }

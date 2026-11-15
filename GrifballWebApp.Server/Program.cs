@@ -151,13 +151,18 @@ public class Program
         // Scaled out (ConnectionStrings:Redis): every process's hub messages reach every API pod's browsers.
         .AddAppBackplane(builder.Configuration);
         // The hubs' users as they are now, and their connections ended on every pod when their sign-in or roles change
-        // (HubSessions.cs): before AddGrifballDatabase, whose interceptor calls IUserSessions
+        // (HubSessions.cs). IUserSessions once, here, for every role: a worker's save tells the API pods too. AddGrifballDatabase
+        // only adds its own (none) when nothing has (TryAdd), and runs after this.
         builder.Services.AddScoped<HubUser>();
         builder.Services.AddScoped<HubSessionValidator>();
         builder.Services.AddSingleton<HubConnections>();
         builder.Services.AddSingleton<GrifballWebApp.Application.Identity.IUserSessions, HubUserSessions>();
-        builder.Services.AddHostedService<HubUserSessionsListener>();
-        builder.Services.AddHostedService<HubSessionSweep>();
+        // Where the hubs are: the API role's processes alone hold connections to end
+        if (role.ServesApi)
+        {
+            builder.Services.AddHostedService<HubUserSessionsListener>();
+            builder.Services.AddHostedService<HubSessionSweep>();
+        }
 
         // Cookie sessions must send the antiforgery token with every change (CookieAntiforgeryFilter).
         builder.Services.AddAntiforgery(BrowserAuth.ConfigureAntiforgery);

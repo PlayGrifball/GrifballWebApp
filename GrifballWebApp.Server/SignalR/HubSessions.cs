@@ -5,10 +5,13 @@ using System.Security.Claims;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Tools;
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Infrastructure.Redis;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace GrifballWebApp.Server.SignalR;
@@ -42,7 +45,7 @@ public sealed class HubUser
 /// A connection's claims checked against the database: still that user, still signed in (the security stamp the claims carry is
 /// still theirs: a sign-out, a new password or a sysadmin's change of it ends it), not locked out, and their roles now.
 /// </summary>
-public class HubSessionValidator(SignInManager<User> signIn)
+public class HubSessionValidator(SignInManager<User> signIn, GrifballContext context, IOptions<IdentityOptions> identity, TimeProvider time)
 {
     /// <summary>The user now: <see cref="HubUserState.Anonymous"/> for a connection signed out, null for one whose session has ended.</summary>
     public virtual async Task<HubUserState?> CurrentAsync(ClaimsPrincipal? principal)
@@ -54,6 +57,38 @@ public class HubSessionValidator(SignInManager<User> signIn)
             return null;
         return new HubUserState(user.Id, [.. await signIn.UserManager.GetRolesAsync(user)]);
     }
+
+    /// <summary>
+    /// What <see cref="CurrentAsync(ClaimsPrincipal?)"/> finds for each of <paramref name="principals"/>, in order, read in two
+    /// queries for all their users together (the sweep's): the stamp, the lockout and the roles, as Identity checks them.
+    /// </summary>
+    public virtual async Task<IReadOnlyList<HubUserState?>> CurrentAsync(IReadOnlyList<ClaimsPrincipal> principals)
+    {
+        var ids = principals.Select(UserIdOf).OfType<int>().Distinct().ToList();
+        var users = await context.Users.AsNoTracking()
+            .Where(u => ids.Contains(u.Id))
+            .Select(u => new { u.Id, u.SecurityStamp, u.LockoutEnabled, u.LockoutEnd })
+            .ToDictionaryAsync(u => u.Id);
+        var roles = (await context.UserRoles.AsNoTracking()
+                .Where(ur => ids.Contains(ur.UserId))
+                .Join(context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
+                .ToListAsync())
+            .ToLookup(r => r.UserId, r => r.Name!);
+        var now = time.GetUtcNow();
+        return principals.Select(principal =>
+        {
+            if (principal.Identity?.IsAuthenticated != true)
+                return HubUserState.Anonymous;
+            if (UserIdOf(principal) is not { } id || !users.TryGetValue(id, out var user)
+                || user.SecurityStamp != principal.FindFirstValue(identity.Value.ClaimsIdentity.SecurityStampClaimType)
+                || (user.LockoutEnabled && user.LockoutEnd > now))
+                return null;
+            return new HubUserState(id, [.. roles[id]]);
+        }).ToList();
+    }
+
+    private int? UserIdOf(ClaimsPrincipal principal)
+        => int.TryParse(principal.FindFirstValue(identity.Value.ClaimsIdentity.UserIdClaimType), NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) ? id : null;
 }
 
 /// <summary>This process's open hub connections (every hub's), each with its user as they were when it connected.</summary>
@@ -103,7 +138,16 @@ public sealed class HubSessionFilter(HubConnections connections) : IHubFilter
         var user = await Current(context.ServiceProvider, context.Context.User) ?? throw new HubException(SessionEnded);
         context.ServiceProvider.GetRequiredService<HubUser>().Set(user);
         connections.Add(context.Context, user);
-        await next(context);
+        try
+        {
+            await next(context);
+        }
+        catch
+        {
+            // The hub refused it (or failed): no connection, and OnDisconnectedAsync may never come
+            connections.Remove(context.Context.ConnectionId);
+            throw;
+        }
     }
 
     public Task OnDisconnectedAsync(HubLifetimeContext context, Exception? exception, Func<HubLifetimeContext, Exception?, Task> next)
@@ -115,7 +159,7 @@ public sealed class HubSessionFilter(HubConnections connections) : IHubFilter
     public async ValueTask<object?> InvokeMethodAsync(HubInvocationContext invocationContext, Func<HubInvocationContext, ValueTask<object?>> next)
     {
         var user = await Current(invocationContext.ServiceProvider, invocationContext.Context.User);
-        var refusal = Refusal(user, connections.Find(invocationContext.Context.ConnectionId)?.User, invocationContext.HubMethod, invocationContext.Hub.GetType());
+        var refusal = await RefusalAsync(user, connections.Find(invocationContext.Context.ConnectionId)?.User, invocationContext);
         if (refusal is not null)
         {
             invocationContext.Context.Abort();
@@ -130,22 +174,48 @@ public sealed class HubSessionFilter(HubConnections connections) : IHubFilter
 
     /// <summary>
     /// Why a call is refused, its connection closed: the session ended, the roles changed since it connected (its groups were
-    /// the old roles'), or the method's roles aren't the user's now; null when it may go ahead.
+    /// the old roles'), or the method's authorization (<see cref="AllowsAsync"/>) refuses the user as they are now; null when it may go
+    /// ahead.
     /// </summary>
-    public static string? Refusal(HubUserState? now, HubUserState? connected, MethodInfo method, Type hub)
+    public static async Task<string?> RefusalAsync(HubUserState? now, HubUserState? connected, HubInvocationContext invocationContext)
     {
         if (now is null)
             return SessionEnded;
         if (connected is not null && !connected.SameAs(now))
             return RolesChanged;
-        return Allows(method, hub, now) ? null : NotAllowed;
+        return await AllowsAsync(invocationContext.ServiceProvider, invocationContext.HubMethod, invocationContext.Hub.GetType(), invocationContext.Context.User, now)
+            ? null
+            : NotAllowed;
     }
 
-    /// <summary>Whether <paramref name="user"/> passes every <c>[Authorize]</c> on the method and its hub, with their roles now.</summary>
-    public static bool Allows(MethodInfo method, Type hub, HubUserState user)
-        => method.GetCustomAttributes<AuthorizeAttribute>(true).Concat(hub.GetCustomAttributes<AuthorizeAttribute>(true))
-            .All(a => user.UserId is not null && (string.IsNullOrWhiteSpace(a.Roles)
-                || a.Roles.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Any(user.Roles.Contains)));
+    /// <summary>
+    /// Whether the method's and its hub's authorization (<c>[Authorize]</c>: roles, policies, a signed-in user; <c>[AllowAnonymous]</c>
+    /// on the method lets anyone) allows <paramref name="user"/> as the database has them now, through ASP.NET Core's own authorization:
+    /// the connection's claims with the roles they hold now.
+    /// </summary>
+    public static async Task<bool> AllowsAsync(IServiceProvider services, MethodInfo method, Type hub, ClaimsPrincipal? claims, HubUserState user)
+    {
+        if (method.GetCustomAttributes(true).OfType<IAllowAnonymous>().Any())
+            return true;
+        var data = hub.GetCustomAttributes(true).OfType<IAuthorizeData>().Concat(method.GetCustomAttributes(true).OfType<IAuthorizeData>()).ToList();
+        if (data.Count == 0)
+            return true;
+        var policy = await AuthorizationPolicy.CombineAsync(services.GetRequiredService<IAuthorizationPolicyProvider>(), data);
+        if (policy is null)
+            return true;
+        var result = await services.GetRequiredService<IAuthorizationService>().AuthorizeAsync(AsNow(claims, user), policy);
+        return result.Succeeded;
+    }
+
+    /// <summary>The connection's user as they are now: their claims, but their roles the database's; signed out, no one.</summary>
+    public static ClaimsPrincipal AsNow(ClaimsPrincipal? claims, HubUserState user)
+    {
+        if (user.UserId is null || claims?.Identity is not ClaimsIdentity identity)
+            return new ClaimsPrincipal(new ClaimsIdentity());
+        var kept = claims.Claims.Where(c => c.Type != identity.RoleClaimType);
+        return new ClaimsPrincipal(new ClaimsIdentity(kept.Concat(user.Roles.Select(r => new Claim(identity.RoleClaimType, r))),
+            identity.AuthenticationType, identity.NameClaimType, identity.RoleClaimType));
+    }
 }
 
 /// <summary>
@@ -159,19 +229,26 @@ public sealed class HubUserSessions(HubConnections connections, ILogger<HubUserS
     /// <summary>The channel (under the app's prefix) the users whose sessions ended are published on.</summary>
     public static readonly RedisChannel Channel = RedisChannel.Literal("user-sessions-ended");
 
-    public async Task EndAsync(IReadOnlyCollection<int> userIds, CancellationToken ct = default)
+    public void End(IReadOnlyCollection<int> userIds)
     {
         connections.End(userIds);
-        if (redis is null || userIds.Count == 0)
-            return;
+        if (redis is not null && userIds.Count > 0)
+            Published = Task.Run(() => PublishAsync([.. userIds]));
+    }
+
+    /// <summary>The last publication started (tests wait on it); it never faults.</summary>
+    public Task Published { get; private set; } = Task.CompletedTask;
+
+    /// <summary>The users published for the other processes: in the background, a failure logged (their sweep still ends them).</summary>
+    private async Task PublishAsync(IReadOnlyCollection<int> userIds)
+    {
         try
         {
-            var connection = await redis.ConnectAsync();
+            var connection = await redis!.ConnectAsync();
             await connection.GetSubscriber().PublishAsync(Channel, Format(userIds));
         }
         catch (Exception e)
         {
-            // The other processes' sweep (HubSessionSweep) still ends them
             logger.LogWarning(e, "Could not tell the other processes to end the hub connections of users {UserIds}", userIds);
         }
     }
@@ -227,12 +304,16 @@ public sealed class HubSessionSweep(HubConnections connections, IServiceScopeFac
     /// <summary>Closes the connections whose user is no longer as they connected; how many.</summary>
     public async Task<int> SweepAsync()
     {
+        var signedIn = connections.SignedIn();
+        if (signedIn.Count == 0)
+            return 0;
+        await using var scope = scopes.CreateAsyncScope();
+        // Every connection's user at once: two queries, however many connections
+        var now = await scope.ServiceProvider.GetRequiredService<HubSessionValidator>().CurrentAsync(signedIn.Select(c => c.Context.User!).ToList());
         var ended = 0;
-        foreach (var connection in connections.SignedIn())
+        foreach (var (connection, user) in signedIn.Zip(now))
         {
-            await using var scope = scopes.CreateAsyncScope();
-            var now = await scope.ServiceProvider.GetRequiredService<HubSessionValidator>().CurrentAsync(connection.Context.User);
-            if (now is not null && now.SameAs(connection.User))
+            if (user is not null && user.SameAs(connection.User))
                 continue;
             connection.Context.Abort();
             ended++;

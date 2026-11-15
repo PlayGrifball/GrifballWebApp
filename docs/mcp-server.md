@@ -126,9 +126,15 @@ alone. A host keeps the conversation, passes the caller and its `ChatHost`, and 
     and in Discord; else a Discord account, or a signed-out address, an IPv6 one by its /64):
     - one reply at a time; the slot is freed the moment the asker stops waiting, however long the reply takes to wind down;
     - 10 questions a minute for a site user, 5 for anyone else;
+    - at most `Chat:MaxReplies` replies under way at once, every asker's together. The default is 1, as the model answers
+      one at a time (`OLLAMA_NUM_PARALLEL=1`). A question beyond it is refused at once ("busy, try again shortly"), not left
+      to wait out its timeout;
     - counted on each process;
   - each host's timeout, 2 minutes for all of them: the one model, answering one reply at a time, can't be held.
-  A refusal is a `ChatRefusedException` the host shows.
+  A refusal is a `ChatRefusedException` the host shows. Refused questions never reach the model's history:
+  - Discord keeps no refused question;
+  - `GrifChat.WithoutRefusals` leaves the chat's refusals and the questions they refused out of any history (a DM's is the
+    channel itself).
 
 The model is `IChatClientFactory`'s, which Infrastructure registers (`OllamaChatClients`: the server at `Ollama:Url`, the
 model `Ollama:Model`, default `llama3.1:latest`). It gives only the model, so another provider is another
