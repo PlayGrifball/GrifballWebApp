@@ -598,6 +598,9 @@ is left, so the limit can be overshot by at most one reply a pod (ten model call
 `Anthropic`), `Model`, `Roles` (none: anyone) and `Price` (US dollars per million tokens: `Input`, `Output`, `CacheWrite`,
 `CacheRead`; none: free), in order. The backend's HTTPS egress (`networkPolicy.backend.httpsTo`) already reaches
 Anthropic's API.
+For a cap across every environment together, give the key a workspace of its own in Anthropic's console with a monthly
+spend limit: once Anthropic refuses for it, the chats say the paid models have used this month's budget (not that they
+couldn't answer) until it resets.
 
 ## Metrics
 

@@ -82,8 +82,14 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
     /// <summary>What a host says for a model the caller may not use there (or that isn't configured).</summary>
     public const string NotYours = "That model isn't one you can use here: choose another.";
 
+    /// <summary>
+    /// What a host says when the provider refused for a spend limit of its own (Anthropic's workspace limit, set in its console for every
+    /// environment together): the paid models are out until it resets, whatever each user has left.
+    /// </summary>
+    public const string ProviderLimitReached = "The paid models have used this month's budget: choose another model, or wait until next month.";
+
     /// <summary>What the chat says in place of an answer to a question it never asked the model.</summary>
-    private static readonly string[] Refused = [Unavailable, Unreadable, NoQuestion, TooLong, NotYours, ChatLimits.Busy, ChatLimits.TooMany, ChatLimits.Full, ChatLimits.MonthlyLimitReached];
+    private static readonly string[] Refused = [Unavailable, Unreadable, NoQuestion, TooLong, NotYours, ChatLimits.Busy, ChatLimits.TooMany, ChatLimits.Full, ChatLimits.MonthlyLimitReached, ProviderLimitReached];
 
     /// <summary>Whether <paramref name="text"/> is a refusal the chat gave in place of an answer, or of the rest of one.</summary>
     public static bool IsRefusal(string text) => text == TookTooLong || Refused.Contains(text);
