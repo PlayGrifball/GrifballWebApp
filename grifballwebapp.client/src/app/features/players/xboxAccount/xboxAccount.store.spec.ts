@@ -72,6 +72,15 @@ describe('XboxAccountStore', () => {
     request(1).flush(account({ gameCount: 30 }));
   });
 
+  it('takes a 400 for a failure, not for no such account (a malformed XUID misses the route: 404)', () => {
+    store.xuid.use(signal(XUID));
+    TestBed.tick();
+    pullStatus().flush('x', { status: 400, statusText: 'Bad Request' });
+    request().flush(null, { status: 400, statusText: 'Bad Request' });
+    expect(store.state()).toBe('error');
+    expect(store.account()).toBeNull();
+  });
+
   it('tells no such account from a failed request', () => {
     store.xuid.use(signal(XUID));
     TestBed.tick();

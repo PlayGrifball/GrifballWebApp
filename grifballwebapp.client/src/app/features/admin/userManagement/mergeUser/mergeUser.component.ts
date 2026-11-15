@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, effect, input, signal, inject } from '@angular/core';
 import { SearchBoxComponent } from '@shared/searchBox/searchBox.component';
 import { UserDetailComponent } from './userDetail/userDetail.component';
@@ -34,13 +33,9 @@ export class MergeUserComponent {
 
   mergeFromUser = this.store.fromUser;
   mergeToUser = this.store.toUser;
-  mergeFromError = this.store.fromError;
-  mergeToError = this.store.toError;
-
-  /** A lookup that failed: not a 404, which only says there is no such user (shown as "User not found."). */
-  failedToLoad(error: unknown): boolean {
-    return !!error && !(error instanceof HttpErrorResponse && error.status === 404);
-  }
+  /** A lookup failed; no such user (404) is not a failure: it shows as "User not found.". */
+  mergeFromFailed = this.store.fromFailed;
+  mergeToFailed = this.store.toFailed;
 
   transferDiscord = signal(true);
   transferLogins = signal(true);
