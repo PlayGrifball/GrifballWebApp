@@ -406,4 +406,27 @@ public partial class GrifChatUnitTests
 
         Assert.That(client.GetService<FunctionInvokingChatClient>()!.MaximumIterationsPerRequest, Is.EqualTo(ChatModel.MaxModelCalls));
     }
+
+    [Test]
+    public async Task StreamAsync_ACutShortCallsEstimate_CountsAToolCallsNameAndArguments_AndNothingElse()
+    {
+        var noInput = new ChatResponseUpdate(ChatRole.Assistant, [new UsageContent(new UsageDetails { OutputTokenCount = 0 })]);
+        // 6 + 1 + 4 + 1 characters written: the tool's name, each argument's name and value (none for a null one)
+        var call = new ChatResponseUpdate(ChatRole.Assistant,
+        [
+            new FunctionCallContent("c1", "lookup", new Dictionary<string, object?> { ["a"] = "abcd", ["b"] = null }),
+            new ErrorContent("not the model's writing"),
+        ]);
+        var chat = ChatWithModels(new FakeModel([noInput, call]) { ThenHang = true });
+        using var stop = new CancellationTokenSource();
+
+        using (var reply = await chat.StartAsync([], "Hi", Sysadmin, ChatHost.Site, Asker))
+        {
+            var streaming = All(reply.StreamAsync(stop.Token));
+            await stop.CancelAsync();
+            Assert.That(async () => await streaming, Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        Assert.That((await _db.ChatMonths.AsNoTracking().SingleAsync()).OutputTokens, Is.EqualTo(12 / ChatReply.CharactersPerToken));
+    }
 }
