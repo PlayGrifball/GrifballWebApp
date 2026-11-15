@@ -89,6 +89,11 @@ spec:
             {{- include "grif.ollamaEnv" . | nindent 12 }}
             - name: GRIF_OLLAMA_MODEL
               value: {{ $o.model | quote }}
+          # Alone before the server starts, so the same resources: limited like every other container
+          {{- with $o.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with $o.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
