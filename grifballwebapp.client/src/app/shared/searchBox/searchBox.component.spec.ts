@@ -69,8 +69,6 @@ describe('SearchBoxComponent', () => {
     componentNumber.componentRef.setInput('type', 'number');
     componentNumber.detectChanges();
     
-    const consoleSpy = spyOn(console, 'debug');
-    
     const inputElement = document.createElement('input');
     inputElement.value = 'not a number';
     const event = { target: inputElement } as unknown as Event;
@@ -78,7 +76,7 @@ describe('SearchBoxComponent', () => {
     componentNumber.componentInstance.onInput(event);
     jasmine.clock().tick(300);
     
-    expect(consoleSpy).toHaveBeenCalledWith('Search box: not a number');
+    expect(componentNumber.componentInstance.value()).toBe(0);
   });
 
   it('should debounce rapid inputs', () => {

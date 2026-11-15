@@ -244,7 +244,7 @@ describe('CommissionerDashboardComponent', () => {
       httpTestingController.expectOne('/api/reschedules/4/discord-thread').flush('x', { status: 500, statusText: 'Server Error' });
 
       httpTestingController.expectOne('/api/commissioner-dashboard').flush(empty);
-      expect(err).toHaveBeenCalledWith('Failed to create Discord thread:', jasmine.anything());
+      expect(err).toHaveBeenCalledWith('Failed to create the Discord thread', jasmine.anything());
     });
   });
 
