@@ -68,6 +68,7 @@ describe('SearchBoxComponent', () => {
     componentNumber.componentRef.setInput('value', signal(0));
     componentNumber.componentRef.setInput('type', 'number');
     componentNumber.detectChanges();
+    const before = componentNumber.componentInstance.value();
     
     const inputElement = document.createElement('input');
     inputElement.value = 'not a number';
@@ -76,7 +77,7 @@ describe('SearchBoxComponent', () => {
     componentNumber.componentInstance.onInput(event);
     jasmine.clock().tick(300);
     
-    expect(componentNumber.componentInstance.value()).toBe(0);
+    expect(componentNumber.componentInstance.value()).toBe(before);
   });
 
   it('should debounce rapid inputs', () => {
