@@ -61,7 +61,7 @@ tests:
       - equal: { path: "spec.template.spec.containers[0].resources.limits.memory", value: 10Gi }
         documentIndex: 1
       # The pull runs a server of its own, alone before the server starts: the same resources, so a policy that wants
-      # every container limited (homelab's require-cpu-limits) sees this one limited too
+      # every container limited sees this one limited too
       - equal: { path: "spec.template.spec.initContainers[0].resources.limits.memory", value: 10Gi }
         documentIndex: 1
       # Limited by default, CPU too, so the release never runs an unbounded model server
