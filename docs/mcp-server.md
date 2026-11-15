@@ -148,7 +148,9 @@ processes can each spend up to it, and a reply makes at most `ChatModel.MaxModel
 `MaxOutputTokens`, stopping once its own cost reaches what was left (reserving spend across processes would take a
 database reservation per reply). Anthropic's own spend limits (a workspace's or the organization's monthly limit set in its console, or the usage
 tier's cap) are said as a refusal too (`AnthropicSpendLimit`, `GrifChat.ProviderLimitReached`), not as a failure: the one cap
-counted across every environment. Each model is one client for the process, over an HTTP client with no
+counted across every environment. Each call to Claude asks for Anthropic's prompt cache (`AnthropicPromptCache`: automatic
+caching, five minutes), so a reply's tool rounds and a conversation's follow-ups read the tools, instructions and
+conversation so far at a tenth of the input price; the spend counts the cache's reads and writes at their own prices. Each model is one client for the process, over an HTTP client with no
 timeout of its own (a cold model on the CPU can take minutes to start answering): the host's timeout decides. With no
 model configured both chats answer that the chat is unavailable. The Helm chart sets both, for its own Ollama (`ollama.enabled`) or an existing one (`ollama.external.url`;
 [the chart's README](../charts/grifballwebapp/README.md#chat-model-ollama)). Development's appsettings point at

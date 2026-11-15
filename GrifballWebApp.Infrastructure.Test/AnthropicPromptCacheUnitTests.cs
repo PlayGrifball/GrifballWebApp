@@ -32,7 +32,7 @@ public class AnthropicPromptCacheUnitTests
         {
             Assert.That(sent.CacheControl, Is.Not.Null, "Automatic caching: the API places the breakpoint");
             Assert.That(sent.CacheControl!.Ttl, Is.Null, "Its default five minutes");
-            Assert.That((string)sent.Model, Is.EqualTo("claude-haiku-5-5"));
+            Assert.That(sent.Model.Raw(), Is.EqualTo("claude-haiku-5-5"));
             Assert.That(sent.MaxTokens, Is.EqualTo(16_000));
             Assert.That(sent.Messages, Is.Empty, "The conversation is the client's to add");
             Assert.That(inner.Options.Instructions, Is.EqualTo("Be brief."), "The rest of the options as they were");

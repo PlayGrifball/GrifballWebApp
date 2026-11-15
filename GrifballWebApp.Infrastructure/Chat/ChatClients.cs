@@ -61,7 +61,7 @@ public sealed class ChatClients : IChatClientFactory
         if (!Models.Contains(model))
             throw new ArgumentException($"{model.Id} is not one of the configured chat models", nameof(model));
         return model.Provider == ChatProvider.Anthropic
-            ? new AnthropicSpendLimit(_anthropic.Value.AsIChatClient(model.Model))
+            ? new AnthropicSpendLimit(new AnthropicPromptCache(_anthropic.Value.AsIChatClient(model.Model), model.Model))
             : new OllamaApiClient(_ollama.Value, model.Model);
     }
 }
