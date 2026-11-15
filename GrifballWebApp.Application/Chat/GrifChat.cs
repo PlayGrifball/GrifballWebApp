@@ -331,11 +331,7 @@ public sealed class ChatReply : IDisposable
     public async IAsyncEnumerable<string> StreamAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         using var freed = Model.Price is null ? cancellationToken.Register(_slot.Dispose) : default;
-        var usage = new UsageDetails();
-        // Whether a call is under way whose usage isn't in yet (Anthropic's comes as the call ends), and what it wrote so far
-        var pending = false;
-        long lastInput = 0;
-        long writtenSince = 0;
+        var spent = new Spending(this);
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -349,26 +345,9 @@ public sealed class ChatReply : IDisposable
             await using var updates = client.GetStreamingResponseAsync(_conversation, options, timeout.Token).GetAsyncEnumerator(timeout.Token);
             while (await NextAsync(updates, timeout, cancellationToken))
             {
-                var used = updates.Current.Contents.OfType<UsageContent>().ToList();
-                foreach (var call in used)
-                {
-                    usage.Add(call.Details);
-                    lastInput = call.Details.InputTokenCount ?? lastInput;
-                }
-                if (used.Count > 0)
-                {
-                    pending = false;
-                    writtenSince = 0;
-                    // The month's limit reached within the reply: no next call
-                    if (Model.Price is { } price && _budget is { } budget && price.CostMicros(usage) >= budget * 1_000_000m)
-                        throw new ChatRefusedException(ChatLimits.MonthlyLimitReached);
-                }
-                else if (updates.Current.Contents.Any(c => c is not FunctionResultContent))
-                {
-                    // The model's own (a tool's result is ours, before the next call): its call is under way
-                    pending = true;
-                    writtenSince += Written(updates.Current.Contents);
-                }
+                // The month's limit reached within the reply: no next call
+                if (spent.Add(updates.Current))
+                    throw new ChatRefusedException(ChatLimits.MonthlyLimitReached);
                 yield return updates.Current.Text;
             }
             // A provider may end its stream quietly when canceled: past the timeout, that is no whole answer either
@@ -382,8 +361,7 @@ public sealed class ChatReply : IDisposable
                 // What it cost so far, whether it finished or not: not canceled with the asker, it was spent all the same
                 if (Model.Price is { } price && _caller.UserID is { } payer)
                 {
-                    if (pending)
-                        usage.Add(Estimate(lastInput, writtenSince));
+                    var usage = spent.Total();
                     await Accounts.TryRecordAsync(payer, price.CostMicros(usage), usage.InputTokenCount ?? 0, usage.OutputTokenCount ?? 0);
                 }
             }
@@ -399,13 +377,54 @@ public sealed class ChatReply : IDisposable
     public const int CharactersPerToken = 3;
 
     /// <summary>
-    /// A call the provider never said the use of: in, the instructions and the conversation sent (or the last call's input, the larger: it
-    /// grows with each tool round), out, what it wrote so far.
+    /// What a reply's calls used, as their usage comes in (Anthropic's as each call ends), and whether the latest call is still under
+    /// way without it: then <see cref="Total"/> adds an estimate for it.
     /// </summary>
-    private UsageDetails Estimate(long lastInput, long written)
+    private sealed class Spending(ChatReply reply)
     {
-        var sent = (GrifChat.Instructions(_host).Length + _conversation.Sum(m => (long)m.Text.Length)) / CharactersPerToken;
-        return new UsageDetails { InputTokenCount = Math.Max(sent, lastInput), OutputTokenCount = written / CharactersPerToken };
+        private readonly UsageDetails _usage = new();
+        private bool _pending;
+        private long _lastInput;
+        private long _written;
+
+        /// <summary>The update's usage, or what its call wrote; true once the reply's calls cost what was left of the month.</summary>
+        public bool Add(ChatResponseUpdate update)
+        {
+            var used = update.Contents.OfType<UsageContent>().ToList();
+            if (used.Count == 0)
+            {
+                // The model's own (a tool's result is ours, before the next call): its call is under way
+                if (update.Contents.Any(c => c is not FunctionResultContent))
+                {
+                    _pending = true;
+                    _written += Written(update.Contents);
+                }
+                return false;
+            }
+            foreach (var call in used)
+            {
+                _usage.Add(call.Details);
+                _lastInput = call.Details.InputTokenCount ?? _lastInput;
+            }
+            _pending = false;
+            _written = 0;
+            return reply.Model.Price is { } price && reply._budget is { } budget && price.CostMicros(_usage) >= budget * 1_000_000m;
+        }
+
+        /// <summary>
+        /// All the calls' usage, with a call the provider never said the use of estimated (<see cref="CharactersPerToken"/>): in, the
+        /// instructions and the conversation sent (or the last call's input, the larger: it grows with each tool round), out, what it
+        /// wrote so far.
+        /// </summary>
+        public UsageDetails Total()
+        {
+            if (!_pending)
+                return _usage;
+            var sent = (GrifChat.Instructions(reply._host).Length + reply._conversation.Sum(m => (long)m.Text.Length)) / CharactersPerToken;
+            _usage.Add(new UsageDetails { InputTokenCount = Math.Max(sent, _lastInput), OutputTokenCount = _written / CharactersPerToken });
+            _pending = false;
+            return _usage;
+        }
     }
 
     /// <summary>The characters a model wrote in <paramref name="contents"/>: its text, its thinking and its tool calls' arguments.</summary>
