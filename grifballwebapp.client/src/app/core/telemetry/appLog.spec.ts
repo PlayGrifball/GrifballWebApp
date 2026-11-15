@@ -51,7 +51,7 @@ describe('causeAttributes', () => {
   });
 
   it('leaves the path out of an answer whose URL does not parse', () => {
-    expect(causeAttributes(new HttpErrorResponse({ status: 502, url: 'http://[' }))['url.path']).toBeUndefined();
+    expect(causeAttributes(new HttpErrorResponse({ status: 502, url: 'https://[' }))['url.path']).toBeUndefined();
   });
 
   it('gives an error\'s type and message, cut to the limit', () => {
