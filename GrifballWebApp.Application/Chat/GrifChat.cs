@@ -229,11 +229,12 @@ public sealed class ChatReply : IDisposable
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(_host.Timeout);
-            // The tool calls are ours, not the provider's: any model the factory gives gets them. The model is shared: not disposed.
-            // Over the traced model, so each tool call has its span (on the model's source) and its failure its log; the spans are in
-            // the trace current when the reply started (the hub call's, the Discord message's), as they flow with this enumerator
-            var client = new ChatClientBuilder(_model.Create()).UseFunctionInvocation(_model.Loggers).Build();
-            var options = new ChatOptions { Instructions = GrifChat.Instructions(_host), Tools = GrifTools.AIFunctions(_scopes, _caller, _host.Tools) };
+            // The tool calls are ours, not the provider's (ChatModel's function invocation): any model the factory gives gets them. The
+            // model is shared: not disposed. Its spans are in the trace current where the reply streams (the hub call's, flowing into
+            // its task; the Discord message's)
+            var client = _model.Create();
+            var tools = GrifTools.AIFunctions(_scopes, _caller, _host.Tools, _model.ToolLog, _model.SensitiveData);
+            var options = new ChatOptions { Instructions = GrifChat.Instructions(_host), Tools = tools };
             await using var updates = client.GetStreamingResponseAsync(_conversation, options, timeout.Token).GetAsyncEnumerator(timeout.Token);
             while (await NextAsync(updates, timeout, cancellationToken))
                 yield return updates.Current.Text;

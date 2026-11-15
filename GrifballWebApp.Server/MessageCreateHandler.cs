@@ -36,40 +36,33 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         if (arg.Author.Id == BotId)
             return;
 
-        // A DM is to the bot alone: it answers every one, no mention needed
-        if (arg.GuildId is null || arg.MentionedUsers.Any(x => x.Id == BotId))
-        {
-            await HandleResponse(arg);
+        // A DM is to the bot alone: it answers every one, no mention needed; a reply, only one to the bot's own message
+        var toTheBot = arg.GuildId is null || arg.MentionedUsers.Any(x => x.Id == BotId);
+        if (!toTheBot && arg.MessageReference is null)
             return;
-        }
 
-        if (arg.MessageReference is not null)
+        // A trace per message the bot may answer (a gateway event is no request to sit under): the lookup of what it replies to,
+        // then its reply's spans (the chat's model and tool calls), the database's and Discord's calls in it
+        using var span = Tracing.StartActivity(MessageSpanName);
+        span?.SetTag("discord.direct", arg.GuildId is null);
+        if (!toTheBot)
         {
-            var replyToId = arg.MessageReference.MessageId;
-            var channelId = arg.MessageReference.ChannelId;
-            var replyToMessage = await discordClient.GetMessageAsync(channelId, replyToId);
-            if (replyToMessage is null)
-                return;
-            if (replyToMessage.Author.Id == BotId)
-            {
-                await HandleResponse(arg);
-                return;
-            }
+            var replyToMessage = await discordClient.GetMessageAsync(arg.MessageReference!.ChannelId, arg.MessageReference.MessageId);
+            toTheBot = replyToMessage is not null && replyToMessage.Author.Id == BotId;
         }
+        span?.SetTag("discord.answered", toTheBot);
+        if (toTheBot)
+            await HandleResponse(arg, span);
     }
 
-    private async ValueTask HandleResponse(Message message)
+    private async ValueTask HandleResponse(Message message, System.Diagnostics.Activity? span)
     {
-        // A trace per message answered (a gateway event is no request to sit under): its reply's spans (the chat's model and tool
-        // calls), the database's and Discord's calls in it
-        using var span = Tracing.StartActivity(MessageSpanName);
-        span?.SetTag("discord.direct", message.GuildId is null);
         // A fresh ambient user slot per message, filled in with the author in HandleResponseCore, for contexts with no scope of
         // their own (IDbContextFactory) and other scopes (each tool call's, GrifTools.AIFunctions)
         ambientCurrentUser.Begin();
         try
         {
-            await HandleResponseCore(message);
+            await HandleResponseCore(message, span);
         }
         catch (Exception ex)
         {
@@ -83,7 +76,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         }
     }
 
-    private async ValueTask HandleResponseCore(Message message)
+    private async ValueTask HandleResponseCore(Message message, System.Diagnostics.Activity? span)
     {
         // No model configured (no Ollama:Url): say so, rather than fail on each message
         if (!chat.Available)
@@ -130,7 +123,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         {
             if (saveTo is not null)
                 await SaveQuestionAsync(saveTo, message, UserId, BotID);
-            await AnswerAsync(message, reply, saveTo, UserId, BotID);
+            await AnswerAsync(message, reply, saveTo, UserId, BotID, span);
         }
     }
 
@@ -138,7 +131,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
     /// The reply shown as it streams in, then whole, and saved (to <paramref name="saveTo"/>, a channel's; none from a DM). A reply cut
     /// short (it took too long) is followed by why.
     /// </summary>
-    private async Task AnswerAsync(Message message, ChatReply reply, GrifballContext? saveTo, long UserId, long BotID)
+    private async Task AnswerAsync(Message message, ChatReply reply, GrifballContext? saveTo, long UserId, long BotID, System.Diagnostics.Activity? span)
     {
         // Each chunk with when it arrived: the reply is paced by the stream, not by when the background task gets to it
         var channel = Channel.CreateUnbounded<(string Text, long ArrivedAt)>();
@@ -167,7 +160,11 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 
         await FinishReplyAsync(message, restMessage, responseBuilder, saveTo, UserId, BotID);
         if (cutShort is not null)
+        {
+            // Said and handled, but no whole answer: the message's span says so, so a slow reply is found by its status
+            span?.SetStatus(ActivityStatusCode.Error, cutShort);
             await message.ReplyAsync(cutShort);
+        }
     }
 
     /// <summary>The author and the bot, as Discord users in the database (a message is between two of them).</summary>
