@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
+using System.Diagnostics;
 using System.Text;
 using System.Threading.Channels;
 using GrifballWebApp.Application.Chat;
@@ -17,6 +18,14 @@ namespace GrifballWebApp.Server;
 public class MessageCreateHandler(IDiscordRestClient discordClient, IConfiguration configuration, IServiceScopeFactory scopeFactory, IAmbientCurrentUser ambientCurrentUser, ILogger<MessageCreateHandler> logger,
     GrifChat chat, TimeProvider? time = null) : IMessageCreateGatewayHandler
 {
+    /// <summary>The Discord bot's spans: one per message it answers (<see cref="MessageSpanName"/>), the chat's under it.</summary>
+    public const string ActivitySourceName = "GrifballWebApp.Discord";
+
+    /// <summary>The span of a message the bot answers, tagged <c>discord.direct</c> for a DM.</summary>
+    public const string MessageSpanName = "Discord message";
+
+    private static readonly ActivitySource Tracing = new(ActivitySourceName);
+
     private ulong BotId { get; } = ulong.Parse(configuration["Discord:ClientId"] ?? "0");
 
     /// <summary>The clock the streamed reply is paced by (the system's, unless a test gives one).</summary>
@@ -51,6 +60,10 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 
     private async ValueTask HandleResponse(Message message)
     {
+        // A trace per message answered (a gateway event is no request to sit under): its reply's spans (the chat's model and tool
+        // calls), the database's and Discord's calls in it
+        using var span = Tracing.StartActivity(MessageSpanName);
+        span?.SetTag("discord.direct", message.GuildId is null);
         // A fresh ambient user slot per message, filled in with the author in HandleResponseCore, for contexts with no scope of
         // their own (IDbContextFactory) and other scopes (each tool call's, GrifTools.AIFunctions)
         ambientCurrentUser.Begin();
@@ -62,6 +75,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         {
             // One failing message must not fault the gateway handler for every message after it.
             logger.LogError(ex, "Failed to handle message {MessageId} from Discord user {DiscordUserId}", message.Id, message.Author.Id);
+            span?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
         }
         finally
         {

@@ -144,6 +144,27 @@ unavailable. The Helm chart sets both, for its own Ollama (`ollama.enabled`) or 
 [the chart's README](../charts/grifballwebapp/README.md#chat-model-ollama)). Development's appsettings point at
 Ollama's own port on localhost.
 
+### The chats' telemetry
+
+`ChatModel` wraps the factory's model once for the process in Microsoft.Extensions.AI's OpenTelemetry (the GenAI semantic
+conventions), on the ActivitySource and Meter `GrifballWebApp.Chat` (`ChatModel.SourceName`), which the app's tracing and
+metrics export:
+
+- spans: `orchestrate_tools` per reply, under it `chat {model}` per call to the model (its token counts in
+  `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens`, its errors) and `execute_tool {tool}` per tool call (its time,
+  an exception's type, and `grif.tool.outcome`: `ok`, `refused` or `failed`). They are in the trace the reply started in: the
+  hub call's on the site (though the reply streams after the call returns), the `Discord message` span the bot starts per
+  message it answers (`GrifballWebApp.Discord`). The HTTP client's span of the call to Ollama is under its `chat` span;
+- metrics: `gen_ai.client.token.usage` and `gen_ai.client.operation.duration` per call to the model, and
+  `gen_ai.client.operation.time_to_first_chunk` and `time_per_output_chunk` for the streamed replies;
+- logs: a line per tool call (`GrifTools`: the tool, its outcome, its time and the user ID), and a failing tool's exception
+  (the function invocation's error log).
+
+What people wrote (questions, answers, the instructions, tools' arguments and results) is left out of all of them. Set
+`Chat:Telemetry:SensitiveData` to `true` to put it in the spans for debugging; the default, false, wins over
+`OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`. Neither Ollama's server nor OllamaSharp has telemetry of its own: OllamaSharp
+reports the token counts Ollama returns (`prompt_eval_count`, `eval_count`) as the reply's usage, which the spans and metrics read.
+
 A small local model picks worse from a long list, so the chats get `GrifTools.Chat`, the questions people ask most. The MCP
 server's clients get every tool.
 

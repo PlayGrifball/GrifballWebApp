@@ -1,6 +1,8 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text;
+using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Seasons;
 using Microsoft.Extensions.AI;
@@ -205,25 +207,54 @@ public static class GrifTools
         .ToArray();
 
     /// <summary>
+    /// The tag on a chat tool call's <c>execute_tool</c> span that says how it went: <c>ok</c>, <c>refused</c> (a
+    /// <see cref="ToolException"/>, its result: no error) or <c>failed</c> (any other exception).
+    /// </summary>
+    public const string OutcomeTag = "grif.tool.outcome";
+
+    /// <summary>
     /// A function run as <paramref name="caller"/>, in a new scope per call, whose <see cref="ToolException"/> is its result, told as a
-    /// refusal.
+    /// refusal. Each call is logged (its tool, outcome and time; not its arguments or result, which are what people asked for) and its
+    /// outcome tagged on its span. A failure's exception is the function invocation's own log.
     /// </summary>
     private sealed class InAScopeOfItsOwn(AIFunction inner, IServiceScopeFactory scopes, ToolCaller caller) : DelegatingAIFunction(inner)
     {
+        private const string Ok = "ok";
+        private const string Refused = "refused";
+        private const string Failed = "failed";
+
         protected override async ValueTask<object?> InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)
         {
             await using var scope = scopes.CreateAsyncScope();
             arguments.Services = scope.ServiceProvider;
             arguments.Context ??= new Dictionary<object, object?>();
             arguments.Context[typeof(ToolCaller)] = caller;
+            var started = Stopwatch.GetTimestamp();
+            var outcome = Failed;
             try
             {
-                return await base.InvokeCoreAsync(arguments, cancellationToken);
+                var result = await base.InvokeCoreAsync(arguments, cancellationToken);
+                outcome = Ok;
+                return result;
             }
             catch (ToolException e)
             {
+                outcome = Refused;
                 return $"Refused: {e.Message}";
             }
+            finally
+            {
+                Record(scope.ServiceProvider, outcome, Stopwatch.GetElapsedTime(started));
+            }
+        }
+
+        private void Record(IServiceProvider services, string outcome, TimeSpan elapsed)
+        {
+            // The function invocation's span for this call, when traced (else the reply's caller's, which isn't this call's)
+            if (Activity.Current is { } span && span.Source.Name == ChatModel.SourceName && Equals(span.GetTagItem("gen_ai.tool.name"), Name))
+                span.SetTag(OutcomeTag, outcome);
+            services.GetService<ILoggerFactory>()?.CreateLogger(typeof(GrifTools).FullName!)
+                .LogInformation("Chat tool {Tool}: {Outcome} in {ElapsedMs} ms, for user {UserID}", Name, outcome, elapsed.TotalMilliseconds, caller.UserID);
         }
     }
 }

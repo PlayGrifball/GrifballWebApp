@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using GrifballWebApp.Application.Availability;
 using GrifballWebApp.Application.Brackets;
@@ -41,6 +42,10 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<UrlService>();
         // The chat the Discord bot and the site share (its model is Infrastructure's IChatClientFactory)
         services.AddTransient<GrifChat>();
+        // Its model, traced once for the process (a wrapper makes its own ActivitySource and Meter), what people wrote left out
+        // unless Chat:Telemetry:SensitiveData is true
+        services.AddSingleton(provider => new ChatModel(provider.GetRequiredService<IChatClientFactory>(),
+            provider.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance, configuration.GetValue<bool>(ChatModel.SensitiveDataKey)));
         // Every host's askers, counted once per process
         services.AddSingleton(_ => new ChatLimits(configuration.GetValue(ChatLimits.MaxRepliesKey, 1)));
         services.AddTransient<IQueueRepository, QueueRepository>();
