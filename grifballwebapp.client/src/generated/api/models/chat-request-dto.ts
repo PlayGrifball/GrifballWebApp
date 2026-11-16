@@ -9,6 +9,12 @@ import { ChatTurnDto } from '../models/chat-turn-dto';
 export interface ChatRequestDto {
 
   /**
+   * Whether a change the chat makes runs without asking, this conversation (GrifballWebApp.Application.Chat.ChatHost.AutoApprove); null: the user's
+   * setting (GrifballWebApp.Application.Chat.GrifChat.AutoApproveAsync(GrifballWebApp.Application.Tools.ToolCaller,System.Threading.CancellationToken)).
+   */
+  autoApprove: boolean | null;
+
+  /**
    * The conversation so far, oldest first: only its last GrifballWebApp.Application.Chat.GrifChat.HistoryLimit messages are read.
    */
   history: Array<ChatTurnDto>;

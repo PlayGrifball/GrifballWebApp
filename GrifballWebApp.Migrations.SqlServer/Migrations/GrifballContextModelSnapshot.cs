@@ -3219,8 +3219,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int>("UserID")
                         .HasColumnType("int");
 
+                    b.Property<bool>("AutoApprove")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Model")
-                        .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 

@@ -39,8 +39,10 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
             return Task.FromResult(Refuse(Channel.CreateUnbounded<string>(), refused));
         var caller = user.AsToolCaller();
         // The page's Stop cancels it: the user may ask again at once
-        return StreamAsync(caller, () => chat.StartAsync(GrifChat.History(request), request.Question, caller, ChatHost.Site, Asker(caller),
-            request.Model, cancellationToken), cancellationToken);
+        return StreamAsync(caller, async () => await chat.StartAsync(GrifChat.History(request), request.Question, caller,
+            // Changes run without asking as this conversation chose, else as the user did
+            ChatHost.Site with { AutoApprove = request.AutoApprove ?? await chat.AutoApproveAsync(caller, cancellationToken) },
+            Asker(caller), request.Model, cancellationToken), cancellationToken);
     }
 
     /// <summary>
@@ -120,6 +122,19 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
         return await chat.ModelsAsync(caller, Context.ConnectionAborted);
     }
 
+    /// <summary>The user chose whether changes run without asking, by default (here and in a Discord DM); refused when they have none to make.</summary>
+    public async Task<ChatModelsDto> SetAutoApprove(bool on)
+    {
+        try
+        {
+            return await chat.SetAutoApproveAsync(user.AsToolCaller(), on, Context.ConnectionAborted);
+        }
+        catch (ChatRefusedException e)
+        {
+            throw new HubException(e.Message);
+        }
+    }
+
     /// <summary>
     /// A refusal, as the stream's error the browser shows: not thrown, so the hubs' error log (ExceptionLogHubFilter) doesn't take
     /// a question asked too often for a fault.
@@ -196,6 +211,9 @@ public interface IChatHubServer
 
     /// <summary>The change waiting for the user's answer dropped: they started a new conversation.</summary>
     Task Forget();
+
+    /// <summary>The user chose whether changes run without asking, by default; refused when they have none to make.</summary>
+    Task<ChatModelsDto> SetAutoApprove(bool on);
 }
 
 // S4023: empty on purpose, the hub sends nothing but its streams; the typed client and the SignalR page need it to know the hub

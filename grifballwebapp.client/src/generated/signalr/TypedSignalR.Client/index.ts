@@ -122,6 +122,10 @@ class IChatHubServer_HubProxy implements IChatHubServer {
     public readonly forget = async (): Promise<void> => {
         return await this.connection.invoke("Forget");
     }
+
+    public readonly setAutoApprove = async (on: boolean): Promise<ChatModelsDto> => {
+        return await this.connection.invoke("SetAutoApprove", on);
+    }
 }
 
 class IQueueHubServer_HubProxyFactory implements HubProxyFactory<IQueueHubServer> {

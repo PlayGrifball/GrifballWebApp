@@ -5773,8 +5773,12 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int>("UserID")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("AutoApprove")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Model")
-                        .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
@@ -5803,6 +5807,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Domain.Players.ChatChoice.History", b =>
                 {
+                    b.Property<bool?>("AutoApprove")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("AutoApprove");
+
                     b.Property<string>("Model")
                         .HasMaxLength(64)
                         .HasColumnType("TEXT")

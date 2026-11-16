@@ -60,9 +60,9 @@ public partial class GrifChatUnitTests
             Assert.That((await chat.ModelsAsync(Player)).AutoApprove, Is.Null, "Nothing to approve: no setting shown");
             Assert.That(await chat.AutoApproveAsync(Player), Is.False);
             Assert.That(await chat.AutoApproveAsync(ToolCaller.Anonymous), Is.False);
-            Assert.That(async () => await chat.SetAutoApproveAsync(Player, true), Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.NotYours));
+            Assert.That(async () => await chat.SetAutoApproveAsync(Player, true), Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.NoChangesToApprove));
             Assert.That(async () => await chat.SetAutoApproveAsync(new ToolCaller(null, [Identity.SiteRoles.Sysadmin]), true),
-                Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.NotYours), "Not signed in: nowhere to keep it");
+                Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.NoChangesToApprove), "Not signed in: nowhere to keep it");
         }
     }
 

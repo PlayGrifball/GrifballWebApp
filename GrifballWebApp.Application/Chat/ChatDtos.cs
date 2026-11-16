@@ -14,6 +14,12 @@ public sealed record ChatRequestDto
 
     /// <summary>The model to answer (its ID); null: the user's choice, else their default.</summary>
     public string? Model { get; init; }
+
+    /// <summary>
+    /// Whether a change the chat makes runs without asking, this conversation (<see cref="ChatHost.AutoApprove"/>); null: the user's
+    /// setting (<see cref="GrifChat.AutoApproveAsync"/>).
+    /// </summary>
+    public bool? AutoApprove { get; init; }
 }
 
 /// <summary>One message of a conversation with the site's chat.</summary>

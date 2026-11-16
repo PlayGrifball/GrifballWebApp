@@ -46,6 +46,12 @@ export type IChatHubServer = {
     * @returns Transpiled from System.Threading.Tasks.Task
     */
     forget(): Promise<void>;
+    /**
+    * The user chose whether changes run without asking, by default; refused when they have none to make.
+    * @param on Transpiled from bool
+    * @returns Transpiled from System.Threading.Tasks.Task<GrifballWebApp.Application.Chat.ChatModelsDto>
+    */
+    setAutoApprove(on: boolean): Promise<ChatModelsDto>;
 }
 
 /**

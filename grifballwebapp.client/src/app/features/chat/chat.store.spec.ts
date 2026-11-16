@@ -26,6 +26,7 @@ describe('ChatStore', () => {
     selected: 'claude-haiku',
     spent: 1.5,
     limit: 10,
+    autoApprove: null,
   };
 
   function create(platform = 'browser'): ChatStore {
@@ -77,7 +78,7 @@ describe('ChatStore', () => {
     const store = create();
 
     expect(store.ask('  Who won?  ')).toBeTrue();
-    expect(asked()).toEqual(['Ask', { question: 'Who won?', history: [], model: null }]);
+    expect(asked()).toEqual(['Ask', { question: 'Who won?', history: [], model: null, autoApprove: null }]);
     expect(store.asking()).toBeTrue();
     expect(store.turns()).toEqual([turn(false, 'Who won?'), turn(true, '')]);
 
@@ -88,7 +89,7 @@ describe('ChatStore', () => {
     expect(store.asking()).toBeFalse();
 
     store.ask('And before?');
-    expect(asked()[1]).toEqual({ question: 'And before?', history: [turn(false, 'Who won?'), turn(true, 'The Grifs.')], model: null });
+    expect(asked()[1]).toEqual({ question: 'And before?', history: [turn(false, 'Who won?'), turn(true, 'The Grifs.')], model: null, autoApprove: null });
   });
 
   it('sends only as much history as the server reads', () => {
@@ -240,14 +241,14 @@ describe('ChatStore', () => {
       expect(connection.invoke).toHaveBeenCalledWith('Models');
       expect(store.models()).toEqual(models);
       store.ask('Who won?');
-      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: 'claude-haiku' });
+      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: 'claude-haiku', autoApprove: null });
     });
 
     it('asks with no model before the models are known: the server chooses', () => {
       const store = create();
 
       store.ask('Who won?');
-      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: null });
+      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: null, autoApprove: null });
     });
 
     it('keeps the choice on the server, and asks the chosen model after', async () => {

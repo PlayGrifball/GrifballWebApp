@@ -196,18 +196,22 @@ public static class GrifTools
     /// invocation's log and span only with <paramref name="sensitiveData"/> (Chat:Telemetry:SensitiveData).
     /// </summary>
     public static List<AITool> AIFunctions(IServiceScopeFactory scopes, ToolCaller caller, IReadOnlyCollection<string> names, ILogger? log = null,
-        bool sensitiveData = false)
+        bool sensitiveData = false, bool approveChanges = true)
         => Functions
             .Where(t => names.Contains(t.Function.Name) && Allows(t.Method, caller))
-            .Select(t => WaitingForApproval(new InAScopeOfItsOwn(t.Function, scopes, caller, log ?? NullLogger.Instance, sensitiveData), t.Effect))
+            .Select(t => WaitingForApproval(new InAScopeOfItsOwn(t.Function, scopes, caller, log ?? NullLogger.Instance, sensitiveData),
+                approveChanges && t.Effect == ToolEffect.ChangesData))
             .ToList();
 
     /// <summary>
-    /// A tool that changes the league's data (<see cref="ToolEffect.ChangesData"/>) waits for the person's approval: the chat's function
-    /// invocation hands the call back instead of running it (GrifChat's ConfirmAsync). Reads and Halo pulls run when the model asks.
+    /// A tool that changes the league's data (<see cref="ToolEffect.ChangesData"/>) waits for the person's approval, unless they chose to
+    /// approve changes automatically (<paramref name="waits"/> false): the chat's function invocation hands the call back instead of
+    /// running it (GrifChat's ConfirmAsync). Reads and Halo pulls run when the model asks.
     /// </summary>
-    private static AITool WaitingForApproval(AIFunction function, ToolEffect effect)
-        => effect == ToolEffect.ChangesData ? new ApprovalRequiredAIFunction(function) : function;
+    private static AITool WaitingForApproval(AIFunction function, bool waits) => waits ? new ApprovalRequiredAIFunction(function) : function;
+
+    /// <summary>Whether <paramref name="caller"/>'s roles allow any tool that changes data: a change to approve, so a choice of how.</summary>
+    public static bool MayChangeData(ToolCaller caller) => ChangingData.SelectMany(Methods).Any(m => Allows(m, caller));
 
     /// <summary>
     /// Every tool as a chat model's function, made once (its schema read from the method, its class's factory worked out): each call

@@ -4,6 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { RouterLink } from '@angular/router';
 import { AccountService } from '@core/auth/account.service';
 import { ChatStore, MAX_QUESTION_LENGTH } from './chat.store';
@@ -17,7 +18,7 @@ import { ChatStore, MAX_QUESTION_LENGTH } from './chat.store';
   selector: 'app-chat',
   templateUrl: 'chat.component.html',
   styleUrl: 'chat.component.scss',
-  imports: [CurrencyPipe, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, RouterLink],
+  imports: [CurrencyPipe, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSlideToggleModule, RouterLink],
   providers: [ChatStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -29,6 +30,13 @@ export class ChatComponent {
   readonly error = this.store.error;
   /** A change the chat asked for, waiting for the user's yes or no: nothing changes until they answer. */
   readonly waiting = this.store.waiting;
+  /** Whether a change runs without asking, this conversation; null for someone with no change to make (no toggle). */
+  readonly autoApprove = this.store.autoApprove;
+  /** This conversation's choice differs from the user's setting: they may keep it as their default. */
+  readonly autoApproveUnsaved = computed(() => {
+    const on = this.store.autoApprove();
+    return on !== null && on !== this.store.models()?.autoApprove;
+  });
   readonly signedIn = inject(AccountService).isLoggedIn;
   /** The user's models, when there is a choice to make (more than one they may use); else none, and no picker. */
   readonly picker = computed(() => {
@@ -61,6 +69,16 @@ export class ChatComponent {
   /** The user chose another model: their questions go to it, here and in a Discord DM. */
   choose(model: string): void {
     void this.store.choose(model);
+  }
+
+  /** Changes run without asking (or wait) for this conversation. */
+  setAutoApprove(on: boolean): void {
+    this.store.setAutoApprove(on);
+  }
+
+  /** This conversation's choice kept as the user's setting, here and in a Discord DM. */
+  saveAutoApprove(): void {
+    void this.store.saveAutoApprove();
   }
 
   /** The user's answer to the change waiting for them: confirmed, it runs; cancelled, it doesn't. */

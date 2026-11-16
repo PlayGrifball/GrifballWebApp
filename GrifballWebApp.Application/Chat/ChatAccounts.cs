@@ -35,6 +35,29 @@ public sealed class ChatAccounts(IServiceScopeFactory scopes, TimeProvider time,
         await context.SaveChangesAsync(ct);
     }
 
+    /// <summary>Whether <paramref name="userId"/> chose to have changes run without asking (<see cref="ChatChoice.AutoApprove"/>); false when they haven't.</summary>
+    public async Task<bool> AutoApproveAsync(int userId, CancellationToken ct = default)
+    {
+        using var scope = scopes.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        return await context.ChatChoices.AsNoTracking().Where(c => c.UserID == userId).Select(c => c.AutoApprove).SingleOrDefaultAsync(ct);
+    }
+
+    /// <summary><paramref name="userId"/> chose whether changes run without asking, until they choose again; their model unchanged.</summary>
+    public async Task SetAutoApproveAsync(int userId, bool on, CancellationToken ct = default)
+    {
+        using var scope = scopes.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        var choice = await context.ChatChoices.SingleOrDefaultAsync(c => c.UserID == userId, ct);
+        if (choice is null)
+        {
+            choice = ChatChoice.Make(userId);
+            context.ChatChoices.Add(choice);
+        }
+        choice.SetAutoApprove(on);
+        await context.SaveChangesAsync(ct);
+    }
+
     /// <summary><paramref name="userId"/>'s month (UTC) so far, read only: nothing spent yet when they have no row for it.</summary>
     public async Task<ChatMonth> MonthAsync(int userId, CancellationToken ct = default)
     {

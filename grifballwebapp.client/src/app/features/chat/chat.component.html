@@ -55,6 +55,21 @@
     </div>
   }
 
+  @if (autoApprove() !== null) {
+    <div class="chat__approve">
+      <mat-slide-toggle [checked]="autoApprove() === true" (change)="setAutoApprove($event.checked)" [disabled]="asking()">
+        Run changes without asking me
+      </mat-slide-toggle>
+      @if (autoApproveUnsaved()) {
+        <button class="hud-btn" type="button" (click)="saveAutoApprove()" [disabled]="asking()">Make this my default</button>
+      }
+      <p class="chat__hint">
+        Off, each change the chat makes waits for your Confirm. On, it runs as soon as the chat decides on it, even one that text
+        someone wrote (a team name, a note) talked it into.
+      </p>
+    </div>
+  }
+
   <form class="chat__form" [formGroup]="form" (ngSubmit)="ask()">
     <mat-form-field appearance="outline" class="app-full-width">
       <mat-label>Your question</mat-label>

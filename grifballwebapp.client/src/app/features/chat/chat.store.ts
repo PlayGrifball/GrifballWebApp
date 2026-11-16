@@ -1,5 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import { DestroyRef, Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HubConnectionState, type HubConnection, type IStreamResult, type ISubscription } from '@microsoft/signalr';
 import type { ChatActionDto, ChatModelsDto, ChatTurnDto } from '@api/models';
@@ -97,6 +97,16 @@ export class ChatStore {
    */
   readonly models = this.modelsState.asReadonly();
 
+  private readonly conversationAutoApproveState = signal<boolean | null>(null);
+  /**
+   * Whether a change the chat makes runs without asking, this conversation: the user's choice for it, else their setting; null when
+   * they have no change to make (no setting).
+   */
+  readonly autoApprove = computed(() => {
+    const saved = this.models()?.autoApprove;
+    return saved == null ? null : (this.conversationAutoApproveState() ?? saved);
+  });
+
   private readonly turnsState = signal<ChatTurnDto[]>(this.connection ? load() : []);
   /** The conversation, oldest first; while an answer streams in, its last message is that answer so far. */
   readonly turns = this.turnsState.asReadonly();
@@ -147,7 +157,8 @@ export class ChatStore {
     // The model the picker shows: the server would choose the same, unless the user chose another elsewhere meanwhile
     const model = this.models()?.selected;
     const history = this.history();
-    this.stream(connection, text, hub => hub.ask({ question: text, history, model: model ?? null }));
+    const autoApprove = this.conversationAutoApproveState();
+    this.stream(connection, text, hub => hub.ask({ question: text, history, model: model ?? null, autoApprove }));
     return true;
   }
 
@@ -213,6 +224,24 @@ export class ChatStore {
     }
   }
 
+  /** Whether changes run without asking, this conversation only: their setting is unchanged. */
+  setAutoApprove(on: boolean): void {
+    this.conversationAutoApproveState.set(on);
+  }
+
+  /** This conversation's choice of whether changes run without asking, kept as their setting (here and in a Discord DM). */
+  async saveAutoApprove(): Promise<void> {
+    const on = this.autoApprove();
+    if (!this.connection || on === null)
+      return;
+    try {
+      this.modelsState.set(await getHubProxyFactory('IChatHubServer').createHubProxy(this.connection).setAutoApprove(on));
+      this.conversationAutoApproveState.set(null);
+    } catch (error: unknown) {
+      this.errorState.set(chatErrorText(error));
+    }
+  }
+
   /** The change waiting for the user's answer, from the server; none when it can't say. */
   private async loadWaiting(connection: HubConnection): Promise<void> {
     const generation = this.generation;
@@ -266,6 +295,7 @@ export class ChatStore {
   /** The conversation gone from the page (another user's, once they sign in or out: the server's waiting change is theirs). */
   private reset(): void {
     this.generation++;
+    this.conversationAutoApproveState.set(null);
     this.stop();
     this.errorState.set(null);
     this.waitingState.set(null);

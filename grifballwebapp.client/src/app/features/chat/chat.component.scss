@@ -51,6 +51,19 @@
 
 .chat__error { margin: 0; }
 
+.chat__approve {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat__hint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--hud-muted);
+}
+
 .chat__confirm {
   display: grid;
   gap: 8px;
