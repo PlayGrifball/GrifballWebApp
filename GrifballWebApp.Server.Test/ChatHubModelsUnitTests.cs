@@ -77,12 +77,37 @@ public class ChatHubModelsUnitTests : SqliteGrifballContextFixture
         }
     }
 
-    [Test]
-    public async Task Confirm_AnUnreadableAnswer_IsRefused()
+    private static readonly ChatConfirmDto?[] Unreadable =
+    [
+        null,
+        new() { ActionId = null!, Approved = true, History = [] },
+        new() { ActionId = "a", Approved = true, History = null! },
+        new() { ActionId = "a", Approved = true, History = [null!] },
+        new() { ActionId = "a", Approved = true, History = [new ChatTurnDto { FromBot = false, Text = null! }] },
+    ];
+
+    [TestCaseSource(nameof(Unreadable))]
+    public async Task Confirm_AnUnreadableAnswer_IsRefused(ChatConfirmDto? answer)
     {
-        var reply = await Hub(new HubUserState(7, ["Commissioner"])).Confirm(new ChatConfirmDto { ActionId = "a", Approved = true, History = [null!] },
-            CancellationToken.None);
+        var reply = await Hub(new HubUserState(7, ["Commissioner"])).Confirm(answer!, CancellationToken.None);
 
         Assert.That(async () => await reply.ReadAllAsync().ToListAsync(), Throws.InstanceOf<HubException>().With.Message.EqualTo(GrifChat.Unreadable));
+    }
+
+    [Test]
+    public async Task Waiting_TheChangeWaitingForTheUser_ItsIDAndWhatItDoes()
+    {
+        var hub = Hub(new HubUserState(7, ["Commissioner"]));
+        var scopes = _services!.GetRequiredService<IServiceScopeFactory>();
+        await new ChatAccounts(scopes, new FakeTimeProvider(), NullLogger<ChatAccounts>.Instance).SaveWaitingAsync(
+            ChatLimits.Asker(new GrifballWebApp.Application.Tools.ToolCaller(7, []), ""), new ChatAction("a1", "ollama", "forfeit_season_match(seasonMatchID: 12)", []));
+
+        var waiting = await hub.Waiting();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(waiting?.Id, Is.EqualTo("a1"));
+            Assert.That(waiting?.Description, Is.EqualTo("forfeit_season_match(seasonMatchID: 12)"));
+        }
     }
 }

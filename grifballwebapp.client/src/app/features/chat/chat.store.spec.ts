@@ -54,7 +54,11 @@ describe('ChatStore', () => {
           return { dispose: () => { entry.disposed = true; } };
         },
       })),
-      invoke: jasmine.createSpy('invoke').and.callFake((method: string, model?: string) => Promise.resolve(method === 'Waiting' ? waiting : method === 'Choose' ? { ...models, selected: model } : models)),
+      invoke: jasmine.createSpy('invoke').and.callFake((method: string, model?: string) => {
+        if (method === 'Waiting')
+          return Promise.resolve(waiting);
+        return Promise.resolve(method === 'Choose' ? { ...models, selected: model } : models);
+      }),
       state: HubConnectionState.Connected,
     };
     withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();

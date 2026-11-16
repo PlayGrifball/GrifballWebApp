@@ -575,4 +575,28 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             Assert.That(message?.StatusDescription, Is.EqualTo(GrifChat.TookTooLong));
         }
     }
+
+    [Test]
+    public async Task HandleAsync_ANoInADm_AnswersTheChangeWaitingForTheAuthor_AndRunsNothing()
+    {
+        var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
+        DmHolds();
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Left as it was."));
+        var handler = Handler(model);
+        var accounts = new ChatAccounts(_services!.GetRequiredService<IServiceScopeFactory>(), _time, NullLogger<ChatAccounts>.Instance);
+        var asker = ChatLimits.Asker(new ToolCaller(user.Id, []), "");
+        await accounts.SaveWaitingAsync(asker, new ChatAction("a1", "ollama", "forfeit_season_match(seasonMatchID: 12)",
+            [new ChatActionCall("r1", "call-1", "forfeit_season_match", "{\"seasonMatchID\":12}")]));
+
+        await handler.HandleAsync(GatewayMessages.Build(AuthorId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }),
+            direct: true, content: "no"));
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(model.Messages.SelectMany(m => m.Contents).OfType<FunctionResultContent>().Single().Result?.ToString(), Does.Contain("rejected"));
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Left as it was."));
+            Assert.That(await accounts.WaitingAsync(asker), Is.Null, "Answered");
+        }
+    }
 }

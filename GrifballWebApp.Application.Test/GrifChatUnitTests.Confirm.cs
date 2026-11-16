@@ -169,4 +169,18 @@ public partial class GrifChatUnitTests
             Assert.That(site, Does.Contain(GrifChat.PrivateLine));
         }
     }
+
+    [Test]
+    public void ConfirmAsync_NoModel_IsUnavailable()
+    {
+        var chat = Chat(new FakeModel());
+        _clients.Available.Returns(false);
+
+        Assert.That(async () => await chat.ConfirmAsync([], "a1", true, Commissioner, ChatHost.Site, Asker),
+            Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.Unavailable));
+    }
+
+    [Test]
+    public void Describe_ACallWithNoArguments_IsItsNameAlone()
+        => Assert.That(ChatAction.Describe(new FunctionCallContent("call-1", "run_job")), Is.EqualTo("run_job()"));
 }

@@ -7,7 +7,10 @@ public class MessageCreateHandlerAnswerUnitTests
 {
     [TestCase("yes", true)]
     [TestCase(" Yes! ", true)]
+    [TestCase("y", true)]
     [TestCase("confirm", true)]
+    [TestCase("Do it.", true)]
+    [TestCase("n", false)]
     [TestCase("no", false)]
     [TestCase("Cancel.", false)]
     [TestCase("yes, and also forfeit match 13", null)]
