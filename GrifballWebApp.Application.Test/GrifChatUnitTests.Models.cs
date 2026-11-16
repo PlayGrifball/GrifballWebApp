@@ -480,7 +480,7 @@ public partial class GrifChatUnitTests
         => Assert.That(GrifChat.IsRefusal(GrifChat.ProviderLimitReached), Is.True);
 
     [Test]
-    public async Task AModelForEveryTool_GetsEveryToolTheCallersRolesAllow_InPrivate_AndTheShortListElsewhere()
+    public async Task StreamAsync_AModelForEveryTool_GetsEveryToolTheCallersRolesAllow_InPrivate_AndTheShortListElsewhere()
     {
         var model = new FakeModel([Text("Hi")], [Text("Hi")], [Text("Hi")]);
         var chat = ChatWithModels(model);
@@ -504,7 +504,7 @@ public partial class GrifChatUnitTests
     }
 
     [Test]
-    public void ToolsFor_InPublic_IsTheShortList_WhateverTheModel()
+    public void ToolsFor_IsTheShortListInPublic_AndEveryToolInPrivateOnlyForAModelForIt()
     {
         var everyTool = Haiku with { EveryTool = true };
 
@@ -516,4 +516,47 @@ public partial class GrifChatUnitTests
             Assert.That(GrifTools.Every, Is.SupersetOf(GrifTools.PrivateChat).And.Contains("list_seasons").And.Unique);
         }
     }
+
+    [Test]
+    public async Task StreamAsync_AModelForEveryTool_GivesAPlayerNoStaffTool()
+    {
+        var model = new FakeModel([Text("Hi")]);
+        var chat = ChatWithModels(model);
+        _clients.Models.Returns([Free with { EveryTool = true }]);
+
+        using (var reply = await chat.StartAsync([], "Hi", Player, ChatHost.Site, Asker))
+            await All(reply.StreamAsync());
+
+        var names = model.Options.Single()!.Tools!.Select(t => t.Name).ToList();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(names, Does.Contain("list_seasons"));
+            Assert.That(names.Intersect(StaffToolsFor(SiteRoles.Sysadmin)), Is.EquivalentTo(StaffToolsFor(SiteRoles.Player)), "Each tool for its roles");
+        }
+    }
+
+    [Test]
+    public async Task StreamAsync_ACutShortCallsEstimate_CountsTheToolsItWasSent()
+    {
+        var model = new FakeModel([Text("a")]) { ThenHang = true };
+        var chat = ChatWithModels(model);
+        _clients.Models.Returns([Haiku with { EveryTool = true }]);
+        using var stop = new CancellationTokenSource();
+
+        using (var reply = await chat.StartAsync([], "Hi", Sysadmin, ChatHost.Site, Asker))
+        {
+            var streaming = All(reply.StreamAsync(stop.Token));
+            await stop.CancelAsync();
+            Assert.That(async () => await streaming, Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        var toolCharacters = model.Options.Single()!.Tools!.OfType<AIFunction>()
+            .Sum(f => f.Name.Length + f.Description.Length + f.JsonSchema.GetRawText().Length);
+        Assert.That((await _db.ChatMonths.AsNoTracking().SingleAsync()).InputTokens, Is.GreaterThanOrEqualTo(toolCharacters / ChatReply.CharactersPerToken),
+            "Anthropic bills the tools' definitions as input too");
+    }
+
+    [Test]
+    public void Chat_TheShortList_HasTheSeasonListItsToolsPointTo()
+        => Assert.That(GrifTools.Chat, Does.Contain("list_seasons"), "A season tool refused names list_seasons");
 }
