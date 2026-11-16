@@ -28,6 +28,7 @@ public class MatchmakingSeasonAggregateTests
             Assert.That(season.IsImported, Is.True);
             Assert.That(season.MatchedMatches, Is.Empty);
             Assert.That(season.PlayerStats, Is.Empty);
+            Assert.That(season.LadderRanks, Is.Empty);
         }
     }
 

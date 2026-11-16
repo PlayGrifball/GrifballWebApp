@@ -82,51 +82,47 @@ public static partial class LadderParser
         var subRow = sheet.Rows.FindIndex(r => r.Any(c => ArchiveCells.HeaderKey(c) == "pos"));
         if (subRow < 1)
             return null;
-        var headings = sheet.Rows[subRow - 1];
-        var labels = sheet.Rows[subRow];
-        var groups = new Dictionary<string, (int League, int Rank, int Pos)>(StringComparer.OrdinalIgnoreCase);
-        for (var c = 1; c < headings.Length; c++)
-        {
-            var heading = headings[c].Trim();
-            if (heading.Length == 0)
-                continue;
-            // The heading's columns: up to the next heading
-            var end = c + 1;
-            while (end < headings.Length && headings[end].Trim().Length == 0)
-                end++;
-            int Column(string key)
-            {
-                for (var k = c; k < end && k < labels.Length; k++)
-                    if (ArchiveCells.HeaderKey(labels[k]) == key)
-                        return k;
-                return -1;
-            }
-            groups.TryAdd(heading, (Column("league"), Column("rank"), Column("pos")));
-        }
-
+        var groups = FinishGroups(sheet.Rows[subRow - 1], sheet.Rows[subRow]);
         var finishes = groups.Keys.ToDictionary(k => k, _ => new List<LadderStanding>(), StringComparer.OrdinalIgnoreCase);
         for (var r = subRow + 1; r < sheet.Rows.Count; r++)
         {
             var gamertag = sheet.Cell(r, 0).Trim();
             if (!IsPlayer(gamertag))
                 continue;
-            foreach (var (heading, (league, rank, pos)) in groups)
-            {
-                var leagueText = league < 0 ? null : Value(sheet.Cell(r, league));
-                var rankValue = rank < 0 ? null : Whole(sheet.Cell(r, rank));
-                var place = pos < 0 ? null : Whole(sheet.Cell(r, pos));
-                if (leagueText is null && rankValue is null && place is null)
-                    continue;
-                finishes[heading].Add(new LadderStanding
-                {
-                    Gamertag = gamertag,
-                    Position = place is >= 1 ? place : null,
-                    League = leagueText,
-                    Rank = rankValue,
-                });
-            }
+            foreach (var (heading, columns) in groups)
+                if (Finish(sheet, r, gamertag, columns) is { } finish)
+                    finishes[heading].Add(finish);
         }
         return finishes;
+    }
+
+    /// <summary>Each season heading's League, Rank and Pos columns (-1: none), among the labels from its column up to the
+    /// next heading. A row is cut at its last filled cell, so a heading's columns run to the labels' end.</summary>
+    private static Dictionary<string, (int League, int Rank, int Pos)> FinishGroups(string[] headings, string[] labels)
+    {
+        var starts = Enumerable.Range(1, Math.Max(headings.Length - 1, 0)).Where(c => headings[c].Trim().Length > 0).ToList();
+        var groups = new Dictionary<string, (int League, int Rank, int Pos)>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < starts.Count; i++)
+        {
+            var from = starts[i];
+            var end = i + 1 < starts.Count ? starts[i + 1] : labels.Length;
+            int Column(string key) => Enumerable.Range(from, Math.Max(Math.Min(end, labels.Length) - from, 0))
+                .Where(k => ArchiveCells.HeaderKey(labels[k]) == key).DefaultIfEmpty(-1).First();
+            groups.TryAdd(headings[from].Trim(), (Column("league"), Column("rank"), Column("pos")));
+        }
+        return groups;
+    }
+
+    /// <summary>A row's finish under one heading; null when it gives none (no league, rank or place). A place below 1 is none.</summary>
+    private static LadderStanding? Finish(SheetTable sheet, int row, string gamertag, (int League, int Rank, int Pos) columns)
+    {
+        string Cell(int column) => column < 0 ? "" : sheet.Cell(row, column);
+        var league = Value(Cell(columns.League));
+        var rank = Whole(Cell(columns.Rank));
+        var place = Whole(Cell(columns.Pos));
+        if (league is null && rank is null && place is null)
+            return null;
+        return new LadderStanding { Gamertag = gamertag, Position = place is >= 1 ? place : null, League = league, Rank = rank };
     }
 
     /// <summary>A gamertag: not empty, and not the bot's unnamed sign-up ("LateLeague#4522").</summary>

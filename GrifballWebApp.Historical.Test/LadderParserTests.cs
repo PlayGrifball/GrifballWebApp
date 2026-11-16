@@ -199,6 +199,7 @@ public class LadderParserTests
     {
         var config = new HistoricalSourceConfig { Ladders = [new() { Sheet = " S8 Halo 3 ", Season = "S8", Game = "halo3" }], FinishesSheet = "Past Seasons" };
 
-        Assert.That(config.SheetNames(), Is.SupersetOf(LadderSheetNames));
+        var names = config.SheetNames();
+        Assert.That(LadderSheetNames.All(names.Contains), Is.True, "Trimmed, any case");
     }
 }
