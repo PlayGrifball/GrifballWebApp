@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # The chart's Grafana dashboard against the app itself, in the e2e cluster (k3d "e2e"): an OpenTelemetry Collector,
-# Prometheus (its OTLP receiver), Loki and Tempo run beside the cluster on its Docker network, as homelab's do; the
+# Prometheus (its OTLP receiver), Loki and Tempo run beside the cluster on its Docker network, as in production; the
 # release (ci/sqlite-values.yaml) sends its telemetry there; requests make some traffic; then Grafana loads the dashboard
 # the chart rendered and dashboard-grafana.mjs runs every panel's query through Grafana's query API.
 #
 #   BACKEND_IMAGE=grif-backend:e2e FRONTEND_IMAGE=grif-frontend:e2e charts/grifballwebapp/e2e/dashboard.sh
 #
-# The collector gives the telemetry the environment's identity as homelab's does (service.name, service.namespace and
-# k8s.namespace.name = the namespace), so the queries select it as they do there. Versions are homelab's.
+# The collector gives the telemetry the environment's identity as a production collector does (service.name, service.namespace and
+# k8s.namespace.name = the namespace), so the queries select it as they do there. Versions are production's.
 set -euo pipefail
 
 chart="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -63,7 +63,7 @@ receivers:
       grpc: { endpoint: 0.0.0.0:4317 }
       http: { endpoint: 0.0.0.0:4318 }
 processors:
-  # The environment's identity, as homelab's collector gives a grif pod (k8sattributes, transform/grif_service_name)
+  # The environment's identity, as a production collector gives a grif pod (k8sattributes, transform/grif_service_name)
   resource:
     attributes:
       - { key: k8s.namespace.name, value: $ns, action: upsert }

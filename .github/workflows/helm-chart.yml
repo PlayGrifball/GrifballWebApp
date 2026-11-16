@@ -61,7 +61,7 @@ jobs:
           helm unittest "$CHART"
 
       # The Grafana dashboard offline: generated JSON, uid, datasources, the grif_* metrics the app defines, PromQL syntax
-      # (promtool at the Prometheus version homelab runs). The dashboard e2e entry runs it against the app.
+      # (promtool at the Prometheus version production runs). The dashboard e2e entry runs it against the app.
       - name: Dashboard tests
         run: |
           set -euo pipefail
