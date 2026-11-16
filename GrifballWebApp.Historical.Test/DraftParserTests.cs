@@ -203,6 +203,9 @@ public class DraftParserTests
             ["Draft Spot 2", "NeuraLink", "Solace VIII", "", "", "R1P2"],
             ["Draft Spot 2", "NeuraLink", "TcT AVENGER", "", "", "C2"],
             ["Draft Spot 2", "NeuraLink", "Sub", "", "", "?"],
+            ["Draft Spot 2", "NeuraLink", "", "", "", "C9"],
+            ["Draft Spot 2", "NeuraLink", "Benched", "", "", "R0P2"],
+            ["Draft Spot 99999999999", "Overflow", "Ace", "", "", ""],
             ["", "Subs", "Stray", "", "", "R1P3"]);
 
         var teams = DraftParser.Parse(sheet, new DraftTab { Sheet = "TeamInfo", Layout = DraftLayout.Table })!;

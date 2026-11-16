@@ -114,12 +114,14 @@ public class HistoricalArchiveDraftsTests
     [TestCase("Bea", null)]
     [TestCase("Psyduck", null)]
     [TestCase("Cosmos5", null)]
+    [TestCase("TheLongestGamertagAlive", "The Longest Gamertag Alive2")]
+    [TestCase("!!!", null)]
     [TestCase("", null)]
     [TestCase(null, null)]
     public void SeasonPlayer_IsThePlayerTheCellNames_OnlyWhenOneIsThatClose(string? cell, string? player)
     {
         // "Bea": a short name a letter off is as likely another's; "Cosmos": as close to two players
-        List<string> players = ["Ace", "Bee", "Mr_Epic_Beast", "OREOTHECAT#5618", "NecessaryEvil10", "Solace VIII", "Cosmos50", "Cosmos51"];
+        List<string> players = ["Ace", "Bee", "Mr_Epic_Beast", "OREOTHECAT#5618", "NecessaryEvil10", "Solace VIII", "Cosmos50", "Cosmos51", "The Longest Gamertag Alive2"];
 
         Assert.That(HistoricalArchiveBuilder.SeasonPlayer(cell, players), Is.EqualTo(player));
     }

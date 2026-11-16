@@ -137,34 +137,45 @@ public static partial class DraftParser
 
     private static List<ArchiveTeam> TableRows(SheetTable sheet, int header, int teamColumn, int playerColumn, int orderColumn, int pickColumn)
     {
-        var teams = new List<(string Name, int? Order, string? Captain, List<ArchiveDraftPick> Picks)>();
+        var teams = new List<TableTeam>();
         for (var r = header + 1; r < sheet.Rows.Count; r++)
         {
             var name = Name(sheet.Cell(r, teamColumn));
-            var gamertag = Player(sheet.Cell(r, playerColumn));
             if (HistoricalKeys.IsExcludedTeamName(name))
                 continue;
-            var index = teams.FindIndex(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
-            if (index < 0)
-            {
-                teams.Add((name, null, null, []));
-                index = teams.Count - 1;
-            }
-            var team = teams[index];
-            if (orderColumn >= 0 && team.Order is null)
-                team.Order = Place(sheet.Cell(r, orderColumn));
-            var code = pickColumn >= 0 ? sheet.Cell(r, pickColumn).Trim() : "";
-            if (gamertag.Length > 0 && CaptainCode().Match(code) is { Success: true } captain)
-            {
-                team.Captain ??= gamertag;
-                team.Order ??= Number(captain.Groups[1].Value);
-            }
-            else if (gamertag.Length > 0 && PickCode().Match(code) is { Success: true } pick && Number(pick.Groups[1].Value) is int round)
-                team.Picks.Add(new ArchiveDraftPick(gamertag, round));
-            teams[index] = team;
+            var team = teams.Find(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (team is null)
+                teams.Add(team = new TableTeam(name));
+            if (orderColumn >= 0)
+                team.Order ??= Place(sheet.Cell(r, orderColumn));
+            if (pickColumn >= 0)
+                team.Take(Player(sheet.Cell(r, playerColumn)), sheet.Cell(r, pickColumn).Trim());
         }
         return [.. teams.Where(t => t.Order is not null || t.Captain is not null || t.Picks.Count > 0)
-            .Select(t => new ArchiveTeam { TeamName = t.Name, DraftOrder = t.Order is >= 1 ? t.Order : null, Captain = t.Captain, Picks = t.Picks })];
+            .Select(t => new ArchiveTeam { TeamName = t.Name, DraftOrder = t.Order, Captain = t.Captain, Picks = t.Picks })];
+    }
+
+    /// <summary>A team of a draft table, as its rows are read.</summary>
+    private sealed class TableTeam(string name)
+    {
+        public string Name { get; } = name;
+        public int? Order { get; set; }
+        public string? Captain { get; private set; }
+        public List<ArchiveDraftPick> Picks { get; } = [];
+
+        /// <summary>A player's Draft Pick code: "C3" makes them the captain, 3rd in the order; "R2P3" a pick of round 2.</summary>
+        public void Take(string gamertag, string code)
+        {
+            if (gamertag.Length == 0)
+                return;
+            if (CaptainCode().Match(code) is { Success: true } captain)
+            {
+                Captain ??= gamertag;
+                Order ??= Number(captain.Groups[1].Value);
+            }
+            else if (PickCode().Match(code) is { Success: true } pick && Number(pick.Groups[1].Value) is int round)
+                Picks.Add(new ArchiveDraftPick(gamertag, round));
+        }
     }
 
     /// <summary>A place in the draft order: "3", "Draft Spot 3"; null otherwise.</summary>
