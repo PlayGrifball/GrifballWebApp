@@ -115,12 +115,12 @@ public class ScheduleCheckerUnitTests
     }
 
     [Test]
-    public void LengthOf_ASeries_IsItsGames()
+    public void LengthOf_ASeries_IsItsGames_AndTheLobbyBeforeThem()
     {
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(ScheduleChecker.LengthOf(1), Is.EqualTo(TimeSpan.FromMinutes(ScheduleChecker.MinutesPerGame)));
-            Assert.That(ScheduleChecker.LengthOf(5), Is.EqualTo(TimeSpan.FromMinutes(5 * ScheduleChecker.MinutesPerGame)));
+            Assert.That(ScheduleChecker.LengthOf(1), Is.EqualTo(TimeSpan.FromMinutes(30)), "A game (15) and the lobby (15)");
+            Assert.That(ScheduleChecker.LengthOf(5), Is.EqualTo(TimeSpan.FromMinutes(90)));
         }
     }
 
