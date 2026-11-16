@@ -1,4 +1,5 @@
-:host { display: block; }
+/* Its own space above and below, wherever a page puts it */
+:host { display: block; margin-block: 8px; }
 
 .cal-sub__toggle { cursor: pointer; }
 

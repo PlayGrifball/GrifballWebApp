@@ -1,4 +1,3 @@
-using GrifballWebApp.Application;
 using GrifballWebApp.Application.Calendar;
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Domain.League;
@@ -25,7 +24,7 @@ public class CalendarControllerUnitTests : SqliteGrifballContextFixture
 
     private CalendarController Controller()
     {
-        var urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
+        var urls = new GrifballWebApp.Application.UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
         return new CalendarController(new MatchCalendarService(Db, new SeasonVisibility(Db), urls));
     }
 

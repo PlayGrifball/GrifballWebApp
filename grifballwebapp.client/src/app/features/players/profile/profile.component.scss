@@ -210,6 +210,3 @@ a.season-name, a.team-name, a.trophy-team {
 }
 // League and game labels open the season list filtered by them
 :is(.league-pill, .game-pill, .game-pill-sm, .league-sub) a { color: inherit; text-decoration: none; &:hover { text-decoration: underline; } }
-
-/* "Subscribe to calendar": the player's teams' matches as a feed */
-.profile-calendar { margin-top: 16px; }
