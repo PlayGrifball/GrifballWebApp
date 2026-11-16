@@ -27,7 +27,7 @@ public class VoiceCommands(VoiceSessions sessions, VoiceConsents consents) : App
     public static string Listening(ulong channelId)
         => $"I'm listening in <#{channelId}>. I only hear people who ran /voice optin, and nothing said is kept. Say \"Grif, ...\" to ask me something; /voice leave to stop.";
 
-    [SubSlashCommand("join", "The bot joins your voice channel and answers \"Grif, ...\"")]
+    [SubSlashCommand("join", "The bot joins your voice channel and answers when called by name")]
     public async Task Join()
     {
         // First, as every command does: joining takes longer than an interaction's three seconds
