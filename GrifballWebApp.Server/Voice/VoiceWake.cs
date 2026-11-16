@@ -9,7 +9,10 @@ public static partial class VoiceWake
     public static string? Question(string transcript)
     {
         var match = Addressed().Match(transcript);
-        return match.Success && match.Groups["question"].Value.Trim() is { Length: > 0 } question ? question : null;
+        if (!match.Success)
+            return null;
+        var question = match.Groups["question"].Value.Trim();
+        return question.Length > 0 ? question : null;
     }
 
     // Its name at the start, after "hey" or "ok" at most, as Whisper spells it (Grif, Griff); not a longer word (Griffin)

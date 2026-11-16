@@ -73,9 +73,11 @@ public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat
             while (await timer.WaitForNextTickAsync(cancellationToken))
                 await ProcessEndedAsync(cancellationToken);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
-            // Left the channel
+            // Left the channel: over. Anything else canceled it: not ours to hide
+            if (!cancellationToken.IsCancellationRequested)
+                throw;
         }
     }
 

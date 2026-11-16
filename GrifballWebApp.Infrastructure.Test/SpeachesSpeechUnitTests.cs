@@ -157,4 +157,24 @@ public class SpeachesSpeechUnitTests
             Assert.That(services.GetService<IChatSpeech>(), Is.Null, "A blank URL: no voice");
         }
     }
+
+    [Test]
+    public async Task AddChatSpeech_ABlankVoice_IsTheDefault()
+    {
+        var server = new Server(HttpStatusCode.OK, [0, 0]);
+        using var services = new ServiceCollection()
+            .AddChatSpeech(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Speech:Url"] = "http://grif-speech:8000/",
+                ["Speech:TranscriptionModel"] = "whisper-small",
+                ["Speech:SpeechModel"] = "kokoro",
+                ["Speech:Voice"] = "",
+            }).Build())
+            .ConfigureHttpClientDefaults(http => http.ConfigurePrimaryHttpMessageHandler(() => server))
+            .BuildServiceProvider();
+
+        await services.GetRequiredService<IChatSpeech>().SpeakAsync("Hi");
+
+        Assert.That(JsonDocument.Parse(server.Requests.Single().Body).RootElement.GetProperty("voice").GetString(), Is.EqualTo(ChatSpeechExtensions.DefaultVoice));
+    }
 }
