@@ -139,7 +139,8 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
             Assert.That(events.Select(e => e["UID"]), Is.EqualTo(new[] { MatchCalendarService.Uid(home.SeasonMatchID), MatchCalendarService.Uid(away.SeasonMatchID) }));
             Assert.That(events[0]["SUMMARY"], Is.EqualTo("Red vs Blue (Season 5)"));
             Assert.That(events[0]["DTSTART"], Is.EqualTo("20260602T000000Z"));
-            Assert.That(events[0]["DTEND"], Is.EqualTo("20260602T003000Z"), "a slot's length after its start");
+            Assert.That(events[0]["DTEND"], Is.EqualTo("20260602T004500Z"), "Its playing time: a best of three, 15 minutes a game");
+            Assert.That(events[1]["DTEND"], Is.EqualTo("20260603T011500Z"), "A best of five: 75 minutes");
             Assert.That(events[0]["DTSTAMP"], Is.EqualTo("20260520T080000Z"));
             Assert.That(events[0]["LAST-MODIFIED"], Is.EqualTo("20260520T080000Z"));
             Assert.That(events[0]["URL"], Is.EqualTo($"{BaseUrl}/seasonmatch/{home.SeasonMatchID}"));
@@ -193,7 +194,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
             Assert.That(after["UID"], Is.EqualTo(before["UID"]));
             Assert.That(before["DTSTART"], Is.EqualTo("20260602T000000Z"));
             Assert.That(after["DTSTART"], Is.EqualTo("20260605T020000Z"));
-            Assert.That(after["DTEND"], Is.EqualTo("20260605T023000Z"));
+            Assert.That(after["DTEND"], Is.EqualTo("20260605T024500Z"));
             Assert.That(after["LAST-MODIFIED"], Is.EqualTo("20260601T000000Z"));
             Assert.That(after["DTSTAMP"], Is.EqualTo("20260601T000000Z"));
         }
