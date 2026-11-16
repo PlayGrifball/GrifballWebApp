@@ -5,12 +5,12 @@ using System.Linq.Expressions;
 namespace GrifballWebApp.Domain.LateLeague;
 
 /// <summary>
-/// A run of matchmaking (Late League): pick-up games of random, skill-matched sides, so no teams, standings, playoffs or
-/// champion, only players' games and totals. The archive's Late League seasons are one each per game ("Late League Season 8
+/// A run of matchmaking (Late League): pick-up games of random, skill-matched sides, so no teams, playoffs or champion,
+/// only players' games, totals and places on its ladder. The archive's Late League seasons are one each per game ("Late League Season 8
 /// (Halo 3)"); the queue's own matches are in none until it starts runs of its own.
 /// <para>
-/// An aggregate root of its own fields only: its games (<see cref="MatchedMatch"/>) and its sheet's rows
-/// (<see cref="MatchmakingPlayerStat"/>) are roots of their own that name it. It begins as the archive's
+/// An aggregate root of its own fields only: its games (<see cref="MatchedMatch"/>), its sheet's rows
+/// (<see cref="MatchmakingPlayerStat"/>) and its ladder's (<see cref="MatchmakingLadderRank"/>) are roots of their own that name it. It begins as the archive's
 /// (<see cref="Imported"/>), which only the import changes: its name, game and link (<see cref="UpdateArchived"/>) and the
 /// days its games were played, from its opening to its close (<see cref="DateArchived"/>), which never run backwards
 /// (CK_Matchmaking_MatchmakingSeasons_DatesInOrder). Nothing outside it sets its fields: only its own methods, and EF (which
@@ -79,6 +79,9 @@ public class MatchmakingSeason : AuditableEntity
     /// <summary>Read-only: a stats sheet row is its own aggregate, written by the import (<see cref="MatchmakingPlayerStat.FromSheet"/>).</summary>
     public IReadOnlyCollection<MatchmakingPlayerStat> PlayerStats => _playerStats;
     private readonly HashSet<MatchmakingPlayerStat> _playerStats = [];
+    /// <summary>Read-only: a ladder sheet row is its own aggregate, written by the import (<see cref="MatchmakingLadderRank.FromSheet"/>).</summary>
+    public IReadOnlyCollection<MatchmakingLadderRank> LadderRanks => _ladderRanks;
+    private readonly HashSet<MatchmakingLadderRank> _ladderRanks = [];
 
     /// <summary>
     /// The seasons imported from the historical archive (<see cref="HistoricalSourceID"/> set), for queries: the one rule,

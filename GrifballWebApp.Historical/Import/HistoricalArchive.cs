@@ -74,6 +74,9 @@ public class ArchiveSeason
     /// <summary>The season's teams, their records, captains and rosters when a standings table lists them (e.g. the
     /// grifball.com archive), including teams with no captured player stat rows.</summary>
     public List<ArchiveTeam> Teams { get; init; } = [];
+    /// <summary>A Late League season's ladder (its ranked standings), in its order: each player's place, league, rank, LP,
+    /// streak and MMR, and their finish where the workbook's past finishes give one.</summary>
+    public List<GrifballWebApp.Domain.LateLeague.LadderStanding> Ladder { get; init; } = [];
 }
 
 /// <summary>A team of a season's standings. A record: a copy under another name (`with`) keeps every other value.</summary>

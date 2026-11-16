@@ -24,6 +24,14 @@ export interface HistoricalImportReport {
   importJobID: number | null;
 
   /**
+   * Late League ladder rows (a player's place on a matchmaking season's ladder) added, updated and removed (no longer
+   *             on the ladder).
+   */
+  ladderRanksInserted: number;
+  ladderRanksRemoved: number;
+  ladderRanksUpdated: number;
+
+  /**
    * Manual rows not imported, or removed, because the player has Waypoint stats for that phase of the season.
    */
   manualReplacedByWaypoint: number;

@@ -107,6 +107,11 @@ public class HistoricalImportReport
     public int ChampionshipsRemoved { get; set; }
     public int StatsInserted { get; set; }
     public int StatsUpdated { get; set; }
+    /// <summary>Late League ladder rows (a player's place on a matchmaking season's ladder) added, updated and removed (no longer
+    /// on the ladder).</summary>
+    public int LadderRanksInserted { get; set; }
+    public int LadderRanksUpdated { get; set; }
+    public int LadderRanksRemoved { get; set; }
     /// <summary>Season matches made from Waypoint games, and the games linked to them.</summary>
     public int SeasonMatchesCreated { get; set; }
     public int GamesLinked { get; set; }
@@ -1793,6 +1798,9 @@ public partial class HistoricalImportService : IHistoricalImportService
         report.ChampionshipsRemoved += season.ChampionshipsRemoved;
         report.StatsInserted += season.StatsInserted;
         report.StatsUpdated += season.StatsUpdated;
+        report.LadderRanksInserted += season.LadderRanksInserted;
+        report.LadderRanksUpdated += season.LadderRanksUpdated;
+        report.LadderRanksRemoved += season.LadderRanksRemoved;
         report.SeasonMatchesCreated += season.SeasonMatchesCreated;
         report.GamesLinked += season.GamesLinked;
         report.SeasonMatchesRemoved += season.SeasonMatchesRemoved;

@@ -62,6 +62,7 @@ public class GrifballContext :
     public virtual DbSet<MatchedMatch> MatchedMatches { get; set; }
     public virtual DbSet<MatchmakingSeason> MatchmakingSeasons { get; set; }
     public virtual DbSet<MatchmakingPlayerStat> MatchmakingPlayerStats { get; set; }
+    public virtual DbSet<MatchmakingLadderRank> MatchmakingLadderRanks { get; set; }
     public virtual DbSet<MatchReschedule> MatchReschedules { get; set; }
     public virtual DbSet<PasswordResetLink> PasswordResetLinks { get; set; }
     public virtual DbSet<ScheduleRecommendation> ScheduleRecommendations { get; set; }
@@ -185,6 +186,7 @@ public class GrifballContext :
         builder.ApplyConfiguration(new MatchedMatchConfiguration());
         builder.ApplyConfiguration(new MatchmakingSeasonConfiguration());
         builder.ApplyConfiguration(new MatchmakingPlayerStatConfiguration());
+        builder.ApplyConfiguration(new MatchmakingLadderRankConfiguration());
         builder.ApplyConfiguration(new MatchedWinnerVoteConfiguration());
         builder.ApplyConfiguration(new MatchedKickVoteConfiguration());
         builder.ApplyConfiguration(new MatchRescheduleConfiguration());

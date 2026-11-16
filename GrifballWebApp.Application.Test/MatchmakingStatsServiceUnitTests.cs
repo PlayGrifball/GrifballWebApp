@@ -120,6 +120,37 @@ internal sealed class MatchmakingStatsServiceUnitTests : ApplicationDbContextTes
         }
     }
 
+    private static readonly string[] LadderTopFirst = ["Chief117", "Second", "No Place High", "No Place High Too", "No Place Low"];
+
+    [Test]
+    public async Task GetSeasonAsync_ReturnsItsLadder_TopFirst_AndTheSeasonsCountIt()
+    {
+        var season = await SeedSeasonWithStoredStat("Chief117", userID: 1);
+        foreach (var id in new[] { 2, 3, 4, 5 })
+            SeedUser(id);
+        await Context.SaveChangesAsync();
+        // Out of order: a place first, then (no place) by MMR, then LP, then gamertag
+        Context.MatchmakingLadderRanks.AddRange(
+            MatchmakingLadderRank.FromSheet(season.MatchmakingSeasonID, 2, new LadderStanding { Gamertag = "No Place Low", Mmr = 100 }),
+            MatchmakingLadderRank.FromSheet(season.MatchmakingSeasonID, 3, new LadderStanding { Gamertag = "Second", Position = 2, League = "Gold 1", Mmr = 500 }),
+            MatchmakingLadderRank.FromSheet(season.MatchmakingSeasonID, 4, new LadderStanding { Gamertag = "No Place High", Mmr = 900, LeaguePoints = 3 }),
+            MatchmakingLadderRank.FromSheet(season.MatchmakingSeasonID, 1, new LadderStanding { Gamertag = "Chief117", Position = 1, League = "Masters 3", Rank = 3, LeaguePoints = 56, Streak = -2, Mmr = 850, Wins = 15, Losses = 9, Division = "260" }),
+            MatchmakingLadderRank.FromSheet(season.MatchmakingSeasonID, 5, new LadderStanding { Gamertag = "No Place High Too", Mmr = 900, LeaguePoints = 3 }));
+        await Context.SaveChangesAsync();
+
+        var result = await _service.GetSeasonAsync(season.MatchmakingSeasonID);
+        var seasons = await _service.GetSeasonsAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result!.Ladder.Select(r => r.Gamertag), Is.EqualTo(LadderTopFirst));
+            var top = result.Ladder[0];
+            Assert.That((top.UserID, top.Position, top.Division, top.League, top.Rank, top.LeaguePoints, top.Streak, top.Mmr, top.Wins, top.Losses),
+                Is.EqualTo((1, (int?)1, "260", "Masters 3", (int?)3, (int?)56, (int?)-2, (int?)850, (int?)15, (int?)9)));
+            Assert.That((seasons.Single().LadderCount, seasons.Single().PlayerCount), Is.EqualTo((5, 1)));
+        }
+    }
+
     [Test]
     public async Task GetQueueAsync_EmptyQueue_ReturnsZeroCounts()
     {

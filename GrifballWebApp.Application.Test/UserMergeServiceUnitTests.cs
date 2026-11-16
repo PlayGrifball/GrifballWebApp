@@ -754,6 +754,58 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
         await Assert.ThrowsAsync<UserHasHistoricalStatsException>(() => _service.Merge(real.Id, dummy.Id, new MergeOptions { TransferSeasonStats = false }));
     }
 
+    /// <summary>A Late League season with a ladder row (<see cref="MatchmakingLadderRank"/>) for each of <paramref name="users"/>.</summary>
+    private async Task<MatchmakingSeason> SeedLadder(params User[] users)
+    {
+        var late = MatchmakingSeason.Seed("Late League Season 2 (Halo 3)", new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+        Context.MatchmakingSeasons.Add(late);
+        await Context.SaveChangesAsync();
+        Context.MatchmakingLadderRanks.AddRange(users.Select((u, i) => MatchmakingLadderRank.Seed(new LadderStanding { Gamertag = u.DisplayName!, Position = i + 1 }, matchmakingSeason: late, user: u)));
+        await Context.SaveChangesAsync();
+        return late;
+    }
+
+    [Test]
+    public async Task Merge_MovesThePlaceholdersLadderRows()
+    {
+        var real = User.Seed(userName: "real", displayName: "Real");
+        var dummy = User.Seed(userName: "historical:Old Tag", displayName: "Old Tag", isDummyUser: true);
+        Context.AddRange(real, dummy);
+        await Context.SaveChangesAsync();
+        await SeedLadder(dummy);
+
+        await _service.Merge(real.Id, dummy.Id);
+
+        Context.ChangeTracker.Clear();
+        Assert.That(await Context.MatchmakingLadderRanks.Select(r => r.UserID).SingleAsync(), Is.EqualTo(real.Id));
+    }
+
+    [Test]
+    public async Task Merge_BothOnOneSeasonsLadder_IsRefused_NamingIt()
+    {
+        var real = User.Seed(userName: "real", displayName: "Real");
+        var dummy = User.Seed(userName: "historical:Old Tag", displayName: "Old Tag", isDummyUser: true);
+        Context.AddRange(real, dummy);
+        await Context.SaveChangesAsync();
+        await SeedLadder(real, dummy);
+
+        var ex = await Assert.ThrowsAsync<MergeConflictException>(() => _service.Merge(real.Id, dummy.Id));
+
+        Assert.That(ex!.Message, Does.Contain("ladder of Late League Season 2 (Halo 3)"));
+    }
+
+    [Test]
+    public async Task DeletingTheSource_WithoutMovingItsLadderRows_IsRefused()
+    {
+        var real = User.Seed(userName: "real", displayName: "Real");
+        var dummy = User.Seed(userName: "historical:Old Tag", displayName: "Old Tag", isDummyUser: true);
+        Context.AddRange(real, dummy);
+        await Context.SaveChangesAsync();
+        await SeedLadder(dummy);
+
+        await Assert.ThrowsAsync<UserHasHistoricalStatsException>(() => _service.Merge(real.Id, dummy.Id, new MergeOptions { TransferSeasonStats = false }));
+    }
+
     [Test]
     public async Task Merge_BothWithStatsForOneSeasonAndStint_IsRefused_AndNothingChanges()
     {

@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { Component, input } from '@angular/core';
 import { LateLeagueComponent } from './lateLeague.component';
 import { LateLeagueQueueComponent } from './lateLeagueQueue/lateLeagueQueue.component';
-import type { MatchmakingPlayerStatDto, MatchmakingQueueDto, MatchmakingSeasonDto } from '@api/models';
+import type { MatchmakingLadderRankDto, MatchmakingPlayerStatDto, MatchmakingQueueDto, MatchmakingSeasonDto } from '@api/models';
 
 /** The queue has its own specs: here it is left out, with its requests and hub connection. */
 @Component({ selector: 'app-late-league-queue', template: '' })
@@ -18,7 +18,7 @@ describe('LateLeagueComponent', () => {
   let http: HttpTestingController;
   const season = (id: number, overrides: Partial<MatchmakingSeasonDto> = {}): MatchmakingSeasonDto => ({
     matchmakingSeasonID: id, name: `Late League Season ${id} (Halo 3)`, gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3',
-    startsAt: '2020-03-01T00:00:00Z', endsAt: '2020-09-30T00:00:00Z', gameCount: 40, playerCount: 12, isHistorical: true,
+    startsAt: '2020-03-01T00:00:00Z', endsAt: '2020-09-30T00:00:00Z', gameCount: 40, playerCount: 12, ladderCount: 0, isHistorical: true,
     historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x', ...overrides,
   });
   const player = (userID: number, gamertag: string, overrides: Partial<MatchmakingPlayerStatDto> = {}): MatchmakingPlayerStatDto => ({
@@ -55,15 +55,15 @@ describe('LateLeagueComponent', () => {
     fixture.detectChanges();
     await lists(
       { gameCount: 25, voteDecidedGameCount: 0, players: [player(3, 'Queue Regular', { matchmakingSeasonID: null, matchmakingSeasonName: null, gameVersionName: 'Halo Infinite' })] },
-      [season(8), season(7, { gameVersionName: null, gameCount: 0, playerCount: 9 })]);
+      [season(8), season(7, { gameVersionName: null, gameCount: 0, playerCount: 9, ladderCount: 31 })]);
 
     expect(el().querySelector('h1')!.textContent!.trim()).toBe('Late League');
     expect(Array.from(el().querySelectorAll('h2')).map(h => h.textContent!.trim())).toEqual(['Current Late League', 'Past seasons']);
     expect(section('late-league-queue').querySelector('.facts')!.textContent).toContain('25 games played');
     expect(sectionRows('late-league-queue')).toEqual([['1', 'Queue Regular', 'Halo Infinite', '10', '6-4', '60%', '12', '50', '40', '+10', '1.25', '7', 'Games']]);
     expect(sectionRows('late-league-seasons')).toEqual([
-      ['Late League Season 8 (Halo 3)', 'Halo 3', 'Mar 2020 – Sep 2020', '40', '12'],
-      ['Late League Season 7 (Halo 3)', '-', 'Mar 2020 – Sep 2020', '0', '9'],
+      ['Late League Season 8 (Halo 3)', 'Halo 3', 'Mar 2020 – Sep 2020', '40', '12', '0'],
+      ['Late League Season 7 (Halo 3)', '-', 'Mar 2020 – Sep 2020', '0', '9', '31'],
     ]);
     expect(section('late-league-seasons').querySelector('tbody a')!.getAttribute('href')).toBe('/late-league/8');
   });
@@ -128,6 +128,7 @@ describe('LateLeagueComponent', () => {
     http.expectOne('/api/late-league/seasons/8').flush({
       season: season(8),
       players: [player(1, 'Alpha One'), player(2, 'Bravo Two', { source: 'Recorded', winPercent: null, kdRatio: null, kdSpread: -3 })],
+      ladder: [],
     });
     await fixture.whenStable();
 
@@ -142,10 +143,47 @@ describe('LateLeagueComponent', () => {
     expect(el().querySelector('.back')!.getAttribute('href')).toBe('/late-league');
   });
 
+  it('shows a past season\'s ladder: each player\'s place, league, LP, streak, MMR, record and division', async () => {
+    const rank = (userID: number, gamertag: string, overrides: Partial<MatchmakingLadderRankDto> = {}): MatchmakingLadderRankDto => ({
+      userID, gamertag, position: null, division: null, league: null, rank: null, leaguePoints: null, streak: null, mmr: null, wins: null, losses: null, ...overrides,
+    });
+    fixture.componentRef.setInput('matchmakingSeasonID', '2');
+    fixture.detectChanges();
+    http.expectOne('/api/late-league/seasons/2').flush({
+      season: season(2, { gameCount: 0, playerCount: 0, ladderCount: 4 }),
+      players: [],
+      ladder: [
+        rank(5, 'Ladder Top', { position: 1, division: '2', league: 'Diamond', rank: 3, leaguePoints: 5, streak: 3, mmr: 550, wins: 12, losses: 4 }),
+        rank(6, 'Second Place', { position: 2, division: '200', league: 'Masters 3', rank: 3, leaguePoints: 56, streak: -2, mmr: 850 }),
+        rank(7, 'Placed Player', { position: 3, league: 'Placements (1/3)', streak: 0, losses: 1 }),
+        rank(8, 'Only Finished', { rank: 4 }),
+      ],
+    });
+    await fixture.whenStable();
+
+    expect(el().textContent).toContain('No player stats were recorded for this season.');
+    expect(section('late-league-ladder').querySelector('h2')!.textContent!.trim()).toBe('Ladder');
+    expect(sectionRows('late-league-ladder')).toEqual([
+      ['1', 'Ladder Top', 'Diamond 3', '5', '+3', '550', '12-4', '2'],
+      ['2', 'Second Place', 'Masters 3', '56', '-2', '850', '-', '200'],
+      ['3', 'Placed Player', 'Placements (1/3)', '-', '0', '-', '0-1', '-'],
+      ['-', 'Only Finished', '4', '-', '-', '-', '-', '-'],
+    ]);
+    expect(section('late-league-ladder').querySelector('tbody a')!.getAttribute('href')).toBe('/profile/5');
+  });
+
+  it('leaves the ladder out of a season that has none', async () => {
+    fixture.componentRef.setInput('matchmakingSeasonID', '8');
+    fixture.detectChanges();
+    http.expectOne('/api/late-league/seasons/8').flush({ season: season(8), players: [player(1, 'Alpha One')], ladder: [] });
+    await fixture.whenStable();
+    expect(el().querySelector('[aria-labelledby="late-league-ladder"]')).toBeNull();
+  });
+
   it('says when a season has no players, or cannot be loaded', async () => {
     fixture.componentRef.setInput('matchmakingSeasonID', '8');
     fixture.detectChanges();
-    http.expectOne('/api/late-league/seasons/8').flush({ season: season(8, { gameVersionName: null, historicalSourceUrl: null }), players: [] });
+    http.expectOne('/api/late-league/seasons/8').flush({ season: season(8, { gameVersionName: null, historicalSourceUrl: null }), players: [], ladder: [] });
     await fixture.whenStable();
     expect(el().textContent).toContain('No player stats were recorded for this season.');
     expect(el().querySelector('.facts a')).toBeNull();
