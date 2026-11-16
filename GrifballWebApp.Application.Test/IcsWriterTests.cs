@@ -27,6 +27,7 @@ public class IcsWriterTests
     [TestCase("two\nlines", @"two\nlines")]
     [TestCase("two\r\nlines", @"two\nlines")]
     [TestCase("lone\rreturn", @"lone\nreturn")]
+    [TestCase("ends\r", @"ends\n")]
     [TestCase("colon: kept", "colon: kept")]
     [TestCase("tab\tkept", "tab\tkept")]
     [TestCase("bell\u0007gone", "bellgone")]

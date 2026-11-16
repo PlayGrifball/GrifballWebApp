@@ -308,6 +308,34 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task SeasonAsync_ABracketSlotWhoseHomeTeamIsToCome_IsTbdAtHome()
+    {
+        var season = await PublicSeason();
+        await MatchOf(season, home: null, await TeamOf(season, "Blue"), Now.AddDays(8));
+
+        var ics = await _service.SeasonAsync(season.SeasonID, BaseUrl);
+
+        Assert.That(Events(ics!).Single()["SUMMARY"], Is.EqualTo("TBD vs Blue (Season 5)"));
+    }
+
+    [Test]
+    public async Task TeamAsync_WithoutAClockGiven_StampsAnUnstampedMatchWithTheSystemClock()
+    {
+        var service = new MatchCalendarService(Context, new SeasonVisibility(Context));
+        var season = Season.Seed(seasonName: "Now").WithDates(signupsOpen: DateTime.UtcNow.AddDays(-60), signupsClose: DateTime.UtcNow.AddDays(-50),
+            draftStart: DateTime.UtcNow.AddDays(-40), seasonStart: DateTime.UtcNow.AddDays(-30), seasonEnd: DateTime.UtcNow.AddDays(30));
+        Context.Seasons.Add(season);
+        await Context.SaveChangesAsync();
+        var red = await TeamOf(season, "Red");
+        await MatchOf(season, red, await TeamOf(season, "Blue"), DateTime.UtcNow.AddDays(1), modified: default(DateTime));
+        var before = DateTime.UtcNow;
+
+        var stamp = Events((await service.TeamAsync(red.TeamID, BaseUrl))!).Single()["DTSTAMP"];
+
+        Assert.That(DateTime.ParseExact(stamp, "yyyyMMdd'T'HHmmss'Z'", System.Globalization.CultureInfo.InvariantCulture), Is.GreaterThanOrEqualTo(before.AddSeconds(-1)));
+    }
+
+    [Test]
     public void Uid_IsTheSeasonMatchsOwn()
     {
         Assert.That(MatchCalendarService.Uid(42), Is.EqualTo("seasonmatch-42@grifballwebapp"));
