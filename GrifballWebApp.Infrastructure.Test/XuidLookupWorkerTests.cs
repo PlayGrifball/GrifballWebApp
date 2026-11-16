@@ -165,7 +165,7 @@ public class XuidLookupWorkerTests : SqliteContextFixture
         using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
         using (Assert.EnterMultipleScope())
         {
-            Assert.CatchAsync<OperationCanceledException>(async () => await worker.WaitForNextRunAsync(cancel.Token), "waits on the signal, up to PollInterval");
+            await Assert.CatchAsync<OperationCanceledException>(async () => await worker.WaitForNextRunAsync(cancel.Token), "waits on the signal, up to PollInterval");
             Assert.That(delayed, Is.False);
         }
     }
