@@ -13,6 +13,8 @@ using System.Text;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Infrastructure.Historical;
+using GrifballWebApp.Historical.Import;
+using GrifballWebApp.Historical.Worker;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -39,9 +41,9 @@ public class HistoricalImportControllerTests
         _context = await TestDatabase.NewGrifballContext();
         _signal = new HistoricalImportSignal();
         _controller = new HistoricalImportController(new HistoricalImportJobs(_context, _signal),
-            new GrifballWebApp.Infrastructure.Historical.Sources.HistoricalSourceService(_context,
-                new GrifballWebApp.Infrastructure.Historical.Sources.HistoricalSourceFetcher(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(System.Net.HttpStatusCode.NotFound)))),
-                TimeProvider.System, NullLogger<GrifballWebApp.Infrastructure.Historical.Sources.HistoricalSourceService>.Instance));
+            new GrifballWebApp.Historical.Sources.HistoricalSourceService(_context,
+                new GrifballWebApp.Historical.Sources.HistoricalSourceFetcher(new HttpClient(new FakeSourcesHandler(_ => FakeSourcesHandler.Status(System.Net.HttpStatusCode.NotFound)))),
+                TimeProvider.System, NullLogger<GrifballWebApp.Historical.Sources.HistoricalSourceService>.Instance));
         _lookupSignal = new XuidLookupSignal();
         _claims = new GamertagClaimsController(new GamertagClaimService(_context, new UserMergeService(_context)),
             new XuidLookupService(_context, Substitute.For<Surprenant.Grunt.Core.IHaloInfiniteClient>(), new GamertagMatching(_context),

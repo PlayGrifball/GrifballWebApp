@@ -16,7 +16,7 @@ public class RenamedJobTypesTests
 {
     private static ITypeLoader TypeLoader(ServiceProvider provider) => provider.GetRequiredService<ITypeLoader>();
 
-    private static ServiceProvider Jobs()
+    private static ServiceProvider Jobs(Action<RecurringJobs>? recurring = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -24,7 +24,7 @@ public class RenamedJobTypesTests
         {
             ["Database:Provider"] = "Sqlite",
             ["ConnectionStrings:GrifballWebApp"] = "Data Source=renamed-jobs.db",
-        }).Build(), _ => { });
+        }).Build(), recurring ?? (_ => { }));
         return services.BuildServiceProvider();
     }
 
@@ -45,7 +45,7 @@ public class RenamedJobTypesTests
         var loader = TypeLoader(provider);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(RenamedJobTypes.FromServer, Has.Count.EqualTo(13));
+            Assert.That(RenamedJobTypes.FromServer, Has.Count.EqualTo(12));
             foreach (var (stored, moved) in RenamedJobTypes.FromServer)
             {
                 Assert.That(loader.LoadType(stored), Is.EqualTo(moved), stored);
@@ -53,6 +53,15 @@ public class RenamedJobTypesTests
                 Assert.That(stored, Is.EqualTo($"{moved.FullName!.Replace("GrifballWebApp.Infrastructure.", "GrifballWebApp.Server.")}, GrifballWebApp.Server"));
             }
         }
+    }
+
+    [Test]
+    public void ARenameDeclaredWithTheJobs_LoadsItsType()
+    {
+        // A project above Infrastructure (GrifballWebApp.Historical) declares its own jobs' old names
+        using var provider = Jobs(jobs => jobs.Renamed("Old.Place.MatchmakingQueueJob, Old.Place", typeof(GrifballWebApp.Infrastructure.Matchmaking.MatchmakingQueueJob)));
+
+        Assert.That(TypeLoader(provider).LoadType("Old.Place.MatchmakingQueueJob, Old.Place"), Is.EqualTo(typeof(GrifballWebApp.Infrastructure.Matchmaking.MatchmakingQueueJob)));
     }
 
     [Test]

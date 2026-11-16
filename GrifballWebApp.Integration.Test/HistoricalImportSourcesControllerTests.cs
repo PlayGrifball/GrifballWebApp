@@ -7,10 +7,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Net;
 using GrifballWebApp.Application.Historical;
-using GrifballWebApp.Application.Historical.Sources;
+using GrifballWebApp.Historical.Sources;
 using GrifballWebApp.Infrastructure.Historical;
-using GrifballWebApp.Infrastructure.Historical.Sources;
 using GrifballWebApp.Application.Database;
+using GrifballWebApp.Historical.Import;
+using GrifballWebApp.Historical.Worker;
 
 namespace GrifballWebApp.Integration.Test;
 

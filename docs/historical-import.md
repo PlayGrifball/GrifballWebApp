@@ -6,7 +6,7 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
 ## How it works
 
 - **Sources** (`Event.HistoricalSources`): every workbook, page and channel of the archive, from the catalog in
-  `GrifballWebApp.Application/Historical/Sources/HistoricalSourceCatalog.cs` (written to the table at runtime: a fresh
+  `GrifballWebApp.Historical/Sources/HistoricalSourceCatalog.cs` (written to the table at runtime: a fresh
   environment needs no setup). Each entry says what the import reads from it (season stats tabs, database tables of stats
   with a season column (`StatsTable`: the grifball.info backup, split by season, division and phase, its season IDs named
   in its entry since the workbook has no names), Waypoint game lists, per-game carnage tabs, the champions record, the
@@ -15,7 +15,7 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   xlsx export, a tab's CSV when the export is refused; pages at their URL; Wayback captures at their permanent URL)
   and keeps the content only when its SHA-256 changed. The import reads each source's latest snapshot, so a sheet that
   went private or was deleted still imports from its last one. Snapshots are in the database, so they ride its backups.
-- **Parsing** (`Historical/Parsing`): the xlsx is read with ExcelDataReader into text cells and parsed into the same
+- **Parsing** (`GrifballWebApp.Historical/Parsing`): the xlsx is read with ExcelDataReader into text cells and parsed into the same
   `HistoricalArchiveInput` the compiled JSON used to be; `HistoricalImportService` stays the only importer.
 - **Jobs**: everything runs in the worker role through the historical import job queue (one job at a time):
   refresh, preview (a dry run: each season's transaction rolled back) and import.
@@ -63,3 +63,33 @@ the Discord bot; there is no separate archive API. What makes it imported is `Se
   champions record for imported ones (their bracket is rebuilt from game order and decides nothing).
 - **Editing**: an imported season can't be edited in the season editor: the next import would revert the edit. Correct
   it in its spreadsheet.
+
+## Testing against the real archive
+
+`GrifballWebApp.HistoricalArchive.Test` runs the import on the whole archive, not on workbooks built in a test: each
+source's sheet is parsed with the catalog's current config and imported into a fresh SQLite database, and its tests
+say what every season should have (teams, stats, captains, a champion, a bracket when it had playoffs), each naming the
+seasons that fall short. CI builds it but never runs it. Run it while working on the import:
+
+```sh
+# Fill the copy (.historical-archive/ in the repository, ignored by git) from the test environment's snapshots and
+# Google, then run. The fill only reads the database (ApplicationIntent=ReadOnly is a hint, not a guard). Keep the
+# database's password in the environment (DB_PASSWORD), never on a command line that is logged.
+kubectl -n grif-test port-forward svc/sqlserver 14330:1433 &
+GRIF_HISTORICAL_FILL=both \
+GRIF_HISTORICAL_DATABASE="Server=127.0.0.1,14330;Database=GrifballWebApp;User Id=grif_app;Password=$DB_PASSWORD;Encrypt=True;TrustServerCertificate=True;ApplicationIntent=ReadOnly" \
+  dotnet test GrifballWebApp.HistoricalArchive.Test
+
+# Afterwards, from the copy as it is (a config or parser change needs no fetching):
+dotnet test GrifballWebApp.HistoricalArchive.Test
+```
+
+- `GRIF_HISTORICAL_FILL`: `database` (each source's latest snapshot in `GRIF_HISTORICAL_DATABASE`; it has the sheets
+  that have gone private), `download` (as a refresh downloads them), or `both` (the database's, then a download over each
+  still public). Unset: the copy as it is. With no copy, every test is ignored.
+- `GRIF_HISTORICAL_DATABASE_PROVIDER`: the database's kind, `SqlServer` by default.
+- `GRIF_HISTORICAL_ARCHIVE`: the copy's folder, instead of `.historical-archive/`.
+
+A run leaves `import.db` (the imported database, to query) and `summary.md` (each season's teams, captains, stats,
+matches, playoff matches and titles, and the build's and import's warnings) in the copy's folder. A fill and run take
+about 4 minutes; a run from the copy, under 2.

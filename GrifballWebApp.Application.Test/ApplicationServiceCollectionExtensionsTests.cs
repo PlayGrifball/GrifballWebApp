@@ -55,11 +55,8 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         yield return Of(typeof(UrlService), typeof(UrlService), ServiceLifetime.Transient);
         yield return Of(typeof(IQueueRepository), typeof(QueueRepository), ServiceLifetime.Transient);
         yield return Of(typeof(QueueMembership), typeof(QueueMembership), ServiceLifetime.Transient);
-        yield return Of(typeof(IHistoricalImportService), typeof(HistoricalImportService), ServiceLifetime.Transient);
-        yield return Of(typeof(HistoricalImportJobs), typeof(HistoricalImportJobs), ServiceLifetime.Transient);
         yield return Of(typeof(GamertagClaimService), typeof(GamertagClaimService), ServiceLifetime.Transient);
         yield return Of(typeof(GamertagMatching), typeof(GamertagMatching), ServiceLifetime.Transient);
-        yield return Of(typeof(HistoricalImportSignal), typeof(HistoricalImportSignal), ServiceLifetime.Singleton);
         yield return Of(typeof(VodService), typeof(VodService), ServiceLifetime.Transient);
         yield return Of(typeof(UserGamertagClaimService), typeof(UserGamertagClaimService), ServiceLifetime.Transient);
         yield return Of(typeof(DuplicateSuggestionService), typeof(DuplicateSuggestionService), ServiceLifetime.Transient);
@@ -247,18 +244,9 @@ internal sealed class ApplicationServiceCollectionExtensionsTests
         // misspelled one) keeps its default and fails here
         using var provider = AddApplication(new Dictionary<string, string?>
         {
-            ["HistoricalImport:MatchPullAttempts"] = "7",
-            ["HistoricalImport:Worker:ReportLinesKept"] = "42",
-            ["HistoricalImport:Guardrail:MaxRemovedFraction"] = "0.75",
             ["UserClaims:SubmissionsPerDay"] = "9",
         }).BuildServiceProvider();
 
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(provider.GetRequiredService<IOptions<HistoricalImportOptions>>().Value.MatchPullAttempts, Is.EqualTo(7));
-            Assert.That(provider.GetRequiredService<IOptions<HistoricalImportWorkerOptions>>().Value.ReportLinesKept, Is.EqualTo(42));
-            Assert.That(provider.GetRequiredService<IOptions<HistoricalGuardrailOptions>>().Value.MaxRemovedFraction, Is.EqualTo(0.75m));
-            Assert.That(provider.GetRequiredService<IOptions<UserClaimOptions>>().Value.SubmissionsPerDay, Is.EqualTo(9));
-        }
+        Assert.That(provider.GetRequiredService<IOptions<UserClaimOptions>>().Value.SubmissionsPerDay, Is.EqualTo(9));
     }
 }

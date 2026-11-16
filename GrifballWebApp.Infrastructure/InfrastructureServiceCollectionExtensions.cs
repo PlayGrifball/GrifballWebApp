@@ -10,7 +10,6 @@ using GrifballWebApp.Infrastructure.Events;
 using GrifballWebApp.Infrastructure.Excel;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Historical;
-using GrifballWebApp.Infrastructure.Historical.Sources;
 using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Application.Jobs;
 using GrifballWebApp.Application.Scheduler;
@@ -115,24 +114,14 @@ public static class InfrastructureServiceCollectionExtensions
 
     /// <summary>
     /// The adapters behind the use cases' ports (the Halo client's pulls, the draft channel, the database locks, the chat
-    /// model), the historical archive's sources and workers, the XUID lookups, the jobs (Quartz: the recurring ones, the
-    /// ones a page starts, and the scheduler), the sheet export and the database backups.
+    /// model), the XUID lookups, the jobs (Quartz: the recurring ones, the ones a page starts, and the scheduler), the sheet
+    /// export and the database backups.
     /// </summary>
     /// <param name="discordOff">Discord is off (a preview without a bot): its jobs are turned off.</param>
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration, bool discordOff)
+    /// <param name="moreJobs">The jobs of the projects above (GrifballWebApp.Historical's), registered with these.</param>
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration, bool discordOff, Action<RecurringJobs>? moreJobs = null)
     {
         services.AddTransient<IDataPullService, DataPullService>();
-        services.AddHostedService<HistoricalImportWorker>();
-        // The archive's sources: downloaded and snapshotted by the worker (manual refresh jobs and the schedule), parsed in .NET
-        services.AddHttpClient<HistoricalSourceFetcher>(client =>
-        {
-            client.Timeout = TimeSpan.FromMinutes(2);
-            client.MaxResponseContentBufferSize = 64 * 1024 * 1024;
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("GrifballWebApp/1.0 (historical archive)");
-        });
-        services.AddTransient<HistoricalSourceService>();
-        services.AddTransient<HistoricalImportRunner>();
-        services.AddTransient<HistoricalImportSchedule>();
         // The VODs' feeds (VodService)
         services.AddOptions<YouTubeOptions>().Bind(configuration.GetSection("YouTube"));
         services.AddHttpClient<YouTubeClient>(client =>
@@ -154,7 +143,6 @@ public static class InfrastructureServiceCollectionExtensions
         // Quartz.NET: the recurring jobs (their schedules, kept in the database, and the Jobs page) and the scheduler that runs them
         services.AddJobs(configuration, jobs =>
         {
-            jobs.Add<HistoricalRefreshJob>(HistoricalRefreshJob.Definition);
             jobs.Add<XboxPlaceholderJob>(XboxPlaceholderJob.Definition);
             // Run from the Jobs page only: it deletes users
             jobs.Add<XboxPlaceholderCleanupJob>(XboxPlaceholderCleanupJob.Definition);
@@ -173,6 +161,7 @@ public static class InfrastructureServiceCollectionExtensions
             jobs.AddOnDemand<DatabaseExportJob>("database-export", DatabaseExportJob.Description);
             // Queued as a worker starts (ScratchScaleDown), with an on-demand scratch server only
             ScratchStopJobRegistration.AddScratchStop(jobs, configuration);
+            moreJobs?.Invoke(jobs);
         });
 
         services.AddTransient<IDraftChannel, OutboxDraftChannel>();

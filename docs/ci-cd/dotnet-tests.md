@@ -73,10 +73,13 @@ or the network push a test into the integration project.
   is that provider's alone, so each targets 100% of its own hand-written lines (the coverage-by-layer comment,
   below), not the usual 70%.
 - **`GrifballWebApp.Architecture.Test`**: the architecture's rules, read from the compiled assemblies with Mono.Cecil:
-  the layers depend inwards only (Domain <- Application <- Infrastructure <- Server), a type of one of the Domain's
+  the layers depend inwards only (Domain <- Application <- Infrastructure <- Historical <- Server), a type of one of the Domain's
   bounded contexts names another context's only where `ContextCrossings.Allowed` lists it, and an aggregate's
   internals are its own.
 - **`GrifballWebApp.Integration.Test`**: the integration tests. It runs once per database, below.
+- **`GrifballWebApp.HistoricalArchive.Test`**: the historical import against the real archive (every source's sheet).
+  Built here so it keeps compiling, but no leg runs it: it needs a copy of the archive, and is run by hand while working
+  on the import ([docs/historical-import.md](../historical-import.md#testing-against-the-real-archive)).
 
 The unit test projects run once, together, as the `test (Unit)` matrix leg. A helper or test double shared by several
 projects lives in the lowest test project that uses it; the integration tests reference every unit test project for

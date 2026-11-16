@@ -5,8 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using System.Net;
 using System.Text;
-using GrifballWebApp.Application.Historical.Sources;
-using GrifballWebApp.Infrastructure.Historical.Sources;
+using GrifballWebApp.Historical.Sources;
 
 namespace GrifballWebApp.Integration.Test;
 

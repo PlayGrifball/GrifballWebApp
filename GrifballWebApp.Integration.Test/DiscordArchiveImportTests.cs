@@ -12,7 +12,8 @@ using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Identity;
 using GrifballWebApp.Application.Profile;
-using static GrifballWebApp.Application.Test.DiscordArchiveImportUnitTests;
+using static GrifballWebApp.Historical.Test.DiscordArchiveImportUnitTests;
+using GrifballWebApp.Historical.Import;
 
 namespace GrifballWebApp.Integration.Test;
 

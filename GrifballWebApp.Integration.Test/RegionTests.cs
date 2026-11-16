@@ -14,6 +14,7 @@ using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.UserManagement;
+using GrifballWebApp.Historical.Import;
 
 namespace GrifballWebApp.Integration.Test;
 

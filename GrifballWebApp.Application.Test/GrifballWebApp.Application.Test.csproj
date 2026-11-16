@@ -45,6 +45,7 @@
   <!-- Its test doubles (SeededRandomization) serve the integration tests too -->
   <ItemGroup>
     <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Historical.Test" />
   </ItemGroup>
 
   <ItemGroup>

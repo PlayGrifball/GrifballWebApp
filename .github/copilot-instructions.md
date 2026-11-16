@@ -13,7 +13,7 @@ Testcontainers database servers work.
 
 ## The rules reviews check
 
-- **Clean Architecture.** Dependencies point inwards: Domain ← Application ← Infrastructure ← Server. The Domain uses
+- **Clean Architecture.** Dependencies point inwards: Domain ← Application ← Infrastructure ← Historical ← Server. The Domain uses
   no other project of the solution, the Application only the Domain; Infrastructure implements the Application's ports;
   controllers stay thin and call Application services. `GrifballWebApp.Architecture.Test` enforces it.
 - **Domain-driven design.** The Domain is split into bounded contexts (`League`, `LateLeague`, `Archive`, `Players`,

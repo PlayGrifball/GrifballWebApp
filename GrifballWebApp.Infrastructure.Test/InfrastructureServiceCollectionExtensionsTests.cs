@@ -3,6 +3,7 @@ using GrifballWebApp.Application.Discord;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Teams;
 using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.Excel;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Historical;
@@ -168,14 +169,13 @@ public class InfrastructureServiceCollectionExtensionsTests
             Assert.That(services.Any(d => d.ServiceType == typeof(IDraftChannel)), Is.True);
             Assert.That(services.Any(d => d.ServiceType == typeof(IDatabaseLocks)), Is.True);
             Assert.That(services.Any(d => d.ServiceType == typeof(ExcelService)), Is.True);
-            Assert.That(services.Any(d => d.ServiceType == typeof(HistoricalImportRunner)), Is.True);
             Assert.That(services.Any(d => d.ImplementationType == (preview ? typeof(PreviewSmokeXboxUsers) : typeof(GetsertXboxUserService)) && d.ServiceType == typeof(IGetsertXboxUserService)), Is.True,
                 preview ? "A preview's smoke players get made-up gamertags" : "Everything else is looked up on Halo");
         }
     }
 
     [Test]
-    public void AddInfrastructure_TheArchivesAndTheVodsHttpClients_SayWhoTheyAre_AndWaitTheirOwnTime()
+    public void AddInfrastructure_TheVodsHttpClient_SaysWhoItIs_AndWaitsItsOwnTime()
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -183,16 +183,25 @@ public class InfrastructureServiceCollectionExtensionsTests
         using var provider = services.BuildServiceProvider();
         var factory = provider.GetRequiredService<IHttpClientFactory>();
 
-        using var sources = factory.CreateClient(nameof(GrifballWebApp.Infrastructure.Historical.Sources.HistoricalSourceFetcher));
         using var vods = factory.CreateClient(nameof(GrifballWebApp.Application.Historical.Vods.YouTubeClient));
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That((sources.Timeout, sources.MaxResponseContentBufferSize), Is.EqualTo((TimeSpan.FromMinutes(2), 64L * 1024 * 1024)));
-            Assert.That(sources.DefaultRequestHeaders.UserAgent.ToString(), Is.EqualTo("GrifballWebApp/1.0 (historical archive)"));
             Assert.That(vods.Timeout, Is.EqualTo(TimeSpan.FromMinutes(1)));
             Assert.That(vods.DefaultRequestHeaders.UserAgent.ToString(), Is.EqualTo("GrifballWebApp/1.0 (VODs)"));
         }
+    }
+
+    [Test]
+    public void AddInfrastructure_RegistersTheJobsOfTheProjectsAbove_WithItsOwn()
+    {
+        var services = new ServiceCollection();
+
+        services.AddInfrastructure(Config(ValidInfrastructureSettings(preview: false)), discordOff: true,
+            jobs => jobs.Renamed("Old.Place.MatchmakingQueueJob, Old.Place", typeof(GrifballWebApp.Infrastructure.Matchmaking.MatchmakingQueueJob)));
+
+        var jobs = (RecurringJobs)services.Single(d => d.ServiceType == typeof(RecurringJobs)).ImplementationInstance!;
+        Assert.That(jobs.RenamedTypes, Does.ContainKey("Old.Place.MatchmakingQueueJob, Old.Place"));
     }
 
     [TestCase("grif-backup-scratch", true, Description = "a scratch server started on demand: stopped at startup")]

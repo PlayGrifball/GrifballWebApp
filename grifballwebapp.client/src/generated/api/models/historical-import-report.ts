@@ -42,7 +42,7 @@ export interface HistoricalImportReport {
 
   /**
    * Recorded (non-Waypoint) games added or updated; skipped as a Waypoint game's duplicate (by match ID, or the
-   *             same two teams within GrifballWebApp.Application.Historical.HistoricalImportOptions.RecordedGameWaypointWindow, details in the warnings); and
+   *             same two teams within GrifballWebApp.Historical.Import.HistoricalImportOptions.RecordedGameWaypointWindow, details in the warnings); and
    *             removed (no longer in the archive, or now a duplicate).
    */
   recordedGamesImported: number;

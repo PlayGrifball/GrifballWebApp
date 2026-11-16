@@ -10977,7 +10977,7 @@
           },
           "recordedGamesImported": {
             "type": "integer",
-            "description": "Recorded (non-Waypoint) games added or updated; skipped as a Waypoint game's duplicate (by match ID, or the\n            same two teams within GrifballWebApp.Application.Historical.HistoricalImportOptions.RecordedGameWaypointWindow, details in the warnings); and\n            removed (no longer in the archive, or now a duplicate).",
+            "description": "Recorded (non-Waypoint) games added or updated; skipped as a Waypoint game's duplicate (by match ID, or the\n            same two teams within GrifballWebApp.Historical.Import.HistoricalImportOptions.RecordedGameWaypointWindow, details in the warnings); and\n            removed (no longer in the archive, or now a duplicate).",
             "format": "int32"
           },
           "recordedGamesSkippedAsWaypoint": {
@@ -11333,7 +11333,8 @@
             "type": "boolean"
           },
           "imported": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "The import reads it (its catalog entry says what); the others are kept as a backup."
           },
           "lastFetchedAt": {
             "type": "string",

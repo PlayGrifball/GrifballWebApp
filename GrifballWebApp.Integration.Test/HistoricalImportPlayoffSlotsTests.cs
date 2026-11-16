@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Historical.Import;
 
 namespace GrifballWebApp.Integration.Test;
 

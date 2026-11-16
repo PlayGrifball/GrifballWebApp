@@ -12,6 +12,7 @@ using Match = GrifballWebApp.Domain.Halo.Match;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Stats;
+using GrifballWebApp.Historical.Import;
 
 namespace GrifballWebApp.Integration.Test;
 
