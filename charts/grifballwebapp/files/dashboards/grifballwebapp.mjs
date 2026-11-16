@@ -14,7 +14,7 @@ let id = 0, y = 0, x = 0, rowH = 0;
 const place = (w, h) => { if (x + w > 24) { x = 0; y += rowH; rowH = 0; } const g = { h, w, x, y }; x += w; rowH = Math.max(rowH, h); return g; };
 const endRow = () => { y += rowH; x = 0; rowH = 0; };
 const row = title => { endRow(); panels.push({ id: ++id, type: 'row', title, collapsed: false, gridPos: { h: 1, w: 24, x: 0, y }, panels: [] }); y += 1; };
-const targets = list => list.map(([expr, legend], i) => ({ refId: String.fromCharCode(65 + i), datasource: P, expr, legendFormat: legend, range: true }));
+const targets = list => list.map(([expr, legend], i) => ({ refId: String.fromCodePoint(65 + i), datasource: P, expr, legendFormat: legend, range: true }));
 const ts = (title, description, list, unit = 'short', w = 12, extra = {}) => panels.push({ id: ++id, type: 'timeseries', title, description, datasource: P, gridPos: place(w, 8), targets: targets(list),
   fieldConfig: { defaults: { unit, custom: { drawStyle: 'line', lineWidth: 1, fillOpacity: 10, showPoints: 'never', spanNulls: true }, ...(extra.defaults || {}) }, overrides: extra.overrides || [] },
   options: { legend: { displayMode: 'table', placement: 'right', calcs: ['max', 'lastNotNull'] }, tooltip: { mode: 'multi', sort: 'desc' } } });
