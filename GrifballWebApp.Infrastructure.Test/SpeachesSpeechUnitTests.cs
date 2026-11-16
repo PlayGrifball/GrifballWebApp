@@ -132,4 +132,29 @@ public class SpeachesSpeechUnitTests
             Assert.That(JsonDocument.Parse(body).RootElement.GetProperty("voice").GetString(), Is.EqualTo("am_adam"));
         }
     }
+
+    [Test]
+    public async Task TranscribeAsync_ANullBody_IsEmpty()
+        => Assert.That(await Speech(new Server(HttpStatusCode.OK, "null"u8.ToArray())).TranscribeAsync(OneByte), Is.Empty);
+
+    [TestCase("", "whisper", "kokoro", false)]
+    [TestCase("http://grif-speech:8000/", "", "kokoro", true)]
+    [TestCase("http://grif-speech:8000/", "whisper", "", true)]
+    public void AddChatSpeech_ABlankSetting_IsNone(string url, string transcription, string speech, bool refused)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Speech:Url"] = url,
+            ["Speech:TranscriptionModel"] = transcription,
+            ["Speech:SpeechModel"] = speech,
+        }).Build();
+
+        if (refused)
+            Assert.That(() => new ServiceCollection().AddChatSpeech(configuration), Throws.InvalidOperationException);
+        else
+        {
+            using var services = new ServiceCollection().AddChatSpeech(configuration).BuildServiceProvider();
+            Assert.That(services.GetService<IChatSpeech>(), Is.Null, "A blank URL: no voice");
+        }
+    }
 }

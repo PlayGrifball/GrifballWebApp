@@ -97,4 +97,22 @@ public class VoicePiecesUnitTests
 
         Assert.That(lines.Ended(), Is.Empty);
     }
+
+    [Test]
+    public void Lines_ALongOne_IsCutMidChunk_AtTheLimit()
+    {
+        var time = new FakeTimeProvider();
+        var lines = new VoiceLines(time);
+
+        // Chunks that don't divide the limit: the last one is cut
+        for (var i = 0; i < VoiceLines.MaxSeconds + 5; i++)
+            lines.Add(1, new short[33_600]);
+        time.Advance(VoiceLines.Silence);
+
+        Assert.That(lines.Ended().Single().Pcm, Has.Length.EqualTo(VoiceLines.MaxSeconds * VoicePcm.DiscordRate));
+    }
+
+    [Test]
+    public void Question_NameMidSentence_IsNotForTheBot()
+        => Assert.That(VoiceWake.Question("ok so grif"), Is.Null);
 }

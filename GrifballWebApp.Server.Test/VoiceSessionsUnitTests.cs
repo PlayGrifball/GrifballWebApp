@@ -246,4 +246,19 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
             Assert.That(_speech.Spoken, Is.Empty);
         }
     }
+
+    [Test]
+    public async Task AConnectionClosedAfterTheBotLeft_ChangesNothing()
+    {
+        await using var sessions = Sessions();
+        var handler = Handler(sessions);
+        await handler.JoinAsync(Guild, Channel);
+        var link = _connector.Opened.Single().Link;
+        await handler.LeaveAsync(Guild);
+        await handler.JoinAsync(Guild, Channel);
+
+        link.Close();
+
+        Assert.That((await handler.JoinAsync(Guild, Channel)).Reply, Is.EqualTo(VoiceCommandsHandler.AlreadyIn), "The new connection stands");
+    }
 }

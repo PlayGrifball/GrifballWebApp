@@ -260,4 +260,14 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
 
         Assert.That(_played, Is.Empty);
     }
+
+    [Test]
+    public void RunAsync_StoppedBeforeItsFirstTick_EndsQuietly()
+    {
+        var conversation = Conversation(new ScriptedChatClient((TimeSpan.Zero, "Hi")));
+        using var stop = new CancellationTokenSource();
+        stop.Cancel();
+
+        Assert.That(async () => await conversation.RunAsync(stop.Token), Throws.Nothing);
+    }
 }
