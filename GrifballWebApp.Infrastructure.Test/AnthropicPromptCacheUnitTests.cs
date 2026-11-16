@@ -41,7 +41,7 @@ public class AnthropicPromptCacheUnitTests
     }
 
     [Test]
-    public async Task AWholeResponse_AsksForTheCacheToo_WithTheDefaultOutputLimit_WhenNoneIsAsked()
+    public async Task AWholeResponse_AsksForTheCacheToo_WithTheSdksOutputLimit_WhenNoneIsAsked()
     {
         var inner = new Recording();
         var client = new AnthropicPromptCache(inner, "claude-opus-5-5");
@@ -52,8 +52,19 @@ public class AnthropicPromptCacheUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(sent.CacheControl, Is.Not.Null);
-            Assert.That(sent.MaxTokens, Is.EqualTo(ChatModels.ClaudeMaxOutputTokens));
+            Assert.That(sent.MaxTokens, Is.EqualTo(AnthropicPromptCache.SdkDefaultMaxTokens), "As without the cache: the SDK's own 1,024");
         }
+    }
+
+    [Test]
+    public async Task ACallersModel_IsTheOneAsked_NotTheClients()
+    {
+        var inner = new Recording();
+        var client = new AnthropicPromptCache(inner, "claude-haiku-5-5");
+
+        await client.GetResponseAsync(Question, new ChatOptions { ModelId = "claude-sonnet-5-5" });
+
+        Assert.That(((MessageCreateParams)inner.Options!.RawRepresentationFactory!(null!)!).Model.Raw(), Is.EqualTo("claude-sonnet-5-5"));
     }
 
     [Test]

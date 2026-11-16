@@ -1,9 +1,12 @@
 using System.Net;
+using System.Text.Json;
 using System.Runtime.CompilerServices;
 using Anthropic.Exceptions;
 using GrifballWebApp.Application.Chat;
 using GrifballWebApp.Infrastructure.Chat;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 
 namespace GrifballWebApp.Infrastructure.Test;
 
@@ -43,6 +46,13 @@ public class AnthropicSpendLimitUnitTests
         yield return new TestCaseData(WorkspaceLimit).SetName("A workspace's spend limit");
         yield return new TestCaseData(OrganizationLimit).SetName("The organization's spend limit");
         yield return new TestCaseData(TierCap).SetName("The usage tier's cap");
+        yield return new TestCaseData(new AnthropicBadRequestException { StatusCode = HttpStatusCode.BadRequest, ResponseBody = Body("invalid_request_error",
+            "Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.") })
+            .SetName("The organization's credit run out");
+        yield return new TestCaseData(new AnthropicSseException("error event")
+        {
+            Body = JsonDocument.Parse(Body("rate_limit_error", "You have reached your API usage limits.", "enforced_spend_limit_reached")).RootElement,
+        }).SetName("The tier's cap as a stream's error event");
     }
 
     private static IEnumerable<TestCaseData> OtherErrors()
@@ -56,16 +66,18 @@ public class AnthropicSpendLimitUnitTests
     }
 
     [TestCaseSource(nameof(SpendLimits))]
-    public void AStream_StoppedByASpendLimit_IsRefusedWithWhy(AnthropicApiException error)
+    public void AStream_StoppedByASpendLimit_IsRefusedWithWhy_AndLogged(AnthropicServiceException error)
     {
-        var client = new AnthropicSpendLimit(new Failing(error));
+        var log = new FakeLogger<AnthropicSpendLimit>();
+        var client = new AnthropicSpendLimit(new Failing(error), log);
 
         Assert.That(async () => await Read(client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "Hi")])),
-            Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.ProviderLimitReached));
+            Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.ProviderLimitReached).And.InnerException.SameAs(error));
+        Assert.That(log.Collector.GetSnapshot().Single().Level, Is.EqualTo(LogLevel.Warning), "Said once, for whoever wonders why Claude stopped");
     }
 
     [TestCaseSource(nameof(SpendLimits))]
-    public void AResponse_StoppedByASpendLimit_IsRefusedWithWhy(AnthropicApiException error)
+    public void AResponse_StoppedByASpendLimit_IsRefusedWithWhy(AnthropicServiceException error)
     {
         var client = new AnthropicSpendLimit(new Failing(error));
 
@@ -78,7 +90,11 @@ public class AnthropicSpendLimitUnitTests
     {
         var client = new AnthropicSpendLimit(new Failing(error));
 
-        Assert.That(async () => await Read(client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "Hi")])), Throws.TypeOf(error.GetType()));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(async () => await Read(client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "Hi")])), Throws.TypeOf(error.GetType()));
+            Assert.That(async () => await client.GetResponseAsync([new ChatMessage(ChatRole.User, "Hi")]), Throws.TypeOf(error.GetType()));
+        }
     }
 
     [Test]
@@ -98,11 +114,7 @@ public class AnthropicSpendLimitUnitTests
 
         var updates = await Read(client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "Hi")]));
 
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(updates.Select(u => u.Text), Is.EqualTo(Answer));
-            Assert.That(GrifChat.IsRefusal(GrifChat.ProviderLimitReached), Is.True, "Left out of the conversation the model is sent");
-        }
+        Assert.That(updates.Select(u => u.Text), Is.EqualTo(Answer));
     }
 
     private static readonly string[] Answer = ["Hello"];

@@ -474,4 +474,8 @@ public partial class GrifChatUnitTests
 
         Assert.That(ChatReply.Written(contents), Is.EqualTo(2 + 3 + 12 + 3));
     }
+
+    [Test]
+    public void IsRefusal_KnowsTheProvidersLimit_SoItIsLeftOutOfTheConversation()
+        => Assert.That(GrifChat.IsRefusal(GrifChat.ProviderLimitReached), Is.True);
 }
