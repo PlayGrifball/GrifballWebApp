@@ -242,7 +242,8 @@ backend:
     serviceName: ""
     # deployment.environment.name. Empty: not set.
     environment: ""
-    # More OTEL_RESOURCE_ATTRIBUTES.
+    # More OTEL_RESOURCE_ATTRIBUTES. The chart always sets service.namespace and k8s.namespace.name (the release's
+    # namespace) and k8s.pod.name; a key here replaces the chart's.
     resourceAttributes: {}
     # OTEL_METRIC_EXPORT_INTERVAL in milliseconds. Empty: the app's default.
     metricExportInterval: ""

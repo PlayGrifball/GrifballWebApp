@@ -442,18 +442,26 @@ Secret (secretName/secretKey), so both read the one Secret. Empty secretName: no
 
 {{/* The OpenTelemetry identity the backend and the frontend share (backend.telemetry): service.name (default the
    namespace), the resource attributes and the metric interval, so both land as one service on the Telemetry page
-   (and telemetry-gate allows one per environment). Env entries; takes the root. */}}
+   (and telemetry-gate allows one per environment). Env entries; takes the root.
+   Always service.namespace, k8s.namespace.name (the release's namespace) and k8s.pod.name (the downward API, which the
+   kubelet expands into the attributes: K8S_POD_NAME comes first), so the telemetry says where it's from without a
+   collector adding it: Prometheus names a series' job <service.namespace>/<service.name>, and the Grafana dashboard
+   selects on it, lists environments by namespace and charts by pod. resourceAttributes may replace any of them. */}}
 {{- define "grif.otelServiceEnv" -}}
 {{- $bt := .Values.backend.telemetry -}}
+- name: K8S_POD_NAME
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.name
 - name: OTEL_SERVICE_NAME
   value: {{ $bt.serviceName | default .Release.Namespace | quote }}
-{{- $attrs := list }}
-{{- if $bt.environment }}{{ $attrs = append $attrs (printf "deployment.environment.name=%s" $bt.environment) }}{{ end }}
-{{- range $k, $v := $bt.resourceAttributes }}{{ $attrs = append $attrs (printf "%s=%v" $k $v) }}{{ end }}
-{{- if $attrs }}
+{{- $attrs := dict "service.namespace" .Release.Namespace "k8s.namespace.name" .Release.Namespace "k8s.pod.name" "$(K8S_POD_NAME)" }}
+{{- if $bt.environment }}{{ $_ := set $attrs "deployment.environment.name" $bt.environment }}{{ end }}
+{{- range $k, $v := $bt.resourceAttributes }}{{ $_ := set $attrs $k (printf "%v" $v) }}{{ end }}
+{{- $pairs := list }}
+{{- range $k, $v := $attrs }}{{ $pairs = append $pairs (printf "%s=%s" $k $v) }}{{ end }}
 - name: OTEL_RESOURCE_ATTRIBUTES
-  value: {{ join "," $attrs | quote }}
-{{- end }}
+  value: {{ join "," $pairs | quote }}
 {{- if $bt.metricExportInterval }}
 - name: OTEL_METRIC_EXPORT_INTERVAL
   value: {{ $bt.metricExportInterval | quote }}
