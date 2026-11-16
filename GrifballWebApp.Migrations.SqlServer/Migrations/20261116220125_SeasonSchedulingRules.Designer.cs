@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261116210612_SeasonSchedulingRules")]
+    [Migration("20261116220125_SeasonSchedulingRules")]
     partial class SeasonSchedulingRules
     {
         /// <inheritdoc />
@@ -2928,6 +2928,12 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TeamID"));
 
+                    b.Property<int?>("ArchivedFinish")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ArchivedRank")
+                        .HasColumnType("int");
+
                     b.Property<int?>("CaptainID")
                         .HasColumnType("int");
 
@@ -2980,6 +2986,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.ToTable("Teams", "Event", t =>
                         {
+                            t.HasCheckConstraint("CK_Event_Teams_ArchivedPlacingFromFirst", "(ArchivedRank IS NULL OR ArchivedRank >= 1) AND (ArchivedFinish IS NULL OR ArchivedFinish >= 1)");
+
                             t.HasCheckConstraint("CK_Event_Teams_RecordBothOrNeither", "(RecordedWins IS NULL AND RecordedLosses IS NULL) OR (RecordedWins IS NOT NULL AND RecordedLosses IS NOT NULL)");
                         });
 
