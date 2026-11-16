@@ -45,13 +45,36 @@ function query(target) {
   return { ...q, expr: fill(target.expr) };
 }
 
-async function check() {
+/** Datasources whose health check isn't OK. */
+async function unhealthy() {
   const failures = [];
-  const report = ['| Panel | Query | Datasource | Rows |', '| --- | --- | --- | ---: |'];
   for (const uid of ['prometheus', 'loki', 'tempo']) {
     const health = await call(`/api/datasources/uid/${uid}/health`);
     if (health.json.status !== 'OK') failures.push(`datasource ${uid}: ${JSON.stringify(health.json).slice(0, 300)}`);
   }
+  return failures;
+}
+
+/** Runs one panel's queries: rows for the report, failures, and how many data points they returned. */
+async function runPanel(panel) {
+  const report = [], failures = [];
+  let count = 0;
+  for (const target of panel.targets) {
+    const { ok, status, json } = await call('/api/ds/query', { queries: [query(target)], from: 'now-15m', to: 'now' });
+    const result = json.results?.[target.refId];
+    const error = result?.error ?? (!ok && `${status} ${json.message}`);
+    const n = rows(result);
+    count += n;
+    report.push(`| ${panel.title} | ${target.refId} | ${target.datasource.type} | ${n} |`);
+    if (error) failures.push(`${panel.title} (${target.refId}, ${target.datasource.type}): ${error}`);
+  }
+  if (count === 0 && REQUIRED.has(panel.title)) failures.push(`${panel.title}: no data`);
+  return { report, failures };
+}
+
+async function check() {
+  const report = ['| Panel | Query | Datasource | Rows |', '| --- | --- | --- | ---: |'];
+  const failures = await unhealthy();
   if (failures.length) return { failures, report };
   const loaded = await call('/api/dashboards/uid/grifballwebapp');
   if (!loaded.ok) return { failures: [`dashboard grifballwebapp not loaded: ${loaded.status} ${JSON.stringify(loaded.json)}`], report };
@@ -60,17 +83,9 @@ async function check() {
   if (env !== namespace) failures.push(`the dashboard opens on ${env}, not this release's ${namespace}`);
   const panels = dashboard.panels.flatMap(p => [p, ...(p.panels ?? [])]).filter(p => p.targets?.length);
   for (const panel of panels) {
-    let count = 0;
-    for (const target of panel.targets) {
-      const { ok, status, json } = await call('/api/ds/query', { queries: [query(target)], from: 'now-15m', to: 'now' });
-      const result = json.results?.[target.refId];
-      const error = result?.error ?? (!ok && `${status} ${json.message}`);
-      const n = rows(result);
-      count += n;
-      report.push(`| ${panel.title} | ${target.refId} | ${target.datasource.type} | ${n} |`);
-      if (error) failures.push(`${panel.title} (${target.refId}, ${target.datasource.type}): ${error}`);
-    }
-    if (count === 0 && REQUIRED.has(panel.title)) failures.push(`${panel.title}: no data`);
+    const one = await runPanel(panel);
+    report.push(...one.report);
+    failures.push(...one.failures);
   }
   for (const title of REQUIRED)
     if (!panels.some(p => p.title === title)) failures.push(`required panel "${title}" isn't on the dashboard`);

@@ -89,14 +89,19 @@ docker run -d --name tempo --network "$net" --tmpfs /var/tempo -v "$work/tempo.y
 docker run -d --name collector --network "$net" -v "$work/collector.yaml:/etc/otelcol/config.yaml:ro" "$COLLECTOR_IMAGE" --config=/etc/otelcol/config.yaml > /dev/null
 collector=$(docker inspect -f "{{(index .NetworkSettings.Networks \"$net\").IPAddress}}" collector)
 echo "Collector at $collector"
+# Plain OTLP to the collector beside the cluster, on the e2e Docker network only
+cat > "$work/telemetry-values.yaml" <<EOF
+backend:
+  telemetry: { enabled: true, endpoint: "http://$collector:4317", metricExportInterval: 5000 }
+frontend:
+  telemetry: { enabled: true, endpoint: "http://$collector:4318" }
+grafanaDashboard: { enabled: true }
+EOF
 
-helm install grif "$chart" -n "$ns" --create-namespace -f "$chart/ci/sqlite-values.yaml" \
+helm install grif "$chart" -n "$ns" --create-namespace -f "$chart/ci/sqlite-values.yaml" -f "$work/telemetry-values.yaml" \
   --set "backend.image.repository=${backend_image%:*}" --set "backend.image.tag=${backend_image##*:}" \
   --set "frontend.image.repository=${frontend_image%:*}" --set "frontend.image.tag=${frontend_image##*:}" \
-  --set backend.image.pullPolicy=IfNotPresent --set frontend.image.pullPolicy=IfNotPresent \
-  --set backend.telemetry.enabled=true --set "backend.telemetry.endpoint=http://$collector:4317" --set backend.telemetry.metricExportInterval=5000 \
-  --set frontend.telemetry.enabled=true --set "frontend.telemetry.endpoint=http://$collector:4318" \
-  --set grafanaDashboard.enabled=true
+  --set backend.image.pullPolicy=IfNotPresent --set frontend.image.pullPolicy=IfNotPresent
 kubectl -n "$ns" rollout status deploy/grif-backend --timeout=600s
 kubectl -n "$ns" rollout status deploy/grif-frontend --timeout=300s
 
