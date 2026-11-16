@@ -49,6 +49,10 @@ public class AnthropicSpendLimitUnitTests
     {
         yield return new TestCaseData(RateLimit).SetName("A rate limit");
         yield return new TestCaseData(BadRequest).SetName("A bad request");
+        yield return new TestCaseData(new AnthropicBadRequestException { StatusCode = HttpStatusCode.BadRequest, ResponseBody = "not JSON" })
+            .SetName("A bad request with no readable message");
+        yield return new TestCaseData(new AnthropicForbiddenException { StatusCode = HttpStatusCode.Forbidden, ResponseBody = Body("permission_error",
+            "You have reached your specified workspace API usage limits.") }).SetName("The limit's words on another status");
     }
 
     [TestCaseSource(nameof(SpendLimits))]
@@ -75,6 +79,16 @@ public class AnthropicSpendLimitUnitTests
         var client = new AnthropicSpendLimit(new Failing(error));
 
         Assert.That(async () => await Read(client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "Hi")])), Throws.TypeOf(error.GetType()));
+    }
+
+    [Test]
+    public async Task AResponse_WithNoError_PassesThrough()
+    {
+        var client = new AnthropicSpendLimit(new Failing(null));
+
+        var response = await client.GetResponseAsync([new ChatMessage(ChatRole.User, "Hi")]);
+
+        Assert.That(response.Text, Is.EqualTo("Hello"));
     }
 
     [Test]
