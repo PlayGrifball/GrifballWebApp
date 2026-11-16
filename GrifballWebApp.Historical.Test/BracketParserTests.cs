@@ -268,8 +268,13 @@ public class BracketParserTests
     [Test]
     public void Cells_NoSheetNamed_IsNoBracket_Warned()
     {
-        Assert.That(BracketParser.Parse("wb", new BracketTab(), Workbook(), _warnings), Is.Null);
-        Assert.That(_warnings, Is.EqualTo(NoSheetNamed));
+        var bracket = BracketParser.Parse("wb", new BracketTab(), Workbook(), _warnings);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bracket, Is.Null);
+            Assert.That(_warnings, Is.EqualTo(NoSheetNamed));
+        }
     }
 
     [Test]
