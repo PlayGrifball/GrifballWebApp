@@ -5,22 +5,16 @@
 //
 //   node charts/grifballwebapp/e2e/dashboard-grafana.mjs [--url http://localhost:3000] --namespace grif-dashboard [--timeout 240]
 //
-// Fails on a query Grafana or a datasource rejects, and on a REQUIRED panel with no data: the ones a release with some
-// traffic always fills. The rest need what CI can't make (visitors' browsers, chats, Halo, jobs that run hourly, errors)
-// and only have to run. Prints a table of rows per panel.
+// Fails on a query Grafana or a datasource rejects, and on a REQUIRED panel (dashboard-checks.mjs) without real data:
+// its queries run again without their zero fill (`or vector(0)`), which would answer with no series at all, and each
+// series must carry the labels its legend shows (the pod). Prints a table of data points per panel.
+import { REQUIRED, points, requiredQuery, seriesFailures } from './dashboard-checks.mjs';
+
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, v, i, all) => (v.startsWith('--') ? [...a, [v.slice(2), all[i + 1]]] : a), []));
 const url = args.url ?? 'http://localhost:3000';
 const namespace = args.namespace;
 const timeout = Number(args.timeout ?? 240) * 1000;
 if (!namespace) throw new Error('--namespace: the release whose telemetry the panels show');
-
-export const REQUIRED = new Set([
-  'Requests', 'Server errors', 'p95 latency', 'Unhealthy checks', 'Live connections', 'Exceptions',
-  'Requests by route', 'Requests by status', 'p95 latency by route',
-  'EF Core', 'Compiled query cache',
-  'Server rendering', 'Frontend memory',
-  'CPU', 'Memory', 'GC heap and pauses', 'Thread pool queue',
-]);
 
 async function call(path, body) {
   const response = await fetch(`${url}${path}`, {
@@ -32,9 +26,6 @@ async function call(path, body) {
   try { json = JSON.parse(text); } catch { json = { message: text }; }
   return { ok: response.ok, status: response.status, json };
 }
-
-/** Data points across a /api/ds/query result's frames. */
-const rows = result => (result?.frames ?? []).reduce((n, f) => n + (f.data?.values?.[0]?.length ?? 0), 0);
 
 /** A panel target as Grafana's backend takes it: the datasource variables and $namespace filled in. */
 function query(target) {
@@ -55,25 +46,42 @@ async function unhealthy() {
   return failures;
 }
 
-/** Runs one panel's queries: rows for the report, failures, and how many data points they returned. */
+/** Runs one target through Grafana: its result and its error, if any. */
+async function run(target) {
+  const { ok, status, json } = await call('/api/ds/query', { queries: [query(target)], from: 'now-15m', to: 'now' });
+  const result = json.results?.[target.refId];
+  return { result, error: result?.error ?? (!ok && `${status} ${json.message}`) };
+}
+
+/**
+ * A required target as it's checked (requiredQuery: no zero fill), run again when that differs: its data points, and
+ * failures for an error or a series without a label its legend shows.
+ */
+async function checkRequired(title, target, ran) {
+  const checked = target.expr && requiredQuery(target.expr) !== target.expr ? await run({ ...target, expr: requiredQuery(target.expr) }) : ran;
+  if (checked.error) return { n: 0, failures: checked === ran ? [] : [`${title} (${target.refId} without its zero fill): ${checked.error}`] };
+  return { n: points(checked.result), failures: seriesFailures(target, checked.result).map(f => `${title} ${f}`), refilled: checked !== ran };
+}
+
+/** Runs one panel's queries: rows for the report and failures. A required panel's data is counted as checkRequired checks it. */
 async function runPanel(panel) {
   const report = [], failures = [];
+  const required = REQUIRED.has(panel.title);
   let count = 0;
   for (const target of panel.targets) {
-    const { ok, status, json } = await call('/api/ds/query', { queries: [query(target)], from: 'now-15m', to: 'now' });
-    const result = json.results?.[target.refId];
-    const error = result?.error ?? (!ok && `${status} ${json.message}`);
-    const n = rows(result);
-    count += n;
-    report.push(`| ${panel.title} | ${target.refId} | ${target.datasource.type} | ${n} |`);
-    if (error) failures.push(`${panel.title} (${target.refId}, ${target.datasource.type}): ${error}`);
+    const ran = await run(target);
+    if (ran.error) failures.push(`${panel.title} (${target.refId}, ${target.datasource.type}): ${ran.error}`);
+    const real = required ? await checkRequired(panel.title, target, ran) : { n: points(ran.result), failures: [] };
+    failures.push(...real.failures);
+    count += real.n;
+    report.push(`| ${panel.title} | ${target.refId} | ${target.datasource.type} | ${points(ran.result)}${real.refilled ? ` (${real.n} without the zero fill)` : ''} |`);
   }
-  if (count === 0 && REQUIRED.has(panel.title)) failures.push(`${panel.title}: no data`);
+  if (count === 0 && required) failures.push(`${panel.title}: no data`);
   return { report, failures };
 }
 
 async function check() {
-  const report = ['| Panel | Query | Datasource | Rows |', '| --- | --- | --- | ---: |'];
+  const report = ['| Panel | Query | Datasource | Data points |', '| --- | --- | --- | ---: |'];
   const failures = await unhealthy();
   if (failures.length) return { failures, report };
   const loaded = await call('/api/dashboards/uid/grifballwebapp');

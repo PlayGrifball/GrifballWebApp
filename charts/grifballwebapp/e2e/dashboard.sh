@@ -6,8 +6,9 @@
 #
 #   BACKEND_IMAGE=grif-backend:e2e FRONTEND_IMAGE=grif-frontend:e2e charts/grifballwebapp/e2e/dashboard.sh
 #
-# The collector gives the telemetry the environment's identity as a production collector does (service.name,
-# service.namespace and k8s.namespace.name = the namespace), so the queries select it as they do there. Versions are
+# The collector passes the telemetry on as the chart sent it: its identity (service.namespace, k8s.namespace.name,
+# k8s.pod.name) is the chart's, so a chart that stopped sending it fails here. Prometheus keeps the namespace and the pod
+# on every series, as a collector's prometheus exporter with resource_to_telemetry_conversion does. Versions are
 # production's.
 set -euo pipefail
 
@@ -40,7 +41,7 @@ cat > "$work/prometheus.yml" <<'EOF'
 global:
   scrape_interval: 15s
 otlp:
-  promote_resource_attributes: [k8s.namespace.name]
+  promote_resource_attributes: [k8s.namespace.name, k8s.pod.name]
 EOF
 cat > "$work/tempo.yaml" <<'EOF'
 server:
@@ -66,12 +67,6 @@ receivers:
       grpc: { endpoint: 0.0.0.0:4317 }
       http: { endpoint: 0.0.0.0:4318 }
 processors:
-  # The environment's identity, as a production collector gives a grif pod (k8sattributes, transform/grif_service_name)
-  resource:
-    attributes:
-      - { key: k8s.namespace.name, value: $ns, action: upsert }
-      - { key: service.namespace, value: $ns, action: upsert }
-      - { key: service.name, value: $ns, action: upsert }
   batch: { timeout: 2s }
 exporters:
   otlphttp/prometheus: { metrics_endpoint: http://prometheus:9090/api/v1/otlp/v1/metrics }
@@ -79,9 +74,9 @@ exporters:
   otlp/tempo: { endpoint: tempo:4317, tls: { insecure: true } }
 service:
   pipelines:
-    metrics: { receivers: [otlp], processors: [resource, batch], exporters: [otlphttp/prometheus] }
-    logs: { receivers: [otlp], processors: [resource, batch], exporters: [otlphttp/loki] }
-    traces: { receivers: [otlp], processors: [resource, batch], exporters: [otlp/tempo] }
+    metrics: { receivers: [otlp], processors: [batch], exporters: [otlphttp/prometheus] }
+    logs: { receivers: [otlp], processors: [batch], exporters: [otlphttp/loki] }
+    traces: { receivers: [otlp], processors: [batch], exporters: [otlp/tempo] }
 EOF
 chmod -R a+rX "$work"
 
@@ -95,10 +90,12 @@ collector=$(docker inspect -f "{{(index .NetworkSettings.Networks \"$net\").IPAd
 echo "Collector at $collector"
 # Plain OTLP to the collector beside the cluster, on the e2e Docker network only. The backend in the app's preview mode
 # without a Discord bot token (no secretConfig): it gets ready without Discord, which a single backend pod otherwise
-# can't (run.sh's stand-in token gets a 401 and stops it)
+# can't (run.sh's stand-in token gets a 401 and stops it). Its memory check's limit at 1 MB: the check reports Degraded
+# (it never gates readiness), so the health check metrics count a check that isn't healthy and the backend logs a
+# warning for it, which the Unhealthy checks and Errors and warnings panels must show
 cat > "$work/telemetry-values.yaml" <<EOF
 backend:
-  config: { Preview: { Enabled: true } }
+  config: { Preview: { Enabled: true }, HealthChecks: { MaxAllocatedMegabytes: 1 } }
   secretConfig: null
   telemetry: { enabled: true, endpoint: "http://$collector:4317", metricExportInterval: 5000 }
 frontend:
@@ -114,13 +111,21 @@ kubectl -n "$ns" rollout status deploy/grif-backend --timeout=600s
 kubectl -n "$ns" rollout status deploy/grif-frontend --timeout=300s
 
 # Traffic, all through the frontend (the backend takes requests only from it, NetworkPolicy): pages (server rendering,
-# which calls the API) and the API it proxies, a 404 among them
+# which calls the API) and the API it proxies, a 404 among them, the health check that runs every check (the memory one
+# Degraded: a warning), and a SignalR connection to the queue's hub (negotiate, then a few seconds of server-sent
+# events) for Live connections
 kubectl -n "$ns" run traffic --image=docker.io/curlimages/curl:8.16.0 --restart=Never --command -- sleep 900
 kubectl -n "$ns" wait --for=condition=Ready pod/traffic --timeout=120s
 for i in $(seq 1 6); do
-  for url in http://grif-frontend/ http://grif-frontend/seasons http://grif-frontend/api/seasons http://grif-frontend/api/does-not-exist; do
+  for url in http://grif-frontend/ http://grif-frontend/seasons http://grif-frontend/api/seasons http://grif-frontend/api/does-not-exist http://grif-frontend/api/health; do
     kubectl -n "$ns" exec traffic -- curl -s -o /dev/null -w "%{http_code} $url\n" --max-time 20 "$url" || true
   done
+  token=$(kubectl -n "$ns" exec traffic -- curl -s -X POST --max-time 20 "http://grif-frontend/hub/QueueHub/negotiate?negotiateVersion=1" \
+    | sed -n 's/.*"connectionToken":"\([^"]*\)".*/\1/p' || true)
+  echo "SignalR connection: ${token:-none}"
+  if [[ -n "$token" ]]; then
+    kubectl -n "$ns" exec traffic -- curl -s -o /dev/null -H 'Accept: text/event-stream' --max-time 5 "http://grif-frontend/hub/QueueHub?id=$token" || true
+  fi
   sleep 5
 done
 

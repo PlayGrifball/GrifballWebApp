@@ -164,3 +164,28 @@ test('every Prometheus query parses as PromQL', { skip: !process.env.PROMTOOL &&
   const r = spawnSync(process.env.PROMTOOL, ['check', 'rules', file], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stdout + r.stderr);
 });
+
+// The e2e checker's rules (e2e/dashboard-checks.mjs), on made-up results: what makes a panel's data real
+const checks = () => import('../e2e/dashboard-checks.mjs');
+/** A Grafana /api/ds/query result: one frame per series, with its labels and some points. */
+const result = (...series) => ({ frames: series.map(labels => ({ schema: { fields: [{ name: 'Time' }, { name: 'Value', labels }] }, data: { values: [[1, 2, 3], [0, 0, 0]] } })) });
+
+test('a required panel is checked without its zero fill, which data could never be missing from', async () => {
+  const { REQUIRED, requiredQuery } = await checks();
+  assert.equal(requiredQuery('sum(rate(dotnet_exceptions_total{job=~"x/.+"}[5m])) * 60 or vector(0)'), 'sum(rate(dotnet_exceptions_total{job=~"x/.+"}[5m])) * 60');
+  assert.equal(requiredQuery('(sum(rate(a[5m])) or vector(0)) / ((sum(rate(a[5m])) or vector(0)) + (sum(rate(b[5m])) or vector(0)))'),
+    '(sum(rate(a[5m]))) / ((sum(rate(a[5m]))) + (sum(rate(b[5m]))))');
+  for (const t of prometheus(dashboard).filter(t => REQUIRED.has(t.panel)))
+    assert.ok(!/vector\s*\(/.test(requiredQuery(t.target.expr)), `${t.panel}: still a constant once its zero fill is gone`);
+});
+
+test('a required per-pod panel needs every series labelled with its pod', async () => {
+  const { REQUIRED, seriesFailures } = await checks();
+  const cpu = prometheus(dashboard).find(t => t.panel === 'CPU').target;
+  assert.deepEqual(seriesFailures(cpu, result({ k8s_pod_name: 'grif-backend-1' }, { k8s_pod_name: 'grif-backend-2' })), []);
+  assert.equal(seriesFailures(cpu, result({})).length, 1, 'an unlabelled series passed');
+  assert.equal(seriesFailures(cpu, result({ k8s_pod: 'grif-backend-1' })).length, 1, 'a misnamed label passed');
+  const perPod = new Set(prometheus(dashboard).filter(t => t.target.legendFormat?.includes('{{k8s_pod_name}}')).map(t => t.panel));
+  assert.ok(perPod.size >= 5);
+  for (const panel of perPod) assert.ok(REQUIRED.has(panel), `per-pod panel ${panel} isn't required, so its pod label goes unchecked`);
+});
