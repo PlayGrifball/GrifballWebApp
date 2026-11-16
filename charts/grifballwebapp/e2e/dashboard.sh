@@ -138,3 +138,21 @@ docker run -d --name grafana --network "$net" -p 13000:3000 \
   -v "$work/dashboards:/var/lib/grafana/dashboards:ro" "$GRAFANA_IMAGE" > /dev/null
 
 node "$chart/e2e/dashboard-grafana.mjs" --url http://localhost:13000 --namespace "$ns" --timeout "${TIMEOUT:-240}"
+
+# A picture of it (dashboard-screenshot.mjs) at $SCREENSHOT, when set (CI uploads it). In Microsoft's Playwright image at
+# the client's @playwright/test version, which the image's browser must match; the playwright package isn't in the image,
+# so it's installed first, at that version. The picture is handed back to this user.
+if [[ -n "${SCREENSHOT:-}" ]]; then
+  repo="$(cd "$chart/../.." && pwd)"
+  playwright=$(node -p "require('$repo/grifballwebapp.client/package.json').devDependencies['@playwright/test']")
+  mkdir -p "$(dirname "$SCREENSHOT")"
+  out="$(cd "$(dirname "$SCREENSHOT")" && pwd)"
+  name="$(basename "$SCREENSHOT")"
+  docker run --rm --network host --ipc=host --init -v "$chart/e2e:/e2e:ro" -v "$out:/out" \
+    "mcr.microsoft.com/playwright:v$playwright-noble" sh -c "
+      set -e; mkdir /shot; cd /shot; cp /e2e/dashboard-screenshot.mjs .
+      npm install --silent --no-save --no-audit --no-fund playwright@$playwright
+      node dashboard-screenshot.mjs http://localhost:13000 $ns /out/$name
+      chown $(id -u):$(id -g) /out/$name"
+  echo "Screenshot: $SCREENSHOT"
+fi

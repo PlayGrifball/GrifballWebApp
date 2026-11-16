@@ -1,7 +1,8 @@
 // The chart's Grafana dashboard (files/dashboards/grifballwebapp.json), offline:
 //   node --test charts/grifballwebapp/tests/*.test.mjs
 //   - the JSON is what files/dashboards/grifballwebapp.mjs makes (edit the script, then run it)
-//   - it has a uid, unique panel ids, panels inside the 24-column grid
+//   - it has a uid, unique panel ids, panels inside the 24-column grid; every row open and the whole of it inside the
+//     screenshot e2e/dashboard-screenshot.mjs takes
 //   - every datasource it names is one of its own variables (a fixed uid would only work in one Grafana)
 //   - every grif_* metric it queries is an instrument the app defines (the backend's C#, the frontend's TypeScript), so a
 //     renamed metric fails here, not as an empty panel
@@ -36,6 +37,14 @@ test('a uid, unique panel ids, panels inside the grid, the environment the chart
   for (const p of panels(dashboard))
     assert.ok(p.gridPos.x >= 0 && p.gridPos.x + p.gridPos.w <= 24, `${p.title} is outside the 24 columns`);
   assert.equal(dashboard.templating.list.find(v => v.name === 'namespace')?.current.value, '__NAMESPACE__');
+});
+
+test('every row open, and the whole dashboard inside the screenshot', () => {
+  // e2e/dashboard-screenshot.mjs: a 6000 px viewport, and Grafana only draws panels on screen. A grid unit is 30 px plus
+  // an 8 px gap, so 150 units (5700 px) leave room for Grafana's header.
+  for (const row of dashboard.panels.filter(p => p.type === 'row')) assert.equal(row.collapsed, false, `row ${row.title} is collapsed`);
+  const bottom = Math.max(...panels(dashboard).map(p => p.gridPos.y + p.gridPos.h));
+  assert.ok(bottom <= 150, `the dashboard is ${bottom} grid units tall: raise the screenshot's viewport`);
 });
 
 test('every datasource is one of its variables', () => {
