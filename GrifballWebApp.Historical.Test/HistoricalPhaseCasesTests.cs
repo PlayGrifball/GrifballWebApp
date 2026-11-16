@@ -16,7 +16,8 @@ namespace GrifballWebApp.Historical.Test;
 [Parallelizable(ParallelScope.All)]
 public class HistoricalPhaseCasesTests
 {
-    private static readonly object?[] BlockHeader = Row("Team", "Player", "Games Played", "Wins", "Minutes", "Goals", "Kills", "Assists", "Deaths", "Carrier Kills");
+    private static readonly string[] ThunderAndDamage = ["Thunder Over Dallas", "Damage"];
+    private static readonly object?[] BlockHeader =Row("Team", "Player", "Games Played", "Wins", "Minutes", "Goals", "Kills", "Assists", "Deaths", "Carrier Kills");
     private static readonly object?[] CarnageHeader = Row("Player", "Team", "GamesPlayed", "Wins", "Loses", "Goals", "Kills", "Assists", "Deaths", "TimeStamp");
 
     private static SheetTable Sheet(string name, params object?[][] rows) => SheetWorkbook.Read(Workbook((name, rows)))!.Sheet(name)!;
@@ -57,6 +58,17 @@ public class HistoricalPhaseCasesTests
 
         // A title without a phase is the winner first ("A over B 5-3 - host")
         Assert.That(games.SelectMany(g => g.Teams).Select(t => t.Score), Is.EqualTo(new[] { winner, loser }));
+    }
+
+    [TestCase("Thunder Over Dallas over Damage 5-3 - host")]
+    [TestCase("Damage over Thunder Over Dallas - host")]
+    public void BlockTitle_ATeamNamedWithOver_IsAPlayerRowNotAnotherTitle(string title)
+    {
+        // A winner-first title has a score or " - host" after the loser: a team's row of the block has neither
+        var games = RecordedGameParser.Parse("dj", new GamesTab { Sheet = "G", Season = "dj/Stats", Game = "halo3", Layout = GamesLayout.Blocks },
+            SheetWorkbook.Read(Workbook(("G", [Row(title), BlockHeader, Row("Thunder Over Dallas", "a", 1, 1, 10, 5, 10, 0, 10, 0), Row("Damage", "b", 1, 0, 10, 3, 10, 0, 10, 0)])))!, []);
+
+        Assert.That(games.Single().Teams.Select(t => t.Name), Is.EquivalentTo(ThunderAndDamage));
     }
 
     private static bool CarnagePhase(string marker, string before = "Week 1")

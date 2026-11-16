@@ -35,12 +35,33 @@ public class SeasonStatsParserTests
         var config = new HistoricalSourceConfig
         {
             Season = new SeasonDefaults { Name = "DJBluePDX Summer Series 2021 (Halo 3)", League = "Community/Side", Game = "halo3" },
-            Tabs = [new() { Name = "Team Statistics", HeaderRow = 1, StopAt = "Neutral Host", IgnoreColumns = [8] }],
+            Tabs = [new() { Name = "Team Statistics", HeaderRow = 1, StopAt = "Neutral Host", IgnoreColumns = [8], LossesAreGamesNotWon = true }],
         };
 
         var season = SeasonStatsParser.Parse("djblue", config, workbook, []).Single();
 
         Assert.That(season.Players.Select(p => (p.Gamertag, p.GamesPlayed, p.Wins, p.Losses, p.TotalSecondsPlayed)), Is.EqualTo(DjBlueLines));
+    }
+
+    [Test]
+    public void ATabOfGamesAndWinsWithNoLossesColumn_HasNoLosses_UnlessItSaysAGameNotWonIsLost()
+    {
+        // Games not won may be ties or unfinished games: only a tab that says so counts them as lost
+        var workbook = SheetWorkbook.Read(Workbook(("Stats", [Row("Player", "Games", "Wins"), Row("A", 6, 3)])))!;
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Summer League 2021", Game = "halo3" }, Tabs = [new() { Name = "Stats" }] };
+
+        var player = SeasonStatsParser.Parse("s", config, workbook, []).Single().Players.Single();
+
+        Assert.That(player.Losses, Is.Zero);
+    }
+
+    [Test]
+    public void AWorkbookOfStandingsWithNoStats_WhoseStandingsTabIsMissing_MakesNoSeason()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(("Schedule", [Row("Team", "Wins"), Row("Alpha", 1)])))!;
+        var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Spring League 2020 (Halo 5 Console)", Game = "halo5" }, Standings = [new() { Sheet = "Rosters" }] };
+
+        Assert.That(SeasonStatsParser.Parse("h5", config, workbook, []), Is.Empty);
     }
 
     [Test]

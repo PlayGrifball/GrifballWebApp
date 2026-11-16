@@ -954,6 +954,19 @@ public class HistoricalArchiveParsingTests
     }
 
     [Test]
+    public void ARosterTabOfASeasonWithStats_KeepsOnlyItsPlayers_AndACaptainWithANicknameIsTheirPlayer()
+    {
+        // A nickname or a typo in a Player N column would be a placeholder player: the stats' players are the season's
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("Ire Paroxysm", "No Way Out", 4, 1), Row("oDhmon", "No Way Out", 4, 1)],
+            ("Rosters", new StandingsTab { Sheet = "Rosters" }, [Row("Team", "Captain", "Player 1", "Player 2"), Row("No Way Out", "Ire Paroxysm (Hide)", "ODHMON", "Hidey")]));
+
+        var team = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single().Teams.Single();
+
+        Assert.That((team.Captain, string.Join(",", team.Roster)), Is.EqualTo(("Ire Paroxysm", "oDhmon")));
+    }
+
+    [Test]
     public void ATeamWithAndWithoutANote_InTwoTabs_IsOneTeam_AndItsCaptainsPlaceholderTakesThatName()
     {
         // SL24: the standings "Puffy Grifbussy (WINNER)" with its captain X, the draft sheet "Puffy Grifbussy", the stats "X's Team"

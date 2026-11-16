@@ -118,6 +118,17 @@ public class StandingsParserTests
     }
 
     [Test]
+    public void Rows_WithNoAnchor_ATeamAndPlayersBlockAbove_IsNoStandingsTable()
+    {
+        // A roster block (Team | Player 1) above the standings: the standings are the table found, not the roster
+        var sheet = Sheet(["Team", "Player 1"], ["Alpha", "Ace"], ["Team", "Wins", "Losses"], ["Alpha", "9", "1"]);
+
+        var team = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings" })!.Single();
+
+        Assert.That((team.TeamName, team.Wins, team.Losses), Is.EqualTo(("Alpha", (int?)9, (int?)1)));
+    }
+
+    [Test]
     public void Rows_NotRanked_GivesNoRank()
     {
         var sheet = Sheet(["Team", "Wins", "Losses"], ["Alpha", "1", "2"]);
