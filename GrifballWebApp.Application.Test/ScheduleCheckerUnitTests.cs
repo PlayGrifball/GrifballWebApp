@@ -52,8 +52,8 @@ public class ScheduleCheckerUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(Kinds(checker.Check(Match(10, Home, Away, SeasonEnd.AddDays(5)), [])), Does.Contain(ScheduleConflictKind.OutsideSeason));
-            Assert.That(Kinds(checker.Check(Match(10, Home, Away, Monday8pm.AddMinutes(30)), [])), Is.EqualTo(Only(ScheduleConflictKind.NotASeasonTimeslot)),
-                "20:30 is no slot of the season's");
+            Assert.That(Kinds(checker.Check(Match(10, Home, Away, Monday8pm.AddMinutes(30)), [])), Does.Contain(ScheduleConflictKind.NotASeasonTimeslot),
+                "20:30 is no slot of the season's (nor so of either team's)");
         }
     }
 
@@ -132,6 +132,10 @@ public class ScheduleCheckerUnitTests
         var conflicts = Checker(rules, available: []).Check(Match(10, Home, Away, Monday8pm.AddMinutes(30)),
             [Match(11, Home, Third, Monday8pm), Match(12, Third, Fourth, Monday8pm.AddMinutes(30))]);
 
-        Assert.That(conflicts.Select(c => c.Message), Has.All.Not.Empty.And.Count.GreaterThanOrEqualTo(5));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(conflicts, Has.Count.GreaterThanOrEqualTo(5));
+            Assert.That(conflicts.Select(c => c.Message), Has.All.Not.Empty);
+        }
     }
 }

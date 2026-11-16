@@ -7,8 +7,8 @@ public class SeasonSchedulingRulesConfiguration : IEntityTypeConfiguration<Seaso
 {
     public void Configure(EntityTypeBuilder<SeasonSchedulingRules> entity)
     {
-        // Its own table: a season without a row has the defaults
-        entity.ToTable("SeasonSchedulingRules", "Event");
+        // Its own table (with its history, as every table keeps): a season without a row has the defaults
+        entity.ToTable("SeasonSchedulingRules", "Event", tb => tb.IsTemporal());
 
         entity.HasKey(e => e.SeasonID);
         entity.Property(e => e.SeasonID).ValueGeneratedNever();

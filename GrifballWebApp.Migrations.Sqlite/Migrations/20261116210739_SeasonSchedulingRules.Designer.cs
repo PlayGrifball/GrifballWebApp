@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261116204445_SeasonSchedulingRules")]
+    [Migration("20261116210739_SeasonSchedulingRules")]
     partial class SeasonSchedulingRules
     {
         /// <inheritdoc />
@@ -4830,9 +4830,62 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<int>("MinPlayersAvailable")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("TEXT")
+                        .HasComputedColumnSql("'9999-12-31 23:59:59.9999999'", false);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')");
+
                     b.HasKey("SeasonID");
 
-                    b.ToTable("SeasonSchedulingRules", "Event");
+                    b.ToTable("SeasonSchedulingRules", "Event", t =>
+                        {
+                            t.HasTrigger("SeasonSchedulingRules_History_Delete");
+
+                            t.HasTrigger("SeasonSchedulingRules_History_Update");
+                        });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSchedulingRules.History", b =>
+                {
+                    b.Property<int?>("MaxConcurrentMatches")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("MaxConcurrentMatches");
+
+                    b.Property<int?>("MaxMatchesPerTeamPerNight")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("MaxMatchesPerTeamPerNight");
+
+                    b.Property<int?>("MaxMatchesPerTeamPerWeek")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("MaxMatchesPerTeamPerWeek");
+
+                    b.Property<int?>("MinPlayersAvailable")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("MinPlayersAvailable");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("SeasonID")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("SeasonID");
+
+                    b.HasIndex("SeasonID", "PeriodEnd");
+
+                    b.ToTable("SeasonSchedulingRulesHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "SeasonSchedulingRules");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSignup", b =>

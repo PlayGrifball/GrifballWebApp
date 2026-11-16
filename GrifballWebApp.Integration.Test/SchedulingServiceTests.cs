@@ -1,20 +1,32 @@
 using GrifballWebApp.Application.Scheduling;
-using GrifballWebApp.Application.Test.TestDoubles;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 
-namespace GrifballWebApp.Application.Test;
+namespace GrifballWebApp.Integration.Test;
 
 /// <summary>
 /// A season's schedule checked and suggested (<see cref="SchedulingService"/>): a match's time against the rules
 /// (<see cref="ScheduleChecker"/>), and the season's timeslots ranked for a match, best first.
 /// </summary>
 [TestFixture]
-internal sealed class SchedulingServiceUnitTests : ApplicationDbContextTests
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class SchedulingServiceUnitTests
 {
-    private const int SeasonID = 1;
+    // A database of its own (the real providers: SQLite with the app's query rewrites, SQL Server, Postgres)
+    private GrifballContext Context = null!;
+
+    [SetUp]
+    public async Task SetUpContext() => Context = await TestDatabase.NewGrifballContext();
+
+    [TearDown]
+    public async Task TearDownContext() => await Context.DropDatabaseAndDispose();
+
+    private int SeasonID;
 
     // June 2026 (EDT, UTC-4); "now" is Monday 1 June, noon UTC
     private static readonly DateTime Now = new(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);
@@ -32,7 +44,7 @@ internal sealed class SchedulingServiceUnitTests : ApplicationDbContextTests
     /// </summary>
     private async Task Seed()
     {
-        var season = Season.Seed(seasonName: "S1", seasonID: SeasonID);
+        var season = Season.Seed(seasonName: "S1");
         season.Schedule(new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 5, 15, 0, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 5, 20, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Utc));
         Context.Seasons.Add(season);
@@ -42,6 +54,7 @@ internal sealed class SchedulingServiceUnitTests : ApplicationDbContextTests
         var users = Enumerable.Range(1, 9).Select(i => User.Register($"p{i}")).ToList();
         Context.Users.AddRange(users);
         await Context.SaveChangesAsync();
+        SeasonID = season.SeasonID;
         Context.AddRange(SeasonAvailability.Seed(SeasonID, mondays.AvailabilityOptionID), SeasonAvailability.Seed(SeasonID, tuesdays.AvailabilityOptionID));
 
         _reds = Roster("Reds", users[0..4]);

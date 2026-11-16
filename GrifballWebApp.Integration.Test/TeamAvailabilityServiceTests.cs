@@ -1,11 +1,11 @@
 using GrifballWebApp.Application.Scheduling;
-using GrifballWebApp.Application.Test.TestDoubles;
+using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
 using Microsoft.EntityFrameworkCore;
 
-namespace GrifballWebApp.Application.Test;
+namespace GrifballWebApp.Integration.Test;
 
 /// <summary>
 /// A team's availability (<see cref="TeamAvailabilityService"/>): worked out from its roster's signup timeslots (a slot is
@@ -13,9 +13,20 @@ namespace GrifballWebApp.Application.Test;
 /// (<see cref="SeasonSchedulingRulesService"/>).
 /// </summary>
 [TestFixture]
-internal sealed class TeamAvailabilityServiceUnitTests : ApplicationDbContextTests
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
+public class TeamAvailabilityServiceUnitTests
 {
-    private const int SeasonID = 1;
+    // A database of its own (the real providers: SQLite with the app's query rewrites, SQL Server, Postgres)
+    private GrifballContext Context = null!;
+
+    [SetUp]
+    public async Task SetUpContext() => Context = await TestDatabase.NewGrifballContext();
+
+    [TearDown]
+    public async Task TearDownContext() => await Context.DropDatabaseAndDispose();
+
+    private int SeasonID;
     private static readonly int[] MondayOnly = [0];
     private static readonly int[] RosterCounts = [4, 3, 1];
 
@@ -31,7 +42,7 @@ internal sealed class TeamAvailabilityServiceUnitTests : ApplicationDbContextTes
     /// </summary>
     private async Task Seed()
     {
-        var season = Season.Seed(seasonName: "S1", seasonID: SeasonID);
+        var season = Season.Seed(seasonName: "S1");
         Context.Seasons.Add(season);
         _slots = [AvailabilityOption.Seed(dayOfWeek: DayOfWeek.Monday, time: new TimeOnly(20, 0)), AvailabilityOption.Seed(dayOfWeek: DayOfWeek.Tuesday, time: new TimeOnly(20, 0)),
             AvailabilityOption.Seed(dayOfWeek: DayOfWeek.Wednesday, time: new TimeOnly(20, 0))];
@@ -40,6 +51,7 @@ internal sealed class TeamAvailabilityServiceUnitTests : ApplicationDbContextTes
         var users = Enumerable.Range(1, 5).Select(i => User.Register($"player{i}")).ToList();
         Context.Users.AddRange(users);
         await Context.SaveChangesAsync();
+        SeasonID = season.SeasonID;
         Context.AddRange(_slots.Select(o => SeasonAvailability.Seed(SeasonID, o.AvailabilityOptionID)));
 
         _captain = users[0].Id;
