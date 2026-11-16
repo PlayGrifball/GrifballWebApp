@@ -701,6 +701,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("character varying(100)")
                         .UseCollation("case_insensitive");
 
+                    b.Property<string>("Host")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<bool>("IsForfeit")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsPlayoffs")
                         .HasColumnType("boolean");
 
@@ -742,6 +750,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("character varying(200)")
                         .UseCollation("case_insensitive");
 
+                    b.Property<string>("Vod")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .UseCollation("case_insensitive");
+
                     b.HasKey("RecordedGameID");
 
                     b.HasIndex("GameVersionID");
@@ -778,6 +791,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("Gametype")
                         .UseCollation("case_insensitive");
+
+                    b.Property<string>("Host")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("Host")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<bool?>("IsForfeit")
+                        .HasColumnType("boolean")
+                        .HasColumnName("IsForfeit");
 
                     b.Property<bool?>("IsPlayoffs")
                         .HasColumnType("boolean")
@@ -824,6 +847,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("SourceKey")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("Vod")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("Vod")
                         .UseCollation("case_insensitive");
 
                     b.HasIndex("GameVersionID", "PeriodEnd");

@@ -28,7 +28,7 @@ public sealed class HistoricalArchiveBuild
 /// workbook at most, not every source's.
 /// </para>
 /// </summary>
-public sealed class HistoricalArchiveBuilder
+public sealed partial class HistoricalArchiveBuilder
 {
     private readonly IReadOnlySet<string>? _changedSourceIds;
     private readonly List<string> _warnings = [];
@@ -43,6 +43,8 @@ public sealed class HistoricalArchiveBuilder
     private readonly List<(string SourceId, RosterTab Tab, Dictionary<string, string>? Teams)> _rosters = [];
     /// <summary>Each standings tab's teams, put on their season's regular season once every season is known.</summary>
     private readonly List<(string SourceId, StandingsTab Tab, List<ArchiveTeam>? Teams)> _standings = [];
+    /// <summary>Each result list's games, put under their season once every season is known.</summary>
+    private readonly List<(string SourceId, int? Year, SeasonDefaults? Defaults, ResultsTab Tab, List<RecordedGameInput>? Games)> _results = [];
     private readonly HashSet<string> _affected = new(StringComparer.OrdinalIgnoreCase);
     private bool _everySeason;
     private bool _playersChanged;
@@ -89,6 +91,8 @@ public sealed class HistoricalArchiveBuilder
         foreach (var tab in config.Standings)
             _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
         AddGames(id, config, workbook, changed);
+        foreach (var tab in config.Results)
+            _results.Add((id, source.Year, config.Season, tab, workbook.Sheet(tab.Sheet) is { } resultsSheet ? GameResultsParser.Parse(id, tab, resultsSheet, _warnings) : null));
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
         if (changed)
@@ -167,6 +171,8 @@ public sealed class HistoricalArchiveBuilder
         var waypoint = WaypointBySeason();
         FillTeamsFromRosters();
         AddStandings();
+        AddResults();
+        NameGameSides();
 
         var input = new HistoricalArchiveInput
         {

@@ -97,6 +97,7 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
             Games = [new GamesTab { Sheet = "Games", Season = "src/1", Game = "infinite" }],
             RosterSheets = ["Rosters"],
             Rosters = [new RosterTab { Sheet = "DraftSheet", Season = "src/1" }],
+            Results = [new ResultsTab { Sheet = " Results " }],
             ChampionsSheet = "Champions",
             PlayersSheet = "Players",
         };
@@ -105,7 +106,7 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(names, Has.Count.EqualTo(10));
+            Assert.That(names, Has.Count.EqualTo(11));
             Assert.That(names, Does.Contain("Stats"));
             Assert.That(names, Does.Contain("Dates"));
             Assert.That(names, Does.Contain("Table"));
@@ -116,6 +117,7 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
             Assert.That(names, Does.Contain("DraftSheet"));
             Assert.That(names, Does.Contain("Champions"));
             Assert.That(names, Does.Contain("Players"));
+            Assert.That(names, Does.Contain("Results"));
             // Case-insensitive: "stats" (any case) is the same entry as "Stats" - names' own comparer decides
             // this, not NUnit's Does.Contain (which wouldn't consult it), so the check goes through Contains directly.
             var hasStatsAnyCase = names.Contains("STATS");

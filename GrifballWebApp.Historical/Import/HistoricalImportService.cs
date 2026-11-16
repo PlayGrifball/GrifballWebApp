@@ -1148,7 +1148,13 @@ public partial class HistoricalImportService : IHistoricalImportService
     private sealed record WaypointPlayers(Dictionary<bool, HashSet<int>> Users, HashSet<bool> CompletePhases, Dictionary<long, int> Accounts);
 
     /// <summary>A game between two of the season's teams, to be put in a series: a Waypoint match or a recorded game.</summary>
-    private sealed record ImportedGame(Guid? MatchID, RecordedGame? Recorded, DateTime? Start, bool Playoffs, int? TeamA, Outcomes OutcomeA, int? TeamB, Outcomes OutcomeB);
+    private sealed record ImportedGame(Guid? MatchID, RecordedGame? Recorded, DateTime? Start, bool Playoffs, int? TeamA, Outcomes OutcomeA, int? TeamB, Outcomes OutcomeB)
+    {
+        /// <summary>The series its source puts it in (<see cref="RecordedGameInput.Series"/>); null: by its teams and time.</summary>
+        public string? Series { get; init; }
+        /// <summary>Forfeited, not played (<see cref="RecordedGameInput.IsForfeit"/>).</summary>
+        public bool IsForfeit { get; init; }
+    }
 
     private static int? Min(int? a, int? b) => a is null || b is null ? a ?? b : Math.Min(a.Value, b.Value);
     private static int? Max(int? a, int? b) => a is null || b is null ? null : Math.Max(a.Value, b.Value);
@@ -1312,9 +1318,11 @@ public partial class HistoricalImportService : IHistoricalImportService
             var (home, away) = (first.TeamA, first.TeamB);
             var (homeWins, awayWins) = Wins(played, home, away);
             var info = first.Playoffs ? bracket.Next(home, away) : null;
-            // More wins win; an even count is a draw, undecided
-            var match = SeasonMatch.Imported(season.SeasonID, home, away, homeWins, awayWins,
-                bestOf: SeasonMatch.ImportedBestOf(played.Count, homeWins, awayWins), scheduledTime: first.Start, bracketMatch: info);
+            var bestOf = SeasonMatch.ImportedBestOf(played.Count, homeWins, awayWins);
+            // More wins win; an even count is a draw, undecided. A series of forfeits is the forfeit's
+            var match = ForfeitedBy(played, home, away) is { } forfeiter
+                ? SeasonMatch.ImportedForfeit(season.SeasonID, home, away, homeWins, awayWins, bestOf, first.Start, info, forfeiter)
+                : SeasonMatch.Imported(season.SeasonID, home, away, homeWins, awayWins, bestOf: bestOf, scheduledTime: first.Start, bracketMatch: info);
             foreach (var (game, index) in played.Select((g, i) => (g, i)))
                 match.AddImportedGame(game.MatchID, game.Recorded, index + 1);
             _context.SeasonMatches.Add(match);
@@ -1324,11 +1332,12 @@ public partial class HistoricalImportService : IHistoricalImportService
         await _context.SaveChangesAsync(ct);
     }
 
-    /// <summary>Series: the same two teams' games, a phase at a time, no more than <see cref="SeriesGap"/> apart.</summary>
+    /// <summary>Series: the games its source puts in one (<see cref="ImportedGame.Series"/>), and the same two teams' other games,
+    /// a phase at a time, no more than <see cref="SeriesGap"/> apart.</summary>
     private static List<List<ImportedGame>> SeriesOf(List<ImportedGame> games)
     {
-        var series = new List<List<ImportedGame>>();
-        foreach (var pair in games.GroupBy(g => (g.Playoffs, Low: Min(g.TeamA, g.TeamB), High: Max(g.TeamA, g.TeamB))))
+        var series = games.Where(g => g.Series is not null).GroupBy(g => g.Series, StringComparer.OrdinalIgnoreCase).Select(g => g.ToList()).ToList();
+        foreach (var pair in games.Where(g => g.Series is null).GroupBy(g => (g.Playoffs, Low: Min(g.TeamA, g.TeamB), High: Max(g.TeamA, g.TeamB))))
         {
             List<ImportedGame>? current = null;
             foreach (var game in pair.OrderBy(g => g.Start))
@@ -1339,6 +1348,16 @@ public partial class HistoricalImportService : IHistoricalImportService
             }
         }
         return series;
+    }
+
+    /// <summary>Who forfeited a series all of whose games are forfeits: the side that won none of them, or both when neither won
+    /// one; null for a series with a game played.</summary>
+    private static Forfeiter? ForfeitedBy(List<ImportedGame> played, int? home, int? away)
+    {
+        if (!played.TrueForAll(g => g.IsForfeit))
+            return null;
+        var (homeWins, awayWins) = Wins(played, home, away);
+        return homeWins > awayWins ? Forfeiter.Away : awayWins > homeWins ? Forfeiter.Home : Forfeiter.Both;
     }
 
     /// <summary>Each side's wins in a series, its sides in the series' order (its first game's): a game's the other way round when the teams swapped sides.</summary>
@@ -1484,7 +1503,11 @@ public partial class HistoricalImportService : IHistoricalImportService
 
         if (!input.IsScrim && game.SeriesGame is null)
             run.ToLink.Add(new ImportedGame(null, game, input.PlayedAt, game.IsPlayoffs, a,
-                sides.Count > 0 ? sides[0].Outcome : Outcomes.DidNotFinish, b, sides.Count > 1 ? sides[1].Outcome : Outcomes.DidNotFinish));
+                sides.Count > 0 ? sides[0].Outcome : Outcomes.DidNotFinish, b, sides.Count > 1 ? sides[1].Outcome : Outcomes.DidNotFinish)
+            {
+                Series = input.Series,
+                IsForfeit = input.IsForfeit,
+            });
     }
 
     /// <summary>A game of an unknown game version, listed twice, or a Waypoint match the database has: skipped (true).</summary>

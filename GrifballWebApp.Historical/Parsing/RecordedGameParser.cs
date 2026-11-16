@@ -195,7 +195,12 @@ public static partial class RecordedGameParser
                 continue;
             var titleRow = r;
             if (BlockHeaderRow(sheet, r) is not { } headerRow)
+            {
+                // A forfeit has a title only: nobody played it
+                if (ForfeitGame(sourceId, tab, title, titleMatch, titleRow) is { } forfeit)
+                    games.Add(forfeit);
                 continue;
+            }
             var block = BlockPlayers(sheet, headerRow);
             r = block.End - 1;
             games.Add(BlockGame(sourceId, tab, title, titleMatch, titleRow, block));
@@ -203,11 +208,12 @@ public static partial class RecordedGameParser
         return games;
     }
 
-    /// <summary>The header row after a block's title (after a "Postgame Page" banner row); null when there is none.</summary>
+    /// <summary>The header row after a block's title (after a "Postgame Page" banner row); null when there is none before
+    /// the next title (a forfeit's title has no block).</summary>
     private static int? BlockHeaderRow(SheetTable sheet, int titleRow)
     {
         var headerRow = titleRow + 1;
-        while (headerRow < sheet.Rows.Count && headerRow <= titleRow + 3 && ArchiveCells.HeaderKey(sheet.Cell(headerRow, 1)) != "player")
+        while (headerRow < sheet.Rows.Count && headerRow <= titleRow + 3 && ArchiveCells.HeaderKey(sheet.Cell(headerRow, 1)) != "player" && !TitlePattern().IsMatch(sheet.Cell(headerRow, 0).Trim()))
             headerRow++;
         return headerRow >= sheet.Rows.Count || ArchiveCells.HeaderKey(sheet.Cell(headerRow, 1)) != "player" ? null : headerRow;
     }
@@ -273,6 +279,8 @@ public static partial class RecordedGameParser
                 Score = won || tied ? high : low,
             };
         }).ToList();
+        if (teams.Count == 1 && OtherSide(title, teams[0], tied, high, low) is { } other)
+            teams.Add(other);
         return new RecordedGameInput
         {
             SeasonSourceId = tab.Season,
@@ -281,10 +289,68 @@ public static partial class RecordedGameParser
             PlayedAt = BlockDate(title),
             IsPlayoffs = PlayoffsPattern().IsMatch(titleMatch.Groups["phase"].Value),
             IsScrim = tab.Scrims,
+            Vod = TitleLink(title),
             Teams = teams,
             Players = block.Players,
         };
     }
+
+    /// <summary>
+    /// The side a block has no players of (a partial copy), from its title: the team the title names that the block's
+    /// side is not (by its name, else by its result: the winner is named first). Null when the title says too little.
+    /// </summary>
+    private static RecordedTeamInput? OtherSide(string title, RecordedTeamInput side, bool tied, int? high, int? low)
+    {
+        if (TitleTeams(title) is not { } named)
+            return null;
+        var key = Key(side.Name);
+        string? other = key.Length == 0 ? null : key == Key(named.Winner) ? named.Loser : key == Key(named.Loser) ? named.Winner : null;
+        if (other is null && !tied)
+            other = side.Outcome == Outcomes.Won ? named.Loser : named.Winner;
+        if (other is null)
+            return null;
+        var outcome = side.Outcome switch { Outcomes.Won => Outcomes.Lost, Outcomes.Lost => Outcomes.Won, _ => side.Outcome };
+        return new RecordedTeamInput { Side = side.Side + 1, Name = other, Outcome = outcome, Score = outcome == Outcomes.Lost ? low : high };
+    }
+
+    /// <summary>A title's game without a block, when the title says it was forfeited ("A over B - Forfeit", "A FF Win over B",
+    /// "A (FF W) over B"): the first team won it.</summary>
+    private static RecordedGameInput? ForfeitGame(string sourceId, GamesTab tab, string title, System.Text.RegularExpressions.Match titleMatch, int titleRow)
+    {
+        if (!ForfeitPattern().IsMatch(title) || TitleTeams(title) is not { } named)
+            return null;
+        return new RecordedGameInput
+        {
+            SeasonSourceId = tab.Season,
+            SourceKey = $"{sourceId}/{tab.Sheet}#{titleRow}",
+            GameVersion = tab.Game,
+            PlayedAt = BlockDate(title),
+            IsPlayoffs = PlayoffsPattern().IsMatch(titleMatch.Groups["phase"].Value),
+            IsScrim = tab.Scrims,
+            IsForfeit = true,
+            Teams =
+            [
+                new RecordedTeamInput { Side = 1, Name = named.Winner, Outcome = Outcomes.Won },
+                new RecordedTeamInput { Side = 2, Name = named.Loser, Outcome = Outcomes.Lost },
+            ],
+        };
+    }
+
+    /// <summary>The two teams a block's title names: the one before "over" (the winner, or one side of a tie) and the one after,
+    /// without the forfeit marks, score, notes and links after them.</summary>
+    private static (string Winner, string Loser)? TitleTeams(string title)
+    {
+        var matchup = title.Split(" - ").Select(s => TitleMatchupPattern().Match(s.Trim())).FirstOrDefault(m => m.Success);
+        if (matchup is null)
+            return null;
+        var (winner, loser) = (matchup.Groups["a"].Value.Trim(), matchup.Groups["b"].Value.Trim());
+        return winner.Length == 0 || loser.Length == 0 ? null : (winner, loser);
+    }
+
+    /// <summary>The first link in a title (the game's video).</summary>
+    private static string? TitleLink(string title) => LinkPattern().Match(title) is { Success: true } link ? link.Value : null;
+
+    private static string Key(string? name) => new([.. (name ?? "").ToLowerInvariant().Where(char.IsLetterOrDigit)]);
 
     private static string Cell(string[] row, int column) => column >= 0 && column < row.Length ? row[column] : "";
 
@@ -340,4 +406,14 @@ public static partial class RecordedGameParser
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex Whitespace();
+
+    /// <summary>"A over B (5-2) RECORDED https://...", "A FF Win over B", "A (FF W) over B": the teams, without what follows.</summary>
+    [GeneratedRegex(@"^(?<a>.+?)(?:\s+\(FF W\)|\s+FF Win)?\s+(?:over|tied)\s+(?<b>.+?)(?=\s*(?:\(\d|\(FF|\d{1,2}\s*-\s*\d|RECORDED|https?://|$))", RegexOptions.IgnoreCase)]
+    private static partial Regex TitleMatchupPattern();
+
+    [GeneratedRegex(@"\bforfeit\b|\bFF\b", RegexOptions.IgnoreCase)]
+    private static partial Regex ForfeitPattern();
+
+    [GeneratedRegex(@"https?://\S+", RegexOptions.IgnoreCase)]
+    private static partial Regex LinkPattern();
 }

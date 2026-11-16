@@ -50,6 +50,34 @@ public class SeasonMatchModelTests
         }
     }
 
+    [TestCase(Forfeiter.Home, SeasonMatchResult.Forfeit, SeasonMatchResult.Won, SeasonMatchSide.Away)]
+    [TestCase(Forfeiter.Away, SeasonMatchResult.Won, SeasonMatchResult.Forfeit, SeasonMatchSide.Home)]
+    [TestCase(Forfeiter.Both, SeasonMatchResult.Forfeit, SeasonMatchResult.Forfeit, null)]
+    public void ImportedForfeit_IsDecidedByTheForfeit_ItsScoreTheSources(Forfeiter forfeiter, SeasonMatchResult home, SeasonMatchResult away, SeasonMatchSide? winner)
+    {
+        var match = SeasonMatch.ImportedForfeit(1, 10, 20, 0, 2, 3, null, null, forfeiter);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((match.HomeTeamResult, match.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)home, (SeasonMatchResult?)away)));
+            Assert.That(match.DecidedBy, Is.EqualTo(SeasonMatchDecision.Forfeit));
+            Assert.That(match.Winner, Is.EqualTo(winner));
+            Assert.That((match.HomeTeamScore, match.AwayTeamScore, match.BestOf), Is.EqualTo(((int?)0, (int?)2, 3)));
+        }
+    }
+
+    [Test]
+    public void ImportedForfeit_WithoutBothTeams_IsDecidedByItsWins()
+    {
+        var match = SeasonMatch.ImportedForfeit(1, null, 20, 0, 2, 3, null, null, Forfeiter.Home);
+
+        Assert.That((match.DecidedBy, match.Winner), Is.EqualTo(((SeasonMatchDecision?)SeasonMatchDecision.Games, (SeasonMatchSide?)SeasonMatchSide.Away)));
+    }
+
+    [Test]
+    public void ImportedForfeit_OfAForfeiterTheModelDoesNotKnow_IsRefused()
+        => Assert.That(() => SeasonMatch.ImportedForfeit(1, 10, 20, 0, 1, 1, null, null, (Forfeiter)9), Throws.InstanceOf<ArgumentOutOfRangeException>());
+
     [TestCase(3, 1, SeasonMatchSide.Home)]
     [TestCase(1, 3, SeasonMatchSide.Away)]
     [TestCase(2, 2, null)]
