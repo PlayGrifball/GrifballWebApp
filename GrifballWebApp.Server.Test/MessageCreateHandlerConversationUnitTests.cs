@@ -599,4 +599,25 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             Assert.That(await accounts.WaitingAsync(ChatHost.DiscordDirect, asker), Is.Null, "Answered");
         }
     }
+
+    [Test]
+    public async Task HandleAsync_StaffInADm_TheirSettingDecides_WhetherAChangeWaits()
+    {
+        var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
+        var choice = GrifballWebApp.Domain.Players.ChatChoice.Make(user.Id);
+        choice.SetAutoApprove(true);
+        Db.ChatChoices.Add(choice);
+        await Db.SaveChangesAsync();
+        DmHolds();
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi"));
+
+        await Handler(model).HandleAsync(DirectMessage());
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(model.Options!.Instructions, Does.Contain(GrifChat.AutoApprovedLine));
+            Assert.That(model.Options.Tools, Has.None.InstanceOf<ApprovalRequiredAIFunction>());
+        }
+    }
 }

@@ -236,4 +236,27 @@ describe('ChatComponent', () => {
     expect(el().querySelector('.chat__confirm')).toBeNull();
     expect(button('Confirm')).toBeUndefined();
   });
+
+  it("offers staff to run changes without asking, this conversation or as their default, saying what it risks", async () => {
+    await withModels({ models: [{ id: 'ollama', name: 'llama3.2:3b' }], selected: 'ollama', autoApprove: false });
+    const toggle = () => el().querySelector<HTMLButtonElement>('.chat__approve button[role="switch"]')!;
+    expect(toggle().getAttribute('aria-checked')).toBe('false');
+    expect(text()).toContain('talked into');
+    expect(button('Make this my default')).toBeUndefined();
+
+    toggle().click();
+    fixture.detectChanges();
+    expect(toggle().getAttribute('aria-checked')).toBe('true');
+    button('Make this my default')!.click();
+    await new Promise(resolve => setTimeout(resolve));
+    fixture.detectChanges();
+
+    expect(invoke).toHaveBeenCalledWith('SetAutoApprove', true);
+  });
+
+  it('offers no auto-approve to someone with no change to approve', async () => {
+    await withModels({ models: [{ id: 'ollama', name: 'llama3.2:3b' }], selected: 'ollama' });
+
+    expect(el().querySelector('.chat__approve')).toBeNull();
+  });
 });

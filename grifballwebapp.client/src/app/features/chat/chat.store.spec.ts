@@ -479,4 +479,67 @@ describe('ChatStore', () => {
       expect(error).toHaveBeenCalledWith('Chat: the waiting change failed to load', jasmine.objectContaining({ message: 'down' }));
     });
   });
+
+  describe('auto-approve', () => {
+    /** The store with its connection up, as staff whose saved setting is `saved`. */
+    async function staff(saved: boolean): Promise<ChatStore> {
+      connection.invoke.and.callFake((method: string, on?: boolean) => Promise.resolve(method === 'Waiting' ? null
+        : { ...models, autoApprove: method === 'SetAutoApprove' ? on : saved }));
+      const store = create();
+      (connection.onreconnected.calls.mostRecent().args[0] as () => void)();
+      await new Promise(resolve => setTimeout(resolve));
+      return store;
+    }
+
+    it("is their saved setting until they change it for the conversation, and asks with nothing of its own until then", async () => {
+      const store = await staff(true);
+      expect(store.autoApprove()).toBeTrue();
+      store.ask('Hi');
+      expect(asked()[1].autoApprove).toBeNull();
+      answer().subscriber.complete();
+
+      store.setAutoApprove(false);
+
+      expect(store.autoApprove()).toBeFalse();
+      store.ask('Again');
+      expect(asked()[1].autoApprove).toBeFalse();
+    });
+
+    it('saves the conversation\'s choice as their setting on request', async () => {
+      const store = await staff(false);
+      store.setAutoApprove(true);
+
+      await store.saveAutoApprove();
+
+      expect(connection.invoke).toHaveBeenCalledWith('SetAutoApprove', true);
+      expect(store.models()!.autoApprove).toBeTrue();
+      expect(store.autoApprove()).toBeTrue();
+    });
+
+    it('a new conversation goes back to their saved setting', async () => {
+      const store = await staff(false);
+      store.setAutoApprove(true);
+
+      store.clear();
+
+      expect(store.autoApprove()).toBeFalse();
+    });
+
+    it('is none for someone with no change to approve', async () => {
+      const store = create();
+      (connection.onreconnected.calls.mostRecent().args[0] as () => void)();
+      await new Promise(resolve => setTimeout(resolve));
+
+      expect(store.autoApprove()).toBeNull();
+    });
+
+    it('shows why saving failed', async () => {
+      const store = await staff(false);
+      connection.invoke.and.returnValue(Promise.reject(new Error('HubException: Choose one of your own models.')));
+
+      await store.saveAutoApprove();
+
+      expect(store.error()).toBe('Choose one of your own models.');
+    });
+  });
 });
