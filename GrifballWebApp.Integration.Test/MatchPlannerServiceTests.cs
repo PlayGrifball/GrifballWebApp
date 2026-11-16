@@ -212,4 +212,29 @@ public class MatchPlannerServiceTests
             Assert.That(result.Select(m => m.AwayTeam).Distinct(), Is.EquivalentTo(TeamLabels));
         }
     }
+
+    [Test]
+    public async Task UpdateMatchTime_AtATimeATeamAlreadyPlays_SetsIt_AndSaysWhatsWrong()
+    {
+        var season = Season.Seed(seasonName: "Clash Season").WithDates(seasonStart: DateTime.UtcNow, seasonEnd: DateTime.UtcNow.AddDays(30));
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        var team1 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 1");
+        var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
+        _context.Teams.AddRange(team1, team2);
+        await _context.SaveChangesAsync();
+        var at = DateTime.UtcNow.AddDays(5);
+        var match = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3);
+        _context.SeasonMatches.AddRange(match, SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3, scheduledTime: at));
+        await _context.SaveChangesAsync();
+
+        var conflicts = await _service.UpdateMatchTime(new UpdateMatchTimeDto { SeasonMatchID = match.SeasonMatchID, Time = at }, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(conflicts!.Select(c => c.Kind), Does.Contain(GrifballWebApp.Application.Scheduling.ScheduleConflictKind.TeamPlaysThen));
+            Assert.That((await _context.SeasonMatches.AsNoTracking().SingleAsync(m => m.SeasonMatchID == match.SeasonMatchID)).ScheduledTime, Is.EqualTo(at),
+                "Staff set it all the same: a warning");
+        }
+    }
 }

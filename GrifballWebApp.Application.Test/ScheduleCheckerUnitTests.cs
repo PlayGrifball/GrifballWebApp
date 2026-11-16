@@ -140,4 +140,18 @@ public class ScheduleCheckerUnitTests
             Assert.That(conflicts.Select(c => c.Message), Has.All.Not.Empty);
         }
     }
+
+    [Test]
+    public void ASeasonWithNoDatesOrTimeslots_IsCheckedOnlyForClashesAndCaps()
+    {
+        // An unconfigured season (an imported one, say): no window, no slots, no team slots
+        var bare = new ScheduleChecker(default, default, SeasonSchedulingRules.Defaults(1), [],
+            new Dictionary<int, IReadOnlySet<(DayOfWeek Day, TimeOnly Time)>>(), ScheduleService.LeagueTimeZone());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bare.Check(Match(10, Home, Away, Monday8pm.AddMinutes(10)), []), Is.Empty, "Nothing to check its time against");
+            Assert.That(Kinds(bare.Check(Match(10, Home, Away, Monday8pm), [Match(11, Home, Third, Monday8pm)])), Does.Contain(ScheduleConflictKind.TeamPlaysThen));
+        }
+    }
 }
