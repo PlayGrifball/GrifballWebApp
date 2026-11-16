@@ -77,12 +77,15 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
         /// <summary>Holds each connection until it completes: a join still connecting.</summary>
         public TaskCompletionSource? Connecting { get; set; }
 
+        /// <summary>Whether a held connection gives up when its join is canceled, as Discord's does; false: it connects all the same.</summary>
+        public bool Cancellable { get; set; }
+
         public async Task<IVoiceLink> ConnectAsync(ulong guildId, ulong channelId, CancellationToken cancellationToken)
         {
             if (Fails is { } fails)
                 throw fails;
             if (Connecting is { } connecting)
-                await connecting.Task;
+                await (Cancellable ? connecting.Task.WaitAsync(cancellationToken) : connecting.Task);
             var link = new Link();
             Opened.Add((guildId, channelId, link));
             return link;
@@ -345,5 +348,38 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
             Assert.That(_connector.Opened.Single().Link.Disposals, Is.EqualTo(1));
             Assert.That(_connector.Disconnected, Is.EqualTo(OnlyTheGuild));
         }
+    }
+
+    [Test]
+    public async Task Leave_WhileAJoinConnects_CancelsTheConnection()
+    {
+        await using var sessions = Sessions();
+        var handler = Handler(sessions);
+        _connector.Connecting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _connector.Cancellable = true;
+
+        var joining = handler.JoinAsync(Guild, In(Channel), Speaker);
+        await handler.LeaveAsync(Guild);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await joining, Is.EqualTo(VoiceCommandsHandler.LeftBeforeJoined));
+            Assert.That(_connector.Opened, Is.Empty, "Never connected");
+            Assert.That(_connector.Disconnected, Is.EqualTo(OnlyTheGuild));
+        }
+    }
+
+    [Test]
+    public async Task Dispose_WhileAJoinConnects_StopsIt()
+    {
+        var sessions = Sessions();
+        var handler = Handler(sessions);
+        _connector.Connecting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _connector.Cancellable = true;
+
+        var joining = handler.JoinAsync(Guild, In(Channel), Speaker);
+        await sessions.DisposeAsync();
+
+        Assert.That(await joining, Is.EqualTo(VoiceCommandsHandler.LeftBeforeJoined));
     }
 }

@@ -334,4 +334,20 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
 
         Assert.That(_speech.Heard, Is.Empty);
     }
+
+    [Test]
+    public async Task AudioHeldWhileTheyAreLookedUp_IsCappedAt5Seconds()
+    {
+        await OptedIn(Speaker);
+        _speech.Transcripts.Enqueue("Grif, who won?");
+        var conversation = Conversation(new ScriptedChatClient((TimeSpan.Zero, "The Grifs did.")));
+
+        for (var i = 0; i < 7; i++)
+            conversation.Hear(Speaker, new short[VoicePcm.DiscordRate]);
+        await conversation.RefreshAsync(Speaker);
+        _time.Advance(VoiceLines.Silence);
+        await conversation.ProcessEndedAsync(CancellationToken.None);
+
+        Assert.That(_speech.Heard.Single(), Has.Length.EqualTo(44 + (int)VoiceConversation.MaxHeld.TotalSeconds * VoicePcm.WhisperRate * 2));
+    }
 }

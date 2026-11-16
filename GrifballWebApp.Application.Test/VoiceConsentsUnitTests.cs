@@ -77,4 +77,12 @@ public class VoiceConsentsUnitTests
             return result;
         }
     }
+
+    [Test]
+    public async Task OptIn_ASaveThatFailsForAnotherReason_Fails()
+    {
+        await using var refusing = _db.NewContextLike(new RefusingSaves(_ => true));
+
+        Assert.That(async () => await new VoiceConsents(refusing, _time).OptInAsync(42), Throws.InstanceOf<DbUpdateException>());
+    }
 }
