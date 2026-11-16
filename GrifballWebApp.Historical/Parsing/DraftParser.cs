@@ -70,7 +70,7 @@ public static partial class DraftParser
             var place = i + 1;
             var picks = rounds.Select(round => (round.Round, Gamertag: Player(sheet.Cell(round.Row, c)), Number: round.Numbers?.GetValueOrDefault(c)))
                 .Where(p => p.Gamertag.Length > 0)
-                .Select(p => new ArchiveDraftPick(p.Gamertag, p.Round, p.Number ?? (order == DraftOrder.Linear ? (p.Round - 1) * columns.Count + place : null)))
+                .Select(p => new ArchiveDraftPick(p.Gamertag, p.Round, p.Number ?? (order == DraftOrder.Linear ? (p.Round - 1) * columns.Count + place : (int?)null)))
                 .ToList();
             var captain = Player(sheet.Cell(captainRow, c));
             return new ArchiveTeam
