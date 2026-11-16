@@ -1,6 +1,7 @@
 using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
+using GrifballWebApp.Domain.Shared;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using NSubstitute;
@@ -20,6 +21,7 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
     private const int OtherSeasonID = 2;
     private const int OtherTeamID = 5;
     private static readonly int[] SeasonTeams = [1, 2, 3, 4];
+    private static readonly int[] NineOnly = [21];
     private static readonly (int Home, int Away)[] RoundRobin = [(1, 2), (3, 4), (1, 3), (2, 4), (1, 4), (2, 3)];
 
     private ScheduleService _service = null!;
@@ -33,7 +35,7 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
     /// <summary>A season of teams 1-4 playing a round robin (and a bracket match and one still missing a team, which
     /// aren't scheduled), timeslots every day at 20:00 and 21:00 for its teams, and another season's team on one of them.
     /// Returns the regular matches' ids.</summary>
-    private async Task<List<int>> SeedSeason()
+    private async Task<List<int>> SeedSeason(Func<AvailabilityOption, bool>? seasonSlot = null)
     {
         var season = Season.Seed(seasonName: "S1", seasonID: SeasonID);
         season.Schedule(new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Utc),
@@ -47,6 +49,8 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
         Context.Availability.AddRange(options);
         await Context.SaveChangesAsync();
         Context.Add(TeamAvailability.Seed(OtherTeamID, options[0].AvailabilityOptionID));
+        // The season's own timeslots (all of them unless the test says otherwise)
+        Context.AddRange(options.Where(seasonSlot ?? (_ => true)).Select(o => SeasonAvailability.Seed(SeasonID, o.AvailabilityOptionID)));
 
         var regular = RoundRobin.Select(p => SeasonMatch.Seed(SeasonID, p.Home, p.Away)).ToList();
         Context.SeasonMatches.AddRange(regular);
@@ -134,5 +138,26 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
         var genes = await _service.GetTimeRecommendations(SeasonID);
 
         Assert.That(genes.Select(g => g.SeasonMatchID), Is.EquivalentTo(regular));
+    }
+
+    [Test]
+    public async Task Recommend_PicksOnlyTheSeasonsOwnTimeslots_NotEveryOptionEverMade()
+    {
+        // The season plays at 21:00 only; 20:00 is another season's option
+        await SeedSeason(o => o.Time == new TimeOnly(21, 0));
+
+        var run = await _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 5, TimeBudget = null });
+
+        Assert.That(run.Genes.Select(g => g.ScheduledTime.Hour).Distinct(), Is.EqualTo(NineOnly));
+    }
+
+    [Test]
+    public async Task Recommend_ASeasonWithNoTimeslots_SaysSo()
+    {
+        await SeedSeason(_ => false);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.Recommend(SeasonID, new ScheduleRunOptions { MaxGenerations = 5, TimeBudget = null }));
+
+        Assert.That(ex!.Message, Is.EqualTo(ScheduleService.NoTimeslots));
     }
 }

@@ -56,6 +56,9 @@ public class ScheduleServiceTests
         foreach (var o in options)
             foreach (var t in teams)
                 _context.Set<TeamAvailability>().Add(TeamAvailability.Seed(teamID: t.TeamID, availabilityOptionID: o.AvailabilityOptionID));
+        // The season's own timeslots: the scheduler picks only from these
+        foreach (var o in options)
+            _context.Add(SeasonAvailability.Seed(SeasonID, o.AvailabilityOptionID));
 
         _context.SeasonMatches.AddRange(
             SeasonMatch.Seed(SeasonID, teams[0].TeamID, teams[1].TeamID),
