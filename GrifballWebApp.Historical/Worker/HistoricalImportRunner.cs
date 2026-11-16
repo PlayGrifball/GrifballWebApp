@@ -33,6 +33,12 @@ public partial class HistoricalImportRunner
     private readonly ILogger<HistoricalImportRunner> _logger;
     private readonly VodService? _vods;
 
+    /// <param name="context">The database: the jobs, the sources and their snapshots.</param>
+    /// <param name="sources">The sources' downloads (a refresh) and snapshots (an import's input).</param>
+    /// <param name="import">The importer, the only one.</param>
+    /// <param name="jobs">The job queue: a scheduled refresh queues its import here.</param>
+    /// <param name="guardrail">How much a guarded import may remove from a season before it stops for review.</param>
+    /// <param name="logger">Each job's outcome.</param>
     /// <param name="vods">The VODs, found on each refresh and matched again after each import; null leaves them out.</param>
     public HistoricalImportRunner(GrifballContext context, HistoricalSourceService sources, IHistoricalImportService import, HistoricalImportJobs jobs,
         IOptions<HistoricalGuardrailOptions> guardrail, ILogger<HistoricalImportRunner> logger, VodService? vods = null)

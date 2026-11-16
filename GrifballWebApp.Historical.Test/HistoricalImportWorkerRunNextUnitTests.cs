@@ -109,6 +109,33 @@ public class HistoricalImportWorkerRunNextUnitTests : SqliteContextFixture
         }
     }
 
+    /// <summary>The running worker, idle on an empty queue, wakes on the signal a queued job sends and runs it.</summary>
+    [Test]
+    public async Task TheRunningWorker_IdleOnAnEmptyQueue_RunsAJobQueuedLater()
+    {
+        await _worker.StartAsync(CancellationToken.None);
+        try
+        {
+            // Idle: it found nothing and waits on the signal
+            await Task.Delay(200);
+            var jobId = await QueueRefresh();
+            _provider.GetRequiredService<HistoricalImportSignal>().Notify();
+
+            var status = HistoricalImportJobStatus.Queued;
+            for (var i = 0; i < 100 && status != HistoricalImportJobStatus.Succeeded; i++)
+            {
+                await Task.Delay(50);
+                status = (await Context.HistoricalImportJobs.AsNoTracking().SingleAsync(j => j.HistoricalImportJobID == jobId)).Status;
+            }
+
+            Assert.That(status, Is.EqualTo(HistoricalImportJobStatus.Succeeded));
+        }
+        finally
+        {
+            await _worker.StopAsync(CancellationToken.None);
+        }
+    }
+
     [Test]
     public async Task RunNextAsync_TwoQueuedJobs_RunsOneAtATime_OldestFirst()
     {
