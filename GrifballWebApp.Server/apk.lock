@@ -1,6 +1,6 @@
 # The Alpine packages the backend image installs (GrifballWebApp.Server/Dockerfile), from the repo's apk-archive
 # release. Written by .github/scripts/apk-lock.sh (apk-lock.yml); change the packages line, not the rest.
-# packages: icu-libs tzdata postgresql18-client
+# packages: icu-libs tzdata postgresql18-client opus libsodium
 # alpine: 3.24.4
 # base: mcr.microsoft.com/dotnet/aspnet:10.0-alpine@sha256:486297ae006e95ee2ee3112a2c03e3d26e41fbbc64b7a29e28e7a18cc36b12bb
 aarch64 icu-data-en 78.1-r0 3fa1dfb91a081f73c32a46f6ec054196caa37c9fd9569c433ddf6b29415dcf13
