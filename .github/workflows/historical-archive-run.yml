@@ -38,6 +38,10 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   # The test environment's database, through the archive's read-only login
   ARCHIVE_DB_HOST: sqlserver.grif-test.svc.cluster.local,1433
+  # The test environment scales to zero when idle (Sablier): the wake step starts its group, whose SQL Server the copy
+  # needs, through Sablier's blocking strategy, which answers once the group is ready
+  SABLIER_URL: http://sablier.sablier.svc.cluster.local:10000/api/strategies/blocking
+  SABLIER_GROUP: grif-test
 
 jobs:
   archive:
@@ -71,6 +75,17 @@ jobs:
         if [ "$base" = "$(git rev-parse HEAD)" ]; then base=; fi
         echo "sha=$base" >> "$GITHUB_OUTPUT"
         echo "Comparing with ${base:-nothing}"
+
+    # The copy reads the test environment's database: wake it if it's asleep (up to 3 minutes for Sablier, then 3 for
+    # SQL Server's port), and keep it up 30 minutes, past the copy
+    - name: Wake the test environment
+      if: inputs.fill != 'download'
+      env:
+        SABLIER_SESSION_DURATION: 30m
+        SABLIER_TIMEOUT_SECONDS: 180
+        WAKE_TCP: ${{ env.ARCHIVE_DB_HOST }}
+        WAKE_TCP_SECONDS: 180
+      run: .github/scripts/sablier-wake.sh
 
     # This commit's import, filling the copy first. With the database (fill both or database), its password stays in the
     # environment (the in-cluster runner's), never on a command line.
