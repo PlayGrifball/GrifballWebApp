@@ -46,7 +46,12 @@ public static partial class StandingsParser
     /// <summary>A place: the number a cell starts with ("3rd (Semi-Finals)", "7th Place", "Seed 5", "T-3", "12", a range
     /// "5th-8th"), 1 or more; null otherwise, and for a record ("15-14") or anything else ("Draft Spot 1", "#N/A").</summary>
     public static int? Place(string? cell)
-        => cell is not null && PlaceRegex().Match(cell) is { Success: true } m && int.TryParse(m.Groups[1].Value, out var place) && place >= 1 ? place : null;
+    {
+        if (cell is null)
+            return null;
+        var m = PlaceRegex().Match(cell);
+        return m.Success && int.TryParse(m.Groups[1].Value, out var place) && place >= 1 ? place : null;
+    }
 
     private static List<ArchiveTeam> ByRow(SheetTable sheet, int headerRow, int teamColumn, StandingsTab tab)
     {
@@ -77,8 +82,11 @@ public static partial class StandingsParser
     private static bool NextNameIsAHeader(SheetTable sheet, int row, int teamColumn)
     {
         for (var r = row + 1; r < sheet.Rows.Count; r++)
-            if (sheet.Cell(r, teamColumn).Trim() is { Length: > 0 } next)
+        {
+            var next = sheet.Cell(r, teamColumn).Trim();
+            if (next.Length > 0)
                 return FieldOf(next) == Field.Team;
+        }
         return false;
     }
 
@@ -191,8 +199,14 @@ public static partial class StandingsParser
             if (!_names.Add(name))
                 return;
             var (wins, losses) = (Count(value(Field.Wins)), Count(value(Field.Losses)));
-            if (wins is null && losses is null && (RecordRegex().Match(value(Field.Record)) is { Success: true } m ? m : record) is { Success: true } r)
-                (wins, losses) = (int.Parse(r.Groups[1].Value), int.Parse(r.Groups[2].Value));
+            if (wins is null && losses is null)
+            {
+                // The Record column's, else the name's bracket
+                var column = RecordRegex().Match(value(Field.Record));
+                var r = column.Success ? column : record;
+                if (r?.Success == true)
+                    (wins, losses) = (int.Parse(r.Groups[1].Value), int.Parse(r.Groups[2].Value));
+            }
             List.Add(new ArchiveTeam
             {
                 TeamName = name,
@@ -210,7 +224,8 @@ public static partial class StandingsParser
     public static string WithoutNote(string name)
     {
         var trimmed = name.Trim();
-        return TrailingBracketRegex().Match(trimmed) is { Success: true } m && m.Index > 0 ? trimmed[..m.Index].TrimEnd() : trimmed;
+        var m = TrailingBracketRegex().Match(trimmed);
+        return m.Success && m.Index > 0 ? trimmed[..m.Index].TrimEnd() : trimmed;
     }
 
     /// <summary>A cell's name and its trailing brackets: the first that is a record ("(17-3)"), and the others in order.</summary>
