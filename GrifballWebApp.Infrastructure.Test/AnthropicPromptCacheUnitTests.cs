@@ -87,7 +87,7 @@ public class AnthropicPromptCacheUnitTests
             yield return new ChatResponseUpdate(ChatRole.Assistant, "Hello");
         }
 
-        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+        public object? GetService(System.Type serviceType, object? serviceKey = null) => null;
 
         public void Dispose()
         {
