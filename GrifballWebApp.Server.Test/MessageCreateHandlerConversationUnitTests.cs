@@ -89,7 +89,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .AddTransient<GrifballWebApp.Application.Grades.GradesService>()
             .AddTransient<GrifballWebApp.Application.Signups.SignupsService>()
             .AddSingleton(Substitute.For<GrifballWebApp.Application.Brackets.IBracketService>())
-            .AddDistributedMemoryCache()
+            .AddSingleton<IChatWaiting, MemoryChatWaiting>()
             .BuildServiceProvider();
         var chatClients = Substitute.For<IChatClientFactory>();
         chatClients.Available.Returns(_modelConfigured);
@@ -585,7 +585,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         var handler = Handler(model);
         var accounts = new ChatAccounts(_services!.GetRequiredService<IServiceScopeFactory>(), _time, NullLogger<ChatAccounts>.Instance);
         var asker = ChatLimits.Asker(new ToolCaller(user.Id, []), "");
-        await accounts.SaveWaitingAsync(asker, new ChatAction("a1", "ollama", "forfeit_season_match(seasonMatchID: 12)",
+        await accounts.SaveWaitingAsync(ChatHost.DiscordDirect, asker, new ChatAction("a1", "ollama", "forfeit_season_match(seasonMatchID: 12)",
             [new ChatActionCall("r1", "call-1", "forfeit_season_match", "{\"seasonMatchID\":12}")]));
 
         await handler.HandleAsync(GatewayMessages.Build(AuthorId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }),
@@ -596,7 +596,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
         {
             Assert.That(model.Messages.SelectMany(m => m.Contents).OfType<FunctionResultContent>().Single().Result?.ToString(), Does.Contain("rejected"));
             Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Left as it was."));
-            Assert.That(await accounts.WaitingAsync(asker), Is.Null, "Answered");
+            Assert.That(await accounts.WaitingAsync(ChatHost.DiscordDirect, asker), Is.Null, "Answered");
         }
     }
 }

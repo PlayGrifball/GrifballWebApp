@@ -37,7 +37,7 @@ public class ChatHubModelsUnitTests : SqliteGrifballContextFixture
         var clients = Substitute.For<IChatClientFactory>();
         clients.Available.Returns(true);
         clients.Models.Returns([Free, Other]);
-        _services ??= new ServiceCollection().AddSingleton<IApplicationDbContext>(Db).AddDistributedMemoryCache().BuildServiceProvider();
+        _services ??= new ServiceCollection().AddSingleton<IApplicationDbContext>(Db).AddSingleton<IChatWaiting>(new MemoryChatWaiting(TimeProvider.System)).BuildServiceProvider();
         var scopes = _services.GetRequiredService<IServiceScopeFactory>();
         var now = new HubUser();
         now.Set(user);
@@ -99,7 +99,7 @@ public class ChatHubModelsUnitTests : SqliteGrifballContextFixture
     {
         var hub = Hub(new HubUserState(7, ["Commissioner"]));
         var scopes = _services!.GetRequiredService<IServiceScopeFactory>();
-        await new ChatAccounts(scopes, new FakeTimeProvider(), NullLogger<ChatAccounts>.Instance).SaveWaitingAsync(
+        await new ChatAccounts(scopes, new FakeTimeProvider(), NullLogger<ChatAccounts>.Instance).SaveWaitingAsync(ChatHost.Site,
             ChatLimits.Asker(new GrifballWebApp.Application.Tools.ToolCaller(7, []), ""), new ChatAction("a1", "ollama", "forfeit_season_match(seasonMatchID: 12)", []));
 
         var waiting = await hub.Waiting();
@@ -109,5 +109,17 @@ public class ChatHubModelsUnitTests : SqliteGrifballContextFixture
             Assert.That(waiting?.Id, Is.EqualTo("a1"));
             Assert.That(waiting?.Description, Is.EqualTo("forfeit_season_match(seasonMatchID: 12)"));
         }
+    }
+
+    [Test]
+    public async Task Forget_DropsTheChangeWaitingForTheUser()
+    {
+        var hub = Hub(new HubUserState(7, ["Commissioner"]));
+        await new ChatAccounts(_services!.GetRequiredService<IServiceScopeFactory>(), new FakeTimeProvider(), NullLogger<ChatAccounts>.Instance).SaveWaitingAsync(ChatHost.Site,
+            ChatLimits.Asker(new GrifballWebApp.Application.Tools.ToolCaller(7, []), ""), new ChatAction("a1", "ollama", "run_job()", []));
+
+        await hub.Forget();
+
+        Assert.That(await hub.Waiting(), Is.Null);
     }
 }

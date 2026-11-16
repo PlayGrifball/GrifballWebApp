@@ -37,8 +37,8 @@ public class ChatHubUnitTests
     private readonly IAmbientCurrentUser _ambient = Substitute.For<IAmbientCurrentUser>();
     private readonly RecordingLogger<ChatHub> _logger = new();
     private readonly ChatLimits _limits = new();
-    // Where a change the model asks for waits (ChatAccounts): the app's distributed cache, in memory
-    private readonly ServiceProvider _cache = new ServiceCollection().AddDistributedMemoryCache().BuildServiceProvider();
+    // Where a change the model asks for waits (ChatAccounts), in memory
+    private readonly ServiceProvider _cache = new ServiceCollection().AddSingleton<IChatWaiting>(new MemoryChatWaiting(TimeProvider.System)).BuildServiceProvider();
 
     [TearDown]
     public async Task TearDown()

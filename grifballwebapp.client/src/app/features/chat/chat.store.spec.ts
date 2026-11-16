@@ -412,10 +412,57 @@ describe('ChatStore', () => {
       expect(connection.stream).toHaveBeenCalledTimes(2);
     });
 
-    it('a new conversation shows nothing waiting', async () => {
+    it('a new conversation drops the change waiting, on the server too', async () => {
       const store = await asking();
 
       store.clear();
+
+      expect(store.waiting()).toBeNull();
+      expect(connection.invoke).toHaveBeenCalledWith('Forget');
+    });
+
+    it("a sign-in or out drops it from the page only: the server's is the other user's", async () => {
+      const store = await asking();
+
+      TestBed.inject(AuthSession).signedInOrOut();
+
+      expect(store.waiting()).toBeNull();
+      expect(connection.invoke).not.toHaveBeenCalledWith('Forget');
+    });
+
+    it('logs it when the server fails to drop it', async () => {
+      const error = spyOn(console, 'error');
+      const store = await asking();
+      connection.invoke.and.returnValue(Promise.reject(new Error('down')));
+
+      store.clear();
+      await new Promise(resolve => setTimeout(resolve));
+
+      expect(error).toHaveBeenCalledWith('Chat: the waiting change failed to be dropped', jasmine.objectContaining({ message: 'down' }));
+    });
+
+    it('loads the change still waiting once the connection is up: after a reload, the buttons are back', async () => {
+      waiting = forfeit;
+      const store = create();
+
+      (connection.onreconnected.calls.mostRecent().args[0] as () => void)();
+      await new Promise(resolve => setTimeout(resolve));
+
+      expect(store.waiting()).toEqual(forfeit);
+    });
+
+    it('ignores a waiting change loaded before the next question: the server dropped it', async () => {
+      const store = create();
+      let answerWaiting!: (action: ChatActionDto | null) => void;
+      connection.invoke.and.callFake((method: string) => method === 'Waiting'
+        ? new Promise(resolve => { answerWaiting = resolve; })
+        : Promise.resolve(models));
+      store.ask('Forfeit match 12');
+      answer().subscriber.complete();
+
+      store.ask('Something else');
+      answerWaiting(forfeit);
+      await new Promise(resolve => setTimeout(resolve));
 
       expect(store.waiting()).toBeNull();
     });

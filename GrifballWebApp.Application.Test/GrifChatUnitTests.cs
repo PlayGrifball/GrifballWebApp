@@ -51,7 +51,7 @@ public partial class GrifChatUnitTests
     /// <summary>The chat on <paramref name="model"/>, its tools reading <paramref name="clock"/> (else the test's), its logs collected.</summary>
     private GrifChat Chat(FakeModel model, bool sensitiveData = false, TimeProvider? clock = null)
     {
-        _services = new ServiceCollection().AddSingleton(clock ?? _time).AddFakeLogging().AddDistributedMemoryCache().BuildServiceProvider();
+        _services = new ServiceCollection().AddSingleton(clock ?? _time).AddFakeLogging().AddSingleton<IChatWaiting, MemoryChatWaiting>().BuildServiceProvider();
         _clients.Available.Returns(true);
         _clients.Models.Returns([Free]);
         _clients.Create(Arg.Any<ChatModelOption>()).Returns(model);
