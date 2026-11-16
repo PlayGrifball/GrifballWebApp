@@ -1,4 +1,5 @@
 using System.Text;
+using GrifballWebApp.Historical.Sources;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.HistoricalArchive.Test;
@@ -12,7 +13,7 @@ namespace GrifballWebApp.HistoricalArchive.Test;
 public class ArchiveImportTests
 {
     private sealed record SeasonCounts(string Name, string SourceID, string Format, int Teams, int Captains, int Ranked, int Finished, int Stats, int PlayoffStats,
-        int Matches, int PlayoffMatches, int Titles);
+        int Matches, int PlayoffMatches, int Titles, int CaptainsOrdered, int Picks, int PicksNumbered);
 
     private sealed record LateLeagueCounts(string Name, string? SourceID, int Stats, int Games);
 
@@ -25,7 +26,9 @@ public class ArchiveImportTests
             .Select(s => new SeasonCounts(s.SeasonName, s.HistoricalSourceID, s.Format.ToString(), s.Teams.Count, s.Teams.Count(t => t.CaptainID != null),
                 s.Teams.Count(t => t.ArchivedRank != null), s.Teams.Count(t => t.ArchivedFinish != null),
                 context.PlayerSeasonStats.Count(p => p.SeasonID == s.SeasonID), context.PlayerSeasonStats.Count(p => p.SeasonID == s.SeasonID && p.IsPlayoffs),
-                s.SeasonMatches.Count, s.SeasonMatches.Count(m => m.BracketMatch != null), s.PlayerChampionships.Count))
+                s.SeasonMatches.Count, s.SeasonMatches.Count(m => m.BracketMatch != null), s.PlayerChampionships.Count,
+                s.Teams.Count(t => t.Captain != null && t.Captain.DraftCaptainOrder != null),
+                s.Teams.SelectMany(t => t.TeamPlayers).Count(p => p.DraftRound != null), s.Teams.SelectMany(t => t.TeamPlayers).Count(p => p.DraftPick != null)))
             .ToListAsync();
     });
 
@@ -88,6 +91,37 @@ public class ArchiveImportTests
         Assert.That((await Seasons()).Where(s => s.Captains < s.Teams).Select(s => $"{s.Name}: {s.Captains} of {s.Teams}"), Is.Empty);
     }
 
+    /// <summary>The seasons (their source IDs' workbook) whose catalog entries name a draft tab that isn't a bid draft's.</summary>
+    private static HashSet<string> DraftedWorkbooks() => ArchiveSnapshots.ImportedEntries()
+        .SelectMany(e => e.Config!.Drafts.Where(d => d.Order != DraftOrder.None).Select(d => d.Season ?? e.HistoricalSourceID))
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    private static string Workbook(string sourceID) => sourceID.Split('/')[0];
+
+    /// <summary>A season with a draft board or table: its captains placed in the draft order, and its picks by round.</summary>
+    [Test]
+    public async Task EverySeasonWithADraft_HasItsCaptainsOrderAndPicks()
+    {
+        var drafted = DraftedWorkbooks();
+
+        Assert.That((await Seasons()).Where(s => drafted.Contains(Workbook(s.SourceID)) && (s.CaptainsOrdered == 0 || s.Picks == 0))
+            .Select(s => $"{s.Name}: {s.CaptainsOrdered} captains ordered, {s.Picks} picks"), Is.Empty);
+    }
+
+    /// <summary>A season whose draft board numbers its picks (a snake draft's, or a linear one): its picks keep the numbers.</summary>
+    [Test]
+    public async Task EverySeasonWithNumberedPicks_KeepsTheirNumbers()
+    {
+        var numbered = Archive.Build.Input.Seasons.Seasons.Where(e => e.Teams.Any(t => t.Picks.Any(p => p.Pick is not null)))
+            .Select(e => e.SourceWorkbook!).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(numbered, Is.Not.Empty, "The snake draft board of Summer League 2025 (Classic Pro) numbers its picks");
+            Assert.That((await Seasons()).Where(s => numbered.Contains(Workbook(s.SourceID)) && s.PicksNumbered == 0).Select(s => s.Name), Is.Empty);
+        }
+    }
+
     /// <summary>Its standings' rank, or its final place, for each team.</summary>
     [Test]
     public async Task EverySeason_PlacesItsTeams()
@@ -128,9 +162,9 @@ public class ArchiveImportTests
     [Test]
     public async Task Summary_IsWritten()
     {
-        var summary = new StringBuilder("## Seasons\n\n| Season | Source | Format | Teams | Captains | Ranked | Finished | Stats | Playoff stats | Matches | Playoff matches | Titles |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n");
+        var summary = new StringBuilder("## Seasons\n\n| Season | Source | Format | Teams | Captains | Ranked | Finished | Stats | Playoff stats | Matches | Playoff matches | Titles | Captains ordered | Picks | Picks numbered |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
         foreach (var s in await Seasons())
-            summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Format} | {s.Teams} | {s.Captains} | {s.Ranked} | {s.Finished} | {s.Stats} | {s.PlayoffStats} | {s.Matches} | {s.PlayoffMatches} | {s.Titles} |");
+            summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Format} | {s.Teams} | {s.Captains} | {s.Ranked} | {s.Finished} | {s.Stats} | {s.PlayoffStats} | {s.Matches} | {s.PlayoffMatches} | {s.Titles} | {s.CaptainsOrdered} | {s.Picks} | {s.PicksNumbered} |");
         summary.AppendLine().AppendLine("## Late League").AppendLine().AppendLine("| Season | Source | Stats | Games |").AppendLine("|---|---|---|---|");
         foreach (var s in await LateLeagueRead.Value)
             summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Stats} | {s.Games} |");

@@ -339,6 +339,31 @@ public class Team : AuditableEntity
     }
 
     /// <summary>
+    /// The team's draft as its source spreadsheet's board gives it (a season imported from the archive, its draft not run
+    /// in the app): the captain's place among the season's captains, and the round (and the pick's number, when the board
+    /// gives one) each player was picked in, by user. Every row of the roster is set: the captain's takes the order and no
+    /// pick, the others their pick or none (a player the board doesn't list, a sub), so nothing of an earlier import stays.
+    /// Refused, nothing changed, for an order, round or pick below 1.
+    /// </summary>
+    public void RecordArchivedDraft(int? captainOrder, IReadOnlyDictionary<int, ArchivedPick> picks)
+    {
+        ArgumentNullException.ThrowIfNull(picks);
+        ArgumentOutOfRangeException.ThrowIfLessThan(captainOrder ?? 1, 1, nameof(captainOrder));
+        foreach (var pick in picks.Values)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(pick.Round, 1, nameof(picks));
+            ArgumentOutOfRangeException.ThrowIfLessThan(pick.Pick ?? 1, 1, nameof(picks));
+        }
+        foreach (var player in _teamPlayers)
+        {
+            var captain = IsCaptainRow(player);
+            player.OrderedAsCaptain(captain ? captainOrder : null);
+            var pick = captain ? null : picks.GetValueOrDefault(player.UserID);
+            player.Picked(pick?.Round, pick?.Pick);
+        }
+    }
+
+    /// <summary>
     /// A roster row as the draft or the archive left it (its draft numbers given), for tests, which seed rosters; the user
     /// is <paramref name="user"/> when given (a user not saved yet).
     /// </summary>
@@ -364,6 +389,10 @@ public class Team : AuditableEntity
         return copy;
     }
 }
+
+/// <summary>A pick of an archived draft (<see cref="Team.RecordArchivedDraft"/>): its round, and its number in the whole
+/// draft when the board gives one.</summary>
+public sealed record ArchivedPick(int Round, int? Pick = null);
 
 /// <summary>What <see cref="Team.Rename"/> did.</summary>
 public enum TeamRenameResult
