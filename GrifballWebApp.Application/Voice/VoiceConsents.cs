@@ -5,35 +5,28 @@ using Microsoft.EntityFrameworkCore;
 namespace GrifballWebApp.Application.Voice;
 
 /// <summary>
-/// Who the voice chat may hear: the Discord accounts that opted in (<see cref="DiscordUser.VoiceOptIn"/>). Everyone else's
+/// Who the voice chat may hear: the Discord accounts that opted in (<see cref="VoiceConsent"/>, a row each). Everyone else's
 /// audio is dropped before it is transcribed.
 /// </summary>
-public sealed class VoiceConsents(IApplicationDbContext context)
+public sealed class VoiceConsents(IApplicationDbContext context, TimeProvider time)
 {
-    /// <summary>
-    /// <paramref name="discordUserId"/> opted in to being heard; an account the bot hasn't seen is added, as Discord gave it
-    /// (<paramref name="username"/>).
-    /// </summary>
-    public async Task OptInAsync(ulong discordUserId, string? username, CancellationToken ct = default)
+    /// <summary><paramref name="discordUserId"/> opted in to being heard; given already, it stands as it was.</summary>
+    public async Task OptInAsync(ulong discordUserId, CancellationToken ct = default)
     {
         var id = (long)discordUserId;
-        var account = await context.DiscordUsers.SingleOrDefaultAsync(d => d.DiscordUserID == id, ct);
-        if (account is null)
-        {
-            account = DiscordUser.FromDiscord(id, username);
-            context.DiscordUsers.Add(account);
-        }
-        account.OptInToVoice();
+        if (await context.VoiceConsents.AnyAsync(v => v.DiscordUserID == id, ct))
+            return;
+        context.VoiceConsents.Add(VoiceConsent.Give(id, time.GetUtcNow().UtcDateTime));
         await context.SaveChangesAsync(ct);
     }
 
-    /// <summary><paramref name="discordUserId"/> opted out: no longer heard. An account the bot hasn't seen was never heard.</summary>
+    /// <summary><paramref name="discordUserId"/> opted out: no longer heard. With no consent, nothing to remove.</summary>
     public async Task OptOutAsync(ulong discordUserId, CancellationToken ct = default)
     {
         var id = (long)discordUserId;
-        if (await context.DiscordUsers.SingleOrDefaultAsync(d => d.DiscordUserID == id, ct) is not { } account)
+        if (await context.VoiceConsents.SingleOrDefaultAsync(v => v.DiscordUserID == id, ct) is not { } consent)
             return;
-        account.OptOutOfVoice();
+        context.VoiceConsents.Remove(consent);
         await context.SaveChangesAsync(ct);
     }
 
@@ -41,9 +34,9 @@ public sealed class VoiceConsents(IApplicationDbContext context)
     public async Task<IReadOnlySet<ulong>> OptedInAsync(IEnumerable<ulong> discordUserIds, CancellationToken ct = default)
     {
         var ids = discordUserIds.Select(id => (long)id).ToList();
-        var heard = await context.DiscordUsers.AsNoTracking()
-            .Where(d => ids.Contains(d.DiscordUserID) && d.VoiceOptIn)
-            .Select(d => d.DiscordUserID)
+        var heard = await context.VoiceConsents.AsNoTracking()
+            .Where(v => ids.Contains(v.DiscordUserID))
+            .Select(v => v.DiscordUserID)
             .ToListAsync(ct);
         return heard.Select(id => (ulong)id).ToHashSet();
     }

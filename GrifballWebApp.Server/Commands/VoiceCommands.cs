@@ -19,6 +19,7 @@ public class VoiceCommands(VoiceSessions sessions, VoiceConsents consents) : App
     public const string AlreadyIn = "I'm in a voice channel in this server already: /voice leave first.";
     public const string NotIn = "I'm not in a voice channel here.";
     public const string Left = "Left the voice channel.";
+    public const string Joined = "Joined.";
     public const string OptedIn = "I'll hear you in voice channels now. Say \"Grif, ...\" to ask me something. Nothing you say is kept. /voice optout to stop.";
     public const string OptedOut = "I won't hear you in voice channels any more.";
 
@@ -29,54 +30,66 @@ public class VoiceCommands(VoiceSessions sessions, VoiceConsents consents) : App
     [SubSlashCommand("join", "The bot joins your voice channel and answers \"Grif, ...\"")]
     public async Task Join()
     {
+        // First, as every command does: joining takes longer than an interaction's three seconds
+        await DeferAsync();
         if (!sessions.Available)
         {
-            await Ephemeral(Unavailable);
+            await ReplyAsync(Unavailable);
             return;
         }
         if (Context.Guild is not { } guild)
         {
-            await Ephemeral(NoGuild);
+            await ReplyAsync(NoGuild);
             return;
         }
         if (!guild.VoiceStates.TryGetValue(Context.User.Id, out var state) || state.ChannelId is not { } channelId)
         {
-            await Ephemeral(NotInVoice);
+            await ReplyAsync(NotInVoice);
             return;
         }
-        // Joining takes longer than an interaction's three seconds
-        await Context.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage());
-        var joined = await sessions.JoinAsync(Context.Client, guild.Id, channelId);
-        await Context.Interaction.ModifyResponseAsync(m => m.Content = joined ? Listening(channelId) : AlreadyIn);
+        if (!await sessions.JoinAsync(Context.Client, guild.Id, channelId))
+        {
+            await ReplyAsync(AlreadyIn);
+            return;
+        }
+        await ReplyAsync(Joined);
+        // Everyone's notice: that it listens, to whom, and how to stop it
+        await Context.Interaction.SendFollowupMessageAsync(Listening(channelId));
     }
 
     [SubSlashCommand("leave", "The bot leaves its voice channel")]
     public async Task Leave()
     {
+        await DeferAsync();
         if (Context.Guild is not { } guild)
         {
-            await Ephemeral(NoGuild);
+            await ReplyAsync(NoGuild);
             return;
         }
-        await Ephemeral(await sessions.LeaveAsync(Context.Client, guild.Id) ? Left : NotIn);
+        await ReplyAsync(await sessions.LeaveAsync(Context.Client, guild.Id) ? Left : NotIn);
     }
 
     [SubSlashCommand("optin", "Let the bot hear you in voice channels")]
     public async Task OptIn()
     {
-        await consents.OptInAsync(Context.User.Id, Context.User.Username);
+        await DeferAsync();
+        await consents.OptInAsync(Context.User.Id);
         await sessions.RefreshAsync(Context.User.Id);
-        await Ephemeral(OptedIn);
+        await ReplyAsync(OptedIn);
     }
 
     [SubSlashCommand("optout", "Stop the bot hearing you in voice channels")]
     public async Task OptOut()
     {
+        await DeferAsync();
         await consents.OptOutAsync(Context.User.Id);
         await sessions.RefreshAsync(Context.User.Id);
-        await Ephemeral(OptedOut);
+        await ReplyAsync(OptedOut);
     }
 
-    private Task<InteractionCallbackResponse?> Ephemeral(string content)
-        => Context.Interaction.SendResponseAsync(InteractionCallback.Message(new InteractionMessageProperties { Content = content, Flags = MessageFlags.Ephemeral }));
+    /// <summary>The reply deferred, the caller's alone.</summary>
+    private Task<InteractionCallbackResponse?> DeferAsync()
+        => Context.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral));
+
+    private Task<RestMessage> ReplyAsync(string content) => Context.Interaction.ModifyResponseAsync(m => m.Content = content);
 }

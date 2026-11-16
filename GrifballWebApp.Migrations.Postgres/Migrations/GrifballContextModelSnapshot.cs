@@ -5709,11 +5709,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("transaction_timestamp()");
 
-                    b.Property<bool>("VoiceOptIn")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
                     b.HasKey("DiscordUserID");
 
                     b.ToTable("Discord", "User", t =>
@@ -5755,10 +5750,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<DateTime>("PeriodStart")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("PeriodStart");
-
-                    b.Property<bool?>("VoiceOptIn")
-                        .HasColumnType("boolean")
-                        .HasColumnName("VoiceOptIn");
 
                     b.HasIndex("DiscordUserID", "PeriodEnd");
 
@@ -6922,6 +6913,53 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.ToTable("UserRolesHistory", "Auth");
 
                     b.HasAnnotation("Grif:HistoryOf", "UserRoles");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.VoiceConsent", b =>
+                {
+                    b.Property<long>("DiscordUserID")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("GivenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
+                    b.HasKey("DiscordUserID");
+
+                    b.ToTable("VoiceConsents", "User");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.VoiceConsent.History", b =>
+                {
+                    b.Property<long?>("DiscordUserID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("DiscordUserID");
+
+                    b.Property<DateTime?>("GivenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("GivenAt");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasIndex("DiscordUserID", "PeriodEnd");
+
+                    b.ToTable("VoiceConsentsHistory", "User");
+
+                    b.HasAnnotation("Grif:HistoryOf", "VoiceConsents");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxGamertagHistory", b =>

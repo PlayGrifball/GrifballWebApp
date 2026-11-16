@@ -20,11 +20,6 @@ public partial class DiscordUserConfiguration : IEntityTypeConfiguration<Discord
         // Value always comes from discord
         entity.Property(e => e.DiscordUserID).ValueGeneratedNever();
 
-        // Off for the accounts before it: nobody is heard until they opt in
-        entity.Property(e => e.VoiceOptIn)
-            .IsRequired()
-            .HasDefaultValue(false);
-
         entity.HasOne(d => d.User)
             .WithOne(p => p.DiscordUser)
             .HasForeignKey<User>(d => d.DiscordUserID)

@@ -5899,11 +5899,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValueSql("rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')");
 
-                    b.Property<bool>("VoiceOptIn")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(false);
-
                     b.HasKey("DiscordUserID");
 
                     b.ToTable("Discord", "User", t =>
@@ -5951,10 +5946,6 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("PeriodStart")
                         .HasColumnType("TEXT")
                         .HasColumnName("PeriodStart");
-
-                    b.Property<bool?>("VoiceOptIn")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("VoiceOptIn");
 
                     b.HasIndex("DiscordUserID", "PeriodEnd");
 
@@ -7167,6 +7158,60 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.ToTable("UserRolesHistory", "Auth");
 
                     b.HasAnnotation("Grif:HistoryOf", "UserRoles");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.VoiceConsent", b =>
+                {
+                    b.Property<long>("DiscordUserID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("GivenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("TEXT")
+                        .HasComputedColumnSql("'9999-12-31 23:59:59.9999999'", false);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')");
+
+                    b.HasKey("DiscordUserID");
+
+                    b.ToTable("VoiceConsents", "User", t =>
+                        {
+                            t.HasTrigger("VoiceConsents_History_Delete");
+
+                            t.HasTrigger("VoiceConsents_History_Update");
+                        });
+
+                    b.HasAnnotation("Sqlite:UseSqlReturningClause", false);
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.VoiceConsent.History", b =>
+                {
+                    b.Property<long?>("DiscordUserID")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("DiscordUserID");
+
+                    b.Property<DateTime?>("GivenAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("GivenAt");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasIndex("DiscordUserID", "PeriodEnd");
+
+                    b.ToTable("VoiceConsentsHistory", "User");
+
+                    b.HasAnnotation("Grif:HistoryOf", "VoiceConsents");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxGamertagHistory", b =>
