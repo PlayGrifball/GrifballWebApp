@@ -1003,6 +1003,132 @@
         }
       }
     },
+    "/teams/{teamID}/calendar.ics": {
+      "get": {
+        "tags": [
+          "Calendar"
+        ],
+        "summary": "The team's scheduled matches, as a calendar to subscribe to. 404 when there is no such team.",
+        "operationId": "TeamCalendar",
+        "parameters": [
+          {
+            "name": "teamID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userID}/calendar.ics": {
+      "get": {
+        "tags": [
+          "Calendar"
+        ],
+        "summary": "The scheduled matches of the player's teams, as a calendar to subscribe to. 404 when there is no such user.",
+        "operationId": "PlayerCalendar",
+        "parameters": [
+          {
+            "name": "userID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/seasons/{seasonID}/calendar.ics": {
+      "get": {
+        "tags": [
+          "Calendar"
+        ],
+        "summary": "The season's scheduled matches, as a calendar to subscribe to. 404 when there is no such season.",
+        "operationId": "SeasonCalendar",
+        "parameters": [
+          {
+            "name": "seasonID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/client-telemetry": {
       "post": {
         "tags": [
@@ -17782,6 +17908,9 @@
     },
     {
       "name": "Build"
+    },
+    {
+      "name": "Calendar"
     },
     {
       "name": "ClientTelemetry"
