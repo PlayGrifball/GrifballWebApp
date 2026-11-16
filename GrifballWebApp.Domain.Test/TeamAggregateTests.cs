@@ -13,6 +13,8 @@ namespace GrifballWebApp.Domain.Test;
 public class TeamAggregateTests
 {
     private const int Cap = 1, P1 = 2, P2 = 3, P3 = 4, Other = 9;
+    private static readonly int[] TenAndEleven = [10, 11];
+    private static readonly int[] OnlyTwelve = [12];
 
     /// <summary>A drafted team: its captain and picks in rounds 1, 2, 3.</summary>
     private static Team DraftedTeam()
@@ -311,4 +313,26 @@ public class TeamAggregateTests
             Assert.That((none.TeamPlayers.Count, noCaptain), Is.EqualTo((0, (int?)null)));
         }
     }
+
+    [Test]
+    public void SetAvailability_IsTheCaptainsChoice_InPlaceOfTheRosters_UntilCleared()
+    {
+        var team = DraftedTeam();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(team.HasOwnAvailability, Is.False, "Worked out from the roster until the captain sets it");
+            team.SetAvailability([10, 11, 11]);
+            Assert.That(team.HasOwnAvailability, Is.True);
+            Assert.That(team.TeamAvailability.Select(a => a.AvailabilityOptionID), Is.EquivalentTo(TenAndEleven), "Once each");
+            team.SetAvailability([12]);
+            Assert.That(team.TeamAvailability.Select(a => a.AvailabilityOptionID), Is.EquivalentTo(OnlyTwelve), "Replaced, not added to");
+            team.ClearAvailability();
+            Assert.That(team.HasOwnAvailability, Is.False, "Back to the roster's");
+        }
+    }
+
+    [Test]
+    public void SetAvailability_NoSlots_IsRefused_ClearIsTheWayBackToTheRosters()
+        => Assert.That(() => DraftedTeam().SetAvailability([]), Throws.ArgumentException);
 }
