@@ -320,6 +320,8 @@ public partial class GrifChatUnitTests
             Assert.That(described, Does.Contain(new string('a', 500)), "A long value shown whole: all of it runs");
             Assert.That(described, Does.EndWith(", \"x) nothing changes (y\": 1)"), "A name that isn't one is quoted too");
             Assert.That(ChatAction.Describe(new FunctionCallContent("call-2", "run_job(); all is well")), Is.EqualTo("\"run_job(); all is well\"()"));
+            Assert.That(ChatAction.Describe(new FunctionCallContent("call-3", "run_job", new Dictionary<string, object?> { [""] = 1 })),
+                Is.EqualTo("run_job(\"\": 1)"), "No name is no name either");
         }
     }
 
@@ -350,5 +352,37 @@ public partial class GrifChatUnitTests
             Assert.That(await chat.WaitingAsync(ChatHost.Site, Asker), Is.Null, "No later yes could run it");
             Assert.That(GrifChat.IsRefusal(GrifChat.ModelGone), Is.True);
         }
+    }
+
+    [Test]
+    public async Task ConfirmAsync_TheChangeReplacedAsItIsTaken_IsRefused_AndTheNewOneStillWaits()
+    {
+        var shown = new ChatAction("a1", "ollama", "run_job()", []);
+        var newer = new ChatAction("a2", "ollama", "forfeit_season_match(seasonMatchID: 12)", []);
+        var waiting = new ReplacedAsItIsTaken(shown, newer);
+        var chat = ChatWithModels(new FakeModel(), waiting: waiting);
+        _clients.Models.Returns([Free]);
+
+        Assert.That(async () => await chat.ConfirmAsync([], "a1", true, Commissioner, ChatHost.Site, Asker),
+            Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.NothingWaiting));
+        Assert.That(waiting.Saved, Is.EqualTo(newer), "Put back for its own answer");
+    }
+
+    /// <summary>A store whose change is replaced between a peek and a take: a reply finished on another pod meanwhile.</summary>
+    private sealed class ReplacedAsItIsTaken(ChatAction shown, ChatAction newer) : IChatWaiting
+    {
+        public ChatAction? Saved { get; private set; }
+
+        public Task SaveAsync(string key, ChatAction action, TimeSpan expiresIn, CancellationToken cancellationToken = default)
+        {
+            Saved = action;
+            return Task.CompletedTask;
+        }
+
+        public Task<ChatAction?> PeekAsync(string key, CancellationToken cancellationToken = default) => Task.FromResult<ChatAction?>(shown);
+
+        public Task<ChatAction?> TakeAsync(string key, CancellationToken cancellationToken = default) => Task.FromResult<ChatAction?>(newer);
+
+        public Task ForgetAsync(string key, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }
