@@ -221,7 +221,7 @@ public class StatsTableParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(config.Tables.Select(t => (t.Sheet, t.Game, t.PerGame)), Is.EqualTo(new[] { ("hr_pstats", "reach", false), ("h4_pstats", "halo4", true) }));
+            Assert.That(config.Tables.Select(t => (t.Sheet, t.Game, t.PerGame)), Is.EqualTo(new[] { ("hr_pstats", "reach", false), ("h4_pstats", "halo4", true), ("agla_playerstats", "halo3", true) }));
             Assert.That(config.Tables[0].Seasons.Keys, Is.EqualTo(expected), "In order");
             Assert.That(config.Tables[0].Seasons["12"].Divisions, Is.EqualTo(new Dictionary<string, string> { ["1"] = "Pro", ["0"] = "Amateur" }));
         }
@@ -253,7 +253,7 @@ public class StatsTableParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(build.Warnings, Is.Empty);
+            Assert.That(build.Warnings, Is.EqualTo(new[] { $"{grifballComId}: games table 'Matches' not read (no such sheet, or it is empty)" }), "Its games are GamesTableParserTests'");
             Assert.That(config.SheetNames(), Does.Contain("Standings").And.Contain("Season_Player_Stats"));
             Assert.That(seasons.Select(s => (s.SourceSheet, s.SeasonName, s.GameVersion, s.Division, s.SourceYear, s.Titles)), Is.EqualTo(new[]
             {

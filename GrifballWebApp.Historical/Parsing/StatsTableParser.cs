@@ -215,18 +215,7 @@ public static partial class StatsTableParser
             warnings.Add($"{sourceId}: {table.StandingsSheet} has no '{table.SeasonColumn}' or 'team_name' column");
             return [];
         }
-        // A season split into divisions by the teams' column (isPro) names each team's division by it
-        var splitCol = table.DivisionColumn is null ? -1 : Index(header, table.DivisionColumn);
-        var divCol = FirstIndex(header, "division_name", "division");
-        var rankCol = Index(header, "rank");
-        var winsCol = Index(header, "wins");
-        var lossesCol = Index(header, "losses");
-        var gfCol = Index(header, "goals_for");
-        var gaCol = Index(header, "goals_against");
-        var capCol = FirstIndex(header, "captain_gamertag", "captain");
-        var rosterCol = FirstIndex(header, "roster_gamertags", "roster");
-        // Or a column per player after the captain (agla_teamindex's p2 to p8)
-        var playerCols = Enumerable.Range(0, header.Length).Where(c => PlayerColumnPattern().IsMatch(header[c].Trim())).ToList();
+        var columns = StandingsColumns.Of(header, table);
         var bySeason = new Dictionary<string, List<ArchiveTeam>>(StringComparer.Ordinal);
         foreach (var row in sheet.Rows.Skip(1))
         {
@@ -234,24 +223,38 @@ public static partial class StatsTableParser
                 continue;
             if (!bySeason.TryGetValue(seasonId, out var list))
                 bySeason[seasonId] = list = [];
-            var roster = rosterCol < 0
-                ? new[] { Value(row, capCol) }.Concat(playerCols.Select(c => Value(row, c))).OfType<string>().ToList()
-                : Value(row, rosterCol)?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
-            var divisions = table.Seasons[rawId].Divisions;
-            list.Add(new ArchiveTeam
-            {
-                TeamName = teamName,
-                Division = divisions is not null && Value(row, splitCol) is { } split ? divisions.GetValueOrDefault(split) : Value(row, divCol),
-                Rank = IntValue(row, rankCol),
-                Wins = IntValue(row, winsCol),
-                Losses = IntValue(row, lossesCol),
-                GoalsFor = IntValue(row, gfCol),
-                GoalsAgainst = IntValue(row, gaCol),
-                Captain = Value(row, capCol),
-                Roster = roster,
-            });
+            list.Add(columns.Team(row, teamName, table.Seasons[rawId].Divisions));
         }
         return bySeason;
+    }
+
+    /// <summary>A standings tab's columns (-1 for one it hasn't), and a team of a row.</summary>
+    private sealed record StandingsColumns(int Split, int Division, int Rank, int Wins, int Losses, int GoalsFor, int GoalsAgainst, int Captain, int Roster, List<int> Players)
+    {
+        public static StandingsColumns Of(string[] header, StatsTable table) => new(
+            // A season split into divisions by the teams' column (isPro) names each team's division by it
+            table.DivisionColumn is null ? -1 : Index(header, table.DivisionColumn),
+            FirstIndex(header, "division_name", "division"),
+            Index(header, "rank"), Index(header, "wins"), Index(header, "losses"), Index(header, "goals_for"), Index(header, "goals_against"),
+            FirstIndex(header, "captain_gamertag", "captain"),
+            FirstIndex(header, "roster_gamertags", "roster"),
+            // Or a column per player after the captain (agla_teamindex's p2 to p8)
+            Enumerable.Range(0, header.Length).Where(c => PlayerColumnPattern().IsMatch(header[c].Trim())).ToList());
+
+        public ArchiveTeam Team(string[] row, string teamName, Dictionary<string, string>? divisions) => new()
+        {
+            TeamName = teamName,
+            Division = divisions is not null && Value(row, Split) is { } split ? divisions.GetValueOrDefault(split) : Value(row, Division),
+            Rank = IntValue(row, Rank),
+            Wins = IntValue(row, Wins),
+            Losses = IntValue(row, Losses),
+            GoalsFor = IntValue(row, GoalsFor),
+            GoalsAgainst = IntValue(row, GoalsAgainst),
+            Captain = Value(row, Captain),
+            Roster = Roster < 0
+                ? new[] { Value(row, Captain) }.Concat(Players.Select(c => Value(row, c))).OfType<string>().ToList()
+                : Value(row, Roster)?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [],
+        };
     }
 
     /// <summary>

@@ -391,6 +391,12 @@ public partial class HistoricalImportService : IHistoricalImportService
             else
                 Skip(report, $"Recorded game {game.SourceKey}: no season with the key {game.SeasonSourceId} in the archive");
         }
+        AssignForfeits(input, bySourceId, report);
+    }
+
+    /// <summary>The forfeits to their seasons (never a matchmaking one: it has no teams).</summary>
+    private void AssignForfeits(HistoricalArchiveInput input, Dictionary<string, SeasonGroup> bySourceId, HistoricalImportReport report)
+    {
         foreach (var forfeit in input.Forfeits ?? [])
         {
             if (bySourceId.TryGetValue(forfeit.SeasonSourceId.Trim(), out var group) && !group.IsMatchmaking)

@@ -255,87 +255,108 @@ public static partial class GamesTableParser
             CountStray(lines, listed);
         }
 
+        /// <summary>gb_teamstats' columns.</summary>
+        private sealed record TeamRowColumns(int Game, int Team, int Season, int Playoffs, int Win, int Loss, int ForfeitWin, int ForfeitLoss, int Goals);
+
         /// <summary>grifball.info's gb_teamstats (<see cref="GamesTableLayout.TeamRows"/>): a game is its two rows, in game ID order.</summary>
         public void TeamRows(SheetTable sheet, Result result)
         {
             var h = new Header(sheet.Rows[0]);
-            var (game, team, season, playoffs) = (h["gameid"], h["teamid"], h["t_season"], h["t_playoffs"]);
-            var (win, loss, forfeitWin, forfeitLoss, goals) = (h["t_win"], h["t_loss"], h["t_fwin"], h["t_floss"], h["t_goals"]);
+            var c = new TeamRowColumns(h["gameid"], h["teamid"], h["t_season"], h["t_playoffs"], h["t_win"], h["t_loss"], h["t_fwin"], h["t_floss"], h["t_goals"]);
             var games = sheet.Rows.Skip(1)
-                .Where(r => Value(r, team) is not null)
-                .GroupBy(r => Value(r, game) ?? "0")
+                .Where(r => Value(r, c.Team) is not null)
+                .GroupBy(r => Value(r, c.Game) ?? "0")
                 .OrderBy(g => decimal.TryParse(g.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : 0);
             foreach (var rows in games.Where(g => !_deleted.Contains(g.Key)))
-            {
-                // A forfeit's rows have no game ID (0), so nothing pairs its two sides
-                if (rows.Key == "0" || rows.Count() != 2)
-                {
-                    _incomplete += rows.Count();
-                    continue;
-                }
-                var (ra, rb) = (rows.First(), rows.Last());
-                var (a, b) = (Team(Value(ra, team)!), Team(Value(rb, team)!));
-                if (SeasonKey(Value(ra, season), a.Row) is not { } key)
-                    continue;
-                // A forfeit: a side forfeited (lost) or won by the other's forfeit, both when both forfeited
-                var (aForfeited, bForfeited) = (Int(ra, forfeitLoss) == 1, Int(rb, forfeitLoss) == 1);
-                if (aForfeited || bForfeited || Int(ra, forfeitWin) == 1 || Int(rb, forfeitWin) == 1)
-                {
-                    var bWon = Int(rb, forfeitWin) == 1 || (aForfeited && !bForfeited);
-                    result.Forfeits.Add(bWon
-                        ? Forfeit(key, rows.Key, b.Name, a.Name, both: false)
-                        : Forfeit(key, rows.Key, a.Name, b.Name, both: aForfeited && bForfeited));
-                    continue;
-                }
-                Outcomes SideOutcome(string[] r) => Int(r, win) == 1 ? Outcomes.Won : Int(r, loss) == 1 ? Outcomes.Lost : Outcomes.DidNotFinish;
-                result.Games.Add(Game(key, rows.Key, [a.Name, b.Name], [(SideOutcome(ra), Int(ra, goals)), (SideOutcome(rb), Int(rb, goals))], [],
-                    playoffs: Int(ra, playoffs) == 1));
-            }
+                TeamRowsGame(rows.Key, rows.ToList(), c, result);
         }
+
+        /// <summary>One game of gb_teamstats: its two rows, a game or a forfeit.</summary>
+        private void TeamRowsGame(string id, List<string[]> rows, TeamRowColumns c, Result result)
+        {
+            // A forfeit's rows have no game ID (0), so nothing pairs its two sides
+            if (id == "0" || rows.Count != 2)
+            {
+                _incomplete += rows.Count;
+                return;
+            }
+            var (ra, rb) = (rows[0], rows[1]);
+            var (a, b) = (Team(Value(ra, c.Team)!), Team(Value(rb, c.Team)!));
+            if (SeasonKey(Value(ra, c.Season), a.Row) is not { } key)
+                return;
+            if (TeamRowsForfeit(key, id, (ra, a.Name), (rb, b.Name), c) is { } forfeit)
+            {
+                result.Forfeits.Add(forfeit);
+                return;
+            }
+            Outcomes SideOutcome(string[] r) => Int(r, c.Win) == 1 ? Outcomes.Won : Int(r, c.Loss) == 1 ? Outcomes.Lost : Outcomes.DidNotFinish;
+            result.Games.Add(Game(key, id, [a.Name, b.Name], [(SideOutcome(ra), Int(ra, c.Goals)), (SideOutcome(rb), Int(rb, c.Goals))], [],
+                playoffs: Int(ra, c.Playoffs) == 1));
+        }
+
+        /// <summary>The game as a forfeit, when a side forfeited (lost) or won by the other's forfeit; both when both forfeited.</summary>
+        private ArchiveForfeitInput? TeamRowsForfeit(string key, string id, (string[] Row, string Name) a, (string[] Row, string Name) b, TeamRowColumns c)
+        {
+            var (aForfeited, bForfeited) = (Int(a.Row, c.ForfeitLoss) == 1, Int(b.Row, c.ForfeitLoss) == 1);
+            var (aWon, bWon) = (Int(a.Row, c.ForfeitWin) == 1, Int(b.Row, c.ForfeitWin) == 1 || (aForfeited && !bForfeited));
+            if (!aForfeited && !bForfeited && !aWon && !bWon)
+                return null;
+            return bWon ? Forfeit(key, id, b.Name, a.Name, both: false) : Forfeit(key, id, a.Name, b.Name, both: aForfeited && bForfeited);
+        }
+
+        /// <summary>h_games' columns, and its player lines and their gamertags.</summary>
+        private sealed record ScheduleColumns(int Id, int Season, int TeamA, int TeamB, int Result, int Win, int Playoffs, int Link, int Reported,
+            PlayerLines Lines, (int RowKey, Dictionary<string, string> ById)? Gamertags, HashSet<string> Listed);
 
         /// <summary>grifball.info's h_games (<see cref="GamesTableLayout.Schedule"/>): its played games and forfeits; its
         /// player lines are the stats table's rows with the game's link.</summary>
         public void Schedule(SheetTable sheet, Result result)
         {
             var h = new Header(sheet.Rows[0]);
-            var (id, season, teamA, teamB, outcome, win, playoffs, link, reported) = (h["id"], h["season"], h["teama"], h["teamb"], h["result"], h["win"], h["playoffs"], h["link"], h["date_reported"]);
-            var lines = Lines("link");
-            var gamertags = Gamertags();
-            var listed = new HashSet<string>(StringComparer.Ordinal);
+            var c = new ScheduleColumns(h["id"], h["season"], h["teama"], h["teamb"], h["result"], h["win"], h["playoffs"], h["link"], h["date_reported"],
+                Lines("link"), Gamertags(), new HashSet<string>(StringComparer.Ordinal));
             foreach (var row in sheet.Rows.Skip(1))
-            {
-                // Not played (yet): no result
-                if (Value(row, id) is not { } game || Value(row, outcome) is not { } text)
-                    continue;
-                var (a, b, winner) = (Value(row, teamA), Value(row, teamB), Value(row, win));
-                var score = ScorePattern().Match(text);
-                var forfeit = text.Contains("forfeit", StringComparison.OrdinalIgnoreCase);
-                if (a is null || b is null || (winner != a && winner != b) || (!forfeit && !score.Success))
-                {
-                    _incomplete++;
-                    continue;
-                }
-                var (teamOfA, teamOfB) = (Team(a), Team(b));
-                if (SeasonKey(Value(row, season), teamOfA.Row) is not { } key)
-                    continue;
-                var playedAt = DateTime.TryParse(Value(row, reported), CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var at) ? at : (DateTime?)null;
-                var (won, lost) = winner == a ? (teamOfA.Name, teamOfB.Name) : (teamOfB.Name, teamOfA.Name);
-                if (forfeit)
-                {
-                    result.Forfeits.Add(Forfeit(key, game, won, lost, both: text.StartsWith("double", StringComparison.OrdinalIgnoreCase), playedAt));
-                    continue;
-                }
-                var (x, y) = (int.Parse(score.Groups[1].Value, CultureInfo.InvariantCulture), int.Parse(score.Groups[2].Value, CultureInfo.InvariantCulture));
-                var (high, low) = (Math.Max(x, y), Math.Min(x, y));
-                var players = new List<RecordedPlayerInput>();
-                if (Value(row, link) is { } url && lines.ByGame.GetValueOrDefault(url) is { } rows && listed.Add(url))
-                    players = Distinct(rows.Select(p => PlayerOf(p, lines.Header, gamertags, a, b)).OfType<RecordedPlayerInput>());
-                result.Games.Add(Game(key, game, [teamOfA.Name, teamOfB.Name],
-                    winner == a ? [(Outcomes.Won, high), (Outcomes.Lost, low)] : [(Outcomes.Lost, low), (Outcomes.Won, high)],
-                    players, playoffs: Int(row, playoffs) == 1, playedAt: playedAt));
-            }
-            CountStray(lines, listed);
+                ScheduleRow(row, c, result);
+            CountStray(c.Lines, c.Listed);
         }
+
+        /// <summary>One row of h_games: a played game, a forfeit, or nothing yet (no result).</summary>
+        private void ScheduleRow(string[] row, ScheduleColumns c, Result result)
+        {
+            if (Value(row, c.Id) is not { } game || Value(row, c.Result) is not { } text)
+                return;
+            var (a, b, winner) = (Value(row, c.TeamA), Value(row, c.TeamB), Value(row, c.Win));
+            var score = ScorePattern().Match(text);
+            var forfeit = text.Contains("forfeit", StringComparison.OrdinalIgnoreCase);
+            if (a is null || b is null || (winner != a && winner != b) || (!forfeit && !score.Success))
+            {
+                _incomplete++;
+                return;
+            }
+            var (teamOfA, teamOfB) = (Team(a), Team(b));
+            if (SeasonKey(Value(row, c.Season), teamOfA.Row) is not { } key)
+                return;
+            var playedAt = DateTime.TryParse(Value(row, c.Reported), CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var at) ? at : (DateTime?)null;
+            var aWon = winner == a;
+            if (forfeit)
+            {
+                result.Forfeits.Add(aWon
+                    ? Forfeit(key, game, teamOfA.Name, teamOfB.Name, both: text.StartsWith("double", StringComparison.OrdinalIgnoreCase), playedAt)
+                    : Forfeit(key, game, teamOfB.Name, teamOfA.Name, both: text.StartsWith("double", StringComparison.OrdinalIgnoreCase), playedAt));
+                return;
+            }
+            var (x, y) = (int.Parse(score.Groups[1].Value, CultureInfo.InvariantCulture), int.Parse(score.Groups[2].Value, CultureInfo.InvariantCulture));
+            var (high, low) = (Math.Max(x, y), Math.Min(x, y));
+            result.Games.Add(Game(key, game, [teamOfA.Name, teamOfB.Name],
+                aWon ? [(Outcomes.Won, high), (Outcomes.Lost, low)] : [(Outcomes.Lost, low), (Outcomes.Won, high)],
+                SchedulePlayers(Value(row, c.Link), c, a, b), playoffs: Int(row, c.Playoffs) == 1, playedAt: playedAt));
+        }
+
+        /// <summary>A schedule game's players: the lines of its link, taken by the first game that names it.</summary>
+        private List<RecordedPlayerInput> SchedulePlayers(string? link, ScheduleColumns c, string teamA, string teamB)
+            => link is not null && c.Lines.ByGame.GetValueOrDefault(link) is { } rows && c.Listed.Add(link)
+                ? Distinct(rows.Select(p => PlayerOf(p, c.Lines.Header, c.Gamertags, teamA, teamB)).OfType<RecordedPlayerInput>())
+                : [];
 
         /// <summary>The stats table's gamertags by player ID (its <see cref="StatsTable.Players"/> lookup), for lines with none.</summary>
         private (int RowKey, Dictionary<string, string> ById)? Gamertags()
@@ -366,51 +387,60 @@ public static partial class GamesTableParser
             return columns.Line(row, gamertag, team == teamA ? 1 : 2);
         }
 
+        /// <summary>agla_gamesreported's columns, and its player lines.</summary>
+        private sealed record ReportedColumns(int Index, int Game, int Winning, int Losing, int Date, int Season, int Forfeit, PlayerLines Lines, HashSet<string> Listed);
+
         /// <summary>grifball.info's agla_gamesreported (<see cref="GamesTableLayout.Reported"/>): each game the winner's and
         /// loser's, its player lines by game ID, a playoff game when they say so.</summary>
         public void Reported(SheetTable sheet, Result result)
         {
             var h = new Header(sheet.Rows[0]);
-            var (index, game, winning, losing, date, season, forfeit) = (h["index"], h["gameid"], h["winning_team"], h["losing_team"], h["game_date"], h["g_season"], h["forfeit"]);
-            var lines = Lines("gameid");
-            var listed = new HashSet<string>(StringComparer.Ordinal);
+            var c = new ReportedColumns(h["index"], h["gameid"], h["winning_team"], h["losing_team"], h["game_date"], h["g_season"], h["forfeit"],
+                Lines("gameid"), new HashSet<string>(StringComparer.Ordinal));
             foreach (var row in sheet.Rows.Skip(1))
+                ReportedRow(row, c, result);
+            CountStray(c.Lines, c.Listed);
+        }
+
+        /// <summary>One row of agla_gamesreported: a game or a forfeit.</summary>
+        private void ReportedRow(string[] row, ReportedColumns c, Result result)
+        {
+            if (Value(row, c.Index) is not { } id)
+                return;
+            if (Value(row, c.Winning) is not { } w || Value(row, c.Losing) is not { } l)
             {
-                if (Value(row, index) is not { } id)
-                    continue;
-                if (Value(row, winning) is not { } w || Value(row, losing) is not { } l)
-                {
-                    _incomplete++;
-                    continue;
-                }
-                var (won, lost) = (Team(w), Team(l));
-                if (SeasonKey(Value(row, season), won.Row) is not { } key)
-                    continue;
-                var playedAt = Int(row, date) is int seconds and > 0 ? DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime : (DateTime?)null;
-                if (Int(row, forfeit) is 1 or 2)
-                {
-                    result.Forfeits.Add(Forfeit(key, id, won.Name, lost.Name, both: Int(row, forfeit) == 2, playedAt));
-                    continue;
-                }
-                var gameId = Value(row, game) ?? "0";
-                if (_deleted.Contains(gameId))
-                    continue;
-                if (gameId == "0")
-                {
-                    _incomplete++;
-                    continue;
-                }
-                if (!listed.Add(gameId))
-                {
-                    _duplicateGames++;
-                    continue;
-                }
-                var rows = lines.ByGame.GetValueOrDefault(gameId) ?? [];
-                var players = Distinct(rows.Select(p => SideLine(p, lines.Header, w, l)).OfType<RecordedPlayerInput>());
-                var playoffs = rows.Any(p => Int(p, lines.Header["playoffs"]) == 1);
-                result.Games.Add(Game(key, id, [won.Name, lost.Name], [(Outcomes.Won, null), (Outcomes.Lost, null)], players, playoffs, playedAt));
+                _incomplete++;
+                return;
             }
-            CountStray(lines, listed);
+            var (won, lost) = (Team(w), Team(l));
+            if (SeasonKey(Value(row, c.Season), won.Row) is not { } key)
+                return;
+            var playedAt = Int(row, c.Date) is int seconds and > 0 ? DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime : (DateTime?)null;
+            if (Int(row, c.Forfeit) is 1 or 2)
+            {
+                result.Forfeits.Add(Forfeit(key, id, won.Name, lost.Name, both: Int(row, c.Forfeit) == 2, playedAt));
+                return;
+            }
+            if (ReportedGameId(Value(row, c.Game) ?? "0", c.Listed) is not { } gameId)
+                return;
+            var rows = c.Lines.ByGame.GetValueOrDefault(gameId) ?? [];
+            var players = Distinct(rows.Select(p => SideLine(p, c.Lines.Header, w, l)).OfType<RecordedPlayerInput>());
+            var playoffs = rows.Any(p => Int(p, c.Lines.Header["playoffs"]) == 1);
+            result.Games.Add(Game(key, id, [won.Name, lost.Name], [(Outcomes.Won, null), (Outcomes.Lost, null)], players, playoffs, playedAt));
+        }
+
+        /// <summary>A reported game's ID; null for a deleted game, a game without one (counted) or a game reported again (counted).</summary>
+        private string? ReportedGameId(string gameId, HashSet<string> listed)
+        {
+            if (_deleted.Contains(gameId))
+                return null;
+            if (gameId == "0")
+                _incomplete++;
+            else if (!listed.Add(gameId))
+                _duplicateGames++;
+            else
+                return gameId;
+            return null;
         }
 
         /// <summary>A reported game's player line: side 1 the winner's team, 2 the loser's; another team's is counted and left out.</summary>

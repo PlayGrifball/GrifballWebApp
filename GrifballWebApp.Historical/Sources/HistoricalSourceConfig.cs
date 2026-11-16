@@ -152,8 +152,6 @@ public class StatsTable
     public Dictionary<string, TableSeason> Seasons { get; init; } = [];
 }
 
-/// <summary>Another tab's column by an ID: <see cref="Column"/> of the <see cref="Sheet"/> row whose <see cref="Key"/> is the
-/// stats row's <see cref="RowKey"/> (the same column name when not given).</summary>
 /// <summary>
 /// A database table of games (<see cref="GamesTableLayout"/> says which database's shape), its seasons those of a
 /// <see cref="StatsTable"/> of the same source (<see cref="Stats"/>): a game goes under the key of its season (and
@@ -193,6 +191,8 @@ public enum GamesTableLayout
     Reported = 4,
 }
 
+/// <summary>Another tab's column by an ID: <see cref="Column"/> of the <see cref="Sheet"/> row whose <see cref="Key"/> is the
+/// stats row's <see cref="RowKey"/> (the same column name when not given).</summary>
 public class TableLookup
 {
     public required string Sheet { get; init; }
