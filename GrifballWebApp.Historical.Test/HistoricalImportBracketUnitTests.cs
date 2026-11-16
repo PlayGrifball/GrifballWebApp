@@ -23,6 +23,9 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
     private const string CupKey = "mcc-cup-2016/Stats";
     private static readonly DateTime CupPlayedAt = new(2016, 5, 1, 20, 0, 0, DateTimeKind.Utc);
 
+    private static readonly int[] BestOfs = [3, 3, 1];
+    private static readonly int[] GamesInTheFirstSlot = [1, 0, 0];
+
     private HistoricalImportService _service = null!;
 
     [SetUp]
@@ -90,7 +93,7 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
                 Is.EqualTo((1, 2)), "The final's sides come from the semi-finals");
             Assert.That(bracket.Select(m => m.WinnerTeamID), Is.EqualTo(new[] { bracket[0].HomeTeamID, bracket[1].AwayTeamID, bracket[2].HomeTeamID }));
             Assert.That(bracket.Select(m => (m.HomeTeamScore, m.AwayTeamScore)), Is.EqualTo(new (int?, int?)[] { (2, 0), (1, 2), (null, null) }));
-            Assert.That(bracket.Select(m => m.BestOf), Is.EqualTo(new[] { 3, 3, 1 }), "The wins' series length, at least one game");
+            Assert.That(bracket.Select(m => m.BestOf), Is.EqualTo(BestOfs), "The wins' series length, at least one game");
         }
     }
 
@@ -137,7 +140,7 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That(report.Warnings, Is.Empty);
-            Assert.That(bracket.Select(m => m.SeriesGames.Count), Is.EqualTo(new[] { 1, 0, 0 }), "Delta and Alpha's slot, whichever side each was");
+            Assert.That(bracket.Select(m => m.SeriesGames.Count), Is.EqualTo(GamesInTheFirstSlot), "Delta and Alpha's slot, whichever side each was");
             Assert.That((bracket[0].HomeTeamScore, bracket[0].AwayTeamScore), Is.EqualTo(((int?)2, (int?)0)), "The sheet's, not the one game's");
             Assert.That(await Context.SeasonMatches.CountAsync(m => m.BracketMatch == null), Is.EqualTo(1), "A regular-season game is no slot's");
             Assert.That(report.GamesLinked, Is.EqualTo(2));
@@ -214,7 +217,7 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
         using (Assert.EnterMultipleScope())
         {
             Assert.That((report.SeasonMatchesCreated, report.SeasonMatchesRemoved), Is.EqualTo((3, 1)));
-            Assert.That(bracket.Select(m => m.SeriesGames.Count), Is.EqualTo(new[] { 1, 0, 0 }));
+            Assert.That(bracket.Select(m => m.SeriesGames.Count), Is.EqualTo(GamesInTheFirstSlot));
         }
     }
 }

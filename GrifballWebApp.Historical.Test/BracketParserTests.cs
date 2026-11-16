@@ -13,6 +13,13 @@ namespace GrifballWebApp.Historical.Test;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class BracketParserTests
 {
+    private static readonly string[] NoPlayoffsSheet = ["wb: no bracket sheet 'Playoffs'"];
+    private static readonly string[] OddTeamAndMissingTab =
+    [
+        "wb: bracket round 'Round 1' has a team without an opponent (Charlie); left out",
+        "wb: no bracket round sheet 'Round 3'",
+    ];
+
     private readonly List<string> _warnings = [];
 
     /// <summary>A sheet of these cells by reference, its empty rows left out as a workbook's are.</summary>
@@ -163,7 +170,7 @@ public class BracketParserTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(bracket, Is.Null);
-            Assert.That(_warnings, Is.EqualTo(new[] { "wb: no bracket sheet 'Playoffs'" }));
+            Assert.That(_warnings, Is.EqualTo(NoPlayoffsSheet));
         }
     }
 
@@ -214,11 +221,7 @@ public class BracketParserTests
         {
             Assert.That(bracket.Series.Select(s => (s.Home, s.Away)), Is.EqualTo(new[] { ("Alpha", "Bravo") }));
             Assert.That(missing, Is.Null);
-            Assert.That(_warnings, Is.EqualTo(new[]
-            {
-                "wb: bracket round 'Round 1' has a team without an opponent (Charlie); left out",
-                "wb: no bracket round sheet 'Round 3'",
-            }));
+            Assert.That(_warnings, Is.EqualTo(OddTeamAndMissingTab));
         }
     }
 
