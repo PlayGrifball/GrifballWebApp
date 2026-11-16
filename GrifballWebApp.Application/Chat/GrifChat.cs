@@ -290,10 +290,9 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
             throw new ChatRefusedException(Unavailable);
         if (Refusal(question) is { } refused)
             throw new ChatRefusedException(refused);
-        var reply = await BeginAsync(Conversation(history, question), caller, host, asker, model, cancellationToken);
         // A new question: a later yes is not for the change they moved on from
         await Accounts.ForgetWaitingAsync(asker, cancellationToken);
-        return reply;
+        return await BeginAsync(Conversation(history, question), caller, host, asker, model, cancellationToken);
     }
 
     /// <summary>The change waiting for <paramref name="asker"/>'s answer (<see cref="ConfirmAsync"/>), or null.</summary>
@@ -312,9 +311,9 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
             throw new ChatRefusedException(Unavailable);
         if (await Accounts.WaitingAsync(asker, cancellationToken) is not { } action || action.Id != actionId)
             throw new ChatRefusedException(NothingWaiting);
-        var reply = await BeginAsync([.. SoFar(history), action.Answer(approved)], caller, host, asker, action.Model, cancellationToken);
+        // Answered before the reply starts: the same yes twice runs it once
         await Accounts.ForgetWaitingAsync(asker, cancellationToken);
-        return reply;
+        return await BeginAsync([.. SoFar(history), action.Answer(approved)], caller, host, asker, action.Model, cancellationToken);
     }
 
     /// <summary>

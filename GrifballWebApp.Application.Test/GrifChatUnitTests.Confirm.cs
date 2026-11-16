@@ -60,7 +60,7 @@ public partial class GrifChatUnitTests
             Assert.That(waiting, Is.Not.Null);
             Assert.That(waiting!.Description, Does.Contain("forfeit_season_match").And.Contain("seasonMatchID: 12").And.Contain("side: home"));
             Assert.That(string.Concat(texts), Does.Contain(waiting.Description).And.Contain(GrifChat.ConfirmSite));
-            Assert.That(await chat.WaitingAsync(Asker), Is.EqualTo(waiting), "Kept for their answer");
+            Assert.That((await chat.WaitingAsync(Asker))?.Id, Is.EqualTo(waiting.Id), "Kept for their answer");
         }
     }
 

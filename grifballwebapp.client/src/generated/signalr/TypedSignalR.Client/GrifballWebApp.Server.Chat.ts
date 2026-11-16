@@ -3,7 +3,7 @@
 /* tslint:disable */
 // @ts-nocheck
 import type { IStreamResult, Subject } from '@microsoft/signalr';
-import type { ChatRequestDto, ChatModelsDto } from '../GrifballWebApp.Application.Chat';
+import type { ChatRequestDto, ChatModelsDto, ChatConfirmDto, ChatActionDto } from '../GrifballWebApp.Application.Chat';
 
 /**
 * What the browser calls on  (the typed client's hub proxy).
@@ -29,6 +29,18 @@ export type IChatHubServer = {
     * @returns Transpiled from System.Threading.Tasks.Task<GrifballWebApp.Application.Chat.ChatModelsDto>
     */
     choose(model: string): Promise<ChatModelsDto>;
+    /**
+    * The user's answer to the change waiting for it, then the chat's reply, streamed as 's.
+    * @param answer Transpiled from GrifballWebApp.Application.Chat.ChatConfirmDto
+    * @param cancellationToken Transpiled from System.Threading.CancellationToken
+    * @returns Transpiled from System.Threading.Tasks.Task<System.Threading.Channels.ChannelReader<string>>
+    */
+    confirm(answer: ChatConfirmDto): IStreamResult<string>;
+    /**
+    * The change waiting for the user's answer, or null.
+    * @returns Transpiled from System.Threading.Tasks.Task<GrifballWebApp.Application.Chat.ChatActionDto?>
+    */
+    waiting(): Promise<ChatActionDto>;
 }
 
 /**

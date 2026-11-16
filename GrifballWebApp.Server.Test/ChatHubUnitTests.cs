@@ -37,9 +37,15 @@ public class ChatHubUnitTests
     private readonly IAmbientCurrentUser _ambient = Substitute.For<IAmbientCurrentUser>();
     private readonly RecordingLogger<ChatHub> _logger = new();
     private readonly ChatLimits _limits = new();
+    // Where a change the model asks for waits (ChatAccounts): the app's distributed cache, in memory
+    private readonly ServiceProvider _cache = new ServiceCollection().AddDistributedMemoryCache().BuildServiceProvider();
 
     [TearDown]
-    public void TearDown() => _limits.Dispose();
+    public async Task TearDown()
+    {
+        _limits.Dispose();
+        await _cache.DisposeAsync();
+    }
 
     /// <summary>
     /// The hub for <paramref name="user"/> as the database has them now (signed out by default), on a connection whose claims are
@@ -60,7 +66,7 @@ public class ChatHubUnitTests
         context.Features.Returns(features);
         var now = new HubUser();
         now.Set(user ?? HubUserState.Anonymous);
-        return new ChatHub(new GrifChat(new ChatModel(_clients, NullLoggerFactory.Instance), Substitute.For<IServiceScopeFactory>(), _limits, new ChatAccounts(Substitute.For<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ChatAccounts>.Instance)), now, _ambient, _logger) { Context = context };
+        return new ChatHub(new GrifChat(new ChatModel(_clients, NullLoggerFactory.Instance), Substitute.For<IServiceScopeFactory>(), _limits, new ChatAccounts(_cache.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ChatAccounts>.Instance)), now, _ambient, _logger) { Context = context };
     }
 
     private static ChatRequestDto Question(string question = "Who won?", params ChatTurnDto[] history) => new() { Question = question, History = [.. history] };
