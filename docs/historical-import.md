@@ -108,7 +108,9 @@ differ in where they run, so in what their copy can have:
   public, so the PRs' runs are GitHub's, and the cluster's memory stays the cluster's (its PR trigger is in the
   workflow, commented out, for a sheet the import reads going private). The test environment's snapshots, through
   the chart's read-only `database.logins.archiveReader`, then a download: every source, a sheet that went private
-  included. Never a fork's PR: a self-hosted runner doesn't run outside code.
+  included. The test environment scales to zero when idle: the run first wakes it through Sablier
+  (`.github/scripts/sablier-wake.sh`), up to 3 minutes for it to be ready and 3 more for its SQL Server's port, and keeps
+  it up 30 minutes. Never a fork's PR: a self-hosted runner doesn't run outside code.
 - **`historical-archive-public.yml`**: GitHub's runners, downloaded only, a fork's PR included. A sheet that went
   private or was deleted, which only the database still has, isn't in its copy: `Copy_HasEverySourceTheImportReads`
   warns of it instead of failing, the report lists it, and its seasons aren't imported on either side.
