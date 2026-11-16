@@ -20,6 +20,7 @@ public class ChatChoiceConfiguration : IEntityTypeConfiguration<ChatChoice>
 
         // Off for the rows before it: a change waits
         entity.Property(e => e.AutoApprove)
+            .IsRequired()
             .HasDefaultValue(false);
     }
 }
