@@ -59,18 +59,71 @@ test('every datasource is one of its variables', () => {
   walk(dashboard.templating.list.filter(v => v.type !== 'datasource'), 'variables');
 });
 
-test('every grif_* metric it queries is one the app defines', () => {
-  // Instruments: "grif.x.y" names in the backend's C# and the frontend's TypeScript, as Prometheus names them
+/** The projects whose sources define the app's grif.* instruments: every GrifballWebApp.* one but the tests, and the client's. */
+const sourceDirs = () => [
+  ...fs.readdirSync(repo, { withFileTypes: true }).filter(e => e.isDirectory() && /^GrifballWebApp\./.test(e.name) && !e.name.endsWith('.Test')).map(e => e.name),
+  'grifballwebapp.client/src',
+];
+
+const CREATE = String.raw`[Cc]reate(?:Counter|Histogram|UpDownCounter|Gauge|ObservableCounter|ObservableGauge|ObservableUpDownCounter)(?:<[^>]*>)?`;
+
+/**
+ * The grif.* instruments one source file creates, as Prometheus names them (dots to underscores): the names given to a
+ * meter's create call, or to a local helper that passes its first parameter on to one (BrowserMetrics' Seconds).
+ * Attribute keys (grif.request.kind, grif.tool.outcome) aren't instruments.
+ */
+const instrumentsIn = source => {
+  const helpers = [...source.matchAll(new RegExp(String.raw`\b(\w+)\s*(?:=\s*)?\(\s*(?:string\s+)?(\w+)\b[^)]*\)\s*(?::\s*\w+(?:<[^>]*>)?\s*)?=>\s*[\w.]+\.${CREATE}\(\s*\2\b`, 'g'))].map(m => m[1]);
+  const callers = [`\\.${CREATE}`, ...helpers.map(h => `\\b${h}`)].join('|');
+  return [...source.matchAll(new RegExp(String.raw`(?:${callers})\(\s*["'](grif\.[a-z0-9_]+(?:\.[a-z0-9_]+)+)["']`, 'g'))].map(m => m[1].replaceAll('.', '_'));
+};
+
+/** Instruments: the grif.* ones the backend's C# and the frontend's TypeScript create (searched once). */
+let searched;
+function appInstruments() {
+  if (searched) return searched;
   const instruments = new Set();
   const walk = dir => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const f = path.join(dir, e.name);
       if (e.isDirectory()) { if (!['bin', 'obj', 'node_modules', 'dist', '.angular'].includes(e.name)) walk(f); }
       else if (/\.(cs|ts)$/.test(e.name) && !/\.spec\.ts$|Test/.test(f))
-        for (const m of fs.readFileSync(f, 'utf8').matchAll(/["'](grif\.[a-z_]+\.[a-z_.]+)["']/g)) instruments.add(m[1].replaceAll('.', '_'));
+      {
+        const source = fs.readFileSync(f, 'utf8');
+        if (source.includes('grif.')) for (const i of instrumentsIn(source)) instruments.add(i);
+      }
     }
   };
-  for (const dir of ['GrifballWebApp.Server', 'GrifballWebApp.Infrastructure', 'grifballwebapp.client/src']) walk(path.join(repo, dir));
+  for (const dir of sourceDirs()) walk(path.join(repo, dir));
+  searched = instruments;
+  return instruments;
+}
+
+test('the instrument search finds instruments the app creates, not attribute keys, in every project', () => {
+  assert.deepEqual(instrumentsIn(`
+    const requestDuration = meter.createHistogram('grif.frontend.request.duration', REQUEST_DURATION);
+    meter.createObservableGauge('grif.frontend.memory.rss', { unit: 'By' })
+    span.setAttribute('grif.render.outcome', how);
+    export const REQUEST_KIND_ATTRIBUTE = 'grif.request.kind';`), ['grif_frontend_request_duration', 'grif_frontend_memory_rss']);
+  assert.deepEqual(instrumentsIn(`
+    public const string OutcomeTag = "grif.tool.outcome";
+    private readonly Counter<long> _calls = _meter.CreateCounter<long>("grif.tool.calls", "{call}");
+    Histogram<double> Seconds(string name, string description) =>
+        _meter.CreateHistogram(name, "s", description, advice: new InstrumentAdvice<double> { HistogramBucketBoundaries = SecondsBuckets });
+    ["LCP"] = Seconds("grif.browser.lcp", "Largest Contentful Paint"),
+    ["CLS"] = _meter.CreateHistogram("grif.browser.cls", null, "Cumulative Layout Shift"),
+    activity?.SetTag("grif.tool.error.type", error);`), ['grif_tool_calls', 'grif_browser_lcp', 'grif_browser_cls']);
+  for (const project of ['GrifballWebApp.Server', 'GrifballWebApp.Infrastructure', 'GrifballWebApp.Application', 'grifballwebapp.client/src'])
+    assert.ok(sourceDirs().includes(project), `${project} isn't searched`);
+  const instruments = appInstruments();
+  for (const attribute of ['grif_request_kind', 'grif_render_outcome', 'grif_tool_outcome', 'grif_tool_error_type'])
+    assert.ok(!instruments.has(attribute), `${attribute} is an attribute key, not an instrument`);
+  for (const instrument of ['grif_browser_lcp', 'grif_frontend_render_duration', 'grif_frontend_memory_rss'])
+    assert.ok(instruments.has(instrument), `${instrument} not found`);
+});
+
+test('every grif_* metric it queries is one the app defines', () => {
+  const instruments = appInstruments();
   assert.ok(instruments.size >= 5, `found only ${instruments.size} instruments: the search is broken`);
   const used = new Set(prometheus(dashboard).flatMap(q => [...q.target.expr.matchAll(/\b(grif_[a-z_]+)/g)].map(m => m[1])));
   assert.ok(used.size > 0);
