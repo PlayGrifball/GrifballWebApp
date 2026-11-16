@@ -1,5 +1,5 @@
 using System.Globalization;
-using DiscordInterfaces;
+using DiscordInterface.Generated;
 using GrifballWebApp.Application.Extensions;
 using GrifballWebApp.Application.Scheduler;
 using GrifballWebApp.Application.Scheduling;
