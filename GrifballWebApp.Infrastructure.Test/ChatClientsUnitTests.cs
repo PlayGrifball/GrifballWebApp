@@ -214,4 +214,14 @@ public class ChatClientsUnitTests
 
         Assert.That(() => new ServiceCollection().AddChatModels(configuration), Throws.InvalidOperationException.With.Message.Contains(ChatModels.AnthropicApiKeyKey));
     }
+
+    [Test]
+    public void WithTheAppsLogging_ClaudesClients_LogTheirSpendLimits()
+    {
+        var configuration = Configuration((ChatModels.OllamaUrlKey, OllamaUrl), (ChatModels.AnthropicApiKeyKey, "sk-test"));
+        using var services = new ServiceCollection().AddLogging().AddSingleton(configuration).AddChatModels(configuration).BuildServiceProvider();
+        var clients = services.GetRequiredService<IChatClientFactory>();
+
+        Assert.That(clients.Create(clients.Models[0]).GetService<AnthropicSpendLimit>(), Is.Not.Null);
+    }
 }
