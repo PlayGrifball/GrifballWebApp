@@ -32,7 +32,9 @@ public class TestProjectTests
     private const string AnalyzersTest = Analyzers + ".Test";
     private const string IntegrationTest = "GrifballWebApp.Integration.Test";
     private const string ArchitectureTest = "GrifballWebApp.Architecture.Test";
-    private const string HistoricalImportTest = "GrifballWebApp.HistoricalImport.Test";
+    private const string Historical = "GrifballWebApp.Historical";
+    private const string HistoricalTest = Historical + ".Test";
+    private const string HistoricalArchiveTest = "GrifballWebApp.HistoricalArchive.Test";
 
     /// <summary>
     /// Every test project, with the projects it may reference: the unit test projects by name, the integration and the
@@ -55,8 +57,10 @@ public class TestProjectTests
         [MigrationsSqlServerTest] = [MigrationsSqlServer, Infrastructure, Application, Domain, DomainTest, ApplicationTest, InfrastructureTest],
         // The analyzers every project builds with (Directory.Build.props), tested on compilations of their own
         [AnalyzersTest] = [Analyzers],
+        // The historical import, above Infrastructure like the host apps
+        [HistoricalTest] = [Historical, Infrastructure, Application, Domain, DomainTest, ApplicationTest, InfrastructureTest],
         // The import against the real archive (run by hand, not by CI): the import and the SQLite migrations it imports into
-        [HistoricalImportTest] = [Infrastructure, Application, Domain, MigrationsSqlite],
+        [HistoricalArchiveTest] = [Historical, Infrastructure, Application, Domain, MigrationsSqlite],
         [IntegrationTest] = null,
         [ArchitectureTest] = null,
     };
@@ -87,7 +91,8 @@ public class TestProjectTests
     [TestCase(MigrationsSqliteTest)]
     [TestCase(MigrationsSqlServerTest)]
     [TestCase(AnalyzersTest)]
-    [TestCase(HistoricalImportTest)]
+    [TestCase(HistoricalTest)]
+    [TestCase(HistoricalArchiveTest)]
     public void AUnitTestProject_ReferencesItsLayerAndTheLayersBelow(string project)
     {
         AssertNone(ProjectFiles.Violations(project, Known[project]!),

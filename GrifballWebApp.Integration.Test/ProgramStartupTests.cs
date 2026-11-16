@@ -39,6 +39,7 @@ using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.Matchmaking;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Infrastructure.Preview;
+using GrifballWebApp.Historical.Worker;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -832,7 +833,7 @@ public class ProgramStartupTests
                 Assert.That(hostedTypes, Does.Contain(singleton));
             Assert.That(hostedTypes, Does.Not.Contain(typeof(Quartz.QuartzHostedService)), "The jobs are the workers'");
             Assert.That(hostedTypes, Does.Not.Contain(typeof(RecurringJobSeeder)));
-            Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker)));
+            Assert.That(hostedTypes, Does.Not.Contain(typeof(GrifballWebApp.Historical.Worker.HistoricalImportWorker)));
         }
 
         var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);

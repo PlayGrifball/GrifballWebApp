@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The historical archive's import: its sources (the catalog, downloads, snapshots), the parsers of their sheets, the
+    importer, and the worker and schedule that run it. Above Infrastructure (it reads the snapshots and the sheets through
+    its database and workbook reader), registered by the Server (AddHistoricalImport). docs/historical-import.md.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="GrifballWebApp.Historical.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

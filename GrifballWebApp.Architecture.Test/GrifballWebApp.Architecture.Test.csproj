@@ -32,6 +32,7 @@
     <ProjectReference Include="..\GrifballWebApp.Domain\GrifballWebApp.Domain.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Application\GrifballWebApp.Application.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Historical\GrifballWebApp.Historical.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Server\GrifballWebApp.Server.csproj" />
   </ItemGroup>
 

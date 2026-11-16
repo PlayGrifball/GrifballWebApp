@@ -1,12 +1,14 @@
 using GrifballWebApp.Application.Seasons;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Historical.Import;
 using GrifballWebApp.Server.Seasons;
 
 namespace GrifballWebApp.Architecture.Test;
 
 /// <summary>
-/// The layers depend inwards only: Domain &lt;- Application &lt;- Infrastructure &lt;- Server. Each layer may use the
+/// The layers depend inwards only: Domain &lt;- Application &lt;- Infrastructure &lt;- Historical &lt;- Server (Historical, the
+/// historical archive's import, sits on Infrastructure's database and workbook reader). Each layer may use the
 /// projects of this solution listed for it and no other (packages are its own business: the Domain references EF Core and
 /// holds the entity configurations, by the owner's decision). Read from the compiled code, so a failure names each type
 /// that crosses, and what it reaches, and from the project files (a const or nameof leaves nothing in the compiled code).
@@ -28,6 +30,7 @@ public class LayerTests
     private static readonly string Domain = typeof(Season).Assembly.GetName().Name!;
     private static readonly string Application = typeof(SeasonService).Assembly.GetName().Name!;
     private static readonly string Infrastructure = typeof(GrifballContext).Assembly.GetName().Name!;
+    private static readonly string Historical = typeof(HistoricalImportService).Assembly.GetName().Name!;
     private static readonly string Server = typeof(SeasonController).Assembly.GetName().Name!;
 
     /// <summary>The references <paramref name="layer"/>'s types make to the solution's projects other than <paramref name="allowed"/>.</summary>
@@ -74,6 +77,13 @@ public class LayerTests
             $"{Infrastructure} implements {Application}'s ports over {Domain} (and NetCord's DiscordInterfaces); {Server}, the migrations and the tools sit above it");
     }
 
+    [Test]
+    public void Historical_DependsOnInfrastructureApplicationAndDomain_NeverServer()
+    {
+        AssertNone(Violations(typeof(HistoricalImportService), Domain, Application, Infrastructure),
+            $"{Historical} imports the archive over {Infrastructure}, {Application} and {Domain}; {Server} registers it");
+    }
+
     // The same rules on the project files: a use the compiler leaves no trace of (a const, nameof, an enum's value, all
     // inlined) needs a <ProjectReference>, so the reference itself is held to them too.
 
@@ -101,9 +111,15 @@ public class LayerTests
     }
 
     [Test]
+    public void Historical_ReferencesOnlyInfrastructure()
+    {
+        AssertNone(ProjectFiles.Violations(Historical, Infrastructure), $"{Historical}.csproj references {Infrastructure} alone (and the layers below through it)");
+    }
+
+    [Test]
     public void Server_MayDependOnEveryLayer()
     {
-        Assert.That(Uses(typeof(SeasonController)), Is.SupersetOf(new[] { Domain, Application, Infrastructure }),
+        Assert.That(Uses(typeof(SeasonController)), Is.SupersetOf(new[] { Domain, Application, Infrastructure, Historical }),
             $"{Server} composes the layers: the scan sees its uses of each");
     }
 

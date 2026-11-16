@@ -6,7 +6,7 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
 ## How it works
 
 - **Sources** (`Event.HistoricalSources`): every workbook, page and channel of the archive, from the catalog in
-  `GrifballWebApp.Application/Historical/Sources/HistoricalSourceCatalog.cs` (written to the table at runtime: a fresh
+  `GrifballWebApp.Historical/Sources/HistoricalSourceCatalog.cs` (written to the table at runtime: a fresh
   environment needs no setup). Each entry says what the import reads from it (season stats tabs, database tables of stats
   with a season column (`StatsTable`: the grifball.info backup, split by season, division and phase, its season IDs named
   in its entry since the workbook has no names), Waypoint game lists, per-game carnage tabs, the champions record, the
@@ -15,7 +15,7 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   xlsx export, a tab's CSV when the export is refused; pages at their URL; Wayback captures at their permanent URL)
   and keeps the content only when its SHA-256 changed. The import reads each source's latest snapshot, so a sheet that
   went private or was deleted still imports from its last one. Snapshots are in the database, so they ride its backups.
-- **Parsing** (`Historical/Parsing`): the xlsx is read with ExcelDataReader into text cells and parsed into the same
+- **Parsing** (`GrifballWebApp.Historical/Parsing`): the xlsx is read with ExcelDataReader into text cells and parsed into the same
   `HistoricalArchiveInput` the compiled JSON used to be; `HistoricalImportService` stays the only importer.
 - **Jobs**: everything runs in the worker role through the historical import job queue (one job at a time):
   refresh, preview (a dry run: each season's transaction rolled back) and import.
@@ -66,7 +66,7 @@ the Discord bot; there is no separate archive API. What makes it imported is `Se
 
 ## Testing against the real archive
 
-`GrifballWebApp.HistoricalImport.Test` runs the import on the whole archive, not on workbooks built in a test: each
+`GrifballWebApp.HistoricalArchive.Test` runs the import on the whole archive, not on workbooks built in a test: each
 source's sheet is parsed with the catalog's current config and imported into a fresh SQLite database, and its tests
 say what every season should have (teams, stats, captains, a champion, a bracket when it had playoffs), each naming the
 seasons that fall short. CI builds it but never runs it. Run it while working on the import:
@@ -78,10 +78,10 @@ seasons that fall short. CI builds it but never runs it. Run it while working on
 kubectl -n grif-test port-forward svc/sqlserver 14330:1433 &
 GRIF_HISTORICAL_FILL=both \
 GRIF_HISTORICAL_DATABASE="Server=127.0.0.1,14330;Database=GrifballWebApp;User Id=grif_app;Password=$DB_PASSWORD;Encrypt=True;TrustServerCertificate=True;ApplicationIntent=ReadOnly" \
-  dotnet test GrifballWebApp.HistoricalImport.Test
+  dotnet test GrifballWebApp.HistoricalArchive.Test
 
 # Afterwards, from the copy as it is (a config or parser change needs no fetching):
-dotnet test GrifballWebApp.HistoricalImport.Test
+dotnet test GrifballWebApp.HistoricalArchive.Test
 ```
 
 - `GRIF_HISTORICAL_FILL`: `database` (each source's latest snapshot in `GRIF_HISTORICAL_DATABASE`; it has the sheets

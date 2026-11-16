@@ -1,5 +1,6 @@
 using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Historical.Worker;
 
 namespace GrifballWebApp.Server.Hosting;
 
@@ -52,7 +53,7 @@ public sealed record AppRole(AppRoleKind Kind)
         // on a worker's next poll (HistoricalImport:Worker:PollInterval, 30 s): the upload's wake-up signal only reaches
         // its own process. Its Halo calls, like the pulls', are kept within Halo's limits by the gateway's budgets, so
         // several workers importing and pulling at once stay under them together.
-        typeof(GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker),
+        typeof(GrifballWebApp.Historical.Worker.HistoricalImportWorker),
         // Quartz's scheduler fires the jobs: clustered, each firing runs on one worker; an API pod still builds it, in
         // standby, to read and change the shared store. And the seeder that makes the recurring jobs' missing triggers
         // before it starts (TriggerConflict.Keep, decided under the store's lock, so workers starting at once agree).

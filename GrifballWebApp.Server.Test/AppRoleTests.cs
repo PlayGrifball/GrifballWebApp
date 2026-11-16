@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Jobs;
 using GrifballWebApp.Infrastructure.Outbox;
+using GrifballWebApp.Historical.Worker;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -64,7 +65,7 @@ public class AppRoleTests
         {
             Assert.That(role.Runs(typeof(OutboxDispatcher)), Is.EqualTo(outbox), "The outbox (claimed in the database)");
             Assert.That(role.Runs(typeof(Quartz.QuartzHostedService)), Is.EqualTo(jobs), "The jobs");
-            Assert.That(role.Runs(typeof(GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker)), Is.EqualTo(jobs), "The historical import");
+            Assert.That(role.Runs(typeof(GrifballWebApp.Historical.Worker.HistoricalImportWorker)), Is.EqualTo(jobs), "The historical import");
             Assert.That(role.Runs(typeof(GrifballWebApp.Infrastructure.Historical.XuidLookupWorker)), Is.EqualTo(xuidLookups), "The XUID lookups (one per deployment)");
             Assert.That(role.Runs(typeof(OtherHostedService)), Is.True, "Any other, everywhere");
         }
@@ -116,17 +117,17 @@ public class AppRoleTests
     public void TheHistoricalImportWorker_RunsOnlyInTheWorkerRoles()
     {
         var services = new ServiceCollection();
-        services.AddHostedService<GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker>();
+        services.AddHostedService<GrifballWebApp.Historical.Worker.HistoricalImportWorker>();
         services.AddHostedService<OtherHostedService>();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(AppRole.WorkerHostedServices, Does.Contain(typeof(GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker)));
+            Assert.That(AppRole.WorkerHostedServices, Does.Contain(typeof(GrifballWebApp.Historical.Worker.HistoricalImportWorker)));
             Assert.That(HostedTypes(services.ApplyAppRole(new AppRole(AppRoleKind.Api))), Is.EqualTo(new[] { typeof(OtherHostedService) }));
         }
 
         var worker = new ServiceCollection();
-        worker.AddHostedService<GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker>();
-        Assert.That(HostedTypes(worker.ApplyAppRole(new AppRole(AppRoleKind.Worker))), Does.Contain(typeof(GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker)));
+        worker.AddHostedService<GrifballWebApp.Historical.Worker.HistoricalImportWorker>();
+        Assert.That(HostedTypes(worker.ApplyAppRole(new AppRole(AppRoleKind.Worker))), Does.Contain(typeof(GrifballWebApp.Historical.Worker.HistoricalImportWorker)));
     }
 
     [Test]

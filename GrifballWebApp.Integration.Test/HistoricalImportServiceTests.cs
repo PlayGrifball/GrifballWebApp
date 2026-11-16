@@ -10,11 +10,11 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
-using GrifballWebApp.Application.Historical.Sources;
+using GrifballWebApp.Historical.Sources;
 using GrifballWebApp.Application.Profile;
 using GrifballWebApp.Application.Stats;
-using GrifballWebApp.Infrastructure.Historical.Parsing;
-using GrifballWebApp.Infrastructure.Historical.Sources;
+using GrifballWebApp.Historical.Parsing;
+using GrifballWebApp.Historical.Import;
 
 namespace GrifballWebApp.Integration.Test;
 

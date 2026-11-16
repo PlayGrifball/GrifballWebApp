@@ -6,13 +6,14 @@ fails a PR that breaks a rule, naming the type that crosses and what it reaches.
 
 ## Layers
 
-Dependencies point inwards only: **Domain ← Application ← Infrastructure ← Server**.
+Dependencies point inwards only: **Domain ← Application ← Infrastructure ← Historical ← Server**.
 
 | Layer | Project | What's in it | May use |
 | --- | --- | --- | --- |
 | Domain | `GrifballWebApp.Domain` | The model, by bounded context: aggregates, their rules, and their EF configurations | none of the solution's projects (EF Core, a package, is allowed) |
 | Application | `GrifballWebApp.Application` | The use cases, by feature (`Seasons`, `Brackets`, `Matchmaking`, ...): services, DTOs, queries, and the ports Infrastructure implements (`IApplicationDbContext`, `IOutbox`, `IDatabaseLocks`, ...) | Domain |
 | Infrastructure | `GrifballWebApp.Infrastructure` | `GrifballContext` and the database plumbing (providers, row history, temporal queries, conversion, backups), and the adapters: Halo Infinite, Redis, outbox, Discord, Excel, jobs | Application, Domain, DiscordInterfaces |
+| Historical | `GrifballWebApp.Historical` | The historical archive's import, whole: its sources (catalog, downloads, snapshots), the parsers of their sheets, the importer, and the worker and schedule that run it. Above Infrastructure: it reads the snapshots and sheets through `GrifballContext` and the workbook reader | Infrastructure, Application, Domain |
 | Server | `GrifballWebApp.Server` | The host: controllers and SignalR hubs by feature, Discord commands, the MCP server, telemetry, `Program.cs` | every layer |
 
 `LayerTests` checks both the compiled references and the `.csproj` references, so a new project reference the wrong way

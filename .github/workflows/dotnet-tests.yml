@@ -191,7 +191,7 @@ jobs:
         projects: [GrifballWebApp.Integration.Test]
         include:
         - database: Unit
-          projects: GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Server.Test GrifballWebApp.Seeder.Test GrifballWebApp.Convert.Test GrifballWebApp.Migrations.Postgres.Test GrifballWebApp.Migrations.Sqlite.Test GrifballWebApp.Migrations.SqlServer.Test GrifballWebApp.Analyzers.Test GrifballWebApp.Architecture.Test
+          projects: GrifballWebApp.Domain.Test GrifballWebApp.Application.Test GrifballWebApp.Infrastructure.Test GrifballWebApp.Historical.Test GrifballWebApp.Server.Test GrifballWebApp.Seeder.Test GrifballWebApp.Convert.Test GrifballWebApp.Migrations.Postgres.Test GrifballWebApp.Migrations.Sqlite.Test GrifballWebApp.Migrations.SqlServer.Test GrifballWebApp.Analyzers.Test GrifballWebApp.Architecture.Test
     env:
       # Read by the integration tests alone (the Unit leg has no database)
       GRIF_TEST_DATABASE: ${{ matrix.database }}

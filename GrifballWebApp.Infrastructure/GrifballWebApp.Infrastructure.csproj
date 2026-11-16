@@ -10,6 +10,7 @@
   <!-- The conversion's internals (Conversion), tested directly. -->
   <ItemGroup>
     <InternalsVisibleTo Include="GrifballWebApp.Infrastructure.Test" />
+    <InternalsVisibleTo Include="GrifballWebApp.Historical.Test" />
     <InternalsVisibleTo Include="GrifballWebApp.Integration.Test" />
     <InternalsVisibleTo Include="GrifballWebApp.Migrations.Sqlite.Test" />
   </ItemGroup>

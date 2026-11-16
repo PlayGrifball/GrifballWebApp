@@ -5,14 +5,15 @@ What an AI agent (Claude Code, Copilot, Codex, ...) needs to work on GrifballWeb
 
 ## The repository
 
-- `GrifballWebApp.Domain`, `.Application`, `.Infrastructure`, `.Server`: the .NET 10 backend, in layers (below).
+- `GrifballWebApp.Domain`, `.Application`, `.Infrastructure`, `.Historical`, `.Server`: the .NET 10 backend, in layers (below);
+  `.Historical` is the historical archive's import ([docs/historical-import.md](docs/historical-import.md)).
 - `GrifballWebApp.Migrations.SqlServer`, `.Postgres`, `.Sqlite`: one EF Core migrations project per database.
 - `GrifballWebApp.Seeder`, `GrifballWebApp.Convert`: host apps beside the server (seed data; copy a database between
   providers).
 - `DiscordInterfaces`, `DiscordInterfaceSourceGen`, `GrifballWebApp.Analyzers`: the Discord bot's interfaces and their
   source generator, and the solution's own Roslyn analyzers.
 - `*.Test`: one unit test project per layer and app, plus `GrifballWebApp.Integration.Test`,
-  `GrifballWebApp.Architecture.Test` and `GrifballWebApp.HistoricalImport.Test` (the real archive; run by hand, not by CI).
+  `GrifballWebApp.Architecture.Test` and `GrifballWebApp.HistoricalArchive.Test` (the real archive; run by hand, not by CI).
 - `grifballwebapp.client`: the Angular frontend.
 - `charts/grifballwebapp`: the Helm chart every environment runs from.
 - `docs/`: all documentation ([index](docs/README.md)). New docs go there, never in the repository root.
@@ -21,7 +22,7 @@ What an AI agent (Claude Code, Copilot, Codex, ...) needs to work on GrifballWeb
 
 Read [docs/architecture.md](docs/architecture.md) before changing backend code. In short:
 
-- **Layers depend inwards only: Domain ← Application ← Infrastructure ← Server.** The Domain uses no other project
+- **Layers depend inwards only: Domain ← Application ← Infrastructure ← Historical ← Server.** The Domain uses no other project
   of the solution; the Application uses only the Domain; Infrastructure implements the Application's ports (interfaces
   such as `IApplicationDbContext`, `IOutbox`); the Server is the host (controllers, hubs, Discord commands, MCP).
   Controllers stay thin and call Application services.
@@ -77,7 +78,7 @@ To run the app without any credentials (Discord, OAuth, Halo), set `Preview:Enab
   or temp-file SQLite `GrifballContext` is fine in a unit test (`SqliteContextFixture` in
   `GrifballWebApp.Infrastructure.Test`). Details: [docs/ci-cd/dotnet-tests.md](docs/ci-cd/dotnet-tests.md).
   The one exception: tests of the historical import against the real archive (a copy of every sheet) go in
-  `GrifballWebApp.HistoricalImport.Test`, which CI never runs ([docs/historical-import.md](docs/historical-import.md#testing-against-the-real-archive)).
+  `GrifballWebApp.HistoricalArchive.Test`, which CI never runs ([docs/historical-import.md](docs/historical-import.md#testing-against-the-real-archive)).
 - A rule about the code's shape belongs in `GrifballWebApp.Architecture.Test`.
 - Test classes: `[TestFixture]`, `[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]`; names say what is tested and
   what should happen (`Method_Should_Result_When_Condition` or `Method_Result_ForCase`); `Assert.EnterMultipleScope()`

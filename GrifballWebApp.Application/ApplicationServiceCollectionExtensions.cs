@@ -58,17 +58,11 @@ public static class ApplicationServiceCollectionExtensions
         // Joining and leaving, from Discord or the site; the queue's size goes to its watchers (IQueueNotifier)
         services.AddTransient<QueueMembership>();
 
-        // The historical import: queued by HistoricalImportController, run in the background by HistoricalImportWorker
-        services.AddOptions<HistoricalImportOptions>().Bind(configuration.GetSection("HistoricalImport"));
-        services.AddOptions<HistoricalImportWorkerOptions>().Bind(configuration.GetSection("HistoricalImport:Worker"));
-        services.AddTransient<IHistoricalImportService, HistoricalImportService>();
-        services.AddTransient<HistoricalImportJobs>();
+        // The historical archive's players (its import is GrifballWebApp.Historical's AddHistoricalImport)
         services.AddTransient<GamertagClaimService>();
         services.AddTransient<GamertagMatching>();
         // The cleanup of placeholders that are no league players (Infrastructure's XboxPlaceholderCleanupJob)
         services.AddTransient<XboxPlaceholderCleanup>();
-        services.AddSingleton<HistoricalImportSignal>();
-        services.AddOptions<HistoricalGuardrailOptions>().Bind(configuration.GetSection("HistoricalImport:Guardrail"));
         // VODs: found by the refresh jobs (no scheduler of their own), shown on the pages, reviewed by sysadmins
         services.AddTransient<VodService>();
         services.AddOptions<UserClaimOptions>().Bind(configuration.GetSection("UserClaims"));

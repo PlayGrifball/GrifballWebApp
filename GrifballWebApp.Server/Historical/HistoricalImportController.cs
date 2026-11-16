@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Infrastructure.Historical;
-using GrifballWebApp.Infrastructure.Historical.Sources;
+using GrifballWebApp.Historical.Sources;
+using GrifballWebApp.Historical.Import;
+using GrifballWebApp.Historical.Worker;
 
 namespace GrifballWebApp.Server.Historical;
 

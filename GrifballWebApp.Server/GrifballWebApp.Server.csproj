@@ -71,6 +71,7 @@
     </ProjectReference>
     <ProjectReference Include="..\GrifballWebApp.Application\GrifballWebApp.Application.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Infrastructure\GrifballWebApp.Infrastructure.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Historical\GrifballWebApp.Historical.csproj" />
     <!-- Both providers' migrations: Database:Provider picks one at run time. -->
     <ProjectReference Include="..\GrifballWebApp.Migrations.Postgres\GrifballWebApp.Migrations.Postgres.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Migrations.Sqlite\GrifballWebApp.Migrations.Sqlite.csproj" />

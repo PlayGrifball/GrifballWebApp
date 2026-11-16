@@ -10,7 +10,9 @@ using System.Text;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Application.Historical.Vods;
 using GrifballWebApp.Infrastructure.Historical;
-using GrifballWebApp.Infrastructure.Historical.Sources;
+using GrifballWebApp.Historical.Sources;
+using GrifballWebApp.Historical.Import;
+using GrifballWebApp.Historical.Worker;
 
 namespace GrifballWebApp.Integration.Test;
 

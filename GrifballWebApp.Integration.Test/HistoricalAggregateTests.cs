@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using GrifballWebApp.Application.Queries;
 using static GrifballWebApp.Domain.Test.HistoricalAggregateUnitTests;
 using static GrifballWebApp.Domain.Test.HistoricalAggregateTestData;
+using GrifballWebApp.Historical.Import;
 
 namespace GrifballWebApp.Integration.Test;
 

@@ -28,7 +28,6 @@ public static class RenamedJobTypes
         ["GrifballWebApp.Server.Events.SeasonEventsJob, GrifballWebApp.Server"] = typeof(SeasonEventsJob),
         ["GrifballWebApp.Server.Excel.SheetExportJob, GrifballWebApp.Server"] = typeof(SheetExportJob),
         ["GrifballWebApp.Server.HaloInfinite.MatchVariantBackfillJob, GrifballWebApp.Server"] = typeof(MatchVariantBackfillJob),
-        ["GrifballWebApp.Server.Historical.HistoricalRefreshJob, GrifballWebApp.Server"] = typeof(HistoricalRefreshJob),
         ["GrifballWebApp.Server.Historical.XboxPlaceholderJob, GrifballWebApp.Server"] = typeof(XboxPlaceholderJob),
         ["GrifballWebApp.Server.Matchmaking.MatchmakingQueueJob, GrifballWebApp.Server"] = typeof(MatchmakingQueueJob),
         ["GrifballWebApp.Server.Scheduler.ScheduleRecommendationJob, GrifballWebApp.Server"] = typeof(ScheduleRecommendationJob),

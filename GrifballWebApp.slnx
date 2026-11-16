@@ -17,6 +17,7 @@
   <Project Path="GrifballWebApp.Application/GrifballWebApp.Application.csproj" />
   <Project Path="GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" />
   <Project Path="GrifballWebApp.Infrastructure/GrifballWebApp.Infrastructure.csproj" />
+  <Project Path="GrifballWebApp.Historical/GrifballWebApp.Historical.csproj" />
   <Project Path="GrifballWebApp.Domain/GrifballWebApp.Domain.csproj" />
   <Project Path="GrifballWebApp.Migrations.Postgres/GrifballWebApp.Migrations.Postgres.csproj" />
   <Project Path="GrifballWebApp.Migrations.Sqlite/GrifballWebApp.Migrations.Sqlite.csproj" />
@@ -26,6 +27,7 @@
   <Project Path="GrifballWebApp.Domain.Test/GrifballWebApp.Domain.Test.csproj" />
   <Project Path="GrifballWebApp.Application.Test/GrifballWebApp.Application.Test.csproj" />
   <Project Path="GrifballWebApp.Infrastructure.Test/GrifballWebApp.Infrastructure.Test.csproj" />
+  <Project Path="GrifballWebApp.Historical.Test/GrifballWebApp.Historical.Test.csproj" />
   <Project Path="GrifballWebApp.Migrations.Postgres.Test/GrifballWebApp.Migrations.Postgres.Test.csproj" />
   <Project Path="GrifballWebApp.Migrations.Sqlite.Test/GrifballWebApp.Migrations.Sqlite.Test.csproj" />
   <Project Path="GrifballWebApp.Migrations.SqlServer.Test/GrifballWebApp.Migrations.SqlServer.Test.csproj" />
@@ -35,5 +37,5 @@
   <Project Path="GrifballWebApp.Analyzers.Test/GrifballWebApp.Analyzers.Test.csproj" />
   <Project Path="GrifballWebApp.Architecture.Test/GrifballWebApp.Architecture.Test.csproj" />
   <Project Path="GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj" />
-  <Project Path="GrifballWebApp.HistoricalImport.Test/GrifballWebApp.HistoricalImport.Test.csproj" />
+  <Project Path="GrifballWebApp.HistoricalArchive.Test/GrifballWebApp.HistoricalArchive.Test.csproj" />
 </Solution>

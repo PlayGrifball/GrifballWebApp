@@ -77,6 +77,22 @@ public sealed class RecurringJobs
     }
 
     public OnDemandJob? FindOnDemand(JobKey key) => _onDemand.FirstOrDefault(j => j.Key.Equals(key));
+
+    private readonly Dictionary<string, Type> _renamed = new(StringComparer.Ordinal);
+
+    /// <summary>The names jobs registered here were stored under before they moved (<see cref="Renamed"/>).</summary>
+    public IReadOnlyDictionary<string, Type> RenamedTypes => _renamed;
+
+    /// <summary>
+    /// An old name of a job's type, as Quartz stored it (JOB_CLASS_NAME: the type's name and assembly), loading the type it
+    /// is now: what <see cref="RenamedJobTypes"/> does for Infrastructure's own jobs, for a project above it (whose types
+    /// Infrastructure can't name).
+    /// </summary>
+    public RecurringJobs Renamed(string storedName, Type type)
+    {
+        _renamed.Add(storedName, type);
+        return this;
+    }
 }
 
 /// <summary>

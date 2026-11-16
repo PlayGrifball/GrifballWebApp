@@ -4,6 +4,7 @@ using GrifballWebApp.Application.Matchmaking;
 using GrifballWebApp.Application.Notifications;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Infrastructure;
+using GrifballWebApp.Historical;
 using GrifballWebApp.Infrastructure.DatabaseBackup;
 using GrifballWebApp.Infrastructure.HaloInfinite;
 using GrifballWebApp.Infrastructure.Preview;
@@ -99,7 +100,8 @@ public class Program
         AddIdentity(builder.Services);
         AddDiscord(builder, role, discordOff);
         builder.Services.AddApplication(builder.Configuration);
-        builder.Services.AddInfrastructure(builder.Configuration, discordOff);
+        builder.Services.AddInfrastructure(builder.Configuration, discordOff, HistoricalServiceCollectionExtensions.AddHistoricalJobs);
+        builder.Services.AddHistoricalImport(builder.Configuration);
         AddDiscordHandlers(builder.Services);
 
         // Encrypted with DataProtection:Certificate when it's set (DataProtectionAtRest), so backups can't sign anyone in.

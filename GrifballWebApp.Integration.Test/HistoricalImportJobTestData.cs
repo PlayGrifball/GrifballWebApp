@@ -1,5 +1,6 @@
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Historical.Import;
 
 namespace GrifballWebApp.Integration.Test;
 

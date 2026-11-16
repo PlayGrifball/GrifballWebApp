@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Historical.Import;
 
 namespace GrifballWebApp.Server.Test;
 

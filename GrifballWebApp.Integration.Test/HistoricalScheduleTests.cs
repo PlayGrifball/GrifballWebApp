@@ -9,6 +9,8 @@ using Quartz;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Infrastructure.Historical;
 using GrifballWebApp.Application.Database;
+using GrifballWebApp.Historical.Import;
+using GrifballWebApp.Historical.Worker;
 
 namespace GrifballWebApp.Integration.Test;
 
