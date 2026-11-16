@@ -14,6 +14,8 @@ cd /src && git -c advice.detachedHead=false submodule update -q --init cpp/vcpkg
 cd /src/cpp
 # vcpkg's own tools from the system (its downloaded ones are glibc's)
 export VCPKG_FORCE_SYSTEM_BINARIES=1
+# On arm64 vcpkg builds its own tool, whose dependencies ask for a CMake older than Alpine's 4 allows
+export CMAKE_POLICY_VERSION_MINIMUM=3.5
 ./vcpkg/bootstrap-vcpkg.sh -disableMetrics >/dev/null
 make shared
 arch="$(uname -m)"
