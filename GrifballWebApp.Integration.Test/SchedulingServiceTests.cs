@@ -1,9 +1,6 @@
 using GrifballWebApp.Application.Scheduling;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Domain.League;
-using GrifballWebApp.Domain.Players;
-using GrifballWebApp.Domain.Shared;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 
 namespace GrifballWebApp.Integration.Test;
@@ -26,60 +23,13 @@ public class SchedulingServiceUnitTests
     [TearDown]
     public async Task TearDownContext() => await Context.DropDatabaseAndDispose();
 
-    private int SeasonID;
+    private static readonly DateTime Monday = SchedulingTestData.Monday, Tuesday = SchedulingTestData.Tuesday;
 
-    // June 2026 (EDT, UTC-4); "now" is Monday 1 June, noon UTC
-    private static readonly DateTime Now = new(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);
-    // Monday 1 June 20:00 Eastern, Tuesday 2 June 20:00 Eastern
-    private static readonly DateTime Monday = new(2026, 6, 2, 0, 0, 0, DateTimeKind.Utc);
-    private static readonly DateTime Tuesday = new(2026, 6, 3, 0, 0, 0, DateTimeKind.Utc);
+    private readonly FakeTimeProvider _time = new(SchedulingTestData.Now);
+    private SeasonMatch _match = null!;
 
-    private readonly FakeTimeProvider _time = new(Now);
-    private Team _reds = null!, _blues = null!, _greens = null!;
-    private SeasonMatch _match = null!, _other = null!;
-
-    /// <summary>
-    /// A season of two weeks (1 to 14 June), playing Mondays and Tuesdays at 20:00. Reds' four players can all play Mondays,
-    /// two of them Tuesdays; Blues' four can play both. Reds vs Blues is unscheduled; Blues vs Greens is on the first Tuesday.
-    /// </summary>
-    private async Task Seed()
-    {
-        var season = Season.Seed(seasonName: "S1");
-        season.Schedule(new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 5, 15, 0, 0, 0, DateTimeKind.Utc),
-            new DateTime(2026, 5, 20, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Utc));
-        Context.Seasons.Add(season);
-        AvailabilityOption mondays = AvailabilityOption.Seed(dayOfWeek: DayOfWeek.Monday, time: new TimeOnly(20, 0)),
-            tuesdays = AvailabilityOption.Seed(dayOfWeek: DayOfWeek.Tuesday, time: new TimeOnly(20, 0));
-        Context.Availability.AddRange(mondays, tuesdays);
-        var users = Enumerable.Range(1, 9).Select(i => User.Register($"p{i}")).ToList();
-        Context.Users.AddRange(users);
-        await Context.SaveChangesAsync();
-        SeasonID = season.SeasonID;
-        Context.AddRange(SeasonAvailability.Seed(SeasonID, mondays.AvailabilityOptionID), SeasonAvailability.Seed(SeasonID, tuesdays.AvailabilityOptionID));
-
-        _reds = Roster("Reds", users[0..4]);
-        _blues = Roster("Blues", users[4..8]);
-        _greens = Roster("Greens", users[8..9]);
-        int[] both = [mondays.AvailabilityOptionID, tuesdays.AvailabilityOptionID], monday = [mondays.AvailabilityOptionID];
-        Context.SeasonSignups.AddRange(users.Select((u, i) => SeasonSignup.Seed(SeasonID, u.Id, timeslots: i switch { < 2 => both, < 4 => monday, _ => both })));
-        await Context.SaveChangesAsync();
-        _match = SeasonMatch.Between(SeasonID, _reds.TeamID, _blues.TeamID, bestOf: 3);
-        _other = SeasonMatch.Between(SeasonID, _blues.TeamID, _greens.TeamID, bestOf: 3);
-        _other.ScheduleAt(Tuesday);
-        Context.SeasonMatches.AddRange(_match, _other);
-        await Context.SaveChangesAsync();
-        Context.ChangeTracker.Clear();
-    }
-
-    private Team Roster(string name, IEnumerable<User> players)
-    {
-        var list = players.ToList();
-        var team = Team.Drafted(SeasonID, name, list[0].Id, 1);
-        foreach (var player in list.Skip(1))
-            team.Draft(player.Id);
-        Context.Teams.Add(team);
-        return team;
-    }
+    /// <summary>The season of <see cref="SchedulingTestData"/>; Reds vs Blues the match checked.</summary>
+    private async Task Seed() => _match = (await SchedulingTestData.SeedAsync(Context)).Match;
 
     private SchedulingService Service() => new(Context, _time);
 
