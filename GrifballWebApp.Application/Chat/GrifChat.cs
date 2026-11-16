@@ -8,7 +8,8 @@ namespace GrifballWebApp.Application.Chat;
 /// A host of the chat (the Discord bot in a channel or a DM, the site): what it tells the model about itself, whether others
 /// read its replies, and how long one may take. Whether others read them is what sets the rest apart: in public (a Discord
 /// channel) the caller sees seasons as the public does and gets <see cref="GrifTools.Chat"/>; in private (a DM, the site) their
-/// roles decide what they see, and they get <see cref="GrifTools.PrivateChat"/>, staff's tools too, each for its roles.
+/// roles decide what they see, and they get <see cref="GrifTools.PrivateChat"/>, staff's tools too, each for its roles; or, with a model
+/// that picks well from a long list, every tool (<see cref="ToolsFor"/>).
 /// </summary>
 /// <param name="About">The first line of the model's instructions: what it is, and how it must write.</param>
 /// <param name="More">The last line: what else the host offers.</param>
@@ -39,14 +40,17 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
         InPublic: false,
         Timeout: TimeSpan.FromMinutes(2));
 
-    /// <summary>The names of the tools the model is given, each only to a caller its roles allow (<see cref="GrifTools.AIFunctions"/>).</summary>
-    public IReadOnlyCollection<string> Tools => InPublic ? GrifTools.Chat : GrifTools.PrivateChat;
-
     /// <summary>
-    /// The tools <paramref name="model"/> is given here: in private, every tool when it picks well from a long list
-    /// (<see cref="ChatModelOption.EveryTool"/>), else <see cref="Tools"/>; in public, <see cref="Tools"/> whatever the model.
+    /// The names of the tools <paramref name="model"/> is given here, each only to a caller its roles allow (<see cref="GrifTools.AIFunctions"/>):
+    /// in public, <see cref="GrifTools.Chat"/> whatever the model; in private, every tool (<see cref="GrifTools.Every"/>) when it picks
+    /// well from a long list (<see cref="ChatModelOption.EveryTool"/>), else <see cref="GrifTools.PrivateChat"/>.
     /// </summary>
-    public IReadOnlyCollection<string> ToolsFor(ChatModelOption model) => !InPublic && model.EveryTool ? GrifTools.Every : Tools;
+    public IReadOnlyCollection<string> ToolsFor(ChatModelOption model)
+    {
+        if (InPublic)
+            return GrifTools.Chat;
+        return model.EveryTool ? GrifTools.Every : GrifTools.PrivateChat;
+    }
 }
 
 /// <summary>
@@ -332,7 +336,7 @@ public sealed class ChatReply : IDisposable
     private ChatAccounts Accounts { get; }
 
     /// <summary>
-    /// The model's reply, as it streams in. It is given the host's tools the caller may use (<see cref="GrifTools.AIFunctions"/>:
+    /// The model's reply, as it streams in. It is given the tools the host gives its model (<see cref="ChatHost.ToolsFor"/>) that the caller may use (<see cref="GrifTools.AIFunctions"/>:
     /// each call in a scope of its own, a refusal its result), and they are called for it until it answers. Past the host's
     /// <see cref="ChatHost.Timeout"/>, a <see cref="ChatRefusedException"/> (<see cref="GrifChat.TookTooLong"/>). Canceled by
     /// <paramref name="cancellationToken"/> (the asker stopped waiting), the slot is freed at once, not once the reply has wound down.
@@ -355,6 +359,7 @@ public sealed class ChatReply : IDisposable
             // its task; the Discord message's)
             var client = _pipelines.Create(Model);
             var tools = GrifTools.AIFunctions(_scopes, _caller, _host.ToolsFor(Model), _pipelines.ToolLog, _pipelines.SensitiveData);
+            spent.Sent(tools);
             var options = new ChatOptions { Instructions = GrifChat.Instructions(_host), Tools = tools, MaxOutputTokens = Model.MaxOutputTokens };
             await using var updates = client.GetStreamingResponseAsync(_conversation, options, timeout.Token).GetAsyncEnumerator(timeout.Token);
             while (await NextAsync(updates, timeout, cancellationToken))
@@ -399,7 +404,12 @@ public sealed class ChatReply : IDisposable
         private bool _pending;
         private long _lastInput;
         private long _written;
+        private long _tools;
         private bool _spentUp;
+
+        /// <summary>The tools each call is sent, counted for an estimate: Anthropic bills their definitions as input.</summary>
+        public void Sent(IEnumerable<AITool> tools)
+            => _tools = tools.OfType<AIFunction>().Sum(f => (long)f.Name.Length + f.Description.Length + f.JsonSchema.GetRawText().Length);
 
         /// <summary>
         /// The update's usage, or what its call wrote; true when the model starts another call though the reply's calls already cost what
@@ -433,14 +443,14 @@ public sealed class ChatReply : IDisposable
 
         /// <summary>
         /// All the calls' usage, with a call the provider never said the use of estimated (<see cref="CharactersPerToken"/>): in, the
-        /// instructions and the conversation sent (or the last call's input, the larger: it grows with each tool round), out, what it
+        /// instructions, the tools' definitions and the conversation sent (or the last call's input, the larger: it grows with each tool round), out, what it
         /// wrote so far.
         /// </summary>
         public UsageDetails Total()
         {
             if (!_pending)
                 return _usage;
-            var sent = (GrifChat.Instructions(reply._host).Length + reply._conversation.Sum(m => (long)m.Text.Length)) / CharactersPerToken;
+            var sent = (GrifChat.Instructions(reply._host).Length + _tools + reply._conversation.Sum(m => (long)m.Text.Length)) / CharactersPerToken;
             _usage.Add(new UsageDetails { InputTokenCount = Math.Max(sent, _lastInput), OutputTokenCount = _written / CharactersPerToken });
             _pending = false;
             return _usage;

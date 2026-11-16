@@ -365,9 +365,9 @@ public partial class GrifChatUnitTests
         {
             Assert.That(ChatHost.DiscordDirect.InPublic, Is.False);
             Assert.That(ChatHost.DiscordDirect with { InPublic = true }, Is.EqualTo(ChatHost.Discord));
-            Assert.That(ChatHost.Discord.Tools, Is.SameAs(GrifTools.Chat));
-            Assert.That(ChatHost.DiscordDirect.Tools, Is.SameAs(GrifTools.PrivateChat));
-            Assert.That(ChatHost.Site.Tools, Is.SameAs(GrifTools.PrivateChat));
+            Assert.That(ChatHost.Discord.ToolsFor(Free), Is.SameAs(GrifTools.Chat));
+            Assert.That(ChatHost.DiscordDirect.ToolsFor(Free), Is.SameAs(GrifTools.PrivateChat));
+            Assert.That(ChatHost.Site.ToolsFor(Free), Is.SameAs(GrifTools.PrivateChat));
             Assert.That(ChatHost.Discord.InPublic, Is.True);
             // One model, one reply at a time: no host may hold it forever
             Assert.That(ChatHost.Discord.Timeout, Is.EqualTo(TimeSpan.FromMinutes(2)));

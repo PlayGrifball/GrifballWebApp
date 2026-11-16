@@ -15,7 +15,8 @@ public enum ChatProvider
 
 /// <summary>
 /// A model the chat can answer with (Chat:Models): its ID (what a user's choice keeps), the name people see, who runs it, the
-/// provider's model, the roles that may use it (none: anyone), and its price (none: free). The order matters: a caller's default is
+/// provider's model, the roles that may use it (none: anyone), its price (none: free), its output limit, and whether it gets every tool
+/// in private (<see cref="EveryTool"/>). The order matters: a caller's default is
 /// the first they may use (<see cref="GrifChat.Allowed"/>), and a Discord channel's the first anyone may.
 /// </summary>
 public sealed record ChatModelOption(string Id, string Name, ChatProvider Provider, string Model)
