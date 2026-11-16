@@ -32,7 +32,7 @@ public class ChatClientsUnitTests
     private static ServiceProvider Services(params (string Key, string? Value)[] settings)
     {
         var configuration = Configuration(settings);
-        return new ServiceCollection().AddSingleton(configuration).AddChatModels(configuration).BuildServiceProvider();
+        return new ServiceCollection().AddLogging().AddSingleton(configuration).AddChatModels(configuration).BuildServiceProvider();
     }
 
     [Test]
@@ -80,6 +80,8 @@ public class ChatClientsUnitTests
                 Is.All.EqualTo((ChatProvider.Anthropic, SiteRoles.Sysadmin, true)));
             Assert.That(clients.Models.Take(3).Select(m => m.Model), Is.EqualTo(ClaudeModels));
             Assert.That(clients.Create(clients.Models[0]).GetService<IAnthropicClient>(), Is.Not.Null, "Anthropic's own client");
+            Assert.That(clients.Create(clients.Models[0]).GetService<AnthropicSpendLimit>(), Is.Not.Null, "Its spend limits said as the chat's refusal");
+            Assert.That(clients.Create(clients.Models[0]).GetService<AnthropicPromptCache>(), Is.Not.Null, "Its prompt cached");
             Assert.That(clients.Create(clients.Models[0]).GetService<FunctionInvokingChatClient>(), Is.Null);
         }
     }
@@ -140,7 +142,7 @@ public class ChatClientsUnitTests
         var http = Substitute.For<IHttpClientFactory>();
         http.CreateClient(Arg.Any<string>()).Returns(_ => new HttpClient());
         // The test's HTTP clients, in place of AddChatModels' own
-        using var services = new ServiceCollection().AddSingleton(configuration).AddChatModels(configuration).AddSingleton(http).BuildServiceProvider();
+        using var services = new ServiceCollection().AddLogging().AddSingleton(configuration).AddChatModels(configuration).AddSingleton(http).BuildServiceProvider();
         var clients = services.GetRequiredService<IChatClientFactory>();
 
         var created = clients.Models.Select(clients.Create).ToList();
@@ -159,7 +161,7 @@ public class ChatClientsUnitTests
     public void AddChatModels_ServesTheModelsItChecked_NotAListReadAgain()
     {
         var configuration = Configuration((ChatModels.OllamaUrlKey, OllamaUrl));
-        using var services = new ServiceCollection().AddSingleton(configuration).AddChatModels(configuration).BuildServiceProvider();
+        using var services = new ServiceCollection().AddLogging().AddSingleton(configuration).AddChatModels(configuration).BuildServiceProvider();
 
         // Read once, as the app starts: a later change is no other list than the one checked
         configuration[ChatModels.OllamaModelKey] = "unchecked:1b";
@@ -211,5 +213,15 @@ public class ChatClientsUnitTests
         var configuration = Configuration(("Chat:Models:0:Id", "h"), ("Chat:Models:0:Provider", "Anthropic"), ("Chat:Models:0:Model", "m"));
 
         Assert.That(() => new ServiceCollection().AddChatModels(configuration), Throws.InvalidOperationException.With.Message.Contains(ChatModels.AnthropicApiKeyKey));
+    }
+
+    [Test]
+    public void WithTheAppsLogging_ClaudesClients_LogTheirSpendLimits()
+    {
+        var configuration = Configuration((ChatModels.OllamaUrlKey, OllamaUrl), (ChatModels.AnthropicApiKeyKey, "sk-test"));
+        using var services = new ServiceCollection().AddLogging().AddSingleton(configuration).AddChatModels(configuration).BuildServiceProvider();
+        var clients = services.GetRequiredService<IChatClientFactory>();
+
+        Assert.That(clients.Create(clients.Models[0]).GetService<AnthropicSpendLimit>(), Is.Not.Null);
     }
 }

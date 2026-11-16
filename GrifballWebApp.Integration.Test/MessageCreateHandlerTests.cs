@@ -53,7 +53,7 @@ public class MessageCreateHandlerTests : MessageCreateHandlerFixture
             ["Ollama:Url"] = ollamaUrl, // by default refused at once
         }).Build();
         // The chats' model as Program.cs has it: Ollama, at Ollama:Url
-        var model = new ServiceCollection().AddSingleton<IConfiguration>(config).AddChatModels(config).BuildServiceProvider().GetRequiredService<IChatClientFactory>();
+        var model = new ServiceCollection().AddLogging().AddSingleton<IConfiguration>(config).AddChatModels(config).BuildServiceProvider().GetRequiredService<IChatClientFactory>();
         return new MessageCreateHandler(_discordClient, config, services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger,
             new GrifChat(new ChatModel(model, NullLoggerFactory.Instance), services.GetRequiredService<IServiceScopeFactory>(), new ChatLimits(),
                 new ChatAccounts(services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ChatAccounts>.Instance)));
