@@ -26,7 +26,7 @@ permissions:
   contents: read
 
 jobs:
-  archive:
+  public:
     permissions:
       contents: read
       pull-requests: write
