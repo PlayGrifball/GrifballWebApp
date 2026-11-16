@@ -164,14 +164,15 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     {
         static ArchiveSeason Season(params ArchiveTeam[] teams)
         {
-            var entry = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Benchy", team: "Hens"), Player("Lone", team: "Unplaced"));
+            var entry = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Benchy", team: "Hens"), Player("Lone", team: "Unplaced"), Player("Late", team: "Finished"));
             entry.Teams.AddRange(teams);
             return entry;
         }
 
         await _service.Import(Input(Season(
             new ArchiveTeam { TeamName = "Rooster", Rank = 1, Finish = 1, Wins = 9, Losses = 1 },
-            new ArchiveTeam { TeamName = "hens ", Rank = 2, Finish = 3, Wins = 2, Losses = 8 })));
+            new ArchiveTeam { TeamName = "hens ", Rank = 2, Finish = 3, Wins = 2, Losses = 8 },
+            new ArchiveTeam { TeamName = "Finished", Finish = 5 })));
         Context.ChangeTracker.Clear();
         var placed = await Context.Teams.AsNoTracking().OrderBy(t => t.TeamName).Select(t => new { t.TeamName, t.ArchivedRank, t.ArchivedFinish }).ToListAsync();
 
@@ -183,8 +184,8 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         {
             Assert.That(placed.Select(t => (t.TeamName, t.ArchivedRank, t.ArchivedFinish)), Is.EqualTo(new[]
             {
-                ("Hens", (int?)2, (int?)3), ("Rooster", 1, 1), ("Unplaced", null, null),
-            }), "The standings' placing, by the team's name whatever its case and spacing; none for a team they don't name");
+                ("Finished", (int?)null, (int?)5), ("Hens", 2, 3), ("Rooster", 1, 1), ("Unplaced", null, null),
+            }), "The standings' placing (either half), by the team's name whatever its case and spacing; none for a team they don't name");
             Assert.That((dropped.ArchivedRank, dropped.ArchivedFinish), Is.EqualTo(((int?)null, (int?)null)), "The sheet gives it none now");
         }
     }

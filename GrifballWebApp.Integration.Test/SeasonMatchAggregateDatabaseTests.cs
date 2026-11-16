@@ -82,7 +82,9 @@ public class SeasonMatchAggregateDatabaseTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_SeasonMatchAggregate"))) - 1]);
 
-        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        // Its teams as that model had them: no placing
+        await using var old = BeforeTeamArchivedPlacingContext.On(_context);
+        var seeded = await SeasonMatchTestData.SeedAsync(old);
         var (season, home, away) = (seeded.Season.SeasonID, seeded.Home.TeamID, seeded.Away.TeamID);
 
         // Rows as the app could leave them before the checks (the migration before has none: its Down dropped them)

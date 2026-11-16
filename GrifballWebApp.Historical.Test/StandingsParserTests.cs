@@ -10,6 +10,9 @@ namespace GrifballWebApp.Historical.Test;
 public class StandingsParserTests
 {
     private static readonly string[] Str8GriffinOnly = ["Str8 Griffin"];
+    private static readonly string[] AlphaAndBravo = ["Alpha", "Bravo"];
+    private static readonly (string, string?)[] NamesAndCaptains = [("Alpha", "Ace"), ("Bravo", "Bee")];
+    private static readonly (string, int?, int?)[] RecordsOfAlphaAndBravo = [("Alpha", 5, 3), ("Bravo", 4, 4)];
 
     private static SheetTable Sheet(params string[][] rows) => new() { Name = "Standings", Rows = [.. rows] };
 
@@ -231,6 +234,56 @@ public class StandingsParserTests
     }
 
     [Test]
+    public void Rows_AHeaderWithNoTeamUnderIt_IsNoTable()
+    {
+        Assert.That(StandingsParser.Parse(Sheet(["Team", "Wins", "Losses"], ["", "3", "1"]), new StandingsTab { Sheet = "Standings" }), Is.Null);
+    }
+
+    [Test]
+    public void Rows_ATableOfNamesAndCaptains_TakesTheRowsWithACaptain()
+    {
+        var sheet = Sheet(["Team", "Captain"], ["Alpha", "Ace"], ["Note", ""], ["Bravo", "Bee"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Rosters" });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Captain)), Is.EqualTo(NamesAndCaptains));
+    }
+
+    [Test]
+    public void Rows_ACaptainColumn_WinsOverTheNamesBracket_AndANegativeCountIsNone()
+    {
+        var sheet = Sheet(["Team", "Captain", "Wins", "Losses"], ["Mystery Heroes (Holy)", "Holy Morals", "-1", "4"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings", CaptainInName = true });
+
+        Assert.That(Rows(teams).Single(), Is.EqualTo(("Mystery Heroes", (int?)null, (int?)null, (int?)null, (int?)4, "Holy Morals")));
+    }
+
+    [Test]
+    public void Rows_ARecordColumn_OrTheNamesRecord_AndANoteUnderIt()
+    {
+        var sheet = Sheet(["Team", "Seed", "Record"], ["Alpha (5-3)", "1", "n/a"], ["Bravo", "", "4-4"], ["See the rules", "", "tiebreaker"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings" });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Wins, t.Losses)), Is.EqualTo(RecordsOfAlphaAndBravo),
+            "The Record column's own when it is one, else the name's bracket");
+    }
+
+    [Test]
+    public void Columns_ABlankBetweenTeams_IsSkipped_AndAnotherTeamNamesRow_OrCell_EndsIt()
+    {
+        var sheet = Sheet(
+            ["Team Name:", "Alpha", "", "Bravo", "Team Name", "Charlie"],
+            ["Wins", "3", "", "2", "", "1"],
+            ["Team Name:", "Delta"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Chart", Layout = StandingsLayout.Columns });
+
+        Assert.That(teams!.Select(t => t.TeamName), Is.EqualTo(AlphaAndBravo));
+    }
+
+    [Test]
     public void NoTable_IsNull()
     {
         Assert.That(StandingsParser.Parse(Sheet(["Schedule"], ["week 1"]), new StandingsTab { Sheet = "Standings" }), Is.Null);
@@ -248,8 +301,9 @@ public class StandingsParserTests
     [TestCase("#N/A", null)]
     [TestCase("Champion", null)]
     [TestCase("", null)]
+    [TestCase(null, null)]
     [TestCase("0", null)]
-    public void Place_ReadsTheLeadingNumber(string cell, int? place)
+    public void Place_ReadsTheLeadingNumber(string? cell, int? place)
     {
         Assert.That(StandingsParser.Place(cell), Is.EqualTo(place));
     }

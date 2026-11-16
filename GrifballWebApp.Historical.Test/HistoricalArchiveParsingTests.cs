@@ -28,9 +28,10 @@ public class HistoricalArchiveParsingTests
     private static readonly string[] expected9 = ["Bears", "Bears", "Bears", "Beer", "Beer"];
     private static readonly string[] expected10 = ["stats/Stats"];
     private static readonly string[] StatsAndPlayoffStats = ["stats/Stats", "stats/Playoff Stats"];
-    private static readonly (string, string?)[] PlaceholderTeamsRenamed = [("A", "THE WINNERS TEAM"), ("B", "THE WINNERS TEAM"), ("C", "Mystery Heroes"), ("D", "Trespa5s"), ("A", "THE WINNERS TEAM")];
+    private static readonly (string, string?)[] PlaceholderTeamsRenamed = [("A", "THE WINNERS TEAM"), ("B", "THE WINNERS TEAM"), ("C", "Mystery Heroes"), ("D", "Trespa5s"), ("E", null), ("A", "THE WINNERS TEAM")];
+    private static readonly string[] BravoThenAlpha = ["Bravo", "Alpha"];
     private static readonly string[] MysteryHeroesThenTheWinners = ["Mystery Heroes", "THE WINNERS TEAM", "Trespa5s"];
-    private static readonly string[] StatsNamesOfStandingsTeams = ["Chemical Imbalance", "Like Clockwork", "Bravo", "Alpah Team", "Puffy Grifbussy", "Buff Oily Men (& Women)", "SML08 All Stars + Kazink"];
+    private static readonly string[] StatsNamesOfStandingsTeams = ["Chemical Imbalance", "Like Clockwork", "Bravo", "Alpah Team", "Puffy Grifbussy", "Buff Oily Men (& Women)", "SML08 All Stars + Kazink", "(TBD)"];
     private static readonly string[] expected11 = ["gwl: no sheet 'Missing'"];
     private static readonly string[] expected12 = ["Silly Kids", "Never Last"];
     private static readonly string[] expected13 = ["Galvann", "SubPlayer", "SubPlayer2"];
@@ -821,13 +822,39 @@ public class HistoricalArchiveParsingTests
                 Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "Chemical Imbalance", 4, 10), Row("B", "Like Clockwork", 4, 1), Row("C", "Alpha", 4, 1),
                         Row("D", "Puffy Grifbussy", 4, 1), Row("E", "Buff Oily Men (& Women)", 4, 1), Row("F", "SML08 All Stars + Kazink", 4, 1)]),
                     ("Standings", [Row("Team", "Wins", "Losses"), Row("Chemical Inbalance", 15, 3), Row("like  clockwork!", 14, 4), Row("Bravo", 1, 9), Row("Alpah Team", 1, 9),
-                        Row("Puffy Grifbussy (WINNER)", 9, 1), Row("Buff Oily Men (& Women)", 5, 5), Row("SML08 All Stars and Kazink", 4, 6)]))),
+                        Row("Puffy Grifbussy (WINNER)", 9, 1), Row("Buff Oily Men (& Women)", 5, 5), Row("SML08 All Stars and Kazink", 4, 6), Row("(TBD)", 0, 0)]))),
         ];
 
         var teams = HistoricalArchiveBuilder.Build(sources).Input.Seasons.Seasons.Single().Teams.Select(t => t.TeamName);
 
         Assert.That(teams, Is.EqualTo(StatsNamesOfStandingsTeams),
             "A few letters off, the same letters, or the name without a note in brackets is the stats' team; a team no stats name, or one further off, keeps its own name");
+    }
+
+    [Test]
+    public void StandingsOfOneOfAWorkbooksSeasons_GoOnThatSeason_ByItsTab()
+    {
+        List<HistoricalSourceContent> sources =
+        [
+            Source("sml21", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Summer League 2021", Game = "halo3" },
+                    Tabs = [new() { Name = "Pro Stats", CustomSeason = "Summer League 2021 (Pro)" }, new() { Name = "Ammy Stats", CustomSeason = "Summer League 2021 (Amateur)" }],
+                    Standings = [new() { Sheet = "Ammy Standings", Tab = "Ammy Stats", Ranked = true }],
+                },
+                Workbook(("Pro Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "Alpha", 4, 1)]),
+                    ("Ammy Stats", [Row("Player", "Team", "Games", "Kills"), Row("B", "Bravo", 4, 1)]),
+                    ("Ammy Standings", [Row("Team", "Wins", "Losses"), Row("Bravo", 7, 1), Row("Alpha", 1, 7)]))),
+        ];
+
+        var build = HistoricalArchiveBuilder.Build(sources, new HashSet<string> { "sml21" });
+
+        var seasons = build.Input.Seasons.Seasons.ToDictionary(s => s.SourceSheet!, s => s.Teams.Select(t => t.TeamName).ToList());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasons["Ammy Stats"], Is.EqualTo(BravoThenAlpha), "Its own season's, Alpha the Amateur standings' own name (the Pro's Alpha is another season's)");
+            Assert.That(seasons["Pro Stats"], Is.Empty);
+        }
     }
 
     [Test]
@@ -842,7 +869,7 @@ public class HistoricalArchiveParsingTests
                     Tabs = [new() { Name = "Stats" }, new() { Name = "Playoff Stats", IsPlayoffs = true }],
                     Standings = [new() { Sheet = "Standings", Anchor = "Team Standings", Ranked = true, CaptainInName = true }],
                 },
-                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "OREOTHECAT's Team", 4, 10), Row("B", "oreothecat's team", 4, 1), Row("C", "Mystery Heroes", 4, 1), Row("D", "Trespa5s's Team", 4, 1)]),
+                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "OREOTHECAT's Team", 4, 10), Row("B", "oreothecat's team", 4, 1), Row("C", "Mystery Heroes", 4, 1), Row("D", "Trespa5s's Team", 4, 1), Row("E", null, 4, 1)]),
                     ("Playoff Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "OREOTHECAT's Team", 1, 1)]),
                     ("Standings", [Row("Team Standings", "Wins", "Loss"), Row("Mystery Heroes (Holy Morals)", 16, 4), Row("THE WINNERS TEAM (OREOTHECAT)", 0, 12), Row("Trespa5s", 2, 16)]))),
         ];

@@ -50,21 +50,7 @@ public static partial class StandingsParser
 
     private static List<ArchiveTeam> ByRow(SheetTable sheet, int headerRow, int teamColumn, StandingsTab tab)
     {
-        // The table's columns, from its team column to the right, up to another table's team header; a column left of
-        // the team's too (a TeamInfo tab's "Seed #" in A)
-        var columns = new Dictionary<Field, int>();
-        var header = sheet.Rows[headerRow];
-        for (var c = teamColumn + 1; c < header.Length; c++)
-        {
-            if (FieldOf(header[c]) is not { } field)
-                continue;
-            if (field == Field.Team)
-                break;
-            columns.TryAdd(field, c);
-        }
-        for (var c = teamColumn - 1; c >= 0; c--)
-            if (FieldOf(header[c]) is { } field and not Field.Team)
-                columns.TryAdd(field, c);
+        var columns = RowColumns(sheet.Rows[headerRow], teamColumn);
         var teams = new Teams(tab);
         for (var r = headerRow + 1; r < sheet.Rows.Count; r++)
         {
@@ -75,15 +61,40 @@ public static partial class StandingsParser
                 teams.NewBlock();
                 continue;
             }
-            string Value(Field field) => columns.TryGetValue(field, out var c) ? sheet.Cell(r, c).Trim() : "";
-            // A team's row has a number of the table's (a win, a loss, a record, a place) or, a table of only names and
-            // captains, a value: a row without (a note, another table's) isn't one
-            var numbers = columns.Keys.Where(f => f is not Field.Captain).ToList();
-            if (name.Length == 0 || (numbers.Count > 0 ? !numbers.Any(f => IsNumber(f, Value(f))) : columns.Keys.All(f => Value(f).Length == 0)))
-                continue;
-            teams.Add(name, Value);
+            var row = r;
+            string Value(Field field) => columns.TryGetValue(field, out var c) ? sheet.Cell(row, c).Trim() : "";
+            if (name.Length > 0 && IsTeamRow(columns.Keys, Value))
+                teams.Add(name, Value);
         }
         return teams.List;
+    }
+
+    /// <summary>A table's columns: from its team column to the right, up to another table's team header, and left of it
+    /// too (a TeamInfo tab's "Seed #" in A).</summary>
+    private static Dictionary<Field, int> RowColumns(string[] header, int teamColumn)
+    {
+        var columns = new Dictionary<Field, int>();
+        for (var c = teamColumn + 1; c < header.Length; c++)
+        {
+            var field = FieldOf(header[c]);
+            if (field == Field.Team)
+                break;
+            if (field is { } known)
+                columns.TryAdd(known, c);
+        }
+        for (var c = teamColumn - 1; c >= 0; c--)
+            if (FieldOf(header[c]) is { } field and not Field.Team)
+                columns.TryAdd(field, c);
+        return columns;
+    }
+
+    /// <summary>A team's row has a number of the table's (a win, a loss, a record, a place) or, a table of only names and
+    /// captains, a value: a row without (a note, another table's) isn't one.</summary>
+    private static bool IsTeamRow(IEnumerable<Field> columns, Func<Field, string> value)
+    {
+        var fields = columns.ToList();
+        var numbers = fields.Where(f => f is not Field.Captain).ToList();
+        return numbers.Count > 0 ? numbers.Any(f => IsNumber(f, value(f))) : fields.Any(f => value(f).Length > 0);
     }
 
     private static List<ArchiveTeam> ByColumn(SheetTable sheet, int namesRow, int labelColumn, StandingsTab tab)
@@ -203,7 +214,7 @@ public static partial class StandingsParser
             ? row.Skip(column + 1).Any(cell => cell.Trim().Length > 0)
             : row.Where((_, c) => c != column).Any(cell => FieldOf(cell) is { } field && field != Field.Team);
 
-    private static Field? FieldOf(string? cell) => cell is not null && Headers.TryGetValue(Normalize(cell), out var field) ? field : null;
+    private static Field? FieldOf(string cell) => Headers.TryGetValue(Normalize(cell), out var field) ? field : null;
 
     private static string Normalize(string cell)
         => SpacesRegex().Replace(cell.Trim().TrimEnd(':', '#').Trim().ToLowerInvariant(), " ");
