@@ -248,7 +248,7 @@ public class SeasonStatsParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(warnings, Is.Empty);
+            Assert.That(warnings, Is.EqualTo(new[] { "2025-octane-sl25-bid-stats: no games of 'Bench Warmer' in 'Season Match History'" }));
             Assert.That((tycoon.GamesPlayed, tycoon.Wins, tycoon.Losses), Is.EqualTo(((decimal?)3, (decimal?)1, (decimal?)1)), "a tie is a game, neither won nor lost");
             Assert.That((tycoon.TotalSecondsPlayed, tycoon.AverageLifeSeconds, tycoon.Goals), Is.EqualTo(((decimal?)1892, (decimal?)15.075m, (decimal?)3)));
             Assert.That((tycoon.ExtendedMetrics!.Value.GetProperty("roundsWon").GetDecimal(), tycoon.ExtendedMetrics.Value.GetProperty("roundsLost").GetDecimal(),
@@ -360,5 +360,32 @@ public class SeasonStatsParserTests
         var player = SeasonStatsParser.Player(["Ace", "7"], columns, "Ace", null, null, null, 1, table);
 
         Assert.That(player.ExtendedMetrics!.Value.GetProperty("grabs").GetDecimal(), Is.EqualTo(3m));
+    }
+
+    [Test]
+    public void APlayerWithTwoLines_GetsNoGames_TheGamesTabCantSplitThem()
+    {
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Stats",
+            [
+                RoundsHeader,
+                Row("Rayzyr (to Tuna)", 900, 4, 2, 0),
+                Row("Rayzyr", 900, 3, 3, 0),
+            ]),
+            ("Season Match History",
+            [
+                Row("Outcome", "PlayerId"),
+                Row(2, "Rayzyr"),
+                Row(3, "Rayzyr"),
+            ])))!;
+
+        var warnings = new List<string>();
+        var players = SeasonStatsParser.Parse("2025-octane-sl25-bid-stats", RoundsConfig(), workbook, warnings).Single().Players;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(players.Select(p => (p.StintIndex, p.GamesPlayed, p.Wins, p.Losses)), Is.EqualTo(new[] { (1, (decimal?)0, (decimal?)0, (decimal?)0), (2, (decimal?)0, (decimal?)0, (decimal?)0) }));
+            Assert.That(warnings, Is.EqualTo(new[] { "2025-octane-sl25-bid-stats: 'Rayzyr' has 2 lines: their games in 'Season Match History' can't be split" }));
+        }
     }
 }

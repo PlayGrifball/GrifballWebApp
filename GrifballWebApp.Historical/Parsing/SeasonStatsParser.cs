@@ -138,17 +138,27 @@ public static partial class SeasonStatsParser
 
     /// <summary>Fills the games played, wins and losses the tab has no column for from its games tab
     /// (<see cref="StatsTab.GamesSheet"/>): a player's rows there, and of them the won and the lost (a tie or a game left
-    /// unfinished is neither). The tab has a row per player, so the player's line is that row.</summary>
+    /// unfinished is neither). A player with no games there, or with more than one line (stints the games can't be split
+    /// between), keeps 0, with a warning.</summary>
     private static void CountGames(string sourceId, SheetWorkbook workbook, string gamesName, Dictionary<int, (string Key, string Header)> columns,
         List<ArchivePlayer> players, List<string> warnings)
     {
         if (GameRecords(sourceId, workbook, gamesName, warnings) is not { } records)
             return;
         var has = columns.Values.Select(c => c.Key).ToHashSet();
-        foreach (var player in players)
+        foreach (var lines in players.GroupBy(p => HistoricalKeys.Normalize(p.Gamertag)))
         {
-            if (!records.TryGetValue(HistoricalKeys.Normalize(player.Gamertag), out var record))
+            var player = lines.First();
+            if (!records.TryGetValue(lines.Key, out var record))
+            {
+                warnings.Add($"{sourceId}: no games of '{player.Gamertag}' in '{gamesName}'");
                 continue;
+            }
+            if (lines.Count() > 1)
+            {
+                warnings.Add($"{sourceId}: '{player.Gamertag}' has {lines.Count()} lines: their games in '{gamesName}' can't be split");
+                continue;
+            }
             if (!has.Contains("gamesPlayed"))
                 player.GamesPlayed = record.Games;
             if (!has.Contains("wins"))

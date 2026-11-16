@@ -84,18 +84,26 @@ public class ArchiveImportTests
 
     /// <summary>A line from a tab that counts rounds, not games (the Infinite stats tool's, 2025 on: its rounds are kept in
     /// the line's extended metrics) has its games played, wins and losses from the season's games tab
-    /// (StatsTab.GamesSheet): not all three 0.</summary>
+    /// (StatsTab.GamesSheet): not all three 0, for a line that played a round.</summary>
     [Test]
     public async Task EveryStatLineWithRounds_HasGames()
     {
         await using var context = Archive.NewContext();
         var lines = await context.PlayerSeasonStats.AsNoTracking()
             .Where(p => p.Season.HistoricalSourceID != null && p.ExtendedMetricsJson != null && p.ExtendedMetricsJson.Contains("\"roundsWon\""))
-            .Select(p => new { p.Season.SeasonName, p.IsPlayoffs, NoGames = p.GamesPlayed == 0 && p.Wins == 0 && p.Losses == 0 })
+            .Select(p => new { p.Season.SeasonName, p.IsPlayoffs, NoGames = p.GamesPlayed == 0 && p.Wins == 0 && p.Losses == 0, p.ExtendedMetricsJson })
             .ToListAsync();
 
-        Assert.That(lines.GroupBy(l => (l.SeasonName, l.IsPlayoffs)).Where(g => g.Any(l => l.NoGames))
+        Assert.That(lines.Where(l => Rounds(l.ExtendedMetricsJson) > 0).GroupBy(l => (l.SeasonName, l.IsPlayoffs)).Where(g => g.Any(l => l.NoGames))
             .Select(g => $"{g.Key.SeasonName}{(g.Key.IsPlayoffs ? " (playoffs)" : "")}: {g.Count(l => l.NoGames)} of {g.Count()} lines"), Is.Empty);
+    }
+
+    /// <summary>A line's rounds won, lost and tied, from its extended metrics.</summary>
+    private static decimal Rounds(string json)
+    {
+        using var metrics = System.Text.Json.JsonDocument.Parse(json);
+        return new[] { "roundsWon", "roundsLost", "roundsTied" }
+            .Sum(name => metrics.RootElement.TryGetProperty(name, out var value) ? value.GetDecimal() : 0);
     }
 
     [Test]
