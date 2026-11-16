@@ -23,6 +23,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
     private static readonly string[] GrifsDid = ["The Grifs did."];
     private static readonly string[] Season3 = ["Season 3."];
     private static readonly string[] Hello = ["Hello."];
+    private static readonly string[] Failed = [VoiceConversation.Failed];
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 16, 12, 0, 0, TimeSpan.Zero));
     private readonly ChatLimits _limits = new();
     private readonly Speech _speech = new();
@@ -205,5 +206,58 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
 
         Assert.That(_speech.Spoken, Is.EqualTo(Hello));
         Assert.That(async () => await running, Throws.Nothing, "Stopping ends it quietly");
+    }
+
+    [Test]
+    public async Task ASpeakerNotKnownYet_IsLookedUp_TheirAudioDroppedMeanwhile()
+    {
+        await OptedIn(Speaker);
+        _speech.Transcripts.Enqueue("Grif, who won?");
+        var conversation = Conversation(new ScriptedChatClient((TimeSpan.Zero, "The Grifs did.")));
+
+        conversation.Hear(Speaker, new short[VoicePcm.DiscordRate]);
+        await conversation.RefreshAsync(Speaker);
+        conversation.Hear(Speaker, new short[VoicePcm.DiscordRate]);
+        _time.Advance(VoiceLines.Silence);
+        await conversation.ProcessEndedAsync(CancellationToken.None);
+
+        Assert.That(_speech.Heard.Single(), Has.Length.EqualTo(44 + VoicePcm.WhisperRate * 2), "Only the second second: the first came before they were known");
+    }
+
+    [Test]
+    public async Task AConsentThatCantBeRead_IsNotHeard_AndAskedAgainNextTime()
+    {
+        var conversation = Conversation(new ScriptedChatClient((TimeSpan.Zero, "Hi")));
+        await Db.DisposeAsync();
+
+        await conversation.RefreshAsync(Speaker);
+        conversation.Hear(Speaker, new short[VoicePcm.DiscordRate]);
+        _time.Advance(VoiceLines.Silence);
+        await conversation.ProcessEndedAsync(CancellationToken.None);
+
+        Assert.That(_speech.Heard, Is.Empty);
+    }
+
+    [Test]
+    public async Task AChatThatFails_SaysItCouldntAnswer()
+    {
+        await OptedIn(Speaker);
+        _speech.Transcripts.Enqueue("Grif, who won?");
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi")) { BeforeReply = _ => throw new HttpRequestException("model down") };
+
+        await SaysALine(Conversation(model));
+
+        Assert.That(_speech.Spoken, Is.EqualTo(Failed));
+    }
+
+    [Test]
+    public async Task AnEmptyAnswer_IsntSpoken()
+    {
+        await OptedIn(Speaker);
+        _speech.Transcripts.Enqueue("Grif, who won?");
+
+        await SaysALine(Conversation(new ScriptedChatClient((TimeSpan.Zero, "  "))));
+
+        Assert.That(_played, Is.Empty);
     }
 }

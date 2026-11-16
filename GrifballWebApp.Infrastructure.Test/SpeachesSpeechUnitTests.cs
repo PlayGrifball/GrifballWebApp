@@ -12,6 +12,8 @@ namespace GrifballWebApp.Infrastructure.Test;
 [Parallelizable(ParallelScope.All)]
 public class SpeachesSpeechUnitTests
 {
+    private static readonly byte[] OneByte = [1];
+
     /// <summary>The server: each request recorded (its path, content type and body), answered with <paramref name="body"/>.</summary>
     private sealed class Server(HttpStatusCode status, byte[] body) : HttpMessageHandler
     {
@@ -95,6 +97,39 @@ public class SpeachesSpeechUnitTests
             {
                 ["Speech:Url"] = "http://grif-speech:8000/",
             }).Build()), Throws.InvalidOperationException.With.Message.Contain("Speech:TranscriptionModel"));
+        }
+    }
+
+    [Test]
+    public async Task TranscribeAsync_NoText_IsEmpty()
+    {
+        var server = new Server(HttpStatusCode.OK, "{}"u8.ToArray());
+
+        Assert.That(await Speech(server).TranscribeAsync(OneByte), Is.Empty);
+    }
+
+    [Test]
+    public async Task AddChatSpeech_AUrlWithoutItsSlash_AndAVoiceOfItsOwn()
+    {
+        var server = new Server(HttpStatusCode.OK, [0, 0]);
+        using var services = new ServiceCollection()
+            .AddChatSpeech(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Speech:Url"] = "http://grif-speech:8000",
+                ["Speech:TranscriptionModel"] = "whisper-small",
+                ["Speech:SpeechModel"] = "kokoro",
+                ["Speech:Voice"] = "am_adam",
+            }).Build())
+            .ConfigureHttpClientDefaults(http => http.ConfigurePrimaryHttpMessageHandler(() => server))
+            .BuildServiceProvider();
+
+        await services.GetRequiredService<IChatSpeech>().SpeakAsync("Hi");
+
+        var (path, _, body) = server.Requests.Single();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(path, Is.EqualTo("/v1/audio/speech"), "The URL's path kept: a slash added");
+            Assert.That(JsonDocument.Parse(body).RootElement.GetProperty("voice").GetString(), Is.EqualTo("am_adam"));
         }
     }
 }

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Commands;
+using GrifballWebApp.Server.Voice;
 using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
@@ -560,8 +561,8 @@ public class DiscordTransportTests
             Assert.That((heardAfterOptIn, heardAfterOptOut), Is.EqualTo((true, false)));
             Assert.That(Routes(optIn), Is.EqualTo(new[] { Callback, EditOriginal }));
             Assert.That(optIn[0].Flags, Is.EqualTo(MessageFlags.Ephemeral), "Theirs alone");
-            Assert.That(optIn[1].Content, Is.EqualTo(VoiceCommands.OptedIn));
-            Assert.That(optOut[1].Content, Is.EqualTo(VoiceCommands.OptedOut));
+            Assert.That(optIn[1].Content, Is.EqualTo(VoiceCommandsHandler.OptedIn));
+            Assert.That(optOut[1].Content, Is.EqualTo(VoiceCommandsHandler.OptedOut));
         }
     }
 
@@ -573,8 +574,8 @@ public class DiscordTransportTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(join[1].Content, Is.EqualTo(VoiceCommands.Unavailable));
-            Assert.That(leave[1].Content, Is.EqualTo(VoiceCommands.NoGuild));
+            Assert.That(join[1].Content, Is.EqualTo(VoiceCommandsHandler.Unavailable));
+            Assert.That(leave[1].Content, Is.EqualTo(VoiceCommandsHandler.NoGuild));
         }
     }
 }
