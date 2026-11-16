@@ -55,8 +55,8 @@ public class HistoricalPhaseCasesTests
         var games = RecordedGameParser.Parse("wl", new GamesTab { Sheet = "G", Season = "wl/Stats", Game = "halo3", Layout = GamesLayout.Blocks },
             SheetWorkbook.Read(Workbook(("G", [Row("Template"), Row(title), BlockHeader, Row("Tuna", "a", 1, 1, 10, 2, 10, 0, 10, 0), Row("Damage", "b", 1, 0, 10, 1, 10, 0, 10, 0)])))!, []);
 
-        // A title without a phase before its dash is no block title
-        Assert.That(games.SelectMany(g => g.Teams).Select(t => t.Score), Is.EqualTo(title.Contains(" - ") ? new[] { winner, loser } : []));
+        // A title without a phase is the winner first ("A over B 5-3 - host")
+        Assert.That(games.SelectMany(g => g.Teams).Select(t => t.Score), Is.EqualTo(new[] { winner, loser }));
     }
 
     private static bool CarnagePhase(string marker, string before = "Week 1")
