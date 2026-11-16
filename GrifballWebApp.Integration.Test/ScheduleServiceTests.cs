@@ -226,7 +226,7 @@ public class ScheduleServiceTests
             Assert.That(applied.Value!.MatchesScheduled, Is.EqualTo(2));
             Assert.That(times[decided], Is.Null, "A decided match keeps its time");
             foreach (var gene in run.Genes.Skip(1))
-                Assert.That(times[gene.SeasonMatchID], Is.EqualTo(gene.ScheduledTime).Within(TimeSpan.FromSeconds(1)));
+                Assert.That(times[gene.SeasonMatchID], Is.EqualTo(ScheduleService.ToUtc(gene.ScheduledTime)).Within(TimeSpan.FromSeconds(1)));
             again.AssertProblem(StatusCodes.Status409Conflict, "That recommendation was applied already");
             missing.AssertProblem(StatusCodes.Status404NotFound);
             Assert.That((latest.AppliedBy, latest.AppliedAt.HasValue), Is.EqualTo(("commish", true)));

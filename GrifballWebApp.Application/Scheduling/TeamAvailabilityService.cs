@@ -45,9 +45,9 @@ public sealed class TeamAvailabilityService(IApplicationDbContext context)
             .ToListAsync(ct);
         var players = teams.SelectMany(t => t.Players).Distinct().ToList();
         // Who can play each slot: the timeslots each rostered player ticked when they signed up for the season
-        var ticked = (await context.SeasonSignups.AsNoTracking()
-            .Where(s => s.SeasonID == seasonID && players.Contains(s.UserID))
-            .SelectMany(s => s.SignupAvailability.Select(a => new { s.UserID, a.AvailabilityOptionID }))
+        var ticked = (await context.Set<Domain.League.SignupAvailability>().AsNoTracking()
+            .Where(a => a.SeasonSignup.SeasonID == seasonID && players.Contains(a.SeasonSignup.UserID))
+            .Select(a => new { a.SeasonSignup.UserID, a.AvailabilityOptionID })
             .ToListAsync(ct))
             .ToLookup(a => a.AvailabilityOptionID, a => a.UserID);
 
