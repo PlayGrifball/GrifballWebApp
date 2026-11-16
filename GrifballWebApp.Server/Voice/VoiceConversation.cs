@@ -75,9 +75,8 @@ public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat
         }
         catch (OperationCanceledException)
         {
-            // Left the channel: over. Anything else canceled it: not ours to hide
-            if (!cancellationToken.IsCancellationRequested)
-                throw;
+            // Left the channel: over. Only this token's cancellation gets here: the timer throws for nothing else, and
+            // ProcessEndedAsync logs any other
         }
     }
 
