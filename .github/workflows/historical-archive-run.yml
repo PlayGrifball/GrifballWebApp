@@ -1,0 +1,174 @@
+name: Historical archive (run)
+
+# GrifballWebApp.HistoricalArchive.Test: the historical import against the real archive (every source's sheet), which no
+# leg of dotnet-tests.yml runs. The copy of the archive is filled once, and the import run on it twice, this commit's
+# and its base's (the PR's base, or master), so the report is what the change does to the archive: each season whose
+# teams, ranks, stats, matches or titles changed. The import's known gaps (#511) fail some of its tests on both sides:
+# they don't fail the job; the comparison is the result. On a PR from this repository, it's a comment (kept up to
+# date); always the run's summary; the summaries and the imported databases are artifacts. docs/historical-import.md.
+#
+# Called by its two runs, which differ in where they run and so what the copy can have:
+# - historical-archive.yml, on the org's in-cluster runners: the test environment's snapshots (its SQL Server, through
+#   the archive's read-only login, whose password the runner has as ARCHIVE_DB_PASSWORD), then a download over each
+#   source still public. Every source, even one that went private.
+# - historical-archive-public.yml, on GitHub's runners: downloaded only. A sheet that went private or was deleted, which
+#   only the database still has, is left out (a warning, its seasons not imported), on both sides alike.
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: The runner (grif-k8s, or a GitHub-hosted label)
+        type: string
+        required: true
+      fill:
+        description: GRIF_HISTORICAL_FILL (both with the test environment's database, download without it)
+        type: string
+        required: true
+      name:
+        description: Its name in the report and the comment's (one comment per run kind)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  # The test environment's database, through the archive's read-only login
+  ARCHIVE_DB_HOST: sqlserver.grif-test.svc.cluster.local,1433
+
+jobs:
+  archive:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    # The commit to compare with: the PR's base, or master's head (none when this is master)
+    - name: The base
+      id: base
+      env:
+        PR_BASE: ${{ github.event.pull_request.base.sha }}
+      run: |
+        base=${PR_BASE:-$(git rev-parse origin/master)}
+        if [ "$base" = "$(git rev-parse HEAD)" ]; then base=; fi
+        echo "sha=$base" >> "$GITHUB_OUTPUT"
+        echo "Comparing with ${base:-nothing}"
+
+    # This commit's import, filling the copy first. With the database (fill both or database), its password stays in the
+    # environment (the in-cluster runner's), never on a command line.
+    - name: This commit's import (and the copy of the archive)
+      env:
+        GRIF_HISTORICAL_ARCHIVE: ${{ runner.temp }}/archive
+        GRIF_HISTORICAL_FILL: ${{ inputs.fill }}
+      run: |
+        set -u
+        if [ "$GRIF_HISTORICAL_FILL" != download ]; then
+          [ -n "${ARCHIVE_DB_PASSWORD:-}" ] || { echo "::error::The runner has no ARCHIVE_DB_PASSWORD (the homelab's arc-grif)"; exit 1; }
+          export GRIF_HISTORICAL_DATABASE="Server=$ARCHIVE_DB_HOST;Database=GrifballWebApp;User Id=grif_archive;Password=$ARCHIVE_DB_PASSWORD;Encrypt=True;TrustServerCertificate=True;ApplicationIntent=ReadOnly"
+        fi
+        # Failed checks are the import's known gaps: the summary is the result
+        dotnet test GrifballWebApp.HistoricalArchive.Test --configuration Release --logger "trx;LogFileName=head.trx" --results-directory "$RUNNER_TEMP/results" || true
+        [ -s "$GRIF_HISTORICAL_ARCHIVE/summary.md" ] || { echo "::error::No summary: the copy or the import failed (the test's output above)"; exit 1; }
+        mkdir -p "$RUNNER_TEMP/out"
+        cp "$GRIF_HISTORICAL_ARCHIVE/summary.md" "$RUNNER_TEMP/out/head-summary.md"
+        cp "$GRIF_HISTORICAL_ARCHIVE/import.db" "$RUNNER_TEMP/out/head-import.db"
+
+    # The base's import, on the same copy (no fill: the same sheets on both sides)
+    - name: The base's import
+      if: steps.base.outputs.sha != ''
+      env:
+        BASE: ${{ steps.base.outputs.sha }}
+        GRIF_HISTORICAL_ARCHIVE: ${{ runner.temp }}/archive
+      run: |
+        set -u
+        git worktree add --detach "$RUNNER_TEMP/base" "$BASE"
+        cd "$RUNNER_TEMP/base"
+        if [ ! -d GrifballWebApp.HistoricalArchive.Test ]; then echo "The base has no real-archive tests: nothing to compare"; exit 0; fi
+        dotnet test GrifballWebApp.HistoricalArchive.Test --configuration Release --logger "trx;LogFileName=base.trx" --results-directory "$RUNNER_TEMP/results" || true
+        if [ -s "$GRIF_HISTORICAL_ARCHIVE/summary.md" ]; then
+          cp "$GRIF_HISTORICAL_ARCHIVE/summary.md" "$RUNNER_TEMP/out/base-summary.md"
+          cp "$GRIF_HISTORICAL_ARCHIVE/import.db" "$RUNNER_TEMP/out/base-import.db"
+        fi
+
+    - name: The report
+      id: report
+      env:
+        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        RUN_NAME: ${{ inputs.name }}
+        BASE: ${{ steps.base.outputs.sha }}
+      run: |
+        out="$RUNNER_TEMP/out"
+        {
+          echo "### Historical archive ($RUN_NAME): $SHA"
+          echo
+          if [ -s "$out/base-summary.md" ]; then
+            echo "Compared with $BASE, on the same copy of the archive:"
+            echo
+            sh .github/scripts/historical-archive-compare.sh "$out/base-summary.md" "$out/head-summary.md"
+          else
+            echo "No base to compare with: this commit's summary is the artifact."
+            echo
+          fi
+          # What the copy couldn't get (downloaded only: a sheet only the database still has), left out on both sides
+          notfilled=$(sed -n '/^## Not filled/,/^## /{/^- /p}' "$out/head-summary.md")
+          if [ -n "$notfilled" ]; then echo "Not in this run's copy (their seasons not imported):"; echo "$notfilled"; echo; fi
+          # This commit's failed checks: the import's gaps (#511)
+          if [ -s "$RUNNER_TEMP/results/head.trx" ]; then
+            failed=$(grep -o 'testName="[^"]*" [^>]*outcome="Failed"' "$RUNNER_TEMP/results/head.trx" | sed -E 's/testName="([^"]*)".*/\1/' | sort -u | tr '\n' ' ')
+            echo "Checks that fall short: ${failed:-none}"
+          fi
+          echo
+          echo "The summaries and imported databases: this run's historical-archive artifact."
+        } > "$out/report.md"
+        cat "$out/report.md" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload the summaries and databases
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: historical-archive-${{ inputs.name }}
+        path: |
+          ${{ runner.temp }}/out
+          ${{ runner.temp }}/results
+        retention-days: 14
+        if-no-files-found: warn
+
+    # The runner image has curl and jq, not gh
+    # Not on a fork's PR: its token is read-only (the run's summary has the report)
+    - name: Comment on the PR
+      if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      env:
+        TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+        RUN_NAME: ${{ inputs.name }}
+      run: |
+        set -euo pipefail
+        marker="<!-- historical-archive-$RUN_NAME -->"
+        api() { curl -fsS --max-time 30 -H "Authorization: Bearer $TOKEN" -H 'Accept: application/vnd.github+json' "$@"; }
+        body=$(jq -Rs --arg marker "$marker" '{body: ($marker + "\n" + .)}' < "$RUNNER_TEMP/out/report.md")
+        existing=""
+        for page in 1 2 3 4 5; do
+          found=$(api "https://api.github.com/repos/$REPO/issues/$PR/comments?per_page=100&page=$page" \
+            | jq -r --arg marker "$marker" '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith($marker)))][0].id // empty')
+          if [ -n "$found" ]; then existing=$found; break; fi
+        done
+        if [ -n "$existing" ]; then
+          api -X PATCH "https://api.github.com/repos/$REPO/issues/comments/$existing" -d "$body" > /dev/null
+        else
+          api -X POST "https://api.github.com/repos/$REPO/issues/$PR/comments" -d "$body" > /dev/null
+        fi

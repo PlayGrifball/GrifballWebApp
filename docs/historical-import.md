@@ -94,12 +94,18 @@ A run leaves `import.db` (the imported database, to query) and `summary.md` (eac
 matches, playoff matches and titles, and the build's and import's warnings) in the copy's folder. A fill and run take
 about 4 minutes; a run from the copy, under 2.
 
-### In CI: `historical-archive.yml`
+### In CI: `historical-archive.yml` and `historical-archive-public.yml`
 
-The same tests run on the org's in-cluster runners (`grif-k8s`): by hand (Actions > Historical archive > Run workflow,
-on any branch), and on every PR from this repository that changes the import (`GrifballWebApp.Historical`, the
-real-archive tests, `Application/Historical`, `Domain/Archive`, the workbook reader). It fills the copy once (the test
-environment's snapshots, through the chart's read-only `database.logins.archiveReader`, then a download), runs this
-commit's import and its base's on it, and reports each season whose counts changed: a PR comment, kept up to date, and
-the run's summary. The import's known gaps don't fail it. The summaries and imported databases are the run's
-`historical-archive` artifact. A PR from a fork never runs on the in-cluster runners: it's skipped.
+The same tests run in CI, by hand (Actions > Run workflow, on any branch) and on every PR that changes the import
+(`GrifballWebApp.Historical`, the real-archive tests, `Application/Historical`, `Domain/Archive`, the workbook reader).
+Both fill a copy once, run this commit's import and its base's on it, and report each season whose counts changed: in
+the run's summary, and on a PR from this repository a comment each, kept up to date. The import's known gaps don't fail
+them. The summaries and imported databases are each run's artifact. They share `historical-archive-run.yml`; they
+differ in where they run, so in what their copy can have:
+
+- **`historical-archive.yml`**: the org's in-cluster runners (`grif-k8s`). The test environment's snapshots, through
+  the chart's read-only `database.logins.archiveReader`, then a download: every source, a sheet that went private
+  included. Never a fork's PR: a self-hosted runner doesn't run outside code.
+- **`historical-archive-public.yml`**: GitHub's runners, downloaded only, a fork's PR included. A sheet that went
+  private or was deleted, which only the database still has, isn't in its copy: `Copy_HasEverySourceTheImportReads`
+  warns of it instead of failing, the report lists it, and its seasons aren't imported on either side.
