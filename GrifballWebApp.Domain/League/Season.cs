@@ -5,8 +5,8 @@ using System.Linq.Expressions;
 namespace GrifballWebApp.Domain.League;
 
 /// <summary>
-/// A season of a league: the root of its timeslots (<see cref="SeasonAvailability"/>) and its titles
-/// (<see cref="PlayerChampionships"/>). It begins one of two ways: an organizer's (<see cref="Organized"/>), which the
+/// A season of a league: the root of its timeslots (<see cref="SeasonAvailability"/>), its titles
+/// (<see cref="PlayerChampionships"/>) and its awards (<see cref="Awards"/>). It begins one of two ways: an organizer's (<see cref="Organized"/>), which the
 /// event organizer edits (<see cref="Edit"/>, <see cref="Schedule"/>), or the historical archive's (<see cref="Imported"/>,
 /// <see cref="HistoricalSourceID"/> set), which only the import changes (<see cref="UpdateArchived"/>,
 /// <see cref="ScheduleArchived"/>): an imported season is refused for an organizer's edits. Nothing outside it sets its
@@ -136,6 +136,10 @@ public class Season : AuditableEntity
     /// <see cref="RecordArchivedChampions"/>). Read them through SeasonQueries.Championships unless the season is loaded with them.</summary>
     public IReadOnlyCollection<PlayerChampionship> PlayerChampionships => _playerChampionships;
     private readonly HashSet<PlayerChampionship> _playerChampionships = [];
+    /// <summary>The season's awards: a row per winner of each award (<see cref="RecordArchivedAwards"/>). Read them through
+    /// SeasonQueries.Awards unless the season is loaded with them.</summary>
+    public IReadOnlyCollection<SeasonAward> Awards => _awards;
+    private readonly HashSet<SeasonAward> _awards = [];
 
     /// <summary>
     /// The seasons imported from the historical archive (<see cref="HistoricalSourceID"/> set), for queries: the one rule,
@@ -367,6 +371,72 @@ public class Season : AuditableEntity
             }
         }
         return moved;
+    }
+
+    // Its awards: the season's awards must be loaded (SeasonQueries.WithAwards) for these to find the ones it has
+
+    /// <summary>
+    /// Records the season's awards as the historical archive gives them, in its order: an award per name and winner (a
+    /// winner listed twice for one award counts once), what each is worth, who won it (a player, a team, or a player of a
+    /// team) and its place in the list. The awards it no longer gives go; only what changed is written. Refused (thrown)
+    /// for a season of the app's, an award without a name or a winner, a winner who is neither a player nor a team, and a
+    /// team of another season.
+    /// </summary>
+    public AwardChanges RecordArchivedAwards(IReadOnlyList<SeasonAwardWinner> winners)
+    {
+        RequireImported();
+        foreach (var winner in winners)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(winner.Name, nameof(winners));
+            ArgumentException.ThrowIfNullOrWhiteSpace(winner.WinnerName, nameof(winners));
+            if (winner.UserID is null && winner.Team is null)
+                throw new ArgumentException($"The award {winner.Name} of {winner.WinnerName} has neither a player nor a team", nameof(winners));
+            if (winner.Team is not null && winner.Team.SeasonID != SeasonID)
+                throw new ArgumentException($"Team {winner.Team.TeamID} is not a team of season {SeasonID}", nameof(winners));
+        }
+
+        int inserted = 0, updated = 0, position = 0;
+        var kept = new HashSet<SeasonAward>(ReferenceEqualityComparer.Instance);
+        foreach (var winner in winners)
+        {
+            var award = _awards.FirstOrDefault(a => a.IsFor(winner.Name, winner.WinnerName));
+            if (award is not null && kept.Contains(award))
+                continue;
+            position++;
+            if (award is null)
+            {
+                award = SeasonAward.Given(this, winner.Name, winner.WinnerName);
+                _awards.Add(award);
+                award.WonBy(winner.UserID, winner.Team?.TeamID, winner.Value, position);
+                inserted++;
+            }
+            else if (award.WonBy(winner.UserID, winner.Team?.TeamID, winner.Value, position))
+            {
+                updated++;
+            }
+            kept.Add(award);
+        }
+        var removed = _awards.RemoveWhere(a => !kept.Contains(a));
+        return new AwardChanges(inserted, updated, removed);
+    }
+
+    /// <summary>The awards of the imported season's teams the import removes go (a team's award, and a player's naming
+    /// the team), as a title does; the next record of its awards brings back any still given. Only an imported season
+    /// (throws otherwise).</summary>
+    public int RemoveArchivedAwardsOf(IReadOnlyCollection<int> teamIDs)
+    {
+        RequireImported();
+        return _awards.RemoveWhere(a => a.TeamID is int teamID && teamIDs.Contains(teamID));
+    }
+
+    /// <summary>A user merge: the season's awards of <paramref name="fromUserID"/> become <paramref name="toUserID"/>'s.
+    /// Returns how many moved.</summary>
+    public int MergeAwards(int fromUserID, int toUserID)
+    {
+        var awards = _awards.Where(a => a.UserID == fromUserID).ToList();
+        foreach (var award in awards)
+            award.ReassignUser(toUserID);
+        return awards.Count;
     }
 
     /// <summary>

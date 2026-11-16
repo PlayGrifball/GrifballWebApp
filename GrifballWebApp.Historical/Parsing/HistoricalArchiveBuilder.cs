@@ -43,6 +43,8 @@ public sealed class HistoricalArchiveBuilder
     private readonly List<(string SourceId, RosterTab Tab, Dictionary<string, string>? Teams)> _rosters = [];
     /// <summary>Each standings tab's teams, put on their season's regular season once every season is known.</summary>
     private readonly List<(string SourceId, StandingsTab Tab, List<ArchiveTeam>? Teams)> _standings = [];
+    /// <summary>Each awards tab's awards, put on their season's regular season once every season is known.</summary>
+    private readonly List<(string SourceId, AwardsTab Tab, List<AwardsParser.ParsedAward>? Awards)> _awards = [];
     private readonly HashSet<string> _affected = new(StringComparer.OrdinalIgnoreCase);
     private bool _everySeason;
     private bool _playersChanged;
@@ -88,6 +90,8 @@ public sealed class HistoricalArchiveBuilder
             _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
         foreach (var tab in config.Standings)
             _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
+        foreach (var tab in config.Awards)
+            _awards.Add((id, tab, workbook.Sheet(tab.Sheet) is { } awardsSheet ? AwardsParser.Parse(awardsSheet, tab) : null));
         AddGames(id, config, workbook, changed);
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
@@ -167,6 +171,7 @@ public sealed class HistoricalArchiveBuilder
         var waypoint = WaypointBySeason();
         FillTeamsFromRosters();
         AddStandings();
+        AddAwards();
 
         var input = new HistoricalArchiveInput
         {
@@ -269,6 +274,48 @@ public sealed class HistoricalArchiveBuilder
             regular.Teams.AddRange(named);
             if (_changedSourceIds?.Contains(sourceId) != false)
                 _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
+        }
+    }
+
+    /// <summary>
+    /// Each awards tab's awards go on their season's regular-season entry (the first, or its <see cref="AwardsTab.Tab"/>),
+    /// where the import records them: a winner as one of the season's players spells their gamertag, a team as the season
+    /// names it.
+    /// </summary>
+    private void AddAwards()
+    {
+        foreach (var (sourceId, tab, awards) in _awards)
+        {
+            if (awards is null || awards.Count == 0)
+            {
+                _warnings.Add($"{sourceId}: awards '{tab.Sheet}' not read ({(awards is null ? "no such sheet" : "no awards in it")})");
+                continue;
+            }
+            foreach (var block in awards.GroupBy(a => a.Season ?? tab.Season ?? sourceId, StringComparer.OrdinalIgnoreCase))
+            {
+                var workbook = block.Key;
+                var regular = _seasons.FirstOrDefault(s => !s.IsPlayoffs && string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase)
+                    && (tab.Tab is null || string.Equals(s.SourceSheet, tab.Tab, StringComparison.OrdinalIgnoreCase)));
+                if (regular is null)
+                {
+                    _warnings.Add($"{sourceId}: awards '{tab.Sheet}' not read (no season from {workbook})");
+                    continue;
+                }
+                var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
+                var teams = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(season.SelectMany(s => s.Teams).Select(t => t.TeamName))
+                    .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var players = season.SelectMany(s => s.Players).Select(p => p.Gamertag)
+                    .GroupBy(HistoricalKeys.Normalize).ToDictionary(g => g.Key, g => g.First());
+                regular.Awards.AddRange(block.Select(a => a.Award.IsTeam
+                    ? a.Award with { Winner = KnownName(a.Award.Winner, teams) }
+                    : a.Award with
+                    {
+                        Winner = players.GetValueOrDefault(HistoricalKeys.Normalize(a.Award.Winner)) ?? a.Award.Winner,
+                        Team = a.Award.Team is { } team ? KnownName(team, teams) : null,
+                    }));
+                if (_changedSourceIds?.Contains(sourceId) != false)
+                    _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
+            }
         }
     }
 

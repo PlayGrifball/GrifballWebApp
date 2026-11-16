@@ -34,6 +34,8 @@ public class HistoricalSourceConfig
     public List<RosterTab> Rosters { get; init; } = [];
     /// <summary>Tabs of a season's team standings: each team's record, its rank (seed) and its final place.</summary>
     public List<StandingsTab> Standings { get; init; } = [];
+    /// <summary>Tabs of a season's awards (MVPs, named season awards, records): AwardsParser.</summary>
+    public List<AwardsTab> Awards { get; init; } = [];
 
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -56,6 +58,7 @@ public class HistoricalSourceConfig
             .. RosterSheets,
             .. Rosters.Select(t => t.Sheet),
             .. Standings.Select(t => t.Sheet),
+            .. Awards.Select(t => t.Sheet),
             ChampionsSheet,
             PlayersSheet,
         ];
@@ -242,4 +245,50 @@ public class GamesTab
     public GamesLayout Layout { get; init; } = GamesLayout.Carnage;
     /// <summary>Late League games are scrims: in no series.</summary>
     public bool Scrims { get; init; }
+}
+
+/// <summary>
+/// A tab of season awards (AwardsParser): who won what, laid out as <see cref="Layout"/> says. Its awards go on the season's
+/// regular-season entry, which the import records them from (Season.RecordArchivedAwards).
+/// </summary>
+public class AwardsTab
+{
+    public required string Sheet { get; init; }
+    /// <summary>The source ID of the season's stats workbook; null: this workbook's own. A
+    /// <see cref="AwardsLayout.Seasons"/> tab names each block's season in <see cref="Seasons"/> instead.</summary>
+    public string? Season { get; init; }
+    /// <summary>The stats tab (its <see cref="StatsTab.Name"/>, or a stats table's "{table}#s{season}" key) of the season,
+    /// when the workbook has several seasons.</summary>
+    public string? Tab { get; init; }
+    public AwardsLayout Layout { get; init; }
+    /// <summary>Award labels in the sheet, and the name each is recorded under (empty: the label). A
+    /// <see cref="AwardsLayout.Labels"/> or <see cref="AwardsLayout.Seasons"/> tab reads only these; a
+    /// <see cref="AwardsLayout.Columns"/> tab reads every column, renaming the ones given here.</summary>
+    public Dictionary<string, string> Awards { get; init; } = [];
+    /// <summary>A <see cref="AwardsLayout.Seasons"/> tab's seasons: the text of a block's title that names it ("Season 6
+    /// Pro"), to the season's source ID. The longest that the title holds wins.</summary>
+    public Dictionary<string, string> Seasons { get; init; } = [];
+    /// <summary>Winners the sheet names by a nickname, to their gamertag ("Luxe": "yLuxe"); an empty gamertag is no
+    /// player (a joke entry), left out.</summary>
+    public Dictionary<string, string> Names { get; init; } = [];
+    /// <summary>A <see cref="AwardsLayout.Columns"/> list is ranked: each winner's place in it is the award's value ("#2").</summary>
+    public bool Ranked { get; init; }
+    /// <summary>The text of the cell the <see cref="AwardsLayout.Columns"/> table's header row starts at; null: the
+    /// sheet's first row.</summary>
+    public string? Anchor { get; init; }
+}
+
+public enum AwardsLayout
+{
+    /// <summary>A header row of award names, each award's winners down its column below it to the first gap.</summary>
+    Columns,
+    /// <summary>Award labels anywhere in the sheet (<see cref="AwardsTab.Awards"/>), each winner the first text below its
+    /// label, within the label's column and the next four ("Mavbrid And MysticalNovice" are two winners).</summary>
+    Labels,
+    /// <summary>A block per season, its title in the first column ("SL24 Season 2 Champions - ..."), and "MVP: name"
+    /// cells in its row and the row below (<see cref="AwardsTab.Awards"/>: "MVP", "FMVP").</summary>
+    Seasons,
+    /// <summary>A records table, a record per row under the header: category, description, record_value, holder and
+    /// team_or_captain columns. A record of a category that starts with "Team" is a team's: its holder is the team.</summary>
+    Records,
 }

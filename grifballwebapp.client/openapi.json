@@ -14817,6 +14817,65 @@
         },
         "additionalProperties": false
       },
+      "SeasonAwardDto": {
+        "required": [
+          "name",
+          "winners"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "winners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonAwardWinnerDto"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "An award of the season and who won it: one winner, or several (a Best Duo, a top 5 in its order)."
+      },
+      "SeasonAwardWinnerDto": {
+        "required": [
+          "name",
+          "teamID",
+          "teamName",
+          "userID",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "userID": {
+            "type": "integer",
+            "description": "The player; null for a team's award.",
+            "format": "int32",
+            "nullable": true
+          },
+          "teamID": {
+            "type": "integer",
+            "description": "The team that won it, or the player's team when the source names it.",
+            "format": "int32",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "description": "The winner as the source names them: the gamertag used, or the team's name."
+          },
+          "teamName": {
+            "type": "string",
+            "nullable": true
+          },
+          "value": {
+            "type": "string",
+            "description": "What the award is worth: a record's value, a ranked list's place.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A winner of a season's award: a player, a team (no player), or a player of a team."
+      },
       "SeasonChampionDto": {
         "required": [
           "roster",
@@ -15637,6 +15696,7 @@
       },
       "SeasonSummaryDto": {
         "required": [
+          "awards",
           "bracketMatchCount",
           "champions",
           "division",
@@ -15755,6 +15815,13 @@
             "items": {
               "$ref": "#/components/schemas/SeasonChampionDto"
             }
+          },
+          "awards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonAwardDto"
+            },
+            "description": "The season's awards (its MVP, named awards, records), in its source's order."
           }
         },
         "additionalProperties": false,
