@@ -139,8 +139,9 @@ public class ArchiveImportTests
                 })
                 .FirstOrDefaultAsync();
             var sheet = entry.Bracket!.Series;
-            // The final: the last slot of the winners' bracket and grand final, numbered on from each other
-            var final = season?.Slots.Where(m => m.Bracket != Bracket.Loser).MaxBy(m => m.MatchNumber);
+            // The final: the grand final (its sudden death) in double elimination, else the winners' bracket's last slot
+            var doubleElimination = season?.Slots.Any(m => m.Bracket == Bracket.Loser) == true;
+            var final = season?.Slots.Where(m => doubleElimination ? m.Bracket is Bracket.GrandFinal or Bracket.GrandFinalSuddenDeath : m.Bracket == Bracket.Winner).MaxBy(m => m.MatchNumber);
             counts.Add(new BracketCounts(entry.SeasonName, sheet.Count, season?.Slots.Count ?? 0,
                 sheet.SelectMany(x => new[] { x.Home, x.Away }).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
                 season?.Slots.SelectMany(m => new[] { m.HomeTeamID, m.AwayTeamID }).OfType<int>().Distinct().Count() ?? 0,

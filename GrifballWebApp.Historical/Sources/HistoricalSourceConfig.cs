@@ -268,6 +268,9 @@ public class BracketTab
     public bool SeedsInNames { get; init; }
     /// <summary>The tabs of its rounds, in the order they were played.</summary>
     public List<BracketRoundTab> Rounds { get; init; } = [];
+    /// <summary>The season's name of a team the bracket calls something else (by its seed, or a typo): bracket name to
+    /// the stats' or standings' name.</summary>
+    public Dictionary<string, string> Aliases { get; init; } = [];
 }
 
 /// <summary>

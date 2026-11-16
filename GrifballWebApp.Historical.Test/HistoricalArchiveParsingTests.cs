@@ -884,13 +884,13 @@ public class HistoricalArchiveParsingTests
                     Tabs = [new() { Name = "Stats" }, new() { Name = "Other", CustomSeason = "Other Series" }],
                     Brackets =
                     [
-                        new() { Rounds = [new() { Sheet = "Round 1", Round = 1 }], Tab = "Stats" },
+                        new() { Rounds = [new() { Sheet = "Round 1", Round = 1 }], Tab = "Stats", Aliases = new() { ["B Team"] = "Bravo" } },
                         new() { Rounds = [new() { Sheet = "Round 1", Round = 1 }], Season = "nothing" },
                     ],
                 },
                 Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "Alpha", 1, 1), Row("B", "Bravo", 1, 1)]),
                     ("Other", [Row("Player", "Team", "Games", "Kills"), Row("C", "Charlie", 1, 1)]),
-                    ("Round 1", [Row("Seed", "Team Name", "Player", "Wins"), Row(1, "Alpha", "A", 1), Row(2, "Bravo", "B", 0)]))),
+                    ("Round 1", [Row("Seed", "Team Name", "Player", "Wins"), Row(1, "Alpha", "A", 1), Row(2, "B Team", "B", 0)]))),
         ];
 
         var everything = HistoricalArchiveBuilder.Build(sources);

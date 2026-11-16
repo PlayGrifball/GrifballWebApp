@@ -297,7 +297,11 @@ public sealed class HistoricalArchiveBuilder
             var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(season.SelectMany(s => s.Teams).Select(t => t.TeamName))
                 .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             // A bracket's team is often "Team (captain)": the name without it, a few letters off, is the season's too
-            string Named(string name) => Closest(name, known) ?? Closest(StandingsParser.WithoutNote(name), known) ?? name;
+            string Named(string name)
+            {
+                name = tab.Aliases.GetValueOrDefault(name) ?? name;
+                return Closest(name, known) ?? Closest(StandingsParser.WithoutNote(name), known) ?? name;
+            }
             regular.Bracket = new ArchiveBracket { Series = [.. bracket.Series.Select(s => s with { Home = Named(s.Home), Away = Named(s.Away) })] };
             if (_changedSourceIds?.Contains(sourceId) != false)
                 _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
