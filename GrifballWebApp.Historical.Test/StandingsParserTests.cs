@@ -368,6 +368,7 @@ public class StandingsParserTests
     [TestCase("", null)]
     [TestCase(null, null)]
     [TestCase("0", null)]
+    [TestCase("99999999999th", null)]
     public void Place_ReadsTheLeadingNumber(string? cell, int? place)
     {
         Assert.That(StandingsParser.Place(cell), Is.EqualTo(place));
