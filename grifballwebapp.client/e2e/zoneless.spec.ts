@@ -22,7 +22,7 @@ const winter: SeasonInfoDto = {
   division: null, format: 'LeagueSeason', isHistorical: false, historicalSourceUrl: null,
 };
 const winterListed = { ...winter, teamCount: 0, playerCount: 0, champions: [], teamNames: [] };
-const winterSummary = { ...winter, seasonName: 'Winter Season', teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [] };
+const winterSummary = { ...winter, seasonName: 'Winter Season', teamCount: 1, signupCount: 0, matchCount: 1, bracketMatchCount: 0, playerStatCount: 0, champions: [], awards: [] };
 
 /** A side of a bracket match (brackets-model's ParticipantResult). */
 const side = (id: number | null, extra: Partial<ParticpantResult> = {}): ParticpantResult => ({ id, forfeit: false, ...extra });

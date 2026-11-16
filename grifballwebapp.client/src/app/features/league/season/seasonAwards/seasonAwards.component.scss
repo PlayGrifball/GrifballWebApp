@@ -1,0 +1,42 @@
+:host {
+  display: block;
+  margin-bottom: 24px;
+}
+
+.awards__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 12px 0 0;
+}
+
+.award {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.award__name {
+  color: var(--hud-gold);
+  font: 12px var(--hud-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.award__winner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 15px;
+}
+
+.award__team,
+.award__value {
+  font: 12px var(--hud-font-mono);
+}
+
+.award__team {
+  color: var(--hud-muted);
+}

@@ -416,7 +416,7 @@ const manualGame = {
 
 /** A season played in the app, as GetSeasonSummary answers. */
 const summary = (seasonID: number): SeasonSummaryDto => ({
-  ...seasonInfo(seasonID, { hasEnded: seasonID === 11 }), teamCount: 6, signupCount: 10, matchCount: 12, bracketMatchCount: 7, playerStatCount: 0, champions: [],
+  ...seasonInfo(seasonID, { hasEnded: seasonID === 11 }), teamCount: 6, signupCount: 10, matchCount: 12, bracketMatchCount: 7, playerStatCount: 0, champions: [], awards: [],
 });
 
 // Season 5 was backfilled from the historical archive: teams, rosters, stats and a title, but no signups, schedule or matches
@@ -700,6 +700,7 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
               matchCount: 0, bracketMatchCount: 0, playerStatCount: historicalStats.length,
               champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [
                 { userID: 501, gamertag: 'Legendary', isCaptain: true }, { userID: 502, gamertag: 'Old Timer', isCaptain: false }] }],
+              awards: [],
             }),
     // The season's stats, and on the team page (?teamID=41) its team's: matched on the path alone, so the same rows
     '/api/seasons/5/player-stats': answer('getSeasonPlayerStats', historicalStats),
