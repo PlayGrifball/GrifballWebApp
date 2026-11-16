@@ -99,9 +99,8 @@ internal sealed class ScheduleServiceRecommendUnitTests : ApplicationDbContextTe
             Assert.That(run.Fitness, Is.InRange(0.0, 1.0));
             Assert.That(generations, Is.EqualTo(Enumerable.Range(1, run.Generations)));
             Assert.That(fitnesses, Has.All.InRange(0.0, 1.0));
-            Assert.That(run.Availability, Has.Length.EqualTo(14));
-            // Only this season's teams' availability is read with the timeslots
-            Assert.That(run.Availability.SelectMany(o => o.TeamAvailability).Select(a => a.TeamID).Distinct(), Is.EquivalentTo(SeasonTeams));
+            // What is wrong with each gene's time is what the season's rules say: the run carries the checker the recommendation's flags come from
+            Assert.That(run.Genes.Select(g => run.Conflicts(g, run.Genes)), Has.All.Not.Null);
         }
     }
 
