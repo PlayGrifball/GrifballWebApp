@@ -4,6 +4,7 @@ using GrifballWebApp.Application.Voice;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Voice;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
