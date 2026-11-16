@@ -11,6 +11,7 @@ public class StandingsParserTests
 {
     private static readonly string[] Str8GriffinOnly = ["Str8 Griffin"];
     private static readonly string[] AlphaAndBravo = ["Alpha", "Bravo"];
+    private static readonly string[] AlphaOnly = ["Alpha"];
     private static readonly (string, string?)[] NamesAndCaptains = [("Alpha", "Ace"), ("Bravo", "Bee")];
     private static readonly (string, int?, int?)[] RecordsOfAlphaAndBravo = [("Alpha", 5, 3), ("Bravo", 4, 4)];
 
@@ -45,6 +46,14 @@ public class StandingsParserTests
         var second = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Chart", Layout = StandingsLayout.Columns, Anchor = "Team Name:", AnchorNumber = 2 });
 
         Assert.That(second!.Select(t => (t.TeamName, t.Rank, t.Finish)), Is.EqualTo(SecondBlockOwnRanks), "Its own block's ranks, not the first block's rows");
+    }
+
+    [Test]
+    public void Rows_AnEmptyTeamCellWithNothingNamedBelowIt_EndsTheTable()
+    {
+        var sheet = Sheet(["Team", "Wins", "Losses"], ["Alpha", "9", "1"], ["", "", "", "updated Sunday"]);
+
+        Assert.That(StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings" })!.Select(t => t.TeamName), Is.EqualTo(AlphaOnly));
     }
 
     [Test]

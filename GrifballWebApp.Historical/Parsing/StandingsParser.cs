@@ -119,17 +119,7 @@ public static partial class StandingsParser
 
     private static List<ArchiveTeam> ByColumn(SheetTable sheet, int namesRow, int labelColumn, StandingsTab tab)
     {
-        // This block's labelled rows: below its names, up to the next block's names row; and above them (a chart's
-        // "Season Standings" over "Team Name:") when no block is above it. Never another block's.
-        bool IsNamesRow(int r) => FieldOf(sheet.Cell(r, labelColumn)) == Field.Team;
-        var rows = new Dictionary<Field, int>();
-        for (var r = namesRow + 1; r < sheet.Rows.Count && !IsNamesRow(r); r++)
-            if (FieldOf(sheet.Cell(r, labelColumn)) is { } field)
-                rows.TryAdd(field, r);
-        if (!Enumerable.Range(0, namesRow).Any(IsNamesRow))
-            for (var r = namesRow - 1; r >= 0; r--)
-                if (FieldOf(sheet.Cell(r, labelColumn)) is { } field)
-                    rows.TryAdd(field, r);
+        var rows = LabelledRows(sheet, namesRow, labelColumn);
         var teams = new Teams(tab);
         var names = sheet.Rows[namesRow];
         for (var c = labelColumn + 1; c < names.Length; c++)
@@ -141,6 +131,25 @@ public static partial class StandingsParser
                 teams.Add(name, field => rows.TryGetValue(field, out var r) ? sheet.Cell(r, c).Trim() : "");
         }
         return teams.List;
+    }
+
+    /// <summary>A team-per-column block's labelled rows: below its names, up to the next block's names row; and above them
+    /// (a chart's "Season Standings" over "Team Name:") when no block is above it. Never another block's.</summary>
+    private static Dictionary<Field, int> LabelledRows(SheetTable sheet, int namesRow, int labelColumn)
+    {
+        bool IsNamesRow(int r) => FieldOf(sheet.Cell(r, labelColumn)) == Field.Team;
+        var rows = new Dictionary<Field, int>();
+        void Take(int r)
+        {
+            if (FieldOf(sheet.Cell(r, labelColumn)) is { } field)
+                rows.TryAdd(field, r);
+        }
+        for (var r = namesRow + 1; r < sheet.Rows.Count && !IsNamesRow(r); r++)
+            Take(r);
+        if (!Enumerable.Range(0, namesRow).Any(IsNamesRow))
+            for (var r = namesRow - 1; r >= 0; r--)
+                Take(r);
+        return rows;
     }
 
     private static List<ArchiveTeam> ByList(SheetTable sheet, int anchorRow, int column, StandingsTab tab)
