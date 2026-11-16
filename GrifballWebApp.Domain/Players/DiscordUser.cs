@@ -38,6 +38,18 @@ public class DiscordUser : AuditableEntity
     private readonly List<DiscordMessage> _sentMessages = [];
 
     /// <summary>
+    /// Whether the bot may hear them in a voice channel (the voice chat): only once they opt in (<see cref="OptInToVoice"/>), and
+    /// not after they opt out. Anyone else's audio is dropped before it is transcribed.
+    /// </summary>
+    public bool VoiceOptIn { get; private set; }
+
+    /// <summary>They agreed to be heard by the bot in a voice channel (Discord's /voice optin).</summary>
+    public void OptInToVoice() => VoiceOptIn = true;
+
+    /// <summary>They withdrew it (/voice optout): the bot no longer hears them.</summary>
+    public void OptOutOfVoice() => VoiceOptIn = false;
+
+    /// <summary>
     /// Discord gave the account a username, <paramref name="username"/> (a sign-in's name claim, say):
     /// <see cref="DiscordRename.Renamed"/> when it differs from the one stored, <see cref="DiscordRename.Unchanged"/> when
     /// it is the same (spaces around it trimmed). No username (none given, or blank) is <see cref="DiscordRename.NoUsername"/>, and the account keeps its own.

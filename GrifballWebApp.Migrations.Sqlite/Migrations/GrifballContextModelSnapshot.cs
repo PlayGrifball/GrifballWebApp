@@ -5899,6 +5899,11 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValueSql("rtrim(rtrim(strftime('%Y-%m-%d %H:%M:%f', 'now'), '0'), '.')");
 
+                    b.Property<bool>("VoiceOptIn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
                     b.HasKey("DiscordUserID");
 
                     b.ToTable("Discord", "User", t =>
@@ -5946,6 +5951,10 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("PeriodStart")
                         .HasColumnType("TEXT")
                         .HasColumnName("PeriodStart");
+
+                    b.Property<bool?>("VoiceOptIn")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("VoiceOptIn");
 
                     b.HasIndex("DiscordUserID", "PeriodEnd");
 

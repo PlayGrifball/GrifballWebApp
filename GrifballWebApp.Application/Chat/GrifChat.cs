@@ -27,6 +27,22 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
         InPublic: true,
         Timeout: TimeSpan.FromMinutes(2)) { Name = "discord" };
 
+    /// <summary>
+    /// The Discord bot in a voice channel: others hear it, so in public (public tools, seasons as the public sees them), but each
+    /// asker's own models (<see cref="OwnModels"/>): a paid one from their month. Its replies are spoken, so short and plain.
+    /// </summary>
+    public static readonly ChatHost DiscordVoice = new(
+        "You are the Discord bot, speaking in a voice channel: your reply is read aloud. Answer in one to three short spoken sentences, with no lists, links, Markdown or emoji, and say numbers and dates as people say them.",
+        "People can also ask in text, or use the bot's slash commands.",
+        InPublic: true,
+        Timeout: TimeSpan.FromMinutes(1)) { Name = "voice", OwnModels = true };
+
+    /// <summary>
+    /// Whether each caller gets their own models though the host is public (<see cref="DiscordVoice"/>): their roles' models, their
+    /// choice among them, a paid one from their month. False: in public, the one model anyone may use.
+    /// </summary>
+    public bool OwnModels { get; init; }
+
     /// <summary>The Discord bot in a DM: the author's alone, so in private, as on the site.</summary>
     public static readonly ChatHost DiscordDirect = Discord with { Name = "dm", InPublic = false, Confirm = GrifChat.ConfirmDirect };
 
@@ -253,10 +269,10 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
 
     /// <summary>
     /// The models <paramref name="caller"/> may use on <paramref name="host"/>, in their configured order (the first is their default):
-    /// in private, each their roles allow; in public (a Discord channel), only the first anyone may use, whoever asks.
+    /// in private (or with <see cref="ChatHost.OwnModels"/>), each their roles allow; in public (a Discord channel), only the first anyone may use, whoever asks.
     /// </summary>
     public IReadOnlyList<ChatModelOption> Allowed(ToolCaller caller, ChatHost host)
-        => host.InPublic
+        => host.InPublic && !host.OwnModels
             ? Model.Models.Where(m => m.IsOpen).Take(1).ToList()
             : Model.Models.Where(m => m.AllowsRoles(caller.Roles)).ToList();
 

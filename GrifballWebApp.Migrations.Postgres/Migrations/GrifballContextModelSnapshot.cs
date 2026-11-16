@@ -5709,6 +5709,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("transaction_timestamp()");
 
+                    b.Property<bool>("VoiceOptIn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.HasKey("DiscordUserID");
 
                     b.ToTable("Discord", "User", t =>
@@ -5750,6 +5755,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<DateTime>("PeriodStart")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("PeriodStart");
+
+                    b.Property<bool?>("VoiceOptIn")
+                        .HasColumnType("boolean")
+                        .HasColumnName("VoiceOptIn");
 
                     b.HasIndex("DiscordUserID", "PeriodEnd");
 

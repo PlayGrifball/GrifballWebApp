@@ -3317,6 +3317,11 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
 
+                    b.Property<bool>("VoiceOptIn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.HasKey("DiscordUserID");
 
                     b.ToTable("Discord", "User", t =>

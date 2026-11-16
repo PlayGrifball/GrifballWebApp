@@ -259,9 +259,12 @@ public class Program
         {
             builder.Services.AddDiscordGateway(options =>
             {
+                // Guilds and GuildVoiceStates: /voice finds the caller's voice channel, and joins it
                 options.Intents = NetCord.Gateway.GatewayIntents.MessageContent |
                                   NetCord.Gateway.GatewayIntents.GuildMessages |
-                                  NetCord.Gateway.GatewayIntents.DirectMessages;
+                                  NetCord.Gateway.GatewayIntents.DirectMessages |
+                                  NetCord.Gateway.GatewayIntents.Guilds |
+                                  NetCord.Gateway.GatewayIntents.GuildVoiceStates;
             })
             .AddGatewayHandlers(typeof(Program).Assembly)
             // DiscordInteractionPipeline sets the audit user and handles exceptions for every command and component
@@ -271,6 +274,8 @@ public class Program
             .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>(options => DiscordInteractionPipeline.Use(options));
             // /help reads the commands from the gateway's command service: only this role has it
             builder.Services.AddTransient<HelpCommandsHandler>();
+            // The bot's voice channels (/voice): this role runs the gateway they are joined through
+            builder.Services.AddSingleton<GrifballWebApp.Server.Voice.VoiceSessions>();
         }
         else if (!discordOff)
         {
