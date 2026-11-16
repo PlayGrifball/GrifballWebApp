@@ -32,7 +32,7 @@ public class ChatClientsUnitTests
     private static ServiceProvider Services(params (string Key, string? Value)[] settings)
     {
         var configuration = Configuration(settings);
-        return new ServiceCollection().AddSingleton(configuration).AddChatModels(configuration).BuildServiceProvider();
+        return new ServiceCollection().AddLogging().AddSingleton(configuration).AddChatModels(configuration).BuildServiceProvider();
     }
 
     [Test]
@@ -142,7 +142,7 @@ public class ChatClientsUnitTests
         var http = Substitute.For<IHttpClientFactory>();
         http.CreateClient(Arg.Any<string>()).Returns(_ => new HttpClient());
         // The test's HTTP clients, in place of AddChatModels' own
-        using var services = new ServiceCollection().AddSingleton(configuration).AddChatModels(configuration).AddSingleton(http).BuildServiceProvider();
+        using var services = new ServiceCollection().AddLogging().AddSingleton(configuration).AddChatModels(configuration).AddSingleton(http).BuildServiceProvider();
         var clients = services.GetRequiredService<IChatClientFactory>();
 
         var created = clients.Models.Select(clients.Create).ToList();
@@ -161,7 +161,7 @@ public class ChatClientsUnitTests
     public void AddChatModels_ServesTheModelsItChecked_NotAListReadAgain()
     {
         var configuration = Configuration((ChatModels.OllamaUrlKey, OllamaUrl));
-        using var services = new ServiceCollection().AddSingleton(configuration).AddChatModels(configuration).BuildServiceProvider();
+        using var services = new ServiceCollection().AddLogging().AddSingleton(configuration).AddChatModels(configuration).BuildServiceProvider();
 
         // Read once, as the app starts: a later change is no other list than the one checked
         configuration[ChatModels.OllamaModelKey] = "unchecked:1b";

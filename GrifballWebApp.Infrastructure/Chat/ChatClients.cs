@@ -30,16 +30,16 @@ public sealed class ChatClients : IChatClientFactory
 
     private readonly Lazy<HttpClient> _ollama;
     private readonly Lazy<AnthropicClient> _anthropic;
-    private readonly ILogger<AnthropicSpendLimit>? _spendLimitLog;
+    private readonly ILogger<AnthropicSpendLimit> _spendLimitLog;
 
     /// <param name="models">The models, checked (<see cref="ChatModels.From"/>).</param>
     /// <param name="configuration">Where the providers are: Ollama:Url, Anthropic:ApiKey.</param>
     /// <param name="httpClients">The providers' HTTP clients (<see cref="OllamaHttpClient"/>, <see cref="AnthropicHttpClient"/>).</param>
     /// <param name="loggers">For Claude's spend limits (<see cref="AnthropicSpendLimit"/>).</param>
-    public ChatClients(IReadOnlyList<ChatModelOption> models, IConfiguration configuration, IHttpClientFactory httpClients, ILoggerFactory? loggers = null)
+    public ChatClients(IReadOnlyList<ChatModelOption> models, IConfiguration configuration, IHttpClientFactory httpClients, ILoggerFactory loggers)
     {
         Models = models;
-        _spendLimitLog = loggers?.CreateLogger<AnthropicSpendLimit>();
+        _spendLimitLog = loggers.CreateLogger<AnthropicSpendLimit>();
         _ollama = new(() =>
         {
             var http = httpClients.CreateClient(OllamaHttpClient);
@@ -183,7 +183,7 @@ public static class ChatClientsExtensions
             services.AddHttpClient(name, client => client.Timeout = System.Threading.Timeout.InfiniteTimeSpan)
                 .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) });
         }
-        services.AddSingleton<IChatClientFactory>(provider => new ChatClients(models, configuration, provider.GetRequiredService<IHttpClientFactory>(), provider.GetService<ILoggerFactory>()));
+        services.AddSingleton<IChatClientFactory>(provider => new ChatClients(models, configuration, provider.GetRequiredService<IHttpClientFactory>(), provider.GetRequiredService<ILoggerFactory>()));
         return services;
     }
 }
