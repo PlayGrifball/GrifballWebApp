@@ -98,11 +98,13 @@ public class ArchiveImportTests
             .Select(g => $"{g.Key.SeasonName}{(g.Key.IsPlayoffs ? " (playoffs)" : "")}: {g.Count(l => l.NoGames)} of {g.Count()} lines"), Is.Empty);
     }
 
+    private static readonly string[] RoundMetrics = ["roundsWon", "roundsLost", "roundsTied"];
+
     /// <summary>A line's rounds won, lost and tied, from its extended metrics.</summary>
     private static decimal Rounds(string json)
     {
         using var metrics = System.Text.Json.JsonDocument.Parse(json);
-        return new[] { "roundsWon", "roundsLost", "roundsTied" }
+        return RoundMetrics
             .Sum(name => metrics.RootElement.TryGetProperty(name, out var value) ? value.GetDecimal() : 0);
     }
 
