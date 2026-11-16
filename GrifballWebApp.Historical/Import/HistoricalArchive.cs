@@ -80,13 +80,23 @@ public class ArchiveTeam
 {
     public required string TeamName { get; init; }
     public string? Division { get; init; }
+    /// <summary>Its place in the regular season's standings (its seed).</summary>
     public int? Rank { get; init; }
+    /// <summary>Its final place: 1 for the champion, the round it went out in for the others.</summary>
+    public int? Finish { get; init; }
     public int? Wins { get; init; }
     public int? Losses { get; init; }
     public int? GoalsFor { get; init; }
     public int? GoalsAgainst { get; init; }
     public string? Captain { get; init; }
     public List<string> Roster { get; init; } = [];
+
+    /// <summary>The same team under <paramref name="name"/>.</summary>
+    public ArchiveTeam Named(string name) => name == TeamName ? this : new()
+    {
+        TeamName = name, Division = Division, Rank = Rank, Finish = Finish, Wins = Wins, Losses = Losses,
+        GoalsFor = GoalsFor, GoalsAgainst = GoalsAgainst, Captain = Captain, Roster = Roster,
+    };
 }
 
 public class ArchivePlayer

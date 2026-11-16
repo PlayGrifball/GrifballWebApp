@@ -11,7 +11,7 @@ namespace GrifballWebApp.HistoricalArchive.Test;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class ArchiveImportTests
 {
-    private sealed record SeasonCounts(string Name, string SourceID, string Format, int Teams, int Captains, int Stats, int PlayoffStats,
+    private sealed record SeasonCounts(string Name, string SourceID, string Format, int Teams, int Captains, int Ranked, int Finished, int Stats, int PlayoffStats,
         int Matches, int PlayoffMatches, int Titles);
 
     private sealed record LateLeagueCounts(string Name, string? SourceID, int Stats, int Games);
@@ -23,6 +23,7 @@ public class ArchiveImportTests
         return await context.Seasons.AsNoTracking().Where(s => s.HistoricalSourceID != null)
             .OrderBy(s => s.SeasonStart).ThenBy(s => s.SeasonName)
             .Select(s => new SeasonCounts(s.SeasonName, s.HistoricalSourceID, s.Format.ToString(), s.Teams.Count, s.Teams.Count(t => t.CaptainID != null),
+                s.Teams.Count(t => t.ArchivedRank != null), s.Teams.Count(t => t.ArchivedFinish != null),
                 context.PlayerSeasonStats.Count(p => p.SeasonID == s.SeasonID), context.PlayerSeasonStats.Count(p => p.SeasonID == s.SeasonID && p.IsPlayoffs),
                 s.SeasonMatches.Count, s.SeasonMatches.Count(m => m.BracketMatch != null), s.PlayerChampionships.Count))
             .ToListAsync();
@@ -87,6 +88,21 @@ public class ArchiveImportTests
         Assert.That((await Seasons()).Where(s => s.Captains < s.Teams).Select(s => $"{s.Name}: {s.Captains} of {s.Teams}"), Is.Empty);
     }
 
+    /// <summary>Its standings' rank, or its final place, for each team.</summary>
+    [Test]
+    public async Task EverySeason_PlacesItsTeams()
+    {
+        Assert.That((await Seasons()).Where(s => s.Ranked == 0 && s.Finished == 0).Select(s => s.Name), Is.Empty);
+    }
+
+    /// <summary>A season whose standings rank some teams ranks every one: a team left out is a name its standings spell
+    /// another way, or a team they don't list.</summary>
+    [Test]
+    public async Task EveryTeamOfARankedSeason_IsRanked()
+    {
+        Assert.That((await Seasons()).Where(s => s.Ranked > 0 && s.Ranked < s.Teams).Select(s => $"{s.Name}: {s.Ranked} of {s.Teams}"), Is.Empty);
+    }
+
     [Test]
     public async Task EverySeason_HasAChampion()
     {
@@ -112,12 +128,13 @@ public class ArchiveImportTests
     [Test]
     public async Task Summary_IsWritten()
     {
-        var summary = new StringBuilder("## Seasons\n\n| Season | Source | Format | Teams | Captains | Stats | Playoff stats | Matches | Playoff matches | Titles |\n|---|---|---|---|---|---|---|---|---|---|\n");
+        var summary = new StringBuilder("## Seasons\n\n| Season | Source | Format | Teams | Captains | Ranked | Finished | Stats | Playoff stats | Matches | Playoff matches | Titles |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n");
         foreach (var s in await Seasons())
-            summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Format} | {s.Teams} | {s.Captains} | {s.Stats} | {s.PlayoffStats} | {s.Matches} | {s.PlayoffMatches} | {s.Titles} |");
+            summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Format} | {s.Teams} | {s.Captains} | {s.Ranked} | {s.Finished} | {s.Stats} | {s.PlayoffStats} | {s.Matches} | {s.PlayoffMatches} | {s.Titles} |");
         summary.AppendLine().AppendLine("## Late League").AppendLine().AppendLine("| Season | Source | Stats | Games |").AppendLine("|---|---|---|---|");
         foreach (var s in await LateLeagueRead.Value)
             summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Stats} | {s.Games} |");
+        Section(summary, "Placings (the seasons whose standings place a team: rank / finish, record)", await Placings());
         Section(summary, "Build warnings", Archive.Build.Warnings);
         Section(summary, "Import warnings", Archive.Report.Warnings);
         Section(summary, "Skipped", Skipped());
@@ -128,6 +145,20 @@ public class ArchiveImportTests
         await File.WriteAllTextAsync(path, summary.ToString());
 
         Assert.That(path, Does.Exist);
+    }
+
+    /// <summary>Each season whose standings place a team: its teams in their order, the unplaced last.</summary>
+    private static async Task<List<string>> Placings()
+    {
+        await using var context = Archive.NewContext();
+        var teams = await context.Teams.AsNoTracking()
+            .Where(t => t.Season.HistoricalSourceID != null && t.Season.Teams.Any(o => o.ArchivedRank != null || o.ArchivedFinish != null))
+            .Select(t => new { t.Season.SeasonName, t.Season.SeasonStart, t.TeamName, t.ArchivedRank, t.ArchivedFinish, t.RecordedWins, t.RecordedLosses })
+            .ToListAsync();
+        return teams.GroupBy(t => (t.SeasonStart, t.SeasonName)).OrderBy(g => g.Key)
+            .Select(g => $"{g.Key.SeasonName}: " + string.Join("; ", g.OrderBy(t => t.ArchivedRank ?? int.MaxValue).ThenBy(t => t.ArchivedFinish ?? int.MaxValue).ThenBy(t => t.TeamName)
+                .Select(t => $"{t.TeamName} {t.ArchivedRank?.ToString() ?? "-"}/{t.ArchivedFinish?.ToString() ?? "-"}{(t.RecordedWins is null ? "" : $" ({t.RecordedWins}-{t.RecordedLosses})")}")))
+            .ToList();
     }
 
     private static void Section(StringBuilder summary, string title, IEnumerable<string> lines)

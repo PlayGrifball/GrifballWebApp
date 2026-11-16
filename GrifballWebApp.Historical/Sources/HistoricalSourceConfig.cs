@@ -32,6 +32,8 @@ public class HistoricalSourceConfig
     /// <summary>Rosters (as <see cref="RosterSheets"/>) in this workbook of a season whose stats are in another source's, e.g. a
     /// draft sheet beside the schedule: they fill the team of that season's players whose stats name none.</summary>
     public List<RosterTab> Rosters { get; init; } = [];
+    /// <summary>Tabs of a season's team standings: each team's record, its rank (seed) and its final place.</summary>
+    public List<StandingsTab> Standings { get; init; } = [];
 
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -53,6 +55,7 @@ public class HistoricalSourceConfig
             .. Games.Select(t => t.Sheet),
             .. RosterSheets,
             .. Rosters.Select(t => t.Sheet),
+            .. Standings.Select(t => t.Sheet),
             ChampionsSheet,
             PlayersSheet,
         ];
@@ -174,6 +177,43 @@ public class RosterTab
     public required string Sheet { get; init; }
     /// <summary>The source ID of the season's stats workbook.</summary>
     public required string Season { get; init; }
+}
+
+/// <summary>
+/// A tab of a season's team standings (StandingsParser): a table of teams with any of a record, a rank or seed, a final
+/// place and a captain, its columns found by their headers. Its teams go on the season's regular-season entry, which the
+/// import takes their record and placing from.
+/// </summary>
+public class StandingsTab
+{
+    public required string Sheet { get; init; }
+    /// <summary>The source ID of the season's stats workbook; null: this workbook's own.</summary>
+    public string? Season { get; init; }
+    /// <summary>The stats tab (its <see cref="StatsTab.Name"/>) of the season, when the workbook has several seasons.</summary>
+    public string? Tab { get; init; }
+    public StandingsLayout Layout { get; init; }
+    /// <summary>The text of the cell the table starts at (its team column's header in <see cref="StandingsLayout.Rows"/>,
+    /// the label of its row of team names in <see cref="StandingsLayout.Columns"/>), e.g. "Team Standings" in a table
+    /// beside the schedule; null: the first cell that reads Team, Teams or Team Name.</summary>
+    public string? Anchor { get; init; }
+    /// <summary>Which of the anchor's cells the table starts at, in reading order (two tables side by side, e.g. Pro and
+    /// Legacy); the first by default.</summary>
+    public int AnchorNumber { get; init; } = 1;
+    /// <summary>The teams are in the standings' order: a team's place among them is its rank, unless a rank or seed column
+    /// gives it.</summary>
+    public bool Ranked { get; init; }
+    /// <summary>A team is named "Team (captain)": the name in brackets is its captain's.</summary>
+    public bool CaptainInName { get; init; }
+}
+
+public enum StandingsLayout
+{
+    /// <summary>A team per row, under a row of headers.</summary>
+    Rows,
+    /// <summary>A team per column, beside a column of row labels (Team Name:, Captain:, Season Standings, Playoff Ending, Record).</summary>
+    Columns,
+    /// <summary>A cell per team down the anchor's column, its record in brackets: "ZMD (Zeg) (17-3) (95-46)".</summary>
+    List,
 }
 
 public class WaypointTab

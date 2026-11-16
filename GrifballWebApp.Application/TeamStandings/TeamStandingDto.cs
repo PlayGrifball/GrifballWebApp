@@ -8,4 +8,6 @@ public record TeamStandingDto
     public required int Losses { get; set; }
     /// <summary>The record is the source spreadsheet's: the season's matches are not in the app.</summary>
     public bool RecordFromSource { get; set; }
+    /// <summary>The team's final place (1 for the champion) as the source spreadsheet gives it; null when it gives none.</summary>
+    public int? Finish { get; set; }
 }

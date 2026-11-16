@@ -28,7 +28,7 @@ public sealed class HistoricalArchiveBuild
 /// workbook at most, not every source's.
 /// </para>
 /// </summary>
-public sealed class HistoricalArchiveBuilder
+public sealed partial class HistoricalArchiveBuilder
 {
     private readonly IReadOnlySet<string>? _changedSourceIds;
     private readonly List<string> _warnings = [];
@@ -41,6 +41,8 @@ public sealed class HistoricalArchiveBuilder
     private readonly List<(string SourceId, WaypointTab Tab, (List<string> Regular, List<string> Playoffs, List<ScheduledGame> Schedule, List<string> Unparsed)? Games)> _waypoint = [];
     /// <summary>Rosters of seasons whose stats are in another source, applied once every season is known.</summary>
     private readonly List<(string SourceId, RosterTab Tab, Dictionary<string, string>? Teams)> _rosters = [];
+    /// <summary>Each standings tab's teams, put on their season's regular season once every season is known.</summary>
+    private readonly List<(string SourceId, StandingsTab Tab, List<ArchiveTeam>? Teams)> _standings = [];
     private readonly HashSet<string> _affected = new(StringComparer.OrdinalIgnoreCase);
     private bool _everySeason;
     private bool _playersChanged;
@@ -84,6 +86,8 @@ public sealed class HistoricalArchiveBuilder
         AddWaypoint(id, config, workbook);
         foreach (var tab in config.Rosters)
             _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
+        foreach (var tab in config.Standings)
+            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
         AddGames(id, config, workbook, changed);
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
@@ -162,6 +166,7 @@ public sealed class HistoricalArchiveBuilder
     {
         var waypoint = WaypointBySeason();
         FillTeamsFromRosters();
+        AddStandings();
 
         var input = new HistoricalArchiveInput
         {
@@ -225,4 +230,64 @@ public sealed class HistoricalArchiveBuilder
                 _affected.UnionWith(entries.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
         }
     }
+
+    /// <summary>Each standings tab's teams go on its season's regular-season entry (the first, or its <see cref="StandingsTab.Tab"/>),
+    /// where the import reads a team's record and placing.</summary>
+    private void AddStandings()
+    {
+        foreach (var (sourceId, tab, teams) in _standings)
+        {
+            var workbook = tab.Season ?? sourceId;
+            var regular = _seasons.FirstOrDefault(s => !s.IsPlayoffs && string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase)
+                && (tab.Tab is null || string.Equals(s.SourceSheet, tab.Tab, StringComparison.OrdinalIgnoreCase)));
+            if (teams is null || regular is null)
+            {
+                _warnings.Add($"{sourceId}: standings '{tab.Sheet}' not read ({(teams is null ? "no such sheet, or no table" : $"no season from {workbook}")})");
+                continue;
+            }
+            var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
+            // The stats' placeholder of a captain's team ("OREOTHECAT's Team") is the team the standings name with that captain,
+            // or name after them
+            foreach (var team in teams)
+            {
+                var placeholders = new[] { team.Captain, team.TeamName }.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => $"{c!.Trim()}'s Team").ToList();
+                foreach (var player in season.SelectMany(s => s.Players).Where(p => placeholders.Contains(p.TeamName?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)))
+                    player.TeamName = team.TeamName;
+            }
+            var statsTeams = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>()
+                .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            regular.Teams.AddRange(teams.Select(t => t.Named(StatsName(t.TeamName, statsTeams))));
+            if (_changedSourceIds?.Contains(sourceId) != false)
+                _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
+        }
+    }
+
+    /// <summary>
+    /// The season's stats' name of a standings team the standings spell another way: the same letters and digits ("like
+    /// clockwork!"), or a few of them off (one, two from 8 letters, three from 15) when exactly one of the stats' teams is
+    /// that close ("Chemical Inbalance"); else the same without a note in brackets ("Puffy Grifbussy (WINNER)"). A team
+    /// they don't name keeps its own name (a season whose stats name no team).
+    /// </summary>
+    private static string StatsName(string name, List<string> statsTeams)
+    {
+        if (Closest(name, statsTeams) is { } stats)
+            return stats;
+        var bare = TrailingBracketRegex().Replace(name, "").Trim();
+        return bare.Length > 0 && bare != name && Closest(bare, statsTeams) is { } withoutNote ? withoutNote : name;
+    }
+
+    private static string? Closest(string name, List<string> statsTeams)
+    {
+        var key = TeamKey(name);
+        if (statsTeams.FirstOrDefault(t => TeamKey(t) == key) is { } same)
+            return same;
+        var allowed = key.Length >= 15 ? 3 : key.Length >= 8 ? 2 : 1;
+        var close = statsTeams.Where(t => DuplicateSuggestionService.Distance(key, TeamKey(t), allowed) is not null).ToList();
+        return close.Count == 1 ? close[0] : null;
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\s*\([^()]*\)\s*$")]
+    private static partial System.Text.RegularExpressions.Regex TrailingBracketRegex();
+
+    private static string TeamKey(string name) => new([.. name.ToLowerInvariant().Where(char.IsLetterOrDigit)]);
 }

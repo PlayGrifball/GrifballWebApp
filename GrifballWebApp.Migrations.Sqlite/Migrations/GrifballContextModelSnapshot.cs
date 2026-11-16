@@ -5158,6 +5158,12 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("ArchivedFinish")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ArchivedRank")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("CaptainID")
                         .HasColumnType("INTEGER");
 
@@ -5213,6 +5219,8 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
                             t.HasTrigger("Teams_History_Update");
 
+                            t.HasCheckConstraint("CK_Event_Teams_ArchivedPlacingFromFirst", "(ArchivedRank IS NULL OR ArchivedRank >= 1) AND (ArchivedFinish IS NULL OR ArchivedFinish >= 1)");
+
                             t.HasCheckConstraint("CK_Event_Teams_RecordBothOrNeither", "(RecordedWins IS NULL AND RecordedLosses IS NULL) OR (RecordedWins IS NOT NULL AND RecordedLosses IS NOT NULL)");
                         });
 
@@ -5221,6 +5229,14 @@ namespace GrifballWebApp.Migrations.Sqlite.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Domain.League.Team.History", b =>
                 {
+                    b.Property<int?>("ArchivedFinish")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ArchivedFinish");
+
+                    b.Property<int?>("ArchivedRank")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ArchivedRank");
+
                     b.Property<int?>("CaptainID")
                         .HasColumnType("INTEGER")
                         .HasColumnName("CaptainID");

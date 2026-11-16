@@ -11,6 +11,8 @@ internal sealed class TeamStandingsServiceUnitTests : ApplicationDbContextTests
 {
     private const int SeasonID = 1;
     private static readonly string[] ExpectedStandingsOrder = { "A", "B", "C" };
+    private static readonly (string, int?)[] SheetOrderWithFinishes = [("Defiance", 3), ("Monstars", 1), ("Unranked", null)];
+    private static readonly string[] RecordsOrderOfDivisions = ["West Winner", "East Winner", "East Second"];
     private TeamStandingsService _service = null!;
 
     [SetUp]
@@ -148,5 +150,42 @@ internal sealed class TeamStandingsServiceUnitTests : ApplicationDbContextTests
             Assert.That(record.Losses, Is.EqualTo(1));
             Assert.That(record.RecordFromSource, Is.True);
         }
+    }
+
+    private async Task<Team> ArchivedTeam(string name, int wins, int losses, int? rank, int? finish)
+    {
+        var team = Team.Seed(seasonID: SeasonID, teamName: name, recordedWins: wins, recordedLosses: losses);
+        team.RecordArchivedPlacing(rank, finish);
+        Context.Teams.Add(team);
+        await Context.SaveChangesAsync();
+        return team;
+    }
+
+    [Test]
+    public async Task GetTeamStandings_TheSheetsRanks_OrderTheTeams_AndEachHasItsFinish()
+    {
+        await SeedSeason();
+        // The sheet ranks a team on its tiebreaker above one with more wins, and one it doesn't rank goes last
+        await ArchivedTeam("Monstars", 15, 5, rank: 2, finish: 1);
+        await ArchivedTeam("Defiance", 14, 6, rank: 1, finish: 3);
+        await ArchivedTeam("Unranked", 16, 4, rank: null, finish: null);
+
+        var result = await _service.GetTeamStandings(SeasonID);
+
+        Assert.That(result.Select(r => (r.TeamName, r.Finish)), Is.EqualTo(SheetOrderWithFinishes));
+    }
+
+    [Test]
+    public async Task GetTeamStandings_RanksOfSeveralDivisions_KeepTheRecordsOrder()
+    {
+        await SeedSeason();
+        // Each division's table ranks from 1st: the season's order is the records'
+        await ArchivedTeam("East Winner", 12, 2, rank: 1, finish: null);
+        await ArchivedTeam("West Winner", 13, 1, rank: 1, finish: null);
+        await ArchivedTeam("East Second", 8, 6, rank: 2, finish: null);
+
+        var result = await _service.GetTeamStandings(SeasonID);
+
+        Assert.That(result.Select(r => r.TeamName), Is.EqualTo(RecordsOrderOfDivisions));
     }
 }
