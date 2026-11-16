@@ -283,11 +283,12 @@ public class StandingsParserTests
     [Test]
     public void Rows_AHeaderAgainBelow_StartsAnotherDivisionsBlock_RankedFromFirst()
     {
-        // WL19's Schedule: a division's standings under the other's
+        // WL19's Schedule: a division's standings under the other's, a calendar row between them (its team cell empty)
         var sheet = Sheet(
             ["Team Name", "Abb.", "Wins", "Losses"],
             ["Str8 Griffin", "Str8", "21", "1"],
             ["We Respect Hoez", "WRH", "18", "4"],
+            ["", "", "", "", "9:00pm est"],
             ["Team Name", "Abb.", "Wins", "Losses"],
             ["Rooster Bux to Blow", "RBB", "16", "0"]);
 
