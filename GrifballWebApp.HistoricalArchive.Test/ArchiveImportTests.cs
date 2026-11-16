@@ -186,8 +186,9 @@ public class ArchiveImportTests
     private static async Task<List<string>> Awards()
     {
         await using var context = Archive.NewContext();
-        var awards = await context.Seasons.AsNoTracking().Where(s => s.HistoricalSourceID != null)
-            .SelectMany(s => s.Awards.Select(a => new { s.SeasonName, s.SeasonStart, a.Position, a.Name, a.WinnerName, Team = a.Team != null ? a.Team.TeamName : null, a.Value }))
+        // From the awards, joined to their season and team (a SelectMany from the seasons would need APPLY, which SQLite lacks)
+        var awards = await context.Set<GrifballWebApp.Domain.League.SeasonAward>().AsNoTracking().Where(a => a.Season.HistoricalSourceID != null)
+            .Select(a => new { a.Season.SeasonName, a.Season.SeasonStart, a.Position, a.Name, a.WinnerName, Team = a.Team != null ? a.Team.TeamName : null, a.Value })
             .ToListAsync();
         return awards.GroupBy(a => (a.SeasonStart, a.SeasonName)).OrderBy(g => g.Key)
             .Select(g => $"{g.Key.SeasonName}: " + string.Join("; ", g.OrderBy(a => a.Position)
