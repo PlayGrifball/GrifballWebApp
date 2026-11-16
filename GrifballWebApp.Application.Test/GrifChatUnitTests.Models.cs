@@ -48,6 +48,7 @@ public partial class GrifChatUnitTests
     {
         _db = new FakeApplicationDbContext();
         _services = new ServiceCollection()
+            .AddDistributedMemoryCache()
             .AddSingleton<TimeProvider>(_time)
             .AddScoped<IApplicationDbContext>(_ => refuseSaves ? _db.NewContextLike(new RefusingSaves(_ => true)) : _db.NewContextLike())
             .BuildServiceProvider();
