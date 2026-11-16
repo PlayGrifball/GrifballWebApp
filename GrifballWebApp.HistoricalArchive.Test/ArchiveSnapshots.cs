@@ -42,6 +42,10 @@ public sealed class ArchiveSnapshots
     /// <summary>The cached sources, by source ID.</summary>
     public Dictionary<string, CachedSnapshot> Manifest { get; }
 
+    /// <summary>Some of the copy is a database's snapshots: a copy without (downloaded only) can't have the sources only the
+    /// database still has.</summary>
+    public bool HasDatabaseSnapshots => Manifest.Values.Any(s => s.Origin == SnapshotOrigin.Database);
+
     private string ManifestPath => Path.Combine(Folder, ManifestFile);
 
     /// <summary>The catalog's sources the import reads: alive or dead (a dead one imports from its last snapshot), with a config.</summary>

@@ -1,0 +1,37 @@
+name: Historical archive (public sources)
+
+# The import against the real archive as its sources are public now (historical-archive-run.yml): on GitHub's runners,
+# its copy downloaded only (no database here). A sheet that went private or was deleted, which only the test
+# environment's database still has, is left out of the run (a warning, its seasons not imported, on both sides alike);
+# historical-archive.yml has those too. By hand, and on any PR that changes the import, a fork's included (it runs
+# nothing in the cluster; a fork's PR gets the report in the run's summary, its token can't comment).
+on:
+  workflow_dispatch:
+  pull_request:
+    # As historical-archive.yml's
+    paths:
+      - 'GrifballWebApp.Historical/**'
+      - 'GrifballWebApp.HistoricalArchive.Test/**'
+      - 'GrifballWebApp.Application/Historical/**'
+      - 'GrifballWebApp.Domain/Archive/**'
+      - 'GrifballWebApp.Infrastructure/Excel/**'
+      - '.github/workflows/historical-archive*.yml'
+      - '.github/scripts/historical-archive-compare.sh'
+
+concurrency:
+  group: historical-archive-public-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  public:
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/historical-archive-run.yml
+    with:
+      runner: ubuntu-latest
+      fill: download
+      name: public

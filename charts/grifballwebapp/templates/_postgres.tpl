@@ -143,6 +143,17 @@ SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'mon_user', :'mon_passwor
 SELECT format('GRANT pg_monitor TO %I', :'mon_user') \gexec
 \echo Login :mon_user: reads server statistics (pg_monitor).
 \endif
+-- The historical archive's reader (database.logins.archiveReader): its snapshots' two tables, SELECT only.
+\getenv arc_user ARC_USER
+\if :{?arc_user}
+\getenv arc_password ARC_PASSWORD
+SELECT format('CREATE ROLE %I', :'arc_user') WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'arc_user') \gexec
+SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'arc_user', :'arc_password') \gexec
+SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'arc_user') \gexec
+SELECT format('GRANT USAGE ON SCHEMA %I TO %I', 'Event', :'arc_user') \gexec
+SELECT format('GRANT SELECT ON %I.%I, %I.%I TO %I', 'Event', 'HistoricalSources', 'Event', 'HistoricalSourceSnapshots', :'arc_user') \gexec
+\echo Login :arc_user: reads the historical archive's snapshots.
+\endif
 SQL
 {{- end }}
 

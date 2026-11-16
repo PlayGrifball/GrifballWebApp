@@ -91,6 +91,16 @@ database:
       password:
         secretName: ""
         key: MONITOR_DB_PASSWORD
+    # A login that reads the historical archive's snapshots and nothing else (SELECT on
+    # Event.HistoricalSources and Event.HistoricalSourceSnapshots), for a copy of the archive outside the
+    # app: GrifballWebApp.HistoricalArchive.Test's workflow (.github/workflows/historical-archive.yml).
+    # Needs logins.enabled. Turned off again, the login stays as it is: drop it by hand.
+    archiveReader:
+      enabled: false
+      user: grif_archive
+      password:
+        secretName: ""
+        key: ARCHIVE_DB_PASSWORD
 
 backend:
   image:

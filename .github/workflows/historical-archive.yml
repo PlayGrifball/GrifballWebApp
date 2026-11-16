@@ -1,0 +1,37 @@
+name: Historical archive
+
+# The import against the real archive with every source (historical-archive-run.yml): on the org's in-cluster runners
+# (grif-k8s), its copy the test environment's snapshots (its SQL Server, through the chart's read-only
+# database.logins.archiveReader) and then a download. By hand, and on a PR that changes the import. A self-hosted runner
+# never runs a fork's code: a fork's PR is skipped here (historical-archive-public.yml runs it on GitHub's runners).
+on:
+  workflow_dispatch:
+  pull_request:
+    # The import, its sheets' reader, the archive's model, and these workflows
+    paths:
+      - 'GrifballWebApp.Historical/**'
+      - 'GrifballWebApp.HistoricalArchive.Test/**'
+      - 'GrifballWebApp.Application/Historical/**'
+      - 'GrifballWebApp.Domain/Archive/**'
+      - 'GrifballWebApp.Infrastructure/Excel/**'
+      - '.github/workflows/historical-archive*.yml'
+      - '.github/scripts/historical-archive-compare.sh'
+
+concurrency:
+  group: historical-archive-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  database:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/historical-archive-run.yml
+    with:
+      runner: grif-k8s
+      fill: both
+      name: database
