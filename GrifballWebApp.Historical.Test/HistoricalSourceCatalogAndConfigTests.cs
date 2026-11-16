@@ -99,13 +99,16 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
             Rosters = [new RosterTab { Sheet = "DraftSheet", Season = "src/1" }],
             ChampionsSheet = "Champions",
             PlayersSheet = "Players",
+            Brackets = [new BracketTab { Sheet = "Playoffs" }, new BracketTab { Rounds = [new BracketRoundTab { Sheet = "Round 1" }] }],
         };
 
         var names = config.SheetNames();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(names, Has.Count.EqualTo(10));
+            Assert.That(names, Has.Count.EqualTo(12));
+            Assert.That(names, Does.Contain("Playoffs"));
+            Assert.That(names, Does.Contain("Round 1"));
             Assert.That(names, Does.Contain("Stats"));
             Assert.That(names, Does.Contain("Dates"));
             Assert.That(names, Does.Contain("Table"));
