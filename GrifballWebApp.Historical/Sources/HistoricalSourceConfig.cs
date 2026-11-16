@@ -118,6 +118,9 @@ public class StatsTab
     /// <summary>Columns (0-based) not read though their header names a stat: a stat's second column of other games, e.g. a
     /// medal section's Minutes of only the games whose medals were recorded (a later column of a stat wins otherwise).</summary>
     public List<int>? IgnoreColumns { get; init; }
+    /// <summary>A game a player's row doesn't count as won is lost: their losses are their games less their wins (a tab
+    /// with no Losses column, whose games are never tied). Otherwise a tab without one gives no losses.</summary>
+    public bool LossesAreGamesNotWon { get; init; }
 }
 
 /// <summary>

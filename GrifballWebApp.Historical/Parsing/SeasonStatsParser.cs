@@ -49,17 +49,19 @@ public static partial class SeasonStatsParser
             if (ParseTab(sourceId, config, workbook, tab, rosters, warnings) is { } season)
                 seasons.Add(season);
         }
-        if (TeamsOnly(sourceId, config) is { } teamsOnly)
+        if (TeamsOnly(sourceId, config, workbook) is { } teamsOnly)
             seasons.Add(teamsOnly);
         return seasons;
     }
 
     /// <summary>The season of a workbook with no stats tabs or tables (a league that kept no player stats): an entry with
-    /// no player lines, keyed by its first standings tab of its own, whose teams the standings give. Null for any other.</summary>
-    private static ArchiveSeason? TeamsOnly(string sourceId, HistoricalSourceConfig config)
+    /// no player lines, keyed by its first standings tab of its own, whose teams the standings give. Null for any other, and
+    /// when that tab isn't in the workbook (a season of no teams; the build warns of the tab).</summary>
+    private static ArchiveSeason? TeamsOnly(string sourceId, HistoricalSourceConfig config, SheetWorkbook workbook)
     {
-        if (config.Season is not { } defaults || config.Tabs.Count > 0 || config.Tables.Count > 0
-            || config.Standings.FirstOrDefault(s => s.Season is null) is not { } standings)
+        if (config.Season is not { } defaults || config.Tabs.Count > 0 || config.Tables.Count > 0)
+            return null;
+        if (config.Standings.FirstOrDefault(s => s.Season is null) is not { } standings || workbook.Sheet(standings.Sheet) is null)
             return null;
         return new ArchiveSeason
         {
@@ -225,7 +227,7 @@ public static partial class SeasonStatsParser
         var team = ResolveRowTeam(teamName, sides, tab.CarryTeam, gamertag, rosters, ref currentTeam);
         var stint = stints.GetValueOrDefault(gamertag) + 1;
         stints[gamertag] = stint;
-        return Player(row, columns, gamertag, team, tradeNote, roleNote, stint);
+        return Player(row, columns, gamertag, team, tradeNote, roleNote, stint, lossesAreGamesNotWon: tab.LossesAreGamesNotWon);
     }
 
     private static string? ResolveRowTeam(string? teamName, bool sides, bool carryTeam, string gamertag,
@@ -490,7 +492,7 @@ public static partial class SeasonStatsParser
     internal static Dictionary<int, (string Key, string Header)> ColumnsOf(IReadOnlyList<string> header) => ColumnsOfRange(header, 0, header.Count);
 
     /// <summary>A player's line from a row of the stat columns.</summary>
-    internal static ArchivePlayer Player(string[] row, Dictionary<int, (string Key, string Header)> columns, string gamertag, string? teamName, string? tradeNote, string? roleNote, int stint, System.Text.Json.JsonElement? extendedMetrics = null)
+    internal static ArchivePlayer Player(string[] row, Dictionary<int, (string Key, string Header)> columns, string gamertag, string? teamName, string? tradeNote, string? roleNote, int stint, System.Text.Json.JsonElement? extendedMetrics = null, bool lossesAreGamesNotWon = false)
     {
         var values = new Dictionary<string, decimal?>();
         foreach (var (c, column) in columns)
@@ -510,8 +512,8 @@ public static partial class SeasonStatsParser
         var kills = Count("kills");
         var deaths = Count("deaths");
         var kdRatio = Value("kdRatio") ?? (deaths > 0 ? Math.Round(kills!.Value / deaths!.Value, 3, MidpointRounding.AwayFromZero) : (decimal?)null);
-        // A table of games and wins with no losses column (DJBluePDX's): a game not won is lost
-        var losses = columns.Values.Any(c => c.Key == "losses") || Value("gamesPlayed") is not { } games || Value("wins") is not { } wins
+        // A tab that says a game not won is lost (DJBluePDX's: games and wins, no losses column): otherwise games not won may be ties
+        var losses = !lossesAreGamesNotWon || Value("gamesPlayed") is not { } games || Value("wins") is not { } wins
             ? Count("losses")
             : Math.Max(games - wins, 0);
         return new ArchivePlayer

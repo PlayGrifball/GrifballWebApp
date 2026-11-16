@@ -335,8 +335,8 @@ public static partial class RecordedGameParser
     private static partial Regex PlayoffsPattern();
 
     // "Week 1 - 1/28/19 - A over B (5-2)", or the winner first with no phase: "A over B 5-3 - host" (DJBluePDX's, one
-    // title of which spells it "pver")
-    [GeneratedRegex(@"^(?:(?<phase>[^-]*?)\s*-.*\s|[^-]+?\s)(?<verb>over|pver|tied)\s", RegexOptions.IgnoreCase)]
+    // title of which spells it "pver"), a score or a " - host" after it: a team's row ("Thunder Over Dallas") has neither
+    [GeneratedRegex(@"^(?:(?<phase>[^-]*?)\s*-.*\s(?<verb>over|pver|tied)\s|[^-]+?\s(?<verb>over|pver|tied)\s.*?(?:\d{1,2}-\d{1,2}|\s-\s))", RegexOptions.IgnoreCase)]
     private static partial Regex TitlePattern();
 
     [GeneratedRegex(@"\(?\b(\d{1,2})-(\d{1,2})\b\)?")]

@@ -282,7 +282,7 @@ public static partial class StandingsParser
     private static bool HasTable(string[] row, int column, StandingsLayout layout)
         => layout == StandingsLayout.Columns
             ? row.Skip(column + 1).Any(cell => cell.Trim().Length > 0)
-            : row.Where((_, c) => c != column).Any(cell => FieldOf(cell) is { } field && field != Field.Team);
+            : row.Where((_, c) => c != column).Any(cell => FieldOf(cell) is { } and not (Field.Team or Field.Player));
 
     private static Field? FieldOf(string cell)
     {
