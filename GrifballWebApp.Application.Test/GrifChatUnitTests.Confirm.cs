@@ -150,8 +150,11 @@ public partial class GrifChatUnitTests
         using (var reply = await chat.StartAsync([], "Forfeit match 12", Commissioner, ChatHost.Site, Asker))
             await All(reply.StreamAsync());
 
-        Assert.That(await _services.GetRequiredService<IDistributedCache>().GetAsync(ChatAccounts.WaitingKey(Asker)), Is.Not.Null);
-        Assert.That(ChatAccounts.WaitingFor, Is.EqualTo(TimeSpan.FromMinutes(10)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await _services.GetRequiredService<IDistributedCache>().GetAsync(ChatAccounts.WaitingKey(Asker)), Is.Not.Null);
+            Assert.That(ChatAccounts.WaitingFor, Is.EqualTo(TimeSpan.FromMinutes(10)));
+        }
     }
 
     [Test]
