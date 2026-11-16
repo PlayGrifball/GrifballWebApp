@@ -19,9 +19,9 @@ export const SERIES_LABELS = ['k8s_pod_name'];
 
 /**
  * A required panel's query as it's checked: without its zero fills (`or vector(0)`), which keep a stat at 0 when there
- * is nothing to count but would answer even if the series it counts were renamed or gone.
+ * is nothing to count but would answer even if the series it counts were renamed or gone. As the generator writes them.
  */
-export const requiredQuery = expr => expr.replaceAll(/\s+or\s+vector\s*\(\s*0\s*\)/g, '');
+export const requiredQuery = expr => expr.replaceAll(' or vector(0)', '');
 
 /** The labels of each series in a Grafana /api/ds/query result. */
 export const seriesLabels = result =>
