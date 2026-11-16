@@ -11,6 +11,8 @@ namespace GrifballWebApp.Historical.Test;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class GameResultsParserTests
 {
+    private static readonly string[] BravoAlphaThenCharlie = ["fl20/Game Results#2", "fl20/Game Results#2", "fl20/Game Results#5"];
+    private static readonly string[] ZedNotRead = ["fl20/Game History: results not read: Alpha v Charlie: FF Zed Win, no winner"];
     private static readonly string[] TableSeries = ["fl20/Game Results#2", "fl20/Game Results#2", "fl20/Game Results#5", "fl20/Game Results#8"];
     private static readonly string[] TableKeys = ["fl20/Game Results#2", "fl20/Game Results#3", "fl20/Game Results#5", "fl20/Game Results#8"];
     private static readonly bool[] ThirdIsForfeit = [false, false, true, false];
@@ -100,6 +102,31 @@ public class GameResultsParserTests
     }
 
     [Test]
+    public void Table_ANamedScoreColumn_LoserBesideTheWinner_AndAPlayoffsTab()
+    {
+        var sheet = Sheet(
+            ["Winner", "Loser", "Score", "Map", "Link"],
+            ["Week 1"],
+            ["Bravo", "Alpha", "5 - 3", "Foundry", "https://x.test/1"],
+            ["Alpha", "Bravo", "3-5", "Pit"],
+            ["Winner", "Loser"],
+            ["Alpha", "Charlie", "", "Narrows"]);
+
+        var games = Parse(new ResultsTab { Sheet = "Game Results", IsPlayoffs = true }, sheet);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games.Select(g => (g.Teams[0].Name, g.Teams[0].Score, g.Teams[1].Score, g.Map, g.Vod, g.IsPlayoffs)), Is.EqualTo(new[]
+            {
+                ((string?)"Bravo", (int?)5, (int?)3, (string?)"Foundry", (string?)"https://x.test/1", true),
+                ("Alpha", 5, 3, "Pit", null, true),
+                ("Alpha", null, null, "Narrows", null, true),
+            }), "A header without a score column has none beside the winner when the loser is there; a week of a playoffs tab is the playoffs");
+            Assert.That(games.Select(g => g.Series), Is.EqualTo(BravoAlphaThenCharlie), "The same two teams either way round are one series");
+        }
+    }
+
+    [Test]
     public void Table_AResultNamingOneTeam_IsLeftOutAndReported_AndRowsBeforeAHeaderAreNoGames()
     {
         var warnings = new List<string>();
@@ -172,6 +199,18 @@ public class GameResultsParserTests
     }
 
     [Test]
+    public void Series_ScoresWithoutGames_AreAGameOrTheSeriesGames_AndACellNamingNoTeamIsNone()
+    {
+        var games = Parse(new ResultsTab { Sheet = "Game Results", Layout = ResultsLayout.Series },
+            Sheet(["TBD over Mon 5-3", "TBD 2-0 Mon", "Alpha over Bravo 3-5", "Alpha over Bravo 5-5", "Alpha over Bravo 1-2"]));
+
+        Assert.That(games.Select(g => (g.Teams[0].Outcome, g.Teams[0].Score, g.Teams[1].Score)), Is.EqualTo(new[]
+        {
+            (Outcomes.Lost, (int?)3, (int?)5), (Outcomes.Tie, 5, 5), (Outcomes.Won, null, null), (Outcomes.Lost, null, null), (Outcomes.Lost, null, null),
+        }));
+    }
+
+    [Test]
     public void Series_ACellWithNoScore_IsReported()
     {
         var warnings = new List<string>();
@@ -227,6 +266,28 @@ public class GameResultsParserTests
             Assert.That(games.Select(g => (g.IsForfeit, g.Vod)), Is.EqualTo(new[] { (true, (string?)null), (true, null), (true, null), (true, null), (false, "https://youtu.be/v") }));
             Assert.That(games.Select(g => g.Series), Is.EqualTo(HistorySeries), "A Waypoint game between ends a series; the same two teams' rows in a row are one");
             Assert.That(warnings, Is.EqualTo(NoWinnerNotRead));
+        }
+    }
+
+    [Test]
+    public void GameHistory_ATie_AForfeitNamingTheHomeSide_AndOneNamingNeither()
+    {
+        var warnings = new List<string>();
+        var sheet = Sheet(
+            ["", "Home Team", "Away Team", "Score"],
+            ["Week 1", "Alpha", "Bravo", "5-5"],
+            ["", "Alpha", "Bravo", "", "FF Alpha Win"],
+            ["", "Alpha", "Charlie", "", "FF Zed Win"]);
+
+        var games = Parse(new ResultsTab { Sheet = "Game History", Layout = ResultsLayout.GameHistory }, sheet, warnings);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games.Select(g => (g.Teams[0].Outcome, g.Teams[1].Outcome, g.IsForfeit, g.Vod)), Is.EqualTo(new[]
+            {
+                (Outcomes.Tie, Outcomes.Tie, false, (string?)null), (Outcomes.Won, Outcomes.Lost, true, null),
+            }));
+            Assert.That(warnings, Is.EqualTo(ZedNotRead));
         }
     }
 

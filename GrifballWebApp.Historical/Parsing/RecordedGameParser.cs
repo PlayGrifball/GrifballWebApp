@@ -311,7 +311,7 @@ public static partial class RecordedGameParser
         if (TitleTeams(title) is not { } named)
             return null;
         var key = Key(side.Name);
-        string? other = key.Length == 0 ? null : key == Key(named.Winner) ? named.Loser : key == Key(named.Loser) ? named.Winner : null;
+        string? other = key == Key(named.Winner) ? named.Loser : key == Key(named.Loser) ? named.Winner : null;
         if (other is null && !tied)
             other = side.Outcome == Outcomes.Won ? named.Loser : named.Winner;
         if (other is null)
@@ -346,13 +346,8 @@ public static partial class RecordedGameParser
     /// <summary>The two teams a block's title names: the one before "over" (the winner, or one side of a tie) and the one after,
     /// without the forfeit marks, score, notes and links after them.</summary>
     private static (string Winner, string Loser)? TitleTeams(string title)
-    {
-        var matchup = title.Split(" - ").Select(s => TitleMatchupPattern().Match(s.Trim())).FirstOrDefault(m => m.Success);
-        if (matchup is null)
-            return null;
-        var (winner, loser) = (matchup.Groups["a"].Value.Trim(), matchup.Groups["b"].Value.Trim());
-        return winner.Length == 0 || loser.Length == 0 ? null : (winner, loser);
-    }
+        => title.Split(" - ").Select(s => TitleMatchupPattern().Match(s.Trim())).Where(m => m.Success)
+            .Select(m => ((string Winner, string Loser)?)(m.Groups["a"].Value.Trim(), m.Groups["b"].Value.Trim())).FirstOrDefault();
 
     /// <summary>The first link in a title (the game's video).</summary>
     private static string? TitleLink(string title) => LinkPattern().Match(title) is { Success: true } link ? link.Value : null;

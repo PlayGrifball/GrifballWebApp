@@ -136,6 +136,57 @@ public class HistoricalArchiveResultsTests
     }
 
     [Test]
+    public void ANameOfMoreThanOneTeamsPlayers_OrTooShort_StaysAsItIs_AndACaptainNamesTheirTeam()
+    {
+        List<HistoricalSourceContent> sources =
+        [
+            Source("s", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Summer League 2025", Game = "halo3" },
+                    Tabs = [new() { Name = "Stats" }],
+                    Standings = [new() { Sheet = "Standings", CaptainInName = true }],
+                    Results = [new() { Sheet = "Game Results", Tab = "Stats" }],
+                    Games = [new() { Sheet = "Blocks", Season = "missing/Stats", Game = "halo3", Layout = GamesLayout.Blocks }],
+                },
+                Workbook(("Stats", [StatsHeader, Row("Smith One", "Red", 4, 1), Row("Smith Two", "Blue", 4, 1), Row("Ab", "Red", 4, 1), Row("Captain Kirk", null, 4, 1)]),
+                    ("Standings", [Row("Team", "Wins", "Losses"), Row("Gold (Captain Kirk)", 1, 0)]),
+                    ("Game Results", [Row("Winner", null, "Loser"), Row("Smith", "5-0", "Ab"), Row("Kirk", "5-1", "Blue")]),
+                    ("Blocks", [Row("Template"), Row("Week 1 - 1/1/25 - Red over Blue - Forfeit")]))),
+            Source("solo", new HistoricalSourceConfig { Results = [new() { Sheet = "Cup", Layout = ResultsLayout.Series, CustomSeason = "Solo Cup" }] },
+                Workbook(("Cup", [Row("Alpha over Bravo 5-3")]))),
+        ];
+
+        var build = HistoricalArchiveBuilder.Build(sources);
+
+        var solo = build.Input.Seasons.Seasons.Single(s => s.SeasonName == "Solo Cup");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Input.RecordedGames!.Select(g => (g.SeasonSourceId, g.Teams[0].Name, g.Teams[1].Name)), Is.EqualTo(new[]
+            {
+                ("missing/Stats", (string?)"Red", (string?)"Blue"), ("s/Stats", "Smith", "Ab"), ("s/Stats", "Gold", "Blue"), ("solo/Cup", "Alpha", "Bravo"),
+            }), "A captain the standings name is their team's; a game of no season keeps its names");
+            Assert.That((solo.GameVersion, solo.League, solo.Division), Is.EqualTo(("", "AGLA", "Open")), "No defaults: the import's");
+        }
+    }
+
+    [Test]
+    public void APartialCopysOtherSide_IsByItsResult_WhenTheTitleDoesNotNameItsSide()
+    {
+        object?[] header = Row("Team", "Player", "Games Played", "Wins", "Minutes", "Goals", "Kills");
+        var workbook = SheetWorkbook.Read(Workbook(("Game Results", [Row("Template"),
+            Row("Week 1 - 1/1/19 - Tuna over Damage (5-2)"), header, Row("Someone", "imShad", 1, 1, 10, 5, 10),
+            Row("Week 1 - 1/2/19 - Tuna over Damage (5-2)"), header, Row("Someone", "imShad", 1, 0, 10, 2, 10),
+            Row("Week 1 - 1/3/19 - Tuna tied Damage (5-5)"), header, Row("Tuna", "imShad", 1, 0, 10, 5, 10)])))!;
+
+        var games = RecordedGameParser.Parse("wl19", new GamesTab { Sheet = "Game Results", Season = "wl19/Stats", Game = "halo3", Layout = GamesLayout.Blocks }, workbook, []);
+
+        Assert.That(games.Select(g => (g.Teams[1].Name, g.Teams[1].Outcome, g.Teams[1].Score)), Is.EqualTo(new[]
+        {
+            ((string?)"Damage", Outcomes.Lost, (int?)2), ("Tuna", Outcomes.Won, 5), ("Damage", Outcomes.Tie, 5),
+        }), "The winner is named first");
+    }
+
+    [Test]
     public void APartialCopyOfATie_WhoseSideTheTitleDoesNotName_StaysOneSided()
     {
         object?[] header = Row("Team", "Player", "Games Played", "Wins", "Minutes", "Goals", "Kills");

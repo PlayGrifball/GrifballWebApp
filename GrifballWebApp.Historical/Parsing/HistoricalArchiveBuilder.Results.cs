@@ -136,22 +136,22 @@ public sealed partial class HistoricalArchiveBuilder
             return PlayerTeam(listed) ?? listed;
         }
 
-        /// <summary>The team of the one player (or captain) whose gamertag is the name, or has it as a word or its start, or (4
-        /// letters or more) anywhere in it.</summary>
+        /// <summary>The team of the one player (or captain) whose gamertag is the name, else of those who have it as a word or
+        /// its start, else (4 letters or more) anywhere in it; null when there is none, or more than one team.</summary>
         private string? PlayerTeam(string name)
         {
             var key = HistoricalKeys.Normalize(name);
-            var exact = _players.Where(p => HistoricalKeys.Normalize(p.Gamertag) == key).Select(p => p.Team).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            if (exact.Count > 0)
-                return exact.Count == 1 ? exact[0] : null;
-            var named = _players.Where(p => Words(p.Gamertag).Contains(key) || HistoricalKeys.Normalize(p.Gamertag).StartsWith(key, StringComparison.Ordinal))
-                .Select(p => p.Team).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            if (named.Count > 0)
-                return key.Length >= 3 && named.Count == 1 ? named[0] : null;
-            // A part of a gamertag ("Poptart" of PoisonxPoptart, "Ducky" of PsyDucky54)
-            var within = _players.Where(p => HistoricalKeys.Normalize(p.Gamertag).Contains(key, StringComparison.Ordinal))
-                .Select(p => p.Team).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            return key.Length >= 4 && within.Count == 1 ? within[0] : null;
+            if (key.Length < 3)
+                return null;
+            Func<string, bool>[] rules =
+            [
+                gamertag => HistoricalKeys.Normalize(gamertag) == key,
+                gamertag => Words(gamertag).Contains(key) || HistoricalKeys.Normalize(gamertag).StartsWith(key, StringComparison.Ordinal),
+                gamertag => key.Length >= 4 && HistoricalKeys.Normalize(gamertag).Contains(key, StringComparison.Ordinal),
+            ];
+            var teams = rules.Select(rule => _players.Where(p => rule(p.Gamertag)).Select(p => p.Team).Distinct(StringComparer.OrdinalIgnoreCase).ToList())
+                .FirstOrDefault(found => found.Count > 0);
+            return teams?.Count == 1 ? teams[0] : null;
         }
 
         private static List<string> Words(string text) => text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(HistoricalKeys.Normalize).ToList();
