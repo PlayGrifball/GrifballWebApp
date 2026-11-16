@@ -294,13 +294,24 @@ public sealed partial class XuidLookupWorker : BackgroundService
             {
                 _logger.LogError(ex, "XUID lookups failed; trying again later");
             }
-            // Throttled: not before Halo's (or the gateway budget's) Retry-After, even if woken sooner
-            var wait = PausedFor is { } paused && paused > _options.Value.PollInterval ? paused : _options.Value.PollInterval;
-            if (PausedFor is not null)
-                await Task.Delay(wait, stoppingToken);
-            else
-                await _signal.WaitAsync(wait, stoppingToken);
+            await WaitForNextRunAsync(stoppingToken);
         }
+    }
+
+    /// <summary>Waits between two runs (replaceable in tests).</summary>
+    public Func<TimeSpan, CancellationToken, Task> Delay { get; set; } = (delay, ct) => Task.Delay(delay, ct);
+
+    /// <summary>
+    /// Waits before the next run: after a throttled one, its <see cref="PausedFor"/> (at least PollInterval), which a signal
+    /// doesn't cut short (Halo's or the gateway budget's Retry-After); otherwise up to PollInterval, or until signalled.
+    /// </summary>
+    public async Task WaitForNextRunAsync(CancellationToken ct)
+    {
+        var poll = _options.Value.PollInterval;
+        if (PausedFor is { } paused)
+            await Delay(paused > poll ? paused : poll, ct);
+        else
+            await _signal.WaitAsync(poll, ct);
     }
 
     /// <summary>When the last run was throttled (a 429): how long it asked to wait before the next. Null otherwise.</summary>
