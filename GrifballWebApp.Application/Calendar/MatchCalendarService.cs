@@ -10,7 +10,7 @@ namespace GrifballWebApp.Application.Calendar;
 /// <summary>
 /// The calendar feeds of season matches (iCalendar, <see cref="IcsWriter"/>), which calendar apps subscribe to by URL: a
 /// team's matches, a player's (their teams'), and a season's. Each scheduled match is an event at its time, a slot long
-/// (<see cref="SeasonMatch.SlotLength"/>), under a UID of its own (<see cref="Uid"/>) so a match moved to another time
+/// (<see cref="SeasonMatch.PlayingTime"/>: its games, not the lobby before), under a UID of its own (<see cref="Uid"/>) so a match moved to another time
 /// moves in the calendar too. An unscheduled match and a BYE, which is never played, are left out.
 /// <para>
 /// A calendar app fetches a feed signed in to nothing, and its URL is shared, so a feed holds only what a signed-out
@@ -120,7 +120,7 @@ public class MatchCalendarService
         return new CalendarEvent(
             Uid: Uid(match.SeasonMatchID),
             Start: match.ScheduledTime,
-            End: match.ScheduledTime + SeasonMatch.SlotLength,
+            End: match.ScheduledTime + SeasonMatch.PlayingTime(match.BestOf),
             Summary: $"{match.HomeTeamName ?? "TBD"} vs {match.AwayTeamName ?? "TBD"} ({match.SeasonName})",
             // The page in the notes too: Google Calendar shows no URL property
             Description: $"{match.SeasonName}, best of {match.BestOf}\n{url}",
