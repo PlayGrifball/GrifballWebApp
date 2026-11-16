@@ -32,6 +32,12 @@ public sealed record ChatModelOption(string Id, string Name, ChatProvider Provid
     /// </summary>
     public int? MaxOutputTokens { get; init; }
 
+    /// <summary>
+    /// Whether it picks well from every tool (Claude): then, in private, it gets every tool the caller's roles allow, as the MCP server
+    /// gives them; else the chat's short list (<see cref="Tools.GrifTools.PrivateChat"/>), which a small model picks from better.
+    /// </summary>
+    public bool EveryTool { get; init; }
+
     /// <summary>Anyone may use it: no roles.</summary>
     public bool IsOpen => Roles.Count == 0;
 

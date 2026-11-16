@@ -41,6 +41,12 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
 
     /// <summary>The names of the tools the model is given, each only to a caller its roles allow (<see cref="GrifTools.AIFunctions"/>).</summary>
     public IReadOnlyCollection<string> Tools => InPublic ? GrifTools.Chat : GrifTools.PrivateChat;
+
+    /// <summary>
+    /// The tools <paramref name="model"/> is given here: in private, every tool when it picks well from a long list
+    /// (<see cref="ChatModelOption.EveryTool"/>), else <see cref="Tools"/>; in public, <see cref="Tools"/> whatever the model.
+    /// </summary>
+    public IReadOnlyCollection<string> ToolsFor(ChatModelOption model) => !InPublic && model.EveryTool ? GrifTools.Every : Tools;
 }
 
 /// <summary>
@@ -348,7 +354,7 @@ public sealed class ChatReply : IDisposable
             // model is shared: not disposed. Its spans are in the trace current where the reply streams (the hub call's, flowing into
             // its task; the Discord message's)
             var client = _pipelines.Create(Model);
-            var tools = GrifTools.AIFunctions(_scopes, _caller, _host.Tools, _pipelines.ToolLog, _pipelines.SensitiveData);
+            var tools = GrifTools.AIFunctions(_scopes, _caller, _host.ToolsFor(Model), _pipelines.ToolLog, _pipelines.SensitiveData);
             var options = new ChatOptions { Instructions = GrifChat.Instructions(_host), Tools = tools, MaxOutputTokens = Model.MaxOutputTokens };
             await using var updates = client.GetStreamingResponseAsync(_conversation, options, timeout.Token).GetAsyncEnumerator(timeout.Token);
             while (await NextAsync(updates, timeout, cancellationToken))
