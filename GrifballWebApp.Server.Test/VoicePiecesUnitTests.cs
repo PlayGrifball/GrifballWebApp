@@ -104,8 +104,8 @@ public class VoicePiecesUnitTests
         var time = new FakeTimeProvider();
         var lines = new VoiceLines(time);
 
-        // Chunks that don't divide the limit: the last one is cut
-        for (var i = 0; i < VoiceLines.MaxSeconds + 5; i++)
+        // 0.7 s chunks, which don't divide the limit, past it: the one that reaches it is cut
+        for (var i = 0; i < 50; i++)
             lines.Add(1, new short[33_600]);
         time.Advance(VoiceLines.Silence);
 
