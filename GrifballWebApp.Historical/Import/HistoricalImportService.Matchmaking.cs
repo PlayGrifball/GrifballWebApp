@@ -270,6 +270,7 @@ public partial class HistoricalImportService
             SwordKills = p.Input.SwordKills,
             BallKills = p.Input.BallKills,
             Punches = p.Input.Punches,
+            Grabs = p.Input.Grabs,
         }).ToList());
     }
 

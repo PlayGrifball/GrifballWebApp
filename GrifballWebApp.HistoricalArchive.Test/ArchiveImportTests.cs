@@ -118,6 +118,15 @@ public class ArchiveImportTests
         Assert.That((await Seasons()).Where(s => s.PlayoffStats > 0 && s.PlayoffMatches == 0 && !waypoint.Contains(s.SourceID)).Select(s => s.Name), Is.Empty);
     }
 
+    /// <summary>The seasons of the website databases (grifball.com 2008-2010, grifball.info 2011-2013): each has the games
+    /// and forfeits its database kept, as season matches.</summary>
+    [Test]
+    public async Task EveryWebsiteSeason_HasMatches()
+    {
+        Assert.That((await Seasons()).Where(s => (s.SourceID.StartsWith("history-grifball-com-db/", StringComparison.Ordinal)
+            || s.SourceID.StartsWith("history-grifball-info-db/", StringComparison.Ordinal)) && s.Matches == 0).Select(s => s.Name), Is.Empty);
+    }
+
     [Test]
     public async Task EveryLateLeagueSeason_HasStatsAndGames()
     {

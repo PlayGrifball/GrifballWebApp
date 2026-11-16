@@ -21,6 +21,9 @@ public class HistoricalArchiveInput
     /// <summary>Games recorded outside Waypoint (MCC carnage reports, older games), each naming its season by the season's
     /// <c>HistoricalSourceID</c>. Filled by the spreadsheet parser.</summary>
     public List<RecordedGameInput>? RecordedGames { get; init; }
+    /// <summary>Season matches decided by a forfeit (no game was played), each naming its season by the season's
+    /// <c>HistoricalSourceID</c>. Filled by the spreadsheet parser from the website databases' game tables.</summary>
+    public List<ArchiveForfeitInput>? Forfeits { get; init; }
     /// <summary>Players lists (the Late League master list and the like): a gamertag's Discord ID, region and system.
     /// Filled by the spreadsheet parser, or from late-league-master.json (<see cref="LateLeagueMasterFile"/>).</summary>
     public List<ArchivePlayerInput>? Players { get; init; }
@@ -230,6 +233,27 @@ public class RecordedPlayerInput
     public int? SwordKills { get; init; }
     public int? BallKills { get; init; }
     public int? Punches { get; init; }
+    /// <summary>Times the player picked up the ball (grifball.com's grabs).</summary>
+    public int? Grabs { get; init; }
+}
+
+/// <summary>
+/// A season match decided by a forfeit: no game was played. The import makes it a forfeited season match between the
+/// season teams of these names (the winner's and the forfeiting side's, or both forfeiting).
+/// </summary>
+public class ArchiveForfeitInput
+{
+    /// <summary>The season's <c>HistoricalSourceID</c>, as <see cref="RecordedGameInput.SeasonSourceId"/>.</summary>
+    public required string SeasonSourceId { get; init; }
+    /// <summary>Where it comes from (e.g. "{workbook}/{sheet}#{row}"), for the report.</summary>
+    public required string SourceKey { get; init; }
+    /// <summary>The team that won by the forfeit; with <see cref="BothForfeited"/>, one of the two.</summary>
+    public required string Winner { get; init; }
+    /// <summary>The team that forfeited.</summary>
+    public required string Loser { get; init; }
+    /// <summary>A double forfeit: neither side won.</summary>
+    public bool BothForfeited { get; init; }
+    public DateTime? PlayedAt { get; init; }
 }
 
 /// <summary>A player of a players list: who a gamertag is on Discord, where they play from and on what.</summary>

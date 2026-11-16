@@ -200,6 +200,8 @@ public partial class HistoricalImportService : IHistoricalImportService
         public WaypointSeasonMatches? Waypoint { get; set; }
         /// <summary>The season's recorded games; null when the archive has none for it (its games are then left as they are).</summary>
         public List<RecordedGameInput>? RecordedGames { get; set; }
+        /// <summary>The season's forfeits; null when the archive has none for it (its forfeited matches are then left as they are).</summary>
+        public List<ArchiveForfeitInput>? Forfeits { get; set; }
         public SeasonFormat Format { get; set; } = SeasonFormat.LeagueSeason;
     }
 
@@ -388,6 +390,13 @@ public partial class HistoricalImportService : IHistoricalImportService
                 (group.RecordedGames ??= []).Add(game);
             else
                 Skip(report, $"Recorded game {game.SourceKey}: no season with the key {game.SeasonSourceId} in the archive");
+        }
+        foreach (var forfeit in input.Forfeits ?? [])
+        {
+            if (bySourceId.TryGetValue(forfeit.SeasonSourceId.Trim(), out var group) && !group.IsMatchmaking)
+                (group.Forfeits ??= []).Add(forfeit);
+            else
+                Skip(report, $"Forfeit {forfeit.SourceKey}: no season with the key {forfeit.SeasonSourceId} in the archive");
         }
     }
 
@@ -683,6 +692,8 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (group.RecordedGames is not null)
                 games.AddRange(await ImportRecordedGames(group, season, gameVersions, resolver, teams, games, counts, ct));
             await LinkSeries(season, games, counts, ct);
+            if (group.Forfeits is not null)
+                await ImportForfeits(group, season, teams, counts, ct);
             var tiers = await ImportChampionships(group, season, gameVersions, resolver, teams, counts, ct);
             await RemoveTitlesNoLongerThere(season, tiers, counts, ct);
             await SyncRosters(teams, ct);

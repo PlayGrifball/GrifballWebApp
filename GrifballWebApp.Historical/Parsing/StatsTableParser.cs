@@ -13,7 +13,7 @@ namespace GrifballWebApp.Historical.Parsing;
 /// playoffs column), each player's line read as a season stats tab's (<see cref="SeasonStatsParser"/>). Rows of a
 /// season the config doesn't name, and rows without a gamertag, are skipped and reported.
 /// </summary>
-public static class StatsTableParser
+public static partial class StatsTableParser
 {
     /// <summary>Stats that are rates, not counts: a player's per-game rows aren't added up into them (the importer works
     /// them out again from the totals).</summary>
@@ -92,7 +92,7 @@ public static class StatsTableParser
 
     /// <summary>Maps each season ID in <see cref="StatsTable.Seasons"/> to the first ID that shares its name and division
     /// (e.g. two conferences of one season).</summary>
-    private static Dictionary<string, string> CanonicalSeasonIds(StatsTable table)
+    internal static Dictionary<string, string> CanonicalSeasonIds(StatsTable table)
     {
         var firstBySeason = new Dictionary<(string Name, string? Division), string>();
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -207,13 +207,16 @@ public static class StatsTableParser
             return [];
         }
         var header = sheet.Rows[0];
-        var seasonCol = Index(header, table.SeasonColumn);
-        var teamCol = FirstIndex(header, "team_name", "team");
+        // Its own season column when it isn't the stats' (agla_teamindex's "season" beside agla_playerstats' "p_season")
+        var seasonCol = FirstIndex(header, table.SeasonColumn, "season");
+        var teamCol = FirstIndex(header, "team_name", "team", "teamname");
         if (seasonCol < 0 || teamCol < 0)
         {
             warnings.Add($"{sourceId}: {table.StandingsSheet} has no '{table.SeasonColumn}' or 'team_name' column");
             return [];
         }
+        // A season split into divisions by the teams' column (isPro) names each team's division by it
+        var splitCol = table.DivisionColumn is null ? -1 : Index(header, table.DivisionColumn);
         var divCol = FirstIndex(header, "division_name", "division");
         var rankCol = Index(header, "rank");
         var winsCol = Index(header, "wins");
@@ -222,6 +225,8 @@ public static class StatsTableParser
         var gaCol = Index(header, "goals_against");
         var capCol = FirstIndex(header, "captain_gamertag", "captain");
         var rosterCol = FirstIndex(header, "roster_gamertags", "roster");
+        // Or a column per player after the captain (agla_teamindex's p2 to p8)
+        var playerCols = Enumerable.Range(0, header.Length).Where(c => PlayerColumnPattern().IsMatch(header[c].Trim())).ToList();
         var bySeason = new Dictionary<string, List<ArchiveTeam>>(StringComparer.Ordinal);
         foreach (var row in sheet.Rows.Skip(1))
         {
@@ -229,11 +234,14 @@ public static class StatsTableParser
                 continue;
             if (!bySeason.TryGetValue(seasonId, out var list))
                 bySeason[seasonId] = list = [];
-            var roster = Value(row, rosterCol)?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
+            var roster = rosterCol < 0
+                ? new[] { Value(row, capCol) }.Concat(playerCols.Select(c => Value(row, c))).OfType<string>().ToList()
+                : Value(row, rosterCol)?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
+            var divisions = table.Seasons[rawId].Divisions;
             list.Add(new ArchiveTeam
             {
                 TeamName = teamName,
-                Division = Value(row, divCol),
+                Division = divisions is not null && Value(row, splitCol) is { } split ? divisions.GetValueOrDefault(split) : Value(row, divCol),
                 Rank = IntValue(row, rankCol),
                 Wins = IntValue(row, winsCol),
                 Losses = IntValue(row, lossesCol),
@@ -323,6 +331,9 @@ public static class StatsTableParser
                 return col;
         return -1;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[pP]\d+$")]
+    private static partial System.Text.RegularExpressions.Regex PlayerColumnPattern();
 
     private static string Cell(string[] row, int column) => column >= 0 && column < row.Length ? row[column] : "";
 

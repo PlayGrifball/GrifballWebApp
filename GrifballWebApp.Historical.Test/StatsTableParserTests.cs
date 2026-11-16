@@ -46,6 +46,8 @@ public class StatsTableParserTests
             ("hr_pstats#s13", "Spring League 2011", "reach", "Open", false, "AGLA"),
             ("hr_pstats#s13", "Spring League 2011", "reach", "Open", true, "AGLA"),
             ("h4_pstats#s20", "Winter League 2013", "halo4", "Open", false, "AGLA"),
+            ("agla_playerstats#sSML11_Amateur", "Summer League 2011 Halo 3 (Amateur)", "halo3", "Amateur", false, "AGLA"),
+            ("agla_playerstats#sSML11_Amateur", "Summer League 2011 Halo 3 (Amateur)", "halo3", "Amateur", true, "AGLA"),
         }));
             Assert.That(seasons.Select(s => s.SourceWorkbook), Is.All.EqualTo(SourceId));
         }
@@ -111,12 +113,14 @@ public class StatsTableParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(build.Warnings, Is.EquivalentTo(new[]
+            Assert.That(build.Warnings, Is.SupersetOf(new[]
             {
                 $"{SourceId}: hr_pstats: 2 row(s) of season -1, which its config doesn't name, skipped",
                 $"{SourceId}: hr_pstats: 1 row(s) of season 12 without one of its divisions, skipped",
                 $"{SourceId}: hr_pstats: 1 row(s) without a gamertag, skipped",
+                $"{SourceId}: agla_playerstats: 1 row(s) of season SML11 without one of its divisions, skipped",
             }));
+            Assert.That(build.Warnings.Where(w => w.Contains(": hr_pstats:") || w.Contains(": agla_playerstats:")).ToList(), Has.Count.EqualTo(4));
             Assert.That(Seasons(build).SelectMany(s => s.Players).Select(p => p.Gamertag), Has.None.EqualTo("Twizzted Status").And.None.EqualTo("Limbo Larry"));
         }
     }

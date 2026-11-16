@@ -35,6 +35,7 @@ public sealed class HistoricalArchiveBuilder
     private readonly List<ArchiveSeason> _seasons = [];
     private ChampionsArchive? _champions;
     private readonly List<RecordedGameInput> _games = [];
+    private readonly List<ArchiveForfeitInput> _forfeits = [];
     private readonly List<ArchivePlayerInput> _players = [];
     private readonly List<CatalogSource> _catalog = [];
     /// <summary>Each Waypoint tab's games, parsed as its source is read; put under their season's key once every season is known.</summary>
@@ -89,6 +90,7 @@ public sealed class HistoricalArchiveBuilder
         foreach (var tab in config.Standings)
             _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
         AddGames(id, config, workbook, changed);
+        AddGameTables(id, config, workbook, entries, changed);
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
         if (changed)
@@ -153,6 +155,25 @@ public sealed class HistoricalArchiveBuilder
     }
     }
 
+    /// <summary>The source's database tables of games (<see cref="GamesTableParser"/>): the games and forfeits of its own
+    /// seasons. One of a season its stats make no entry for is left out and reported.</summary>
+    private void AddGameTables(string id, HistoricalSourceConfig config, SheetWorkbook workbook, List<ArchiveSeason> entries, bool changed)
+    {
+        if (config.GameTables.Count == 0)
+            return;
+        var parsed = GamesTableParser.Parse(id, config, workbook, _warnings);
+        var seasons = entries.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var games = parsed.Games.Where(g => seasons.Contains(g.SeasonSourceId)).ToList();
+        var forfeits = parsed.Forfeits.Where(f => seasons.Contains(f.SeasonSourceId)).ToList();
+        var left = parsed.Games.Count - games.Count + parsed.Forfeits.Count - forfeits.Count;
+        if (left > 0)
+            _warnings.Add($"{id}: {left} game(s) or forfeit(s) of a season with no stats, skipped");
+        _games.AddRange(games);
+        _forfeits.AddRange(forfeits);
+        if (changed)
+            _affected.UnionWith(games.Select(g => g.SeasonSourceId).Concat(forfeits.Select(f => f.SeasonSourceId)));
+    }
+
     private void AddPlayers(string id, string sheetName, SheetWorkbook workbook, bool changed)
     {
         if (workbook.Sheet(sheetName) is { } sheet)
@@ -176,6 +197,7 @@ public sealed class HistoricalArchiveBuilder
             WaypointMatches = waypoint.Where(w => w.Value.Regular.Count > 0 || w.Value.Playoffs.Count > 0)
                 .ToDictionary(w => w.Key, w => new WaypointSeasonMatches { Regular = [.. w.Value.Regular], Playoffs = [.. w.Value.Playoffs], Schedule = [.. w.Value.Schedule.Values.OrderBy(g => g.MatchId, StringComparer.Ordinal)] }),
             RecordedGames = _games.Count > 0 ? _games : null,
+            Forfeits = _forfeits.Count > 0 ? _forfeits : null,
             // The players list goes along when it changed (it is matched against every season's placeholders)
             Players = _playersChanged && _players.Count > 0 ? _players : null,
         };

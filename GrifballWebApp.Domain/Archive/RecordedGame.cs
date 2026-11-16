@@ -264,4 +264,6 @@ public sealed record RecordedPlayerLine(int UserID, int? Side, string Gamertag, 
     public int? SwordKills { get; init; }
     public int? BallKills { get; init; }
     public int? Punches { get; init; }
+    /// <summary>Times the player picked up the ball, where the source counts them (grifball.com).</summary>
+    public int? Grabs { get; init; }
 }

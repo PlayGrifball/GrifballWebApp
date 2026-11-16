@@ -34,6 +34,9 @@ public class HistoricalSourceConfig
     public List<RosterTab> Rosters { get; init; } = [];
     /// <summary>Tabs of a season's team standings: each team's record, its rank (seed) and its final place.</summary>
     public List<StandingsTab> Standings { get; init; } = [];
+    /// <summary>Database tables of games (the grifball.com and grifball.info backups): each game a recorded game of its
+    /// season, with its players' lines where the database has them, and each forfeit a forfeited season match.</summary>
+    public List<GamesTable> GameTables { get; init; } = [];
 
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -56,6 +59,7 @@ public class HistoricalSourceConfig
             .. RosterSheets,
             .. Rosters.Select(t => t.Sheet),
             .. Standings.Select(t => t.Sheet),
+            .. GameTables.SelectMany(t => new[] { t.Sheet, t.PlayersSheet, t.DeletedSheet }),
             ChampionsSheet,
             PlayersSheet,
         ];
@@ -150,6 +154,45 @@ public class StatsTable
 
 /// <summary>Another tab's column by an ID: <see cref="Column"/> of the <see cref="Sheet"/> row whose <see cref="Key"/> is the
 /// stats row's <see cref="RowKey"/> (the same column name when not given).</summary>
+/// <summary>
+/// A database table of games (<see cref="GamesTableLayout"/> says which database's shape), its seasons those of a
+/// <see cref="StatsTable"/> of the same source (<see cref="Stats"/>): a game goes under the key of its season (and
+/// division) there, read through that table's season IDs, team lookup and division column. A game of a season the
+/// stats table doesn't name, or one that can't be told apart (two sides needed), is skipped and reported.
+/// </summary>
+public class GamesTable
+{
+    /// <summary>The games: a row per game, or per side of a game (<see cref="GamesTableLayout.TeamRows"/>).</summary>
+    public required string Sheet { get; init; }
+    public GamesTableLayout Layout { get; init; }
+    /// <summary>The <see cref="StatsTable.Sheet"/> whose seasons, teams and divisions the games are of.</summary>
+    public required string Stats { get; init; }
+    /// <summary>The games' player lines, a row per player per game.</summary>
+    public string? PlayersSheet { get; init; }
+    /// <summary>A table of deleted games (a game ID column): those games are left out.</summary>
+    public string? DeletedSheet { get; init; }
+}
+
+/// <summary>The shapes of the website databases' game tables.</summary>
+public enum GamesTableLayout
+{
+    /// <summary>grifball.com's Matches: a row per game (match_id, league_id, is_forfeit, team1_* the winner's and team2_*
+    /// the loser's name and score), its player lines in Match_Players (match_id, side, gamertag, goals, kills, deaths,
+    /// betrayals, grabs).</summary>
+    Matches = 1,
+    /// <summary>grifball.info's gb_teamstats: a row per team per game (gameid, teamid, t_win, t_loss, t_fwin, t_floss,
+    /// t_goals, t_season, t_playoffs). No player lines.</summary>
+    TeamRows = 2,
+    /// <summary>grifball.info's h_games: a row per scheduled game (id, season, teama, teamb, result "(7 - 2)" or
+    /// "forfeit", win, loss, playoffs, link, date_reported); unplayed ones have no result. Its player lines are the stats
+    /// table's rows with the game's link.</summary>
+    Schedule = 3,
+    /// <summary>grifball.info's agla_gamesreported: a row per reported game (Index, GameID, Winning_team, Losing_team,
+    /// Game_Date, g_season, forfeit 1 or 2 for a double forfeit), its player lines by GameID (Gamertag, TeamName, Goals,
+    /// Kills, Deaths, Assists, Betrayals, hammer_kills, sword_kills, bomb_kills, bombstops, playoffs).</summary>
+    Reported = 4,
+}
+
 public class TableLookup
 {
     public required string Sheet { get; init; }
