@@ -1,0 +1,220 @@
+using GrifballWebApp.Application.HaloInfinite;
+using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Test.TestDoubles;
+using GrifballWebApp.Domain.Halo;
+using GrifballWebApp.Domain.League;
+using GrifballWebApp.Historical.Import;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using NSubstitute;
+using static GrifballWebApp.Historical.Test.HistoricalImportUnitTestData;
+
+namespace GrifballWebApp.Historical.Test;
+
+/// <summary>
+/// A season's bracket sheet (<see cref="ArchiveSeason.Bracket"/>) imported as its bracket: its slots, seeds, where each
+/// side comes from and the sheet's results; kept as it is when the sheet hasn't changed, drawn again when it has; its
+/// playoff games put in the slot of their teams.
+/// </summary>
+[TestFixture]
+internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTests
+{
+    private const string CupKey = "mcc-cup-2016/Stats";
+    private static readonly DateTime CupPlayedAt = new(2016, 5, 1, 20, 0, 0, DateTimeKind.Utc);
+
+    private HistoricalImportService _service = null!;
+
+    [SetUp]
+    public void SetUp()
+    {
+        _service = new HistoricalImportService(Context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }),
+            NullLogger<HistoricalImportService>.Instance, new GamertagMatching(Context), TimeProvider.System);
+    }
+
+    private static ArchiveBracketSeries Series(Bracket bracket, int round, int number, string home, string away, SeasonMatchSide? winner = null,
+        int? homeSeed = null, int? awaySeed = null, int? homeWins = null, int? awayWins = null) => new()
+    {
+        Bracket = bracket, Round = round, Number = number, Home = home, Away = away, Winner = winner,
+        HomeSeed = homeSeed, AwaySeed = awaySeed, HomeWins = homeWins, AwayWins = awayWins,
+    };
+
+    /// <summary>Four teams: Alpha (1) beat Delta (4) 2-0, Gamma (3) beat Beta (2) 2-1, Alpha won the final.</summary>
+    private static List<ArchiveBracketSeries> FourTeams() =>
+    [
+        Series(Bracket.Winner, 1, 1, "Alpha", "Delta", SeasonMatchSide.Home, 1, 4, 2, 0),
+        Series(Bracket.Winner, 1, 2, "Beta", "Gamma", SeasonMatchSide.Away, 2, 3, 1, 2),
+        Series(Bracket.Winner, 2, 3, "Alpha", "Gamma", SeasonMatchSide.Home),
+    ];
+
+    private static ArchiveSeason Cup(List<ArchiveBracketSeries> bracket)
+    {
+        var season = Entry("MCC Cup 2016", "halo3", "AGLA", false,
+            Player("Alpha One", team: "Alpha"), Player("Beta One", team: "Beta"), Player("Gamma One", team: "Gamma"), Player("Delta One", team: "Delta"));
+        season.Bracket = new ArchiveBracket { Series = bracket };
+        return season;
+    }
+
+    private static RecordedGameInput Game(string key, string home, string away, bool isPlayoffs = true) => new()
+    {
+        SeasonSourceId = CupKey,
+        SourceKey = key,
+        GameVersion = "halo3",
+        PlayedAt = CupPlayedAt,
+        IsPlayoffs = isPlayoffs,
+        Teams = [new RecordedTeamInput { Side = 1, Outcome = Outcomes.Won }, new RecordedTeamInput { Side = 2, Outcome = Outcomes.Lost }],
+        Players = [new RecordedPlayerInput { Gamertag = $"{home} One", Side = 1, Kills = 5, Deaths = 3 }, new RecordedPlayerInput { Gamertag = $"{away} One", Side = 2, Kills = 3, Deaths = 5 }],
+    };
+
+    private async Task<List<SeasonMatch>> Slots()
+        => await Context.SeasonMatches.AsNoTracking().Where(m => m.BracketMatch != null)
+            .Include(m => m.HomeTeam).Include(m => m.AwayTeam).Include(m => m.SeriesGames)
+            .Include(m => m.BracketMatch!).ThenInclude(b => b.HomeTeamPreviousMatchBracketInfo)
+            .Include(m => m.BracketMatch!).ThenInclude(b => b.AwayTeamPreviousMatchBracketInfo)
+            .OrderBy(m => m.BracketMatch!.MatchNumber).ToListAsync();
+
+    [Test]
+    public async Task Import_ABracketSheet_IsTheSeasonsBracket_ItsSeedsWhereTeamsComeFromAndResults()
+    {
+        var report = await _service.Import(Input(Cup(FourTeams())));
+
+        var bracket = await Slots();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.Warnings, Is.Empty);
+            Assert.That(bracket.Select(m => (m.HomeTeam!.TeamName, m.AwayTeam!.TeamName)), Is.EqualTo(new[] { ("Alpha", "Delta"), ("Beta", "Gamma"), ("Alpha", "Gamma") }));
+            Assert.That(bracket.Select(m => (m.BracketMatch!.HomeTeamSeedNumber, m.BracketMatch.AwayTeamSeedNumber)),
+                Is.EqualTo(new (int?, int?)[] { (1, 4), (2, 3), (null, null) }));
+            Assert.That((bracket[2].BracketMatch!.HomeTeamPreviousMatchBracketInfo!.MatchNumber, bracket[2].BracketMatch!.AwayTeamPreviousMatchBracketInfo!.MatchNumber),
+                Is.EqualTo((1, 2)), "The final's sides come from the semi-finals");
+            Assert.That(bracket.Select(m => m.WinnerTeamID), Is.EqualTo(new[] { bracket[0].HomeTeamID, bracket[1].AwayTeamID, bracket[2].HomeTeamID }));
+            Assert.That(bracket.Select(m => (m.HomeTeamScore, m.AwayTeamScore)), Is.EqualTo(new (int?, int?)[] { (2, 0), (1, 2), (null, null) }));
+            Assert.That(bracket.Select(m => m.BestOf), Is.EqualTo(new[] { 3, 3, 1 }), "The wins' series length, at least one game");
+        }
+    }
+
+    [Test]
+    public async Task Import_TheSameSheetAgain_KeepsTheBracket()
+    {
+        await _service.Import(Input(Cup(FourTeams())));
+        var before = (await Slots()).Select(m => m.SeasonMatchID).ToList();
+        Context.ChangeTracker.Clear();
+
+        var report = await _service.Import(Input(Cup(FourTeams())));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.SeasonMatchesCreated, report.SeasonMatchesRemoved), Is.EqualTo((0, 0)));
+            Assert.That((await Slots()).Select(m => m.SeasonMatchID), Is.EqualTo(before));
+        }
+    }
+
+    [Test]
+    public async Task Import_AChangedSheet_DrawsTheBracketAgain()
+    {
+        await _service.Import(Input(Cup(FourTeams())));
+        Context.ChangeTracker.Clear();
+        var changed = FourTeams();
+        changed[2] = changed[2] with { Winner = SeasonMatchSide.Away };
+
+        var report = await _service.Import(Input(Cup(changed)));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.SeasonMatchesCreated, report.SeasonMatchesRemoved), Is.EqualTo((3, 3)));
+            Assert.That((await Slots())[2].Winner, Is.EqualTo(SeasonMatchSide.Away));
+        }
+    }
+
+    [Test]
+    public async Task Import_APlayoffGameOfASlotsTeams_GoesInThatSlot_KeepingTheSheetsResult()
+    {
+        var report = await _service.Import(Input(Cup(FourTeams()), [Game("cup#1", "Delta", "Alpha"), Game("cup#2", "Beta", "Gamma", isPlayoffs: false)]));
+
+        var bracket = await Slots();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.Warnings, Is.Empty);
+            Assert.That(bracket.Select(m => m.SeriesGames.Count), Is.EqualTo(new[] { 1, 0, 0 }), "Delta and Alpha's slot, whichever side each was");
+            Assert.That((bracket[0].HomeTeamScore, bracket[0].AwayTeamScore), Is.EqualTo(((int?)2, (int?)0)), "The sheet's, not the one game's");
+            Assert.That(await Context.SeasonMatches.CountAsync(m => m.BracketMatch == null), Is.EqualTo(1), "A regular-season game is no slot's");
+            Assert.That(report.GamesLinked, Is.EqualTo(2));
+        }
+    }
+
+    [Test]
+    public async Task Import_APlayoffGameNoSlotIsOf_IsAddedAsPlayed_Warned_AndKeptByTheNextImport()
+    {
+        var input = Input(Cup(FourTeams()), [Game("cup#1", "Beta", "Delta")]);
+        var report = await _service.Import(input);
+        Context.ChangeTracker.Clear();
+
+        var again = await _service.Import(input);
+
+        var bracket = await Slots();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Warnings, Has.One.Contains("a playoff series (1 game(s) from 2016-05-01) is in no slot of the bracket sheet"));
+            Assert.That(bracket, Has.Count.EqualTo(4));
+            Assert.That(bracket[^1].SeriesGames, Has.Count.EqualTo(1));
+            Assert.That((again.SeasonMatchesCreated, again.SeasonMatchesRemoved), Is.EqualTo((0, 0)), "The sheet's slots are as it draws them");
+        }
+    }
+
+    [Test]
+    public async Task Import_ASheetOfANameNoTeamHas_LeavesThatSideEmpty_WarnedOnce()
+    {
+        var report = await _service.Import(Input(Cup([Series(Bracket.Winner, 1, 1, "Alpha", "Omega", SeasonMatchSide.Home, 1, 2), Series(Bracket.Winner, 2, 2, "Alpha", "Omega")])));
+
+        var bracket = await Slots();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Warnings, Is.EqualTo(new[] { $"{CupKey}: the bracket names 1 team(s) that are none of the season's (Omega); their slots have no team there" }));
+            Assert.That(bracket.Select(m => m.AwayTeamID), Is.All.Null);
+            Assert.That(bracket[1].BracketMatch!.AwayTeamPreviousMatchBracketInfo!.MatchNumber, Is.EqualTo(1), "Omega comes from its first slot, by its name");
+        }
+    }
+
+    [Test]
+    public async Task Import_ASideWithoutASeed_TakesItsStandingsRank_ElseTheNextSeedPastAll()
+    {
+        var season = Cup([Series(Bracket.Winner, 1, 1, "Alpha", "Beta"), Series(Bracket.Winner, 1, 2, "Gamma", "Delta", homeSeed: 2)]);
+        season.Teams.Add(new ArchiveTeam { TeamName = "Alpha", Rank = 3 });
+
+        await _service.Import(Input(season));
+
+        var bracket = await Slots();
+        Assert.That(bracket.Select(m => (m.BracketMatch!.HomeTeamSeedNumber, m.BracketMatch.AwayTeamSeedNumber)), Is.EqualTo(new (int?, int?)[] { (3, 4), (2, 5) }));
+    }
+
+    [Test]
+    public async Task Import_ASheetWithATeamPlayingItself_LeavesThatSeriesOut()
+    {
+        var report = await _service.Import(Input(Cup([Series(Bracket.Winner, 1, 1, "Alpha", "alpha", homeSeed: 1, awaySeed: 2), Series(Bracket.Winner, 1, 2, "Beta", "Gamma", homeSeed: 3, awaySeed: 4)])));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Warnings, Has.One.EqualTo($"{CupKey}: the bracket has Alpha playing itself; that series is left out"));
+            Assert.That(await Slots(), Has.Count.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task Import_ASeasonFirstRebuiltFromGames_GetsTheSheetsBracket_ItsGamesInTheirSlot()
+    {
+        await _service.Import(Input(Cup([]), [Game("cup#1", "Alpha", "Delta")]));
+        Context.ChangeTracker.Clear();
+        Assert.That(await Slots(), Has.Count.EqualTo(1), "Rebuilt from the game");
+
+        var report = await _service.Import(Input(Cup(FourTeams()), [Game("cup#1", "Alpha", "Delta")]));
+
+        var bracket = await Slots();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.SeasonMatchesCreated, report.SeasonMatchesRemoved), Is.EqualTo((3, 1)));
+            Assert.That(bracket.Select(m => m.SeriesGames.Count), Is.EqualTo(new[] { 1, 0, 0 }));
+        }
+    }
+}

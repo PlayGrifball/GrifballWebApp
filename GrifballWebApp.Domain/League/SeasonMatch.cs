@@ -76,6 +76,39 @@ public class SeasonMatch : AuditableEntity
         BracketMatch = bracketMatch,
     };
 
+    /// <summary>
+    /// A series of an archive bracket sheet, in its slot: its teams (null for a side the import could not tell), its
+    /// winner when the sheet names one (else the side with more wins), and the wins the sheet gives, if any. A sheet that
+    /// names neither (a series it never filled in) leaves it undecided. Its games, when the archive has them, come after
+    /// (<see cref="AddImportedGame"/>); they don't change the sheet's result.
+    /// </summary>
+    public static SeasonMatch ImportedSlot(int seasonID, MatchBracketInfo slot, int? homeTeamID, int? awayTeamID, SeasonMatchSide? winner, int? homeWins, int? awayWins, int bestOf)
+    {
+        ArgumentNullException.ThrowIfNull(slot);
+        if (homeTeamID is not null && homeTeamID == awayTeamID)
+            throw new ArgumentException($"Team {homeTeamID} can't play itself", nameof(awayTeamID));
+        SeasonMatchSide? byWins = homeWins > awayWins ? SeasonMatchSide.Home : awayWins > homeWins ? SeasonMatchSide.Away : (SeasonMatchSide?)null;
+        if (winner is not null && byWins is not null && winner != byWins)
+            throw new ArgumentException($"The {winner} side can't win with fewer wins ({homeWins}-{awayWins})", nameof(winner));
+        winner ??= byWins;
+        return new()
+        {
+            SeasonID = seasonID,
+            HomeTeamID = homeTeamID,
+            AwayTeamID = awayTeamID,
+            HomeTeamScore = homeWins,
+            AwayTeamScore = awayWins,
+            HomeTeamResult = SlotResult(winner, SeasonMatchSide.Home),
+            AwayTeamResult = SlotResult(winner, SeasonMatchSide.Away),
+            BestOf = bestOf,
+            BracketMatch = slot,
+        };
+    }
+
+    /// <summary>A side's result in an imported slot (<see cref="ImportedSlot"/>): Won or Loss by its winner, none without one.</summary>
+    private static SeasonMatchResult? SlotResult(SeasonMatchSide? winner, SeasonMatchSide side)
+        => winner is null ? null : winner == side ? SeasonMatchResult.Won : SeasonMatchResult.Loss;
+
     /// <summary>An imported side's result from the wins (<see cref="Imported"/>): more wins win, an even count is undecided.</summary>
     private static SeasonMatchResult? ImportedResult(int wins, int otherWins)
         => wins > otherWins ? SeasonMatchResult.Won : wins < otherWins ? SeasonMatchResult.Loss : null;

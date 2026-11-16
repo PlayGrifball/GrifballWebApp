@@ -23,6 +23,12 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   Finished, Playoffs, Playoff Ending). A standings name a few letters off the stats' team takes the stats' name. A team
   keeps them as `Team.ArchivedRank` and `ArchivedFinish`; the season page orders its standings by the sheet's ranks (one
   table's) and shows each team's finish.
+- **Brackets** (`BracketParser`, a source's `Brackets`): a season's playoff bracket as its sheets draw it, either cell by
+  cell (each series' two team cells, their seeds, its score and the cell its winner went on to: the layouts are in
+  `HistoricalBracketLayouts`) or from a tab per round of game rows (Respawn). The import makes each series a slot of the
+  app's bracket (winners', losers', grand final), each side from the slot its team last played or by its seed (the
+  sheet's, else its standings rank), its result the sheet's; the season's playoff games go in the slot of their teams.
+  A season without a bracket sheet still has its bracket rebuilt from the order its playoff games were played in.
 - **Jobs**: everything runs in the worker role through the historical import job queue (one job at a time):
   refresh, preview (a dry run: each season's transaction rolled back) and import.
 - **Schedule** (`HistoricalRefreshJob`, a Quartz job, daily by default): a scheduled refresh queues a guarded import of
@@ -66,7 +72,7 @@ the Discord bot; there is no separate archive API. What makes it imported is `Se
   `GET /api/late-league/seasons/{matchmakingSeasonID}`, profiles and the career leaderboards.
 - **Records and titles**: a team's record is `TeamRecord.Of` (its matches, or its sheet's record when its matches are
   not in the app); titles are written by `ChampionshipService`, from the bracket for the app's seasons and from the
-  champions record for imported ones (their bracket is rebuilt from game order and decides nothing).
+  champions record for imported ones (their bracket, the sheet's or one rebuilt from game order, decides nothing).
 - **Editing**: an imported season can't be edited in the season editor: the next import would revert the edit. Correct
   it in its spreadsheet.
 

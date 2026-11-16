@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using GrifballWebApp.Domain.League;
 using GrifballWebApp.Historical.Import;
 
 namespace GrifballWebApp.Historical.Sources;
@@ -34,6 +35,8 @@ public class HistoricalSourceConfig
     public List<RosterTab> Rosters { get; init; } = [];
     /// <summary>Tabs of a season's team standings: each team's record, its rank (seed) and its final place.</summary>
     public List<StandingsTab> Standings { get; init; } = [];
+    /// <summary>A season's playoff bracket: who met whom in which round, their seeds and who won (BracketParser).</summary>
+    public List<BracketTab> Brackets { get; init; } = [];
 
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -56,6 +59,8 @@ public class HistoricalSourceConfig
             .. RosterSheets,
             .. Rosters.Select(t => t.Sheet),
             .. Standings.Select(t => t.Sheet),
+            .. Brackets.Select(t => t.Sheet),
+            .. Brackets.SelectMany(t => t.Rounds.Select(r => r.Sheet)),
             ChampionsSheet,
             PlayersSheet,
         ];
@@ -242,4 +247,62 @@ public class GamesTab
     public GamesLayout Layout { get; init; } = GamesLayout.Carnage;
     /// <summary>Late League games are scrims: in no series.</summary>
     public bool Scrims { get; init; }
+}
+
+/// <summary>
+/// A season's playoff bracket in its sheets (BracketParser): either a drawn bracket, its series named cell by cell
+/// (<see cref="Slots"/>, on <see cref="Sheet"/>), or a tab per round (<see cref="Rounds"/>) whose rows are each game's
+/// players, a team's rows after the other's. Its series go on the season's regular-season entry.
+/// </summary>
+public class BracketTab
+{
+    /// <summary>The drawn bracket's tab (<see cref="Slots"/>); null with <see cref="Rounds"/>.</summary>
+    public string? Sheet { get; init; }
+    /// <summary>The source ID of the season's stats workbook; null: this workbook's own.</summary>
+    public string? Season { get; init; }
+    /// <summary>The stats tab (its <see cref="StatsTab.Name"/>) of the season, when the workbook has several seasons.</summary>
+    public string? Tab { get; init; }
+    /// <summary>Its series, in the order they were played (a team's series before the one it goes on to).</summary>
+    public List<BracketSlotCells> Slots { get; init; } = [];
+    /// <summary>A team cell may carry its seed: "Rated R (4)", "Beer - Seed 1" ("Zeg - seed 5/6": none).</summary>
+    public bool SeedsInNames { get; init; }
+    /// <summary>The tabs of its rounds, in the order they were played.</summary>
+    public List<BracketRoundTab> Rounds { get; init; } = [];
+}
+
+/// <summary>
+/// A series of a drawn bracket, by its cells' references ("C5"): its two teams, their seeds, its score and the cell its
+/// winner went on to (the next round's, or the champion's). A side whose cell is empty (a BYE, a series not played yet)
+/// leaves the series out.
+/// </summary>
+public class BracketSlotCells
+{
+    public Bracket Bracket { get; init; }
+    public int Round { get; init; }
+    public required string Home { get; init; }
+    public required string Away { get; init; }
+    /// <summary>Cells of the sides' seeds ("S3", "1st", "4"), when not in their names.</summary>
+    public string? HomeSeed { get; init; }
+    public string? AwaySeed { get; init; }
+    /// <summary>The series' score, winner first or naming the winner: "vs (2-1)", "3-1 Rated R".</summary>
+    public string? Score { get; init; }
+    /// <summary>Each side's own wins, when the sheet gives them a cell each.</summary>
+    public string? HomeScore { get; init; }
+    public string? AwayScore { get; init; }
+    /// <summary>The cell the winner's name went on to.</summary>
+    public string? Winner { get; init; }
+    public int? BestOf { get; init; }
+}
+
+/// <summary>
+/// A round's tab: a row per player per game (Seed, Team Name, Wins), a game's teams one after the other. A
+/// "Losers Bracket: Round N" row starts the losers' bracket's round N. In a grand final's tab a second game of the same
+/// teams is its sudden death.
+/// </summary>
+public class BracketRoundTab
+{
+    public required string Sheet { get; init; }
+    public int Round { get; init; }
+    /// <summary>The winners' bracket (its rows above the losers'), or the grand final.</summary>
+    public Bracket Bracket { get; init; }
 }

@@ -1,4 +1,5 @@
 using System.Text;
+using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.HistoricalArchive.Test;
@@ -118,6 +119,52 @@ public class ArchiveImportTests
         Assert.That((await Seasons()).Where(s => s.PlayoffStats > 0 && s.PlayoffMatches == 0 && !waypoint.Contains(s.SourceID)).Select(s => s.Name), Is.Empty);
     }
 
+    /// <summary>What a season with a bracket sheet got of it: its slots and teams beside the sheet's, and the final's winner
+    /// beside its titles' team.</summary>
+    private sealed record BracketCounts(string Name, int SheetSeries, int Slots, int SheetTeams, int Teams, string? Champion, List<string> TitleTeams);
+
+    private static readonly Lazy<Task<List<BracketCounts>>> BracketsRead = new(async () =>
+    {
+        await using var context = Archive.NewContext();
+        var counts = new List<BracketCounts>();
+        foreach (var entry in Archive.Build.Input.Seasons.Seasons.Where(s => s.Bracket is { Series.Count: > 0 }))
+        {
+            var season = await context.Seasons.AsNoTracking().Where(s => s.HistoricalSourceID != null && s.SeasonName == entry.SeasonName)
+                .Select(s => new
+                {
+                    Slots = s.SeasonMatches.Where(m => m.BracketMatch != null)
+                        .Select(m => new { m.HomeTeamID, m.AwayTeamID, m.BracketMatch!.Bracket, m.BracketMatch.MatchNumber, Winner = m.HomeTeamResult == SeasonMatchResult.Won ? m.HomeTeam!.TeamName : m.AwayTeamResult == SeasonMatchResult.Won ? m.AwayTeam!.TeamName : null })
+                        .ToList(),
+                    Titles = s.PlayerChampionships.Select(c => c.Team.TeamName).Distinct().ToList(),
+                })
+                .FirstOrDefaultAsync();
+            var sheet = entry.Bracket!.Series;
+            // The final: the last slot of the winners' bracket and grand final, numbered on from each other
+            var final = season?.Slots.Where(m => m.Bracket != Bracket.Loser).MaxBy(m => m.MatchNumber);
+            counts.Add(new BracketCounts(entry.SeasonName, sheet.Count, season?.Slots.Count ?? 0,
+                sheet.SelectMany(x => new[] { x.Home, x.Away }).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                season?.Slots.SelectMany(m => new[] { m.HomeTeamID, m.AwayTeamID }).OfType<int>().Distinct().Count() ?? 0,
+                final?.Winner, [.. (season?.Titles ?? []).OfType<string>()]));
+        }
+        return counts;
+    });
+
+    /// <summary>A season whose sheets draw its bracket gets it: a slot per series of the sheet, every team it names.</summary>
+    [Test]
+    public async Task EverySeasonWithABracketSheet_HasItsBracket()
+    {
+        Assert.That((await BracketsRead.Value).Where(b => b.Slots < b.SheetSeries || b.Teams != b.SheetTeams)
+            .Select(b => $"{b.Name}: {b.Slots} slots of the sheet's {b.SheetSeries}, {b.Teams} teams of its {b.SheetTeams}"), Is.Empty);
+    }
+
+    /// <summary>A bracket sheet whose final is decided crowns the team the champions record gives the title to.</summary>
+    [Test]
+    public async Task EveryDecidedBracketSheet_CrownsTheSeasonsChampion()
+    {
+        Assert.That((await BracketsRead.Value).Where(b => b.Champion is not null && b.TitleTeams.Count > 0 && !b.TitleTeams.Contains(b.Champion, StringComparer.OrdinalIgnoreCase))
+            .Select(b => $"{b.Name}: the bracket's {b.Champion}, the titles' {string.Join(" / ", b.TitleTeams)}"), Is.Empty);
+    }
+
     [Test]
     public async Task EveryLateLeagueSeason_HasStatsAndGames()
     {
@@ -135,6 +182,8 @@ public class ArchiveImportTests
         foreach (var s in await LateLeagueRead.Value)
             summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Stats} | {s.Games} |");
         Section(summary, "Placings (the seasons whose standings place a team: rank / finish, record)", await Placings());
+        Section(summary, "Bracket sheets (slots of the sheet's series, teams of its teams, champion: the bracket's / the titles')",
+            (await BracketsRead.Value).Select(b => $"{b.Name}: {b.Slots}/{b.SheetSeries} slots, {b.Teams}/{b.SheetTeams} teams, champion {b.Champion ?? "-"} / {(b.TitleTeams.Count == 0 ? "-" : string.Join(" / ", b.TitleTeams))}"));
         Section(summary, "Build warnings", Archive.Build.Warnings);
         Section(summary, "Import warnings", Archive.Report.Warnings);
         Section(summary, "Skipped", Skipped());

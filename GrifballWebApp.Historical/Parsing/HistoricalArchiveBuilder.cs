@@ -43,6 +43,8 @@ public sealed class HistoricalArchiveBuilder
     private readonly List<(string SourceId, RosterTab Tab, Dictionary<string, string>? Teams)> _rosters = [];
     /// <summary>Each standings tab's teams, put on their season's regular season once every season is known.</summary>
     private readonly List<(string SourceId, StandingsTab Tab, List<ArchiveTeam>? Teams)> _standings = [];
+    /// <summary>Each bracket tab's series, put on their season's regular season once every season (and its standings) is known.</summary>
+    private readonly List<(string SourceId, BracketTab Tab, ArchiveBracket? Bracket)> _brackets = [];
     private readonly HashSet<string> _affected = new(StringComparer.OrdinalIgnoreCase);
     private bool _everySeason;
     private bool _playersChanged;
@@ -88,6 +90,8 @@ public sealed class HistoricalArchiveBuilder
             _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
         foreach (var tab in config.Standings)
             _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
+        foreach (var tab in config.Brackets)
+            _brackets.Add((id, tab, BracketParser.Parse(id, tab, workbook, _warnings)));
         AddGames(id, config, workbook, changed);
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
@@ -167,6 +171,7 @@ public sealed class HistoricalArchiveBuilder
         var waypoint = WaypointBySeason();
         FillTeamsFromRosters();
         AddStandings();
+        AddBrackets();
 
         var input = new HistoricalArchiveInput
         {
@@ -267,6 +272,33 @@ public sealed class HistoricalArchiveBuilder
                     player.TeamName = team.TeamName;
             }
             regular.Teams.AddRange(named);
+            if (_changedSourceIds?.Contains(sourceId) != false)
+                _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
+        }
+    }
+
+    /// <summary>Each bracket on its season's regular-season entry (the first, or its <see cref="BracketTab.Tab"/>), its teams
+    /// under the names the season has them by (its stats' and standings', as <see cref="KnownName"/> finds them).</summary>
+    private void AddBrackets()
+    {
+        foreach (var (sourceId, tab, bracket) in _brackets)
+        {
+            if (bracket is null)
+                continue;
+            var workbook = tab.Season ?? sourceId;
+            var regular = _seasons.FirstOrDefault(s => !s.IsPlayoffs && string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase)
+                && (tab.Tab is null || string.Equals(s.SourceSheet, tab.Tab, StringComparison.OrdinalIgnoreCase)));
+            if (regular is null)
+            {
+                _warnings.Add($"{sourceId}: bracket '{tab.Sheet ?? tab.Rounds.FirstOrDefault()?.Sheet}' not read (no season from {workbook})");
+                continue;
+            }
+            var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
+            var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(season.SelectMany(s => s.Teams).Select(t => t.TeamName))
+                .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            // A bracket's team is often "Team (captain)": the name without it, a few letters off, is the season's too
+            string Named(string name) => Closest(name, known) ?? Closest(StandingsParser.WithoutNote(name), known) ?? name;
+            regular.Bracket = new ArchiveBracket { Series = [.. bracket.Series.Select(s => s with { Home = Named(s.Home), Away = Named(s.Away) })] };
             if (_changedSourceIds?.Contains(sourceId) != false)
                 _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
         }

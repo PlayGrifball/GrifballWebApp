@@ -66,6 +66,41 @@ public class SeasonMatchModelTests
         }
     }
 
+    [TestCase(SeasonMatchSide.Away, null, null, SeasonMatchSide.Away, TestName = "ImportedSlot_ANamedWinnerWithoutWins_WinsIt")]
+    [TestCase(SeasonMatchSide.Home, 2, 1, SeasonMatchSide.Home, TestName = "ImportedSlot_ANamedWinnerWithMoreWins_WinsIt")]
+    [TestCase(null, 1, 3, SeasonMatchSide.Away, TestName = "ImportedSlot_NoNamedWinner_MoreWinsWin")]
+    [TestCase(null, null, null, null, TestName = "ImportedSlot_NeitherAWinnerNorWins_IsUndecided")]
+    [TestCase(SeasonMatchSide.Home, 1, 1, SeasonMatchSide.Home, TestName = "ImportedSlot_ANamedWinnerOfEvenWins_WinsIt")]
+    public void ImportedSlot_TheSheetsWinner_ElseItsWins(SeasonMatchSide? named, int? homeWins, int? awayWins, SeasonMatchSide? winner)
+    {
+        var slot = MatchBracketInfo.Seeded(Bracket.Winner, 1, 1, 1, 8);
+
+        // A side the import could not tell has no team, and still wins or loses
+        var match = SeasonMatch.ImportedSlot(1, slot, 10, null, named, homeWins, awayWins, 3);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(match.BracketMatch, Is.SameAs(slot));
+            Assert.That((match.HomeTeamID, match.AwayTeamID, match.BestOf), Is.EqualTo(((int?)10, (int?)null, 3)));
+            Assert.That(match.Winner, Is.EqualTo(winner));
+            Assert.That(match.DecidedBy, Is.EqualTo(winner is null ? null : (SeasonMatchDecision?)SeasonMatchDecision.Games));
+            Assert.That((match.HomeTeamScore, match.AwayTeamScore), Is.EqualTo((homeWins, awayWins)));
+        }
+    }
+
+    [Test]
+    public void ImportedSlot_RefusesATeamAgainstItself_AWinnerWithFewerWins_AndNoSlot()
+    {
+        var slot = MatchBracketInfo.Seeded(Bracket.Winner, 1, 1, 1, 8);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.Throws<ArgumentException>(() => SeasonMatch.ImportedSlot(1, slot, 10, 10, null, null, null, 1));
+            Assert.Throws<ArgumentException>(() => SeasonMatch.ImportedSlot(1, slot, 10, 20, SeasonMatchSide.Home, 1, 2, 3));
+            Assert.Throws<ArgumentNullException>(() => SeasonMatch.ImportedSlot(1, null!, 10, 20, null, null, null, 1));
+        }
+    }
+
     [Test]
     public void DecideByGames_ScoresTheSeries_AndDecidesItOnceASideHasTheWinsItNeeds()
     {
