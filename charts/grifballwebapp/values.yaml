@@ -673,7 +673,8 @@ onDemand:
   # The Sablier group the Deployments join and the routes start. Empty: the release's namespace. A label value.
   group: ""
   # Sablier's API, as Traefik reaches it (the plugin calls it), and as the migration Job and the backups do.
-  sablierUrl: http://sablier.sablier.svc:10000
+  # Empty: http://sablier.sablier.svc:10000 (a Service named sablier in namespace sablier).
+  sablierUrl: ""
   # How long after the last visit the group keeps running (a Go duration).
   sessionDuration: 30m
   # dynamic: a starting page that refreshes itself until the site is up. blocking: hold each request until it is up

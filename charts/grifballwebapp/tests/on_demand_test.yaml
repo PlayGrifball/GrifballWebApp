@@ -127,6 +127,24 @@ tests:
             ignoreUserAgent: ["(?i)uptime-kuma"]
             dynamic: { displayName: Grifball staging, showDetails: false, theme: ghost, refreshFrequency: 3s }
 
+  - it: calls Sablier at its usual in-cluster address when sablierUrl is empty
+    set:
+      onDemand: { enabled: true, sablierUrl: "" }
+    asserts:
+      - equal: { path: spec.plugin.sablier.sablierUrl, value: http://sablier.sablier.svc:10000 }
+        template: templates/on-demand.yaml
+      - matchRegex:
+          path: "spec.template.spec.initContainers[0].args[0]"
+          pattern: "'http://sablier.sablier.svc:10000/api/strategies/poke\\?group=grif-x&session_duration=30m'"
+        template: templates/migrations-job.yaml
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 10000 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: sablier } } }]
+        template: templates/networkpolicy.yaml
+        documentSelector: { path: metadata.name, value: grif-migrate }
+
   - it: never renders an empty dynamic block (the plugin picks its strategy by which block is set)
     set:
       onDemand: { enabled: true, dynamic: { displayName: "" } }

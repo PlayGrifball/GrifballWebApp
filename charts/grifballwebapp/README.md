@@ -655,7 +655,7 @@ ingressRoute:
 onDemand:
   enabled: true
   group: ""                         # Sablier's group; empty: the release's namespace
-  sablierUrl: http://sablier.sablier.svc:10000
+  sablierUrl: ""                    # empty: http://sablier.sablier.svc:10000
   sessionDuration: 30m              # how long after the last visit it keeps running
   strategy: dynamic                 # a starting page that refreshes itself; or blocking (blocking.timeout)
   dynamic: { displayName: Grifball, showDetails: null, theme: "", refreshFrequency: "" }

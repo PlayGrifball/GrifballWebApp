@@ -53,6 +53,11 @@ Unset, the other kind than the app's: PostgreSQL beside SQL Server or SQLite, SQ
 {{- if and .Values.backupScratch.enabled (eq .Values.backupScratch.mode "onDemand") }}true{{ end -}}
 {{- end }}
 
+{{/* Sablier's API (onDemand): onDemand.sablierUrl, else a Service named sablier in namespace sablier. No trailing slash. */}}
+{{- define "grif.sablierUrl" -}}
+{{- .Values.onDemand.sablierUrl | default "http://sablier.sablier.svc:10000" | trimSuffix "/" -}}
+{{- end }}
+
 {{/* The release's Sablier group (onDemand): onDemand.group, else the release's namespace. */}}
 {{- define "grif.onDemandGroup" -}}
 {{- .Values.onDemand.group | default .Release.Namespace -}}
@@ -351,8 +356,8 @@ them and answers at once), as a visit would, so a Job run while nobody visits fi
 {{- define "grif.waitForDatabaseScript" -}}
 {{- if include "grif.onDemandWakesDatabase" . }}
 {{- $o := .Values.onDemand }}
-{{- $url := printf "%s/api/strategies/poke?group=%s&session_duration=%s" (trimSuffix "/" $o.sablierUrl) (include "grif.onDemandGroup" . | urlquery) (urlquery $o.sessionDuration) -}}
-wget -q -T 10 -O /dev/null {{ $url | squote }} || echo "Sablier didn't answer ({{ $o.sablierUrl }}): waiting for the database anyway."
+{{- $url := printf "%s/api/strategies/poke?group=%s&session_duration=%s" (include "grif.sablierUrl" .) (include "grif.onDemandGroup" . | urlquery) (urlquery $o.sessionDuration) -}}
+wget -q -T 10 -O /dev/null {{ $url | squote }} || echo "Sablier didn't answer ({{ include "grif.sablierUrl" . }}): waiting for the database anyway."
 {{ end -}}
 end=$(( $(date +%s) + WAIT_SECONDS ))
 until timeout 3 nc -w 2 "$DB_HOST" "$DB_PORT" </dev/null; do

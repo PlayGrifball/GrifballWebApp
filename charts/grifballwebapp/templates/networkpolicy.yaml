@@ -18,7 +18,7 @@
 {{- $sablier := list }}
 {{- if include "grif.onDemandWakesDatabase" . }}
 {{- $o := .Values.onDemand }}
-{{- $rule := dict "ports" (list (dict "protocol" "TCP" "port" (include "grif.urlPort" $o.sablierUrl | int))) }}
+{{- $rule := dict "ports" (list (dict "protocol" "TCP" "port" (include "grif.urlPort" (include "grif.sablierUrl" .) | int))) }}
 {{- with $o.networkPolicy.sablierNamespace }}{{ $_ := set $rule "to" (list (dict "namespaceSelector" (dict "matchLabels" (dict "kubernetes.io/metadata.name" .)))) }}{{ end }}
 {{- $sablier = list $rule }}
 {{- end }}

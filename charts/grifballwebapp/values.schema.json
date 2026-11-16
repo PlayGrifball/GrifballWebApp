@@ -505,7 +505,7 @@
       "properties": {
         "enabled": { "type": "boolean" },
         "group": { "type": "string", "pattern": "^([A-Za-z0-9]([-A-Za-z0-9_.]{0,61}[A-Za-z0-9])?)?$" },
-        "sablierUrl": { "type": "string", "pattern": "^https?://[^/?#]+/?$" },
+        "sablierUrl": { "type": "string", "pattern": "^(https?://[^/?#]+/?)?$" },
         "sessionDuration": { "$ref": "#/definitions/goDuration" },
         "strategy": { "enum": ["dynamic", "blocking"] },
         "dynamic": {

@@ -15,7 +15,7 @@ metadata:
 spec:
   plugin:
     sablier:
-      sablierUrl: {{ $o.sablierUrl | quote }}
+      sablierUrl: {{ include "grif.sablierUrl" . | quote }}
       group: {{ include "grif.onDemandGroup" . | quote }}
       sessionDuration: {{ $o.sessionDuration | quote }}
       {{- with $o.keepAliveInterval }}
