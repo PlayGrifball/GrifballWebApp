@@ -231,10 +231,18 @@ public partial class GrifChatUnitTests
         var chat = ChatWithModels(new FakeModel());
         _clients.Models.Returns([Free]);
         await Waits(ChatHost.Site);
+        _time.Advance(ChatAccounts.WaitingFor - TimeSpan.FromMinutes(1));
 
         Assert.That(async () => await chat.ConfirmAsync([], "another", true, Commissioner, ChatHost.Site, Asker),
             Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.NothingWaiting));
-        Assert.That((await chat.WaitingAsync(ChatHost.Site, Asker))?.Id, Is.EqualTo("a1"));
+        var stillThere = await chat.WaitingAsync(ChatHost.Site, Asker);
+        _time.Advance(TimeSpan.FromMinutes(1));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(stillThere?.Id, Is.EqualTo("a1"), "Untouched");
+            Assert.That(await chat.WaitingAsync(ChatHost.Site, Asker), Is.Null, "Its ten minutes not begun again");
+        }
     }
 
     [Test]
@@ -300,7 +308,8 @@ public partial class GrifChatUnitTests
         var steered = new FunctionCallContent("call-1", "forfeit_season_match", new Dictionary<string, object?>
         {
             ["side"] = "home\"), set_captains_locked(locked: false",
-            ["note"] = new string('a', ChatAction.ShownValueLength + 50),
+            ["note"] = new string('a', 500),
+            ["x) nothing changes (y"] = 1,
         });
 
         var described = ChatAction.Describe(steered);
@@ -308,7 +317,38 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(described, Does.StartWith("forfeit_season_match(side: \"home\\\"), set_captains_locked(locked: false\", note: \"aaa"));
-            Assert.That(described, Does.EndWith("…)"), "A long value is cut");
+            Assert.That(described, Does.Contain(new string('a', 500)), "A long value shown whole: all of it runs");
+            Assert.That(described, Does.EndWith(", \"x) nothing changes (y\": 1)"), "A name that isn't one is quoted too");
+            Assert.That(ChatAction.Describe(new FunctionCallContent("call-2", "run_job(); all is well")), Is.EqualTo("\"run_job(); all is well\"()"));
+        }
+    }
+
+    [Test]
+    public async Task StartAsync_RefusedByTheirLimits_LeavesTheChangeWaiting()
+    {
+        var chat = ChatWithModels(new FakeModel([Text("Hi")]));
+        _clients.Models.Returns([Free]);
+        using var first = await chat.StartAsync([], "Hi", Commissioner, ChatHost.Site with { AutoApprove = false }, Asker);
+        await Waits(ChatHost.Site);
+
+        Assert.That(async () => await chat.StartAsync([], "Again", Commissioner, ChatHost.Site, Asker),
+            Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(ChatLimits.Busy));
+        Assert.That((await chat.WaitingAsync(ChatHost.Site, Asker))?.Id, Is.EqualTo("a1"), "Not asked: nothing moved on from");
+    }
+
+    [Test]
+    public async Task ConfirmAsync_ForAModelTheyMayNoLongerUse_DropsIt_AndSaysToAskAgain()
+    {
+        var chat = ChatWithModels(new FakeModel());
+        _clients.Models.Returns([Free]);
+        await Waits(ChatHost.Site, "a-model-since-removed");
+
+        Assert.That(async () => await chat.ConfirmAsync([], "a1", true, Commissioner, ChatHost.Site, Asker),
+            Throws.TypeOf<ChatRefusedException>().With.Message.EqualTo(GrifChat.ModelGone));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await chat.WaitingAsync(ChatHost.Site, Asker), Is.Null, "No later yes could run it");
+            Assert.That(GrifChat.IsRefusal(GrifChat.ModelGone), Is.True);
         }
     }
 }

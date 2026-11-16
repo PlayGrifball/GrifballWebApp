@@ -422,6 +422,24 @@ describe('ChatStore', () => {
       expect(connection.invoke).toHaveBeenCalledWith('Forget');
     });
 
+    it('a new conversation drops it on the server though the page never loaded it', () => {
+      const store = create();
+
+      store.clear();
+
+      expect(connection.invoke).toHaveBeenCalledWith('Forget');
+    });
+
+    it('shows the change again when a confirm is refused before it runs: the server kept it', async () => {
+      const store = await asking();
+
+      store.confirm(true);
+      answer().subscriber.error(new Error('HubException: Wait for the answer to your last question first.'));
+      await new Promise(resolve => setTimeout(resolve));
+
+      expect(store.waiting()).toEqual(forfeit);
+    });
+
     it("a sign-in or out drops it from the page only: the server's is the other user's", async () => {
       const store = await asking();
 

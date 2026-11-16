@@ -100,4 +100,24 @@ public partial class GrifChatUnitTests
             Assert.That(GrifChat.Instructions(ChatHost.Discord with { AutoApprove = true }), Does.Not.Contain(GrifChat.AutoApprovedLine), "In public: no changes at all");
         }
     }
+
+    [Test]
+    public async Task StartAsync_WithNoChoiceOfTheHosts_TheirSettingDecides_ReadOnceTheyMayAsk()
+    {
+        var model = new FakeModel([Text("Hi")], [Text("Hi")]);
+        var chat = ChatWithModels(model);
+        _clients.Models.Returns([Free]);
+        await chat.SetAutoApproveAsync(Commissioner, true);
+
+        using (var reply = await chat.StartAsync([], "Hi", Commissioner, ChatHost.Site, Asker))
+            await All(reply.StreamAsync());
+        using (var reply = await chat.StartAsync([], "Hi", Commissioner, ChatHost.Site with { AutoApprove = false }, Asker))
+            await All(reply.StreamAsync());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(model.Options[0]!.Instructions, Does.Contain(GrifChat.AutoApprovedLine), "Their setting");
+            Assert.That(model.Options[1]!.Instructions, Does.Contain(GrifChat.PrivateLine), "The host's choice over it");
+        }
+    }
 }
