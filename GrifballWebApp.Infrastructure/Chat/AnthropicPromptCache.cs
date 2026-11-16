@@ -10,10 +10,14 @@ namespace GrifballWebApp.Infrastructure.Chat;
 /// costs a tenth of its price (written to it, a quarter more, once). Five minutes, Anthropic's default, refreshed by each read: a
 /// reply's rounds are seconds apart and a conversation's questions minutes. The chat's spend counts the cache's reads and writes at
 /// their own prices (ChatPrice). The request is made here as the Anthropic client takes it (RawRepresentationFactory), with the model
-/// and the output limit the call would have had; a caller's own request is left as it is.
+/// and the output limit the call would have had (the one it asks, else the client's; the SDK's own 1,024); a caller's own
+/// request is left as it is.
 /// </summary>
 public sealed class AnthropicPromptCache(IChatClient inner, string model) : DelegatingChatClient(inner)
 {
+    /// <summary>The Anthropic client's own output limit, for a call that asks none (as it would have had without the cache).</summary>
+    public const int SdkDefaultMaxTokens = 1024;
+
     public override Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
         CancellationToken cancellationToken = default)
         => base.GetResponseAsync(messages, Cached(options), cancellationToken);
@@ -28,11 +32,12 @@ public sealed class AnthropicPromptCache(IChatClient inner, string model) : Dele
         if (options?.RawRepresentationFactory is not null)
             return options;
         var cached = options?.Clone() ?? new ChatOptions();
-        var maxTokens = cached.MaxOutputTokens ?? ChatModels.ClaudeMaxOutputTokens;
+        var maxTokens = cached.MaxOutputTokens ?? SdkDefaultMaxTokens;
+        var modelId = cached.ModelId ?? model;
         cached.RawRepresentationFactory = _ => new MessageCreateParams
         {
             CacheControl = new CacheControlEphemeral(),
-            Model = model,
+            Model = modelId,
             MaxTokens = maxTokens,
             Messages = [],
         };

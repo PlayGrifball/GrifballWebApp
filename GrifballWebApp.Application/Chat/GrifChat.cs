@@ -488,4 +488,4 @@ public sealed class ChatReply : IDisposable
 }
 
 /// <summary>Why the chat gives no (whole) answer, for the host to show: no model, a question it can't take, a limit, the time.</summary>
-public sealed class ChatRefusedException(string message) : Exception(message);
+public sealed class ChatRefusedException(string message, Exception? innerException = null) : Exception(message, innerException);

@@ -5,6 +5,7 @@ using GrifballWebApp.Application.Identity;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using OllamaSharp;
 
 namespace GrifballWebApp.Infrastructure.Chat;
@@ -29,13 +30,16 @@ public sealed class ChatClients : IChatClientFactory
 
     private readonly Lazy<HttpClient> _ollama;
     private readonly Lazy<AnthropicClient> _anthropic;
+    private readonly ILogger<AnthropicSpendLimit>? _spendLimitLog;
 
     /// <param name="models">The models, checked (<see cref="ChatModels.From"/>).</param>
     /// <param name="configuration">Where the providers are: Ollama:Url, Anthropic:ApiKey.</param>
     /// <param name="httpClients">The providers' HTTP clients (<see cref="OllamaHttpClient"/>, <see cref="AnthropicHttpClient"/>).</param>
-    public ChatClients(IReadOnlyList<ChatModelOption> models, IConfiguration configuration, IHttpClientFactory httpClients)
+    /// <param name="loggers">For Claude's spend limits (<see cref="AnthropicSpendLimit"/>).</param>
+    public ChatClients(IReadOnlyList<ChatModelOption> models, IConfiguration configuration, IHttpClientFactory httpClients, ILoggerFactory? loggers = null)
     {
         Models = models;
+        _spendLimitLog = loggers?.CreateLogger<AnthropicSpendLimit>();
         _ollama = new(() =>
         {
             var http = httpClients.CreateClient(OllamaHttpClient);
@@ -61,7 +65,7 @@ public sealed class ChatClients : IChatClientFactory
         if (!Models.Contains(model))
             throw new ArgumentException($"{model.Id} is not one of the configured chat models", nameof(model));
         return model.Provider == ChatProvider.Anthropic
-            ? new AnthropicSpendLimit(new AnthropicPromptCache(_anthropic.Value.AsIChatClient(model.Model), model.Model))
+            ? new AnthropicSpendLimit(new AnthropicPromptCache(_anthropic.Value.AsIChatClient(model.Model), model.Model), _spendLimitLog)
             : new OllamaApiClient(_ollama.Value, model.Model);
     }
 }
@@ -179,7 +183,7 @@ public static class ChatClientsExtensions
             services.AddHttpClient(name, client => client.Timeout = System.Threading.Timeout.InfiniteTimeSpan)
                 .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) });
         }
-        services.AddSingleton<IChatClientFactory>(provider => new ChatClients(models, configuration, provider.GetRequiredService<IHttpClientFactory>()));
+        services.AddSingleton<IChatClientFactory>(provider => new ChatClients(models, configuration, provider.GetRequiredService<IHttpClientFactory>(), provider.GetService<ILoggerFactory>()));
         return services;
     }
 }
