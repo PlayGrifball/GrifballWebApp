@@ -38,12 +38,20 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         public readonly List<string> Spoken = [];
         public Exception? Fails { get; set; }
 
-        public Task<string> TranscribeAsync(ReadOnlyMemory<byte> wav, CancellationToken cancellationToken = default)
+        /// <summary>Runs as the first line is transcribed: something the room does meanwhile.</summary>
+        public Func<Task>? Meanwhile { get; set; }
+
+        public async Task<string> TranscribeAsync(ReadOnlyMemory<byte> wav, CancellationToken cancellationToken = default)
         {
             if (Fails is { } fails)
                 throw fails;
             Heard.Add(wav.ToArray());
-            return Task.FromResult(Transcripts.Dequeue());
+            if (Meanwhile is { } meanwhile)
+            {
+                Meanwhile = null;
+                await meanwhile();
+            }
+            return Transcripts.Dequeue();
         }
 
         public Task<byte[]> SpeakAsync(string text, CancellationToken cancellationToken = default)
@@ -221,7 +229,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         _time.Advance(VoiceLines.Silence);
         await conversation.ProcessEndedAsync(CancellationToken.None);
 
-        Assert.That(_speech.Heard.Single(), Has.Length.EqualTo(44 + VoicePcm.WhisperRate * 2), "Only the second second: the first came before they were known");
+        Assert.That(_speech.Heard.Single(), Has.Length.EqualTo(44 + VoicePcm.WhisperRate * 2 * 2), "Both seconds: the first was held while they were looked up");
     }
 
     [Test]
@@ -269,5 +277,61 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         stop.Cancel();
 
         Assert.That(async () => await conversation.RunAsync(stop.Token), Throws.Nothing);
+    }
+
+    [Test]
+    public async Task ALineThatEnded_IsDropped_WhenItsSpeakerOptsOutBeforeItsTurn()
+    {
+        const ulong Other = 502;
+        await OptedIn(Speaker);
+        await OptedIn(Other);
+        _speech.Transcripts.Enqueue("Grif, who won?");
+        var conversation = Conversation(new ScriptedChatClient((TimeSpan.Zero, "The Grifs did.")));
+        await conversation.RefreshAsync(Speaker);
+        await conversation.RefreshAsync(Other);
+        conversation.Hear(Speaker, new short[VoicePcm.DiscordRate]);
+        conversation.Hear(Other, new short[VoicePcm.DiscordRate]);
+        _time.Advance(VoiceLines.Silence);
+        // While the first line is answered, the other speaker opts out
+        _speech.Meanwhile = async () =>
+        {
+            await new VoiceConsents(Db, _time).OptOutAsync(Other);
+            await conversation.RefreshAsync(Other);
+        };
+
+        await conversation.ProcessEndedAsync(CancellationToken.None);
+
+        Assert.That(_speech.Heard, Has.Count.EqualTo(1), "Their line, though it had ended, never reached Whisper");
+    }
+
+    [Test]
+    public async Task Wants_TheOptedIn_AndThoseNotKnownYet_NotThoseWhoOptedOut()
+    {
+        const ulong Unknown = 503;
+        const ulong Out = 504;
+        await OptedIn(Speaker);
+        var conversation = Conversation(new ScriptedChatClient((TimeSpan.Zero, "Hi")));
+        await conversation.RefreshAsync(Speaker);
+        await conversation.RefreshAsync(Out);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(conversation.Wants(Speaker), Is.True);
+            Assert.That(conversation.Wants(Unknown), Is.True, "Decoded and held while they are looked up");
+            Assert.That(conversation.Wants(Out), Is.False, "Not even decoded");
+        }
+    }
+
+    [Test]
+    public async Task AudioHeldWhileTheyAreLookedUp_IsDropped_WhenTheyHaventOptedIn()
+    {
+        var conversation = Conversation(new ScriptedChatClient((TimeSpan.Zero, "Hi")));
+
+        conversation.Hear(Speaker, new short[VoicePcm.DiscordRate]);
+        await conversation.RefreshAsync(Speaker);
+        _time.Advance(VoiceLines.Silence);
+        await conversation.ProcessEndedAsync(CancellationToken.None);
+
+        Assert.That(_speech.Heard, Is.Empty);
     }
 }

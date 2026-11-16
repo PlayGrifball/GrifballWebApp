@@ -35,7 +35,8 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
     private sealed class Link : IVoiceLink
     {
         public readonly List<short[]> Played = [];
-        public bool Disposed { get; private set; }
+        public int Disposals { get; private set; }
+        public bool Disposed => Disposals > 0;
 
         public event Action<ulong, short[]>? Heard;
         public event Action? Closed;
@@ -52,7 +53,9 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
 
         public ValueTask DisposeAsync()
         {
-            Disposed = true;
+            Disposals++;
+            // Discord's own: closing the connection says so
+            Closed?.Invoke();
             return default;
         }
     }
@@ -64,13 +67,18 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
         public readonly List<ulong> Disconnected = [];
         public Exception? Fails { get; set; }
 
-        public Task<IVoiceLink> ConnectAsync(ulong guildId, ulong channelId, CancellationToken cancellationToken)
+        /// <summary>Holds each connection until it completes: a join still connecting.</summary>
+        public TaskCompletionSource? Connecting { get; set; }
+
+        public async Task<IVoiceLink> ConnectAsync(ulong guildId, ulong channelId, CancellationToken cancellationToken)
         {
             if (Fails is { } fails)
                 throw fails;
+            if (Connecting is { } connecting)
+                await connecting.Task;
             var link = new Link();
             Opened.Add((guildId, channelId, link));
-            return Task.FromResult<IVoiceLink>(link);
+            return link;
         }
 
         public Task DisconnectAsync(ulong guildId)
@@ -269,5 +277,66 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
         link.Close();
 
         Assert.That(await handler.JoinAsync(Guild, In(Channel), Speaker), Is.EqualTo(VoiceCommandsHandler.AlreadyIn), "The new connection stands");
+    }
+
+    [Test]
+    public async Task Leave_WhileStillJoining_StopsTheJoin_AndNothingIsLeftListening()
+    {
+        await using var sessions = Sessions();
+        var handler = Handler(sessions);
+        _connector.Connecting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var joining = handler.JoinAsync(Guild, In(Channel), Speaker);
+        var left = await handler.LeaveAsync(Guild);
+        var secondJoin = await handler.JoinAsync(Guild, In(Channel), Speaker);
+        _connector.Connecting.SetResult();
+        _connector.Connecting = null;
+        var joined = await joining;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(left, Is.EqualTo(VoiceCommandsHandler.Left), "Leaving: the join won't stay");
+            Assert.That(secondJoin, Is.EqualTo(VoiceCommandsHandler.AlreadyIn), "One connection a guild, even while it connects");
+            Assert.That(joined, Is.EqualTo(VoiceCommandsHandler.LeftBeforeJoined));
+            Assert.That(_connector.Opened.Single().Link.Disposed, Is.True);
+            Assert.That(_connector.Disconnected, Does.Contain(Guild));
+            Assert.That(await handler.JoinAsync(Guild, In(Channel), Speaker), Is.EqualTo(VoiceCommandsHandler.Listening(Channel)), "Free to join again");
+        }
+    }
+
+    [Test]
+    public async Task AConnectionDiscordCloses_LeavesTheVoiceState_AndIsDisposedOnce()
+    {
+        var sessions = Sessions();
+        var handler = Handler(sessions);
+        await handler.JoinAsync(Guild, In(Channel), Speaker);
+        var link = _connector.Opened.Single().Link;
+
+        link.Close();
+        await Task.Delay(50);
+        await sessions.DisposeAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_connector.Disconnected, Does.Contain(Guild), "Not left sitting in the channel");
+            Assert.That(link.Disposals, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task Dispose_LeavesEveryChannel_Once()
+    {
+        var sessions = Sessions();
+        var handler = Handler(sessions);
+        await handler.JoinAsync(Guild, In(Channel), Speaker);
+
+        await sessions.DisposeAsync();
+        await sessions.DisposeAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_connector.Opened.Single().Link.Disposals, Is.EqualTo(1));
+            Assert.That(_connector.Disconnected, Is.EqualTo(OnlyTheGuild));
+        }
     }
 }

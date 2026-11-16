@@ -5,9 +5,12 @@ namespace GrifballWebApp.Server.Test;
 
 /// <summary>The voice chat's pieces that need no Discord: the wake phrase, the audio's conversions and each speaker's lines.</summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class VoicePiecesUnitTests
 {
+    private static readonly int[] TwoLines = [48_000, 24_000];
+
     [TestCase("Grif, who won last season?", "who won last season?")]
     [TestCase("griff who won last season", "who won last season")]
     [TestCase("Hey Grif. What's on tonight?", "What's on tonight?")]
@@ -115,4 +118,19 @@ public class VoicePiecesUnitTests
     [Test]
     public void Question_NameMidSentence_IsNotForTheBot()
         => Assert.That(VoiceWake.Question("ok so grif"), Is.Null);
+
+    [Test]
+    public void Lines_ASilenceEndsTheLine_ThoughNobodyAskedForIt_SoTheNextStartsAfresh()
+    {
+        var time = new FakeTimeProvider();
+        var lines = new VoiceLines(time);
+
+        // While the bot answers someone else, nobody asks for ended lines: a pause still ends this speaker's
+        lines.Add(1, new short[48_000]);
+        time.Advance(VoiceLines.Silence + TimeSpan.FromSeconds(2));
+        lines.Add(1, new short[24_000]);
+        time.Advance(VoiceLines.Silence);
+
+        Assert.That(lines.Ended().Select(l => l.Pcm.Length), Is.EqualTo(TwoLines));
+    }
 }

@@ -9,6 +9,7 @@ namespace GrifballWebApp.Infrastructure.Test;
 
 /// <summary>The voice chat's speech (<see cref="SpeachesSpeech"/>): speaches' OpenAI-compatible endpoints, transcription and speech.</summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class SpeachesSpeechUnitTests
 {

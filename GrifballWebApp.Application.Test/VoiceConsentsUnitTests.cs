@@ -46,4 +46,35 @@ public class VoiceConsentsUnitTests
 
         Assert.That(await _db.VoiceConsents.CountAsync(), Is.Zero);
     }
+
+    [Test]
+    public async Task OptIn_TwiceAtOnce_StandsOnce_WithoutAnError()
+    {
+        // Another opt-in for the same account saves between this one's check and its save
+        await using var racing = _db.NewContextLike(new AnotherOptInFirst(_db, _time));
+
+        await new VoiceConsents(racing, _time).OptInAsync(42);
+
+        Assert.That(await _db.VoiceConsents.CountAsync(), Is.EqualTo(1));
+    }
+
+    /// <summary>Saves the same consent through another context just before this one saves: a second /voice optin at once.</summary>
+    private sealed class AnotherOptInFirst(FakeApplicationDbContext db, TimeProvider time) : Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesInterceptor
+    {
+        private bool _done;
+
+        public override async ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>> SavingChangesAsync(
+            Microsoft.EntityFrameworkCore.Diagnostics.DbContextEventData eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (!_done)
+            {
+                _done = true;
+                await using var other = db.NewContextLike();
+                other.VoiceConsents.Add(GrifballWebApp.Domain.Players.VoiceConsent.Give(42, time.GetUtcNow().UtcDateTime));
+                await other.SaveChangesAsync(cancellationToken);
+            }
+            return result;
+        }
+    }
 }
