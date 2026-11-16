@@ -207,6 +207,8 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
         await handler.JoinAsync(Guild, In(Channel), Speaker);
 
         _connector.Opened.Single().Link.Close();
+        for (var i = 0; i < 100 && !_connector.Opened[0].Link.Disposed; i++)
+            await Task.Delay(10);
         var rejoined = await handler.JoinAsync(Guild, In(Channel), Speaker);
 
         using (Assert.EnterMultipleScope())

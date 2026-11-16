@@ -69,7 +69,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
             await _services.DisposeAsync();
     }
 
-    private VoiceConversation Conversation(IChatClient model, bool modelConfigured = true)
+    private VoiceConversation Conversation(IChatClient model, bool modelConfigured = true, Func<ulong, Task<bool>>? optedIn = null)
     {
         _services = new ServiceCollection()
             .AddSingleton<GrifballContext>(Db)
@@ -89,7 +89,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         {
             _played.Add(pcm);
             return Task.CompletedTask;
-        });
+        }, optedIn);
     }
 
     private async Task OptedIn(ulong discordUserId)
@@ -338,16 +338,34 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task AudioHeldWhileTheyAreLookedUp_IsCappedAt5Seconds()
     {
-        await OptedIn(Speaker);
         _speech.Transcripts.Enqueue("Grif, who won?");
-        var conversation = Conversation(new ScriptedChatClient((TimeSpan.Zero, "The Grifs did.")));
+        // Their lookup answers only once they have said 7 seconds
+        var lookup = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var conversation = Conversation(new ScriptedChatClient((TimeSpan.Zero, "The Grifs did.")), optedIn: _ => lookup.Task);
 
         for (var i = 0; i < 7; i++)
             conversation.Hear(Speaker, new short[VoicePcm.DiscordRate]);
+        lookup.SetResult(true);
         await conversation.RefreshAsync(Speaker);
         _time.Advance(VoiceLines.Silence);
         await conversation.ProcessEndedAsync(CancellationToken.None);
 
         Assert.That(_speech.Heard.Single(), Has.Length.EqualTo(44 + (int)VoiceConversation.MaxHeld.TotalSeconds * VoicePcm.WhisperRate * 2));
+    }
+
+    [Test]
+    public async Task AnOptOutsLookup_WritesLast_ThoughAnEarlierOneAnswersAfterIt()
+    {
+        // The lookup their first audio started answers "opted in" late, after they opted out; the opt-out's answers at once
+        var first = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var answers = new Queue<Task<bool>>([first.Task, Task.FromResult(false)]);
+        var conversation = Conversation(new ScriptedChatClient((TimeSpan.Zero, "Hi")), optedIn: _ => answers.Dequeue());
+
+        conversation.Hear(Speaker, new short[VoicePcm.DiscordRate]);
+        var optOut = conversation.RefreshAsync(Speaker);
+        first.SetResult(true);
+        await optOut;
+
+        Assert.That(conversation.Wants(Speaker), Is.False, "Their opt-out stands");
     }
 }

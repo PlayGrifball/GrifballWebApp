@@ -15,9 +15,16 @@ namespace GrifballWebApp.Server.Voice;
 /// voice host as its speaker (their roles, their models and month), one at a time, and the answer spoken. Nothing said is kept:
 /// each line is gone once transcribed, its transcript once answered.
 /// </summary>
+/// <param name="optedIn">Whether a speaker opted in; null: <see cref="VoiceConsents"/>, in a scope of its own.</param>
 public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat, IChatSpeech speech, TimeProvider time,
-    ILogger<VoiceConversation> log, Func<short[], CancellationToken, Task> play)
+    ILogger<VoiceConversation> log, Func<short[], CancellationToken, Task> play, Func<ulong, Task<bool>>? optedIn = null)
 {
+    private readonly Func<ulong, Task<bool>> _optedIn = optedIn ?? (async speaker =>
+    {
+        using var scope = scopes.CreateScope();
+        return (await scope.ServiceProvider.GetRequiredService<VoiceConsents>().OptedInAsync([speaker])).Contains(speaker);
+    });
+
     /// <summary>How often ended lines are looked for.</summary>
     public static readonly TimeSpan Tick = TimeSpan.FromMilliseconds(100);
 
@@ -79,8 +86,7 @@ public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat
         await lookup.WaitAsync();
         try
         {
-            using var scope = scopes.CreateScope();
-            Settle(speaker, (await scope.ServiceProvider.GetRequiredService<VoiceConsents>().OptedInAsync([speaker])).Contains(speaker));
+            Settle(speaker, await _optedIn(speaker));
         }
         catch (Exception e)
         {
