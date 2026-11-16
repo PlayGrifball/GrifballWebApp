@@ -129,6 +129,20 @@ public partial class GrifChatUnitTests
     }
 
     [Test]
+    public async Task StartAsync_ANewQuestion_DropsTheChangeWaiting()
+    {
+        var chat = ChatWithModels(new FakeModel([Calls("forfeit_season_match", Forfeit)], [Text("Season 3.")]));
+        _clients.Models.Returns([Free]);
+        using (var reply = await chat.StartAsync([], "Forfeit match 12", Commissioner, ChatHost.Site, Asker))
+            await All(reply.StreamAsync());
+
+        using (var other = await chat.StartAsync([], "Which season is on?", Commissioner, ChatHost.Site, Asker))
+            await All(other.StreamAsync());
+
+        Assert.That(await chat.WaitingAsync(Asker), Is.Null, "A later yes isn't for a change they moved on from");
+    }
+
+    [Test]
     public async Task WaitingAsync_Expires()
     {
         var chat = ChatWithModels(new FakeModel([Calls("forfeit_season_match", Forfeit)]));
