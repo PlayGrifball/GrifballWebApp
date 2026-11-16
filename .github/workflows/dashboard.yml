@@ -1,0 +1,56 @@
+name: Dashboard
+
+# The chart's Grafana dashboard offline (charts/grifballwebapp/tests/*.test.mjs): generated JSON, uid, datasources, the
+# grif_* metrics the app defines, PromQL syntax (promtool at the Prometheus version production runs). Runs when the
+# chart changes and when the backend's or the client's sources do, which create the grif.* instruments the dashboard
+# queries: a renamed one fails here rather than as an empty panel. The dashboard e2e (helm-chart.yml) runs it against
+# the app.
+on:
+  pull_request:
+    branches: [ "master" ]
+    paths: [ "charts/grifballwebapp/**", ".github/workflows/dashboard.yml", "GrifballWebApp.*/**", "grifballwebapp.client/src/**" ]
+  push:
+    branches: [ "master" ]
+    paths: [ "charts/grifballwebapp/**", ".github/workflows/dashboard.yml", "GrifballWebApp.*/**", "grifballwebapp.client/src/**" ]
+  workflow_dispatch:
+
+permissions: {}
+
+# A newer push to a PR replaces its run still going; every other run is its own group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PROMETHEUS_VERSION: "3.15.1"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # A hung job fails after this rather than GitHub's 6 hours (under a minute usually)
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.x'
+
+      # promtool from the release, checked against the release's checksums before it's unpacked or run
+      - name: promtool
+        run: |
+          set -euo pipefail
+          tarball="prometheus-$PROMETHEUS_VERSION.linux-amd64.tar.gz"
+          base="https://github.com/prometheus/prometheus/releases/download/v$PROMETHEUS_VERSION"
+          curl --proto '=https' -fsSLO "$base/$tarball"
+          curl --proto '=https' -fsSLO "$base/sha256sums.txt"
+          grep -E "^[0-9a-f]{64}  $tarball\$" sha256sums.txt | sha256sum -c -
+          tar xzf "$tarball" "prometheus-$PROMETHEUS_VERSION.linux-amd64/promtool"
+          echo "PROMTOOL=$PWD/prometheus-$PROMETHEUS_VERSION.linux-amd64/promtool" >> "$GITHUB_ENV"
+
+      - name: Dashboard tests
+        run: node --test charts/grifballwebapp/tests/*.test.mjs

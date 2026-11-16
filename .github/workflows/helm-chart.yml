@@ -60,13 +60,7 @@ jobs:
           helm plugin install https://github.com/helm-unittest/helm-unittest $verify
           helm unittest "$CHART"
 
-      # The Grafana dashboard offline: generated JSON, uid, datasources, the grif_* metrics the app defines, PromQL syntax
-      # (promtool at the Prometheus version production runs). The dashboard e2e entry runs it against the app.
-      - name: Dashboard tests
-        run: |
-          set -euo pipefail
-          curl --proto =https -fsSL https://github.com/prometheus/prometheus/releases/download/v3.15.1/prometheus-3.15.1.linux-amd64.tar.gz | tar xz
-          PROMTOOL="$PWD/prometheus-3.15.1.linux-amd64/promtool" node --test "$CHART"/tests/*.test.mjs
+      # The Grafana dashboard's offline tests run in dashboard.yml, which also runs on the app's sources (its instruments).
 
       # The preview database reset's decision (files/preview-reset.sh), under bash's sh and under
       # BusyBox, which the backend image runs it with.

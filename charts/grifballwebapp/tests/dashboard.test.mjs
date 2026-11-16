@@ -134,6 +134,22 @@ test('every grif_* metric it queries is one the app defines', () => {
   }
 });
 
+test('the workflows that run these tests run them when the app\'s instruments change', () => {
+  // A pull request's paths filter, as a regex: ** any path, * one segment
+  const glob = pattern => new RegExp(`^${pattern.replaceAll('.', '\\.').replaceAll('**', '\0').replaceAll('*', '[^/]*').replaceAll('\0', '.*')}$`);
+  const workflows = path.join(repo, '.github/workflows');
+  const running = fs.readdirSync(workflows).map(f => [f, fs.readFileSync(path.join(workflows, f), 'utf8')]).filter(([, w]) => w.includes('tests/*.test.mjs'));
+  assert.ok(running.length > 0, 'no workflow runs the dashboard tests');
+  for (const [file, workflow] of running) {
+    const paths = workflow.match(/\n {2}pull_request:\s*\n(?: {4,}.*\n)*? {4}paths:\s*\[([^\]]*)\]/)?.[1];
+    if (!paths) continue;  // no paths filter: every pull request
+    const patterns = [...paths.matchAll(/"([^"]+)"/g)].map(m => glob(m[1]));
+    for (const dir of sourceDirs())
+      for (const source of [`${dir}/Telemetry/Metrics.cs`, `${dir}/app/core/telemetry.ts`])
+        assert.ok(patterns.some(p => p.test(source)), `${file} doesn't run on a change to ${source}`);
+  }
+});
+
 test('Loki and Tempo queries are not empty', () => {
   for (const t of targets(dashboard).filter(t => t.type !== 'prometheus'))
     assert.ok(String(t.target.expr ?? t.target.query ?? '').trim(), `${t.panel}: empty ${t.type} query`);
