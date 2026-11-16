@@ -241,7 +241,7 @@ describe('ChatComponent', () => {
     await withModels({ models: [{ id: 'ollama', name: 'llama3.2:3b' }], selected: 'ollama', autoApprove: false });
     const toggle = () => el().querySelector<HTMLButtonElement>('.chat__approve button[role="switch"]')!;
     expect(toggle().getAttribute('aria-checked')).toBe('false');
-    expect(text()).toContain('talked into');
+    expect(text()).toContain('talked it into');
     expect(button('Make this my default')).toBeUndefined();
 
     toggle().click();

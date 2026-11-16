@@ -67,7 +67,7 @@ public partial class EntityConfigurationUnitTests
             Assert.That((NullableOf(entity, nameof(ChatChoice.Model)), MaxLengthOf(entity, nameof(ChatChoice.Model))),
                 Is.EqualTo(((bool?)true, (int?)ChatChoice.ModelMaxLength)), "None: their roles' default");
             Assert.That(NullableOf(entity, nameof(ChatChoice.AutoApprove)), Is.False);
-            Assert.That(entity.FindProperty(nameof(ChatChoice.AutoApprove))!.GetDefaultValue(), Is.EqualTo(false), "The rows before it: changes wait");
+            Assert.That(entity.FindProperty(nameof(ChatChoice.AutoApprove))!.GetDefaultValue(), Is.False, "The rows before it: changes wait");
             Assert.That(entity.GetForeignKeys(), Is.Empty);
         }
     }
