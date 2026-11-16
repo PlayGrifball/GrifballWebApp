@@ -54,6 +54,8 @@ public static class ApplicationServiceCollectionExtensions
             configuration.GetValue(ChatLimits.MonthlyLimitKey, ChatLimits.DefaultMonthlyLimit)));
         // What the chat keeps of a user: their chosen model and their monthly spend
         services.AddTransient<ChatAccounts>();
+        // Its changes waiting for an answer: in memory unless Infrastructure's Redis (scaled out) is registered
+        services.TryAddSingleton<IChatWaiting, MemoryChatWaiting>();
         services.AddTransient<IQueueRepository, QueueRepository>();
         // Joining and leaving, from Discord or the site; the queue's size goes to its watchers (IQueueNotifier)
         services.AddTransient<QueueMembership>();

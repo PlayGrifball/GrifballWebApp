@@ -118,6 +118,10 @@ class IChatHubServer_HubProxy implements IChatHubServer {
     public readonly waiting = async (): Promise<ChatActionDto> => {
         return await this.connection.invoke("Waiting");
     }
+
+    public readonly forget = async (): Promise<void> => {
+        return await this.connection.invoke("Forget");
+    }
 }
 
 class IQueueHubServer_HubProxyFactory implements HubProxyFactory<IQueueHubServer> {

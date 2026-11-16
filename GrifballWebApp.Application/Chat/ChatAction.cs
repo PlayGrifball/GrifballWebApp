@@ -19,9 +19,21 @@ public sealed record ChatAction(string Id, string Model, string Description, IRe
             calls.Select(c => new ChatActionCall(c.Request.RequestId, c.Call.CallId, c.Call.Name, JsonSerializer.Serialize(c.Call.Arguments))).ToList());
     }
 
-    /// <summary>A call as the person reads it: the tool and its arguments, <c>forfeit_season_match(seasonMatchID: 12, side: home)</c>.</summary>
+    /// <summary>The most of an argument's value the person is shown; past it, cut with an ellipsis.</summary>
+    public const int ShownValueLength = 200;
+
+    /// <summary>
+    /// A call as the person reads it: the tool and its arguments, <c>forfeit_season_match(seasonMatchID: 12, side: "home")</c>. Each value
+    /// as JSON (a string quoted, its quotes escaped), so a value can't pass for more arguments or another call.
+    /// </summary>
     public static string Describe(FunctionCallContent call)
-        => $"{call.Name}({string.Join(", ", (call.Arguments ?? new Dictionary<string, object?>()).Select(a => $"{a.Key}: {a.Value}"))})";
+        => $"{call.Name}({string.Join(", ", (call.Arguments ?? new Dictionary<string, object?>()).Select(a => $"{a.Key}: {Shown(a.Value)}"))})";
+
+    private static string Shown(object? value)
+    {
+        var json = JsonSerializer.Serialize(value);
+        return json.Length > ShownValueLength ? json[..ShownValueLength] + "…" : json;
+    }
 
     /// <summary>The person's answer, as the function invocation takes it: approved (or not) for each call.</summary>
     public ChatMessage Answer(bool approved) => new(ChatRole.User,

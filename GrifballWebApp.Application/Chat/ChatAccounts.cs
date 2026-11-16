@@ -1,8 +1,6 @@
-using System.Text.Json;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GrifballWebApp.Application.Chat;
@@ -80,31 +78,41 @@ public sealed class ChatAccounts(IServiceScopeFactory scopes, TimeProvider time,
     /// <summary>How long a change waits for the person's answer before it is dropped.</summary>
     public static readonly TimeSpan WaitingFor = TimeSpan.FromMinutes(10);
 
-    /// <summary>Where <paramref name="asker"/>'s waiting change is kept (the app's distributed cache: every pod sees it).</summary>
-    public static string WaitingKey(string asker) => $"chat:waiting:{asker}";
+    /// <summary>
+    /// Where <paramref name="asker"/>'s waiting change on <paramref name="host"/> is kept (<see cref="IChatWaiting"/>): each host's its own, so a
+    /// yes in a DM answers only what the DM showed.
+    /// </summary>
+    public static string WaitingKey(ChatHost host, string asker) => $"chat:waiting:{host.Name}:{asker}";
 
-    /// <summary><paramref name="action"/> waits for <paramref name="asker"/>'s answer, for <see cref="WaitingFor"/>; it replaces any before it.</summary>
-    public async Task SaveWaitingAsync(string asker, ChatAction action, CancellationToken ct = default)
+    /// <summary><paramref name="action"/> waits for <paramref name="asker"/>'s answer on <paramref name="host"/>, for <see cref="WaitingFor"/>; it replaces any before it.</summary>
+    public async Task SaveWaitingAsync(ChatHost host, string asker, ChatAction action, CancellationToken ct = default)
     {
         using var scope = scopes.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<IDistributedCache>().SetAsync(WaitingKey(asker), JsonSerializer.SerializeToUtf8Bytes(action),
-            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = WaitingFor }, ct);
+        await Waiting(scope).SaveAsync(WaitingKey(host, asker), action, WaitingFor, ct);
     }
 
-    /// <summary>The change waiting for <paramref name="asker"/>'s answer, or null.</summary>
-    public async Task<ChatAction?> WaitingAsync(string asker, CancellationToken ct = default)
+    /// <summary>The change waiting for <paramref name="asker"/>'s answer on <paramref name="host"/>, left waiting; or null.</summary>
+    public async Task<ChatAction?> WaitingAsync(ChatHost host, string asker, CancellationToken ct = default)
     {
         using var scope = scopes.CreateScope();
-        var saved = await scope.ServiceProvider.GetRequiredService<IDistributedCache>().GetAsync(WaitingKey(asker), ct);
-        return saved is null ? null : JsonSerializer.Deserialize<ChatAction>(saved);
+        return await Waiting(scope).PeekAsync(WaitingKey(host, asker), ct);
     }
 
-    /// <summary><paramref name="asker"/>'s waiting change answered: no longer waiting.</summary>
-    public async Task ForgetWaitingAsync(string asker, CancellationToken ct = default)
+    /// <summary>The change waiting for <paramref name="asker"/>'s answer on <paramref name="host"/>, taken (only one answer gets it); or null.</summary>
+    public async Task<ChatAction?> TakeWaitingAsync(ChatHost host, string asker, CancellationToken ct = default)
     {
         using var scope = scopes.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<IDistributedCache>().RemoveAsync(WaitingKey(asker), ct);
+        return await Waiting(scope).TakeAsync(WaitingKey(host, asker), ct);
     }
+
+    /// <summary>Nothing waits for <paramref name="asker"/>'s answer on <paramref name="host"/> any more.</summary>
+    public async Task ForgetWaitingAsync(ChatHost host, string asker, CancellationToken ct = default)
+    {
+        using var scope = scopes.CreateScope();
+        await Waiting(scope).ForgetAsync(WaitingKey(host, asker), ct);
+    }
+
+    private static IChatWaiting Waiting(IServiceScope scope) => scope.ServiceProvider.GetRequiredService<IChatWaiting>();
 
     /// <summary>
     /// <see cref="RecordAsync"/>, its failure logged rather than thrown: the reply it is for has been given already, whole or not, and

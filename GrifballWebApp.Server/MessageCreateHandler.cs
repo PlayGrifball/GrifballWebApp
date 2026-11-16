@@ -151,7 +151,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         {
             var asker = ChatLimits.Asker(caller, ChatLimits.Discord(message.Author.Id));
             // In a DM, a yes or no answers the change waiting for the author (GrifChat.ConfirmAsync): anything else is a question
-            if (direct && Answer(message.Content) is { } approved && await chat.WaitingAsync(asker) is { } waiting)
+            if (direct && Answer(message.Content) is { } approved && await chat.WaitingAsync(host, asker) is { } waiting)
                 reply = await chat.ConfirmAsync(history, waiting.Id, approved, caller, host, asker);
             // The model: in a DM, the one the author chose on the site (else their default); in a channel, the one anyone may use
             else

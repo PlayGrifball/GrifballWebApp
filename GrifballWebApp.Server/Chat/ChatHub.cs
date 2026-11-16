@@ -49,10 +49,8 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
     /// </summary>
     public Task<ChannelReader<string>> Confirm(ChatConfirmDto answer, CancellationToken cancellationToken)
     {
-        // The browser's JSON can hold nulls the types don't allow
-        IEnumerable<ChatTurnDto?>? history = answer?.History;
-        if (answer?.ActionId is null || history is null || history.Any(t => t?.Text is null))
-            return Task.FromResult(Refuse(Channel.CreateUnbounded<string>(), GrifChat.Unreadable));
+        if (GrifChat.Refusal(answer) is { } refused)
+            return Task.FromResult(Refuse(Channel.CreateUnbounded<string>(), refused));
         var caller = user.AsToolCaller();
         return StreamAsync(caller, () => chat.ConfirmAsync(GrifChat.History(answer.History),
             answer.ActionId, answer.Approved, caller, ChatHost.Site, Asker(caller), cancellationToken), cancellationToken);
@@ -60,9 +58,12 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
 
     /// <summary>The change waiting for the user's answer (its ID and what it does), or null.</summary>
     public async Task<ChatActionDto?> Waiting()
-        => await chat.WaitingAsync(Asker(user.AsToolCaller()), Context.ConnectionAborted) is { } action
+        => await chat.WaitingAsync(ChatHost.Site, Asker(user.AsToolCaller()), Context.ConnectionAborted) is { } action
             ? new ChatActionDto { Id = action.Id, Description = action.Description }
             : null;
+
+    /// <summary>The change waiting for the user's answer dropped: they started a new conversation.</summary>
+    public Task Forget() => chat.ForgetAsync(ChatHost.Site, Asker(user.AsToolCaller()), Context.ConnectionAborted);
 
     /// <summary>Whose questions the caller's count (<see cref="ChatLimits.Asker"/>): their user, else their address.</summary>
     private string Asker(ToolCaller caller) => ChatLimits.Asker(caller, ChatLimits.Address(Context.GetHttpContext()?.Connection.RemoteIpAddress));
@@ -192,6 +193,9 @@ public interface IChatHubServer
 
     /// <summary>The change waiting for the user's answer, or null.</summary>
     Task<ChatActionDto?> Waiting();
+
+    /// <summary>The change waiting for the user's answer dropped: they started a new conversation.</summary>
+    Task Forget();
 }
 
 // S4023: empty on purpose, the hub sends nothing but its streams; the typed client and the SignalR page need it to know the hub

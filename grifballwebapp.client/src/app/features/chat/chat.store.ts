@@ -80,8 +80,14 @@ function save(turns: ChatTurnDto[]): void {
 export class ChatStore {
   private readonly log = inject(AppLog);
   private readonly connection: HubConnection | null = isPlatformBrowser(inject(PLATFORM_ID))
-    // Each time it comes up (as whoever is signed in now): the models they may use
-    ? hubLifecycle(CHAT_HUB_URL, { name: 'Chat hub', connected: () => void this.loadModels(this.connection!) })
+    // Each time it comes up (as whoever is signed in now): the models they may use, and a change still waiting for their answer
+    ? hubLifecycle(CHAT_HUB_URL, {
+      name: 'Chat hub',
+      connected: () => {
+        void this.loadModels(this.connection!);
+        void this.loadWaiting(this.connection!);
+      },
+    })
     : null;
 
   private readonly modelsState = signal<ChatModelsDto | null>(null);
@@ -111,12 +117,14 @@ export class ChatStore {
   readonly waiting = this.waitingState.asReadonly();
 
   private answer: ISubscription<string> | null = null;
+  /** Counts the answers started and conversations cleared: a waiting change loaded before the latest is out of date. */
+  private generation = 0;
   /** The spend's reload after a stop, waiting for the server to save the stopped answer's cost. */
   private spendReload: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     // Another user's conversation isn't theirs to see or continue
-    inject(AuthSession).changed$.pipe(takeUntilDestroyed()).subscribe(() => this.clear());
+    inject(AuthSession).changed$.pipe(takeUntilDestroyed()).subscribe(() => this.reset());
     inject(DestroyRef).onDestroy(() => {
       this.answer?.dispose();
       clearTimeout(this.spendReload);
@@ -164,6 +172,7 @@ export class ChatStore {
 
   /** `said` added to the conversation, then the answer `start` streams in; then what waits for the user, if anything does. */
   private stream(connection: HubConnection, said: string, start: (hub: IChatHubServer) => IStreamResult<string>): void {
+    this.generation++;
     this.errorState.set(null);
     this.waitingState.set(null);
     this.askingState.set(true);
@@ -206,8 +215,12 @@ export class ChatStore {
 
   /** The change waiting for the user's answer, from the server; none when it can't say. */
   private async loadWaiting(connection: HubConnection): Promise<void> {
+    const generation = this.generation;
     try {
-      this.waitingState.set(await getHubProxyFactory('IChatHubServer').createHubProxy(connection).waiting());
+      const waiting = await getHubProxyFactory('IChatHubServer').createHubProxy(connection).waiting();
+      // A question asked (or the conversation cleared) since: the server dropped it
+      if (generation === this.generation)
+        this.waitingState.set(waiting);
     } catch (error: unknown) {
       this.log.error('Chat: the waiting change failed to load', error);
     }
@@ -240,12 +253,31 @@ export class ChatStore {
     this.spendReload = setTimeout(() => this.loadSpend(connection), STOP_SPEND_RELOAD_MS);
   }
 
-  /** A new conversation: the answer on its way stopped, and the questions and answers so far gone. */
+  /**
+   * A new conversation: the answer on its way stopped, the questions and answers so far gone, and a change waiting for their
+   * answer dropped on the server too (else a yes elsewhere could still run it).
+   */
   clear(): void {
+    if (this.waiting() && this.connection?.state === HubConnectionState.Connected)
+      void this.forget(this.connection);
+    this.reset();
+  }
+
+  /** The conversation gone from the page (another user's, once they sign in or out: the server's waiting change is theirs). */
+  private reset(): void {
+    this.generation++;
     this.stop();
     this.errorState.set(null);
     this.waitingState.set(null);
     this.change(() => []);
+  }
+
+  private async forget(connection: HubConnection): Promise<void> {
+    try {
+      await getHubProxyFactory('IChatHubServer').createHubProxy(connection).forget();
+    } catch (error: unknown) {
+      this.log.error('Chat: the waiting change failed to be dropped', error);
+    }
   }
 
   private done(): void {

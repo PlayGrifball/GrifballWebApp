@@ -1,3 +1,4 @@
+using GrifballWebApp.Application.Chat;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,8 @@ public static class AppDistributedCacheExtensions
         var prefix = AppRedisExtensions.ChannelPrefix(configuration);
         services.AddStackExchangeRedisCache(options => options.InstanceName = prefix + ":");
         services.AddOptions<RedisCacheOptions>().Configure<AppRedis>((options, redis) => options.ConnectionMultiplexerFactory = () => redis.ConnectAsync());
+        // The chat's waiting changes there too: a take is atomic across the pods (the cache's get then remove isn't)
+        services.AddSingleton<IChatWaiting>(sp => new RedisChatWaiting(sp.GetRequiredService<AppRedis>(), prefix));
         return services;
     }
 }

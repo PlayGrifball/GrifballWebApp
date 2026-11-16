@@ -41,6 +41,11 @@ export type IChatHubServer = {
     * @returns Transpiled from System.Threading.Tasks.Task<GrifballWebApp.Application.Chat.ChatActionDto?>
     */
     waiting(): Promise<ChatActionDto>;
+    /**
+    * The change waiting for the user's answer dropped: they started a new conversation.
+    * @returns Transpiled from System.Threading.Tasks.Task
+    */
+    forget(): Promise<void>;
 }
 
 /**

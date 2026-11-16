@@ -25,10 +25,10 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
         "You are a Discord bot, and all messages must stay under the 2000-character limit.",
         "The bot also has slash commands; /help lists them.",
         InPublic: true,
-        Timeout: TimeSpan.FromMinutes(2));
+        Timeout: TimeSpan.FromMinutes(2)) { Name = "discord" };
 
     /// <summary>The Discord bot in a DM: the author's alone, so in private, as on the site.</summary>
-    public static readonly ChatHost DiscordDirect = Discord with { InPublic = false, Confirm = GrifChat.ConfirmDirect };
+    public static readonly ChatHost DiscordDirect = Discord with { Name = "dm", InPublic = false, Confirm = GrifChat.ConfirmDirect };
 
     /// <summary>
     /// The site's chat: its replies are the signed-in user's alone, so in private. The page shows plain text, and a reply that takes
@@ -38,7 +38,10 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
         "You are the chat on the Grifball league's website. Write plain text, not Markdown, and keep answers short.",
         "The site's pages show more than your tools do (a season's page, a player's profile, the leaderboards): point the person to them when it helps.",
         InPublic: false,
-        Timeout: TimeSpan.FromMinutes(2)) { Confirm = GrifChat.ConfirmSite };
+        Timeout: TimeSpan.FromMinutes(2)) { Name = "site", Confirm = GrifChat.ConfirmSite };
+
+    /// <summary>The host's name, for what is kept per host: a change waiting on it (<see cref="ChatAccounts.WaitingKey"/>).</summary>
+    public string Name { get; init; } = "";
 
     /// <summary>How the person answers a change that waits for them here (<see cref="GrifChat.ConfirmAsync"/>); none in public, where no tool changes data.</summary>
     public string Confirm { get; init; } = "";
@@ -209,14 +212,17 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
     /// </summary>
     public static string? Refusal(ChatRequestDto? request)
     {
-        if (request is null)
-            return Unreadable;
-        // The browser's JSON can hold nulls the types don't allow
-        IEnumerable<ChatTurnDto?>? history = request.History;
-        if (history is null || history.Any(t => t?.Text is null))
+        if (request is null || !Readable(request.History))
             return Unreadable;
         return Refusal(request.Question);
     }
+
+    /// <summary>Why an answer to a waiting change can't be taken (unreadable: no answer, no action, or a history with nulls), or null when it can.</summary>
+    public static string? Refusal(ChatConfirmDto? answer)
+        => answer?.ActionId is null || !Readable(answer.History) ? Unreadable : null;
+
+    /// <summary>Whether a conversation the browser kept is readable: the browser's JSON can hold nulls the types don't allow.</summary>
+    private static bool Readable(IEnumerable<ChatTurnDto?>? history) => history is not null && history.All(t => t?.Text is not null);
 
     /// <summary>
     /// The models <paramref name="caller"/> may use on <paramref name="host"/>, in their configured order (the first is their default):
@@ -290,13 +296,17 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
             throw new ChatRefusedException(Unavailable);
         if (Refusal(question) is { } refused)
             throw new ChatRefusedException(refused);
-        // A new question: a later yes is not for the change they moved on from
-        await Accounts.ForgetWaitingAsync(asker, cancellationToken);
+        // A new question in private (where changes are made): a later yes is not for the change they moved on from
+        if (!host.InPublic)
+            await Accounts.ForgetWaitingAsync(host, asker, cancellationToken);
         return await BeginAsync(Conversation(history, question), caller, host, asker, model, cancellationToken);
     }
 
-    /// <summary>The change waiting for <paramref name="asker"/>'s answer (<see cref="ConfirmAsync"/>), or null.</summary>
-    public Task<ChatAction?> WaitingAsync(string asker, CancellationToken ct = default) => Accounts.WaitingAsync(asker, ct);
+    /// <summary>The change waiting for <paramref name="asker"/>'s answer on <paramref name="host"/> (<see cref="ConfirmAsync"/>), or null.</summary>
+    public Task<ChatAction?> WaitingAsync(ChatHost host, string asker, CancellationToken ct = default) => Accounts.WaitingAsync(host, asker, ct);
+
+    /// <summary>The change waiting for <paramref name="asker"/>'s answer on <paramref name="host"/> dropped: they started again.</summary>
+    public Task ForgetAsync(ChatHost host, string asker, CancellationToken ct = default) => Accounts.ForgetWaitingAsync(host, asker, ct);
 
     /// <summary>
     /// <paramref name="asker"/>'s answer to the change waiting for it (<paramref name="actionId"/>, <see cref="ChatReply.Waiting"/>): yes runs
@@ -309,18 +319,33 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
     {
         if (!Available)
             throw new ChatRefusedException(Unavailable);
-        if (await Accounts.WaitingAsync(asker, cancellationToken) is not { } action || action.Id != actionId)
+        // Taken: of the same yes twice, on any pods, one runs it
+        var action = await Accounts.TakeWaitingAsync(host, asker, cancellationToken);
+        if (action?.Id != actionId)
+        {
+            // Not the one they were shown: the one waiting still waits
+            if (action is not null)
+                await Accounts.SaveWaitingAsync(host, asker, action, CancellationToken.None);
             throw new ChatRefusedException(NothingWaiting);
-        // Answered before the reply starts: the same yes twice runs it once
-        await Accounts.ForgetWaitingAsync(asker, cancellationToken);
-        return await BeginAsync([.. SoFar(history), action.Answer(approved)], caller, host, asker, action.Model, cancellationToken);
+        }
+        try
+        {
+            return await BeginAsync([.. SoFar(history), action.Answer(approved)], caller, host, asker, action.Model, cancellationToken,
+                action.Calls.Select(c => c.CallId).ToHashSet());
+        }
+        catch
+        {
+            // Not answered (their limits, their month, the model): it waits for them to try again
+            await Accounts.SaveWaitingAsync(host, asker, action, CancellationToken.None);
+            throw;
+        }
     }
 
     /// <summary>
     /// A reply to <paramref name="conversation"/>: the asker's limits, the model and a paid one's month checked (<see cref="StartAsync"/>).
     /// </summary>
     private async Task<ChatReply> BeginAsync(List<ChatMessage> conversation, ToolCaller caller, ChatHost host, string asker, string? model,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, IReadOnlySet<string>? replayed = null)
     {
         // The asker's limits first, in memory: a question they may not ask now costs no database read
         var (slot, limited) = limits.TryStart(asker);
@@ -351,7 +376,7 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
             throw;
         }
         return new ChatReply(Model, Scopes, conversation, caller with { InPublic = host.InPublic }, host, slot, answering, Accounts,
-            budget, cancellationToken) { Asker = asker };
+            budget, cancellationToken) { Asker = asker, Replayed = replayed ?? new HashSet<string>() };
     }
 }
 
@@ -393,6 +418,12 @@ public sealed class ChatReply : IDisposable
 
     /// <summary>Whose reply it is (<see cref="ChatLimits.Asker"/>): a change it asks for waits for their answer.</summary>
     internal string Asker { get; init; } = "";
+
+    /// <summary>
+    /// The calls of a change the person confirmed (their IDs): the function invocation hands them back as it runs them, the model's
+    /// calls of an earlier reply, not this one's, so they cost nothing here.
+    /// </summary>
+    internal IReadOnlySet<string> Replayed { get; init; } = new HashSet<string>();
 
     /// <summary>
     /// The change the model asked for, waiting for the person's answer (<see cref="GrifChat.ConfirmAsync"/>), once the reply has streamed;
@@ -447,7 +478,7 @@ public sealed class ChatReply : IDisposable
             {
                 // Kept on the server for their answer, and said: the person decides, not the model
                 Waiting = ChatAction.From(requests, Model.Id);
-                await Accounts.SaveWaitingAsync(Asker, Waiting, CancellationToken.None);
+                await Accounts.SaveWaitingAsync(_host, Asker, Waiting, CancellationToken.None);
                 yield return $"\n\nThis waits for you: {Waiting.Description}. {_host.Confirm}";
             }
         }
@@ -476,6 +507,14 @@ public sealed class ChatReply : IDisposable
     /// What a reply's calls used, as their usage comes in (Anthropic's as each call ends), and whether the latest call is still under
     /// way without it: then <see cref="Total"/> adds an estimate for it.
     /// </summary>
+    /// <summary>Whether <paramref name="content"/> is the model's, from this reply's calls: not a tool's result, an approval asked of the person, or a confirmed call run again.</summary>
+    private bool IsTheModels(AIContent content) => content switch
+    {
+        FunctionResultContent or ToolApprovalRequestContent => false,
+        FunctionCallContent call => !Replayed.Contains(call.CallId),
+        _ => true,
+    };
+
     private sealed class Spending(ChatReply reply)
     {
         private readonly UsageDetails _usage = new();
@@ -500,10 +539,11 @@ public sealed class ChatReply : IDisposable
             {
                 // The model's own (a tool's result is ours, before the next call): its call is under way, and billed even when the
                 // month's limit stops it here (the provider already has what it was sent): counted before it is stopped
-                if (update.Contents.Any(c => c is not (FunctionResultContent or ToolApprovalRequestContent)))
+                var own = update.Contents.Where(reply.IsTheModels).ToList();
+                if (own.Count > 0)
                 {
                     _pending = true;
-                    _written += Written(update.Contents);
+                    _written += Written(own);
                     return _spentUp;
                 }
                 return false;
