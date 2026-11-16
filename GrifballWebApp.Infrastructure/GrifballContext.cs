@@ -51,6 +51,7 @@ public class GrifballContext :
     public virtual DbSet<DuplicateDismissal> DuplicateDismissals { get; set; }
     public virtual DbSet<ChatMonth> ChatMonths { get; set; }
     public virtual DbSet<ChatChoice> ChatChoices { get; set; }
+    public virtual DbSet<SeasonSchedulingRules> SeasonSchedulingRules { get; set; }
     public virtual DbSet<VoiceConsent> VoiceConsents { get; set; }
     public virtual DbSet<Vod> Vods { get; set; }
     public virtual DbSet<SeasonMatch> SeasonMatches { get; set; }
@@ -162,6 +163,7 @@ public class GrifballContext :
         builder.ApplyConfiguration(new DuplicateDismissalConfiguration());
         builder.ApplyConfiguration(new ChatMonthConfiguration());
         builder.ApplyConfiguration(new ChatChoiceConfiguration());
+        builder.ApplyConfiguration(new SeasonSchedulingRulesConfiguration());
         builder.ApplyConfiguration(new VoiceConsentConfiguration());
         builder.ApplyConfiguration(new VodConfiguration());
         builder.ApplyConfiguration(new VodTeamConfiguration());

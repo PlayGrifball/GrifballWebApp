@@ -4669,6 +4669,28 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasAnnotation("Grif:HistoryOf", "SeasonMatches");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSchedulingRules", b =>
+                {
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("MaxConcurrentMatches")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxMatchesPerTeamPerNight")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxMatchesPerTeamPerWeek")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MinPlayersAvailable")
+                        .HasColumnType("integer");
+
+                    b.HasKey("SeasonID");
+
+                    b.ToTable("SeasonSchedulingRules", "Event");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSignup", b =>
                 {
                     b.Property<int>("SeasonSignupID")
@@ -8733,6 +8755,15 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Navigation("HomeTeam");
 
                     b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSchedulingRules", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.League.Season", null)
+                        .WithOne()
+                        .HasForeignKey("GrifballWebApp.Domain.League.SeasonSchedulingRules", "SeasonID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSignup", b =>

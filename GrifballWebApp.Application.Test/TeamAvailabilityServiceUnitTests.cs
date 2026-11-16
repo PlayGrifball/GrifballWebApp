@@ -45,10 +45,12 @@ internal sealed class TeamAvailabilityServiceUnitTests : ApplicationDbContextTes
         _captain = users[0].Id;
         _player = users[1].Id;
         _team = Team.Drafted(SeasonID, "Reds", _captain, 1);
-        _team.SetCaptain(_captain);
         foreach (var user in users.Skip(1))
             _team.Draft(user.Id);
         Context.Teams.Add(_team);
+        // A captain only once the roster is saved (each points at the other)
+        await Context.SaveChangesAsync();
+        _team.SetCaptain(_captain);
 
         int[][] ticked = [[0, 1, 2], [0, 1], [0, 1], [0], []];
         Context.SeasonSignups.AddRange(users.Select((u, i) => SeasonSignup.Seed(SeasonID, u.Id, timeslots: ticked[i].Select(s => _slots[s].AvailabilityOptionID))));

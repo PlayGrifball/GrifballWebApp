@@ -54,6 +54,9 @@ public static class ApplicationServiceCollectionExtensions
             configuration.GetValue(ChatLimits.MonthlyLimitKey, ChatLimits.DefaultMonthlyLimit)));
         // What the chat keeps of a user: their chosen model and their monthly spend
         services.AddTransient<ChatAccounts>();
+        // Scheduling: the seasons' rules and the teams' availability (the roster's, or the captain's own)
+        services.AddTransient<GrifballWebApp.Application.Scheduling.SeasonSchedulingRulesService>();
+        services.AddTransient<GrifballWebApp.Application.Scheduling.TeamAvailabilityService>();
         // Who the voice chat may hear (the Discord bot's /voice)
         services.AddTransient<GrifballWebApp.Application.Voice.VoiceConsents>();
         // Its changes waiting for an answer: in memory unless Infrastructure's Redis (scaled out) is registered

@@ -2680,6 +2680,28 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSchedulingRules", b =>
+                {
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MaxConcurrentMatches")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaxMatchesPerTeamPerNight")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaxMatchesPerTeamPerWeek")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinPlayersAvailable")
+                        .HasColumnType("int");
+
+                    b.HasKey("SeasonID");
+
+                    b.ToTable("SeasonSchedulingRules", "Event");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSignup", b =>
                 {
                     b.Property<int>("SeasonSignupID")
@@ -5388,6 +5410,15 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("HomeTeam");
 
                     b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSchedulingRules", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.League.Season", null)
+                        .WithOne()
+                        .HasForeignKey("GrifballWebApp.Domain.League.SeasonSchedulingRules", "SeasonID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSignup", b =>
