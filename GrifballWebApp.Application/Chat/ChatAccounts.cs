@@ -1,6 +1,8 @@
+using System.Text.Json;
 using GrifballWebApp.Application.Database;
 using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GrifballWebApp.Application.Chat;
@@ -73,6 +75,35 @@ public sealed class ChatAccounts(IServiceScopeFactory scopes, TimeProvider time,
             {
             }
         }
+    }
+
+    /// <summary>How long a change waits for the person's answer before it is dropped.</summary>
+    public static readonly TimeSpan WaitingFor = TimeSpan.FromMinutes(10);
+
+    /// <summary>Where <paramref name="asker"/>'s waiting change is kept (the app's distributed cache: every pod sees it).</summary>
+    public static string WaitingKey(string asker) => $"chat:waiting:{asker}";
+
+    /// <summary><paramref name="action"/> waits for <paramref name="asker"/>'s answer, for <see cref="WaitingFor"/>; it replaces any before it.</summary>
+    public async Task SaveWaitingAsync(string asker, ChatAction action, CancellationToken ct = default)
+    {
+        using var scope = scopes.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<IDistributedCache>().SetAsync(WaitingKey(asker), JsonSerializer.SerializeToUtf8Bytes(action),
+            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = WaitingFor }, ct);
+    }
+
+    /// <summary>The change waiting for <paramref name="asker"/>'s answer, or null.</summary>
+    public async Task<ChatAction?> WaitingAsync(string asker, CancellationToken ct = default)
+    {
+        using var scope = scopes.CreateScope();
+        var saved = await scope.ServiceProvider.GetRequiredService<IDistributedCache>().GetAsync(WaitingKey(asker), ct);
+        return saved is null ? null : JsonSerializer.Deserialize<ChatAction>(saved);
+    }
+
+    /// <summary><paramref name="asker"/>'s waiting change answered: no longer waiting.</summary>
+    public async Task ForgetWaitingAsync(string asker, CancellationToken ct = default)
+    {
+        using var scope = scopes.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<IDistributedCache>().RemoveAsync(WaitingKey(asker), ct);
     }
 
     /// <summary>

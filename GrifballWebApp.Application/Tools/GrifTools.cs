@@ -199,19 +199,26 @@ public static class GrifTools
         bool sensitiveData = false)
         => Functions
             .Where(t => names.Contains(t.Function.Name) && Allows(t.Method, caller))
-            .Select(t => (AITool)new InAScopeOfItsOwn(t.Function, scopes, caller, log ?? NullLogger.Instance, sensitiveData))
+            .Select(t => WaitingForApproval(new InAScopeOfItsOwn(t.Function, scopes, caller, log ?? NullLogger.Instance, sensitiveData), t.Effect))
             .ToList();
+
+    /// <summary>
+    /// A tool that changes the league's data (<see cref="ToolEffect.ChangesData"/>) waits for the person's approval: the chat's function
+    /// invocation hands the call back instead of running it (GrifChat's ConfirmAsync). Reads and Halo pulls run when the model asks.
+    /// </summary>
+    private static AITool WaitingForApproval(AIFunction function, ToolEffect effect)
+        => effect == ToolEffect.ChangesData ? new ApprovalRequiredAIFunction(function) : function;
 
     /// <summary>
     /// Every tool as a chat model's function, made once (its schema read from the method, its class's factory worked out): each call
     /// runs as the caller its arguments carry (<see cref="InAScopeOfItsOwn"/> binds it), so a reply only binds its caller.
     /// </summary>
-    private static readonly (MethodInfo Method, AIFunction Function)[] Functions = All.SelectMany(set =>
+    private static readonly (MethodInfo Method, AIFunction Function, ToolEffect Effect)[] Functions = All.SelectMany(set =>
         {
             var create = Factory(set.Type);
             return Methods(set.Type).Select(method => (method, (AIFunction)AIFunctionFactory.Create(method,
                 args => create(args.Services!, (ToolCaller)args.Context![typeof(ToolCaller)]!),
-                new AIFunctionFactoryOptions { Name = Name(method) })));
+                new AIFunctionFactoryOptions { Name = Name(method) }), set.Effect));
         })
         .ToArray();
 

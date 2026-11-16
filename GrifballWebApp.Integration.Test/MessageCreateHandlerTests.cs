@@ -46,6 +46,7 @@ public class MessageCreateHandlerTests : MessageCreateHandlerFixture
             .AddDbContext<GrifballContext>((sp, options) => options
                 .UseGrifballDatabase(TestDatabase.Provider, connectionString)
                 .AddInterceptors(sp.GetRequiredService<AuditInterceptor>()))
+            .AddDistributedMemoryCache()
             .BuildServiceProvider();
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {

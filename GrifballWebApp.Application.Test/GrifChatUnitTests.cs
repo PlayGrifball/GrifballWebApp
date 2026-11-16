@@ -51,7 +51,7 @@ public partial class GrifChatUnitTests
     /// <summary>The chat on <paramref name="model"/>, its tools reading <paramref name="clock"/> (else the test's), its logs collected.</summary>
     private GrifChat Chat(FakeModel model, bool sensitiveData = false, TimeProvider? clock = null)
     {
-        _services = new ServiceCollection().AddSingleton(clock ?? _time).AddFakeLogging().BuildServiceProvider();
+        _services = new ServiceCollection().AddSingleton(clock ?? _time).AddFakeLogging().AddDistributedMemoryCache().BuildServiceProvider();
         _clients.Available.Returns(true);
         _clients.Models.Returns([Free]);
         _clients.Create(Arg.Any<ChatModelOption>()).Returns(model);
@@ -364,7 +364,7 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(ChatHost.DiscordDirect.InPublic, Is.False);
-            Assert.That(ChatHost.DiscordDirect with { InPublic = true }, Is.EqualTo(ChatHost.Discord));
+            Assert.That(ChatHost.DiscordDirect with { InPublic = true, Confirm = "" }, Is.EqualTo(ChatHost.Discord));
             Assert.That(ChatHost.Discord.ToolsFor(Free), Is.SameAs(GrifTools.Chat));
             Assert.That(ChatHost.DiscordDirect.ToolsFor(Free), Is.SameAs(GrifTools.PrivateChat));
             Assert.That(ChatHost.Site.ToolsFor(Free), Is.SameAs(GrifTools.PrivateChat));

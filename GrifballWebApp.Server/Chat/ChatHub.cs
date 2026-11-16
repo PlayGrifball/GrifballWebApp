@@ -33,19 +33,48 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
 
     public const string Failed = "The chat couldn't answer just now: try again later.";
 
-    public async Task<ChannelReader<string>> Ask(ChatRequestDto request, CancellationToken cancellationToken)
+    public Task<ChannelReader<string>> Ask(ChatRequestDto request, CancellationToken cancellationToken)
+    {
+        if (GrifChat.Refusal(request) is { } refused)
+            return Task.FromResult(Refuse(Channel.CreateUnbounded<string>(), refused));
+        var caller = user.AsToolCaller();
+        // The page's Stop cancels it: the user may ask again at once
+        return StreamAsync(caller, () => chat.StartAsync(GrifChat.History(request), request.Question, caller, ChatHost.Site, Asker(caller),
+            request.Model, cancellationToken), cancellationToken);
+    }
+
+    /// <summary>
+    /// The user's answer to the change waiting for it (<see cref="GrifChat.ConfirmAsync"/>: only its ID and the answer come from the
+    /// page), then the chat's reply, streamed as <see cref="Ask"/>'s.
+    /// </summary>
+    public Task<ChannelReader<string>> Confirm(ChatConfirmDto answer, CancellationToken cancellationToken)
+    {
+        // The browser's JSON can hold nulls the types don't allow
+        IEnumerable<ChatTurnDto?>? history = answer?.History;
+        if (answer?.ActionId is null || history is null || history.Any(t => t?.Text is null))
+            return Task.FromResult(Refuse(Channel.CreateUnbounded<string>(), GrifChat.Unreadable));
+        var caller = user.AsToolCaller();
+        return StreamAsync(caller, () => chat.ConfirmAsync(GrifChat.History(answer.History),
+            answer.ActionId, answer.Approved, caller, ChatHost.Site, Asker(caller), cancellationToken), cancellationToken);
+    }
+
+    /// <summary>The change waiting for the user's answer (its ID and what it does), or null.</summary>
+    public async Task<ChatActionDto?> Waiting()
+        => await chat.WaitingAsync(Asker(user.AsToolCaller()), Context.ConnectionAborted) is { } action
+            ? new ChatActionDto { Id = action.Id, Description = action.Description }
+            : null;
+
+    /// <summary>Whose questions the caller's count (<see cref="ChatLimits.Asker"/>): their user, else their address.</summary>
+    private string Asker(ToolCaller caller) => ChatLimits.Asker(caller, ChatLimits.Address(Context.GetHttpContext()?.Connection.RemoteIpAddress));
+
+    /// <summary>A reply <paramref name="start"/>ed, streamed to the page; why not, as the stream's error.</summary>
+    private async Task<ChannelReader<string>> StreamAsync(ToolCaller caller, Func<Task<ChatReply>> start, CancellationToken cancellationToken)
     {
         var reply = Channel.CreateUnbounded<string>();
-        if (GrifChat.Refusal(request) is { } refused)
-            return Refuse(reply, refused);
-        var caller = user.AsToolCaller();
         ChatReply started;
         try
         {
-            started = await chat.StartAsync(GrifChat.History(request), request.Question, caller, ChatHost.Site,
-                ChatLimits.Asker(caller, ChatLimits.Address(Context.GetHttpContext()?.Connection.RemoteIpAddress)), request.Model,
-                // The page's Stop cancels it: the user may ask again at once
-                cancellationToken);
+            started = await start();
         }
         catch (ChatRefusedException e)
         {
@@ -157,6 +186,12 @@ public interface IChatHubServer
 
     /// <summary>The user chose a model for their questions (here and in a Discord DM); refused when they may not use it.</summary>
     Task<ChatModelsDto> Choose(string model);
+
+    /// <summary>The user's answer to the change waiting for it, then the chat's reply, streamed as <see cref="Ask"/>'s.</summary>
+    Task<ChannelReader<string>> Confirm(ChatConfirmDto answer, CancellationToken cancellationToken);
+
+    /// <summary>The change waiting for the user's answer, or null.</summary>
+    Task<ChatActionDto?> Waiting();
 }
 
 // S4023: empty on purpose, the hub sends nothing but its streams; the typed client and the SignalR page need it to know the hub

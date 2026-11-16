@@ -25,3 +25,25 @@ public sealed record ChatTurnDto
 
     public required string Text { get; init; }
 }
+
+/// <summary>The user's answer to the change waiting for it (<see cref="GrifChat.ConfirmAsync"/>), with the conversation so far.</summary>
+[TranspilationSource]
+public sealed record ChatConfirmDto
+{
+    /// <summary>The waiting change's ID (<see cref="ChatActionDto.Id"/>).</summary>
+    public required string ActionId { get; init; }
+
+    /// <summary>Yes, do it; or no, cancel it.</summary>
+    public required bool Approved { get; init; }
+
+    /// <summary>The conversation so far, oldest first, as with a question.</summary>
+    public required List<ChatTurnDto> History { get; init; }
+}
+
+/// <summary>A change waiting for the user's answer: its ID, and what it does as they're shown it.</summary>
+[TranspilationSource]
+public sealed record ChatActionDto
+{
+    public required string Id { get; init; }
+    public required string Description { get; init; }
+}

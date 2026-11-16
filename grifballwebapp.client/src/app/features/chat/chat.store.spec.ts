@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { PLATFORM_ID } from '@angular/core';
 import { HubConnectionBuilder, HubConnectionState, type HubConnection, type IStreamSubscriber } from '@microsoft/signalr';
-import type { ChatModelsDto, ChatRequestDto, ChatTurnDto } from '@api/models';
+import type { ChatActionDto, ChatConfirmDto, ChatModelsDto, ChatRequestDto, ChatTurnDto } from '@api/models';
 import { AuthSession } from '@core/auth/authSession.service';
 import {
-  CHAT_HUB_URL, CHAT_STORAGE_KEY, ChatStore, FAILED, HISTORY_LIMIT, MAX_HISTORY_MESSAGE_LENGTH, NOT_CONNECTED, STOP_SPEND_RELOAD_MS, chatErrorText,
+  CANCELLED, CHAT_HUB_URL, CHAT_STORAGE_KEY, CONFIRMED, ChatStore, FAILED, HISTORY_LIMIT, MAX_HISTORY_MESSAGE_LENGTH, NOT_CONNECTED, STOP_SPEND_RELOAD_MS, chatErrorText,
 } from './chat.store';
 
 describe('ChatStore', () => {
@@ -16,6 +16,8 @@ describe('ChatStore', () => {
   let withUrl: jasmine.Spy;
   /** Each answer asked for: who reads it, and whether it was stopped. */
   let answers: { subscriber: IStreamSubscriber<string>; disposed: boolean }[];
+  /** The change the server says waits for the user's answer: none unless a spec says. */
+  let waiting: ChatActionDto | null;
 
   const turn = (fromBot: boolean, text: string): ChatTurnDto => ({ fromBot, text });
   /** A sysadmin's models: Claude first (their default), then the league's own, and their spend this month. */
@@ -38,6 +40,7 @@ describe('ChatStore', () => {
   beforeEach(() => {
     sessionStorage.removeItem(CHAT_STORAGE_KEY);
     answers = [];
+    waiting = null;
     connection = {
       start: jasmine.createSpy('start').and.returnValue(Promise.resolve()),
       stop: jasmine.createSpy('stop').and.returnValue(Promise.resolve()),
@@ -51,7 +54,7 @@ describe('ChatStore', () => {
           return { dispose: () => { entry.disposed = true; } };
         },
       })),
-      invoke: jasmine.createSpy('invoke').and.callFake((method: string, model?: string) => Promise.resolve(method === 'Choose' ? { ...models, selected: model } : models)),
+      invoke: jasmine.createSpy('invoke').and.callFake((method: string, model?: string) => Promise.resolve(method === 'Waiting' ? waiting : method === 'Choose' ? { ...models, selected: model } : models)),
       state: HubConnectionState.Connected,
     };
     withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();
@@ -342,6 +345,87 @@ describe('ChatStore', () => {
       answer().subscriber.complete();
 
       expect(connection.invoke).toHaveBeenCalledWith('Models');
+    });
+  });
+  describe('waiting', () => {
+    const forfeit: ChatActionDto = { id: 'a1', description: 'forfeit_season_match(seasonMatchID: 12, side: home)' };
+
+    /** Asks, and the answer is done with `waiting` waiting for the user's answer. */
+    async function asking(): Promise<ChatStore> {
+      const store = create();
+      waiting = forfeit;
+      store.ask('Forfeit match 12');
+      answer().subscriber.next('This waits for you.');
+      answer().subscriber.complete();
+      await new Promise(resolve => setTimeout(resolve));
+      return store;
+    }
+
+    it('shows the change the server keeps for the user once the answer is done', async () => {
+      const store = await asking();
+
+      expect(connection.invoke).toHaveBeenCalledWith('Waiting');
+      expect(store.waiting()).toEqual(forfeit);
+    });
+
+    it('confirms: sends only its ID and the answer, with the conversation, and streams the reply in', async () => {
+      const store = await asking();
+      waiting = null;
+
+      expect(store.confirm(true)).toBeTrue();
+
+      expect(connection.stream.calls.mostRecent().args as [string, ChatConfirmDto]).toEqual(['Confirm', {
+        actionId: 'a1', approved: true, history: [turn(false, 'Forfeit match 12'), turn(true, 'This waits for you.')],
+      }]);
+      expect(store.waiting()).withContext('answered: no buttons while it runs').toBeNull();
+      expect(store.turns().slice(-2)).toEqual([turn(false, CONFIRMED), turn(true, '')]);
+      answer().subscriber.next('Done.');
+      answer().subscriber.complete();
+      await new Promise(resolve => setTimeout(resolve));
+      expect(store.turns().at(-1)).toEqual(turn(true, 'Done.'));
+      expect(store.waiting()).toBeNull();
+    });
+
+    it('cancels', async () => {
+      const store = await asking();
+
+      store.confirm(false);
+
+      expect((connection.stream.calls.mostRecent().args as [string, ChatConfirmDto])[1].approved).toBeFalse();
+      expect(store.turns().at(-2)).toEqual(turn(false, CANCELLED));
+    });
+
+    it('answers nothing when nothing waits, while an answer is on its way, or without a connection', async () => {
+      expect(create().confirm(true)).toBeFalse();
+      TestBed.resetTestingModule();
+
+      const store = await asking();
+      connection.state = HubConnectionState.Reconnecting;
+      expect(store.confirm(true)).toBeFalse();
+      connection.state = HubConnectionState.Connected;
+      store.ask('Something else');
+      expect(store.confirm(true)).toBeFalse();
+      expect(connection.stream).toHaveBeenCalledTimes(2);
+    });
+
+    it('a new conversation shows nothing waiting', async () => {
+      const store = await asking();
+
+      store.clear();
+
+      expect(store.waiting()).toBeNull();
+    });
+
+    it('logs it when the waiting change fails to load, and shows none', async () => {
+      const error = spyOn(console, 'error');
+      const store = create();
+      connection.invoke.and.returnValue(Promise.reject(new Error('down')));
+      store.ask('Forfeit match 12');
+      answer().subscriber.complete();
+      await new Promise(resolve => setTimeout(resolve));
+
+      expect(store.waiting()).toBeNull();
+      expect(error).toHaveBeenCalledWith('Chat: the waiting change failed to load', jasmine.objectContaining({ message: 'down' }));
     });
   });
 });

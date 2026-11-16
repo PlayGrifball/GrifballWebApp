@@ -23,6 +23,16 @@
     }
   </section>
 
+  @if (waiting(); as action) {
+    <div class="chat__confirm hud-panel" role="group" aria-label="A change waiting for you">
+      <p class="chat__text">This waits for you: {{ action.description }}</p>
+      <div class="chat__actions">
+        <button class="hud-btn hud-btn--primary" type="button" (click)="confirm(true)" [disabled]="asking()">Confirm</button>
+        <button class="hud-btn" type="button" (click)="confirm(false)" [disabled]="asking()">Cancel</button>
+      </div>
+    </div>
+  }
+
   @if (error(); as error) {
     <p class="chat__error" role="alert">{{ error }}</p>
   }

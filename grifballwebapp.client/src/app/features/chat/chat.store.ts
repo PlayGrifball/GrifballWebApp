@@ -1,12 +1,13 @@
 import { isPlatformBrowser } from '@angular/common';
 import { DestroyRef, Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { HubConnectionState, type HubConnection, type ISubscription } from '@microsoft/signalr';
-import type { ChatModelsDto, ChatTurnDto } from '@api/models';
+import { HubConnectionState, type HubConnection, type IStreamResult, type ISubscription } from '@microsoft/signalr';
+import type { ChatActionDto, ChatModelsDto, ChatTurnDto } from '@api/models';
 import { AuthSession } from '@core/auth/authSession.service';
 import { hubLifecycle } from '@core/signalr/hubLifecycle';
 import { AppLog } from '@core/telemetry/appLog';
 import { getHubProxyFactory } from '@signalr/TypedSignalR.Client';
+import type { IChatHubServer } from '@signalr/TypedSignalR.Client/GrifballWebApp.Server.Chat';
 
 /** The chat's hub (ChatHub): it streams each answer as the model writes it. */
 export const CHAT_HUB_URL = 'hub/ChatHub';
@@ -28,6 +29,10 @@ export const STOP_SPEND_RELOAD_MS = 2000;
 
 export const NOT_CONNECTED ='The chat is still connecting: try again in a moment.';
 export const FAILED = "The chat couldn't answer just now: try again later.";
+
+/** What the conversation shows for the user's answer to a change waiting for it. */
+export const CONFIRMED = 'Yes, do it.';
+export const CANCELLED = 'No, cancel it.';
 
 /** What SignalR puts before a HubException's message, the reason the server gives the browser. */
 const HUB_EXCEPTION = 'HubException: ';
@@ -98,6 +103,13 @@ export class ChatStore {
   /** Why the last question got no (whole) answer. */
   readonly error = this.errorState.asReadonly();
 
+  private readonly waitingState = signal<ChatActionDto | null>(null);
+  /**
+   * The change the chat asked to make, waiting for the user's answer (confirm), shown with what it does; null when none.
+   * The server keeps it: the page sends back only its ID and the answer.
+   */
+  readonly waiting = this.waitingState.asReadonly();
+
   private answer: ISubscription<string> | null = null;
   /** The spend's reload after a stop, waiting for the server to save the stopped answer's cost. */
   private spendReload: ReturnType<typeof setTimeout> | undefined;
@@ -126,11 +138,37 @@ export class ChatStore {
     const connection = this.connection;
     // The model the picker shows: the server would choose the same, unless the user chose another elsewhere meanwhile
     const model = this.models()?.selected;
-    const history = this.turns().slice(-HISTORY_LIMIT).map(turn => ({ fromBot: turn.fromBot, text: turn.text.slice(0, MAX_HISTORY_MESSAGE_LENGTH) }));
+    const history = this.history();
+    this.stream(connection, text, hub => hub.ask({ question: text, history, model: model ?? null }));
+    return true;
+  }
+
+  /**
+   * The user's answer to the change waiting for it: yes does it, no cancels it. The chat's reply streams in as an answer does,
+   * after a line saying what they chose.
+   */
+  confirm(approved: boolean): boolean {
+    const waiting = this.waiting();
+    if (!waiting || this.asking() || this.connection?.state !== HubConnectionState.Connected)
+      return false;
+    const history = this.history();
+    this.stream(this.connection, approved ? CONFIRMED : CANCELLED,
+      hub => hub.confirm({ actionId: waiting.id, approved, history }));
+    return true;
+  }
+
+  /** The conversation so far, as much as the server reads. */
+  private history(): ChatTurnDto[] {
+    return this.turns().slice(-HISTORY_LIMIT).map(turn => ({ fromBot: turn.fromBot, text: turn.text.slice(0, MAX_HISTORY_MESSAGE_LENGTH) }));
+  }
+
+  /** `said` added to the conversation, then the answer `start` streams in; then what waits for the user, if anything does. */
+  private stream(connection: HubConnection, said: string, start: (hub: IChatHubServer) => IStreamResult<string>): void {
     this.errorState.set(null);
+    this.waitingState.set(null);
     this.askingState.set(true);
-    this.change(turns => [...turns, { fromBot: false, text }, { fromBot: true, text: '' }]);
-    this.answer = getHubProxyFactory('IChatHubServer').createHubProxy(connection).ask({ question: text, history, model: model ?? null }).subscribe({
+    this.change(turns => [...turns, { fromBot: false, text: said }, { fromBot: true, text: '' }]);
+    this.answer = start(getHubProxyFactory('IChatHubServer').createHubProxy(connection)).subscribe({
       next: chunk => this.change(turns => [...turns.slice(0, -1), { fromBot: true, text: turns.at(-1)!.text + chunk }]),
       error: (error: unknown) => {
         const text = chatErrorText(error);
@@ -145,9 +183,9 @@ export class ChatStore {
       complete: () => {
         this.done();
         this.loadSpend(connection);
+        void this.loadWaiting(connection);
       },
     });
-    return true;
   }
 
   /**
@@ -163,6 +201,15 @@ export class ChatStore {
       this.errorState.set(chatErrorText(error));
       // The picker already shows the refused model: the user's models again, a new value, put it back
       await this.loadModels(this.connection);
+    }
+  }
+
+  /** The change waiting for the user's answer, from the server; none when it can't say. */
+  private async loadWaiting(connection: HubConnection): Promise<void> {
+    try {
+      this.waitingState.set(await getHubProxyFactory('IChatHubServer').createHubProxy(connection).waiting());
+    } catch (error: unknown) {
+      this.log.error('Chat: the waiting change failed to load', error);
     }
   }
 
@@ -197,6 +244,7 @@ export class ChatStore {
   clear(): void {
     this.stop();
     this.errorState.set(null);
+    this.waitingState.set(null);
     this.change(() => []);
   }
 

@@ -27,6 +27,8 @@ export class ChatComponent {
   readonly turns = this.store.turns;
   readonly asking = this.store.asking;
   readonly error = this.store.error;
+  /** A change the chat asked for, waiting for the user's yes or no: nothing changes until they answer. */
+  readonly waiting = this.store.waiting;
   readonly signedIn = inject(AccountService).isLoggedIn;
   /** The user's models, when there is a choice to make (more than one they may use); else none, and no picker. */
   readonly picker = computed(() => {
@@ -59,6 +61,11 @@ export class ChatComponent {
   /** The user chose another model: their questions go to it, here and in a Discord DM. */
   choose(model: string): void {
     void this.store.choose(model);
+  }
+
+  /** The user's answer to the change waiting for them: confirmed, it runs; cancelled, it doesn't. */
+  confirm(approved: boolean): void {
+    this.store.confirm(approved);
   }
 
   stop(): void {

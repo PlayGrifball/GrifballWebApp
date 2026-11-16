@@ -37,7 +37,7 @@ public class ChatHubModelsUnitTests : SqliteGrifballContextFixture
         var clients = Substitute.For<IChatClientFactory>();
         clients.Available.Returns(true);
         clients.Models.Returns([Free, Other]);
-        _services ??= new ServiceCollection().AddSingleton<IApplicationDbContext>(Db).BuildServiceProvider();
+        _services ??= new ServiceCollection().AddSingleton<IApplicationDbContext>(Db).AddDistributedMemoryCache().BuildServiceProvider();
         var scopes = _services.GetRequiredService<IServiceScopeFactory>();
         var now = new HubUser();
         now.Set(user);
@@ -59,5 +59,30 @@ public class ChatHubModelsUnitTests : SqliteGrifballContextFixture
             Assert.That(await Db.ChatChoices.AsNoTracking().Select(c => c.Model).SingleAsync(), Is.EqualTo("qwen"));
             Assert.That((await Hub(new HubUserState(7, ["Player"])).Models()).Selected, Is.EqualTo("qwen"), "Kept for the next connection");
         }
+    }
+
+    [Test]
+    public async Task Waiting_NoChangeAskedFor_IsNone_AndAnAnswerToIt_IsRefused()
+    {
+        var hub = Hub(new HubUserState(7, ["Commissioner"]));
+
+        var waiting = await hub.Waiting();
+        var reply = await hub.Confirm(new ChatConfirmDto { ActionId = "nothing", Approved = true, History = [] }, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(waiting, Is.Null);
+            Assert.That(async () => await reply.ReadAllAsync().ToListAsync(),
+                Throws.InstanceOf<HubException>().With.Message.EqualTo(GrifChat.NothingWaiting));
+        }
+    }
+
+    [Test]
+    public async Task Confirm_AnUnreadableAnswer_IsRefused()
+    {
+        var reply = await Hub(new HubUserState(7, ["Commissioner"])).Confirm(new ChatConfirmDto { ActionId = "a", Approved = true, History = [null!] },
+            CancellationToken.None);
+
+        Assert.That(async () => await reply.ReadAllAsync().ToListAsync(), Throws.InstanceOf<HubException>().With.Message.EqualTo(GrifChat.Unreadable));
     }
 }

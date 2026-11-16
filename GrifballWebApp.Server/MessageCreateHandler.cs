@@ -149,8 +149,13 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         ChatReply reply;
         try
         {
+            var asker = ChatLimits.Asker(caller, ChatLimits.Discord(message.Author.Id));
+            // In a DM, a yes or no answers the change waiting for the author (GrifChat.ConfirmAsync): anything else is a question
+            if (direct && Answer(message.Content) is { } approved && await chat.WaitingAsync(asker) is { } waiting)
+                reply = await chat.ConfirmAsync(history, waiting.Id, approved, caller, host, asker);
             // The model: in a DM, the one the author chose on the site (else their default); in a channel, the one anyone may use
-            reply = await chat.StartAsync(history, message.Content, caller, host, ChatLimits.Asker(caller, ChatLimits.Discord(message.Author.Id)));
+            else
+                reply = await chat.StartAsync(history, message.Content, caller, host, asker);
         }
         catch (ChatRefusedException refused)
         {
@@ -258,6 +263,14 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         context.DiscordMessages.Add(newMessage);
         await context.SaveChangesAsync();
     }
+
+    /// <summary>A DM's answer to a change waiting for its author: yes (true), no (false), or null for anything else, a question.</summary>
+    public static bool? Answer(string content) => content.Trim().TrimEnd('.', '!').ToLowerInvariant() switch
+    {
+        "yes" or "y" or "confirm" or "do it" => true,
+        "no" or "n" or "cancel" => false,
+        _ => null,
+    };
 
     /// <summary>
     /// A DM's conversation so far, as Discord keeps it in the DM channel: its last <see cref="GrifChat.HistoryLimit"/> messages before
