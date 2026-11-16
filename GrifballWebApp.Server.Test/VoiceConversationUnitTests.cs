@@ -85,7 +85,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
 
     private async Task OptedIn(ulong discordUserId)
     {
-        await new VoiceConsents(Db).OptInAsync(discordUserId, "speaker");
+        await new VoiceConsents(Db, _time).OptInAsync(discordUserId);
     }
 
     /// <summary><paramref name="conversation"/> hears a second of <see cref="Speaker"/>, then the silence that ends the line, and answers.</summary>
@@ -134,7 +134,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         await conversation.RefreshAsync(Speaker);
         conversation.Hear(Speaker, new short[VoicePcm.DiscordRate]);
 
-        await new VoiceConsents(Db).OptOutAsync(Speaker);
+        await new VoiceConsents(Db, _time).OptOutAsync(Speaker);
         await conversation.RefreshAsync(Speaker);
         conversation.Hear(Speaker, new short[VoicePcm.DiscordRate]);
         _time.Advance(VoiceLines.Silence);

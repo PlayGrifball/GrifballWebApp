@@ -1,7 +1,7 @@
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Application.Voice;
-using GrifballWebApp.Domain.Players;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Time.Testing;
 
 namespace GrifballWebApp.Application.Test;
 
@@ -10,6 +10,8 @@ namespace GrifballWebApp.Application.Test;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class VoiceConsentsUnitTests
 {
+    private static readonly ulong[] OnlyFortyTwo = [42];
+    private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 16, 12, 0, 0, TimeSpan.Zero));
     private FakeApplicationDbContext _db = null!;
 
     [SetUp]
@@ -19,36 +21,29 @@ public class VoiceConsentsUnitTests
     public void TearDown() => _db.Dispose();
 
     [Test]
-    public async Task OptIn_AnAccountTheBotHasntSeen_IsAddedOptedIn_AndOptOutUndoesIt()
+    public async Task OptIn_KeepsTheirConsent_OnceThoughGivenTwice_AndOptOutRemovesIt()
     {
-        var consents = new VoiceConsents(_db);
+        var consents = new VoiceConsents(_db, _time);
 
-        await consents.OptInAsync(42, "grunt");
+        await consents.OptInAsync(42);
+        await consents.OptInAsync(42);
         var heard = await consents.OptedInAsync([42, 43]);
+        var given = await _db.VoiceConsents.AsNoTracking().Select(v => v.GivenAt).SingleAsync();
         await consents.OptOutAsync(42);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(heard, Is.EquivalentTo(new ulong[] { 42 }), "43 never opted in");
+            Assert.That(heard, Is.EquivalentTo(OnlyFortyTwo), "43 never opted in");
+            Assert.That(given, Is.EqualTo(_time.GetUtcNow().UtcDateTime));
             Assert.That(await consents.OptedInAsync([42]), Is.Empty);
-            Assert.That(await _db.DiscordUsers.AsNoTracking().Select(d => d.DiscordUsername).SingleAsync(), Is.EqualTo("grunt"));
         }
     }
 
     [Test]
-    public async Task OptIn_AnAccountTheBotKnows_KeepsIt_AndOptingOutWithoutOneDoesNothing()
+    public async Task OptOut_WithNoConsent_DoesNothing()
     {
-        _db.DiscordUsers.Add(DiscordUser.FromDiscord(42, "grunt"));
-        await _db.SaveChangesAsync();
-        var consents = new VoiceConsents(_db);
+        await new VoiceConsents(_db, _time).OptOutAsync(99);
 
-        await consents.OptInAsync(42, "renamed");
-        await consents.OptOutAsync(99);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(await consents.OptedInAsync([42]), Is.EquivalentTo(new ulong[] { 42 }));
-            Assert.That(await _db.DiscordUsers.CountAsync(), Is.EqualTo(1), "No account made for an opt-out");
-        }
+        Assert.That(await _db.VoiceConsents.CountAsync(), Is.Zero);
     }
 }

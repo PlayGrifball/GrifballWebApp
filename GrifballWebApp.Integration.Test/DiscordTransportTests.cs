@@ -360,6 +360,10 @@ public class DiscordTransportTests
         new object[] { "me region", new[] { ("region", "none") } },
         new object[] { "me claim", new[] { ("gamertag", "Missing") } },
         new object[] { "me claims", Array.Empty<(string, string)>() },
+        new object[] { "voice join", Array.Empty<(string, string)>() },
+        new object[] { "voice leave", Array.Empty<(string, string)>() },
+        new object[] { "voice optin", Array.Empty<(string, string)>() },
+        new object[] { "voice optout", Array.Empty<(string, string)>() },
         new object[] { "me logins", Array.Empty<(string, string)>() },
         new object[] { "signup", Array.Empty<(string, string)>() },
         new object[] { "availability show", Array.Empty<(string, string)>() },
@@ -547,16 +551,17 @@ public class DiscordTransportTests
     public async Task Voice_OptInAndOut_AreKeptOnTheirDiscordAccount_AndSaidToThemAlone()
     {
         var optIn = await _host.SendAsync(DiscordInteractionJson.SubCommand("voice optin", 7001));
-        var heardAfterOptIn = await _host.WithContextAsync(c => c.DiscordUsers.AsNoTracking().Where(d => d.DiscordUserID == 7001).Select(d => d.VoiceOptIn).SingleAsync());
+        var heardAfterOptIn = await _host.WithContextAsync(c => c.VoiceConsents.AnyAsync(v => v.DiscordUserID == 7001));
         var optOut = await _host.SendAsync(DiscordInteractionJson.SubCommand("voice optout", 7001));
-        var heardAfterOptOut = await _host.WithContextAsync(c => c.DiscordUsers.AsNoTracking().Where(d => d.DiscordUserID == 7001).Select(d => d.VoiceOptIn).SingleAsync());
+        var heardAfterOptOut = await _host.WithContextAsync(c => c.VoiceConsents.AnyAsync(v => v.DiscordUserID == 7001));
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That((heardAfterOptIn, heardAfterOptOut), Is.EqualTo((true, false)));
-            Assert.That(optIn.Single().Content, Is.EqualTo(VoiceCommands.OptedIn));
-            Assert.That(optIn.Single().Flags, Is.EqualTo(MessageFlags.Ephemeral), "Theirs alone");
-            Assert.That(optOut.Single().Content, Is.EqualTo(VoiceCommands.OptedOut));
+            Assert.That(Routes(optIn), Is.EqualTo(new[] { Callback, EditOriginal }));
+            Assert.That(optIn[0].Flags, Is.EqualTo(MessageFlags.Ephemeral), "Theirs alone");
+            Assert.That(optIn[1].Content, Is.EqualTo(VoiceCommands.OptedIn));
+            Assert.That(optOut[1].Content, Is.EqualTo(VoiceCommands.OptedOut));
         }
     }
 
@@ -568,8 +573,8 @@ public class DiscordTransportTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(join.Single().Content, Is.EqualTo(VoiceCommands.Unavailable));
-            Assert.That(leave.Single().Content, Is.EqualTo(VoiceCommands.NoGuild));
+            Assert.That(join[1].Content, Is.EqualTo(VoiceCommands.Unavailable));
+            Assert.That(leave[1].Content, Is.EqualTo(VoiceCommands.NoGuild));
         }
     }
 }

@@ -108,19 +108,4 @@ public class DiscordUserAggregateTests
             Assert.That(user.DiscordUserID, Is.EqualTo(42));
         }
     }
-
-    [Test]
-    public void Voice_NotHeardUntilTheyOptIn_AndNotAfterTheyOptOut()
-    {
-        var account = DiscordUser.FromDiscord(42, "grunt");
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(account.VoiceOptIn, Is.False, "Nobody is heard by default");
-            account.OptInToVoice();
-            Assert.That(account.VoiceOptIn, Is.True);
-            account.OptOutOfVoice();
-            Assert.That(account.VoiceOptIn, Is.False);
-        }
-    }
 }
