@@ -167,14 +167,16 @@ public class DraftParserTests
     }
 
     [Test]
-    public void Board_AColumnWithNeitherNameNorCaptain_IsNoTeam_AndTakesNoPlace()
+    public void Board_AColumnWithNeitherNameNorCaptain_EndsTheBoard()
     {
+        // Respawn's Draft: the seed list beside the board, a column past it
         var sheet = Sheet(
-            ["Team Name:", "Alpha", "", "Bravo"],
-            ["Captain:", "Ace", "", "Bee"],
-            ["1st Round:", "Dee", "Stray", "Eee"]);
+            ["Bucket Number", "1", "2", "", "Seed", "Team Name"],
+            ["Team Name:", "Alpha", "Bravo", "", "1", "Bravo"],
+            ["Captain:", "Ace", "", "", "2", "Alpha"],
+            ["1st Round:", "Dee", "Eee", "Stray", "3", "Charlie"]);
 
-        Assert.That(Captains(Board(sheet)), Is.EqualTo(new (string, string?, int?)[] { ("Alpha", "Ace", 1), ("Bravo", "Bee", 2) }));
+        Assert.That(Captains(Board(sheet)), Is.EqualTo(new (string, string?, int?)[] { ("Alpha", "Ace", 1), ("Bravo", null, 2) }));
     }
 
     [Test]

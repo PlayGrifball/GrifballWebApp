@@ -11,7 +11,7 @@ namespace GrifballWebApp.Historical.Parsing;
 /// the draft order and their picks by round. Two layouts:
 /// <list type="bullet">
 /// <item>A board (<see cref="DraftLayout.Board"/>): a row labelled "Team Name" with a team per column (blank: the team is
-/// its captain's, which the archive's builder finds), and below it rows labelled Captain and 1st Round, Round 2, Second
+/// its captain's, which the archive's builder finds; a column with neither name nor captain ends it), and below it rows labelled Captain and 1st Round, Round 2, Second
 /// Round, "Duo/1st Round" (each team's pick in its column), up to the next Team Name row. Other rows (grades, records,
 /// a "Player 2" roster) are skipped. A row of numbers just above a round's row numbers that round's picks. A row can
 /// hold more than one board side by side, each starting at its label, when the label's column has a Captain row.</item>
@@ -55,13 +55,14 @@ public static partial class DraftParser
         return false;
     }
 
-    /// <summary>A board's teams: its columns between its label's and <paramref name="end"/>, each a team with a name or a captain.</summary>
+    /// <summary>A board's teams: its columns after its label's, each a team with a name or a captain, up to <paramref name="end"/>
+    /// or a column with neither (what is beside the board: a seed list, notes).</summary>
     private static List<ArchiveTeam> Block(SheetTable sheet, int namesRow, int label, int end, DraftOrder order)
     {
         var rows = Enumerable.Range(namesRow + 1, sheet.Rows.Count - namesRow - 1).TakeWhile(r => !TeamNameLabel().IsMatch(sheet.Cell(r, label))).ToList();
         var captainRow = rows.First(r => CaptainLabel().IsMatch(sheet.Cell(r, label)));
         var columns = Enumerable.Range(label + 1, Math.Max(0, end - label - 1))
-            .Where(c => Name(sheet.Cell(namesRow, c)).Length > 0 || Player(sheet.Cell(captainRow, c)).Length > 0)
+            .TakeWhile(c => Name(sheet.Cell(namesRow, c)).Length > 0 || Player(sheet.Cell(captainRow, c)).Length > 0)
             .Where(c => Name(sheet.Cell(namesRow, c)) is not { Length: > 0 } name || !HistoricalKeys.IsExcludedTeamName(name))
             .ToList();
         var rounds = Rounds(sheet, rows, label, columns);
