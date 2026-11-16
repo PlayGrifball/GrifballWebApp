@@ -720,7 +720,7 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
                 { teamPlayerID: teamID * 10 + 1, userID: teamID * 100 + 1, gamertag: `${name} Captain`, isCaptain: true, draftCaptainOrder: i + 1, draftPick: null, draftRound: null, region: null },
               ],
             }))),
-    '/api/seasons/5/standings': answer('getTeamStandings', historicalTeams.map(([teamID, teamName, wins, losses]) => ({ teamID, teamName, wins, losses, recordFromSource: true }))),
+    '/api/seasons/5/standings': answer('getTeamStandings', historicalTeams.map(([teamID, teamName, wins, losses]) => ({ teamID, teamName, wins, losses, recordFromSource: true, finish: null }))),
     '/api/seasons/5/matches/scheduled': answer('getScheduledMatches', []),
     '/api/seasons/5/matches/unscheduled': answer('getUnscheduledMatches', []),
     '/api/teams/41': answer('team', {
@@ -732,7 +732,7 @@ export function mockRoutes(role: Role): Record<string, MockRoute> {
               ],
             }),
     '/api/teams/41/matches': answer('matches', []),
-    '/api/seasons/12/standings': answer('getTeamStandings', teams.map(([teamID, name], i) => ({ teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1, recordFromSource: false }))),
+    '/api/seasons/12/standings': answer('getTeamStandings', teams.map(([teamID, name], i) => ({ teamID, teamName: name, wins: 7 - i - (i > 2 ? 1 : 0), losses: i + 1, recordFromSource: false, finish: null }))),
     '/api/seasons/12/matches/scheduled': answer('getScheduledMatches', scheduled),
     '/api/seasons/12/matches/unscheduled': answer('getUnscheduledMatches', [{ seasonMatchID: 51, homeCaptain: 'Gravity Wells', awayCaptain: 'Red Rampage', homeTeam: 'Gravity Wells', awayTeam: 'Red Rampage', complete: false }]),
     // The season's playoff bracket, for any season
