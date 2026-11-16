@@ -5,12 +5,19 @@ namespace GrifballWebApp.HistoricalArchive.Test;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class ArchiveSourceTests
 {
+    /// <summary>
+    /// A copy with the database's snapshots has every source the import reads. A copy without them (downloaded only, as
+    /// on GitHub's runners) can't have a sheet that went private or was deleted, which only the database still has: those
+    /// are a warning (the fill's problems say why each failed), and their seasons are left out of the run.
+    /// </summary>
     [Test]
     public void Copy_HasEverySourceTheImportReads()
     {
         var missing = ArchiveSnapshots.ImportedEntries().Select(e => e.HistoricalSourceID).Where(id => !Archive.Snapshots.Manifest.ContainsKey(id)).ToList();
-
-        Assert.That(missing, Is.Empty, "Sources with a config that the copy has no content of");
+        if (!Archive.Snapshots.HasDatabaseSnapshots && missing.Count > 0)
+            Assert.Warn($"Not in a copy without the database's snapshots, so not imported in this run: {string.Join(", ", missing)}");
+        else
+            Assert.That(missing, Is.Empty, "Sources with a config that the copy has no content of");
     }
 
     [Test]

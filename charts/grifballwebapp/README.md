@@ -632,14 +632,139 @@ what it needs.
 | Halo gateway (`halo-gateway.enabled`) | backend, worker (`grif-halo-gateway-ingress`); the ingress controller per its chart | per its chart: DNS, HTTPS to Microsoft, Xbox Live and Halo |
 | SQL Server | backend, worker, migration Job, backup CronJobs, sql-exporter; the LoadBalancer if enabled (`mssql.loadBalancerFrom`) | DNS |
 | PostgreSQL | backend, worker, migration Job, scheduled backup, sql-exporter; the LoadBalancer if enabled (`postgres.loadBalancerFrom`) | DNS |
-| migration Job | - | DNS, the database |
-| backup CronJobs | - | DNS, the database (PostgreSQL's retention: DNS only, it only deletes files) |
+| migration Job | - | DNS, the database; Sablier with `onDemand` and the chart's database (`onDemand.networkPolicy.sablierNamespace`) |
+| backup CronJobs | - | DNS, the database (PostgreSQL's retention: DNS only, it only deletes files); Sablier as the migration Job |
 | sql-exporter | its metrics port from anyone (`sqlExporter.from`) | DNS, the database |
 
 An external database is allowed anywhere on `database.port` unless `networkPolicy.database.to` says
 where. PostgreSQL's backup volume, an NFS export included, is mounted by the kubelet, so it
 needs no rule. Every policy takes `extraIngress` / `extraEgress` rules; `networkPolicy.extraPolicies` adds
 whole policies of your own, and `extraObjects` any other objects.
+
+## On demand
+
+Off by default. With `onDemand.enabled`, the release's Deployments stop (0 replicas) while nobody visits and start
+again on the next visit, through [Sablier](https://sablierapp.dev) and its
+[Traefik plugin](https://github.com/sablierapp/sablier-traefik-plugin). Meant for test and staging sites: while the
+release is stopped, nothing in its group runs. A separate worker and Discord bot (`worker.enabled`) keep running by
+default (`onDemand.exclude`).
+
+```yaml
+ingressRoute:
+  enabled: true                     # required: the Middlewares go on its routes
+  host: grifball-test.example
+onDemand:
+  enabled: true
+  group: ""                         # Sablier's group; empty: the release's namespace
+  sablierUrl: ""                    # empty: http://sablier.sablier.svc:10000
+  sessionDuration: 30m              # how long after the last visit it keeps running
+  strategy: dynamic                 # the site: a starting page that refreshes itself; or blocking
+  apiStrategy: blocking             # the hubs and the API: hold each request until it's up; or dynamic
+  dynamic: { displayName: Grifball, showDetails: null, theme: "", refreshFrequency: "" }
+  blocking: { timeout: 2m }         # how long a blocking request waits; required while either strategy blocks
+  exclude: [worker, discord]        # components kept running, out of the group (below)
+  keepAliveInterval: ""             # renew the session while a hub connection stays open; empty: off
+  ignoreUserAgent: []               # Go regexps: uptime checks and crawlers get a 200 and start nothing
+  networkPolicy:
+    sablierNamespace: sablier       # the Jobs' egress to Sablier (below); empty: its port anywhere
+```
+
+**What the chart does:**
+
+- **Two Middlewares**, the plugin with the same group and session: `grif-on-demand` on the site's route
+  (`strategy`, by default `dynamic`: Sablier's starting page, which reloads itself until the site is up) and
+  `grif-on-demand-api` on the hub and API routes (`ingressRoute.hubs`, `ingressRoute.api`: `/hub`, `/api/`,
+  `/signin-discord`), with `apiStrategy`, by default `blocking`: an API call or a hub's connection waits until the
+  release is up and then goes through, so it never gets the starting page's HTML (past `blocking.timeout`, it gets
+  Sablier's `504` as `application/problem+json`). With neither of those routes there is no `grif-on-demand-api`.
+  Each goes after `ingressRoute.middlewares` (so those filter first) and before the backend's path rewrite. Each
+  request starts the group if it's stopped and renews its session. The frontend's server-side calls to the backend
+  go to the backend's Service, not through Traefik, so they don't count: only visitors keep the release running.
+- **The Deployments join the group**, except the components `exclude` keeps running: grif-frontend, grif-backend,
+  grif-worker, grif-discord, and the chart's SQL Server or PostgreSQL, Redis, Ollama and sql-exporter when enabled.
+  Labels on the Deployment:
+  `sablier.enable: "true"` and `sablier.group: <group>`, and the same as `sablierapp.dev/enable` and
+  `sablierapp.dev/group` (the key form newer Sablier releases prefer on Kubernetes; older ones read only
+  `sablier.*`). Sablier starts a Deployment at 1 replica; one with more (`frontend.replicas`, `backend.replicas`,
+  `worker.replicas`) also gets `sablier.active.replicas`, so it starts at all of them.
+- **No `replicas` on the Deployments in the group.** Sablier scales them; a count in the manifest would be set back
+  by every Helm upgrade and every Argo CD sync (self-heal included), starting a stopped release. This is how the backup
+  scratch server already works (`backupScratch.mode: onDemand`), and it stays out of the group: the backend starts
+  and stops it.
+- **The Jobs that wait for the chart's database start the group first.** With the chart's SQL Server or PostgreSQL
+  (stopped with everything else), the migration Job, the scheduled backup and SQL Server's backup retention call
+  Sablier's poke strategy (`/api/strategies/poke`: start the group, answer at once) and then wait for the database
+  as they always do (`migrations.databaseWaitSeconds`). So a deploy, or a nightly backup, while nobody visits starts
+  the release for `sessionDuration`. Their NetworkPolicies allow `sablierUrl`'s port in
+  `onDemand.networkPolicy.sablierNamespace`. With an external database, or the chart's kept running (`exclude`),
+  they don't call Sablier.
+- **`exclude` keeps components running**, by their `app.kubernetes.io/component`: `frontend`, `backend`, `worker`,
+  `discord`, `mssql`, `postgres`, `redis`, `ollama`, `sql-exporter`. They get no Sablier labels and keep their
+  `replicas`. What an excluded app needs from the chart stays up with it: `backend` and `discord` keep the database,
+  Redis and Ollama; `worker` the database and Redis; a database kept running keeps its `sql-exporter`. The default,
+  `[worker, discord]`, keeps a separate worker and Discord bot (`worker.enabled`) running, so the bot answers and
+  the jobs fire while nobody visits, and with them the database, Redis and Ollama; the site and the API still stop.
+  With `worker.enabled` false the backend runs all of that and there is no grif-worker or grif-discord, so the
+  default changes nothing. `exclude: []` puts every Deployment in the group.
+
+Sablier itself needs nothing from the release's NetworkPolicies: it scales through the Kubernetes API and checks
+readiness there, and the plugin runs in Traefik.
+
+**While the release is stopped**, nothing in its group runs. With the backend running everything (`worker.enabled`
+false, or `worker` and `discord` not excluded): the Discord bot is offline (commands, buttons and messages go
+unanswered), the jobs don't fire (on the next start each job's misfire policy decides: most daily and hourly jobs
+run once at once, the frequent ones wait for their next firing), the background services wait, and sql-exporter's metrics stop (silence or
+adjust alerts on them). The CronJobs still run, and start the release as above. The bundled Halo gateway
+(`halo-gateway.enabled`) is its own chart and keeps running.
+
+**Sessions.** The session ends `sessionDuration` after the last request. A page left open makes no requests while it
+only holds its SignalR connection, so the release can stop under it; with `apiStrategy: blocking` its reconnect
+starts the release again and waits for it (with `dynamic` it would get the starting page and fail until the page is
+reloaded). `keepAliveInterval` renews the session while such a connection stays open, at the price that any open
+tab keeps the release running.
+
+**What the cluster needs:**
+
+- **Sablier** with its Kubernetes provider, at `sablierUrl` (its Helm chart names the Service `sablier-<release>`:
+  `http://sablier-sablier.sablier:10000` for a release named sablier in namespace sablier). Its RBAC (from its chart
+  or manifests) scales Deployments in every namespace.
+- **The plugin in Traefik** (static configuration): `experimental.plugins.sablier` with `moduleName:
+  github.com/sablierapp/sablier-traefik-plugin` and a `version`, and Traefik allowed to reach Sablier.
+- **`allowEmptyServices: true` on Traefik's Kubernetes CRD provider** (`providers.kubernetesCRD.allowEmptyServices`).
+  Otherwise Traefik drops a route whose Service has no ready pods, so a stopped release answers 404 or 503 and the
+  Middleware never runs to start it.
+- **For the blocking strategy:** the plugin's documentation says Kubernetes doesn't support it, but it works with
+  the Kubernetes provider: Sablier holds the request until the group is ready, then the plugin passes it on.
+  Sablier's `--provider.kubernetes.readiness=endpoints` (1.21 and later) makes "ready" wait until the Services
+  route to the pods; without it, a request that arrives before Traefik sees the new pods gets a redirect to the same URL (`302` for a
+  `GET`, `307` otherwise, which keeps the method and body) and tries again. A hub's WebSocket upgrade is held like
+  any other request and then goes through (the plugin hands the connection on); a browser's WebSocket doesn't follow
+  that redirect, so in that one case SignalR tries again or falls back to another transport. Traefik's entry point
+  `respondingTimeouts.readTimeout` (`60s` by default in Traefik v3) can end an HTTP/1.1 request held longer than
+  that; keep it above `blocking.timeout`.
+
+**`blocking.timeout`** is `2m`: a cold start runs the whole group, so a held request waits for the database to start,
+the backend's init container to see its migrations applied, and the backend to pass its startup probe (which allows
+5 minutes, for pending migrations) and readiness. That takes well under 2 minutes without migrations, and a
+deploy's migration Job applies them before a visit's cold start needs them. Raise it if your cold starts are slower.
+
+**Argo CD and replicas.** Nothing to ignore: the chart renders no `replicas` for these Deployments, so neither Argo
+CD's diff nor self-heal touches Sablier's count. On the first sync after turning `onDemand` on, a client-side apply
+drops the old count and Kubernetes sets 1, so everything keeps running until Sablier stops it: after the first
+visit's session ends, or when Sablier restarts (it stops opted-in workloads that have no session as it starts). If
+something else of yours sets `replicas` (a post-renderer, a Kustomize patch), make Argo CD ignore it:
+
+```yaml
+spec:
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers: [/spec/replicas]
+  syncPolicy:
+    syncOptions: [RespectIgnoreDifferences=true]
+```
+
+The chart has no HorizontalPodAutoscalers or PodDisruptionBudgets, so nothing else holds a minimum above 0.
 
 ## Argo CD and Image Updater
 

@@ -17,8 +17,11 @@ metadata:
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: worker
+    {{- with include "grif.onDemandLabels" (dict "root" . "component" "worker" "replicas" $w.replicas) | trim }}{{ . | nindent 4 }}{{ end }}
 spec:
-  replicas: {{ $w.replicas }}
+  {{- with include "grif.replicas" (dict "root" . "component" "worker" "replicas" $w.replicas) }}
+  {{ . }}
+  {{- end }}
   selector:
     matchLabels:
       app: grif-worker
@@ -41,8 +44,11 @@ metadata:
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: discord
+    {{- with include "grif.onDemandLabels" (dict "root" . "component" "discord" "replicas" 1) | trim }}{{ . | nindent 4 }}{{ end }}
 spec:
-  replicas: 1
+  {{- with include "grif.replicas" (dict "root" . "component" "discord" "replicas" 1) }}
+  {{ . }}
+  {{- end }}
   selector:
     matchLabels:
       app: grif-discord

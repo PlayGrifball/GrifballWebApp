@@ -141,9 +141,27 @@ tests:
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_SERVICE_NAME, value: grif-x } }
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel:4317" } }
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_EXPORTER_OTLP_PROTOCOL, value: grpc } }
-      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_RESOURCE_ATTRIBUTES, value: "deployment.environment.name=test,team=grif" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_RESOURCE_ATTRIBUTES, value: "deployment.environment.name=test,k8s.namespace.name=grif-x,k8s.pod.name=$(K8S_POD_NAME),service.namespace=grif-x,team=grif" } }
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_METRIC_EXPORT_INTERVAL, value: "15000" } }
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTLP_CONSOLE_EXPORTER_ENABLED, value: "true" } }
+
+  # Prometheus names a series job <service.namespace>/<service.name>, which the dashboard selects on; the namespace and
+  # the pod (the downward API, expanded by the kubelet: defined before the attributes that use it) as a collector's
+  # k8sattributes would add them, for the dashboard's Environment and per-pod panels
+  - it: identifies its telemetry by namespace and pod without a collector adding them
+    documentIndex: 1
+    set:
+      backend.telemetry: { enabled: true, endpoint: "http://otel:4317" }
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_RESOURCE_ATTRIBUTES, value: "k8s.namespace.name=grif-x,k8s.pod.name=$(K8S_POD_NAME),service.namespace=grif-x" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: K8S_POD_NAME, valueFrom: { fieldRef: { fieldPath: metadata.name } } } }
+
+  - it: lets resourceAttributes replace those
+    documentIndex: 1
+    set:
+      backend.telemetry: { enabled: true, endpoint: "http://otel:4317", resourceAttributes: { service.namespace: grif } }
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_RESOURCE_ATTRIBUTES, value: "k8s.namespace.name=grif-x,k8s.pod.name=$(K8S_POD_NAME),service.namespace=grif" } }
 
   - it: points the Telemetry page at the backends it is given
     documentIndex: 1

@@ -95,6 +95,8 @@ public class ArchiveSetUp
             return;
         if (fill is not ("database" or "download" or "both"))
             throw new InvalidOperationException($"GRIF_HISTORICAL_FILL is database, download or both, not {fill}");
+        // The problems of the sources the import reads: another sheet (one a config may read next) missing is no gap
+        var imported = ArchiveSnapshots.ImportedEntries().Select(e => e.HistoricalSourceID).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var databaseMissing = new List<string>();
         if (fill is "database" or "both")
         {
@@ -109,10 +111,10 @@ public class ArchiveSetUp
         {
             var failed = await Archive.Snapshots.FillFromDownload(TimeProvider.System);
             // A failed download of a source the copy has (the database's snapshot, or an earlier one) is only stale
-            Archive.FillProblems.AddRange(failed.Select(f => f.Kept ? $"{f.SourceID}: download failed ({f.Reason}); the copy keeps its earlier one" : $"{f.SourceID}: {f.Reason}"));
+            Archive.FillProblems.AddRange(failed.Where(f => imported.Contains(f.SourceID)).Select(f => f.Kept ? $"{f.SourceID}: download failed ({f.Reason}); the copy keeps its earlier one" : $"{f.SourceID}: {f.Reason}"));
         }
         // A source the database has none of that the download got is filled
-        Archive.FillProblems.AddRange(databaseMissing.Where(id => !Archive.Snapshots.Manifest.ContainsKey(id)).Select(id => $"{id}: no snapshot in the database"));
+        Archive.FillProblems.AddRange(databaseMissing.Where(id => imported.Contains(id) && !Archive.Snapshots.Manifest.ContainsKey(id)).Select(id => $"{id}: no snapshot in the database"));
     }
 
     /// <summary><c>.historical-archive</c> in the repository: the folder above the build output that has the solution.</summary>

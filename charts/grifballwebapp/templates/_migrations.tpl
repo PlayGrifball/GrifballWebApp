@@ -542,6 +542,9 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
 
 {{- define "grif.migrateContainer" -}}
 {{- $m := .Values.migrations -}}
+{{- if and .Values.database.logins.archiveReader.enabled (not .Values.database.logins.enabled) }}
+{{- fail "database.logins.archiveReader needs database.logins.enabled: the migration Job creates the logins" }}
+{{- end }}
 - name: migrate
   {{- include "grif.migrationStepImage" . | nindent 2 }}
   command: ["/bin/sh", "-c"]
@@ -580,6 +583,15 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
         secretKeyRef:
           name: {{ include "grif.secretName" (dict "secretName" .Values.database.logins.monitoring.password.secretName "root" .) }}
           key: {{ .Values.database.logins.monitoring.password.key }}
+    {{- end }}
+    {{- if .Values.database.logins.archiveReader.enabled }}
+    - name: ARC_USER
+      value: {{ .Values.database.logins.archiveReader.user | quote }}
+    - name: ARC_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "grif.secretName" (dict "secretName" .Values.database.logins.archiveReader.password.secretName "root" .) }}
+          key: {{ .Values.database.logins.archiveReader.password.key }}
     {{- end }}
     {{- end }}
     {{- with $m.extraEnv }}
@@ -641,6 +653,19 @@ trap 'rm -f /work/logins.sql' EXIT
     printf '%s\n' "GRANT VIEW SERVER STATE TO [$(ident "$MON_USER")];"
     printf '%s\n' "GRANT VIEW ANY DEFINITION TO [$(ident "$MON_USER")];"
     printf '%s\n' "PRINT N'Login $(lit "$MON_USER"): views server state.';"
+  fi
+  # The historical archive's reader (database.logins.archiveReader): its snapshots' two tables, SELECT only.
+  if [ -n "${ARC_USER:-}" ]; then
+    printf '%s\n' "USE [master];"
+    login "$ARC_USER" "$ARC_PASSWORD"
+    printf '%s\n' "USE [$(ident "$DB_NAME")];"
+    printf '%s\n' "IF USER_ID(N'$(lit "$ARC_USER")') IS NULL CREATE USER [$(ident "$ARC_USER")] FOR LOGIN [$(ident "$ARC_USER")];"
+    {{- if .Values.migrations.restore.enabled }}
+    printf '%s\n' "ELSE ALTER USER [$(ident "$ARC_USER")] WITH LOGIN = [$(ident "$ARC_USER")];"
+    {{- end }}
+    printf '%s\n' "GRANT SELECT ON [Event].[HistoricalSources] TO [$(ident "$ARC_USER")];"
+    printf '%s\n' "GRANT SELECT ON [Event].[HistoricalSourceSnapshots] TO [$(ident "$ARC_USER")];"
+    printf '%s\n' "PRINT N'Login $(lit "$ARC_USER"): reads the historical archive''s snapshots.';"
   fi
 } > /work/logins.sql
 sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -x -i /work/logins.sql

@@ -1,0 +1,670 @@
+suite: on demand (Sablier)
+templates:
+  - templates/on-demand.yaml
+  - templates/ingress.yaml
+  - templates/frontend.yaml
+  - templates/backend.yaml
+  - templates/worker.yaml
+  - templates/redis.yaml
+  - templates/ollama.yaml
+  - templates/mssql.yaml
+  - templates/postgres.yaml
+  - templates/sql-exporter.yaml
+  - templates/backup-scratch.yaml
+  - templates/migrations-job.yaml
+  - templates/backup-scheduled.yaml
+  - templates/backup-retention.yaml
+  - templates/networkpolicy.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+  ingressRoute: { enabled: true, host: grif.example, middlewares: [{ name: security-headers, namespace: traefik }] }
+  networkPolicy.frontend.from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } } }]
+tests:
+  # Off (the default)
+
+  - it: is off by default, with no Middleware and the routes' middlewares as they were
+    asserts:
+      - hasDocuments: { count: 0 }
+        template: templates/on-demand.yaml
+      - equal: { path: "spec.routes[0].middlewares", value: [{ name: security-headers, namespace: traefik }] }
+        template: templates/ingress.yaml
+      - equal: { path: "spec.routes[1].middlewares", value: [{ name: security-headers, namespace: traefik }, { name: grif-backend-path }] }
+        template: templates/ingress.yaml
+      - equal: { path: "spec.routes[2].middlewares", value: [{ name: security-headers, namespace: traefik }, { name: grif-backend-path }] }
+        template: templates/ingress.yaml
+
+  - it: keeps every Deployment's replicas and adds no Sablier labels when off
+    set:
+      worker: { enabled: true, replicas: 2 }
+      redis.enabled: true
+      ollama.enabled: true
+      sqlExporter.enabled: true
+      frontend.replicas: 2
+    asserts:
+      - equal: { path: spec.replicas, value: 2 }
+        template: templates/frontend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/backend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: spec.replicas, value: 2 }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-worker }
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-discord }
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/redis.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/ollama.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/mssql.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/sql-exporter.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/backend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: 'metadata.labels["sablierapp.dev/enable"]' }
+        template: templates/frontend.yaml
+        documentSelector: { path: kind, value: Deployment }
+
+  - it: doesn't call Sablier from the Jobs, nor allow it, when off
+    set:
+      migrations.backup.scheduled.enabled: true
+    asserts:
+      - notMatchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: "wget|strategies" }
+        template: templates/migrations-job.yaml
+      - notMatchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "wget|strategies" }
+        template: templates/backup-scheduled.yaml
+      - notContains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 10000 }] }, any: true }
+        template: templates/networkpolicy.yaml
+        documentSelector: { path: metadata.name, value: grif-migrate }
+
+  # The Middleware
+
+  - it: renders two Middlewares, the site's and the API's
+    set:
+      onDemand.enabled: true
+    template: templates/on-demand.yaml
+    asserts:
+      - hasDocuments: { count: 2 }
+      - isKind: { of: Middleware }
+      - isAPIVersion: { of: traefik.io/v1alpha1 }
+
+  - it: renders the site's Middleware for the release's namespace, the dynamic strategy (a starting page) by default
+    set:
+      onDemand.enabled: true
+    template: templates/on-demand.yaml
+    documentSelector: { path: metadata.name, value: grif-on-demand }
+    asserts:
+      - equal:
+          path: spec.plugin.sablier
+          value:
+            sablierUrl: http://sablier.sablier.svc:10000
+            group: grif-x
+            sessionDuration: 30m
+            dynamic: { displayName: Grifball }
+
+  - it: renders the API's Middleware in the same group and session, holding requests (blocking) for 2m by default
+    set:
+      onDemand.enabled: true
+    template: templates/on-demand.yaml
+    documentSelector: { path: metadata.name, value: grif-on-demand-api }
+    asserts:
+      - equal:
+          path: spec.plugin.sablier
+          value:
+            sablierUrl: http://sablier.sablier.svc:10000
+            group: grif-x
+            sessionDuration: 30m
+            blocking: { timeout: 2m }
+
+  - it: gives the API the starting page too with apiStrategy dynamic, and no blocking block
+    set:
+      onDemand: { enabled: true, apiStrategy: dynamic }
+    template: templates/on-demand.yaml
+    documentSelector: { path: metadata.name, value: grif-on-demand-api }
+    asserts:
+      - equal: { path: spec.plugin.sablier.dynamic, value: { displayName: Grifball } }
+      - notExists: { path: spec.plugin.sablier.blocking }
+
+  - it: renders no API Middleware without the hub and API routes, the only ones that use it
+    set:
+      onDemand.enabled: true
+      ingressRoute.hubs.enabled: false
+      ingressRoute.api.enabled: false
+    template: templates/on-demand.yaml
+    asserts:
+      - hasDocuments: { count: 1 }
+      - equal: { path: metadata.name, value: grif-on-demand }
+
+  - it: takes the group, session, keep-alive, ignored user agents and the starting page's settings it's given
+    set:
+      onDemand:
+        enabled: true
+        group: grif-staging
+        sablierUrl: http://sablier-sablier.sablier:10000
+        sessionDuration: 1h
+        keepAliveInterval: 5m
+        ignoreUserAgent: ["(?i)uptime-kuma"]
+        dynamic: { displayName: Grifball staging, showDetails: false, theme: ghost, refreshFrequency: 3s }
+        blocking: { timeout: 3m }
+    template: templates/on-demand.yaml
+    asserts:
+      - equal:
+          path: spec.plugin.sablier
+          value:
+            sablierUrl: http://sablier-sablier.sablier:10000
+            group: grif-staging
+            sessionDuration: 1h
+            keepAliveInterval: 5m
+            ignoreUserAgent: ["(?i)uptime-kuma"]
+            dynamic: { displayName: Grifball staging, showDetails: false, theme: ghost, refreshFrequency: 3s }
+        documentSelector: { path: metadata.name, value: grif-on-demand }
+      - equal:
+          path: spec.plugin.sablier
+          value:
+            sablierUrl: http://sablier-sablier.sablier:10000
+            group: grif-staging
+            sessionDuration: 1h
+            keepAliveInterval: 5m
+            ignoreUserAgent: ["(?i)uptime-kuma"]
+            blocking: { timeout: 3m }
+        documentSelector: { path: metadata.name, value: grif-on-demand-api }
+
+  - it: calls Sablier at its usual in-cluster address when sablierUrl is empty
+    set:
+      onDemand: { enabled: true, sablierUrl: "" }
+    asserts:
+      - equal: { path: spec.plugin.sablier.sablierUrl, value: http://sablier.sablier.svc:10000 }
+        template: templates/on-demand.yaml
+        documentSelector: { path: metadata.name, value: grif-on-demand-api }
+      - matchRegex:
+          path: "spec.template.spec.initContainers[0].args[0]"
+          pattern: "'http://sablier.sablier.svc:10000/api/strategies/poke\\?group=grif-x&session_duration=30m'"
+        template: templates/migrations-job.yaml
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 10000 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: sablier } } }]
+        template: templates/networkpolicy.yaml
+        documentSelector: { path: metadata.name, value: grif-migrate }
+
+  - it: never renders an empty dynamic block (the plugin picks its strategy by which block is set)
+    set:
+      onDemand: { enabled: true, apiStrategy: dynamic, dynamic: { displayName: "" } }
+    template: templates/on-demand.yaml
+    asserts:
+      - equal: { path: spec.plugin.sablier.dynamic, value: { displayName: grif-on-demand } }
+        documentSelector: { path: metadata.name, value: grif-on-demand }
+      - equal: { path: spec.plugin.sablier.dynamic, value: { displayName: grif-on-demand-api } }
+        documentSelector: { path: metadata.name, value: grif-on-demand-api }
+
+  - it: holds the site's requests too with strategy blocking, and no dynamic block
+    set:
+      onDemand: { enabled: true, strategy: blocking, blocking: { timeout: 90s } }
+    template: templates/on-demand.yaml
+    documentSelector: { path: metadata.name, value: grif-on-demand }
+    asserts:
+      - equal: { path: spec.plugin.sablier.blocking, value: { timeout: 90s } }
+      - notExists: { path: spec.plugin.sablier.dynamic }
+
+  - it: needs a timeout with the blocking strategy, the API's by default
+    set:
+      onDemand: { enabled: true, blocking: { timeout: "" } }
+    template: templates/on-demand.yaml
+    asserts:
+      - failedTemplate: { errorMessage: "onDemand.blocking.timeout is required with the blocking strategy (onDemand.strategy, onDemand.apiStrategy)" }
+
+  - it: needs no timeout when no route blocks
+    set:
+      onDemand: { enabled: true, apiStrategy: dynamic, blocking: { timeout: "" } }
+    template: templates/on-demand.yaml
+    asserts:
+      - hasDocuments: { count: 2 }
+      - notExists: { path: spec.plugin.sablier.blocking }
+
+  - it: needs the IngressRoute, which carries the Middleware
+    set:
+      onDemand.enabled: true
+      ingressRoute.enabled: false
+    template: templates/on-demand.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "onDemand.enabled needs ingressRoute.enabled: Sablier starts the release from the Traefik Middleware on the IngressRoute's routes"
+
+  - it: refuses a strategy, a duration or a group Sablier can't take (values.schema.json)
+    set:
+      onDemand: { enabled: true, strategy: poke, apiStrategy: poke, sessionDuration: 30 minutes, group: "Not a label!", exclude: [grif-worker] }
+    template: templates/on-demand.yaml
+    asserts:
+      - failedTemplate: { errorPattern: "onDemand/strategy" }
+      - failedTemplate: { errorPattern: "onDemand/apiStrategy" }
+      - failedTemplate: { errorPattern: "onDemand/exclude/0" }
+      - failedTemplate: { errorPattern: "onDemand/sessionDuration" }
+      - failedTemplate: { errorPattern: "onDemand/group" }
+
+  # The routes
+
+  - it: puts the site's Middleware on the site's route and the API's on the hub and API routes, after the site's own and before the backend's path rewrite
+    set:
+      onDemand.enabled: true
+    template: templates/ingress.yaml
+    asserts:
+      - equal: { path: "spec.routes[0].middlewares", value: [{ name: security-headers, namespace: traefik }, { name: grif-on-demand }] }
+      - matchRegex: { path: "spec.routes[1].match", pattern: "hub" }
+      - equal: { path: "spec.routes[1].middlewares", value: [{ name: security-headers, namespace: traefik }, { name: grif-on-demand-api }, { name: grif-backend-path }] }
+      - matchRegex: { path: "spec.routes[2].match", pattern: "signin-discord" }
+      - equal: { path: "spec.routes[2].middlewares", value: [{ name: security-headers, namespace: traefik }, { name: grif-on-demand-api }, { name: grif-backend-path }] }
+
+  - it: puts the API's Middleware on the hub and API routes when the site has no middlewares of its own
+    set:
+      onDemand.enabled: true
+      ingressRoute.middlewares: []
+    template: templates/ingress.yaml
+    asserts:
+      - equal: { path: "spec.routes[1].middlewares", value: [{ name: grif-on-demand-api }, { name: grif-backend-path }] }
+      - equal: { path: "spec.routes[2].middlewares", value: [{ name: grif-on-demand-api }, { name: grif-backend-path }] }
+
+  - it: puts the Middleware on the site's route when it has no middlewares of its own
+    set:
+      onDemand.enabled: true
+      ingressRoute.middlewares: []
+      ingressRoute.hubs.enabled: false
+      ingressRoute.api.enabled: false
+    template: templates/ingress.yaml
+    asserts:
+      - equal: { path: "spec.routes[0].middlewares", value: [{ name: grif-on-demand }] }
+      - notExists: { path: "spec.routes[1]" }
+
+  # The Deployments
+
+  - it: puts every Deployment in the group and leaves their replicas to Sablier, with nothing excluded
+    set:
+      onDemand: { enabled: true, exclude: [] }
+      worker: { enabled: true, replicas: 1 }
+      redis.enabled: true
+      ollama.enabled: true
+      sqlExporter.enabled: true
+    asserts:
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/frontend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: spec.replicas }
+        template: templates/frontend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/backend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: spec.replicas }
+        template: templates/backend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-worker }
+      - notExists: { path: spec.replicas }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-worker }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-discord }
+      - notExists: { path: spec.replicas }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-discord }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/redis.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: spec.replicas }
+        template: templates/redis.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/ollama.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: spec.replicas }
+        template: templates/ollama.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/mssql.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: spec.replicas }
+        template: templates/mssql.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/sql-exporter.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: spec.replicas }
+        template: templates/sql-exporter.yaml
+        documentSelector: { path: kind, value: Deployment }
+
+  - it: labels each Deployment in both of Sablier's key forms, sablier.* and sablierapp.dev/*
+    set:
+      onDemand: { enabled: true, group: grif-staging }
+    template: templates/backend.yaml
+    documentSelector: { path: kind, value: Deployment }
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            sablier.enable: "true"
+            sablier.group: grif-staging
+            sablierapp.dev/enable: "true"
+            sablierapp.dev/group: grif-staging
+      - notExists: { path: 'metadata.labels["sablier.active.replicas"]' }
+      # On the Deployment, where Sablier looks, not on its pods.
+      - notExists: { path: 'spec.template.metadata.labels["sablier.enable"]' }
+
+  - it: puts PostgreSQL in the group too
+    set:
+      onDemand.enabled: true
+      database.provider: postgres
+    template: templates/postgres.yaml
+    documentSelector: { path: kind, value: Deployment }
+    asserts:
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+      - notExists: { path: spec.replicas }
+
+  - it: starts a Deployment that runs several replicas at all of them (active.replicas)
+    set:
+      onDemand: { enabled: true, exclude: [] }
+      frontend.replicas: 2
+      backend.replicas: 3
+      backend.persistence.enabled: false
+      worker: { enabled: true, replicas: 2 }
+      redis.enabled: true
+    asserts:
+      - isSubset: { path: metadata.labels, content: { sablier.active.replicas: "2", sablierapp.dev/active.replicas: "2" } }
+        template: templates/frontend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - isSubset: { path: metadata.labels, content: { sablier.active.replicas: "3", sablierapp.dev/active.replicas: "3" } }
+        template: templates/backend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - isSubset: { path: metadata.labels, content: { sablier.active.replicas: "2", sablierapp.dev/active.replicas: "2" } }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-worker }
+      - notExists: { path: 'metadata.labels["sablier.active.replicas"]' }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-discord }
+
+  - it: leaves the backup scratch server out of the group (the backend starts and stops it)
+    set:
+      onDemand.enabled: true
+      backupScratch.enabled: true
+    template: templates/backup-scratch.yaml
+    documentSelector: { path: kind, value: Deployment }
+    asserts:
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+      - notExists: { path: 'metadata.labels["sablierapp.dev/enable"]' }
+
+  # Kept running (onDemand.exclude)
+
+  - it: changes nothing by default while the backend runs everything (worker.enabled false)
+    set:
+      onDemand.enabled: true
+      redis.enabled: true
+      ollama.enabled: true
+      sqlExporter.enabled: true
+    asserts:
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/backend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/mssql.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/redis.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/ollama.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/sql-exporter.yaml
+        documentSelector: { path: kind, value: Deployment }
+
+  - it: keeps the worker and the Discord bot running by default, with the database, Redis, Ollama and the exporter they need
+    set:
+      onDemand.enabled: true
+      worker: { enabled: true, replicas: 2 }
+      redis.enabled: true
+      ollama.enabled: true
+      sqlExporter.enabled: true
+    asserts:
+      # Out of the group: no Sablier labels in either form, and their own replicas.
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-worker }
+      - notExists: { path: 'metadata.labels["sablierapp.dev/enable"]' }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-worker }
+      - equal: { path: spec.replicas, value: 2 }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-worker }
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-discord }
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-discord }
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/mssql.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/mssql.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/redis.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/redis.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/ollama.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/ollama.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/sql-exporter.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/sql-exporter.yaml
+        documentSelector: { path: kind, value: Deployment }
+      # The site and the API still start and stop.
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/frontend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: spec.replicas }
+        template: templates/frontend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/backend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: spec.replicas }
+        template: templates/backend.yaml
+        documentSelector: { path: kind, value: Deployment }
+
+  - it: keeps PostgreSQL running for them too
+    set:
+      onDemand.enabled: true
+      worker.enabled: true
+      redis.enabled: true
+      database.provider: postgres
+    template: templates/postgres.yaml
+    documentSelector: { path: kind, value: Deployment }
+    asserts:
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+      - equal: { path: spec.replicas, value: 1 }
+
+  - it: keeps the database and Redis running for the worker alone, but not Ollama, which only the site and the bot use
+    set:
+      onDemand: { enabled: true, exclude: [worker] }
+      worker.enabled: true
+      redis.enabled: true
+      ollama.enabled: true
+    asserts:
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-worker }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-discord }
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/mssql.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/redis.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/ollama.yaml
+        documentSelector: { path: kind, value: Deployment }
+
+  - it: keeps the backend's database, Redis and Ollama running when the backend itself is excluded
+    set:
+      onDemand: { enabled: true, exclude: [backend] }
+      redis.enabled: true
+      ollama.enabled: true
+    asserts:
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/backend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/backend.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/mssql.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/redis.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/ollama.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/frontend.yaml
+        documentSelector: { path: kind, value: Deployment }
+
+  - it: keeps only what it is told when no app is excluded (Redis alone stays up; the database and the apps don't)
+    set:
+      onDemand: { enabled: true, exclude: [redis] }
+      worker.enabled: true
+      redis.enabled: true
+      sqlExporter.enabled: true
+    asserts:
+      - equal: { path: spec.replicas, value: 1 }
+        template: templates/redis.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+        template: templates/redis.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/mssql.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/sql-exporter.yaml
+        documentSelector: { path: kind, value: Deployment }
+      - equal: { path: 'metadata.labels["sablier.group"]', value: grif-x }
+        template: templates/worker.yaml
+        documentSelector: { path: metadata.name, value: grif-worker }
+
+  - it: keeps the exporter running with a database that is excluded on its own
+    set:
+      onDemand: { enabled: true, exclude: [mssql] }
+      sqlExporter.enabled: true
+    template: templates/sql-exporter.yaml
+    documentSelector: { path: kind, value: Deployment }
+    asserts:
+      - notExists: { path: 'metadata.labels["sablier.enable"]' }
+      - equal: { path: spec.replicas, value: 1 }
+
+  # The Jobs that wait for the chart's database, stopped while nobody visits
+
+  - it: starts the group from the migration Job before it waits for the database, and lets it reach Sablier
+    set:
+      onDemand.enabled: true
+    asserts:
+      - matchRegex:
+          path: "spec.template.spec.initContainers[0].args[0]"
+          pattern: "wget -q -T 10 -O /dev/null 'http://sablier.sablier.svc:10000/api/strategies/poke\\?group=grif-x&session_duration=30m' \\|\\| echo .*\\nend=\\$\\(\\( \\$\\(date \\+%s\\) \\+ WAIT_SECONDS \\)\\)"
+        template: templates/migrations-job.yaml
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 10000 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: sablier } } }]
+        template: templates/networkpolicy.yaml
+        documentSelector: { path: metadata.name, value: grif-migrate }
+
+  - it: starts the group from the scheduled backup and SQL Server's retention, and lets them reach Sablier
+    set:
+      onDemand: { enabled: true, group: grif-staging, sessionDuration: 10m }
+      migrations.backup: { scheduled: { enabled: true }, retention: { enabled: true } }
+    asserts:
+      - matchRegex:
+          path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]"
+          pattern: "/api/strategies/poke\\?group=grif-staging&session_duration=10m'"
+        template: templates/backup-scheduled.yaml
+      - matchRegex:
+          path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]"
+          pattern: "/api/strategies/poke\\?group=grif-staging&session_duration=10m'"
+        template: templates/backup-retention.yaml
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 10000 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: sablier } } }]
+        template: templates/networkpolicy.yaml
+        documentSelector: { path: metadata.name, value: grif-backup }
+      - contains:
+          path: spec.egress
+          content:
+            ports: [{ protocol: TCP, port: 10000 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: sablier } } }]
+        template: templates/networkpolicy.yaml
+        documentSelector: { path: metadata.name, value: grif-backup-retention }
+
+  - it: allows Sablier's port anywhere without a namespace, on the URL's own port
+    set:
+      onDemand: { enabled: true, sablierUrl: "http://sablier.example:8080/", networkPolicy: { sablierNamespace: "" } }
+    asserts:
+      - matchRegex:
+          path: "spec.template.spec.initContainers[0].args[0]"
+          pattern: "'http://sablier.example:8080/api/strategies/poke\\?group=grif-x&session_duration=30m'"
+        template: templates/migrations-job.yaml
+      - contains:
+          path: spec.egress
+          content: { ports: [{ protocol: TCP, port: 8080 }] }
+        template: templates/networkpolicy.yaml
+        documentSelector: { path: metadata.name, value: grif-migrate }
+
+  - it: doesn't call Sablier from the Jobs when the chart's database keeps running (out of the group)
+    set:
+      onDemand.enabled: true
+      worker.enabled: true
+      redis.enabled: true
+      migrations.backup.scheduled.enabled: true
+    asserts:
+      - notMatchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: "wget|strategies" }
+        template: templates/migrations-job.yaml
+      - notMatchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "wget|strategies" }
+        template: templates/backup-scheduled.yaml
+      - notContains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 10000 }] }, any: true }
+        template: templates/networkpolicy.yaml
+        documentSelector: { path: metadata.name, value: grif-migrate }
+
+  - it: doesn't call Sablier from the Jobs when the database is someone else's (not in the group)
+    set:
+      onDemand.enabled: true
+      mssql.enabled: false
+      database.host: sql.example
+    asserts:
+      - notMatchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: "wget|strategies" }
+        template: templates/migrations-job.yaml
+      - notContains: { path: spec.egress, content: { ports: [{ protocol: TCP, port: 10000 }] }, any: true }
+        template: templates/networkpolicy.yaml
+        documentSelector: { path: metadata.name, value: grif-migrate }

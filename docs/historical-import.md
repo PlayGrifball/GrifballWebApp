@@ -99,3 +99,22 @@ dotnet test GrifballWebApp.HistoricalArchive.Test
 A run leaves `import.db` (the imported database, to query) and `summary.md` (each season's teams, captains, stats,
 matches, playoff matches and titles, and the build's and import's warnings) in the copy's folder. A fill and run take
 about 4 minutes; a run from the copy, under 2.
+
+### In CI: `historical-archive.yml` and `historical-archive-public.yml`
+
+The same tests run in CI: `historical-archive-public.yml` on every PR that changes the import (`GrifballWebApp.Historical`,
+the real-archive tests, `Application/Historical`, `Domain/Archive`, the workbook reader), and either by hand (Actions >
+Run workflow, on any branch).
+Both fill a copy once, run this commit's import and its base's on it, and report each season whose counts changed: in
+the run's summary, and on a PR from this repository a comment each, kept up to date. The import's known gaps don't fail
+them. The summaries and imported databases are each run's artifact. They share `historical-archive-run.yml`; they
+differ in where they run, so in what their copy can have:
+
+- **`historical-archive.yml`**: the org's in-cluster runners (`grif-k8s`). By hand only: every source the import reads is
+  public, so the PRs' runs are GitHub's, and the cluster's memory stays the cluster's (its PR trigger is in the
+  workflow, commented out, for a sheet the import reads going private). The test environment's snapshots, through
+  the chart's read-only `database.logins.archiveReader`, then a download: every source, a sheet that went private
+  included. Never a fork's PR: a self-hosted runner doesn't run outside code.
+- **`historical-archive-public.yml`**: GitHub's runners, downloaded only, a fork's PR included. A sheet that went
+  private or was deleted, which only the database still has, isn't in its copy: `Copy_HasEverySourceTheImportReads`
+  warns of it instead of failing, the report lists it, and its seasons aren't imported on either side.

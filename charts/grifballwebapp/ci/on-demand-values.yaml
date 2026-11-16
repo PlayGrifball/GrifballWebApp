@@ -1,0 +1,40 @@
+# On demand (README, On demand): every Deployment stops while nobody visits and starts on a visit, through Sablier's
+# Traefik plugin on the IngressRoute. Scaled out (the worker, Redis), with the scheduled backup, so every Deployment
+# and Job that takes part renders. Rendered and schema-checked by the Helm chart workflow.
+mssql:
+  acceptEula: true
+backend:
+  replicas: 2
+  persistence:
+    enabled: false
+  config:
+    BaseUrl: https://grifball.example.com
+    Discord:
+      DraftChannel: "123456789012345678"
+  secretConfig:
+    Discord:ClientId: DiscordClientId
+    Discord:ClientSecret: DiscordClientSecret
+    Discord:Token: DiscordToken
+worker:
+  enabled: true
+  replicas: 2
+redis:
+  enabled: true
+ingressRoute:
+  enabled: true
+  host: grifball.example.com
+  entryPoints: [websecure]
+  tls:
+    secretName: grifball-tls
+onDemand:
+  enabled: true
+  sessionDuration: 30m
+  ignoreUserAgent: ["(?i)uptime-kuma"]
+migrations:
+  backup:
+    scheduled:
+      enabled: true
+networkPolicy:
+  frontend:
+    from:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } }

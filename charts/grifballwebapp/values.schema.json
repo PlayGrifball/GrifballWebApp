@@ -38,6 +38,8 @@
     },
     "k8sObject": { "type": "object" },
     "k8sList": { "type": "array" },
+    "goDuration": { "type": "string", "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$" },
+    "goDurationOrEmpty": { "type": "string", "pattern": "^(([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)?$" },
     "storageSize": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?(Ki|Mi|Gi|Ti|Pi|Ei|k|M|G|T|P|E)?$" },
     "accessModes": {
       "type": "array",
@@ -148,7 +150,16 @@
                 "nativeBackups": { "type": "boolean" }
               }
             },
-            "monitoring": { "$ref": "#/definitions/login" }
+            "monitoring": { "$ref": "#/definitions/login" },
+            "archiveReader": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "user": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,127}$" },
+                "password": { "$ref": "#/definitions/secretKeyRef" }
+              }
+            }
           }
         }
       }
@@ -493,6 +504,49 @@
           "additionalProperties": false,
           "properties": {
             "enabled": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "onDemand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "group": { "type": "string", "pattern": "^([A-Za-z0-9]([-A-Za-z0-9_.]{0,61}[A-Za-z0-9])?)?$" },
+        "sablierUrl": { "type": "string", "pattern": "^(https?://[^/?#]+/?)?$" },
+        "sessionDuration": { "$ref": "#/definitions/goDuration" },
+        "strategy": { "enum": ["dynamic", "blocking"] },
+        "apiStrategy": { "enum": ["dynamic", "blocking"] },
+        "dynamic": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "displayName": { "type": "string" },
+            "showDetails": { "type": ["boolean", "null"] },
+            "theme": { "type": "string" },
+            "refreshFrequency": { "$ref": "#/definitions/goDurationOrEmpty" }
+          }
+        },
+        "blocking": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "timeout": { "$ref": "#/definitions/goDurationOrEmpty" }
+          }
+        },
+        "keepAliveInterval": { "$ref": "#/definitions/goDurationOrEmpty" },
+        "exclude": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["frontend", "backend", "worker", "discord", "mssql", "postgres", "redis", "ollama", "sql-exporter"] }
+        },
+        "ignoreUserAgent": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "networkPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sablierNamespace": { "type": "string" }
           }
         }
       }
@@ -872,6 +926,16 @@
       }
     },
     "extraObjects": { "type": "array", "items": { "type": "object" } },
+    "grafanaDashboard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "namespace": { "type": "string" },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
     "global": { "type": "object" }
   }
 }

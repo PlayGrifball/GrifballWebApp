@@ -6,8 +6,11 @@ metadata:
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: frontend
+    {{- with include "grif.onDemandLabels" (dict "root" . "component" "frontend" "replicas" $f.replicas) | trim }}{{ . | nindent 4 }}{{ end }}
 spec:
-  replicas: {{ $f.replicas }}
+  {{- with include "grif.replicas" (dict "root" . "component" "frontend" "replicas" $f.replicas) }}
+  {{ . }}
+  {{- end }}
   selector:
     matchLabels:
       app: grif-frontend

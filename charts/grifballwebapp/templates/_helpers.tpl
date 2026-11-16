@@ -53,6 +53,75 @@ Unset, the other kind than the app's: PostgreSQL beside SQL Server or SQLite, SQ
 {{- if and .Values.backupScratch.enabled (eq .Values.backupScratch.mode "onDemand") }}true{{ end -}}
 {{- end }}
 
+{{/* Sablier's API (onDemand): onDemand.sablierUrl, else a Service named sablier in namespace sablier. No trailing slash. */}}
+{{- define "grif.sablierUrl" -}}
+{{- .Values.onDemand.sablierUrl | default "http://sablier.sablier.svc:10000" | trimSuffix "/" -}}
+{{- end }}
+
+{{/* The release's Sablier group (onDemand): onDemand.group, else the release's namespace. */}}
+{{- define "grif.onDemandGroup" -}}
+{{- .Values.onDemand.group | default .Release.Namespace -}}
+{{- end }}
+
+{{/*
+The components onDemand keeps running, out of the group (a JSON list of app.kubernetes.io/component values):
+onDemand.exclude, plus what the excluded apps need from the chart. The backend (backend) or the Discord bot
+(discord, with worker.enabled) keeps the database, Redis and Ollama; the worker (worker, with worker.enabled) the
+database and Redis. A database kept running keeps its SQL exporter.
+*/}}
+{{- define "grif.onDemandKept" -}}
+{{- $root := . }}
+{{- $kept := .Values.onDemand.exclude | default list }}
+{{- $needs := dict "backend" (list "mssql" "postgres" "redis" "ollama") }}
+{{- if .Values.worker.enabled }}
+{{- $_ := set $needs "worker" (list "mssql" "postgres" "redis") }}
+{{- $_ := set $needs "discord" (list "mssql" "postgres" "redis" "ollama") }}
+{{- end }}
+{{- range $app, $stores := $needs }}
+{{- if has $app $kept }}{{ $kept = concat $kept $stores }}{{ end }}
+{{- end }}
+{{- if or (has "mssql" $kept) (has "postgres" $kept) }}{{ $kept = append $kept "sql-exporter" }}{{ end }}
+{{- $kept | uniq | toJson }}
+{{- end }}
+
+{{/* "true" when a component (app.kubernetes.io/component) is in the onDemand group: onDemand on, and the
+   component not kept running (grif.onDemandKept). Takes dict "root", "component". */}}
+{{- define "grif.onDemandIn" -}}
+{{- if and .root.Values.onDemand.enabled (not (has .component (include "grif.onDemandKept" .root | fromJsonArray))) }}true{{ end -}}
+{{- end }}
+
+{{/*
+A Deployment's labels in the onDemand group (grif.onDemandIn): Sablier stops it while nobody visits and starts it
+on a visit. Both key forms: sablier.* (every Sablier release) and sablierapp.dev/* (the Kubernetes form newer ones
+prefer); the same values, so either reads the same. Sablier starts a Deployment at 1 replica unless
+active.replicas says more. Takes dict "root", "component", "replicas".
+*/}}
+{{- define "grif.onDemandLabels" -}}
+{{- if include "grif.onDemandIn" . }}
+{{- $group := include "grif.onDemandGroup" .root }}
+{{- range $prefix := list "sablier." "sablierapp.dev/" }}
+{{ $prefix }}enable: "true"
+{{ $prefix }}group: {{ $group | quote }}
+{{- if gt (int $.replicas) 1 }}
+{{ $prefix }}active.replicas: {{ $.replicas | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/* A Deployment's replicas: none in the onDemand group (grif.onDemandIn), where Sablier scales it (a count here
+   would be set back by every Helm upgrade or Argo CD sync). Takes dict "root", "component", "replicas". */}}
+{{- define "grif.replicas" -}}
+{{- if not (include "grif.onDemandIn" .) }}replicas: {{ .replicas }}{{ end -}}
+{{- end }}
+
+{{/* "true" with the chart's own database in the onDemand group (stopped while nobody visits): the Jobs that wait
+   for it start the group first (grif.waitForDatabaseScript). A database onDemand keeps running needs no start. */}}
+{{- define "grif.onDemandWakesDatabase" -}}
+{{- $database := ternary "postgres" "mssql" (eq .Values.database.provider "postgres") }}
+{{- if and (include "grif.bundled" .) (not .Values.database.host) (include "grif.onDemandIn" (dict "root" . "component" $database)) }}true{{ end -}}
+{{- end }}
+
 {{/* "true" with database.provider postgres; empty with sqlserver. */}}
 {{- define "grif.postgres" -}}
 {{- if eq .Values.database.provider "postgres" }}true{{ end -}}
@@ -226,6 +295,19 @@ type: {{ ternary "Recreate" "RollingUpdate" (and $b.persistence.enabled (not .Va
 {{- else -}}{{- $hc.ReadyPath | default "/health/ready" -}}{{- end -}}
 {{- end }}
 
+{{/* The backend's health paths (HealthChecks: Path, LivePath, ReadyPath, read as the backend's HealthCheckPaths reads
+   them: trimmed, one leading slash, the default when empty) as a PromQL regex, as it goes in the dashboard's JSON: any
+   of them or below one, any case. Health probes are left out of the dashboard's latency panels with it. */}}
+{{- define "grif.healthRoutesRegex" -}}
+{{- $hc := .Values.backend.config.HealthChecks | default dict -}}
+{{- $paths := list -}}
+{{- range $p := list (list $hc.Path "health") (list $hc.LivePath "health/live") (list $hc.ReadyPath "health/ready") -}}
+{{- $path := trimAll "/" (trim (toString (index $p 0 | default ""))) | default (index $p 1) -}}
+{{- $paths = append $paths (printf "/%s" $path | regexQuoteMeta | replace "\\" "\\\\\\\\") -}}
+{{- end -}}
+(?i)(?:{{ join "|" $paths }})(?:/.*)?
+{{- end }}
+
 {{/* The database connection as the administrator: for sqlcmd, or for psql, pg_dump and pg_restore. */}}
 {{- define "grif.dbEnv" -}}
 {{- include "grif.connectionEnv" (dict "root" . "user" (include "grif.dbUser" .) "password" (include "grif.dbPassword" . | fromJson)) -}}
@@ -296,8 +378,15 @@ after it starts, and until then its packets are dropped, name lookups included. 
 after 3 seconds, lookup and all (nc -w covers only the connection): an untimed try hung for
 61-110 seconds on every Job but a release's first (k3s, 2026-10-15).
 Needs DB_HOST, DB_PORT, WAIT_SECONDS.
+With onDemand and the chart's database, it first asks Sablier to start the group (its poke strategy: it starts
+them and answers at once), as a visit would, so a Job run while nobody visits finds the database up.
 */}}
 {{- define "grif.waitForDatabaseScript" -}}
+{{- if include "grif.onDemandWakesDatabase" . }}
+{{- $o := .Values.onDemand }}
+{{- $url := printf "%s/api/strategies/poke?group=%s&session_duration=%s" (include "grif.sablierUrl" .) (include "grif.onDemandGroup" . | urlquery) (urlquery $o.sessionDuration) -}}
+wget -q -T 10 -O /dev/null {{ $url | squote }} || echo "Sablier didn't answer ({{ include "grif.sablierUrl" . }}): waiting for the database anyway."
+{{ end -}}
 end=$(( $(date +%s) + WAIT_SECONDS ))
 until timeout 3 nc -w 2 "$DB_HOST" "$DB_PORT" </dev/null; do
   if [ "$(date +%s)" -ge "$end" ]; then echo "$DB_HOST:$DB_PORT unreachable"; exit 1; fi
@@ -442,18 +531,26 @@ Secret (secretName/secretKey), so both read the one Secret. Empty secretName: no
 
 {{/* The OpenTelemetry identity the backend and the frontend share (backend.telemetry): service.name (default the
    namespace), the resource attributes and the metric interval, so both land as one service on the Telemetry page
-   (and telemetry-gate allows one per environment). Env entries; takes the root. */}}
+   (and telemetry-gate allows one per environment). Env entries; takes the root.
+   Always service.namespace, k8s.namespace.name (the release's namespace) and k8s.pod.name (the downward API, which the
+   kubelet expands into the attributes: K8S_POD_NAME comes first), so the telemetry says where it's from without a
+   collector adding it: Prometheus names a series' job <service.namespace>/<service.name>, and the Grafana dashboard
+   selects on it, lists environments by namespace and charts by pod. resourceAttributes may replace any of them. */}}
 {{- define "grif.otelServiceEnv" -}}
 {{- $bt := .Values.backend.telemetry -}}
+- name: K8S_POD_NAME
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.name
 - name: OTEL_SERVICE_NAME
   value: {{ $bt.serviceName | default .Release.Namespace | quote }}
-{{- $attrs := list }}
-{{- if $bt.environment }}{{ $attrs = append $attrs (printf "deployment.environment.name=%s" $bt.environment) }}{{ end }}
-{{- range $k, $v := $bt.resourceAttributes }}{{ $attrs = append $attrs (printf "%s=%v" $k $v) }}{{ end }}
-{{- if $attrs }}
+{{- $attrs := dict "service.namespace" .Release.Namespace "k8s.namespace.name" .Release.Namespace "k8s.pod.name" "$(K8S_POD_NAME)" }}
+{{- if $bt.environment }}{{ $_ := set $attrs "deployment.environment.name" $bt.environment }}{{ end }}
+{{- range $k, $v := $bt.resourceAttributes }}{{ $_ := set $attrs $k (printf "%v" $v) }}{{ end }}
+{{- $pairs := list }}
+{{- range $k, $v := $attrs }}{{ $pairs = append $pairs (printf "%s=%s" $k $v) }}{{ end }}
 - name: OTEL_RESOURCE_ATTRIBUTES
-  value: {{ join "," $attrs | quote }}
-{{- end }}
+  value: {{ join "," $pairs | quote }}
 {{- if $bt.metricExportInterval }}
 - name: OTEL_METRIC_EXPORT_INTERVAL
   value: {{ $bt.metricExportInterval | quote }}
