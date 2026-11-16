@@ -547,6 +547,63 @@ ollama:
   tolerations: []
   affinity: {}
 
+# The voice chat's speech (off): speaches, an OpenAI-compatible server for Whisper (what people say, faster-whisper)
+# and Kokoro (the bot's replies), both on the CPU. Enabled, the backend and grif-discord get Speech:Url; the Discord
+# bot's /voice commands need it, and a model for the chat (ollama, or a configured Claude).
+speech:
+  enabled: false
+  # The models, downloaded on the server's first start onto the volume and kept loaded. Whisper small is the
+  # best of the CPU's (about 1 s for a short line on a few cores); Kokoro's 82M voice model is quick on a CPU.
+  transcriptionModel: Systran/faster-whisper-small.en
+  speechModel: speaches-ai/Kokoro-82M-v1.0-ONNX
+  image:
+    repository: ghcr.io/speaches-ai/speaches
+    # The CPU image, pinned by digest; Renovate updates it.
+    tag: 0.9.0-rc.3-cpu@sha256:2163775b6df5e451a71200e8f675fed68dbd8ab184fc604453d549e486f22fd2
+    digest: ""
+    pullPolicy: IfNotPresent
+  port: 8000
+  # An existing server instead: its URL (http://speaches.ai-tools:8000/). Allow the backend to reach it with
+  # networkPolicy.speech.
+  external:
+    url: ""
+  # Where the models are kept, so a restart doesn't download them again (about 1 GB).
+  persistence:
+    existingClaim: ""
+    claimName: speech-models-pvc
+    size: 5Gi
+    storageClass: ""
+    accessModes: [ReadWriteOnce]
+    annotations: {}
+  # The server's other settings (speaches' own environment variables).
+  env: {}
+  # On the CPU: both models loaded (about 1.5 GB) and a few cores for Whisper. Limited, so it never takes a node.
+  resources:
+    requests:
+      memory: 2Gi
+      cpu: "1"
+    limits:
+      memory: 4Gi
+      cpu: "4"
+  # The image's user is ubuntu (1000): its home and models on the volume (HOME=/data).
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # Grunt's Halo gateway in this release (off): the halo-gateway chart (PlayGrifball/grunt), a dependency of
 # this one, for running grif with its own gateway instead of a shared one. Everything under this key is the
 # gateway chart's values (see its values.yaml); README "Bundled Halo gateway". Enabled, the backend calls it
@@ -1181,6 +1238,33 @@ networkPolicy:
           cidr: ::/0
           except: [fc00::/7, fe80::/10]
     extraIngress: []
+  # The voice chat's speech. An external one (speech.external.url): where it is, on port (null: the URL's port).
+  # Empty to: anywhere on that port. The chart's own (speech.enabled) is allowed from the backend, the workers and
+  # grif-discord only, and reaches out only to download its models: HTTPS to modelsFrom (default: the internet, not
+  # private networks; Hugging Face).
+  speech:
+    to: []
+    port: null
+    modelsFrom:
+      - ipBlock:
+          cidr: 0.0.0.0/0
+          except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16]
+      - ipBlock:
+          cidr: ::/0
+          except: [fc00::/7, fe80::/10]
+    extraIngress: []
+  # Discord voice (the bot's /voice), from the pod that runs the Discord gateway (grif-discord, or the backend
+  # without workers): UDP to Discord's voice servers, ports 50000-65535, to (default: the internet, not private
+  # networks). On whenever speech is (speech.enabled or speech.external.url); enabled false turns it off.
+  voice:
+    enabled: true
+    to:
+      - ipBlock:
+          cidr: 0.0.0.0/0
+          except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16]
+      - ipBlock:
+          cidr: ::/0
+          except: [fc00::/7, fe80::/10]
   mssql:
     # Who may reach the LoadBalancer (mssql.loadBalancer). Empty: anyone.
     loadBalancerFrom: []

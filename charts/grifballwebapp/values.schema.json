@@ -404,6 +404,34 @@
         "affinity": { "$ref": "#/definitions/k8sObject" }
       }
     },
+    "speech": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "transcriptionModel": { "type": "string" },
+        "speechModel": { "type": "string" },
+        "image": { "$ref": "#/definitions/image" },
+        "port": { "$ref": "#/definitions/port" },
+        "external": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "url": { "type": "string", "pattern": "^(https?://.+)?$" }
+          }
+        },
+        "persistence": { "$ref": "#/definitions/persistence" },
+        "env": { "$ref": "#/definitions/stringMap" },
+        "resources": { "$ref": "#/definitions/k8sObject" },
+        "podSecurityContext": { "$ref": "#/definitions/k8sObject" },
+        "securityContext": { "$ref": "#/definitions/k8sObject" },
+        "podAnnotations": { "$ref": "#/definitions/stringMap" },
+        "podLabels": { "$ref": "#/definitions/stringMap" },
+        "nodeSelector": { "$ref": "#/definitions/stringMap" },
+        "tolerations": { "$ref": "#/definitions/k8sList" },
+        "affinity": { "$ref": "#/definitions/k8sObject" }
+      }
+    },
     "frontend": {
       "type": "object",
       "additionalProperties": false,
@@ -825,6 +853,24 @@
             "port": { "oneOf": [{ "$ref": "#/definitions/port" }, { "type": "null" }] },
             "pullTo": { "$ref": "#/definitions/peers" },
             "extraIngress": { "$ref": "#/definitions/rules" }
+          }
+        },
+        "speech": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "to": { "$ref": "#/definitions/peers" },
+            "port": { "oneOf": [{ "$ref": "#/definitions/port" }, { "type": "null" }] },
+            "modelsFrom": { "$ref": "#/definitions/peers" },
+            "extraIngress": { "$ref": "#/definitions/rules" }
+          }
+        },
+        "voice": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "to": { "$ref": "#/definitions/peers" }
           }
         },
         "mssql": {

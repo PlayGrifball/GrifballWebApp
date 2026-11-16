@@ -108,6 +108,9 @@ spec:
   egress:
     {{- include "grif.backendEgress" (dict "root" . "dns" $dns "database" $database) | nindent 4 }}
     {{- include "grif.telemetryQueryEgress" . | nindent 4 }}
+    {{- if not .Values.worker.enabled }}
+    {{- include "grif.voiceEgress" . | nindent 4 }}
+    {{- end }}
     {{- if and (eq (include "grif.jobsApp" .) "grif-backend") .Values.backupScratch.enabled }}
     {{- include "grif.backupScratchEgress" . | trim | nindent 4 }}
     {{- end }}
@@ -283,6 +286,54 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     {{- end }}
+---
+{{- end }}
+{{- if .Values.speech.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-speech
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: speech
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-speech
+  # In: the backend, the workers and grif-discord. Out: DNS, and HTTPS to download its models.
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grif-backend
+        {{- if .Values.worker.enabled }}
+        - podSelector:
+            matchLabels:
+              app: grif-worker
+        - podSelector:
+            matchLabels:
+              app: grif-discord
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.speech.port }}
+    {{- with $np.speech.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    # The models' download (Hugging Face).
+    - ports:
+        - protocol: TCP
+          port: 443
+      {{- with $np.speech.modelsFrom }}
+      to:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 ---
 {{- end }}
 {{- if and .Values.mssql.enabled (not $pg) }}
@@ -559,6 +610,7 @@ spec:
   {{- end }}
   egress:
     {{- include "grif.backendEgress" (dict "root" . "dns" $dns "database" $database) | nindent 4 }}
+    {{- include "grif.voiceEgress" . | nindent 4 }}
     {{- with $discordEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -677,8 +729,45 @@ spec:
   {{- end }}
 {{- end }}
 {{- end }}
+{{- with .root.Values.speech }}
+{{- if .enabled }}
+# The voice chat's speech (the chart's speaches).
+- to:
+    - podSelector:
+        matchLabels:
+          app: grif-speech
+  ports:
+    - protocol: TCP
+      port: {{ .port }}
+{{- else if .external.url }}
+# The voice chat's speech (an external server, speech.external.url).
+- ports:
+    - protocol: TCP
+      port: {{ $np.speech.port | default (include "grif.urlPort" .external.url) | int }}
+  {{- with $np.speech.to }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
 {{- with $np.backend.extraEgress }}
 {{ toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/* Discord voice (the bot's /voice): UDP to Discord's voice servers, from the pod that runs the Discord gateway; when speech is on and networkPolicy.voice.enabled. */}}
+{{- define "grif.voiceEgress" -}}
+{{- $np := .Values.networkPolicy -}}
+{{- if and $np.voice.enabled (or .Values.speech.enabled .Values.speech.external.url) }}
+# Discord voice: its voice servers' UDP ports (networkPolicy.voice).
+- ports:
+    - protocol: UDP
+      port: 50000
+      endPort: 65535
+  {{- with $np.voice.to }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- end }}
 {{- end }}
 

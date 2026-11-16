@@ -472,6 +472,11 @@ Secret (secretName/secretKey), so both read the one Secret. Empty secretName: no
 {{- if .Values.ollama.enabled }}{{ printf "http://grif-ollama:%v/" .Values.ollama.port }}{{ else }}{{ .Values.ollama.external.url }}{{ end -}}
 {{- end }}
 
+{{/* The voice chat's speech server (Speech:Url): the chart's, else an external one, else none (no voice). */}}
+{{- define "grif.speechUrl" -}}
+{{- if .Values.speech.enabled }}{{ printf "http://grif-speech:%v/" .Values.speech.port }}{{ else }}{{ .Values.speech.external.url }}{{ end -}}
+{{- end }}
+
 {{/* The chart's Ollama's environment, its server's and its pull's: its home and models on the volume, and ollama.env. */}}
 {{- define "grif.ollamaEnv" -}}
 - name: HOME

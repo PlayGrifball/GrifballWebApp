@@ -176,6 +176,15 @@ spec:
         - name: Ollama__Model
           value: {{ $root.Values.ollama.model | quote }}
         {{- end }}
+        {{- with include "grif.speechUrl" $root }}
+        # The voice chat's speech (speech): the Discord bot's /voice. None: it says voice is unavailable.
+        - name: Speech__Url
+          value: {{ . | quote }}
+        - name: Speech__TranscriptionModel
+          value: {{ $root.Values.speech.transcriptionModel | quote }}
+        - name: Speech__SpeechModel
+          value: {{ $root.Values.speech.speechModel | quote }}
+        {{- end }}
         {{- with $b.dataProtection.certificate }}
         {{- if .secretName }}
         - name: DataProtection__Certificate
