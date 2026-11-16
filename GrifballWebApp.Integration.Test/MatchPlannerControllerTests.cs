@@ -72,7 +72,7 @@ public class MatchPlannerControllerTests
 
         var t2 = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var updated = await _controller.UpdateMatchTime(unscheduled.SeasonMatchID, new UpdateMatchTimeDto { Time = t2 }, CancellationToken.None);
-        Assert.That(updated, Is.TypeOf<NoContentResult>());
+        Assert.That(updated, Is.TypeOf<OkObjectResult>(), "Set, with what is wrong with it (nothing here)");
 
         var after = await _controller.GetScheduledMatches(season.SeasonID, CancellationToken.None);
         Assert.That(after.Select(x => x.SeasonMatchID), Is.EqualTo(new[] { unscheduled.SeasonMatchID, scheduled.SeasonMatchID }));

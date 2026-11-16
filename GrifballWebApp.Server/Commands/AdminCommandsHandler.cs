@@ -177,9 +177,13 @@ public class AdminCommandsHandler
             await context.Reply("I couldn't read that time. Use UTC like 2026-11-20 20:00.");
             return;
         }
-        await _matchPlanner.UpdateMatchTime(new UpdateMatchTimeDto { SeasonMatchID = id, Time = when });
-        await context.Reply($"The match is set for {when.DiscordTimeEmbed()}.");
+        var conflicts = await _matchPlanner.UpdateMatchTime(new UpdateMatchTimeDto { SeasonMatchID = id, Time = when }) ?? [];
+        await context.Reply($"The match is set for {when.DiscordTimeEmbed()}.{Warnings(conflicts)}");
     }
+
+    /// <summary>What is wrong with a time just set (the season's rules), as a reply's last lines; nothing when nothing is.</summary>
+    internal static string Warnings(IReadOnlyList<GrifballWebApp.Application.Scheduling.ScheduleConflict> conflicts)
+        => conflicts.Count == 0 ? "" : "\nBut: " + string.Join(" ", conflicts.Select(c => c.Message));
 
     public async Task GenerateMatches(IDiscordInteractionContext context, string? season, int homeMatchesPerTeam, int bestOf)
     {

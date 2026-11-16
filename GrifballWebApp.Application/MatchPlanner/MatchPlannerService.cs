@@ -121,15 +121,24 @@ public class MatchPlannerService
         return captain.Length == 0 || team.TeamName.Contains(captain, StringComparison.OrdinalIgnoreCase) ? team.TeamName : $"{team.TeamName} ({captain})";
     }
 
-    public async Task UpdateMatchTime(UpdateMatchTimeDto dto, CancellationToken ct = default)
+    /// <summary>
+    /// Staff set a match's time (or clear it): set, whatever the season's rules say, and what is wrong with it returned as
+    /// warnings (<see cref="Scheduling.ScheduleChecker"/>); none for a time cleared, or a match without both teams. Null when
+    /// there's no such match.
+    /// </summary>
+    public async Task<IReadOnlyList<Scheduling.ScheduleConflict>?> UpdateMatchTime(UpdateMatchTimeDto dto, CancellationToken ct = default)
     {
         var seasonMatch = await _grifballContext.SeasonMatches.Where(x => x.SeasonMatchID == dto.SeasonMatchID).FirstOrDefaultAsync(ct);
 
         if (seasonMatch is null)
-            return;
+            return null;
 
+        var conflicts = dto.Time is { } time
+            ? await new Scheduling.SchedulingService(_grifballContext, TimeProvider.System).CheckAsync(seasonMatch.SeasonMatchID, time, ct) ?? []
+            : [];
         seasonMatch.ScheduleAt(dto.Time);
 
         await _grifballContext.SaveChangesAsync(ct);
+        return conflicts;
     }
 }

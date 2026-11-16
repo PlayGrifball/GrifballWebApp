@@ -125,8 +125,10 @@ public class CommissionerTools
     {
         _caller.RequireRolesOf();
         var utc = time.Kind is DateTimeKind.Local ? time.ToUniversalTime() : DateTime.SpecifyKind(time, DateTimeKind.Utc);
-        await _matchPlanner.UpdateMatchTime(new UpdateMatchTimeDto { SeasonMatchID = await SeasonMatch(seasonMatchID, ct), Time = utc }, ct);
-        return $"The match is set for {utc:yyyy-MM-dd HH:mm} UTC.";
+        var conflicts = await _matchPlanner.UpdateMatchTime(new UpdateMatchTimeDto { SeasonMatchID = await SeasonMatch(seasonMatchID, ct), Time = utc }, ct) ?? [];
+        // Set all the same: what is wrong with it (the season's rules) for the model to pass on
+        var warnings = conflicts.Count == 0 ? "" : " But: " + string.Join(" ", conflicts.Select(c => c.Message));
+        return $"The match is set for {utc:yyyy-MM-dd HH:mm} UTC.{warnings}";
     }
 
     [Description("Makes a season's matches from its teams (each team's home matches against the others), as the season setup does. Refused "

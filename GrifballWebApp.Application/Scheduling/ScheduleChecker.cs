@@ -76,12 +76,12 @@ public sealed class ScheduleChecker(DateTime seasonStart, DateTime seasonEnd, Se
         return [.. Season(match, slot), .. Teams(match, slot, theirs), .. Caps(match, local, theirs)];
     }
 
-    /// <summary>Its time against the season's dates and weekly timeslots.</summary>
+    /// <summary>Its time against the season's dates and weekly timeslots: each only when the season has them (an imported one may not).</summary>
     private IEnumerable<ScheduleConflict> Season(ScheduledMatch match, (DayOfWeek, TimeOnly) slot)
     {
-        if (match.StartsAt < seasonStart || match.EndsAt > seasonEnd)
+        if (seasonEnd > seasonStart && (match.StartsAt < seasonStart || match.EndsAt > seasonEnd))
             yield return new(ScheduleConflictKind.OutsideSeason, "It's outside the season's dates.");
-        if (!_slots.Contains(slot))
+        if (_slots.Count > 0 && !_slots.Contains(slot))
             yield return new(ScheduleConflictKind.NotASeasonTimeslot, "It isn't one of the season's timeslots.");
     }
 
@@ -90,6 +90,9 @@ public sealed class ScheduleChecker(DateTime seasonStart, DateTime seasonEnd, Se
     {
         if (others.Any(o => o.Shares(match) && o.Overlaps(match)))
             yield return new(ScheduleConflictKind.TeamPlaysThen, "One of its teams plays another match then.");
+        // Availability is of the season's timeslots: a season without them has none to check
+        if (_slots.Count == 0)
+            yield break;
         if (!CanPlay(match.HomeTeamID, slot))
             yield return new(ScheduleConflictKind.HomeTeamUnavailable, "The home team isn't available then.");
         if (!CanPlay(match.AwayTeamID, slot))
