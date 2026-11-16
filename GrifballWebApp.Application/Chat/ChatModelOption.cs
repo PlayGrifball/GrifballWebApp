@@ -15,7 +15,8 @@ public enum ChatProvider
 
 /// <summary>
 /// A model the chat can answer with (Chat:Models): its ID (what a user's choice keeps), the name people see, who runs it, the
-/// provider's model, the roles that may use it (none: anyone), and its price (none: free). The order matters: a caller's default is
+/// provider's model, the roles that may use it (none: anyone), its price (none: free), its output limit, and whether it gets every tool
+/// in private (<see cref="EveryTool"/>). The order matters: a caller's default is
 /// the first they may use (<see cref="GrifChat.Allowed"/>), and a Discord channel's the first anyone may.
 /// </summary>
 public sealed record ChatModelOption(string Id, string Name, ChatProvider Provider, string Model)
@@ -31,6 +32,12 @@ public sealed record ChatModelOption(string Id, string Name, ChatProvider Provid
     /// (Anthropic's client's is 1,024, too few for a model that thinks first).
     /// </summary>
     public int? MaxOutputTokens { get; init; }
+
+    /// <summary>
+    /// Whether it picks well from every tool (Claude): then, in private, it gets every tool the caller's roles allow, as the MCP server
+    /// gives them; else the chat's short list (<see cref="Tools.GrifTools.PrivateChat"/>), which a small model picks from better.
+    /// </summary>
+    public bool EveryTool { get; init; }
 
     /// <summary>Anyone may use it: no roles.</summary>
     public bool IsOpen => Roles.Count == 0;

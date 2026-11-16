@@ -93,11 +93,11 @@ public static class ChatModels
     public static readonly IReadOnlyList<ChatModelOption> Claude =
     [
         new("claude-haiku", "Claude Haiku 5.5", ChatProvider.Anthropic, "claude-haiku-5-5")
-            { Roles = [SiteRoles.Sysadmin], MaxOutputTokens = ClaudeMaxOutputTokens, Price = new(Input: 0.10m, Output: 0.50m, CacheWrite: 0.125m, CacheRead: 0.01m) },
+            { Roles = [SiteRoles.Sysadmin], MaxOutputTokens = ClaudeMaxOutputTokens, EveryTool = true, Price = new(Input: 0.10m, Output: 0.50m, CacheWrite: 0.125m, CacheRead: 0.01m) },
         new("claude-sonnet", "Claude Sonnet 5.5", ChatProvider.Anthropic, "claude-sonnet-5-5")
-            { Roles = [SiteRoles.Sysadmin], MaxOutputTokens = ClaudeMaxOutputTokens, Price = new(Input: 2m, Output: 10m, CacheWrite: 2.50m, CacheRead: 0.10m) },
+            { Roles = [SiteRoles.Sysadmin], MaxOutputTokens = ClaudeMaxOutputTokens, EveryTool = true, Price = new(Input: 2m, Output: 10m, CacheWrite: 2.50m, CacheRead: 0.10m) },
         new("claude-opus", "Claude Opus 5.5", ChatProvider.Anthropic, "claude-opus-5-5")
-            { Roles = [SiteRoles.Sysadmin], MaxOutputTokens = ClaudeMaxOutputTokens, Price = new(Input: 4m, Output: 20m, CacheWrite: 5m, CacheRead: 0.20m) },
+            { Roles = [SiteRoles.Sysadmin], MaxOutputTokens = ClaudeMaxOutputTokens, EveryTool = true, Price = new(Input: 4m, Output: 20m, CacheWrite: 5m, CacheRead: 0.20m) },
     ];
 
     public static IReadOnlyList<ChatModelOption> From(IConfiguration configuration)
@@ -138,6 +138,7 @@ public static class ChatModels
         public List<string> Roles { get; set; } = [];
         public PriceSettings? Price { get; set; }
         public int? MaxOutputTokens { get; set; }
+        public bool EveryTool { get; set; }
 
         public ChatModelOption ToModel()
         {
@@ -153,6 +154,7 @@ public static class ChatModels
             {
                 Roles = Roles,
                 MaxOutputTokens = MaxOutputTokens,
+                EveryTool = EveryTool,
                 Price = Price is null ? null : new(Price.Input, Price.Output, Price.CacheWrite, Price.CacheRead),
             };
         }

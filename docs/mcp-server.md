@@ -139,7 +139,9 @@ alone. A host keeps the conversation, passes the caller and its `ChatHost`, and 
 The models are `IChatClientFactory`'s, which Infrastructure registers (`ChatClients`): `Chat:Models` when it lists any
 (each one's ID, name, provider, model, roles and price), else Claude Haiku, Sonnet and Opus 5.5 for sysadmins with
 `Anthropic:ApiKey` set, then the Ollama model (`Ollama:Model`, default `llama3.1:latest`, at `Ollama:Url`) for anyone.
-`GrifChat` chooses one per question: the one asked for, else the user's choice (`ChatChoice`, kept from the site's picker
+A model with `EveryTool` (the Claude defaults) gets, in private (the site, a Discord DM), every tool the caller's roles allow, as the
+MCP server gives them; the others, and every model in a Discord channel, keep the chat's short list, which a small model picks from
+better. `GrifChat` chooses one per question: the one asked for, else the user's choice (`ChatChoice`, kept from the site's picker
 for their Discord DMs too), else the first their roles allow; a Discord channel always uses the first anyone may. A paid
 model's reply is priced from its usage and added to the user's month (`ChatMonth`); past `Chat:MonthlyLimit` (10 US dollars)
 the paid models refuse them until the next month. The limit can be overshot by a bounded amount: each process (a
