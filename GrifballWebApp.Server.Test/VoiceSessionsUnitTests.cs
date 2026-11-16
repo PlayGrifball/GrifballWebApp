@@ -38,10 +38,17 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
         public int Disposals { get; private set; }
         public bool Disposed => Disposals > 0;
 
+        public Func<ulong, bool>? Wants { get; set; }
+
         public event Action<ulong, short[]>? Heard;
         public event Action? Closed;
 
-        public void Say(ulong speaker, short[] pcm) => Heard?.Invoke(speaker, pcm);
+        // As Discord's link does: a speaker not wanted isn't even decoded
+        public void Say(ulong speaker, short[] pcm)
+        {
+            if (Wants?.Invoke(speaker) != false)
+                Heard?.Invoke(speaker, pcm);
+        }
 
         public void Close() => Closed?.Invoke();
 
