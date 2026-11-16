@@ -275,16 +275,10 @@ public sealed class HistoricalArchiveBuilder
     /// <summary>
     /// The season's name of a standings team the standings spell another way: the same letters and digits ("like
     /// clockwork!"), or a few letters off (one, two from 8 letters, three from 15) with the same digits when exactly one
-    /// of the known teams is that close ("Chemical Inbalance", never "Team 10" for "Team 1"); else the same without a
-    /// note in brackets ("Puffy Grifbussy (WINNER)"). A team no one else names keeps its own name.
+    /// of the known teams is that close ("Chemical Inbalance", never "Team 10" for "Team 1"), or the same but for a note
+    /// in brackets ("Puffy Grifbussy (WINNER)"). A team no one else names keeps its own name.
     /// </summary>
-    private static string KnownName(string name, List<string> known)
-    {
-        if (Closest(name, known) is { } same)
-            return same;
-        var bare = StandingsParser.WithoutNote(name);
-        return bare != name && Closest(bare, known) is { } withoutNote ? withoutNote : name;
-    }
+    private static string KnownName(string name, List<string> known) => Closest(name, known) ?? name;
 
     private static string? Closest(string name, List<string> known)
     {

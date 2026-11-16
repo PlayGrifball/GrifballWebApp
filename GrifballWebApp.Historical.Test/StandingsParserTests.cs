@@ -363,4 +363,13 @@ public class StandingsParserTests
     {
         Assert.That(StandingsParser.Place(cell), Is.EqualTo(place));
     }
+
+    [TestCase("Puffy Grifbussy (WINNER)", "Puffy Grifbussy")]
+    [TestCase("  Buff Oily Men (& Women) ", "Buff Oily Men")]
+    [TestCase("Like Clockwork", "Like Clockwork")]
+    [TestCase("(TBD)", "(TBD)")]
+    public void WithoutNote_TakesOffTheBracketAtTheEnd_UnlessTheNameIsAllBracket(string name, string expected)
+    {
+        Assert.That(StandingsParser.WithoutNote(name), Is.EqualTo(expected));
+    }
 }
