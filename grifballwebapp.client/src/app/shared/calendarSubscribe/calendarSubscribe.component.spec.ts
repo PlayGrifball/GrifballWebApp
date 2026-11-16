@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DOCUMENT } from '@angular/core';
+import { Clipboard } from '@angular/cdk/clipboard';
 import { calendarFeedUrl, CalendarSubscribeComponent, webcalUrl } from './calendarSubscribe.component';
 
 describe('calendarFeedUrl', () => {
@@ -24,12 +25,12 @@ describe('webcalUrl', () => {
 
 describe('CalendarSubscribeComponent', () => {
   let fixture: ComponentFixture<CalendarSubscribeComponent>;
-  let writeText: jasmine.Spy<(text: string) => Promise<void>>;
+  let clipboard: jasmine.SpyObj<Clipboard>;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
-    const clipboard = TestBed.inject(DOCUMENT).defaultView!.navigator.clipboard;
-    writeText = spyOn(clipboard, 'writeText').and.resolveTo();
+    clipboard = jasmine.createSpyObj<Clipboard>('Clipboard', ['copy']);
+    clipboard.copy.and.returnValue(true);
+    TestBed.configureTestingModule({ providers: [{ provide: Clipboard, useValue: clipboard }] });
     fixture = TestBed.createComponent(CalendarSubscribeComponent);
     fixture.componentRef.setInput('path', 'teams/5/calendar.ics');
     fixture.componentRef.setInput('description', 'This team\'s matches');
@@ -56,24 +57,22 @@ describe('CalendarSubscribeComponent', () => {
     expect(el().querySelector('summary')!.textContent).toContain('Subscribe to calendar');
   });
 
-  it('copies the address and says so', async () => {
+  it('copies the address and says so', () => {
     const copy = el().querySelector<HTMLButtonElement>('button.cal-sub__copy')!;
     expect(copy.textContent!.trim()).toBe('Copy');
 
     copy.click();
-    await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(writeText).toHaveBeenCalledOnceWith(`${origin()}/api/teams/5/calendar.ics`);
+    expect(clipboard.copy).toHaveBeenCalledOnceWith(`${origin()}/api/teams/5/calendar.ics`);
     expect(copy.textContent!.trim()).toBe('Copied');
   });
 
-  it('keeps offering to copy when the browser refuses', async () => {
-    writeText.and.rejectWith(new Error('denied'));
+  it('keeps offering to copy when the browser refuses', () => {
+    clipboard.copy.and.returnValue(false);
     const copy = el().querySelector<HTMLButtonElement>('button.cal-sub__copy')!;
 
     copy.click();
-    await fixture.whenStable();
     fixture.detectChanges();
 
     expect(copy.textContent!.trim()).toBe('Copy');

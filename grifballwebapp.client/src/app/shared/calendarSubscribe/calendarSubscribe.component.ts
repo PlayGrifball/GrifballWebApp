@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, DOCUMENT, computed, inject, input, signal } from '@angular/core';
+import { Clipboard } from '@angular/cdk/clipboard';
 
 /** A calendar feed's address on this site: the API's own path (`teams/5/calendar.ics`) under `/api`. */
 export function calendarFeedUrl(origin: string, path: string): string {
@@ -23,6 +24,7 @@ export function webcalUrl(url: string): string {
 })
 export class CalendarSubscribeComponent {
   private readonly document = inject(DOCUMENT);
+  private readonly clipboard = inject(Clipboard);
 
   /** The feed's path on the API, as the server routes it: `teams/5/calendar.ics`. */
   readonly path = input.required<string>();
@@ -35,9 +37,6 @@ export class CalendarSubscribeComponent {
   readonly copied = signal(false);
 
   copy(): void {
-    this.document.defaultView?.navigator.clipboard.writeText(this.url()).then(
-      () => this.copied.set(true),
-      () => this.copied.set(false),
-    );
+    this.copied.set(this.clipboard.copy(this.url()));
   }
 }
