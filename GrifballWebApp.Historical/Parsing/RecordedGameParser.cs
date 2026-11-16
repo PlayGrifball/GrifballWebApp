@@ -238,8 +238,7 @@ public static partial class RecordedGameParser
             if (named && !sideOf.TryGetValue(first, out side))
                 sideOf[first] = side = sideOf.Count + 1;
             var gamertag = ArchiveCells.Gamertag(Cell(row, 1)).Gamertag;
-            // A player who didn't play has 0 games; a block without a games column (DJBluePDX's) lists only who played
-            if (gamertag.Length == 0 || (played >= 0 ? (Int(row, played) ?? 0) == 0 : Int(row, kills) is null && Int(row, deaths) is null))
+            if (gamertag.Length == 0 || !Played(row, played, kills, deaths))
                 continue;
             players.Add(new RecordedPlayerInput
             {
@@ -286,6 +285,11 @@ public static partial class RecordedGameParser
             Players = block.Players,
         };
     }
+
+    /// <summary>Whether a block's row played: a player who didn't has 0 games; a block without a games column (DJBluePDX's)
+    /// lists only who played, by their kills or deaths.</summary>
+    private static bool Played(string[] row, int played, int kills, int deaths)
+        => played >= 0 ? (Int(row, played) ?? 0) != 0 : Int(row, kills) is not null || Int(row, deaths) is not null;
 
     private static string Cell(string[] row, int column) => column >= 0 && column < row.Length ? row[column] : "";
 

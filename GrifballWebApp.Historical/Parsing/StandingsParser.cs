@@ -104,29 +104,27 @@ public static partial class StandingsParser
     /// columns, in order.</summary>
     private static (Dictionary<Field, int> Columns, List<int> Players) RowColumns(string[] header, int teamColumn)
     {
+        var fields = Scan(header, teamColumn, 1).Concat(Scan(header, teamColumn, -1)).ToList();
         var columns = new Dictionary<Field, int>();
-        var players = new List<int>();
-        void Scan(int step)
+        foreach (var (field, c) in fields.Where(f => f.Field != Field.Player))
+            columns.TryAdd(field, c);
+        return (columns, fields.Where(f => f.Field == Field.Player).Select(f => f.Column).Order().ToList());
+    }
+
+    /// <summary>The header's known columns from the team column one way, up to another table's team header or two empty cells.</summary>
+    private static IEnumerable<(Field Field, int Column)> Scan(string[] header, int teamColumn, int step)
+    {
+        var empty = 0;
+        for (var c = teamColumn + step; c >= 0 && c < header.Length; c += step)
         {
-            var empty = 0;
-            for (var c = teamColumn + step; c >= 0 && c < header.Length; c += step)
-            {
-                // Two empty header cells in a row end the table (one is a merged header's)
-                empty = header[c].Trim().Length == 0 ? empty + 1 : 0;
-                if (empty == 2)
-                    return;
-                var field = FieldOf(header[c]);
-                if (field == Field.Team)
-                    return;
-                if (field == Field.Player)
-                    players.Add(c);
-                else if (field is { } known)
-                    columns.TryAdd(known, c);
-            }
+            // Two empty header cells in a row end the table (one is a merged header's)
+            empty = header[c].Trim().Length == 0 ? empty + 1 : 0;
+            var field = FieldOf(header[c]);
+            if (empty == 2 || field == Field.Team)
+                yield break;
+            if (field is { } known)
+                yield return (known, c);
         }
-        Scan(1);
-        Scan(-1);
-        return (columns, players.Order().ToList());
     }
 
     /// <summary>A team's row has a number of the table's (a win, a loss, a record, a place) or, a table of only names,
