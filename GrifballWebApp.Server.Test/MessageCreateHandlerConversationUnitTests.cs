@@ -89,6 +89,7 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             .AddTransient<GrifballWebApp.Application.Grades.GradesService>()
             .AddTransient<GrifballWebApp.Application.Signups.SignupsService>()
             .AddSingleton(Substitute.For<GrifballWebApp.Application.Brackets.IBracketService>())
+            .AddSingleton<IChatWaiting, MemoryChatWaiting>()
             .BuildServiceProvider();
         var chatClients = Substitute.For<IChatClientFactory>();
         chatClients.Available.Returns(_modelConfigured);
@@ -572,6 +573,51 @@ public class MessageCreateHandlerConversationUnitTests : SqliteGrifballContextFi
             Assert.That(message?.OperationName, Is.EqualTo(MessageCreateHandler.MessageSpanName));
             Assert.That(message?.Status, Is.EqualTo(System.Diagnostics.ActivityStatusCode.Error), "a slow reply is found by its status");
             Assert.That(message?.StatusDescription, Is.EqualTo(GrifChat.TookTooLong));
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_ANoInADm_AnswersTheChangeWaitingForTheAuthor_AndRunsNothing()
+    {
+        var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
+        DmHolds();
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Left as it was."));
+        var handler = Handler(model);
+        var accounts = new ChatAccounts(_services!.GetRequiredService<IServiceScopeFactory>(), _time, NullLogger<ChatAccounts>.Instance);
+        var asker = ChatLimits.Asker(new ToolCaller(user.Id, []), "");
+        await accounts.SaveWaitingAsync(ChatHost.DiscordDirect, asker, new ChatAction("a1", "ollama", "forfeit_season_match(seasonMatchID: 12)",
+            [new ChatActionCall("r1", "call-1", "forfeit_season_match", "{\"seasonMatchID\":12}")]));
+
+        await handler.HandleAsync(GatewayMessages.Build(AuthorId, restClient: new RestClient(new RestClientConfiguration { RequestHandler = _discord }),
+            direct: true, content: "no"));
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(model.Messages.SelectMany(m => m.Contents).OfType<FunctionResultContent>().Single().Result?.ToString(), Does.Contain("rejected"));
+            Assert.That(_discord.SentMessages().Single().Body.GetProperty("content").GetString(), Is.EqualTo("Left as it was."));
+            Assert.That(await accounts.WaitingAsync(ChatHost.DiscordDirect, asker), Is.Null, "Answered");
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_StaffInADm_TheirSettingDecides_WhetherAChangeWaits()
+    {
+        var user = await AddUser(AuthorId, "Staffer", GrifballWebApp.Application.Identity.SiteRoles.Commissioner);
+        var choice = GrifballWebApp.Domain.Players.ChatChoice.Make(user.Id);
+        choice.SetAutoApprove(true);
+        Db.ChatChoices.Add(choice);
+        await Db.SaveChangesAsync();
+        DmHolds();
+        var model = new ScriptedChatClient((TimeSpan.Zero, "Hi"));
+
+        await Handler(model).HandleAsync(DirectMessage());
+
+        AssertNothingLogged();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(model.Options!.Instructions, Does.Contain(GrifChat.AutoApprovedLine));
+            Assert.That(model.Options.Tools, Has.None.InstanceOf<ApprovalRequiredAIFunction>());
         }
     }
 }

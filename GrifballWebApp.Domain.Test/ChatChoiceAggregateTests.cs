@@ -34,4 +34,28 @@ public class ChatChoiceAggregateTests
             Assert.That(choice.Model, Is.EqualTo("claude-haiku"), "Refused: unchanged");
         }
     }
+
+    [Test]
+    public void ChangesWaitForTheUser_UntilTheyChooseToApproveThemAutomatically()
+    {
+        var choice = ChatChoice.Make(7, "claude-haiku");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(choice.AutoApprove, Is.False, "By default, a change waits for them");
+            choice.SetAutoApprove(true);
+            Assert.That(choice.AutoApprove, Is.True);
+            choice.Choose("claude-opus");
+            Assert.That(choice.AutoApprove, Is.True, "Choosing a model leaves it");
+        }
+    }
+
+    [Test]
+    public void ForAUserWithNoModelChosen_KeepsTheirSetting_TheirRolesDefaultStillChosen()
+    {
+        var choice = ChatChoice.Make(7);
+        choice.SetAutoApprove(true);
+
+        Assert.That((choice.UserID, choice.Model, choice.AutoApprove), Is.EqualTo((7, (string?)null, true)));
+    }
 }

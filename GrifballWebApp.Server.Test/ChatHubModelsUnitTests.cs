@@ -5,6 +5,7 @@ using GrifballWebApp.Server.Chat;
 using GrifballWebApp.Server.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -32,12 +33,14 @@ public class ChatHubModelsUnitTests : SqliteGrifballContextFixture
             await _services.DisposeAsync();
     }
 
-    private ChatHub Hub(HubUserState user)
+    private ChatHub Hub(HubUserState user, IChatClient? model = null)
     {
         var clients = Substitute.For<IChatClientFactory>();
         clients.Available.Returns(true);
         clients.Models.Returns([Free, Other]);
-        _services ??= new ServiceCollection().AddSingleton<IApplicationDbContext>(Db).BuildServiceProvider();
+        if (model is not null)
+            clients.Create(Arg.Any<ChatModelOption>()).Returns(model);
+        _services ??= new ServiceCollection().AddSingleton<IApplicationDbContext>(Db).AddSingleton<IChatWaiting>(new MemoryChatWaiting(TimeProvider.System)).BuildServiceProvider();
         var scopes = _services.GetRequiredService<IServiceScopeFactory>();
         var now = new HubUser();
         now.Set(user);
@@ -60,4 +63,105 @@ public class ChatHubModelsUnitTests : SqliteGrifballContextFixture
             Assert.That((await Hub(new HubUserState(7, ["Player"])).Models()).Selected, Is.EqualTo("qwen"), "Kept for the next connection");
         }
     }
+
+    [Test]
+    public async Task Waiting_NoChangeAskedFor_IsNone_AndAnAnswerToIt_IsRefused()
+    {
+        var hub = Hub(new HubUserState(7, ["Commissioner"]));
+
+        var waiting = await hub.Waiting();
+        var reply = await hub.Confirm(new ChatConfirmDto { ActionId = "nothing", Approved = true, History = [] }, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(waiting, Is.Null);
+            Assert.That(async () => await reply.ReadAllAsync().ToListAsync(),
+                Throws.InstanceOf<HubException>().With.Message.EqualTo(GrifChat.NothingWaiting));
+        }
+    }
+
+    private static readonly ChatConfirmDto?[] Unreadable =
+    [
+        null,
+        new() { ActionId = null!, Approved = true, History = [] },
+        new() { ActionId = "a", Approved = true, History = null! },
+        new() { ActionId = "a", Approved = true, History = [null!] },
+        new() { ActionId = "a", Approved = true, History = [new ChatTurnDto { FromBot = false, Text = null! }] },
+    ];
+
+    [TestCaseSource(nameof(Unreadable))]
+    public async Task Confirm_AnUnreadableAnswer_IsRefused(ChatConfirmDto? answer)
+    {
+        var reply = await Hub(new HubUserState(7, ["Commissioner"])).Confirm(answer!, CancellationToken.None);
+
+        Assert.That(async () => await reply.ReadAllAsync().ToListAsync(), Throws.InstanceOf<HubException>().With.Message.EqualTo(GrifChat.Unreadable));
+    }
+
+    [Test]
+    public async Task Waiting_TheChangeWaitingForTheUser_ItsIDAndWhatItDoes()
+    {
+        var hub = Hub(new HubUserState(7, ["Commissioner"]));
+        var scopes = _services!.GetRequiredService<IServiceScopeFactory>();
+        await new ChatAccounts(scopes, new FakeTimeProvider(), NullLogger<ChatAccounts>.Instance).SaveWaitingAsync(ChatHost.Site,
+            ChatLimits.Asker(new GrifballWebApp.Application.Tools.ToolCaller(7, []), ""), new ChatAction("a1", "ollama", "forfeit_season_match(seasonMatchID: 12)", []));
+
+        var waiting = await hub.Waiting();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(waiting?.Id, Is.EqualTo("a1"));
+            Assert.That(waiting?.Description, Is.EqualTo("forfeit_season_match(seasonMatchID: 12)"));
+        }
+    }
+
+    [Test]
+    public async Task Forget_DropsTheChangeWaitingForTheUser()
+    {
+        var hub = Hub(new HubUserState(7, ["Commissioner"]));
+        await new ChatAccounts(_services!.GetRequiredService<IServiceScopeFactory>(), new FakeTimeProvider(), NullLogger<ChatAccounts>.Instance).SaveWaitingAsync(ChatHost.Site,
+            ChatLimits.Asker(new GrifballWebApp.Application.Tools.ToolCaller(7, []), ""), new ChatAction("a1", "ollama", "run_job()", []));
+
+        await hub.Forget();
+
+        Assert.That(await hub.Waiting(), Is.Null);
+    }
+
+    [Test]
+    public async Task SetAutoApprove_KeepsStaffsSetting_AndGivesTheirModelsWithIt()
+    {
+        var models = await Hub(new HubUserState(7, ["Commissioner"])).SetAutoApprove(true);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(models.AutoApprove, Is.True);
+            Assert.That((await Hub(new HubUserState(7, ["Commissioner"])).Models()).AutoApprove, Is.True, "Kept for the next connection");
+            Assert.That((await Hub(new HubUserState(8, ["Player"])).Models()).AutoApprove, Is.Null, "A player has no change to approve");
+        }
+    }
+
+    [Test]
+    public async Task Ask_WithNoChoiceOfItsOwn_TheirSettingDecides_TheConversationsChoiceOverIt()
+    {
+        await Hub(new HubUserState(7, ["Commissioner"])).SetAutoApprove(true);
+
+        var saved = new ScriptedChatClient((TimeSpan.Zero, "Hi"));
+        await (await Hub(new HubUserState(7, ["Commissioner"]), saved).Ask(new ChatRequestDto { Question = "Hi", History = [] }, CancellationToken.None))
+            .ReadAllAsync().ToListAsync();
+        var overridden = new ScriptedChatClient((TimeSpan.Zero, "Hi"));
+        await (await Hub(new HubUserState(7, ["Commissioner"]), overridden)
+            .Ask(new ChatRequestDto { Question = "Hi", History = [], AutoApprove = false }, CancellationToken.None)).ReadAllAsync().ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(saved.Options!.Instructions, Does.Contain(GrifChat.AutoApprovedLine));
+            Assert.That(saved.Options.Tools, Has.None.InstanceOf<ApprovalRequiredAIFunction>());
+            Assert.That(overridden.Options!.Instructions, Does.Contain(GrifChat.PrivateLine), "This conversation: changes wait");
+            Assert.That(overridden.Options.Tools, Has.Some.InstanceOf<ApprovalRequiredAIFunction>());
+        }
+    }
+
+    [Test]
+    public void SetAutoApprove_ForSomeoneWithNoChangeToMake_IsRefused_WithWhy()
+        => Assert.That(async () => await Hub(new HubUserState(8, ["Player"])).SetAutoApprove(true),
+            Throws.InstanceOf<HubException>().With.Message.EqualTo(GrifChat.NoChangesToApprove));
 }

@@ -6,7 +6,7 @@ import type { HubConnection, IStreamResult, Subject } from '@microsoft/signalr';
 import type { IChatHubServer, IChatHubClient } from './GrifballWebApp.Server.Chat';
 import type { IQueueHubServer, IQueueHubClient } from './GrifballWebApp.Server.Matchmaking';
 import type { ITeamsHubServer, ITeamsHubClient } from './GrifballWebApp.Server.Teams';
-import type { ChatRequestDto, ChatModelsDto } from '../GrifballWebApp.Application.Chat';
+import type { ChatRequestDto, ChatModelsDto, ChatConfirmDto, ChatActionDto } from '../GrifballWebApp.Application.Chat';
 import type { TeamResponseDto, PlayerDto, CaptainPlacementDto, RemoveCaptainDto, RemovePlayerFromTeamRequestDto, MovePlayerToTeamRequestDto, AddPlayerToTeamRequestDto, CaptainAddedDto } from '../GrifballWebApp.Application.Teams';
 
 
@@ -109,6 +109,22 @@ class IChatHubServer_HubProxy implements IChatHubServer {
 
     public readonly choose = async (model: string): Promise<ChatModelsDto> => {
         return await this.connection.invoke("Choose", model);
+    }
+
+    public readonly confirm = (answer: ChatConfirmDto): IStreamResult<string> => {
+        return this.connection.stream("Confirm", answer);
+    }
+
+    public readonly waiting = async (): Promise<ChatActionDto> => {
+        return await this.connection.invoke("Waiting");
+    }
+
+    public readonly forget = async (): Promise<void> => {
+        return await this.connection.invoke("Forget");
+    }
+
+    public readonly setAutoApprove = async (on: boolean): Promise<ChatModelsDto> => {
+        return await this.connection.invoke("SetAutoApprove", on);
     }
 }
 

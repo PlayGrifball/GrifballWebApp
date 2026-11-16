@@ -37,9 +37,15 @@ public class ChatHubUnitTests
     private readonly IAmbientCurrentUser _ambient = Substitute.For<IAmbientCurrentUser>();
     private readonly RecordingLogger<ChatHub> _logger = new();
     private readonly ChatLimits _limits = new();
+    // Where a change the model asks for waits (ChatAccounts), in memory
+    private readonly ServiceProvider _cache = new ServiceCollection().AddSingleton<IChatWaiting>(new MemoryChatWaiting(TimeProvider.System)).BuildServiceProvider();
 
     [TearDown]
-    public void TearDown() => _limits.Dispose();
+    public async Task TearDown()
+    {
+        _limits.Dispose();
+        await _cache.DisposeAsync();
+    }
 
     /// <summary>
     /// The hub for <paramref name="user"/> as the database has them now (signed out by default), on a connection whose claims are
@@ -60,10 +66,12 @@ public class ChatHubUnitTests
         context.Features.Returns(features);
         var now = new HubUser();
         now.Set(user ?? HubUserState.Anonymous);
-        return new ChatHub(new GrifChat(new ChatModel(_clients, NullLoggerFactory.Instance), Substitute.For<IServiceScopeFactory>(), _limits, new ChatAccounts(Substitute.For<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ChatAccounts>.Instance)), now, _ambient, _logger) { Context = context };
+        return new ChatHub(new GrifChat(new ChatModel(_clients, NullLoggerFactory.Instance), Substitute.For<IServiceScopeFactory>(), _limits, new ChatAccounts(_cache.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ChatAccounts>.Instance)), now, _ambient, _logger) { Context = context };
     }
 
-    private static ChatRequestDto Question(string question = "Who won?", params ChatTurnDto[] history) => new() { Question = question, History = [.. history] };
+    // With the page's own choice of whether changes wait (false): these tests have no database for the user's setting (ChatHubModelsUnitTests)
+    private static ChatRequestDto Question(string question = "Who won?", params ChatTurnDto[] history)
+        => new() { Question = question, History = [.. history], AutoApprove = false };
 
     /// <summary>Everything the reply streamed, then how it ended: null, or the error the browser is shown.</summary>
     private static async Task<(List<string> Texts, string? Error)> Read(ChannelReader<string> reply)

@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { PLATFORM_ID } from '@angular/core';
 import { HubConnectionBuilder, HubConnectionState, type HubConnection, type IStreamSubscriber } from '@microsoft/signalr';
-import type { ChatModelsDto, ChatRequestDto, ChatTurnDto } from '@api/models';
+import type { ChatActionDto, ChatConfirmDto, ChatModelsDto, ChatRequestDto, ChatTurnDto } from '@api/models';
 import { AuthSession } from '@core/auth/authSession.service';
 import {
-  CHAT_HUB_URL, CHAT_STORAGE_KEY, ChatStore, FAILED, HISTORY_LIMIT, MAX_HISTORY_MESSAGE_LENGTH, NOT_CONNECTED, STOP_SPEND_RELOAD_MS, chatErrorText,
+  CANCELLED, CHAT_HUB_URL, CHAT_STORAGE_KEY, CONFIRMED, ChatStore, FAILED, HISTORY_LIMIT, MAX_HISTORY_MESSAGE_LENGTH, NOT_CONNECTED, STOP_SPEND_RELOAD_MS, chatErrorText,
 } from './chat.store';
 
 describe('ChatStore', () => {
@@ -16,6 +16,8 @@ describe('ChatStore', () => {
   let withUrl: jasmine.Spy;
   /** Each answer asked for: who reads it, and whether it was stopped. */
   let answers: { subscriber: IStreamSubscriber<string>; disposed: boolean }[];
+  /** The change the server says waits for the user's answer: none unless a spec says. */
+  let waiting: ChatActionDto | null;
 
   const turn = (fromBot: boolean, text: string): ChatTurnDto => ({ fromBot, text });
   /** A sysadmin's models: Claude first (their default), then the league's own, and their spend this month. */
@@ -24,6 +26,7 @@ describe('ChatStore', () => {
     selected: 'claude-haiku',
     spent: 1.5,
     limit: 10,
+    autoApprove: null,
   };
 
   function create(platform = 'browser'): ChatStore {
@@ -38,6 +41,7 @@ describe('ChatStore', () => {
   beforeEach(() => {
     sessionStorage.removeItem(CHAT_STORAGE_KEY);
     answers = [];
+    waiting = null;
     connection = {
       start: jasmine.createSpy('start').and.returnValue(Promise.resolve()),
       stop: jasmine.createSpy('stop').and.returnValue(Promise.resolve()),
@@ -51,7 +55,11 @@ describe('ChatStore', () => {
           return { dispose: () => { entry.disposed = true; } };
         },
       })),
-      invoke: jasmine.createSpy('invoke').and.callFake((method: string, model?: string) => Promise.resolve(method === 'Choose' ? { ...models, selected: model } : models)),
+      invoke: jasmine.createSpy('invoke').and.callFake((method: string, model?: string) => {
+        if (method === 'Waiting')
+          return Promise.resolve(waiting);
+        return Promise.resolve(method === 'Choose' ? { ...models, selected: model } : models);
+      }),
       state: HubConnectionState.Connected,
     };
     withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();
@@ -70,7 +78,7 @@ describe('ChatStore', () => {
     const store = create();
 
     expect(store.ask('  Who won?  ')).toBeTrue();
-    expect(asked()).toEqual(['Ask', { question: 'Who won?', history: [], model: null }]);
+    expect(asked()).toEqual(['Ask', { question: 'Who won?', history: [], model: null, autoApprove: null }]);
     expect(store.asking()).toBeTrue();
     expect(store.turns()).toEqual([turn(false, 'Who won?'), turn(true, '')]);
 
@@ -81,7 +89,7 @@ describe('ChatStore', () => {
     expect(store.asking()).toBeFalse();
 
     store.ask('And before?');
-    expect(asked()[1]).toEqual({ question: 'And before?', history: [turn(false, 'Who won?'), turn(true, 'The Grifs.')], model: null });
+    expect(asked()[1]).toEqual({ question: 'And before?', history: [turn(false, 'Who won?'), turn(true, 'The Grifs.')], model: null, autoApprove: null });
   });
 
   it('sends only as much history as the server reads', () => {
@@ -233,14 +241,14 @@ describe('ChatStore', () => {
       expect(connection.invoke).toHaveBeenCalledWith('Models');
       expect(store.models()).toEqual(models);
       store.ask('Who won?');
-      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: 'claude-haiku' });
+      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: 'claude-haiku', autoApprove: null });
     });
 
     it('asks with no model before the models are known: the server chooses', () => {
       const store = create();
 
       store.ask('Who won?');
-      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: null });
+      expect(asked()[1]).toEqual({ question: 'Who won?', history: [], model: null, autoApprove: null });
     });
 
     it('keeps the choice on the server, and asks the chosen model after', async () => {
@@ -342,6 +350,218 @@ describe('ChatStore', () => {
       answer().subscriber.complete();
 
       expect(connection.invoke).toHaveBeenCalledWith('Models');
+    });
+  });
+  describe('waiting', () => {
+    const forfeit: ChatActionDto = { id: 'a1', description: 'forfeit_season_match(seasonMatchID: 12, side: home)' };
+
+    /** Asks, and the answer is done with `waiting` waiting for the user's answer. */
+    async function asking(): Promise<ChatStore> {
+      const store = create();
+      waiting = forfeit;
+      store.ask('Forfeit match 12');
+      answer().subscriber.next('This waits for you.');
+      answer().subscriber.complete();
+      await new Promise(resolve => setTimeout(resolve));
+      return store;
+    }
+
+    it('shows the change the server keeps for the user once the answer is done', async () => {
+      const store = await asking();
+
+      expect(connection.invoke).toHaveBeenCalledWith('Waiting');
+      expect(store.waiting()).toEqual(forfeit);
+    });
+
+    it('confirms: sends only its ID and the answer, with the conversation, and streams the reply in', async () => {
+      const store = await asking();
+      waiting = null;
+
+      expect(store.confirm(true)).toBeTrue();
+
+      expect(connection.stream.calls.mostRecent().args as [string, ChatConfirmDto]).toEqual(['Confirm', {
+        actionId: 'a1', approved: true, history: [turn(false, 'Forfeit match 12'), turn(true, 'This waits for you.')],
+      }]);
+      expect(store.waiting()).withContext('answered: no buttons while it runs').toBeNull();
+      expect(store.turns().slice(-2)).toEqual([turn(false, CONFIRMED), turn(true, '')]);
+      answer().subscriber.next('Done.');
+      answer().subscriber.complete();
+      await new Promise(resolve => setTimeout(resolve));
+      expect(store.turns().at(-1)).toEqual(turn(true, 'Done.'));
+      expect(store.waiting()).toBeNull();
+    });
+
+    it('cancels', async () => {
+      const store = await asking();
+
+      store.confirm(false);
+
+      expect((connection.stream.calls.mostRecent().args as [string, ChatConfirmDto])[1].approved).toBeFalse();
+      expect(store.turns().at(-2)).toEqual(turn(false, CANCELLED));
+    });
+
+    it('answers nothing when nothing waits, while an answer is on its way, or without a connection', async () => {
+      expect(create().confirm(true)).toBeFalse();
+      TestBed.resetTestingModule();
+
+      const store = await asking();
+      connection.state = HubConnectionState.Reconnecting;
+      expect(store.confirm(true)).toBeFalse();
+      connection.state = HubConnectionState.Connected;
+      store.ask('Something else');
+      expect(store.confirm(true)).toBeFalse();
+      expect(connection.stream).toHaveBeenCalledTimes(2);
+    });
+
+    it('a new conversation drops the change waiting, on the server too', async () => {
+      const store = await asking();
+
+      store.clear();
+
+      expect(store.waiting()).toBeNull();
+      expect(connection.invoke).toHaveBeenCalledWith('Forget');
+    });
+
+    it('a new conversation drops it on the server though the page never loaded it', () => {
+      const store = create();
+
+      store.clear();
+
+      expect(connection.invoke).toHaveBeenCalledWith('Forget');
+    });
+
+    it('shows the change again when a confirm is refused before it runs: the server kept it', async () => {
+      const store = await asking();
+
+      store.confirm(true);
+      answer().subscriber.error(new Error('HubException: Wait for the answer to your last question first.'));
+      await new Promise(resolve => setTimeout(resolve));
+
+      expect(store.waiting()).toEqual(forfeit);
+    });
+
+    it("a sign-in or out drops it from the page only: the server's is the other user's", async () => {
+      const store = await asking();
+
+      TestBed.inject(AuthSession).signedInOrOut();
+
+      expect(store.waiting()).toBeNull();
+      expect(connection.invoke).not.toHaveBeenCalledWith('Forget');
+    });
+
+    it('logs it when the server fails to drop it', async () => {
+      const error = spyOn(console, 'error');
+      const store = await asking();
+      connection.invoke.and.returnValue(Promise.reject(new Error('down')));
+
+      store.clear();
+      await new Promise(resolve => setTimeout(resolve));
+
+      expect(error).toHaveBeenCalledWith('Chat: the waiting change failed to be dropped', jasmine.objectContaining({ message: 'down' }));
+    });
+
+    it('loads the change still waiting once the connection is up: after a reload, the buttons are back', async () => {
+      waiting = forfeit;
+      const store = create();
+
+      (connection.onreconnected.calls.mostRecent().args[0] as () => void)();
+      await new Promise(resolve => setTimeout(resolve));
+
+      expect(store.waiting()).toEqual(forfeit);
+    });
+
+    it('ignores a waiting change loaded before the next question: the server dropped it', async () => {
+      const store = create();
+      let answerWaiting!: (action: ChatActionDto | null) => void;
+      connection.invoke.and.callFake((method: string) => method === 'Waiting'
+        ? new Promise(resolve => { answerWaiting = resolve; })
+        : Promise.resolve(models));
+      store.ask('Forfeit match 12');
+      answer().subscriber.complete();
+
+      store.ask('Something else');
+      answerWaiting(forfeit);
+      await new Promise(resolve => setTimeout(resolve));
+
+      expect(store.waiting()).toBeNull();
+    });
+
+    it('logs it when the waiting change fails to load, and shows none', async () => {
+      const error = spyOn(console, 'error');
+      const store = create();
+      connection.invoke.and.returnValue(Promise.reject(new Error('down')));
+      store.ask('Forfeit match 12');
+      answer().subscriber.complete();
+      await new Promise(resolve => setTimeout(resolve));
+
+      expect(store.waiting()).toBeNull();
+      expect(error).toHaveBeenCalledWith('Chat: the waiting change failed to load', jasmine.objectContaining({ message: 'down' }));
+    });
+  });
+
+  describe('auto-approve', () => {
+    /** The store with its connection up, as staff whose saved setting is `saved`. */
+    async function staff(saved: boolean): Promise<ChatStore> {
+      connection.invoke.and.callFake((method: string, on?: boolean) => Promise.resolve(method === 'Waiting' ? null
+        : { ...models, autoApprove: method === 'SetAutoApprove' ? on : saved }));
+      const store = create();
+      (connection.onreconnected.calls.mostRecent().args[0] as () => void)();
+      await new Promise(resolve => setTimeout(resolve));
+      return store;
+    }
+
+    it("is their saved setting until they change it for the conversation, and asks with nothing of its own until then", async () => {
+      const store = await staff(true);
+      expect(store.autoApprove()).toBeTrue();
+      store.ask('Hi');
+      expect(asked()[1].autoApprove).toBeNull();
+      answer().subscriber.complete();
+
+      store.setAutoApprove(false);
+
+      expect(store.autoApprove()).toBeFalse();
+      store.ask('Again');
+      expect(asked()[1].autoApprove).toBeFalse();
+    });
+
+    it('saves the conversation\'s choice as their setting on request', async () => {
+      const store = await staff(false);
+      store.setAutoApprove(true);
+
+      await store.saveAutoApprove();
+
+      expect(connection.invoke).toHaveBeenCalledWith('SetAutoApprove', true);
+      expect(store.models()!.autoApprove).toBeTrue();
+      expect(store.autoApprove()).toBeTrue();
+    });
+
+    it('a new conversation goes back to their saved setting', async () => {
+      const store = await staff(false);
+      store.setAutoApprove(true);
+
+      store.clear();
+
+      expect(store.autoApprove()).toBeFalse();
+    });
+
+    it('is none for someone with no change to approve, and saves nothing for them', async () => {
+      const store = create();
+      (connection.onreconnected.calls.mostRecent().args[0] as () => void)();
+      await new Promise(resolve => setTimeout(resolve));
+
+      await store.saveAutoApprove();
+
+      expect(store.autoApprove()).toBeNull();
+      expect(connection.invoke).not.toHaveBeenCalledWith('SetAutoApprove', jasmine.anything());
+    });
+
+    it('shows why saving failed', async () => {
+      const store = await staff(false);
+      connection.invoke.and.returnValue(Promise.reject(new Error('HubException: Choose one of your own models.')));
+
+      await store.saveAutoApprove();
+
+      expect(store.error()).toBe('Choose one of your own models.');
     });
   });
 });

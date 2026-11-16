@@ -451,7 +451,13 @@ public class UserMergeService : IUserMergeService
         if (choices.FirstOrDefault(c => c.UserID == mergeFromId) is not { } chosen)
             return;
         if (choices.All(c => c.UserID != mergeToId))
-            _context.ChatChoices.Add(ChatChoice.Make(mergeToId, chosen.Model));
+        {
+            var moved = ChatChoice.Make(mergeToId);
+            if (chosen.Model is { } model)
+                moved.Choose(model);
+            moved.SetAutoApprove(chosen.AutoApprove);
+            _context.ChatChoices.Add(moved);
+        }
         _context.ChatChoices.Remove(chosen);
     }
 

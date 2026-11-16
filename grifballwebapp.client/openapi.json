@@ -9327,6 +9327,50 @@
         },
         "additionalProperties": false
       },
+      "ChatActionDto": {
+        "required": [
+          "description",
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "description": "A change waiting for the user's answer: its ID, and what it does as they're shown it."
+      },
+      "ChatConfirmDto": {
+        "required": [
+          "actionId",
+          "approved",
+          "history"
+        ],
+        "type": "object",
+        "properties": {
+          "actionId": {
+            "type": "string",
+            "description": "The waiting change's ID (GrifballWebApp.Application.Chat.ChatActionDto.Id)."
+          },
+          "approved": {
+            "type": "boolean",
+            "description": "Yes, do it; or no, cancel it."
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatTurnDto"
+            },
+            "description": "The conversation so far, oldest first, as with a question."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The user's answer to the change waiting for it (M:GrifballWebApp.Application.Chat.GrifChat.ConfirmAsync(System.Collections.Generic.IEnumerable{Microsoft.Extensions.AI.ChatMessage},System.String,System.Boolean,GrifballWebApp.Application.Tools.ToolCaller,GrifballWebApp.Application.Chat.ChatHost,System.String,System.Threading.CancellationToken)), with the conversation so far."
+      },
       "ChatModelDto": {
         "required": [
           "id",
@@ -9346,6 +9390,7 @@
       },
       "ChatModelsDto": {
         "required": [
+          "autoApprove",
           "limit",
           "models",
           "selected",
@@ -9375,6 +9420,11 @@
             "description": "The monthly limit on it; null when none of theirs is paid.",
             "format": "double",
             "nullable": true
+          },
+          "autoApprove": {
+            "type": "boolean",
+            "description": "Whether a change the chat makes for them runs without asking, by default (M:GrifballWebApp.Application.Chat.GrifChat.AutoApproveAsync(GrifballWebApp.Application.Tools.ToolCaller,System.Threading.CancellationToken)); null when\nthey have no change to make (no tool of theirs changes data), so no setting.",
+            "nullable": true
           }
         },
         "additionalProperties": false,
@@ -9382,6 +9432,7 @@
       },
       "ChatRequestDto": {
         "required": [
+          "autoApprove",
           "history",
           "model",
           "question"
@@ -9402,6 +9453,11 @@
           "model": {
             "type": "string",
             "description": "The model to answer (its ID); null: the user's choice, else their default.",
+            "nullable": true
+          },
+          "autoApprove": {
+            "type": "boolean",
+            "description": "Whether a change the chat makes runs without asking, this conversation (GrifballWebApp.Application.Chat.ChatHost.AutoApprove); null: the user's\nsetting (M:GrifballWebApp.Application.Chat.GrifChat.AutoApproveAsync(GrifballWebApp.Application.Tools.ToolCaller,System.Threading.CancellationToken)).",
             "nullable": true
           }
         },

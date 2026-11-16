@@ -1,12 +1,13 @@
 import { isPlatformBrowser } from '@angular/common';
-import { DestroyRef, Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { HubConnectionState, type HubConnection, type ISubscription } from '@microsoft/signalr';
-import type { ChatModelsDto, ChatTurnDto } from '@api/models';
+import { HubConnectionState, type HubConnection, type IStreamResult, type ISubscription } from '@microsoft/signalr';
+import type { ChatActionDto, ChatModelsDto, ChatTurnDto } from '@api/models';
 import { AuthSession } from '@core/auth/authSession.service';
 import { hubLifecycle } from '@core/signalr/hubLifecycle';
 import { AppLog } from '@core/telemetry/appLog';
 import { getHubProxyFactory } from '@signalr/TypedSignalR.Client';
+import type { IChatHubServer } from '@signalr/TypedSignalR.Client/GrifballWebApp.Server.Chat';
 
 /** The chat's hub (ChatHub): it streams each answer as the model writes it. */
 export const CHAT_HUB_URL = 'hub/ChatHub';
@@ -28,6 +29,10 @@ export const STOP_SPEND_RELOAD_MS = 2000;
 
 export const NOT_CONNECTED ='The chat is still connecting: try again in a moment.';
 export const FAILED = "The chat couldn't answer just now: try again later.";
+
+/** What the conversation shows for the user's answer to a change waiting for it. */
+export const CONFIRMED = 'Yes, do it.';
+export const CANCELLED = 'No, cancel it.';
 
 /** What SignalR puts before a HubException's message, the reason the server gives the browser. */
 const HUB_EXCEPTION = 'HubException: ';
@@ -75,8 +80,14 @@ function save(turns: ChatTurnDto[]): void {
 export class ChatStore {
   private readonly log = inject(AppLog);
   private readonly connection: HubConnection | null = isPlatformBrowser(inject(PLATFORM_ID))
-    // Each time it comes up (as whoever is signed in now): the models they may use
-    ? hubLifecycle(CHAT_HUB_URL, { name: 'Chat hub', connected: () => void this.loadModels(this.connection!) })
+    // Each time it comes up (as whoever is signed in now): the models they may use, and a change still waiting for their answer
+    ? hubLifecycle(CHAT_HUB_URL, {
+      name: 'Chat hub',
+      connected: () => {
+        void this.loadModels(this.connection!);
+        void this.loadWaiting(this.connection!);
+      },
+    })
     : null;
 
   private readonly modelsState = signal<ChatModelsDto | null>(null);
@@ -85,6 +96,16 @@ export class ChatStore {
    * connection is up.
    */
   readonly models = this.modelsState.asReadonly();
+
+  private readonly conversationAutoApproveState = signal<boolean | null>(null);
+  /**
+   * Whether a change the chat makes runs without asking, this conversation: the user's choice for it, else their setting; null when
+   * they have no change to make (no setting).
+   */
+  readonly autoApprove = computed(() => {
+    const saved = this.models()?.autoApprove;
+    return saved == null ? null : (this.conversationAutoApproveState() ?? saved);
+  });
 
   private readonly turnsState = signal<ChatTurnDto[]>(this.connection ? load() : []);
   /** The conversation, oldest first; while an answer streams in, its last message is that answer so far. */
@@ -98,13 +119,22 @@ export class ChatStore {
   /** Why the last question got no (whole) answer. */
   readonly error = this.errorState.asReadonly();
 
+  private readonly waitingState = signal<ChatActionDto | null>(null);
+  /**
+   * The change the chat asked to make, waiting for the user's answer (confirm), shown with what it does; null when none.
+   * The server keeps it: the page sends back only its ID and the answer.
+   */
+  readonly waiting = this.waitingState.asReadonly();
+
   private answer: ISubscription<string> | null = null;
+  /** Counts the answers started and conversations cleared: a waiting change loaded before the latest is out of date. */
+  private generation = 0;
   /** The spend's reload after a stop, waiting for the server to save the stopped answer's cost. */
   private spendReload: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     // Another user's conversation isn't theirs to see or continue
-    inject(AuthSession).changed$.pipe(takeUntilDestroyed()).subscribe(() => this.clear());
+    inject(AuthSession).changed$.pipe(takeUntilDestroyed()).subscribe(() => this.reset());
     inject(DestroyRef).onDestroy(() => {
       this.answer?.dispose();
       clearTimeout(this.spendReload);
@@ -126,11 +156,39 @@ export class ChatStore {
     const connection = this.connection;
     // The model the picker shows: the server would choose the same, unless the user chose another elsewhere meanwhile
     const model = this.models()?.selected;
-    const history = this.turns().slice(-HISTORY_LIMIT).map(turn => ({ fromBot: turn.fromBot, text: turn.text.slice(0, MAX_HISTORY_MESSAGE_LENGTH) }));
+    const history = this.history();
+    const autoApprove = this.conversationAutoApproveState();
+    this.stream(connection, text, hub => hub.ask({ question: text, history, model: model ?? null, autoApprove }));
+    return true;
+  }
+
+  /**
+   * The user's answer to the change waiting for it: yes does it, no cancels it. The chat's reply streams in as an answer does,
+   * after a line saying what they chose.
+   */
+  confirm(approved: boolean): boolean {
+    const waiting = this.waiting();
+    if (!waiting || this.asking() || this.connection?.state !== HubConnectionState.Connected)
+      return false;
+    const history = this.history();
+    this.stream(this.connection, approved ? CONFIRMED : CANCELLED,
+      hub => hub.confirm({ actionId: waiting.id, approved, history }));
+    return true;
+  }
+
+  /** The conversation so far, as much as the server reads. */
+  private history(): ChatTurnDto[] {
+    return this.turns().slice(-HISTORY_LIMIT).map(turn => ({ fromBot: turn.fromBot, text: turn.text.slice(0, MAX_HISTORY_MESSAGE_LENGTH) }));
+  }
+
+  /** `said` added to the conversation, then the answer `start` streams in; then what waits for the user, if anything does. */
+  private stream(connection: HubConnection, said: string, start: (hub: IChatHubServer) => IStreamResult<string>): void {
+    this.generation++;
     this.errorState.set(null);
+    this.waitingState.set(null);
     this.askingState.set(true);
-    this.change(turns => [...turns, { fromBot: false, text }, { fromBot: true, text: '' }]);
-    this.answer = getHubProxyFactory('IChatHubServer').createHubProxy(connection).ask({ question: text, history, model: model ?? null }).subscribe({
+    this.change(turns => [...turns, { fromBot: false, text: said }, { fromBot: true, text: '' }]);
+    this.answer = start(getHubProxyFactory('IChatHubServer').createHubProxy(connection)).subscribe({
       next: chunk => this.change(turns => [...turns.slice(0, -1), { fromBot: true, text: turns.at(-1)!.text + chunk }]),
       error: (error: unknown) => {
         const text = chatErrorText(error);
@@ -141,13 +199,15 @@ export class ChatStore {
         this.done();
         // A paid answer is charged whether it was whole or not
         this.loadSpend(connection);
+        // A refused confirm leaves its change waiting: its buttons back
+        void this.loadWaiting(connection);
       },
       complete: () => {
         this.done();
         this.loadSpend(connection);
+        void this.loadWaiting(connection);
       },
     });
-    return true;
   }
 
   /**
@@ -163,6 +223,37 @@ export class ChatStore {
       this.errorState.set(chatErrorText(error));
       // The picker already shows the refused model: the user's models again, a new value, put it back
       await this.loadModels(this.connection);
+    }
+  }
+
+  /** Whether changes run without asking, this conversation only: their setting is unchanged. */
+  setAutoApprove(on: boolean): void {
+    this.conversationAutoApproveState.set(on);
+  }
+
+  /** This conversation's choice of whether changes run without asking, kept as their setting (here and in a Discord DM). */
+  async saveAutoApprove(): Promise<void> {
+    const on = this.autoApprove();
+    if (!this.connection || on === null)
+      return;
+    try {
+      this.modelsState.set(await getHubProxyFactory('IChatHubServer').createHubProxy(this.connection).setAutoApprove(on));
+      this.conversationAutoApproveState.set(null);
+    } catch (error: unknown) {
+      this.errorState.set(chatErrorText(error));
+    }
+  }
+
+  /** The change waiting for the user's answer, from the server; none when it can't say. */
+  private async loadWaiting(connection: HubConnection): Promise<void> {
+    const generation = this.generation;
+    try {
+      const waiting = await getHubProxyFactory('IChatHubServer').createHubProxy(connection).waiting();
+      // A question asked (or the conversation cleared) since: the server dropped it
+      if (generation === this.generation)
+        this.waitingState.set(waiting);
+    } catch (error: unknown) {
+      this.log.error('Chat: the waiting change failed to load', error);
     }
   }
 
@@ -193,11 +284,33 @@ export class ChatStore {
     this.spendReload = setTimeout(() => this.loadSpend(connection), STOP_SPEND_RELOAD_MS);
   }
 
-  /** A new conversation: the answer on its way stopped, and the questions and answers so far gone. */
+  /**
+   * A new conversation: the answer on its way stopped, the questions and answers so far gone, and a change waiting for their
+   * answer dropped on the server too (else a yes elsewhere could still run it).
+   */
   clear(): void {
+    // Whether or not the page has it yet (still loading, or stopped as it was saved)
+    if (this.connection?.state === HubConnectionState.Connected)
+      void this.forget(this.connection);
+    this.reset();
+  }
+
+  /** The conversation gone from the page (another user's, once they sign in or out: the server's waiting change is theirs). */
+  private reset(): void {
+    this.generation++;
+    this.conversationAutoApproveState.set(null);
     this.stop();
     this.errorState.set(null);
+    this.waitingState.set(null);
     this.change(() => []);
+  }
+
+  private async forget(connection: HubConnection): Promise<void> {
+    try {
+      await getHubProxyFactory('IChatHubServer').createHubProxy(connection).forget();
+    } catch (error: unknown) {
+      this.log.error('Chat: the waiting change failed to be dropped', error);
+    }
   }
 
   private done(): void {

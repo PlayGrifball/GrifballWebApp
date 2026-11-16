@@ -44,10 +44,11 @@ public partial class GrifChatUnitTests
     public void DisposeDatabase() => _db?.Dispose();
 
     /// <summary>A chat over Haiku, Opus and the free model, in that order, each answered by <paramref name="model"/>, its accounts in a database.</summary>
-    private GrifChat ChatWithModels(FakeModel model, ChatLimits? limits = null, bool refuseSaves = false)
+    private GrifChat ChatWithModels(FakeModel model, ChatLimits? limits = null, bool refuseSaves = false, IChatWaiting? waiting = null)
     {
         _db = new FakeApplicationDbContext();
         _services = new ServiceCollection()
+            .AddSingleton(waiting ?? new MemoryChatWaiting(_time))
             .AddSingleton<TimeProvider>(_time)
             .AddScoped<IApplicationDbContext>(_ => refuseSaves ? _db.NewContextLike(new RefusingSaves(_ => true)) : _db.NewContextLike())
             .BuildServiceProvider();

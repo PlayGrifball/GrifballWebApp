@@ -5590,8 +5590,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int>("UserID")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("AutoApprove")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Model")
-                        .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .UseCollation("case_insensitive");
@@ -5613,6 +5617,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Domain.Players.ChatChoice.History", b =>
                 {
+                    b.Property<bool?>("AutoApprove")
+                        .HasColumnType("boolean")
+                        .HasColumnName("AutoApprove");
+
                     b.Property<string>("Model")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")

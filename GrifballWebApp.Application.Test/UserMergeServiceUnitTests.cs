@@ -150,6 +150,22 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task Merge_MovesTheSourcesChoiceToMakeChangesWithoutAsking_ThoughNoModelIsChosen()
+    {
+        var (to, from) = await TwoUsers();
+        var choice = ChatChoice.Make(from.Id);
+        choice.SetAutoApprove(true);
+        Context.ChatChoices.Add(choice);
+        await Context.SaveChangesAsync();
+
+        await _service.Merge(to.Id, from.Id);
+
+        Context.ChangeTracker.Clear();
+        Assert.That(await Context.ChatChoices.Select(c => new { c.UserID, c.Model, c.AutoApprove }).ToListAsync(),
+            Is.EqualTo(new[] { new { UserID = to.Id, Model = (string?)null, AutoApprove = true } }));
+    }
+
+    [Test]
     public async Task Merge_KeepsTheTargetsChosenModel()
     {
         var (to, from) = await TwoUsers();

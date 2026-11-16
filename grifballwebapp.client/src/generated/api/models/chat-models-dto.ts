@@ -10,6 +10,12 @@ import { ChatModelDto } from '../models/chat-model-dto';
 export interface ChatModelsDto {
 
   /**
+   * Whether a change the chat makes for them runs without asking, by default (M:GrifballWebApp.Application.Chat.GrifChat.AutoApproveAsync(GrifballWebApp.Application.Tools.ToolCaller,System.Threading.CancellationToken)); null when
+   * they have no change to make (no tool of theirs changes data), so no setting.
+   */
+  autoApprove: boolean | null;
+
+  /**
    * The monthly limit on it; null when none of theirs is paid.
    */
   limit: number | null;

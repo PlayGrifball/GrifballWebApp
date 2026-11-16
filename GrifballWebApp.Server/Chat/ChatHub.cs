@@ -33,19 +33,50 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
 
     public const string Failed = "The chat couldn't answer just now: try again later.";
 
-    public async Task<ChannelReader<string>> Ask(ChatRequestDto request, CancellationToken cancellationToken)
+    public Task<ChannelReader<string>> Ask(ChatRequestDto request, CancellationToken cancellationToken)
+    {
+        if (GrifChat.Refusal(request) is { } refused)
+            return Task.FromResult(Refuse(Channel.CreateUnbounded<string>(), refused));
+        var caller = user.AsToolCaller();
+        // The page's Stop cancels it: the user may ask again at once
+        return StreamAsync(caller, () => chat.StartAsync(GrifChat.History(request), request.Question, caller,
+            // Changes run without asking as this conversation chose, else (null) as the user did
+            ChatHost.Site with { AutoApprove = request.AutoApprove }, Asker(caller), request.Model, cancellationToken), cancellationToken);
+    }
+
+    /// <summary>
+    /// The user's answer to the change waiting for it (<see cref="GrifChat.ConfirmAsync"/>: only its ID and the answer come from the
+    /// page), then the chat's reply, streamed as <see cref="Ask"/>'s.
+    /// </summary>
+    public Task<ChannelReader<string>> Confirm(ChatConfirmDto answer, CancellationToken cancellationToken)
+    {
+        if (GrifChat.Refusal(answer) is { } refused)
+            return Task.FromResult(Refuse(Channel.CreateUnbounded<string>(), refused));
+        var caller = user.AsToolCaller();
+        return StreamAsync(caller, () => chat.ConfirmAsync(GrifChat.History(answer.History),
+            answer.ActionId, answer.Approved, caller, ChatHost.Site, Asker(caller), cancellationToken), cancellationToken);
+    }
+
+    /// <summary>The change waiting for the user's answer (its ID and what it does), or null.</summary>
+    public async Task<ChatActionDto?> Waiting()
+        => await chat.WaitingAsync(ChatHost.Site, Asker(user.AsToolCaller()), Context.ConnectionAborted) is { } action
+            ? new ChatActionDto { Id = action.Id, Description = action.Description }
+            : null;
+
+    /// <summary>The change waiting for the user's answer dropped: they started a new conversation.</summary>
+    public Task Forget() => chat.ForgetAsync(ChatHost.Site, Asker(user.AsToolCaller()), Context.ConnectionAborted);
+
+    /// <summary>Whose questions the caller's count (<see cref="ChatLimits.Asker"/>): their user, else their address.</summary>
+    private string Asker(ToolCaller caller) => ChatLimits.Asker(caller, ChatLimits.Address(Context.GetHttpContext()?.Connection.RemoteIpAddress));
+
+    /// <summary>A reply <paramref name="start"/>ed, streamed to the page; why not, as the stream's error.</summary>
+    private async Task<ChannelReader<string>> StreamAsync(ToolCaller caller, Func<Task<ChatReply>> start, CancellationToken cancellationToken)
     {
         var reply = Channel.CreateUnbounded<string>();
-        if (GrifChat.Refusal(request) is { } refused)
-            return Refuse(reply, refused);
-        var caller = user.AsToolCaller();
         ChatReply started;
         try
         {
-            started = await chat.StartAsync(GrifChat.History(request), request.Question, caller, ChatHost.Site,
-                ChatLimits.Asker(caller, ChatLimits.Address(Context.GetHttpContext()?.Connection.RemoteIpAddress)), request.Model,
-                // The page's Stop cancels it: the user may ask again at once
-                cancellationToken);
+            started = await start();
         }
         catch (ChatRefusedException e)
         {
@@ -88,6 +119,19 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
             throw new HubException(e.Message);
         }
         return await chat.ModelsAsync(caller, Context.ConnectionAborted);
+    }
+
+    /// <summary>The user chose whether changes run without asking, by default (here and in a Discord DM); refused when they have none to make.</summary>
+    public async Task<ChatModelsDto> SetAutoApprove(bool on)
+    {
+        try
+        {
+            return await chat.SetAutoApproveAsync(user.AsToolCaller(), on, Context.ConnectionAborted);
+        }
+        catch (ChatRefusedException e)
+        {
+            throw new HubException(e.Message);
+        }
     }
 
     /// <summary>
@@ -157,6 +201,18 @@ public interface IChatHubServer
 
     /// <summary>The user chose a model for their questions (here and in a Discord DM); refused when they may not use it.</summary>
     Task<ChatModelsDto> Choose(string model);
+
+    /// <summary>The user's answer to the change waiting for it, then the chat's reply, streamed as <see cref="Ask"/>'s.</summary>
+    Task<ChannelReader<string>> Confirm(ChatConfirmDto answer, CancellationToken cancellationToken);
+
+    /// <summary>The change waiting for the user's answer, or null.</summary>
+    Task<ChatActionDto?> Waiting();
+
+    /// <summary>The change waiting for the user's answer dropped: they started a new conversation.</summary>
+    Task Forget();
+
+    /// <summary>The user chose whether changes run without asking, by default; refused when they have none to make.</summary>
+    Task<ChatModelsDto> SetAutoApprove(bool on);
 }
 
 // S4023: empty on purpose, the hub sends nothing but its streams; the typed client and the SignalR page need it to know the hub

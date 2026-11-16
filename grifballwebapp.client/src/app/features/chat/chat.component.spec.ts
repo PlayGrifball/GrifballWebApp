@@ -2,8 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PLATFORM_ID, signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { HubConnectionBuilder, HubConnectionState, type HubConnection, type IStreamSubscriber } from '@microsoft/signalr';
+import type { ChatActionDto, ChatConfirmDto } from '@api/models';
 import { AccountService } from '@core/auth/account.service';
-import { CHAT_STORAGE_KEY, MAX_QUESTION_LENGTH } from './chat.store';
+import { CHAT_STORAGE_KEY, CONFIRMED, MAX_QUESTION_LENGTH } from './chat.store';
 import { ChatComponent } from './chat.component';
 
 describe('ChatComponent', () => {
@@ -11,6 +12,9 @@ describe('ChatComponent', () => {
   let stream: jasmine.Spy;
   let answers: { subscriber: IStreamSubscriber<string>; disposed: boolean }[];
   let invoke: jasmine.Spy;
+  /** What the hub says: the user's models, and the change waiting for their answer. */
+  let hubModels: object;
+  let hubWaiting: ChatActionDto | null;
   /** The connection coming back up: the store loads the user's models again. */
   let reconnected: () => void;
   const isLoggedIn = signal(false);
@@ -39,7 +43,9 @@ describe('ChatComponent', () => {
     sessionStorage.removeItem(CHAT_STORAGE_KEY);
     isLoggedIn.set(false);
     answers = [];
-    invoke = jasmine.createSpy('invoke').and.returnValue(Promise.resolve({ models: [{ id: 'ollama', name: 'llama3.2:3b' }], selected: 'ollama' }));
+    hubModels = { models: [{ id: 'ollama', name: 'llama3.2:3b' }], selected: 'ollama' };
+    hubWaiting = null;
+    invoke = jasmine.createSpy('invoke').and.callFake((method: string) => Promise.resolve(method === 'Waiting' ? hubWaiting : hubModels));
     stream = jasmine.createSpy('stream').and.callFake(() => ({
       subscribe: (subscriber: IStreamSubscriber<string>) => {
         const entry = { subscriber, disposed: false };
@@ -80,7 +86,7 @@ describe('ChatComponent', () => {
     button('Ask')!.click();
     fixture.detectChanges();
 
-    expect(stream).toHaveBeenCalledOnceWith('Ask', { question: 'Who won?', history: [], model: null });
+    expect(stream).toHaveBeenCalledOnceWith('Ask', { question: 'Who won?', history: [], model: null, autoApprove: null });
     expect(textarea().value).toBe('');
     expect(button('Ask')!.disabled).toBeTrue();
     expect(el().querySelector('[role="log"]')!.getAttribute('aria-busy')).toBe('true');
@@ -153,7 +159,7 @@ describe('ChatComponent', () => {
   });
   /** The connection comes up again as a user with `models`: the page shows them. */
   async function withModels(models: object): Promise<void> {
-    invoke.and.returnValue(Promise.resolve(models));
+    hubModels = models;
     reconnected();
     await new Promise(resolve => setTimeout(resolve));
     fixture.detectChanges();
@@ -197,5 +203,60 @@ describe('ChatComponent', () => {
     fixture.componentInstance.choose('ollama');
 
     expect(invoke).toHaveBeenCalledWith('Choose', 'ollama');
+  });
+  it('shows a change waiting for the user, and runs it only once they confirm it', async () => {
+    hubWaiting = { id: 'a1', description: 'forfeit_season_match(seasonMatchID: 12, side: home)' };
+    type('Forfeit match 12');
+    press('Enter');
+    answer().subscriber.complete();
+    await new Promise(resolve => setTimeout(resolve));
+    fixture.detectChanges();
+
+    expect(el().querySelector('.chat__confirm')!.textContent).toContain('forfeit_season_match(seasonMatchID: 12, side: home)');
+    expect(button('Cancel')).toBeDefined();
+    stream.calls.reset();
+
+    button('Confirm')!.click();
+    fixture.detectChanges();
+
+    const [method, sent] = stream.calls.mostRecent().args as [string, ChatConfirmDto];
+    expect(method).toBe('Confirm');
+    expect(sent).toEqual(jasmine.objectContaining({ actionId: 'a1', approved: true }));
+    expect(turns().at(-2)).toEqual(['You', CONFIRMED]);
+    expect(el().querySelector('.chat__confirm')).withContext('answered').toBeNull();
+  });
+
+  it('shows no change waiting when none does', async () => {
+    type('Who won?');
+    press('Enter');
+    answer().subscriber.complete();
+    await new Promise(resolve => setTimeout(resolve));
+    fixture.detectChanges();
+
+    expect(el().querySelector('.chat__confirm')).toBeNull();
+    expect(button('Confirm')).toBeUndefined();
+  });
+
+  it("offers staff to run changes without asking, this conversation or as their default, saying what it risks", async () => {
+    await withModels({ models: [{ id: 'ollama', name: 'llama3.2:3b' }], selected: 'ollama', autoApprove: false });
+    const toggle = () => el().querySelector<HTMLButtonElement>('.chat__approve button[role="switch"]')!;
+    expect(toggle().getAttribute('aria-checked')).toBe('false');
+    expect(text()).toContain('talked it into');
+    expect(button('Make this my default')).toBeUndefined();
+
+    toggle().click();
+    fixture.detectChanges();
+    expect(toggle().getAttribute('aria-checked')).toBe('true');
+    button('Make this my default')!.click();
+    await new Promise(resolve => setTimeout(resolve));
+    fixture.detectChanges();
+
+    expect(invoke).toHaveBeenCalledWith('SetAutoApprove', true);
+  });
+
+  it('offers no auto-approve to someone with no change to approve', async () => {
+    await withModels({ models: [{ id: 'ollama', name: 'llama3.2:3b' }], selected: 'ollama' });
+
+    expect(el().querySelector('.chat__approve')).toBeNull();
   });
 });

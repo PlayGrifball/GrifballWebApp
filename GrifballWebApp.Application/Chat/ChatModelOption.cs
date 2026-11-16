@@ -103,4 +103,10 @@ public sealed record ChatModelsDto
 
     /// <summary>The monthly limit on it; null when none of theirs is paid.</summary>
     public decimal? Limit { get; init; }
+
+    /// <summary>
+    /// Whether a change the chat makes for them runs without asking, by default (<see cref="GrifChat.AutoApproveAsync"/>); null when
+    /// they have no change to make (no tool of theirs changes data), so no setting.
+    /// </summary>
+    public bool? AutoApprove { get; init; }
 }
