@@ -3,6 +3,7 @@ using GrifballWebApp.Infrastructure.Excel;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Historical.Sources;
 using GrifballWebApp.Historical.Import;
+using GrifballWebApp.Domain.Halo;
 
 namespace GrifballWebApp.Historical.Parsing;
 
@@ -28,9 +29,9 @@ public static partial class SeasonStatsParser
         ["carrier kills"] = "carrierKills", ["carrier kill"] = "carrierKills", ["carrier killers"] = "carrierKills", ["stops"] = "carrierKills",
         ["bomb stops"] = "carrierKills", ["bombstops"] = "carrierKills", ["plate stops"] = "carrierKills",
         ["avg life"] = "averageLifeSeconds", ["averagelife"] = "averageLifeSeconds", ["average life"] = "averageLifeSeconds",
-        ["avg life duration"] = "averageLifeSeconds", ["average life duration"] = "averageLifeSeconds",
+        ["avg life duration"] = "averageLifeSeconds", ["average life duration"] = "averageLifeSeconds", ["average life (seconds)"] = "averageLifeSeconds",
         ["time"] = "totalSecondsPlayed", ["minutes"] = "totalSecondsPlayed", ["minutes played"] = "totalSecondsPlayed", ["seconds played"] = "totalSecondsPlayed",
-        ["game time"] = "totalSecondsPlayed", ["gametime"] = "totalSecondsPlayed", ["timealive"] = "totalSecondsPlayed", ["playingtime"] = "totalSecondsPlayed",
+        ["time played (seconds)"] = "totalSecondsPlayed", ["game time"] = "totalSecondsPlayed", ["gametime"] = "totalSecondsPlayed", ["timealive"] = "totalSecondsPlayed", ["playingtime"] = "totalSecondsPlayed",
         ["sprees"] = "sprees", ["killing spree"] = "sprees", ["killing sprees"] = "sprees", ["killingsprees"] = "sprees",
         ["multikills"] = "multiKills", ["multikill"] = "multiKills",
         ["exterminations"] = "exterminations", ["extermination"] = "exterminations", ["exterm"] = "exterminations", ["exterms"] = "exterminations",
@@ -38,7 +39,14 @@ public static partial class SeasonStatsParser
         ["hammer kills"] = "hammerKills", ["hammerkills"] = "hammerKills", ["sword kills"] = "swordKills", ["swordkills"] = "swordKills",
         ["ball kills"] = "ballKills", ["ballkills"] = "ballKills", ["punches"] = "punches", ["ball punches"] = "punches",
         ["score"] = "score", ["damage done"] = "damageDealt", ["damage taken"] = "damageTaken",
+        // A pivot table's averages per game (SL24's): the line keeps the total, the average times the games
+        ["avg score"] = "averageScore", ["avg damage dealt"] = "averageDamageDealt", ["avg damage taken"] = "averageDamageTaken",
+        // Kept with the line (its extended metrics): rounds are not games (an Infinite game is several rounds)
+        ["rounds won"] = "roundsWon", ["rounds lost"] = "roundsLost", ["rounds tied"] = "roundsTied", ["goal assists"] = "goalAssists",
     };
+
+    /// <summary>The stats with no column of their own, kept in the line's extended metrics.</summary>
+    private static readonly string[] ExtendedKeys = ["roundsWon", "roundsLost", "roundsTied", "goalAssists"];
 
     public static List<ArchiveSeason> Parse(string sourceId, HistoricalSourceConfig config, SheetWorkbook workbook, List<string> warnings)
     {
@@ -85,6 +93,8 @@ public static partial class SeasonStatsParser
             .OfType<string>().Where(v => v.Length > 0).DefaultIfEmpty("x").All(v => v is "0" or "1");
         var played = PlayedDates(sourceId, workbook, tab, sheet, dataRows, warnings);
         var players = TabPlayers(sheet, tab, columns, sides, rosters);
+        if (tab.GamesSheet is { } gamesName)
+            CountGames(sourceId, workbook, gamesName, columns, players, warnings);
 
         var defaults = config.Season;
         return new ArchiveSeason
@@ -124,6 +134,66 @@ public static partial class SeasonStatsParser
                 warnings.Add($"{sourceId}: no sheet '{datesName}'");
         }
         return played;
+    }
+
+    /// <summary>Fills the games played, wins and losses the tab has no column for from its games tab
+    /// (<see cref="StatsTab.GamesSheet"/>): a player's rows there, and of them the won and the lost (a tie or a game left
+    /// unfinished is neither). The tab has a row per player, so the player's line is that row.</summary>
+    private static void CountGames(string sourceId, SheetWorkbook workbook, string gamesName, Dictionary<int, (string Key, string Header)> columns,
+        List<ArchivePlayer> players, List<string> warnings)
+    {
+        if (GameRecords(sourceId, workbook, gamesName, warnings) is not { } records)
+            return;
+        var has = columns.Values.Select(c => c.Key).ToHashSet();
+        foreach (var player in players)
+        {
+            if (!records.TryGetValue(HistoricalKeys.Normalize(player.Gamertag), out var record))
+                continue;
+            if (!has.Contains("gamesPlayed"))
+                player.GamesPlayed = record.Games;
+            if (!has.Contains("wins"))
+                player.Wins = record.Wins;
+            if (!has.Contains("losses"))
+                player.Losses = record.Losses;
+        }
+    }
+
+    /// <summary>Each player's games, wins and losses in a games tab: a Waypoint match export's PlayerId and Outcome (2 a win,
+    /// 3 a loss), or a tab headed as a stats tab (its gamertag, Wins and Losses columns). Null, with a warning, for a tab
+    /// that isn't there or has neither.</summary>
+    private static Dictionary<string, (int Games, int Wins, int Losses)>? GameRecords(string sourceId, SheetWorkbook workbook, string name, List<string> warnings)
+    {
+        if (workbook.Sheet(name) is not { Rows.Count: > 0 } sheet)
+        {
+            warnings.Add($"{sourceId}: no sheet '{name}'");
+            return null;
+        }
+        var header = sheet.Rows[0];
+        var columns = ColumnsOf(header);
+        int Named(string text) => Array.FindIndex(header, h => h.Trim().Equals(text, StringComparison.OrdinalIgnoreCase));
+        int Of(string key) => columns.Where(p => p.Value.Key == key).Select(p => p.Key).DefaultIfEmpty(-1).First();
+        var playerColumn = Named("PlayerId") is var id and >= 0 ? id : Of("gamertag");
+        var (outcomeColumn, winsColumn, lossesColumn) = (Named("Outcome"), Of("wins"), Of("losses"));
+        if (playerColumn < 0 || (outcomeColumn < 0 && winsColumn < 0))
+        {
+            warnings.Add($"{sourceId}: '{name}' has no player and result columns");
+            return null;
+        }
+        decimal? Number(int r, int column) => column >= 0 ? ArchiveCells.Number(sheet.Cell(r, column)) : null;
+        var records = new Dictionary<string, (int Games, int Wins, int Losses)>(StringComparer.Ordinal);
+        for (var r = 1; r < sheet.Rows.Count; r++)
+        {
+            var gamertag = sheet.Cell(r, playerColumn).Trim();
+            if (gamertag.Length == 0)
+                continue;
+            var outcome = Number(r, outcomeColumn);
+            var won = outcome == (int)Outcomes.Won || Number(r, winsColumn) > 0;
+            var lost = outcome == (int)Outcomes.Lost || Number(r, lossesColumn) > 0;
+            var key = HistoricalKeys.Normalize(gamertag);
+            var (games, wins, losses) = records.GetValueOrDefault(key);
+            records[key] = (games + 1, wins + (won ? 1 : 0), losses + (lost ? 1 : 0));
+        }
+        return records;
     }
 
     private static int StampColumn(string[] header) => Array.FindIndex(header, h => h.Trim().ToLowerInvariant() is "timestamp" or "time stamp");
@@ -486,6 +556,10 @@ public static partial class SeasonStatsParser
         var kills = Count("kills");
         var deaths = Count("deaths");
         var kdRatio = Value("kdRatio") ?? (deaths > 0 ? Math.Round(kills!.Value / deaths!.Value, 3, MidpointRounding.AwayFromZero) : (decimal?)null);
+        var games = Count("gamesPlayed");
+        // A total, or the average per game times the games
+        decimal? Total(string key, string average)
+            => Value(key) ?? (Value(average) is decimal perGame && games > 0 ? Math.Round(perGame * games.Value, MidpointRounding.AwayFromZero) : null);
         return new ArchivePlayer
         {
             Gamertag = gamertag,
@@ -493,7 +567,7 @@ public static partial class SeasonStatsParser
             TradeNote = tradeNote,
             RoleNote = roleNote,
             StintIndex = stint,
-            GamesPlayed = Count("gamesPlayed"),
+            GamesPlayed = games,
             Wins = Count("wins"),
             Losses = Count("losses"),
             WinPercent = Value("winPercent"),
@@ -514,11 +588,24 @@ public static partial class SeasonStatsParser
             SwordKills = Value("swordKills"),
             BallKills = Value("ballKills"),
             Punches = Value("punches"),
-            Score = Value("score"),
-            DamageDealt = Value("damageDealt"),
-            DamageTaken = Value("damageTaken"),
-            ExtendedMetrics = extendedMetrics,
+            Score = Total("score", "averageScore"),
+            DamageDealt = Total("damageDealt", "averageDamageDealt"),
+            DamageTaken = Total("damageTaken", "averageDamageTaken"),
+            ExtendedMetrics = WithExtendedStats(extendedMetrics, values),
         };
+    }
+
+    /// <summary>The line's extended metrics: a table's (<see cref="StatsTable.Extended"/>) and the stats with no column of
+    /// their own (<see cref="ExtendedKeys"/>).</summary>
+    private static System.Text.Json.JsonElement? WithExtendedStats(System.Text.Json.JsonElement? extendedMetrics, Dictionary<string, decimal?> values)
+    {
+        var metrics = ExtendedKeys.Where(k => values.GetValueOrDefault(k) is not null).ToDictionary(k => k, k => (object)values[k]!.Value);
+        if (metrics.Count == 0)
+            return extendedMetrics;
+        if (extendedMetrics is { ValueKind: System.Text.Json.JsonValueKind.Object } table)
+            foreach (var metric in table.EnumerateObject())
+                metrics.TryAdd(metric.Name, metric.Value);
+        return System.Text.Json.JsonSerializer.SerializeToElement(metrics);
     }
 
     /// <summary>A TimeStamp cell: the stats tool's "Tue Oct 18 08:01:46 2022" (UTC), or a date the sheet shows; null for

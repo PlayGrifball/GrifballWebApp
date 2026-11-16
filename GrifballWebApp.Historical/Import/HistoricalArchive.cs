@@ -100,9 +100,9 @@ public class ArchivePlayer
     public string? TradeNote { get; init; }
     public string? RoleNote { get; init; }
     public int StintIndex { get; init; } = 1;
-    public decimal? GamesPlayed { get; init; }
-    public decimal? Wins { get; init; }
-    public decimal? Losses { get; init; }
+    public decimal? GamesPlayed { get; set; }
+    public decimal? Wins { get; set; }
+    public decimal? Losses { get; set; }
     public decimal? WinPercent { get; init; }
     public decimal? Goals { get; init; }
     public decimal? Kills { get; init; }
