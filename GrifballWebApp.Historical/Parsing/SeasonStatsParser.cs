@@ -186,7 +186,7 @@ public static partial class SeasonStatsParser
         var records = new Dictionary<string, (int Games, int Wins, int Losses)>(StringComparer.Ordinal);
         for (var r = 1; r < sheet.Rows.Count; r++)
         {
-            var gamertag = sheet.Cell(r, columns.Player).Trim();
+            var gamertag = sheet.Cell(r, columns.PlayerColumn).Trim();
             if (gamertag.Length == 0)
                 continue;
             var (won, lost) = columns.Result(sheet, r);
@@ -198,14 +198,14 @@ public static partial class SeasonStatsParser
     }
 
     /// <summary>A games tab's columns: the player's, and the game's result (a Waypoint Outcome, or Wins and Losses).</summary>
-    private sealed record GameColumns(int Player, int Outcome, int Wins, int Losses)
+    private sealed record GameColumns(int PlayerColumn, int OutcomeColumn, int WinsColumn, int LossesColumn)
     {
         private static decimal? Number(SheetTable sheet, int r, int column) => column >= 0 ? ArchiveCells.Number(sheet.Cell(r, column)) : null;
 
         public (bool Won, bool Lost) Result(SheetTable sheet, int r)
         {
-            var outcome = Number(sheet, r, Outcome);
-            return (outcome == (int)Outcomes.Won || Number(sheet, r, Wins) > 0, outcome == (int)Outcomes.Lost || Number(sheet, r, Losses) > 0);
+            var outcome = Number(sheet, r, OutcomeColumn);
+            return (outcome == (int)Outcomes.Won || Number(sheet, r, WinsColumn) > 0, outcome == (int)Outcomes.Lost || Number(sheet, r, LossesColumn) > 0);
         }
     }
 
@@ -217,7 +217,7 @@ public static partial class SeasonStatsParser
         int Of(string key) => columns.Where(p => p.Value.Key == key).Select(p => p.Key).DefaultIfEmpty(-1).First();
         var player = Named("PlayerId") is var id and >= 0 ? id : Of("gamertag");
         var result = new GameColumns(player, Named("Outcome"), Of("wins"), Of("losses"));
-        return player < 0 || (result.Outcome < 0 && result.Wins < 0) ? null : result;
+        return player < 0 || (result.OutcomeColumn < 0 && result.WinsColumn < 0) ? null : result;
     }
 
     private static int StampColumn(string[] header) => Array.FindIndex(header, h => h.Trim().ToLowerInvariant() is "timestamp" or "time stamp");
