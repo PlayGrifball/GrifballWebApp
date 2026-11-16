@@ -159,4 +159,9 @@ public class ChatHubModelsUnitTests : SqliteGrifballContextFixture
             Assert.That(overridden.Options.Tools, Has.Some.InstanceOf<ApprovalRequiredAIFunction>());
         }
     }
+
+    [Test]
+    public void SetAutoApprove_ForSomeoneWithNoChangeToMake_IsRefused_WithWhy()
+        => Assert.That(async () => await Hub(new HubUserState(8, ["Player"])).SetAutoApprove(true),
+            Throws.InstanceOf<HubException>().With.Message.EqualTo(GrifChat.NoChangesToApprove));
 }

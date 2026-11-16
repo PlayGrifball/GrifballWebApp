@@ -526,12 +526,15 @@ describe('ChatStore', () => {
       expect(store.autoApprove()).toBeFalse();
     });
 
-    it('is none for someone with no change to approve', async () => {
+    it('is none for someone with no change to approve, and saves nothing for them', async () => {
       const store = create();
       (connection.onreconnected.calls.mostRecent().args[0] as () => void)();
       await new Promise(resolve => setTimeout(resolve));
 
+      await store.saveAutoApprove();
+
       expect(store.autoApprove()).toBeNull();
+      expect(connection.invoke).not.toHaveBeenCalledWith('SetAutoApprove', jasmine.anything());
     });
 
     it('shows why saving failed', async () => {
