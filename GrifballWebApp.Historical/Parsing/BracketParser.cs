@@ -164,16 +164,22 @@ public static partial class BracketParser
                 continue;
             }
             // A row without its team's name is the team above's
-            team = sheet.Cell(r, teamColumn).Trim() is { Length: > 0 } name ? name : team;
-            if (team is null)
-                continue;
-            var wins = winsColumn < 0 ? 0 : ArchiveCells.Number(sheet.Cell(r, winsColumn)) ?? 0;
-            if (blocks.Count > 0 && blocks[^1].Team == team)
-                blocks[^1] = (team, blocks[^1].Seed, blocks[^1].Rows + 1, blocks[^1].Wins + wins);
-            else
-                blocks.Add((team, seedColumn < 0 ? null : Seed(sheet.Cell(r, seedColumn)), 1, wins));
+            team = NonEmpty(sheet.Cell(r, teamColumn)) ?? team;
+            if (team is not null)
+                AddRow(blocks, team, seedColumn < 0 ? null : Seed(sheet.Cell(r, seedColumn)), winsColumn < 0 ? 0 : ArchiveCells.Number(sheet.Cell(r, winsColumn)) ?? 0);
         }
         return drafts;
+    }
+
+    private static string? NonEmpty(string cell) => cell.Trim() is { Length: > 0 } text ? text : null;
+
+    /// <summary>A player's row: one more of its team's run of rows, or the start of the next run.</summary>
+    private static void AddRow(List<(string Team, int? Seed, int Rows, decimal Wins)> blocks, string team, int? seed, decimal wins)
+    {
+        if (blocks.Count > 0 && blocks[^1].Team == team)
+            blocks[^1] = (team, blocks[^1].Seed, blocks[^1].Rows + 1, blocks[^1].Wins + wins);
+        else
+            blocks.Add((team, seed, 1, wins));
     }
 
     /// <summary>A section's games: its teams' runs of rows, two by two. A run inside another team's rows (a player listed
