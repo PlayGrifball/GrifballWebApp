@@ -542,4 +542,34 @@ public class DiscordTransportTests
             Assert.That(signup.RequiresAssistanceDrafting, Is.True);
         }
     }
+
+    [Test]
+    public async Task Voice_OptInAndOut_AreKeptOnTheirDiscordAccount_AndSaidToThemAlone()
+    {
+        var optIn = await _host.SendAsync(DiscordInteractionJson.SubCommand("voice optin", 7001));
+        var heardAfterOptIn = await _host.WithContextAsync(c => c.DiscordUsers.AsNoTracking().Where(d => d.DiscordUserID == 7001).Select(d => d.VoiceOptIn).SingleAsync());
+        var optOut = await _host.SendAsync(DiscordInteractionJson.SubCommand("voice optout", 7001));
+        var heardAfterOptOut = await _host.WithContextAsync(c => c.DiscordUsers.AsNoTracking().Where(d => d.DiscordUserID == 7001).Select(d => d.VoiceOptIn).SingleAsync());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((heardAfterOptIn, heardAfterOptOut), Is.EqualTo((true, false)));
+            Assert.That(optIn.Single().Content, Is.EqualTo(VoiceCommands.OptedIn));
+            Assert.That(optIn.Single().Flags, Is.EqualTo(MessageFlags.Ephemeral), "Theirs alone");
+            Assert.That(optOut.Single().Content, Is.EqualTo(VoiceCommands.OptedOut));
+        }
+    }
+
+    [Test]
+    public async Task Voice_JoinWithNoSpeechServer_SaysVoiceIsntSetUp_AndLeaveOutsideAServer_SaysWhere()
+    {
+        var join = await _host.SendAsync(DiscordInteractionJson.SubCommand("voice join", 7002));
+        var leave = await _host.SendAsync(DiscordInteractionJson.SubCommand("voice leave", 7002));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(join.Single().Content, Is.EqualTo(VoiceCommands.Unavailable));
+            Assert.That(leave.Single().Content, Is.EqualTo(VoiceCommands.NoGuild));
+        }
+    }
 }
