@@ -77,6 +77,6 @@ public class VoiceCommands(VoiceSessions sessions, VoiceConsents consents) : App
         await Ephemeral(OptedOut);
     }
 
-    private Task Ephemeral(string content)
+    private Task<InteractionCallbackResponse?> Ephemeral(string content)
         => Context.Interaction.SendResponseAsync(InteractionCallback.Message(new InteractionMessageProperties { Content = content, Flags = MessageFlags.Ephemeral }));
 }
