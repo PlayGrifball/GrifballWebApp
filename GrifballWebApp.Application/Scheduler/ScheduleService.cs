@@ -22,6 +22,13 @@ public partial class ScheduleService
 
     public static TimeZoneInfo LeagueTimeZone() => TimeZoneInfo.FindSystemTimeZoneById(LeagueTimeZoneId);
 
+    /// <summary>A league wall-clock time (the GA's, which picks the season's weekly timeslots) as UTC, the time matches are kept in.</summary>
+    public static DateTime ToUtc(DateTime leagueTime)
+        => TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(leagueTime, DateTimeKind.Unspecified), LeagueTimeZone());
+
+    /// <summary>Why a season can't be scheduled: it has no timeslots of its own.</summary>
+    public const string NoTimeslots = "The season has no timeslots: set them on its edit page first.";
+
     /// <summary>The GA's best schedule (gene i is match i's time), as the old endpoint returned it: 100 generations.</summary>
     public async Task<List<SeasonMatchGene>> GetTimeRecommendations(int seasonID, CancellationToken ct = default)
         => (await Recommend(seasonID, new ScheduleRunOptions { MaxGenerations = 100, TimeBudget = null }, null, ct)).Genes;
@@ -49,11 +56,14 @@ public partial class ScheduleService
             .Where(x => x.AwayTeam != null)
             .ToListAsync(ct);
 
-        var timeSlots = await _context.Availability.ToArrayAsync(ct);
-
+        // The season's own weekly timeslots: not every option any season ever had
         var timeSlotsWithTeams = await _context.Availability
+            .Where(x => x.SeasonAvailability.Any(s => s.SeasonID == seasonID))
             .Include(x => x.TeamAvailability.Where(x => x.Team.SeasonID == seasonID))
             .ToArrayAsync(ct);
+        if (timeSlotsWithTeams.Length == 0)
+            throw new InvalidOperationException(NoTimeslots);
+        var timeSlots = timeSlotsWithTeams;
 
         var selection = new EliteSelection();
         var crossover = CreateCrossover();

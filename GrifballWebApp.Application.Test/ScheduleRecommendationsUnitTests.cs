@@ -271,8 +271,9 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
         var (home, away, match) = await SeedMatch();
         var (asker, saved) = await Recommended(home, away, match);
         var agreed = ProposedUtc.AddDays(2);
-        var reschedule = MatchReschedule.Request(match, agreed, "Both teams agreed", asker.Id, Now.AddHours(1)).Reschedule!;
-        reschedule.Decide(true, asker.Id, null, Now.AddHours(2));
+        // After the recommendation was made (its audit stamp)
+        var reschedule = MatchReschedule.Request(match, agreed, "Both teams agreed", asker.Id, saved.CreatedAt.AddHours(1)).Reschedule!;
+        reschedule.Decide(true, asker.Id, null, saved.CreatedAt.AddHours(2));
         await Context.SaveChangesAsync();
 
         var count = await _service.Apply(saved.ScheduleRecommendationID, "applier");
