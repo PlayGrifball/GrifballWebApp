@@ -192,16 +192,20 @@ public class RecordedGameOneLinePerUserMigrationTests
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_RecordedGameOneLinePerUser"))) - 1]);
 
         var (alpha, bravo) = (User.Seed(userName: "alpha"), User.Seed(userName: "bravo"));
-        _context.Users.AddRange(alpha, bravo);
-        await _context.SaveChangesAsync();
-        // Lines as a merge of two accounts that both played a game left them (one per save, so the keys are in order)
-        var first = RecordedGame.Seed("archive/1");
-        var second = RecordedGame.Seed("archive/2");
-        _context.RecordedGames.AddRange(first, second);
-        foreach (var (game, user, kills) in new[] { (first, alpha, 1), (first, alpha, 2), (first, bravo, 3), (first, alpha, 4), (second, alpha, 5) })
+        // Lines as a merge of two accounts that both played a game left them (one per save, so the keys are in order),
+        // through the model of the day (BeforeRecordedGameGrabsContext: the lines' Grabs come with a later migration)
+        await using (var before = BeforeRecordedGameGrabsContext.On(_context))
         {
-            game.SeedPlayer(new RecordedPlayerLine(user.Id, null, user.UserName!, kills, 0, 0));
-            await _context.SaveChangesAsync();
+            before.Users.AddRange(alpha, bravo);
+            await before.SaveChangesAsync();
+            var first = RecordedGame.Seed("archive/1");
+            var second = RecordedGame.Seed("archive/2");
+            before.RecordedGames.AddRange(first, second);
+            foreach (var (game, user, kills) in new[] { (first, alpha, 1), (first, alpha, 2), (first, bravo, 3), (first, alpha, 4), (second, alpha, 5) })
+            {
+                game.SeedPlayer(new RecordedPlayerLine(user.Id, null, user.UserName!, kills, 0, 0));
+                await before.SaveChangesAsync();
+            }
         }
 
         await migrator.MigrateAsync();
