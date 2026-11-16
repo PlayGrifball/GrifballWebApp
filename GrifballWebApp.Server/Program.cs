@@ -275,7 +275,9 @@ public class Program
             // /help reads the commands from the gateway's command service: only this role has it
             builder.Services.AddTransient<HelpCommandsHandler>();
             // The bot's voice channels (/voice): this role runs the gateway they are joined through
+            builder.Services.AddSingleton<GrifballWebApp.Server.Voice.IVoiceConnector, GrifballWebApp.Server.Voice.NetCordVoiceConnector>();
             builder.Services.AddSingleton<GrifballWebApp.Server.Voice.VoiceSessions>();
+            builder.Services.AddTransient<GrifballWebApp.Server.Voice.VoiceCommandsHandler>();
         }
         else if (!discordOff)
         {
