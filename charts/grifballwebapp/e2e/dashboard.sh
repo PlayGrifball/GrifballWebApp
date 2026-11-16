@@ -93,21 +93,20 @@ docker run -d --name tempo --network "$net" --tmpfs /var/tempo:mode=1777 -v "$wo
 docker run -d --name collector --network "$net" -v "$work/collector.yaml:/etc/otelcol/config.yaml:ro" "$COLLECTOR_IMAGE" --config=/etc/otelcol/config.yaml > /dev/null
 collector=$(docker inspect -f "{{(index .NetworkSettings.Networks \"$net\").IPAddress}}" collector)
 echo "Collector at $collector"
-# Plain OTLP to the collector beside the cluster, on the e2e Docker network only
+# Plain OTLP to the collector beside the cluster, on the e2e Docker network only. The backend in the app's preview mode
+# without a Discord bot token (no secretConfig): it gets ready without Discord, which a single backend pod otherwise
+# can't (run.sh's stand-in token gets a 401 and stops it)
 cat > "$work/telemetry-values.yaml" <<EOF
 backend:
+  config: { Preview: { Enabled: true } }
+  secretConfig: null
   telemetry: { enabled: true, endpoint: "http://$collector:4317", metricExportInterval: 5000 }
 frontend:
   telemetry: { enabled: true, endpoint: "http://$collector:4318" }
 grafanaDashboard: { enabled: true }
 EOF
 
-# The Secret ci/sqlite-values.yaml's secretConfig reads (grif-secrets), with run.sh's stand-in Discord credentials: the
-# token is shaped like a real one, so the backend starts and gets ready
-kubectl create namespace "$ns"
-kubectl -n "$ns" create secret generic grif-secrets --from-literal=DiscordClientId=0 --from-literal=DiscordClientSecret=e2e \
-  --from-literal=DiscordToken=MTIzNDU2Nzg5MDEyMzQ1Njc4.AAAAAA.e2e-not-a-real-token
-helm install grif "$chart" -n "$ns" -f "$chart/ci/sqlite-values.yaml" -f "$work/telemetry-values.yaml" \
+helm install grif "$chart" -n "$ns" --create-namespace -f "$chart/ci/sqlite-values.yaml" -f "$work/telemetry-values.yaml" \
   --set "backend.image.repository=${backend_image%:*}" --set "backend.image.tag=${backend_image##*:}" \
   --set "frontend.image.repository=${frontend_image%:*}" --set "frontend.image.tag=${frontend_image##*:}" \
   --set backend.image.pullPolicy=IfNotPresent --set frontend.image.pullPolicy=IfNotPresent
