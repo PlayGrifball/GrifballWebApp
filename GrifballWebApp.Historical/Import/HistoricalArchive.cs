@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
+using GrifballWebApp.Application.Historical;
 
 namespace GrifballWebApp.Historical.Import;
 

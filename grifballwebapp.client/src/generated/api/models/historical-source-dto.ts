@@ -6,6 +6,10 @@ export interface HistoricalSourceDto {
   enabled: boolean;
   format: string | null;
   gameVersion: string | null;
+
+  /**
+   * The import reads it (its catalog entry says what); the others are kept as a backup.
+   */
   imported: boolean;
   isDead: boolean;
   kind: string;

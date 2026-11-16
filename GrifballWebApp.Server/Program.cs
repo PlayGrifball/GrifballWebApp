@@ -202,10 +202,10 @@ public class Program
             option.DocInclusionPredicate(OpenApiInclusion.Includes);
 
             // Controller actions' <summary>/<param>/<returns>/<remarks>, and the DTOs' and enums' <summary> (the
-            // Application's and Domain's), into the OpenAPI document (GenerateDocumentationFile, each .csproj). Each
+            // Application's, Historical's and Domain's), into the OpenAPI document (GenerateDocumentationFile, each .csproj). Each
             // file sits next to this assembly in every environment, the Docker publish included: a project reference
             // copies its XML doc file with it.
-            foreach (var assembly in new[] { typeof(Program).Assembly, typeof(GrifballWebApp.Application.Dtos.PaginationResult<>).Assembly, typeof(GrifballWebApp.Domain.League.Season).Assembly })
+            foreach (var assembly in new[] { typeof(Program).Assembly, typeof(GrifballWebApp.Application.Dtos.PaginationResult<>).Assembly, typeof(GrifballWebApp.Historical.Import.HistoricalImportService).Assembly, typeof(GrifballWebApp.Domain.League.Season).Assembly })
                 option.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{assembly.GetName().Name}.xml"));
 
             option.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
