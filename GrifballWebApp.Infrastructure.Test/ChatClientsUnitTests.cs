@@ -23,6 +23,7 @@ public class ChatClientsUnitTests
     private static readonly string[] DefaultIds = ["claude-haiku", "claude-sonnet", "claude-opus", "ollama"];
     private static readonly string[] ClaudeModels = ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"];
     private static readonly string[] Commissioners = ["Commissioner"];
+    private static readonly bool[] EveryToolByDefault = [true, true, true, false];
     private static readonly string[] OllamaModels = ["qwen3:4b", "qwen3:8b"];
 
     private static IConfiguration Configuration(params (string Key, string? Value)[] values)
@@ -78,6 +79,7 @@ public class ChatClientsUnitTests
             Assert.That(clients.Models.Select(m => m.Id), Is.EqualTo(DefaultIds));
             Assert.That(clients.Models.Take(3).Select(m => (m.Provider, m.Roles.Single(), m.Price is not null)),
                 Is.All.EqualTo((ChatProvider.Anthropic, SiteRoles.Sysadmin, true)));
+            Assert.That(clients.Models.Select(m => m.EveryTool), Is.EqualTo(EveryToolByDefault), "Claude picks well from every tool; the small model keeps the short list");
             Assert.That(clients.Models.Take(3).Select(m => m.Model), Is.EqualTo(ClaudeModels));
             Assert.That(clients.Create(clients.Models[0]).GetService<IAnthropicClient>(), Is.Not.Null, "Anthropic's own client");
             Assert.That(clients.Create(clients.Models[0]).GetService<AnthropicSpendLimit>(), Is.Not.Null, "Its spend limits said as the chat's refusal");
@@ -93,7 +95,8 @@ public class ChatClientsUnitTests
             (ChatModels.OllamaUrlKey, OllamaUrl), (ChatModels.AnthropicApiKeyKey, "sk-test"),
             ("Chat:Models:0:Id", "local"), ("Chat:Models:0:Name", "Grif"), ("Chat:Models:0:Provider", "Ollama"), ("Chat:Models:0:Model", "qwen3:4b"),
             ("Chat:Models:1:Id", "haiku"), ("Chat:Models:1:Provider", "Anthropic"), ("Chat:Models:1:Model", "claude-haiku-5-5"),
-            ("Chat:Models:1:Roles:0", "Commissioner"), ("Chat:Models:1:Price:Input", "0.1"), ("Chat:Models:1:Price:Output", "0.5"));
+            ("Chat:Models:1:Roles:0", "Commissioner"), ("Chat:Models:1:Price:Input", "0.1"), ("Chat:Models:1:Price:Output", "0.5"),
+            ("Chat:Models:1:EveryTool", "true"));
 
         var models = ChatModels.From(configuration);
 
@@ -107,6 +110,7 @@ public class ChatClientsUnitTests
             Assert.That(models[1].Roles, Is.EqualTo(Commissioners));
             Assert.That(models[1].Price, Is.EqualTo(new ChatPrice(0.1m, 0.5m, 0m, 0m)));
             Assert.That(models[0].Price, Is.Null);
+            Assert.That((models[0].EveryTool, models[1].EveryTool), Is.EqualTo((false, true)), "Every tool when the list says so");
         }
     }
 

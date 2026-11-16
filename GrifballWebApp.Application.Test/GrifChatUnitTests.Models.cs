@@ -478,4 +478,42 @@ public partial class GrifChatUnitTests
     [Test]
     public void IsRefusal_KnowsTheProvidersLimit_SoItIsLeftOutOfTheConversation()
         => Assert.That(GrifChat.IsRefusal(GrifChat.ProviderLimitReached), Is.True);
+
+    [Test]
+    public async Task AModelForEveryTool_GetsEveryToolTheCallersRolesAllow_InPrivate_AndTheShortListElsewhere()
+    {
+        var model = new FakeModel([Text("Hi")], [Text("Hi")], [Text("Hi")]);
+        var chat = ChatWithModels(model);
+        _clients.Models.Returns([Haiku with { EveryTool = true }, Free]);
+
+        using (var reply = await chat.StartAsync([], "Hi", Sysadmin, ChatHost.Site, Asker))
+            await All(reply.StreamAsync());
+        using (var reply = await chat.StartAsync([], "Hi", Player, ChatHost.Site, "user:8", model: "ollama"))
+            await All(reply.StreamAsync());
+        using (var reply = await chat.StartAsync([], "Hi", Player with { Roles = [SiteRoles.Sysadmin] }, ChatHost.DiscordDirect, "user:9"))
+            await All(reply.StreamAsync());
+
+        var sysadminTools = model.Options[0]!.Tools!.Select(t => t.Name).ToList();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sysadminTools, Does.Contain("list_seasons"), "Not on the short list: a model that picks well gets it");
+            Assert.That(sysadminTools, Is.SupersetOf(GrifTools.Chat), "The short list's too");
+            Assert.That(model.Options[1]!.Tools!.Select(t => t.Name), Does.Not.Contain("list_seasons"), "A model for the short list keeps it");
+            Assert.That(model.Options[2]!.Tools!.Select(t => t.Name), Does.Contain("list_seasons"), "A Discord DM is private too");
+        }
+    }
+
+    [Test]
+    public void ToolsFor_InPublic_IsTheShortList_WhateverTheModel()
+    {
+        var everyTool = Haiku with { EveryTool = true };
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ChatHost.Discord.ToolsFor(everyTool), Is.EqualTo(GrifTools.Chat));
+            Assert.That(ChatHost.Site.ToolsFor(everyTool), Is.EqualTo(GrifTools.Every));
+            Assert.That(ChatHost.Site.ToolsFor(Free), Is.EqualTo(GrifTools.PrivateChat));
+            Assert.That(GrifTools.Every, Is.SupersetOf(GrifTools.PrivateChat).And.Contains("list_seasons").And.Unique);
+        }
+    }
 }
