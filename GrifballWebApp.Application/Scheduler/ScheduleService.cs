@@ -57,18 +57,20 @@ public partial class ScheduleService
             .ToListAsync(ct);
 
         // The season's own weekly timeslots: not every option any season ever had
-        var timeSlotsWithTeams = await _context.Availability
+        var timeSlots = await _context.Availability
             .Where(x => x.SeasonAvailability.Any(s => s.SeasonID == seasonID))
-            .Include(x => x.TeamAvailability.Where(x => x.Team.SeasonID == seasonID))
             .ToArrayAsync(ct);
-        if (timeSlotsWithTeams.Length == 0)
+        if (timeSlots.Length == 0)
             throw new InvalidOperationException(NoTimeslots);
-        var timeSlots = timeSlotsWithTeams;
+        // The season's rules and its teams' availability, and the matches it doesn't place (a time already: a bracket's)
+        var schedule = (await new GrifballWebApp.Application.Scheduling.SchedulingService(_context, TimeProvider.System).LoadAsync(seasonID, ct))!;
+        var placing = matches.Select(m => m.SeasonMatchID).ToHashSet();
+        var fixedMatches = schedule.Scheduled.Where(m => !placing.Contains(m.SeasonMatchID)).ToList();
 
         var selection = new EliteSelection();
         var crossover = CreateCrossover();
         var mutation = CreateMutation();
-        var fitness = new SeasonScheduleEvaluator(timeSlotsWithTeams);
+        var fitness = new SeasonScheduleEvaluator(schedule.Checker, matches.ToDictionary(m => m.SeasonMatchID, m => m.BestOf), fixedMatches);
         var adam = new SeasonScheduleChromosome(matches, matches.Count, start, end, timeSlots);
         var population = new Population(10, 100, adam);
 
@@ -95,7 +97,7 @@ public partial class ScheduleService
 
         var best = (SeasonScheduleChromosome)ga.BestChromosome;
         var genes = best.GetGenes().Select(x => (SeasonMatchGene)x.Value).ToList();
-        return new ScheduleRun(genes, best.Fitness ?? 0, ga.GenerationsNumber, timeSlotsWithTeams);
+        return new ScheduleRun(genes, best.Fitness ?? 0, ga.GenerationsNumber, fitness.ConflictsOf);
     }
 
     /// <summary>
@@ -132,5 +134,9 @@ public sealed class ScheduleRunOptions
     public TimeSpan? TimeBudget { get; set; } = TimeSpan.FromMinutes(2);
 }
 
-/// <summary>The algorithm's best schedule (one gene per match), its fitness (0 to 1) and the generations it ran.</summary>
-public sealed record ScheduleRun(List<SeasonMatchGene> Genes, double Fitness, int Generations, GrifballWebApp.Domain.Shared.AvailabilityOption[] Availability);
+/// <summary>
+/// The algorithm's best schedule (one gene per match), its fitness (0 to 1), the generations it ran, and what is wrong with a
+/// gene's time among the run's (the season's rules: its flags on the recommendation).
+/// </summary>
+public sealed record ScheduleRun(List<SeasonMatchGene> Genes, double Fitness, int Generations,
+    Func<SeasonMatchGene, IReadOnlyList<SeasonMatchGene>, IReadOnlyList<GrifballWebApp.Application.Scheduling.ScheduleConflict>> Conflicts);

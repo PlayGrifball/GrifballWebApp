@@ -27,26 +27,4 @@ public struct SeasonMatchGene
             .Where(self.HasOverlap);
     }
     public bool AnyOverlap(List<SeasonMatchGene> list) => GetOverlap(list).Any();
-
-    public bool HomeTeamAvailable(AvailabilityOption[] options)
-    {
-        var self = this;
-        var option = options.FirstOrDefault(x => x.DayOfWeek == self.ScheduledTime.DayOfWeek && x.Time == TimeOnly.FromDateTime(self.ScheduledTime));
-
-        if (option is null)
-            throw new Exception("Missing option");
-
-        return option.TeamAvailability.Any(x => x.TeamID == self.HomeTeamID);
-    }
-
-    public bool AwayTeamAvailable(AvailabilityOption[] options)
-    {
-        var self = this;
-        var option = options.FirstOrDefault(x => x.DayOfWeek == self.ScheduledTime.DayOfWeek && x.Time == TimeOnly.FromDateTime(self.ScheduledTime));
-
-        if (option is null)
-            throw new Exception("Missing option");
-
-        return option.TeamAvailability.Any(x => x.TeamID == self.AwayTeamID);
-    }
 }
