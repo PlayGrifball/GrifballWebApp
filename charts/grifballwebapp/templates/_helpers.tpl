@@ -379,13 +379,19 @@ after 3 seconds, lookup and all (nc -w covers only the connection): an untimed t
 61-110 seconds on every Job but a release's first (k3s, 2026-10-15).
 Needs DB_HOST, DB_PORT, WAIT_SECONDS.
 With onDemand and the chart's database, it first asks Sablier to start the group (its poke strategy: it starts
-them and answers at once), as a visit would, so a Job run while nobody visits finds the database up.
+them and answers at once), as a visit would, so a Job run while nobody visits finds the database up. The
+same network policies drop the poke too until they admit the pod (a single refused try left grif-test's
+database asleep and failed its sync, 2026-11-16), so it retries for a minute, each try cut off likewise.
 */}}
 {{- define "grif.waitForDatabaseScript" -}}
 {{- if include "grif.onDemandWakesDatabase" . }}
 {{- $o := .Values.onDemand }}
 {{- $url := printf "%s/api/strategies/poke?group=%s&session_duration=%s" (include "grif.sablierUrl" .) (include "grif.onDemandGroup" . | urlquery) (urlquery $o.sessionDuration) -}}
-wget -q -T 10 -O /dev/null {{ $url | squote }} || echo "Sablier didn't answer ({{ include "grif.sablierUrl" . }}): waiting for the database anyway."
+poke_end=$(( $(date +%s) + 60 ))
+until timeout 12 wget -q -T 10 -O /dev/null {{ $url | squote }}; do
+  if [ "$(date +%s)" -ge "$poke_end" ]; then echo "Sablier didn't answer ({{ include "grif.sablierUrl" . }}): waiting for the database anyway."; break; fi
+  sleep 2
+done
 {{ end -}}
 end=$(( $(date +%s) + WAIT_SECONDS ))
 until timeout 3 nc -w 2 "$DB_HOST" "$DB_PORT" </dev/null; do
