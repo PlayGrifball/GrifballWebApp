@@ -3,6 +3,7 @@ using GrifballWebApp.Application.Database;
 using GrifballWebApp.Application.Voice;
 using GrifballWebApp.Infrastructure;
 using GrifballWebApp.Server.Voice;
+using NetCord.Gateway;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -125,6 +126,13 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
 
     private VoiceCommandsHandler Handler(VoiceSessions sessions) => new(sessions, new VoiceConsents(Db, _time));
 
+    /// <summary>The guild's voice states, as the gateway keeps them: <see cref="Speaker"/> in <paramref name="channel"/> (null: in none).</summary>
+    private static Dictionary<ulong, VoiceState> In(ulong? channel) => new()
+    {
+        [Speaker] = new VoiceState(new NetCord.Gateway.JsonModels.JsonVoiceState { UserId = Speaker, ChannelId = channel, SessionId = "s" }, Guild,
+            new NetCord.Rest.RestClient()),
+    };
+
     [Test]
     public async Task Join_ListensInTheChannel_ItsSpeakersAnswered_AndItsRepliesPlayedThere()
     {
@@ -133,7 +141,7 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
         await handler.OptInAsync(Speaker);
         _speech.Transcripts.Enqueue("Grif, hello?");
 
-        var joined = await handler.JoinAsync(Guild, Channel);
+        var joined = await handler.JoinAsync(Guild, In(Channel), Speaker);
         var link = _connector.Opened.Single().Link;
         await sessions.RefreshAsync(Speaker);
         link.Say(Speaker, new short[VoicePcm.DiscordRate]);
@@ -145,7 +153,7 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(joined, Is.EqualTo(new VoiceCommandsHandler.JoinReply(VoiceCommandsHandler.Joined, VoiceCommandsHandler.Listening(Channel))));
+            Assert.That(joined, Is.EqualTo(VoiceCommandsHandler.Listening(Channel)));
             Assert.That((_connector.Opened.Single().Guild, _connector.Opened.Single().Channel), Is.EqualTo((Guild, Channel)));
             Assert.That(_speech.Spoken, Is.EqualTo(Hello));
             Assert.That(link.Played, Has.Count.EqualTo(1));
@@ -158,15 +166,14 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
         await using var sessions = Sessions();
         var handler = Handler(sessions);
 
-        await handler.JoinAsync(Guild, Channel);
-        var again = await handler.JoinAsync(Guild, 41);
+        await handler.JoinAsync(Guild, In(Channel), Speaker);
+        var again = await handler.JoinAsync(Guild, In(41), Speaker);
         var left = await handler.LeaveAsync(Guild);
         var leftAgain = await handler.LeaveAsync(Guild);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(again.Reply, Is.EqualTo(VoiceCommandsHandler.AlreadyIn));
-            Assert.That(again.Notice, Is.Null, "Nothing new to tell everyone");
+            Assert.That(again, Is.EqualTo(VoiceCommandsHandler.AlreadyIn));
             Assert.That(_connector.Opened, Has.Count.EqualTo(1));
             Assert.That((left, leftAgain), Is.EqualTo((VoiceCommandsHandler.Left, VoiceCommandsHandler.NotIn)));
             Assert.That(_connector.Opened.Single().Link.Disposed, Is.True);
@@ -179,14 +186,14 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
     {
         await using var sessions = Sessions();
         var handler = Handler(sessions);
-        await handler.JoinAsync(Guild, Channel);
+        await handler.JoinAsync(Guild, In(Channel), Speaker);
 
         _connector.Opened.Single().Link.Close();
-        var rejoined = await handler.JoinAsync(Guild, Channel);
+        var rejoined = await handler.JoinAsync(Guild, In(Channel), Speaker);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(rejoined.Reply, Is.EqualTo(VoiceCommandsHandler.Joined));
+            Assert.That(rejoined, Is.EqualTo(VoiceCommandsHandler.Listening(Channel)));
             Assert.That(_connector.Opened[0].Link.Disposed, Is.True);
         }
     }
@@ -197,13 +204,13 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
         await using var sessions = Sessions();
         _connector.Fails = new TimeoutException("no voice server");
 
-        Assert.That(async () => await Handler(sessions).JoinAsync(Guild, Channel), Throws.TypeOf<TimeoutException>());
+        Assert.That(async () => await Handler(sessions).JoinAsync(Guild, In(Channel), Speaker), Throws.TypeOf<TimeoutException>());
         _connector.Fails = null;
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(_connector.Disconnected, Is.EqualTo(OnlyTheGuild), "Out of the channel Discord may have put it in");
-            Assert.That((await Handler(sessions).JoinAsync(Guild, Channel)).Reply, Is.EqualTo(VoiceCommandsHandler.Joined), "Free to try again");
+            Assert.That(await Handler(sessions).JoinAsync(Guild, In(Channel), Speaker), Is.EqualTo(VoiceCommandsHandler.Listening(Channel)), "Free to try again");
         }
     }
 
@@ -211,15 +218,17 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
     public async Task Join_WithNoSpeechServer_NoGuild_OrNoVoiceChannel_IsRefused()
     {
         await using var unavailable = Sessions(speech: false);
-        var noSpeech = await Handler(unavailable).JoinAsync(Guild, Channel);
+        var noSpeech = await Handler(unavailable).JoinAsync(Guild, In(Channel), Speaker);
         await using var sessions = Sessions();
         var handler = Handler(sessions);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(noSpeech.Reply, Is.EqualTo(VoiceCommandsHandler.Unavailable));
-            Assert.That((await handler.JoinAsync(null, Channel)).Reply, Is.EqualTo(VoiceCommandsHandler.NoGuild));
-            Assert.That((await handler.JoinAsync(Guild, null)).Reply, Is.EqualTo(VoiceCommandsHandler.NotInVoice));
+            Assert.That(noSpeech, Is.EqualTo(VoiceCommandsHandler.Unavailable));
+            Assert.That(await handler.JoinAsync(null, In(Channel), Speaker), Is.EqualTo(VoiceCommandsHandler.NoGuild));
+            Assert.That(await handler.JoinAsync(Guild, null, Speaker), Is.EqualTo(VoiceCommandsHandler.NoGuild), "Not in the gateway's cache");
+            Assert.That(await handler.JoinAsync(Guild, In(null), Speaker), Is.EqualTo(VoiceCommandsHandler.NotInVoice), "In none");
+            Assert.That(await handler.JoinAsync(Guild, In(Channel), 999), Is.EqualTo(VoiceCommandsHandler.NotInVoice), "Someone else is");
             Assert.That(await handler.LeaveAsync(null), Is.EqualTo(VoiceCommandsHandler.NoGuild));
             Assert.That(_connector.Opened, Is.Empty);
         }
@@ -231,7 +240,7 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
         await using var sessions = Sessions();
         var handler = Handler(sessions);
         await handler.OptInAsync(Speaker);
-        await handler.JoinAsync(Guild, Channel);
+        await handler.JoinAsync(Guild, In(Channel), Speaker);
         var link = _connector.Opened.Single().Link;
         await sessions.RefreshAsync(Speaker);
 
@@ -252,13 +261,13 @@ public class VoiceSessionsUnitTests : SqliteGrifballContextFixture
     {
         await using var sessions = Sessions();
         var handler = Handler(sessions);
-        await handler.JoinAsync(Guild, Channel);
+        await handler.JoinAsync(Guild, In(Channel), Speaker);
         var link = _connector.Opened.Single().Link;
         await handler.LeaveAsync(Guild);
-        await handler.JoinAsync(Guild, Channel);
+        await handler.JoinAsync(Guild, In(Channel), Speaker);
 
         link.Close();
 
-        Assert.That((await handler.JoinAsync(Guild, Channel)).Reply, Is.EqualTo(VoiceCommandsHandler.AlreadyIn), "The new connection stands");
+        Assert.That(await handler.JoinAsync(Guild, In(Channel), Speaker), Is.EqualTo(VoiceCommandsHandler.AlreadyIn), "The new connection stands");
     }
 }

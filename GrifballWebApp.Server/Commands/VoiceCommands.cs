@@ -15,15 +15,11 @@ public class VoiceCommands(VoiceCommandsHandler handler) : ApplicationCommandMod
     [SubSlashCommand("join", "The bot joins your voice channel and answers when called by name")]
     public async Task Join()
     {
-        // First, as every command does: joining takes longer than an interaction's three seconds
-        await DeferAsync();
+        // First, as every command does: joining takes longer than an interaction's three seconds. For everyone: the reply
+        // says the bot listens, to whom, and how to stop it
+        await DeferAsync(ephemeral: false);
         var guild = Context.Guild;
-        ulong? channel = guild is not null && guild.VoiceStates.TryGetValue(Context.User.Id, out var state) ? state.ChannelId : null;
-        var reply = await handler.JoinAsync(guild?.Id, channel);
-        await ReplyAsync(reply.Reply);
-        // Everyone's notice: that it listens, to whom, and how to stop it
-        if (reply.Notice is { } notice)
-            await Context.Interaction.SendFollowupMessageAsync(notice);
+        await ReplyAsync(await handler.JoinAsync(guild?.Id, guild?.VoiceStates, Context.User.Id));
     }
 
     [SubSlashCommand("leave", "The bot leaves its voice channel")]
@@ -47,9 +43,9 @@ public class VoiceCommands(VoiceCommandsHandler handler) : ApplicationCommandMod
         await ReplyAsync(await handler.OptOutAsync(Context.User.Id));
     }
 
-    /// <summary>The reply deferred, the caller's alone.</summary>
-    private Task<InteractionCallbackResponse?> DeferAsync()
-        => Context.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral));
+    /// <summary>The reply deferred: the caller's alone unless <paramref name="ephemeral"/> is false.</summary>
+    private Task<InteractionCallbackResponse?> DeferAsync(bool ephemeral = true)
+        => Context.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage(ephemeral ? MessageFlags.Ephemeral : null));
 
     private Task<RestMessage> ReplyAsync(string content) => Context.Interaction.ModifyResponseAsync(m => m.Content = content);
 }
