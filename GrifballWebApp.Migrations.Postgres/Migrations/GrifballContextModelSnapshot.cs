@@ -5072,6 +5072,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TeamID"));
 
+                    b.Property<int?>("ArchivedFinish")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ArchivedRank")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("CaptainID")
                         .HasColumnType("integer");
 
@@ -5123,12 +5129,22 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.ToTable("Teams", "Event", t =>
                         {
+                            t.HasCheckConstraint("CK_Event_Teams_ArchivedPlacingFromFirst", "(\"ArchivedRank\" IS NULL OR \"ArchivedRank\" >= 1) AND (\"ArchivedFinish\" IS NULL OR \"ArchivedFinish\" >= 1)");
+
                             t.HasCheckConstraint("CK_Event_Teams_RecordBothOrNeither", "(\"RecordedWins\" IS NULL AND \"RecordedLosses\" IS NULL) OR (\"RecordedWins\" IS NOT NULL AND \"RecordedLosses\" IS NOT NULL)");
                         });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.League.Team.History", b =>
                 {
+                    b.Property<int?>("ArchivedFinish")
+                        .HasColumnType("integer")
+                        .HasColumnName("ArchivedFinish");
+
+                    b.Property<int?>("ArchivedRank")
+                        .HasColumnType("integer")
+                        .HasColumnName("ArchivedRank");
+
                     b.Property<int?>("CaptainID")
                         .HasColumnType("integer")
                         .HasColumnName("CaptainID");

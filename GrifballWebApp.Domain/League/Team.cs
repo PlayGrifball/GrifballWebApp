@@ -76,6 +76,12 @@ public class Team : AuditableEntity
     public int? RecordedWins { get; private set; }
     /// <inheritdoc cref="RecordedWins"/>
     public int? RecordedLosses { get; private set; }
+    /// <summary>The team's rank in the regular season's standings (its seed) as its source spreadsheet gives it
+    /// (<see cref="RecordArchivedPlacing"/>); null when it gives none, or the season's standings are the app's.</summary>
+    public int? ArchivedRank { get; private set; }
+    /// <summary>The team's final place (1 for the champion, the round it went out in for the others) as its source
+    /// spreadsheet gives it (<see cref="RecordArchivedPlacing"/>); null when it gives none.</summary>
+    public int? ArchivedFinish { get; private set; }
 
     // Read-only collections: the roster and timeslots change through the team's methods alone; a match takes its teams
     // through its own methods; stat rows and titles are their own code's and the season's (EF uses the fields)
@@ -342,6 +348,19 @@ public class Team : AuditableEntity
     {
         RecordedWins = null;
         RecordedLosses = null;
+    }
+
+    /// <summary>
+    /// Where the team placed, as its source spreadsheet gives it (a season whose bracket is not in the app): its rank in
+    /// the regular season's standings (its seed) and its final place (the playoffs' result). Either may be missing; each
+    /// is 1st or lower; both null, the spreadsheet gives the team no placing.
+    /// </summary>
+    public void RecordArchivedPlacing(int? rank, int? finish)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(rank ?? 1, 1, nameof(rank));
+        ArgumentOutOfRangeException.ThrowIfLessThan(finish ?? 1, 1, nameof(finish));
+        ArchivedRank = rank;
+        ArchivedFinish = finish;
     }
 
     /// <summary>

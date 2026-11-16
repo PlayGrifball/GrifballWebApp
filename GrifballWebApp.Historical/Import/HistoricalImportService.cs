@@ -904,15 +904,31 @@ public partial class HistoricalImportService : IHistoricalImportService
                 team.RecordArchive(wins, losses);
             else
                 team.ClearArchivedRecord();
+            var (rank, finish) = ArchivedPlacing(group, name);
+            team.RecordArchivedPlacing(rank, finish);
             teams.ByName[name] = team;
         }
         await _context.SaveChangesAsync(ct);
         return teams;
     }
 
+    /// <summary>The team's rank and final place from the season's standings (any sheet of it that gives them); null each
+    /// the standings don't give.</summary>
+    private static (int? Rank, int? Finish) ArchivedPlacing(SeasonGroup group, string name)
+    {
+        var teams = group.Entries.SelectMany(e => e.Teams)
+            .Where(t => string.Equals(CleanTeamName(t.TeamName), name, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var rank = teams.Select(t => t.Rank).FirstOrDefault(r => r >= 1);
+        var finish = teams.Select(t => t.Finish).FirstOrDefault(f => f >= 1);
+        return (rank, finish);
+    }
+
     private static (int Wins, int Losses)? ArchivedRecord(SeasonGroup group, string name)
     {
-        var standing = group.Entries.Where(e => !e.IsPlayoffs && !e.IsCombined)
+        // The standings', of any entry but the playoffs' (a combined tab's too: its standings are the regular season's, where
+        // its players' lines are not)
+        var standing = group.Entries.Where(e => !e.IsPlayoffs)
             .SelectMany(e => e.Teams)
             .Where(t => (t.Wins is not null || t.Losses is not null) && string.Equals(CleanTeamName(t.TeamName), name, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(t => (t.Wins ?? 0) + (t.Losses ?? 0))

@@ -117,7 +117,9 @@ public class VodAggregateDatabaseTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_VodAggregate"))) - 1]);
 
-        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        // Its teams as that model had them: no placing
+        await using var old = BeforeTeamArchivedPlacingContext.On(_context);
+        var seeded = await SeasonMatchTestData.SeedAsync(old);
         var (season, match) = (seeded.Season.SeasonID, seeded.SeasonMatch.SeasonMatchID);
 
         // Rows as the old model's public setters could leave them

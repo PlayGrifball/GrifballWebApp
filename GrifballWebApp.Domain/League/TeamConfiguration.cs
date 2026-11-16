@@ -13,6 +13,9 @@ public partial class TeamConfiguration : IEntityTypeConfiguration<Team>
             // A record of the spreadsheet's is both halves of it, or none (Team.RecordArchive, ClearArchivedRecord)
             tb.HasCheckConstraint("CK_Event_Teams_RecordBothOrNeither",
                 "(RecordedWins IS NULL AND RecordedLosses IS NULL) OR (RecordedWins IS NOT NULL AND RecordedLosses IS NOT NULL)");
+            // A place is 1st or lower (Team.RecordArchivedPlacing)
+            tb.HasCheckConstraint("CK_Event_Teams_ArchivedPlacingFromFirst",
+                "(ArchivedRank IS NULL OR ArchivedRank >= 1) AND (ArchivedFinish IS NULL OR ArchivedFinish >= 1)");
         });
 
         entity.HasKey(e => e.TeamID);
