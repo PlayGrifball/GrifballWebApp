@@ -22,7 +22,7 @@ public sealed class VoiceSessions(IVoiceConnector connector, IServiceProvider se
     private readonly ConcurrentDictionary<ulong, Entry> _guilds = new();
 
     /// <summary>Whether voice can be had: a speech server is configured.</summary>
-    public bool Available => services.GetService<IServiceProviderIsService>()?.IsService(typeof(IChatSpeech)) == true;
+    public bool Available => services.GetRequiredService<IServiceProviderIsService>().IsService(typeof(IChatSpeech));
 
     /// <summary>
     /// The bot joins <paramref name="channelId"/> in <paramref name="guildId"/> and starts listening. One connection a guild: while
@@ -138,12 +138,11 @@ public sealed class VoiceSessions(IVoiceConnector connector, IServiceProvider se
         public void Dispose() => Leaving.Dispose();
     }
 
-    /// <summary>One channel's link and conversation, the conversation running until it is disposed (once).</summary>
+    /// <summary>One channel's link and conversation, the conversation running until it is disposed (by <see cref="CloseAsync"/>, once).</summary>
     private sealed class Session(IVoiceLink link, VoiceConversation conversation) : IAsyncDisposable
     {
         private readonly CancellationTokenSource _stop = new();
         private Task _running = Task.CompletedTask;
-        private int _disposed;
 
         public VoiceConversation Conversation => conversation;
 
@@ -151,8 +150,6 @@ public sealed class VoiceSessions(IVoiceConnector connector, IServiceProvider se
 
         public async ValueTask DisposeAsync()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) == 1)
-                return;
             await _stop.CancelAsync();
             await _running;
             await link.DisposeAsync();

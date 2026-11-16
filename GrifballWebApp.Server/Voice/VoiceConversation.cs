@@ -51,16 +51,10 @@ public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat
     /// </summary>
     public void Hear(ulong speaker, short[] pcm)
     {
-        if (_heard.TryGetValue(speaker, out var heard))
-        {
-            if (heard)
-                _lines.Add(speaker, pcm);
-            return;
-        }
+        // Under the lock their lookup settles under: known, or held for it
         lock (_heldLock)
         {
-            // Known meanwhile: as above
-            if (_heard.TryGetValue(speaker, out heard))
+            if (_heard.TryGetValue(speaker, out var heard))
             {
                 if (heard)
                     _lines.Add(speaker, pcm);
