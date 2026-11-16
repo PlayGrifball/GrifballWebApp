@@ -182,4 +182,25 @@ public class TeamAvailabilityServiceUnitTests
 
         Assert.That((slots.RosterSize, slots.Slots.Count(s => s.Available)), Is.EqualTo((0, 0)));
     }
+
+    [TestCase(0, 1, 2, null, SeasonSchedulingRulesService.NoPlayers)]
+    [TestCase(4, 0, 2, null, SeasonSchedulingRulesService.NoNight)]
+    [TestCase(4, 2, 1, null, SeasonSchedulingRulesService.WeekUnderNight)]
+    [TestCase(4, 1, 2, 0, SeasonSchedulingRulesService.NoConcurrency)]
+    public async Task Rules_EachRefusal_SaysWhy_AndChangesNothing(int players, int night, int week, int? concurrent, string why)
+    {
+        await Seed();
+        var service = new SeasonSchedulingRulesService(Context);
+
+        var refused = await service.ChangeAsync(SeasonID, new SeasonSchedulingRulesDto
+        {
+            MinPlayersAvailable = players, MaxMatchesPerTeamPerNight = night, MaxMatchesPerTeamPerWeek = week, MaxConcurrentMatches = concurrent,
+        });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(refused, Is.EqualTo(why));
+            Assert.That(await Context.SeasonSchedulingRules.AnyAsync(), Is.False, "Nothing saved: still the defaults");
+        }
+    }
 }

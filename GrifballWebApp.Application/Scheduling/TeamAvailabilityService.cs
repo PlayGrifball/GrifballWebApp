@@ -77,7 +77,7 @@ public sealed class TeamAvailabilityService(IApplicationDbContext context)
     /// </summary>
     public async Task<string?> SetAsync(int teamID, IReadOnlyCollection<int> availabilityOptionIDs, int userID, bool staff, CancellationToken ct = default)
     {
-        var team = await context.Teams.Include(t => t.TeamPlayers).Include(t => t.TeamAvailability).SingleOrDefaultAsync(t => t.TeamID == teamID, ct);
+        var team = await context.Teams.Include(t => t.TeamPlayers).Include(t => t.TeamAvailability).AsSplitQuery().SingleOrDefaultAsync(t => t.TeamID == teamID, ct);
         if (team is null)
             return NoSuchTeam;
         if (!staff && !team.IsCaptainedBy(userID))
@@ -98,7 +98,7 @@ public sealed class TeamAvailabilityService(IApplicationDbContext context)
     /// <summary><paramref name="userID"/> (the captain, or <paramref name="staff"/>) reset the team's timeslots to its roster's; why not, or null.</summary>
     public async Task<string?> ResetAsync(int teamID, int userID, bool staff, CancellationToken ct = default)
     {
-        var team = await context.Teams.Include(t => t.TeamPlayers).Include(t => t.TeamAvailability).SingleOrDefaultAsync(t => t.TeamID == teamID, ct);
+        var team = await context.Teams.Include(t => t.TeamPlayers).Include(t => t.TeamAvailability).AsSplitQuery().SingleOrDefaultAsync(t => t.TeamID == teamID, ct);
         if (team is null)
             return NoSuchTeam;
         if (!staff && !team.IsCaptainedBy(userID))
