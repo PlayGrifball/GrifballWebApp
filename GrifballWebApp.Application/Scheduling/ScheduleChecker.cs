@@ -64,40 +64,47 @@ public sealed class ScheduleChecker(DateTime seasonStart, DateTime seasonEnd, Se
     /// <summary>What is wrong with <paramref name="match"/>'s time, given the season's <paramref name="others"/> (scheduled); none: it can stand.</summary>
     public IReadOnlyList<ScheduleConflict> Check(ScheduledMatch match, IEnumerable<ScheduledMatch> others)
     {
-        var conflicts = new List<ScheduleConflict>();
-        var local = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(match.StartsAt, DateTimeKind.Utc), league);
+        var local = Local(match);
         var slot = (local.DayOfWeek, TimeOnly.FromDateTime(local));
-
-        if (match.StartsAt < seasonStart || match.EndsAt > seasonEnd)
-            conflicts.Add(new(ScheduleConflictKind.OutsideSeason, "It's outside the season's dates."));
-        if (!_slots.Contains(slot))
-            conflicts.Add(new(ScheduleConflictKind.NotASeasonTimeslot, "It isn't one of the season's timeslots."));
-
         var theirs = others.Where(o => o.SeasonMatchID != match.SeasonMatchID).ToList();
-        if (theirs.Any(o => o.Shares(match) && o.Overlaps(match)))
-            conflicts.Add(new(ScheduleConflictKind.TeamPlaysThen, "One of its teams plays another match then."));
-        if (!CanPlay(match.HomeTeamID, slot))
-            conflicts.Add(new(ScheduleConflictKind.HomeTeamUnavailable, "The home team isn't available then."));
-        if (!CanPlay(match.AwayTeamID, slot))
-            conflicts.Add(new(ScheduleConflictKind.AwayTeamUnavailable, "The away team isn't available then."));
+        return [.. Season(match, slot), .. Teams(match, slot, theirs), .. Caps(match, local, theirs)];
+    }
 
+    /// <summary>Its time against the season's dates and weekly timeslots.</summary>
+    private IEnumerable<ScheduleConflict> Season(ScheduledMatch match, (DayOfWeek, TimeOnly) slot)
+    {
+        if (match.StartsAt < seasonStart || match.EndsAt > seasonEnd)
+            yield return new(ScheduleConflictKind.OutsideSeason, "It's outside the season's dates.");
+        if (!_slots.Contains(slot))
+            yield return new(ScheduleConflictKind.NotASeasonTimeslot, "It isn't one of the season's timeslots.");
+    }
+
+    /// <summary>Its time against its teams' other matches and availability.</summary>
+    private IEnumerable<ScheduleConflict> Teams(ScheduledMatch match, (DayOfWeek, TimeOnly) slot, List<ScheduledMatch> others)
+    {
+        if (others.Any(o => o.Shares(match) && o.Overlaps(match)))
+            yield return new(ScheduleConflictKind.TeamPlaysThen, "One of its teams plays another match then.");
+        if (!CanPlay(match.HomeTeamID, slot))
+            yield return new(ScheduleConflictKind.HomeTeamUnavailable, "The home team isn't available then.");
+        if (!CanPlay(match.AwayTeamID, slot))
+            yield return new(ScheduleConflictKind.AwayTeamUnavailable, "The away team isn't available then.");
+    }
+
+    /// <summary>Its time against the season's caps: a team's matches a night and a week, and matches at once.</summary>
+    private IEnumerable<ScheduleConflict> Caps(ScheduledMatch match, DateTime local, List<ScheduledMatch> others)
+    {
         var night = DateOnly.FromDateTime(local);
         var week = Week(local);
-        var sameTeams = theirs.Where(o => o.Shares(match)).Select(o => (Match: o, Local: Local(o))).ToList();
-        foreach (var team in new[] { match.HomeTeamID, match.AwayTeamID })
-        {
-            var ofTeam = sameTeams.Where(o => o.Match.HomeTeamID == team || o.Match.AwayTeamID == team).ToList();
-            if (ofTeam.Count(o => DateOnly.FromDateTime(o.Local) == night) >= rules.MaxMatchesPerTeamPerNight
-                && conflicts.All(c => c.Kind != ScheduleConflictKind.TooManyTonight))
-                conflicts.Add(new(ScheduleConflictKind.TooManyTonight, $"A team would play more than {rules.MaxMatchesPerTeamPerNight} that night."));
-            if (ofTeam.Count(o => Week(o.Local) == week) >= rules.MaxMatchesPerTeamPerWeek
-                && conflicts.All(c => c.Kind != ScheduleConflictKind.TooManyThisWeek))
-                conflicts.Add(new(ScheduleConflictKind.TooManyThisWeek, $"A team would play more than {rules.MaxMatchesPerTeamPerWeek} that week."));
-        }
-
-        if (rules.MaxConcurrentMatches is { } cap && theirs.Count(o => o.Overlaps(match)) >= cap)
-            conflicts.Add(new(ScheduleConflictKind.TooManyAtOnce, $"More than {cap} matches would run at once."));
-        return conflicts;
+        // Each team's other matches, in league time: the most of either team's counts
+        var perTeam = new[] { match.HomeTeamID, match.AwayTeamID }
+            .Select(team => others.Where(o => o.HomeTeamID == team || o.AwayTeamID == team).Select(Local).ToList())
+            .ToList();
+        if (perTeam.Max(m => m.Count(t => DateOnly.FromDateTime(t) == night)) >= rules.MaxMatchesPerTeamPerNight)
+            yield return new(ScheduleConflictKind.TooManyTonight, $"A team would play more than {rules.MaxMatchesPerTeamPerNight} that night.");
+        if (perTeam.Max(m => m.Count(t => Week(t) == week)) >= rules.MaxMatchesPerTeamPerWeek)
+            yield return new(ScheduleConflictKind.TooManyThisWeek, $"A team would play more than {rules.MaxMatchesPerTeamPerWeek} that week.");
+        if (rules.MaxConcurrentMatches is { } cap && others.Count(o => o.Overlaps(match)) >= cap)
+            yield return new(ScheduleConflictKind.TooManyAtOnce, $"More than {cap} matches would run at once.");
     }
 
     private bool CanPlay(int teamID, (DayOfWeek, TimeOnly) slot) => teamSlots.TryGetValue(teamID, out var can) && can.Contains(slot);
