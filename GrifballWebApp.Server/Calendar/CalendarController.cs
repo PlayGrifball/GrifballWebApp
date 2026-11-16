@@ -32,7 +32,7 @@ public class CalendarController : ControllerBase
     [ProducesResponseType<string>(StatusCodes.Status200OK, CalendarMediaType)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> TeamCalendar([FromRoute] int teamID, CancellationToken ct)
-        => Feed(await _calendars.TeamAsync(teamID, ct), SeasonVisibilityFilter.NoSuchTeam);
+        => Feed(await _calendars.TeamAsync(teamID, SiteUrl, ct), SeasonVisibilityFilter.NoSuchTeam);
 
     /// <summary>The scheduled matches of the player's teams, as a calendar to subscribe to. 404 when there is no such user.</summary>
     [AllowAnonymous]
@@ -40,7 +40,7 @@ public class CalendarController : ControllerBase
     [ProducesResponseType<string>(StatusCodes.Status200OK, CalendarMediaType)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> PlayerCalendar([FromRoute] int userID, CancellationToken ct)
-        => Feed(await _calendars.PlayerAsync(userID, ct), NoSuchUser);
+        => Feed(await _calendars.PlayerAsync(userID, SiteUrl, ct), NoSuchUser);
 
     /// <summary>The season's scheduled matches, as a calendar to subscribe to. 404 when there is no such season.</summary>
     [AllowAnonymous]
@@ -48,7 +48,13 @@ public class CalendarController : ControllerBase
     [ProducesResponseType<string>(StatusCodes.Status200OK, CalendarMediaType)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
     public async Task<IActionResult> SeasonCalendar([FromRoute] int seasonID, CancellationToken ct)
-        => Feed(await _calendars.SeasonAsync(seasonID, ct), SeasonVisibilityFilter.NoSuchSeason);
+        => Feed(await _calendars.SeasonAsync(seasonID, SiteUrl, ct), SeasonVisibilityFilter.NoSuchSeason);
+
+    /// <summary>
+    /// The site the feed was asked for from, which its events link to: the request's scheme and host, as the forwarded
+    /// headers give them (the API is under /api on the same host). Not BaseUrl, which not every host sets.
+    /// </summary>
+    private string SiteUrl => $"{Request.Scheme}://{Request.Host}";
 
     /// <summary>The calendar as text/calendar, or a 404 with <paramref name="notFound"/> for none.</summary>
     private IActionResult Feed(string? ics, string notFound)

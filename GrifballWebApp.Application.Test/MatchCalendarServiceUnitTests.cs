@@ -4,7 +4,6 @@ using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Players;
 using GrifballWebApp.Domain.Shared;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
 
 namespace GrifballWebApp.Application.Test;
@@ -28,8 +27,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
     public void SetUp()
     {
         _time = new FakeTimeProvider(Now);
-        var urls = new UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = BaseUrl }).Build());
-        _service = new MatchCalendarService(Context, new SeasonVisibility(Context, _time), urls, _time);
+        _service = new MatchCalendarService(Context, new SeasonVisibility(Context, _time), _time);
     }
 
     /// <summary>A season that started a month ago: public.</summary>
@@ -108,7 +106,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task TeamAsync_NoSuchTeam_IsNull()
     {
-        Assert.That(await _service.TeamAsync(999), Is.Null);
+        Assert.That(await _service.TeamAsync(999, BaseUrl), Is.Null);
     }
 
     [Test]
@@ -118,7 +116,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
         var red = await TeamOf(season, "Red");
         await MatchOf(season, red, await TeamOf(season, "Blue"), Now.AddDays(31));
 
-        Assert.That(await _service.TeamAsync(red.TeamID), Is.Null);
+        Assert.That(await _service.TeamAsync(red.TeamID, BaseUrl), Is.Null);
     }
 
     [Test]
@@ -132,7 +130,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
         var away = await MatchOf(season, green, red, Now.AddDays(2), bestOf: 5);
         await MatchOf(season, blue, green, Now.AddDays(3));
 
-        var ics = await _service.TeamAsync(red.TeamID);
+        var ics = await _service.TeamAsync(red.TeamID, BaseUrl);
 
         var events = Events(ics!);
         using (Assert.EnterMultipleScope())
@@ -158,7 +156,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
         var red = await TeamOf(season, "Red");
         await MatchOf(season, red, await TeamOf(season, "Blue"), at: null);
 
-        var ics = await _service.TeamAsync(red.TeamID);
+        var ics = await _service.TeamAsync(red.TeamID, BaseUrl);
 
         Assert.That(Events(ics!), Is.Empty);
     }
@@ -172,7 +170,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
         var later = await MatchOf(season, red, blue, Now.AddDays(9));
         var sooner = await MatchOf(season, blue, red, Now.AddDays(-2));
 
-        var ics = await _service.TeamAsync(red.TeamID);
+        var ics = await _service.TeamAsync(red.TeamID, BaseUrl);
 
         Assert.That(Events(ics!).Select(e => e["UID"]), Is.EqualTo(new[] { MatchCalendarService.Uid(sooner.SeasonMatchID), MatchCalendarService.Uid(later.SeasonMatchID) }));
     }
@@ -183,12 +181,12 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
         var season = await PublicSeason();
         var red = await TeamOf(season, "Red");
         var match = await MatchOf(season, red, await TeamOf(season, "Blue"), Now.AddDays(1));
-        var before = Events((await _service.TeamAsync(red.TeamID))!).Single();
+        var before = Events((await _service.TeamAsync(red.TeamID, BaseUrl))!).Single();
 
         match.ScheduleAt(Now.AddDays(4).AddHours(2));
         ((IAuditStamp)match).ModifiedAt = Now;
         await Context.SaveChangesAsync();
-        var after = Events((await _service.TeamAsync(red.TeamID))!).Single();
+        var after = Events((await _service.TeamAsync(red.TeamID, BaseUrl))!).Single();
 
         using (Assert.EnterMultipleScope())
         {
@@ -208,7 +206,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
         var red = await TeamOf(season, "Red");
         await MatchOf(season, red, await TeamOf(season, "Blue"), Now.AddDays(1), modified: default(DateTime));
 
-        var ics = await _service.TeamAsync(red.TeamID);
+        var ics = await _service.TeamAsync(red.TeamID, BaseUrl);
 
         Assert.That(Events(ics!).Single()["DTSTAMP"], Is.EqualTo("20260601T000000Z"));
     }
@@ -216,7 +214,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task PlayerAsync_NoSuchUser_IsNull()
     {
-        Assert.That(await _service.PlayerAsync(999), Is.Null);
+        Assert.That(await _service.PlayerAsync(999, BaseUrl), Is.Null);
     }
 
     [Test]
@@ -234,7 +232,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
         await MatchOf(current, await TeamOf(current, "Green"), await TeamOf(current, "Gold"), Now.AddDays(2));
         var player = await Player("Grif", oldTeam, red, hidden);
 
-        var ics = await _service.PlayerAsync(player.Id);
+        var ics = await _service.PlayerAsync(player.Id, BaseUrl);
 
         using (Assert.EnterMultipleScope())
         {
@@ -249,7 +247,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
     {
         var player = await Player("Simmons");
 
-        var ics = await _service.PlayerAsync(player.Id);
+        var ics = await _service.PlayerAsync(player.Id, BaseUrl);
 
         using (Assert.EnterMultipleScope())
         {
@@ -263,7 +261,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
     {
         var player = await Player(gamertag: null);
 
-        var ics = await _service.PlayerAsync(player.Id);
+        var ics = await _service.PlayerAsync(player.Id, BaseUrl);
 
         Assert.That(CalendarName(ics!), Is.EqualTo("Grifball matches"));
     }
@@ -271,7 +269,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
     [Test]
     public async Task SeasonAsync_NoSuchSeason_IsNull()
     {
-        Assert.That(await _service.SeasonAsync(999), Is.Null);
+        Assert.That(await _service.SeasonAsync(999, BaseUrl), Is.Null);
     }
 
     [Test]
@@ -280,7 +278,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
         var season = await HiddenSeason();
         await MatchOf(season, await TeamOf(season, "Red"), await TeamOf(season, "Blue"), Now.AddDays(31));
 
-        Assert.That(await _service.SeasonAsync(season.SeasonID), Is.Null);
+        Assert.That(await _service.SeasonAsync(season.SeasonID, BaseUrl), Is.Null);
     }
 
     [Test]
@@ -298,7 +296,7 @@ internal sealed class MatchCalendarServiceUnitTests : ApplicationDbContextTests
         await MatchOf(season, red, blue, at: null);
         await MatchOf(other, await TeamOf(other, "Green"), await TeamOf(other, "Gold"), Now.AddDays(1));
 
-        var ics = await _service.SeasonAsync(season.SeasonID);
+        var ics = await _service.SeasonAsync(season.SeasonID, BaseUrl);
 
         var events = Events(ics!);
         using (Assert.EnterMultipleScope())

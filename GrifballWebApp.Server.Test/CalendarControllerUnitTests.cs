@@ -6,7 +6,6 @@ using GrifballWebApp.Server.Calendar;
 using GrifballWebApp.Server.Seasons;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 
 namespace GrifballWebApp.Server.Test;
 
@@ -24,8 +23,16 @@ public class CalendarControllerUnitTests : SqliteGrifballContextFixture
 
     private CalendarController Controller()
     {
-        var urls = new GrifballWebApp.Application.UrlService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://grif.test" }).Build());
-        return new CalendarController(new MatchCalendarService(Db, new SeasonVisibility(Db), urls));
+        return new CalendarController(new MatchCalendarService(Db, new SeasonVisibility(Db)));
+    }
+
+    /// <summary>The controller as a signed-out request to https://grif.test reaches it.</summary>
+    private CalendarController Anonymous()
+    {
+        var controller = Controller().WithAnonymousUser();
+        controller.Request.Scheme = "https";
+        controller.Request.Host = new HostString("grif.test");
+        return controller;
     }
 
     private async Task<(Season season, Team red)> SeasonWithAMatch(bool announced)
@@ -74,19 +81,20 @@ public class CalendarControllerUnitTests : SqliteGrifballContextFixture
     {
         var (_, red) = await SeasonWithAMatch(announced: true);
 
-        var ics = Calendar(await Controller().WithAnonymousUser().TeamCalendar(red.TeamID, CancellationToken.None));
+        var ics = Calendar(await Anonymous().TeamCalendar(red.TeamID, CancellationToken.None));
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(ics, Does.StartWith("BEGIN:VCALENDAR\r\n"));
             Assert.That(ics, Does.Contain("SUMMARY:Red vs Blue (Winter)\r\n"));
+            Assert.That(ics, Does.Contain("URL:https://grif.test/seasonmatch/"), "links to the site the feed was asked for from");
         }
     }
 
     [Test]
     public async Task TeamCalendar_NoSuchTeam_IsNotFound()
     {
-        var result = await Controller().WithAnonymousUser().TeamCalendar(999, CancellationToken.None);
+        var result = await Anonymous().TeamCalendar(999, CancellationToken.None);
 
         result.AssertProblem(StatusCodes.Status404NotFound, SeasonVisibilityFilter.NoSuchTeam);
     }
@@ -111,7 +119,7 @@ public class CalendarControllerUnitTests : SqliteGrifballContextFixture
         red.AddPlayer(user.Id);
         await Db.SaveChangesAsync();
 
-        var ics = Calendar(await Controller().WithAnonymousUser().PlayerCalendar(user.Id, CancellationToken.None));
+        var ics = Calendar(await Anonymous().PlayerCalendar(user.Id, CancellationToken.None));
 
         using (Assert.EnterMultipleScope())
         {
@@ -123,7 +131,7 @@ public class CalendarControllerUnitTests : SqliteGrifballContextFixture
     [Test]
     public async Task PlayerCalendar_NoSuchUser_IsNotFound()
     {
-        var result = await Controller().WithAnonymousUser().PlayerCalendar(999, CancellationToken.None);
+        var result = await Anonymous().PlayerCalendar(999, CancellationToken.None);
 
         result.AssertProblem(StatusCodes.Status404NotFound, CalendarController.NoSuchUser);
     }
@@ -133,7 +141,7 @@ public class CalendarControllerUnitTests : SqliteGrifballContextFixture
     {
         var (season, _) = await SeasonWithAMatch(announced: true);
 
-        var ics = Calendar(await Controller().WithAnonymousUser().SeasonCalendar(season.SeasonID, CancellationToken.None));
+        var ics = Calendar(await Anonymous().SeasonCalendar(season.SeasonID, CancellationToken.None));
 
         Assert.That(ics, Does.Contain("X-WR-CALNAME:Winter schedule\r\n"));
     }

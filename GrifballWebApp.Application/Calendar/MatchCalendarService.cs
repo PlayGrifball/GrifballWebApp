@@ -25,17 +25,14 @@ public class MatchCalendarService
 
     private readonly IApplicationDbContext _context;
     private readonly SeasonVisibility _visibility;
-    private readonly UrlService _urls;
     private readonly TimeProvider _time;
 
     /// <summary>The feeds of the matches <paramref name="context"/> holds, of the seasons <paramref name="visibility"/> shows
-    /// the public, with links to the site (<paramref name="urls"/>); <paramref name="time"/> stamps a match never saved
-    /// through the audit (the system clock when not given).</summary>
-    public MatchCalendarService(IApplicationDbContext context, SeasonVisibility visibility, UrlService urls, TimeProvider? time = null)
+    /// the public; <paramref name="time"/> stamps a match never saved through the audit (the system clock when not given).</summary>
+    public MatchCalendarService(IApplicationDbContext context, SeasonVisibility visibility, TimeProvider? time = null)
     {
         _context = context;
         _visibility = visibility;
-        _urls = urls;
         _time = time ?? TimeProvider.System;
     }
 
@@ -45,8 +42,9 @@ public class MatchCalendarService
     /// <summary>The seasons a feed may show: the public's.</summary>
     private IQueryable<Season> PublicSeasons() => _visibility.Visible(SeasonViewer.Public);
 
-    /// <summary>The team's scheduled matches, home and away; null when there is no such team, or it is of a season not announced yet.</summary>
-    public async Task<string?> TeamAsync(int teamID, CancellationToken ct = default)
+    /// <summary>The team's scheduled matches, home and away; null when there is no such team, or it is of a season not announced yet.
+    /// Its events link to their pages on <paramref name="siteUrl"/>, the site the feed was asked for from (no trailing slash).</summary>
+    public async Task<string?> TeamAsync(int teamID, string siteUrl, CancellationToken ct = default)
     {
         var seasons = PublicSeasons();
         var team = await _context.Teams.AsNoTracking()
@@ -56,15 +54,16 @@ public class MatchCalendarService
         if (team is null)
             return null;
 
-        var events = await EventsAsync(_context.SeasonMatches.Where(m => m.HomeTeamID == teamID || m.AwayTeamID == teamID), ct);
+        var events = await EventsAsync(_context.SeasonMatches.Where(m => m.HomeTeamID == teamID || m.AwayTeamID == teamID), siteUrl, ct);
         return IcsWriter.Write(new CalendarFeed($"{team.TeamName} ({team.SeasonName})", events));
     }
 
     /// <summary>
     /// The scheduled matches of every team the player is on, of the seasons the public may see: a team of a season not
-    /// announced yet adds none. Null when there is no such user; a player on no team has an empty calendar.
+    /// announced yet adds none. Null when there is no such user; a player on no team has an empty calendar. Its
+    /// events link to their pages on <paramref name="siteUrl"/>, as <see cref="TeamAsync"/>'s do.
     /// </summary>
-    public async Task<string?> PlayerAsync(int userID, CancellationToken ct = default)
+    public async Task<string?> PlayerAsync(int userID, string siteUrl, CancellationToken ct = default)
     {
         var player = await _context.Users.AsNoTracking().Where(u => u.Id == userID).Select(User.Named).FirstOrDefaultAsync(ct);
         if (player is null)
@@ -72,26 +71,27 @@ public class MatchCalendarService
 
         var rosters = _context.Teams.Rosters();
         var matches = _context.SeasonMatches.Where(m => rosters.Any(p => p.UserID == userID && (p.TeamID == m.HomeTeamID || p.TeamID == m.AwayTeamID)));
-        var events = await EventsAsync(matches, ct);
+        var events = await EventsAsync(matches, siteUrl, ct);
         var name = player.Name is { } shown ? $"{shown}'s matches" : "Grifball matches";
         return IcsWriter.Write(new CalendarFeed(name, events));
     }
 
     /// <summary>The season's scheduled matches, a bracket slot's too (its team still to come shown as TBD); null when there
-    /// is no such season, or it isn't announced yet.</summary>
-    public async Task<string?> SeasonAsync(int seasonID, CancellationToken ct = default)
+    /// is no such season, or it isn't announced yet. Its events link to their pages on <paramref name="siteUrl"/>, as
+    /// <see cref="TeamAsync"/>'s do.</summary>
+    public async Task<string?> SeasonAsync(int seasonID, string siteUrl, CancellationToken ct = default)
     {
         var season = await PublicSeasons().Where(s => s.SeasonID == seasonID).Select(s => new { s.SeasonName }).FirstOrDefaultAsync(ct);
         if (season is null)
             return null;
 
-        var events = await EventsAsync(_context.SeasonMatches.Where(m => m.SeasonID == seasonID), ct);
+        var events = await EventsAsync(_context.SeasonMatches.Where(m => m.SeasonID == seasonID), siteUrl, ct);
         return IcsWriter.Write(new CalendarFeed($"{season.SeasonName} schedule", events));
     }
 
     /// <summary>The events of the scheduled matches among <paramref name="matches"/> that a feed may show (of a public
     /// season, no BYE), soonest first.</summary>
-    private async Task<List<CalendarEvent>> EventsAsync(IQueryable<SeasonMatch> matches, CancellationToken ct)
+    private async Task<List<CalendarEvent>> EventsAsync(IQueryable<SeasonMatch> matches, string siteUrl, CancellationToken ct)
     {
         var seasons = PublicSeasons();
         var rows = await matches.AsNoTracking()
@@ -111,12 +111,12 @@ public class MatchCalendarService
             })
             .ToListAsync(ct);
         var now = _time.GetUtcNow().UtcDateTime;
-        return rows.ConvertAll(m => ToEvent(m, now));
+        return rows.ConvertAll(m => ToEvent(m, siteUrl, now));
     }
 
-    private CalendarEvent ToEvent(MatchRow match, DateTime now)
+    private static CalendarEvent ToEvent(MatchRow match, string siteUrl, DateTime now)
     {
-        var url = _urls.SeasonMatch(match.SeasonMatchID);
+        var url = UrlService.SeasonMatchOn(siteUrl, match.SeasonMatchID);
         return new CalendarEvent(
             Uid: Uid(match.SeasonMatchID),
             Start: match.ScheduledTime,
