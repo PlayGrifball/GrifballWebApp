@@ -235,3 +235,11 @@ test('the health probes left out of the latency panels are the chart\'s paths, f
     assert.match(t.target.expr, /http_route!~"__HEALTH_ROUTES__"/, `${t.panel} leaves out fixed paths`);
   assert.doesNotMatch(JSON.stringify(dashboard), /\/health/);
 });
+
+test('Server errors fills a release without 5xx with 0 from its own requests, not a constant', async () => {
+  // A constant fill would come off for the e2e's check and leave the share empty while nothing failed
+  const { requiredQuery } = await checks();
+  const expr = prometheus(dashboard).find(t => t.panel === 'Server errors').target.expr;
+  assert.equal(requiredQuery(expr), expr);
+  assert.match(expr, /http_response_status_code=~"5\.\."/);
+});
