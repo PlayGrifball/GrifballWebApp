@@ -79,12 +79,12 @@ internal sealed class SchedulingServiceUnitTests : ApplicationDbContextTests
     {
         await Seed();
 
-        var clash = await Service().CheckAsync(_match.SeasonMatchID, Tuesday);
+        var clash = (await Service().CheckAsync(_match.SeasonMatchID, Tuesday))!;
         var free = await Service().CheckAsync(_match.SeasonMatchID, Monday);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(clash!.Select(c => c.Kind), Does.Contain(ScheduleConflictKind.TeamPlaysThen));
+            Assert.That(clash.Select(c => c.Kind), Does.Contain(ScheduleConflictKind.TeamPlaysThen));
             Assert.That(clash.Any(c => c.Refuses), Is.True);
             Assert.That(free, Is.Empty);
             Assert.That(await Service().CheckAsync(999, Monday), Is.Null, "No such match");
@@ -96,12 +96,12 @@ internal sealed class SchedulingServiceUnitTests : ApplicationDbContextTests
     {
         await Seed();
 
-        var suggestions = await Service().SuggestAsync(_match.SeasonMatchID);
+        var suggestions = (await Service().SuggestAsync(_match.SeasonMatchID))!;
 
         using (Assert.EnterMultipleScope())
         {
             // Mondays first (everyone can play), soonest first; the first Tuesday is refused (Blues play); the second Tuesday last (Reds short)
-            Assert.That(suggestions!.Select(s => s.StartsAt), Is.EqualTo(Times(Monday, Monday.AddDays(7), Tuesday.AddDays(7))));
+            Assert.That(suggestions.Select(s => s.StartsAt), Is.EqualTo(Times(Monday, Monday.AddDays(7), Tuesday.AddDays(7))));
             Assert.That(suggestions[0].Conflicts, Is.Empty);
             Assert.That((suggestions[0].HomePlayersAvailable, suggestions[0].AwayPlayersAvailable), Is.EqualTo((4, 4)));
             Assert.That(suggestions[2].Conflicts.Select(c => c.Kind), Is.EqualTo(Kinds(ScheduleConflictKind.HomeTeamUnavailable)), "Two of Reds' four: short of the season's four");
