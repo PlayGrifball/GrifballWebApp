@@ -79,6 +79,7 @@ public class ProgramStartupTests
         "GrifballWebApp.Server.Commands.QueueCommands",
         "GrifballWebApp.Server.Commands.RegionAutocomplete",
         "GrifballWebApp.Server.Commands.RescheduleCommands",
+        "GrifballWebApp.Server.Commands.RescheduleTimeAutocomplete",
         "GrifballWebApp.Server.Commands.SeasonAutocomplete",
         "GrifballWebApp.Server.Commands.SeasonCommands",
         "GrifballWebApp.Server.Commands.SeasonMatchAutocomplete",
