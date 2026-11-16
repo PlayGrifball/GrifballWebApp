@@ -52,6 +52,8 @@ public class ScheduleCheckerUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(Kinds(checker.Check(Match(10, Home, Away, SeasonEnd.AddDays(5)), [])), Does.Contain(ScheduleConflictKind.OutsideSeason));
+            Assert.That(checker.Check(Match(10, Home, Away, SeasonEnd.AddDays(5)), []).Single(c => c.Kind == ScheduleConflictKind.OutsideSeason).Refuses, Is.True);
+            Assert.That(checker.Check(Match(10, Home, Away, Monday8pm.AddMinutes(30)), []).Any(c => c.Refuses), Is.False, "Not a slot: a warning");
             Assert.That(Kinds(checker.Check(Match(10, Home, Away, Monday8pm.AddMinutes(30)), [])), Does.Contain(ScheduleConflictKind.NotASeasonTimeslot),
                 "20:30 is no slot of the season's (nor so of either team's)");
         }

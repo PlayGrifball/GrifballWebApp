@@ -15,6 +15,7 @@ public class TeamAggregateTests
     private const int Cap = 1, P1 = 2, P2 = 3, P3 = 4, Other = 9;
     private static readonly int[] TenAndEleven = [10, 11];
     private static readonly int[] OnlyTwelve = [12];
+    private static readonly int[] ElevenAndTwelve = [11, 12];
 
     /// <summary>A drafted team: its captain and picks in rounds 1, 2, 3.</summary>
     private static Team DraftedTeam()
@@ -358,4 +359,20 @@ public class TeamAggregateTests
     [Test]
     public void SetAvailability_NoSlots_IsRefused_ClearIsTheWayBackToTheRosters()
         => Assert.That(() => DraftedTeam().SetAvailability([]), Throws.ArgumentException);
+
+    [Test]
+    public void SetAvailability_KeepsTheSlotsStillChosen_AsTheyWere()
+    {
+        var team = DraftedTeam();
+        team.SetAvailability([10, 11]);
+        var kept = team.TeamAvailability.Single(a => a.AvailabilityOptionID == 11);
+
+        team.SetAvailability([11, 12]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(team.TeamAvailability.Select(a => a.AvailabilityOptionID), Is.EquivalentTo(ElevenAndTwelve));
+            Assert.That(team.TeamAvailability.Single(a => a.AvailabilityOptionID == 11), Is.SameAs(kept), "The same row: nothing to delete and add again");
+        }
+    }
 }

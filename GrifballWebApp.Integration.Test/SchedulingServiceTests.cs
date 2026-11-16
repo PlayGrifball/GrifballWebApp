@@ -138,4 +138,8 @@ public class SchedulingServiceUnitTests
             Assert.That(await Service().SuggestAsync(999), Is.Null);
         }
     }
+
+    [Test]
+    public async Task LoadAsync_NoSuchSeason_IsNone()
+        => Assert.That(await Service().LoadAsync(999_999), Is.Null);
 }
