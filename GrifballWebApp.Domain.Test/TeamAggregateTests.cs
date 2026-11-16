@@ -270,7 +270,7 @@ public class TeamAggregateTests
     }
 
     [Test]
-    public void RecordArchivedPlacing_KeepsTheRankAndTheFinish_AndClearArchivedPlacing_Neither()
+    public void RecordArchivedPlacing_KeepsTheRankAndTheFinish_AndBothNull_Neither()
     {
         var team = Team.Imported(7, "Relentless");
 
@@ -278,7 +278,7 @@ public class TeamAggregateTests
         Assert.That((team.ArchivedRank, team.ArchivedFinish), Is.EqualTo(((int?)2, (int?)1)));
         team.RecordArchivedPlacing(rank: 5, finish: null);
         Assert.That((team.ArchivedRank, team.ArchivedFinish), Is.EqualTo(((int?)5, (int?)null)), "A sheet may give one without the other");
-        team.ClearArchivedPlacing();
+        team.RecordArchivedPlacing(null, null);
         Assert.That((team.ArchivedRank, team.ArchivedFinish), Is.EqualTo(((int?)null, (int?)null)));
     }
 

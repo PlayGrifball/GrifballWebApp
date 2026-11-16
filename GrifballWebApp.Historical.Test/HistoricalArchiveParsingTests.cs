@@ -884,6 +884,24 @@ public class HistoricalArchiveParsingTests
     }
 
     [Test]
+    public void ATeamWithAndWithoutANote_InTwoTabs_IsOneTeam_AndItsCaptainsPlaceholderTakesThatName()
+    {
+        // SL24: the standings "Puffy Grifbussy (WINNER)" with its captain X, the draft sheet "Puffy Grifbussy", the stats "X's Team"
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("X", "X's Team", 4, 1)],
+            ("Standings", new StandingsTab { Sheet = "Standings" }, [Row("Team", "Captain", "Wins", "Losses"), Row("Puffy Grifbussy (WINNER)", "X", 9, 1)]),
+            ("Draft Sheet", new StandingsTab { Sheet = "Draft Sheet", Layout = StandingsLayout.Columns, Anchor = "Team Name:" }, [Row("Season Standings", 3), Row("Team Name:", "Puffy Grifbussy")]));
+
+        var season = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(season.Teams.Select(t => t.TeamName).Distinct().Count(), Is.EqualTo(1), "One team, whichever tab comes first");
+            Assert.That(season.Players.Single().TeamName, Is.EqualTo(season.Teams[0].TeamName), "The placeholder is that team");
+        }
+    }
+
+    [Test]
     public void StandingsOfOneOfAWorkbooksSeasons_GoOnThatSeason_ByItsTab()
     {
         List<HistoricalSourceContent> sources =

@@ -246,14 +246,6 @@ public sealed class HistoricalArchiveBuilder
                 continue;
             }
             var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
-            // The stats' placeholder of a captain's team ("OREOTHECAT's Team") is the team the standings name with that captain,
-            // or name after them
-            foreach (var team in teams)
-            {
-                var placeholders = new[] { team.Captain, team.TeamName }.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => $"{c!.Trim()}'s Team").ToList();
-                foreach (var player in season.SelectMany(s => s.Players).Where(p => placeholders.Contains(p.TeamName?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)))
-                    player.TeamName = team.TeamName;
-            }
             // The season's names of its teams: its stats', and an earlier standings tab's (two tabs of a season spell a team
             // alike, the stats naming none)
             var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(regular.Teams.Select(t => t.TeamName))
@@ -261,8 +253,20 @@ public sealed class HistoricalArchiveBuilder
             // A captain is one of the season's players: a nickname ("Team (Snipez)") would be a placeholder player
             var players = season.SelectMany(s => s.Players).Select(p => p.Gamertag)
                 .GroupBy(HistoricalKeys.Normalize).ToDictionary(g => g.Key, g => g.First());
-            regular.Teams.AddRange(teams.Select(t => t.Named(KnownName(t.TeamName, known),
-                t.Captain is { } captain ? players.GetValueOrDefault(HistoricalKeys.Normalize(captain)) : null)));
+            var named = teams.Select(t => t with
+            {
+                TeamName = KnownName(t.TeamName, known),
+                Captain = t.Captain is { } captain ? players.GetValueOrDefault(HistoricalKeys.Normalize(captain)) : null,
+            }).ToList();
+            // The stats' placeholder of a captain's team ("OREOTHECAT's Team") is the team the standings name with that captain,
+            // or name after them: it takes the team's name as the season has it
+            foreach (var (team, given) in named.Zip(teams))
+            {
+                var placeholders = new[] { given.Captain, given.TeamName, team.TeamName }.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => $"{c!.Trim()}'s Team").ToList();
+                foreach (var player in season.SelectMany(s => s.Players).Where(p => placeholders.Contains(p.TeamName?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)))
+                    player.TeamName = team.TeamName;
+            }
+            regular.Teams.AddRange(named);
             if (_changedSourceIds?.Contains(sourceId) != false)
                 _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
         }
@@ -287,6 +291,10 @@ public sealed class HistoricalArchiveBuilder
         var key = TeamKey(name);
         if (known.FirstOrDefault(t => TeamKey(t) == key) is { } same)
             return same;
+        // The same name but for a note in brackets on either ("Puffy Grifbussy" and "Puffy Grifbussy (WINNER)")
+        var bare = TeamKey(StandingsParser.WithoutNote(name));
+        if (known.FirstOrDefault(t => TeamKey(StandingsParser.WithoutNote(t)) == bare) is { } noted)
+            return noted;
         var digits = Digits(key);
         var allowed = key.Length >= 15 ? 3 : key.Length >= 8 ? 2 : 1;
         var close = known.Where(t => Digits(TeamKey(t)) == digits && DuplicateSuggestionService.Distance(key, TeamKey(t), allowed) is not null).ToList();

@@ -328,7 +328,7 @@ public class Team : AuditableEntity
     /// <summary>
     /// Where the team placed, as its source spreadsheet gives it (a season whose bracket is not in the app): its rank in
     /// the regular season's standings (its seed) and its final place (the playoffs' result). Either may be missing; each
-    /// is 1st or lower.
+    /// is 1st or lower; both null, the spreadsheet gives the team no placing.
     /// </summary>
     public void RecordArchivedPlacing(int? rank, int? finish)
     {
@@ -336,13 +336,6 @@ public class Team : AuditableEntity
         ArgumentOutOfRangeException.ThrowIfLessThan(finish ?? 1, 1, nameof(finish));
         ArchivedRank = rank;
         ArchivedFinish = finish;
-    }
-
-    /// <summary>The spreadsheet gives no placing for the team.</summary>
-    public void ClearArchivedPlacing()
-    {
-        ArchivedRank = null;
-        ArchivedFinish = null;
     }
 
     /// <summary>

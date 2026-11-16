@@ -43,8 +43,8 @@ public static partial class StandingsParser
         return teams.Count == 0 ? null : teams;
     }
 
-    /// <summary>A place: the number a cell starts with ("3rd (Semi-Finals)", "7th Place", "Seed 5", "T-3", "12"), 1 or
-    /// more; null otherwise, and for a record ("15-14") or anything else ("Draft Spot 1", "#N/A").</summary>
+    /// <summary>A place: the number a cell starts with ("3rd (Semi-Finals)", "7th Place", "Seed 5", "T-3", "12", a range
+    /// "5th-8th"), 1 or more; null otherwise, and for a record ("15-14") or anything else ("Draft Spot 1", "#N/A").</summary>
     public static int? Place(string? cell)
         => cell is not null && PlaceRegex().Match(cell) is { Success: true } m && int.TryParse(m.Groups[1].Value, out var place) && place >= 1 ? place : null;
 
@@ -61,6 +61,10 @@ public static partial class StandingsParser
                 teams.NewBlock();
                 continue;
             }
+            // An empty team cell after its teams ends the table, unless another division's header comes next: what's
+            // further down the column (another list, a schedule) isn't the standings'
+            if (name.Length == 0 && teams.List.Count > 0 && !NextNameIsAHeader(sheet, r, teamColumn))
+                break;
             var row = r;
             string Value(Field field) => columns.TryGetValue(field, out var c) ? sheet.Cell(row, c).Trim() : "";
             if (name.Length > 0 && IsTeamRow(columns.Keys, Value))
@@ -69,15 +73,29 @@ public static partial class StandingsParser
         return teams.List;
     }
 
+    /// <summary>The next row below <paramref name="row"/> with a name in the team column is a team header.</summary>
+    private static bool NextNameIsAHeader(SheetTable sheet, int row, int teamColumn)
+    {
+        for (var r = row + 1; r < sheet.Rows.Count; r++)
+            if (sheet.Cell(r, teamColumn).Trim() is { Length: > 0 } next)
+                return FieldOf(next) == Field.Team;
+        return false;
+    }
+
     /// <summary>A table's columns: from its team column to the right, and to the left (a TeamInfo tab's "Seed #" in A),
-    /// each way up to another table's team header (a table beside it).</summary>
+    /// each way up to another table's team header or a gap of two empty header cells (a table beside it).</summary>
     private static Dictionary<Field, int> RowColumns(string[] header, int teamColumn)
     {
         var columns = new Dictionary<Field, int>();
         void Scan(int step)
         {
+            var empty = 0;
             for (var c = teamColumn + step; c >= 0 && c < header.Length; c += step)
             {
+                // Two empty header cells in a row end the table (one is a merged header's)
+                empty = header[c].Trim().Length == 0 ? empty + 1 : 0;
+                if (empty == 2)
+                    return;
                 var field = FieldOf(header[c]);
                 if (field == Field.Team)
                     return;
@@ -244,7 +262,7 @@ public static partial class StandingsParser
         _ => Place(cell) is not null,
     };
 
-    [GeneratedRegex(@"^\s*(?:seed\s*|T-?)?(\d+)(?:st|nd|rd|th)?\b(?!\s*-\s*\d)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^\s*(?:seed\s*|T-?)?(\d+)(?:(?:st|nd|rd|th)\b|\b(?!\s*-\s*\d))", RegexOptions.IgnoreCase)]
     private static partial Regex PlaceRegex();
 
     [GeneratedRegex(@"\(([^()]*)\)\s*$")]

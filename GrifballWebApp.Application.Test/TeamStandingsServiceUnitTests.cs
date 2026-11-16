@@ -14,6 +14,7 @@ internal sealed class TeamStandingsServiceUnitTests : ApplicationDbContextTests
     private static readonly (string, int?)[] SheetOrderWithFinishes = [("Defiance", 3), ("Monstars", 1), ("Unranked", null)];
     private static readonly string[] RecordsOrderOfDivisions = ["West Winner", "East Winner", "East Second"];
     private static readonly string[] RecordsOrderOfAFewRanked = ["Best", "Middle", "Seeded Fifth"];
+    private static readonly string[] TournamentByFinish = ["Champion", "Runner-up", "Unplaced"];
     private TeamStandingsService _service = null!;
 
     [SetUp]
@@ -202,5 +203,20 @@ internal sealed class TeamStandingsServiceUnitTests : ApplicationDbContextTests
         var result = await _service.GetTeamStandings(SeasonID);
 
         Assert.That(result.Select(r => r.TeamName), Is.EqualTo(RecordsOrderOfAFewRanked));
+    }
+
+    [Test]
+    public async Task GetTeamStandings_ATournament_IsInTheOrderItFinished_NotItsSeeds()
+    {
+        // Respawn's TeamInfo: each team's seed going into the bracket ("Seed #") and where it finished
+        Context.Seasons.Add(Season.Seed(seasonName: "Respawn Fall Series 2", seasonID: SeasonID, format: SeasonFormat.Tournament));
+        await Context.SaveChangesAsync();
+        await ArchivedTeam("Runner-up", 3, 2, rank: 1, finish: 2);
+        await ArchivedTeam("Unplaced", 0, 2, rank: 2, finish: null);
+        await ArchivedTeam("Champion", 6, 1, rank: 3, finish: 1);
+
+        var result = await _service.GetTeamStandings(SeasonID);
+
+        Assert.That(result.Select(r => r.TeamName), Is.EqualTo(TournamentByFinish));
     }
 }

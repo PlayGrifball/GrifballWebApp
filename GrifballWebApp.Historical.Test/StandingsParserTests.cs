@@ -48,6 +48,17 @@ public class StandingsParserTests
     }
 
     [Test]
+    public void Rows_AHeaderPastAGapOfTwoCells_IsAnotherBlocks_OneEmptyCellIsNoGap()
+    {
+        // A merged header leaves one cell empty (Team | | Wins); a seed list two cells over is another block's
+        var sheet = Sheet(["Team", "", "Wins", "Losses", "", "", "Seed"], ["Alpha", "", "9", "1", "", "", "4"]);
+
+        var team = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings" })!.Single();
+
+        Assert.That((team.Wins, team.Losses, team.Rank), Is.EqualTo(((int?)9, (int?)1, (int?)null)));
+    }
+
+    [Test]
     public void ABarePlaceHeader_IsTheStandingsPlace_NotTheFinalOne()
     {
         var sheet = Sheet(["Place", "Team", "Wins", "Losses"], ["1", "Alpha", "9", "1"]);
@@ -96,7 +107,9 @@ public class StandingsParserTests
             ["", "week 2", "", "Reschedules", "", "", "Team Standings", "Wins", "Loss", "Games", "", "", "", "OREOTHECAT"],
             ["Dec 9 | Sat", "8:30pm | Mungo vs Oreo", "", "", "Sunday", "", "Mystery Heroes (Holy Morals)", "16", "4", "0", "", "", "Nov 26"],
             ["", "week 3", "", "week 3", "Monday", "", "Glory 2 God (ASpence501)", "14", "4", "2"],
-            ["Dec 10 | Sun", "8pm | Oreo vs Death", "", "", "Tuesday", "", "", "", "", "", "", "", "Dec 2"]);
+            ["Dec 10 | Sun", "8pm | Oreo vs Death", "", "", "Tuesday", "", "", "", "", "", "", "", "Dec 2"],
+            // Another list in the same columns below it: not the standings'
+            ["", "week 4", "", "", "Wednesday", "", "Top Runners", "3", "1"]);
 
         var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Schedule ListStandings", Anchor = "Team Standings", Ranked = true, CaptainInName = true });
 
@@ -339,6 +352,8 @@ public class StandingsParserTests
     [TestCase("7th Place", 7)]
     [TestCase("Draft Spot 1", null)]
     [TestCase("15-14", null)]
+    [TestCase("5th-8th", 5)]
+    [TestCase("3rd - 4th", 3)]
     [TestCase("#N/A", null)]
     [TestCase("Champion", null)]
     [TestCase("", null)]

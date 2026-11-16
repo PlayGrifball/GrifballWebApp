@@ -76,7 +76,8 @@ public class ArchiveSeason
     public List<ArchiveTeam> Teams { get; init; } = [];
 }
 
-public class ArchiveTeam
+/// <summary>A team of a season's standings. A record: a copy under another name (`with`) keeps every other value.</summary>
+public record ArchiveTeam
 {
     public required string TeamName { get; init; }
     public string? Division { get; init; }
@@ -90,13 +91,6 @@ public class ArchiveTeam
     public int? GoalsAgainst { get; init; }
     public string? Captain { get; init; }
     public List<string> Roster { get; init; } = [];
-
-    /// <summary>The same team under <paramref name="name"/>, its captain <paramref name="captain"/>.</summary>
-    public ArchiveTeam Named(string name, string? captain) => name == TeamName && captain == Captain ? this : new()
-    {
-        TeamName = name, Division = Division, Rank = Rank, Finish = Finish, Wins = Wins, Losses = Losses,
-        GoalsFor = GoalsFor, GoalsAgainst = GoalsAgainst, Captain = captain, Roster = Roster,
-    };
 }
 
 public class ArchivePlayer
