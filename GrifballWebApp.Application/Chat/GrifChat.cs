@@ -547,10 +547,6 @@ public sealed class ChatReply : IDisposable
     /// <summary>The characters a token is taken to hold when a call's usage must be estimated: fewer than most text has, so not too little.</summary>
     public const int CharactersPerToken = 3;
 
-    /// <summary>
-    /// What a reply's calls used, as their usage comes in (Anthropic's as each call ends), and whether the latest call is still under
-    /// way without it: then <see cref="Total"/> adds an estimate for it.
-    /// </summary>
     /// <summary>Whether <paramref name="content"/> is the model's, from this reply's calls: not a tool's result, an approval asked of the person, or a confirmed call run again.</summary>
     private bool IsTheModels(AIContent content) => content switch
     {
@@ -559,6 +555,10 @@ public sealed class ChatReply : IDisposable
         _ => true,
     };
 
+    /// <summary>
+    /// What a reply's calls used, as their usage comes in (Anthropic's as each call ends), and whether the latest call is still under
+    /// way without it: then <see cref="Total"/> adds an estimate for it.
+    /// </summary>
     private sealed class Spending(ChatReply reply)
     {
         private readonly UsageDetails _usage = new();
