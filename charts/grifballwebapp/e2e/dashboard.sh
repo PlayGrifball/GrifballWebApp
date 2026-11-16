@@ -6,8 +6,9 @@
 #
 #   BACKEND_IMAGE=grif-backend:e2e FRONTEND_IMAGE=grif-frontend:e2e charts/grifballwebapp/e2e/dashboard.sh
 #
-# The collector gives the telemetry the environment's identity as a production collector does (service.name, service.namespace and
-# k8s.namespace.name = the namespace), so the queries select it as they do there. Versions are production's.
+# The collector gives the telemetry the environment's identity as a production collector does (service.name,
+# service.namespace and k8s.namespace.name = the namespace), so the queries select it as they do there. Versions are
+# production's.
 set -euo pipefail
 
 chart="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -28,6 +29,8 @@ cleanup() {
   if [[ "$rc" != 0 ]]; then
     for c in "${containers[@]}"; do echo "::group::$c logs"; docker logs --tail 60 "$c" 2>&1 || true; echo "::endgroup::"; done
     echo "::group::pods"; kubectl -n "$ns" get pods -o wide || true; echo "::endgroup::"
+    echo "::group::events"; kubectl -n "$ns" get events --sort-by=.lastTimestamp 2>&1 | tail -40 || true; echo "::endgroup::"
+    echo "::group::backend logs"; kubectl -n "$ns" logs deploy/grif-backend --tail 80 2>&1 || true; echo "::endgroup::"
   fi
   docker rm -f "${containers[@]}" > /dev/null 2>&1 || true
 }
@@ -85,7 +88,8 @@ chmod -R a+rX "$work"
 docker run -d --name prometheus --network "$net" -v "$work/prometheus.yml:/etc/prometheus/prometheus.yml:ro" "$PROMETHEUS_IMAGE" \
   --config.file=/etc/prometheus/prometheus.yml --web.enable-otlp-receiver > /dev/null
 docker run -d --name loki --network "$net" "$LOKI_IMAGE" -config.file=/etc/loki/local-config.yaml > /dev/null
-docker run -d --name tempo --network "$net" --tmpfs /var/tempo -v "$work/tempo.yaml:/etc/tempo.yaml:ro" "$TEMPO_IMAGE" -config.file=/etc/tempo.yaml > /dev/null
+# Tempo runs as a user of its own (10001): the tmpfs is open to it, or it can't make its blocks directory
+docker run -d --name tempo --network "$net" --tmpfs /var/tempo:mode=1777 -v "$work/tempo.yaml:/etc/tempo.yaml:ro" "$TEMPO_IMAGE" -config.file=/etc/tempo.yaml > /dev/null
 docker run -d --name collector --network "$net" -v "$work/collector.yaml:/etc/otelcol/config.yaml:ro" "$COLLECTOR_IMAGE" --config=/etc/otelcol/config.yaml > /dev/null
 collector=$(docker inspect -f "{{(index .NetworkSettings.Networks \"$net\").IPAddress}}" collector)
 echo "Collector at $collector"
@@ -98,7 +102,12 @@ frontend:
 grafanaDashboard: { enabled: true }
 EOF
 
-helm install grif "$chart" -n "$ns" --create-namespace -f "$chart/ci/sqlite-values.yaml" -f "$work/telemetry-values.yaml" \
+# The Secret ci/sqlite-values.yaml's secretConfig reads (grif-secrets), with run.sh's stand-in Discord credentials: the
+# token is shaped like a real one, so the backend starts and gets ready
+kubectl create namespace "$ns"
+kubectl -n "$ns" create secret generic grif-secrets --from-literal=DiscordClientId=0 --from-literal=DiscordClientSecret=e2e \
+  --from-literal=DiscordToken=MTIzNDU2Nzg5MDEyMzQ1Njc4.AAAAAA.e2e-not-a-real-token
+helm install grif "$chart" -n "$ns" -f "$chart/ci/sqlite-values.yaml" -f "$work/telemetry-values.yaml" \
   --set "backend.image.repository=${backend_image%:*}" --set "backend.image.tag=${backend_image##*:}" \
   --set "frontend.image.repository=${frontend_image%:*}" --set "frontend.image.tag=${frontend_image##*:}" \
   --set backend.image.pullPolicy=IfNotPresent --set frontend.image.pullPolicy=IfNotPresent
