@@ -60,6 +60,8 @@ jobs:
           helm plugin install https://github.com/helm-unittest/helm-unittest $verify
           helm unittest "$CHART"
 
+      # The Grafana dashboard's offline tests run in dashboard.yml, which also runs on the app's sources (its instruments).
+
       # The preview database reset's decision (files/preview-reset.sh), under bash's sh and under
       # BusyBox, which the backend image runs it with.
       - name: Preview reset decision tests
@@ -225,6 +227,9 @@ jobs:
           - { database: scaleout, k3s: v1.36.5-k3s1 }
           - { database: bundled, k3s: v1.34.12-k3s1 }
           - { database: bundled, k3s: v1.37.1-k3s1 }
+          # The Grafana dashboard against the app (e2e/dashboard.sh): its telemetry through a collector to Prometheus,
+          # Loki and Tempo, every panel's query through Grafana
+          - { database: dashboard, k3s: v1.36.5-k3s1 }
     name: e2e (${{ matrix.database }}, ${{ matrix.k3s }})
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -275,7 +280,16 @@ jobs:
         env:
           BACKEND_IMAGE: grif-backend:e2e
           FRONTEND_IMAGE: grif-frontend:e2e
-        run: ${{ env.CHART }}/e2e/run.sh ${{ matrix.database }}
+          # The dashboard run's picture of the dashboard (e2e/dashboard-screenshot.mjs), uploaded below
+          SCREENSHOT: ${{ runner.temp }}/screenshot/grafana-dashboard.png
+        run: |
+          if [[ "${{ matrix.database }}" == dashboard ]]; then "$CHART/e2e/dashboard.sh"; else "$CHART/e2e/run.sh" "${{ matrix.database }}"; fi
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: matrix.database == 'dashboard'
+        with:
+          name: grafana-dashboard
+          path: ${{ runner.temp }}/screenshot/grafana-dashboard.png
 
   # Publishes the chart when it changed: version <Chart.yaml's major.minor>.<this workflow's run
   # number>, so every change (a Renovate digest update included) gets a new version without anyone
