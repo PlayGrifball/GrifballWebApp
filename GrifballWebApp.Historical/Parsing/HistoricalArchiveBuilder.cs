@@ -86,18 +86,24 @@ public sealed partial class HistoricalArchiveBuilder
         if (config.ChampionsSheet is not null)
             AddChampions(id, source.Url, config.ChampionsSheet, workbook, changed);
         AddWaypoint(id, config, workbook);
-        foreach (var tab in config.Rosters)
-            _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
-        foreach (var tab in config.Standings)
-            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
+        AddSeasonTabs(id, source.Year, config, workbook);
         AddGames(id, config, workbook, changed);
-        foreach (var tab in config.Results)
-            _results.Add((id, source.Year, config.Season, tab, workbook.Sheet(tab.Sheet) is { } resultsSheet ? GameResultsParser.Parse(id, tab, resultsSheet, _warnings) : null));
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
         if (changed)
             foreach (var entry in entries)
                 _affected.Add(HistoricalKeys.SeasonSourceId(entry.SourceWorkbook!, entry.SourceSheet!));
+    }
+
+    /// <summary>The tabs of a season put on it once every season is known: rosters, standings and result lists.</summary>
+    private void AddSeasonTabs(string id, int? year, HistoricalSourceConfig config, SheetWorkbook workbook)
+    {
+        foreach (var tab in config.Rosters)
+            _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
+        foreach (var tab in config.Standings)
+            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
+        foreach (var tab in config.Results)
+            _results.Add((id, year, config.Season, tab, workbook.Sheet(tab.Sheet) is { } resultsSheet ? GameResultsParser.Parse(id, tab, resultsSheet, _warnings) : null));
     }
 
     /// <summary>The snapshot's workbook, the sheets its config reads; null (a warning said why) when it can't be read.</summary>

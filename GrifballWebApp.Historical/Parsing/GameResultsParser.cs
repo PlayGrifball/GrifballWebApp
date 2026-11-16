@@ -122,7 +122,7 @@ public static partial class GameResultsParser
     }
 
     /// <summary>The columns of a <see cref="ResultsLayout.Table"/> list, by its header row's names (-1 for none).</summary>
-    private sealed record TableColumns(int Winner, int Loser, int Score, int Host, int Vod, int Game, int Map)
+    private sealed record TableColumns(int Winner, int Loser, int Result, int Host, int Vod, int Game, int Map)
     {
         /// <summary>The columns a header row names; one it doesn't keep the last header's (a header repeated mid-sheet
         /// without its Game column, the games still beside it). The score is the column after the winner's when no header
@@ -148,37 +148,38 @@ public static partial class GameResultsParser
         {
             var row = parse.Sheet.Rows[r];
             if (TableColumns.Of(row, columns) is { } header)
-            {
                 columns = header;
-                continue;
-            }
-            if (columns is null)
-                continue;
-            var (winner, loser) = (TeamName(Cell(row, columns.Winner)), TeamName(Cell(row, columns.Loser)));
+            else if (columns is not null)
+                TableRow(parse, columns, row, r.ToString(CultureInfo.InvariantCulture));
+        }
+    }
+
+    /// <summary>A row of a table: a game, a week or playoffs marker, a result naming one team (reported), or neither.</summary>
+    private static void TableRow(ResultsParse parse, TableColumns columns, string[] row, string where)
+    {
+        var (winner, loser) = (TeamName(Cell(row, columns.Winner)), TeamName(Cell(row, columns.Loser)));
+        if (winner is null || loser is null)
+        {
             // A week or playoffs row names no loser (a team may be named "Final Boss")
             var first = row.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c))?.Trim() ?? "";
-            if ((winner is null || loser is null) && parse.Phase(first))
-                continue;
-            if (winner is null && loser is null)
-                continue;
-            if (winner is null || loser is null)
+            if (!parse.Phase(first) && (winner ?? loser) is not null)
             {
                 parse.OneSided++;
                 parse.EndSeries();
-                continue;
             }
-            var score = Cell(row, columns.Score);
-            var (high, low) = Score(score) is { } s ? (Math.Max(s.A, s.B), Math.Min(s.A, s.B)) : ((int?)null, (int?)null);
-            var result = new GameResult(winner, loser, high is not null && high == low ? Outcomes.Tie : Outcomes.Won, high, low)
-            {
-                IsForfeit = IsForfeitMark(score),
-                Game = Text(Cell(row, columns.Game)),
-                Map = Text(Cell(row, columns.Map)),
-                Vod = Link(Cell(row, columns.Vod)),
-                Host = Text(Cell(row, columns.Host)),
-            };
-            Add(parse, parse.Key(r.ToString(CultureInfo.InvariantCulture)), parse.SeriesOf(winner, loser, r.ToString(CultureInfo.InvariantCulture)), result);
+            return;
         }
+        var score = Cell(row, columns.Result);
+        var (high, low) = Score(score) is { } s ? (Math.Max(s.A, s.B), Math.Min(s.A, s.B)) : ((int?)null, (int?)null);
+        var result = new GameResult(winner, loser, high is not null && high == low ? Outcomes.Tie : Outcomes.Won, high, low)
+        {
+            IsForfeit = IsForfeitMark(score),
+            Game = Text(Cell(row, columns.Game)),
+            Map = Text(Cell(row, columns.Map)),
+            Vod = Link(Cell(row, columns.Vod)),
+            Host = Text(Cell(row, columns.Host)),
+        };
+        Add(parse, parse.Key(where), parse.SeriesOf(winner, loser, where), result);
     }
 
     private static void SeriesCells(ResultsParse parse)
@@ -241,45 +242,61 @@ public static partial class GameResultsParser
     private static List<GameResult>? SeriesGames(SeriesEntry entry, List<string> scores)
     {
         if (scores.Count == 0)
-        {
-            if (entry.ScoreA is not int sa || entry.ScoreB is not int sb)
-                return null;
-            if (Math.Max(sa, sb) >= 4)
-                return [new GameResult(entry.A, entry.B, sa == sb ? Outcomes.Tie : sa > sb ? Outcomes.Won : Outcomes.Lost, sa, sb)];
-            return Enumerable.Range(0, sa + sb).Select(i => new GameResult(entry.A, entry.B, i < sa ? Outcomes.Won : Outcomes.Lost, null, null)).ToList();
-        }
-
-        var parsed = scores.Select(s => (Score: Score(s), Forfeit: IsForfeitMark(s))).ToList();
-        if (parsed.Any(p => p.Score is null && !p.Forfeit))
+            return ScorelessGames(entry);
+        var parsed = scores.Select(Score).ToList();
+        if (parsed.Where((s, i) => s is null && !IsForfeitMark(scores[i])).Any())
             return null;
-        // The series score the cell gives: its numbers, or a tie's even split
+        // The series score the cell gives: its numbers, or a tie's even split; none (-1) otherwise
         var (winsA, winsB) = entry.ScoreA is int a && entry.ScoreB is int b
             ? (a, b)
             : entry.Tied ? (scores.Count / 2, scores.Count - scores.Count / 2) : (-1, -1);
-        var scoredA = parsed.Count(p => p.Score is { } s && s.A > s.B);
-        var scoredB = parsed.Count(p => p.Score is { } s && s.B > s.A);
-        var forfeits = parsed.Count(p => p.Score is null);
+        var scoredA = parsed.Count(s => s is { } x && x.A > x.B);
+        var scoredB = parsed.Count(s => s is { } x && x.B > x.A);
+        var forfeits = parsed.Count(s => s is null);
         // The scores, A's first, add up to the series score (its forfeits the wins left): each game by its score. Without a
         // series score, A (named first: "A over B") won its forfeits
-        if (winsA < 0 || (scoredA <= winsA && scoredB <= winsB && scoredA + scoredB + forfeits == winsA + winsB))
+        if (winsA < 0)
+            return ByScore(entry, parsed, forfeits);
+        if (scoredA <= winsA && scoredB <= winsB && scoredA + scoredB + forfeits == winsA + winsB)
+            return ByScore(entry, parsed, winsA - scoredA);
+        return WinnerFirst(entry, parsed, winsA);
+    }
+
+    /// <summary>A series cell without game scores: "A over B 5-3" one game, "A over B 2-0" two without scores.</summary>
+    private static List<GameResult>? ScorelessGames(SeriesEntry entry)
+    {
+        if (entry.ScoreA is not int sa || entry.ScoreB is not int sb)
+            return null;
+        if (Math.Max(sa, sb) >= 4)
+            return [new GameResult(entry.A, entry.B, Outcome(sa, sb), sa, sb)];
+        return Enumerable.Range(0, sa + sb).Select(i => new GameResult(entry.A, entry.B, i < sa ? Outcomes.Won : Outcomes.Lost, null, null)).ToList();
+    }
+
+    /// <summary>Each game by its score, A's first; a forfeit (no score) A's while <paramref name="forfeitsToA"/> last.</summary>
+    private static List<GameResult> ByScore(SeriesEntry entry, List<(int A, int B)?> scores, int forfeitsToA)
+    {
+        var games = new List<GameResult>();
+        foreach (var score in scores)
         {
-            var forfeitsToA = winsA < 0 ? forfeits : winsA - scoredA;
-            return parsed.Select(p =>
-            {
-                if (p.Score is { } s)
-                    return new GameResult(entry.A, entry.B, s.A == s.B ? Outcomes.Tie : s.A > s.B ? Outcomes.Won : Outcomes.Lost, s.A, s.B);
-                var toA = forfeitsToA-- > 0;
-                return new GameResult(entry.A, entry.B, toA ? Outcomes.Won : Outcomes.Lost, null, null) { IsForfeit = true };
-            }).ToList();
+            if (score is { } s)
+                games.Add(new GameResult(entry.A, entry.B, Outcome(s.A, s.B), s.A, s.B));
+            else
+                games.Add(new GameResult(entry.A, entry.B, forfeitsToA-- > 0 ? Outcomes.Won : Outcomes.Lost, null, null) { IsForfeit = true });
         }
-        // Written winner first: the series score says who won which, A's wins first
-        return parsed.Select((p, i) =>
+        return games;
+    }
+
+    /// <summary>Game scores written winner first: A won the first <paramref name="winsA"/>, B the rest.</summary>
+    private static List<GameResult> WinnerFirst(SeriesEntry entry, List<(int A, int B)?> scores, int winsA)
+        => scores.Select((score, i) =>
         {
             var toA = i < winsA;
-            var (high, low) = p.Score is { } s ? (Math.Max(s.A, s.B), Math.Min(s.A, s.B)) : ((int?)null, (int?)null);
-            return new GameResult(entry.A, entry.B, toA ? Outcomes.Won : Outcomes.Lost, toA ? high : low, toA ? low : high) { IsForfeit = p.Forfeit };
+            var (high, low) = score is { } s ? (Math.Max(s.A, s.B), Math.Min(s.A, s.B)) : ((int?)null, (int?)null);
+            return new GameResult(entry.A, entry.B, toA ? Outcomes.Won : Outcomes.Lost, toA ? high : low, toA ? low : high) { IsForfeit = score is null };
         }).ToList();
-    }
+
+    /// <summary>The first side's outcome by the two scores.</summary>
+    private static Outcomes Outcome(int first, int second) => first == second ? Outcomes.Tie : first > second ? Outcomes.Won : Outcomes.Lost;
 
     /// <summary>The columns of a game history, from a header row among its first five that names Home and Away.</summary>
     private static (int Home, int Away, int Score, int Vod, int HeaderRow)? HistoryColumns(SheetTable sheet)
@@ -309,29 +326,31 @@ public static partial class GameResultsParser
                 parse.Playoffs = parse.Tab.IsPlayoffs || HistoryPlayoffsPattern().IsMatch(first);
             // A Waypoint game is the Waypoint import's: a played game between the forfeits and unlinked games
             if (row.Any(c => WaypointMatchParser.MatchIds(c) is not { Count: 0 }))
-            {
                 parse.EndSeries();
-                continue;
-            }
-            var (home, away) = (WaypointMatchParser.TeamName(Cell(row, columns.Home)), WaypointMatchParser.TeamName(Cell(row, columns.Away)));
-            if (home is null || away is null)
-                continue;
-            var marks = row.Where((_, c) => c != columns.Home && c != columns.Away).Select(c => c.Trim()).ToList();
-            var forfeit = marks.FirstOrDefault(IsForfeitMark);
-            var score = Score(Cell(row, columns.Score)) ?? (forfeit is null ? null : ScoreIn(forfeit));
-            if (HistoryOutcome(home, away, score, forfeit) is not { } outcome)
-            {
-                if (forfeit is not null)
-                    parse.Unread.Add($"{home} v {away}: {forfeit}, no winner");
-                continue;
-            }
-            var where = r.ToString(CultureInfo.InvariantCulture);
-            Add(parse, parse.Key(where), parse.SeriesOf(home, away, where), new GameResult(home, away, outcome, score?.A, score?.B)
-            {
-                IsForfeit = forfeit is not null,
-                Vod = Link(Cell(row, columns.Vod)),
-            });
+            else
+                HistoryRow(parse, columns, row, r.ToString(CultureInfo.InvariantCulture));
         }
+    }
+
+    /// <summary>A game history row without a match link: a forfeit, a game played without a link, or (no score) none.</summary>
+    private static void HistoryRow(ResultsParse parse, (int Home, int Away, int Score, int Vod, int HeaderRow) columns, string[] row, string where)
+    {
+        var (home, away) = (WaypointMatchParser.TeamName(Cell(row, columns.Home)), WaypointMatchParser.TeamName(Cell(row, columns.Away)));
+        if (home is null || away is null)
+            return;
+        var forfeit = row.Where((_, c) => c != columns.Home && c != columns.Away).Select(c => c.Trim()).FirstOrDefault(IsForfeitMark);
+        var score = Score(Cell(row, columns.Score)) ?? (forfeit is null ? null : ScoreIn(forfeit));
+        if (HistoryOutcome(home, away, score, forfeit) is not { } outcome)
+        {
+            if (forfeit is not null)
+                parse.Unread.Add($"{home} v {away}: {forfeit}, no winner");
+            return;
+        }
+        Add(parse, parse.Key(where), parse.SeriesOf(home, away, where), new GameResult(home, away, outcome, score?.A, score?.B)
+        {
+            IsForfeit = forfeit is not null,
+            Vod = Link(Cell(row, columns.Vod)),
+        });
     }
 
     /// <summary>A game history row's outcome for its home side: by its score, else (a forfeit) the side its mark names
@@ -339,7 +358,7 @@ public static partial class GameResultsParser
     private static Outcomes? HistoryOutcome(string home, string away, (int A, int B)? score, string? forfeit)
     {
         if (score is { } s)
-            return s.A == s.B ? Outcomes.Tie : s.A > s.B ? Outcomes.Won : Outcomes.Lost;
+            return Outcome(s.A, s.B);
         if (forfeit is null)
             return null;
         var named = ForfeitWinnerPattern().Match(forfeit);

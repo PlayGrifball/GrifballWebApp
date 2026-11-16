@@ -259,6 +259,7 @@ public class GameResultsParserTests
     [TestCase("ApoPo", "Apocalypse Ponies", true)]
     [TestCase("ZMD", "Zaps MD", true)]
     [TestCase("TB", "The Boys", true)]
+    [TestCase("DBAGS", "Don't Be A Gonk Scet", true)]
     [TestCase("AJYD", "AJunkyardDog", false)]
     [TestCase("Team", "Team Rocket", false)]
     [TestCase("Asc", "Ascended", false)]

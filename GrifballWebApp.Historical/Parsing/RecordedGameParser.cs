@@ -281,6 +281,13 @@ public static partial class RecordedGameParser
         }).ToList();
         if (teams.Count == 1 && OtherSide(title, teams[0], tied, high, low) is { } other)
             teams.Add(other);
+        // A block without stats (NO STATS): its title is all there is of the game
+        else if (teams.Count == 0 && TitleTeams(title) is { } named)
+            teams =
+            [
+                new RecordedTeamInput { Side = 1, Name = named.Winner, Outcome = tied ? Outcomes.Tie : Outcomes.Won, Score = high },
+                new RecordedTeamInput { Side = 2, Name = named.Loser, Outcome = tied ? Outcomes.Tie : Outcomes.Lost, Score = tied ? high : low },
+            ];
         return new RecordedGameInput
         {
             SeasonSourceId = tab.Season,
@@ -408,7 +415,7 @@ public static partial class RecordedGameParser
     private static partial Regex Whitespace();
 
     /// <summary>"A over B (5-2) RECORDED https://...", "A FF Win over B", "A (FF W) over B": the teams, without what follows.</summary>
-    [GeneratedRegex(@"^(?<a>.+?)(?:\s+\(FF W\)|\s+FF Win)?\s+(?:over|tied)\s+(?<b>.+?)(?=\s*(?:\(\d|\(FF|\d{1,2}\s*-\s*\d|RECORDED|https?://|$))", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^(?<a>.+?)(?:\s+\(FF W\)|\s+FF Win)?\s+(?:over|tied)\s+(?<b>.+?)(?=\s*(?:\(\d|\(FF|\d{1,2}\s*-\s*\d|RECORDED|NO STATS|https?://|$))", RegexOptions.IgnoreCase)]
     private static partial Regex TitleMatchupPattern();
 
     [GeneratedRegex(@"\bforfeit\b|\bFF\b", RegexOptions.IgnoreCase)]

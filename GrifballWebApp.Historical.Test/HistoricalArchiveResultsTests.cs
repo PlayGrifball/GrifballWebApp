@@ -32,11 +32,12 @@ public class HistoricalArchiveResultsTests
                     Tabs = [new() { Name = "Stats" }],
                     Results = [new() { Sheet = "Game Results", Teams = new() { ["AJunkyardDog"] = "AJYD" } }],
                 },
-                Workbook(("Stats", [StatsHeader, Row("Ace", "A&tS", 4, 1), Row("Sauted Smurf", "MAB", 4, 1), Row("Cee", "AJYD", 4, 1), Row("Dee", "ApoPo", 4, 1)]),
+                Workbook(("Stats", [StatsHeader, Row("Ace", "A&tS", 4, 1), Row("Sauted Smurf", "MAB", 4, 1), Row("Cee", "AJYD", 4, 1), Row("Dee", "ApoPo", 4, 1), Row("PoisonxPoptart", "ApoPo", 4, 1)]),
                     ("Game Results", [Row("Winner", null, "Loser", "Host"),
                         Row("A and the Spences", "5-0", "Mediocre At Best", "Rage"),
                         Row("AJunkyardDog", "5-1", "Apocalypse Ponies"),
-                        Row("Smurf", "5-2", "Nobody Known")]))),
+                        Row("Smurf", "5-2", "Nobody Known"),
+                        Row("Poptart", "5-0", "MAB")]))),
             Source("other", new HistoricalSourceConfig
                 {
                     Results = [new() { Sheet = "Game Results", Season = "fl20" }, new() { Sheet = "Missing", Season = "fl20" }, new() { Sheet = "Game Results", Season = "nothing" }],
@@ -51,8 +52,8 @@ public class HistoricalArchiveResultsTests
         {
             Assert.That(games.Select(g => (g.Teams[0].Name, g.Teams[1].Name)), Is.EqualTo(new[]
             {
-                ((string?)"A&tS", (string?)"MAB"), ("AJYD", "ApoPo"), ("MAB", "Nobody Known"), ("ApoPo", "MAB"),
-            }), "An abbreviation either way, the tab's alias, a player's name; a name nothing finds stays");
+                ((string?)"A&tS", (string?)"MAB"), ("AJYD", "ApoPo"), ("MAB", "Nobody Known"), ("ApoPo", "MAB"), ("ApoPo", "MAB"),
+            }), "An abbreviation either way, the tab's alias, a player's name or a part of it; a name nothing finds stays");
             Assert.That(games.Select(g => (g.SeasonSourceId, g.GameVersion)), Is.All.EqualTo(("fl20/Stats", "reach")));
             Assert.That(games[0].Host, Is.EqualTo("Rage"));
             Assert.That(build.Input.Seasons.Seasons.Single().Teams, Is.Empty, "The season names its teams: the list adds none");

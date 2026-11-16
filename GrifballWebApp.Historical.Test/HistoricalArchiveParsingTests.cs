@@ -24,7 +24,6 @@ public class HistoricalArchiveParsingTests
     private static readonly string[] expected5 = ["ll/HR_MatchH#1", "ll/HR_MatchH#3", "ll/HR_MatchH#5", "ll/HR_MatchH#7"];
     private static readonly string[] expected6 = ["w/Twice@20220711180215", "w/Twice@20220711183000", "w/Twice@20220711180215-2"];
     private static readonly string[] expected7 = ["w: no games sheet 'Missing', or it is empty"];
-    private static readonly string[] expected8 = ["wl19/Game Results: 1 games with only one side left out"];
     private static readonly string[] expected9 = ["Bears", "Bears", "Bears", "Beer", "Beer"];
     private static readonly string[] expected10 = ["stats/Stats"];
     private static readonly string[] StatsAndPlayoffStats = ["stats/Stats", "stats/Playoff Stats"];
@@ -626,12 +625,15 @@ public class HistoricalArchiveParsingTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(warnings, Is.EqualTo(expected8));
+            Assert.That(warnings, Is.Empty);
             Assert.That(games.Select(g => (g.SourceKey, g.PlayedAt, g.IsPlayoffs)), Is.EqualTo(new[]
             {
                 ("wl19/Game Results#4", (DateTime?)new DateTime(2019, 1, 28, 0, 0, 0, DateTimeKind.Utc), false),
                 ("wl19/Game Results#12", null, true),
+                ("wl19/Game Results#17", null, false),
             }));
+            Assert.That(games[2].Teams.Select(t => (t.Name, t.Outcome)), Is.EqualTo(new[] { ((string?)"Forfeit", Outcomes.Won), ("Nobody", Outcomes.Lost) }),
+                "A block without stats is its title's game");
             var first = games[0];
             Assert.That(first.Players.Select(p => (p.Gamertag, p.Side, p.Kills, p.Goals, p.CarrierKills)), Is.EqualTo(new[]
             {

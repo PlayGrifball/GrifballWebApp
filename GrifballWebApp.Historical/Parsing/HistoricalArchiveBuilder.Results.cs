@@ -136,7 +136,8 @@ public sealed partial class HistoricalArchiveBuilder
             return PlayerTeam(listed) ?? listed;
         }
 
-        /// <summary>The team of the one player (or captain) whose gamertag is the name, or has it as a word or its start.</summary>
+        /// <summary>The team of the one player (or captain) whose gamertag is the name, or has it as a word or its start, or (4
+        /// letters or more) anywhere in it.</summary>
         private string? PlayerTeam(string name)
         {
             var key = HistoricalKeys.Normalize(name);
@@ -145,7 +146,12 @@ public sealed partial class HistoricalArchiveBuilder
                 return exact.Count == 1 ? exact[0] : null;
             var named = _players.Where(p => Words(p.Gamertag).Contains(key) || HistoricalKeys.Normalize(p.Gamertag).StartsWith(key, StringComparison.Ordinal))
                 .Select(p => p.Team).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            return key.Length >= 3 && named.Count == 1 ? named[0] : null;
+            if (named.Count > 0)
+                return key.Length >= 3 && named.Count == 1 ? named[0] : null;
+            // A part of a gamertag ("Poptart" of PoisonxPoptart, "Ducky" of PsyDucky54)
+            var within = _players.Where(p => HistoricalKeys.Normalize(p.Gamertag).Contains(key, StringComparison.Ordinal))
+                .Select(p => p.Team).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            return key.Length >= 4 && within.Count == 1 ? within[0] : null;
         }
 
         private static List<string> Words(string text) => text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(HistoricalKeys.Normalize).ToList();
@@ -187,6 +193,9 @@ public sealed partial class HistoricalArchiveBuilder
         for (var i = 0; i < name.Length; i++)
         {
             var c = name[i];
+            // An apostrophe is inside a word ("Don't")
+            if (c is '\'' or '\u2019')
+                continue;
             var boundary = !char.IsLetterOrDigit(c) || (char.IsUpper(c) && i > 0 && char.IsLower(name[i - 1]));
             if (boundary && word.Length > 0)
             {
