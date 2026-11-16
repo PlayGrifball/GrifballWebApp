@@ -10,7 +10,7 @@ export interface ChatRequestDto {
 
   /**
    * Whether a change the chat makes runs without asking, this conversation (GrifballWebApp.Application.Chat.ChatHost.AutoApprove); null: the user's
-   * setting (GrifballWebApp.Application.Chat.GrifChat.AutoApproveAsync(GrifballWebApp.Application.Tools.ToolCaller,System.Threading.CancellationToken)).
+   * setting (M:GrifballWebApp.Application.Chat.GrifChat.AutoApproveAsync(GrifballWebApp.Application.Tools.ToolCaller,System.Threading.CancellationToken)).
    */
   autoApprove: boolean | null;
 

@@ -9390,6 +9390,7 @@
       },
       "ChatModelsDto": {
         "required": [
+          "autoApprove",
           "limit",
           "models",
           "selected",
@@ -9419,6 +9420,11 @@
             "description": "The monthly limit on it; null when none of theirs is paid.",
             "format": "double",
             "nullable": true
+          },
+          "autoApprove": {
+            "type": "boolean",
+            "description": "Whether a change the chat makes for them runs without asking, by default (M:GrifballWebApp.Application.Chat.GrifChat.AutoApproveAsync(GrifballWebApp.Application.Tools.ToolCaller,System.Threading.CancellationToken)); null when\nthey have no change to make (no tool of theirs changes data), so no setting.",
+            "nullable": true
           }
         },
         "additionalProperties": false,
@@ -9426,6 +9432,7 @@
       },
       "ChatRequestDto": {
         "required": [
+          "autoApprove",
           "history",
           "model",
           "question"
@@ -9446,6 +9453,11 @@
           "model": {
             "type": "string",
             "description": "The model to answer (its ID); null: the user's choice, else their default.",
+            "nullable": true
+          },
+          "autoApprove": {
+            "type": "boolean",
+            "description": "Whether a change the chat makes runs without asking, this conversation (GrifballWebApp.Application.Chat.ChatHost.AutoApprove); null: the user's\nsetting (M:GrifballWebApp.Application.Chat.GrifChat.AutoApproveAsync(GrifballWebApp.Application.Tools.ToolCaller,System.Threading.CancellationToken)).",
             "nullable": true
           }
         },

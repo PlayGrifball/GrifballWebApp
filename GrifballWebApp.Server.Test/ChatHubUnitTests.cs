@@ -69,7 +69,9 @@ public class ChatHubUnitTests
         return new ChatHub(new GrifChat(new ChatModel(_clients, NullLoggerFactory.Instance), Substitute.For<IServiceScopeFactory>(), _limits, new ChatAccounts(_cache.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System, NullLogger<ChatAccounts>.Instance)), now, _ambient, _logger) { Context = context };
     }
 
-    private static ChatRequestDto Question(string question = "Who won?", params ChatTurnDto[] history) => new() { Question = question, History = [.. history] };
+    // With the page's own choice of whether changes wait (false): these tests have no database for the user's setting (ChatHubModelsUnitTests)
+    private static ChatRequestDto Question(string question = "Who won?", params ChatTurnDto[] history)
+        => new() { Question = question, History = [.. history], AutoApprove = false };
 
     /// <summary>Everything the reply streamed, then how it ended: null, or the error the browser is shown.</summary>
     private static async Task<(List<string> Texts, string? Error)> Read(ChannelReader<string> reply)

@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 
@@ -29,9 +30,12 @@ public sealed record ChatAction(string Id, string Model, string Description, IRe
     public static string Describe(FunctionCallContent call)
         => $"{call.Name}({string.Join(", ", (call.Arguments ?? new Dictionary<string, object?>()).Select(a => $"{a.Key}: {Shown(a.Value)}"))})";
 
+    // Only what JSON itself needs escaped: a quote reads as \", not \u0022
+    private static readonly JsonSerializerOptions Readable = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
     private static string Shown(object? value)
     {
-        var json = JsonSerializer.Serialize(value);
+        var json = JsonSerializer.Serialize(value, Readable);
         return json.Length > ShownValueLength ? json[..ShownValueLength] + "…" : json;
     }
 

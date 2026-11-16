@@ -364,7 +364,7 @@ public partial class GrifChatUnitTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(ChatHost.DiscordDirect.InPublic, Is.False);
-            Assert.That(ChatHost.DiscordDirect with { InPublic = true, Confirm = "" }, Is.EqualTo(ChatHost.Discord));
+            Assert.That(ChatHost.DiscordDirect with { Name = "discord", InPublic = true, Confirm = "" }, Is.EqualTo(ChatHost.Discord));
             Assert.That(ChatHost.Discord.ToolsFor(Free), Is.SameAs(GrifTools.Chat));
             Assert.That(ChatHost.DiscordDirect.ToolsFor(Free), Is.SameAs(GrifTools.PrivateChat));
             Assert.That(ChatHost.Site.ToolsFor(Free), Is.SameAs(GrifTools.PrivateChat));

@@ -15,6 +15,7 @@ public class ChatChoiceConfiguration : IEntityTypeConfiguration<ChatChoice>
 
         // None: their roles' default
         entity.Property(e => e.Model)
+            .IsRequired(false)
             .HasMaxLength(ChatChoice.ModelMaxLength);
 
         // Off for the rows before it: a change waits
