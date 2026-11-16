@@ -3,20 +3,30 @@
 {{- if not .Values.ingressRoute.enabled }}
 {{- fail "onDemand.enabled needs ingressRoute.enabled: Sablier starts the release from the Traefik Middleware on the IngressRoute's routes" }}
 {{- end }}
-# On demand (onDemand): Sablier's Traefik plugin, on every route of the IngressRoute. A visit starts the group (every
-# Deployment of the release, labelled grif.onDemandLabels) and renews its session; sessionDuration after the last
-# one, Sablier stops them all.
+{{- /* Two Middlewares, the same group and session: grif-on-demand on the site's route (onDemand.strategy: by default
+   dynamic, a starting page that reloads itself until the site is up) and, while a hub or API route uses it,
+   grif-on-demand-api on those (onDemand.apiStrategy: by default blocking, each request held until the release is
+   up and then passed through, so an API call or a hub's connection never gets the page's HTML). */}}
+{{- $middlewares := list (dict "name" "grif-on-demand" "strategy" $o.strategy "routes" "the site's route") }}
+{{- if or .Values.ingressRoute.hubs.enabled .Values.ingressRoute.api.enabled }}
+{{- $middlewares = append $middlewares (dict "name" "grif-on-demand-api" "strategy" $o.apiStrategy "routes" "the hub and API routes") }}
+{{- end }}
+{{- range $middlewares }}
+---
+# On demand (onDemand): Sablier's Traefik plugin, on {{ .routes }} ({{ .strategy }}). A visit starts the group (the
+# Deployments labelled grif.onDemandLabels) and renews its session; sessionDuration after the last one, Sablier
+# stops them all.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: grif-on-demand
+  name: {{ .name }}
   labels:
-    {{- include "grif.labels" . | nindent 4 }}
+    {{- include "grif.labels" $ | nindent 4 }}
 spec:
   plugin:
     sablier:
-      sablierUrl: {{ include "grif.sablierUrl" . | quote }}
-      group: {{ include "grif.onDemandGroup" . | quote }}
+      sablierUrl: {{ include "grif.sablierUrl" $ | quote }}
+      group: {{ include "grif.onDemandGroup" $ | quote }}
       sessionDuration: {{ $o.sessionDuration | quote }}
       {{- with $o.keepAliveInterval }}
       keepAliveInterval: {{ . | quote }}
@@ -25,17 +35,18 @@ spec:
       ignoreUserAgent:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if eq $o.strategy "blocking" }}
+      {{- if eq .strategy "blocking" }}
       blocking:
-        timeout: {{ required "onDemand.blocking.timeout is required with strategy blocking" $o.blocking.timeout | quote }}
+        timeout: {{ required "onDemand.blocking.timeout is required with the blocking strategy (onDemand.strategy, onDemand.apiStrategy)" $o.blocking.timeout | quote }}
       {{- else }}
       {{- $d := $o.dynamic }}
       {{- /* Never an empty dynamic: the plugin picks its strategy by which one is set. */}}
-      {{- $dynamic := dict "displayName" ($d.displayName | default "grif-on-demand") }}
+      {{- $dynamic := dict "displayName" ($d.displayName | default .name) }}
       {{- if not (kindIs "invalid" $d.showDetails) }}{{ $_ := set $dynamic "showDetails" $d.showDetails }}{{ end }}
       {{- with $d.theme }}{{ $_ := set $dynamic "theme" . }}{{ end }}
       {{- with $d.refreshFrequency }}{{ $_ := set $dynamic "refreshFrequency" . }}{{ end }}
       dynamic:
         {{- toYaml $dynamic | nindent 8 }}
       {{- end }}
+{{- end }}
 {{- end }}

@@ -517,6 +517,7 @@
         "sablierUrl": { "type": "string", "pattern": "^(https?://[^/?#]+/?)?$" },
         "sessionDuration": { "$ref": "#/definitions/goDuration" },
         "strategy": { "enum": ["dynamic", "blocking"] },
+        "apiStrategy": { "enum": ["dynamic", "blocking"] },
         "dynamic": {
           "type": "object",
           "additionalProperties": false,
@@ -535,6 +536,11 @@
           }
         },
         "keepAliveInterval": { "$ref": "#/definitions/goDurationOrEmpty" },
+        "exclude": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["frontend", "backend", "worker", "discord", "mssql", "postgres", "redis", "ollama", "sql-exporter"] }
+        },
         "ignoreUserAgent": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "networkPolicy": {
           "type": "object",

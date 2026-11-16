@@ -672,12 +672,13 @@ ingressRoute:
   api:
     enabled: true
 
-# On demand (off): every Deployment of the release stops (0 replicas) while nobody visits and starts on the next
-# visit, through Sablier (https://sablierapp.dev) and its Traefik plugin. Needs ingressRoute.enabled: the chart puts a
-# Middleware (grif-on-demand, the plugin) on the IngressRoute's routes, and labels its Deployments into one Sablier
-# group. While stopped, nothing runs: no Discord bot, no scheduled jobs, no background services. For test and
-# staging sites, not one people and bots rely on. README: On demand says what the cluster needs (Sablier, the plugin,
-# Traefik's allowEmptyServices).
+# On demand (off): the release's Deployments stop (0 replicas) while nobody visits and start on the next visit,
+# through Sablier (https://sablierapp.dev) and its Traefik plugin. Needs ingressRoute.enabled: the chart puts two
+# Middlewares (the plugin) on the IngressRoute's routes, grif-on-demand on the site's and grif-on-demand-api on the hub
+# and API routes, and labels its Deployments into one Sablier group. While stopped, nothing in the group runs: with
+# worker.enabled false the backend runs the Discord bot, the scheduled jobs and the background services, so they stop
+# too. For test and staging sites, not one people and bots rely on. README: On demand says what the cluster needs
+# (Sablier, the plugin, Traefik's allowEmptyServices).
 onDemand:
   enabled: false
   # The Sablier group the Deployments join and the routes start. Empty: the release's namespace. A label value.
@@ -687,9 +688,13 @@ onDemand:
   sablierUrl: ""
   # How long after the last visit the group keeps running (a Go duration).
   sessionDuration: 30m
-  # dynamic: a starting page that refreshes itself until the site is up. blocking: hold each request until it is up
-  # (blocking.timeout); the plugin's documentation says Kubernetes doesn't support it yet.
+  # The site's route (grif-on-demand). dynamic: a starting page that refreshes itself until the site is up.
+  # blocking: hold each request until it is up (blocking.timeout), then pass it through.
   strategy: dynamic
+  # The hub and API routes (grif-on-demand-api: /api/, /signin-discord, the hubs). blocking: an API call or a hub's
+  # connection waits until the release is up and then goes through, never getting the starting page's HTML; past
+  # blocking.timeout it gets Sablier's 504 (application/problem+json). dynamic: the starting page, as the site.
+  apiStrategy: blocking
   dynamic:
     # The starting page's title. Empty: the Middleware's name (grif-on-demand).
     displayName: Grifball
@@ -700,8 +705,18 @@ onDemand:
     # How often the page checks again (a Go duration). Empty: Sablier's default.
     refreshFrequency: ""
   blocking:
-    # How long a request waits for the group (a Go duration). Required with strategy blocking.
-    timeout: 1m
+    # How long a request waits for the group (a Go duration). Required while strategy or apiStrategy is blocking.
+    # A cold start runs the whole group: the database starts, the backend's init container waits for its
+    # migrations, then the backend starts (its startup probe allows 5 minutes, for pending migrations). 2m covers
+    # that without migrations; Sablier answers 504 after it, and the client may retry.
+    timeout: 2m
+  # Components (app.kubernetes.io/component) that keep running, out of the group: no Sablier labels and their own
+  # replicas. frontend, backend, worker, discord (the last two only exist with worker.enabled), mssql, postgres, redis,
+  # ollama, sql-exporter. An excluded backend or discord also keeps the chart's database, Redis and Ollama running, an
+  # excluded worker the database and Redis, and a database kept running keeps its SQL exporter. The default keeps a
+  # separate worker and Discord bot running (and so the database and Redis and Ollama); with worker.enabled false it
+  # changes nothing.
+  exclude: [worker, discord]
   # How often the plugin renews the session while a long-lived connection (the SignalR hubs' WebSocket) stays open
   # (a Go duration, under sessionDuration). Empty: off, so an open page alone doesn't keep the site running; only
   # requests do. Set it and a tab left open keeps everything up.
