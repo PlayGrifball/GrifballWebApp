@@ -220,6 +220,9 @@ public class SeasonStatsParserTests
     private static HistoricalSourceConfig RoundsConfig(string? gamesSheet = "Season Match History")
         => new() { Season = new SeasonDefaults { Name = "Spring League 2025", Game = "infinite" }, Tabs = [new() { Name = "Stats", GamesSheet = gamesSheet }] };
 
+    private static readonly string[] BenchWarmerWarning = ["2025-octane-sl25-bid-stats: no games of 'Bench Warmer' in 'Season Match History'"];
+    private static readonly string[] TwoLinesWarning = ["2025-octane-sl25-bid-stats: 'Rayzyr' has 2 lines: their games in 'Season Match History' can't be split"];
+
     private static readonly object?[] RoundsHeader = Row("Gamertag", "Time Played (Seconds)", "Rounds Won", "Rounds Lost", "Rounds Tied", "goals", "Average Life", "Kills", "Deaths");
 
     [Test]
@@ -248,7 +251,7 @@ public class SeasonStatsParserTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(warnings, Is.EqualTo(new[] { "2025-octane-sl25-bid-stats: no games of 'Bench Warmer' in 'Season Match History'" }));
+            Assert.That(warnings, Is.EqualTo(BenchWarmerWarning));
             Assert.That((tycoon.GamesPlayed, tycoon.Wins, tycoon.Losses), Is.EqualTo(((decimal?)3, (decimal?)1, (decimal?)1)), "a tie is a game, neither won nor lost");
             Assert.That((tycoon.TotalSecondsPlayed, tycoon.AverageLifeSeconds, tycoon.Goals), Is.EqualTo(((decimal?)1892, (decimal?)15.075m, (decimal?)3)));
             Assert.That((tycoon.ExtendedMetrics!.Value.GetProperty("roundsWon").GetDecimal(), tycoon.ExtendedMetrics.Value.GetProperty("roundsLost").GetDecimal(),
@@ -385,7 +388,7 @@ public class SeasonStatsParserTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(players.Select(p => (p.StintIndex, p.GamesPlayed, p.Wins, p.Losses)), Is.EqualTo(new[] { (1, (decimal?)0, (decimal?)0, (decimal?)0), (2, (decimal?)0, (decimal?)0, (decimal?)0) }));
-            Assert.That(warnings, Is.EqualTo(new[] { "2025-octane-sl25-bid-stats: 'Rayzyr' has 2 lines: their games in 'Season Match History' can't be split" }));
+            Assert.That(warnings, Is.EqualTo(TwoLinesWarning));
         }
     }
 }
