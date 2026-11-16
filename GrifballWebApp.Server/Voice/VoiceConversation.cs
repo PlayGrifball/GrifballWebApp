@@ -15,6 +15,12 @@ namespace GrifballWebApp.Server.Voice;
 /// voice host as its speaker (their roles, their models and month), one at a time, and the answer spoken. Nothing said is kept:
 /// each line is gone once transcribed, its transcript once answered.
 /// </summary>
+/// <param name="scopes">Scopes for the speaker's account (their roles) and, by default, their consent.</param>
+/// <param name="chat">The chat that answers, on the voice host.</param>
+/// <param name="speech">The speech server: what was said, and the answer spoken.</param>
+/// <param name="time">The clock lines end by.</param>
+/// <param name="log">Where a line that couldn't be answered, or a consent that couldn't be read, is logged.</param>
+/// <param name="play">Plays an answer (48 kHz stereo) in the channel.</param>
 /// <param name="optedIn">Whether a speaker opted in; null: <see cref="VoiceConsents"/>, in a scope of its own.</param>
 public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat, IChatSpeech speech, TimeProvider time,
     ILogger<VoiceConversation> log, Func<short[], CancellationToken, Task> play, Func<ulong, Task<bool>>? optedIn = null)
