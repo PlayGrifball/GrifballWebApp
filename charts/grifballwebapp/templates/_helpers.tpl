@@ -226,6 +226,19 @@ type: {{ ternary "Recreate" "RollingUpdate" (and $b.persistence.enabled (not .Va
 {{- else -}}{{- $hc.ReadyPath | default "/health/ready" -}}{{- end -}}
 {{- end }}
 
+{{/* The backend's health paths (HealthChecks: Path, LivePath, ReadyPath, read as the backend's HealthCheckPaths reads
+   them: trimmed, one leading slash, the default when empty) as a PromQL regex, as it goes in the dashboard's JSON: any
+   of them or below one, any case. Health probes are left out of the dashboard's latency panels with it. */}}
+{{- define "grif.healthRoutesRegex" -}}
+{{- $hc := .Values.backend.config.HealthChecks | default dict -}}
+{{- $paths := list -}}
+{{- range $p := list (list $hc.Path "health") (list $hc.LivePath "health/live") (list $hc.ReadyPath "health/ready") -}}
+{{- $path := trimAll "/" (trim (toString (index $p 0 | default ""))) | default (index $p 1) -}}
+{{- $paths = append $paths (printf "/%s" $path | regexQuoteMeta | replace "\\" "\\\\\\\\") -}}
+{{- end -}}
+(?i)(?:{{ join "|" $paths }})(?:/.*)?
+{{- end }}
+
 {{/* The database connection as the administrator: for sqlcmd, or for psql, pg_dump and pg_restore. */}}
 {{- define "grif.dbEnv" -}}
 {{- include "grif.connectionEnv" (dict "root" . "user" (include "grif.dbUser" .) "password" (include "grif.dbPassword" . | fromJson)) -}}

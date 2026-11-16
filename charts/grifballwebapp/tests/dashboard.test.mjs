@@ -23,8 +23,9 @@ const dashboard = JSON.parse(fs.readFileSync(path.join(chart, 'files/dashboards/
 const panels = d => d.panels.flatMap(p => [p, ...(p.panels ?? [])]);
 const targets = d => panels(d).flatMap(p => (p.targets ?? []).map(t => ({ panel: p.title, type: t.datasource?.type, target: t })));
 const prometheus = d => targets(d).filter(t => t.type === 'prometheus');
-/** A query as plain PromQL: the environment and Grafana's interval filled in. */
-const promql = expr => expr.replaceAll('$namespace', 'grif-test').replaceAll('$__rate_interval', '5m');
+/** A query as plain PromQL: the environment, Grafana's interval and the health paths the chart fills in (its default ones). */
+const promql = expr => expr.replaceAll('$namespace', 'grif-test').replaceAll('$__rate_interval', '5m')
+  .replaceAll('__HEALTH_ROUTES__', '(?i)(?:/health|/health/live|/health/ready)(?:/.*)?');
 
 test('the JSON is what the generator makes', () => {
   assert.deepEqual(dashboard, JSON.parse(JSON.stringify(generated)), 'run: node charts/grifballwebapp/files/dashboards/grifballwebapp.mjs');
@@ -158,7 +159,8 @@ test('Loki and Tempo queries are not empty', () => {
 test('every Prometheus query parses as PromQL', { skip: !process.env.PROMTOOL && 'PROMTOOL not set (CI sets it)' }, () => {
   // As recording rules, one group each, so promtool names the panel of a query that doesn't parse
   const groups = prometheus(dashboard).map((q, i) => `  - name: "${i} ${q.panel}"\n    rules:\n      - record: q\n        expr: ${JSON.stringify(promql(q.target.expr))}\n`);
-  groups.push(`  - name: environment variable\n    rules:\n      - record: q\n        expr: ${JSON.stringify('count by (k8s_namespace_name) (target_info{job=~"grif-.+/.+"})')}\n`);
+  const selector = dashboard.templating.list.find(v => v.name === 'namespace').query.query.match(/\((\w+\{.*\}),/)[1];
+  groups.push(`  - name: environment variable\n    rules:\n      - record: q\n        expr: ${JSON.stringify(`count by (k8s_namespace_name) (${selector})`)}\n`);
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dashboard-')), 'queries.yml');
   fs.writeFileSync(file, `groups:\n${groups.join('')}`);
   const r = spawnSync(process.env.PROMTOOL, ['check', 'rules', file], { encoding: 'utf8' });
@@ -188,4 +190,48 @@ test('a required per-pod panel needs every series labelled with its pod', async 
   const perPod = new Set(prometheus(dashboard).filter(t => t.target.legendFormat?.includes('{{k8s_pod_name}}')).map(t => t.panel));
   assert.ok(perPod.size >= 5);
   for (const panel of perPod) assert.ok(REQUIRED.has(panel), `per-pod panel ${panel} isn't required, so its pod label goes unchecked`);
+});
+
+test('Server rendering charts the render metric, not every request the frontend served', () => {
+  const exprs = prometheus(dashboard).filter(t => t.panel === 'Server rendering').map(t => t.target.expr);
+  assert.ok(exprs.length > 0);
+  for (const expr of exprs) {
+    assert.match(expr, /grif_frontend_render_duration_seconds_/);
+    assert.doesNotMatch(expr, /grif_frontend_request_duration/);
+  }
+});
+
+test('the Environment variable lists a release in any namespace, and nothing but this app', () => {
+  // Its query's selector against target_info series: the chart's pods (fixed Deployment names) in namespaces of any name
+  const variable = dashboard.templating.list.find(v => v.name === 'namespace');
+  const [, metric, selector, label] = variable.query.query.match(/^label_values\((\w+)\{(.*)\},\s*(\w+)\)$/);
+  assert.equal(metric, 'target_info');
+  assert.equal(label, 'k8s_namespace_name');
+  const matchers = [...selector.matchAll(/(\w+)\s*(=~|=|!=|!~)\s*"([^"]*)"/g)].map(([, l, op, v]) => ({ l, op, re: new RegExp(`^(?:${op.length === 1 || op === '!=' ? v.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&') : v})$`) }));
+  const matches = series => matchers.every(({ l, op, re }) => op.startsWith('!') !== re.test(series[l] ?? ''));
+  for (const [ns, pod] of [['grifball', 'grif-backend-6d9f7c5b8-x2x4q'], ['default', 'grif-frontend-5c8d9-abcde'], ['grif-prod', 'grif-worker-7f8-zzzzz'], ['apps', 'grif-discord-5f6-qqqqq']])
+    assert.ok(matches({ job: `${ns}/${ns}`, k8s_namespace_name: ns, k8s_pod_name: pod }), `the release in ${ns} isn't listed`);
+  for (const pod of ['loki-0', 'grafana-7c9-abcde', 'grif-mssql-0'])
+    assert.ok(!matches({ job: 'monitoring/x', k8s_namespace_name: 'monitoring', k8s_pod_name: pod }), `${pod} is listed`);
+});
+
+test('Errors and warnings reads the app\'s own OTLP logs by a label Loki indexes, at warning and above', () => {
+  // Loki's default index labels for OTLP resource attributes (distributor otlp_config), dots as underscores
+  const indexed = ['cloud.availability_zone', 'cloud.region', 'container.name', 'deployment.environment.name', 'k8s.cluster.name', 'k8s.container.name',
+    'k8s.cronjob.name', 'k8s.daemonset.name', 'k8s.deployment.name', 'k8s.job.name', 'k8s.namespace.name', 'k8s.pod.name', 'k8s.replicaset.name',
+    'k8s.statefulset.name', 'service.instance.id', 'service.name', 'service.namespace'].map(a => a.replaceAll('.', '_'));
+  const logs = targets(dashboard).find(t => t.panel === 'Errors and warnings');
+  const [, selector, pipeline] = logs.target.expr.match(/^\{([^}]*)\}(.*)$/);
+  const labels = [...selector.matchAll(/(\w+)\s*=~?\s*"/g)].map(m => m[1]);
+  assert.ok(labels.length > 0);
+  for (const label of labels) assert.ok(indexed.includes(label), `${label} isn't a label Loki indexes OTLP logs by`);
+  assert.match(logs.target.expr, /\$namespace/);
+  // Loki's detected_level, from the OTLP severity (the Telemetry page's level filter reads it too)
+  assert.match(pipeline, /detected_level\s*=~\s*"warn\|error\|fatal\|critical"/);
+});
+
+test('the health probes left out of the latency panels are the chart\'s paths, filled in when it renders', () => {
+  for (const t of prometheus(dashboard).filter(t => t.target.expr.includes('http_route!~')))
+    assert.match(t.target.expr, /http_route!~"__HEALTH_ROUTES__"/, `${t.panel} leaves out fixed paths`);
+  assert.doesNotMatch(JSON.stringify(dashboard), /\/health/);
 });

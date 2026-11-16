@@ -3,7 +3,8 @@
 {{- if not .Values.backend.telemetry.enabled }}{{ fail "grafanaDashboard needs backend.telemetry.enabled: the app's metrics reach Prometheus only by OTLP push" }}{{ end }}
 {{- /*
 The dashboard (files/dashboards/grifballwebapp.json): one for every environment, picked with its Environment variable,
-which opens on this release's namespace. Enable it in one release only: each would make the same dashboard (one uid).
+which opens on this release's namespace; its latency panels leave out this release's health paths
+(grif.healthRoutesRegex). Enable it in one release only: each would make the same dashboard (one uid).
 */}}
 apiVersion: v1
 kind: ConfigMap
@@ -19,5 +20,5 @@ metadata:
   {{- end }}
 data:
   grifballwebapp.json: |-
-    {{- .Files.Get "files/dashboards/grifballwebapp.json" | replace "__NAMESPACE__" .Release.Namespace | nindent 4 }}
+    {{- .Files.Get "files/dashboards/grifballwebapp.json" | replace "__NAMESPACE__" .Release.Namespace | replace "__HEALTH_ROUTES__" (include "grif.healthRoutesRegex" .) | nindent 4 }}
 {{- end }}

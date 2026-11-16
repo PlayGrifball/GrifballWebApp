@@ -3,7 +3,7 @@
 // chart's rendering, Grafana loading the dashboard, every PromQL, LogQL and TraceQL query running against the real
 // thing, and the metrics' real names and labels.
 //
-//   node charts/grifballwebapp/e2e/dashboard-grafana.mjs [--url http://localhost:3000] --namespace grif-dashboard [--timeout 240]
+//   node charts/grifballwebapp/e2e/dashboard-grafana.mjs [--url http://localhost:3000] --namespace grifball-dashboard [--timeout 240]
 //
 // Fails on a query Grafana or a datasource rejects, and on a REQUIRED panel (dashboard-checks.mjs) without real data:
 // its queries run again without their zero fill (`or vector(0)`), which would answer with no series at all, and each
@@ -80,6 +80,15 @@ async function runPanel(panel) {
   return { report, failures };
 }
 
+/** The Environment variable's options, as Grafana asks Prometheus for them: this release's namespace has to be one. */
+async function environments(variable) {
+  const [, selector, label] = variable?.query?.query?.match(/^label_values\((.+),\s*(\w+)\)$/) ?? [];
+  if (!selector) return [`the Environment variable's query isn't label_values(selector, label): ${JSON.stringify(variable?.query)}`];
+  const values = await call(`/api/datasources/uid/prometheus/resources/api/v1/label/${label}/values?match[]=${encodeURIComponent(selector)}`);
+  const options = values.json.data ?? [];
+  return options.includes(namespace) ? [] : [`the Environment variable lists ${JSON.stringify(options)}, not ${namespace}`];
+}
+
 async function check() {
   const report = ['| Panel | Query | Datasource | Data points |', '| --- | --- | --- | ---: |'];
   const failures = await unhealthy();
@@ -87,8 +96,9 @@ async function check() {
   const loaded = await call('/api/dashboards/uid/grifballwebapp');
   if (!loaded.ok) return { failures: [`dashboard grifballwebapp not loaded: ${loaded.status} ${JSON.stringify(loaded.json)}`], report };
   const dashboard = loaded.json.dashboard;
-  const env = dashboard.templating.list.find(v => v.name === 'namespace')?.current?.value;
-  if (env !== namespace) failures.push(`the dashboard opens on ${env}, not this release's ${namespace}`);
+  const variable = dashboard.templating.list.find(v => v.name === 'namespace');
+  if (variable?.current?.value !== namespace) failures.push(`the dashboard opens on ${variable?.current?.value}, not this release's ${namespace}`);
+  failures.push(...await environments(variable));
   const panels = dashboard.panels.flatMap(p => [p, ...(p.panels ?? [])]).filter(p => p.targets?.length);
   for (const panel of panels) {
     const one = await runPanel(panel);

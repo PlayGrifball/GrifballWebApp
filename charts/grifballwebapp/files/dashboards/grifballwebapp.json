@@ -51,10 +51,10 @@
           "uid": "${datasource}"
         },
         "query": {
-          "query": "label_values(target_info{job=~\"grif-.+/.+\"}, k8s_namespace_name)",
+          "query": "label_values(target_info{k8s_pod_name=~\"grif-(backend|worker|discord|frontend)-.+\"}, k8s_namespace_name)",
           "refId": "ns"
         },
-        "definition": "label_values(target_info{job=~\"grif-.+/.+\"}, k8s_namespace_name)",
+        "definition": "label_values(target_info{k8s_pod_name=~\"grif-(backend|worker|discord|frontend)-.+\"}, k8s_namespace_name)",
         "refresh": 2,
         "sort": 1,
         "current": {
@@ -224,7 +224,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{job=~\"$namespace/.+\", http_route!~\"/health.*\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{job=~\"$namespace/.+\", http_route!~\"__HEALTH_ROUTES__\"}[$__rate_interval])))",
           "legendFormat": "",
           "range": true
         }
@@ -585,7 +585,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "topk(10, histogram_quantile(0.95, sum by (http_route, le) (rate(http_server_request_duration_seconds_bucket{job=~\"$namespace/.+\", http_route!~\"/health.*\"}[$__rate_interval]))))",
+          "expr": "topk(10, histogram_quantile(0.95, sum by (http_route, le) (rate(http_server_request_duration_seconds_bucket{job=~\"$namespace/.+\", http_route!~\"__HEALTH_ROUTES__\"}[$__rate_interval]))))",
           "legendFormat": "{{http_route}}",
           "range": true
         }
@@ -1366,7 +1366,7 @@
       "id": 28,
       "type": "timeseries",
       "title": "Server rendering",
-      "description": "Requests the frontend (server-side rendering) served, per minute, and their 95th percentile time.",
+      "description": "Pages the frontend rendered, per minute, by outcome (server: rendered there; browser: left to the browser; failed: left to the browser after failing), and the 95th percentile time of a server render (right).",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1384,8 +1384,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(grif_frontend_request_duration_seconds_count{job=~\"$namespace/.+\"}[$__rate_interval])) * 60",
-          "legendFormat": "requests/min",
+          "expr": "sum by (outcome) (rate(grif_frontend_render_duration_seconds_count{job=~\"$namespace/.+\"}[$__rate_interval])) * 60",
+          "legendFormat": "{{outcome}}",
           "range": true
         },
         {
@@ -1394,8 +1394,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(grif_frontend_request_duration_seconds_bucket{job=~\"$namespace/.+\"}[$__rate_interval])))",
-          "legendFormat": "p95 (s)",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(grif_frontend_render_duration_seconds_bucket{job=~\"$namespace/.+\", outcome=\"server\"}[$__rate_interval])))",
+          "legendFormat": "p95 server render",
           "range": true
         }
       ],
@@ -1410,7 +1410,24 @@
             "spanNulls": true
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95 server render"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -2252,7 +2269,7 @@
       "id": 45,
       "type": "logs",
       "title": "Errors and warnings",
-      "description": "Backend log lines at Warning and above (Serilog compact JSON: @l is set only for non-Information levels).",
+      "description": "The backend's and the frontend's log lines at warning and above, as they send them over OTLP (Loki's detected_level, from their severity).",
       "datasource": {
         "type": "loki",
         "uid": "${loki}"
@@ -2270,7 +2287,7 @@
             "type": "loki",
             "uid": "${loki}"
           },
-          "expr": "{namespace=\"$namespace\"} |~ \"\\\"@l\\\":\\\"(Warning|Error|Fatal)\\\"\"",
+          "expr": "{service_namespace=\"$namespace\"} | detected_level=~\"warn|error|fatal|critical\"",
           "queryType": "range"
         }
       ],

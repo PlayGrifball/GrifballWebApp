@@ -15,7 +15,8 @@ set -euo pipefail
 chart="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 backend_image="${BACKEND_IMAGE:-grif-backend:e2e}"
 frontend_image="${FRONTEND_IMAGE:-grif-frontend:e2e}"
-ns=grif-dashboard
+# Not grif-*: the Environment variable has to list a release in a namespace of any name
+ns=grifball-dashboard
 net=k3d-e2e
 work="$(mktemp -d)"
 COLLECTOR_IMAGE=docker.io/otel/opentelemetry-collector-contrib:0.163.2@sha256:7f22d2a6748110ffb6a59bc0df448bccbf501cdb667d610ede4c61d3863d5849

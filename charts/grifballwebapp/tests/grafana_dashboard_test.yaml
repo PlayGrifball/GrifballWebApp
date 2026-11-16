@@ -41,3 +41,19 @@ tests:
       grafanaDashboard: { enabled: true, folder: Grif }
     asserts:
       - failedTemplate: {}
+
+  # The backend's HealthCheckPaths: each path or below it, any case
+  - it: leaves the default health paths out of the latency panels
+    set:
+      grafanaDashboard.enabled: true
+    asserts:
+      - matchRegex: { path: 'data["grifballwebapp.json"]', pattern: 'http_route!~\\"\(\?i\)\(\?:/health\|/health/live\|/health/ready\)\(\?:/\.\*\)\?\\"' }
+      - notMatchRegex: { path: 'data["grifballwebapp.json"]', pattern: __HEALTH_ROUTES__ }
+
+  - it: leaves out the health paths the backend is given instead, as it reads them
+    set:
+      grafanaDashboard.enabled: true
+      backend.config.HealthChecks: { Path: " healthz/ ", LivePath: /live, ReadyPath: /ready.v2 }
+    asserts:
+      - matchRegex: { path: 'data["grifballwebapp.json"]', pattern: 'http_route!~\\"\(\?i\)\(\?:/healthz\|/live\|/ready(\\){4}\.v2\)\(\?:/\.\*\)\?\\"' }
+      - notMatchRegex: { path: 'data["grifballwebapp.json"]', pattern: '/health/live' }

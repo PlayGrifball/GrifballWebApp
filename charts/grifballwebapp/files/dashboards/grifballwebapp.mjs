@@ -2,11 +2,15 @@
 // Built here rather than hand-edited, so its panels share one shape; tests/dashboard.test.mjs fails if the JSON and
 // this script disagree. One dashboard for every environment: its queries select the app's series with
 // job=~"$namespace/.+" (the collector's job is <service.namespace>/<service.name>), the Environment variable, which
-// the chart opens on its release's namespace (__NAMESPACE__, templates/grafana-dashboard.yaml).
+// the chart opens on its release's namespace (__NAMESPACE__, templates/grafana-dashboard.yaml). The chart's telemetry
+// carries service.namespace, k8s.namespace.name and k8s.pod.name (grif.otelServiceEnv). Health probes are left out of
+// the latency panels by the chart's health paths (__HEALTH_ROUTES__, filled in as the dashboard renders).
 import { writeFileSync } from 'node:fs';
 
 const P = { type: 'prometheus', uid: '${datasource}' }, L = { type: 'loki', uid: '${loki}' }, T = { type: 'tempo', uid: '${tempo}' };
-const S = 'job=~"$namespace/.+"', R = '$__rate_interval';
+const S = 'job=~"$namespace/.+"', R = '$__rate_interval', H = 'http_route!~"__HEALTH_ROUTES__"';
+// The chart's pods: its Deployments' fixed names (grif-backend, -worker, -discord, -frontend), in a namespace of any name
+const APP_PODS = 'k8s_pod_name=~"grif-(backend|worker|discord|frontend)-.+"';
 const panels = [];
 let id = 0, y = 0, x = 0, rowH = 0;
 
@@ -28,7 +32,7 @@ const green = [{ color: 'green', value: null }];
 row('Overview');
 stat('Requests', 'HTTP requests the backend served, per minute (health probes included).', `sum(rate(http_server_request_duration_seconds_count{${S}}[${R}])) * 60`, 'reqpm', green);
 stat('Server errors', 'Share of backend requests answered 5xx.', `(sum(rate(http_server_request_duration_seconds_count{${S}, http_response_status_code=~"5.."}[${R}])) or vector(0)) / sum(rate(http_server_request_duration_seconds_count{${S}}[${R}]))`, 'percentunit', [{ color: 'green', value: null }, { color: 'orange', value: 0.01 }, { color: 'red', value: 0.05 }]);
-stat('p95 latency', '95th percentile backend request time, health probes left out.', `histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{${S}, http_route!~"/health.*"}[${R}])))`, 's', [{ color: 'green', value: null }, { color: 'orange', value: 1 }, { color: 'red', value: 3 }]);
+stat('p95 latency', '95th percentile backend request time, health probes left out.', `histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{${S}, ${H}}[${R}])))`, 's', [{ color: 'green', value: null }, { color: 'orange', value: 1 }, { color: 'red', value: 3 }]);
 stat('Unhealthy checks', 'Health checks that ended Degraded or Unhealthy in the last 10 minutes (e.g. halo_infinite: the Halo gateway).', `sum(increase(dotnet_health_check_unhealthy_checks_total{${S}}[10m])) or vector(0)`, 'short', [{ color: 'green', value: null }, { color: 'orange', value: 1 }], 0);
 stat('Live connections', 'SignalR connections open now (the site\'s live updates).', `sum(signalr_server_active_connections{${S}}) or vector(0)`, 'short', green, 0);
 stat('Exceptions', 'Exceptions thrown in the backend, per minute (caught ones included).', `sum(rate(dotnet_exceptions_total{${S}}[${R}])) * 60 or vector(0)`, 'short', [{ color: 'green', value: null }, { color: 'orange', value: 10 }]);
@@ -36,7 +40,7 @@ stat('Exceptions', 'Exceptions thrown in the backend, per minute (caught ones in
 row('Backend requests');
 ts('Requests by route', 'Backend requests per minute, by route (top 10).', [[`topk(10, sum by (http_route) (rate(http_server_request_duration_seconds_count{${S}}[${R}])) * 60)`, '{{http_route}}']], 'reqpm');
 ts('Requests by status', 'Backend requests per minute, by status code.', [[`sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{${S}}[${R}])) * 60`, '{{http_response_status_code}}']], 'reqpm');
-ts('p95 latency by route', 'Slowest routes: 95th percentile request time (top 10), health probes left out.', [[`topk(10, histogram_quantile(0.95, sum by (http_route, le) (rate(http_server_request_duration_seconds_bucket{${S}, http_route!~"/health.*"}[${R}]))))`, '{{http_route}}']], 's');
+ts('p95 latency by route', 'Slowest routes: 95th percentile request time (top 10), health probes left out.', [[`topk(10, histogram_quantile(0.95, sum by (http_route, le) (rate(http_server_request_duration_seconds_bucket{${S}, ${H}}[${R}]))))`, '{{http_route}}']], 's');
 ts('Server errors by route', 'Backend 5xx answers per minute, by route.', [[`sum by (http_route, http_response_status_code) (rate(http_server_request_duration_seconds_count{${S}, http_response_status_code=~"5.."}[${R}])) * 60`, '{{http_route}} ({{http_response_status_code}})']], 'reqpm');
 
 row('Outgoing calls');
@@ -59,8 +63,9 @@ ts('Jobs running', 'Job runs in progress now, by job.', [[`sum by (quartz_job_na
 ts('Scheduler lock wait (p95)', 'How long schedulers waited for the job store lock (several pods share it).', [[`histogram_quantile(0.95, sum by (le) (rate(quartz_jobstore_lock_wait_duration_seconds_bucket{${S}}[${R}])))`, 'lock wait']], 's');
 
 row('Frontend and browsers');
-ts('Server rendering', 'Requests the frontend (server-side rendering) served, per minute, and their 95th percentile time.', [
-  [`sum(rate(grif_frontend_request_duration_seconds_count{${S}}[${R}])) * 60`, 'requests/min'], [`histogram_quantile(0.95, sum by (le) (rate(grif_frontend_request_duration_seconds_bucket{${S}}[${R}])))`, 'p95 (s)']]);
+ts('Server rendering', 'Pages the frontend rendered, per minute, by outcome (server: rendered there; browser: left to the browser; failed: left to the browser after failing), and the 95th percentile time of a server render (right).', [
+  [`sum by (outcome) (rate(grif_frontend_render_duration_seconds_count{${S}}[${R}])) * 60`, '{{outcome}}'], [`histogram_quantile(0.95, sum by (le) (rate(grif_frontend_render_duration_seconds_bucket{${S}, outcome="server"}[${R}])))`, 'p95 server render']], 'short', 12,
+  { overrides: [{ matcher: { id: 'byName', options: 'p95 server render' }, properties: [{ id: 'unit', value: 's' }, { id: 'custom.axisPlacement', value: 'right' }] }] });
 ts('Frontend memory', 'Resident memory of the frontend pods.', [[`sum by (k8s_pod_name) (grif_frontend_memory_rss_bytes{${S}})`, '{{k8s_pod_name}}']], 'bytes');
 ts('Web vitals (p75)', 'What visitors\' browsers measured, 75th percentile: largest contentful paint, interaction to next paint, first contentful paint and time to first byte (through telemetry-gate).',
   [['lcp', 'LCP'], ['inp', 'INP'], ['fcp', 'FCP'], ['ttfb', 'TTFB']].map(([m, l]) => [`histogram_quantile(0.75, sum by (le) (rate(grif_browser_${m}_seconds_bucket{${S}}[${R}])))`, l]), 's');
@@ -85,8 +90,8 @@ ts('Lock contention', 'Monitor lock contentions per minute.', [[`sum by (k8s_pod
 ts('Exceptions by type', 'Exceptions thrown per minute, by type.', [[`topk(10, sum by (error_type) (rate(dotnet_exceptions_total{${S}}[${R}])) * 60)`, '{{error_type}}']], 'short', 8);
 
 row('Logs and traces');
-panels.push({ id: ++id, type: 'logs', title: 'Errors and warnings', description: 'Backend log lines at Warning and above (Serilog compact JSON: @l is set only for non-Information levels).', datasource: L, gridPos: place(24, 10),
-  targets: [{ refId: 'A', datasource: L, expr: '{namespace="$namespace"} |~ "\\"@l\\":\\"(Warning|Error|Fatal)\\""', queryType: 'range' }],
+panels.push({ id: ++id, type: 'logs', title: 'Errors and warnings', description: 'The backend\'s and the frontend\'s log lines at warning and above, as they send them over OTLP (Loki\'s detected_level, from their severity).', datasource: L, gridPos: place(24, 10),
+  targets: [{ refId: 'A', datasource: L, expr: '{service_namespace="$namespace"} | detected_level=~"warn|error|fatal|critical"', queryType: 'range' }],
   options: { showTime: true, wrapLogMessage: true, sortOrder: 'Descending', enableLogDetails: true, dedupStrategy: 'none', prettifyLogMessage: false } });
 traces('Failed requests', 'Traces with an error, newest first (Tempo). Open one to see where it failed.', '{resource.service.namespace="$namespace" && status=error}');
 traces('Slow requests', 'Server spans that took over a second (Tempo).', '{resource.service.namespace="$namespace" && kind=server && duration>1s}');
@@ -100,8 +105,8 @@ const dashboard = {
     { name: 'datasource', label: 'Prometheus', type: 'datasource', query: 'prometheus', current: {}, hide: 0 },
     { name: 'loki', label: 'Loki', type: 'datasource', query: 'loki', current: {}, hide: 0 },
     { name: 'tempo', label: 'Tempo', type: 'datasource', query: 'tempo', current: {}, hide: 0 },
-    { name: 'namespace', label: 'Environment', type: 'query', datasource: P, query: { query: 'label_values(target_info{job=~"grif-.+/.+"}, k8s_namespace_name)', refId: 'ns' },
-      definition: 'label_values(target_info{job=~"grif-.+/.+"}, k8s_namespace_name)', refresh: 2, sort: 1, current: { text: '__NAMESPACE__', value: '__NAMESPACE__' }, options: [], hide: 0 },
+    { name: 'namespace', label: 'Environment', type: 'query', datasource: P, query: { query: `label_values(target_info{${APP_PODS}}, k8s_namespace_name)`, refId: 'ns' },
+      definition: `label_values(target_info{${APP_PODS}}, k8s_namespace_name)`, refresh: 2, sort: 1, current: { text: '__NAMESPACE__', value: '__NAMESPACE__' }, options: [], hide: 0 },
   ] },
   annotations: { list: [] }, links: [], panels,
 };
