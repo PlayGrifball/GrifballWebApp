@@ -12,11 +12,6 @@ public class SeasonMatchGeneTests
     private static SeasonMatchGene Gene(int id, int home, int away, DateTime at) =>
         new() { SeasonMatchID = id, HomeTeamID = home, AwayTeamID = away, ScheduledTime = at };
 
-    private static AvailabilityOption Option(DayOfWeek day, int hour, params int[] teamIDs)
-    {
-        return AvailabilityOption.Seed(dayOfWeek: day, time: new TimeOnly(hour, 0), teamAvailability: teamIDs.Select(t => TeamAvailability.Seed(teamID: t)));
-    }
-
     [Test]
     public void EndsAt_IsOneTickBeforeThirtyMinutes()
     {
@@ -58,40 +53,6 @@ public class SeasonMatchGeneTests
             Assert.That(a.AnyOverlap(list), Is.True);
             Assert.That(c.AnyOverlap(list), Is.False);
             Assert.That(a.AnyOverlap([a]), Is.False);
-        }
-    }
-
-    [Test]
-    public void TeamAvailable_UsesOptionMatchingDayAndTime()
-    {
-        var options = new[]
-        {
-            Option(DayOfWeek.Monday, 20, 1),
-            Option(DayOfWeek.Monday, 21, 2),
-            Option(DayOfWeek.Tuesday, 20, 2),
-        };
-        var g = Gene(1, 1, 2, Monday20);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(g.HomeTeamAvailable(options), Is.True);
-            Assert.That(g.AwayTeamAvailable(options), Is.False);
-            var later = Gene(1, 1, 2, Monday20.AddHours(1));
-            Assert.That(later.HomeTeamAvailable(options), Is.False);
-            Assert.That(later.AwayTeamAvailable(options), Is.True);
-        }
-    }
-
-    [Test]
-    public void TeamAvailable_NoOptionForSlot_Throws()
-    {
-        var g = Gene(1, 1, 2, Monday20.AddMinutes(30));
-        var options = new[] { Option(DayOfWeek.Monday, 20, 1, 2) };
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(Assert.Throws<Exception>(() => g.HomeTeamAvailable(options))!.Message, Is.EqualTo("Missing option"));
-            Assert.That(Assert.Throws<Exception>(() => g.AwayTeamAvailable(options))!.Message, Is.EqualTo("Missing option"));
         }
     }
 }

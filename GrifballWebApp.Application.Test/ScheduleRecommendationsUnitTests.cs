@@ -1,4 +1,5 @@
 using GrifballWebApp.Application.Scheduler;
+using GrifballWebApp.Application.Scheduling;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
@@ -40,8 +41,15 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
         return (home, away, match);
     }
 
-    private static AvailabilityOption[] Options(DateTime time, params int[] availableTeamIDs) =>
-        new[] { AvailabilityOption.Seed(dayOfWeek: time.DayOfWeek, time: TimeOnly.FromDateTime(time), teamAvailability: availableTeamIDs.Select(id => TeamAvailability.Seed(id))) };
+    /// <summary>A run's conflicts, as the season scheduler's are: its rules over one timeslot (at <paramref name="time"/>, league time), <paramref name="availableTeamIDs"/> able to play it.</summary>
+    private static Func<SeasonMatchGene, IReadOnlyList<SeasonMatchGene>, IReadOnlyList<ScheduleConflict>> Options(DateTime time, params int[] availableTeamIDs)
+    {
+        (DayOfWeek, TimeOnly)[] slot = [(time.DayOfWeek, TimeOnly.FromDateTime(time))];
+        var checker = new ScheduleChecker(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            SeasonSchedulingRules.Defaults(SeasonID), slot,
+            availableTeamIDs.ToDictionary(t => t, _ => (IReadOnlySet<(DayOfWeek Day, TimeOnly Time)>)slot.ToHashSet()), ScheduleService.LeagueTimeZone());
+        return new SeasonScheduleEvaluator(checker, new Dictionary<int, int>()).ConflictsOf;
+    }
 
     [Test]
     public async Task Save_StoresProposedTimesWithOverlapAndAvailabilityFlags()

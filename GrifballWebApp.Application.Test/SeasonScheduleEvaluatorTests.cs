@@ -3,18 +3,29 @@ using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using NSubstitute;
 using GrifballWebApp.Application.Scheduler;
+using GrifballWebApp.Application.Scheduling;
 
 namespace GrifballWebApp.Application.Test;
 
+/// <summary>
+/// The season scheduler's fitness (<see cref="SeasonScheduleEvaluator"/>): each match's time checked against the season's rules
+/// (<see cref="ScheduleChecker"/>), a refused conflict (a team playing then) weighing <see cref="SeasonScheduleEvaluator.RefusedWeight"/>, a
+/// warning 1; 1 is a schedule with none.
+/// </summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class SeasonScheduleEvaluatorTests
 {
+    // League time: Monday 1 January 2024, 20:00, and the Tuesday after
     private static readonly DateTime Monday20 = new(2024, 1, 1, 20, 0, 0);
+    private static readonly DateTime Tuesday20 = Monday20.AddDays(1);
+    private static readonly AvailabilityOption[] Options = AvailabilityTestData.EveryDay(20, 21);
+    private static readonly int[] TeamsOneAndTwo = [1, 2];
 
-    private static SeasonScheduleChromosome WithGenes(AvailabilityOption[] options, params SeasonMatchGene[] genes)
+    private static SeasonScheduleChromosome WithGenes(params SeasonMatchGene[] genes)
     {
         var matches = genes.Select(g => SeasonMatch.Seed(0, g.HomeTeamID, g.AwayTeamID).WithId(g.SeasonMatchID)).ToList();
-        var chromosome = new SeasonScheduleChromosome(matches, matches.Count, Monday20.Date, Monday20.Date.AddDays(7), options);
+        var chromosome = new SeasonScheduleChromosome(matches, matches.Count, Monday20.Date, Monday20.Date.AddDays(7), Options);
         for (var i = 0; i < genes.Length; i++)
             chromosome.ReplaceGene(i, new Gene(genes[i]));
         return chromosome;
@@ -23,82 +34,76 @@ public class SeasonScheduleEvaluatorTests
     private static SeasonMatchGene Gene(int id, int home, int away, DateTime at) =>
         new() { SeasonMatchID = id, HomeTeamID = home, AwayTeamID = away, ScheduledTime = at };
 
-    private static AvailabilityOption[] OptionsAvailableFor(params int[] teamIDs)
+    /// <summary>The season's rules (the defaults) over its every-day 20:00 and 21:00 timeslots, <paramref name="available"/> able to play them all.</summary>
+    private static ScheduleChecker Checker(params int[] available)
     {
-        return AvailabilityTestData.EveryDayFor(teamIDs, 20, 21);
+        (DayOfWeek, TimeOnly)[] slots = [.. Options.Select(o => (o.DayOfWeek, o.Time))];
+        return new ScheduleChecker(new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            SeasonSchedulingRules.Defaults(1), slots,
+            available.ToDictionary(t => t, _ => (IReadOnlySet<(DayOfWeek Day, TimeOnly Time)>)slots.ToHashSet()), ScheduleService.LeagueTimeZone());
+    }
+
+    private static SeasonScheduleEvaluator Evaluator(params int[] available) => new(Checker(available), new Dictionary<int, int>());
+
+    [Test]
+    public void Evaluate_ASchedule_WithNoConflict_IsOne()
+        => Assert.That(Evaluator(1, 2, 3, 4).Evaluate(WithGenes(Gene(1, 1, 2, Monday20), Gene(2, 3, 4, Monday20), Gene(3, 1, 3, Tuesday20))), Is.EqualTo(1));
+
+    [Test]
+    public void Evaluate_AWarning_IsHalf()
+    {
+        // Team 4 can't play then
+        var chromosome = WithGenes(Gene(1, 1, 2, Monday20), Gene(2, 3, 4, Monday20));
+
+        Assert.That(Evaluator(1, 2, 3).Evaluate(chromosome), Is.EqualTo(1d / 2).Within(1e-9));
     }
 
     [Test]
-    public void Evaluate_PerfectSchedule_IsOne()
+    public void Evaluate_ATeamPlayingTwiceAtOnce_WeighsMoreThanAWarning()
     {
-        var options = OptionsAvailableFor(1, 2, 3, 4);
-        var chromosome = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(2, 3, 4, Monday20), Gene(3, 1, 3, Monday20.AddHours(1)));
+        // Team 2 in both at once: refused, counted from each match; and two matches of its one night, from each
+        var clash = WithGenes(Gene(1, 1, 2, Monday20), Gene(2, 2, 3, Monday20));
+        var warned = WithGenes(Gene(1, 1, 2, Monday20), Gene(2, 3, 4, Monday20));
+        var evaluator = Evaluator(1, 2, 3, 4);
 
-        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(1));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(evaluator.Evaluate(clash), Is.EqualTo(1d / (1 + 2 * SeasonScheduleEvaluator.RefusedWeight + 2)).Within(1e-9));
+            Assert.That(evaluator.Evaluate(clash), Is.LessThan(Evaluator(1, 2, 3).Evaluate(warned)));
+        }
     }
 
     [Test]
-    public void Evaluate_ManyPenalties_DecreasesFitness()
+    public void Evaluate_AMatchAlreadyFixed_CountsAgainstTheOnesPlaced()
     {
-        // Overlap (counted from both genes) and nobody available: 2 overlap penalties + 4 unavailability penalties = 6
-        var options = OptionsAvailableFor();
-        var chromosome = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(2, 2, 3, Monday20));
+        // Team 1's match at Monday 20:00 is fixed (decided, or a bracket's): placing another of team 1's then clashes with it
+        var fixedMatch = new ScheduledMatch(99, 1, 5, ScheduleService.ToUtc(Monday20), ScheduleChecker.LengthOf(1));
+        var evaluator = new SeasonScheduleEvaluator(Checker(TeamsOneAndTwo), new Dictionary<int, int>(), [fixedMatch]);
 
-        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(1d / 7).Within(1e-9));
+        Assert.That(evaluator.Evaluate(WithGenes(Gene(1, 1, 2, Monday20))), Is.LessThan(1));
     }
 
     [Test]
-    public void Evaluate_OnePenalty_IsHalf()
+    public void Evaluate_DuplicateMatchID_ScoresZero_WorseThanAnyCompleteSchedule()
     {
-        var options = OptionsAvailableFor(1, 2, 3);
-        var chromosome = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(2, 3, 4, Monday20)); // away team 4 unavailable
+        // Same SeasonMatchID twice (as GeneticSharp's OrderedCrossover can produce): a corrupted, incomplete schedule scores
+        // zero, so it can never outscore a complete schedule however many conflicts that has
+        var duplicated = WithGenes(Gene(1, 1, 2, Monday20), Gene(1, 3, 4, Tuesday20));
+        var worstComplete = WithGenes(Gene(1, 1, 2, Monday20), Gene(2, 2, 3, Monday20));
+        var evaluator = Evaluator();
 
-        // One penalty should score worse than a perfect schedule, not better.
-        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(1d / 2).Within(1e-9));
-    }
-
-    [Test]
-    public void Evaluate_TwoPenalties_IsWorseThanOnePenalty()
-    {
-        var options = OptionsAvailableFor(1, 2);
-        var chromosome = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(2, 3, 4, Monday20)); // teams 3 and 4 unavailable
-
-        // Two penalties should score strictly worse than a perfect schedule (and worse than one penalty).
-        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(1d / 3).Within(1e-9));
-    }
-
-    [Test]
-    public void Evaluate_DuplicateMatchID_ScoresZero()
-    {
-        // Same SeasonMatchID twice (as GeneticSharp's OrderedCrossover can produce), no overlaps
-        // and everyone available: a corrupted, incomplete schedule scores zero, not a merely-reduced
-        // fitness, so it can never outscore a complete schedule no matter how many overlap/
-        // availability penalties that complete schedule has (dropping an unschedulable match is
-        // not an improvement).
-        var options = OptionsAvailableFor(1, 2, 3, 4);
-        var chromosome = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(1, 3, 4, Monday20.AddDays(1)));
-
-        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.Zero);
-    }
-
-    [Test]
-    public void Evaluate_DuplicateMatchID_ScoresWorseThanAnyCompleteSchedule()
-    {
-        // A complete schedule with every possible overlap/availability penalty still beats a
-        // corrupted (duplicate-match) one.
-        var options = OptionsAvailableFor();
-        var worstComplete = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(2, 2, 3, Monday20));
-        var duplicated = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(1, 3, 4, Monday20.AddDays(1)));
-
-        var evaluator = new SeasonScheduleEvaluator(options);
-        Assert.That(evaluator.Evaluate(worstComplete), Is.GreaterThan(evaluator.Evaluate(duplicated)));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(evaluator.Evaluate(duplicated), Is.Zero);
+            Assert.That(evaluator.Evaluate(worstComplete), Is.GreaterThan(evaluator.Evaluate(duplicated)));
+        }
     }
 
     [Test]
     public void Evaluate_OtherChromosome_Throws()
     {
         var other = Substitute.For<IChromosome>();
-        var ex = Assert.Throws<Exception>(() => new SeasonScheduleEvaluator([]).Evaluate(other));
+        var ex = Assert.Throws<Exception>(() => Evaluator().Evaluate(other));
         Assert.That(ex!.Message, Is.EqualTo("SeasonScheduleEvaluator can only evaluate SeasonScheduleChromosome"));
     }
 }
