@@ -12,7 +12,7 @@ namespace GrifballWebApp.HistoricalArchive.Test;
 public class ArchiveImportTests
 {
     private sealed record SeasonCounts(string Name, string SourceID, string Format, int Teams, int Captains, int Ranked, int Finished, int Stats, int PlayoffStats,
-        int Matches, int PlayoffMatches, int Titles);
+        int Matches, int PlayoffMatches, int Titles, int Awards, int Mvps);
 
     private sealed record LateLeagueCounts(string Name, string? SourceID, int Stats, int Games);
 
@@ -25,7 +25,7 @@ public class ArchiveImportTests
             .Select(s => new SeasonCounts(s.SeasonName, s.HistoricalSourceID, s.Format.ToString(), s.Teams.Count, s.Teams.Count(t => t.CaptainID != null),
                 s.Teams.Count(t => t.ArchivedRank != null), s.Teams.Count(t => t.ArchivedFinish != null),
                 context.PlayerSeasonStats.Count(p => p.SeasonID == s.SeasonID), context.PlayerSeasonStats.Count(p => p.SeasonID == s.SeasonID && p.IsPlayoffs),
-                s.SeasonMatches.Count, s.SeasonMatches.Count(m => m.BracketMatch != null), s.PlayerChampionships.Count))
+                s.SeasonMatches.Count, s.SeasonMatches.Count(m => m.BracketMatch != null), s.PlayerChampionships.Count, s.Awards.Count, s.Awards.Count(a => a.Name == "MVP")))
             .ToListAsync();
     });
 
@@ -118,6 +118,26 @@ public class ArchiveImportTests
         Assert.That((await Seasons()).Where(s => s.PlayoffStats > 0 && s.PlayoffMatches == 0 && !waypoint.Contains(s.SourceID)).Select(s => s.Name), Is.Empty);
     }
 
+    /// <summary>The Halo Infinite seasons of Luxe's Record Book (Season 1 to 7, Season 6 Pro and Legacy): their stats workbooks.</summary>
+    private static readonly string[] RecordBookSeasons =
+    [
+        "2023-da-wl23-stats", "2024-da-sl24-stats", "2024-igl-evolved-fl24-stats", "2025-octane-wl25-stats", "2025-octane-sl25-bid-stats",
+        "2025-classic-sml25-pro-stats", "2025-classic-sml25-legacy-stats", "2026-sl26-major-stats",
+    ];
+
+    /// <summary>Each Infinite season of the record book has its MVP.</summary>
+    [Test]
+    public async Task EveryInfiniteSeasonOfTheRecordBook_HasAnMvp()
+    {
+        var seasons = (await Seasons()).Where(s => RecordBookSeasons.Any(w => s.SourceID.StartsWith(w + "/", StringComparison.OrdinalIgnoreCase))).ToList();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(seasons, Has.Count.EqualTo(RecordBookSeasons.Length), "Every season of the record book imported");
+            Assert.That(seasons.Where(s => s.Mvps != 1).Select(s => $"{s.Name}: {s.Mvps} MVPs"), Is.Empty);
+        }
+    }
+
     [Test]
     public async Task EveryLateLeagueSeason_HasStatsAndGames()
     {
@@ -128,13 +148,14 @@ public class ArchiveImportTests
     [Test]
     public async Task Summary_IsWritten()
     {
-        var summary = new StringBuilder("## Seasons\n\n| Season | Source | Format | Teams | Captains | Ranked | Finished | Stats | Playoff stats | Matches | Playoff matches | Titles |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n");
+        var summary = new StringBuilder("## Seasons\n\n| Season | Source | Format | Teams | Captains | Ranked | Finished | Stats | Playoff stats | Matches | Playoff matches | Titles | Awards |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
         foreach (var s in await Seasons())
-            summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Format} | {s.Teams} | {s.Captains} | {s.Ranked} | {s.Finished} | {s.Stats} | {s.PlayoffStats} | {s.Matches} | {s.PlayoffMatches} | {s.Titles} |");
+            summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Format} | {s.Teams} | {s.Captains} | {s.Ranked} | {s.Finished} | {s.Stats} | {s.PlayoffStats} | {s.Matches} | {s.PlayoffMatches} | {s.Titles} | {s.Awards} |");
         summary.AppendLine().AppendLine("## Late League").AppendLine().AppendLine("| Season | Source | Stats | Games |").AppendLine("|---|---|---|---|");
         foreach (var s in await LateLeagueRead.Value)
             summary.AppendLine($"| {s.Name} | {s.SourceID} | {s.Stats} | {s.Games} |");
         Section(summary, "Placings (the seasons whose standings place a team: rank / finish, record)", await Placings());
+        Section(summary, "Awards (each season's, in its order: award, winner, team or value)", await Awards());
         Section(summary, "Build warnings", Archive.Build.Warnings);
         Section(summary, "Import warnings", Archive.Report.Warnings);
         Section(summary, "Skipped", Skipped());
@@ -158,6 +179,19 @@ public class ArchiveImportTests
         return teams.GroupBy(t => (t.SeasonStart, t.SeasonName)).OrderBy(g => g.Key)
             .Select(g => $"{g.Key.SeasonName}: " + string.Join("; ", g.OrderBy(t => t.ArchivedRank ?? int.MaxValue).ThenBy(t => t.ArchivedFinish ?? int.MaxValue).ThenBy(t => t.TeamName)
                 .Select(t => $"{t.TeamName} {t.ArchivedRank?.ToString() ?? "-"}/{t.ArchivedFinish?.ToString() ?? "-"}{(t.RecordedWins is null ? "" : $" ({t.RecordedWins}-{t.RecordedLosses})")}")))
+            .ToList();
+    }
+
+    /// <summary>Each season's awards, in its order: the award, its winner, their team (when not the winner) and its value.</summary>
+    private static async Task<List<string>> Awards()
+    {
+        await using var context = Archive.NewContext();
+        var awards = await context.Seasons.AsNoTracking().Where(s => s.HistoricalSourceID != null)
+            .SelectMany(s => s.Awards.Select(a => new { s.SeasonName, s.SeasonStart, a.Position, a.Name, a.WinnerName, Team = a.Team != null ? a.Team.TeamName : null, a.Value }))
+            .ToListAsync();
+        return awards.GroupBy(a => (a.SeasonStart, a.SeasonName)).OrderBy(g => g.Key)
+            .Select(g => $"{g.Key.SeasonName}: " + string.Join("; ", g.OrderBy(a => a.Position)
+                .Select(a => $"{a.Name}: {a.WinnerName}{(a.Team is null || a.Team == a.WinnerName ? "" : $" ({a.Team})")}{(a.Value is null ? "" : $" [{a.Value}]")}")))
             .ToList();
     }
 

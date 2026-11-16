@@ -1,5 +1,6 @@
 using GrifballWebApp.Application.HaloInfinite;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Application.Queries;
 using GrifballWebApp.Application.Test.TestDoubles;
 using GrifballWebApp.Domain.Archive;
 using GrifballWebApp.Domain.Halo;
@@ -158,6 +159,52 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
             Assert.That(titles.Select(t => t.Team.TeamName), Is.All.EqualTo("Rooster"));
         }
     }
+
+    [Test]
+    public async Task Import_RecordsTheSeasonsAwards_ToTheirPlayersAndTeams_AndReconcilesThemOnARerun()
+    {
+        static ArchiveSeason Season(string benchysTeam, params ArchiveAward[] awards)
+        {
+            var entry = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Benchy", team: benchysTeam));
+            entry.Awards.AddRange(awards);
+            return entry;
+        }
+
+        var first = await _service.Import(Input(Season("Hens",
+            new ArchiveAward { Name = "MVP", Winner = "Silva" },
+            new ArchiveAward { Name = "Most Kills (one game)", Winner = "Benchy", Team = "Hens", Value = "50" },
+            new ArchiveAward { Name = "Team Most Goals", Winner = "rooster", IsTeam = true, Value = "9" },
+            new ArchiveAward { Name = "Team Most Kills", Winner = "Ghosts", IsTeam = true },
+            new ArchiveAward { Name = "Rookie of the Year", Winner = "Newcomer" })));
+        Context.ChangeTracker.Clear();
+        var given = await Context.Seasons.Awards().OrderBy(a => a.Position)
+            .Select(a => new { a.Name, a.WinnerName, a.UserID, Team = a.Team != null ? a.Team.TeamName : null, a.Value })
+            .ToListAsync();
+
+        // Benchy has moved to Chicks (Hens are gone with their award), and the MVP and rookie are no longer listed
+        var rerun = await _service.Import(Input(Season("Chicks",
+            new ArchiveAward { Name = "Most Kills (one game)", Winner = "Benchy", Team = "Chicks", Value = "50" },
+            new ArchiveAward { Name = "Team Most Goals", Winner = "Rooster", IsTeam = true, Value = "9" })));
+        Context.ChangeTracker.Clear();
+        var kept = await Context.Seasons.Awards().OrderBy(a => a.Position).Select(a => new { a.Name, Team = a.Team!.TeamName }).ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(given.Select(a => (a.Name, a.WinnerName, a.Team, a.Value)), Is.EqualTo(new (string, string, string?, string?)[]
+            {
+                ("MVP", "Silva", null, null), ("Most Kills (one game)", "Benchy", "Hens", "50"), ("Team Most Goals", "Rooster", "Rooster", "9"),
+                ("Rookie of the Year", "Newcomer", null, null),
+            }), "A team's award goes to the season's team by its name; a player's to the player, a placeholder if the season has none");
+            Assert.That(given.Select(a => a.UserID is not null), Is.EqualTo(PlayersButTheTeamsAward));
+            Assert.That((first.AwardsInserted, first.AwardsUpdated, first.AwardsRemoved), Is.EqualTo((4, 0, 0)));
+            Assert.That(first.Skipped, Has.Some.Contains("award Team Most Kills: no team Ghosts in the season"));
+            Assert.That(kept.Select(a => (a.Name, a.Team)), Is.EqualTo(new[] { ("Most Kills (one game)", "Chicks"), ("Team Most Goals", "Rooster") }));
+            Assert.That((rerun.AwardsInserted, rerun.AwardsUpdated, rerun.AwardsRemoved), Is.EqualTo((1, 1, 3)),
+                "Hens' award went with the team and came back on Chicks; the team's moved up the list; the MVP and rookie went");
+        }
+    }
+
+    private static readonly bool[] PlayersButTheTeamsAward = [true, true, false, true];
 
     [Test]
     public async Task Import_AStandingsRowOfLossesOnly_IsARecordOfNoWins()

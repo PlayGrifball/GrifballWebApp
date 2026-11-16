@@ -1780,7 +1780,7 @@ public partial class HistoricalImportService : IHistoricalImportService
             if (award.IsTeam)
             {
                 if (teams.Find(award.Winner) is { } team)
-                    winners.Add(new SeasonAwardWinner(award.Name, CleanTeamName(award.Winner), null, team, award.Value));
+                    winners.Add(new SeasonAwardWinner(award.Name, team.TeamName, null, team, award.Value));
                 else
                     Skip(counts, $"{group.SourceId} award {award.Name}: no team {award.Winner} in the season");
                 continue;

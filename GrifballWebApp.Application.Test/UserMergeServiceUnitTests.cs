@@ -679,6 +679,28 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
     }
 
     [Test]
+    public async Task Merge_MovesThePlaceholdersAwards_ThenDeletesIt()
+    {
+        var real = User.Seed(userName: "real", displayName: "Real");
+        var dummy = User.Seed(userName: "historical:Old Tag", displayName: "Old Tag", isDummyUser: true);
+        var season = HistoricalSeason("Winter League 2019", "agla/winter-league-2019");
+        Context.AddRange(real, dummy, season);
+        await Context.SaveChangesAsync();
+        season.RecordArchivedAwards([new SeasonAwardWinner("MVP", "Old Tag", dummy.Id, null), new SeasonAwardWinner("Best Tank", "Real", real.Id, null)]);
+        await Context.SaveChangesAsync();
+
+        await _service.Merge(real.Id, dummy.Id);
+
+        Context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.Users.AnyAsync(u => u.Id == dummy.Id), Is.False);
+            Assert.That(await Context.Set<SeasonAward>().Select(a => a.UserID).ToListAsync(), Has.All.EqualTo(real.Id).And.Count.EqualTo(2),
+                "Each award the placeholder won is the target's");
+        }
+    }
+
+    [Test]
     public async Task Merge_MovesThePlaceholdersRecordedGames_AndCombinesBothLines()
     {
         var real = User.Seed(userName: "real", displayName: "Real");
