@@ -160,6 +160,20 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     }
 
     [Test]
+    public async Task Import_AStandingsRowOfLossesOnly_IsARecordOfNoWins()
+    {
+        // A sheet that leaves the Wins cell blank for a team that won nothing
+        var entry = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Benchy", team: "Hens", wins: 1, losses: 1));
+        entry.Teams.Add(new ArchiveTeam { TeamName = "Hens", Losses = 10 });
+
+        await _service.Import(Input(entry));
+
+        Context.ChangeTracker.Clear();
+        var team = await Context.Teams.AsNoTracking().SingleAsync();
+        Assert.That((team.RecordedWins, team.RecordedLosses), Is.EqualTo(((int?)0, (int?)10)), "The standings', not the player's line");
+    }
+
+    [Test]
     public async Task Import_ASeasonOfOneCombinedStatsTab_TakesItsStandingsRecords()
     {
         // SL24 DA: one tab of the regular season and the playoffs together, its standings on that entry. A player's line
