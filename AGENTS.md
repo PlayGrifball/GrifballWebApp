@@ -11,8 +11,8 @@ What an AI agent (Claude Code, Copilot, Codex, ...) needs to work on GrifballWeb
   providers).
 - `DiscordInterfaces`, `DiscordInterfaceSourceGen`, `GrifballWebApp.Analyzers`: the Discord bot's interfaces and their
   source generator, and the solution's own Roslyn analyzers.
-- `*.Test`: one unit test project per layer and app, plus `GrifballWebApp.Integration.Test` and
-  `GrifballWebApp.Architecture.Test`.
+- `*.Test`: one unit test project per layer and app, plus `GrifballWebApp.Integration.Test`,
+  `GrifballWebApp.Architecture.Test` and `GrifballWebApp.HistoricalImport.Test` (the real archive; run by hand, not by CI).
 - `grifballwebapp.client`: the Angular frontend.
 - `charts/grifballwebapp`: the Helm chart every environment runs from.
 - `docs/`: all documentation ([index](docs/README.md)). New docs go there, never in the repository root.

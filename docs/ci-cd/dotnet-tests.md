@@ -77,6 +77,9 @@ or the network push a test into the integration project.
   bounded contexts names another context's only where `ContextCrossings.Allowed` lists it, and an aggregate's
   internals are its own.
 - **`GrifballWebApp.Integration.Test`**: the integration tests. It runs once per database, below.
+- **`GrifballWebApp.HistoricalImport.Test`**: the historical import against the real archive (every source's sheet).
+  Built here so it keeps compiling, but no leg runs it: it needs a copy of the archive, and is run by hand while working
+  on the import ([docs/historical-import.md](../historical-import.md#testing-against-the-real-archive)).
 
 The unit test projects run once, together, as the `test (Unit)` matrix leg. A helper or test double shared by several
 projects lives in the lowest test project that uses it; the integration tests reference every unit test project for

@@ -35,4 +35,5 @@
   <Project Path="GrifballWebApp.Analyzers.Test/GrifballWebApp.Analyzers.Test.csproj" />
   <Project Path="GrifballWebApp.Architecture.Test/GrifballWebApp.Architecture.Test.csproj" />
   <Project Path="GrifballWebApp.Integration.Test/GrifballWebApp.Integration.Test.csproj" />
+  <Project Path="GrifballWebApp.HistoricalImport.Test/GrifballWebApp.HistoricalImport.Test.csproj" />
 </Solution>

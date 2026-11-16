@@ -63,3 +63,33 @@ the Discord bot; there is no separate archive API. What makes it imported is `Se
   champions record for imported ones (their bracket is rebuilt from game order and decides nothing).
 - **Editing**: an imported season can't be edited in the season editor: the next import would revert the edit. Correct
   it in its spreadsheet.
+
+## Testing against the real archive
+
+`GrifballWebApp.HistoricalImport.Test` runs the import on the whole archive, not on workbooks built in a test: each
+source's sheet is parsed with the catalog's current config and imported into a fresh SQLite database, and its tests
+say what every season should have (teams, stats, captains, a champion, a bracket when it had playoffs), each naming the
+seasons that fall short. CI builds it but never runs it. Run it while working on the import:
+
+```sh
+# Fill the copy (.historical-archive/ in the repository, ignored by git) from the test environment's snapshots and
+# Google, then run. The database is read only. Pass the copy's password in the environment, never on a command line
+# that is logged.
+kubectl -n grif-test port-forward svc/sqlserver 14330:1433 &
+GRIF_HISTORICAL_FILL=both \
+GRIF_HISTORICAL_DATABASE="Server=127.0.0.1,14330;Database=GrifballWebApp;User Id=grif_app;Password=$DB_PASSWORD;Encrypt=True;TrustServerCertificate=True;ApplicationIntent=ReadOnly" \
+  dotnet test GrifballWebApp.HistoricalImport.Test
+
+# Afterwards, from the copy as it is (a config or parser change needs no fetching):
+dotnet test GrifballWebApp.HistoricalImport.Test
+```
+
+- `GRIF_HISTORICAL_FILL`: `database` (each source's latest snapshot in `GRIF_HISTORICAL_DATABASE`; it has the sheets
+  that have gone private), `download` (as a refresh downloads them), or `both` (the database's, then a download over each
+  still public). Unset: the copy as it is. With no copy, every test is ignored.
+- `GRIF_HISTORICAL_DATABASE_PROVIDER`: the database's kind, `SqlServer` by default.
+- `GRIF_HISTORICAL_ARCHIVE`: the copy's folder, instead of `.historical-archive/`.
+
+A run leaves `import.db` (the imported database, to query) and `summary.md` (each season's teams, captains, stats,
+matches, playoff matches and titles, and the build's and import's warnings) in the copy's folder. A fill and run take
+about 4 minutes; a run from the copy, under 2.

@@ -430,3 +430,6 @@ charts/grifballwebapp/charts/
 
 # Historical archive offline backup
 data/
+
+# The real historical archive, copied for GrifballWebApp.HistoricalImport.Test
+.historical-archive/
