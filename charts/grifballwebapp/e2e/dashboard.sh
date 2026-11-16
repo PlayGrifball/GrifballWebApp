@@ -94,6 +94,8 @@ echo "Collector at $collector"
 # can't (run.sh's stand-in token gets a 401 and stops it). Its memory check's limit at 1 MB: the check reports Degraded
 # (it never gates readiness), so the health check metrics count a check that isn't healthy and the backend logs a
 # warning for it, which the Unhealthy checks and Errors and warnings panels must show
+# The frontend renders pages for the traffic's Host (grif-frontend, the Service): for any other it sends the page that
+# renders in the browser, and Server rendering would have no renders to show
 cat > "$work/telemetry-values.yaml" <<EOF
 backend:
   config: { Preview: { Enabled: true }, HealthChecks: { MaxAllocatedMegabytes: 1 } }
@@ -101,6 +103,7 @@ backend:
   telemetry: { enabled: true, endpoint: "http://$collector:4317", metricExportInterval: 5000 }
 frontend:
   telemetry: { enabled: true, endpoint: "http://$collector:4318" }
+  extraEnv: [{ name: NG_ALLOWED_HOSTS, value: grif-frontend }]
 grafanaDashboard: { enabled: true }
 EOF
 
