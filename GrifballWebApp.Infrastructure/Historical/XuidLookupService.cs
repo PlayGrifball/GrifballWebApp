@@ -21,10 +21,8 @@ public class XuidLookupOptions
     /// <summary>Placeholders looked up per batch; the worker runs batches until none is due.</summary>
     public int BatchSize { get; set; } = 50;
     /// <summary>
-    /// At most this many lookups a minute. They go through the Halo gateway, whose per-key limit is 600 a minute in
-    /// production and 120 in previews: each also waits its turn on the pace every pod's Halo calls share
-    /// (<see cref="Infrastructure.HaloInfinite.HaloCallPacer"/>), so with the pulls they keep to the key's quota; this keeps them from
-    /// taking every turn while a pull waits.
+    /// At most this many lookups a minute, spread evenly. The Halo gateway keeps them within Halo's own profile limit (its
+    /// budgets): a lookup over it is answered 429 with Retry-After, which stops the batch until then.
     /// </summary>
     public int LookupsPerMinute { get; set; } = 90;
     /// <summary>A placeholder found or not found is looked up again after this long (its gamertag may change hands).</summary>
@@ -47,6 +45,11 @@ public class XuidLookupReport
     public int ClaimsCreated { get; set; }
     /// <summary>Placeholders whose name can't be a gamertag (<see cref="XboxUser.IsPossibleGamertag"/>): recorded as not found, never asked.</summary>
     public int NotGamertags { get; set; }
+    /// <summary>
+    /// Set when Halo, or the gateway's budget for it, answered 429: the batch stopped there, that placeholder left due, and
+    /// this is how long to wait before asking again (its Retry-After; a minute without one).
+    /// </summary>
+    public TimeSpan? ThrottledFor { get; set; }
 }
 
 /// <summary>The XUID lookups of placeholders, by outcome, and how many are due.</summary>
@@ -74,12 +77,9 @@ public class XuidLookupService
     private readonly GamertagMatching _matching;
     private readonly XuidLookupOptions _options;
     private readonly TimeProvider _time;
-    private readonly Infrastructure.HaloInfinite.HaloCallPacer _pacer;
 
-    public XuidLookupService(GrifballContext context, IHaloInfiniteClient halo, GamertagMatching matching, IOptions<XuidLookupOptions> options, TimeProvider time,
-        Infrastructure.HaloInfinite.HaloCallPacer? pacer = null)
+    public XuidLookupService(GrifballContext context, IHaloInfiniteClient halo, GamertagMatching matching, IOptions<XuidLookupOptions> options, TimeProvider time)
     {
-        _pacer = pacer ?? new Infrastructure.HaloInfinite.HaloCallPacer(0);
         _context = context;
         _halo = halo;
         _matching = matching;
@@ -122,20 +122,21 @@ public class XuidLookupService
             {
                 if (report.LookedUp > 0)
                     await Delay(gap, ct);
-                // The Halo call's turn, shared with the pulls and every other pod's calls on the key
-                await _pacer.WaitAsync(ct);
                 report.LookedUp++;
             }
             var lookup = await LookupRowAsync(placeholder.Id, ct);
-            if (possible)
-            {
-                await LookUpAsync(lookup, placeholder.Id, gamertag, report, ct);
-            }
-            else
+            if (!possible)
             {
                 lookup.Status = XuidLookupStatus.NotFound;
                 lookup.Error = NotAGamertagError;
                 report.NotGamertags++;
+            }
+            else if (await LookUpAsync(lookup, placeholder.Id, gamertag, report, ct))
+            {
+                // Throttled: nothing learned, so nothing recorded (it stays due), and no more asking until ThrottledFor has passed
+                report.LookedUp--;
+                _context.ChangeTracker.Clear();
+                break;
             }
             await _context.SaveChangesAsync(ct);
         }
@@ -158,47 +159,63 @@ public class XuidLookupService
     }
 
     /// <summary>
-    /// Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>. An
-    /// error code with no result is a failed lookup, tried again after RetryFailedAfter (<see cref="IsFailure"/>: 429 throttled,
-    /// 400 bad request, 5xx, 401/403, and 0, which the gateway sends when Halo gave no answer), except Halo's 404 (the gamertag
-    /// isn't there). That 404, or a success naming no user, is not found, for LookAgainAfter.
+    /// Asks Xbox for the gamertag's XUID, writing what it said onto <paramref name="lookup"/> and <paramref name="report"/>. A 429
+    /// (Halo throttling, or the gateway's budget for it turning the call away) says nothing about the gamertag: nothing is
+    /// written, <see cref="XuidLookupReport.ThrottledFor"/> is set and true returned, so the batch stops. Any other error code
+    /// with no result is a failed lookup, tried again after RetryFailedAfter (<see cref="IsFailure"/>: 400 bad request, 5xx,
+    /// 401/403, and 0, which the gateway sends when Halo gave no answer), except Halo's 404 (the gamertag isn't there). That
+    /// 404, or a success naming no user, is not found, for LookAgainAfter.
     /// </summary>
-    private async Task LookUpAsync(XuidLookup lookup, int placeholderId, string gamertag, XuidLookupReport report, CancellationToken ct)
+    private async Task<bool> LookUpAsync(XuidLookup lookup, int placeholderId, string gamertag, XuidLookupReport report, CancellationToken ct)
     {
         try
         {
             var response = await _halo.UserByGamertag(gamertag);
-            if (response?.Result is null && response?.Error is { } error && IsFailure(error.Code))
+            if (response?.Result is null && response?.Error is { Code: 429 } throttled)
             {
-                lookup.Status = XuidLookupStatus.Failed;
-                lookup.Error = error.Code == 0 ? "Halo gave no answer" : $"Halo answered {error.Code}";
-                report.Failed++;
+                report.ThrottledFor = throttled.RetryAfter is { } wait && wait > TimeSpan.Zero ? wait : TimeSpan.FromMinutes(1);
+                return true;
             }
-            else if (response?.Result is null || string.IsNullOrEmpty(response.Result.gamertag))
-            {
-                lookup.Status = XuidLookupStatus.NotFound;
-                report.NotFound++;
-            }
-            else if (!long.TryParse(response.Result.xuid, out var xuid))
-            {
-                lookup.Status = XuidLookupStatus.Failed;
-                lookup.Error = "The XUID Xbox gave isn't a number";
-                report.Failed++;
-            }
-            else
-            {
-                lookup.Status = XuidLookupStatus.Found;
-                lookup.XboxUserID = xuid;
-                report.Found++;
-                if (await ClaimAsync(placeholderId, gamertag, xuid, response.Result.gamertag, lookup.LookedUpAt, ct))
-                    report.ClaimsCreated++;
-            }
+            await RecordAsync(lookup, placeholderId, gamertag, response, report, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             lookup.Status = XuidLookupStatus.Failed;
             lookup.Error = ex.Message.Length > 200 ? ex.Message[..200] : ex.Message;
             report.Failed++;
+        }
+        return false;
+    }
+
+    /// <summary>Writes what Halo answered about the gamertag (anything but a 429) onto <paramref name="lookup"/> and <paramref name="report"/>.</summary>
+    private async Task RecordAsync(XuidLookup lookup, int placeholderId, string gamertag,
+        Surprenant.Grunt.Models.HaloApiResultContainer<Surprenant.Grunt.Models.User, Surprenant.Grunt.Models.HaloApiErrorContainer>? response,
+        XuidLookupReport report, CancellationToken ct)
+    {
+        if (response?.Result is null && response?.Error is { } error && IsFailure(error.Code))
+        {
+            lookup.Status = XuidLookupStatus.Failed;
+            lookup.Error = error.Code == 0 ? "Halo gave no answer" : $"Halo answered {error.Code}";
+            report.Failed++;
+        }
+        else if (response?.Result is null || string.IsNullOrEmpty(response.Result.gamertag))
+        {
+            lookup.Status = XuidLookupStatus.NotFound;
+            report.NotFound++;
+        }
+        else if (!long.TryParse(response.Result.xuid, out var xuid))
+        {
+            lookup.Status = XuidLookupStatus.Failed;
+            lookup.Error = "The XUID Xbox gave isn't a number";
+            report.Failed++;
+        }
+        else
+        {
+            lookup.Status = XuidLookupStatus.Found;
+            lookup.XboxUserID = xuid;
+            report.Found++;
+            if (await ClaimAsync(placeholderId, gamertag, xuid, response.Result.gamertag, lookup.LookedUpAt, ct))
+                report.ClaimsCreated++;
         }
     }
 
@@ -277,14 +294,35 @@ public sealed partial class XuidLookupWorker : BackgroundService
             {
                 _logger.LogError(ex, "XUID lookups failed; trying again later");
             }
-            await _signal.WaitAsync(_options.Value.PollInterval, stoppingToken);
+            await WaitForNextRunAsync(stoppingToken);
         }
     }
 
-    /// <summary>Batches until none is due. Returns the lookups made; none while <see cref="XuidLookupOptions.Enabled"/> is false.</summary>
+    /// <summary>Waits between two runs (replaceable in tests).</summary>
+    public Func<TimeSpan, CancellationToken, Task> Delay { get; set; } = (delay, ct) => Task.Delay(delay, ct);
+
+    /// <summary>
+    /// Waits before the next run: after a throttled one, its <see cref="PausedFor"/> (at least PollInterval), which a signal
+    /// doesn't cut short (Halo's or the gateway budget's Retry-After); otherwise up to PollInterval, or until signalled.
+    /// </summary>
+    public async Task WaitForNextRunAsync(CancellationToken ct)
+    {
+        var poll = _options.Value.PollInterval;
+        if (PausedFor is { } paused)
+            await Delay(paused > poll ? paused : poll, ct);
+        else
+            await _signal.WaitAsync(poll, ct);
+    }
+
+    /// <summary>When the last run was throttled (a 429): how long it asked to wait before the next. Null otherwise.</summary>
+    public TimeSpan? PausedFor { get; private set; }
+
+    /// <summary>Batches until none is due, or a 429 stops them (<see cref="PausedFor"/>). Returns the lookups made; none while
+    /// <see cref="XuidLookupOptions.Enabled"/> is false.</summary>
     public async Task<int> RunUntilDoneAsync(CancellationToken ct)
     {
         var total = 0;
+        PausedFor = null;
         while (true)
         {
             if (!_options.Value.Enabled)
@@ -296,6 +334,12 @@ public sealed partial class XuidLookupWorker : BackgroundService
                 LogLookups(_logger, report.Found, report.NotFound, report.Failed, report.ClaimsCreated);
             if (report.NotGamertags > 0)
                 LogNotGamertags(_logger, report.NotGamertags);
+            if (report.ThrottledFor is { } throttled)
+            {
+                PausedFor = throttled;
+                LogThrottled(_logger, throttled);
+                return total;
+            }
             // A batch of names that aren't gamertags is a full batch too: more may be due after it
             if (report.LookedUp + report.NotGamertags < Math.Max(1, _options.Value.BatchSize) || ct.IsCancellationRequested)
                 return total;
@@ -307,4 +351,7 @@ public sealed partial class XuidLookupWorker : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "XUID lookups: {Count} names that can't be gamertags skipped")]
     private static partial void LogNotGamertags(ILogger logger, int count);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "XUID lookups: Halo is throttling gamertag lookups; next batch in {Wait}")]
+    private static partial void LogThrottled(ILogger logger, TimeSpan wait);
 }

@@ -109,6 +109,68 @@ public class XuidLookupWorkerTests : SqliteContextFixture
     }
 
     [Test]
+    public async Task RunUntilDone_Throttled_StopsAtOnce_AndPausesForTheRetryAfter()
+    {
+        await AddPlaceholdersAsync("Alpha", "Bravo", "Charlie");
+        _halo.UserByGamertag("Bravo").Returns(new HaloApiResultContainer<GruntUser, HaloApiErrorContainer>(null!,
+            new HaloApiErrorContainer { Code = 429, RetryAfter = TimeSpan.FromMinutes(5) }));
+        using var worker = Worker(batchSize: 2);
+
+        var looked = await worker.RunUntilDoneAsync(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(looked, Is.EqualTo(1), "Alpha; Bravo was turned away and nothing after it asked");
+            Assert.That(worker.PausedFor, Is.EqualTo(TimeSpan.FromMinutes(5)));
+        }
+        await _halo.DidNotReceive().UserByGamertag("Charlie");
+    }
+
+    [Test]
+    public async Task RunUntilDone_NotThrottled_DoesNotPause()
+    {
+        await AddPlaceholdersAsync("Alpha");
+        using var worker = Worker(batchSize: 2);
+
+        await worker.RunUntilDoneAsync(CancellationToken.None);
+
+        Assert.That(worker.PausedFor, Is.Null);
+    }
+
+    [TestCase(5, 5, TestName = "WaitForNextRun_AfterAThrottledRun_WaitsItsRetryAfter")]
+    [TestCase(0.25, 1, TestName = "WaitForNextRun_AfterAThrottledRun_WaitsAtLeastThePollInterval")]
+    public async Task WaitForNextRun_AfterAThrottledRun(double retryAfterMinutes, double waitedMinutes)
+    {
+        await AddPlaceholdersAsync("Alpha");
+        _halo.UserByGamertag("Alpha").Returns(new HaloApiResultContainer<GruntUser, HaloApiErrorContainer>(null!,
+            new HaloApiErrorContainer { Code = 429, RetryAfter = TimeSpan.FromMinutes(retryAfterMinutes) }));
+        using var worker = Worker(batchSize: 2);
+        var delays = new List<TimeSpan>();
+        worker.Delay = (wait, _) => { delays.Add(wait); return Task.CompletedTask; };
+
+        await worker.RunUntilDoneAsync(CancellationToken.None);
+        await worker.WaitForNextRunAsync(CancellationToken.None);
+
+        Assert.That(delays, Is.EqualTo(new[] { TimeSpan.FromMinutes(waitedMinutes) }), "the default PollInterval is a minute");
+    }
+
+    [Test]
+    public async Task WaitForNextRun_AfterAnUnthrottledRun_WaitsForTheSignalOrPollInterval_NotTheDelay()
+    {
+        using var worker = Worker(batchSize: 2);
+        var delayed = false;
+        worker.Delay = (_, _) => { delayed = true; return Task.CompletedTask; };
+        await worker.RunUntilDoneAsync(CancellationToken.None);
+
+        using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+        using (Assert.EnterMultipleScope())
+        {
+            await Assert.CatchAsync<OperationCanceledException>(async () => await worker.WaitForNextRunAsync(cancel.Token), "waits on the signal, up to PollInterval");
+            Assert.That(delayed, Is.False);
+        }
+    }
+
+    [Test]
     public async Task RunUntilDone_NothingDue_LooksUpNothing()
     {
         using var worker = Worker(batchSize: 2);

@@ -8,7 +8,7 @@ namespace GrifballWebApp.Infrastructure.Redis;
 
 /// <summary>
 /// The process's one Redis (or Valkey) connection, from <c>ConnectionStrings:Redis</c>: shared by SignalR's backplane
-/// and the Halo calls' shared pace (<see cref="HaloInfinite.RedisHaloCallSlots"/>). Made on the first use, in the
+/// and the distributed cache. Made on the first use, in the
 /// background and retried by StackExchange.Redis itself (<c>abortConnect=false</c> unless the connection string says
 /// otherwise), so Redis being down never stops startup. A connect that failed (<c>abortConnect=true</c> and Redis not
 /// there, or a connection string that can't be read) isn't kept: the next use tries again.

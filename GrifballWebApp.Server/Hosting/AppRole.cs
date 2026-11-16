@@ -50,8 +50,8 @@ public sealed record AppRole(AppRoleKind Kind)
         typeof(OutboxDispatcher),
         // Jobs are claimed in the database, so several workers share them. A job uploaded through an API pod is picked up
         // on a worker's next poll (HistoricalImport:Worker:PollInterval, 30 s): the upload's wake-up signal only reaches
-        // its own process. Its Halo calls, like the pulls', take turns shared by every pod (HaloCallPacer, through Redis), so
-        // several workers importing and pulling at once keep to the gateway key's quota together.
+        // its own process. Its Halo calls, like the pulls', are kept within Halo's limits by the gateway's budgets, so
+        // several workers importing and pulling at once stay under them together.
         typeof(GrifballWebApp.Infrastructure.Historical.HistoricalImportWorker),
         // Quartz's scheduler fires the jobs: clustered, each firing runs on one worker; an API pod still builds it, in
         // standby, to read and change the shared store. And the seeder that makes the recurring jobs' missing triggers
@@ -67,7 +67,7 @@ public sealed record AppRole(AppRoleKind Kind)
     public static IReadOnlyList<Type> DiscordHostedServices { get; } =
     [
         // It doesn't claim its placeholders: one per deployment, or the pods would look up the same gamertags. Its Halo
-        // calls wait their turns on the pace every pod shares (HaloCallPacer, through Redis), as the pulls' do. Woken by an import on a
+        // calls are kept within Halo's limits by the gateway's budgets, as the pulls' are. Woken by an import on a
         // worker or a sysadmin on an API pod only through the database: within XuidLookup:PollInterval (1 minute).
         typeof(GrifballWebApp.Infrastructure.Historical.XuidLookupWorker),
         // See WorkerHostedServices: the commands and interactions queue messages here.

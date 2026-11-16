@@ -272,52 +272,6 @@ public class XuidLookupServiceTests
         }
     }
 
-    /// <summary>The turns every pod's Halo calls share, standing in for Redis: records each reservation.</summary>
-    private sealed class SharedTurns : GrifballWebApp.Infrastructure.HaloInfinite.IHaloCallSlots
-    {
-        public readonly List<TimeSpan> Reserved = [];
-
-        public Task<TimeSpan> ReserveAsync(TimeSpan perCall, CancellationToken ct)
-        {
-            lock (Reserved)
-                Reserved.Add(perCall);
-            return Task.FromResult(TimeSpan.Zero);
-        }
-    }
-
-    [Test]
-    public async Task EachLookup_WaitsItsTurnOnTheHaloCallsSharedPace_LikeThePulls()
-    {
-        for (var i = 0; i < 3; i++)
-            await Placeholder($"Tag {i}");
-        var turns = new SharedTurns();
-        await using var pacer = new GrifballWebApp.Infrastructure.HaloInfinite.HaloCallPacer(600, turns);
-        var service = new XuidLookupService(_context, _halo, new GamertagMatching(_context), Options.Create(_options), _time, pacer);
-        service.Delay = (_, _) => Task.CompletedTask;
-
-        var report = await service.RunBatchAsync();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(report.LookedUp, Is.EqualTo(3));
-            Assert.That(turns.Reserved, Is.EqualTo(Enumerable.Repeat(pacer.PerCall, 3)), "One shared turn per Halo call, at the pulls' pace");
-        }
-    }
-
-    [Test]
-    public async Task ALookupWaitingItsTurn_WhenTheAppStops_IsCancelled_NotRecordedAsFailed()
-    {
-        await Placeholder("Tag");
-        var pacer = new GrifballWebApp.Infrastructure.HaloInfinite.HaloCallPacer(600);
-        await pacer.DisposeAsync();
-        var service = new XuidLookupService(_context, _halo, new GamertagMatching(_context), Options.Create(_options), _time, pacer);
-
-        await Assert.CatchAsync<OperationCanceledException>(async () => await service.RunBatchAsync());
-        _context.ChangeTracker.Clear();
-        Assert.That(await _context.XuidLookups.CountAsync(), Is.Zero);
-        await _halo.DidNotReceive().UserByGamertag(Arg.Any<string>());
-    }
-
     [Test]
     public async Task LookUpAgain_MakesTheNotFoundDue_AndKeepsTheFound()
     {
@@ -374,13 +328,12 @@ public class XuidLookupServiceTests
         Assert.That(await _context.Users.AnyAsync(u => u.Id == placeholder.Id), Is.False);
     }
 
-    [TestCase(429, "Halo answered 429")]
     [TestCase(500, "Halo answered 500")]
     [TestCase(503, "Halo answered 503")]
     [TestCase(401, "Halo answered 401")]
     [TestCase(400, "Halo answered 400")]
     [TestCase(0, "Halo gave no answer")]
-    public async Task AnyErrorButNotFound_IsAFailedLookup_RetriedLater_NotNotFound(int code, string error)
+    public async Task AnyErrorButNotFoundOrThrottled_IsAFailedLookup_RetriedLater_NotNotFound(int code, string error)
     {
         await Placeholder("Busy Tag");
         _halo.UserByGamertag("Busy Tag").Returns(Task.FromResult(HaloResults.Of<HaloUser>(null, new HaloApiErrorContainer { Code = code })));
@@ -396,6 +349,39 @@ public class XuidLookupServiceTests
             var lookup = await _context.XuidLookups.SingleAsync();
             Assert.That((lookup.Status, lookup.Error), Is.EqualTo((XuidLookupStatus.Failed, error)));
         }
+    }
+
+    [Test]
+    public async Task AThrottledLookup_StopsTheBatch_RecordsNothing_AndSaysHowLongToWait()
+    {
+        await Placeholder("Old Tag");
+        Holds("Old Tag", "456");
+        var throttled = await Placeholder("Busy Tag");
+        await Placeholder("Later Tag");
+        _halo.UserByGamertag("Busy Tag").Returns(Task.FromResult(HaloResults.Of<HaloUser>(null,
+            new HaloApiErrorContainer { Code = 429, RetryAfter = TimeSpan.FromMinutes(4) })));
+
+        var report = await Service().RunBatchAsync();
+
+        _context.ChangeTracker.Clear();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((report.LookedUp, report.Found, report.Failed, report.ThrottledFor), Is.EqualTo((1, 1, 0, (TimeSpan?)TimeSpan.FromMinutes(4))));
+            Assert.That(await _context.XuidLookups.AnyAsync(l => l.UserID == throttled.Id), Is.False, "still due: a 429 says nothing about the gamertag");
+            Assert.That(await _context.XuidLookups.CountAsync(), Is.EqualTo(1), "the one before it was kept");
+        }
+        await _halo.DidNotReceive().UserByGamertag("Later Tag");
+    }
+
+    [Test]
+    public async Task AThrottledLookupWithNoRetryAfter_WaitsAMinute()
+    {
+        await Placeholder("Busy Tag");
+        _halo.UserByGamertag("Busy Tag").Returns(Task.FromResult(HaloResults.Of<HaloUser>(null, new HaloApiErrorContainer { Code = 429 })));
+
+        var report = await Service().RunBatchAsync();
+
+        Assert.That(report.ThrottledFor, Is.EqualTo(TimeSpan.FromMinutes(1)));
     }
 
     [Test]
