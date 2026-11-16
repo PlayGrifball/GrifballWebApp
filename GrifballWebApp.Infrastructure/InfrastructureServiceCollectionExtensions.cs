@@ -124,12 +124,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddTransient<IDataPullService, DataPullService>();
         services.AddHostedService<HistoricalImportWorker>();
         // The archive's sources: downloaded and snapshotted by the worker (manual refresh jobs and the schedule), parsed in .NET
-        services.AddHttpClient<HistoricalSourceFetcher>(client =>
-        {
-            client.Timeout = TimeSpan.FromMinutes(2);
-            client.MaxResponseContentBufferSize = 64 * 1024 * 1024;
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("GrifballWebApp/1.0 (historical archive)");
-        });
+        services.AddHttpClient<HistoricalSourceFetcher>(HistoricalSourceFetcher.Configure);
         services.AddTransient<HistoricalSourceService>();
         services.AddTransient<HistoricalImportRunner>();
         services.AddTransient<HistoricalImportSchedule>();

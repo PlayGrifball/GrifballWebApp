@@ -20,10 +20,9 @@ public enum SnapshotOrigin
 public sealed record CachedSnapshot(string SourceID, SnapshotOrigin Origin, DateTime FetchedAt, string Sha256, string? ContentType);
 
 /// <summary>
-/// A local copy of the archive's sources: each catalog source's content, from a database's snapshots
-/// (<see cref="FillFromDatabase"/>) or downloaded (<see cref="FillFromDownload"/>), kept in a folder outside git
-/// (<see cref="Folder"/>). The tests read it with the catalog's current config (<see cref="Contents"/>), so a config
-/// change is tested without fetching again.
+/// A local copy of the archive's sources: each one's content, from a database's snapshots (<see cref="FillFromDatabase"/>)
+/// or downloaded (<see cref="FillFromDownload"/>), kept in a folder outside git (<see cref="Folder"/>). The tests read it
+/// with the catalog's current config (<see cref="Contents"/>), so a config change is tested without fetching again.
 /// </summary>
 public sealed class ArchiveSnapshots
 {
@@ -50,30 +49,32 @@ public sealed class ArchiveSnapshots
     public static IEnumerable<HistoricalSourceCatalog.Entry> ImportedEntries()
         => HistoricalSourceCatalog.Sources.Where(e => e.Config is not null);
 
-    /// <summary>Each cached source of the catalog, as the import's build reads a snapshot: its current catalog row (the
-    /// config in the code now) and the cached content.</summary>
-    public List<HistoricalSourceContent> Contents()
+    /// <summary>The sources worth a copy: those the import reads, and every other sheet (one a config may read next). Not the
+    /// web pages and channels the import never reads.</summary>
+    public static IEnumerable<HistoricalSourceCatalog.Entry> CopiedEntries()
+        => HistoricalSourceCatalog.Sources.Where(e => e.Config is not null || e.Kind is HistoricalSourceKind.GoogleSheet or HistoricalSourceKind.GoogleSheetCsv);
+
+    /// <summary>Each cached source the import reads, as the import's build reads a snapshot: its current catalog row (the
+    /// config in the code now) and the cached content. One at a time, as the worker reads them: a content is read from
+    /// disk only when asked for.</summary>
+    public IEnumerable<HistoricalSourceContent> Contents()
     {
-        var contents = new List<HistoricalSourceContent>();
         var id = 0;
-        foreach (var entry in HistoricalSourceCatalog.Sources)
+        foreach (var entry in ImportedEntries().Where(e => Manifest.ContainsKey(e.HistoricalSourceID)))
         {
-            if (!Manifest.ContainsKey(entry.HistoricalSourceID))
-                continue;
             var source = HistoricalSource.FromCatalog(entry.HistoricalSourceID, entry.ToListing(), entry.Enabled);
-            contents.Add(new HistoricalSourceContent(source, ++id, File.ReadAllBytes(ContentPath(entry.HistoricalSourceID))));
+            yield return new HistoricalSourceContent(source, ++id, File.ReadAllBytes(ContentPath(entry.HistoricalSourceID)));
         }
-        return contents;
     }
 
-    /// <summary>Copies every catalog source's latest snapshot from the database at <paramref name="connectionString"/>
-    /// (read only). Returns the catalog's sources it had none of.</summary>
+    /// <summary>Copies each source's latest snapshot from the database at <paramref name="connectionString"/>; it is only
+    /// read. Returns the sources it had none of.</summary>
     public async Task<List<string>> FillFromDatabase(DatabaseProvider provider, string connectionString, CancellationToken ct = default)
     {
         var options = new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(provider, connectionString).Options;
         await using var context = new GrifballContext(options);
         var missing = new List<string>();
-        foreach (var entry in HistoricalSourceCatalog.Sources)
+        foreach (var entry in CopiedEntries())
         {
             var snapshot = await context.HistoricalSources.AsNoTracking()
                 .Where(s => s.HistoricalSourceID == entry.HistoricalSourceID)
@@ -91,13 +92,16 @@ public sealed class ArchiveSnapshots
         return missing;
     }
 
-    /// <summary>Downloads every downloadable catalog source (alive and enabled) as a refresh does. A source that fails
-    /// keeps its cached copy, if any. Returns each failure: the source and why.</summary>
-    public async Task<List<string>> FillFromDownload(HttpClient http, TimeProvider time, CancellationToken ct = default)
+    /// <summary>Downloads each downloadable source (alive and enabled) with the refresh's client
+    /// (<see cref="HistoricalSourceFetcher.Configure"/>). A source that fails keeps its cached copy, if any. Returns each
+    /// failure: the source, why, and whether the copy still has it.</summary>
+    public async Task<List<(string SourceID, string Reason, bool Kept)>> FillFromDownload(TimeProvider time, CancellationToken ct = default)
     {
+        using var http = new HttpClient();
+        HistoricalSourceFetcher.Configure(http);
         var fetcher = new HistoricalSourceFetcher(http);
-        var failed = new List<string>();
-        foreach (var entry in HistoricalSourceCatalog.Sources.Where(e => e.Enabled && !e.IsDead))
+        var failed = new List<(string, string, bool)>();
+        foreach (var entry in CopiedEntries().Where(e => e.Enabled && !e.IsDead))
         {
             var source = HistoricalSource.FromCatalog(entry.HistoricalSourceID, entry.ToListing(), entry.Enabled);
             try
@@ -106,9 +110,10 @@ public sealed class ArchiveSnapshots
                 await Save(new CachedSnapshot(entry.HistoricalSourceID, SnapshotOrigin.Download, time.GetUtcNow().UtcDateTime,
                     HistoricalSourceSnapshot.Hash(fetched.Content), fetched.ContentType), fetched.Content, ct);
             }
-            catch (Exception ex) when (ex is HistoricalFetchException or HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
+            // What HistoricalSourceService's refresh counts as a failed download
+            catch (Exception ex) when (ex is HistoricalFetchException or HttpRequestException || (ex is TaskCanceledException && !ct.IsCancellationRequested))
             {
-                failed.Add($"{entry.HistoricalSourceID}: {ex.Message}");
+                failed.Add((entry.HistoricalSourceID, ex is TaskCanceledException ? "timed out" : ex.Message, Manifest.ContainsKey(entry.HistoricalSourceID)));
             }
         }
         await SaveManifest(ct);

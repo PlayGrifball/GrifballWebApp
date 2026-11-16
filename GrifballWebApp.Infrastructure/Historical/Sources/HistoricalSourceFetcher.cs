@@ -24,6 +24,15 @@ public class HistoricalSourceFetcher
         _http = http;
     }
 
+    /// <summary>The client a refresh downloads with (and a copy of the archive, HistoricalImport.Test): a User-Agent of its own,
+    /// 2 minutes a download, 64 MB at most.</summary>
+    public static void Configure(HttpClient client)
+    {
+        client.Timeout = TimeSpan.FromMinutes(2);
+        client.MaxResponseContentBufferSize = 64 * 1024 * 1024;
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("GrifballWebApp/1.0 (historical archive)");
+    }
+
     public static string ExportUrl(string sheetKey) => $"https://docs.google.com/spreadsheets/d/{sheetKey}/export?format=xlsx";
 
     public static string CsvUrl(string sheetKey, string? gid) => $"https://docs.google.com/spreadsheets/d/{sheetKey}/gviz/tq?tqx=out:csv{(gid is null ? "" : $"&gid={gid}")}";

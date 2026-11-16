@@ -76,6 +76,8 @@ To run the app without any credentials (Discord, OAuth, Halo), set `Preview:Enab
   tests (`GrifballWebApp.Domain.Test`, `.Application.Test`, `.Infrastructure.Test`, `.Server.Test`, ...). An in-memory
   or temp-file SQLite `GrifballContext` is fine in a unit test (`SqliteContextFixture` in
   `GrifballWebApp.Infrastructure.Test`). Details: [docs/ci-cd/dotnet-tests.md](docs/ci-cd/dotnet-tests.md).
+  The one exception: tests of the historical import against the real archive (a copy of every sheet) go in
+  `GrifballWebApp.HistoricalImport.Test`, which CI never runs ([docs/historical-import.md](docs/historical-import.md#testing-against-the-real-archive)).
 - A rule about the code's shape belongs in `GrifballWebApp.Architecture.Test`.
 - Test classes: `[TestFixture]`, `[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]`; names say what is tested and
   what should happen (`Method_Should_Result_When_Condition` or `Method_Result_ForCase`); `Assert.EnterMultipleScope()`

@@ -20,7 +20,11 @@ namespace GrifballWebApp.HistoricalImport.Test;
 /// and the other sources' URLs), or <c>both</c> (the database's, then a download over each that is still public).
 /// Unset: the copy as it is.</item>
 /// </list>
-/// With no copy, every test is ignored.
+/// With no copy and no fill, every test is ignored.
+/// <para>
+/// No Halo API: the Waypoint matches of Halo Infinite seasons are not pulled (<see cref="WaypointNotPulled"/>), so those
+/// seasons have none of their Waypoint games.
+/// </para>
 /// </summary>
 public static class Archive
 {
@@ -30,6 +34,14 @@ public static class Archive
     public static HistoricalArchiveBuild Build { get; internal set; } = null!;
     public static HistoricalImportReport Report { get; internal set; } = null!;
     public static string DatabasePath { get; internal set; } = null!;
+
+    /// <summary>The import's skips of a Waypoint match it could not pull: every one, with no Halo API here.</summary>
+    public static bool WaypointNotPulled(string skipped)
+        => skipped.StartsWith("Waypoint match ", StringComparison.Ordinal);
+
+    /// <summary>The seasons (their source IDs) whose games are Waypoint matches, which this run doesn't have.</summary>
+    public static IReadOnlySet<string> WaypointSeasons
+        => (Build.Input.WaypointMatches?.Keys ?? Enumerable.Empty<string>()).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>A context on the imported database. Read only: the tests share it.</summary>
     public static GrifballContext NewContext()
@@ -44,23 +56,36 @@ public class ArchiveSetUp
     public async Task SetUp()
     {
         Archive.Snapshots = new ArchiveSnapshots(Environment.GetEnvironmentVariable("GRIF_HISTORICAL_ARCHIVE") is { Length: > 0 } folder ? folder : DefaultFolder());
-        await Fill(Environment.GetEnvironmentVariable("GRIF_HISTORICAL_FILL")?.Trim().ToLowerInvariant());
-        if (Archive.Snapshots.Manifest.Count == 0)
-            Assert.Ignore($"No copy of the archive in {Archive.Snapshots.Folder}: set GRIF_HISTORICAL_FILL (docs/historical-import.md)");
+        var fill = Environment.GetEnvironmentVariable("GRIF_HISTORICAL_FILL")?.Trim().ToLowerInvariant();
+        await Fill(fill);
         foreach (var problem in Archive.FillProblems)
             await TestContext.Progress.WriteLineAsync($"Not filled: {problem}");
+        if (Archive.Snapshots.Manifest.Count == 0)
+        {
+            // Asked to fill and got nothing: a failure, not a run without a copy
+            if (fill is { Length: > 0 })
+                throw new InvalidOperationException($"GRIF_HISTORICAL_FILL={fill} copied no source: {string.Join("; ", Archive.FillProblems)}");
+            Assert.Ignore($"No copy of the archive in {Archive.Snapshots.Folder}: set GRIF_HISTORICAL_FILL (docs/historical-import.md)");
+        }
 
-        Archive.Build = HistoricalArchiveBuilder.Build(Archive.Snapshots.Contents());
+        // One source at a time, as the worker builds
+        var builder = new HistoricalArchiveBuilder();
+        foreach (var content in Archive.Snapshots.Contents())
+            builder.Add(content);
+        Archive.Build = builder.Finish();
 
         Archive.DatabasePath = Path.Combine(Archive.Snapshots.Folder, "import.db");
-        File.Delete(Archive.DatabasePath);
+        // The journal files too: a run stopped mid-import leaves them, and SQLite would replay them into the new file
+        foreach (var suffix in new[] { "", "-wal", "-shm" })
+            File.Delete(Archive.DatabasePath + suffix);
         await using var context = Archive.NewContext();
         await context.Database.MigrateAsync();
-        var import = new HistoricalImportService(context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions()),
+        var import = new HistoricalImportService(context, Substitute.For<IDataPullService>(), Options.Create(new HistoricalImportOptions { MatchPullAttempts = 1 }),
             NullLogger<HistoricalImportService>.Instance, new GamertagMatching(context), TimeProvider.System);
         Archive.Report = await import.Run(Archive.Build.Input, new HistoricalImportRunOptions());
         await TestContext.Progress.WriteLineAsync($"Imported {Archive.Report.SeasonsCreated} seasons, {Archive.Report.MatchmakingSeasonsCreated} Late League seasons, " +
-            $"{Archive.Report.StatsInserted} stat lines; {Archive.Build.Warnings.Count} build warnings, {Archive.Report.Warnings.Count} import warnings, {Archive.Report.Errors.Count} errors. Database: {Archive.DatabasePath}");
+            $"{Archive.Report.StatsInserted} stat lines; {Archive.Build.Warnings.Count} build warnings, {Archive.Report.Warnings.Count} import warnings, " +
+            $"{Archive.Report.Skipped.Count(s => !Archive.WaypointNotPulled(s))} skipped, {Archive.Report.Errors.Count} errors. Database: {Archive.DatabasePath}");
     }
 
     private static async Task Fill(string? fill)
@@ -81,8 +106,9 @@ public class ArchiveSetUp
         }
         if (fill is "download" or "both")
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
-            Archive.FillProblems.AddRange(await Archive.Snapshots.FillFromDownload(http, TimeProvider.System));
+            var failed = await Archive.Snapshots.FillFromDownload(TimeProvider.System);
+            // A failed download of a source the copy has (the database's snapshot, or an earlier one) is only stale
+            Archive.FillProblems.AddRange(failed.Select(f => f.Kept ? $"{f.SourceID}: download failed ({f.Reason}); the copy keeps its earlier one" : $"{f.SourceID}: {f.Reason}"));
         }
         // A source the database has none of that the download got is filled
         Archive.FillProblems.AddRange(databaseMissing.Where(id => !Archive.Snapshots.Manifest.ContainsKey(id)).Select(id => $"{id}: no snapshot in the database"));

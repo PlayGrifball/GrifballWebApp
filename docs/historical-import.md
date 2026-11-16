@@ -73,8 +73,8 @@ seasons that fall short. CI builds it but never runs it. Run it while working on
 
 ```sh
 # Fill the copy (.historical-archive/ in the repository, ignored by git) from the test environment's snapshots and
-# Google, then run. The database is read only. Pass the copy's password in the environment, never on a command line
-# that is logged.
+# Google, then run. The fill only reads the database (ApplicationIntent=ReadOnly is a hint, not a guard). Keep the
+# database's password in the environment (DB_PASSWORD), never on a command line that is logged.
 kubectl -n grif-test port-forward svc/sqlserver 14330:1433 &
 GRIF_HISTORICAL_FILL=both \
 GRIF_HISTORICAL_DATABASE="Server=127.0.0.1,14330;Database=GrifballWebApp;User Id=grif_app;Password=$DB_PASSWORD;Encrypt=True;TrustServerCertificate=True;ApplicationIntent=ReadOnly" \
