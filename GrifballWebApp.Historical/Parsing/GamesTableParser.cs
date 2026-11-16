@@ -190,7 +190,7 @@ public static partial class GamesTableParser
             return players;
         }
 
-        private static RecordedTeamInput Side(int side, string name, Outcomes outcome, int? score) => new() { Side = side, Name = name, Outcome = outcome, Score = score };
+        private static RecordedTeamInput Side(int side, string name, Outcomes outcome, int? score) => new() { Side = side, Name = name, Outcome = outcome, Score = score, NamesItsTeam = true };
 
         private RecordedGameInput Game(string season, string id, string[] teams, (Outcomes Outcome, int? Score)[] results, List<RecordedPlayerInput> players, bool playoffs = false, DateTime? playedAt = null) => new()
         {

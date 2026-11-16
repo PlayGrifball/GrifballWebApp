@@ -22,6 +22,8 @@ namespace GrifballWebApp.Historical.Test;
 internal sealed class HistoricalImportForfeitsUnitTests : ApplicationDbContextTests
 {
     private const string SeasonKey = "winter-league-2008/Stats";
+    private static readonly string?[] RedAndBlue = ["Red Team", "Blue Team"];
+    private static readonly string?[] RedAndNone = ["Red Team", null];
     private HistoricalImportService _service = null!;
 
     [SetUp]
@@ -121,6 +123,33 @@ internal sealed class HistoricalImportForfeitsUnitTests : ApplicationDbContextTe
             Assert.That(report.Errors, Is.Empty);
             Assert.That(await Context.RecordedGameLines.OrderBy(p => p.Gamertag).Select(p => p.Grabs).ToListAsync(), Is.EqualTo(new int?[] { 6, null }));
             Assert.That(await Context.SeasonMatches.CountAsync(), Is.EqualTo(1), "The game is a series of its own");
+        }
+    }
+
+    [Test]
+    public async Task Import_AGameWhoseSidesNameTheirTeams_IsBetweenThoseTeams_WhateverTeamsItsPlayersAreOn()
+    {
+        // Church and Tex both played for Red Team (the season's rows), Tex for Blue Team in this game: the database says so
+        var season = Entry("Winter League 2008", "halo3", "AGLA", false, Player("Church", team: "Red Team"), Player("Tex", team: "Red Team"), Player("Tex", team: "Blue Team", stint: 2));
+        RecordedGameInput Game(string key, string blue) => new()
+        {
+            SeasonSourceId = SeasonKey,
+            SourceKey = key,
+            GameVersion = "halo3",
+            Teams = [new RecordedTeamInput { Side = 1, Name = "Red Team", Outcome = Outcomes.Won, NamesItsTeam = true },
+                     new RecordedTeamInput { Side = 2, Name = blue, Outcome = Outcomes.Lost, NamesItsTeam = true }],
+            Players = [new RecordedPlayerInput { Gamertag = "Church", Side = 1 }, new RecordedPlayerInput { Gamertag = "Tex", Side = 2 }],
+        };
+
+        var report = await _service.Import(HistoricalImportUnitTestData.Input(season, [Game("db/Matches#1", "Blue Team"), Game("db/Matches#2", "(Deleted Team)")]));
+
+        var sides = await Context.RecordedGames.AsNoTracking().OrderBy(g => g.SourceKey)
+            .Select(g => g.Teams.OrderBy(t => t.Side).Select(t => t.Team == null ? null : t.Team.TeamName).ToList()).ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sides[0], Is.EqualTo(RedAndBlue));
+            Assert.That(sides[1], Is.EqualTo(RedAndNone), "A deleted team is no team, not its players' other one");
+            Assert.That(report.Warnings, Has.Some.Contains("1 recorded game(s) with a side that is none of the season's teams"));
         }
     }
 }

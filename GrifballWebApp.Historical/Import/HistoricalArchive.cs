@@ -215,6 +215,10 @@ public class RecordedTeamInput
     [JsonConverter(typeof(JsonStringEnumConverter<GrifballWebApp.Domain.Halo.Outcomes>))]
     public GrifballWebApp.Domain.Halo.Outcomes Outcome { get; init; }
     public int? Score { get; init; }
+    /// <summary>The name is the side's team as its season has it (a website database's): the side is that team, or none
+    /// when the season hasn't it (a deleted team), never the team its players are on. Otherwise the side is the team most
+    /// of its players are on, by its name when they are on none.</summary>
+    public bool NamesItsTeam { get; init; }
 }
 
 public class RecordedPlayerInput

@@ -1531,11 +1531,13 @@ public partial class HistoricalImportService : IHistoricalImportService
         Warn(counts, $"Recorded game {key}: skipped, {why}");
     }
 
-    /// <summary>Each side's team, the season team most of its players are on (by its name otherwise); neither when both are the same team.</summary>
+    /// <summary>Each side's team: the team its name is, when it names its team (<see cref="RecordedTeamInput.NamesItsTeam"/>), else the season team most of its players are on (by its name otherwise); neither when both are the same team.</summary>
     private (Dictionary<int, int?> SideTeams, int? A, int? B) SideTeams(string key, List<(RecordedPlayerInput Input, int UserId)> players, List<RecordedTeamInput> sides, RecordedGamesRun run)
     {
         var teams = run.Teams;
-        var sideTeams = sides.ToDictionary(t => t.Side, t => MajorityTeam(players.Where(p => p.Input.Side == t.Side).Select(p => p.UserId), teams) ?? teams.Find(t.Name)?.TeamID);
+        var sideTeams = sides.ToDictionary(t => t.Side, t => t.NamesItsTeam
+            ? teams.Find(t.Name)?.TeamID
+            : MajorityTeam(players.Where(p => p.Input.Side == t.Side).Select(p => p.UserId), teams) ?? teams.Find(t.Name)?.TeamID);
         var (a, b) = (sides.Count > 0 ? sideTeams[sides[0].Side] : null, sides.Count > 1 ? sideTeams[sides[1].Side] : null);
         if (a is not null && a == b)
         {
