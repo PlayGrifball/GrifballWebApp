@@ -39,26 +39,25 @@ public class MoveLateLeagueToMatchmakingMigrationTests
         var migrations = _context.Database.GetMigrations().ToList();
         await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_MoveLateLeagueToMatchmaking"))) - 1]);
 
-        // Before the migration the Late League league and format exist, and the tables are as the model has them
-        var imported = NewSeason("Late League Season 8 (Halo 3)", LateLeagueID, LateLeagueFormat, "late-league-aspence-main/S8Halo 3 Stats");
-        var own = NewSeason("Late Night", LateLeagueID, LateLeagueFormat);
-        var clash = NewSeason("Summer Cup", LateLeagueID, SeasonFormat.LeagueSeason);
-        var agla = NewSeason("Summer Cup", League.DefaultLeagueID, SeasonFormat.LeagueSeason);
-        _context.Seasons.AddRange(imported, own, clash, agla);
-        await _context.SaveChangesAsync();
-        var player = await _context.AddUser("player");
-        var team = await _context.AddTeam(imported, "Alpha", player, 1);
-        // Through the model as it was then: RecordedGame.Origin comes with a later migration
+        // Before the migration the Late League league and format exist, and the tables are as the model had them then
+        // (ContextBeforeOrigin: RecordedGame.Origin and the teams' placing come with later migrations)
         await using (var before = new ContextBeforeOrigin(new DbContextOptionsBuilder<GrifballContext>()
             .UseGrifballDatabase(TestDatabase.Provider, _context.Database.GetConnectionString()!).Options))
         {
+            var imported = NewSeason("Late League Season 8 (Halo 3)", LateLeagueID, LateLeagueFormat, "late-league-aspence-main/S8Halo 3 Stats");
+            var own = NewSeason("Late Night", LateLeagueID, LateLeagueFormat);
+            var clash = NewSeason("Summer Cup", LateLeagueID, SeasonFormat.LeagueSeason);
+            var agla = NewSeason("Summer Cup", League.DefaultLeagueID, SeasonFormat.LeagueSeason);
+            before.Seasons.AddRange(imported, own, clash, agla);
+            await before.SaveChangesAsync();
+            var player = await before.AddUser("player");
+            var team = await before.AddTeam(imported, "Alpha", player, 1);
             var game = RecordedGame.Seed("l/1", seasonID: imported.SeasonID);
             game.SeedSide(1, team.TeamID, Outcomes.Won);
             before.RecordedGames.Add(game);
+            before.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(imported.SeasonID, player.Id, 1, new StatSheetTotals { Gamertag = "Player" }, teamID: team.TeamID));
             await before.SaveChangesAsync();
         }
-        _context.PlayerSeasonStats.Add(PlayerSeasonStat.FromSheet(imported.SeasonID, player.Id, 1, new StatSheetTotals { Gamertag = "Player" }, teamID: team.TeamID));
-        await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
         await migrator.MigrateAsync();
@@ -87,6 +86,9 @@ public class MoveLateLeagueToMatchmakingMigrationTests
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<RecordedGame>().Ignore(g => g.Origin);
+            var team = modelBuilder.Entity<Team>();
+            team.Ignore(t => t.ArchivedRank);
+            team.Ignore(t => t.ArchivedFinish);
         }
     }
 }

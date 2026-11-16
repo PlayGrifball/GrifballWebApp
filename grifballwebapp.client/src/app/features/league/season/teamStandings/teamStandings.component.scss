@@ -19,5 +19,11 @@
 
 .standings__leader { background: rgba(124, 203, 255, 0.06); }
 
+.standings__finish {
+  width: 72px;
+  text-align: right;
+  font-weight: 700;
+}
+
 .standings__empty { margin: 0; padding: 16px 18px; }
 .standings__note { margin: 0; padding: 8px 18px; font-size: 13px; }

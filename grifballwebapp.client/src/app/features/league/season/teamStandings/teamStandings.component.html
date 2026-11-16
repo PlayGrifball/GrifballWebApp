@@ -21,8 +21,13 @@
       <td mat-cell *matCellDef="let row" class="hud-num">{{row.losses}}</td>
     </ng-container>
 
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns; let i = index" [class.standings__leader]="i === 0"></tr>
+    <ng-container matColumnDef="finish">
+      <th mat-header-cell *matHeaderCellDef class="standings__finish">Finish</th>
+      <td mat-cell *matCellDef="let row" class="standings__finish" [class.hud-gold]="row.finish === 1">{{row.finish == null ? '' : ordinal(row.finish)}}</td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns(); let i = index" [class.standings__leader]="i === 0"></tr>
   </table>
   @if (fromSource()) {
     <p class="standings__note hud-muted">Records from the source spreadsheet: this season's matches weren't recorded.</p>

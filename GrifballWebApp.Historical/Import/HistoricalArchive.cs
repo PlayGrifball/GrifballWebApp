@@ -76,11 +76,15 @@ public class ArchiveSeason
     public List<ArchiveTeam> Teams { get; init; } = [];
 }
 
-public class ArchiveTeam
+/// <summary>A team of a season's standings. A record: a copy under another name (`with`) keeps every other value.</summary>
+public record ArchiveTeam
 {
     public required string TeamName { get; init; }
     public string? Division { get; init; }
+    /// <summary>Its place in the regular season's standings (its seed).</summary>
     public int? Rank { get; init; }
+    /// <summary>Its final place: 1 for the champion, the round it went out in for the others.</summary>
+    public int? Finish { get; init; }
     public int? Wins { get; init; }
     public int? Losses { get; init; }
     public int? GoalsFor { get; init; }
