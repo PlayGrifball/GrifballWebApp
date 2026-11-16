@@ -14,7 +14,48 @@ public class StandingsParserTests
     private static readonly (string, string?)[] NamesAndCaptains = [("Alpha", "Ace"), ("Bravo", "Bee")];
     private static readonly (string, int?, int?)[] RecordsOfAlphaAndBravo = [("Alpha", 5, 3), ("Bravo", 4, 4)];
 
+    private static readonly (string, int?, int?)[] SecondBlockOwnRanks = [("Charlie", 2, null), ("Delta", 1, null)];
+    private static readonly (string, int?, int?)[] LegacyWithoutProSeeds = [("Legacy A", null, 7), ("Legacy B", null, 3)];
+
     private static SheetTable Sheet(params string[][] rows) => new() { Name = "Standings", Rows = [.. rows] };
+
+    [Test]
+    public void Rows_ATableBesideAnother_TakesNoColumnOfTheTableLeftOfIt()
+    {
+        // Pro (Seed, Team, Wins) beside Legacy (Team, Wins): Legacy's teams have no seed of the Pro team on their row
+        var sheet = Sheet(
+            ["Seed", "Team", "Wins", "", "Team", "Wins"],
+            ["1", "Pro A", "9", "", "Legacy A", "7"],
+            ["2", "Pro B", "5", "", "Legacy B", "3"]);
+
+        var legacy = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "S", Anchor = "Team", AnchorNumber = 2 });
+
+        Assert.That(legacy!.Select(t => (t.TeamName, t.Rank, t.Wins)), Is.EqualTo(LegacyWithoutProSeeds));
+    }
+
+    [Test]
+    public void Columns_TwoBlocksStacked_EachReadsItsOwnLabelledRows()
+    {
+        var sheet = Sheet(
+            ["Team Name:", "Alpha", "Bravo"],
+            ["Season Standings", "1", "2"],
+            ["Team Name:", "Charlie", "Delta"],
+            ["Season Standings", "2", "1"]);
+
+        var second = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Chart", Layout = StandingsLayout.Columns, Anchor = "Team Name:", AnchorNumber = 2 });
+
+        Assert.That(second!.Select(t => (t.TeamName, t.Rank, t.Finish)), Is.EqualTo(SecondBlockOwnRanks), "Its own block's ranks, not the first block's rows");
+    }
+
+    [Test]
+    public void ABarePlaceHeader_IsTheStandingsPlace_NotTheFinalOne()
+    {
+        var sheet = Sheet(["Place", "Team", "Wins", "Losses"], ["1", "Alpha", "9", "1"]);
+
+        var team = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings" })!.Single();
+
+        Assert.That((team.Rank, team.Finish), Is.EqualTo(((int?)1, (int?)null)));
+    }
 
     private static (string Name, int? Rank, int? Finish, int? Wins, int? Losses, string? Captain)[] Rows(List<GrifballWebApp.Historical.Import.ArchiveTeam>? teams)
         => [.. teams!.Select(t => (t.TeamName, t.Rank, t.Finish, t.Wins, t.Losses, t.Captain))];

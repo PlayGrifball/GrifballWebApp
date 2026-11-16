@@ -160,6 +160,26 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
     }
 
     [Test]
+    public async Task Import_ASeasonOfOneCombinedStatsTab_TakesItsStandingsRecords()
+    {
+        // SL24 DA: one tab of the regular season and the playoffs together, its standings on that entry. A player's line
+        // there is no regular-season record; the standings' are.
+        var combined = Entry("Spring League 2024", "halo3", "AGLA", false, Player("Silva", team: "Rooster", wins: 20, losses: 2));
+        var season = new ArchiveSeason
+        {
+            SeasonName = combined.SeasonName, GameVersion = combined.GameVersion, League = combined.League, Division = combined.Division,
+            SourceWorkbook = combined.SourceWorkbook, SourceSheet = combined.SourceSheet, IsCombined = true, Players = combined.Players,
+            Teams = [new ArchiveTeam { TeamName = "Rooster", Rank = 1, Wins = 17, Losses = 5 }],
+        };
+
+        await _service.Import(Input(season));
+
+        Context.ChangeTracker.Clear();
+        var team = await Context.Teams.AsNoTracking().SingleAsync();
+        Assert.That((team.RecordedWins, team.RecordedLosses, team.ArchivedRank), Is.EqualTo(((int?)17, (int?)5, (int?)1)));
+    }
+
+    [Test]
     public async Task Import_KeepsTheStandingsRankAndFinish_OnTheirTeams_AndClearsThemWhenTheSheetDropsThem()
     {
         static ArchiveSeason Season(params ArchiveTeam[] teams)

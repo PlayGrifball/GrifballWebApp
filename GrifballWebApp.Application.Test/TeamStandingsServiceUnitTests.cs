@@ -13,6 +13,7 @@ internal sealed class TeamStandingsServiceUnitTests : ApplicationDbContextTests
     private static readonly string[] ExpectedStandingsOrder = { "A", "B", "C" };
     private static readonly (string, int?)[] SheetOrderWithFinishes = [("Defiance", 3), ("Monstars", 1), ("Unranked", null)];
     private static readonly string[] RecordsOrderOfDivisions = ["West Winner", "East Winner", "East Second"];
+    private static readonly string[] RecordsOrderOfAFewRanked = ["Best", "Middle", "Seeded Fifth"];
     private TeamStandingsService _service = null!;
 
     [SetUp]
@@ -187,5 +188,19 @@ internal sealed class TeamStandingsServiceUnitTests : ApplicationDbContextTests
         var result = await _service.GetTeamStandings(SeasonID);
 
         Assert.That(result.Select(r => r.TeamName), Is.EqualTo(RecordsOrderOfDivisions));
+    }
+
+    [Test]
+    public async Task GetTeamStandings_AFewRankedTeams_KeepTheRecordsOrder()
+    {
+        await SeedSeason();
+        // One team of three has the sheet's rank: it doesn't lead the season for it
+        await ArchivedTeam("Seeded Fifth", 2, 8, rank: 5, finish: null);
+        await ArchivedTeam("Best", 9, 1, rank: null, finish: null);
+        await ArchivedTeam("Middle", 5, 5, rank: null, finish: null);
+
+        var result = await _service.GetTeamStandings(SeasonID);
+
+        Assert.That(result.Select(r => r.TeamName), Is.EqualTo(RecordsOrderOfAFewRanked));
     }
 }

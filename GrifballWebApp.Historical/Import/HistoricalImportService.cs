@@ -927,7 +927,9 @@ public partial class HistoricalImportService : IHistoricalImportService
 
     private static (int Wins, int Losses)? ArchivedRecord(SeasonGroup group, string name)
     {
-        var standing = group.Entries.Where(e => !e.IsPlayoffs && !e.IsCombined)
+        // The standings', of any entry but the playoffs' (a combined tab's too: its standings are the regular season's, where
+        // its players' lines are not)
+        var standing = group.Entries.Where(e => !e.IsPlayoffs)
             .SelectMany(e => e.Teams)
             .Where(t => (t.Wins is not null || t.Losses is not null) && string.Equals(CleanTeamName(t.TeamName), name, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(t => (t.Wins ?? 0) + (t.Losses ?? 0))

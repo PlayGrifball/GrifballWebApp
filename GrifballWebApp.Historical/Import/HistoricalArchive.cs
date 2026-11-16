@@ -91,11 +91,11 @@ public class ArchiveTeam
     public string? Captain { get; init; }
     public List<string> Roster { get; init; } = [];
 
-    /// <summary>The same team under <paramref name="name"/>.</summary>
-    public ArchiveTeam Named(string name) => name == TeamName ? this : new()
+    /// <summary>The same team under <paramref name="name"/>, its captain <paramref name="captain"/>.</summary>
+    public ArchiveTeam Named(string name, string? captain) => name == TeamName && captain == Captain ? this : new()
     {
         TeamName = name, Division = Division, Rank = Rank, Finish = Finish, Wins = Wins, Losses = Losses,
-        GoalsFor = GoalsFor, GoalsAgainst = GoalsAgainst, Captain = Captain, Roster = Roster,
+        GoalsFor = GoalsFor, GoalsAgainst = GoalsAgainst, Captain = captain, Roster = Roster,
     };
 }
 

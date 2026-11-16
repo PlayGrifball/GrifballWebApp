@@ -30,6 +30,9 @@ public class HistoricalArchiveParsingTests
     private static readonly string[] StatsAndPlayoffStats = ["stats/Stats", "stats/Playoff Stats"];
     private static readonly (string, string?)[] PlaceholderTeamsRenamed = [("A", "THE WINNERS TEAM"), ("B", "THE WINNERS TEAM"), ("C", "Mystery Heroes"), ("D", "Trespa5s"), ("E", null), ("A", "THE WINNERS TEAM")];
     private static readonly string[] BravoThenAlpha = ["Bravo", "Alpha"];
+    private static readonly (string, string?)[] CaptainOnlyIfAPlayer = [("Alpha", "Ace"), ("Bravo", null)];
+    private static readonly string[] TeamOneAndTen = ["Team 1", "Team 10"];
+    private static readonly string[] TeamAlfaTwice = ["Team Alfa", "Team Alfa"];
     private static readonly string[] MysteryHeroesThenTheWinners = ["Mystery Heroes", "THE WINNERS TEAM", "Trespa5s"];
     private static readonly string[] StatsNamesOfStandingsTeams = ["Chemical Imbalance", "Like Clockwork", "Bravo", "Alpah Team", "Puffy Grifbussy", "Buff Oily Men (& Women)", "SML08 All Stars + Kazink", "(TBD)"];
     private static readonly string[] expected11 = ["gwl: no sheet 'Missing'"];
@@ -829,6 +832,55 @@ public class HistoricalArchiveParsingTests
 
         Assert.That(teams, Is.EqualTo(StatsNamesOfStandingsTeams),
             "A few letters off, the same letters, or the name without a note in brackets is the stats' team; a team no stats name, or one further off, keeps its own name");
+    }
+
+    private static HistoricalSourceContent StandingsSeason(object?[][] stats, params (string Sheet, StandingsTab Tab, object?[][] Rows)[] standings)
+        => Source("s", new HistoricalSourceConfig
+            {
+                Season = new SeasonDefaults { Name = "Winter League 2025", Game = "infinite" },
+                Tabs = [new() { Name = "Stats" }],
+                Standings = [.. standings.Select(s => s.Tab)],
+            },
+            Workbook([("Stats", stats), .. standings.Select(s => (s.Sheet, s.Rows))]));
+
+    [Test]
+    public void AStandingsCaptain_IsKept_OnlyWhenTheSeasonsStatsHaveThatPlayer()
+    {
+        // "Team (captain)" gives a nickname as often as a gamertag: a nickname would make a placeholder player. A gamertag
+        // is the stats' spelling of it
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("Ace", "Alpha", 4, 1), Row("Bee", "Bravo", 4, 1)],
+            ("Standings", new StandingsTab { Sheet = "Standings", CaptainInName = true }, [Row("Team", "Wins", "Losses"), Row("Alpha (ace)", 9, 1), Row("Bravo (Beezy)", 1, 9)]));
+
+        var teams = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single().Teams;
+
+        Assert.That(teams.Select(t => (t.TeamName, t.Captain)), Is.EqualTo(CaptainOnlyIfAPlayer));
+    }
+
+    [Test]
+    public void AStandingsTeamWhoseNumberDiffers_IsNoStatsTeamALetterAway()
+    {
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("A", "Team 1", 4, 1)],
+            ("Standings", new StandingsTab { Sheet = "Standings" }, [Row("Team", "Wins", "Losses"), Row("Team 1", 9, 1), Row("Team 10", 1, 9)]));
+
+        var teams = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single().Teams;
+
+        Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(TeamOneAndTen));
+    }
+
+    [Test]
+    public void TwoStandingsTabsOfASeason_SpellingATeamTwoWays_GiveItOneName()
+    {
+        // The stats name no team: the second tab takes the first tab's name
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("A", null, 4, 1)],
+            ("Draft Sheet", new StandingsTab { Sheet = "Draft Sheet", Layout = StandingsLayout.Columns, Anchor = "Team Name:" }, [Row("Season Standings", 1), Row("Team Name:", "Team Alfa")]),
+            ("Standings", new StandingsTab { Sheet = "Standings" }, [Row("Team", "Wins", "Losses"), Row("Team Alpha", 9, 1)]));
+
+        var teams = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single().Teams;
+
+        Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(TeamAlfaTwice));
     }
 
     [Test]

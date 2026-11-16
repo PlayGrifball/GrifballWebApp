@@ -21,8 +21,9 @@ public class TeamStandingsService
 
     /// <summary>
     /// The season's teams by their records, most wins first; a season whose source spreadsheet ranks its teams in one table
-    /// (each rank once) in the sheet's order, its tiebreakers included, the teams it doesn't rank last. Several divisions'
-    /// tables rank from 1st each: their season keeps the records' order.
+    /// (each rank once, at least half its teams ranked) in the sheet's order, its tiebreakers included, the teams it doesn't
+    /// rank last. Several divisions' tables rank from 1st each, and a sheet that seeds only a few teams (or ties two)
+    /// doesn't order the season: those keep the records' order.
     /// </summary>
     public async Task<TeamStandingDto[]> GetTeamStandings(int seasonID, CancellationToken ct = default)
     {
@@ -32,7 +33,7 @@ public class TeamStandingsService
             .Select(TeamRecord.Select(t => new StandingRecord { Rank = t.ArchivedRank, Finish = t.ArchivedFinish }))
             .ToArrayAsync(ct);
         var ranks = records.Select(r => r.Rank).OfType<int>().ToList();
-        var bySheet = ranks.Count > 0 && ranks.Distinct().Count() == ranks.Count;
+        var bySheet = ranks.Count > 0 && ranks.Count * 2 >= records.Length && ranks.Distinct().Count() == ranks.Count;
         var ordered = bySheet
             ? records.OrderBy(r => r.Rank ?? int.MaxValue).ThenByDescending(r => r.Wins).ThenBy(r => r.Losses)
             : records.OrderByDescending(r => r.Wins).ThenBy(r => r.Losses);

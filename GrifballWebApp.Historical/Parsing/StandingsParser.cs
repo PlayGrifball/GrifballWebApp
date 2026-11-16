@@ -23,8 +23,8 @@ public static partial class StandingsParser
         ["w"] = Field.Wins, ["win"] = Field.Wins, ["wins"] = Field.Wins,
         ["l"] = Field.Losses, ["loss"] = Field.Losses, ["losses"] = Field.Losses,
         ["record"] = Field.Record, ["w-l"] = Field.Record,
-        ["rank"] = Field.Rank, ["seed"] = Field.Rank, ["standing"] = Field.Rank, ["standings"] = Field.Rank, ["season standing"] = Field.Rank, ["season standings"] = Field.Rank,
-        ["place"] = Field.Finish, ["place finished"] = Field.Finish, ["finish"] = Field.Finish, ["final place"] = Field.Finish, ["playoffs"] = Field.Finish,
+        ["rank"] = Field.Rank, ["seed"] = Field.Rank, ["place"] = Field.Rank, ["standing"] = Field.Rank, ["standings"] = Field.Rank, ["season standing"] = Field.Rank, ["season standings"] = Field.Rank,
+        ["place finished"] = Field.Finish, ["finish"] = Field.Finish, ["final place"] = Field.Finish, ["playoffs"] = Field.Finish,
         ["playoff ending"] = Field.Finish, ["ending"] = Field.Finish,
         ["captain"] = Field.Captain,
     };
@@ -69,22 +69,24 @@ public static partial class StandingsParser
         return teams.List;
     }
 
-    /// <summary>A table's columns: from its team column to the right, up to another table's team header, and left of it
-    /// too (a TeamInfo tab's "Seed #" in A).</summary>
+    /// <summary>A table's columns: from its team column to the right, and to the left (a TeamInfo tab's "Seed #" in A),
+    /// each way up to another table's team header (a table beside it).</summary>
     private static Dictionary<Field, int> RowColumns(string[] header, int teamColumn)
     {
         var columns = new Dictionary<Field, int>();
-        for (var c = teamColumn + 1; c < header.Length; c++)
+        void Scan(int step)
         {
-            var field = FieldOf(header[c]);
-            if (field == Field.Team)
-                break;
-            if (field is { } known)
-                columns.TryAdd(known, c);
+            for (var c = teamColumn + step; c >= 0 && c < header.Length; c += step)
+            {
+                var field = FieldOf(header[c]);
+                if (field == Field.Team)
+                    return;
+                if (field is { } known)
+                    columns.TryAdd(known, c);
+            }
         }
-        for (var c = teamColumn - 1; c >= 0; c--)
-            if (FieldOf(header[c]) is { } field and not Field.Team)
-                columns.TryAdd(field, c);
+        Scan(1);
+        Scan(-1);
         return columns;
     }
 
@@ -99,11 +101,17 @@ public static partial class StandingsParser
 
     private static List<ArchiveTeam> ByColumn(SheetTable sheet, int namesRow, int labelColumn, StandingsTab tab)
     {
-        // The labelled rows: the label's first row
+        // This block's labelled rows: below its names, up to the next block's names row; and above them (a chart's
+        // "Season Standings" over "Team Name:") when no block is above it. Never another block's.
+        bool IsNamesRow(int r) => FieldOf(sheet.Cell(r, labelColumn)) == Field.Team;
         var rows = new Dictionary<Field, int>();
-        for (var r = 0; r < sheet.Rows.Count; r++)
-            if (r != namesRow && FieldOf(sheet.Cell(r, labelColumn)) is { } field and not Field.Team)
+        for (var r = namesRow + 1; r < sheet.Rows.Count && !IsNamesRow(r); r++)
+            if (FieldOf(sheet.Cell(r, labelColumn)) is { } field)
                 rows.TryAdd(field, r);
+        if (!Enumerable.Range(0, namesRow).Any(IsNamesRow))
+            for (var r = namesRow - 1; r >= 0; r--)
+                if (FieldOf(sheet.Cell(r, labelColumn)) is { } field)
+                    rows.TryAdd(field, r);
         var teams = new Teams(tab);
         var names = sheet.Rows[namesRow];
         for (var c = labelColumn + 1; c < names.Length; c++)
@@ -168,6 +176,14 @@ public static partial class StandingsParser
                 Finish = Place(value(Field.Finish)),
             });
         }
+    }
+
+    /// <summary>A name without the note in brackets at its end: "Puffy Grifbussy (WINNER)" is "Puffy Grifbussy"; a name
+    /// that is all brackets stays as it is.</summary>
+    public static string WithoutNote(string name)
+    {
+        var trimmed = name.Trim();
+        return TrailingBracketRegex().Match(trimmed) is { Success: true } m && m.Index > 0 ? trimmed[..m.Index].TrimEnd() : trimmed;
     }
 
     /// <summary>A cell's name and its trailing brackets: the first that is a record ("(17-3)"), and the others in order.</summary>
