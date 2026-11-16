@@ -53,13 +53,19 @@ public sealed record ScheduledMatch(int SeasonMatchID, int HomeTeamID, int AwayT
 public sealed class ScheduleChecker(DateTime seasonStart, DateTime seasonEnd, SeasonSchedulingRules rules, IReadOnlyCollection<(DayOfWeek Day, TimeOnly Time)> slots,
     IReadOnlyDictionary<int, IReadOnlySet<(DayOfWeek Day, TimeOnly Time)>> teamSlots, TimeZoneInfo league)
 {
-    /// <summary>How long a game of a series takes, for its length (<see cref="LengthOf"/>).</summary>
+    /// <summary>How long a game of a series takes to play.</summary>
     public const int MinutesPerGame = 15;
+
+    /// <summary>The time to get both teams into the lobby before a match: scheduling keeps it, the calendar doesn't show it.</summary>
+    public static readonly TimeSpan LobbyTime = TimeSpan.FromMinutes(15);
 
     private readonly HashSet<(DayOfWeek, TimeOnly)> _slots = [.. slots];
 
-    /// <summary>How long a best-of-<paramref name="bestOf"/> series takes: all its games.</summary>
-    public static TimeSpan LengthOf(int bestOf) => TimeSpan.FromMinutes(MinutesPerGame * Math.Max(bestOf, 1));
+    /// <summary>
+    /// How much time scheduling keeps for a best-of-<paramref name="bestOf"/> series: its games and the lobby before them, so two
+    /// matches set back to back still leave the second's teams time to get in.
+    /// </summary>
+    public static TimeSpan LengthOf(int bestOf) => TimeSpan.FromMinutes(MinutesPerGame * Math.Max(bestOf, 1)) + LobbyTime;
 
     /// <summary>What is wrong with <paramref name="match"/>'s time, given the season's <paramref name="others"/> (scheduled); none: it can stand.</summary>
     public IReadOnlyList<ScheduleConflict> Check(ScheduledMatch match, IEnumerable<ScheduledMatch> others)
