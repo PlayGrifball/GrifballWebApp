@@ -135,11 +135,11 @@ metadata:
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: mssql
-    {{- with include "grif.onDemandLabels" (dict "root" . "replicas" 1) | trim }}{{ . | nindent 4 }}{{ end }}
+    {{- with include "grif.onDemandLabels" (dict "root" . "component" "mssql" "replicas" 1) | trim }}{{ . | nindent 4 }}{{ end }}
   annotations:
     argocd.argoproj.io/sync-wave: "-2"
 spec:
-  {{- with include "grif.replicas" (dict "root" . "replicas" 1) }}
+  {{- with include "grif.replicas" (dict "root" . "component" "mssql" "replicas" 1) }}
   {{ . }}
   {{- end }}
   selector:

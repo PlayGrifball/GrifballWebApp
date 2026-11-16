@@ -64,13 +64,40 @@ Unset, the other kind than the app's: PostgreSQL beside SQL Server or SQLite, SQ
 {{- end }}
 
 {{/*
-A Deployment's labels with onDemand: in the group, so Sablier stops it while nobody visits and starts it on a
-visit. Both key forms: sablier.* (every Sablier release) and sablierapp.dev/* (the Kubernetes form newer ones
+The components onDemand keeps running, out of the group (a JSON list of app.kubernetes.io/component values):
+onDemand.exclude, plus what the excluded apps need from the chart. The backend (backend) or the Discord bot
+(discord, with worker.enabled) keeps the database, Redis and Ollama; the worker (worker, with worker.enabled) the
+database and Redis. A database kept running keeps its SQL exporter.
+*/}}
+{{- define "grif.onDemandKept" -}}
+{{- $root := . }}
+{{- $kept := .Values.onDemand.exclude | default list }}
+{{- $needs := dict "backend" (list "mssql" "postgres" "redis" "ollama") }}
+{{- if .Values.worker.enabled }}
+{{- $_ := set $needs "worker" (list "mssql" "postgres" "redis") }}
+{{- $_ := set $needs "discord" (list "mssql" "postgres" "redis" "ollama") }}
+{{- end }}
+{{- range $app, $stores := $needs }}
+{{- if has $app $kept }}{{ $kept = concat $kept $stores }}{{ end }}
+{{- end }}
+{{- if or (has "mssql" $kept) (has "postgres" $kept) }}{{ $kept = append $kept "sql-exporter" }}{{ end }}
+{{- $kept | uniq | toJson }}
+{{- end }}
+
+{{/* "true" when a component (app.kubernetes.io/component) is in the onDemand group: onDemand on, and the
+   component not kept running (grif.onDemandKept). Takes dict "root", "component". */}}
+{{- define "grif.onDemandIn" -}}
+{{- if and .root.Values.onDemand.enabled (not (has .component (include "grif.onDemandKept" .root | fromJsonArray))) }}true{{ end -}}
+{{- end }}
+
+{{/*
+A Deployment's labels in the onDemand group (grif.onDemandIn): Sablier stops it while nobody visits and starts it
+on a visit. Both key forms: sablier.* (every Sablier release) and sablierapp.dev/* (the Kubernetes form newer ones
 prefer); the same values, so either reads the same. Sablier starts a Deployment at 1 replica unless
-active.replicas says more. Takes dict "root", "replicas".
+active.replicas says more. Takes dict "root", "component", "replicas".
 */}}
 {{- define "grif.onDemandLabels" -}}
-{{- if .root.Values.onDemand.enabled }}
+{{- if include "grif.onDemandIn" . }}
 {{- $group := include "grif.onDemandGroup" .root }}
 {{- range $prefix := list "sablier." "sablierapp.dev/" }}
 {{ $prefix }}enable: "true"
@@ -82,16 +109,17 @@ active.replicas says more. Takes dict "root", "replicas".
 {{- end }}
 {{- end }}
 
-{{/* A Deployment's replicas: none with onDemand, where Sablier scales it (a count here would be set back by
-   every Helm upgrade or Argo CD sync). Takes dict "root", "replicas". */}}
+{{/* A Deployment's replicas: none in the onDemand group (grif.onDemandIn), where Sablier scales it (a count here
+   would be set back by every Helm upgrade or Argo CD sync). Takes dict "root", "component", "replicas". */}}
 {{- define "grif.replicas" -}}
-{{- if not .root.Values.onDemand.enabled }}replicas: {{ .replicas }}{{ end -}}
+{{- if not (include "grif.onDemandIn" .) }}replicas: {{ .replicas }}{{ end -}}
 {{- end }}
 
-{{/* "true" with onDemand and the chart's own database (in the group, so stopped while nobody visits): the Jobs
-   that wait for it start the group first (grif.waitForDatabaseScript). */}}
+{{/* "true" with the chart's own database in the onDemand group (stopped while nobody visits): the Jobs that wait
+   for it start the group first (grif.waitForDatabaseScript). A database onDemand keeps running needs no start. */}}
 {{- define "grif.onDemandWakesDatabase" -}}
-{{- if and .Values.onDemand.enabled (include "grif.bundled" .) (not .Values.database.host) }}true{{ end -}}
+{{- $database := ternary "postgres" "mssql" (eq .Values.database.provider "postgres") }}
+{{- if and (include "grif.bundled" .) (not .Values.database.host) (include "grif.onDemandIn" (dict "root" . "component" $database)) }}true{{ end -}}
 {{- end }}
 
 {{/* "true" with database.provider postgres; empty with sqlserver. */}}

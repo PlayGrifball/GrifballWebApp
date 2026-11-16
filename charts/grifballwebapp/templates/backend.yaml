@@ -48,9 +48,9 @@ metadata:
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: backend
-    {{- with include "grif.onDemandLabels" (dict "root" . "replicas" $b.replicas) | trim }}{{ . | nindent 4 }}{{ end }}
+    {{- with include "grif.onDemandLabels" (dict "root" . "component" "backend" "replicas" $b.replicas) | trim }}{{ . | nindent 4 }}{{ end }}
 spec:
-  {{- with include "grif.replicas" (dict "root" . "replicas" $b.replicas) }}
+  {{- with include "grif.replicas" (dict "root" . "component" "backend" "replicas" $b.replicas) }}
   {{ . }}
   {{- end }}
   selector:

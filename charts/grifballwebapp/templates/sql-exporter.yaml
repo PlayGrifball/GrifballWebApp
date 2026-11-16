@@ -37,9 +37,9 @@ metadata:
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: sql-exporter
-    {{- with include "grif.onDemandLabels" (dict "root" . "replicas" 1) | trim }}{{ . | nindent 4 }}{{ end }}
+    {{- with include "grif.onDemandLabels" (dict "root" . "component" "sql-exporter" "replicas" 1) | trim }}{{ . | nindent 4 }}{{ end }}
 spec:
-  {{- with include "grif.replicas" (dict "root" . "replicas" 1) }}
+  {{- with include "grif.replicas" (dict "root" . "component" "sql-exporter" "replicas" 1) }}
   {{ . }}
   {{- end }}
   selector:
