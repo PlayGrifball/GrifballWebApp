@@ -873,6 +873,39 @@ public class HistoricalArchiveParsingTests
         }
     }
 
+    [Test]
+    public void ABracketInItsSeasonsOwnWorkbook_GoesOnItsTab_AndRoundTabsOfNoSeasonAreWarned()
+    {
+        List<HistoricalSourceContent> sources =
+        [
+            Source("own", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Respawn Series", Game = "halo4" },
+                    Tabs = [new() { Name = "Stats" }, new() { Name = "Other", CustomSeason = "Other Series" }],
+                    Brackets =
+                    [
+                        new() { Rounds = [new() { Sheet = "Round 1", Round = 1 }], Tab = "Stats" },
+                        new() { Rounds = [new() { Sheet = "Round 1", Round = 1 }], Season = "nothing" },
+                    ],
+                },
+                Workbook(("Stats", [Row("Player", "Team", "Games", "Kills"), Row("A", "Alpha", 1, 1), Row("B", "Bravo", 1, 1)]),
+                    ("Other", [Row("Player", "Team", "Games", "Kills"), Row("C", "Charlie", 1, 1)]),
+                    ("Round 1", [Row("Seed", "Team Name", "Player", "Wins"), Row(1, "Alpha", "A", 1), Row(2, "Bravo", "B", 0)]))),
+        ];
+
+        var everything = HistoricalArchiveBuilder.Build(sources);
+        var otherChanged = HistoricalArchiveBuilder.Build(sources, new HashSet<string> { "elsewhere" });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(everything.Input.Seasons.Seasons.Single(s => s.SourceSheet == "Stats").Bracket!.Series.Select(x => (x.Home, x.Away, x.Winner)),
+                Is.EqualTo(new (string, string, SeasonMatchSide?)[] { ("Alpha", "Bravo", SeasonMatchSide.Home) }));
+            Assert.That(everything.Input.Seasons.Seasons.Single(s => s.SourceSheet == "Other").Bracket, Is.Null);
+            Assert.That(everything.Warnings, Does.Contain("own: bracket 'Round 1' not read (no season from nothing)"));
+            Assert.That(otherChanged.Seasons, Is.Empty, "Nothing of an unchanged source");
+        }
+    }
+
     private static HistoricalSourceContent StandingsSeason(object?[][] stats, params (string Sheet, StandingsTab Tab, object?[][] Rows)[] standings)
         => Source("s", new HistoricalSourceConfig
             {

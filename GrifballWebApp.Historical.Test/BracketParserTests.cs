@@ -14,6 +14,7 @@ namespace GrifballWebApp.Historical.Test;
 public class BracketParserTests
 {
     private static readonly string[] NoPlayoffsSheet = ["wb: no bracket sheet 'Playoffs'"];
+    private static readonly string[] NoSheetNamed = ["wb: no bracket sheet ''"];
     private static readonly string[] OddTeamAndMissingTab =
     [
         "wb: bracket round 'Round 1' has a team without an opponent (Charlie); left out",
@@ -225,6 +226,84 @@ public class BracketParserTests
         }
     }
 
+    [Test]
+    public void Cells_WhatTheCellsLeaveUnsaid_StaysUnsaid()
+    {
+        var sheet = Cells("Bracket",
+            // A winner cell naming neither side, and a score that is no score
+            ("A1", "Alpha"), ("A3", "Bravo"), ("A2", "TBD"), ("A4", "Zulu"),
+            // Even wins of their own cells
+            ("B1", "Charlie"), ("B3", "Delta"), ("C1", "1"), ("C3", "1"),
+            // A score naming its winner after the winner cell said it, and wins of nothing in their own cells
+            ("D1", "Echo"), ("D3", "Foxtrot"), ("D2", "2-0 Foxtrot"), ("D4", "Echo"), ("E1", "0"), ("E3", "0"),
+            // A score naming nobody
+            ("F1", "Golf"), ("F3", "Hotel"), ("F2", "2-1"),
+            // A score of nothing
+            ("G1", "India"), ("G3", "Juliet"), ("G2", "vs (0-0)"));
+        var tab = new BracketTab
+        {
+            Sheet = "Bracket",
+            Slots =
+            [
+                new() { Round = 1, Home = "A1", Away = "A3", Score = "A2", Winner = "A4" },
+                new() { Round = 1, Home = "B1", Away = "B3", Score = "B2", HomeScore = "C1", AwayScore = "C3", Winner = "B4" },
+                new() { Round = 1, Home = "D1", Away = "D3", Score = "D2", HomeScore = "E1", AwayScore = "E3", Winner = "D4", BestOf = 3 },
+                new() { Round = 1, Home = "F1", Away = "F3", Score = "F2" },
+                new() { Round = 1, Home = "G1", Away = "G3", Score = "G2" },
+            ],
+        };
+
+        var series = Parse(tab, sheet).Series.Select(s => (s.Home, s.HomeWins, s.AwayWins, s.Winner, s.BestOf));
+
+        Assert.That(series, Is.EqualTo(new (string, int?, int?, SeasonMatchSide?, int?)[]
+        {
+            ("Alpha", null, null, null, null),
+            ("Charlie", 1, 1, null, null),
+            ("Echo", 2, 0, SeasonMatchSide.Home, 3),
+            ("Golf", null, null, null, null),
+            ("India", null, null, null, null),
+        }), "Echo's winner cell wins over its score's name; 1-1 and 0-0 decide nothing");
+    }
+
+    [Test]
+    public void Cells_NoSheetNamed_IsNoBracket_Warned()
+    {
+        Assert.That(BracketParser.Parse("wb", new BracketTab(), Workbook(), _warnings), Is.Null);
+        Assert.That(_warnings, Is.EqualTo(NoSheetNamed));
+    }
+
+    [Test]
+    public void Rounds_ALosersSeriesWithoutAWinner_IsWonByTheTeamThatPlaysOnInTheLosersBracket()
+    {
+        // No Seed or Wins column; rows before any team are nobody's; a losers' header without a round is the tab's round
+        var round = new SheetTable
+        {
+            Name = "Round 1",
+            Rows =
+            [
+                ["Team Name", "Player"], ["", "nobody"],
+                ["Alpha", "a1"], ["Bravo", "b1"],
+                ["Losers Bracket"],
+                ["Charlie", "c1"], ["Delta", "d1"],
+                ["Losers Bracket: Round 2"],
+                ["Bravo", "b1"], ["Delta", "d1"],
+                ["Losers Bracket: Round 3"],
+                ["Delta", "d1"], ["Echo", "e1"],
+            ],
+        };
+
+        var series = Parse(new BracketTab { Rounds = [new() { Sheet = "Round 1", Round = 1 }] }, round).Series
+            .Select(s => (s.Bracket, s.Round, s.Home, s.HomeSeed, s.Winner));
+
+        Assert.That(series, Is.EqualTo(new (Bracket, int, string, int?, SeasonMatchSide?)[]
+        {
+            (Bracket.Winner, 1, "Alpha", null, null),
+            (Bracket.Loser, 1, "Charlie", null, SeasonMatchSide.Away),
+            (Bracket.Loser, 2, "Bravo", null, SeasonMatchSide.Away),
+            (Bracket.Loser, 3, "Delta", null, null),
+        }), "Alpha and Bravo: a winners' series, and Bravo plays on only in the losers' bracket");
+    }
+
     [TestCase("S3", 3)]
     [TestCase("Seed 6", 6)]
     [TestCase("1st", 1)]
@@ -234,6 +313,9 @@ public class BracketParserTests
     [TestCase("", null)]
     [TestCase("0", null)]
     [TestCase("1.5", null)]
+    [TestCase("-1", null)]
+    [TestCase("S0", null)]
+    [TestCase("abc", null)]
     public void Seed_ReadsTheSheetsWaysOfWritingOne(string cell, int? seed)
     {
         Assert.That(BracketParser.Seed(cell), Is.EqualTo(seed));

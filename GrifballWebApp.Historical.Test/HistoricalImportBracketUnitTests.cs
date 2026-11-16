@@ -24,6 +24,7 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
     private static readonly DateTime CupPlayedAt = new(2016, 5, 1, 20, 0, 0, DateTimeKind.Utc);
 
     private static readonly int[] BestOfs = [3, 3, 1];
+    private static readonly string[] OmegaIsNoTeam = [$"{CupKey}: the bracket names 1 team(s) that are none of the season's (Omega); their slots have no team there"];
     private static readonly int[] GamesInTheFirstSlot = [1, 0, 0];
 
     private HistoricalImportService _service = null!;
@@ -36,10 +37,10 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
     }
 
     private static ArchiveBracketSeries Series(Bracket bracket, int round, int number, string home, string away, SeasonMatchSide? winner = null,
-        int? homeSeed = null, int? awaySeed = null, int? homeWins = null, int? awayWins = null) => new()
+        int? homeSeed = null, int? awaySeed = null, int? homeWins = null, int? awayWins = null, int? bestOf = null) => new()
     {
         Bracket = bracket, Round = round, Number = number, Home = home, Away = away, Winner = winner,
-        HomeSeed = homeSeed, AwaySeed = awaySeed, HomeWins = homeWins, AwayWins = awayWins,
+        HomeSeed = homeSeed, AwaySeed = awaySeed, HomeWins = homeWins, AwayWins = awayWins, BestOf = bestOf,
     };
 
     /// <summary>Four teams: Alpha (1) beat Delta (4) 2-0, Gamma (3) beat Beta (2) 2-1, Alpha won the final.</summary>
@@ -177,6 +178,32 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
             Assert.That(report.Warnings, Is.EqualTo(new[] { $"{CupKey}: the bracket names 1 team(s) that are none of the season's (Omega); their slots have no team there" }));
             Assert.That(bracket.Select(m => m.AwayTeamID), Is.All.Null);
             Assert.That(bracket[1].BracketMatch!.AwayTeamPreviousMatchBracketInfo!.MatchNumber, Is.EqualTo(1), "Omega comes from its first slot, by its name");
+        }
+    }
+
+    [Test]
+    public async Task Import_ASheetOfNoTeamOrAPlaceholder_SeedsBoth_WarnsOnlyOfTheName_AndKeepsItsLength()
+    {
+        var report = await _service.Import(Input(Cup([Series(Bracket.Winner, 1, 1, "Omega", "Team", bestOf: 5)])));
+
+        var slot = (await Slots()).Single();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Warnings, Is.EqualTo(OmegaIsNoTeam));
+            Assert.That((slot.HomeTeamID, slot.AwayTeamID, slot.BestOf), Is.EqualTo(((int?)null, (int?)null, 5)));
+            Assert.That((slot.BracketMatch!.HomeTeamSeedNumber, slot.BracketMatch.AwayTeamSeedNumber), Is.EqualTo(((int?)1, (int?)2)));
+        }
+    }
+
+    [Test]
+    public async Task Import_APlayoffGameWithASideOfNoTeam_IsInNoSlot()
+    {
+        var report = await _service.Import(Input(Cup(FourTeams()), [Game("cup#1", "Alpha", "Nobody")]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Warnings, Has.One.Contains("is in no slot of the bracket sheet"));
+            Assert.That(await Slots(), Has.Count.EqualTo(4));
         }
     }
 

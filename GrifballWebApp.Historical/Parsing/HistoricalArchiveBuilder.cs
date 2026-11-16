@@ -290,7 +290,7 @@ public sealed class HistoricalArchiveBuilder
                 && (tab.Tab is null || string.Equals(s.SourceSheet, tab.Tab, StringComparison.OrdinalIgnoreCase)));
             if (regular is null)
             {
-                _warnings.Add($"{sourceId}: bracket '{tab.Sheet ?? tab.Rounds.FirstOrDefault()?.Sheet}' not read (no season from {workbook})");
+                _warnings.Add($"{sourceId}: bracket '{tab.Sheet ?? tab.Rounds[0].Sheet}' not read (no season from {workbook})");
                 continue;
             }
             var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();

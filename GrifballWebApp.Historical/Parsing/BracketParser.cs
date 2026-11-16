@@ -247,13 +247,9 @@ public static partial class BracketParser
             var later = drafts.Skip(i + 1).Where(d => draft.Bracket is Bracket.Loser || d.Bracket is not Bracket.Loser).ToList();
             bool PlaysOn(string team) => later.Any(d => Same(d.Home, team) || Same(d.Away, team));
             var (home, away) = (PlaysOn(draft.Home), PlaysOn(draft.Away));
+            // A series without a winner has even wins, if any: whoever plays on won it
             if (home != away)
                 draft.Winner = home ? SeasonMatchSide.Home : SeasonMatchSide.Away;
-            if (draft.Winner is null || draft.HomeWins is null)
-                continue;
-            // Wins that say otherwise (one each of a forfeit's) aren't the series'
-            if ((draft.Winner is SeasonMatchSide.Home && draft.HomeWins < draft.AwayWins) || (draft.Winner is SeasonMatchSide.Away && draft.AwayWins < draft.HomeWins))
-                (draft.HomeWins, draft.AwayWins) = (null, null);
         }
     }
 
