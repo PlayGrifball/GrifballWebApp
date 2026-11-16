@@ -5,8 +5,8 @@
 //
 // Dark theme; the viewport is as tall as the whole dashboard, since Grafana only loads the panels it has on screen (its
 // rows are all open: tests/dashboard.test.mjs). Not "networkidle": Grafana keeps a live connection open, so the network
-// never goes quiet. It waits for a legend entry of "Requests by status" instead, which only renders once that query has
-// returned data, then gives the other panels time to draw.
+// never goes quiet. It waits for the 200 row of "Requests by status"'s legend (a table) instead, which only renders once
+// that query has returned data, then gives the other panels time to draw.
 import { chromium } from 'playwright';
 
 const [url, namespace, out] = process.argv.slice(2);
@@ -19,7 +19,8 @@ try {
   await page.goto(`${url}/d/grifballwebapp?${query}`, { waitUntil: 'load' });
   // The panels' data was checked already (dashboard-grafana.mjs): a legend that never shows is worth a warning, and the
   // picture is still taken, to show why
-  await page.waitForSelector('[data-testid="data-testid VizLegend series 200"]', { timeout: 60000 })
+  await page.locator('[data-testid="data-testid Panel header Requests by status"]').getByText('200', { exact: true })
+    .waitFor({ timeout: 60000 })
     .catch(error => console.log(`::warning::The dashboard's "Requests by status" legend didn't show: ${error.message}`));
   await page.waitForTimeout(15000);
   await page.screenshot({ path: out, fullPage: true });
