@@ -219,7 +219,7 @@ public static partial class RecordedGameParser
     {
         var columns = new Columns(sheet.Rows[headerRow]);
         var (played, wins, goals, kills, assists, deaths, stops) = (columns.Find("gamesplayed"), columns.Find("wins"), columns.Find("goals"),
-            columns.Find("kills"), columns.Find("assists"), columns.Find("deaths"), columns.Find("carrierkills"));
+            columns.Find("kills"), columns.Find("assists"), columns.Find("deaths"), columns.Find("carrierkills", "carrierkill"));
 
         // Sides by team name in order of appearance; a sub plays for the side above them
         var side = 1;
@@ -238,7 +238,8 @@ public static partial class RecordedGameParser
             if (named && !sideOf.TryGetValue(first, out side))
                 sideOf[first] = side = sideOf.Count + 1;
             var gamertag = ArchiveCells.Gamertag(Cell(row, 1)).Gamertag;
-            if (gamertag.Length == 0 || (Int(row, played) ?? 0) == 0)
+            // A player who didn't play has 0 games; a block without a games column (DJBluePDX's) lists only who played
+            if (gamertag.Length == 0 || (played >= 0 ? (Int(row, played) ?? 0) == 0 : Int(row, kills) is null && Int(row, deaths) is null))
                 continue;
             players.Add(new RecordedPlayerInput
             {
@@ -329,7 +330,9 @@ public static partial class RecordedGameParser
     [GeneratedRegex("playoff|final|semi|quarter|championship", RegexOptions.IgnoreCase)]
     private static partial Regex PlayoffsPattern();
 
-    [GeneratedRegex(@"^(?<phase>[^-]*?)\s*-.*\s(?<verb>over|tied)\s", RegexOptions.IgnoreCase)]
+    // "Week 1 - 1/28/19 - A over B (5-2)", or the winner first with no phase: "A over B 5-3 - host" (DJBluePDX's, one
+    // title of which spells it "pver")
+    [GeneratedRegex(@"^(?:(?<phase>[^-]*?)\s*-.*\s|[^-]+?\s)(?<verb>over|pver|tied)\s", RegexOptions.IgnoreCase)]
     private static partial Regex TitlePattern();
 
     [GeneratedRegex(@"\(?\b(\d{1,2})-(\d{1,2})\b\)?")]

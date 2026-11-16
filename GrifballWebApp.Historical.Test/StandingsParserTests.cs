@@ -17,6 +17,7 @@ public class StandingsParserTests
 
     private static readonly (string, int?, int?)[] SecondBlockOwnRanks = [("Charlie", 2, null), ("Delta", 1, null)];
     private static readonly (string, int?, int?)[] LegacyWithoutProSeeds = [("Legacy A", null, 7), ("Legacy B", null, 3)];
+    private static readonly (string, string?, string)[] RosterTeams = [("No Way Out", "Ire Paroxysm (Hide)", "oDhmon,l Copilot l"), ("Oblivion", null, "Skiyttles")];
 
     private static SheetTable Sheet(params string[][] rows) => new() { Name = "Standings", Rows = [.. rows] };
 
@@ -97,6 +98,23 @@ public class StandingsParserTests
         {
             ("Junkyard Dogs", 1, null, 8, 0, null), ("High Voltage", 2, null, 5, 3, null), ("Impulse", 3, null, 3, 5, null),
         }));
+    }
+
+    [Test]
+    public void Rows_ARosterTable_GivesEachTeamItsCaptainAndPlayers_WithoutNicknames_AndEndsAtAPlayersTable()
+    {
+        // SL20 Console Reach's Rosters: Team, Captain, Player 1-5 (a nickname in brackets after some), then a table of
+        // gamertags and their restrictions
+        var sheet = Sheet(
+            ["Team", "Captain", "Player 1", "Player 2", "Player 3"],
+            ["No Way Out", "Ire Paroxysm (Hide)", "oDhmon", "l Copilot l (MvRetrograder)"],
+            ["Oblivion", "", "Skiyttles"],
+            ["Gamertag", "Regular Season Restrictions", "Playoff Restrictions"],
+            ["Someone", "None", "None"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Rosters" });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Captain, string.Join(",", t.Roster))), Is.EqualTo(RosterTeams));
     }
 
     [Test]

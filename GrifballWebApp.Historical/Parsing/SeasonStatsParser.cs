@@ -49,7 +49,29 @@ public static partial class SeasonStatsParser
             if (ParseTab(sourceId, config, workbook, tab, rosters, warnings) is { } season)
                 seasons.Add(season);
         }
+        if (TeamsOnly(sourceId, config) is { } teamsOnly)
+            seasons.Add(teamsOnly);
         return seasons;
+    }
+
+    /// <summary>The season of a workbook with no stats tabs or tables (a league that kept no player stats): an entry with
+    /// no player lines, keyed by its first standings tab of its own, whose teams the standings give. Null for any other.</summary>
+    private static ArchiveSeason? TeamsOnly(string sourceId, HistoricalSourceConfig config)
+    {
+        if (config.Season is not { } defaults || config.Tabs.Count > 0 || config.Tables.Count > 0
+            || config.Standings.FirstOrDefault(s => s.Season is null) is not { } standings)
+            return null;
+        return new ArchiveSeason
+        {
+            SeasonName = defaults.Name,
+            GameVersion = defaults.Game ?? "",
+            League = defaults.League ?? "AGLA",
+            Division = defaults.Division ?? "Open",
+            Format = defaults.Format,
+            SourceWorkbook = sourceId,
+            SourceSheet = standings.Sheet,
+            Titles = defaults.Titles,
+        };
     }
 
     /// <summary>The teams' rosters, for players whose row names no team (or only the side of a game).</summary>
@@ -78,6 +100,8 @@ public static partial class SeasonStatsParser
             return null;
         }
         var columns = ColumnsOf(sheet.Rows[tab.HeaderRow]);
+        foreach (var ignored in tab.IgnoreColumns ?? [])
+            columns.Remove(ignored);
         var dataRows = sheet.Rows.Skip(tab.HeaderRow + 1).ToList();
         // A Team column of only 0s and 1s is the side of the player's last game (the stats tool's sheets), not a team
         var teamColumns = columns.Where(c => c.Value.Key == "teamName").Select(c => c.Key).ToList();
@@ -486,6 +510,10 @@ public static partial class SeasonStatsParser
         var kills = Count("kills");
         var deaths = Count("deaths");
         var kdRatio = Value("kdRatio") ?? (deaths > 0 ? Math.Round(kills!.Value / deaths!.Value, 3, MidpointRounding.AwayFromZero) : (decimal?)null);
+        // A table of games and wins with no losses column (DJBluePDX's): a game not won is lost
+        var losses = columns.Values.Any(c => c.Key == "losses") || Value("gamesPlayed") is not { } games || Value("wins") is not { } wins
+            ? Count("losses")
+            : Math.Max(games - wins, 0);
         return new ArchivePlayer
         {
             Gamertag = gamertag,
@@ -495,7 +523,7 @@ public static partial class SeasonStatsParser
             StintIndex = stint,
             GamesPlayed = Count("gamesPlayed"),
             Wins = Count("wins"),
-            Losses = Count("losses"),
+            Losses = losses,
             WinPercent = Value("winPercent"),
             Goals = Count("goals"),
             Kills = kills,

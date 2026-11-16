@@ -10,12 +10,13 @@ namespace GrifballWebApp.Historical.Parsing;
 /// labels) found by their headers, or a list of teams down a column, read into <see cref="ArchiveTeam"/>s with any of a
 /// record (Wins and Losses, or a Record like "12-8 (7-2)", the regular season's first), a rank (Rank, Seed, Standing,
 /// Season Standings, or the team's order when the tab is <see cref="StandingsTab.Ranked"/>), a final place (Place
-/// Finished, Finish, Playoffs, Playoff Ending: "3rd (Semi-Finals)") and a captain (Captain, or "Team (captain)").
+/// Finished, Finish, Playoffs, Playoff Ending: "3rd (Semi-Finals)"), a captain (Captain, or "Team (captain)") and its other
+/// players (Player 1, Player 2, ..., a gamertag each, a nickname in brackets after it left off).
 /// A team is listed once, at its first row (a TeamInfo tab has a row per player).
 /// </summary>
 public static partial class StandingsParser
 {
-    private enum Field { Team, Wins, Losses, Record, Rank, Finish, Captain }
+    private enum Field { Team, Wins, Losses, Record, Rank, Finish, Captain, Player }
 
     private static readonly Dictionary<string, Field> Headers = new(StringComparer.Ordinal)
     {
@@ -55,7 +56,7 @@ public static partial class StandingsParser
 
     private static List<ArchiveTeam> ByRow(SheetTable sheet, int headerRow, int teamColumn, StandingsTab tab)
     {
-        var columns = RowColumns(sheet.Rows[headerRow], teamColumn);
+        var (columns, players) = RowColumns(sheet.Rows[headerRow], teamColumn);
         var teams = new Teams(tab);
         for (var r = headerRow + 1; r < sheet.Rows.Count; r++)
         {
@@ -67,16 +68,24 @@ public static partial class StandingsParser
                 continue;
             }
             // An empty team cell after its teams ends the table, unless another division's header comes next: what's
-            // further down the column (another list, a schedule) isn't the standings'
-            if (name.Length == 0 && teams.List.Count > 0 && !NextNameIsAHeader(sheet, r, teamColumn))
+            // further down the column (another list, a schedule) isn't the standings'. So does a players table's header
+            // (a roster tab's Gamertag | Restrictions below its teams)
+            if ((name.Length == 0 && teams.List.Count > 0 && !NextNameIsAHeader(sheet, r, teamColumn)) || IsPlayersHeader(name))
                 break;
             var row = r;
             string Value(Field field) => columns.TryGetValue(field, out var c) ? sheet.Cell(row, c).Trim() : "";
-            if (name.Length > 0 && IsTeamRow(columns.Keys, Value))
-                teams.Add(name, Value);
+            var roster = players.Select(c => Gamertag(sheet.Cell(row, c))).Where(p => p.Length > 0).ToList();
+            if (name.Length > 0 && IsTeamRow(columns.Keys, Value, roster.Count > 0))
+                teams.Add(name, Value, roster);
         }
         return teams.List;
     }
+
+    private static bool IsPlayersHeader(string cell) => Normalize(cell) is "gamertag" or "gamertags" or "player" or "players" or "player name";
+
+    /// <summary>A player's cell as a gamertag: without the nickname in brackets after it ("Ire Paroxysm (Hide)") or a role
+    /// note ("(c)").</summary>
+    public static string Gamertag(string cell) => ArchiveCells.Gamertag(WithoutNote(cell)).Gamertag;
 
     /// <summary>The next row below <paramref name="row"/> with a name in the team column is a team header.</summary>
     private static bool NextNameIsAHeader(SheetTable sheet, int row, int teamColumn)
@@ -91,10 +100,12 @@ public static partial class StandingsParser
     }
 
     /// <summary>A table's columns: from its team column to the right, and to the left (a TeamInfo tab's "Seed #" in A),
-    /// each way up to another table's team header or a gap of two empty header cells (a table beside it).</summary>
-    private static Dictionary<Field, int> RowColumns(string[] header, int teamColumn)
+    /// each way up to another table's team header or a gap of two empty header cells (a table beside it); and its players'
+    /// columns, in order.</summary>
+    private static (Dictionary<Field, int> Columns, List<int> Players) RowColumns(string[] header, int teamColumn)
     {
         var columns = new Dictionary<Field, int>();
+        var players = new List<int>();
         void Scan(int step)
         {
             var empty = 0;
@@ -107,22 +118,24 @@ public static partial class StandingsParser
                 var field = FieldOf(header[c]);
                 if (field == Field.Team)
                     return;
-                if (field is { } known)
+                if (field == Field.Player)
+                    players.Add(c);
+                else if (field is { } known)
                     columns.TryAdd(known, c);
             }
         }
         Scan(1);
         Scan(-1);
-        return columns;
+        return (columns, players.Order().ToList());
     }
 
-    /// <summary>A team's row has a number of the table's (a win, a loss, a record, a place) or, a table of only names and
-    /// captains, a value: a row without (a note, another table's) isn't one.</summary>
-    private static bool IsTeamRow(IEnumerable<Field> columns, Func<Field, string> value)
+    /// <summary>A team's row has a number of the table's (a win, a loss, a record, a place) or, a table of only names,
+    /// captains and players, a name: a row without (a note, another table's) isn't one.</summary>
+    private static bool IsTeamRow(IEnumerable<Field> columns, Func<Field, string> value, bool hasPlayers)
     {
         var fields = columns.ToList();
         var numbers = fields.Where(f => f is not Field.Captain).ToList();
-        return numbers.Count > 0 ? numbers.Any(f => IsNumber(f, value(f))) : fields.Any(f => value(f).Length > 0);
+        return numbers.Count > 0 ? numbers.Any(f => IsNumber(f, value(f))) : hasPlayers || fields.Any(f => value(f).Length > 0);
     }
 
     private static List<ArchiveTeam> ByColumn(SheetTable sheet, int namesRow, int labelColumn, StandingsTab tab)
@@ -183,7 +196,7 @@ public static partial class StandingsParser
 
         public void NewBlock() => _blockStart = List.Count;
 
-        public void Add(string cell, Func<Field, string> value)
+        public void Add(string cell, Func<Field, string> value, List<string>? roster = null)
         {
             var (name, record, others) = Brackets(cell);
             var captain = value(Field.Captain);
@@ -215,6 +228,7 @@ public static partial class StandingsParser
                 Losses = losses,
                 Rank = Place(value(Field.Rank)) ?? (tab.Ranked ? List.Count - _blockStart + 1 : null),
                 Finish = Place(value(Field.Finish)),
+                Roster = roster ?? [],
             });
         }
     }
@@ -272,7 +286,13 @@ public static partial class StandingsParser
             ? row.Skip(column + 1).Any(cell => cell.Trim().Length > 0)
             : row.Where((_, c) => c != column).Any(cell => FieldOf(cell) is { } field && field != Field.Team);
 
-    private static Field? FieldOf(string cell) => Headers.TryGetValue(Normalize(cell), out var field) ? field : null;
+    private static Field? FieldOf(string cell)
+    {
+        var normalized = Normalize(cell);
+        if (Headers.TryGetValue(normalized, out var field))
+            return field;
+        return PlayerRegex().IsMatch(normalized) ? Field.Player : null;
+    }
 
     private static string Normalize(string cell)
         => SpacesRegex().Replace(cell.Trim().TrimEnd(':', '#').Trim().ToLowerInvariant(), " ");
@@ -294,6 +314,9 @@ public static partial class StandingsParser
 
     [GeneratedRegex(@"^\s*(\d+)\s*-\s*(\d+)")]
     private static partial Regex RecordRegex();
+
+    [GeneratedRegex(@"^player \d+$")]
+    private static partial Regex PlayerRegex();
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex SpacesRegex();

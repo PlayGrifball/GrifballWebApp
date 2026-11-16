@@ -250,13 +250,15 @@ public sealed class HistoricalArchiveBuilder
             // alike, the stats naming none)
             var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(regular.Teams.Select(t => t.TeamName))
                 .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            // A captain is one of the season's players: a nickname ("Team (Snipez)") would be a placeholder player
+            // A captain is one of the season's players: a nickname ("Team (Snipez)") would be a placeholder player. A season
+            // with no player lines (its league kept no stats) has only its standings' names: a roster's captain is a gamertag
             var players = season.SelectMany(s => s.Players).Select(p => p.Gamertag)
                 .GroupBy(HistoricalKeys.Normalize).ToDictionary(g => g.Key, g => g.First());
+            string? CaptainOf(string captain) => players.Count == 0 ? StandingsParser.Gamertag(captain) : players.GetValueOrDefault(HistoricalKeys.Normalize(captain));
             var named = teams.Select(t => t with
             {
                 TeamName = KnownName(t.TeamName, known),
-                Captain = t.Captain is { } captain ? players.GetValueOrDefault(HistoricalKeys.Normalize(captain)) : null,
+                Captain = t.Captain is { } captain ? CaptainOf(captain) : null,
             }).ToList();
             // The stats' placeholder of a captain's team ("OREOTHECAT's Team") is the team the standings name with that captain,
             // or name after them: it takes the team's name as the season has it

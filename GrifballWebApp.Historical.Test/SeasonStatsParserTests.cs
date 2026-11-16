@@ -15,6 +15,34 @@ public class SeasonStatsParserTests
     private static HistoricalSourceConfig Fl20Config()
         => HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == "2020-fl20-pc-schedule-stats").Config!;
 
+    private static readonly (string, decimal?, decimal?, decimal?, decimal?)[] DjBlueLines = [("Mr Epic Beast", 3, 1, 2, 3360), ("oDhmon", 2, 2, 0, 600)];
+
+    [Test]
+    public void DjBluesTeamStatistics_LossesAreTheGamesNotWon_TheMedalSectionsMinutesIgnored_AndTheHostsListNotRead()
+    {
+        // Games and Wins but no Losses; a second Minutes column of only the games with medals; a Neutral Host list below
+        var workbook = SheetWorkbook.Read(Workbook(
+            ("Team Statistics",
+            [
+                Row(null, null, "Statistics for the Halo 3 Event"),
+                Row("Team", "Player", "Games", "Wins", "Minutes", "Kills", "Deaths", "Medals Recorded?", "Minutes"),
+                Row("Twitch Prime", "Mr Epic Beast", 3, 1, 56, 233, 323, 2, 14),
+                Row("Twitch Prime", "oDhmon", 2, 2, 10, 291, 225, 2, 4),
+                Row("Totals:", null, 5, 3, 66, 524, 548),
+                Row("Neutral Host:", 24),
+                Row("The Alpha Turtle", 1),
+            ])))!;
+        var config = new HistoricalSourceConfig
+        {
+            Season = new SeasonDefaults { Name = "DJBluePDX Summer Series 2021 (Halo 3)", League = "Community/Side", Game = "halo3" },
+            Tabs = [new() { Name = "Team Statistics", HeaderRow = 1, StopAt = "Neutral Host", IgnoreColumns = [8] }],
+        };
+
+        var season = SeasonStatsParser.Parse("djblue", config, workbook, []).Single();
+
+        Assert.That(season.Players.Select(p => (p.Gamertag, p.GamesPlayed, p.Wins, p.Losses, p.TotalSecondsPlayed)), Is.EqualTo(DjBlueLines));
+    }
+
     [Test]
     public void CarryTeam_FillsTeamDownBlock_AndResetsOnTotalsAndExcludedTeams()
     {
