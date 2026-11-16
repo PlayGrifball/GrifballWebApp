@@ -150,9 +150,6 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         try
         {
             var asker = ChatLimits.Asker(caller, ChatLimits.Discord(message.Author.Id));
-            // In a DM, a change runs without asking when the author chose so on the site
-            if (direct)
-                host = host with { AutoApprove = await chat.AutoApproveAsync(caller) };
             // In a DM, a yes or no answers the change waiting for the author (GrifChat.ConfirmAsync): anything else is a question
             if (direct && Answer(message.Content) is { } approved && await chat.WaitingAsync(host, asker) is { } waiting)
                 reply = await chat.ConfirmAsync(history, waiting.Id, approved, caller, host, asker);

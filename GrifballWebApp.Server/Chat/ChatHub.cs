@@ -39,10 +39,9 @@ public class ChatHub(GrifChat chat, HubUser user, IAmbientCurrentUser ambientCur
             return Task.FromResult(Refuse(Channel.CreateUnbounded<string>(), refused));
         var caller = user.AsToolCaller();
         // The page's Stop cancels it: the user may ask again at once
-        return StreamAsync(caller, async () => await chat.StartAsync(GrifChat.History(request), request.Question, caller,
-            // Changes run without asking as this conversation chose, else as the user did
-            ChatHost.Site with { AutoApprove = request.AutoApprove ?? await chat.AutoApproveAsync(caller, cancellationToken) },
-            Asker(caller), request.Model, cancellationToken), cancellationToken);
+        return StreamAsync(caller, () => chat.StartAsync(GrifChat.History(request), request.Question, caller,
+            // Changes run without asking as this conversation chose, else (null) as the user did
+            ChatHost.Site with { AutoApprove = request.AutoApprove }, Asker(caller), request.Model, cancellationToken), cancellationToken);
     }
 
     /// <summary>

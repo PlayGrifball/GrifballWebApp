@@ -199,6 +199,8 @@ export class ChatStore {
         this.done();
         // A paid answer is charged whether it was whole or not
         this.loadSpend(connection);
+        // A refused confirm leaves its change waiting: its buttons back
+        void this.loadWaiting(connection);
       },
       complete: () => {
         this.done();
@@ -287,7 +289,8 @@ export class ChatStore {
    * answer dropped on the server too (else a yes elsewhere could still run it).
    */
   clear(): void {
-    if (this.waiting() && this.connection?.state === HubConnectionState.Connected)
+    // Whether or not the page has it yet (still loading, or stopped as it was saved)
+    if (this.connection?.state === HubConnectionState.Connected)
       void this.forget(this.connection);
     this.reset();
   }

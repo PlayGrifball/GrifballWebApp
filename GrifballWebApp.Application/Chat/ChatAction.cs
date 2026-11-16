@@ -20,24 +20,22 @@ public sealed record ChatAction(string Id, string Model, string Description, IRe
             calls.Select(c => new ChatActionCall(c.Request.RequestId, c.Call.CallId, c.Call.Name, JsonSerializer.Serialize(c.Call.Arguments))).ToList());
     }
 
-    /// <summary>The most of an argument's value the person is shown; past it, cut with an ellipsis.</summary>
-    public const int ShownValueLength = 200;
-
     /// <summary>
     /// A call as the person reads it: the tool and its arguments, <c>forfeit_season_match(seasonMatchID: 12, side: "home")</c>. Each value
-    /// as JSON (a string quoted, its quotes escaped), so a value can't pass for more arguments or another call.
+    /// as JSON (a string quoted, its quotes escaped) and whole, as it will run; a tool or argument name that isn't a plain name quoted
+    /// too: so nothing the model wrote can pass for more arguments, another call or a note.
     /// </summary>
     public static string Describe(FunctionCallContent call)
-        => $"{call.Name}({string.Join(", ", (call.Arguments ?? new Dictionary<string, object?>()).Select(a => $"{a.Key}: {Shown(a.Value)}"))})";
+        => $"{Named(call.Name)}({string.Join(", ", (call.Arguments ?? new Dictionary<string, object?>()).Select(a => $"{Named(a.Key)}: {Shown(a.Value)}"))})";
 
     // Only what JSON itself needs escaped: a quote reads as \", not \u0022
     private static readonly JsonSerializerOptions Readable = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
-    private static string Shown(object? value)
-    {
-        var json = JsonSerializer.Serialize(value, Readable);
-        return json.Length > ShownValueLength ? json[..ShownValueLength] + "…" : json;
-    }
+    private static string Shown(object? value) => JsonSerializer.Serialize(value, Readable);
+
+    /// <summary>A name as it is, when it is one (letters, digits and underscores, not starting with a digit); else quoted, as a value.</summary>
+    private static string Named(string name)
+        => name.Length > 0 && !char.IsAsciiDigit(name[0]) && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_') ? name : Shown(name);
 
     /// <summary>The person's answer, as the function invocation takes it: approved (or not) for each call.</summary>
     public ChatMessage Answer(bool approved) => new(ChatRole.User,

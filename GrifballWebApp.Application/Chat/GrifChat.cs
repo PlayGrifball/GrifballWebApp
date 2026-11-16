@@ -41,10 +41,11 @@ public sealed record ChatHost(string About, string More, bool InPublic, TimeSpan
         Timeout: TimeSpan.FromMinutes(2)) { Name = "site", Confirm = GrifChat.ConfirmSite };
 
     /// <summary>
-    /// Whether a change the model asks for runs at once (the person chose so: <see cref="GrifChat.AutoApproveAsync"/>, or the page's for its
-    /// conversation), as a read does; false, the default, it waits for their yes (<see cref="GrifChat.ConfirmAsync"/>).
+    /// Whether a change the model asks for runs at once, as a read does (true), or waits for the person's yes (false,
+    /// <see cref="GrifChat.ConfirmAsync"/>): the host's choice (the page's, for its conversation); null, the person's setting
+    /// (<see cref="GrifChat.AutoApproveAsync"/>), read once they may ask.
     /// </summary>
-    public bool AutoApprove { get; init; }
+    public bool? AutoApprove { get; init; }
 
     /// <summary>The host's name, for what is kept per host: a change waiting on it (<see cref="ChatAccounts.WaitingKey"/>).</summary>
     public string Name { get; init; } = "";
@@ -104,6 +105,9 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
     /// <summary>What a host says for a model the caller may not use there (or that isn't configured).</summary>
     public const string NotYours = "That model isn't one you can use here: choose another.";
 
+    /// <summary>What the chat says to a yes for a change whose model they may no longer use (it is dropped).</summary>
+    public const string ModelGone = "The model that asked for that change isn't one you can use now: ask again.";
+
     /// <summary>What the chat says to someone choosing how changes are approved who has none to make, or isn't signed in.</summary>
     public const string NoChangesToApprove = "Only signed-in staff with tools that change the league's data choose whether changes need approval.";
 
@@ -114,7 +118,7 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
     public const string ProviderLimitReached = "The paid models have used this month's budget: choose another model, or wait until next month.";
 
     /// <summary>What the chat says in place of an answer to a question it never asked the model.</summary>
-    private static readonly string[] Refused = [Unavailable, Unreadable, NoQuestion, TooLong, NotYours, NoChangesToApprove, NothingWaiting, ChatLimits.Busy, ChatLimits.TooMany, ChatLimits.Full, ChatLimits.MonthlyLimitReached, ProviderLimitReached];
+    private static readonly string[] Refused = [Unavailable, Unreadable, NoQuestion, TooLong, NotYours, NoChangesToApprove, NothingWaiting, ModelGone, ChatLimits.Busy, ChatLimits.TooMany, ChatLimits.Full, ChatLimits.MonthlyLimitReached, ProviderLimitReached];
 
     /// <summary>Whether <paramref name="text"/> is a refusal the chat gave in place of an answer, or of the rest of one.</summary>
     public static bool IsRefusal(string text) => text == TookTooLong || Refused.Contains(text);
@@ -195,7 +199,7 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
     {
         if (host.InPublic)
             return [];
-        return host.AutoApprove ? AutoApprovedLines : PrivateLines;
+        return host.AutoApprove == true ? AutoApprovedLines : PrivateLines;
     }
 
     /// <summary>
@@ -290,7 +294,7 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
             Selected = selected?.Id,
             Spent = paid ? (await Accounts.MonthAsync(caller.UserID!.Value, ct)).Spent : null,
             Limit = paid ? limits.MonthlyLimit : null,
-            AutoApprove = caller.UserID is not null && GrifTools.MayChangeData(caller) ? await AutoApproveAsync(caller, ct) : null,
+            AutoApprove = await SettingAsync(caller, ct),
         };
     }
 
@@ -298,8 +302,11 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
     /// Whether <paramref name="caller"/> chose to have changes run without asking, by default (<see cref="ChatModelsDto.AutoApprove"/>): false
     /// when they haven't, aren't signed in, or have no change to make.
     /// </summary>
-    public async Task<bool> AutoApproveAsync(ToolCaller caller, CancellationToken ct = default)
-        => caller.UserID is { } userId && GrifTools.MayChangeData(caller) && await Accounts.AutoApproveAsync(userId, ct);
+    public async Task<bool> AutoApproveAsync(ToolCaller caller, CancellationToken ct = default) => await SettingAsync(caller, ct) ?? false;
+
+    /// <summary><paramref name="caller"/>'s setting (<see cref="AutoApproveAsync"/>), or null when they have none: not signed in, or no change to make.</summary>
+    private async Task<bool?> SettingAsync(ToolCaller caller, CancellationToken ct)
+        => caller.UserID is { } userId && GrifTools.MayChangeData(caller) ? await Accounts.AutoApproveAsync(userId, ct) : null;
 
     /// <summary>
     /// <paramref name="caller"/> chose whether changes run without asking, by default; their models with it. A <see cref="ChatRefusedException"/>
@@ -339,10 +346,7 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
             throw new ChatRefusedException(Unavailable);
         if (Refusal(question) is { } refused)
             throw new ChatRefusedException(refused);
-        // A new question in private (where changes are made): a later yes is not for the change they moved on from
-        if (!host.InPublic)
-            await Accounts.ForgetWaitingAsync(host, asker, cancellationToken);
-        return await BeginAsync(Conversation(history, question), caller, host, asker, model, cancellationToken);
+        return await BeginAsync(Conversation(history, question), caller, host, asker, model, cancellationToken, forgetWaiting: true);
     }
 
     /// <summary>The change waiting for <paramref name="asker"/>'s answer on <paramref name="host"/> (<see cref="ConfirmAsync"/>), or null.</summary>
@@ -362,11 +366,14 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
     {
         if (!Available)
             throw new ChatRefusedException(Unavailable);
+        // Not the one they were shown: the one waiting is left as it is, its ten minutes too
+        if ((await Accounts.WaitingAsync(host, asker, cancellationToken))?.Id != actionId)
+            throw new ChatRefusedException(NothingWaiting);
         // Taken: of the same yes twice, on any pods, one runs it
         var action = await Accounts.TakeWaitingAsync(host, asker, cancellationToken);
         if (action?.Id != actionId)
         {
-            // Not the one they were shown: the one waiting still waits
+            // Replaced between the two (a reply that just finished): that one still waits
             if (action is not null)
                 await Accounts.SaveWaitingAsync(host, asker, action, CancellationToken.None);
             throw new ChatRefusedException(NothingWaiting);
@@ -375,6 +382,11 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
         {
             return await BeginAsync([.. SoFar(history), action.Answer(approved)], caller, host, asker, action.Model, cancellationToken,
                 action.Calls.Select(c => c.CallId).ToHashSet());
+        }
+        catch (ChatRefusedException e) when (e.Message == NotYours)
+        {
+            // Its model isn't theirs now (or no longer configured): no later yes could run it, so it's dropped
+            throw new ChatRefusedException(ModelGone);
         }
         catch
         {
@@ -388,7 +400,7 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
     /// A reply to <paramref name="conversation"/>: the asker's limits, the model and a paid one's month checked (<see cref="StartAsync"/>).
     /// </summary>
     private async Task<ChatReply> BeginAsync(List<ChatMessage> conversation, ToolCaller caller, ChatHost host, string asker, string? model,
-        CancellationToken cancellationToken, IReadOnlySet<string>? replayed = null)
+        CancellationToken cancellationToken, IReadOnlySet<string>? replayed = null, bool forgetWaiting = false)
     {
         // The asker's limits first, in memory: a question they may not ask now costs no database read
         var (slot, limited) = limits.TryStart(asker);
@@ -411,6 +423,12 @@ public sealed class GrifChat(ChatModel model, IServiceScopeFactory scopes, ChatL
                 // month can go over by at most one reply's calls a process (ChatModel.MaxModelCalls, each MaxOutputTokens at most)
                 budget = month.Remaining(limits.MonthlyLimit);
             }
+            // Whether changes wait: the host's choice, else the person's setting (read only now: a refused question costs no read)
+            if (host.AutoApprove is null)
+                host = host with { AutoApprove = !host.InPublic && await AutoApproveAsync(caller, cancellationToken) };
+            // A new question in private (where changes are made): a later yes is not for the change they moved on from
+            if (forgetWaiting && !host.InPublic)
+                await Accounts.ForgetWaitingAsync(host, asker, cancellationToken);
         }
         catch
         {
@@ -503,7 +521,7 @@ public sealed class ChatReply : IDisposable
             // its task; the Discord message's)
             var client = _pipelines.Create(Model);
             var tools = GrifTools.AIFunctions(_scopes, _caller, _host.ToolsFor(Model), _pipelines.ToolLog, _pipelines.SensitiveData,
-                approveChanges: !_host.AutoApprove);
+                approveChanges: _host.AutoApprove != true);
             spent.Sent(tools);
             var options = new ChatOptions { Instructions = GrifChat.Instructions(_host), Tools = tools, MaxOutputTokens = Model.MaxOutputTokens };
             await using var updates = client.GetStreamingResponseAsync(_conversation, options, timeout.Token).GetAsyncEnumerator(timeout.Token);

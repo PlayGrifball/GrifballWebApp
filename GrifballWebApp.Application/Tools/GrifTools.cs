@@ -211,7 +211,10 @@ public static class GrifTools
     private static AITool WaitingForApproval(AIFunction function, bool waits) => waits ? new ApprovalRequiredAIFunction(function) : function;
 
     /// <summary>Whether <paramref name="caller"/>'s roles allow any tool that changes data: a change to approve, so a choice of how.</summary>
-    public static bool MayChangeData(ToolCaller caller) => ChangingData.SelectMany(Methods).Any(m => Allows(m, caller));
+    public static bool MayChangeData(ToolCaller caller) => ChangingDataTools.Any(m => Allows(m, caller));
+
+    /// <summary>The tools that change data, found once.</summary>
+    private static readonly MethodInfo[] ChangingDataTools = ChangingData.SelectMany(Methods).ToArray();
 
     /// <summary>
     /// Every tool as a chat model's function, made once (its schema read from the method, its class's factory worked out): each call

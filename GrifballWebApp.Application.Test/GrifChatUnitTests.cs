@@ -115,7 +115,7 @@ public partial class GrifChatUnitTests
     {
         var model = new FakeModel([Text("Hi")]);
 
-        await Ask(Chat(model), "Hi", new ToolCaller(7, [SiteRoles.Player, role]), ChatHost.Site);
+        await Ask(Chat(model), "Hi", new ToolCaller(7, [SiteRoles.Player, role]), ChatHost.Site with { AutoApprove = false });
 
         var expected = StaffToolsFor(SiteRoles.Player, role);
         using (Assert.EnterMultipleScope())
