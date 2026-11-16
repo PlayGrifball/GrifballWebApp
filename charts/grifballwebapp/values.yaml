@@ -1206,3 +1206,18 @@ networkPolicy:
 
 # Any other objects to deploy with the release, as they are (templates allowed).
 extraObjects: []
+
+# A Grafana dashboard (files/dashboards/grifballwebapp.json) in a ConfigMap, for Grafana's dashboard sidecar: requests,
+# outgoing calls, database, jobs, frontend and browsers, runtime, error logs (Loki) and failed or slow traces (Tempo),
+# for one environment at a time (its Environment variable; it opens on this release's). Enable it in ONE release: every
+# release makes the same dashboard. Needs backend.telemetry.
+grafanaDashboard:
+  enabled: false
+  # Where the ConfigMap goes: the sidecar's namespace when it doesn't search others (kube-prometheus-stack's default).
+  # Empty: the release's.
+  namespace: ""
+  # What the sidecar looks for (kube-prometheus-stack: grafana_dashboard "1").
+  labels:
+    grafana_dashboard: "1"
+  # E.g. grafana_folder, with the sidecar's folderAnnotation.
+  annotations: {}

@@ -1,0 +1,23 @@
+{{- $d := .Values.grafanaDashboard -}}
+{{- if $d.enabled }}
+{{- if not .Values.backend.telemetry.enabled }}{{ fail "grafanaDashboard needs backend.telemetry.enabled: the app's metrics reach Prometheus only by OTLP push" }}{{ end }}
+{{- /*
+The dashboard (files/dashboards/grifballwebapp.json): one for every environment, picked with its Environment variable,
+which opens on this release's namespace. Enable it in one release only: each would make the same dashboard (one uid).
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-dashboard
+  namespace: {{ $d.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    {{- toYaml $d.labels | nindent 4 }}
+  {{- with $d.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  grifballwebapp.json: |-
+    {{- .Files.Get "files/dashboards/grifballwebapp.json" | replace "__NAMESPACE__" .Release.Namespace | nindent 4 }}
+{{- end }}

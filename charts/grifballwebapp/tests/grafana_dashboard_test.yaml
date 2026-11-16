@@ -1,0 +1,43 @@
+suite: grafana dashboard
+templates:
+  - templates/grafana-dashboard.yaml
+release:
+  name: grif-prod
+  namespace: grif-prod
+set:
+  mssql.acceptEula: true
+  backend.telemetry: { enabled: true, endpoint: "http://otel:4317" }
+tests:
+  - it: renders no dashboard by default
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: renders the dashboard for Grafana's sidecar in its namespace, opening on this release's environment
+    set:
+      grafanaDashboard: { enabled: true, namespace: monitoring, annotations: { grafana_folder: Grif } }
+    asserts:
+      - equal: { path: metadata.namespace, value: monitoring }
+      - equal: { path: metadata.labels.grafana_dashboard, value: "1" }
+      - equal: { path: metadata.annotations.grafana_folder, value: Grif }
+      - matchRegex: { path: 'data["grifballwebapp.json"]', pattern: '"value": "grif-prod"' }
+      - notMatchRegex: { path: 'data["grifballwebapp.json"]', pattern: __NAMESPACE__ }
+
+  - it: puts the dashboard in the release namespace without one
+    set:
+      grafanaDashboard.enabled: true
+    asserts:
+      - equal: { path: metadata.namespace, value: grif-prod }
+
+  - it: the dashboard needs telemetry
+    set:
+      grafanaDashboard.enabled: true
+      backend.telemetry.enabled: false
+    asserts:
+      - failedTemplate:
+          errorMessage: "grafanaDashboard needs backend.telemetry.enabled: the app's metrics reach Prometheus only by OTLP push"
+
+  - it: refuses keys the schema doesn't know
+    set:
+      grafanaDashboard: { enabled: true, folder: Grif }
+    asserts:
+      - failedTemplate: {}
