@@ -20,6 +20,9 @@ namespace GrifballWebApp.Server.Test;
 public class VoiceConversationUnitTests : SqliteGrifballContextFixture
 {
     private const ulong Speaker = 501;
+    private static readonly string[] GrifsDid = ["The Grifs did."];
+    private static readonly string[] Season3 = ["Season 3."];
+    private static readonly string[] Hello = ["Hello."];
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 11, 16, 12, 0, 0, TimeSpan.Zero));
     private readonly ChatLimits _limits = new();
     private readonly Speech _speech = new();
@@ -108,7 +111,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
             Assert.That(_speech.Heard.Single(), Has.Length.EqualTo(44 + VoicePcm.WhisperRate * 2), "A second, as a 16 kHz WAV");
             Assert.That(model.Messages.Last().Text, Is.EqualTo("who won last season?"));
             Assert.That(model.Options!.Instructions, Does.Contain(ChatHost.DiscordVoice.About));
-            Assert.That(_speech.Spoken, Is.EqualTo(new[] { "The Grifs did." }));
+            Assert.That(_speech.Spoken, Is.EqualTo(GrifsDid));
             Assert.That(_played.Single(), Is.EqualTo(new short[] { 1, 1, 1, 1, 2, 2, 2, 2 }));
         }
     }
@@ -179,7 +182,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         _speech.Transcripts.Enqueue("Grif, which season is on?");
         await SaysALine(conversation);
 
-        Assert.That(_speech.Spoken, Is.EqualTo(new[] { "Season 3." }));
+        Assert.That(_speech.Spoken, Is.EqualTo(Season3));
     }
 
     [Test]
@@ -200,7 +203,7 @@ public class VoiceConversationUnitTests : SqliteGrifballContextFixture
         }
         await stop.CancelAsync();
 
-        Assert.That(_speech.Spoken, Is.EqualTo(new[] { "Hello." }));
+        Assert.That(_speech.Spoken, Is.EqualTo(Hello));
         Assert.That(async () => await running, Throws.Nothing, "Stopping ends it quietly");
     }
 }
