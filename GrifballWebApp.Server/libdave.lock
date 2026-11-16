@@ -1,0 +1,10 @@
+# libdave (Discord voice's end-to-end encryption, DAVE) for the backend image, built for Alpine (musl) by
+# .github/workflows/libdave.yml and published once per version as the release libdave-<version>-alpine<alpine>.
+# The Dockerfile downloads it from there and checks it against the sha256 below. To update: change version, commit
+# and alpine; push; the workflow publishes the release and prints the new sha256 lines to put here.
+# version: 1.3.0
+# tag: v1.3.0/cpp
+# commit: b5463c443df74db75a713c775b09a847621e6d62
+# alpine: 3.24
+aarch64 f33bdb20c514a27ae352de18b1836f5dd49808d86d89d12b28f4554f911439fe
+x86_64 48ae1d15d26bc288c6af4bdc95dbe995a24fd4ef143b77fba136331524fc3e9c

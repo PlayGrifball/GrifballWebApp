@@ -1,0 +1,84 @@
+suite: the voice chat's speech (speech)
+templates:
+  - templates/speech.yaml
+  - templates/backend.yaml
+  - templates/networkpolicy.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: is off by default, and the backend gets no speech server, so voice says it's unavailable
+    asserts:
+      - hasDocuments: { count: 0 }
+        template: templates/speech.yaml
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__Url }, any: true }
+        template: templates/backend.yaml
+        documentIndex: 1
+
+  - it: is either the chart's or an external one
+    template: templates/speech.yaml
+    set:
+      speech.enabled: true
+      speech.external.url: http://speaches.example:8000/
+    asserts:
+      - failedTemplate:
+          errorPattern: "not both"
+
+  - it: needs both models
+    template: templates/speech.yaml
+    set:
+      speech.enabled: true
+      speech.speechModel: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "speech.transcriptionModel and speech.speechModel are required"
+
+  - it: runs a pinned speaches as a non-root user, read-only, its models on a volume, preloaded and kept loaded
+    template: templates/speech.yaml
+    set:
+      speech.enabled: true
+    asserts:
+      - hasDocuments: { count: 3 }
+      - isKind: { of: PersistentVolumeClaim }
+        documentIndex: 0
+      - isKind: { of: Deployment }
+        documentIndex: 1
+      - equal: { path: spec.strategy.type, value: Recreate }
+        documentIndex: 1
+      - matchRegex: { path: "spec.template.spec.containers[0].image", pattern: "^ghcr.io/speaches-ai/speaches:[0-9.a-z-]+-cpu@sha256:[0-9a-f]{64}$" }
+        documentIndex: 1
+      - equal: { path: spec.template.spec.securityContext.runAsUser, value: 1000 }
+        documentIndex: 1
+      - equal: { path: "spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem", value: true }
+        documentIndex: 1
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: PRELOAD_MODELS, value: '["Systran/faster-whisper-small.en","speaches-ai/Kokoro-82M-v1.0-ONNX"]' }
+        documentIndex: 1
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: STT_MODEL_TTL, value: "-1" }
+        documentIndex: 1
+      - equal: { path: "spec.template.spec.volumes[0].persistentVolumeClaim.claimName", value: speech-models-pvc }
+        documentIndex: 1
+      - isKind: { of: Service }
+        documentIndex: 2
+
+  - it: gives the backend the chart's server and its models
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      speech.enabled: true
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__Url, value: "http://grif-speech:8000/" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__TranscriptionModel, value: Systran/faster-whisper-small.en } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__SpeechModel, value: speaches-ai/Kokoro-82M-v1.0-ONNX } }
+
+  - it: gives the backend an external server
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      speech.external.url: http://speaches.example:8000/
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Speech__Url, value: "http://speaches.example:8000/" } }

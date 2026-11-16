@@ -177,6 +177,8 @@ public static class InfrastructureServiceCollectionExtensions
         // The chats' models (GrifChat): Ollama's and Claude's, one factory for both (ChatClients). Another provider is another
         // ChatProvider there, not another IChatClientFactory here: a second registration would replace it
         services.AddChatModels(configuration);
+        // The voice chat's speech (Speech:Url): none, no voice
+        services.AddChatSpeech(configuration);
         return services;
     }
 

@@ -34,6 +34,27 @@ RUN case "$TARGETARCH" in \
       || { echo "$file ($sha.apk): download failed or sha256 mismatch" >&2; exit 1; }; \
     done < /want
 
+# libdave (Discord voice's end-to-end encryption, which NetCord's voice client loads), built for Alpine by
+# .github/workflows/libdave.yml: downloaded from its release by the lock's version and checked against its sha256
+# (libdave.lock). Fetched with curl, HTTPS only, as above.
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine@sha256:5562fd626eec39f6f53218f9b7d7856ab7195d51d846568304fbe85071a3b6e6 AS libdave
+ARG TARGETARCH
+ARG LIBDAVE_RELEASES=https://github.com/PlayGrifball/GrifballWebApp/releases/download
+COPY GrifballWebApp.Server/libdave.lock /libdave.lock
+RUN case "$TARGETARCH" in \
+      amd64) arch=x86_64 ;; \
+      arm64) arch=aarch64 ;; \
+      *) echo "Unsupported TARGETARCH '$TARGETARCH'" >&2; exit 1 ;; \
+    esac \
+ && version=$(sed -n 's/^# version: //p' /libdave.lock) \
+ && alpine=$(sed -n 's/^# alpine: //p' /libdave.lock) \
+ && sha=$(awk -v arch="$arch" '$1 == arch { print $2 }' /libdave.lock) \
+ && test -n "$version" && test -n "$alpine" && test -n "$sha" \
+ && mkdir /out \
+ && curl --proto =https -fsSL -o /out/libdave.so "$LIBDAVE_RELEASES/libdave-$version-alpine$alpine/libdave-$arch.so" \
+ && echo "$sha  /out/libdave.so" | sha256sum -c - > /dev/null \
+ || { echo "libdave-$arch.so ($version): download failed or sha256 mismatch" >&2; exit 1; }
+
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine@sha256:486297ae006e95ee2ee3112a2c03e3d26e41fbbc64b7a29e28e7a18cc36b12bb AS base
 
 # The PostgreSQL client (psql, pg_dump, pg_restore): the Helm chart's migration Job and backups on
@@ -45,6 +66,13 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine@sha256:486297ae006e95ee2ee3112a
 RUN --mount=type=bind,from=apk,source=/pkgs,target=/pkgs \
     apk add --no-network --no-cache /pkgs/*.apk \
  && rm -f /var/log/apk.log
+# Discord voice: libdave (above), where NetCord's voice client finds it; its Opus (decoding what people say, encoding
+# the bot's replies) and libsodium (an encryption mode Discord may pick) are among the Alpine packages.
+COPY --from=libdave --chmod=0755 /out/libdave.so /usr/lib/libdave.so
+# NetCord loads Opus and libsodium by name (libopus.so, libsodium.so), which only Alpine's -dev packages link: link
+# them to the runtime packages' versioned ones.
+RUN ln -s "$(ls /usr/lib/libopus.so.* | head -n 1)" /usr/lib/libopus.so \
+ && ln -s "$(ls /usr/lib/libsodium.so.* | head -n 1)" /usr/lib/libsodium.so
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
 USER app
