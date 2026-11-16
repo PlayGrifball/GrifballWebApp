@@ -36,6 +36,10 @@ public sealed class NetCordVoiceConnector(GatewayClient client) : IVoiceConnecto
     {
         private readonly VoiceClient _voice;
         private readonly ConcurrentDictionary<uint, OpusDecoder> _decoders = new();
+        // Each stream's own, reused: one frame decoded at a time a stream
+        private readonly ConcurrentDictionary<uint, short[]> _buffers = new();
+
+        public Func<ulong, bool>? Wants { get; set; }
 
         public event Action<ulong, short[]>? Heard;
         public event Action? Closed;
@@ -45,11 +49,11 @@ public sealed class NetCordVoiceConnector(GatewayClient client) : IVoiceConnecto
             _voice = voice;
             voice.VoiceReceive += args =>
             {
-                // A stream not tied to a user yet (its speaking event comes first): dropped
-                if (!voice.Cache.SsrcUsers.TryGetValue(args.Ssrc, out var speaker))
+                // A stream not tied to a user yet (its speaking event comes first), or someone not to be heard: not even decoded
+                if (!voice.Cache.SsrcUsers.TryGetValue(args.Ssrc, out var speaker) || Wants?.Invoke(speaker) == false)
                     return default;
                 var decoder = _decoders.GetOrAdd(args.Ssrc, _ => new OpusDecoder(VoiceChannels.Mono));
-                var pcm = new short[Opus.GetSamplesPerChannel(Opus.MaxFrameDuration)];
+                var pcm = _buffers.GetOrAdd(args.Ssrc, _ => new short[Opus.GetSamplesPerChannel(Opus.MaxFrameDuration)]);
                 var samples = decoder.Decode(args.Frame, pcm, pcm.Length, false);
                 Heard?.Invoke(speaker, pcm[..samples]);
                 return default;

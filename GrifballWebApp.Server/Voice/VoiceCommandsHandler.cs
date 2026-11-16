@@ -15,6 +15,7 @@ public sealed class VoiceCommandsHandler(VoiceSessions sessions, VoiceConsents c
     public const string AlreadyIn = "I'm in a voice channel in this server already: /voice leave first.";
     public const string NotIn = "I'm not in a voice channel here.";
     public const string Left = "Left the voice channel.";
+    public const string LeftBeforeJoined = "Asked to leave while I was joining, so I left.";
     public const string OptedIn = "I'll hear you in voice channels now. Say \"Grif, ...\" to ask me something. Nothing you say is kept. /voice optout to stop.";
     public const string OptedOut = "I won't hear you in voice channels any more.";
 
@@ -35,9 +36,12 @@ public sealed class VoiceCommandsHandler(VoiceSessions sessions, VoiceConsents c
             return NoGuild;
         if (!voiceStates.TryGetValue(userId, out var state) || state.ChannelId is not { } channel)
             return NotInVoice;
-        if (!await sessions.JoinAsync(guild, channel, cancellationToken))
-            return AlreadyIn;
-        return Listening(channel);
+        return await sessions.JoinAsync(guild, channel, cancellationToken) switch
+        {
+            VoiceJoin.Joined => Listening(channel),
+            VoiceJoin.AlreadyIn => AlreadyIn,
+            _ => LeftBeforeJoined,
+        };
     }
 
     /// <summary>The bot leaves its voice channel in <paramref name="guildId"/>.</summary>

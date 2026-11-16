@@ -24,13 +24,30 @@ public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat
     /// <summary>What the bot says when a line couldn't be answered for a reason it doesn't know.</summary>
     public const string Failed = "Sorry, I couldn't answer that just now.";
 
+    /// <summary>The most audio held for a speaker while they are looked up: past it, the rest is dropped.</summary>
+    public static readonly TimeSpan MaxHeld = TimeSpan.FromSeconds(5);
+
+    private static readonly int MaxHeldSamples = (int)(MaxHeld.TotalSeconds * VoicePcm.DiscordRate);
+
     private readonly VoiceLines _lines = new(time);
-    // Who may be heard: true opted in, false not (or not known yet: dropped until it is)
+    // Who may be heard: true opted in, false not; absent, not known yet (their audio held while they are looked up)
     private readonly ConcurrentDictionary<ulong, bool> _heard = new();
+    // Each speaker's lookups, one at a time: the latest (an opt-out's) always writes last
+    private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _lookups = new();
+    private readonly ConcurrentDictionary<ulong, byte> _lookingUp = new();
+    private readonly Dictionary<ulong, List<short>> _held = [];
+    private readonly Lock _heldLock = new();
+
+    /// <summary>
+    /// Whether <paramref name="speaker"/>'s audio is worth decoding: they opted in, or aren't known yet (held while they are looked
+    /// up). Not someone who hasn't opted in.
+    /// </summary>
+    public bool Wants(ulong speaker) => !_heard.TryGetValue(speaker, out var heard) || heard;
 
     /// <summary>
     /// <paramref name="pcm"/> (48 kHz mono) from <paramref name="speaker"/>: kept for their line when they opted in, else dropped. A
-    /// speaker not known yet is looked up (<see cref="RefreshAsync"/>), their audio dropped meanwhile.
+    /// speaker not known yet is looked up (<see cref="RefreshAsync"/>), their audio held meanwhile (up to <see cref="MaxHeld"/>), so a
+    /// first "Grif, ..." isn't cut.
     /// </summary>
     public void Hear(ulong speaker, short[] pcm)
     {
@@ -40,27 +57,63 @@ public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat
                 _lines.Add(speaker, pcm);
             return;
         }
-        _heard[speaker] = false;
-        _ = RefreshAsync(speaker);
+        lock (_heldLock)
+        {
+            // Known meanwhile: as above
+            if (_heard.TryGetValue(speaker, out heard))
+            {
+                if (heard)
+                    _lines.Add(speaker, pcm);
+                return;
+            }
+            var held = _held.TryGetValue(speaker, out var some) ? some : _held[speaker] = [];
+            var room = MaxHeldSamples - held.Count;
+            if (room > 0)
+                held.AddRange(pcm.Length > room ? pcm.AsSpan(0, room) : pcm);
+        }
+        if (_lookingUp.TryAdd(speaker, 0))
+            _ = RefreshAsync(speaker);
     }
 
-    /// <summary>Whether <paramref name="speaker"/> may be heard, read again: they opted in or out. Opted out, what they were saying is dropped.</summary>
+    /// <summary>
+    /// Whether <paramref name="speaker"/> may be heard, read again: they opted in or out. Opted in, what was held for them is theirs;
+    /// opted out, what they were saying is dropped, held or not.
+    /// </summary>
     public async Task RefreshAsync(ulong speaker)
     {
+        var lookup = _lookups.GetOrAdd(speaker, _ => new SemaphoreSlim(1, 1));
+        await lookup.WaitAsync();
         try
         {
             using var scope = scopes.CreateScope();
-            var heard = (await scope.ServiceProvider.GetRequiredService<VoiceConsents>().OptedInAsync([speaker])).Contains(speaker);
-            _heard[speaker] = heard;
-            if (!heard)
-                _lines.Forget(speaker);
+            Settle(speaker, (await scope.ServiceProvider.GetRequiredService<VoiceConsents>().OptedInAsync([speaker])).Contains(speaker));
         }
         catch (Exception e)
         {
             // Not known: not heard, and asked again with their next audio
-            _heard.TryRemove(speaker, out _);
-            _lines.Forget(speaker);
+            Settle(speaker, null);
             log.LogWarning(e, "Voice: whether {Speaker} opted in couldn't be read", speaker);
+        }
+        finally
+        {
+            _lookingUp.TryRemove(speaker, out _);
+            lookup.Release();
+        }
+    }
+
+    /// <summary><paramref name="speaker"/> heard or not (null: not known), what was held for them kept or dropped with it.</summary>
+    private void Settle(ulong speaker, bool? heard)
+    {
+        lock (_heldLock)
+        {
+            if (heard is { } known)
+                _heard[speaker] = known;
+            else
+                _heard.TryRemove(speaker, out _);
+            if (_held.Remove(speaker, out var held) && heard == true)
+                _lines.Add(speaker, held.ToArray());
+            if (heard != true)
+                _lines.Forget(speaker);
         }
     }
 
@@ -85,6 +138,9 @@ public sealed class VoiceConversation(IServiceScopeFactory scopes, GrifChat chat
     {
         foreach (var (speaker, pcm) in _lines.Ended())
         {
+            // Opted out since the line ended (while another was answered): dropped, as they were told
+            if (!_heard.TryGetValue(speaker, out var heard) || !heard)
+                continue;
             try
             {
                 await AnswerAsync(speaker, pcm, cancellationToken);

@@ -20,18 +20,31 @@ public sealed class VoiceLines(TimeProvider time)
     private static readonly int ShortestSamples = (int)(Shortest.TotalSeconds * VoicePcm.DiscordRate);
 
     private readonly Dictionary<ulong, (List<short> Pcm, DateTimeOffset Last)> _speaking = [];
+    // Lines a pause ended before anyone asked for them (the bot was answering meanwhile), in the order they ended
+    private readonly List<(ulong Speaker, List<short> Pcm)> _ended = [];
     private readonly Lock _lock = new();
 
-    /// <summary><paramref name="pcm"/> more of what <paramref name="speaker"/> is saying.</summary>
+    /// <summary>
+    /// <paramref name="pcm"/> more of what <paramref name="speaker"/> is saying: after a pause (<see cref="Silence"/>), a new line, the
+    /// last one over, though <see cref="Ended"/> hasn't been asked since.
+    /// </summary>
     public void Add(ulong speaker, ReadOnlySpan<short> pcm)
     {
+        var now = time.GetUtcNow();
         lock (_lock)
         {
-            var line = _speaking.TryGetValue(speaker, out var speaking) ? speaking.Pcm : [];
+            List<short> line = [];
+            if (_speaking.TryGetValue(speaker, out var speaking))
+            {
+                if (now - speaking.Last >= Silence)
+                    _ended.Add((speaker, speaking.Pcm));
+                else
+                    line = speaking.Pcm;
+            }
             var room = MaxSamples - line.Count;
             if (room > 0)
                 line.AddRange(pcm.Length > room ? pcm[..room] : pcm);
-            _speaking[speaker] = (line, time.GetUtcNow());
+            _speaking[speaker] = (line, now);
         }
     }
 
@@ -42,12 +55,13 @@ public sealed class VoiceLines(TimeProvider time)
         var ended = new List<(ulong, short[])>();
         lock (_lock)
         {
-            foreach (var (speaker, (pcm, last)) in _speaking.Where(s => now - s.Value.Last >= Silence).ToList())
+            foreach (var (speaker, (pcm, _)) in _speaking.Where(s => now - s.Value.Last >= Silence).ToList())
             {
                 _speaking.Remove(speaker);
-                if (pcm.Count >= ShortestSamples)
-                    ended.Add((speaker, pcm.ToArray()));
+                _ended.Add((speaker, pcm));
             }
+            ended.AddRange(_ended.Where(l => l.Pcm.Count >= ShortestSamples).Select(l => (l.Speaker, l.Pcm.ToArray())));
+            _ended.Clear();
         }
         return ended;
     }
@@ -56,6 +70,9 @@ public sealed class VoiceLines(TimeProvider time)
     public void Forget(ulong speaker)
     {
         lock (_lock)
+        {
             _speaking.Remove(speaker);
+            _ended.RemoveAll(l => l.Speaker == speaker);
+        }
     }
 }

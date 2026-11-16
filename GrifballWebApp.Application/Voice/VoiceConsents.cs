@@ -16,8 +16,18 @@ public sealed class VoiceConsents(IApplicationDbContext context, TimeProvider ti
         var id = (long)discordUserId;
         if (await context.VoiceConsents.AnyAsync(v => v.DiscordUserID == id, ct))
             return;
-        context.VoiceConsents.Add(VoiceConsent.Give(id, time.GetUtcNow().UtcDateTime));
-        await context.SaveChangesAsync(ct);
+        var consent = context.VoiceConsents.Add(VoiceConsent.Give(id, time.GetUtcNow().UtcDateTime));
+        try
+        {
+            await context.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // Another opt-in for them saved first (a second /voice optin at once): theirs stands
+            consent.State = EntityState.Detached;
+            if (!await context.VoiceConsents.AsNoTracking().AnyAsync(v => v.DiscordUserID == id, ct))
+                throw;
+        }
     }
 
     /// <summary><paramref name="discordUserId"/> opted out: no longer heard. With no consent, nothing to remove.</summary>

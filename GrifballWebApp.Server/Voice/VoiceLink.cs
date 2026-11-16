@@ -7,7 +7,10 @@ namespace GrifballWebApp.Server.Voice;
 /// </summary>
 public interface IVoiceLink : IAsyncDisposable
 {
-    /// <summary>A speaker's audio (their Discord ID, 48 kHz mono), as it arrives.</summary>
+    /// <summary>Whether a speaker's audio is wanted at all (their Discord ID): when not, it isn't even decoded. Unset, everyone's is.</summary>
+    Func<ulong, bool>? Wants { get; set; }
+
+    /// <summary>A speaker's audio (their Discord ID, 48 kHz mono), as it arrives: only the speakers <see cref="Wants"/> wants.</summary>
     event Action<ulong, short[]>? Heard;
 
     /// <summary>The connection is gone and won't come back (moved out, the channel deleted).</summary>
