@@ -4006,6 +4006,40 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.Players.VoiceConsent", b =>
+                {
+                    b.Property<long>("DiscordUserID")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("GivenAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasKey("DiscordUserID");
+
+                    b.ToTable("VoiceConsents", "User");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("VoiceConsentsHistory", "User");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.Players.XboxGamertagHistory", b =>
                 {
                     b.Property<int>("XboxGamertagHistoryID")

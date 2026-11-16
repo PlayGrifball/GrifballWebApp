@@ -1,0 +1,155 @@
+{{- $s := .Values.speech -}}
+{{- if and $s.enabled $s.external.url }}
+{{- fail "speech: enable the chart's (speech.enabled) or name an external one (speech.external.url), not both" }}
+{{- end }}
+{{- if $s.enabled }}
+{{- if or (not $s.transcriptionModel) (not $s.speechModel) }}
+{{- fail "speech.transcriptionModel and speech.speechModel are required with speech.enabled: the models the voice chat uses" }}
+{{- end }}
+{{- if not $s.persistence.existingClaim }}
+# The speech models, kept across restarts: the server downloads them once (PRELOAD_MODELS), and finds them here after.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $s.persistence.claimName }}
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: speech
+  {{- with $s.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- toYaml $s.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ $s.persistence.size }}
+  {{- with $s.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+---
+{{- end }}
+# The voice chat's speech (Speech:Url): speaches, an OpenAI-compatible server, Whisper (faster-whisper) for what people
+# say and Kokoro for the bot's replies, both on the CPU.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grif-speech
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: speech
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grif-speech
+  # One server on the models' ReadWriteOnce volume at a time.
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: grif-speech
+        {{- include "grif.podLabels" . | nindent 8 }}
+        app.kubernetes.io/component: speech
+        {{- with $s.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $s.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $s.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: speech
+          image: {{ include "grif.image" $s.image }}
+          imagePullPolicy: {{ $s.image.pullPolicy }}
+          env:
+            # The models, downloaded on the first start, onto the volume
+            - name: HF_HUB_CACHE
+              value: /data/hub
+            - name: HOME
+              value: /data
+            - name: PRELOAD_MODELS
+              value: {{ list $s.transcriptionModel $s.speechModel | toJson | quote }}
+            # Kept loaded: the next line said isn't kept waiting for a model to load
+            - name: STT_MODEL_TTL
+              value: "-1"
+            - name: TTS_MODEL_TTL
+              value: "-1"
+            - name: ENABLE_UI
+              value: "false"
+            {{- range $name, $value := $s.env }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
+          ports:
+            - name: speech
+              containerPort: {{ $s.port }}
+          # Ready once it answers: the models load in the background on the first start
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: speech
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: speech
+            periodSeconds: 20
+          {{- with $s.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $s.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ $s.persistence.existingClaim | default $s.persistence.claimName }}
+        - name: tmp
+          emptyDir: {}
+      {{- with $s.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $s.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $s.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grif-speech
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: speech
+spec:
+  selector:
+    app: grif-speech
+  ports:
+    - name: speech
+      port: {{ $s.port }}
+      targetPort: speech
+{{- end }}

@@ -73,6 +73,21 @@ public partial class EntityConfigurationUnitTests
     }
 
     [Test]
+    public void VoiceConsentConfiguration_OneADiscordAccount_ItsOwnTable()
+    {
+        var entity = Configured(new VoiceConsentConfiguration());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TableOf(entity), Is.EqualTo(("User", "VoiceConsents")));
+            Assert.That(entity.IsTemporal(), Is.True, "When they opted in and out");
+            Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(VoiceConsent.DiscordUserID) }));
+            Assert.That(ValueGeneratedOf(entity, nameof(VoiceConsent.DiscordUserID)), Is.EqualTo(ValueGenerated.Never), "Discord's ID");
+            Assert.That(entity.GetForeignKeys(), Is.Empty, "An account the bot hasn't seen may opt in");
+        }
+    }
+
+    [Test]
     public void ChatMonthConfiguration_KeyChecksAndConcurrency()
     {
         var entity = Configured(new ChatMonthConfiguration());

@@ -241,6 +241,10 @@ public class DiscordModuleRegistrationTests
                 + " [team: String \"The team\" autocomplete: TeamAutocomplete, preconditions: 0]",
             "/team vods \"A team's VODs\" permissions: default, preconditions: 0"
                 + " [team: String \"The team\" autocomplete: TeamAutocomplete, preconditions: 0]",
+            "/voice join \"The bot joins your voice channel and answers when called by name\" permissions: default, preconditions: 0",
+            "/voice leave \"The bot leaves its voice channel\" permissions: default, preconditions: 0",
+            "/voice optin \"Let the bot hear you in voice channels\" permissions: default, preconditions: 0",
+            "/voice optout \"Stop the bot hearing you in voice channels\" permissions: default, preconditions: 0",
         }));
     }
 }

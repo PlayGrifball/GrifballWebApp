@@ -58,6 +58,7 @@ public class ProgramStartupTests
     private static readonly string[] DiscordModuleNames =
     [
         "GrifballWebApp.Server.Commands.AdminCommands",
+        "GrifballWebApp.Server.Commands.VoiceCommands",
         "GrifballWebApp.Server.Commands.AdminCommands+Bracket",
         "GrifballWebApp.Server.Commands.AdminCommands+Claims",
         "GrifballWebApp.Server.Commands.AdminCommands+Draft",

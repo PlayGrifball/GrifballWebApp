@@ -13,6 +13,7 @@
 #   close-stuck-report.sh: a test report's check run left in progress is completed with the tests' outcome (gh stubbed).
 #   layer-coverage.mjs: each layer's numbers from its own test project's Cobertura report, and their change from master.
 #   signalr-models.mjs: the typed SignalR client's DTOs as re-exports of the client's models (openapi.json).
+#   sablier-wake.sh: wakes a scaled-to-zero group through Sablier (curl stubbed), then waits for a real TCP port.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 scripts=$(dirname "$here")
@@ -468,6 +469,60 @@ if node --experimental-strip-types --no-warnings --input-type=module -e "
   if (wrong.length) { console.log(wrong.join(', ')); process.exit(1); }
 " > "$work/out" 2>&1
 then ok "proxy.conf: the hubs' page's paths as backendPath sends them"; else bad "proxy.conf differs from backendPath:"; cat "$work/out"; fi
+
+# sablier-wake.sh: Sablier's blocking strategy stubbed (curl answers $WAKE_CODE with X-Sablier-Session-Status
+# $WAKE_STATUS, or fails to connect when $WAKE_CODE is 000, and logs its arguments); the port is real: a listener on
+# 127.0.0.1, or a port nothing listens on.
+mkdir -p "$work/wakebin"
+cat > "$work/wakebin/curl" <<'CURL'
+#!/usr/bin/env bash
+echo "$*" >> "$WAKE_CALLS"
+while (( $# )); do
+  case "$1" in
+    --output) body=$2; shift ;;
+    --dump-header) headers=$2; shift ;;
+  esac
+  shift
+done
+if [[ "$WAKE_CODE" = 000 ]]; then echo "curl: (7) Failed to connect to sablier port 10000" >&2; printf 000; exit 7; fi
+printf 'HTTP/1.1 %s\r\nX-Sablier-Session-Status: %s\r\n\r\n' "$WAKE_CODE" "$WAKE_STATUS" > "$headers"
+printf '{"title":"stubbed %s"}' "$WAKE_CODE" > "$body"
+printf '%s' "$WAKE_CODE"
+CURL
+chmod +x "$work/wakebin/curl"
+node -e 'const s=require("net").createServer(c=>c.end()).listen(0,"127.0.0.1",()=>console.log(s.address().port))' > "$work/listener" &
+listener=$!
+for _ in $(seq 50); do [[ -s "$work/listener" ]] && break; sleep 0.1; done
+open_port=$(cat "$work/listener")
+closed_port=$(node -e 'const s=require("net").createServer().listen(0,"127.0.0.1",()=>{console.log(s.address().port);s.close()})')
+wake() { # wake <code> <session status> <host,port>
+  : > "$work/calls"
+  WAKE_CODE=$1 WAKE_STATUS=$2 WAKE_CALLS="$work/calls" SABLIER_URL=http://sablier.test:10000/api/strategies/blocking \
+    SABLIER_GROUP=grif-test WAKE_TCP=$3 WAKE_TCP_SECONDS=2 WAKE_POLL_SECONDS=0.2 PATH="$work/wakebin:$PATH" \
+    "$scripts/sablier-wake.sh" > "$work/out" 2>&1
+}
+if wake 200 ready "127.0.0.1,$open_port" \
+  && grep -qF -- '--data-urlencode group=grif-test --data-urlencode session_duration=30m --data-urlencode timeout=180s' "$work/calls" \
+  && grep -qF 'http://sablier.test:10000/api/strategies/blocking' "$work/calls" \
+  && grep -qF "127.0.0.1:$open_port accepts connections" "$work/out"
+then ok "sablier-wake: asks for the group's blocking session, then waits for the port"; else bad "sablier-wake: ready:"; cat "$work/out" "$work/calls"; fi
+if wake 200 ready "127.0.0.1:$open_port"; then ok "sablier-wake: host:port too"; else bad "sablier-wake: host:port:"; cat "$work/out"; fi
+if wake 504 not-ready "127.0.0.1,$open_port"; then bad "sablier-wake: a 504 passed"
+elif grep -qF '::error title=Wake grif-test::Sablier answered 504 for group grif-test: {"title":"stubbed 504"}' "$work/out"
+then ok "sablier-wake: Sablier's error status fails, with its answer"; else bad "sablier-wake: 504, wrong output:"; cat "$work/out"; fi
+if wake 404 "" "127.0.0.1,$open_port"; then bad "sablier-wake: a 404 passed"
+elif grep -qF 'Sablier answered 404' "$work/out"; then ok "sablier-wake: an unknown group fails"; else bad "sablier-wake: 404:"; cat "$work/out"; fi
+if wake 000 "" "127.0.0.1,$open_port"; then bad "sablier-wake: no Sablier passed"
+elif grep -qF "::error title=Wake grif-test::Sablier didn't answer at http://sablier.test:10000/api/strategies/blocking: curl: (7)" "$work/out"
+then ok "sablier-wake: Sablier unreachable fails, saying so"; else bad "sablier-wake: unreachable:"; cat "$work/out"; fi
+if wake 200 not-ready "127.0.0.1,$open_port"; then bad "sablier-wake: a not-ready session passed"
+elif grep -qF 'but the group grif-test is not-ready' "$work/out"; then ok "sablier-wake: a 200 that isn't ready fails"; else bad "sablier-wake: not-ready:"; cat "$work/out"; fi
+if wake 200 ready "127.0.0.1,$closed_port"; then bad "sablier-wake: a closed port passed"
+elif grep -qF "::error title=Wake grif-test::127.0.0.1:$closed_port didn't accept a connection in 2s after grif-test was ready" "$work/out"
+then ok "sablier-wake: a port that stays closed fails after the wait"; else bad "sablier-wake: closed port:"; cat "$work/out"; fi
+if wake 200 ready "sqlserver"; then bad "sablier-wake: no port passed"
+elif grep -qF 'WAKE_TCP is not host,port: sqlserver' "$work/out"; then ok "sablier-wake: a host without a port fails"; else bad "sablier-wake: no port:"; cat "$work/out"; fi
+kill "$listener" 2> /dev/null || true
 
 if [[ "$failures" != 0 ]]; then echo "$failures failure(s)"; exit 1; fi
 echo "All .github/scripts tests passed."

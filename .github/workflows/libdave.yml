@@ -1,0 +1,113 @@
+name: libdave
+
+# libdave (Discord voice's end-to-end encryption, which Discord requires of every voice connection) for the backend
+# image: Discord publishes it for glibc only, and the image is Alpine (musl). Built once per version, on each
+# architecture's own runner in the image's Alpine (.github/scripts/libdave-build.sh), and published as an immutable
+# release, libdave-<version>-alpine<alpine>, which the Dockerfile downloads by sha256 (GrifballWebApp.Server/libdave.lock).
+# Runs when the lock or the build changes; a release that exists already is left as it is.
+
+on:
+  push:
+    paths:
+      - GrifballWebApp.Server/libdave.lock
+      - .github/scripts/libdave-build.sh
+      - .github/workflows/libdave.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.lock.outputs.version }}
+      tag: ${{ steps.lock.outputs.tag }}
+      commit: ${{ steps.lock.outputs.commit }}
+      alpine: ${{ steps.lock.outputs.alpine }}
+      release: ${{ steps.lock.outputs.release }}
+      exists: ${{ steps.exists.outputs.exists }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Read the lock
+        id: lock
+        run: |
+          for key in version tag commit alpine; do
+            value=$(sed -n "s/^# $key: //p" GrifballWebApp.Server/libdave.lock)
+            test -n "$value" || { echo "::error::libdave.lock has no $key"; exit 1; }
+            echo "$key=$value" >> "$GITHUB_OUTPUT"
+            declare "$key=$value"
+          done
+          echo "release=libdave-$version-alpine$alpine" >> "$GITHUB_OUTPUT"
+
+      - name: Published already
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.lock.outputs.release }}" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "${{ steps.lock.outputs.release }} is published already."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: lock
+    if: needs.lock.outputs.exists == 'false'
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build in Alpine
+        run: |
+          mkdir out
+          docker run --rm -v "$PWD/.github/scripts:/scripts:ro" -v "$PWD/out:/out" "alpine:${{ needs.lock.outputs.alpine }}" \
+            /scripts/libdave-build.sh "${{ needs.lock.outputs.tag }}" "${{ needs.lock.outputs.commit }}"
+          ls -l out
+
+      - name: Upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: libdave-${{ matrix.runner }}
+          path: out/
+          if-no-files-found: error
+
+  publish:
+    needs: [lock, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # the release
+    steps:
+      - name: Download
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: out
+          merge-multiple: true
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ needs.lock.outputs.release }}
+        run: |
+          cd out
+          sha256sum libdave-*.so > SHA256SUMS
+          gh release create "$RELEASE" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false \
+            --title "$RELEASE" \
+            --notes "Discord's libdave ${{ needs.lock.outputs.tag }} (${{ needs.lock.outputs.commit }}) for Alpine ${{ needs.lock.outputs.alpine }} (musl), built by libdave.yml. For the backend image (GrifballWebApp.Server/libdave.lock); not a GrifballWebApp release." \
+            libdave-*.so SHA256SUMS licenses/libdave
+          echo "### The lock's lines for $RELEASE" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          sed -E 's/^([0-9a-f]+)  libdave-(.+)\.so$/\2 \1/' SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

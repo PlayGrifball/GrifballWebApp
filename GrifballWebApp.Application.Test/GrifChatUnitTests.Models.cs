@@ -560,4 +560,19 @@ public partial class GrifChatUnitTests
     [Test]
     public void Chat_TheShortList_HasTheSeasonListItsToolsPointTo()
         => Assert.That(GrifTools.Chat, Does.Contain("list_seasons"), "A season tool refused names list_seasons");
+
+    [Test]
+    public void Allowed_InAVoiceChannel_IsPublic_ButEachAskersOwnModels()
+    {
+        var chat = ChatWithModels(new FakeModel());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ChatHost.DiscordVoice.InPublic, Is.True, "Others hear it: public tools and seasons");
+            Assert.That(chat.Allowed(Sysadmin, ChatHost.DiscordVoice), Is.EqualTo(new[] { Haiku, Opus, Free }), "Their own, paid from their month");
+            Assert.That(chat.Allowed(Player, ChatHost.DiscordVoice), Is.EqualTo(new[] { Free }));
+            Assert.That(chat.Allowed(Sysadmin, ChatHost.Discord), Is.EqualTo(new[] { Free }), "A channel's text: the one anyone may use, as before");
+            Assert.That(GrifChat.Instructions(ChatHost.DiscordVoice), Does.Contain("spoken"));
+        }
+    }
 }
