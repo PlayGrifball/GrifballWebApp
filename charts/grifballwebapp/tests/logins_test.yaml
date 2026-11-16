@@ -105,3 +105,49 @@ tests:
       - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "ALTER ROLE db_backupoperator ADD MEMBER" }
       - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT ADMINISTER BULK OPERATIONS TO" }
       - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "REVOKE ADMINISTER BULK OPERATIONS|db_owner|sysadmin" }
+
+  - it: has no archive reader unless archiveReader is on
+    template: templates/migrations-job.yaml
+    set:
+      database.logins.enabled: true
+    asserts:
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: ARC_USER, value: grif_archive } }
+
+  - it: creates the archive reader with SELECT on the snapshots' two tables alone, its password from its own secret
+    template: templates/migrations-job.yaml
+    set:
+      database.logins: { enabled: true, archiveReader: { enabled: true, password: { secretName: grif-archive-reader } } }
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ARC_USER, value: grif_archive } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ARC_PASSWORD, valueFrom: { secretKeyRef: { name: grif-archive-reader, key: ARCHIVE_DB_PASSWORD } } } }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT SELECT ON \\[Event\\]\\.\\[HistoricalSources\\] TO \\[\\$\\(ident \"\\$ARC_USER\"\\)\\]" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT SELECT ON \\[Event\\]\\.\\[HistoricalSourceSnapshots\\] TO \\[\\$\\(ident \"\\$ARC_USER\"\\)\\]" }
+      # No role of the database
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "ADD MEMBER \\[\\$\\(ident \"\\$ARC_USER\"\\)\\]" }
+
+  - it: gives the archive reader its own user again in a restored database
+    template: templates/migrations-job.yaml
+    set:
+      database.logins: { enabled: true, archiveReader: { enabled: true } }
+      migrations.restore.enabled: true
+    asserts:
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "ELSE ALTER USER \\[\\$\\(ident \"\\$ARC_USER\"\\)\\] WITH LOGIN" }
+
+  - it: grants the archive reader the snapshots' two tables on PostgreSQL too
+    template: templates/migrations-job.yaml
+    set:
+      database.provider: postgres
+      postgres.enabled: true
+      mssql.enabled: false
+      database.logins: { enabled: true, archiveReader: { enabled: true } }
+    asserts:
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT SELECT ON %I.%I, %I.%I TO %I', 'Event', 'HistoricalSources', 'Event', 'HistoricalSourceSnapshots', :'arc_user'" }
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT pg_\\w+ TO %I', :'arc_user'|ALL TABLES IN SCHEMA %I TO %I', nspname, :'arc_user'" }
+
+  - it: refuses the archive reader without the logins
+    template: templates/migrations-job.yaml
+    set:
+      database.logins.archiveReader.enabled: true
+    asserts:
+      - failedTemplate:
+          errorPattern: "archiveReader needs database.logins.enabled"
