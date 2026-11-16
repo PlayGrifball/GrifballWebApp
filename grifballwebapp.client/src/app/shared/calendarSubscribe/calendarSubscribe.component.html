@@ -1,0 +1,12 @@
+<details class="cal-sub">
+  <summary class="cal-sub__toggle hud-text-link">Subscribe to calendar</summary>
+  <div class="cal-sub__body">
+    <p class="hud-muted">{{description()}}, in your calendar app. Scheduled and moved matches update on their own.</p>
+    <a class="cal-sub__webcal hud-text-link" [href]="webcal()">Open in your calendar app</a>
+    <p class="hud-muted">Or add a calendar from this address (Google Calendar: Other calendars, From URL):</p>
+    <div class="cal-sub__row">
+      <input class="cal-sub__url" type="text" readonly [value]="url()" aria-label="Calendar feed address">
+      <button type="button" class="hud-btn cal-sub__copy" (click)="copy()">{{copied() ? 'Copied' : 'Copy'}}</button>
+    </div>
+  </div>
+</details>

@@ -9,7 +9,7 @@ public struct SeasonMatchGene
     public required int HomeTeamID { get; set; }
     public required int AwayTeamID { get; set; }
     public required DateTime ScheduledTime { get; set; }
-    public DateTime EndsAt => ScheduledTime.AddMinutes(30).AddTicks(-1);
+    public DateTime EndsAt => ScheduledTime.Add(SeasonMatch.SlotLength).AddTicks(-1);
     //public TimeSpan Duration => new TimeSpan(EndsAt.Ticks - ScheduledTime.Ticks);
     private bool SameTeamPlaying(SeasonMatchGene other)
     {

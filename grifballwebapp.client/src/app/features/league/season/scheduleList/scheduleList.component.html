@@ -1,3 +1,5 @@
+<app-calendar-subscribe class="sched-calendar" [path]="calendarPath()" description="This season's schedule" />
+
 @if (accountService.isEventOrganizer()) {
 <div class="hud-actions sched-tools">
   <button mat-stroked-button (click)="toggleEdit()">

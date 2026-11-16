@@ -128,6 +128,9 @@ public class SeasonMatch : AuditableEntity
     public SeasonMatchResult? AwayTeamResult { get; private set; }
     /// <summary>When it is to be played, once scheduled (<see cref="ScheduleAt"/>).</summary>
     public DateTime? ScheduledTime { get; private set; }
+    /// <summary>How long a match takes from its <see cref="ScheduledTime"/>: the scheduler keeps a team's matches a slot
+    /// apart (SeasonMatchGene), and the calendar feeds show a match this long.</summary>
+    public static readonly TimeSpan SlotLength = TimeSpan.FromMinutes(30);
     /// <summary>The series' length: a team with more than half of it in wins wins the match.</summary>
     public int BestOf { get; private set; }
     // Read-only: only the match's own methods add, number or remove a game (EF uses the field)
