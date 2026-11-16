@@ -662,6 +662,47 @@ ingressRoute:
   api:
     enabled: true
 
+# On demand (off): every Deployment of the release stops (0 replicas) while nobody visits and starts on the next
+# visit, through Sablier (https://sablierapp.dev) and its Traefik plugin. Needs ingressRoute.enabled: the chart puts a
+# Middleware (grif-on-demand, the plugin) on the IngressRoute's routes, and labels its Deployments into one Sablier
+# group. While stopped, nothing runs: no Discord bot, no scheduled jobs, no background services. For test and
+# staging sites, not one people and bots rely on. README: On demand says what the cluster needs (Sablier, the plugin,
+# Traefik's allowEmptyServices).
+onDemand:
+  enabled: false
+  # The Sablier group the Deployments join and the routes start. Empty: the release's namespace. A label value.
+  group: ""
+  # Sablier's API, as Traefik reaches it (the plugin calls it), and as the migration Job and the backups do.
+  sablierUrl: http://sablier.sablier.svc:10000
+  # How long after the last visit the group keeps running (a Go duration).
+  sessionDuration: 30m
+  # dynamic: a starting page that refreshes itself until the site is up. blocking: hold each request until it is up
+  # (blocking.timeout); the plugin's documentation says Kubernetes doesn't support it yet.
+  strategy: dynamic
+  dynamic:
+    # The starting page's title. Empty: the Middleware's name (grif-on-demand).
+    displayName: Grifball
+    # Show each Deployment's state on the page. null: Sablier's default.
+    showDetails: null
+    # A Sablier theme (ghost, hacker-terminal, matrix, shuffle, or your own). Empty: Sablier's default.
+    theme: ""
+    # How often the page checks again (a Go duration). Empty: Sablier's default.
+    refreshFrequency: ""
+  blocking:
+    # How long a request waits for the group (a Go duration). Required with strategy blocking.
+    timeout: 1m
+  # How often the plugin renews the session while a long-lived connection (the SignalR hubs' WebSocket) stays open
+  # (a Go duration, under sessionDuration). Empty: off, so an open page alone doesn't keep the site running; only
+  # requests do. Set it and a tab left open keeps everything up.
+  keepAliveInterval: ""
+  # User-Agent patterns (Go regexps) the plugin answers 200 without starting anything: uptime checks, crawlers.
+  ignoreUserAgent: []
+  # - "(?i)uptime-kuma"
+  networkPolicy:
+    # Sablier's namespace: with the chart's own database, the migration Job and the backup CronJobs call Sablier
+    # (sablierUrl's port) to start the group before they wait for the database. Empty: that port anywhere.
+    sablierNamespace: sablier
+
 # SQL Server in the release, with database.provider sqlserver (the default). Disabled: set
 # database.host to your own.
 mssql:

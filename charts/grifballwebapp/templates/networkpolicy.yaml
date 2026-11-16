@@ -14,6 +14,14 @@
 {{- $database = dict "ports" (list (dict "protocol" "TCP" "port" (include "grif.dbPort" . | int))) }}
 {{- with $np.database.to }}{{ $_ := set $database "to" . }}{{ end }}
 {{- end }}
+{{- /* onDemand with the chart's database: Sablier's API, which the Jobs that wait for the database call first (grif.waitForDatabaseScript). */}}
+{{- $sablier := list }}
+{{- if include "grif.onDemandWakesDatabase" . }}
+{{- $o := .Values.onDemand }}
+{{- $rule := dict "ports" (list (dict "protocol" "TCP" "port" (include "grif.urlPort" $o.sablierUrl | int))) }}
+{{- with $o.networkPolicy.sablierNamespace }}{{ $_ := set $rule "to" (list (dict "namespaceSelector" (dict "matchLabels" (dict "kubernetes.io/metadata.name" .)))) }}{{ end }}
+{{- $sablier = list $rule }}
+{{- end }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -444,6 +452,10 @@ spec:
   egress:
     {{- toYaml (list $dns) | nindent 4 }}
     {{- toYaml (list $database) | nindent 4 }}
+    {{- with $sablier }}
+    # Sablier (onDemand), to start the database before waiting for it.
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
     {{- with $np.migrations.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -469,6 +481,10 @@ spec:
     {{- toYaml (list $dns) | nindent 4 }}
     {{- if not $pg }}
     {{- toYaml (list $database) | nindent 4 }}
+    {{- with $sablier }}
+    # Sablier (onDemand), to start the database before waiting for it.
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
     {{- end }}
     {{- with $np.backupRetention.extraEgress }}
     {{- toYaml . | nindent 4 }}
@@ -494,6 +510,10 @@ spec:
   egress:
     {{- toYaml (list $dns) | nindent 4 }}
     {{- toYaml (list $database) | nindent 4 }}
+    {{- with $sablier }}
+    # Sablier (onDemand), to start the database before waiting for it.
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
     {{- with $np.scheduledBackup.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

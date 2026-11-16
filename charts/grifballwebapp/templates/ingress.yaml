@@ -37,6 +37,11 @@ spec:
 {{- end }}
 {{- with .Values.ingressRoute }}
 {{- if .enabled }}
+{{- /* The site's middlewares, then (onDemand) Sablier's on every route: a browser's page, API call or hub
+   connection starts the release and renews its session. The frontend's own calls to the backend go to its
+   Service, not through here, so only visitors count. */}}
+{{- $middlewares := .middlewares | default list }}
+{{- if $.Values.onDemand.enabled }}{{ $middlewares = append $middlewares (dict "name" "grif-on-demand") }}{{ end }}
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -55,7 +60,7 @@ spec:
   routes:
     - match: Host(`{{ required "ingressRoute.host is required when ingressRoute.enabled" .host }}`)
       kind: Rule
-      {{- with .middlewares }}
+      {{- with $middlewares }}
       middlewares:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -67,7 +72,7 @@ spec:
     - match: 'Host(`{{ .host }}`) && PathRegexp(`^/(hub|signalr-dev)/\w*Hub(/|$)`)'
       kind: Rule
       middlewares:
-        {{- with .middlewares }}
+        {{- with $middlewares }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
         - name: grif-backend-path
@@ -87,7 +92,7 @@ spec:
     - match: 'Host(`{{ .host }}`) && PathRegexp(`^/(api/|signin-discord(/|$))`)'
       kind: Rule
       middlewares:
-        {{- with .middlewares }}
+        {{- with $middlewares }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
         - name: grif-backend-path

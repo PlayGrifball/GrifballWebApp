@@ -53,6 +53,42 @@ Unset, the other kind than the app's: PostgreSQL beside SQL Server or SQLite, SQ
 {{- if and .Values.backupScratch.enabled (eq .Values.backupScratch.mode "onDemand") }}true{{ end -}}
 {{- end }}
 
+{{/* The release's Sablier group (onDemand): onDemand.group, else the release's namespace. */}}
+{{- define "grif.onDemandGroup" -}}
+{{- .Values.onDemand.group | default .Release.Namespace -}}
+{{- end }}
+
+{{/*
+A Deployment's labels with onDemand: in the group, so Sablier stops it while nobody visits and starts it on a
+visit. Both key forms: sablier.* (every Sablier release) and sablierapp.dev/* (the Kubernetes form newer ones
+prefer); the same values, so either reads the same. Sablier starts a Deployment at 1 replica unless
+active.replicas says more. Takes dict "root", "replicas".
+*/}}
+{{- define "grif.onDemandLabels" -}}
+{{- if .root.Values.onDemand.enabled }}
+{{- $group := include "grif.onDemandGroup" .root }}
+{{- range $prefix := list "sablier." "sablierapp.dev/" }}
+{{ $prefix }}enable: "true"
+{{ $prefix }}group: {{ $group | quote }}
+{{- if gt (int $.replicas) 1 }}
+{{ $prefix }}active.replicas: {{ $.replicas | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/* A Deployment's replicas: none with onDemand, where Sablier scales it (a count here would be set back by
+   every Helm upgrade or Argo CD sync). Takes dict "root", "replicas". */}}
+{{- define "grif.replicas" -}}
+{{- if not .root.Values.onDemand.enabled }}replicas: {{ .replicas }}{{ end -}}
+{{- end }}
+
+{{/* "true" with onDemand and the chart's own database (in the group, so stopped while nobody visits): the Jobs
+   that wait for it start the group first (grif.waitForDatabaseScript). */}}
+{{- define "grif.onDemandWakesDatabase" -}}
+{{- if and .Values.onDemand.enabled (include "grif.bundled" .) (not .Values.database.host) }}true{{ end -}}
+{{- end }}
+
 {{/* "true" with database.provider postgres; empty with sqlserver. */}}
 {{- define "grif.postgres" -}}
 {{- if eq .Values.database.provider "postgres" }}true{{ end -}}
@@ -309,8 +345,15 @@ after it starts, and until then its packets are dropped, name lookups included. 
 after 3 seconds, lookup and all (nc -w covers only the connection): an untimed try hung for
 61-110 seconds on every Job but a release's first (k3s, 2026-10-15).
 Needs DB_HOST, DB_PORT, WAIT_SECONDS.
+With onDemand and the chart's database, it first asks Sablier to start the group (its poke strategy: it starts
+them and answers at once), as a visit would, so a Job run while nobody visits finds the database up.
 */}}
 {{- define "grif.waitForDatabaseScript" -}}
+{{- if include "grif.onDemandWakesDatabase" . }}
+{{- $o := .Values.onDemand }}
+{{- $url := printf "%s/api/strategies/poke?group=%s&session_duration=%s" (trimSuffix "/" $o.sablierUrl) (include "grif.onDemandGroup" . | urlquery) (urlquery $o.sessionDuration) -}}
+wget -q -T 10 -O /dev/null {{ $url | squote }} || echo "Sablier didn't answer ({{ $o.sablierUrl }}): waiting for the database anyway."
+{{ end -}}
 end=$(( $(date +%s) + WAIT_SECONDS ))
 until timeout 3 nc -w 2 "$DB_HOST" "$DB_PORT" </dev/null; do
   if [ "$(date +%s)" -ge "$end" ]; then echo "$DB_HOST:$DB_PORT unreachable"; exit 1; fi
