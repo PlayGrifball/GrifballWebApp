@@ -670,7 +670,8 @@ else bad "chart-publish: unsigned, sign failed:"; cat "$work/out" "$work/pubout"
 # given, as gh does): ENV_REFS, the repository's tags ("<tag> <sha>" lines); ENV_PARENT, the parent of any deploy commit
 # read (not the images' commit c0ffee), ENV_MESSAGE its message; ENV_IMAGES, every commit's promoted-images.yaml (unset:
 # none); ENV_COMPARE, the compare API's status, one word per call (the last from then on); ENV_SETTLED, what
-# env/test/current reads as, one sha per read; ENV_RELEASES, the release list. Each call is logged in $ENV_CALLS as
+# env/test/current reads as, one sha per read; ENV_RELEASES, the release list; ENV_CHART_TREES, the chart directory's
+# tree at each ref ("<ref> <sha>" lines, as the contents API lists charts/). Each call is logged in $ENV_CALLS as
 # "<method> <path> <fields>", a POSTed --input as the next line; a release's notes go to $ENV_BODY, its asset to
 # $ENV_ASSET. docker stubbed (logged too): every image's revision label is $ENV_REVISION (empty: none).
 mkdir -p "$work/envbin"
@@ -710,6 +711,9 @@ case "$method $path" in
   "GET git/ref/"*) json=$(tags "refs/${path#git/ref/}" | jq -c --arg ref "refs/${path#git/ref/}" '.[] | select(.ref == $ref)'); [[ -n "$json" ]] || notfound ;;
   "GET git/commits/c0ffee") json='{"tree":{"sha":"tree0"}}' ;;
   "GET git/commits/"*) json=$(jq -cn --arg p "${ENV_PARENT:-}" --arg m "${ENV_MESSAGE:-}" '{parents: [{sha: $p}], message: $m}') ;;
+  "GET contents/charts?ref="*)
+    sha=$(awk -v ref="${path#contents/charts?ref=}" '$1 == ref { print $2 }' <<< "${ENV_CHART_TREES:-}")
+    json=$(jq -cn --arg sha "$sha" '[{name: "grifballwebapp", type: "dir", sha: $sha}]') ;;
   "GET contents/charts/grifballwebapp/promoted-images.yaml?ref="*)
     [[ -n "${ENV_IMAGES+set}" ]] || notfound
     json=$(jq -cn --arg c "$(printf '%s\n' "$ENV_IMAGES" | base64)" '{content: $c, encoding: "base64"}') ;;
@@ -857,6 +861,34 @@ if ENV_RELEASES=$(this_run true) release_env \
   && [[ "$(grep -E '^(DELETE releases/[0-9]+|POST releases )' "$work/calls" | cut -d' ' -f1-2)" = "$(printf 'DELETE releases/3\nPOST releases')" ]]
 then ok "env-release: a re-run deletes this run's unfinished draft, then releases"
 else bad "env-release: draft re-run:"; cat "$work/out" "$work/calls"; fi
+# The Chart section: the chart at the images' commit, and how it compares with the newest published version that
+# commit includes (version order: 0.1.512 before 0.1.99; a version after the commit is skipped)
+chart_release() { ENV_RELEASES=$other_run release_env; }
+if ENV_REFS=$'grifballwebapp-0.1.99 old\ngrifballwebapp-0.1.512 pub' ENV_COMPARE=ahead \
+  ENV_CHART_TREES=$'c0ffee t1\ngrifballwebapp-0.1.512 t1' chart_release \
+  && grep -qx '### Chart' "$work/body" \
+  && grep -qF '`charts/grifballwebapp` at [`c0ffee`](https://github.com/o/r/commit/c0ffee)' "$work/body" \
+  && grep -qF 'The same chart as the published `grifballwebapp-0.1.512`' "$work/body" \
+  && grep -qF 'oci://ghcr.io/playgrifball/charts/grifballwebapp --version 0.1.512' "$work/body" \
+  && grep -qF "git checkout env/staging/$today" "$work/body" \
+  && [[ "$(jq -c .chart "$work/asset")" = '{"commit":"c0ffee","published":"0.1.512","same_as_published":true}' ]]
+then ok "env-release: the chart, the same as its newest published version"
+else bad "env-release: chart, same:"; cat "$work/out" "$work/body" "$work/asset"; fi
+if ENV_REFS=$'grifballwebapp-0.1.512 pub' ENV_COMPARE=ahead ENV_CHART_TREES=$'c0ffee t2\ngrifballwebapp-0.1.512 t1' \
+  chart_release && grep -qF 'Changed since the published `grifballwebapp-0.1.512`' "$work/body" \
+  && grep -qF 'https://github.com/o/r/compare/grifballwebapp-0.1.512...c0ffee' "$work/body" \
+  && [[ "$(jq -c .chart.same_as_published "$work/asset")" = false ]]
+then ok "env-release: the chart, changed since its newest published version"
+else bad "env-release: chart, changed:"; cat "$work/out" "$work/body" "$work/asset"; fi
+if ENV_REFS=$'grifballwebapp-0.1.512 new\ngrifballwebapp-0.1.509 pub' ENV_COMPARE='behind ahead' \
+  ENV_CHART_TREES=$'c0ffee t1\ngrifballwebapp-0.1.509 t1' chart_release \
+  && grep -qF 'The same chart as the published `grifballwebapp-0.1.509`' "$work/body"
+then ok "env-release: a chart version published after the commit isn't the one it's compared with"
+else bad "env-release: chart, later version:"; cat "$work/out" "$work/body"; fi
+if ENV_REFS='' chart_release && grep -qF 'No chart version was published before this commit' "$work/body" \
+  && [[ "$(jq -c .chart "$work/asset")" = '{"commit":"c0ffee","published":null,"same_as_published":false}' ]]
+then ok "env-release: the chart, with no published version before it"
+else bad "env-release: chart, none:"; cat "$work/out" "$work/body" "$work/asset"; fi
 
 # workflows.sh: the repository's workflows pass; each broken copy fails, in the check that should catch it
 if bash "$here/workflows.sh" > "$work/out" 2>&1; then ok "workflows: the repository's workflows pass"
