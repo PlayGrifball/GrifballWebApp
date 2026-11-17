@@ -1,9 +1,12 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, linkedSignal, untracked } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, effect, inject, input, untracked } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
-import type { SeasonSchedulingRulesDto } from '@api/models';
 import { SchedulingRulesStore } from './schedulingRules.store';
+
+/** A rule of at least 1: required, unless an empty one means none (the cap on matches at once). */
+const atLeastOne = (required: boolean) => new FormControl<number | null>(null, required ? [Validators.required, Validators.min(1)] : [Validators.min(1)]);
 
 /**
  * A season's scheduling rules, which its matches' times are checked against (the season scheduler, a time set by hand, a
@@ -12,7 +15,7 @@ import { SchedulingRulesStore } from './schedulingRules.store';
  */
 @Component({
   selector: 'app-scheduling-rules',
-  imports: [FormsModule, MatButtonModule, MatInputModule],
+  imports: [ReactiveFormsModule, MatButtonModule, MatInputModule],
   templateUrl: './schedulingRules.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [SchedulingRulesStore],
@@ -22,26 +25,40 @@ export class SchedulingRulesComponent {
 
   readonly seasonID = input.required<number>();
 
+  readonly rules = this.store.rules;
   readonly saving = this.store.saving;
   readonly saved = this.store.saved;
   readonly error = this.store.error;
-  /** The rules being edited: the season's once they arrive. */
-  readonly model = linkedSignal(() => this.store.rules());
+  readonly form = new FormGroup({
+    minPlayersAvailable: atLeastOne(true),
+    maxMatchesPerTeamPerNight: atLeastOne(true),
+    maxMatchesPerTeamPerWeek: atLeastOne(true),
+    maxConcurrentMatches: atLeastOne(false),
+  });
+  /** The form's status: VALID once every rule (but the cap) is filled in, each at least 1. */
+  readonly status = toSignal(this.form.statusChanges, { initialValue: this.form.status });
 
   constructor() {
     effect(() => {
       const seasonID = this.seasonID();
       untracked(() => this.store.load(seasonID));
     });
-  }
-
-  set(field: keyof SeasonSchedulingRulesDto, value: number | null): void {
-    this.model.update(rules => rules && { ...rules, [field]: value });
+    // The season's rules, once they arrive, are what is edited
+    effect(() => {
+      const rules = this.rules();
+      if (rules) untracked(() => this.form.reset(rules));
+    });
   }
 
   save(): void {
-    const rules = this.model();
-    // An empty cap is none
-    if (rules) this.store.save(this.seasonID(), { ...rules, maxConcurrentMatches: rules.maxConcurrentMatches ?? null });
+    if (this.form.invalid) return;
+    const rules = this.form.getRawValue();
+    this.store.save(this.seasonID(), {
+      minPlayersAvailable: rules.minPlayersAvailable!,
+      maxMatchesPerTeamPerNight: rules.maxMatchesPerTeamPerNight!,
+      maxMatchesPerTeamPerWeek: rules.maxMatchesPerTeamPerWeek!,
+      // An empty cap is none
+      maxConcurrentMatches: rules.maxConcurrentMatches ?? null,
+    });
   }
 }
