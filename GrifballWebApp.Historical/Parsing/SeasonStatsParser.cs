@@ -57,7 +57,31 @@ public static partial class SeasonStatsParser
             if (ParseTab(sourceId, config, workbook, tab, rosters, warnings) is { } season)
                 seasons.Add(season);
         }
+        if (TeamsOnly(sourceId, config, workbook) is { } teamsOnly)
+            seasons.Add(teamsOnly);
         return seasons;
+    }
+
+    /// <summary>The season of a workbook with no stats tabs or tables (a league that kept no player stats): an entry with
+    /// no player lines, keyed by its first standings tab of its own, whose teams the standings give. Null for any other, and
+    /// when that tab isn't in the workbook (a season of no teams; the build warns of the tab).</summary>
+    private static ArchiveSeason? TeamsOnly(string sourceId, HistoricalSourceConfig config, SheetWorkbook workbook)
+    {
+        if (config.Season is not { } defaults || config.Tabs.Count > 0 || config.Tables.Count > 0)
+            return null;
+        if (config.Standings.FirstOrDefault(s => s.Season is null) is not { } standings || workbook.Sheet(standings.Sheet) is null)
+            return null;
+        return new ArchiveSeason
+        {
+            SeasonName = defaults.Name,
+            GameVersion = defaults.Game ?? "",
+            League = defaults.League ?? "AGLA",
+            Division = defaults.Division ?? "Open",
+            Format = defaults.Format,
+            SourceWorkbook = sourceId,
+            SourceSheet = standings.Sheet,
+            Titles = defaults.Titles,
+        };
     }
 
     /// <summary>The teams' rosters, for players whose row names no team (or only the side of a game).</summary>
@@ -86,6 +110,8 @@ public static partial class SeasonStatsParser
             return null;
         }
         var columns = ColumnsOf(sheet.Rows[tab.HeaderRow]);
+        foreach (var ignored in tab.IgnoreColumns ?? [])
+            columns.Remove(ignored);
         var dataRows = sheet.Rows.Skip(tab.HeaderRow + 1).ToList();
         // A Team column of only 0s and 1s is the side of the player's last game (the stats tool's sheets), not a team
         var teamColumns = columns.Where(c => c.Value.Key == "teamName").Select(c => c.Key).ToList();
@@ -295,7 +321,7 @@ public static partial class SeasonStatsParser
         var team = ResolveRowTeam(teamName, sides, tab.CarryTeam, gamertag, rosters, ref currentTeam);
         var stint = stints.GetValueOrDefault(gamertag) + 1;
         stints[gamertag] = stint;
-        return Player(row, columns, gamertag, team, tradeNote, roleNote, stint);
+        return Player(row, columns, gamertag, team, tradeNote, roleNote, stint, lossesAreGamesNotWon: tab.LossesAreGamesNotWon);
     }
 
     private static string? ResolveRowTeam(string? teamName, bool sides, bool carryTeam, string gamertag,
@@ -560,7 +586,7 @@ public static partial class SeasonStatsParser
     internal static Dictionary<int, (string Key, string Header)> ColumnsOf(IReadOnlyList<string> header) => ColumnsOfRange(header, 0, header.Count);
 
     /// <summary>A player's line from a row of the stat columns.</summary>
-    internal static ArchivePlayer Player(string[] row, Dictionary<int, (string Key, string Header)> columns, string gamertag, string? teamName, string? tradeNote, string? roleNote, int stint, System.Text.Json.JsonElement? extendedMetrics = null)
+    internal static ArchivePlayer Player(string[] row, Dictionary<int, (string Key, string Header)> columns, string gamertag, string? teamName, string? tradeNote, string? roleNote, int stint, System.Text.Json.JsonElement? extendedMetrics = null, bool lossesAreGamesNotWon = false)
     {
         var values = new Dictionary<string, decimal?>();
         foreach (var (c, column) in columns)
@@ -584,6 +610,10 @@ public static partial class SeasonStatsParser
         // A total, or the average per game times the games
         decimal? Total(string key, string average)
             => Value(key) ?? (Value(average) is decimal perGame && games > 0 ? Math.Round(perGame * games.Value, MidpointRounding.AwayFromZero) : null);
+        // A tab that says a game not won is lost (DJBluePDX's: games and wins, no losses column): otherwise games not won may be ties
+        var losses = !lossesAreGamesNotWon || Value("gamesPlayed") is not { } played || Value("wins") is not { } wins
+            ? Count("losses")
+            : Math.Max(played - wins, 0);
         return new ArchivePlayer
         {
             Gamertag = gamertag,
@@ -593,7 +623,7 @@ public static partial class SeasonStatsParser
             StintIndex = stint,
             GamesPlayed = games,
             Wins = Count("wins"),
-            Losses = Count("losses"),
+            Losses = losses,
             WinPercent = Value("winPercent"),
             Goals = Count("goals"),
             Kills = kills,

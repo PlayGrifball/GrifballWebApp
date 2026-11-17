@@ -18,6 +18,7 @@ public class StandingsParserTests
 
     private static readonly (string, int?, int?)[] SecondBlockOwnRanks = [("Charlie", 2, null), ("Delta", 1, null)];
     private static readonly (string, int?, int?)[] LegacyWithoutProSeeds = [("Legacy A", null, 7), ("Legacy B", null, 3)];
+    private static readonly (string, string?, string)[] RosterTeams = [("No Way Out", "Ire Paroxysm (Hide)", "oDhmon,l Copilot l"), ("Oblivion", null, "Skiyttles")];
 
     private static SheetTable Sheet(params string[][] rows) => new() { Name = "Standings", Rows = [.. rows] };
 
@@ -33,6 +34,18 @@ public class StandingsParserTests
         var legacy = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "S", Anchor = "Team", AnchorNumber = 2 });
 
         Assert.That(legacy!.Select(t => (t.TeamName, t.Rank, t.Wins)), Is.EqualTo(LegacyWithoutProSeeds));
+    }
+
+    [TestCase("Gamertag")]
+    [TestCase("Gamertags")]
+    [TestCase("Player")]
+    [TestCase("Players")]
+    [TestCase("Player Name")]
+    public void Rows_APlayersTablesHeaderInTheTeamColumn_EndsTheTable(string header)
+    {
+        var sheet = Sheet(["Team", "Wins", "Losses"], ["Alpha", "9", "1"], [header, "2", "3"], ["Someone", "1", "1"]);
+
+        Assert.That(StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings" })!.Select(t => t.TeamName), Is.EqualTo(AlphaOnly));
     }
 
     [Test]
@@ -98,6 +111,34 @@ public class StandingsParserTests
         {
             ("Junkyard Dogs", 1, null, 8, 0, null), ("High Voltage", 2, null, 5, 3, null), ("Impulse", 3, null, 3, 5, null),
         }));
+    }
+
+    [Test]
+    public void Rows_ARosterTable_GivesEachTeamItsCaptainAndPlayers_WithoutNicknames_AndEndsAtAPlayersTable()
+    {
+        // SL20 Console Reach's Rosters: Team, Captain, Player 1-5 (a nickname in brackets after some), then a table of
+        // gamertags and their restrictions
+        var sheet = Sheet(
+            ["Team", "Captain", "Player 1", "Player 2", "Player 3"],
+            ["No Way Out", "Ire Paroxysm (Hide)", "oDhmon", "l Copilot l (MvRetrograder)"],
+            ["Oblivion", "", "Skiyttles"],
+            ["Gamertag", "Regular Season Restrictions", "Playoff Restrictions"],
+            ["Someone", "None", "None"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Rosters" });
+
+        Assert.That(teams!.Select(t => (t.TeamName, t.Captain, string.Join(",", t.Roster))), Is.EqualTo(RosterTeams));
+    }
+
+    [Test]
+    public void Rows_WithNoAnchor_ATeamAndPlayersBlockAbove_IsNoStandingsTable()
+    {
+        // A roster block (Team | Player 1) above the standings: the standings are the table found, not the roster
+        var sheet = Sheet(["Team", "Player 1"], ["Alpha", "Ace"], ["Team", "Wins", "Losses"], ["Alpha", "9", "1"]);
+
+        var team = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Standings" })!.Single();
+
+        Assert.That((team.TeamName, team.Wins, team.Losses), Is.EqualTo(("Alpha", (int?)9, (int?)1)));
     }
 
     [Test]
