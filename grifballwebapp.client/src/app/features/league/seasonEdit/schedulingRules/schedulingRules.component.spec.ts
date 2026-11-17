@@ -39,4 +39,19 @@ describe('SchedulingRulesComponent', () => {
     expect(http.expectOne({ method: 'POST', url: '/api/seasons/3/scheduling-rules' }).request.body)
       .toEqual({ minPlayersAvailable: 3, maxMatchesPerTeamPerNight: 1, maxMatchesPerTeamPerWeek: 2, maxConcurrentMatches: null });
   });
+
+  it('keeps Save off while a required rule is empty or below 1, and sends nothing', async () => {
+    const save = () => Array.from(el().querySelectorAll('button')).find(b => b.textContent!.includes('Save')) as HTMLButtonElement;
+    input('maxMatchesPerTeamPerWeek').value = '';
+    input('maxMatchesPerTeamPerWeek').dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(save().disabled).toBeTrue();
+
+    input('maxMatchesPerTeamPerWeek').value = '0';
+    input('maxMatchesPerTeamPerWeek').dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(save().disabled).toBeTrue();
+    save().click();
+    http.expectNone('/api/seasons/3/scheduling-rules');
+  });
 });
