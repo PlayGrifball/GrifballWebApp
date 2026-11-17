@@ -49,6 +49,39 @@ public class TeamsControllerTests
     private T SinglePublished<T>() =>
         _publisher.ReceivedCalls().Select(c => c.GetArguments()[0]).OfType<T>().Single();
 
+    private GrifballWebApp.Application.Draft.DraftHelperService Helper() => new(_context, new GrifballWebApp.Application.Leaderboards.LeaderboardsService(_context,
+        new GrifballWebApp.Application.Stats.SeasonStatsService(_context), new GrifballWebApp.Application.LateLeague.MatchmakingStatsService(_context),
+        new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())),
+        Microsoft.Extensions.Logging.Abstractions.NullLogger<GrifballWebApp.Application.Leaderboards.LeaderboardsService>.Instance));
+
+    [Test]
+    public async Task DraftHelper_ThePoolInDetail_AndTheOnDeckTeamsSuggestions_OrNoneWithoutATeam()
+    {
+        var season = await _context.AddSeason(captainsLocked: true);
+        var cap = await _context.AddUser("cap", "Cap");
+        var p = await _context.AddUser("p", gamertag: "PoolGuy");
+        await _context.AddSignup(season, cap);
+        await _context.AddSignup(season, p);
+        var empty = await _context.AddSeason("Empty");
+        var team = await _context.AddTeam(season, "Team", cap, 1);
+
+        var pool = await _controller.GetDraftPoolDetails(season.SeasonID, Helper(), CancellationToken.None);
+        var picks = await _controller.GetDraftSuggestions(season.SeasonID, null, 100, Helper(), CancellationToken.None);
+        var none = await _controller.GetDraftSuggestions(empty.SeasonID, null, 5, Helper(), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(pool.Select(x => x.Name), Is.EqualTo(OnePoolPlayer));
+            var suggestions = (GrifballWebApp.Application.Draft.DraftSuggestions)((OkObjectResult)picks).Value!;
+            Assert.That((suggestions.TeamID, suggestions.Picks.Single().Name), Is.EqualTo((team.TeamID, "PoolGuy")));
+            none.AssertProblem(Microsoft.AspNetCore.Http.StatusCodes.Status404NotFound, TeamsController.NoTeamOnDeck);
+        }
+    }
+
+    [TestCase(0, 1)]
+    [TestCase(100, TeamsController.MaxSuggestions)]
+    public void DraftSuggestions_HowMany_IsKeptToAFew(int asked, int given) => Assert.That(TeamsController.HowManyPicks(asked), Is.EqualTo(given));
+
     [Test]
     public async Task GetTeams_And_GetPlayerPool_Should_ReturnServiceData()
     {
