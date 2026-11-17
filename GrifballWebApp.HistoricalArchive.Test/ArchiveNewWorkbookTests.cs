@@ -1,4 +1,5 @@
 using GrifballWebApp.Domain.Players;
+using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.HistoricalArchive.Test;
@@ -108,8 +109,9 @@ public class ArchiveNewWorkbookTests
         Needs("2020-sl20-console-reach", "side-reach-pc-stats", "history-agla-champions");
         await using var context = Archive.NewContext();
 
-        var titles = await context.Seasons.AsNoTracking().Where(s => s.SeasonName.StartsWith("Spring League 2020"))
-            .SelectMany(s => s.PlayerChampionships.Select(c => new { s.HistoricalSourceID, c.Tier, c.Team.TeamName }))
+        // From the titles' side, joined to their season: SelectMany over a season's titles needs APPLY, which SQLite lacks
+        var titles = await context.Set<PlayerChampionship>().AsNoTracking().Where(c => c.Season.SeasonName.StartsWith("Spring League 2020"))
+            .Select(c => new { c.Season.HistoricalSourceID, c.Tier, c.Team.TeamName })
             .ToListAsync();
         var summary = titles.GroupBy(t => (t.HistoricalSourceID, t.Tier, t.TeamName)).Select(g => (g.Key.HistoricalSourceID, g.Key.Tier, g.Key.TeamName, g.Count()))
             .OrderBy(t => t.HistoricalSourceID, StringComparer.Ordinal).ToList();
