@@ -400,19 +400,32 @@ public class BracketParserTests
     {
         // Bravo lost no playoff game: Alpha lost the 2-0. Charlie and Delta each lost one, too few to have lost a 2-1: the
         // records can't tell. Foxtrot has no record. A tie breaker's game ("(0-1*)") isn't the playoffs' (Golf played no
-        // other), and a record under no name is nobody's
+        // other), and a record under no name is nobody's. Hotel's two unmarked brackets say no one record: it has none, so
+        // Kilo's two losses decide nothing. Both tabs' "Indy" is the season's India by the tab's alias: India lost none,
+        // Juliett two
         var bracket = Cells("Playoffs",
             ("A1", "Alpha"), ("A2", "vs (2-0)"), ("A3", "Bravo"),
             ("C1", "Charlie"), ("C2", "vs (2-1)"), ("C3", "Delta"),
-            ("E1", "Echo"), ("E2", "vs (2-0)"), ("E3", "Foxtrot"));
+            ("E1", "Echo"), ("E2", "vs (2-0)"), ("E3", "Foxtrot"),
+            ("G1", "Hotel"), ("G2", "vs (2-0)"), ("G3", "Kilo"),
+            ("I1", "Indy"), ("I2", "vs (2-0)"), ("I3", "Juliett"));
         var records = Cells("Teams",
             ("A1", "Alpha"), ("B1", "Bravo"), ("C1", "Charlie"), ("D1", "Delta"), ("E1", "Echo"), ("G1", "Golf"),
-            ("A2", "3-1 (2-2) (0-1*)"), ("B2", "3-1 (2-0)"), ("C2", "5-0 (2-1)"), ("D2", "4-1 (2-1)"), ("E2", "2-2 (0-0)"), ("F2", "1-1 (0-2)"), ("G2", "1-0 (1-0*)"));
+            ("H1", "Hotel"), ("I1", "Indy"), ("J1", "Juliett"), ("K1", "Kilo"),
+            ("A2", "3-1 (2-2) (0-1*)"), ("B2", "3-1 (2-0)"), ("C2", "5-0 (2-1)"), ("D2", "4-1 (2-1)"), ("E2", "2-2 (0-0)"),
+            ("F2", "1-1 (0-2)"), ("G2", "1-0 (1-0*)"),
+            ("H2", "3-3 (2-2) (1-0)"), ("I2", "3-3 (2-0)"), ("J2", "3-3 (2-2)"), ("K2", "3-3 (2-2)"));
         var tab = new BracketTab
         {
             Sheet = "Playoffs",
             RecordsSheet = "Teams",
-            Slots = [new() { Round = 1, Home = "A1", Away = "A3", Score = "A2" }, new() { Round = 1, Home = "C1", Away = "C3", Score = "C2" }, new() { Round = 1, Home = "E1", Away = "E3", Score = "E2" }],
+            Aliases = new() { ["Indy"] = "India" },
+            Slots =
+            [
+                new() { Round = 1, Home = "A1", Away = "A3", Score = "A2" }, new() { Round = 1, Home = "C1", Away = "C3", Score = "C2" },
+                new() { Round = 1, Home = "E1", Away = "E3", Score = "E2" }, new() { Round = 1, Home = "G1", Away = "G3", Score = "G2" },
+                new() { Round = 1, Home = "I1", Away = "I3", Score = "I2" },
+            ],
         };
 
         var series = Parse(tab, bracket, records).Series.Select(Row);
@@ -422,6 +435,8 @@ public class BracketParserTests
             (Bracket.Winner, 1, 1, "Alpha", "Bravo", null, null, 0, 2, SeasonMatchSide.Away),
             (Bracket.Winner, 1, 2, "Charlie", "Delta", null, null, null, null, null),
             (Bracket.Winner, 1, 3, "Echo", "Foxtrot", null, null, null, null, null),
+            (Bracket.Winner, 1, 4, "Hotel", "Kilo", null, null, null, null, null),
+            (Bracket.Winner, 1, 5, "India", "Juliett", null, null, 2, 0, SeasonMatchSide.Home),
         }));
     }
 

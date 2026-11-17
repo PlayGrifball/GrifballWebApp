@@ -1324,21 +1324,22 @@ public class HistoricalArchiveParsingTests
         }
     }
 
-    private static readonly (string, string?)[] OnlyTheNamedTeamsPlayers = [("ixGingy", "Natural Wonders"), ("yLuxe", "Nets Dimension")];
+    private static readonly (string, string?)[] OnlyTheNamedTeamsPlayers = [("ixGingy", "Natural Wonders"), ("yLuxe", "Nets Dimension"), ("Numbered", "3")];
 
     [Test]
     public void ARowWhoseTeamIsANumber_InATabThatNamesItsTeams_IsNoPlayersLine()
     {
         // FL21's stats end with the hosts who played no game, their Team cell a game side ("0 | ixjaga"); SML20's playoff
         // bracket sits below its stats, under the same columns ("4 | Bank Your Items!": a seed and a team, its "3" a medals
-        // cell). Neither is a team, and neither row a player's line
+        // cell). Neither is a team, and neither row a player's line. A row that played games is a line whatever its Team says
         var xlsx = Workbook(("Stats", [
             Row("Team", "Player", "GamesPlayed", "Wins", "Kills", "Medals"),
             Row("Natural Wonders", "ixGingy", 10, 8, 746, 900),
             Row("Nets Dimension", "yLuxe", 8, 3, 567, 600),
             Row(0, "ixjaga", 0, 0, 0, 0),
             Row(1, "RandyJacksonBK", 0, 0, 0, 0),
-            Row(4, "Bank Your Items!", null, null, null, 3)]));
+            Row(4, "Bank Your Items!", null, null, null, 3),
+            Row(3, "Numbered", 2, 1, 50, 60)]));
         var config = new HistoricalSourceConfig { Season = new SeasonDefaults { Name = "Fall League 2021 (Pro)", Game = "halo3" }, Tabs = [new() { Name = "Stats" }] };
 
         var season = SeasonStatsParser.Parse("sml21", config, Read(xlsx), []).Single();
