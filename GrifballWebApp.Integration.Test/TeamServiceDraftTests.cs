@@ -390,6 +390,15 @@ public class TeamServiceDraftTests
     }
 
     [Test]
+    public async Task CaptainName_OfACaptainWithNoName_IsAnotherCaptain()
+    {
+        var season = await _context.AddSeason(captainsLocked: true);
+        var team = await _context.AddTeam(season, "Nameless", await _context.AddUser("nameless"), 1);
+
+        Assert.That(await _service.CaptainName(team), Is.EqualTo("another captain"), "Never their login name");
+    }
+
+    [Test]
     public async Task AddPlayerToTeam_FromAnOnDeckMenu_RefusesAnEarlierPicksMenu_EvenForACommissioner()
     {
         var (season, _, capB, _, teamB) = await TwoTeamDraft();
