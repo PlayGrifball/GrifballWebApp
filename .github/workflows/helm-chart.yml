@@ -371,10 +371,12 @@ jobs:
   # The published version's GitHub release (.github/scripts/chart-release.sh): tagged grifballwebapp-<version> at the
   # commit, its notes the chart's changes since the previous chart release, so Renovate shows them on a chart update.
   # Never the latest release (prod's). Its own job, so only it can write to the repository. Skipped when nothing was
-  # published (the chart didn't change).
+  # published (the chart didn't change). The result is checked explicitly, as publish does: with only the output, the
+  # implicit success() also skips it whenever a job before publish was skipped (apk-archive, once its packages are
+  # released), which left 0.1.509 without a release.
   release:
     needs: publish
-    if: ${{ needs.publish.outputs.digest != '' }}
+    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.digest != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
