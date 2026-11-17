@@ -51,6 +51,26 @@ internal sealed class ScheduleRecommendationsUnitTests : ApplicationDbContextTes
         return new SeasonScheduleEvaluator(checker, new Dictionary<int, int>()).ConflictsOf;
     }
 
+    [TestCase(ScheduleConflictKind.OutsideSeason)]
+    [TestCase(ScheduleConflictKind.TooManyThisWeek)]
+    [TestCase(ScheduleConflictKind.TooManyTonight)]
+    [TestCase(ScheduleConflictKind.TooManyAtOnce)]
+    [TestCase(ScheduleConflictKind.NotASeasonTimeslot)]
+    public async Task Save_FlagsATimeBreakingAnyOfTheSeasonsRules(ScheduleConflictKind kind)
+    {
+        var (home, away, match) = await SeedMatch();
+        var gene = new SeasonMatchGene { SeasonMatchID = match.SeasonMatchID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, ScheduledTime = ProposedTime };
+        var run = new ScheduleRun([gene], 0.5, 3, (_, _) => [new ScheduleConflict(kind, "Against the season's rules.")]);
+
+        var saved = await _service.Save(SeasonID, run, "commissioner");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(saved.ConflictCount, Is.EqualTo(1), "Counted in the job's report");
+            Assert.That(saved.Matches.Single().Overlaps, Is.True, "Shown on the schedule");
+        }
+    }
+
     [Test]
     public async Task Save_StoresProposedTimesWithOverlapAndAvailabilityFlags()
     {
