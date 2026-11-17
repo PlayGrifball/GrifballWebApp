@@ -914,6 +914,22 @@ public class HistoricalArchiveParsingTests
     }
 
     [Test]
+    public void AStandingsSheetWithNoTable_IsNotRead_WithAWarning()
+    {
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("A", "Alpha", 4, 1)],
+            ("Teams", new StandingsTab { Sheet = "Teams", Layout = StandingsLayout.Columns }, [Row("Notes only")]));
+
+        var build = HistoricalArchiveBuilder.Build([source]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(build.Input.Seasons.Seasons.Single().Teams, Is.Empty);
+            Assert.That(build.Warnings, Does.Contain("s: standings 'Teams' not read (no such sheet, or no table)"));
+        }
+    }
+
+    [Test]
     public void TwoStandingsTabsOfASeason_SpellingATeamTwoWays_GiveItOneName()
     {
         // The stats name no team: the second tab takes the first tab's name
