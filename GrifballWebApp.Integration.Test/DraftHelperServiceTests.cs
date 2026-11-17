@@ -44,7 +44,8 @@ public class DraftHelperServiceTests
     /// <summary>
     /// A past season with Ace (16 of 20 won, the most goals and kills), Mid (10 of 20) and Bench (4 of 20); Rookie never played.
     /// The season drafting plays Mondays and Tuesdays at 20:00: Reds (captain Cap, East, Mondays) is the only team, and short of
-    /// players on both. Ace (West) can play Mondays; Mid and Bench (East) both; Rookie (East) Mondays.
+    /// players on both. Ace (West) can play Mondays; Mid and Bench (East) both; Rookie (East) Mondays. Rookie signed up last season
+    /// and played no game.
     /// </summary>
     private async Task Seed(bool capPlaysBoth = false)
     {
@@ -67,7 +68,8 @@ public class DraftHelperServiceTests
         _context.PlayerSeasonStats.AddRange(
             Stats(old, _ace, wins: 16, goals: 40, kills: 300),
             Stats(old, _mid, wins: 10, goals: 20, kills: 200),
-            Stats(old, _bench, wins: 4, goals: 4, kills: 80));
+            Stats(old, _bench, wins: 4, goals: 4, kills: 80),
+            Stats(old, _rookie, wins: 0, goals: 0, kills: 0, games: 0));
         await _context.SaveChangesAsync();
     }
 
