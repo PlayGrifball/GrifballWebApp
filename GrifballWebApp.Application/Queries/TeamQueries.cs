@@ -16,4 +16,13 @@ public static class TeamQueries
 
     /// <summary>Every team's roster rows, to read: <c>context.Teams.Rosters()</c>.</summary>
     public static IQueryable<TeamPlayer> Rosters(this IQueryable<Team> teams) => teams.SelectMany(t => t.TeamPlayers).AsNoTracking();
+
+    /// <summary>
+    /// <paramref name="seasonID"/>'s teams in the order they pick next: the fewest players first, then the captain's draft order. A team
+    /// with no captain (removed) has no one to pick for it. The first is on deck.
+    /// </summary>
+    public static IQueryable<Team> PickOrder(this IQueryable<Team> teams, int seasonID) => teams
+        .Where(t => t.SeasonID == seasonID && t.CaptainID != null)
+        .OrderBy(t => t.TeamPlayers.Count)
+        .ThenBy(t => t.Captain.DraftCaptainOrder);
 }

@@ -282,14 +282,7 @@ public class TeamService
 
     public async Task<Team?> OnDeck(int seasonId, CancellationToken ct)
     {
-        return await _context.Teams
-                        .Include(t => t.Captain)
-                        .Where(t => t.SeasonID == seasonId)
-                        // A team with no captain (removed) has no one to pick for it
-                        .Where(t => t.CaptainID != null)
-                        .OrderBy(t => t.TeamPlayers.Count)
-                        .ThenBy(t => t.Captain.DraftCaptainOrder)
-                        .FirstOrDefaultAsync(ct);
+        return await _context.Teams.Include(t => t.Captain).PickOrder(seasonId).FirstOrDefaultAsync(ct);
     }
 
     public async Task MovePlayerToTeam(MovePlayerToTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)

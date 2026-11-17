@@ -59,6 +59,8 @@ public static class ApplicationServiceCollectionExtensions
         services.AddTransient<GrifballWebApp.Application.Scheduling.SeasonSchedulingRulesService>();
         services.AddTransient<GrifballWebApp.Application.Scheduling.TeamAvailabilityService>();
         services.AddTransient<GrifballWebApp.Application.Scheduling.SchedulingService>();
+        // The draft helper: the pool with careers, timeslots and region, and suggested picks
+        services.AddTransient<GrifballWebApp.Application.Draft.DraftHelperService>();
         // Who the voice chat may hear (the Discord bot's /voice)
         services.AddTransient<GrifballWebApp.Application.Voice.VoiceConsents>();
         // Its changes waiting for an answer: in memory unless Infrastructure's Redis (scaled out) is registered
