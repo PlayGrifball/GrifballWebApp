@@ -321,6 +321,71 @@ internal sealed class HistoricalImportServiceUnitTests : ApplicationDbContextTes
         }
     }
 
+    /// <summary>Each roster row of the season: its team, player, whether it is the captain's, and its draft numbers.</summary>
+    private async Task<List<(string Team, string Player, bool Captain, int? Order, int? Round, int? Pick)>> Drafts()
+    {
+        Context.ChangeTracker.Clear();
+        var rows = await Context.Set<TeamPlayer>().AsNoTracking()
+            .Select(tp => new { tp.Team.TeamName, tp.User.DisplayName, Captain = tp.Team.CaptainID == tp.TeamPlayerID, tp.DraftCaptainOrder, tp.DraftRound, tp.DraftPick })
+            .ToListAsync();
+        return [.. rows.OrderBy(r => r.TeamName).ThenBy(r => r.DisplayName).Select(r => (r.TeamName, r.DisplayName!, r.Captain, r.DraftCaptainOrder, r.DraftRound, r.DraftPick))];
+    }
+
+    [Test]
+    public async Task Import_KeepsTheDraftBoardsCaptainOrderAndPicks_TheFirstBoardsOfATeam()
+    {
+        var entry = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Pie", team: "Rooster"), Player("Benchy", team: "Hens"),
+            Player("Sub", team: "Hens"), Player("Traded", team: "Hens"));
+        entry.Teams.Add(new ArchiveTeam { TeamName = "Rooster", Rank = 1 });
+        entry.Teams.Add(new ArchiveTeam { TeamName = "Rooster", Captain = "Silva", DraftOrder = 2, Picks = [new("Pie", 1, 4), new("Traded", 2, 0)] });
+        entry.Teams.Add(new ArchiveTeam { TeamName = "Hens", Captain = "Benchy", DraftOrder = 1, Picks = [new("Benchy", 1), new("", 1), new("Sub", 0)] });
+        entry.Teams.Add(new ArchiveTeam { TeamName = "Rooster", DraftOrder = 5, Picks = [new("Benchy", 3)] });
+
+        var report = await _service.Import(Input(entry));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(await Drafts(), Is.EqualTo(new (string, string, bool, int?, int?, int?)[]
+            {
+                ("Hens", "Benchy", true, 1, null, null), ("Hens", "Sub", false, null, null, null), ("Hens", "Traded", false, null, null, null),
+                ("Rooster", "Pie", false, null, 1, 4), ("Rooster", "Silva", true, 2, null, null), ("Rooster", "Traded", false, null, 2, null),
+            }), "The board's captain, order and rounds (a pick numbered 0 has no number; a round below 1, a blank pick and the captain are no pick); " +
+                "a pick traded away is on both teams; the second board of a team adds nothing");
+        }
+    }
+
+    [Test]
+    public async Task Import_ATitlesCaptain_TakesTheBoardsOrder_AndAnImportWithoutTheBoard_ClearsTheDraft()
+    {
+        static HistoricalArchiveInput Season(bool board)
+        {
+            var entry = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Pie", team: "Rooster"));
+            if (board)
+                entry.Teams.Add(new ArchiveTeam { TeamName = "Rooster", Captain = "Silva", DraftOrder = 3, Picks = [new("Pie", 1)] });
+            return new HistoricalArchiveInput
+            {
+                Seasons = new UnifiedArchive { Seasons = [entry] },
+                Championships = new ChampionsArchive
+                {
+                    Champions = [new ArchiveChampionship { Season = "Winter League 2019", Game = "Halo 3", Tier = "Open", Team = "Rooster", Captain = "Pie", Roster = ["Silva", "Pie"] }],
+                },
+            };
+        }
+
+        await _service.Import(Season(board: true));
+        var drafted = await Drafts();
+        await _service.Import(Season(board: false));
+        var cleared = await Drafts();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(drafted, Is.EqualTo(new (string, string, bool, int?, int?, int?)[] { ("Rooster", "Pie", true, 3, null, null), ("Rooster", "Silva", false, null, null, null) }),
+                "The title names the captain: the board's order is theirs, and a captain is no pick");
+            Assert.That(cleared.Select(r => (r.Order, r.Round, r.Pick)), Is.All.EqualTo(((int?)null, (int?)null, (int?)null)));
+        }
+    }
+
     [Test]
     public async Task Import_ExcludesHeaderAndSubstituteLabels_FromCreatingTeams()
     {

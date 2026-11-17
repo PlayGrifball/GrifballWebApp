@@ -37,6 +37,14 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   either way, a player or captain of the team, or the tab's `Teams` aliases), in the series its list puts it in; a series
   of forfeits is forfeited. A list of a season no stats tab has (`CustomSeason`) makes that season, its teams the list's.
   The AGLA 2019 game results' titles give a forfeit without a block its game, and a partial copy its other side.
+- **Drafts** (`DraftParser`, a source's `Drafts` tabs): a season's draft board (a team per column: Team Name, Captain, and a
+  row per round, a row of numbers above a round numbering its picks) or a TeamInfo table ("Draft Order", "Seed #: Draft
+  Spot 3", or "Draft Pick" codes: C3 for the 3rd captain, R2P3 for a 2nd-round pick). A board's team is one the season
+  has (by name, or its captain's team); its captain and picks are the season's players, a few letters off at most (a
+  nickname is left out). The team's captain, its place in the draft order and each pick's round (and number, when the
+  board gives one or its `Order` is `Linear`) are kept on its roster (`TeamPlayer.DraftCaptainOrder`, `DraftRound`,
+  `DraftPick`), as the app's own draft keeps them. A board whose columns are no draft order (`Order` `None`: a bid draft's teams)
+  gives captains and rounds but no order; bid prices wait for the bid draft (#19).
 - **Jobs**: everything runs in the worker role through the historical import job queue (one job at a time):
   refresh, preview (a dry run: each season's transaction rolled back) and import.
 - **Schedule** (`HistoricalRefreshJob`, a Quartz job, daily by default): a scheduled refresh queues a guarded import of
