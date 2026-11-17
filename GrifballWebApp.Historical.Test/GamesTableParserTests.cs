@@ -22,6 +22,7 @@ public class GamesTableParserTests
     private static readonly string[] InfoSheets = ["gb_teamstats", "gb_deletedgames", "h_games", "h4_pstats", "agla_playerstats", "agla_teamindex", "agla_gamesreported", "agla_deletedgames"];
     private static readonly string[] Sml11Rosters = ["Sarge, Simmons", "Church, Grif, Tucker"];
     private static readonly int[] NoLines = [0, 0];
+    private static readonly string[] OnlyW1 = ["W1"];
 
     private static HistoricalSourceConfig CatalogConfig(string id)
         => HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == id).Config!;
@@ -268,5 +269,153 @@ public class GamesTableParserTests
             HistoricalTestData.Source(ComId, "https://example.org/com", CatalogConfig(ComId).ToJson()), 1, GrifballCom())], new HashSet<string> { ComId });
 
         Assert.That(build.Seasons, Does.Contain($"{ComId}/Season_Player_Stats#s1"));
+    }
+
+    private const string EdgeId = "edge-db";
+
+    /// <summary>A stats table (season 1 split by ispro, season 2 not), its teams and players, and a games table of each
+    /// layout, every row one the parser has to sort out.</summary>
+    private static HistoricalArchiveBuild Edges()
+    {
+        var config = new HistoricalSourceConfig
+        {
+            Tables =
+            [
+                new()
+                {
+                    Sheet = "stats", Game = "reach", SeasonColumn = "season", DivisionColumn = "ispro",
+                    Teams = new() { Sheet = "teams", Key = "teamid", Column = "teamname" },
+                    Players = new() { Sheet = "players", Key = "playerid", Column = "gamertag" },
+                    Seasons = new() { ["1"] = new() { Name = "S1", Divisions = new() { ["1"] = "Pro", ["0"] = "Amateur" } }, ["2"] = new() { Name = "S2" } },
+                },
+            ],
+            GameTables =
+            [
+                new() { Sheet = "teamgames", Layout = GamesTableLayout.TeamRows, Stats = "stats", DeletedSheet = "missing" },
+                new() { Sheet = "schedule", Layout = GamesTableLayout.Schedule, Stats = "stats", PlayersSheet = "lines" },
+                new() { Sheet = "reported", Layout = GamesTableLayout.Reported, Stats = "stats", PlayersSheet = "rlines" },
+                new() { Sheet = "matches", Layout = GamesTableLayout.Matches, Stats = "stats" },
+            ],
+        };
+        var workbook = Workbook(
+            ("stats", [Row("season", "teamid", "gamertag", "kills"), Row(1, 10, "Pro One", 5), Row(1, 20, "Am One", 5), Row(2, 30, "Open One", 5)]),
+            ("teams", [Row("teamid", "teamname", "ispro", null), Row(10, "Pros", 1), Row(20, "Ams", 0), Row(30, "Opens", 0), Row(40, null, 0), Row(50, "NoDiv", null), Row(60, "Odd", 7)]),
+            ("players", [Row("playerid", "gamertag"), Row(1, "Alpha")]),
+            ("teamgames", [
+                Row("gameid", "teamid", "t_season", "t_playoffs", "t_win", "t_loss", "t_fwin", "t_floss", "t_goals"),
+                Row(1, null, 2, 0, 1, 0, 0, 0, 5),
+                Row(null, 30, 2, 0, 1, 0, 0, 0, 5),
+                Row("abc", 30, 2, 0, 0, 1, 0, 0, 2),
+                Row("abc", 40, 2, 0, 0, 0, 0, 0, 1),
+                Row(7, 30, 2, 0, 0, 0, 1, 0, 0), Row(7, 40, 2, 0, 0, 0, 0, 0, 0),
+                Row(8, 30, 2, 0, 0, 0, 0, 1, 0), Row(8, 40, 2, 0, 0, 0, 0, 1, 0),
+                Row(9, 99, 1, 0, 1, 0, 0, 0, 5), Row(9, 10, 1, 0, 0, 1, 0, 0, 2),
+                Row(11, 50, 1, 0, 1, 0, 0, 0, 5), Row(11, 10, 1, 0, 0, 1, 0, 0, 2),
+                Row(12, 60, 1, 0, 1, 0, 0, 0, 5), Row(12, 10, 1, 0, 0, 1, 0, 0, 2),
+                Row(13, 30, 3, 0, 1, 0, 0, 0, 5), Row(13, 40, 3, 0, 0, 1, 0, 0, 2)]),
+            ("schedule", [
+                Row("id", "season", "teama", "teamb", "result", "win", "playoffs", "link", "date_reported"),
+                Row(null, 2, 30, 40, "5-1", 30, 0, null, null),
+                Row(1, 2, 30, 40, null, 0, 0, null, null),
+                Row(2, 2, null, 40, "5-1", 40, 0, null, null),
+                Row(3, 2, 30, 40, "5-1", 99, 0, null, null),
+                Row(4, 2, 30, 40, "abc", 30, 0, null, null),
+                Row(5, 3, 30, 40, "5-1", 30, 0, null, null),
+                Row(6, 2, 30, 40, "forfeit", 40, 0, null, "nope"),
+                Row(7, 2, 30, 40, "5-1", 30, 0, null, null),
+                Row(8, 2, 30, 40, "(2 - 6)", 40, 1, "L1", null),
+                Row(9, 2, 30, 40, "6-2", 30, 0, "L1", null),
+                Row(10, 2, 30, 40, "6-2", 30, 0, "L2", null)]),
+            ("lines", [
+                Row("link", "teamid", "playerid", "gamertag", "kills", "deaths"),
+                Row("L1", 30, null, "Own", 4, 2),
+                Row("L1", 40, 1, null, 3, 3),
+                Row("L1", 40, 9, null, 1, 1),
+                Row("L1", 99, null, "Elsewhere", 1, 1)]),
+            ("reported", [
+                Row("index", "gameid", "winning_team", "losing_team", "game_date", "g_season", "forfeit"),
+                Row(null, 5, "Opens", "Ams", 1, 2, 0),
+                Row(1, 5, null, "Ams", 1, 2, 0),
+                Row(2, 0, "Opens", "Ams", 0, 2, 1),
+                Row(3, null, "Opens", "Ams", 1, 2, 0),
+                Row(4, 5, "Opens", "Ams", -5, 2, 0),
+                Row(5, 5, "Opens", "Ams", 1, 2, 0)]),
+            ("rlines", [Row("gameid", "gamertag", "teamname", "kills", "playoffs"), Row(5, "W1", "Opens", 3, 0), Row(5, null, "Opens", 1, 0), Row(5, "X", "Other", 1, 0)]),
+            ("matches", [
+                Row("match_id", "season", "bungie_game_id", "is_forfeit", "team1_name", "team1_score", "team2_name", "team2_score"),
+                Row(1, 2, null, 0, "Opens", 1e12, "Ams", -1e12)]));
+        return HistoricalArchiveBuilder.Build([new HistoricalSourceContent(HistoricalTestData.Source(EdgeId, "https://example.org/edge", config.ToJson()), 1, workbook)],
+            new HashSet<string> { "another-source" });
+    }
+
+    [Test]
+    public void TeamRows_EveryRowTheParserHasToSortOut()
+    {
+        var build = Edges();
+        var game = Games(build, "teamgames").Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((game.SourceKey, game.SeasonSourceId), Is.EqualTo(($"{EdgeId}/teamgames#abc", $"{EdgeId}/stats#s2")));
+            Assert.That(Sides(game), Is.EqualTo(new[] { (1, (string?)"Opens", Outcomes.Lost, (int?)2), (2, "40", Outcomes.DidNotFinish, 1) }),
+                "A team without a name is its ID; a side neither won nor lost has no result");
+            Assert.That(Forfeits(build, "teamgames").Select(f => (f.Winner, f.Loser, f.BothForfeited)), Is.EqualTo(new[] { ("Opens", "40", false), ("Opens", "40", true) }));
+            Assert.That(build.Warnings, Is.SupersetOf(new[]
+            {
+                $"{EdgeId}: teamgames: 1 game(s) of season 3, which stats's config doesn't name, skipped",
+                $"{EdgeId}: teamgames: 3 game(s) of a team in none of its season's divisions, skipped",
+                $"{EdgeId}: teamgames: 1 row(s) without both sides or a result, skipped",
+            }));
+            Assert.That(build.Seasons, Is.Empty, "Another source changed: none of these seasons");
+        }
+    }
+
+    [Test]
+    public void Schedule_EveryRowTheParserHasToSortOut()
+    {
+        var build = Edges();
+        var games = Games(build, "schedule");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games.Select(g => (g.SourceKey, g.IsPlayoffs, g.Players.Count)), Is.EqualTo(new[]
+            {
+                ($"{EdgeId}/schedule#7", false, 0), ($"{EdgeId}/schedule#8", true, 2), ($"{EdgeId}/schedule#9", false, 0), ($"{EdgeId}/schedule#10", false, 0),
+            }), "A link's lines go to its first game only");
+            Assert.That(Sides(games[0]), Is.EqualTo(new[] { (1, (string?)"Opens", Outcomes.Won, (int?)5), (2, "40", Outcomes.Lost, 1) }));
+            Assert.That(Sides(games[1]), Is.EqualTo(new[] { (1, (string?)"Opens", Outcomes.Lost, (int?)2), (2, "40", Outcomes.Won, 6) }));
+            Assert.That(games[1].Players.Select(p => (p.Gamertag, p.Side)), Is.EqualTo(new[] { ("Own", 1), ("Alpha", 2) }), "Its own gamertag, or the lookup's by the player's ID");
+            Assert.That(Forfeits(build, "schedule").Select(f => (f.Winner, f.Loser, f.PlayedAt)), Is.EqualTo(new[] { ("40", "Opens", (DateTime?)null) }));
+            Assert.That(build.Warnings, Is.SupersetOf(new[]
+            {
+                $"{EdgeId}: schedule: 1 game(s) of season 3, which stats's config doesn't name, skipped",
+                $"{EdgeId}: schedule: 3 row(s) without both sides or a result, skipped",
+                $"{EdgeId}: schedule: 2 player line(s) of no listed game or of neither side, skipped",
+            }));
+        }
+    }
+
+    [Test]
+    public void Reported_AndMatches_EveryRowTheParserHasToSortOut()
+    {
+        var build = Edges();
+        var reported = Games(build, "reported").Single();
+        var match = Games(build, "matches").Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((reported.SourceKey, reported.PlayedAt), Is.EqualTo(($"{EdgeId}/reported#4", (DateTime?)null)), "A date before 1970 is none");
+            Assert.That(reported.Players.Select(p => p.Gamertag), Is.EqualTo(OnlyW1));
+            Assert.That(Forfeits(build, "reported").Select(f => (f.SourceKey, f.PlayedAt)), Is.EqualTo(new[] { ($"{EdgeId}/reported#2", (DateTime?)null) }));
+            Assert.That(Sides(match), Is.EqualTo(new[] { (1, (string?)"Opens", Outcomes.Tie, (int?)null), (2, "Ams", Outcomes.Tie, null) }),
+                "A score beyond a number is none; no players sheet, no lines");
+            Assert.That(match.Players, Is.Empty);
+            Assert.That(build.Warnings, Is.SupersetOf(new[]
+            {
+                $"{EdgeId}: reported: 2 row(s) without both sides or a result, skipped",
+                $"{EdgeId}: reported: 1 game(s) listed twice, skipped",
+                $"{EdgeId}: reported: 2 player line(s) of no listed game or of neither side, skipped",
+            }));
+        }
     }
 }

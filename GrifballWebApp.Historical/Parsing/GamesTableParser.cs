@@ -58,7 +58,8 @@ public static partial class GamesTableParser
     {
         private readonly List<string> _keys = header.Select(ArchiveCells.HeaderKey).ToList();
 
-        public int this[string name] => _keys.IndexOf(name);
+        /// <summary>The column of a name; -1 for none, and for no name (never a blank header cell).</summary>
+        public int this[string name] => name.Length == 0 ? -1 : _keys.IndexOf(name);
     }
 
     /// <summary>A player lines sheet's header and its rows by game.</summary>
@@ -96,8 +97,8 @@ public static partial class GamesTableParser
         private readonly SheetWorkbook _workbook;
         private readonly Dictionary<string, string> _canonical;
         private readonly Dictionary<string, string[]> _teams = new(StringComparer.Ordinal);
-        private readonly int _teamName = -1;
-        private readonly int _division = -1;
+        private readonly int _teamName;
+        private readonly int _division;
         private readonly HashSet<string> _deleted = new(StringComparer.Ordinal);
         private readonly SortedDictionary<string, int> _unknownSeasons = new(StringComparer.Ordinal);
         private int _noDivision;
@@ -110,22 +111,19 @@ public static partial class GamesTableParser
         {
             (_sourceId, _table, _stats, _workbook) = (sourceId, table, stats, workbook);
             _canonical = StatsTableParser.CanonicalSeasonIds(stats);
-            if (stats.Teams is { } lookup && workbook.Sheet(lookup.Sheet) is { Rows.Count: > 0 } teams)
-            {
-                var header = new Header(teams.Rows[0]);
-                var key = header[ArchiveCells.HeaderKey(lookup.Key)];
-                _teamName = header[ArchiveCells.HeaderKey(lookup.Column)];
-                _division = stats.DivisionColumn is null ? -1 : header[ArchiveCells.HeaderKey(stats.DivisionColumn)];
-                foreach (var row in teams.Rows.Skip(1))
-                    if (Value(row, key) is { } id)
-                        _teams.TryAdd(id, row);
-            }
-            if (table.DeletedSheet is not null && workbook.Sheet(table.DeletedSheet) is { Rows.Count: > 0 } deleted)
-            {
-                var column = new Header(deleted.Rows[0])["gameid"];
-                _deleted.UnionWith(deleted.Rows.Skip(1).Select(r => Value(r, column)).OfType<string>());
-            }
+            var (teamsHeader, teams) = Table(stats.Teams?.Sheet);
+            var key = teamsHeader[ArchiveCells.HeaderKey(stats.Teams?.Key ?? "")];
+            (_teamName, _division) = (teamsHeader[ArchiveCells.HeaderKey(stats.Teams?.Column ?? "")], teamsHeader[ArchiveCells.HeaderKey(stats.DivisionColumn ?? "")]);
+            foreach (var row in teams)
+                if (Value(row, key) is { } id)
+                    _teams.TryAdd(id, row);
+            var (deletedHeader, deleted) = Table(table.DeletedSheet);
+            _deleted.UnionWith(deleted.Select(r => Value(r, deletedHeader["gameid"])).OfType<string>());
         }
+
+        /// <summary>A sheet's header and the rows below it; none for no sheet.</summary>
+        private (Header Header, IEnumerable<string[]> Rows) Table(string? name)
+            => name is not null && _workbook.Sheet(name) is { } sheet ? (new Header(sheet.Rows.FirstOrDefault() ?? []), sheet.Rows.Skip(1)) : (new Header([]), []);
 
         private string Key(string id) => $"{_sourceId}/{_table.Sheet}#{id}";
 
@@ -155,12 +153,10 @@ public static partial class GamesTableParser
         /// <summary>The player lines sheet's rows by a game's key column, read once; none without the sheet.</summary>
         private PlayerLines Lines(string gameColumn)
         {
-            if (_table.PlayersSheet is null || _workbook.Sheet(_table.PlayersSheet) is not { Rows.Count: > 0 } sheet)
-                return new PlayerLines(new Header([]), []);
-            var header = new Header(sheet.Rows[0]);
+            var (header, rowsBelow) = Table(_table.PlayersSheet);
             var column = header[gameColumn];
             var byGame = new Dictionary<string, List<string[]>>(StringComparer.Ordinal);
-            foreach (var row in sheet.Rows.Skip(1))
+            foreach (var row in rowsBelow)
             {
                 if (Value(row, column) is not { } game)
                     continue;
@@ -306,15 +302,16 @@ public static partial class GamesTableParser
 
         /// <summary>h_games' columns, and its player lines and their gamertags.</summary>
         private sealed record ScheduleColumns(int Id, int Season, int TeamA, int TeamB, int Result, int Win, int Playoffs, int Link, int Reported,
-            PlayerLines Lines, (int RowKey, Dictionary<string, string> ById)? Gamertags, HashSet<string> Listed);
+            PlayerLines Lines, (int RowKey, Dictionary<string, string> ById) Gamertags, HashSet<string> Listed);
 
         /// <summary>grifball.info's h_games (<see cref="GamesTableLayout.Schedule"/>): its played games and forfeits; its
         /// player lines are the stats table's rows with the game's link.</summary>
         public void Schedule(SheetTable sheet, Result result)
         {
             var h = new Header(sheet.Rows[0]);
+            var lines = Lines("link");
             var c = new ScheduleColumns(h["id"], h["season"], h["teama"], h["teamb"], h["result"], h["win"], h["playoffs"], h["link"], h["date_reported"],
-                Lines("link"), Gamertags(), new HashSet<string>(StringComparer.Ordinal));
+                lines, Gamertags(lines.Header), new HashSet<string>(StringComparer.Ordinal));
             foreach (var row in sheet.Rows.Skip(1))
                 ScheduleRow(row, c, result);
             CountStray(c.Lines, c.Listed);
@@ -359,26 +356,24 @@ public static partial class GamesTableParser
                 : [];
 
         /// <summary>The stats table's gamertags by player ID (its <see cref="StatsTable.Players"/> lookup), for lines with none.</summary>
-        private (int RowKey, Dictionary<string, string> ById)? Gamertags()
+        private (int RowKey, Dictionary<string, string> ById) Gamertags(Header lines)
         {
-            if (_stats.Players is not { } lookup || _workbook.Sheet(lookup.Sheet) is not { Rows.Count: > 0 } sheet || _table.PlayersSheet is null
-                || _workbook.Sheet(_table.PlayersSheet) is not { Rows.Count: > 0 } lines)
-                return null;
-            var header = new Header(sheet.Rows[0]);
-            var (key, column) = (header[ArchiveCells.HeaderKey(lookup.Key)], header[ArchiveCells.HeaderKey(lookup.Column)]);
+            var lookup = _stats.Players;
+            var (header, rows) = Table(lookup?.Sheet);
+            var (key, column) = (header[ArchiveCells.HeaderKey(lookup?.Key ?? "")], header[ArchiveCells.HeaderKey(lookup?.Column ?? "")]);
             var byId = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var row in sheet.Rows.Skip(1))
+            foreach (var row in rows)
                 if (Value(row, key) is { } id && Value(row, column) is { } gamertag)
                     byId.TryAdd(id, gamertag);
-            return (new Header(lines.Rows[0])[ArchiveCells.HeaderKey(lookup.RowKey ?? lookup.Key)], byId);
+            return (lines[ArchiveCells.HeaderKey(lookup?.RowKey ?? lookup?.Key ?? "")], byId);
         }
 
         /// <summary>A schedule game's player line: its side by its team, its gamertag its own or the lookup's.</summary>
-        private RecordedPlayerInput? PlayerOf(string[] row, Header header, (int RowKey, Dictionary<string, string> ById)? gamertags, string teamA, string teamB)
+        private RecordedPlayerInput? PlayerOf(string[] row, Header header, (int RowKey, Dictionary<string, string> ById) gamertags, string teamA, string teamB)
         {
             var columns = LineColumns.Of(header);
             var team = Value(row, header["teamid"]);
-            var gamertag = Value(row, columns.Gamertag) ?? (gamertags is { } g ? g.ById.GetValueOrDefault(Value(row, g.RowKey) ?? "") : null);
+            var gamertag = Value(row, columns.Gamertag) ?? gamertags.ById.GetValueOrDefault(Value(row, gamertags.RowKey) ?? "");
             if (gamertag is null || (team != teamA && team != teamB))
             {
                 _strayLines++;
@@ -475,7 +470,7 @@ public static partial class GamesTableParser
         }
     }
 
-    private static string Cell(string[] row, int column) => column >= 0 && column < row.Length ? row[column] : "";
+    private static string Cell(string[] row, int column) => row.ElementAtOrDefault(column) ?? "";
 
     /// <summary>A cell's text, null for an empty cell and the database's NULL.</summary>
     private static string? Value(string[] row, int column)

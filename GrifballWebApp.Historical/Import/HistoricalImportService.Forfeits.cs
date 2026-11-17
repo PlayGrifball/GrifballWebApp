@@ -27,8 +27,9 @@ public partial class HistoricalImportService
                 withoutTeam.Add(forfeit.SourceKey);
                 continue;
             }
-            var (home, away) = (forfeit.BothForfeited ? SeasonMatchResult.Forfeit : SeasonMatchResult.Won, SeasonMatchResult.Forfeit);
-            var same = existing.FirstOrDefault(m => m.HomeTeamID == winner && m.AwayTeamID == loser && m.HomeTeamResult == home && m.AwayTeamResult == away);
+            // The loser's side is always the forfeit: the winner's says whether it was a double one
+            var home = forfeit.BothForfeited ? SeasonMatchResult.Forfeit : SeasonMatchResult.Won;
+            var same = existing.FirstOrDefault(m => m.HomeTeamID == winner && m.AwayTeamID == loser && m.HomeTeamResult == home);
             if (same is not null)
             {
                 existing.Remove(same);

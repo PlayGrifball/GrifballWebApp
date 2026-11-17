@@ -90,14 +90,33 @@ internal sealed class HistoricalImportForfeitsUnitTests : ApplicationDbContextTe
     }
 
     [Test]
+    public async Task Import_AForfeitWhoseResultChanged_IsMadeAgain_TheOldOneGone()
+    {
+        await _service.Import(Input(Forfeit(1, "Red Team", "Blue Team"), Forfeit(2, "Gold Team", "Red Team")));
+        Context.ChangeTracker.Clear();
+
+        var again = await _service.Import(Input(Forfeit(1, "Red Team", "Blue Team", both: true), Forfeit(2, "Red Team", "Gold Team")));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((again.SeasonMatchesCreated, again.SeasonMatchesRemoved), Is.EqualTo((2, 2)));
+            Assert.That(await Matches(), Is.EquivalentTo(new[]
+            {
+                ((string?)"Red Team", (string?)"Blue Team", (SeasonMatchResult?)SeasonMatchResult.Forfeit, (SeasonMatchResult?)SeasonMatchResult.Forfeit),
+                ("Red Team", "Gold Team", SeasonMatchResult.Won, SeasonMatchResult.Forfeit),
+            }));
+        }
+    }
+
+    [Test]
     public async Task Import_AForfeitOfATeamTheSeasonHasnt_OrOfNoSeason_IsLeftOut_AndReported()
     {
-        var report = await _service.Import(Input(Forfeit(1, "Red Team", "Nobody"), Forfeit(2, "Red Team", "red team"), Forfeit(3, "Red Team", "Blue Team", season: "nope/Stats")));
+        var report = await _service.Import(Input(Forfeit(1, "Red Team", "Nobody"), Forfeit(2, "Red Team", "red team"), Forfeit(3, "Red Team", "Blue Team", season: "nope/Stats"), Forfeit(4, "Nobody", "Red Team")));
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(await Context.SeasonMatches.CountAsync(), Is.Zero);
-            Assert.That(report.Warnings, Does.Contain("winter-league-2008/Stats: 2 forfeit(s) naming a team that is none of the season's, left out: db/Matches#1, db/Matches#2"));
+            Assert.That(report.Warnings, Does.Contain("winter-league-2008/Stats: 3 forfeit(s) naming a team that is none of the season's, left out: db/Matches#1, db/Matches#2, db/Matches#4"));
             Assert.That(report.Skipped, Does.Contain("Forfeit db/Matches#3: no season with the key nope/Stats in the archive"));
         }
     }
