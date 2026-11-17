@@ -230,6 +230,7 @@ public class DraftParserTests
             ["Draft Spot 1", "Bad Intentions", "Fanciest Pants", "", "", "r2p10"],
             ["Draft Spot 2", "NeuraLink", "Solace VIII", "", "", "R1P2"],
             ["Draft Spot 2", "NeuraLink", "TcT AVENGER", "", "", "C2"],
+            ["Draft Spot 2", "NeuraLink", "Second Captain", "", "", "C7"],
             ["Draft Spot 2", "NeuraLink", "Sub", "", "", "?"],
             ["Draft Spot 2", "NeuraLink", "", "", "", "C9"],
             ["Draft Spot 2", "NeuraLink", "Benched", "", "", "R0P2"],
@@ -244,7 +245,7 @@ public class DraftParserTests
             Assert.That(Picks(teams), Is.EqualTo(new (string, string, int, int?)[]
             {
                 ("Bad Intentions", "PapaSnipezX", 1, null), ("Bad Intentions", "Fanciest Pants", 2, null), ("NeuraLink", "Solace VIII", 1, null),
-            }), "A placeholder team's rows are none of the draft");
+            }), "A placeholder team's rows are none of the draft; a team's first captain code is its captain");
         }
     }
 

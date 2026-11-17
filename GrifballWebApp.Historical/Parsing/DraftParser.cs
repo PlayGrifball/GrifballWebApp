@@ -142,7 +142,8 @@ public static partial class DraftParser
         for (var r = header + 1; r < sheet.Rows.Count; r++)
         {
             // A blank team cell is the team above it (its name in a merged cell)
-            var name = Name(sheet.Cell(r, teamColumn)) is { Length: > 0 } given ? given : last;
+            var cell = Name(sheet.Cell(r, teamColumn));
+            var name = cell.Length > 0 ? cell : last;
             last = name;
             if (HistoricalKeys.IsExcludedTeamName(name))
                 continue;
@@ -171,18 +172,24 @@ public static partial class DraftParser
         {
             if (gamertag.Length == 0)
                 return;
-            if (CaptainCode().Match(code) is { Success: true } captain)
+            var captain = CaptainCode().Match(code);
+            var pick = PickCode().Match(code);
+            if (captain.Success)
             {
                 Captain ??= gamertag;
                 Order ??= Number(captain.Groups[1].Value);
             }
-            else if (PickCode().Match(code) is { Success: true } pick && Number(pick.Groups[1].Value) is int round)
+            else if (pick.Success && Number(pick.Groups[1].Value) is int round)
                 Picks.Add(new ArchiveDraftPick(gamertag, round));
         }
     }
 
     /// <summary>A place in the draft order: "3", "Draft Spot 3"; null otherwise.</summary>
-    private static int? Place(string cell) => DraftSpot().Match(cell) is { Success: true } m ? Number(m.Groups[1].Value) : null;
+    private static int? Place(string cell)
+    {
+        var spot = DraftSpot().Match(cell);
+        return spot.Success ? Number(spot.Groups[1].Value) : null;
+    }
 
     /// <summary>A count of 1 or more (a round, a place); null for 0 or a number too long to be one.</summary>
     private static int? Number(string digits) => int.TryParse(digits, out var number) && number >= 1 ? number : null;
