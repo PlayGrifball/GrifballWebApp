@@ -132,4 +132,20 @@ public class ArchiveSeasonTests
             Assert.That(teams.Where(t => t.Lines == 0).Select(t => t.TeamName), Is.Empty, "No team of the record's name without stats");
         }
     }
+
+    /// <summary>The champions record's "Summer League 2022" (Junkyard Dogs) is the 2022 H3 Action League's title: its five on
+    /// the season's JUNKYARD DOGS, who won its bracket, and no titles-only Summer League 2022 left.</summary>
+    [Test]
+    public async Task H3Action2022_HasTheSummerLeague2022Title_OnJunkyardDogs()
+    {
+        await using var context = Archive.NewContext();
+        var titles = await context.Set<GrifballWebApp.Domain.League.PlayerChampionship>().AsNoTracking()
+            .Where(c => c.Season.HistoricalSourceID != null && (c.Season.SeasonName == "2022 H3 Action League" || c.Season.SeasonName == "Summer League 2022"))
+            .Select(c => new { c.Season.SeasonName, c.Team.TeamName })
+            .ToListAsync();
+        if (titles.Count == 0)
+            Assert.Ignore("Neither 2022 H3 Action League nor the record's Summer League 2022 is in this copy of the archive");
+
+        Assert.That(titles.Select(t => $"{t.SeasonName}: {t.TeamName.ToUpperInvariant()}"), Has.Count.EqualTo(5).And.All.EqualTo("2022 H3 Action League: JUNKYARD DOGS"));
+    }
 }

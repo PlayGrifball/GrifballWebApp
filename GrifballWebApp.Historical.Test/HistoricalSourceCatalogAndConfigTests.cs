@@ -173,4 +173,13 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
             Assert.That(names.Contains("FL21_PlayoffStats"), Is.True, "Its own FL21 playoff tab stays");
         }
     }
+
+    /// <summary>The champions record's "Summer League 2022" title (Junkyard Dogs: NKOTb4evah, ACE B S1lentND1, Rage More Nerd,
+    /// AtoneMilitant, AwareMosquito) is the 2022 H3 Action League's: its JUNKYARD DOGS won the bracket. Without the name it was
+    /// a titles-only season of its own.</summary>
+    [Test]
+    public void H3Action2022_TakesTheRecordsSummerLeague2022Title()
+    {
+        Assert.That(Config("2022-h3-action-stats").Season!.Titles, Is.EqualTo("Summer League 2022"));
+    }
 }
