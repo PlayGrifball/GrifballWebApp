@@ -155,4 +155,25 @@ public class CalendarControllerUnitTests : SqliteGrifballContextFixture
 
         result.AssertProblem(StatusCodes.Status404NotFound, SeasonVisibilityFilter.NoSuchSeason);
     }
+
+    [Test]
+    public async Task AFeed_HasAnETag_AndAPollWithItAnswers304_UnchangedSinceIt()
+    {
+        var (_, red) = await SeasonWithAMatch(announced: true);
+        var first = Anonymous();
+        Calendar(await first.TeamCalendar(red.TeamID, CancellationToken.None));
+        var etag = first.Response.Headers.ETag.ToString();
+
+        var again = Anonymous();
+        again.Request.Headers.IfNoneMatch = etag;
+        var unchanged = await again.TeamCalendar(red.TeamID, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(etag, Does.StartWith("\"").And.EndWith("\""));
+            Assert.That(first.Response.Headers.CacheControl.ToString(), Is.EqualTo("public, max-age=900"));
+            Assert.That(unchanged, Is.InstanceOf<StatusCodeResult>().With.Property(nameof(StatusCodeResult.StatusCode)).EqualTo(StatusCodes.Status304NotModified));
+            Assert.That(again.Response.Headers.ETag.ToString(), Is.EqualTo(etag));
+        }
+    }
 }
