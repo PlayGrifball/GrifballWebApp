@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using GrifballWebApp.Infrastructure.Excel;
 using GrifballWebApp.Application.Historical;
+using GrifballWebApp.Historical.Sources;
 
 namespace GrifballWebApp.Historical.Parsing;
 
@@ -19,11 +20,11 @@ namespace GrifballWebApp.Historical.Parsing;
 public static partial class RosterParser
 {
     /// <param name="sheet">The roster tab.</param>
-    /// <param name="names">The workbook's names of teams to read as another (<see cref="GrifballWebApp.Historical.Sources.HistoricalSourceConfig.TeamNames"/>): a
+    /// <param name="config">The workbook's config, for the teams it names another way (<see cref="HistoricalSourceConfig.TeamNames"/>): a
     /// placeholder never filled in ("Team Name") would otherwise be no team.</param>
-    public static Dictionary<string, string> Parse(SheetTable sheet, IReadOnlyDictionary<string, string>? names = null)
+    public static Dictionary<string, string> Parse(SheetTable sheet, HistoricalSourceConfig? config = null)
     {
-        var teams = new Teams(names);
+        var teams = new Teams(config);
         if (!Table(sheet, teams))
             DraftSheet(sheet, teams);
         return teams.ByPlayer;
@@ -94,7 +95,7 @@ public static partial class RosterParser
     }
 
     /// <summary>Each player's team (by normalized gamertag), the first a roster gives them.</summary>
-    private sealed class Teams(IReadOnlyDictionary<string, string>? names)
+    private sealed class Teams(HistoricalSourceConfig? config)
     {
         public Dictionary<string, string> ByPlayer { get; } = new(StringComparer.Ordinal);
 
@@ -103,9 +104,7 @@ public static partial class RosterParser
             var (clean, _, _) = ArchiveCells.Gamertag(gamertag);
             if (clean.Length == 0 || string.IsNullOrWhiteSpace(team))
                 return;
-            team = team.Trim();
-            if (names?.GetValueOrDefault(team) is { } named)
-                team = named;
+            team = config?.TeamName(team.Trim()) ?? team.Trim();
             if (!HistoricalKeys.IsExcludedTeamName(team))
                 ByPlayer.TryAdd(HistoricalKeys.Normalize(clean), team);
         }

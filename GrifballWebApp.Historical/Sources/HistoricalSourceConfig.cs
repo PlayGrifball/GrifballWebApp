@@ -38,6 +38,16 @@ public class HistoricalSourceConfig
     /// filled in (H3 Action 2022's "Team Name", RDG NHL's team) that would otherwise read as no team.</summary>
     public Dictionary<string, string> TeamNames { get; init; } = [];
 
+    /// <summary>The archive's name of a team this workbook calls <paramref name="name"/>: its <see cref="TeamNames"/> entry in
+    /// any case and spacing ("TEAM  NAME"), else the name itself.</summary>
+    public string TeamName(string name)
+    {
+        var key = SingleSpaced(name);
+        return TeamNames.FirstOrDefault(n => string.Equals(SingleSpaced(n.Key), key, StringComparison.OrdinalIgnoreCase)).Value ?? name;
+    }
+
+    private static string SingleSpaced(string name) => string.Join(' ', name.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

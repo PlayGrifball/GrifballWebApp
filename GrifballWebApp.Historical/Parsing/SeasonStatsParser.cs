@@ -59,7 +59,7 @@ public static partial class SeasonStatsParser
         foreach (var name in config.RosterSheets)
         {
             if (workbook.Sheet(name) is { } rosterSheet)
-                foreach (var (player, team) in RosterParser.Parse(rosterSheet, config.TeamNames))
+                foreach (var (player, team) in RosterParser.Parse(rosterSheet, config))
                     rosters.TryAdd(player, team);
             else
                 warnings.Add($"{sourceId}: no sheet '{name}'");
