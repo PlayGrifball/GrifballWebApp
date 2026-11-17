@@ -203,7 +203,9 @@ public class DiscordModuleRegistrationTests
             "/reschedule request \"Ask to move one of your matches\" permissions: default, preconditions: 0"
                 + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]"
                 + " [reason: String \"Why it needs to move\" autocomplete: none, preconditions: 0]"
-                + " [new_time: String = null \"The new time in UTC, like 2026-11-20 20:00\" autocomplete: none, preconditions: 0]",
+                + " [new_time: String = null \"Pick a suggested time, or type one in UTC like 2026-11-20 20:00\" autocomplete: RescheduleTimeAutocomplete, preconditions: 0]",
+            "/reschedule suggest \"The best times for a match, from its season's timeslots\" permissions: default, preconditions: 0"
+                + " [match: String \"The match (search by team)\" autocomplete: SeasonMatchAutocomplete, preconditions: 0]",
             "/search \"Search players, teams and seasons\" permissions: default, preconditions: 0"
                 + " [query: String \"A gamertag, team or season name\" autocomplete: none, preconditions: 0]",
             "/season bracket \"A season's playoff bracket\" permissions: default, preconditions: 0"

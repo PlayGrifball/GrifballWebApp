@@ -94,7 +94,7 @@ public class GrifToolsTests
     private MatchTools MatchTools(ToolCaller caller) => new(caller,
         new SeasonMatchService(_context, Substitute.For<IDataPullService>(),
             new BracketService(_context, new TeamStandingsService(_context), new ChampionshipService(_context)), new ChampionshipService(_context)),
-        new MatchDetailsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time));
+        new MatchDetailsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), new GrifballWebApp.Application.Scheduling.SchedulingService(_context, _time));
 
     [Test]
     public async Task ASeasonTool_UsesTheRunningSeason_WhenGivenNone()
@@ -241,6 +241,25 @@ public class GrifToolsTests
             Assert.That(page.HomeTeamName, Is.EqualTo("Alpha"));
             await Assert.ThrowsAsync<ToolException>(() => tools.GetSeasonMatch(match.SeasonMatchID + 1000));
             await Assert.ThrowsAsync<ToolException>(() => tools.GetGame(Guid.NewGuid()));
+        }
+    }
+
+    [Test]
+    public async Task MatchTools_SuggestTimesForASeasonMatch_AndRefuseUnknownOnes()
+    {
+        // A season with no timeslots: nothing to suggest, but it's a match
+        var other = await _context.AddTeamWithCaptain(_season, "OtherGT", 9_100_001);
+        var match = SeasonMatch.Seed(_season.SeasonID, _team.TeamID, other.TeamID);
+        _context.SeasonMatches.Add(match);
+        await _context.SaveChangesAsync();
+        var tools = MatchTools(new ToolCaller(_captain.Id, []));
+
+        var suggestions = await tools.SuggestMatchTimes(match.SeasonMatchID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(suggestions, Is.Empty);
+            await Assert.ThrowsAsync<ToolException>(() => tools.SuggestMatchTimes(match.SeasonMatchID + 1000));
         }
     }
 

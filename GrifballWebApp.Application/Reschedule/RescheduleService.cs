@@ -71,6 +71,12 @@ public class RescheduleService
             if (reschedule == null)
                 throw new ArgumentException("Reschedule request not found");
 
+            // Approved at a time that can't stand (a team plays then, or it's outside the season): refused, still waiting
+            if (dto.Approved && reschedule.AwaitsDecision && reschedule.NewScheduledTime is { } at
+                && (await new Scheduling.SchedulingService(_context, TimeProvider.System).CheckAsync(reschedule.SeasonMatchID, at, ct) ?? [])
+                    .FirstOrDefault(c => c.Refuses) is { } refused)
+                throw new RescheduleNotAllowedException(refused.Message);
+
             switch (reschedule.Decide(dto.Approved, commissionerUserId, dto.CommissionerNotes, DateTime.UtcNow))
             {
                 case RescheduleDecision.AlreadyDecided:

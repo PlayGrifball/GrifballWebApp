@@ -8,6 +8,15 @@ import { provideRouter } from '@angular/router';
 import { SeasonAvailabilityComponent } from './seasonAvailability.component';
 import { AvailabilityOption } from './seasonAvailability.component';
 import type { DayOfWeek } from '@api/models';
+import { Component, input } from '@angular/core';
+import { By } from '@angular/platform-browser';
+import { SchedulingRulesComponent } from '../schedulingRules/schedulingRules.component';
+
+/** The season's scheduling rules (tested on their own): here only that the page shows them for its season. */
+@Component({ selector: 'app-scheduling-rules', template: '' })
+class StubSchedulingRules {
+  readonly seasonID = input<number>();
+}
 
 describe('SeasonAvailabilityComponent', () => {
   let fixture: ComponentFixture<SeasonAvailabilityComponent>;
@@ -29,6 +38,7 @@ describe('SeasonAvailabilityComponent', () => {
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: snackBar })
+      .overrideComponent(SeasonAvailabilityComponent, { remove: { imports: [SchedulingRulesComponent] }, add: { imports: [StubSchedulingRules] } })
       .compileComponents();
 
     http = TestBed.inject(HttpTestingController);
@@ -52,6 +62,11 @@ describe('SeasonAvailabilityComponent', () => {
     const deleteButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
       .filter(b => b.textContent!.trim() === 'Delete');
     expect(deleteButtons).toHaveSize(2);
+  });
+
+  it("shows the season's scheduling rules under its timeslots", () => {
+    init();
+    expect(fixture.debugElement.query(By.directive(StubSchedulingRules)).componentInstance.seasonID()).toBe(14);
   });
 
   it('reports a failure to load availability', () => {

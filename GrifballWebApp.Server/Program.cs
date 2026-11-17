@@ -309,6 +309,7 @@ public class Program
         services.AddTransient<MatchCommandsHandler>();
         services.AddTransient<BrowseCommandsHandler>();
         services.AddTransient<PersonalCommandsHandler>();
+        services.AddTransient<RescheduleSuggestions>();
         services.AddTransient<AdminCommandsHandler>();
         services.AddTransient<IExternalLoginService, ExternalLoginService>();
     }

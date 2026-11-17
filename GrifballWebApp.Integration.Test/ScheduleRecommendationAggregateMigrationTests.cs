@@ -55,7 +55,8 @@ public class ScheduleRecommendationAggregateMigrationTests
         var appliedByNobody = Old(0.5, 40, null, "commish");
         await old.SaveChangesAsync();
 
-        await migrator.MigrateAsync();
+        // Up to the last before SeasonSchedulingRules, which drops recommendations not applied (their times Eastern)
+        await migrator.MigrateAsync(migrations[migrations.IndexOf(migrations.Single(m => m.EndsWith("_SeasonSchedulingRules"))) - 1]);
 
         _context.ChangeTracker.Clear();
         var rows = await _context.ScheduleRecommendations.AsNoTracking()

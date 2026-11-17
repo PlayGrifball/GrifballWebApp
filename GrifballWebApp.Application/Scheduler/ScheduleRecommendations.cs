@@ -59,8 +59,16 @@ public class ScheduleRecommendations
 
     public async Task<ScheduleRecommendation> Save(int seasonID, ScheduleRun run, string? requestedBy, CancellationToken ct = default)
     {
-        var recommendation = ScheduleRecommendation.Propose(seasonID, requestedBy, run.Fitness, run.Generations, run.Genes.Select(g => new ProposedMatchTime(
-            g.SeasonMatchID, g.ScheduledTime, g.AnyOverlap(run.Genes), g.HomeTeamAvailable(run.Availability), g.AwayTeamAvailable(run.Availability))));
+        // The GA works in the league's wall-clock time (its timeslots'); matches are kept in UTC. Its flags are the season's rules':
+        // a team unavailable each its own, any other rule broken (a team plays then, outside the season, a cap) the first
+        var recommendation = ScheduleRecommendation.Propose(seasonID, requestedBy, run.Fitness, run.Generations, run.Genes.Select(g =>
+        {
+            var conflicts = run.Conflicts(g, run.Genes).Select(c => c.Kind).ToList();
+            return new ProposedMatchTime(g.SeasonMatchID, ScheduleService.ToUtc(g.ScheduledTime),
+                conflicts.Exists(k => k is not (Scheduling.ScheduleConflictKind.HomeTeamUnavailable or Scheduling.ScheduleConflictKind.AwayTeamUnavailable)),
+                !conflicts.Contains(Scheduling.ScheduleConflictKind.HomeTeamUnavailable),
+                !conflicts.Contains(Scheduling.ScheduleConflictKind.AwayTeamUnavailable));
+        }));
         _context.ScheduleRecommendations.Add(recommendation);
         await _context.SaveChangesAsync(ct);
         return recommendation;
@@ -117,7 +125,9 @@ public class ScheduleRecommendations
 
     /// <summary>
     /// Gives each undecided match of <paramref name="recommendationID"/> its proposed time, in one transaction, and stamps
-    /// it applied. Returns the matches it set; null when there is no such recommendation, or it was applied already.
+    /// it applied. A match with a reschedule request pending is left for its decision, and one rescheduled since the
+    /// recommendation was made keeps the time agreed. Returns the matches it set; null when there is no such
+    /// recommendation, or it was applied already.
     /// </summary>
     public async Task<int?> Apply(int recommendationID, string? by, CancellationToken ct = default)
     {
@@ -140,9 +150,12 @@ public class ScheduleRecommendations
 
         var times = recommendation.ProposedTimes();
         var ids = times.Keys.ToList();
+        var made = recommendation.CreatedAt;
         var matches = await _context.SeasonMatches
             .Where(sm => ids.Contains(sm.SeasonMatchID))
             .Where(SeasonMatch.Undecided)
+            .Where(sm => !_context.MatchReschedules.Any(r => r.SeasonMatchID == sm.SeasonMatchID
+                && (r.Status == RescheduleStatus.Pending || (r.Status == RescheduleStatus.Approved && r.ProcessedAt > made))))
             .ToListAsync(ct);
         foreach (var match in matches)
             match.ScheduleAt(times[match.SeasonMatchID]);

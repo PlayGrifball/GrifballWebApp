@@ -182,6 +182,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
             .AddSingleton(new PersonalCommandsHandler(caller, lookups, membership, queue, null!, new RegionService(Db),
                 new UserGamertagClaimService(Db, new GamertagMatching(Db), _time, MsOptions.Create(new UserClaimOptions())), signups, seasons,
                 new AvailabilityService(Db), reschedules, urls))
+            .AddSingleton(new RescheduleSuggestions(lookups, new GrifballWebApp.Application.Scheduling.SchedulingService(Db, _time)))
             .AddSingleton(new BrowseCommandsHandler(leaderboards, new MatchmakingStatsService(Db), new HomeEventsService(new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time), _time), new QuickSearchService(Db, new GrifballWebApp.Application.Seasons.SeasonVisibility(Db, _time)), lookups, urls))
             .AddSingleton(new SeasonCommandsHandler(lookups, seasons, new TeamStandingsService(Db), new MatchPlannerService(Db), new GradesService(Db), signups, brackets, urls))
             .AddSingleton(new PlayerCommandsHandler(lookups, caller, new ProfileStatsService(Db, stats, new MatchmakingStatsService(Db)), new ProfileCommendationsService(Db),
@@ -276,6 +277,7 @@ public class DiscordModulesRoutingUnitTests : SqliteGrifballContextFixture
     [TestCase("admin claims list", "", "Pending gamertag claims")]
     [TestCase("admin claims approve", "claim={claimA}", "Approved.")]
     [TestCase("admin claims reject", "claim={claimB}|reason=No", "Rejected.")]
+    [TestCase("reschedule suggest", "match={match}", "I have no time to suggest for that match: its season has no timeslots left, or it's missing a team.")]
     [TestCase("reschedule pending", "", "Pending reschedules")]
     [TestCase("reschedule decide", "request=999|approve=true|notes=Fine", "Reschedule request not found")]
     [TestCase("reschedule request", "match={match}|reason=Away|new_time=2026-11-20 20:00", "Your reschedule request is in, for <t:1795204800>. A commissioner will decide it.")]

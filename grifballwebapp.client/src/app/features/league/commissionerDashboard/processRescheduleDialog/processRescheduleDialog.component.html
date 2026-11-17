@@ -14,7 +14,31 @@
       <dt>Requested by</dt><dd>{{ reschedule.requestedByGamertag }}</dd>
       <dt>Requested</dt><dd>{{ formatDateTime(reschedule.requestedAt) }}</dd>
     </dl>
+    @if (conflicts(); as found) {
+    @if (found.length === 0) {
+    <p class="hud-muted">Nothing in the season's rules is against the requested time.</p>
+    } @else {
+    <p class="hud-muted">{{ refused() ? 'The requested time can\'t be approved:' : 'Approving the requested time would go against:' }}</p>
+    <ul class="prd-conflicts">
+      @for (conflict of found; track $index) {
+      <li [class.prd-refuses]="conflict.refuses">{{ conflict.message }}</li>
+      }
+    </ul>
+    }
+    }
   </section>
+
+  @if (alternatives().length > 0) {
+  <section class="prd-section prd-alternatives" aria-labelledby="prd-other">
+    <h3 id="prd-other" class="hud-kicker">Best other times</h3>
+    <ul class="prd-conflicts">
+      @for (time of alternatives(); track time.startsAt) {
+      <li>{{ formatDateTime(time.startsAt) }}: {{ time.homePlayersAvailable }} and {{ time.awayPlayersAvailable }} players can play{{ warnings(time.conflicts.length) }}</li>
+      }
+    </ul>
+    <p class="hud-muted">To move the match to one of these instead, reject with a note saying which, or set its time on the schedule.</p>
+  </section>
+  }
 
   <!-- Reason -->
   <section class="prd-section" aria-labelledby="prd-reason">
@@ -30,7 +54,7 @@
     }
     <mat-radio-group [(ngModel)]="decision" class="prd-decision" aria-labelledby="prd-decision">
       @if (canApprove) {
-      <mat-radio-button value="approve">Approve reschedule</mat-radio-button>
+      <mat-radio-button value="approve" [disabled]="refused()">Approve reschedule</mat-radio-button>
       }
       <mat-radio-button value="reject">Reject reschedule</mat-radio-button>
     </mat-radio-group>

@@ -3,7 +3,7 @@
     <a class="hud-kicker" [routerLink]="['/seasonEdit', seasonID()]">&gt; Edit season</a>
     <h1 class="hud-title hud-title--md">Season availability</h1>
   </div>
-  <p class="hud-lede">The times players can pick from when they sign up.</p>
+  <p class="hud-lede">The times players can pick from when they sign up, and the rules its schedule is checked against.</p>
 
   <form class="hud-panel hud-form-group" #form="ngForm" aria-labelledby="bulk-title">
     <h2 id="bulk-title" class="hud-kicker">Bulk Modify</h2>
@@ -77,4 +77,6 @@
       <p class="hud-empty">No timeslots. Add one, or fill them in with Bulk Modify.</p>
     }
   </form>
+
+  <app-scheduling-rules [seasonID]="seasonID()" />
 </div>

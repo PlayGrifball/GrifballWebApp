@@ -13,6 +13,8 @@ import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { StubVodListComponent } from '@shared/vodList/vodList.stub';
+import { AccountService } from '@core/auth/account.service';
+import { TeamAvailabilityComponent } from './teamAvailability/teamAvailability.component';
 import { CalendarSubscribeComponent } from '@shared/calendarSubscribe/calendarSubscribe.component';
 
 /** The season's player stats table (tested on its own): here only what the team page gives it and reads back. */
@@ -23,10 +25,17 @@ class StubPlayerStats {
   readonly hasRows = signal(false);
 }
 
+/** The team's availability editor (tested on its own, the server saying who may change it): here only whether the page shows it. */
+@Component({ selector: 'app-team-availability', template: '' })
+class StubTeamAvailability {
+  readonly teamID = input<number>();
+}
+
 describe('TeamComponent', () => {
   let fixture: ComponentFixture<TeamComponent>;
   let component: TeamComponent;
   let http: HttpTestingController;
+  const account = { isLoggedIn: signal(false) };
 
   const team: TeamDto = {
     teamName: 'Red Team',
@@ -54,15 +63,17 @@ describe('TeamComponent', () => {
   });
 
   beforeEach(async () => {
+    account.isLoggedIn.set(false);
     await TestBed.configureTestingModule({
       imports: [TeamComponent],
       providers: [
         provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]),
         // Times show in UTC here, so the expected strings hold on any machine's timezone.
         { provide: DATE_PIPE_DEFAULT_OPTIONS, useValue: { timezone: 'UTC' } },
+        { provide: AccountService, useValue: account },
       ]
     })
-      .overrideComponent(TeamComponent, { remove: { imports: [SeasonPlayerStatsComponent, VodListComponent] }, add: { imports: [StubPlayerStats, StubVodListComponent] } })
+      .overrideComponent(TeamComponent, { remove: { imports: [SeasonPlayerStatsComponent, VodListComponent, TeamAvailabilityComponent] }, add: { imports: [StubPlayerStats, StubVodListComponent, StubTeamAvailability] } })
       .compileComponents();
 
     http = TestBed.inject(HttpTestingController);
@@ -85,6 +96,16 @@ describe('TeamComponent', () => {
   const stats = () => fixture.debugElement.query(By.directive(StubPlayerStats)).componentInstance as StubPlayerStats;
   const rows = () => Array.from(el().querySelectorAll('tr.mat-mdc-row'))
     .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
+
+  it("shows the team's availability to those signed in", () => {
+    const editor = () => fixture.debugElement.query(By.directive(StubTeamAvailability))?.componentInstance as StubTeamAvailability | undefined;
+    load(team, []);
+    expect(editor()).toBeUndefined();
+
+    account.isLoggedIn.set(true);
+    fixture.detectChanges();
+    expect(editor()!.teamID()).toBe(7);
+  });
 
   it('drops the previous team, and its title, while another loads, and cancels its requests', () => {
     load(team, []);

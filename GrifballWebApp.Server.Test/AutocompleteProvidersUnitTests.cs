@@ -205,4 +205,32 @@ public class AutocompleteProvidersUnitTests : SqliteGrifballContextFixture
 
         Assert.That(Names(choices), Is.EquivalentTo(TheEuropes));
     }
+
+    [Test]
+    public void RescheduleTimeAutocomplete_ReadsTheMatchPicked_InItsSubcommand()
+    {
+        // /reschedule request: the subcommand holds its options; new_time is the one being typed
+        var options = JsonSerializer.Deserialize<NetCord.JsonModels.JsonApplicationCommandInteractionDataOption[]>(JsonSerializer.Serialize(new object[]
+        {
+            new { name = "request", type = 1, options = new object[] { new { name = "match", type = 3, value = "42" }, new { name = "new_time", type = 3, value = "", focused = true } } },
+        }))!.Select(o => new NetCord.ApplicationCommandInteractionDataOption(o));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(RescheduleTimeAutocomplete.MatchPicked(options), Is.EqualTo("42"));
+            Assert.That(RescheduleTimeAutocomplete.MatchPicked([Typed("x")]), Is.Null, "None picked yet");
+        }
+    }
+
+    [Test]
+    public void ATimeSetsWarnings_AreItsLastLines_AndNothingWithoutAny()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(AdminCommandsHandler.Warnings([]), Is.Empty);
+            Assert.That(AdminCommandsHandler.Warnings([new(GrifballWebApp.Application.Scheduling.ScheduleConflictKind.TooManyTonight, "Reds play twice that night."),
+                new(GrifballWebApp.Application.Scheduling.ScheduleConflictKind.HomeTeamUnavailable, "Reds can't play then.")]),
+                Is.EqualTo("\nBut: Reds play twice that night. Reds can't play then."));
+        }
+    }
 }
