@@ -198,12 +198,12 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
     [Test]
     public async Task Import_APlayoffGameWithASideOfNoTeam_IsInNoSlot()
     {
-        var report = await _service.Import(Input(Cup(FourTeams()), [Game("cup#1", "Alpha", "Nobody")]));
+        var report = await _service.Import(Input(Cup(FourTeams()), [Game("cup#1", "Alpha", "Nobody"), Game("cup#2", "Nobody", "Beta")]));
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(report.Warnings, Has.One.Contains("is in no slot of the bracket sheet"));
-            Assert.That(await Slots(), Has.Count.EqualTo(4));
+            Assert.That(report.Warnings, Has.Exactly(2).Contains("is in no slot of the bracket sheet"));
+            Assert.That(await Slots(), Has.Count.EqualTo(5));
         }
     }
 
