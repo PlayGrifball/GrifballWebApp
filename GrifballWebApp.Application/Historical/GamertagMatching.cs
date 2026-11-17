@@ -134,6 +134,7 @@ public class GamertagMatching
         var starts = await _context.PlayerSeasonStats.Where(s => s.UserID == placeholderId).Select(s => s.Season.SeasonStart)
             .Concat(_context.Seasons.Championships().Where(c => c.UserID == placeholderId).Select(c => c.Season.SeasonStart))
             .Concat(_context.MatchmakingPlayerStats.Where(s => s.UserID == placeholderId).Select(s => s.MatchmakingSeason.StartsAt))
+            .Concat(_context.MatchmakingLadderRanks.Where(r => r.UserID == placeholderId).Select(r => r.MatchmakingSeason.StartsAt))
             .Concat(_context.MatchedMatches.Where(MatchedMatch.HasPlayer(placeholderId))
                 .Select(m => m.StartedAt))
             .ToListAsync(ct);

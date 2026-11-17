@@ -17,6 +17,11 @@ export interface MatchmakingSeasonDto {
    * Imported from the historical archive: GrifballWebApp.Application.LateLeague.MatchmakingSeasonDto.HistoricalSourceUrl is its source spreadsheet.
    */
   isHistorical: boolean;
+
+  /**
+   * How many players its ladder ranks (GrifballWebApp.Domain.LateLeague.MatchmakingLadderRank).
+   */
+  ladderCount: number;
   matchmakingSeasonID: number;
   name: string;
   playerCount: number;

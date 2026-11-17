@@ -37,6 +37,13 @@ public class HistoricalSourceConfig
     /// roster. A workbook with a <see cref="Season"/> but no stats tabs or tables (a league that kept no player stats) is a
     /// season of these teams alone: its entry has no player lines, keyed by its first standings tab of its own.</summary>
     public List<StandingsTab> Standings { get; init; } = [];
+    /// <summary>Tabs of a Late League season's ladder (its ranked standings): each player's division, league, rank, LP,
+    /// streak and MMR (LadderParser), which go on the season's ladder.</summary>
+    public List<LadderTab> Ladders { get; init; } = [];
+    /// <summary>The tab of each player's finishes in past seasons (Late League's "Past Seasons", LadderParser.ParseFinishes): League,
+    /// Rank and Pos columns under each season's heading, each season's going on the ladder whose <see cref="LadderTab.Finishes"/>
+    /// is that heading.</summary>
+    public string? FinishesSheet { get; init; }
     /// <summary>Tabs of a season's results, a game or a series per entry (GameResultsParser): the season's games when no
     /// per-game stats tab has them, and the forfeits and unlinked games of a Waypoint season's game history.</summary>
     public List<ResultsTab> Results { get; init; } = [];
@@ -82,6 +89,8 @@ public class HistoricalSourceConfig
             .. RosterSheets,
             .. Rosters.Select(t => t.Sheet),
             .. Standings.Select(t => t.Sheet),
+            .. Ladders.Select(t => t.Sheet),
+            FinishesSheet,
             .. Results.Select(t => t.Sheet),
             .. Brackets.Select(t => t.Sheet),
             .. Brackets.SelectMany(t => t.Rounds.Select(r => r.Sheet)),
@@ -245,6 +254,30 @@ public class StandingsTab
     public bool Ranked { get; init; }
     /// <summary>A team is named "Team (captain)": the name in brackets is its captain's.</summary>
     public bool CaptainInName { get; init; }
+}
+
+/// <summary>
+/// A tab of a Late League season's ladder (LadderParser): a row per player under a row of headers (Division, League, Rank,
+/// LP, Streak, MMR, P/ Win, P/ Loss), the player in <see cref="PlayerColumn"/>. Its rows go on the season named
+/// <see cref="Season"/> of the workbook, or on a season of its own (one with no stats tab, keyed by this tab) when the
+/// workbook has none of that name.
+/// </summary>
+public class LadderTab
+{
+    public required string Sheet { get; init; }
+    /// <summary>The season's name, as its stats tab's <see cref="StatsTab.CustomSeason"/> gives it.</summary>
+    public required string Season { get; init; }
+    /// <summary>The season's GameVersion slug, for a season of its own.</summary>
+    public required string Game { get; init; }
+    /// <summary>The season's year, for a season of its own: nothing in the tab dates it.</summary>
+    public int? Year { get; init; }
+    /// <summary>The column of the gamertags (the first by default: its header varies, or is empty).</summary>
+    public int PlayerColumn { get; init; }
+    /// <summary>The column of the divisions, when its header doesn't say Division (an empty header).</summary>
+    public int? DivisionColumn { get; init; }
+    /// <summary>The season's heading in the workbook's <see cref="HistoricalSourceConfig.FinishesSheet"/>: its finishes
+    /// (league, rank, place) go on this ladder.</summary>
+    public string? Finishes { get; init; }
 }
 
 public enum StandingsLayout

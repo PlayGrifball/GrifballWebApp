@@ -96,6 +96,7 @@ export type { MatchDetailsPlayerDto } from './models/match-details-player-dto';
 export type { MatchDetailsSeasonMatchDto } from './models/match-details-season-match-dto';
 export type { MatchDetailsTeamDto } from './models/match-details-team-dto';
 export type { MatchGame } from './models/match-game';
+export type { MatchmakingLadderRankDto } from './models/matchmaking-ladder-rank-dto';
 export type { MatchmakingPlayerStatDto } from './models/matchmaking-player-stat-dto';
 export type { MatchmakingQueueDto } from './models/matchmaking-queue-dto';
 export type { MatchmakingSeasonDetailDto } from './models/matchmaking-season-detail-dto';

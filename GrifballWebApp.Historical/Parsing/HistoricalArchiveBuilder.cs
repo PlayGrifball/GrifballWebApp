@@ -1,3 +1,5 @@
+using GrifballWebApp.Domain.Archive;
+using GrifballWebApp.Domain.LateLeague;
 using GrifballWebApp.Infrastructure.Excel;
 using GrifballWebApp.Application.Historical;
 using GrifballWebApp.Historical.Sources;
@@ -43,6 +45,9 @@ public sealed partial class HistoricalArchiveBuilder
     private readonly List<(string SourceId, RosterTab Tab, Dictionary<string, string>? Teams)> _rosters = [];
     /// <summary>Each standings tab's teams, put on their season's regular season once every season is known.</summary>
     private readonly List<(string SourceId, StandingsTab Tab, List<ArchiveTeam>? Teams)> _standings = [];
+    /// <summary>Each ladder tab's players (with its workbook's season defaults, its year and its past finishes), put on their
+    /// season once every season is known.</summary>
+    private readonly List<LadderRead> _ladders = [];
     /// <summary>Each result list's games, put under their season once every season is known.</summary>
     private readonly List<(string SourceId, int? Year, SeasonDefaults? Defaults, ResultsTab Tab, List<RecordedGameInput>? Games)> _results = [];
     /// <summary>Each bracket tab's series, put on their season's regular season once every season (and its standings) is known.</summary>
@@ -95,6 +100,7 @@ public sealed partial class HistoricalArchiveBuilder
         AddSeasonTabs(id, config, workbook);
         AddResultLists(id, source.Year, config, workbook);
         AddGames(id, config, workbook, changed);
+        AddLadders(source, config, workbook, changed);
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
         if (changed)
@@ -191,11 +197,38 @@ public sealed partial class HistoricalArchiveBuilder
         _playersChanged |= changed;
     }
 
+    /// <summary>A ladder tab read: its players (null: no such sheet, or no table), its past finishes (null: none), and
+    /// what a season of its own is made of.</summary>
+    private sealed record LadderRead(string SourceId, LadderTab Tab, List<LadderStanding>? Players, List<LadderStanding>? Finishes,
+        SeasonDefaults? Defaults, int? SourceYear, bool Changed);
+
+    private void AddLadders(HistoricalSource source, HistoricalSourceConfig config, SheetWorkbook workbook, bool changed)
+    {
+        if (config.Ladders.Count == 0)
+            return;
+        Dictionary<string, List<LadderStanding>>? finishes = null;
+        if (config.FinishesSheet is not null)
+        {
+            finishes = workbook.Sheet(config.FinishesSheet) is { } finishesSheet ? LadderParser.ParseFinishes(finishesSheet) : null;
+            if (finishes is null)
+                _warnings.Add($"{source.HistoricalSourceID}: past finishes '{config.FinishesSheet}' not read (no such sheet, or no Pos column)");
+        }
+        foreach (var tab in config.Ladders)
+        {
+            var players = workbook.Sheet(tab.Sheet) is { } sheet ? LadderParser.Parse(sheet, tab) : null;
+            var finished = tab.Finishes is { } heading && finishes is not null ? finishes.GetValueOrDefault(heading.Trim()) : null;
+            if (tab.Finishes is not null && finishes is not null && finished is null)
+                _warnings.Add($"{source.HistoricalSourceID}: no past finishes under '{tab.Finishes}' for ladder '{tab.Sheet}'");
+            _ladders.Add(new LadderRead(source.HistoricalSourceID, tab, players, finished, config.Season, tab.Year ?? source.Year, changed));
+        }
+    }
+
     public HistoricalArchiveBuild Finish()
     {
         var waypoint = WaypointBySeason();
         FillTeamsFromRosters();
         AddStandings();
+        PutLadders();
         AddDrafts();
         AddResults();
         NameGameSides();
@@ -435,6 +468,63 @@ public sealed partial class HistoricalArchiveBuilder
         var allowed = key.Length >= 15 ? 3 : key.Length >= 8 ? 2 : 1;
         var close = players.Where(p => DuplicateSuggestionService.Distance(key, HistoricalKeys.StripFraming(p), allowed) is not null && SameNumber(key, HistoricalKeys.StripFraming(p))).ToList();
         return close.Count == 1 ? close[0] : null;
+    }
+
+    /// <summary>
+    /// Each ladder tab's players go on its season: the workbook's regular-season entry of that name, or (a season with no
+    /// stats tab) an entry of its own, keyed by the ladder tab, with no stats. Its past finishes go with them: a player's
+    /// place is the finishes' Pos (and their league and rank where the tab gives none), and a player only the finishes
+    /// list is added with what they give.
+    /// </summary>
+    private void PutLadders()
+    {
+        foreach (var read in _ladders)
+        {
+            if (read.Players is null)
+            {
+                _warnings.Add($"{read.SourceId}: ladder '{read.Tab.Sheet}' not read (no such sheet, or no League header)");
+                continue;
+            }
+            var entry = _seasons.FirstOrDefault(s => !s.IsPlayoffs && string.Equals(s.SourceWorkbook, read.SourceId, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(s.SeasonName.Trim(), read.Tab.Season.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (entry is null)
+            {
+                entry = new ArchiveSeason
+                {
+                    SeasonName = read.Tab.Season.Trim(),
+                    GameVersion = read.Tab.Game,
+                    League = read.Defaults?.League ?? HistoricalKeys.LateLeague,
+                    Division = read.Defaults?.Division,
+                    Format = read.Defaults?.Format,
+                    SourceWorkbook = read.SourceId,
+                    SourceSheet = read.Tab.Sheet.Trim(),
+                    SourceYear = read.SourceYear,
+                };
+                _seasons.Add(entry);
+            }
+            entry.Ladder.AddRange(WithFinishes(read.Players, read.Finishes ?? []));
+            if (read.Changed)
+                _affected.Add(HistoricalKeys.SeasonSourceId(entry.SourceWorkbook!, entry.SourceSheet!));
+        }
+    }
+
+    /// <summary>The ladder's players with their finishes (matched by gamertag, <see cref="HistoricalKeys.Normalize"/>), then
+    /// the players only the finishes list. With finishes, a player's place is theirs alone.</summary>
+    private static List<LadderStanding> WithFinishes(List<LadderStanding> players, List<LadderStanding> finishes)
+    {
+        var byGamertag = finishes.GroupBy(f => HistoricalKeys.Normalize(f.Gamertag)).ToDictionary(g => g.Key, g => g.First());
+        var matched = new HashSet<string>();
+        var ladder = players.Select(p =>
+        {
+            var key = HistoricalKeys.Normalize(p.Gamertag);
+            // The finishes are the places: one they don't list has none (its order in the tab would repeat one of theirs)
+            if (!byGamertag.TryGetValue(key, out var finish))
+                return byGamertag.Count == 0 ? p : p with { Position = null };
+            matched.Add(key);
+            return p with { Position = finish.Position, League = p.League ?? finish.League, Rank = p.Rank ?? finish.Rank };
+        }).ToList();
+        ladder.AddRange(byGamertag.Values.Where(f => !matched.Contains(HistoricalKeys.Normalize(f.Gamertag))));
+        return ladder;
     }
 
     /// <summary>
