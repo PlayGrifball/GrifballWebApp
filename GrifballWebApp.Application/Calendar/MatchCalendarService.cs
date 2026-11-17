@@ -66,8 +66,9 @@ public class MatchCalendarService
         if (player is null)
             return null;
 
-        var rosters = _context.Teams.Rosters();
-        var matches = _context.SeasonMatches.Where(m => rosters.Any(p => p.UserID == userID && (p.TeamID == m.HomeTeamID || p.TeamID == m.AwayTeamID)));
+        // The player's teams first: the matches are then a plain IN on either side, not a roster lookup a row
+        var teamIDs = await _context.Teams.Rosters().Where(p => p.UserID == userID).Select(p => (int?)p.TeamID).Distinct().ToListAsync(ct);
+        var matches = _context.SeasonMatches.Where(m => teamIDs.Contains(m.HomeTeamID) || teamIDs.Contains(m.AwayTeamID));
         var events = await EventsAsync(matches, siteUrl, ct);
         var name = player.Name is { } shown ? $"{shown}'s matches" : "Grifball matches";
         return IcsWriter.Write(new CalendarFeed(name, events));
