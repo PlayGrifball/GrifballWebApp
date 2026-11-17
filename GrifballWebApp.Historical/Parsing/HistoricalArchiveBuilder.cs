@@ -86,18 +86,25 @@ public sealed class HistoricalArchiveBuilder
         if (config.ChampionsSheet is not null)
             AddChampions(id, source.Url, config.ChampionsSheet, workbook, changed);
         AddWaypoint(id, config, workbook);
-        foreach (var tab in config.Rosters)
-            _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
-        foreach (var tab in config.Standings)
-            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
-        foreach (var tab in config.Awards)
-            _awards.Add((id, tab, workbook.Sheet(tab.Sheet) is { } awardsSheet ? AwardsParser.Parse(awardsSheet, tab) : null));
+        AddSeasonTabs(id, config, workbook);
         AddGames(id, config, workbook, changed);
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
         if (changed)
             foreach (var entry in entries)
                 _affected.Add(HistoricalKeys.SeasonSourceId(entry.SourceWorkbook!, entry.SourceSheet!));
+    }
+
+    /// <summary>The tabs that fill in seasons known only once every source is read (rosters, standings, awards): parsed now, put
+    /// on their seasons in <see cref="Finish"/>.</summary>
+    private void AddSeasonTabs(string id, HistoricalSourceConfig config, SheetWorkbook workbook)
+    {
+        foreach (var tab in config.Rosters)
+            _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
+        foreach (var tab in config.Standings)
+            _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
+        foreach (var tab in config.Awards)
+            _awards.Add((id, tab, workbook.Sheet(tab.Sheet) is { } awardsSheet ? AwardsParser.Parse(awardsSheet, tab) : null));
     }
 
     /// <summary>The snapshot's workbook, the sheets its config reads; null (a warning said why) when it can't be read.</summary>
@@ -292,31 +299,34 @@ public sealed class HistoricalArchiveBuilder
                 continue;
             }
             foreach (var block in awards.GroupBy(a => a.Season ?? tab.Season ?? sourceId, StringComparer.OrdinalIgnoreCase))
-            {
-                var workbook = block.Key;
-                var regular = _seasons.FirstOrDefault(s => !s.IsPlayoffs && string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase)
-                    && (tab.Tab is null || string.Equals(s.SourceSheet, tab.Tab, StringComparison.OrdinalIgnoreCase)));
-                if (regular is null)
-                {
-                    _warnings.Add($"{sourceId}: awards '{tab.Sheet}' not read (no season from {workbook})");
-                    continue;
-                }
-                var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
-                var teams = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(season.SelectMany(s => s.Teams).Select(t => t.TeamName))
-                    .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-                var players = season.SelectMany(s => s.Players).Select(p => p.Gamertag)
-                    .GroupBy(HistoricalKeys.Normalize).ToDictionary(g => g.Key, g => g.First());
-                regular.Awards.AddRange(block.Select(a => a.Award.IsTeam
-                    ? a.Award with { Winner = KnownName(a.Award.Winner, teams) }
-                    : a.Award with
-                    {
-                        Winner = players.GetValueOrDefault(HistoricalKeys.Normalize(a.Award.Winner)) ?? a.Award.Winner,
-                        Team = a.Award.Team is { } team ? KnownName(team, teams) : null,
-                    }));
-                if (_changedSourceIds?.Contains(sourceId) != false)
-                    _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
-            }
+                AddAwards(sourceId, tab, block.Key, block.Select(a => a.Award));
         }
+    }
+
+    /// <summary>A tab's awards of the season of <paramref name="workbook"/> go on its regular-season entry.</summary>
+    private void AddAwards(string sourceId, AwardsTab tab, string workbook, IEnumerable<ArchiveAward> awards)
+    {
+        var regular = _seasons.FirstOrDefault(s => !s.IsPlayoffs && string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase)
+            && (tab.Tab is null || string.Equals(s.SourceSheet, tab.Tab, StringComparison.OrdinalIgnoreCase)));
+        if (regular is null)
+        {
+            _warnings.Add($"{sourceId}: awards '{tab.Sheet}' not read (no season from {workbook})");
+            return;
+        }
+        var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
+        var teams = season.SelectMany(s => s.Players).Select(p => p.TeamName).OfType<string>().Concat(season.SelectMany(s => s.Teams).Select(t => t.TeamName))
+            .Select(n => n.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var players = season.SelectMany(s => s.Players).Select(p => p.Gamertag)
+            .GroupBy(HistoricalKeys.Normalize).ToDictionary(g => g.Key, g => g.First());
+        regular.Awards.AddRange(awards.Select(a => a.IsTeam
+            ? a with { Winner = KnownName(a.Winner, teams) }
+            : a with
+            {
+                Winner = players.GetValueOrDefault(HistoricalKeys.Normalize(a.Winner)) ?? a.Winner,
+                Team = a.Team is { } team ? KnownName(team, teams) : null,
+            }));
+        if (_changedSourceIds?.Contains(sourceId) != false)
+            _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
     }
 
     /// <summary>

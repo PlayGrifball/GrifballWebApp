@@ -695,7 +695,7 @@ internal sealed class UserMergeServiceUnitTests : ApplicationDbContextTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(await Context.Users.AnyAsync(u => u.Id == dummy.Id), Is.False);
-            Assert.That(await Context.Set<SeasonAward>().Select(a => a.UserID).ToListAsync(), Has.All.EqualTo(real.Id).And.Count.EqualTo(2),
+            Assert.That(await Context.Set<SeasonAward>().Select(a => a.UserID).ToListAsync(), Is.EqualTo(new int?[] { real.Id, real.Id }),
                 "Each award the placeholder won is the target's");
         }
     }

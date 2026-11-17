@@ -856,9 +856,11 @@ public class HistoricalArchiveParsingTests
                         new() { Sheet = "Record Book", Layout = AwardsLayout.Seasons, Awards = new() { ["MVP"] = "" }, Seasons = new() { ["Season 1"] = "stats", ["Season 2"] = "nothing" } },
                         new() { Sheet = "Missing", Season = "stats" },
                         new() { Sheet = "Empty", Season = "stats" },
+                        new() { Sheet = "Achievements", Season = "stats" },
                     ],
                 },
-                Workbook(("Record Book", [Row("WL23 Season 1 Champions", "MVP: YLUXE"), Row("SL24 Season 2 Champions", "MVP: Someone")]), ("Empty", [Row("")]))),
+                Workbook(("Record Book", [Row("WL23 Season 1 Champions", "MVP: YLUXE"), Row("SL24 Season 2 Champions", "MVP: Someone")]), ("Empty", [Row("")]),
+                    ("Achievements", [Row("Divine Blade"), Row("Newbie")]))),
         ];
 
         var build = HistoricalArchiveBuilder.Build(sources, new HashSet<string> { "book" });
@@ -868,8 +870,8 @@ public class HistoricalArchiveParsingTests
         {
             Assert.That(regular.Awards.Select(a => (a.Name, a.Winner, a.IsTeam, a.Team, a.Value)), Is.EqualTo(new (string, string, bool, string?, string?)[]
             {
-                ("Most Kills", "Sisum", false, "WYLASS", "134"), ("Team Most Goals", "Ram Ranch", true, null, "9"), ("MVP", "yLuxe", false, null, null),
-            }));
+                ("Most Kills", "Sisum", false, "WYLASS", "134"), ("Team Most Goals", "Ram Ranch", true, null, "9"), ("MVP", "yLuxe", false, null, null), ("Divine Blade", "Newbie", false, null, null),
+            }), "A winner who is none of the season's players keeps their name");
             Assert.That(build.Input.Seasons.Seasons.Single(s => s.IsPlayoffs).Awards, Is.Empty);
             Assert.That(build.Seasons, Is.EquivalentTo(StatsAndPlayoffStats), "The awards' season is the changed source's");
             Assert.That(build.Warnings, Does.Contain("book: awards 'Record Book' not read (no season from nothing)"));

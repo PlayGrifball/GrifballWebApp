@@ -10876,6 +10876,9 @@
       },
       "HistoricalImportReport": {
         "required": [
+          "awardsInserted",
+          "awardsRemoved",
+          "awardsUpdated",
           "championshipsInserted",
           "championshipsRemoved",
           "championshipsUpdated",
@@ -10998,6 +11001,19 @@
             "format": "int32"
           },
           "championshipsUpdated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "awardsInserted": {
+            "type": "integer",
+            "description": "Season awards added, changed and removed (the archive no longer gives them, or their team went).",
+            "format": "int32"
+          },
+          "awardsUpdated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "awardsRemoved": {
             "type": "integer",
             "format": "int32"
           },

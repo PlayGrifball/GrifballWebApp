@@ -403,14 +403,15 @@ public class Season : AuditableEntity
             if (award is not null && kept.Contains(award))
                 continue;
             position++;
+            var teamID = winner.Team?.TeamID;
             if (award is null)
             {
                 award = SeasonAward.Given(this, winner.Name, winner.WinnerName);
                 _awards.Add(award);
-                award.WonBy(winner.UserID, winner.Team?.TeamID, winner.Value, position);
+                award.WonBy(winner.UserID, teamID, winner.Value, position);
                 inserted++;
             }
-            else if (award.WonBy(winner.UserID, winner.Team?.TeamID, winner.Value, position))
+            else if (award.WonBy(winner.UserID, teamID, winner.Value, position))
             {
                 updated++;
             }

@@ -40,7 +40,8 @@ public class SeasonAwardAggregateTests
                 ("Most Kills (one game)", "Sisum", 2, 4, "134", 2),
                 ("Team Most Kills", "Team 4", null, 4, "385", 3),
             }));
-            Assert.That(awards.All(a => a.Season == season), Is.True);
+            Assert.That(awards.All(a => a.Season == season && a.SeasonID == season.SeasonID && a.SeasonAwardID == 0), Is.True, "The season's, not saved yet");
+            Assert.That(awards.All(a => a.User is null && a.Team is null), Is.True, "Its player and team by their keys: EF loads the navigations");
         }
     }
 

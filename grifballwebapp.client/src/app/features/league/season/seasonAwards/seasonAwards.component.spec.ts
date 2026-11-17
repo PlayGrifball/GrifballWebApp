@@ -28,7 +28,8 @@ describe('SeasonAwardsComponent', () => {
     expect(Array.from(el().querySelectorAll('.award__name')).map(n => n.textContent!.trim()))
       .toEqual(['MVP', 'Most Kills (one game)', 'Team Most Kills', 'Top 5 Runners', 'Unlinked']);
     const runners = el().querySelectorAll('.award')[3].querySelectorAll('.award__winner');
-    expect(Array.from(runners).map(r => r.textContent!.replace(/\s+/g, ' ').trim())).toEqual(['Runner One #1', 'Runner Two #2']);
+    expect(Array.from(runners).map(r => [r.querySelector('a')!.textContent!.trim(), r.querySelector('.award__value')!.textContent!.trim()]))
+      .toEqual([['Runner One', '#1'], ['Runner Two', '#2']]);
   });
 
   it('links a player to their profile, a team to its page, and a player\'s team after them', () => {

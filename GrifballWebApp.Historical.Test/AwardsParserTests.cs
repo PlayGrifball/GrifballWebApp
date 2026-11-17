@@ -164,6 +164,27 @@ public class AwardsParserTests
     }
 
     [Test]
+    public void Labels_ALabelWithNothingBelowIt_HasNoWinner()
+    {
+        var sheet = Sheet(["MVP", "", "", "", "", "", "Tool Man"], ["yLuxe"]);
+
+        var awards = AwardsParser.Parse(sheet, new AwardsTab { Sheet = "Season Awards", Layout = AwardsLayout.Labels, Awards = new() { ["MVP"] = "", ["Tool Man"] = "" } });
+
+        Assert.That(Winners(awards), Is.EqualTo(new List<(string, string)> { ("MVP", "yLuxe") }));
+    }
+
+    [Test]
+    public void Records_WithoutACategoryColumn_AreThePlayers_AndARowWithoutAHolderIsSkipped()
+    {
+        var sheet = Sheet(["description", "holder"], ["Most Goals", "D4rk3nd"], ["Most Kills", ""]);
+
+        var awards = AwardsParser.Parse(sheet, new AwardsTab { Sheet = "Records", Layout = AwardsLayout.Records });
+
+        Assert.That(awards.Select(a => (a.Award.Name, a.Award.Winner, a.Award.IsTeam, a.Award.Team, a.Award.Value)),
+            Is.EqualTo(new List<(string, string, bool, string?, string?)> { ("Most Goals", "D4rk3nd", false, null, null) }));
+    }
+
+    [Test]
     public void Records_WithoutItsHeaders_ReadsNothing()
     {
         Assert.That(AwardsParser.Parse(Sheet(["category", "record"], ["A", "B"]), new AwardsTab { Sheet = "Records", Layout = AwardsLayout.Records }), Is.Empty);

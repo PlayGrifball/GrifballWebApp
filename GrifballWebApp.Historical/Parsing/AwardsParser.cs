@@ -127,26 +127,33 @@ public static partial class AwardsParser
     {
         var awards = new List<ParsedAward>();
         var seasons = tab.Seasons.OrderByDescending(s => s.Key.Length).ToList();
-        for (var row = 0; row < sheet.Rows.Count; row++)
+        string? SeasonOf(int row)
         {
             var title = Text(sheet.Cell(row, 0));
-            var season = seasons.FirstOrDefault(s => title.Contains(s.Key.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (season.Key is null)
+            return seasons.FirstOrDefault(s => title.Contains(s.Key.Trim(), StringComparison.OrdinalIgnoreCase)).Value?.Trim();
+        }
+        for (var row = 0; row < sheet.Rows.Count; row++)
+        {
+            if (SeasonOf(row) is not { } season)
                 continue;
-            // The block's "MVP: Luxe" and "FMVP: Fancy", in its title's row and the next
-            foreach (var cell in sheet.Rows[row].Concat(row + 1 < sheet.Rows.Count ? sheet.Rows[row + 1] : []).Select(Text))
-            {
-                var colon = cell.IndexOf(':');
-                if (colon <= 0)
-                    continue;
-                var label = cell[..colon].Trim();
-                var winner = Text(cell[(colon + 1)..]);
-                if (winner.Length == 0 || !tab.Awards.Keys.Any(a => string.Equals(Text(a), label, StringComparison.OrdinalIgnoreCase)))
-                    continue;
-                awards.Add(new ParsedAward(season.Value.Trim(), new ArchiveAward { Name = Renamed(label, tab), Winner = winner }));
-            }
+            // The block's "MVP: Luxe" and "FMVP: Fancy", in its title's row and the next (unless that is the next block's title)
+            var cells = row + 1 < sheet.Rows.Count && SeasonOf(row + 1) is null ? sheet.Rows[row].Concat(sheet.Rows[row + 1]) : sheet.Rows[row];
+            awards.AddRange(cells.Select(c => Labelled(Text(c), tab)).OfType<ArchiveAward>().Select(a => new ParsedAward(season, a)));
         }
         return awards;
+    }
+
+    /// <summary>A "MVP: Luxe" cell's award, when its label is one of the tab's and it names a winner; null otherwise.</summary>
+    private static ArchiveAward? Labelled(string cell, AwardsTab tab)
+    {
+        var colon = cell.IndexOf(':');
+        if (colon <= 0)
+            return null;
+        var label = cell[..colon].Trim();
+        var winner = Text(cell[(colon + 1)..]);
+        if (winner.Length == 0 || !tab.Awards.Keys.Any(a => string.Equals(Text(a), label, StringComparison.OrdinalIgnoreCase)))
+            return null;
+        return new ArchiveAward { Name = Renamed(label, tab), Winner = winner };
     }
 
     private static List<ParsedAward> ByRecord(SheetTable sheet)
@@ -194,7 +201,7 @@ public static partial class AwardsParser
     }
 
     /// <summary>A cell's text, its whitespace runs one space.</summary>
-    private static string Text(string? cell) => Whitespace().Replace(cell ?? "", " ").Trim();
+    private static string Text(string cell) => Whitespace().Replace(cell, " ").Trim();
 
     [GeneratedRegex(@"^\d+\.\s*")]
     private static partial Regex RankPrefix();
