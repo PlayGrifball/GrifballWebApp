@@ -1,0 +1,43 @@
+<form class="hud-panel hud-form-group" aria-labelledby="rules-title">
+  <h2 id="rules-title" class="hud-kicker">Scheduling rules</h2>
+  <p class="hud-muted">
+    What the season scheduler, a time set by hand and a reschedule are checked against. A time breaking one of these is a warning;
+    only a team already playing then, or a time outside the season, can't be approved.
+  </p>
+  @if (model(); as rules) {
+  <div class="hud-field-grid">
+    <mat-form-field appearance="outline">
+      <mat-label>Players for a timeslot</mat-label>
+      <input matInput type="number" min="1" name="minPlayersAvailable" required
+             [ngModel]="rules.minPlayersAvailable" (ngModelChange)="set('minPlayersAvailable', $event)">
+      <mat-hint>How many of a team's players must be able to play a timeslot for it to be the team's</mat-hint>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Matches a team plays a night</mat-label>
+      <input matInput type="number" min="1" name="maxMatchesPerTeamPerNight" required
+             [ngModel]="rules.maxMatchesPerTeamPerNight" (ngModelChange)="set('maxMatchesPerTeamPerNight', $event)">
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Matches a team plays a week</mat-label>
+      <input matInput type="number" min="1" name="maxMatchesPerTeamPerWeek" required
+             [ngModel]="rules.maxMatchesPerTeamPerWeek" (ngModelChange)="set('maxMatchesPerTeamPerWeek', $event)">
+      <mat-hint>Monday to Sunday, league time</mat-hint>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Matches at once</mat-label>
+      <input matInput type="number" min="1" name="maxConcurrentMatches"
+             [ngModel]="rules.maxConcurrentMatches" (ngModelChange)="set('maxConcurrentMatches', $event)">
+      <mat-hint>Empty: no cap</mat-hint>
+    </mat-form-field>
+  </div>
+  <div class="hud-actions">
+    <button mat-flat-button type="button" (click)="save()" [disabled]="saving()">Save rules</button>
+    @if (saved()) {
+    <span class="hud-muted" role="status">Saved.</span>
+    }
+  </div>
+  @if (error(); as message) {
+  <p class="hud-empty hud-empty--error" role="alert">{{ message }}</p>
+  }
+  }
+</form>
