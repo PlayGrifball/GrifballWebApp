@@ -145,6 +145,18 @@ internal sealed class StatLineAndGameTotalsUnitTests
         Assert.That((line.Grabs, line.BattingAverage, line.ScoringAverage, line.CombinedAverage), Is.EqualTo(((int?)null, (decimal?)null, (decimal?)null, (decimal?)null)));
     }
 
+    [Test]
+    public void SetGames_SomeGamesWithoutGrabs_GiveTheGrabsButNoAverages()
+    {
+        // A game without grabs would count its goals and not its grabs
+        var totals = new GameTotals { UserID = 1, Played = 3, Kills = 62, Deaths = 53, Goals = 4, Grabs = 6, RecordingGrabs = 2 };
+
+        var line = NewLine();
+        line.SetGames(totals, null);
+
+        Assert.That((line.Grabs, line.BattingAverage, line.ScoringAverage, line.CombinedAverage), Is.EqualTo(((int?)6, (decimal?)null, (decimal?)null, (decimal?)null)));
+    }
+
     [TestCase(0, 0, 0, 0, 0, 0, 0, 0, TestName = "GrifballComAverages_NothingToCountOver_IsZero")]
     [TestCase(62, 53, 2, 0, 6, 55, 0, 28, TestName = "GrifballComAverages_AHalfRoundsUp_AsTheSiteShowedIt")]
     [TestCase(100, 107, 8, 1, 5, 50, 20, 35, TestName = "GrifballComAverages_BattingLeavesBetrayalsOutOfTheLives")]

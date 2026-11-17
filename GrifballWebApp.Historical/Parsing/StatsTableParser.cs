@@ -338,18 +338,12 @@ public static partial class StatsTableParser
     [System.Text.RegularExpressions.GeneratedRegex(@"^[pP]\d+$")]
     private static partial System.Text.RegularExpressions.Regex PlayerColumnPattern();
 
-    private static string Cell(string[] row, int column) => column >= 0 && column < row.Length ? row[column] : "";
+    private static string Cell(string[] row, int column) => ArchiveCells.TableCell(row, column);
 
     /// <summary>A cell's text, null for an empty cell and the database's NULL.</summary>
-    private static string? Value(string[] row, int column)
-    {
-        var text = Cell(row, column).Trim();
-        return text.Length == 0 || text.Equals("NULL", StringComparison.OrdinalIgnoreCase) ? null : text;
-    }
+    private static string? Value(string[] row, int column) => ArchiveCells.TableValue(row, column);
 
     private static decimal? Number(string[] row, int column) => ArchiveCells.Number(Value(row, column));
 
-    /// <summary>A cell's whole number; null for none, or one beyond an int (a stray value, never a count).</summary>
-    private static int? IntValue(string[] row, int column)
-        => Number(row, column) is decimal d && Math.Round(d) is var whole && whole >= int.MinValue && whole <= int.MaxValue ? (int)whole : null;
+    private static int? IntValue(string[] row, int column) => ArchiveCells.TableInt(row, column);
 }

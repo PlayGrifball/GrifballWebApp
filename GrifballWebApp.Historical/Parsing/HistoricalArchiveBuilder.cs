@@ -90,7 +90,7 @@ public sealed class HistoricalArchiveBuilder
         foreach (var tab in config.Standings)
             _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
         AddGames(id, config, workbook, changed);
-        AddGameTables(id, config, workbook, entries, changed);
+        AddGameTables(id, config, workbook, entries);
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
         if (changed)
@@ -156,8 +156,9 @@ public sealed class HistoricalArchiveBuilder
     }
 
     /// <summary>The source's database tables of games (<see cref="GamesTableParser"/>): the games and forfeits of its own
-    /// seasons. One of a season its stats make no entry for is left out and reported.</summary>
-    private void AddGameTables(string id, HistoricalSourceConfig config, SheetWorkbook workbook, List<ArchiveSeason> entries, bool changed)
+    /// seasons. One of a season its stats make no entry for is left out and reported. Their seasons are the entries', which
+    /// the source's change already marks.</summary>
+    private void AddGameTables(string id, HistoricalSourceConfig config, SheetWorkbook workbook, List<ArchiveSeason> entries)
     {
         if (config.GameTables.Count == 0)
             return;
@@ -170,8 +171,6 @@ public sealed class HistoricalArchiveBuilder
             _warnings.Add($"{id}: {left} game(s) or forfeit(s) of a season with no stats, skipped");
         _games.AddRange(games);
         _forfeits.AddRange(forfeits);
-        if (changed)
-            _affected.UnionWith(games.Select(g => g.SeasonSourceId).Concat(forfeits.Select(f => f.SeasonSourceId)));
     }
 
     private void AddPlayers(string id, string sheetName, SheetWorkbook workbook, bool changed)

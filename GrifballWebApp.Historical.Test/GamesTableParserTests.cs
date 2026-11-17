@@ -12,6 +12,7 @@ namespace GrifballWebApp.Historical.Test;
 /// grifball.com archive against one built here; never the real ones.
 /// </summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class GamesTableParserTests
 {
@@ -22,7 +23,6 @@ public class GamesTableParserTests
     private static readonly string[] InfoSheets = ["gb_teamstats", "gb_deletedgames", "h_games", "h4_pstats", "agla_playerstats", "agla_teamindex", "agla_gamesreported", "agla_deletedgames"];
     private static readonly string[] Sml11Rosters = ["Sarge, Simmons", "Church, Grif, Tucker"];
     private static readonly int[] NoLines = [0, 0];
-    private static readonly string[] OnlyW1 = ["W1"];
     private static readonly string[] OnlyBee = ["Bee"];
 
     private static HistoricalSourceConfig CatalogConfig(string id)
@@ -321,7 +321,8 @@ public class GamesTableParserTests
                 Row(12, 60, 1, 0, 1, 0, 0, 0, 5), Row(12, 10, 1, 0, 0, 1, 0, 0, 2),
                 Row(13, 30, 3, 0, 1, 0, 0, 0, 5), Row(13, 40, 3, 0, 0, 1, 0, 0, 2),
                 Row(14, 30, 2, 0, 0, 0, 0, 0, 0), Row(14, 40, 2, 0, 0, 0, 1, 0, 0),
-                Row(15, 30, 2, 0, 0, 0, 0, 1, 0), Row(15, 40, 2, 0, 0, 0, 0, 0, 0)]),
+                Row(15, 30, 2, 0, 0, 0, 0, 1, 0), Row(15, 40, 2, 0, 0, 0, 0, 0, 0),
+                Row(16, 30, 2, 1, 0, 0, 1, 0, 0), Row(16, 40, 2, 1, 0, 0, 0, 1, 0)]),
             ("schedule", [
                 Row("id", "season", "teama", "teamb", "result", "win", "playoffs", "link", "date_reported"),
                 Row(null, 2, 30, 40, "5-1", 30, 0, null, null),
@@ -335,14 +336,20 @@ public class GamesTableParserTests
                 Row(7, 2, 30, 40, "5-1", 30, 0, null, null),
                 Row(8, 2, 30, 40, "(2 - 6)", 40, 1, "L1", null),
                 Row(9, 2, 30, 40, "6-2", 30, 0, "L1", null),
-                Row(10, 2, 30, 40, "6-2", 30, 0, "L2", null)]),
+                Row(10, 2, 30, 40, "6-2", 30, 0, "L2", null),
+                Row(12, 2, 30, 40, "double forfeit", 0, 0, null, null),
+                Row(13, 2, 30, 40, "5-1", 30, 0, "0", null)]),
             ("lines", [
-                Row("link", "teamid", "playerid", "gamertag", "kills", "deaths"),
+                Row("link", "teamid", "playerid", "gamertag", "kills", "deaths", "season", "wins", "losses", "playoffs"),
                 Row("L1", 30, null, "Own", 4, 2),
                 Row("L1", 40, 1, null, 3, 3),
                 Row("L1", 40, 9, null, 1, 1),
                 Row("L1", 99, null, "Elsewhere", 1, 1),
-                Row("L1", 40, null, null, 1, 1)]),
+                Row("L1", 40, null, null, 1, 1),
+                Row("0", 30, null, "Zero", 1, 1),
+                Row("L3", 30, null, "Three", 5, 1, 2, 1, 0, 1),
+                Row("L3", 40, null, "Four", 1, 5, 2, 0, 1, 1),
+                Row("L5", 30, null, "Solo", 1, 1, 2, 1, 0, 0)]),
             ("reported", [
                 Row("index", "gameid", "winning_team", "losing_team", "game_date", "g_season", "forfeit"),
                 Row(null, 5, "Opens", "Ams", 1, 2, 0),
@@ -352,7 +359,7 @@ public class GamesTableParserTests
                 Row(4, 5, "Opens", "Ams", -5, 2, 0),
                 Row(5, 5, "Opens", "Ams", 1, 2, 0),
                 Row(6, 6, "Opens", "Ams", null, 2, 0)]),
-            ("rlines", [Row("gameid", "gamertag", "teamname", "kills", "playoffs"), Row(5, "W1", "Opens", 3, 0), Row(5, null, "Opens", 1, 0), Row(5, "X", "Other", 1, 0)]),
+            ("rlines", [Row("gameid", "gamertag", "teamname", "kills", "playoffs"), Row(5, "W1", "Opens", 3, 0), Row(5, "W2", "OPENS", 2, 0), Row(5, null, "Opens", 1, 0), Row(5, "X", "Other", 1, 0)]),
             ("matches", [
                 Row("match_id", "season", "bungie_game_id", "is_forfeit", "team1_name", "team1_score", "team2_name", "team2_score"),
                 Row(1, 2, null, 0, "Opens", 1e12, "Ams", -1e12)]));
@@ -371,10 +378,10 @@ public class GamesTableParserTests
             Assert.That((game.SourceKey, game.SeasonSourceId), Is.EqualTo(($"{EdgeId}/teamgames#abc", $"{EdgeId}/stats#s2")));
             Assert.That(Sides(game), Is.EqualTo(new[] { (1, (string?)"Opens", Outcomes.Lost, (int?)2), (2, "40", Outcomes.DidNotFinish, 1) }),
                 "A team without a name is its ID; a side neither won nor lost has no result");
-            Assert.That(Forfeits(build, "teamgames").Select(f => (f.Winner, f.Loser, f.BothForfeited)), Is.EqualTo(new[]
+            Assert.That(Forfeits(build, "teamgames").Select(f => (f.Winner, f.Loser, f.BothForfeited, f.IsPlayoffs)), Is.EqualTo(new[]
             {
-                ("Opens", "40", false), ("Opens", "40", true), ("40", "Opens", false), ("40", "Opens", false),
-            }), "Won by its own forfeit win, or by the other side's forfeit");
+                ("Opens", "40", false, false), ("Opens", "40", true, false), ("40", "Opens", false, false), ("40", "Opens", false, false), ("Opens", "40", false, true),
+            }), "Won by its own forfeit win, or by the other side's forfeit; a playoff one says so");
             Assert.That(build.Warnings, Is.SupersetOf(new[]
             {
                 $"{EdgeId}: teamgames: 1 game(s) of season 3, which stats's config doesn't name, skipped",
@@ -396,16 +403,22 @@ public class GamesTableParserTests
             Assert.That(games.Select(g => (g.SourceKey, g.IsPlayoffs, g.Players.Count)), Is.EqualTo(new[]
             {
                 ($"{EdgeId}/schedule#7", false, 0), ($"{EdgeId}/schedule#8", true, 2), ($"{EdgeId}/schedule#9", false, 0), ($"{EdgeId}/schedule#10", false, 0),
-            }), "A link's lines go to its first game only");
+                ($"{EdgeId}/schedule#13", false, 0), ($"{EdgeId}/schedule#L3", true, 2),
+            }), "A link's lines go to its first game only, never the placeholder link 0's; a link no row lists is a game of its own");
+            Assert.That(Sides(games[^1]), Is.EqualTo(new[] { (1, (string?)"Opens", Outcomes.Won, (int?)null), (2, "40", Outcomes.Lost, null) }), "Its result its lines'");
+            Assert.That(games[^1].Players.Select(p => (p.Gamertag, p.Side)), Is.EqualTo(new[] { ("Three", 1), ("Four", 2) }));
             Assert.That(Sides(games[0]), Is.EqualTo(new[] { (1, (string?)"Opens", Outcomes.Won, (int?)5), (2, "40", Outcomes.Lost, 1) }));
             Assert.That(Sides(games[1]), Is.EqualTo(new[] { (1, (string?)"Opens", Outcomes.Lost, (int?)2), (2, "40", Outcomes.Won, 6) }));
             Assert.That(games[1].Players.Select(p => (p.Gamertag, p.Side)), Is.EqualTo(new[] { ("Own", 1), ("Alpha", 2) }), "Its own gamertag, or the lookup's by the player's ID");
-            Assert.That(Forfeits(build, "schedule").Select(f => (f.Winner, f.Loser, f.PlayedAt)), Is.EqualTo(new[] { ("40", "Opens", (DateTime?)null) }));
+            Assert.That(Forfeits(build, "schedule").Select(f => (f.Winner, f.Loser, f.BothForfeited, f.PlayedAt)), Is.EqualTo(new[]
+            {
+                ("40", "Opens", false, (DateTime?)null), ("40", "Opens", true, null),
+            }), "A double forfeit names no winner");
             Assert.That(build.Warnings, Is.SupersetOf(new[]
             {
                 $"{EdgeId}: schedule: 1 game(s) of season 3, which stats's config doesn't name, skipped",
                 $"{EdgeId}: schedule: 4 row(s) without both sides or a result, skipped",
-                $"{EdgeId}: schedule: 3 player line(s) of no listed game or of neither side, skipped",
+                $"{EdgeId}: schedule: 5 player line(s) of no listed game or of neither side, skipped",
             }));
         }
     }
@@ -421,9 +434,9 @@ public class GamesTableParserTests
         {
             Assert.That(reported.Select(g => (g.SourceKey, g.PlayedAt, g.Players.Count)), Is.EqualTo(new[]
             {
-                ($"{EdgeId}/reported#4", (DateTime?)null, 1), ($"{EdgeId}/reported#6", null, 0),
+                ($"{EdgeId}/reported#4", (DateTime?)null, 2), ($"{EdgeId}/reported#6", null, 0),
             }), "A date before 1970 is none, and so is no date; a game without lines has no players");
-            Assert.That(reported[0].Players.Select(p => p.Gamertag), Is.EqualTo(OnlyW1));
+            Assert.That(reported[0].Players.Select(p => (p.Gamertag, p.Side)), Is.EqualTo(new[] { ("W1", 1), ("W2", 1) }), "A team's name in any case");
             Assert.That(Games(build, "schedule2").Single().Players.Select(p => p.Gamertag), Is.EqualTo(OnlyBee), "No players lookup: a line's own gamertag only");
             Assert.That(Forfeits(build, "reported").Select(f => (f.SourceKey, f.PlayedAt)), Is.EqualTo(new[] { ($"{EdgeId}/reported#2", (DateTime?)null) }));
             Assert.That(Sides(match), Is.EqualTo(new[] { (1, (string?)"Opens", Outcomes.Tie, (int?)null), (2, "Ams", Outcomes.Tie, null) }),

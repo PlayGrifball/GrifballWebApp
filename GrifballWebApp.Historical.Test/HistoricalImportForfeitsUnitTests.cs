@@ -36,8 +36,9 @@ internal sealed class HistoricalImportForfeitsUnitTests : ApplicationDbContextTe
     private static ArchiveSeason Season() => Entry("Winter League 2008", "halo3", "AGLA", false,
         Player("Church", team: "Red Team"), Player("Tex", team: "Blue Team"), Player("Sarge", team: "Gold Team"));
 
-    private static ArchiveForfeitInput Forfeit(int row, string winner, string loser, bool both = false, string season = SeasonKey) => new()
+    private static ArchiveForfeitInput Forfeit(int row, string winner, string loser, bool both = false, string season = SeasonKey, bool playoffs = false) => new()
     {
+        IsPlayoffs = playoffs,
         SeasonSourceId = season,
         SourceKey = $"db/Matches#{row}",
         Winner = winner,
@@ -105,6 +106,39 @@ internal sealed class HistoricalImportForfeitsUnitTests : ApplicationDbContextTe
                 ((string?)"Red Team", (string?)"Blue Team", (SeasonMatchResult?)SeasonMatchResult.Forfeit, (SeasonMatchResult?)SeasonMatchResult.Forfeit),
                 ("Red Team", "Gold Team", SeasonMatchResult.Won, SeasonMatchResult.Forfeit),
             }));
+        }
+    }
+
+    [Test]
+    public async Task Import_APlayoffForfeit_IsLeftOut_AndReported()
+    {
+        var report = await _service.Import(Input(Forfeit(1, "Red Team", "Blue Team", playoffs: true)));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Context.SeasonMatches.CountAsync(), Is.Zero);
+            Assert.That(report.Warnings, Does.Contain("winter-league-2008/Stats: 1 playoff forfeit(s) left out (the bracket is rebuilt from games): db/Matches#1"));
+        }
+    }
+
+    [Test]
+    public async Task Import_AForfeitedBracketSlotWithoutGames_IsNotOneOfItsForfeits_AndStays()
+    {
+        await _service.Import(Input(Forfeit(1, "Red Team", "Blue Team")));
+        var teams = await Context.Set<Team>().AsNoTracking().ToDictionaryAsync(t => t.TeamName, t => t);
+        var slot = SeasonMatch.Imported(teams["Red Team"].SeasonID, teams["Gold Team"].TeamID, teams["Blue Team"].TeamID, 0, 0, 1, null,
+            MatchBracketInfo.From(Bracket.Winner, 1, 1, 1, null!, 2, null!));
+        slot.Forfeit(Forfeiter.Away);
+        Context.SeasonMatches.Add(slot);
+        await Context.SaveChangesAsync();
+        Context.ChangeTracker.Clear();
+
+        var again = await _service.Import(Input(Forfeit(1, "Red Team", "Blue Team")));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((again.SeasonMatchesCreated, again.SeasonMatchesRemoved), Is.EqualTo((0, 0)));
+            Assert.That(await Context.SeasonMatches.CountAsync(), Is.EqualTo(2));
         }
     }
 

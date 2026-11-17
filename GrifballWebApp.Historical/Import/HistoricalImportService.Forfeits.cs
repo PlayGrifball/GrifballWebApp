@@ -8,18 +8,20 @@ public partial class HistoricalImportService
     /// <summary>
     /// The season's forfeits (<see cref="ArchiveForfeitInput"/>): each a season match between its two teams decided by the
     /// forfeit (<see cref="SeasonMatch.Forfeit"/>), with no games. Reconciled with the season's forfeited matches that have
-    /// no games (an imported season's are all the import's: it can't be edited): one of the same teams and result is kept,
+    /// no games and no bracket slot (an imported season's are all the import's: it can't be edited): one of the same teams and result is kept,
     /// the rest are added, and those the archive no longer lists go, so a re-run of the same archive changes nothing. A
-    /// forfeit naming a team the season hasn't is left out, reported once for the season.
+    /// forfeit naming a team the season hasn't is left out, and so is a playoff one (the bracket is rebuilt from the games, #511's
+    /// brackets), each reported once for the season.
     /// </summary>
     private async Task ImportForfeits(SeasonGroup group, Season season, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
     {
         var existing = await _context.SeasonMatches
-            .Where(m => m.SeasonID == season.SeasonID && !m.SeriesGames.Any()
+            .Where(m => m.SeasonID == season.SeasonID && !m.SeriesGames.Any() && m.BracketMatch == null
                 && (m.HomeTeamResult == SeasonMatchResult.Forfeit || m.AwayTeamResult == SeasonMatchResult.Forfeit))
             .ToListAsync(ct);
         var withoutTeam = new List<string>();
-        foreach (var forfeit in group.Forfeits!)
+        var playoffs = group.Forfeits!.Where(f => f.IsPlayoffs).Select(f => f.SourceKey).ToList();
+        foreach (var forfeit in group.Forfeits!.Where(f => !f.IsPlayoffs))
         {
             var (winner, loser) = (teams.Find(forfeit.Winner)?.TeamID, teams.Find(forfeit.Loser)?.TeamID);
             if (winner is null || loser is null || winner == loser)
@@ -43,6 +45,8 @@ public partial class HistoricalImportService
         _context.SeasonMatches.RemoveRange(existing);
         counts.SeasonMatchesRemoved += existing.Count;
         await _context.SaveChangesAsync(ct);
+        if (playoffs.Count > 0)
+            Warn(counts, $"{group.SourceId}: {playoffs.Count} playoff forfeit(s) left out (the bracket is rebuilt from games): {string.Join(", ", playoffs)}");
         if (withoutTeam.Count > 0 && teams.ByName.Count > 0)
             Warn(counts, $"{group.SourceId}: {withoutTeam.Count} forfeit(s) naming a team that is none of the season's, left out: {string.Join(", ", withoutTeam)}");
     }

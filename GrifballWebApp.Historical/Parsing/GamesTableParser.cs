@@ -199,8 +199,9 @@ public static partial class GamesTableParser
             Players = players,
         };
 
-        private ArchiveForfeitInput Forfeit(string season, string id, string winner, string loser, bool both, DateTime? playedAt = null) => new()
+        private ArchiveForfeitInput Forfeit(string season, string id, string winner, string loser, bool both, DateTime? playedAt = null, bool playoffs = false) => new()
         {
+            IsPlayoffs = playoffs,
             SeasonSourceId = season,
             SourceKey = Key(id),
             Winner = winner,
@@ -297,12 +298,18 @@ public static partial class GamesTableParser
             var (aWon, bWon) = (Int(a.Row, c.ForfeitWin) == 1, Int(b.Row, c.ForfeitWin) == 1 || (aForfeited && !bForfeited));
             if (!aForfeited && !bForfeited && !aWon && !bWon)
                 return null;
-            return bWon ? Forfeit(key, id, b.Name, a.Name, both: false) : Forfeit(key, id, a.Name, b.Name, both: aForfeited && bForfeited);
+            var playoffs = Int(a.Row, c.Playoffs) == 1;
+            return bWon ? Forfeit(key, id, b.Name, a.Name, both: false, playoffs: playoffs) : Forfeit(key, id, a.Name, b.Name, both: aForfeited && bForfeited, playoffs: playoffs);
         }
 
         /// <summary>h_games' columns, and its player lines and their gamertags.</summary>
         private sealed record ScheduleColumns(int Id, int Season, int TeamA, int TeamB, int Result, int Win, int Playoffs, int Link, int Reported,
-            PlayerLines Lines, (int RowKey, Dictionary<string, string> ById) Gamertags, HashSet<string> Listed);
+            PlayerLines Lines, (int RowKey, Dictionary<string, string> ById) Gamertags, HashSet<string> Listed)
+        {
+            /// <summary>The lines' own columns: their stats, team, season, phase and result.</summary>
+            public LineColumns Line { get; } = LineColumns.Of(Lines.Header);
+            public (int Team, int Season, int Playoffs, int Wins, int Losses) Of { get; } = (Lines.Header["teamid"], Lines.Header["season"], Lines.Header["playoffs"], Lines.Header["wins"], Lines.Header["losses"]);
+        }
 
         /// <summary>grifball.info's h_games (<see cref="GamesTableLayout.Schedule"/>): its played games and forfeits; its
         /// player lines are the stats table's rows with the game's link.</summary>
@@ -314,6 +321,9 @@ public static partial class GamesTableParser
                 lines, Gamertags(lines.Header), new HashSet<string>(StringComparer.Ordinal));
             foreach (var row in sheet.Rows.Skip(1))
                 ScheduleRow(row, c, result);
+            // A game the schedule doesn't list, its lines all there are of it (a placeholder link "0" is no game)
+            foreach (var (link, rows) in c.Lines.ByGame.Where(g => g.Key != "0" && !c.Listed.Contains(g.Key)))
+                UnlistedGame(link, rows, c, result);
             CountStray(c.Lines, c.Listed);
         }
 
@@ -325,7 +335,9 @@ public static partial class GamesTableParser
             var (a, b, winner) = (Value(row, c.TeamA), Value(row, c.TeamB), Value(row, c.Win));
             var score = ScorePattern().Match(text);
             var forfeit = text.Contains("forfeit", StringComparison.OrdinalIgnoreCase);
-            if (a is null || b is null || (winner != a && winner != b) || (!forfeit && !score.Success))
+            // A double forfeit has no winner to name
+            var both = text.StartsWith("double", StringComparison.OrdinalIgnoreCase);
+            if (a is null || b is null || (winner != a && winner != b && !both) || (!forfeit && !score.Success))
             {
                 _incomplete++;
                 return;
@@ -337,9 +349,10 @@ public static partial class GamesTableParser
             var aWon = winner == a;
             if (forfeit)
             {
+                var playoffs = Int(row, c.Playoffs) == 1;
                 result.Forfeits.Add(aWon
-                    ? Forfeit(key, game, teamOfA.Name, teamOfB.Name, both: text.StartsWith("double", StringComparison.OrdinalIgnoreCase), playedAt)
-                    : Forfeit(key, game, teamOfB.Name, teamOfA.Name, both: text.StartsWith("double", StringComparison.OrdinalIgnoreCase), playedAt));
+                    ? Forfeit(key, game, teamOfA.Name, teamOfB.Name, both, playedAt, playoffs)
+                    : Forfeit(key, game, teamOfB.Name, teamOfA.Name, both, playedAt, playoffs));
                 return;
             }
             var (x, y) = (int.Parse(score.Groups[1].Value, CultureInfo.InvariantCulture), int.Parse(score.Groups[2].Value, CultureInfo.InvariantCulture));
@@ -351,9 +364,26 @@ public static partial class GamesTableParser
 
         /// <summary>A schedule game's players: the lines of its link, taken by the first game that names it.</summary>
         private List<RecordedPlayerInput> SchedulePlayers(string? link, ScheduleColumns c, string teamA, string teamB)
-            => link is not null && c.Lines.ByGame.GetValueOrDefault(link) is { } rows && c.Listed.Add(link)
-                ? Distinct(rows.Select(p => PlayerOf(p, c.Lines.Header, c.Gamertags, teamA, teamB)).OfType<RecordedPlayerInput>())
+            => link is not null and not "0" && c.Lines.ByGame.GetValueOrDefault(link) is { } rows && c.Listed.Add(link)
+                ? Distinct(rows.Select(p => PlayerOf(p, c, teamA, teamB)).OfType<RecordedPlayerInput>())
                 : [];
+
+        /// <summary>A game only the player lines have (its link in no schedule row): its two teams the lines', each side's
+        /// result its lines' wins and losses, its season and phase theirs. Lines of one team, or of more than two, stay left out.</summary>
+        private void UnlistedGame(string link, List<string[]> rows, ScheduleColumns c, Result result)
+        {
+            var teams = rows.Select(r => Value(r, c.Of.Team)).OfType<string>().Distinct(StringComparer.Ordinal).ToList();
+            if (teams.Count != 2)
+                return;
+            var (a, b) = (Team(teams[0]), Team(teams[1]));
+            if (SeasonKey(Value(rows[0], c.Of.Season), a.Row) is not { } key)
+                return;
+            c.Listed.Add(link);
+            Outcomes Outcome(string team) => rows.Any(r => Value(r, c.Of.Team) == team && Int(r, c.Of.Wins) == 1) ? Outcomes.Won
+                : rows.Any(r => Value(r, c.Of.Team) == team && Int(r, c.Of.Losses) == 1) ? Outcomes.Lost : Outcomes.DidNotFinish;
+            result.Games.Add(Game(key, link, [a.Name, b.Name], [(Outcome(teams[0]), null), (Outcome(teams[1]), null)],
+                Distinct(rows.Select(p => PlayerOf(p, c, teams[0], teams[1])).OfType<RecordedPlayerInput>()), playoffs: Int(rows[0], c.Of.Playoffs) == 1));
+        }
 
         /// <summary>The stats table's gamertags by player ID (its <see cref="StatsTable.Players"/> lookup), for lines with none.</summary>
         private (int RowKey, Dictionary<string, string> ById) Gamertags(Header lines)
@@ -370,11 +400,11 @@ public static partial class GamesTableParser
         }
 
         /// <summary>A schedule game's player line: its side by its team, its gamertag its own or the lookup's.</summary>
-        private RecordedPlayerInput? PlayerOf(string[] row, Header header, (int RowKey, Dictionary<string, string> ById) gamertags, string teamA, string teamB)
+        private RecordedPlayerInput? PlayerOf(string[] row, ScheduleColumns c, string teamA, string teamB)
         {
-            var columns = LineColumns.Of(header);
-            var team = Value(row, header["teamid"]);
-            var gamertag = Value(row, columns.Gamertag) ?? gamertags.ById.GetValueOrDefault(Value(row, gamertags.RowKey) ?? "");
+            var columns = c.Line;
+            var team = Value(row, c.Of.Team);
+            var gamertag = Value(row, columns.Gamertag) ?? c.Gamertags.ById.GetValueOrDefault(Value(row, c.Gamertags.RowKey) ?? "");
             if (gamertag is null || (team != teamA && team != teamB))
             {
                 _strayLines++;
@@ -384,7 +414,12 @@ public static partial class GamesTableParser
         }
 
         /// <summary>agla_gamesreported's columns, and its player lines.</summary>
-        private sealed record ReportedColumns(int Index, int Game, int Winning, int Losing, int Date, int Season, int Forfeit, PlayerLines Lines, HashSet<string> Listed);
+        private sealed record ReportedColumns(int Index, int Game, int Winning, int Losing, int Date, int Season, int Forfeit, PlayerLines Lines, HashSet<string> Listed)
+        {
+            /// <summary>The lines' own columns: their stats, team and phase.</summary>
+            public LineColumns Line { get; } = LineColumns.Of(Lines.Header);
+            public (int Team, int Playoffs) Of { get; } = (Lines.Header["teamname"], Lines.Header["playoffs"]);
+        }
 
         /// <summary>grifball.info's agla_gamesreported (<see cref="GamesTableLayout.Reported"/>): each game the winner's and
         /// loser's, its player lines by game ID, a playoff game when they say so.</summary>
@@ -420,8 +455,8 @@ public static partial class GamesTableParser
             if (ReportedGameId(Value(row, c.Game) ?? "0", c.Listed) is not { } gameId)
                 return;
             var rows = c.Lines.ByGame.GetValueOrDefault(gameId) ?? [];
-            var players = Distinct(rows.Select(p => SideLine(p, c.Lines.Header, w, l)).OfType<RecordedPlayerInput>());
-            var playoffs = rows.Any(p => Int(p, c.Lines.Header["playoffs"]) == 1);
+            var players = Distinct(rows.Select(p => SideLine(p, c, w, l)).OfType<RecordedPlayerInput>());
+            var playoffs = rows.Any(p => Int(p, c.Of.Playoffs) == 1);
             result.Games.Add(Game(key, id, [won.Name, lost.Name], [(Outcomes.Won, null), (Outcomes.Lost, null)], players, playoffs, playedAt));
         }
 
@@ -440,16 +475,17 @@ public static partial class GamesTableParser
         }
 
         /// <summary>A reported game's player line: side 1 the winner's team, 2 the loser's; another team's is counted and left out.</summary>
-        private RecordedPlayerInput? SideLine(string[] row, Header header, string winner, string loser)
+        private RecordedPlayerInput? SideLine(string[] row, ReportedColumns c, string winner, string loser)
         {
-            var columns = LineColumns.Of(header);
-            var team = Value(row, header["teamname"]);
-            if (Value(row, columns.Gamertag) is not { } gamertag || (team != winner && team != loser))
+            // The lines spell a team's name as they like ("Four Guys One Ball" of "Four guys one ball")
+            var team = Value(row, c.Of.Team);
+            var (isWinner, isLoser) = (string.Equals(team, winner, StringComparison.OrdinalIgnoreCase), string.Equals(team, loser, StringComparison.OrdinalIgnoreCase));
+            if (Value(row, c.Line.Gamertag) is not { } gamertag || (!isWinner && !isLoser))
             {
                 _strayLines++;
                 return null;
             }
-            return columns.Line(row, gamertag, team == winner ? 1 : 2);
+            return c.Line.Line(row, gamertag, isWinner ? 1 : 2);
         }
 
         /// <summary>What the table left out, a warning per kind.</summary>
@@ -471,18 +507,9 @@ public static partial class GamesTableParser
         }
     }
 
-    private static string Cell(string[] row, int column) => row.ElementAtOrDefault(column) ?? "";
+    private static string? Value(string[] row, int column) => ArchiveCells.TableValue(row, column);
 
-    /// <summary>A cell's text, null for an empty cell and the database's NULL.</summary>
-    private static string? Value(string[] row, int column)
-    {
-        var text = Cell(row, column).Trim();
-        return text.Length == 0 || text.Equals("NULL", StringComparison.OrdinalIgnoreCase) ? null : text;
-    }
-
-    /// <summary>A cell's whole number; null for none, or one beyond an int.</summary>
-    private static int? Int(string[] row, int column)
-        => ArchiveCells.Number(Value(row, column)) is decimal d && Math.Round(d) is var whole && whole >= int.MinValue && whole <= int.MaxValue ? (int)whole : null;
+    private static int? Int(string[] row, int column) => ArchiveCells.TableInt(row, column);
 
     /// <summary>A result's score, "(7 - 2)" or "7-2".</summary>
     [GeneratedRegex(@"(\d+)\s*-\s*(\d+)")]

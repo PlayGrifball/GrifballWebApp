@@ -257,6 +257,8 @@ public class ArchiveForfeitInput
     public required string Loser { get; init; }
     /// <summary>A double forfeit: neither side won.</summary>
     public bool BothForfeited { get; init; }
+    /// <summary>A playoff series' forfeit: the import leaves it out (its bracket is rebuilt from games), and reports it.</summary>
+    public bool IsPlayoffs { get; init; }
     public DateTime? PlayedAt { get; init; }
 }
 

@@ -149,8 +149,9 @@ public abstract class StatLine
         DamageDealt = IfRecorded(t.DamageDealt, t.RecordingDamageDealt);
         DamageTaken = IfRecorded(t.DamageTaken, t.RecordingDamageTaken);
         Grabs = IfRecorded(t.Grabs, t.RecordingGrabs);
-        // Grabs are grifball.com's, so are its averages: counted from the games as its season pages counted them
-        if (Grabs is int grabs)
+        // Grabs are grifball.com's, so are its averages: counted from the games as its season pages counted them, when every
+        // game counts grabs (a game without would count its goals and not its grabs)
+        if (Grabs is int grabs && t.RecordingGrabs == t.Played)
             (BattingAverage, ScoringAverage, CombinedAverage) = StatMath.GrifballComAverages(t.Kills, t.Deaths, t.Betrayals, t.Goals, grabs);
     }
 }
