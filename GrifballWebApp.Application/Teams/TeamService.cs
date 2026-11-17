@@ -251,9 +251,7 @@ public class TeamService
             Team onDeck = await OnDeck(dto.SeasonID, ct) ?? throw new TeamServiceException("Failed to find on deck team");
 
             if (!onDeck.IsCaptainedBy(requestorId))
-            {
-                throw new TeamServiceException($"It is not your turn to be making a draft pick. It is {onDeck.Captain.UserID}'s turn");
-            }
+                throw new TeamServiceException($"It is not your turn to pick: it is {await CaptainName(onDeck, ct)}'s.");
         }
 
         // Always added at the end, or round 1 (a player on a team of the season was refused above)
@@ -267,6 +265,10 @@ public class TeamService
 
         _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto), CancellationToken.None);
     }
+
+    /// <summary>The name the app shows for <paramref name="team"/>'s captain (gamertag, Discord name or display name).</summary>
+    public async Task<string> CaptainName(Team team, CancellationToken ct = default)
+        => await _context.Users.Where(u => u.Id == team.Captain.UserID).Select(User.Named).Select(n => n.Name).FirstOrDefaultAsync(ct) ?? "another captain";
 
     /// <summary>The id of the team <paramref name="captainID"/> captains in the season; 0 when none.</summary>
     public Task<int> CaptainsTeamID(int seasonID, int captainID, CancellationToken ct = default)
