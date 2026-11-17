@@ -97,9 +97,9 @@ public class GrifToolsTests
         new MatchDetailsService(_context), new GrifballWebApp.Application.Seasons.SeasonVisibility(_context, _time), new GrifballWebApp.Application.Scheduling.SchedulingService(_context, _time));
 
     [Test]
-    public async Task ASeasonTool_SuggestsDraftPicks_ForTheTeamOnDeck_AndRefusesAnUnknownSeasonOrTeam()
+    public async Task ASeasonTool_SuggestsDraftPicks_ForATeam_AndRefusesAnUnknownSeasonOrTeam()
     {
-        var suggestions = await SeasonTools().SuggestDraftPicks(_season.SeasonID);
+        var suggestions = await SeasonTools().SuggestDraftPicks(_season.SeasonID, teamID: _team.TeamID);
 
         using (Assert.EnterMultipleScope())
         {

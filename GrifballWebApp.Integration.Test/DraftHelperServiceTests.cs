@@ -180,6 +180,24 @@ public class DraftHelperServiceTests
     }
 
     [Test]
+    public async Task Suggest_NoneForATeamWithoutACaptain_NorOnDeck_BeforeTheCaptainsAreLocked()
+    {
+        await Seed();
+        var captainless = Team.Seed(seasonID: _season.SeasonID, teamName: "Captainless");
+        _context.Teams.Add(captainless);
+        var unlocked = await _context.AddSeason("Unlocked");
+        var blues = await _context.AddTeam(unlocked, "Blues", await _context.AddUser("bluecap", "Blue Cap"), 1);
+        await _context.SaveChangesAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await Service().SuggestAsync(_season.SeasonID, teamID: captainless.TeamID), Is.Null, "No captain to pick for");
+            Assert.That(await Service().SuggestAsync(unlocked.SeasonID), Is.Null, "No one is on deck before the captains are locked");
+            Assert.That((await Service().SuggestAsync(unlocked.SeasonID, teamID: blues.TeamID))!.TeamID, Is.EqualTo(blues.TeamID), "A team asked for by name");
+        }
+    }
+
+    [Test]
     public async Task TheDiscordOnDeckMessage_ListsTheSuggestedPicks_WithAMenuOfThem_BeforeThePool()
     {
         await Seed();
@@ -196,7 +214,7 @@ public class DraftHelperServiceTests
             Assert.That(messages[0].Content, Does.StartWith("Cap is on deck. Suggested picks:\n1. Mid: "));
             Assert.That(messages[0].Menus.Single().Placeholder, Is.EqualTo(GrifballWebApp.Infrastructure.Teams.DraftOutbox.SuggestedPlaceholder));
             Assert.That(messages[0].Menus.Single().Options.Select(o => o.Value), Is.EqualTo(new[] { _mid.Id, _ace.Id, _rookie.Id, _bench.Id }.Select(i => i.ToString())));
-            Assert.That(messages[1].Content, Is.Null, "The pool after, as before");
+            Assert.That(messages[1].Content, Is.EqualTo(GrifballWebApp.Infrastructure.Teams.DraftOutbox.RestOfThePool), "The pool after, with text a retry can find it by");
             Assert.That(messages[1].Menus.Single().Options, Has.Count.EqualTo(4));
         }
     }

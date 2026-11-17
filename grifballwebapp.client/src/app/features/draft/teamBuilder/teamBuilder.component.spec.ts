@@ -21,11 +21,11 @@ import { Component, input } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { DraftHelperComponent } from '../draftHelper/draftHelper.component';
 
-/** The draft helper (tested on its own): here only that the page gives it the season and its pool. */
+/** The draft helper (tested on its own): here only that the page gives it the season and the draft's state. */
 @Component({ selector: 'app-draft-helper', template: '' })
 class StubDraftHelper {
   readonly seasonID = input<number>();
-  readonly poolKey = input<string>();
+  readonly draftKey = input<string>();
 }
 
 /** The hub connection's id as a test sets it (the real one is read-only). */
@@ -105,12 +105,31 @@ describe('TeamBuilderComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it("gives the draft helper the season and the pool's players, to reload as picks are made", () => {
+  it("gives the draft helper the season and the draft's state once loaded, to reload as picks, moves, the order or the lock change", () => {
+    const teams = new Subject<TeamResponseDto[]>();
+    mockDraft.getTeams.and.returnValue(teams);
     mockDraft.getPlayerPool.and.returnValue(of([{ name: 'A', personID: 3, pick: null, round: null, region: null }, { name: 'B', personID: 4, pick: null, round: null, region: null }]));
     fixture.detectChanges();
-    const helper = fixture.debugElement.query(By.directive(StubDraftHelper)).componentInstance as StubDraftHelper;
-    expect(helper.seasonID()).toBe(5);
-    expect(helper.poolKey()).toBe('3,4');
+    const helper = () => fixture.debugElement.query(By.directive(StubDraftHelper))?.componentInstance as StubDraftHelper | undefined;
+    // Not before the draft is in: it would load once for nothing
+    expect(helper()).toBeUndefined();
+
+    const captain = (personID: number, order: number): CaptainDto => ({ name: `C${personID}`, order, personID, region: null });
+    const player = (personID: number): TeamsPlayerDto => ({ name: `P${personID}`, personID, pick: null, round: null, region: null });
+    teams.next([{ teamID: 1, teamName: 'A', captain: captain(1, 1), players: [player(1), player(5)] }, { teamID: 2, teamName: 'B', captain: captain(2, 2), players: [player(2)] }]);
+    teams.complete();
+    fixture.detectChanges();
+    expect(helper()!.seasonID()).toBe(5);
+    const loaded = helper()!.draftKey();
+
+    // A move from A to B: the pool is the same, the team on deck is not
+    component.store.teams.update(ts => [{ ...ts[0], players: [player(1)] }, { ...ts[1], players: [player(2), player(5)] }]);
+    fixture.detectChanges();
+    const moved = helper()!.draftKey();
+    component.store.captainLocked.set(false);
+    fixture.detectChanges();
+
+    expect(new Set([loaded, moved, helper()!.draftKey()]).size).toBe(3);
   });
 
   it('follows the hub only once the page initialises, in the pass that sets its season', () => {

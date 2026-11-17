@@ -390,6 +390,24 @@ public class TeamServiceDraftTests
     }
 
     [Test]
+    public async Task AddPlayerToTeam_FromAnOnDeckMenu_RefusesAnEarlierPicksMenu_EvenForACommissioner()
+    {
+        var (season, _, capB, _, teamB) = await TwoTeamDraft();
+        var commish = await _context.AddUser("commish", "Commish", commissioner: true);
+        var p = await _context.AddUser("p", "P");
+        await _context.AddSignup(season, p);
+
+        // Cap A is on deck: Cap B's menu is from an earlier pick, checked under the season's draft lock
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() => _service.AddPlayerToTeam(
+            new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capB.Id, PersonID = p.Id }, commish.Id, onDeckOnly: true));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ex!.Message, Does.Contain("an earlier pick").And.Contain("Cap A"));
+            Assert.That(await TeamPlayersOf(teamB.TeamID), Has.Count.EqualTo(1));
+        }
+    }
+
+    [Test]
     public async Task AddPlayerToTeam_Should_Throw_When_PlayerAlreadyOnATeam()
     {
         var (season, capA, capB, _, _) = await TwoTeamDraft();

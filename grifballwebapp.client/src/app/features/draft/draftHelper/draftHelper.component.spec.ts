@@ -24,7 +24,7 @@ describe('DraftHelperComponent', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(DraftHelperComponent);
     fixture.componentRef.setInput('seasonID', 5);
-    fixture.componentRef.setInput('poolKey', '7,8');
+    fixture.componentRef.setInput('draftKey', '7,8');
     fixture.detectChanges();
     http.expectOne('/api/seasons/5/draft/pool-details').flush(pool);
     http.expectOne('/api/seasons/5/draft/suggestions').flush(suggestions);
@@ -54,7 +54,7 @@ describe('DraftHelperComponent', () => {
   });
 
   it('loads again when the pool changes (a pick made)', () => {
-    fixture.componentRef.setInput('poolKey', '8');
+    fixture.componentRef.setInput('draftKey', '8');
     fixture.detectChanges();
     http.expectOne('/api/seasons/5/draft/pool-details').flush([pool[1]]);
     http.expectOne('/api/seasons/5/draft/suggestions').flush(suggestions);
