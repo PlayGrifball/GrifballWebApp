@@ -155,7 +155,7 @@ public class TeamsController : ControllerBase
         if (userID == 0)
             return this.UnauthorizedProblem("You must be logged in to add a player to a team");
 
-        await _teamService.AddPlayerToTeam(dto, userID, signalRConnectionID, ct);
+        await _teamService.AddPlayerToTeam(dto, userID, signalRConnectionID, ct: ct);
         return NoContent();
     }
 

@@ -46,8 +46,15 @@ export class TeamBuilderComponent implements OnInit {
   readonly seasonID = input.required({ transform: (value: unknown) => numberAttribute(value, 0) });
   /** The season shown: the route's, or the current season's ID once known. */
   protected readonly shownSeasonID = this.store.shownSeasonID;
-  /** The pool's players, by ID: the draft helper loads again when it changes (a pick made, undone or moved). */
-  protected readonly poolKey = computed(() => this.playerPool().map(p => p.personID).join(','));
+  /** The draft as the helper's suggestions depend on it (the lock, each team's captain, order and roster, the pool): the helper
+   * loads again when it changes (a pick made, undone or moved, the order or the lock changed). */
+  protected readonly draftKey = computed(() => [
+    this.captainLocked(),
+    this.teams().map(t => `${t.captain.personID}@${t.captain.order}:${t.players.map(p => p.personID).join(',')}`).join(';'),
+    this.playerPool().map(p => p.personID).join(','),
+  ].join('|'));
+  /** Whether the draft is in: the helper waits for it, so it loads once with it, not first with an empty one. */
+  protected readonly draftLoaded = this.store.loaded;
   readonly captainLocked = this.store.captainLocked;
   readonly teams = this.store.teams;
   readonly playerPool = this.store.playerPool;

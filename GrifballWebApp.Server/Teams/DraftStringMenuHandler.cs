@@ -57,10 +57,8 @@ public class DraftStringMenuHandler
         };
         try
         {
-            // A menu is for the captain on deck when it was posted: one from an earlier pick would put the player on that team
-            if (await _teamService.OnDeck(seasonId, CancellationToken.None) is { } onDeck && !onDeck.IsCaptainedBy(captainId))
-                throw new TeamServiceException($"that menu is from an earlier pick: it is {await _teamService.CaptainName(onDeck)}'s turn now, so pick from the latest on-deck message.");
-            await _teamService.AddPlayerToTeam(dto, user.Id);
+            // A menu is for the captain on deck when it was posted: one from an earlier pick is refused
+            await _teamService.AddPlayerToTeam(dto, user.Id, onDeckOnly: true);
             var id = discordContext.User.Id;
             var username = new UserId(id).ToString();
             await discordContext.Interaction.ModifyResponseAsync(x => x.WithContent($"{username}, " + "your pick was made successfully"));

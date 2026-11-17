@@ -76,12 +76,15 @@ public sealed class DraftHelperService(IApplicationDbContext context, Leaderboar
 
     /// <summary>
     /// The picks suggested for <paramref name="teamID"/> (the team on deck when not given), best first, at most
-    /// <paramref name="count"/>; null when there is no such team in the season, or none on deck.
+    /// <paramref name="count"/>; null when there is no such team in the season with a captain, or none on deck (no one is
+    /// before the captains are locked).
     /// </summary>
     public async Task<DraftSuggestions?> SuggestAsync(int seasonID, int? teamID = null, int count = DefaultSuggestions, CancellationToken ct = default)
     {
-        var teams = context.Teams.AsNoTracking();
-        var team = await (teamID is { } id ? teams.Where(t => t.TeamID == id && t.SeasonID == seasonID) : teams.PickOrder(seasonID))
+        var teams = context.Teams.AsNoTracking().Where(t => t.CaptainID != null);
+        var team = await (teamID is { } id
+                ? teams.Where(t => t.TeamID == id && t.SeasonID == seasonID)
+                : teams.PickOrder(seasonID).Where(t => t.Season.CaptainsLocked))
             .Select(t => new
             {
                 t.TeamID,
@@ -95,10 +98,10 @@ public sealed class DraftHelperService(IApplicationDbContext context, Leaderboar
 
         var pool = await PoolAsync(seasonID, ct);
         var rules = await new SeasonSchedulingRulesService(context).ForAsync(seasonID, ct);
-        var slots = (await new TeamAvailabilityService(context).ForTeamAsync(team.TeamID, ct))?.Slots ?? [];
+        var week = await new TeamAvailabilityService(context).ForTeamAsync(team.TeamID, ct) ?? new TeamSlots(team.TeamID, false, 0, []);
         var performance = Performance(pool);
         var picks = pool
-            .Select(p => Score(p, performance[p.UserID], Fit(p, slots, rules.MinPlayersAvailable), Region(p, team.CaptainRegion)))
+            .Select(p => Score(p, performance[p.UserID], Fit(p, week, rules.MinPlayersAvailable), Region(p, team.CaptainRegion)))
             .OrderByDescending(p => p.Score)
             .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
             .Take(Math.Max(count, 1))
@@ -119,15 +122,17 @@ public sealed class DraftHelperService(IApplicationDbContext context, Leaderboar
 
     /// <summary>
     /// Each player's performance (0 to 1) and its reason: the mean of where their win %, goals and kills a game place among the
-    /// pool's players with <see cref="MinGames"/> or more (the best 1, the worst 0); a player with fewer is the middle, 0.5.
+    /// pool's players with <see cref="MinGames"/> or more (the best 1, the worst 0); a player with fewer is the middle, 0.5, and so
+    /// is a stat not recorded (games decided by vote have no goals or kills).
     /// </summary>
-    private static Dictionary<int, (double Value, string Reason)> Performance(IReadOnlyList<DraftPoolPlayer> pool)
+    internal static Dictionary<int, (double Value, string Reason)> Performance(IReadOnlyList<DraftPoolPlayer> pool)
     {
         var known = pool.Where(p => p.Career is { Games: >= MinGames }).ToList();
         double Place(DraftPoolPlayer player, Func<DraftCareer, decimal?> stat)
         {
-            var mine = stat(player.Career!) ?? 0;
-            var others = known.Where(o => o.UserID != player.UserID).Select(o => stat(o.Career!) ?? 0).ToList();
+            if (stat(player.Career!) is not { } mine)
+                return 0.5;
+            var others = known.Where(o => o.UserID != player.UserID).Select(o => stat(o.Career!)).OfType<decimal>().ToList();
             return others.Count == 0 ? 0.5 : (others.Count(o => o < mine) + 0.5 * others.Count(o => o == mine)) / others.Count;
         }
 
@@ -143,12 +148,14 @@ public sealed class DraftHelperService(IApplicationDbContext context, Leaderboar
 
     /// <summary>
     /// How well the player fits the team's week (0 to 1) and why: the share of the team's timeslots short of the season's players
-    /// they can play, else (no slot short) of the team's own slots; a season without timeslots is no help either way (0.5).
+    /// they can play, else (no slot short) of the team's own slots; a season without timeslots is no help either way (0.5). A team
+    /// whose captain chose its timeslots plays only those: a slot they didn't choose is no gap to fill.
     /// </summary>
-    private static (double Value, string? Reason) Fit(DraftPoolPlayer player, IReadOnlyList<TeamSlot> slots, int minPlayers)
+    internal static (double Value, string? Reason) Fit(DraftPoolPlayer player, TeamSlots team, int minPlayers)
     {
-        var shortOf = slots.Where(s => s.PlayersAvailable < minPlayers).ToList();
-        var counted = shortOf.Count > 0 ? shortOf : [.. slots.Where(s => s.Available)];
+        var owns = team.Slots.Where(s => s.Available).ToList();
+        var shortOf = (team.SetByCaptain ? owns : team.Slots).Where(s => s.PlayersAvailable < minPlayers).ToList();
+        var counted = shortOf.Count > 0 ? shortOf : owns;
         if (counted.Count == 0)
             return (0.5, null);
         var theirs = player.Timeslots.Select(t => t.AvailabilityOptionID).ToHashSet();

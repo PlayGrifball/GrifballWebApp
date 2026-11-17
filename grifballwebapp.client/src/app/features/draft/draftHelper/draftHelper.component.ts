@@ -5,7 +5,7 @@ import { DraftHelperStore } from './draftHelper.store';
 
 /**
  * The draft helper beside the board: the picks suggested for the team on deck (each with its score and why) and the pool in
- * detail (region, whether they'd captain, the timeslots they signed up for, their career). Reloads as the pool changes.
+ * detail (region, whether they'd captain, the timeslots they signed up for, their career). Reloads as the draft changes.
  */
 @Component({
   selector: 'app-draft-helper',
@@ -19,8 +19,8 @@ export class DraftHelperComponent {
   private readonly store = inject(DraftHelperStore);
 
   readonly seasonID = input.required<number>();
-  /** The pool's players (their IDs): a change (a pick made, undone or moved) loads the helper again. */
-  readonly poolKey = input('');
+  /** The draft's state as the page has it: a change (a pick made, undone or moved, the order or the lock changed) loads the helper again. */
+  readonly draftKey = input('');
 
   readonly pool = this.store.pool;
   readonly suggestions = this.store.suggestions;
@@ -28,7 +28,7 @@ export class DraftHelperComponent {
   constructor() {
     effect(() => {
       const seasonID = this.seasonID();
-      this.poolKey();
+      this.draftKey();
       untracked(() => this.store.load(seasonID));
     });
   }

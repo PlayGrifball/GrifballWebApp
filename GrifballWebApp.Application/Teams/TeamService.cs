@@ -212,7 +212,12 @@ public class TeamService
         _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto), CancellationToken.None);
     }
 
-    public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, int requestorId, string? signalRConnectionID = null, CancellationToken ct = default)
+    /// <summary>
+    /// Drafts the player onto the captain's team. <paramref name="onDeckOnly"/>: the pick is from an on-deck menu, which is
+    /// refused (a commissioner's too) once that captain is no longer on deck.
+    /// </summary>
+    public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, int requestorId, string? signalRConnectionID = null, bool onDeckOnly = false,
+        CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         // One pick at a time per season: without it two picks of one player (or two picks in one turn) both pass the
@@ -227,6 +232,11 @@ public class TeamService
             throw new TeamServiceException("This player has not signed up");
 
         var team = await CaptainsTeam(seasonID: dto.SeasonID, captainID: dto.CaptainID, ct) ?? throw new TeamServiceException("Team not found");
+
+        // A menu is for the captain on deck when it was posted: one from an earlier pick would put the player on that team.
+        // Checked here, under the season's draft lock, so two picks from one menu can't both pass it.
+        if (onDeckOnly && await OnDeck(dto.SeasonID, ct) is { } current && !current.IsCaptainedBy(dto.CaptainID))
+            throw new TeamServiceException($"that menu is from an earlier pick: it is {await CaptainName(current, ct)}'s turn now, so pick from the latest on-deck message.");
 
         // Need check that player is captain and is their turn
         var isCommissioner = await _context.Users

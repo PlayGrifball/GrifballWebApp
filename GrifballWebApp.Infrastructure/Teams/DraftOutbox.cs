@@ -26,6 +26,9 @@ public static class DraftOutbox
     public const string SuggestedPlaceholder = "Pick a suggested player";
     private const int SuggestedMenuIndex = 99;
 
+    /// <summary>The text of the pool's first message after the suggested picks: a retry finds a message Discord has by its text.</summary>
+    public const string RestOfThePool = "Or pick from the whole pool:";
+
     public static string Group(int seasonId) => $"draft:{seasonId}";
 
     public static IServiceCollection AddDraftOutboxHandlers(this IServiceCollection services)
@@ -109,7 +112,8 @@ public static class DraftOutbox
             .ToList();
 
         // The draft helper's picks first (who is on deck, then each with its reasons, and a menu of them), then the pool's menus
-        // in groups of 5; without suggestions, the pool's first message says who is on deck
+        // in groups of 5; the pool's first message says who is on deck without suggestions, else that the rest is the pool (text a
+        // retry finds it by)
         var onDeckName = await Name(context, onDeck.Captain.UserID, ct);
         var messages = new List<DraftMessage>();
         if (helper is not null && await helper.SuggestAsync(seasonId, onDeck.TeamID, DraftHelperService.DefaultSuggestions, ct) is { Picks.Count: > 0 } suggested)
@@ -119,11 +123,11 @@ public static class DraftOutbox
                 [new DraftMenu(DiscordStringMenuContants.DraftPickWithParams(seasonId, onDeck.Captain.UserID, SuggestedMenuIndex), SuggestedPlaceholder,
                     [.. suggested.Picks.Select(p => new DraftMenuOption(p.Name, p.UserID.ToString()))])]));
         }
-        var poolSaysWhoIsOnDeck = messages.Count == 0;
+        var poolFirst = messages.Count == 0 ? $"{onDeckName} is on deck" : RestOfThePool;
         messages.AddRange(menus
             .Select((menu, index) => new { menu, index })
             .GroupBy(x => x.index / 5)
-            .Select((g, index) => new DraftMessage(index == 0 && poolSaysWhoIsOnDeck ? $"{onDeckName} is on deck" : null, [.. g.Select(x => x.menu)])));
+            .Select((g, index) => new DraftMessage(index == 0 ? poolFirst : null, [.. g.Select(x => x.menu)])));
         await outbox.EnqueueAsync(OnDeck, new DraftOnDeckPayload(seasonId, messages), Group(seasonId), ct);
     }
 

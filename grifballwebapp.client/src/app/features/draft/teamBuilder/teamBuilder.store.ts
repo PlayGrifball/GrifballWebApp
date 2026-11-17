@@ -39,6 +39,8 @@ export class TeamBuilderStore {
   readonly captainLocked = signal(true);
   readonly teams = signal<TeamResponseDto[]>([]);
   readonly playerPool = signal<TeamsPlayerDto[]>([]);
+  /** Whether the shown season's teams and pool are in (false from {@link show} until they load). */
+  readonly loaded = signal(false);
 
   // Every reload goes through here; a newer one cancels the one still loading (see load).
   private readonly reloads = new Subject<void>();
@@ -90,6 +92,7 @@ export class TeamBuilderStore {
       if (teams !== undefined && pool !== undefined) {
         this.teams.set(teams);
         this.playerPool.set(pool);
+        this.loaded.set(true);
       }
       if (locked !== undefined)
         this.captainLocked.set(locked);
@@ -105,6 +108,7 @@ export class TeamBuilderStore {
     this._shownSeasonID.set(seasonID);
     this.teams.set([]);
     this.playerPool.set([]);
+    this.loaded.set(false);
     this.captainLocked.set(true);
     if (seasonID === 0) {
       this.seasons.getCurrentSeasonId()
