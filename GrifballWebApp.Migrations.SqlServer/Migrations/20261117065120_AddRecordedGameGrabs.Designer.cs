@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261117042608_AddRecordedGameGrabs")]
+    [Migration("20261117065120_AddRecordedGameGrabs")]
     partial class AddRecordedGameGrabs
     {
         /// <inheritdoc />
@@ -2768,6 +2768,49 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSchedulingRules", b =>
+                {
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MaxConcurrentMatches")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaxMatchesPerTeamPerNight")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaxMatchesPerTeamPerWeek")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinPlayersAvailable")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasKey("SeasonID");
+
+                    b.ToTable("SeasonSchedulingRules", "Event");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("SeasonSchedulingRulesHistory", "Event");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
             modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSignup", b =>
                 {
                     b.Property<int>("SeasonSignupID")
@@ -5509,6 +5552,15 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("HomeTeam");
 
                     b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSchedulingRules", b =>
+                {
+                    b.HasOne("GrifballWebApp.Domain.League.Season", null)
+                        .WithOne()
+                        .HasForeignKey("GrifballWebApp.Domain.League.SeasonSchedulingRules", "SeasonID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("GrifballWebApp.Domain.League.SeasonSignup", b =>
