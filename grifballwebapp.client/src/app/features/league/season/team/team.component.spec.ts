@@ -13,6 +13,7 @@ import { seasonInfo } from '@shared/testing/seasonInfo.stub';
 import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { StubVodListComponent } from '@shared/vodList/vodList.stub';
+import { CalendarSubscribeComponent } from '@shared/calendarSubscribe/calendarSubscribe.component';
 
 /** The season's player stats table (tested on its own): here only what the team page gives it and reads back. */
 @Component({ selector: 'app-season-player-stats', template: '' })
@@ -102,6 +103,17 @@ describe('TeamComponent', () => {
     expect(matchesRequest.cancelled).toBeTrue();
     http.expectOne('/api/teams/9').flush(null);
     http.expectOne('/api/teams/9/matches').flush([]);
+  });
+
+  it("offers a calendar feed of the team's matches", () => {
+    load(team, []);
+    const feed = fixture.debugElement.query(By.directive(CalendarSubscribeComponent)).componentInstance as CalendarSubscribeComponent;
+    expect(feed.path()).toBe('teams/7/calendar.ics');
+  });
+
+  it("offers no calendar feed for a team of a season not announced yet (staff see it), whose feed is a 404", () => {
+    load({ ...team, season: seasonInfo(1, { hasEnded: false, isPublic: false }) }, []);
+    expect(fixture.debugElement.query(By.directive(CalendarSubscribeComponent))).toBeNull();
   });
 
   it('shows the team name, record, remaining matches and roster', () => {

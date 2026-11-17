@@ -292,6 +292,62 @@ public class TeamAggregateTests
         Assert.Throws<ArgumentOutOfRangeException>(() => team.RecordArchivedPlacing(rank, finish));
     }
 
+    /// <summary>An imported team: its captain <see cref="Cap"/> and players <see cref="P1"/>, <see cref="P2"/>, <see cref="P3"/>.</summary>
+    private static Team ImportedTeam()
+    {
+        var team = Team.Imported(7, "Relentless");
+        foreach (var player in new[] { Cap, P1, P2, P3 })
+            team.AddPlayer(player);
+        team.SetCaptain(Cap);
+        return team;
+    }
+
+    private static IEnumerable<(int UserID, int? Order, int? Round, int? Pick)> DraftOf(Team team)
+        => team.TeamPlayers.OrderBy(p => p.UserID).Select(p => (p.UserID, p.DraftCaptainOrder, p.DraftRound, p.DraftPick));
+
+    [Test]
+    public void RecordArchivedDraft_OrdersTheCaptain_AndGivesEachPickItsRound()
+    {
+        var team = ImportedTeam();
+
+        team.RecordArchivedDraft(3, new Dictionary<int, ArchivedPick> { [P1] = new(1, 3), [P2] = new(2), [Cap] = new(4), [Other] = new(3) });
+
+        Assert.That(DraftOf(team), Is.EqualTo(new (int, int?, int?, int?)[]
+        {
+            (Cap, 3, null, null), (P1, null, 1, 3), (P2, null, 2, null), (P3, null, null, null),
+        }), "The captain is no pick; a player the board doesn't list has none; a pick of someone not on the team changes nothing");
+    }
+
+    [Test]
+    public void RecordArchivedDraft_Again_LeavesNothingOfTheLastOne()
+    {
+        var team = ImportedTeam();
+        team.RecordArchivedDraft(3, new Dictionary<int, ArchivedPick> { [P1] = new(1, 3), [P2] = new(2) });
+
+        team.SetCaptain(P1);
+        team.RecordArchivedDraft(null, new Dictionary<int, ArchivedPick> { [Cap] = new(2) });
+
+        Assert.That(DraftOf(team), Is.EqualTo(new (int, int?, int?, int?)[]
+        {
+            (Cap, null, 2, null), (P1, null, null, null), (P2, null, null, null), (P3, null, null, null),
+        }), "The old captain's order and the old picks are gone");
+    }
+
+    [TestCase(0, 1, null)]
+    [TestCase(null, 0, null)]
+    [TestCase(1, 1, 0)]
+    public void RecordArchivedDraft_RefusesANumberBelowOne_ChangingNothing(int? order, int round, int? pick)
+    {
+        var team = ImportedTeam();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => team.RecordArchivedDraft(order, new Dictionary<int, ArchivedPick> { [P1] = new(round, pick) }));
+            Assert.That(DraftOf(team).All(p => p.Order is null && p.Round is null && p.Pick is null), Is.True);
+            Assert.That(() => team.RecordArchivedDraft(1, null!), Throws.ArgumentNullException);
+        }
+    }
+
     [Test]
     public void CaptainedBy_TheQuery_AgreesWithIsCaptainedBy()
     {

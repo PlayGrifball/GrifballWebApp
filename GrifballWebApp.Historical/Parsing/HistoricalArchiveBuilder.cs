@@ -43,6 +43,8 @@ public sealed class HistoricalArchiveBuilder
     private readonly List<(string SourceId, RosterTab Tab, Dictionary<string, string>? Teams)> _rosters = [];
     /// <summary>Each standings tab's teams, put on their season's regular season once every season is known.</summary>
     private readonly List<(string SourceId, StandingsTab Tab, List<ArchiveTeam>? Teams)> _standings = [];
+    /// <summary>Each draft tab's teams, put on their season's regular season once every season (and its standings) is known.</summary>
+    private readonly List<(string SourceId, DraftTab Tab, List<ArchiveTeam>? Teams)> _drafts = [];
     /// <summary>Each awards tab's awards, put on their season's regular season once every season is known.</summary>
     private readonly List<(string SourceId, AwardsTab Tab, List<AwardsParser.ParsedAward>? Awards)> _awards = [];
     private readonly HashSet<string> _affected = new(StringComparer.OrdinalIgnoreCase);
@@ -95,14 +97,16 @@ public sealed class HistoricalArchiveBuilder
                 _affected.Add(HistoricalKeys.SeasonSourceId(entry.SourceWorkbook!, entry.SourceSheet!));
     }
 
-    /// <summary>The tabs that fill in seasons known only once every source is read (rosters, standings, awards): parsed now, put
-    /// on their seasons in <see cref="Finish"/>.</summary>
+    /// <summary>The tabs that fill in seasons known only once every source is read (rosters, standings, drafts, awards): parsed
+    /// now, put on their seasons in <see cref="Finish"/>.</summary>
     private void AddSeasonTabs(string id, HistoricalSourceConfig config, SheetWorkbook workbook)
     {
         foreach (var tab in config.Rosters)
             _rosters.Add((id, tab, workbook.Sheet(tab.Sheet) is { } rosterSheet ? RosterParser.Parse(rosterSheet) : null));
         foreach (var tab in config.Standings)
             _standings.Add((id, tab, workbook.Sheet(tab.Sheet) is { } standingsSheet ? StandingsParser.Parse(standingsSheet, tab) : null));
+        foreach (var tab in config.Drafts)
+            _drafts.Add((id, tab, workbook.Sheet(tab.Sheet) is { } draftSheet ? DraftParser.Parse(draftSheet, tab) : null));
         foreach (var tab in config.Awards)
             _awards.Add((id, tab, workbook.Sheet(tab.Sheet) is { } awardsSheet ? AwardsParser.Parse(awardsSheet, tab) : null));
     }
@@ -178,6 +182,7 @@ public sealed class HistoricalArchiveBuilder
         var waypoint = WaypointBySeason();
         FillTeamsFromRosters();
         AddStandings();
+        AddDrafts();
         AddAwards();
 
         var input = new HistoricalArchiveInput
@@ -250,23 +255,22 @@ public sealed class HistoricalArchiveBuilder
         foreach (var (sourceId, tab, teams) in _standings)
         {
             var workbook = tab.Season ?? sourceId;
-            var regular = _seasons.FirstOrDefault(s => !s.IsPlayoffs && string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase)
-                && (tab.Tab is null || string.Equals(s.SourceSheet, tab.Tab, StringComparison.OrdinalIgnoreCase)));
+            var (regular, season) = SeasonOf(workbook, tab.Tab);
             if (teams is null || regular is null)
             {
                 _warnings.Add($"{sourceId}: standings '{tab.Sheet}' not read ({(teams is null ? "no such sheet, or no table" : $"no season from {workbook}")})");
                 continue;
             }
-            var season = _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
             // The season's names of its teams: its stats', and an earlier standings tab's (two tabs of a season spell a team
             // alike, the stats naming none)
-            var (known, players) = Spellings(season, regular);
-            // A captain or roster player is one of the season's players (as written, or without the nickname after it): a
-            // nickname ("Team (Snipez)") or a typo would be a placeholder player. A season with no player lines (its league
-            // kept no stats) has only its standings' names: a roster's names are gamertags
+            // A captain or roster player is one of the season's players (SeasonPlayer: as written, as the stats write it, or
+            // without the nickname after it): a nickname ("Team (Snipez)") or a typo would be a placeholder player. A season
+            // with no player lines (its league kept no stats) has only its standings' names: a roster's names are gamertags
+            var (known, _) = Spellings(season, regular);
+            var players = PlayersOf(season);
             string? PlayerOf(string name) => players.Count == 0
                 ? StandingsParser.Gamertag(name)
-                : players.GetValueOrDefault(HistoricalKeys.Normalize(name)) ?? players.GetValueOrDefault(HistoricalKeys.Normalize(StandingsParser.Gamertag(name)));
+                : SeasonPlayer(name, players) ?? SeasonPlayer(StandingsParser.Gamertag(name), players);
             var named = teams.Select(t => t with
             {
                 TeamName = KnownName(t.TeamName, known),
@@ -285,6 +289,99 @@ public sealed class HistoricalArchiveBuilder
             if (_changedSourceIds?.Contains(sourceId) != false)
                 _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
         }
+    }
+
+    /// <summary>The regular-season entry of the workbook's season (the first, or its stats tab's), and all of that season's entries.</summary>
+    private (ArchiveSeason? Regular, List<ArchiveSeason> Season) SeasonOf(string workbook, string? tab)
+    {
+        var regular = _seasons.FirstOrDefault(s => !s.IsPlayoffs && string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase)
+            && (tab is null || string.Equals(s.SourceSheet, tab, StringComparison.OrdinalIgnoreCase)));
+        var season = regular is null ? [] : _seasons.Where(s => string.Equals(s.SourceWorkbook, workbook, StringComparison.OrdinalIgnoreCase) && s.SeasonName == regular.SeasonName).ToList();
+        return (regular, season);
+    }
+
+    /// <summary>
+    /// Each draft tab's teams go on its season's regular-season entry, where the import reads a team's captain, its place
+    /// in the draft order and its picks. A draft team is one of the season's teams (its stats' or standings', as
+    /// <see cref="KnownName"/> finds it, else its captain's team in the stats): a board's team the season doesn't have (a
+    /// column of notes) is none. Its captain and picks are the season's players (<see cref="SeasonPlayer"/>): a nickname
+    /// ("Psyduck") is left out, as it would be a placeholder player.
+    /// </summary>
+    private void AddDrafts()
+    {
+        // The tabs with a draft order first, then by source: a team's draft is the first tab's that gives it (the import's),
+        // whatever order the sources were read in
+        foreach (var (sourceId, tab, teams) in _drafts.OrderBy(d => d.Tab.Order == DraftOrder.None).ThenBy(d => d.SourceId, StringComparer.OrdinalIgnoreCase))
+        {
+            var workbook = tab.Season ?? sourceId;
+            var (regular, season) = SeasonOf(workbook, tab.Tab);
+            if (teams is null || regular is null)
+            {
+                _warnings.Add($"{sourceId}: draft '{tab.Sheet}' not read ({(teams is null ? "no such sheet, or no board or table" : $"no season from {workbook}")})");
+                continue;
+            }
+            var known = season.SelectMany(s => s.Players).Select(p => p.TeamName).Concat(regular.Teams.Select(t => t.TeamName))
+                .Where(n => !HistoricalKeys.IsExcludedTeamName(n)).Select(n => n!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var players = PlayersOf(season);
+            var teamOf = season.SelectMany(s => s.Players).Where(p => !HistoricalKeys.IsExcludedTeamName(p.TeamName))
+                .GroupBy(p => HistoricalKeys.Normalize(p.Gamertag)).ToDictionary(g => g.Key, g => g.First().TeamName!.Trim());
+            foreach (var team in teams)
+            {
+                var captain = SeasonPlayer(team.Captain, players);
+                var name = (team.TeamName.Length > 0 ? Closest(team.TeamName, known) : null)
+                    ?? (captain is not null ? teamOf.GetValueOrDefault(HistoricalKeys.Normalize(captain)) : null);
+                if (name is null)
+                    continue;
+                var picks = team.Picks.Select(p => SeasonPlayer(p.Gamertag, players) is { } gamertag ? p with { Gamertag = gamertag } : null).OfType<ArchiveDraftPick>().ToList();
+                regular.Teams.Add(team with { TeamName = name, Captain = captain, Picks = picks });
+            }
+            if (_changedSourceIds?.Contains(sourceId) != false)
+                _affected.UnionWith(season.Select(e => HistoricalKeys.SeasonSourceId(e.SourceWorkbook!, e.SourceSheet!)));
+        }
+    }
+
+    /// <summary>Two names' digits don't tell them apart: the same, or only one has any ("NecessaryEvil" and NecessaryEvil10,
+    /// never "Reaper3" and Reaper2).</summary>
+    private static bool SameNumber(string a, string b)
+    {
+        var (x, y) = (Digits(a), Digits(b));
+        return x == y || x.Length == 0 || y.Length == 0;
+    }
+
+    /// <summary>The shortest name <see cref="SeasonPlayer"/> takes a few letters off.</summary>
+    private const int MinCloseKeyLength = 5;
+
+    /// <summary>The season's players' gamertags (as its stats write them).</summary>
+    private static List<string> PlayersOf(List<ArchiveSeason> season)
+        => season.SelectMany(s => s.Players).Select(p => p.Gamertag).Where(g => !string.IsNullOrWhiteSpace(g)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+    /// <summary>
+    /// The season's player a standings or draft cell names, as the stats write them: the same gamertag, else the one player
+    /// whose gamertag is the same but for spacing, symbols, framing or a "#1234" suffix (<see cref="HistoricalKeys.StripFraming"/>:
+    /// "Mr_Epic_Beast", "OREOTHECAT#5618"), else the one a few letters off (one from 5 letters, two from 8, three from 15, its
+    /// number no other:
+    /// "NecessaryEvil" for NecessaryEvil10, "Solace VII"). Null for a name no player has (a nickname), or more than one is
+    /// that close to.
+    /// </summary>
+    internal static string? SeasonPlayer(string? name, List<string> players)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return null;
+        var normalized = HistoricalKeys.Normalize(name);
+        if (players.FirstOrDefault(p => HistoricalKeys.Normalize(p) == normalized) is { } same)
+            return same;
+        var key = HistoricalKeys.StripFraming(name);
+        if (key.Length == 0)
+            return null;
+        var loose = players.Where(p => HistoricalKeys.StripFraming(p) == key).ToList();
+        if (loose.Count > 0)
+            return loose.Count == 1 ? loose[0] : null;
+        // A short name a letter off is as likely another player's
+        if (key.Length < MinCloseKeyLength)
+            return null;
+        var allowed = key.Length >= 15 ? 3 : key.Length >= 8 ? 2 : 1;
+        var close = players.Where(p => DuplicateSuggestionService.Distance(key, HistoricalKeys.StripFraming(p), allowed) is not null && SameNumber(key, HistoricalKeys.StripFraming(p))).ToList();
+        return close.Count == 1 ? close[0] : null;
     }
 
     /// <summary>

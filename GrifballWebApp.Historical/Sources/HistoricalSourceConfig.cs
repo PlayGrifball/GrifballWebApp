@@ -36,6 +36,8 @@ public class HistoricalSourceConfig
     /// roster. A workbook with a <see cref="Season"/> but no stats tabs or tables (a league that kept no player stats) is a
     /// season of these teams alone: its entry has no player lines, keyed by its first standings tab of its own.</summary>
     public List<StandingsTab> Standings { get; init; } = [];
+    /// <summary>Tabs of a season's draft: each team's captain, its place in the draft order and its picks by round.</summary>
+    public List<DraftTab> Drafts { get; init; } = [];
     /// <summary>Tabs of a season's awards (MVPs, named season awards, records): AwardsParser.</summary>
     public List<AwardsTab> Awards { get; init; } = [];
 
@@ -61,6 +63,7 @@ public class HistoricalSourceConfig
             .. RosterSheets,
             .. Rosters.Select(t => t.Sheet),
             .. Standings.Select(t => t.Sheet),
+            .. Drafts.Select(t => t.Sheet),
             .. Awards.Select(t => t.Sheet),
             ChampionsSheet,
             PlayersSheet,
@@ -230,6 +233,47 @@ public enum StandingsLayout
     Columns,
     /// <summary>A cell per team down the anchor's column, its record in brackets: "ZMD (Zeg) (17-3) (95-46)".</summary>
     List,
+}
+
+/// <summary>
+/// A tab of a season's draft (DraftParser): a board (a team per column: its name, its captain and a row per round), or a
+/// table of a row per player (TeamInfo) whose columns give the team's place in the draft order ("Draft Order",
+/// "Seed #": "Draft Spot 3") or each player's ("Draft Pick": "C3" for the 3rd captain, "R2P3" for a 2nd-round pick). Its
+/// teams go on the season's regular-season entry: the import takes their captains, the captains' order and the players'
+/// rounds from them.
+/// </summary>
+public class DraftTab
+{
+    public required string Sheet { get; init; }
+    /// <summary>The source ID of the season's stats workbook; null: this workbook's own.</summary>
+    public string? Season { get; init; }
+    /// <summary>The stats tab (its <see cref="StatsTab.Name"/>) of the season, when the workbook has several seasons.</summary>
+    public string? Tab { get; init; }
+    public DraftLayout Layout { get; init; }
+    /// <summary>What a board's columns say of the draft's order.</summary>
+    public DraftOrder Order { get; init; }
+}
+
+public enum DraftLayout
+{
+    /// <summary>A team per column, beside row labels: Team Name, Captain, and a row per round (1st Round, Round 2,
+    /// Second Round). A row of numbers just above a round's row is its picks' numbers in the whole draft (a snake draft's
+    /// board numbers them).</summary>
+    Board,
+    /// <summary>A row per player under a header with Team Name and Player Name, and Draft Order, Seed # or Draft Pick.</summary>
+    Table,
+}
+
+public enum DraftOrder
+{
+    /// <summary>The board's columns are the captains' draft order (the first column picks first); its picks' numbers are
+    /// only the ones the board writes.</summary>
+    Columns,
+    /// <summary>As <see cref="Columns"/>, and every round picks in that order: a pick's number is the round's start plus
+    /// its column's place.</summary>
+    Linear,
+    /// <summary>The columns are in no draft order (a bid draft's teams): captains and rounds only.</summary>
+    None,
 }
 
 public class WaypointTab
