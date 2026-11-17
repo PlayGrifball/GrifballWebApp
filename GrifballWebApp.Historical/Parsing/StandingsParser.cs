@@ -130,13 +130,21 @@ public static partial class StandingsParser
         var rows = LabelledRows(sheet, namesRow, labelColumn);
         var teams = new Teams(tab);
         var names = sheet.Rows[namesRow];
+        var numbered = false;
         for (var c = labelColumn + 1; c < names.Length; c++)
         {
             var name = names[c].Trim();
-            if (FieldOf(name) == Field.Team)
+            if (name.Length == 0)
+                continue;
+            var column = c;
+            string Value(Field field) => rows.TryGetValue(field, out var r) ? sheet.Cell(r, column).Trim() : "";
+            var hasValues = IsTeamRow(rows.Keys, Value);
+            // A team header is another table's, unless its column has the table's values: a team named "Team Name"
+            // (H3 Action 2022). After teams with values, a column without is a table beside them (a chart).
+            if ((FieldOf(name) == Field.Team || numbered) && !hasValues)
                 break;
-            if (name.Length > 0)
-                teams.Add(name, field => rows.TryGetValue(field, out var r) ? sheet.Cell(r, c).Trim() : "");
+            numbered |= hasValues;
+            teams.Add(name, Value);
         }
         return teams.List;
     }

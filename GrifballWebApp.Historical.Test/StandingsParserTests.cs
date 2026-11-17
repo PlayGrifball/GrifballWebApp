@@ -16,6 +16,8 @@ public class StandingsParserTests
     private static readonly (string, int?, int?)[] RecordsOfAlphaAndBravo = [("Alpha", 5, 3), ("Bravo", 4, 4)];
 
     private static readonly (string, int?, int?)[] SecondBlockOwnRanks = [("Charlie", 2, null), ("Delta", 1, null)];
+    private static readonly string[] H3ActionLastTeams = ["The Boys Szn 3", "Team Name", "The Smurfs", "sPeCiAl ReAsOnS", "12 Inches of Tommy"];
+    private static readonly (int?, int?)[] H3ActionLastRecords = [(12, 8), (14, 6), (7, 13), (5, 15)];
     private static readonly (string, int?, int?)[] LegacyWithoutProSeeds = [("Legacy A", null, 7), ("Legacy B", null, 3)];
 
     private static SheetTable Sheet(params string[][] rows) => new() { Name = "Standings", Rows = [.. rows] };
@@ -180,6 +182,37 @@ public class StandingsParserTests
         {
             ("Junkyard Dogs (Winners)", null, null, 12, 8, null), ("Alpha", null, null, 14, 6, null),
         }));
+    }
+
+    [Test]
+    public void Columns_ATeamNamedTeamName_IsATeam_AndATableBesideTheTeamsEndsThem()
+    {
+        // H3 Action 2022's Teams: a team is named "Team Name" (I), and a chart of points and a list of records sit in M-O
+        var sheet = Sheet(
+            ["Team Name", "Junkyard Dogs (Winners)", "Alpha", "Zeg", "Gaslight", "Like Clockwork", "42 Dugga’s (Yeah, aight)", "The Boys Szn 3", "Team Name", "The Smurfs", "sPeCiAl ReAsOnS", "12 Inches of Tommy", "Am I Close to Playoffs?", "", "Record"],
+            ["Record", "12-8 (7-2)", "14-6 (5-3)", "6-14", "3-17", "14-6 (0-2)", "17-3 (0-2)", "4-16", "12-8 (0-2)", "14-6 (1-2)", "7-13", "5-15", "81", "42 Dugga’s (Yeah, aight)", "17-3"],
+            ["Points", "59", "66", "17", "2", "87", "91", "5", "50", "60", "26", "41", "77", "Like Clockwork", "14-6"],
+            ["Captain", "NKOTB4EVAH", "x Zeg x", "TheAlphaTurtle", "KGod Online", "yLuxe", "oDhmon", "AJ DaJuiceMayne", "RDG NHL", "I robot9000", "Mavbrid", "Priest XYZ", "48", "Team Name", "2022-12-08"]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Teams", Layout = StandingsLayout.Columns });
+
+        Assert.That(teams!.Select(t => t.TeamName).TakeLast(5), Is.EqualTo(H3ActionLastTeams), "All 11 up to 12 Inches of Tommy, not the chart beside them");
+        Assert.That(teams!, Has.Count.EqualTo(11));
+        Assert.That(teams!.Single(t => t.TeamName == "Team Name").Captain, Is.EqualTo("RDG NHL"));
+        Assert.That(teams!.Select(t => (t.Wins, t.Losses)).Skip(7), Is.EqualTo(H3ActionLastRecords));
+    }
+
+    [Test]
+    public void Columns_AnotherTablesTeamHeaderBeside_EndsTheTeams_BeforeAnyStandings()
+    {
+        // A draft sheet before the season: no standings yet, and another table's names row beside it
+        var sheet = Sheet(
+            ["Team Name:", "Alpha", "Bravo", "", "Team Name:", "Charlie"],
+            ["Season Standings", "", "", "", "", ""]);
+
+        var teams = StandingsParser.Parse(sheet, new StandingsTab { Sheet = "Draft Sheet", Layout = StandingsLayout.Columns, Anchor = "Team Name:" });
+
+        Assert.That(teams!.Select(t => t.TeamName), Is.EqualTo(AlphaAndBravo));
     }
 
     [Test]
