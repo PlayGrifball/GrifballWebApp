@@ -50,7 +50,14 @@ public class UrlService
 
     public string SeasonMatch(int seasonMatchId)
     {
-        return $"{_baseUrl}/seasonmatch/{seasonMatchId}";
+        return SeasonMatchOn(_baseUrl, seasonMatchId);
+    }
+
+    /// <summary>A season match's page on the site at <paramref name="siteUrl"/> (its home page, no trailing slash): for a
+    /// caller that knows the site from its request rather than from BaseUrl (the calendar feeds).</summary>
+    public static string SeasonMatchOn(string siteUrl, int seasonMatchId)
+    {
+        return $"{siteUrl}/seasonmatch/{seasonMatchId}";
     }
 
     public string Match(Guid matchId)

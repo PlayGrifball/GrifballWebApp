@@ -14,6 +14,7 @@ import { ProfileIdentityComponent } from './profileIdentity/profileIdentity.comp
 import { AccessTokensComponent } from './accessTokens/accessTokens.component';
 import { VodListComponent } from '@shared/vodList/vodList.component';
 import { StubVodListComponent } from '@shared/vodList/vodList.stub';
+import { CalendarSubscribeComponent } from '@shared/calendarSubscribe/calendarSubscribe.component';
 import { DeploymentHistoryComponent } from './deploymentHistory/deploymentHistory.component';
 import { StubDeploymentHistoryComponent } from './deploymentHistory/deploymentHistory.stub';
 import { ProfileCommendationsComponent } from './profileCommendations/profileCommendations.component';
@@ -116,6 +117,12 @@ describe('ProfileComponent', () => {
     const vods = fixture.debugElement.query(By.directive(StubVodListComponent)).componentInstance as StubVodListComponent;
     expect(vods.scope()).toBe('player');
     expect(vods.id()).toBe(21);
+  });
+
+  it("offers a calendar feed of the player's teams' matches", () => {
+    load({ gamertag: 'Sgt Grif' });
+    const feed = fixture.debugElement.query(By.directive(CalendarSubscribeComponent)).componentInstance as CalendarSubscribeComponent;
+    expect(feed.path()).toBe('users/21/calendar.ics');
   });
 
   it("shows the player's commendations", () => {

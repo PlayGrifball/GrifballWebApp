@@ -46,7 +46,7 @@
         } @else if (noMatches()) {
           <app-data-notice message="The match schedule wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
         } @else {
-          <app-schedule-list [seasonID]="shownSeasonID()" />
+          <app-schedule-list [seasonID]="shownSeasonID()" [feedPublic]="summary()?.isPublic ?? false" />
         }
       </section>
     }

@@ -23,6 +23,7 @@ describe('SeasonTeamsComponent', () => {
     seasonName: 'Autumn Classic',
     isHistorical: false,
     historicalSourceUrl: null,
+    isPublic: true,
     signupCount: 20,
     teamCount: 2,
     matchCount: 10,
