@@ -43,4 +43,18 @@ describe('RescheduleRequestStore', () => {
     expect(store.submitting()).toBeFalse();
     expect(snackBar.open).toHaveBeenCalledWith('A request is already active.', 'Close', { duration: 5000 });
   });
+
+  it("loads a match's suggested times, the latest match's alone; none when they can't be had", () => {
+    const suggestion = { startsAt: '2026-06-02T00:00:00Z', homePlayersAvailable: 4, awayPlayersAvailable: 4, conflicts: [] };
+    store.loadSuggestions(31);
+    store.loadSuggestions(32);
+    expect(store.suggestions()).toBeNull();
+    http.expectOne('/api/season-matches/32/time-suggestions').flush([suggestion]);
+    http.expectOne('/api/season-matches/31/time-suggestions').flush([]);
+    expect(store.suggestions()).toEqual([suggestion]);
+
+    store.loadSuggestions(33);
+    http.expectOne('/api/season-matches/33/time-suggestions').flush(null, { status: 404, statusText: 'Not Found' });
+    expect(store.suggestions()).toEqual([]);
+  });
 });

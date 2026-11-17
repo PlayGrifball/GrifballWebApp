@@ -4,6 +4,7 @@ using NSubstitute;
 using DiscordInterface.Generated;
 using GrifballWebApp.Infrastructure.Outbox;
 using GrifballWebApp.Application.Reschedule;
+using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Integration.Test;
 
@@ -90,5 +91,43 @@ public class RescheduleServiceTests
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Has.Count.GreaterThan(0));
         Assert.That(result[0].Status, Is.EqualTo(RescheduleStatus.Pending));
+    }
+
+    [Test]
+    public async Task ProcessRescheduleAsync_ApprovingATimeATeamAlreadyPlays_IsRefused_AndChangesNothing()
+    {
+        // The home team already plays at the time asked for
+        var s = await RescheduleTestData.SeedAsync(_context, DateTime.UtcNow.AddDays(1));
+        var clash = DateTime.UtcNow.AddDays(3);
+        var other = SeasonMatch.Seed(s.Match.SeasonID, s.Match.HomeTeamID, s.Match.AwayTeamID, bestOf: 3, scheduledTime: clash);
+        _context.SeasonMatches.Add(other);
+        await _context.SaveChangesAsync();
+        var reschedule = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, newTime: clash);
+
+        var refused = await Assert.ThrowsAsync<RescheduleNotAllowedException>(() =>
+            _service.ProcessRescheduleAsync(reschedule.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id));
+
+        _context.ChangeTracker.Clear();
+        var after = await _context.MatchReschedules.Include(r => r.SeasonMatch).SingleAsync(r => r.MatchRescheduleID == reschedule.MatchRescheduleID);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(refused!.Message, Does.Contain("plays another match then"));
+            Assert.That(after.Status, Is.EqualTo(RescheduleStatus.Pending), "Still waiting: another time, or a rejection");
+            Assert.That(after.SeasonMatch.ScheduledTime, Is.Not.EqualTo(clash));
+        }
+    }
+
+    [Test]
+    public async Task ProcessRescheduleAsync_RejectingOne_ATeamAlreadyPlaysAt_IsFine()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context, DateTime.UtcNow.AddDays(1));
+        var clash = DateTime.UtcNow.AddDays(3);
+        _context.SeasonMatches.Add(SeasonMatch.Seed(s.Match.SeasonID, s.Match.HomeTeamID, s.Match.AwayTeamID, bestOf: 3, scheduledTime: clash));
+        await _context.SaveChangesAsync();
+        var reschedule = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, newTime: clash);
+
+        var result = await _service.ProcessRescheduleAsync(reschedule.MatchRescheduleID, new ProcessRescheduleDto { Approved = false }, s.HomeCaptain.Id);
+
+        Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Rejected));
     }
 }

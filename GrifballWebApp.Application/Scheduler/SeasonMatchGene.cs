@@ -1,53 +1,13 @@
-﻿using GrifballWebApp.Domain.League;
-using GrifballWebApp.Domain.Shared;
-
 namespace GrifballWebApp.Application.Scheduler;
 
+/// <summary>
+/// One match of a schedule the season scheduler tries: its teams and its time, in league wall-clock time. What is wrong with
+/// the time is the season's rules' to say (ScheduleChecker, through SeasonScheduleEvaluator), each match its own length.
+/// </summary>
 public struct SeasonMatchGene
 {
     public required int SeasonMatchID { get; set; }
     public required int HomeTeamID { get; set; }
     public required int AwayTeamID { get; set; }
     public required DateTime ScheduledTime { get; set; }
-    // A game and the lobby before it (SeasonMatch.ScheduledLength): the gene doesn't know its series
-    public DateTime EndsAt => ScheduledTime.Add(SeasonMatch.ScheduledLength(1)).AddTicks(-1);
-    //public TimeSpan Duration => new TimeSpan(EndsAt.Ticks - ScheduledTime.Ticks);
-    private bool SameTeamPlaying(SeasonMatchGene other)
-    {
-        return HomeTeamID == other.HomeTeamID ||
-            HomeTeamID == other.AwayTeamID ||
-            AwayTeamID == other.HomeTeamID ||
-            AwayTeamID == other.AwayTeamID;
-    }
-    public bool HasOverlap(SeasonMatchGene other) => ScheduledTime < other.EndsAt && EndsAt > other.ScheduledTime && SameTeamPlaying(other);
-
-    public IEnumerable<SeasonMatchGene> GetOverlap(List<SeasonMatchGene> list)
-    {
-        var self = this;
-        return list.Except([this])
-            .Where(self.HasOverlap);
-    }
-    public bool AnyOverlap(List<SeasonMatchGene> list) => GetOverlap(list).Any();
-
-    public bool HomeTeamAvailable(AvailabilityOption[] options)
-    {
-        var self = this;
-        var option = options.FirstOrDefault(x => x.DayOfWeek == self.ScheduledTime.DayOfWeek && x.Time == TimeOnly.FromDateTime(self.ScheduledTime));
-
-        if (option is null)
-            throw new Exception("Missing option");
-
-        return option.TeamAvailability.Any(x => x.TeamID == self.HomeTeamID);
-    }
-
-    public bool AwayTeamAvailable(AvailabilityOption[] options)
-    {
-        var self = this;
-        var option = options.FirstOrDefault(x => x.DayOfWeek == self.ScheduledTime.DayOfWeek && x.Time == TimeOnly.FromDateTime(self.ScheduledTime));
-
-        if (option is null)
-            throw new Exception("Missing option");
-
-        return option.TeamAvailability.Any(x => x.TeamID == self.AwayTeamID);
-    }
 }

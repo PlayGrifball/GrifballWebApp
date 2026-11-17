@@ -352,6 +352,21 @@ public partial class EntityConfigurationUnitTests
     }
 
     [Test]
+    public void SeasonSchedulingRulesConfiguration_OneASeason_ItsOwnTable()
+    {
+        var entity = Configured(new SeasonSchedulingRulesConfiguration());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(TableOf(entity), Is.EqualTo(("Event", "SeasonSchedulingRules")));
+            Assert.That(KeyOf(entity), Is.EqualTo(new List<string> { nameof(SeasonSchedulingRules.SeasonID) }));
+            Assert.That(ValueGeneratedOf(entity, nameof(SeasonSchedulingRules.SeasonID)), Is.EqualTo(ValueGenerated.Never), "The season's");
+            Assert.That(entity.GetForeignKeys().Single().PrincipalEntityType.ClrType, Is.EqualTo(typeof(Season)));
+            Assert.That(entity.GetForeignKeys().Single().DeleteBehavior, Is.EqualTo(DeleteBehavior.Cascade), "Gone with its season");
+        }
+    }
+
+    [Test]
     public void RecordedGameConfiguration_TableKeyChecksAndForeignKeys()
     {
         var entity = Configured(new RecordedGameConfiguration());

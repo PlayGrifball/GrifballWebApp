@@ -2,6 +2,7 @@ using GeneticSharp;
 using GrifballWebApp.Domain.League;
 using GrifballWebApp.Domain.Shared;
 using GrifballWebApp.Application.Scheduler;
+using GrifballWebApp.Application.Scheduling;
 
 namespace GrifballWebApp.Application.Test;
 
@@ -42,6 +43,16 @@ public class ScheduleServiceOperatorsTests
 
     private static SeasonScheduleChromosome Adam(List<SeasonMatch> matches, AvailabilityOption[] options) =>
         new(matches, matches.Count, Start, End, options, new Random(Seed));
+
+    /// <summary>The season scheduler's fitness over every day's 20:00 and 21:00, teams 1 to 4 able to play them all.</summary>
+    private static SeasonScheduleEvaluator Fitness()
+    {
+        (DayOfWeek, TimeOnly)[] slots = [.. AvailabilityTestData.EveryDay(20, 21).Select(o => (o.DayOfWeek, o.Time))];
+        var checker = new ScheduleChecker(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            SeasonSchedulingRules.Defaults(1), slots,
+            Enumerable.Range(1, 4).ToDictionary(t => t, _ => (IReadOnlySet<(DayOfWeek Day, TimeOnly Time)>)slots.ToHashSet()), ScheduleService.LeagueTimeZone());
+        return new SeasonScheduleEvaluator(checker, new Dictionary<int, int>());
+    }
 
     private static List<SeasonMatchGene> Genes(IChromosome chromosome) =>
         chromosome.GetGenes().Select(g => (SeasonMatchGene)g.Value).ToList();
@@ -127,7 +138,7 @@ public class ScheduleServiceOperatorsTests
         var matches = RoundRobin();
         var options = AvailabilityTestData.EveryDayFor([1, 2, 3, 4], 20, 21);
 
-        var ga = new GeneticAlgorithm(new Population(10, 100, Adam(matches, options)), new SeasonScheduleEvaluator(options),
+        var ga = new GeneticAlgorithm(new Population(10, 100, Adam(matches, options)), Fitness(),
             new EliteSelection(), ScheduleService.CreateCrossover(), ScheduleService.CreateMutation())
         {
             Termination = new GenerationNumberTermination(50),

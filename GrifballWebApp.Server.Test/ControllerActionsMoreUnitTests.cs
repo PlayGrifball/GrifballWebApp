@@ -136,7 +136,7 @@ public class ControllerActionsMoreUnitTests : SqliteGrifballContextFixture
         using (Assert.EnterMultipleScope())
         {
             Assert.That(made, Is.InstanceOf<NoContentResult>());
-            Assert.That(timed, Is.InstanceOf<NoContentResult>());
+            Assert.That(timed, Is.InstanceOf<OkObjectResult>());
             Assert.That(matches.Select(m => m.BestOf), Is.All.EqualTo(3));
             Assert.That(matches.Select(m => m.ScheduledTime), Is.EqualTo(new DateTime?[] { when, null }));
         }

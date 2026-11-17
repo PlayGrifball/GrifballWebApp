@@ -27,7 +27,8 @@ public class ScheduleServiceTests
     public async Task Setup()
     {
         _context = await TestDatabase.NewGrifballContext();
-        _service = new ScheduleService(_context, Substitute.For<ILogger<ScheduleService>>());
+        // Before the season (January 2024): the whole of it to schedule
+        _service = new ScheduleService(_context, Substitute.For<ILogger<ScheduleService>>(), new Microsoft.Extensions.Time.Testing.FakeTimeProvider(new DateTimeOffset(2023, 12, 1, 0, 0, 0, TimeSpan.Zero)));
     }
 
     [TearDown]
@@ -56,6 +57,9 @@ public class ScheduleServiceTests
         foreach (var o in options)
             foreach (var t in teams)
                 _context.Set<TeamAvailability>().Add(TeamAvailability.Seed(teamID: t.TeamID, availabilityOptionID: o.AvailabilityOptionID));
+        // The season's own timeslots: the scheduler picks only from these
+        foreach (var o in options)
+            _context.Add(SeasonAvailability.Seed(SeasonID, o.AvailabilityOptionID));
 
         _context.SeasonMatches.AddRange(
             SeasonMatch.Seed(SeasonID, teams[0].TeamID, teams[1].TeamID),
@@ -223,7 +227,7 @@ public class ScheduleServiceTests
             Assert.That(applied.Value!.MatchesScheduled, Is.EqualTo(2));
             Assert.That(times[decided], Is.Null, "A decided match keeps its time");
             foreach (var gene in run.Genes.Skip(1))
-                Assert.That(times[gene.SeasonMatchID], Is.EqualTo(gene.ScheduledTime).Within(TimeSpan.FromSeconds(1)));
+                Assert.That(times[gene.SeasonMatchID], Is.EqualTo(ScheduleService.ToUtc(gene.ScheduledTime)).Within(TimeSpan.FromSeconds(1)));
             again.AssertProblem(StatusCodes.Status409Conflict, "That recommendation was applied already");
             missing.AssertProblem(StatusCodes.Status404NotFound);
             Assert.That((latest.AppliedBy, latest.AppliedAt.HasValue), Is.EqualTo(("commish", true)));

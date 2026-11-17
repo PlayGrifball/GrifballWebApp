@@ -102,7 +102,7 @@ public class AvailabilityCommands : ApplicationCommandModule<ApplicationCommandC
 
 /// <summary>
 /// NetCord entry point for /reschedule: wraps the context and hands off to <see cref="PersonalCommandsHandler"/> (request)
-/// and <see cref="AdminCommandsHandler"/> (the staff's pending and decide).
+/// and <see cref="AdminCommandsHandler"/> (the staff's pending and decide), and <see cref="RescheduleSuggestions"/> (suggest, new_time's choices).
 /// Keep logic out of here, it is only tested end to end (DiscordTransportTests).
 /// </summary>
 [SlashCommand("reschedule", "Reschedule requests for season matches")]
@@ -110,19 +110,27 @@ public class RescheduleCommands : ApplicationCommandModule<ApplicationCommandCon
 {
     private readonly PersonalCommandsHandler _handler;
     private readonly AdminCommandsHandler _admin;
+    private readonly RescheduleSuggestions _suggestions;
 
-    public RescheduleCommands(PersonalCommandsHandler handler, AdminCommandsHandler admin)
+    public RescheduleCommands(PersonalCommandsHandler handler, AdminCommandsHandler admin, RescheduleSuggestions suggestions)
     {
         _handler = handler;
         _admin = admin;
+        _suggestions = suggestions;
     }
 
     [SubSlashCommand("request", "Ask to move one of your matches")]
     public Task Request(
         [SlashCommandParameter(Description = "The match (search by team)", AutocompleteProviderType = typeof(SeasonMatchAutocomplete))] string match,
         [SlashCommandParameter(Description = "Why it needs to move")] string reason,
-        [SlashCommandParameter(Name = "new_time", Description = "The new time in UTC, like 2026-11-20 20:00")] string? newTime = null)
+        [SlashCommandParameter(Name = "new_time", Description = "Pick a suggested time, or type one in UTC like 2026-11-20 20:00",
+            AutocompleteProviderType = typeof(RescheduleTimeAutocomplete))] string? newTime = null)
         => _handler.RequestReschedule(Context.ToDiscordContext(), match, reason, newTime);
+
+    [SubSlashCommand("suggest", "The best times for a match, from its season's timeslots")]
+    public Task Suggest(
+        [SlashCommandParameter(Description = "The match (search by team)", AutocompleteProviderType = typeof(SeasonMatchAutocomplete))] string match)
+        => _suggestions.Suggest(Context.ToDiscordContext(), match);
 
     [SubSlashCommand("pending", "Requests waiting for a decision (staff)")]
     public Task Pending() => _admin.PendingReschedules(Context.ToDiscordContext());

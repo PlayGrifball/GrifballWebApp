@@ -32,6 +32,13 @@ public class HistoricalArchiveParsingTests
     private static readonly string[] BravoThenAlpha = ["Bravo", "Alpha"];
     private static readonly (string, string?)[] CaptainOnlyIfAPlayer = [("Alpha", "Ace"), ("Bravo", null)];
     private static readonly string[] TeamOneAndTen = ["Team 1", "Team 10"];
+    private static readonly string[] DjBlueGames = ["Nightfall:Won:5 :POGGIES::Lost:3", "BOGO Margs:Won:5 Fat Mav:Lost:1"];
+    private static readonly string[] DjBluePlayers = ["x Zeg x:4", "ASpence501:2", "Judasey:", "Regresser:"];
+    private static readonly (string, string?, string, int?, int?)[] ReachConsoleTeams =
+    [
+        ("No Way Out", "Ire Paroxysm", "oDhmon,SIMQ", null, null), ("2 Hype Crew", "WreckinNerds", "Trespa5s", null, null),
+        ("No Way Out", null, "", 1, 5), ("2 Hype Crew", null, "", 2, 2),
+    ];
     private static readonly string[] TeamAlfaTwice = ["Team Alfa", "Team Alfa"];
     private static readonly string[] MysteryHeroesThenTheWinners = ["Mystery Heroes", "THE WINNERS TEAM", "Trespa5s"];
     private static readonly string[] StatsNamesOfStandingsTeams = ["Chemical Imbalance", "Like Clockwork", "Bravo", "Alpah Team", "Puffy Grifbussy", "Buff Oily Men (& Women)", "SML08 All Stars + Kazink", "(TBD)"];
@@ -546,6 +553,36 @@ public class HistoricalArchiveParsingTests
     }
 
     [Test]
+    public void BlockGames_WinnerFirstTitlesWithNoPhase_AndNoGamesColumn_AreRegularSeasonGamesOfWhoPlayed()
+    {
+        // DJBluePDX's Game Results: "A over B 5-3 - host", one title spelling it "pver"; a Wins column but no Games one, each
+        // side's totals row without a team, a "Postgame Page" banner over the header
+        object?[] banner = Row(null, null, null, null, "Postgame Page 1");
+        object?[] header = Row("Team", "Player", "Wins", "Minutes", "Goals", "Kills", "Assists", "Deaths", "Carrier Kill");
+        var workbook = Read(Workbook(("Game Results", [
+            Row("Nightfall over Poggies 5-3 - RandyJacksonBK"), banner, header,
+            Row("Nightfall", "x Zeg x", 1, 33, 5, 158, 0, 133, 4),
+            Row(null, null, 1, 33, 5, 158, 0, 133, 4),
+            Row(":POGGIES:", "ASpence501", 0, 33, 3, 138, 1, 127, 2),
+            Row("Totals:", null, 0, 33, 3, 138, 1, 127, 2),
+            Row("BOGO Margs pver Fat Mav 5-1 - Nihilus NH"), banner, header,
+            Row("BOGO Margs", "Judasey", 1, 22, 5, 103, 7, 79),
+            Row("Fat Mav", "Regresser", 0, 22, 1, 75, 6, 109),
+            Row("Fat Mav", "Benched", 0, 22)])));
+        var warnings = new List<string>();
+
+        var games = RecordedGameParser.Parse("djblue", new GamesTab { Sheet = "Game Results", Season = "djblue/Team Statistics", Game = "halo3", Layout = GamesLayout.Blocks }, workbook, warnings);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(games.Select(g => string.Join(" ", g.Teams.Select(t => $"{t.Name}:{t.Outcome}:{t.Score}"))), Is.EqualTo(DjBlueGames));
+            Assert.That(games.Select(g => g.IsPlayoffs), Is.All.False);
+            Assert.That(games.SelectMany(g => g.Players).Select(p => $"{p.Gamertag}:{p.CarrierKills}"), Is.EqualTo(DjBluePlayers), "Benched has no stats: he didn't play");
+            Assert.That(warnings, Is.Empty);
+        }
+    }
+
+    [Test]
     public void BlockGames_ATitleWithAnImpossibleDate_HasNoPlayedAt()
     {
         // 2/30 doesn't exist: BlockDate's ArgumentOutOfRangeException is caught and the game is dated null, not thrown
@@ -1002,6 +1039,52 @@ public class HistoricalArchiveParsingTests
     }
 
     [Test]
+    public void AWorkbookOfStandingsWithNoStats_IsASeasonOfItsTeams_TheirCaptainsAndRostersAsTheSheetNamesThem()
+    {
+        // SL20 Console Reach: a Rosters tab and a Standings tab, no stats. A workbook whose standings are another season's
+        // makes no season of its own
+        List<HistoricalSourceContent> sources =
+        [
+            Source("reach", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Spring League 2020 (Reach Console)", Titles = "Spring League 2020 (Console)", Game = "reach", Division = "Console", Format = "LeagueSeason" },
+                    Standings = [new() { Sheet = "Rosters" }, new() { Sheet = "Standings", Ranked = true }],
+                },
+                Workbook(("Rosters", [Row("Team", "Captain", "Player 1", "Player 2"), Row("No Way Out", "Ire Paroxysm (Hide)", "oDhmon", "SIMQ"), Row("2 Hype Crew", "WreckinNerds", "Trespa5s")]),
+                    ("Standings", [Row("Team", "Wins", "Losses"), Row("No Way Out", 5, 0), Row("2 Hypre Crew", 2, 3)]))),
+            Source("chart", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Somebody else's", Game = "reach" },
+                    Standings = [new() { Sheet = "Standings", Season = "nowhere" }],
+                },
+                Workbook(("Standings", [Row("Team", "Wins", "Losses"), Row("No Way Out", 5, 0)]))),
+        ];
+
+        var season = HistoricalArchiveBuilder.Build(sources).Input.Seasons.Seasons.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((season.SeasonName, season.SourceSheet, season.League, season.Division, season.Titles, season.Players.Count),
+                Is.EqualTo(("Spring League 2020 (Reach Console)", "Rosters", "AGLA", "Console", "Spring League 2020 (Console)", 0)));
+            Assert.That(season.Teams.Select(t => (t.TeamName, t.Captain, string.Join(",", t.Roster), t.Rank, t.Wins)), Is.EqualTo(ReachConsoleTeams),
+                "The roster's captain without the nickname after it; the standings' teams by the rosters' names");
+        }
+    }
+
+    [Test]
+    public void ARosterTabOfASeasonWithStats_KeepsOnlyItsPlayers_AndACaptainWithANicknameIsTheirPlayer()
+    {
+        // A nickname or a typo in a Player N column would be a placeholder player: the stats' players are the season's
+        var source = StandingsSeason(
+            [Row("Player", "Team", "Games", "Kills"), Row("Ire Paroxysm", "No Way Out", 4, 1), Row("oDhmon", "No Way Out", 4, 1)],
+            ("Rosters", new StandingsTab { Sheet = "Rosters" }, [Row("Team", "Captain", "Player 1", "Player 2"), Row("No Way Out", "Ire Paroxysm (Hide)", "ODHMON", "Hidey")]));
+
+        var team = HistoricalArchiveBuilder.Build([source]).Input.Seasons.Seasons.Single().Teams.Single();
+
+        Assert.That((team.Captain, string.Join(",", team.Roster)), Is.EqualTo(("Ire Paroxysm", "oDhmon")));
+    }
+
+    [Test]
     public void ATeamWithAndWithoutANote_InTwoTabs_IsOneTeam_AndItsCaptainsPlaceholderTakesThatName()
     {
         // SL24: the standings "Puffy Grifbussy (WINNER)" with its captain X, the draft sheet "Puffy Grifbussy", the stats "X's Team"
@@ -1388,7 +1471,7 @@ public class HistoricalArchiveParsingTests
                 Is.SubsetOf(sources.Where(s => s.Config?.Tabs.Count > 0).Select(s => s.HistoricalSourceID)));
             Assert.That(sources.Count(s => s.Config?.ChampionsSheet is not null), Is.EqualTo(1));
             Assert.That(sources.Single(s => s.Kind == HistoricalSourceKind.YouTubeChannel).Enabled, Is.True, "Kept for the VODs to come");
-            Assert.That(stats, Has.Count.EqualTo(52), "The seasons the Node compiler made");
+            Assert.That(stats, Has.Count.EqualTo(54), "The seasons the Node compiler made, and the DJBluePDX Summer Series since");
         }
     }
 
