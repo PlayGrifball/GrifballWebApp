@@ -25,6 +25,7 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
 
     private static readonly int[] BestOfs = [3, 3, 1];
     private static readonly int[] ThreeThenOne = [3, 1];
+    private static readonly int[] GamesSplitOverTwoDays = [2, 0, 0];
     private static readonly string[] OmegaIsNoTeam = [$"{CupKey}: the bracket names 1 team(s) that are none of the season's (Omega); their slots have no team there"];
     private static readonly int[] GamesInTheFirstSlot = [1, 0, 0];
 
@@ -60,13 +61,13 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
         return season;
     }
 
-    private static RecordedGameInput Game(string key, string home, string away, bool isPlayoffs = true, bool isScrim = false) => new()
+    private static RecordedGameInput Game(string key, string home, string away, bool isPlayoffs = true, bool isScrim = false, int hoursLater = 0) => new()
     {
         IsScrim = isScrim,
         SeasonSourceId = CupKey,
         SourceKey = key,
         GameVersion = "halo3",
-        PlayedAt = CupPlayedAt,
+        PlayedAt = CupPlayedAt.AddHours(hoursLater),
         IsPlayoffs = isPlayoffs,
         Teams = [new RecordedTeamInput { Side = 1, Outcome = Outcomes.Won }, new RecordedTeamInput { Side = 2, Outcome = Outcomes.Lost }],
         Players = [new RecordedPlayerInput { Gamertag = $"{home} One", Side = 1, Kills = 5, Deaths = 3 }, new RecordedPlayerInput { Gamertag = $"{away} One", Side = 2, Kills = 3, Deaths = 5 }],
@@ -234,18 +235,20 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
     public async Task Import_AWaypointGameNoLongerListed_LeavesItsSheetSlot()
     {
         var matchId = Guid.NewGuid();
+        var kept = Guid.NewGuid();
         await AddMatch(Context, matchId, (1, "Alpha One", Outcomes.Won, 20, 5), (4, "Delta One", Outcomes.Lost, 10, 15));
+        await AddMatch(Context, kept, (1, "Alpha One", Outcomes.Won, 20, 5), (4, "Delta One", Outcomes.Lost, 10, 15));
         var season = Cup(FourTeams(), "infinite");
         HistoricalArchiveInput Listing(params Guid[] playoffs) => new()
         {
             Seasons = new UnifiedArchive { Seasons = [season] },
             WaypointMatches = new() { [CupKey] = new WaypointSeasonMatches { Playoffs = [.. playoffs.Select(p => p.ToString())] } },
         };
-        await _service.Import(Listing(matchId));
+        await _service.Import(Listing(matchId, kept));
         Context.ChangeTracker.Clear();
-        Assert.That((await Slots())[0].SeriesGames, Has.Count.EqualTo(1), "Linked to Alpha and Delta's slot");
+        Assert.That((await Slots())[0].SeriesGames, Has.Count.EqualTo(2), "Linked to Alpha and Delta's slot");
 
-        var report = await _service.Import(Listing());
+        var report = await _service.Import(Listing(kept));
 
         var bracket = await Slots();
         using (Assert.EnterMultipleScope())
@@ -253,7 +256,7 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
             Assert.That(report.Errors, Is.Empty);
             Assert.That(report.SeasonMatchesRemoved, Is.Zero);
             Assert.That(bracket, Has.Count.EqualTo(3));
-            Assert.That(bracket[0].SeriesGames, Is.Empty);
+            Assert.That(bracket[0].SeriesGames.Select(g => g.MatchID), Is.EqualTo(new Guid?[] { kept }), "Only the game no longer listed goes");
             Assert.That(bracket[0].Winner, Is.EqualTo(SeasonMatchSide.Home));
         }
     }
@@ -271,6 +274,22 @@ internal sealed class HistoricalImportBracketUnitTests : ApplicationDbContextTes
         await _service.Import(Input(sheet, [.. Enumerable.Range(1, 4).Select(i => Game($"cup#{i}", "Beta", "Alpha"))]));
 
         Assert.That((await Slots()).Select(m => m.SeriesGames.Count), Is.EqualTo(ThreeThenOne));
+    }
+
+    [Test]
+    public async Task Import_ALaterSeriesOfTeamsWhoseSlotsHaveGames_GoesInTheirLastSlot()
+    {
+        await _service.Import(Input(Cup(FourTeams()), [Game("cup#1", "Alpha", "Delta")]));
+        Context.ChangeTracker.Clear();
+
+        // The same teams the next day: a series split over two days
+        var report = await _service.Import(Input(Cup(FourTeams()), [Game("cup#1", "Alpha", "Delta"), Game("cup#2", "Delta", "Alpha", hoursLater: 24)]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Warnings, Is.Empty);
+            Assert.That((await Slots()).Select(m => m.SeriesGames.Count), Is.EqualTo(GamesSplitOverTwoDays));
+        }
     }
 
     [Test]

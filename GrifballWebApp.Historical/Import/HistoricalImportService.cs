@@ -1303,7 +1303,7 @@ public partial class HistoricalImportService : IHistoricalImportService
     /// The season's games not in a series yet (Waypoint and recorded alike) become its season matches, as reported games
     /// are in the app: the games of the same two teams within <see cref="SeriesGap"/> of each other are one series, its
     /// score their wins. A playoff series of a season with a bracket sheet goes in the sheet's slot of its teams
-    /// (<see cref="SheetSlotOf"/>), whose result is the sheet's; otherwise (no bracket sheet, or none of its slots is
+    /// (<see cref="InSheetSlots"/>), whose result is the sheet's; otherwise (no bracket sheet, or none of its slots is
     /// theirs) playoff series are bracket matches in rounds by the order the teams played them.
     /// </summary>
     private async Task LinkSeries(SeasonGroup group, Season season, List<ImportedGame> games, List<SeasonMatch>? sheetBracket, HistoricalImportReport counts, CancellationToken ct)
