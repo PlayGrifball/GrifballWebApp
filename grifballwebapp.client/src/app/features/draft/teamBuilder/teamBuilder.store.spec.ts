@@ -63,7 +63,7 @@ describe('TeamBuilderStore', () => {
     expect(store.teams().map(t => t.captain.name)).toEqual(['Cap']);
     expect(store.playerPool().map(p => p.name)).toEqual(['Pool']);
     expect(store.captainLocked()).toBeFalse();
-    expect(store.onDeck()!.name).toBe('Cap');
+    expect(store.onDeck()).withContext('No one on deck before the captains are locked').toBeNull();
   });
 
   it('lets only the store change the season shown', () => {
