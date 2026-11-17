@@ -788,9 +788,11 @@ accept `tag`, `tag@sha256:...` or `sha256:...`, and `*.image.digest` takes a dig
 Each environment deploys the chart and its images together. Test deploys after every master build
 (`docker-publish.yml`, once `:test` moves), staging and prod on Promote to staging / Promote to prod. Each deploy
 makes a deploy commit (`.github/scripts/env-deploy.sh`): this chart at the commit the images were built from, plus
-`promoted-images.yaml` naming both images by digest. It is tagged `env/<environment>/<UTC date>` (`.2`, `.3` for more
-that day), which never moves, and `env/<environment>/current`, which moves to each new deploy. An Application follows
-the moving tag, with `promoted-images.yaml` last so the promoted images win:
+`promoted-images.yaml` naming both images by digest. It is tagged `env/<environment>/current`, which moves to each new
+deploy, and for staging and prod also `env/<environment>/<UTC date>` (`.2`, `.3` for more that day), which never moves.
+`env/test/current` only moves forward: a master build that finishes after a newer one leaves it alone. Deploying
+images already deployed (a re-run) reuses that deploy. An Application follows the moving tag, with
+`promoted-images.yaml` last so the promoted images win:
 
 ```yaml
 spec:
@@ -802,9 +804,9 @@ spec:
         valueFiles: [..., promoted-images.yaml]
 ```
 
-`env/<environment>/<date>` tags are the history: what the environment ran, and from when. The `:test`, `:staging` and
-`:prod` image tags still move as before, for anyone who pulls them; the deploy names the images by digest. Previews
-run the newest test chart (`env/test/current`) with their pull request's images, so the chart needs no other updates.
+The `env/staging/<date>` and `env/prod/<date>` tags are the history: what the environment ran, and from when. The
+`:test`, `:staging` and `:prod` image tags still move as before, for anyone who pulls them; the deploy names the images
+by digest. Previews run the newest test chart (`env/test/current`) with their pull request's images, so the chart needs no other updates.
 
 ## Developing
 
