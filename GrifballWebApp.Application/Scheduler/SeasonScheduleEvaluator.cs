@@ -40,7 +40,7 @@ public class SeasonScheduleEvaluator(ScheduleChecker checker, IReadOnlyDictionar
     }
 
     /// <summary>A match's conflicts weighed: <see cref="RefusedWeight"/> a refused one, 1 a warning.</summary>
-    private static int Penalty(IEnumerable<ScheduleConflict> conflicts) => conflicts.Sum(c => c.Refuses ? RefusedWeight : 1);
+    private static double Penalty(IEnumerable<ScheduleConflict> conflicts) => conflicts.Sum(c => c.Refuses ? RefusedWeight : 1.0);
 
     /// <summary>What is wrong with <paramref name="gene"/>'s time, among <paramref name="genes"/> (the run's) and the fixed matches.</summary>
     public IReadOnlyList<ScheduleConflict> ConflictsOf(SeasonMatchGene gene, IReadOnlyList<SeasonMatchGene> genes)
