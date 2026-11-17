@@ -1,3 +1,4 @@
+using GrifballWebApp.Domain.League;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.HistoricalArchive.Test;
@@ -186,5 +187,29 @@ public class ArchiveSeasonTests
             Assert.That(captains.GetValueOrDefault("Junkyard Dogs"), Does.EndWith("NKOTB4evah").IgnoreCase);
             Assert.That(captains.GetValueOrDefault("Cosmic Oblivion"), Does.EndWith("KindredDaedric").IgnoreCase);
         }
+    }
+
+    /// <summary>H4 Bid 2022's PLAYOFFS writes its final "Beer - Seed 1 vs (2-0) Forklift Certified - Seed 3" without a winner;
+    /// the Teams tab's playoff records say it: Beer (4-0) lost no playoff game, Forklift Certified (4-2) two. Beer won it 2-0.</summary>
+    [Test]
+    public async Task H4Bid2022_TheFinal_IsBeers()
+    {
+        await using var context = Archive.NewContext();
+        var slots = await context.SeasonMatches.AsNoTracking()
+            .Where(m => m.Season.HistoricalSourceID != null && m.Season.SeasonName == "2022 H4 Bid Season" && m.BracketMatch != null)
+            .Select(m => new
+            {
+                m.BracketMatch!.RoundNumber,
+                Home = m.HomeTeam!.TeamName, Away = m.AwayTeam!.TeamName, m.HomeTeamResult, m.AwayTeamResult, m.HomeTeamScore, m.AwayTeamScore,
+            })
+            .ToListAsync();
+        if (slots.Count == 0)
+            Assert.Ignore("2022 H4 Bid Season isn't in this copy of the archive, or has no bracket");
+
+        var final = slots.MaxBy(s => s.RoundNumber)!;
+        string? winner = final.HomeTeamResult == SeasonMatchResult.Won ? final.Home : final.AwayTeamResult == SeasonMatchResult.Won ? final.Away : null;
+        string? loser = winner is null ? null : winner == final.Home ? final.Away : final.Home;
+        var (won, lost) = winner == final.Home ? (final.HomeTeamScore, final.AwayTeamScore) : (final.AwayTeamScore, final.HomeTeamScore);
+        Assert.That((winner, loser, won, lost), Is.EqualTo(((string?)"Beer", (string?)"Forklift Certified", (int?)2, (int?)0)));
     }
 }

@@ -466,6 +466,10 @@ public class BracketTab
     /// <summary>The season's name of a team the bracket calls something else (by its seed, or a typo): bracket name to
     /// the stats' or standings' name.</summary>
     public Dictionary<string, string> Aliases { get; init; } = [];
+    /// <summary>A tab of the teams' records, each under its team's name, the playoffs' in brackets after the season's (H4 Bid
+    /// 2022's Teams: "Beer" over "16-2 (4-0)"): a series no cell names the winner of, whose score is known, goes to the side
+    /// with too few playoff losses to have lost it.</summary>
+    public string? RecordsSheet { get; init; }
 }
 
 /// <summary>
