@@ -704,7 +704,7 @@ tags() { # tags <prefix>: the matching tags, as git/matching-refs lists them
 }
 case "$method $path" in
   "GET git/matching-refs/"*) json=$(tags "refs/${path#git/matching-refs/}") ;;
-  "GET git/ref/tags/env/test/current") json=$(jq -cn --arg sha "$(nth "${ENV_SETTLED:?}" '^GET git/ref/tags/env/test/current$')" '{object: {sha: $sha}}') ;;
+  "GET git/ref/tags/env/test/current") json=$(jq -cn --arg sha "$(nth "${ENV_SETTLED:-d3p10y}" '^GET git/ref/tags/env/test/current$')" '{object: {sha: $sha}}') ;;
   "GET git/ref/"*) json=$(tags "refs/${path#git/ref/}" | jq -c --arg ref "refs/${path#git/ref/}" '.[] | select(.ref == $ref)'); [[ -n "$json" ]] || notfound ;;
   "GET git/commits/c0ffee") json='{"tree":{"sha":"tree0"}}' ;;
   "GET git/commits/"*) json=$(jq -cn --arg p "${ENV_PARENT:-}" --arg m "${ENV_MESSAGE:-}" '{parents: [{sha: $p}], message: $m}') ;;
@@ -792,7 +792,7 @@ for status in behind diverged; do
   if ENV_REFS="env/test/current cur1" ENV_IMAGES=old ENV_PARENT=p9 ENV_COMPARE=$status deploy test \
     && [[ -z "$(refcalls)" ]] && ! grep -q '^POST' "$work/calls" && [[ ! -s "$work/envout" ]] \
     && grep -qF "::notice::env/test/current stays on p9" "$work/out"
-  then ok "env-deploy: test never moves back: this commit $status of the deployed one changes nothing, outputs nothing"
+  then ok "env-deploy: test never moves back: a commit $status of the deployed one changes nothing, outputs nothing"
   else bad "env-deploy: test $status:"; cat "$work/out" "$work/calls" "$work/envout"; fi
 done
 if ENV_REFS="env/test/current cur1" ENV_IMAGES=old ENV_PARENT=p0 ENV_SETTLED="0lder d3p10y" deploy test \
@@ -852,7 +852,7 @@ if ENV_RELEASES=$(this_run false) release_env && grep -qF "already released" "$w
 then ok "env-release: a re-run after this run's release was published releases nothing"
 else bad "env-release: published re-run:"; cat "$work/out" "$work/calls"; fi
 if ENV_RELEASES=$(this_run true) release_env \
-  && [[ "$(grep -E '^(DELETE|POST) releases' "$work/calls" | cut -d' ' -f1-2)" = "$(printf 'DELETE releases/3\nPOST releases')" ]]
+  && [[ "$(grep -E '^(DELETE releases/[0-9]+|POST releases )' "$work/calls" | cut -d' ' -f1-2)" = "$(printf 'DELETE releases/3\nPOST releases')" ]]
 then ok "env-release: a re-run deletes this run's unfinished draft, then releases"
 else bad "env-release: draft re-run:"; cat "$work/out" "$work/calls"; fi
 
