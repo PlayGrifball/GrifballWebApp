@@ -518,6 +518,13 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("Host")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsForfeit")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsPlayoffs")
                         .HasColumnType("bit");
 
@@ -556,6 +563,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Vod")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.HasKey("RecordedGameID");
 

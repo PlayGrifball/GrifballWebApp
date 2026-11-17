@@ -241,11 +241,11 @@ public class ScheduledGame
 public class RecordedGameInput
 {
     /// <summary>The season's <c>HistoricalSourceID</c> ("{sourceWorkbook}/{sourceSheet}"), as <see cref="HistoricalArchiveInput.WaypointMatches"/> is keyed.</summary>
-    public required string SeasonSourceId { get; init; }
+    public required string SeasonSourceId { get; set; }
     /// <summary>Unique per game (e.g. "{workbook}/{sheet}#{row}"): what a re-import finds the game by.</summary>
     public required string SourceKey { get; init; }
     /// <summary>A GameVersion slug: halo3, reach, reach-dash, halo4, halo5, infinite.</summary>
-    public required string GameVersion { get; init; }
+    public required string GameVersion { get; set; }
     public DateTime? PlayedAt { get; init; }
     public string? Map { get; init; }
     public string? Gametype { get; init; }
@@ -255,6 +255,15 @@ public class RecordedGameInput
     public bool IsScrim { get; init; }
     /// <summary>The game's Waypoint match ID or URL, when it was a Halo Infinite match: the Waypoint match wins.</summary>
     public string? WaypointMatchId { get; init; }
+    /// <summary>The series the game is in, when its source says (a result list's rows of one series): the games with the same
+    /// key are one series, whenever they were played. Without one, a series is the same two teams' games close in time.</summary>
+    public string? Series { get; init; }
+    /// <summary>A link to a video of the game, as its source gives it.</summary>
+    public string? Vod { get; init; }
+    /// <summary>Who hosted the game.</summary>
+    public string? Host { get; init; }
+    /// <summary>Forfeited, not played: no players, and its sides' outcomes say who forfeited (Lost), or both did.</summary>
+    public bool IsForfeit { get; init; }
     public List<RecordedTeamInput> Teams { get; init; } = [];
     public List<RecordedPlayerInput> Players { get; init; } = [];
 }
@@ -262,7 +271,7 @@ public class RecordedGameInput
 public class RecordedTeamInput
 {
     public int Side { get; init; }
-    public string? Name { get; init; }
+    public string? Name { get; set; }
     [JsonConverter(typeof(JsonStringEnumConverter<GrifballWebApp.Domain.Halo.Outcomes>))]
     public GrifballWebApp.Domain.Halo.Outcomes Outcome { get; init; }
     public int? Score { get; init; }

@@ -132,15 +132,16 @@ public class RecordedGameAggregateMigrationTests
 
         var season = await _context.AddSeason();
         // Rows as the old model's public setters could leave them (the columns are as they were)
+        await using var old = BeforeRecordedGameResultDetailsContext.On(_context);
         var games = new Dictionary<string, RecordedGame>();
         void Row(string key, RecordedGameOrigin origin, int? seasonID, Outcomes outcome)
         {
             var game = RecordedGame.Seed(key);
             var side = game.SeedSide(1);
-            var entry = _context.RecordedGames.Add(game);
+            var entry = old.RecordedGames.Add(game);
             entry.Property(g => g.Origin).CurrentValue = origin;
             entry.Property(g => g.SeasonID).CurrentValue = seasonID;
-            _context.Entry(side).Property(t => t.Outcome).CurrentValue = outcome;
+            old.Entry(side).Property(t => t.Outcome).CurrentValue = outcome;
             games[key] = game;
         }
         Row("imported", RecordedGameOrigin.HistoricalImport, season.SeasonID, Outcomes.Won);
@@ -148,7 +149,7 @@ public class RecordedGameAggregateMigrationTests
         Row("manual in a season", RecordedGameOrigin.Manual, season.SeasonID, Outcomes.Won);
         Row("an unknown origin", (RecordedGameOrigin)7, season.SeasonID, Outcomes.Tie);
         Row("no result", RecordedGameOrigin.HistoricalImport, null, (Outcomes)0);
-        await _context.SaveChangesAsync();
+        await old.SaveChangesAsync();
 
         await migrator.MigrateAsync();
 
@@ -194,14 +195,15 @@ public class RecordedGameOneLinePerUserMigrationTests
         var (alpha, bravo) = (User.Seed(userName: "alpha"), User.Seed(userName: "bravo"));
         _context.Users.AddRange(alpha, bravo);
         await _context.SaveChangesAsync();
+        await using var old = BeforeRecordedGameResultDetailsContext.On(_context);
         // Lines as a merge of two accounts that both played a game left them (one per save, so the keys are in order)
         var first = RecordedGame.Seed("archive/1");
         var second = RecordedGame.Seed("archive/2");
-        _context.RecordedGames.AddRange(first, second);
+        old.RecordedGames.AddRange(first, second);
         foreach (var (game, user, kills) in new[] { (first, alpha, 1), (first, alpha, 2), (first, bravo, 3), (first, alpha, 4), (second, alpha, 5) })
         {
             game.SeedPlayer(new RecordedPlayerLine(user.Id, null, user.UserName!, kills, 0, 0));
-            await _context.SaveChangesAsync();
+            await old.SaveChangesAsync();
         }
 
         await migrator.MigrateAsync();

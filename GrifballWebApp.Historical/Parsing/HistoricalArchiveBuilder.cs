@@ -28,7 +28,7 @@ public sealed class HistoricalArchiveBuild
 /// workbook at most, not every source's.
 /// </para>
 /// </summary>
-public sealed class HistoricalArchiveBuilder
+public sealed partial class HistoricalArchiveBuilder
 {
     private readonly IReadOnlySet<string>? _changedSourceIds;
     private readonly List<string> _warnings = [];
@@ -43,6 +43,8 @@ public sealed class HistoricalArchiveBuilder
     private readonly List<(string SourceId, RosterTab Tab, Dictionary<string, string>? Teams)> _rosters = [];
     /// <summary>Each standings tab's teams, put on their season's regular season once every season is known.</summary>
     private readonly List<(string SourceId, StandingsTab Tab, List<ArchiveTeam>? Teams)> _standings = [];
+    /// <summary>Each result list's games, put under their season once every season is known.</summary>
+    private readonly List<(string SourceId, int? Year, SeasonDefaults? Defaults, ResultsTab Tab, List<RecordedGameInput>? Games)> _results = [];
     /// <summary>Each bracket tab's series, put on their season's regular season once every season (and its standings) is known.</summary>
     private readonly List<(string SourceId, BracketTab Tab, ArchiveBracket? Bracket)> _brackets = [];
     /// <summary>Each draft tab's teams, put on their season's regular season once every season (and its standings) is known.</summary>
@@ -91,6 +93,7 @@ public sealed class HistoricalArchiveBuilder
             AddChampions(id, source.Url, config.ChampionsSheet, workbook, changed);
         AddWaypoint(id, config, workbook);
         AddSeasonTabs(id, config, workbook);
+        AddResultLists(id, source.Year, config, workbook);
         AddGames(id, config, workbook, changed);
         if (config.PlayersSheet is not null)
             AddPlayers(id, config.PlayersSheet, workbook, changed);
@@ -99,8 +102,8 @@ public sealed class HistoricalArchiveBuilder
                 _affected.Add(HistoricalKeys.SeasonSourceId(entry.SourceWorkbook!, entry.SourceSheet!));
     }
 
-    /// <summary>The tabs that fill in seasons known only once every source is read (rosters, standings, drafts, awards): parsed
-    /// now, put on their seasons in <see cref="Finish"/>.</summary>
+    /// <summary>The tabs that fill in seasons known only once every source is read (rosters, standings, drafts, awards,
+    /// brackets): parsed now, put on their seasons in <see cref="Finish"/>. Result lists are <see cref="AddResultLists"/>.</summary>
     private void AddSeasonTabs(string id, HistoricalSourceConfig config, SheetWorkbook workbook)
     {
         foreach (var tab in config.Rosters)
@@ -113,6 +116,13 @@ public sealed class HistoricalArchiveBuilder
             _awards.Add((id, tab, workbook.Sheet(tab.Sheet) is { } awardsSheet ? AwardsParser.Parse(awardsSheet, tab) : null));
         foreach (var tab in config.Brackets)
             _brackets.Add((id, tab, BracketParser.Parse(id, tab, workbook, _warnings)));
+    }
+
+    /// <summary>The result lists of a source (<see cref="AddResults"/> puts their games under their seasons).</summary>
+    private void AddResultLists(string id, int? year, HistoricalSourceConfig config, SheetWorkbook workbook)
+    {
+        foreach (var tab in config.Results)
+            _results.Add((id, year, config.Season, tab, workbook.Sheet(tab.Sheet) is { } resultsSheet ? GameResultsParser.Parse(id, tab, resultsSheet, _warnings) : null));
     }
 
     /// <summary>The snapshot's workbook, the sheets its config reads; null (a warning said why) when it can't be read.</summary>
@@ -187,6 +197,8 @@ public sealed class HistoricalArchiveBuilder
         FillTeamsFromRosters();
         AddStandings();
         AddDrafts();
+        AddResults();
+        NameGameSides();
         AddBrackets();
         AddAwards();
 

@@ -29,6 +29,15 @@ The app downloads and imports it itself; the Node `archive-tools` scripts that u
   Finished, Playoffs, Playoff Ending). A standings name a few letters off the stats' team takes the stats' name. A team
   keeps them as `Team.ArchivedRank` and `ArchivedFinish`; the season page orders its standings by the sheet's ranks (one
   table's) and shows each team's finish.
+- **Result lists** (`GameResultsParser`, a source's `Results` tabs): a season's results where no per-game stats tab has its
+  games: a table of Winner, score, Loser (and Host, VOD, Halo game, Map) rows under week and playoffs markers; cells such as
+  "A over B 2-0 (5-1, 5-4)" or "A 2-1 B" with the game scores beside; or a Halo Infinite game history's rows without a match
+  link (its forfeits, and games played without one). A calendar
+  (`Calendar`) gives a game per scored entry of its cells ("9:30pm: A (5) vs. B (1)"). Each game is a recorded game without players (`RecordedGame.Vod`,
+  `Host`, `IsForfeit`), its sides named as the season names its teams (the same letters or a few off, an abbreviation
+  either way, a player or captain of the team, or the tab's `Teams` aliases), in the series its list puts it in; a series
+  of forfeits is forfeited. A list of a season no stats tab has (`CustomSeason`) makes that season, its teams the list's.
+  The AGLA 2019 game results' titles give a forfeit without a block its game, and a partial copy its other side.
 - **Brackets** (`BracketParser`, a source's `Brackets`): a season's playoff bracket as its sheets draw it, either cell by
   cell (each series' two team cells, their seeds, its score and the cell its winner went on to: the layouts are in
   `HistoricalBracketLayouts`) or from a tab per round of game rows (Respawn). The import makes each series a slot of the
