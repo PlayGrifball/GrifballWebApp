@@ -55,7 +55,8 @@ export class ProcessRescheduleDialogComponent {
 
   /** How many warnings a time has, for a list of times: nothing when none. */
   warnings(count: number): string {
-    return count === 0 ? '' : ` (${count} warning${count > 1 ? 's' : ''})`;
+    if (count === 0) return '';
+    return count === 1 ? ' (1 warning)' : ` (${count} warnings)`;
   }
 
   processReschedule(): void {

@@ -223,7 +223,8 @@ public class MatchPlannerServiceTests
         var team2 = Team.Seed(seasonID: season.SeasonID, teamName: "Team 2");
         _context.Teams.AddRange(team1, team2);
         await _context.SaveChangesAsync();
-        var at = DateTime.UtcNow.AddDays(5);
+        // Whole seconds: Postgres keeps microseconds, not the tick
+        var at = DateTime.UtcNow.Date.AddDays(5).AddHours(20);
         var match = SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3);
         _context.SeasonMatches.AddRange(match, SeasonMatch.Seed(season.SeasonID, team1.TeamID, team2.TeamID, bestOf: 3, scheduledTime: at));
         await _context.SaveChangesAsync();

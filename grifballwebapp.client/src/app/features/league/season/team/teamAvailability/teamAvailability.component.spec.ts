@@ -42,7 +42,7 @@ describe('TeamAvailabilityComponent', () => {
     expect(text).toContain('5 of 5 players');
     expect(text).toContain('2 of 5 players');
     expect(text).toContain("From the roster's signups");
-    expect(boxes().length).toBe(0);
+    expect(boxes()).toHaveSize(0);
     expect(button('Save')).toBeUndefined();
   });
 
@@ -53,6 +53,6 @@ describe('TeamAvailabilityComponent', () => {
     fixture.detectChanges();
     button('Save')!.click();
 
-    expect(http.expectOne({ method: 'PUT', url: '/api/teams/7/availability' }).request.body).toEqual({ availabilityOptionIDs: [1, 2] });
+    expect(http.expectOne({ method: 'POST', url: '/api/teams/7/availability' }).request.body).toEqual({ availabilityOptionIDs: [1, 2] });
   });
 });

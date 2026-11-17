@@ -189,7 +189,7 @@ describe('ScheduleListComponent behaviour', () => {
     const req = http.expectOne('/api/season-matches/5/time');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ seasonMatchID: 5, time: '2026-02-01T19:00:00.000Z' });
-    req.flush({});
+    req.flush([]);
 
     http.expectOne('/api/seasons/4/matches/unscheduled').flush([]);
     http.expectOne('/api/seasons/4/matches/scheduled').flush([]);

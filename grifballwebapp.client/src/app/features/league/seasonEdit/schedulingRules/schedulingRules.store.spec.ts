@@ -26,7 +26,7 @@ describe('SchedulingRulesStore', () => {
   it('saves them, and says so', () => {
     store.save(3, { ...rules, minPlayersAvailable: 3 });
     expect(store.saving()).toBeTrue();
-    const put = http.expectOne({ method: 'PUT', url: '/api/seasons/3/scheduling-rules' });
+    const put = http.expectOne({ method: 'POST', url: '/api/seasons/3/scheduling-rules' });
     expect(put.request.body.minPlayersAvailable).toBe(3);
     put.flush(null);
     expect(store.saving()).toBeFalse();

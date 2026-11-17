@@ -32,7 +32,7 @@ describe('TeamAvailabilityStore', () => {
   it('saves the captain\'s own, then shows them', () => {
     store.save(7, [2]);
     expect(store.saving()).toBeTrue();
-    const put = http.expectOne({ method: 'PUT', url: '/api/teams/7/availability' });
+    const put = http.expectOne({ method: 'POST', url: '/api/teams/7/availability' });
     expect(put.request.body).toEqual({ availabilityOptionIDs: [2] });
     put.flush(null);
     http.expectOne('/api/teams/7/availability').flush({ ...slots, setByCaptain: true });
@@ -42,7 +42,7 @@ describe('TeamAvailabilityStore', () => {
 
   it("resets them to the roster's, and says why when refused", () => {
     store.reset(7);
-    http.expectOne({ method: 'DELETE', url: '/api/teams/7/availability' }).flush(
+    http.expectOne({ method: 'POST', url: '/api/teams/7/availability/reset' }).flush(
       { title: 'Forbidden', status: 403, detail: "Only the team's captain (or staff) can change its availability." },
       { status: 403, statusText: 'Forbidden', headers: { 'Content-Type': 'application/problem+json' } });
     expect(store.error()).toBe("Only the team's captain (or staff) can change its availability.");

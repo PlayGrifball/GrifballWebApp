@@ -164,7 +164,7 @@ describe('RescheduleRequestComponent', () => {
   });
 
   it('lists the best times, each with its players and its warnings', () => {
-    expect(picks().length).toBe(2);
+    expect(picks()).toHaveSize(2);
     expect(picks()[0].textContent).toContain('4 and 4 players');
     expect(picks()[0].textContent).toContain(new Date('2026-06-02T00:00:00Z').toLocaleString());
     expect(picks()[1].textContent).toContain('Reds can\'t play then.');

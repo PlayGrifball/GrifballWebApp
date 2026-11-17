@@ -62,7 +62,7 @@ public class SchedulingController(SchedulingService scheduling, TeamAvailability
             : this.NotFoundProblem(TeamAvailabilityService.NoSuchTeam);
 
     /// <summary>The team's captain (or staff) set its own timeslots, from its season's, in place of its roster's.</summary>
-    [HttpPut("teams/{teamID:int}/availability", Name = "SetTeamAvailability")]
+    [HttpPost("teams/{teamID:int}/availability", Name = "SetTeamAvailability")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson)]
@@ -71,7 +71,7 @@ public class SchedulingController(SchedulingService scheduling, TeamAvailability
         => Answer(await teams.SetAsync(teamID, dto.AvailabilityOptionIDs, UserID, Staff, ct));
 
     /// <summary>The team's captain (or staff) reset its timeslots to its roster's.</summary>
-    [HttpDelete("teams/{teamID:int}/availability", Name = "ResetTeamAvailability")]
+    [HttpPost("teams/{teamID:int}/availability/reset", Name = "ResetTeamAvailability")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson)]
@@ -85,7 +85,7 @@ public class SchedulingController(SchedulingService scheduling, TeamAvailability
         => rules.GetAsync(seasonID, ct);
 
     /// <summary>Staff change a season's scheduling rules.</summary>
-    [HttpPut("seasons/{seasonID:int}/scheduling-rules", Name = "ChangeSchedulingRules")]
+    [HttpPost("seasons/{seasonID:int}/scheduling-rules", Name = "ChangeSchedulingRules")]
     [Authorize(Roles = "Commissioner,Sysadmin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson)]

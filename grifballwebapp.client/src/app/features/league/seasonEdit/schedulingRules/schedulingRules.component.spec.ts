@@ -36,7 +36,7 @@ describe('SchedulingRulesComponent', () => {
     await fixture.whenStable();
     (Array.from(el().querySelectorAll('button')).find(b => b.textContent!.includes('Save')) as HTMLButtonElement).click();
 
-    expect(http.expectOne({ method: 'PUT', url: '/api/seasons/3/scheduling-rules' }).request.body)
+    expect(http.expectOne({ method: 'POST', url: '/api/seasons/3/scheduling-rules' }).request.body)
       .toEqual({ minPlayersAvailable: 3, maxMatchesPerTeamPerNight: 1, maxMatchesPerTeamPerWeek: 2, maxConcurrentMatches: null });
   });
 });

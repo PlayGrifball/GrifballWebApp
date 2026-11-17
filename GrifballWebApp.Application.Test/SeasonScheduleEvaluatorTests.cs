@@ -20,7 +20,6 @@ public class SeasonScheduleEvaluatorTests
     private static readonly DateTime Monday20 = new(2024, 1, 1, 20, 0, 0);
     private static readonly DateTime Tuesday20 = Monday20.AddDays(1);
     private static readonly AvailabilityOption[] Options = AvailabilityTestData.EveryDay(20, 21);
-    private static readonly int[] TeamsOneAndTwo = [1, 2];
 
     private static SeasonScheduleChromosome WithGenes(params SeasonMatchGene[] genes)
     {
@@ -77,10 +76,11 @@ public class SeasonScheduleEvaluatorTests
     public void Evaluate_AMatchAlreadyFixed_CountsAgainstTheOnesPlaced()
     {
         // Team 1's match at Monday 20:00 is fixed (decided, or a bracket's): placing another of team 1's then clashes with it
+        // (a chromosome has two genes at least: teams 3 and 4's, on Tuesday, is fine)
         var fixedMatch = new ScheduledMatch(99, 1, 5, ScheduleService.ToUtc(Monday20), ScheduleChecker.LengthOf(1));
-        var evaluator = new SeasonScheduleEvaluator(Checker(TeamsOneAndTwo), new Dictionary<int, int>(), [fixedMatch]);
+        var evaluator = new SeasonScheduleEvaluator(Checker(1, 2, 3, 4), new Dictionary<int, int>(), [fixedMatch]);
 
-        Assert.That(evaluator.Evaluate(WithGenes(Gene(1, 1, 2, Monday20))), Is.LessThan(1));
+        Assert.That(evaluator.Evaluate(WithGenes(Gene(1, 1, 2, Monday20), Gene(2, 3, 4, Tuesday20))), Is.LessThan(1));
     }
 
     [Test]
