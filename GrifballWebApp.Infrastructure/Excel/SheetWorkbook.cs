@@ -11,8 +11,27 @@ public sealed class SheetTable
     public required string Name { get; init; }
     public bool Hidden { get; init; }
     public List<string[]> Rows { get; init; } = [];
+    /// <summary>The sheet's own number (1 for its first row) of each of <see cref="Rows"/>, for a cell named by its
+    /// reference (<see cref="At"/>); null: the rows are numbered in order from 1 (a test's sheet; a CSV, whose empty lines aren't kept,
+    /// so a reference past one names the row below it: no reference names a CSV's cells).</summary>
+    public List<int>? RowNumbers { get; init; }
 
     public string Cell(int row, int column) => row < Rows.Count && column < Rows[row].Length ? Rows[row][column] : "";
+
+    /// <summary>The cell a reference such as "C23" names (the sheet's own row and column, its empty rows counted): "" for an
+    /// empty cell, or a reference that names none.</summary>
+    public string At(string reference)
+    {
+        var text = reference.Trim().ToUpperInvariant();
+        var letters = 0;
+        var column = 0;
+        while (letters < text.Length && text[letters] is >= 'A' and <= 'Z')
+            column = column * 26 + (text[letters++] - 'A' + 1);
+        if (letters == 0 || !int.TryParse(text[letters..], NumberStyles.None, CultureInfo.InvariantCulture, out var number) || number < 1)
+            return "";
+        var row = RowNumbers is null ? number - 1 : RowNumbers.BinarySearch(number);
+        return row >= 0 ? Cell(row, column - 1) : "";
+    }
 }
 
 /// <summary>
@@ -54,31 +73,38 @@ public sealed class SheetWorkbook
             if (wanted is not null && !wanted(reader.Name))
                 continue;
             var rows = new List<string[]>();
+            var numbers = new List<int>();
+            // ExcelDataReader reads every row from the sheet's first, the empty ones too: their count is the row's number
+            var number = 0;
             while (reader.Read())
             {
+                number++;
                 var cells = new string[reader.FieldCount];
                 for (var i = 0; i < cells.Length; i++)
                     cells[i] = Text(reader, i);
-                AddRow(rows, cells);
+                if (AddRow(rows, cells))
+                    numbers.Add(number);
             }
             sheets.Add(new SheetTable
             {
                 Name = reader.Name,
                 Hidden = !string.Equals(reader.VisibleState, "visible", StringComparison.OrdinalIgnoreCase),
                 Rows = TimestampColumn(rows),
+                RowNumbers = numbers,
             });
         } while (reader.NextResult());
         return new SheetWorkbook { Sheets = sheets };
     }
 
-    /// <summary>Keeps a row with any text, without its trailing empty cells.</summary>
-    private static void AddRow(List<string[]> rows, IReadOnlyList<string> cells)
+    /// <summary>Keeps a row with any text, without its trailing empty cells; returns whether it kept it.</summary>
+    private static bool AddRow(List<string[]> rows, IReadOnlyList<string> cells)
     {
         var length = cells.Count;
         while (length > 0 && cells[length - 1].Length == 0)
             length--;
         if (length > 0)
             rows.Add(cells.Take(length).ToArray());
+        return length > 0;
     }
 
     private static string Text(IExcelDataReader reader, int i)
