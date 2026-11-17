@@ -1,0 +1,23 @@
+# actionlint (.github/workflows/actionlint.yml) on .github/workflows, with shellcheck on the run: blocks.
+self-hosted-runner:
+  labels:
+    # The org's in-cluster runners (docker-publish.yml refresh-preview)
+    - grif-k8s
+
+# Findings in workflows this check found already there, left as they are rather than changed with it. Each ignore is
+# one message in one file: anything new in these files is still reported.
+paths:
+  .github/workflows/dotnet-tests.yml:
+    ignore:
+      # run: "$GITHUB_WORKSPACE/.github/scripts/close-stuck-report.sh": the YAML quotes, the shell sees the variable
+      # unquoted. The runner's workspace path has no spaces or globs.
+      - 'SC2086:info:1:1:'
+  .github/workflows/frontend-tests.yml:
+    ignore:
+      # The same close-stuck-report.sh step as dotnet-tests.yml
+      - 'SC2086:info:1:1:'
+  .github/workflows/libdave.yml:
+    ignore:
+      # A style note (group the >> "$GITHUB_STEP_SUMMARY" lines into one redirect): the release step's summary lines
+      # read in the order they appear.
+      - 'SC2129:style:'
