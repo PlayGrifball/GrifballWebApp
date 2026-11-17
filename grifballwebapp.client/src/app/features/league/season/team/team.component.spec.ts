@@ -24,18 +24,17 @@ class StubPlayerStats {
   readonly hasRows = signal(false);
 }
 
-/** The team's availability editor (tested on its own): here only whether the page shows it, and who may edit. */
+/** The team's availability editor (tested on its own, the server saying who may change it): here only whether the page shows it. */
 @Component({ selector: 'app-team-availability', template: '' })
 class StubTeamAvailability {
   readonly teamID = input<number>();
-  readonly canEdit = input(false);
 }
 
 describe('TeamComponent', () => {
   let fixture: ComponentFixture<TeamComponent>;
   let component: TeamComponent;
   let http: HttpTestingController;
-  const account = { isLoggedIn: signal(false), isSysAdmin: signal(false), isEventOrganizer: signal(false), personID: signal<number | null>(null) };
+  const account = { isLoggedIn: signal(false) };
 
   const team: TeamDto = {
     teamName: 'Red Team',
@@ -64,8 +63,6 @@ describe('TeamComponent', () => {
 
   beforeEach(async () => {
     account.isLoggedIn.set(false);
-    account.isSysAdmin.set(false);
-    account.personID.set(null);
     await TestBed.configureTestingModule({
       imports: [TeamComponent],
       providers: [
@@ -99,33 +96,14 @@ describe('TeamComponent', () => {
   const rows = () => Array.from(el().querySelectorAll('tr.mat-mdc-row'))
     .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
 
-  it("shows the team's availability to those signed in, editable by its captain and staff", () => {
+  it("shows the team's availability to those signed in", () => {
     const editor = () => fixture.debugElement.query(By.directive(StubTeamAvailability))?.componentInstance as StubTeamAvailability | undefined;
-    account.isLoggedIn.set(true);
-    account.personID.set(10);
-    expect(component.canEditAvailability()).withContext('No team yet: no captain to be').toBeFalse();
-    account.isLoggedIn.set(false);
-    account.personID.set(null);
-    load({ ...team, players: [{ ...team.players[0], isCaptain: true }, team.players[1]] }, []);
+    load(team, []);
     expect(editor()).toBeUndefined();
 
     account.isLoggedIn.set(true);
     fixture.detectChanges();
-    expect(editor()!.canEdit()).withContext('Signed in, but not known yet').toBeFalse();
-
-    account.personID.set(11);
-    fixture.detectChanges();
     expect(editor()!.teamID()).toBe(7);
-    expect(editor()!.canEdit()).toBeFalse();
-
-    account.personID.set(10);
-    fixture.detectChanges();
-    expect(editor()!.canEdit()).toBeTrue();
-
-    account.personID.set(11);
-    account.isSysAdmin.set(true);
-    fixture.detectChanges();
-    expect(editor()!.canEdit()).toBeTrue();
   });
 
   it('drops the previous team, and its title, while another loads, and cancels its requests', () => {

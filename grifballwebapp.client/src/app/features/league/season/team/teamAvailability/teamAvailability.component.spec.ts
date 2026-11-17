@@ -8,14 +8,14 @@ describe('TeamAvailabilityComponent', () => {
   let fixture: ComponentFixture<TeamAvailabilityComponent>;
   let http: HttpTestingController;
   const slots: TeamSlots = {
-    teamID: 7, setByCaptain: false, rosterSize: 5,
+    teamID: 7, setByCaptain: false, rosterSize: 5, canChange: false,
     slots: [
       { availabilityOptionID: 1, dayOfWeek: 'Monday', time: '20:00:00', available: true, playersAvailable: 5 },
       { availabilityOptionID: 2, dayOfWeek: 'Tuesday', time: '20:00:00', available: false, playersAvailable: 2 },
     ],
   };
 
-  async function create(canEdit: boolean, team: TeamSlots = slots) {
+  async function create(canChange: boolean, team: TeamSlots = slots) {
     await TestBed.configureTestingModule({
       imports: [TeamAvailabilityComponent],
       providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
@@ -23,11 +23,10 @@ describe('TeamAvailabilityComponent', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TeamAvailabilityComponent);
     fixture.componentRef.setInput('teamID', 7);
-    fixture.componentRef.setInput('canEdit', canEdit);
     fixture.detectChanges();
     // Nothing ticked until the team's timeslots arrive
     expect(fixture.componentInstance.ticked()).toHaveSize(0);
-    http.expectOne('/api/teams/7/availability').flush(team);
+    http.expectOne('/api/teams/7/availability').flush({ ...team, canChange });
     fixture.detectChanges();
   }
 

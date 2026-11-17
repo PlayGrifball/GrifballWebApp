@@ -69,15 +69,8 @@ export class TeamComponent {
     return !!team && (team.season.isHistorical || team.season.hasEnded) && this.matchesLoaded() && this.matchCount() === 0;
   });
 
-  /** The team's availability is shown to those signed in (its API is theirs alone). */
+  /** The team's availability is shown to those signed in (its API is theirs alone); it says who may change it. */
   readonly signedIn = this.account.isLoggedIn;
-  /** The viewer captains the team, or is staff: they may change its availability. */
-  readonly canEditAvailability = computed(() => {
-    const me = this.account.personID();
-    return this.account.isSysAdmin() || this.account.isEventOrganizer()
-      || (me !== null && (this.team()?.players ?? []).some(p => p.isCaptain && p.userID === me));
-  });
-
   displayedColumns: string[] = ['otherTeam', 'score', 'result', 'scheduledTime', 'matchPage'];
 
   constructor() {

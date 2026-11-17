@@ -52,13 +52,14 @@ public class SchedulingController(SchedulingService scheduling, TeamAvailability
             ? Ok(conflicts)
             : this.NotFoundProblem(NoSuchMatch);
 
-    /// <summary>A team's timeslots, each of its season's: whether it's the team's, and how many of its roster can play it.</summary>
+    /// <summary>A team's timeslots, each of its season's: whether it's the team's, and how many of its roster can play it; and whether
+    /// the caller may change them (its captain, or staff).</summary>
     [HttpGet("teams/{teamID:int}/availability", Name = "GetTeamAvailability")]
     [ProducesResponseType<TeamSlots>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson)]
     public async Task<IActionResult> GetTeamAvailability([FromRoute] int teamID, CancellationToken ct)
         => await teams.ForTeamAsync(teamID, ct) is { } slots
-            ? Ok(slots)
+            ? Ok(slots with { CanChange = await teams.MayChangeAsync(teamID, UserID, Staff, ct) })
             : this.NotFoundProblem(TeamAvailabilityService.NoSuchTeam);
 
     /// <summary>The team's captain (or staff) set its own timeslots, from its season's, in place of its roster's.</summary>

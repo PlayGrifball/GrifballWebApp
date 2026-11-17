@@ -8,7 +8,7 @@ describe('TeamAvailabilityStore', () => {
   let store: TeamAvailabilityStore;
   let http: HttpTestingController;
   const slots: TeamSlots = {
-    teamID: 7, setByCaptain: false, rosterSize: 5,
+    teamID: 7, setByCaptain: false, rosterSize: 5, canChange: true,
     slots: [
       { availabilityOptionID: 1, dayOfWeek: 'Monday', time: '20:00:00', available: true, playersAvailable: 5 },
       { availabilityOptionID: 2, dayOfWeek: 'Tuesday', time: '20:00:00', available: false, playersAvailable: 2 },

@@ -10,6 +10,7 @@ import { TeamSlot } from '../models/team-slot';
 export interface TeamSlots {
   rosterSize: number;
   setByCaptain: boolean;
+  canChange: boolean;
   slots: Array<TeamSlot>;
   teamID: number;
 }

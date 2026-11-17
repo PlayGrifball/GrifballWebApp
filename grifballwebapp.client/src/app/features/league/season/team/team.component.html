@@ -50,7 +50,7 @@
                 </div>
             }
             @if (signedIn() && team() && !team()!.season.isHistorical && !team()!.season.hasEnded) {
-                <app-team-availability [teamID]="teamID()" [canEdit]="canEditAvailability()" />
+                <app-team-availability [teamID]="teamID()" />
             }
         </aside>
 

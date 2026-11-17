@@ -10,7 +10,11 @@ public sealed record TeamSlot(int AvailabilityOptionID, DayOfWeek DayOfWeek, Tim
 /// A team's timeslots, each of its season's: its captain's own (<see cref="SetByCaptain"/>), else its roster's (a slot is
 /// the team's when enough of its players can play it: the season's rule).
 /// </summary>
-public sealed record TeamSlots(int TeamID, bool SetByCaptain, int RosterSize, IReadOnlyList<TeamSlot> Slots);
+public sealed record TeamSlots(int TeamID, bool SetByCaptain, int RosterSize, IReadOnlyList<TeamSlot> Slots)
+{
+    /// <summary>The caller may change them: the team's captain, or staff (<see cref="TeamAvailabilityService.MayChangeAsync"/>).</summary>
+    public bool CanChange { get; init; }
+}
 
 /// <summary>
 /// The teams' availability, which scheduling checks a match's time against: worked out from each team's roster, the
@@ -70,6 +74,10 @@ public sealed class TeamAvailabilityService(IApplicationDbContext context)
         var seasonID = await context.Teams.AsNoTracking().Where(t => t.TeamID == teamID).Select(t => (int?)t.SeasonID).SingleOrDefaultAsync(ct);
         return seasonID is { } season ? (await ForSeasonAsync(season, ct))[teamID] : null;
     }
+
+    /// <summary>Whether <paramref name="userID"/> may change <paramref name="teamID"/>'s timeslots: its captain, or <paramref name="staff"/>.</summary>
+    public async Task<bool> MayChangeAsync(int teamID, int userID, bool staff, CancellationToken ct = default)
+        => staff || await context.Teams.AsNoTracking().Where(t => t.TeamID == teamID).AnyAsync(Domain.League.Team.CaptainedBy(userID), ct);
 
     /// <summary>
     /// <paramref name="userID"/> (the team's captain, or <paramref name="staff"/>) set the team's own timeslots, from its season's,

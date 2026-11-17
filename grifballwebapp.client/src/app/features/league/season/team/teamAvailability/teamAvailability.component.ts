@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, linkedSignal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, untracked } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import type { TeamSlot } from '@api/models';
@@ -7,7 +7,7 @@ import { TeamAvailabilityStore } from './teamAvailability.store';
 /**
  * A team's timeslots, the ones scheduling checks its matches against: each of its season's, whether it's the team's and how
  * many of its roster can play it. Worked out from the roster's signups, unless its captain set the team's own: the captain
- * (and staff: canEdit) tick them here, or reset them to the roster's.
+ * (and staff: the server says who, canChange) tick them here, or reset them to the roster's.
  */
 @Component({
   selector: 'app-team-availability',
@@ -21,10 +21,9 @@ export class TeamAvailabilityComponent {
   private readonly store = inject(TeamAvailabilityStore);
 
   readonly teamID = input.required<number>();
-  /** The viewer captains the team, or is staff: they may change its timeslots. */
-  readonly canEdit = input(false);
-
   readonly slots = this.store.slots;
+  /** The viewer captains the team, or is staff: they may change its timeslots (the server says). */
+  readonly canEdit = computed(() => this.slots()?.canChange ?? false);
   readonly saving = this.store.saving;
   readonly error = this.store.error;
   /** The timeslots ticked: the team's, until the captain changes them. */
