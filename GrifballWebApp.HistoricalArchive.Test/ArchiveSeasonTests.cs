@@ -165,4 +165,26 @@ public class ArchiveSeasonTests
 
         Assert.That(sides.Where(s => !s.HasTeam).Select(s => s.Name).Distinct(), Is.Empty);
     }
+
+    /// <summary>SL25's Team Chart names two captains by a nickname: Junkyard Dogs' "Nkot" (NKOTB4evah, owner-confirmed on
+    /// #496) and Cosmic Oblivion's "DaedricKindred" (KindredDaedric). Every SL25 team has its captain.</summary>
+    [Test]
+    public async Task Sl25_EveryTeamHasItsCaptain_TheTwoTheChartNamesByANicknameToo()
+    {
+        await using var context = Archive.NewContext();
+        var teams = await context.Teams.AsNoTracking()
+            .Where(t => t.Season.HistoricalSourceID == "2025-octane-sl25-bid-stats/Regular Season Stats Sheet stat")
+            .Select(t => new { t.TeamName, Captain = t.Captain == null ? null : t.Captain.User.UserName })
+            .ToListAsync();
+        if (teams.Count == 0)
+            Assert.Ignore("Spring League 2025 (Octane Bid) isn't in this copy of the archive");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(teams.Where(t => t.Captain is null).Select(t => t.TeamName), Is.Empty);
+            var captains = teams.ToDictionary(t => t.TeamName, t => t.Captain);
+            Assert.That(captains.GetValueOrDefault("Junkyard Dogs"), Does.EndWith("NKOTB4evah").IgnoreCase);
+            Assert.That(captains.GetValueOrDefault("Cosmic Oblivion"), Does.EndWith("KindredDaedric").IgnoreCase);
+        }
+    }
 }

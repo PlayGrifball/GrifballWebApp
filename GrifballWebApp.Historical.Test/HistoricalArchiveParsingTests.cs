@@ -1060,6 +1060,37 @@ public class HistoricalArchiveParsingTests
         Assert.That(teams.Select(t => (t.TeamName, t.Captain)), Is.EqualTo(CaptainOnlyIfAPlayer));
     }
 
+    private static readonly (string, string?)[] Sl25Captains =
+    [
+        ("Junkyard Dogs", "NKOTB4evah"), ("Cosmic Oblivion", "KindredDaedric"), ("Murder Incorporated", "MasterSquirre"), ("Cosmic Oblivion", "KindredDaedric"),
+    ];
+
+    [Test]
+    public void AStandingsCaptain_TheTabNamesByANickname_IsThePlayerItsConfigNames()
+    {
+        // SL25's Team Chart names Junkyard Dogs' captain "Nkot" (NKOTB4evah: the owner confirmed it, #496) and Cosmic
+        // Oblivion's "DaedricKindred", its standings "(Daedric)" (KindredDaedric, the season's only Daedric): no player of the
+        // stats by those names, so neither team had a captain
+        List<HistoricalSourceContent> sources =
+        [
+            Source("2025-octane-sl25-bid-stats", new HistoricalSourceConfig
+                {
+                    Season = new SeasonDefaults { Name = "Spring League 2025 (Octane Bid)", Game = "infinite" },
+                    Tabs = [new() { Name = "Regular Season Stats Sheet stat" }],
+                },
+                Workbook(("Regular Season Stats Sheet stat", [Row("Player", "Team", "Games", "Kills"), Row("NKOTB4evah", null, 4, 1), Row("KindredDaedric", null, 4, 1), Row("MasterSquirre", null, 4, 1)]))),
+            Source("2025-octane-sl25-bid-schedule", HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == "2025-octane-sl25-bid-schedule").Config,
+                Workbook(
+                    ("Team Chart", [Row(null, "Season Standings", "14th", "9th", "8th"), Row(null, "Team Name:", "Junkyard Dogs", "Cosmic Oblivion", "Murder Incorporated"),
+                        Row(null, "Captain:", "Nkot", "DaedricKindred", "MasterSquirre")]),
+                    ("Schedule ListStandings", [Row("Team Standings", "Wins", "Loss"), Row("Cosmic Oblivion (Daedric)", 9, 10)]))),
+        ];
+
+        var teams = HistoricalArchiveBuilder.Build(sources).Input.Seasons.Seasons.Single(s => !s.IsPlayoffs).Teams;
+
+        Assert.That(teams.Select(t => (t.TeamName, t.Captain)), Is.EquivalentTo(Sl25Captains));
+    }
+
     [Test]
     public void AStandingsTeamWhoseNumberDiffers_IsNoStatsTeamALetterAway()
     {
