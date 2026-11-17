@@ -11024,6 +11024,9 @@
           "errors",
           "gamesLinked",
           "importJobID",
+          "ladderRanksInserted",
+          "ladderRanksRemoved",
+          "ladderRanksUpdated",
           "manualReplacedByWaypoint",
           "matchmakingSeasonsCreated",
           "matchmakingSeasonsUpdated",
@@ -11097,6 +11100,19 @@
             "format": "int32"
           },
           "statsUpdated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ladderRanksInserted": {
+            "type": "integer",
+            "description": "Late League ladder rows (a player's place on a matchmaking season's ladder) added, updated and removed (no longer\n            on the ladder).",
+            "format": "int32"
+          },
+          "ladderRanksUpdated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ladderRanksRemoved": {
             "type": "integer",
             "format": "int32"
           },
@@ -11288,6 +11304,8 @@
         "required": [
           "awardsBefore",
           "awardsRemoved",
+          "ladderBefore",
+          "ladderRemoved",
           "removesAnything",
           "seasonKey",
           "seasonName",
@@ -11330,6 +11348,15 @@
             "format": "int32"
           },
           "titlesRemoved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ladderBefore": {
+            "type": "integer",
+            "description": "A Late League season's ladder rows (MatchmakingLadderRank), measured apart from its stat rows.",
+            "format": "int32"
+          },
+          "ladderRemoved": {
             "type": "integer",
             "format": "int32"
           },
@@ -12580,6 +12607,76 @@
         "additionalProperties": false,
         "description": "brackets-model's MatchGame extends MatchResults (status, opponent1, opponent2), like Match."
       },
+      "MatchmakingLadderRankDto": {
+        "required": [
+          "division",
+          "gamertag",
+          "league",
+          "leaguePoints",
+          "losses",
+          "mmr",
+          "position",
+          "rank",
+          "streak",
+          "userID",
+          "wins"
+        ],
+        "type": "object",
+        "properties": {
+          "userID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "gamertag": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "division": {
+            "type": "string",
+            "nullable": true
+          },
+          "league": {
+            "type": "string",
+            "nullable": true
+          },
+          "rank": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "leaguePoints": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "streak": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "mmr": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "wins": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "losses": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A player's place on a matchmaking season's ladder (GrifballWebApp.Domain.LateLeague.MatchmakingLadderRank), as its sheet gives it."
+      },
       "MatchmakingPlayerStatDto": {
         "required": [
           "assists",
@@ -12724,6 +12821,7 @@
       },
       "MatchmakingSeasonDetailDto": {
         "required": [
+          "ladder",
           "players",
           "season"
         ],
@@ -12742,6 +12840,13 @@
             "items": {
               "$ref": "#/components/schemas/MatchmakingPlayerStatDto"
             }
+          },
+          "ladder": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatchmakingLadderRankDto"
+            },
+            "description": "The season's ladder (its ranked standings), top first; empty when the archive has none."
           }
         },
         "additionalProperties": false
@@ -12755,6 +12860,7 @@
           "gameVersionSlug",
           "historicalSourceUrl",
           "isHistorical",
+          "ladderCount",
           "matchmakingSeasonID",
           "name",
           "playerCount",
@@ -12796,6 +12902,11 @@
           },
           "playerCount": {
             "type": "integer",
+            "format": "int32"
+          },
+          "ladderCount": {
+            "type": "integer",
+            "description": "How many players its ladder ranks (GrifballWebApp.Domain.LateLeague.MatchmakingLadderRank).",
             "format": "int32"
           },
           "isHistorical": {
