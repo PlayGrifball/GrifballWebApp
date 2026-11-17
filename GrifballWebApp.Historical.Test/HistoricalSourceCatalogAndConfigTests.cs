@@ -156,4 +156,21 @@ internal sealed class HistoricalSourceCatalogAndConfigTests
     }
 
     private static readonly HashSet<string> JustStats = new(StringComparer.OrdinalIgnoreCase) { "Stats" };
+
+    private static HistoricalSourceConfig Config(string id) => HistoricalSourceCatalog.Sources.Single(s => s.HistoricalSourceID == id).Config!;
+
+    /// <summary>Both SML21 workbooks carry a hidden copy of Winter League 2021 (Legacy)'s Playoff Stats tab (its teams, its
+    /// #REF! cells): read, it put WL21 Legacy's five playoff teams in each SML21 season.</summary>
+    [TestCase("2021-sml21-pro-stats")]
+    [TestCase("2021-sml21-ammy-stats")]
+    public void Sml21_DoesNotRead_ItsCopyOfWinterLeague2021LegacysPlayoffStats(string id)
+    {
+        var names = Config(id).SheetNames();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(names.Contains("Playoff Stats"), Is.False);
+            Assert.That(names.Contains("FL21_PlayoffStats"), Is.True, "Its own FL21 playoff tab stays");
+        }
+    }
 }

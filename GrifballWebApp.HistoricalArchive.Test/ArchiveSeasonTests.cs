@@ -96,4 +96,20 @@ public class ArchiveSeasonTests
 
         Assert.That(teams.Where(t => t.TeamName.Trim().Length > 0 && t.TeamName.Trim().All(char.IsAsciiDigit)).Select(t => $"{t.SeasonName}: {t.TeamName}"), Is.Empty);
     }
+
+    /// <summary>Winter League 2021 (Legacy)'s playoff teams, whose Playoff Stats tab both SML21 workbooks carry a copy of.</summary>
+    private static readonly string[] Wl21LegacyPlayoffTeams = ["Fruit Gang", "Limitless", "Only in Dreams", "Rock Bottom", "Yung Humma"];
+
+    [TestCase("Summer League 2021 (Pro)")]
+    [TestCase("Summer League 2021 (Amateur)")]
+    public async Task Sml21_HasNoneOfWinterLeague2021LegacysPlayoffTeams(string seasonName)
+    {
+        await using var context = Archive.NewContext();
+        var teams = await context.Teams.AsNoTracking().Where(t => t.Season.HistoricalSourceID != null && t.Season.SeasonName == seasonName)
+            .Select(t => t.TeamName).ToListAsync();
+        if (teams.Count == 0)
+            Assert.Ignore($"{seasonName} isn't in this copy of the archive");
+
+        Assert.That(teams.Intersect(Wl21LegacyPlayoffTeams, StringComparer.OrdinalIgnoreCase), Is.Empty, "The hidden Playoff Stats tab is WL21 Legacy's");
+    }
 }
